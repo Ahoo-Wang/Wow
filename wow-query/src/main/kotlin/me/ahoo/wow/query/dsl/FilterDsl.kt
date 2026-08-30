@@ -137,16 +137,6 @@ class FilterDsl internal constructor(
         add(scoped.build())
     }
 
-    @Deprecated("Use path. Unlike nested, path groups multiple expressions with AND.")
-    fun String.nested(block: FilterDsl.() -> Unit) {
-        val nested = FilterDsl(
-            prefix = field(this).value,
-            allowScopedExpression = prefix == "" || allowScopedExpression,
-        ).apply(block)
-        require(nested.expressions.isNotEmpty()) { "nested block cannot be empty." }
-        nested.expressions.forEach(::add)
-    }
-
     fun String.elementMatch(block: FilterDsl.() -> Unit) {
         val nested = FilterDsl().apply(block)
         require(nested.expressions.isNotEmpty()) { "elementMatch block cannot be empty." }
@@ -173,13 +163,13 @@ class FilterDsl internal constructor(
 
     infix fun String.lte(value: Any?) = add(LessThanOrEqualFilter(field(this), value.literal()))
 
-    fun String.contains(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
+    fun String.containsText(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
         add(ContainsFilter(field(this), value, comparison))
 
-    fun String.startsWith(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
+    fun String.startsWithText(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
         add(StartsWithFilter(field(this), value, comparison))
 
-    fun String.endsWith(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
+    fun String.endsWithText(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
         add(EndsWithFilter(field(this), value, comparison))
 
     infix fun String.isIn(values: Iterable<*>) = add(InFilter(field(this), values.literals()))
@@ -301,10 +291,9 @@ class FilterDsl internal constructor(
         timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
     ) = add(EarlierDaysFilter(field(this), days, zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    internal fun build(): FilterExpression = when (expressions.size) {
-        0 -> MatchAllFilter
-        1 -> expressions.first()
-        else -> AndFilter(expressions.toList())
+    internal fun build(): FilterExpression {
+        require(expressions.isNotEmpty()) { "filter block cannot be empty." }
+        return expressions.singleOrNull() ?: AndFilter(expressions.toList())
     }
 
     private fun nestedLogical(

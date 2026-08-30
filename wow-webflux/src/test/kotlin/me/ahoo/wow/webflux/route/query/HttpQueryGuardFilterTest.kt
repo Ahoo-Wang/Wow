@@ -127,12 +127,12 @@ class HttpQueryGuardFilterTest {
     fun `should reject unsafe list queries before backend invocation`() {
         listOf(
             ListQuery(MatchAllFilter),
-            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.contains("wow") }, limit = 1),
-            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.endsWith("wow") }, limit = 1),
-            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.startsWith("") }, limit = 1),
+            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.containsText("wow") }, limit = 1),
+            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.endsWithText("wow") }, limit = 1),
+            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.startsWithText("") }, limit = 1),
             ListQuery(
                 filterExpression {
-                    MessageRecords.AGGREGATE_ID.startsWith("wow", StringComparison.CASE_INSENSITIVE)
+                    MessageRecords.AGGREGATE_ID.startsWithText("wow", StringComparison.CASE_INSENSITIVE)
                 },
                 limit = 1,
             ),

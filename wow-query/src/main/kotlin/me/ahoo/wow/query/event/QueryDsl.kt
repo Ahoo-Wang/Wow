@@ -62,7 +62,7 @@ fun FilterExpression.count(queryGateway: EventStreamQueryGateway): Mono<Long> {
     return queryGateway.count(this)
 }
 
-@Deprecated("Use FilterExpression.count.")
+@Deprecated("Scheduled for removal in 9.1.0. Use FilterExpression.count.")
 fun Condition.count(queryGateway: EventStreamQueryGateway): Mono<Long> {
     return queryGateway.count(this.toFilterExpression())
 }

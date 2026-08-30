@@ -25,6 +25,13 @@ import java.util.concurrent.TimeUnit
 
 class FilterDslTest {
     @Test
+    fun `should reject a filter block without expressions`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            filter { }
+        }
+    }
+
+    @Test
     fun `should build phrase search`() {
         val expression = filter {
             search("event sourcing", SearchMode.PHRASE, "title", "description")
@@ -180,22 +187,6 @@ class FilterDslTest {
     }
 
     @Test
-    @Suppress("DEPRECATION")
-    fun `should reject injected expression inside nested path scope`() {
-        val prebuilt = filter { "productId" eq "product-1" }
-
-        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
-            filter {
-                "state".path {
-                    "items".nested {
-                        expression(prebuilt)
-                    }
-                }
-            }
-        }
-    }
-
-    @Test
     fun `should reject invalid path scope`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             filter {
@@ -240,84 +231,12 @@ class FilterDslTest {
     }
 
     @Test
-    @Suppress("DEPRECATION")
-    fun `should preserve deprecated nested source compatibility`() {
-        val expression = filter {
-            "state".nested {
-                "name" eq "Wow"
-            }
-        }
-
-        (expression as EqualFilter).field.assert().isEqualTo(LogicalField("state.name"))
-    }
-
-    @Test
-    @Suppress("DEPRECATION")
-    fun `should reject empty nested block`() {
-        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
-            filter {
-                "state".nested { }
-            }
-        }
-    }
-
-    @Test
     fun `should reject empty element match block`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             filter {
                 "items".elementMatch { }
             }
         }
-    }
-
-    @Test
-    @Suppress("DEPRECATION")
-    fun `should preserve deprecated nested logical semantics`() {
-        val expression = filter {
-            or {
-                "state".nested {
-                    "status" eq "CREATED"
-                    "ownerId" eq "owner-1"
-                }
-                "tenantId" eq "tenant-1"
-            }
-        } as OrFilter
-
-        expression.operands.assert().hasSize(3)
-    }
-
-    @Test
-    @Suppress("DEPRECATION")
-    fun `should preserve prebuilt expressions in deprecated nested logical blocks`() {
-        val prebuilt = filter { "name" eq "Wow" }
-
-        val expression = filter {
-            "state".nested {
-                or {
-                    expression(prebuilt)
-                    "status" eq "CREATED"
-                }
-            }
-        } as OrFilter
-
-        expression.operands[0].assert().isSameAs(prebuilt)
-        (expression.operands[1] as EqualFilter).field.assert().isEqualTo(LogicalField("state.status"))
-    }
-
-    @Test
-    @Suppress("DEPRECATION")
-    fun `should preserve prebuilt expressions in nested chains from root`() {
-        val prebuilt = filter { "name" eq "Wow" }
-
-        val expression = filter {
-            "state".nested {
-                "child".nested {
-                    expression(prebuilt)
-                }
-            }
-        }
-
-        expression.assert().isSameAs(prebuilt)
     }
 
     @Test
@@ -346,10 +265,10 @@ class FilterDslTest {
             "greaterThanOrEqual" gte 1
             "lessThan" lt 1
             "lessThanOrEqual" lte 1
-            "contains".contains("value", StringComparison.CASE_INSENSITIVE)
-            "containsDefault".contains("value")
-            "startsWith".startsWith("value")
-            "endsWith".endsWith("value")
+            "contains".containsText("value", StringComparison.CASE_INSENSITIVE)
+            "containsDefault".containsText("value")
+            "startsWith".startsWithText("value")
+            "endsWith".endsWithText("value")
             "in" isIn listOf(1, 2)
             "notIn" notIn listOf(1, 2)
             "between".between(1, 2)

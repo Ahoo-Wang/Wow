@@ -21,7 +21,9 @@ import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.FORBIDDEN_CURSOR_SORTS
+import me.ahoo.wow.query.mask.withInternalEventBodyType
 
 enum class QuerySchemaValidationMode {
     COMPATIBLE,
@@ -104,10 +106,15 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         filterResolver.resolve(filter)
 
     fun resolve(projection: Projection): QuerySchemaResolution<Projection> {
-        val include = projection.include.map {
+        val effectiveProjection = if (schema.model == QueryModel.EVENT_STREAM && schema.hasMaskedFields) {
+            projection.withInternalEventBodyType()
+        } else {
+            projection
+        }
+        val include = effectiveProjection.include.map {
             fieldResolver.resolveProjectionPath(it)
         }
-        val exclude = projection.exclude.map {
+        val exclude = effectiveProjection.exclude.map {
             fieldResolver.resolveProjectionPath(it)
         }
         return QuerySchemaResolution(
@@ -143,9 +150,14 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             item.copy(field = field?.value ?: item.field) to
                 if (accepted) QueryCompatibilityLevel.EXACT else QueryCompatibilityLevel.INCOMPATIBLE
         }
+        val values = resolved.map { it.first }
         return QuerySchemaResolution(
-            resolved.map { it.first },
-            resolved.map { it.second }.combined(),
+            values,
+            if (values.map(Sort::field).distinct().size == values.size) {
+                resolved.map { it.second }.combined()
+            } else {
+                QueryCompatibilityLevel.INCOMPATIBLE
+            },
         )
     }
 

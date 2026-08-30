@@ -119,6 +119,32 @@ class DefaultEventStreamQueryGatewayTest {
     }
 
     @Test
+    fun `event gateway should remove internally projected body type`() {
+        val eventStream = generateEventStream(
+            MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId()),
+            eventCount = 1,
+            createdEventSupplier = { MockAggregateCreated("secret") },
+        )
+        val raw = eventStream.toJsonNode<ObjectNode>()
+        val bodyType = raw.path("body").path(0).path("bodyType").stringValue()
+        val gateway = DefaultEventStreamQueryGateway(
+            MOCK_AGGREGATE_METADATA,
+            SchemaEventBackend(eventStream::toJsonNode, eventSchema(bodyType)),
+            errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+        )
+
+        val result = gateway.dynamicSingle(
+            singleQuery {
+                projection { include("body.body.data") }
+            },
+        ).block()!!
+        val event = result.path("body").path(0)
+
+        event.path("body").path("data").stringValue().assert().isEqualTo("******")
+        event.has("bodyType").assert().isFalse()
+    }
+
+    @Test
     fun `event gateway should refresh masker when body type schema changes`() {
         val eventStream = generateEventStream(
             MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId()),

@@ -16,9 +16,9 @@ package me.ahoo.wow.query.snapshot
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.AbstractQueryGateway
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.QueryLogErrorHandler
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import tools.jackson.databind.JavaType
@@ -30,7 +30,7 @@ class DefaultSnapshotQueryGateway<S : Any>(
     backend: SnapshotQueryBackend,
     targetType: JavaType,
     filters: List<QueryFilter<QueryContext<*, *>>> = emptyList(),
-    errorHandler: ErrorHandler<QueryContext<*, *>> = LogErrorHandler(),
+    errorHandler: ErrorHandler<QueryContext<*, *>> = QueryLogErrorHandler(),
 ) : SnapshotQueryGateway<S>,
     AbstractQueryGateway<MaterializedSnapshot<S>>(
         namedAggregate,

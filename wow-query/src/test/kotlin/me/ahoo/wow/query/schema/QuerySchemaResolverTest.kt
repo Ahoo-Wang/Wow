@@ -1579,6 +1579,52 @@ class QuerySchemaResolverTest {
         }
     }
 
+    @Test
+    fun `cursor sort should reject distinct logical fields resolved to the same physical field`() {
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("state.idAlias") to fieldSchema(QueryCapability.SORT to "_id"),
+                    LogicalField("aggregateId") to fieldSchema(QueryCapability.SORT to "_id"),
+                ),
+            ),
+        )
+        val query = CursorQuery(
+            MatchAllFilter,
+            sort = listOf(
+                Sort("state.idAlias", Sort.Direction.DESC),
+                Sort("aggregateId", Sort.Direction.ASC),
+            ),
+        )
+
+        resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `masked event projection should include body type for internal validation`() {
+        val resolver = QuerySchemaResolver(
+            QueryModelSchema(
+                QueryModel.EVENT_STREAM,
+                emptySet(),
+                mapOf(
+                    LogicalField("body.body.secret") to fieldSchema(
+                        QueryCapability.PRESENCE to "body.body.secret",
+                        maskRule = fullMaskRule(),
+                    ),
+                    LogicalField("body.bodyType") to fieldSchema(
+                        QueryCapability.PRESENCE to "document.events.type",
+                    ),
+                ),
+            ),
+        )
+
+        val resolved = resolver.resolve(
+            Projection(include = listOf("body.body.secret")),
+        ).value
+
+        resolved.include.assert().containsExactly("body.body.secret", "document.events.type")
+    }
+
     private fun schema(
         fields: Map<LogicalField, QueryFieldSchema> = emptyMap(),
         capabilities: Set<QueryCapability> = emptySet(),

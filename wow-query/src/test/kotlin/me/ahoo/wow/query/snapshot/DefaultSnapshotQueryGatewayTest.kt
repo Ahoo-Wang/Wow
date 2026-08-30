@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.query.snapshot
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
@@ -61,6 +65,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -90,6 +95,22 @@ class DefaultSnapshotQueryGatewayTest {
         StepVerifier.create(result)
             .assertNext { it.stateValue().assert().isEqualTo("***********") }
             .verifyComplete()
+    }
+
+    @Test
+    fun `snapshot masking should not remove event body type fields`() {
+        val node = snapshotNode().also {
+            it.putArray("body").addObject().put("bodyType", "keep")
+        }
+        val backend = SchemaSnapshotBackend({ Mono.just(maskedSchema()) }, nodeSupplier = { node.deepCopy() })
+
+        val result = gateway(backend).dynamicSingle(
+            singleQuery {
+                projection { include("body.body.data") }
+            },
+        ).block()!!
+
+        result.path("body").path(0).has("bodyType").assert().isTrue()
     }
 
     @Test
@@ -263,6 +284,40 @@ class DefaultSnapshotQueryGatewayTest {
     }
 
     @Test
+    fun `default error handler should not log mask strategy cause`() {
+        val failure = IllegalStateException("secret-value")
+        val annotation = Masked::value.javaField!!.getAnnotation(Mask::class.java)
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(
+                LogicalField("state.value") to fieldSchema(
+                    MaskRule(FullMaskStrategy::class, annotation, CompiledMask { throw failure }),
+                ),
+            ),
+        )
+        val backend = SchemaSnapshotBackend(Mono.just(schema))
+        val errors = captureErrors {
+            DefaultSnapshotQueryGateway<TestState>(
+                namedAggregate = MOCK_AGGREGATE_METADATA,
+                backend = backend,
+                targetType = JsonSerializer.typeFactory.constructParametricType(
+                    MaterializedSnapshot::class.java,
+                    TestState::class.java,
+                ),
+            ).dynamicSingle(singleQuery { }).test()
+                .expectError(QuerySchemaValidationException::class.java)
+                .verify()
+        }
+
+        errors.assert().hasSize(1)
+        errors.single().formattedMessage.assert()
+            .isEqualTo("Mask strategy execution failed.")
+            .doesNotContain("secret-value")
+        errors.single().throwableProxy.assert().isNull()
+    }
+
+    @Test
     fun `gateway should retry schema loading after an earlier request fails`() {
         val failure = QuerySchemaUnavailableException("first")
         val attempts = AtomicInteger()
@@ -401,6 +456,19 @@ class DefaultSnapshotQueryGatewayTest {
         filters = filters,
         errorHandler = errorHandler,
     )
+
+    private fun captureErrors(block: () -> Unit): List<ILoggingEvent> {
+        val logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        return try {
+            block()
+            appender.list.filter { it.level == Level.ERROR }
+        } finally {
+            logger.detachAppender(appender)
+            appender.stop()
+        }
+    }
 
     private fun around(name: String, order: MutableList<String>) = object : QueryFilter<QueryContext<*, *>> {
         override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
