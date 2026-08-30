@@ -11,24 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.filter
+package me.ahoo.wow.query.dsl
 
-import me.ahoo.test.asserts.assert
-import org.junit.jupiter.api.Test
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.ICursorQuery
 
-class QueryTypeTest {
+@QueryDslMarker
+class CursorQueryDsl : QueryableDsl<ICursorQuery>() {
+    private var size: Int = CursorQuery.DEFAULT_SIZE
+    private var cursor: String? = null
 
-    @Test
-    fun `query type should describe only backend operations`() {
-        QueryType.entries.assert().isEqualTo(
-            listOf(
-                QueryType.SINGLE,
-                QueryType.LIST,
-                QueryType.PAGED,
-                QueryType.CURSOR,
-                QueryType.COUNT,
-                QueryType.AGGREGATION,
-            ),
-        )
+    fun size(value: Int) {
+        size = value
     }
+
+    fun cursor(value: String?) {
+        cursor = value
+    }
+
+    override fun build(): ICursorQuery = CursorQuery(filter, projection, sort, size, cursor)
 }

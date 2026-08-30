@@ -18,6 +18,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -57,6 +58,10 @@ class QueryGatewayApiTest {
             IPagedQuery::class.java
         ).returnType.assert().isEqualTo(Mono::class.java)
         QueryGateway::class.java.getMethod("dynamicPaged", IPagedQuery::class.java).returnType
+            .assert().isEqualTo(Mono::class.java)
+        QueryGateway::class.java.getMethod("cursor", ICursorQuery::class.java).returnType
+            .assert().isEqualTo(Mono::class.java)
+        QueryGateway::class.java.getMethod("dynamicCursor", ICursorQuery::class.java).returnType
             .assert().isEqualTo(Mono::class.java)
         QueryGateway::class.java.getMethod("count", FilterExpression::class.java).returnType
             .assert().isEqualTo(Mono::class.java)

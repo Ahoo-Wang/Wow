@@ -16,12 +16,17 @@ package me.ahoo.wow.query.event
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -90,6 +95,15 @@ class DefaultEventStreamQueryGatewayTest {
             .assert().isEqualTo("******")
         val typed = gateway.single(singleQuery { }).block()!!
         (typed.body.single().body as MockAggregateCreated).data.assert().isEqualTo("******")
+
+        val query = CursorQuery(MatchAllFilter, sort = listOf(Sort("id", Sort.Direction.ASC)))
+        val dynamicCursor = gateway.dynamicCursor(query).block()!!
+        dynamicCursor.nextCursor.assert().isEqualTo("next")
+        dynamicCursor.list.single().path("body").path(0).path("body").path("data").stringValue()
+            .assert().isEqualTo("******")
+        val typedCursor = gateway.cursor(query).block()!!
+        typedCursor.nextCursor.assert().isEqualTo("next")
+        (typedCursor.list.single().body.single().body as MockAggregateCreated).data.assert().isEqualTo("******")
     }
 
     @Test
@@ -168,6 +182,8 @@ class DefaultEventStreamQueryGatewayTest {
         override fun single(query: ISingleQuery): Mono<ObjectNode> = Mono.fromSupplier(nodeSupplier)
         override fun list(query: IListQuery): Flux<ObjectNode> = Flux.empty()
         override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
+        override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+            Mono.fromSupplier { CursorPage(listOf(nodeSupplier()), "next") }
         override fun count(filter: FilterExpression): Mono<Long> = Mono.just(0)
         override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
     }

@@ -15,7 +15,9 @@ package me.ahoo.wow.query
 
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -38,6 +40,8 @@ interface QueryBackend : NamedAggregateDecorator {
     fun single(query: ISingleQuery): Mono<ObjectNode>
     fun list(query: IListQuery): Flux<ObjectNode>
     fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>>
+    fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+        Mono.error(UnsupportedOperationException("Cursor query is not supported."))
     fun count(filter: FilterExpression): Mono<Long>
     fun aggregate(query: AggregationQuery): Flux<ObjectNode>
 }

@@ -15,7 +15,9 @@ package me.ahoo.wow.query.snapshot
 
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -46,6 +48,10 @@ fun <S : Any> IPagedQuery.query(queryGateway: SnapshotQueryGateway<S>): Mono<Pag
     return queryGateway.paged(this)
 }
 
+fun <S : Any> ICursorQuery.query(
+    queryGateway: SnapshotQueryGateway<S>,
+): Mono<CursorPage<MaterializedSnapshot<S>>> = queryGateway.cursor(this)
+
 fun <S : Any> ISingleQuery.query(queryGateway: SnapshotQueryGateway<S>): Mono<MaterializedSnapshot<S>> {
     return queryGateway.single(this)
 }
@@ -57,6 +63,9 @@ fun IListQuery.dynamicQuery(queryGateway: SnapshotQueryGateway<*>): Flux<ObjectN
 fun IPagedQuery.dynamicQuery(queryGateway: SnapshotQueryGateway<*>): Mono<PagedList<ObjectNode>> {
     return queryGateway.dynamicPaged(this)
 }
+
+fun ICursorQuery.dynamicQuery(queryGateway: SnapshotQueryGateway<*>): Mono<CursorPage<ObjectNode>> =
+    queryGateway.dynamicCursor(this)
 
 fun ISingleQuery.dynamicQuery(queryGateway: SnapshotQueryGateway<*>): Mono<ObjectNode> {
     return queryGateway.dynamicSingle(this)
