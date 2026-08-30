@@ -1165,11 +1165,14 @@ test("shows a distinct dashboard skeleton while initial data is pending", async 
 
   try {
     await page.goto("/");
+    await expect(
+      page.getByRole("button", { name: /^Time range:/ }),
+    ).toBeVisible();
     const loading = page.getByRole("status", { name: "Loading dashboard" });
     await expect(loading).toBeVisible();
-    await expect(loading.locator("[data-slot='skeleton']").first()).toHaveClass(
-      /bg-muted/,
-    );
+    await expect(
+      page.locator(".dashboard-view [data-slot='skeleton']").first(),
+    ).toHaveClass(/bg-muted/);
   } finally {
     release();
   }
