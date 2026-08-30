@@ -137,7 +137,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             }
             val accepted = field?.compatibility == QueryCompatibilityLevel.EXACT &&
                 field.fieldSchema != null && field.fieldSchema.cardinality == QueryCardinality.SINGLE &&
-                field.fieldSchema.maskRule == null
+                field.fieldSchema.maskRule == null && !field.matchesMaskedCandidate()
             item.copy(field = field?.value ?: item.field) to
                 if (accepted) QueryCompatibilityLevel.EXACT else QueryCompatibilityLevel.INCOMPATIBLE
         }
@@ -239,6 +239,16 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             resolved
         } else {
             resolved.copy(compatibility = QueryCompatibilityLevel.INCOMPATIBLE)
+        }
+    }
+
+    private fun QueryFieldResolution.matchesMaskedCandidate(): Boolean {
+        val logicalCandidate = logical.value
+        val physicalCandidate = physicalPath ?: logicalCandidate
+        return schema.maskedFields.values.any { maskedField ->
+            val projectionPath = maskedField.projectionPath
+            (!projectionPath.isNullOrEmpty() && projectionPath == logicalCandidate) ||
+                maskedField.bindings.values.any { binding -> binding.physicalPath == physicalCandidate }
         }
     }
 

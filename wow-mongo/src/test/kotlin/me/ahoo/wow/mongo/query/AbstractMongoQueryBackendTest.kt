@@ -38,11 +38,13 @@ import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.converter.FieldConverter
+import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -222,6 +224,43 @@ class AbstractMongoQueryBackendTest {
     }
 
     @Test
+    fun `built-in cursor should reject masked aliases before Mongo access`() {
+        val schemaProvider = mockk<QueryModelSchemaProvider>()
+        every { schemaProvider.schema() } returns Mono.just(
+            QueryModelSchema(
+                model = QueryModel.SNAPSHOT,
+                capabilities = emptySet(),
+                fields = mapOf(
+                    LogicalField(MessageRecords.AGGREGATE_ID) to cursorFieldSchema("_id"),
+                    LogicalField("state.emailAlias") to cursorFieldSchema(
+                        physicalPath = "masked_email",
+                        projectionPath = "state.email",
+                        maskRule = mockk(),
+                    ),
+                    LogicalField("state.email") to cursorFieldSchema("email"),
+                    LogicalField("state.secret") to cursorFieldSchema("secret", maskRule = mockk()),
+                    LogicalField("state.secretAlias") to cursorFieldSchema("secret"),
+                ),
+            ),
+        )
+        val builtIn = MongoSnapshotQueryBackend(
+            namedAggregate = MaterializedNamedAggregate("test", "aggregate"),
+            collection = collection,
+            schemaProvider = schemaProvider,
+        )
+
+        listOf("state.email", "state.secretAlias").forEach { alias ->
+            builtIn.cursor(CursorQuery(MatchAllFilter, sort = listOf(Sort(alias, Sort.Direction.ASC))))
+                .test()
+                .expectError(QuerySchemaValidationException::class.java)
+                .verify()
+        }
+
+        verify(exactly = 2) { schemaProvider.schema() }
+        verify(exactly = 0) { collection.find(any<Bson>()) }
+    }
+
+    @Test
     fun `cursor keyset projection and token should use physical sort paths`() {
         val mappedBackend = object : AbstractMongoQueryBackend() {
             override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
@@ -360,7 +399,11 @@ class AbstractMongoQueryBackendTest {
         }
     }
 
-    private fun cursorFieldSchema(physicalPath: String) = QueryFieldSchema(
+    private fun cursorFieldSchema(
+        physicalPath: String,
+        projectionPath: String = physicalPath,
+        maskRule: MaskRule? = null,
+    ) = QueryFieldSchema(
         title = null,
         description = null,
         enumValues = null,
@@ -374,6 +417,7 @@ class AbstractMongoQueryBackendTest {
             QueryCapability.PRESENCE to QueryFieldBinding(physicalPath, storageType = null),
             QueryCapability.SORT to QueryFieldBinding(physicalPath, storageType = null),
         ),
-        projectionPath = physicalPath,
+        projectionPath = projectionPath,
+        maskRule = maskRule,
     )
 }

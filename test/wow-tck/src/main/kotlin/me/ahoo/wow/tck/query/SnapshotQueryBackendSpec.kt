@@ -76,6 +76,7 @@ abstract class SnapshotQueryBackendSpec {
     lateinit var snapshotQueryBackendFactory: SnapshotQueryBackendFactory
     lateinit var snapshotQueryBackend: SnapshotQueryBackend
     lateinit var snapshot: Snapshot<MockStateAggregate>
+    protected open val cursorQuerySupported: Boolean = false
 
     @BeforeEach
     open fun setup() {
@@ -101,6 +102,10 @@ abstract class SnapshotQueryBackendSpec {
     protected abstract fun createSnapshotQueryBackendFactory(): SnapshotQueryBackendFactory
     protected open fun prepareNullAndMissingCursorSnapshots(nullId: String, missingId: String) {
         Assumptions.assumeTrue(false) { "Snapshot cursor null/missing fixture is not available." }
+    }
+
+    protected fun assumeCursorQuerySupported() {
+        Assumptions.assumeTrue(cursorQuerySupported) { "Snapshot cursor query is not supported." }
     }
 
     @Test
@@ -203,6 +208,7 @@ abstract class SnapshotQueryBackendSpec {
 
     @Test
     fun `cursor should traverse tied versions without duplicates`() {
+        assumeCursorQuerySupported()
         val cursorAggregateIds = saveCursorSnapshots(
             MockStateAggregate(id = "cursor-snapshot-a"),
             MockStateAggregate(id = "cursor-snapshot-b"),
@@ -226,6 +232,7 @@ abstract class SnapshotQueryBackendSpec {
 
     @Test
     fun `cursor should support descending multi field sort`() {
+        assumeCursorQuerySupported()
         val cursorAggregateIds = saveCursorSnapshots(
             MockStateAggregate(id = "cursor-desc-a", createdAt = 2),
             MockStateAggregate(id = "cursor-desc-b", createdAt = 2),
@@ -251,6 +258,7 @@ abstract class SnapshotQueryBackendSpec {
 
     @Test
     fun `cursor should traverse null and missing sort values in both directions`() {
+        assumeCursorQuerySupported()
         val nullId = "cursor-null"
         val missingId = "cursor-missing"
         val valueId = "cursor-value"
@@ -290,6 +298,7 @@ abstract class SnapshotQueryBackendSpec {
 
     @Test
     fun `cursor should not expose projection-only cursor fields`() {
+        assumeCursorQuerySupported()
         snapshotQueryBackend.cursor(
             CursorQuery(
                 filter = IdFilter(snapshot.aggregateId.id),
@@ -308,6 +317,7 @@ abstract class SnapshotQueryBackendSpec {
 
     @Test
     fun `cursor should return an empty terminal page`() {
+        assumeCursorQuerySupported()
         snapshotQueryBackend.cursor(
             CursorQuery(
                 IdFilter("missing"),

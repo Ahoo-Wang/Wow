@@ -46,6 +46,8 @@ import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
 
 class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
+    override val cursorQuerySupported: Boolean = true
+
     @JvmField
     @RegisterExtension
     val mongo = MongoTestFixture()

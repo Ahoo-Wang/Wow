@@ -12,12 +12,14 @@
 
 ## Global Constraints
 
-- 基线为 `origin/agent/static-annotation-mask-v9-main` 的 `e42756112`；分支为 `feat/cursor-query-v9`。
+- 初始基线为 `origin/agent/static-annotation-mask-v9-main` 的 `e42756112`；收尾时已 rebase 到
+  `bd6002581`，分支为 `feat/cursor-query-v9`。
 - 现有 `feat/cursor-query`、PR #3091、V8 `QueryService` 实现和历史提交不得改写或合并。
 - 现有 single/list/paged/count/aggregate 行为、普通 masked filter/sort/projection 语义不变。
 - CursorQuery 无状态、仅向后、无 total、无 previous cursor、无 PIT、无跨请求快照一致性。
 - Snapshot 有效排序追加 `aggregateId`；EventStream 追加 `id`；拒绝重复字段和 `_score`、`_doc`、`_shard_doc`。
-- 所有有效 cursor sort 必须精确解析为已知 SORT binding，且 `maskRule == null`；Schema unavailable 必须 fail-closed。
+- 所有有效 cursor sort 必须精确解析为已知、`SINGLE` 的 SORT binding，且 `maskRule == null`，
+  其逻辑/物理路径也不得命中 masked projection/binding alias；Schema unavailable 必须 fail-closed。
 - token 只使用无 padding Base64URL；不得新增 AES、签名、key、key ring、fallback secret、过期时间或服务端 cursor 状态。
 - MongoDB 不执行 `countDocuments`/`skip`；Elasticsearch 不设置 `from`/PIT，且 `track_total_hits=false`。
 - 不新增依赖、不改 Gradle 模块结构、不手改生成客户端、不运行 `javap`。
@@ -30,7 +32,7 @@
 
 - `wow-api/.../CursorQuery.kt`、`CursorPage.kt`：稳定公共 wire/API 契约。
 - `wow-query/.../CursorQueries.kt`：唯一排序追加与通用稳定性限制。
-- `wow-query/.../QuerySchemaResolver.kt`：cursor sort 的 EXACT + unmasked 安全判定。
+- `wow-query/.../QuerySchemaResolver.kt`：cursor sort 的 EXACT + SINGLE + unmasked/无 alias 安全判定。
 - `wow-query/.../QueryGateway.kt`：V9 filter/error/mask/typed-dynamic cursor 管线。
 - `wow-mongo/.../MongoCursorFilterCompiler.kt`：MongoDB 词典序 keyset filter。
 - `wow-mongo/.../MongoCursorDocuments.kt`：BSON token、临时 projection 与 CursorPage 映射。
@@ -413,7 +415,8 @@ private fun resolveCursorSort(sort: List<Sort>): QuerySchemaResolution<List<Sort
             fieldResolver.resolve(logical, QueryCapability.SORT, null, null)
         }
         val accepted = field?.compatibility == QueryCompatibilityLevel.EXACT &&
-            field.fieldSchema?.maskRule == null
+            field.fieldSchema?.cardinality == QueryCardinality.SINGLE &&
+            field.fieldSchema.maskRule == null && !field.matchesMaskedCandidate()
         item.copy(field = field?.value ?: item.field) to
             if (accepted) QueryCompatibilityLevel.EXACT else QueryCompatibilityLevel.INCOMPATIBLE
     }
@@ -1243,7 +1246,7 @@ git commit -m "feat(query): publish V9 cursor contracts"
 响应：list/nextCursor；nextCursor == null 时终止
 性能：Mongo keyset、Elasticsearch search_after、无 count/offset/total
 一致性：无 PIT、无跨请求快照、只向后
-安全：有效 sort 必须是 EXACT 且未 @Mask；Schema unavailable fail-closed
+安全：有效 sort 必须是 EXACT、SINGLE 且不命中任何 Mask rule/alias；Schema unavailable fail-closed
 token：后端 Base64URL continuation，不加密、不签名、不承载授权，不应记录日志
 限制：后续请求保持 filter/sort；每次重新应用租户、授权、filter 与 SchemaMasker
 配置：不存在 wow.query.cursor.encryption-key

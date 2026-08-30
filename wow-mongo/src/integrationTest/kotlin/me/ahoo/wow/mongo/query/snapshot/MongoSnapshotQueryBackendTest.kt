@@ -80,6 +80,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
+    override val cursorQuerySupported: Boolean = true
+
     @JvmField
     @RegisterExtension
     val mongo = MongoTestFixture()
