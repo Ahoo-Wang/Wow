@@ -200,19 +200,27 @@ private class MaskAttributeOverride<M : MemberScope<*, *>>(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught", "UNCHECKED_CAST")
     private fun Pair<Annotation, Masking>.toMaskRule(): MaskRule {
         val strategyType = second.strategy
         val strategy = try {
             strategyType.objectInstance ?: strategyType.java.getConstructor().newInstance()
-        } catch (error: ReflectiveOperationException) {
+        } catch (error: Exception) {
             throw QuerySchemaConflictException(
                 "Unable to instantiate MaskStrategy [${strategyType.qualifiedName}].",
                 error,
             )
         }
 
-        @Suppress("UNCHECKED_CAST")
-        val compiled = (strategy as MaskStrategy<Annotation>).compile(first)
+        val compiled = try {
+            (strategy as MaskStrategy<Annotation>).compile(first)
+        } catch (error: Exception) {
+            throw QuerySchemaConflictException(
+                "Unable to compile mask annotation [${first.annotationClass.qualifiedName}] " +
+                    "with MaskStrategy [${strategyType.qualifiedName}].",
+                error,
+            )
+        }
         return MaskRule(strategyType, first, compiled)
     }
 }

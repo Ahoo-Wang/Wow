@@ -14,7 +14,6 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ElementMatchFilter
@@ -122,7 +121,7 @@ class QuerySchemaValidationModeTest {
     }
 
     @Test
-    fun `compatible mode should fall back only when schema is unavailable`() {
+    fun `compatible mode should fall back for non aggregation requests when schema is unavailable`() {
         val unavailable = QuerySchemaUnavailableException("unavailable")
         val provider = FixedProvider(Mono.error(unavailable))
         val filter = EqualFilter(LogicalField("state.name"), JsonNodeFactory.instance.stringNode("name"))
@@ -131,24 +130,22 @@ class QuerySchemaValidationModeTest {
         val single = SingleQuery(filter, tagsProjection, tagsSort)
         val list = ListQuery(filter, tagsProjection, tagsSort, limit = 7)
         val paged = PagedQuery(filter, tagsProjection, tagsSort, Pagination(2, 11))
-        val aggregation = AggregationQuery(
-            filter = filter,
-            elements = listOf(
-                AggregationElement(
-                    LogicalField("state.items"),
-                    EqualFilter(LogicalField("tags.department"), JsonNodeFactory.instance.stringNode("eng")),
-                ),
-            ),
-            metrics = listOf(AggregationMetric.Count("count")),
-        )
 
         provider.resolve(filter, QuerySchemaValidationMode.COMPATIBLE).block().assert().isSameAs(filter)
         provider.resolve(single, QuerySchemaValidationMode.COMPATIBLE).block().assert().isSameAs(single)
         provider.resolve(list, QuerySchemaValidationMode.COMPATIBLE).block().assert().isSameAs(list)
         provider.resolve(paged, QuerySchemaValidationMode.COMPATIBLE).block().assert().isSameAs(paged)
-        provider.resolve(aggregation, QuerySchemaValidationMode.COMPATIBLE).block().assert().isEqualTo(
-            ResolvedAggregationQuery(aggregation, schema = null),
-        )
+    }
+
+    @Test
+    fun `compatible mode should propagate schema unavailable for aggregation`() {
+        val unavailable = QuerySchemaUnavailableException("unavailable")
+        val provider = FixedProvider(Mono.error(unavailable))
+        val aggregation = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
+
+        StepVerifier.create(provider.resolve(aggregation, QuerySchemaValidationMode.COMPATIBLE))
+            .expectErrorSatisfies { error -> error.assert().isSameAs(unavailable) }
+            .verify()
     }
 
     @Test

@@ -361,6 +361,21 @@ internal data class ThrowingMaskStrategyState(
     @field:ThrowingMask val secret: String,
 )
 
+internal val compileMaskFailure = IllegalStateException("compile failed")
+
+@Target(AnnotationTarget.FIELD)
+@Retention(AnnotationRetention.RUNTIME)
+@Masking(CompileThrowingMaskStrategy::class)
+internal annotation class CompileThrowingMask
+
+internal object CompileThrowingMaskStrategy : MaskStrategy<CompileThrowingMask> {
+    override fun compile(annotation: CompileThrowingMask): CompiledMask = throw compileMaskFailure
+}
+
+internal data class CompileThrowingMaskStrategyState(
+    @field:CompileThrowingMask val secret: String,
+)
+
 internal open class ParentPropertyMaskedState(
     @property:PublicClassMask(prefix = "parent-")
     open val inheritedSecret: String,

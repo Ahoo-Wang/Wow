@@ -148,6 +148,17 @@ class SchemaMaskerTest {
     }
 
     @Test
+    fun `event stream should preserve projected results with missing or null body`() {
+        val masker = SchemaMasker.create(eventSchema("body.body.secret" to fullMaskRule()))!!
+
+        listOf("{}", """{"body":null}""").forEach { json ->
+            val node = json.toJsonNode<ObjectNode>()
+
+            masker.mask(node).assert().isSameAs(node)
+        }
+    }
+
+    @Test
     fun `event stream should fail closed for non-array body`() {
         val masker = SchemaMasker.create(eventSchema("body.body.secret" to fullMaskRule()))!!
 

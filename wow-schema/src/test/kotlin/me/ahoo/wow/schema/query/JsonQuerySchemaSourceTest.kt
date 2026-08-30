@@ -607,6 +607,16 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should wrap mask strategy compile failure as conflict`() {
+        val error = assertThrows<QuerySchemaConflictException> {
+            load(CompileThrowingMaskStrategyState::class.java)
+        }
+
+        error.message.assert().contains("Unable to compile mask annotation")
+        error.cause.assert().isSameAs(compileMaskFailure)
+    }
+
+    @Test
     fun `should reject multiple effective mask annotations on one property`() {
         assertThrownBy<QuerySchemaConflictException> {
             load(ConflictingMaskAnnotationsState::class.java)
