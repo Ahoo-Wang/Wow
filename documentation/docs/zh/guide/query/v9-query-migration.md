@@ -60,6 +60,17 @@ V9 删除旧 JVM 类型，不提供 bridge、typealias 或 deprecation 过渡。
 | `QueryType.DYNAMIC_LIST` | `QueryType.LIST` |
 | `QueryType.DYNAMIC_PAGED` | `QueryType.PAGED` |
 | `QueryType.isDynamic` | 已删除；typed 与节点路径共享操作类型 |
+| `SnapshotRepository` | `SnapshotStore` |
+| `NoOpSnapshotRepository` | `NoOpSnapshotStore` |
+| `InMemorySnapshotRepository` | `InMemorySnapshotStore` |
+| `DelaySnapshotRepository` | `DelaySnapshotStore` |
+| `ElasticsearchSnapshotRepository` | `ElasticsearchSnapshotStore` |
+| `TracingSnapshotRepository` | `TracingSnapshotStore` |
+| `SnapshotRepositoryInstrumenter` | `SnapshotStoreInstrumenter` |
+| `SnapshotRepositorySaveSpanNameExtractor` | `SnapshotStoreSaveSpanNameExtractor` |
+| `SnapshotRepositoryLoadSpanNameExtractor` | `SnapshotStoreLoadSpanNameExtractor` |
+| `SnapshotRepositorySpec` | `SnapshotStoreSpec` |
+| `SnapshotStoreSpec.createSnapshotRepository()` / `SnapshotQueryBackendSpec.createSnapshotRepository()` | `createSnapshotStore()` |
 
 typed 与节点返回共享 `SINGLE`、`LIST`、`PAGED` 操作类型。Backend 始终返回 `ObjectNode`，Gateway 在通用结果 Filter 完成后按需使用 Jackson 物化 typed 结果。
 
@@ -79,8 +90,13 @@ Filter 不再通过 `QueryType.isDynamic` 判断最终返回 typed 对象还是�
 | --- | --- |
 | `*.SnapshotQueryService` | `*.SnapshotQueryGateway` |
 | `*.EventStreamQueryService` | `*.EventStreamQueryGateway` |
+| `noOpSnapshotRepository` | `noOpSnapshotStore` |
+| `inMemorySnapshotRepository` | `inMemorySnapshotStore` |
+| `delaySnapshotRepository` | `delaySnapshotStore` |
+| `mongoSnapshotRepository` | `mongoSnapshotStore` |
+| `elasticsearchSnapshotRepository` | `elasticsearchSnapshotStore` |
 
-新 Bean 的精确全名是 `{contextAlias.}{aggregateName}.SnapshotQueryGateway` 与 `{contextAlias.}{aggregateName}.EventStreamQueryGateway`；没有 context alias 时省略前缀。删除旧 Bean 后不注册 alias。
+新 Bean 的精确全名是 `{contextAlias.}{aggregateName}.SnapshotQueryGateway` 与 `{contextAlias.}{aggregateName}.EventStreamQueryGateway`；没有 context alias 时省略前缀。旧 QueryService 与 SnapshotRepository Bean alias 均不再注册。
 
 ## Binding 配置值
 

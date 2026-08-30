@@ -60,6 +60,17 @@ Data-query HTTP request and result envelopes, Backend wire trees, storage layout
 | `QueryType.DYNAMIC_LIST` | `QueryType.LIST` |
 | `QueryType.DYNAMIC_PAGED` | `QueryType.PAGED` |
 | `QueryType.isDynamic` | Removed; typed and node paths share operation types |
+| `SnapshotRepository` | `SnapshotStore` |
+| `NoOpSnapshotRepository` | `NoOpSnapshotStore` |
+| `InMemorySnapshotRepository` | `InMemorySnapshotStore` |
+| `DelaySnapshotRepository` | `DelaySnapshotStore` |
+| `ElasticsearchSnapshotRepository` | `ElasticsearchSnapshotStore` |
+| `TracingSnapshotRepository` | `TracingSnapshotStore` |
+| `SnapshotRepositoryInstrumenter` | `SnapshotStoreInstrumenter` |
+| `SnapshotRepositorySaveSpanNameExtractor` | `SnapshotStoreSaveSpanNameExtractor` |
+| `SnapshotRepositoryLoadSpanNameExtractor` | `SnapshotStoreLoadSpanNameExtractor` |
+| `SnapshotRepositorySpec` | `SnapshotStoreSpec` |
+| `SnapshotStoreSpec.createSnapshotRepository()` / `SnapshotQueryBackendSpec.createSnapshotRepository()` | `createSnapshotStore()` |
 
 Typed and node results share the `SINGLE`, `LIST`, and `PAGED` operation types. A Backend always returns `ObjectNode`; the Gateway optionally uses Jackson to materialize typed results after generic result filters complete.
 
@@ -79,8 +90,13 @@ After removing the old Registry/filter, migrate full masking to `@Mask`, edge-pr
 | --- | --- |
 | `*.SnapshotQueryService` | `*.SnapshotQueryGateway` |
 | `*.EventStreamQueryService` | `*.EventStreamQueryGateway` |
+| `noOpSnapshotRepository` | `noOpSnapshotStore` |
+| `inMemorySnapshotRepository` | `inMemorySnapshotStore` |
+| `delaySnapshotRepository` | `delaySnapshotStore` |
+| `mongoSnapshotRepository` | `mongoSnapshotStore` |
+| `elasticsearchSnapshotRepository` | `elasticsearchSnapshotStore` |
 
-The exact new Bean names are `{contextAlias.}{aggregateName}.SnapshotQueryGateway` and `{contextAlias.}{aggregateName}.EventStreamQueryGateway`; omit the prefix when there is no context alias. No alias is registered after the old Beans are removed.
+The exact new Bean names are `{contextAlias.}{aggregateName}.SnapshotQueryGateway` and `{contextAlias.}{aggregateName}.EventStreamQueryGateway`; omit the prefix when there is no context alias. Old QueryService and SnapshotRepository bean aliases are not registered.
 
 ## Binding Configuration Values
 
