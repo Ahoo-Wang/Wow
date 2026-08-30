@@ -32,6 +32,16 @@ class CursorQueryBackendSpecCompatibilityTest {
         assertThrows<TestAbortedException> { DefaultEventStreamSpec().prepare(eventStream) }
     }
 
+    @Test
+    fun `default cursor capability should abort cursor cases`() {
+        assertThrows<TestAbortedException> {
+            DefaultSnapshotSpec().`cursor should return an empty terminal page`()
+        }
+        assertThrows<TestAbortedException> {
+            DefaultEventStreamSpec().`cursor should return an empty terminal page`()
+        }
+    }
+
     private class DefaultSnapshotSpec : SnapshotQueryBackendSpec() {
         override fun createSnapshotQueryBackendFactory(): SnapshotQueryBackendFactory = error("Not called.")
 

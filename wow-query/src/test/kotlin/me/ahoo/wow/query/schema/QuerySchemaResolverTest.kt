@@ -1499,6 +1499,35 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `cursor sort should reject masked projection and physical aliases`() {
+        val projectionAlias = LogicalField("state.email")
+        val physicalAlias = LogicalField("state.secretAlias")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("state.emailAlias") to fieldSchema(
+                        projectionPath = projectionAlias.value,
+                        maskRule = fullMaskRule(),
+                    ),
+                    projectionAlias to fieldSchema(QueryCapability.SORT to "document.email.keyword"),
+                    LogicalField("state.secret") to fieldSchema(
+                        QueryCapability.SORT to "document.secret.keyword",
+                        maskRule = fullMaskRule(),
+                    ),
+                    physicalAlias to fieldSchema(QueryCapability.SORT to "document.secret.keyword"),
+                ),
+            ),
+        )
+
+        listOf(projectionAlias, physicalAlias).forEach { alias ->
+            resolver.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(alias.value, Sort.Direction.ASC))))
+                .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+            resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(alias.value, Sort.Direction.ASC))))
+                .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        }
+    }
+
+    @Test
     fun `cursor sort should reject multi valued fields while ordinary sort remains allowed`() {
         val many = LogicalField("state.many")
         val single = LogicalField("state.single")

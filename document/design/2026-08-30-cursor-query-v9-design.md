@@ -98,8 +98,9 @@ V9 现有普通 sort 允许引用 masked 字段，因为最终结果会被 `Sche
 
 1. 先在逻辑字段层追加 Snapshot `aggregateId` 或 EventStream `id`；
 2. 逐个解析有效排序字段的 `QueryCapability.SORT` 绑定；
-3. 任一排序字段不是 `EXACT`、缺少 SORT binding，或其 `QueryFieldSchema.maskRule != null` 时，
-   将整个 CursorQuery 判定为 `QueryCompatibilityLevel.INCOMPATIBLE`；
+3. 任一排序字段不是 `EXACT`、不是 `SINGLE`、缺少 SORT binding、其 `QueryFieldSchema.maskRule != null`，
+   或其逻辑/物理绑定命中其他 masked 字段的 projection/binding 时，将整个 CursorQuery 判定为
+   `QueryCompatibilityLevel.INCOMPATIBLE`；
 4. 按 Backend 配置的 validation mode 校验 filter 与 projection 的其他兼容性；
 5. CursorQuery 的 Schema 不可用错误直接传播，不允许 `COMPATIBLE` fallback；
 6. 全部通过后才允许 Backend 解码 cursor 或访问存储。
@@ -162,9 +163,9 @@ Schema 整体不可用也始终阻塞 CursorQuery。
 
 | 场景 | 结果 |
 | --- | --- |
-| masked 字段出现在有效排序 | `QuerySchemaValidationException`，存储不被调用 |
+| masked 字段或其 projection/physical alias 出现在有效排序 | `QuerySchemaValidationException`，存储不被调用 |
 | CursorQuery 无法取得 Query Schema | `QuerySchemaUnavailableException`，不 fallback |
-| 未知排序字段、非 EXACT 排序字段或缺失 SORT capability | `QuerySchemaValidationException`，存储不被调用 |
+| 未知排序字段、非 EXACT/MANY 排序字段或缺失 SORT capability | `QuerySchemaValidationException`，存储不被调用 |
 | cursor Base64/结构/数量/类型非法 | `IllegalArgumentException("Invalid cursor.")` / HTTP 400 |
 | Backend 未实现 cursor | `UnsupportedOperationException("Cursor query is not supported.")` |
 | 无匹配结果 | `CursorPage(emptyList(), null)` |
@@ -183,7 +184,7 @@ Schema 整体不可用也始终阻塞 CursorQuery。
 
 ### 最小 RED→GREEN 回归
 
-- Query Schema：masked/动态 masked 有效排序拒绝；普通 sort 继续允许；Schema unavailable 不 fallback；
+- Query Schema：masked/动态 masked/alias/MANY 有效排序拒绝；普通 sort 继续允许；Schema unavailable 不 fallback；
 - Gateway：typed/dynamic cursor 结果只 mask 一次，保留 `nextCursor`，错误进入现有 ErrorHandler；
 - MongoDB：keyset、唯一键、null/missing、projection 清理、Base64/结构/类型拒绝；
 - Elasticsearch：`search_after`、唯一键、`track_total_hits=false`、Base64/arity/type 拒绝；
