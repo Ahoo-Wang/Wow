@@ -864,6 +864,69 @@ test("separates multi-day failure inflow from outcome flow", async ({
     activity.getByRole("img", { name: /Outcome flow:/ }),
   ).toBeVisible();
   expect((await activity.boundingBox())?.height).toBeGreaterThanOrEqual(200);
+
+  await page.setViewportSize({ width: 1440, height: 800 });
+  const activityContainment = await page
+    .locator(".dashboard-activity")
+    .evaluate((card) => {
+      const chart = card.querySelector<HTMLElement>("[data-slot='chart']");
+      const outcomeBars = card.querySelector<HTMLElement>(
+        ".dashboard-outcome-flow-bars",
+      );
+      if (!chart || !outcomeBars) {
+        throw new Error("Dashboard activity content is missing");
+      }
+      return {
+        cardBottom: card.getBoundingClientRect().bottom,
+        cardHeight: card.getBoundingClientRect().height,
+        contentBottom: Math.max(
+          chart.getBoundingClientRect().bottom,
+          outcomeBars.getBoundingClientRect().bottom,
+        ),
+      };
+    });
+  expect(activityContainment.contentBottom).toBeLessThanOrEqual(
+    activityContainment.cardBottom,
+  );
+  expect(activityContainment.cardHeight).toBeGreaterThanOrEqual(224);
+});
+
+test("keeps zero-valued dashboard bars visually empty", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  await page.setViewportSize({ width: 1440, height: 1024 });
+  await mockAnalyticsAggregations(page, {
+    onEvent: () => undefined,
+    onSnapshot: () => undefined,
+  });
+  await page.route("**/execution_failed/snapshot/aggregation", async (route) => {
+    const query = route.request().postDataJSON() as AggregationQueryBody;
+    const aliases = query.groupBy?.map(({ alias }) => alias) ?? [];
+    if (aliases.includes("recoverable")) {
+      await route.fulfill({ json: [] });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.route("**/execution_failed/event/aggregation", async (route) => {
+    const query = route.request().postDataJSON() as AggregationQueryBody;
+    const { start } = queryWindow(query, "createTime");
+    await route.fulfill({ json: [{ bucket: start, streamCount: 0 }] });
+  });
+
+  await page.goto("/");
+
+  const coverageWidth = await page
+    .locator(".dashboard-stock-progress [data-slot='progress-indicator']")
+    .evaluate((indicator) => indicator.getBoundingClientRect().width);
+  expect(coverageWidth).toBe(0);
+  const outcomeWidths = await page
+    .locator(".dashboard-outcome-flow-track > span")
+    .evaluateAll((indicators) =>
+      indicators.map((indicator) => indicator.getBoundingClientRect().width),
+    );
+  expect(outcomeWidths).toEqual([0, 0, 0]);
 });
 
 test("hides desktop navigation labels when collapsed", async ({

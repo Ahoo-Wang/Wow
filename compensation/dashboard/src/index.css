@@ -474,10 +474,6 @@ table.sr-only {
   border-radius: 4px;
 }
 
-.dashboard-stock-progress [data-slot="progress-indicator"] {
-  min-width: 6px;
-}
-
 .dashboard-stock-scale {
   display: flex;
   align-items: center;
@@ -716,7 +712,6 @@ table.sr-only {
 
 .dashboard-outcome-flow-track > span {
   display: block;
-  min-width: 2px;
   height: 100%;
   border-radius: inherit;
 }
