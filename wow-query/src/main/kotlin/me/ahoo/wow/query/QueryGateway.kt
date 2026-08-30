@@ -30,6 +30,7 @@ import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.SchemaMasker
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Flux
@@ -37,6 +38,7 @@ import reactor.core.publisher.Mono
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.node.ObjectNode
 import java.util.Optional
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.reflect.KClass
 
 interface QueryGateway<R : Any> : NamedAggregateDecorator {
@@ -59,9 +61,13 @@ abstract class AbstractQueryGateway<R : Any>(
     private val errorHandler: ErrorHandler<QueryContext<*, *>>,
 ) : QueryGateway<R> {
     private val masker = (backend as? QueryModelSchemaProvider)?.let { provider ->
+        val cached = AtomicReference<Pair<QueryModelSchema, Optional<SchemaMasker>>?>()
         Mono.defer { provider.schema() }
-            .map { Optional.ofNullable(SchemaMasker.create(it)) }
-            .cacheInvalidateIf { false }
+            .map { schema ->
+                cached.get()?.takeIf { it.first === schema }?.second ?: Optional
+                    .ofNullable(SchemaMasker.create(schema))
+                    .also { cached.set(schema to it) }
+            }
     }
 
     private val chain = FilterChainBuilder<QueryContext<*, *>>()
