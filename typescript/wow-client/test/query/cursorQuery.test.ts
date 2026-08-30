@@ -27,6 +27,15 @@ describe('cursorQuery', () => {
     });
   });
 
+  it('isolates the default projection between cursor requests', () => {
+    const first = cursorQuery({ filter: filter.matchAll() });
+    first.projection!.include = ['id'];
+
+    const second = cursorQuery({ filter: filter.matchAll() });
+
+    expect(second.projection).toEqual({});
+  });
+
   it('preserves the opaque cursor and ordered sort fields', () => {
     const query = cursorQuery({
       filter: filter.eq('state.status', 'PAID'),

@@ -12,7 +12,7 @@
  */
 
 import type { FilterExpression } from './filter';
-import { defaultProjection, type Projection } from './projection';
+import type { Projection } from './projection';
 import type { FieldSort } from './sort';
 
 export const DEFAULT_CURSOR_SIZE = 10;
@@ -36,7 +36,7 @@ export interface CursorPage<T> {
 
 export function cursorQuery<FIELDS extends string = string>({
   filter,
-  projection = defaultProjection<FIELDS>(),
+  projection = {},
   sort = [],
   size = DEFAULT_CURSOR_SIZE,
   cursor = null,
