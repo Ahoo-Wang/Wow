@@ -13,10 +13,13 @@
 
 import { executionFailedQueryClientFactory } from "../generated";
 import type {
+  AggregationQuery,
+  DynamicDocument,
   FilterPagedQuery,
   FilterSingleQuery,
   QueryClientOptions,
 } from "@ahoo-wang/fetcher-wow";
+import type { ExecutionFailedAggregatedFields } from "../generated";
 
 const executionFailedQueryClientOptions: QueryClientOptions = {
   contextAlias: "",
@@ -45,6 +48,18 @@ export function queryExecutionFailedState(
   abortController?: AbortController,
 ) {
   return executionFailedSnapshotQueryClient.singleState(
+    query,
+    attributes,
+    abortController,
+  );
+}
+
+export function aggregateExecutionFailedSnapshots<Row extends DynamicDocument>(
+  query: AggregationQuery<ExecutionFailedAggregatedFields>,
+  attributes?: Record<string, unknown>,
+  abortController?: AbortController,
+) {
+  return executionFailedSnapshotQueryClient.aggregate<Row>(
     query,
     attributes,
     abortController,

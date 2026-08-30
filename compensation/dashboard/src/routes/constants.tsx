@@ -16,6 +16,8 @@ import { FindCategory } from "../features/Failed/FindCategory.ts";
 import LazyFailedView from "./LazyFailedView.tsx";
 
 export const NavItemPaths = {
+  Dashboard: "/",
+  Analytics: "/analytics",
   ToRetry: "/to-retry",
   Executing: "/executing",
   NextRetry: "/next-retry",
@@ -27,11 +29,14 @@ export const NavItemPaths = {
 export interface NavItem {
   readonly label: string;
   readonly path: string;
+}
+
+export interface QueueNavItem extends NavItem {
   readonly category: FindCategory;
   readonly component: ComponentType<{ category: FindCategory }>;
 }
 
-export const NavItems: readonly NavItem[] = [
+export const NavItems: readonly QueueNavItem[] = [
   {
     label: "To Retry",
     path: NavItemPaths.ToRetry,
@@ -68,4 +73,14 @@ export const NavItems: readonly NavItem[] = [
     category: FindCategory.Unrecoverable,
     component: LazyFailedView,
   },
+];
+
+export const DashboardNavItem: NavItem = {
+  label: "Dashboard",
+  path: NavItemPaths.Dashboard,
+};
+
+export const PrimaryNavItems: readonly NavItem[] = [
+  DashboardNavItem,
+  ...NavItems,
 ];

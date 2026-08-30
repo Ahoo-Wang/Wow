@@ -466,7 +466,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
         fixture = repository / "skills" / "example" / "evals" / "fixtures" / "v6-service"
         fixture.mkdir(parents=True)
         (repository / "build.gradle.kts").write_text(
-            'dependencies { implementation("me.ahoo.wow:wow-spring-boot-starter:8.16.1") }\n',
+            'dependencies { implementation("me.ahoo.wow:wow-spring-boot-starter:8.16.3") }\n',
             encoding="utf-8",
         )
         (fixture / "build.gradle.kts").write_text(
@@ -480,7 +480,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
             text=True,
         )
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("8.16.1", result.stdout)
+        self.assertIn("8.16.3", result.stdout)
         self.assertNotIn("6.21.5", result.stdout)
 
         fixture_result = subprocess.run(

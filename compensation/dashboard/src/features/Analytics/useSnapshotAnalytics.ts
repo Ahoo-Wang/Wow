@@ -1,0 +1,327 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)]
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { useEffect, useState } from "react";
+import { aggregateExecutionFailedSnapshots } from "../../services";
+import {
+  bucketRetryRows,
+  createPressureQuery,
+  createPressureStatusQuery,
+  createRecoverabilityQuery,
+  createRetryHistogramQuery,
+  createSnapshotSummaryQueries,
+  mergePressureRows,
+  MAX_TREND_DAYS,
+  trendWindowKey,
+} from "./analyticsQueries.ts";
+import type {
+  PressureCluster,
+  PressureClusterRow,
+  PressureStatusRow,
+  RecoverabilityRow,
+  RetryDistribution,
+  RetryHistogramRow,
+  SnapshotSummary,
+  StockPartitionRow,
+  TrendWindow,
+} from "./analyticsQueries.ts";
+
+export interface AnalyticsSection<T> {
+  data?: T;
+  error?: Error;
+  loading: boolean;
+  updatedAt?: number;
+}
+
+export interface SnapshotAnalyticsResult {
+  pressure: AnalyticsSection<PressureCluster[]>;
+  recoverability: AnalyticsSection<RecoverabilityRow[]>;
+  retries: AnalyticsSection<RetryDistribution>;
+  summary: AnalyticsSection<SnapshotSummary>;
+}
+
+interface CountRow {
+  count: number;
+}
+
+interface SnapshotAnalyticsState {
+  result: SnapshotAnalyticsResult;
+  windowKey: string;
+}
+
+function initialSnapshotResult(): SnapshotAnalyticsResult {
+  return {
+    pressure: { loading: true },
+    recoverability: { loading: true },
+    retries: { loading: true },
+    summary: { loading: true },
+  };
+}
+
+export function useSnapshotAnalytics(
+  window: TrendWindow,
+  refreshToken: number,
+): SnapshotAnalyticsResult {
+  const requestedWindowKey = trendWindowKey(window);
+  const [state, setState] = useState<SnapshotAnalyticsState>(() => ({
+    result: initialSnapshotResult(),
+    windowKey: requestedWindowKey,
+  }));
+
+  useEffect(() => {
+    const abortController = new AbortController();
+    const now = Date.now();
+
+    const loads = {
+      summary: loadSummary(now, window, abortController),
+      pressure: loadPressure(window, abortController),
+      recoverability: loadRecoverability(window, abortController),
+      retries: loadRetries(window, abortController),
+    };
+
+    queueMicrotask(() => {
+      if (!abortController.signal.aborted) {
+        setState((current) => ({
+          result:
+            current.windowKey === requestedWindowKey
+              ? markSnapshotLoading(current.result)
+              : initialSnapshotResult(),
+          windowKey: requestedWindowKey,
+        }));
+      }
+    });
+
+    const settle = <T>(
+      load: Promise<T>,
+      update: (
+        current: SnapshotAnalyticsResult,
+        result: PromiseSettledResult<T>,
+      ) => SnapshotAnalyticsResult,
+    ) => {
+      void load.then(
+        (value) => {
+          if (!abortController.signal.aborted) {
+            setState((current) => ({
+              result: update(
+                current.windowKey === requestedWindowKey
+                  ? current.result
+                  : initialSnapshotResult(),
+                { status: "fulfilled", value },
+              ),
+              windowKey: requestedWindowKey,
+            }));
+          }
+        },
+        (reason: unknown) => {
+          if (!abortController.signal.aborted) {
+            setState((current) => ({
+              result: update(
+                current.windowKey === requestedWindowKey
+                  ? current.result
+                  : initialSnapshotResult(),
+                { status: "rejected", reason },
+              ),
+              windowKey: requestedWindowKey,
+            }));
+          }
+        },
+      );
+    };
+
+    settle(loads.pressure, (current, result) => ({
+      ...current,
+      pressure: settleSnapshotSection(current.pressure, result, now),
+    }));
+    settle(loads.retries, (current, result) => ({
+      ...current,
+      retries: settleSnapshotSection(current.retries, result, now),
+    }));
+    void Promise.allSettled([
+      loads.summary,
+      loads.recoverability,
+    ] as const).then(([summaryResult, recoverabilityResult]) => {
+      if (!abortController.signal.aborted) {
+        setState((current) => {
+          const result =
+            current.windowKey === requestedWindowKey
+              ? current.result
+              : initialSnapshotResult();
+          return {
+            result: {
+              ...result,
+              summary: settleSnapshotSection(
+                result.summary,
+                summaryResult,
+                now,
+              ),
+              recoverability: settleSnapshotSection(
+                result.recoverability,
+                recoverabilityResult,
+                now,
+              ),
+            },
+            windowKey: requestedWindowKey,
+          };
+        });
+      }
+    });
+
+    return () => abortController.abort();
+  }, [window, refreshToken, requestedWindowKey]);
+
+  return state.windowKey === requestedWindowKey
+    ? state.result
+    : initialSnapshotResult();
+}
+
+async function loadSummary(
+  now: number,
+  window: TrendWindow,
+  abortController: AbortController,
+): Promise<SnapshotSummary> {
+  const queries = createSnapshotSummaryQueries(now, window);
+  const [actionableNow, timedOut, unrecoverable, stockPartitions] =
+    await Promise.all([
+      aggregateExecutionFailedSnapshots<CountRow>(
+        queries.actionableNow,
+        undefined,
+        abortController,
+      ),
+      aggregateExecutionFailedSnapshots<CountRow>(
+        queries.timedOut,
+        undefined,
+        abortController,
+      ),
+      aggregateExecutionFailedSnapshots<CountRow>(
+        queries.unrecoverable,
+        undefined,
+        abortController,
+      ),
+      aggregateExecutionFailedSnapshots<StockPartitionRow>(
+        queries.stockPartitions,
+        undefined,
+        abortController,
+      ),
+    ]);
+  const stock = stockPartitions.reduce(
+    (counts, { count, executeAtBucket }) => {
+      counts.activeTotal += count;
+      if (executeAtBucket < window.start) {
+        counts.olderThanRange += count;
+      } else if (executeAtBucket >= window.end) {
+        counts.newerThanRange += count;
+      } else {
+        counts.selectedInRange += count;
+      }
+      return counts;
+    },
+    {
+      activeTotal: 0,
+      newerThanRange: 0,
+      olderThanRange: 0,
+      selectedInRange: 0,
+    },
+  );
+  return {
+    actionableNow: actionableNow[0]?.count ?? 0,
+    ...stock,
+    stockTruncated: stockPartitions.length >= MAX_TREND_DAYS,
+    timedOut: timedOut[0]?.count ?? 0,
+    unrecoverable: unrecoverable[0]?.count ?? 0,
+  };
+}
+
+async function loadPressure(
+  window: TrendWindow,
+  abortController: AbortController,
+): Promise<PressureCluster[]> {
+  const rows = await aggregateExecutionFailedSnapshots<PressureClusterRow>(
+    createPressureQuery(window),
+    undefined,
+    abortController,
+  );
+  if (rows.length === 0) {
+    return [];
+  }
+  const statuses = await aggregateExecutionFailedSnapshots<PressureStatusRow>(
+    createPressureStatusQuery(rows, window),
+    undefined,
+    abortController,
+  );
+  return mergePressureRows(rows, statuses);
+}
+
+async function loadRecoverability(
+  window: TrendWindow,
+  abortController: AbortController,
+): Promise<RecoverabilityRow[]> {
+  return aggregateExecutionFailedSnapshots<RecoverabilityRow>(
+    createRecoverabilityQuery(window),
+    undefined,
+    abortController,
+  );
+}
+
+async function loadRetries(
+  window: TrendWindow,
+  abortController: AbortController,
+): Promise<RetryDistribution> {
+  const rows = await aggregateExecutionFailedSnapshots<RetryHistogramRow>(
+    createRetryHistogramQuery(window),
+    undefined,
+    abortController,
+  );
+  return bucketRetryRows(rows);
+}
+
+function markSnapshotLoading(
+  current: SnapshotAnalyticsResult,
+): SnapshotAnalyticsResult {
+  const loading = <T>(section: AnalyticsSection<T>): AnalyticsSection<T> => ({
+    ...section,
+    error: undefined,
+    loading: true,
+  });
+  return {
+    pressure: loading(current.pressure),
+    recoverability: loading(current.recoverability),
+    retries: loading(current.retries),
+    summary: loading(current.summary),
+  };
+}
+
+function settleSnapshotSection<T>(
+  section: AnalyticsSection<T>,
+  result: PromiseSettledResult<T>,
+  updatedAt: number,
+): AnalyticsSection<T> {
+  if (result.status === "fulfilled") {
+    return { data: result.value, loading: false, updatedAt };
+  }
+  if (
+    typeof result.reason === "object" &&
+    result.reason !== null &&
+    "name" in result.reason &&
+    result.reason.name === "AbortError"
+  ) {
+    return { ...section, loading: false };
+  }
+  return {
+    ...section,
+    error:
+      result.reason instanceof Error
+        ? result.reason
+        : new Error(String(result.reason)),
+    loading: false,
+  };
+}

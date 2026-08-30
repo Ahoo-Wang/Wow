@@ -60,9 +60,11 @@ cosid:
   generator:
     enabled: true
 wow:
+  webflux:
+    query:
+      max-filter-nodes: 128
   kafka:
     bootstrap-servers: 'kafka-dev-0.kafka-dev-headless.dev.svc.cluster.local:9093'
 #  eventsourcing:
 #    snapshot:
 #      storage: elasticsearch
-
