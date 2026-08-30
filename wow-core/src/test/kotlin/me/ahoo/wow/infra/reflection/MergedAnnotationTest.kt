@@ -14,8 +14,10 @@
 package me.ahoo.wow.infra.reflection
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.inheritedAnnotations
 import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.toMergedAnnotation
 import org.junit.jupiter.api.Test
+import java.lang.reflect.Method
 import kotlin.reflect.full.declaredFunctions
 
 class MergedAnnotationTest {
@@ -73,6 +75,15 @@ class MergedAnnotationTest {
     }
 
     @Test
+    fun `should let nearer property annotation override farther ancestor`() {
+        val annotations = TransitiveChildMergedState::token.toMergedAnnotation().mergedAnnotations
+            .filterIsInstance<MergedMarker>()
+            .map { it.value }
+
+        annotations.assert().isEqualTo(listOf("mid-property"))
+    }
+
+    @Test
     fun `should merge function annotations from matching inherited signature`() {
         val annotations = ChildMergedOperation::execute.toMergedAnnotation().mergedAnnotations
             .filterIsInstance<MergedMarker>()
@@ -102,7 +113,67 @@ class MergedAnnotationTest {
 
         annotations.assert().isEmpty()
     }
+
+    @Test
+    fun `should let nearer function annotation override farther ancestor`() {
+        val annotations = TransitiveChildMergedOperation::execute.toMergedAnnotation().mergedAnnotations
+            .filterIsInstance<MergedMarker>()
+            .map { it.value }
+
+        annotations.assert().isEqualTo(listOf("mid-function"))
+    }
+
+    @Test
+    fun `java method should let local annotation override inherited annotation`() {
+        JavaMergedAnnotationFixture.LocalChild::class.java.getMethod("value")
+            .mergedMarkerValues()
+            .assert().isEqualTo(setOf("local"))
+    }
+
+    @Test
+    fun `java method should let nearer annotation override farther ancestor`() {
+        JavaMergedAnnotationFixture.TransitiveChild::class.java.getMethod("value")
+            .mergedMarkerValues()
+            .assert().isEqualTo(setOf("mid"))
+    }
+
+    @Test
+    fun `java method should deduplicate equal diamond annotations`() {
+        JavaMergedAnnotationFixture.EqualDiamond::class.java.getMethod("value")
+            .inheritedAnnotations()
+            .filterIsInstance<JavaMergedAnnotationFixture.Marker>()
+            .assert().hasSize(1)
+    }
+
+    @Test
+    fun `java method should retain different diamond annotations`() {
+        JavaMergedAnnotationFixture.DifferentDiamond::class.java.getMethod("value")
+            .mergedMarkerValues()
+            .assert().isEqualTo(setOf("left", "right"))
+    }
+
+    @Test
+    fun `java method should not inherit annotation from overload`() {
+        JavaMergedAnnotationFixture.OverloadedChild::class.java.getMethod("convert", Int::class.javaObjectType)
+            .mergedMarkerValues()
+            .assert().isEmpty()
+    }
+
+    @Test
+    fun `java method should resolve covariant bridge without duplicate annotations`() {
+        val methods = JavaMergedAnnotationFixture.CovariantChild::class.java.declaredMethods
+            .filter { it.name == "value" }
+
+        methods.any { it.isBridge }.assert().isTrue()
+        methods.forEach { method ->
+            method.mergedMarkerValues().assert().isEqualTo(setOf("mid"))
+        }
+    }
 }
+
+private fun Method.mergedMarkerValues(): Set<String> = inheritedAnnotations()
+    .filterIsInstance<JavaMergedAnnotationFixture.Marker>()
+    .mapTo(linkedSetOf()) { it.value }
 
 @MergedMarker("base-class")
 private open class BaseMergedClass
@@ -148,12 +219,40 @@ private data class EqualSiblingMergedState(
     override val token: String,
 ) : FirstEqualMergedState, SecondEqualMergedState
 
+private interface TransitiveBaseMergedState {
+    @get:MergedMarker("base-property")
+    val token: String
+}
+
+private interface TransitiveMidMergedState : TransitiveBaseMergedState {
+    @get:MergedMarker("mid-property")
+    override val token: String
+}
+
+private data class TransitiveChildMergedState(
+    override val token: String,
+) : TransitiveMidMergedState
+
 private interface BaseMergedOperation {
     @MergedMarker("base-function")
     fun execute(command: String)
 }
 
 private class ChildMergedOperation : BaseMergedOperation {
+    override fun execute(command: String) = Unit
+}
+
+private interface TransitiveBaseMergedOperation {
+    @MergedMarker("base-function")
+    fun execute(command: String)
+}
+
+private interface TransitiveMidMergedOperation : TransitiveBaseMergedOperation {
+    @MergedMarker("mid-function")
+    override fun execute(command: String)
+}
+
+private class TransitiveChildMergedOperation : TransitiveMidMergedOperation {
     override fun execute(command: String) = Unit
 }
 

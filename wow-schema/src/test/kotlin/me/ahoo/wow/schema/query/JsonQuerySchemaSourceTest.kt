@@ -613,6 +613,15 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should use nearer mask when intermediate getter overrides ancestor`() {
+        val rule = load(MultiLevelOverrideGetterMaskedState::class.java)
+            .field("state.inheritedToken")
+            .requiredMaskRule()
+
+        rule.compiled.mask("secret").assert().isEqualTo("se****")
+    }
+
+    @Test
     fun `should construct and compile a public zero argument class strategy`() {
         val rule = load(PublicClassStrategyState::class.java)
             .field("state.secret")
