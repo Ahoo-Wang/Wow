@@ -82,9 +82,9 @@ Filter 不再通过 `QueryType.isDynamic` 判断最终返回 typed 对象还是�
 
 新 Bean 的精确全名是 `{contextAlias.}{aggregateName}.SnapshotQueryGateway` 与 `{contextAlias.}{aggregateName}.EventStreamQueryGateway`；没有 context alias 时省略前缀。删除旧 Bean 后不注册 alias。
 
-## Binding 配置值保持不变
+## Binding 配置值
 
-JVM Factory 类型已改名为 Backend Factory，但公开 binding 字符串有意保持兼容，仍使用 `*-query-service-factory` 后缀，例如 `mongo-snapshot-query-service-factory` 与 `elasticsearch-event-stream-query-service-factory`。不要因为 JVM 类型改名而修改已有路由配置值。
+Factory 与公开 binding 字符串统一使用 Backend 概念和 `*-query-backend-factory` 后缀，例如 `mongo-snapshot-query-backend-factory` 与 `elasticsearch-event-stream-query-backend-factory`。迁移已有路由配置值，不保留旧 binding alias。
 
 ## 调用入口
 

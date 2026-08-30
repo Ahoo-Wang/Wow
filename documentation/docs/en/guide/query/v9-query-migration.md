@@ -82,9 +82,9 @@ After removing the old Registry/filter, migrate full masking to `@Mask`, edge-pr
 
 The exact new Bean names are `{contextAlias.}{aggregateName}.SnapshotQueryGateway` and `{contextAlias.}{aggregateName}.EventStreamQueryGateway`; omit the prefix when there is no context alias. No alias is registered after the old Beans are removed.
 
-## Binding Configuration Values Stay Unchanged
+## Binding Configuration Values
 
-The JVM Factory types are renamed to Backend Factories, but public binding strings intentionally retain the `*-query-service-factory` suffix, for example `mongo-snapshot-query-service-factory` and `elasticsearch-event-stream-query-service-factory`. Do not change an existing routing configuration value merely because the JVM type was renamed.
+Factories and public binding strings consistently use the Backend concept and the `*-query-backend-factory` suffix, for example `mongo-snapshot-query-backend-factory` and `elasticsearch-event-stream-query-backend-factory`. Migrate existing route values; no old binding alias is retained.
 
 ## Call Entries
 
