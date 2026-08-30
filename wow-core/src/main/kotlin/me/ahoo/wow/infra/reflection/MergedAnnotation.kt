@@ -77,20 +77,28 @@ class MergedAnnotation(val element: KAnnotatedElement) {
 
         private fun KClass<*>.effectiveAnnotations(
             localAnnotations: (KClass<*>) -> Set<Annotation>,
-        ): Set<Annotation> = mergeInheritedAnnotations(
-            localAnnotations(this),
-            effectiveParentAnnotations(localAnnotations),
-        )
+            memo: MutableMap<KClass<*>, Set<Annotation>>,
+        ): Set<Annotation> = memo.getOrPut(this) {
+            mergeInheritedAnnotations(
+                localAnnotations(this),
+                effectiveParentAnnotations(memo, localAnnotations),
+            )
+        }
 
         private fun KClass<*>.effectiveParentAnnotations(
+            memo: MutableMap<KClass<*>, Set<Annotation>> = mutableMapOf(),
             localAnnotations: (KClass<*>) -> Set<Annotation>,
         ): Sequence<Annotation> = directParents.asSequence().flatMap { parent ->
-            parent.effectiveAnnotations(localAnnotations).asSequence()
+            parent.effectiveAnnotations(localAnnotations, memo).asSequence()
         }
 
-        fun KClass<*>.inheritedAnnotations(): Set<Annotation> = effectiveAnnotations {
+        fun KClass<*>.inheritedAnnotations(): Set<Annotation> = inheritedAnnotations {
             it.toIntimateAnnotationElement().inheritedAnnotations
         }
+
+        internal fun KClass<*>.inheritedAnnotations(
+            localAnnotations: (KClass<*>) -> Set<Annotation>,
+        ): Set<Annotation> = effectiveAnnotations(localAnnotations, mutableMapOf())
 
         fun KProperty<*>.inheritedAnnotations(): Set<Annotation> {
             val intimateAnnotationElement = this.toIntimateAnnotationElement()
