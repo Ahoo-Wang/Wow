@@ -85,7 +85,7 @@ Strategy 可以是 Kotlin `object` 或公开无参类。示例不按 UTF-16 code
 | Snapshot/EventStream typed/dynamic `cursor` | 对 `CursorPage.list` 脱敏，原样保留 `nextCursor` |
 | Snapshot state-only / aggregate-state load | 复用 Snapshot Gateway，同样脱敏 |
 | 普通 filter、全文 search、sort | 允许引用 Mask 字段；后端按原值匹配或排序，响应仍脱敏 |
-| `CursorQuery` 有效 sort | 必须精确解析、是单值字段且不能带 Mask 规则；否则在 Backend 前拒绝，避免原始排序值或多值数组进入 `nextCursor` |
+| `CursorQuery` 有效 sort | 必须精确解析、是单值字段、不能带 Mask 规则，也不能通过 projection 或物理 binding alias 指向 masked 字段；否则在 Backend 前拒绝，避免原始排序值或多值数组进入 `nextCursor` |
 | 数据查询 `count` | 计数不变；Mask 层不加载 Schema、不处理字段值 |
 | 聚合 group、字段 metric、数值 expression | 引用 Mask 字段时解析为 `INCOMPATIBLE` 并在 Backend 执行前拒绝 |
 | 聚合所需 Schema 不可用 | 失败关闭；即使聚合只含 `COUNT` 也不降级执行 |

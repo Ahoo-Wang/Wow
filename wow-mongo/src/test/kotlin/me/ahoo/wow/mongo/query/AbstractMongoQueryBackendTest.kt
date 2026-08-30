@@ -238,6 +238,10 @@ class AbstractMongoQueryBackendTest {
                         maskRule = mockk(),
                     ),
                     LogicalField("state.email") to cursorFieldSchema("email"),
+                    LogicalField("state.emailSibling") to cursorFieldSchema(
+                        physicalPath = "email_sibling",
+                        projectionPath = "state.email",
+                    ),
                     LogicalField("state.secret") to cursorFieldSchema("secret", maskRule = mockk()),
                     LogicalField("state.secretAlias") to cursorFieldSchema("secret"),
                 ),
@@ -249,14 +253,14 @@ class AbstractMongoQueryBackendTest {
             schemaProvider = schemaProvider,
         )
 
-        listOf("state.email", "state.secretAlias").forEach { alias ->
+        listOf("state.email", "state.emailSibling", "state.secretAlias").forEach { alias ->
             builtIn.cursor(CursorQuery(MatchAllFilter, sort = listOf(Sort(alias, Sort.Direction.ASC))))
                 .test()
                 .expectError(QuerySchemaValidationException::class.java)
                 .verify()
         }
 
-        verify(exactly = 2) { schemaProvider.schema() }
+        verify(exactly = 3) { schemaProvider.schema() }
         verify(exactly = 0) { collection.find(any<Bson>()) }
     }
 
