@@ -279,8 +279,20 @@ export default function DashboardView() {
     snapshot.summary.updatedAt === snapshot.recoverability.updatedAt &&
     !snapshot.summary.error &&
     !snapshot.recoverability.error;
+  const scopeInsightsLoading =
+    !scopeInsightsReady &&
+    (snapshot.summary.loading || snapshot.recoverability.loading);
   const selectedCoverage =
     scopeInsightsReady && activeTotal > 0 ? selectedActive / activeTotal : 0;
+  const newerThanRange =
+    scopeInsightsReady && snapshot.summary.data
+      ? Math.max(
+          activeTotal -
+            selectedActive -
+            snapshot.summary.data.olderThanRange,
+          0,
+        )
+      : 0;
   const pressureInsightsReady =
     Boolean(snapshot.pressure.data?.length) &&
     Boolean(selectedActive) &&
@@ -468,19 +480,14 @@ export default function DashboardView() {
                 />
                 <div className="dashboard-stock-scale">
                   <span>
-                    {selectedActive.toLocaleString()} (
+                    {selectedActive.toLocaleString()} selected (
                     {percentageFormatter.format(selectedCoverage)})
                   </span>
-                  <span>{activeTotal.toLocaleString()} active</span>
                   <span>
-                    {snapshot.summary.data.olderThanRange.toLocaleString()} (
-                    {percentageFormatter.format(
-                      activeTotal > 0
-                        ? snapshot.summary.data.olderThanRange / activeTotal
-                        : 0,
-                    )}
-                    )
+                    {snapshot.summary.data.olderThanRange.toLocaleString()} older
                   </span>
+                  <span>{newerThanRange.toLocaleString()} newer</span>
+                  <span>{activeTotal.toLocaleString()} total</span>
                 </div>
                 <Separator />
                 <dl className="dashboard-stock-secondary">
@@ -496,8 +503,12 @@ export default function DashboardView() {
                   </div>
                 </dl>
               </>
-            ) : (
+            ) : scopeInsightsLoading ? (
               <Skeleton className="h-44 w-full" />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Backlog exposure unavailable.
+              </p>
             )}
           </section>
           <section
@@ -555,8 +566,12 @@ export default function DashboardView() {
                   </div>
                 </dl>
               </>
-            ) : (
+            ) : trend.loading ? (
               <Skeleton className="h-44 w-full" />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Compensation effectiveness unavailable.
+              </p>
             )}
           </section>
         </CardContent>
@@ -578,7 +593,11 @@ export default function DashboardView() {
             <Skeleton className="h-56 w-full" />
           ) : trend.data ? (
             <CompensationTrendChart points={trend.data} />
-          ) : null}
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Compensation activity unavailable.
+            </p>
+          )}
         </CardContent>
       </Card>
 

@@ -322,6 +322,44 @@ describe("DashboardView", () => {
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toHaveAttribute("data-slot", "alert");
     expect(alerts[0]).toHaveTextContent("snapshot unavailable");
+    const stock = screen.getByRole("region", { name: "Backlog exposure" });
+    expect(within(stock).getByText("Backlog exposure unavailable.")).toBeInTheDocument();
+    expect(stock.querySelector("[data-slot='skeleton']")).toBeNull();
+  });
+
+  it("does not leave a settled trend error in a loading state", () => {
+    mocks.eventResult = {
+      error: new Error("trend unavailable"),
+      loading: false,
+    };
+    render(<DashboardView />);
+
+    const flow = screen.getByRole("region", {
+      name: "Compensation effectiveness",
+    });
+    expect(within(flow).getByRole("alert")).toHaveTextContent(
+      "trend unavailable",
+    );
+    expect(flow.querySelector("[data-slot='skeleton']")).toBeNull();
+  });
+
+  it("accounts for active failures newer than the selected range", () => {
+    mocks.snapshotResult.summary.data = {
+      actionableNow: 2,
+      activeTotal: 100,
+      olderThanRange: 60,
+      timedOut: 1,
+      unrecoverable: 4,
+    };
+    mocks.snapshotResult.recoverability.data = [
+      { recoverable: RecoverableType.UNRECOVERABLE, count: 25 },
+    ];
+    render(<DashboardView />);
+
+    const stock = screen.getByRole("region", { name: "Backlog exposure" });
+    expect(within(stock).getByText("60 older")).toBeInTheDocument();
+    expect(within(stock).getByText("15 newer")).toBeInTheDocument();
+    expect(within(stock).getByText("100 total")).toBeInTheDocument();
   });
 
   it("applies one complete local date range to both facts", () => {
