@@ -121,6 +121,23 @@ describe("useEventTrend", () => {
     expect(result.current.data).toBe(lastGood);
   });
 
+  it("hides data from the previous window while the new window loads", async () => {
+    mocks.aggregate.mockResolvedValue(successRows(1));
+    const { result, rerender } = renderHook(
+      ({ window }: { window: TrendWindow }) => useEventTrend(window, 0),
+      { initialProps: { window: initialWindow } },
+    );
+    await waitFor(() => expect(result.current.data).toBeDefined());
+
+    mocks.aggregate.mockImplementation(() => new Promise(() => undefined));
+    await act(async () => {
+      rerender({ window: nextWindow });
+      await Promise.resolve();
+    });
+
+    expect(result.current).toEqual({ loading: true });
+  });
+
   it("replaces the trend only after all four refreshed series complete", async () => {
     const initialLoads = Array.from({ length: 4 }, () => deferred<TrendRow[]>());
     const refreshedLoads = Array.from({ length: 4 }, () =>

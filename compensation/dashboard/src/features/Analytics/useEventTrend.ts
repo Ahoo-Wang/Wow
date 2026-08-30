@@ -16,6 +16,7 @@ import { aggregateExecutionFailedEvents } from "../../services";
 import {
   createEventTrendQueries,
   mergeTrendRows,
+  trendWindowKey,
 } from "./analyticsQueries.ts";
 import type {
   TrendPoint,
@@ -26,13 +27,20 @@ import type {
 } from "./analyticsQueries.ts";
 import type { AnalyticsSection } from "./useSnapshotAnalytics.ts";
 
+interface EventTrendState {
+  section: AnalyticsSection<TrendPoint[]>;
+  windowKey: string;
+}
+
 export function useEventTrend(
   window: TrendWindow,
   refreshToken: number,
 ): AnalyticsSection<TrendPoint[]> {
-  const [section, setSection] = useState<AnalyticsSection<TrendPoint[]>>({
-    loading: true,
-  });
+  const requestedWindowKey = trendWindowKey(window);
+  const [state, setState] = useState<EventTrendState>(() => ({
+    section: { loading: true },
+    windowKey: requestedWindowKey,
+  }));
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -40,7 +48,13 @@ export function useEventTrend(
 
     queueMicrotask(() => {
       if (!abortController.signal.aborted) {
-        setSection((current) => ({ ...current, error: undefined, loading: true }));
+        setState((current) => ({
+          section:
+            current.windowKey === requestedWindowKey
+              ? { ...current.section, error: undefined, loading: true }
+              : { loading: true },
+          windowKey: requestedWindowKey,
+        }));
       }
     });
 
@@ -58,13 +72,16 @@ export function useEventTrend(
     ).then(
       (rows) => {
         if (!abortController.signal.aborted) {
-          setSection({
-            data: mergeTrendRows(
-              window,
-              Object.fromEntries(rows) as TrendRowsBySeries,
-            ),
-            loading: false,
-            updatedAt: Date.now(),
+          setState({
+            section: {
+              data: mergeTrendRows(
+                window,
+                Object.fromEntries(rows) as TrendRowsBySeries,
+              ),
+              loading: false,
+              updatedAt: Date.now(),
+            },
+            windowKey: requestedWindowKey,
           });
         }
       },
@@ -78,19 +95,29 @@ export function useEventTrend(
           "name" in reason &&
           reason.name === "AbortError"
         ) {
-          setSection((current) => ({ ...current, loading: false }));
+          setState((current) => ({
+            section: { ...current.section, loading: false },
+            windowKey: requestedWindowKey,
+          }));
           return;
         }
-        setSection((current) => ({
-          ...current,
-          error: reason instanceof Error ? reason : new Error(String(reason)),
-          loading: false,
+        setState((current) => ({
+          section: {
+            ...(current.windowKey === requestedWindowKey
+              ? current.section
+              : {}),
+            error: reason instanceof Error ? reason : new Error(String(reason)),
+            loading: false,
+          },
+          windowKey: requestedWindowKey,
         }));
       },
     );
 
     return () => abortController.abort();
-  }, [window, refreshToken]);
+  }, [window, refreshToken, requestedWindowKey]);
 
-  return section;
+  return state.windowKey === requestedWindowKey
+    ? state.section
+    : { loading: true };
 }
