@@ -19,8 +19,11 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.CountRequest
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.search.Hit
+import co.elastic.clients.elasticsearch.core.search.ResponseBody
 import co.elastic.clients.elasticsearch.core.search.SourceFilter
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -35,6 +38,7 @@ import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompi
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.schema.ResolvedAggregationQuery
+import me.ahoo.wow.query.withUniqueSort
 import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -51,11 +55,14 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     abstract val indexName: String
     protected open val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     protected open val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
+    protected open val cursorUniqueField: String? = null
     protected open fun resolve(query: ISingleQuery): Mono<ISingleQuery> = Mono.just(query)
 
     protected open fun resolve(query: IListQuery): Mono<IListQuery> = Mono.just(query)
 
     protected open fun resolve(query: IPagedQuery): Mono<IPagedQuery> = Mono.just(query)
+
+    protected open fun resolve(query: ICursorQuery): Mono<ICursorQuery> = Mono.just(query)
 
     protected open fun resolve(filter: FilterExpression): Mono<FilterExpression> = Mono.just(filter)
 
@@ -112,6 +119,30 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             }.flatMap(::search)
     }
 
+    override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> {
+        val uniqueField = cursorUniqueField
+            ?: return Mono.error(UnsupportedOperationException("Cursor query is not supported."))
+        return resolve(query.withUniqueSort(uniqueField)).flatMap { resolved ->
+            val compiled = compile(resolved.filter, resolved.sort)
+            elasticsearchClient.search(cursorSearchRequest(resolved, compiled), ObjectNode::class.java)
+                .map { response -> response.toCursorPage(resolved) }
+        }
+    }
+
+    private fun cursorSearchRequest(query: ICursorQuery, resolved: ResolvedQuery): SearchRequest = SearchRequest.of {
+        it.index(indexName)
+            .query(resolved.query)
+            .size(query.size + 1)
+            .sort(resolved.sortOptions.withCursorMissing(query.sort))
+            .trackTotalHits { trackHits -> trackHits.enabled(false) }
+        query.cursor?.let { cursor -> ElasticsearchCursorCodec.decode(cursor, query.sort.size) }
+            ?.let(it::searchAfter)
+        if (!query.projection.isEmpty()) {
+            it.source { source -> source.filter(query.projection.toSourceFilter()) }
+        }
+        it
+    }
+
     private fun createSearchRequest(
         query: Queryable<*>,
         resolved: ResolvedQuery,
@@ -154,6 +185,33 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
                 }
             )
         }
+    }
+
+    private fun List<SortOptions>.withCursorMissing(sort: List<Sort>): List<SortOptions> {
+        require(size == sort.size)
+        return zip(sort) { sortOption, logicalSort ->
+            SortOptions.of {
+                it.field(
+                    sortOption.field().rebuild()
+                        .field(sortOption.field().field())
+                        .missing(if (logicalSort.direction == Sort.Direction.ASC) "_first" else "_last")
+                        .build(),
+                )
+            }
+        }
+    }
+
+    private fun ResponseBody<ObjectNode>.toCursorPage(query: ICursorQuery): CursorPage<ObjectNode> {
+        val returnedHits = hits().hits().take(query.size)
+        val nextCursor = if (hits().hits().size > query.size) {
+            returnedHits.last().sort().let { sort ->
+                require(sort.size == query.sort.size) { "Invalid cursor." }
+                ElasticsearchCursorCodec.encode(sort)
+            }
+        } else {
+            null
+        }
+        return CursorPage(returnedHits.mapNotNull { it.toObjectNode() }, nextCursor)
     }
 
     private fun Hit<ObjectNode>.toObjectNode(): ObjectNode? = source()

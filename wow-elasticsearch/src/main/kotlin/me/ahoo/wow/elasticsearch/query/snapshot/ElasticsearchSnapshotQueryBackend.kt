@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -36,6 +37,7 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.resolve
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
+import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -57,12 +59,15 @@ class ElasticsearchSnapshotQueryBackend(
     override val name: String
         get() = ElasticsearchSnapshotStore.NAME
     override val indexName: String = namedAggregate.toSnapshotIndexName()
+    override val cursorUniqueField: String = MessageRecords.AGGREGATE_ID
 
     override fun resolve(query: ISingleQuery) = schemaProvider.resolve(query, validationMode)
 
     override fun resolve(query: IListQuery) = schemaProvider.resolve(query, validationMode)
 
     override fun resolve(query: IPagedQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(query: ICursorQuery) = schemaProvider.resolve(query, validationMode)
 
     override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
 
