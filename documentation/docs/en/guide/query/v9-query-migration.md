@@ -7,7 +7,9 @@ description: Migrate the V8 query JVM API to aggregate Gateways and ObjectNode B
 
 ## Migration Boundary
 
-V9 removes the old JVM types without a bridge, type alias, or deprecation window. This breaks JVM source and binary users of those types, so recompile downstream code and migrate directly with the tables below. `QueryFieldSchemaMetadata.masked`, `QueryFieldDeclaration.maskRule`, `QueryFieldSchema.maskRule`, and `LogicalQueryFieldSchema.maskRule` are Schema constructor contracts with added masking fields and no V8 JVM constructor overload.
+Except for the `Condition` migration window below, V9 removes old JVM types without bridges, type aliases, or deprecation windows. This breaks JVM source and binary users of those types, so recompile downstream code and migrate directly with the tables below. `QueryFieldSchemaMetadata.masked`, `QueryFieldDeclaration.maskRule`, `QueryFieldSchema.maskRule`, and `LogicalQueryFieldSchema.maskRule` are Schema constructor contracts with added masking fields and no V8 JVM constructor overload.
+
+V9.0.x provides an explicit query-condition migration window: deprecated `Condition`/`Operator` JVM types, `ConditionDsl`, legacy query constructors, count client overloads, and existing deserialization remain available and are normalized to `FilterExpression`. WebFlux list/paged/single requests may still submit `condition`, and count requests may still submit the bare `operator` shape. These compatibility APIs are scheduled for removal in 9.1.0; new code should use `FilterExpression`/`FilterDsl` immediately. Canonical `filter`, OpenAPI, and outbound JSON use only `op`.
 
 Data-query HTTP request and result envelopes, Backend wire trees, storage layouts, and existing data do not change because of this JVM refactor or static-annotation masking. Query Schema HTTP metadata and its generated OpenAPI component do change: each field adds `masked: Boolean`. No storage-data migration is required, and raw values in the Backend and storage are not rewritten. After old mask rules move to field annotations, the managed Gateway restores response confidentiality semantics.
 

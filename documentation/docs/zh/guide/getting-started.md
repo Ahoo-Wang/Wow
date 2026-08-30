@@ -27,7 +27,7 @@ outline: deep
 | Gradle Wrapper | `9.7.1` |
 | 验证使用的 JDK | `17.0.7` |
 
-当前 Wow 文档源码版本是 `8.16.3`，已验证模板固定的是 `8.13.0`；两个仓库独立演进。每次开始前都要检查克隆模板的 [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml)，并把选定 [Wow Release](https://github.com/Ahoo-Wang/Wow/releases) 的相关版本作为一个整体兼容性基线评审。
+当前 Wow 文档源码版本是 `9.0.0`，已验证模板固定的是 `8.13.0`；两个仓库独立演进。每次开始前都要检查克隆模板的 [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml)，并把选定 [Wow Release](https://github.com/Ahoo-Wang/Wow/releases) 的相关版本作为一个整体兼容性基线评审。
 
 ## 开始前
 

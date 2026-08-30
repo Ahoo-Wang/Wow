@@ -24,6 +24,7 @@ A green local build can close the source gate. It does not close the other four.
 | CRUD/transaction scripts/direct table writes, no Wow history | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | Establish commands, aggregates, events, import, and traffic ownership |
 | Exact Wow v6 tag | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Diff pinned platform/API/storage contracts and perform a hard data cutover where required |
 | Wow v8 with custom dispatcher/message-bus/Spring lifecycle ownership | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Move lifecycle source code to the unified `WowRuntime`; this is not automatically a data migration |
+| Wow v8.16.x using old query APIs or `SnapshotRepository` | [V9 Query Migration](./query/v9-query-migration.md) | Migrate Gateway/Backend, filters, masking, SnapshotStore, and Spring bean names |
 
 Do not combine first adoption and a v6→v8 upgrade into one undifferentiated release. Select a bounded context and an
 exact source/target version for each change window.
@@ -35,6 +36,7 @@ exact source/target version for each change window.
 | Traditional architecture | Domain boundary, historical import, shadow catch-up, read/write cutover | Wow version/platform upgrade assumptions |
 | v6→v8 | Pinned Gradle/platform matrix, source breaks, storage formats, data cutover | Redesigning every domain |
 | Runtime orchestration | `RuntimeComponent`, message receiver admission, Spring lifecycle ownership, shutdown | Event/snapshot format conversion unless another section requires it |
+| V9 query migration | Query Gateway/Backend, filter/masking, SnapshotStore naming, and the Condition migration window | Deployment or production cutover proof |
 | Runtime lifecycle | Stable post-migration semantics | The migration procedure itself |
 
 The [release notes](https://github.com/Ahoo-Wang/Wow/releases) describe version changes. The selected tag's source,
@@ -149,6 +151,7 @@ See [v6 → v8: Mongo Ownership Guard](./migration/v6-to-v8.md#mongo-ownership-g
 | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | First adoption and traffic ownership |
 | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Existing Wow platform/storage upgrade |
 | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Unified lifecycle source migration |
+| [V9 Query Migration](./query/v9-query-migration.md) | V8.16.x to V9 query and SnapshotStore source migration |
 | [Runtime Lifecycle](./advanced/runtime-lifecycle.md) | Stable runtime model after migration |
 | [Troubleshooting](./troubleshooting.md) | Evidence-first diagnosis when a gate fails |
 

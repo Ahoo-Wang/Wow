@@ -80,7 +80,7 @@ Content-Type: application/json
 
 ## 兼容性与迁移
 
-`Condition`、`Operator` 与 `ConditionDsl` 是已弃用兼容输入；规范合同使用 `FilterExpression`。V9 的 Gateway/Backend 破坏性 JVM 类型映射、无 bridge 策略与保持不变的传输合同见 [V9 查询迁移](./query/v9-query-migration.md)。
+V9 的规范 JVM 合同是 `FilterExpression` 与 `FilterDsl`。V9.0.x 暂时保留已弃用的 `Condition`/`Operator`、`ConditionDsl`、旧查询构造器和 count 客户端重载，并统一转换为 `FilterExpression`；这些兼容 API 计划在 9.1.0 删除。REST `condition`/`operator` 入参也在同一窗口内兼容。V9 的 Gateway/Backend 破坏性 JVM 类型映射、兼容边界与 binding 迁移见 [V9 查询迁移](./query/v9-query-migration.md)。
 
 ## JSON Schema
 

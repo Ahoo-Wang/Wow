@@ -8,7 +8,7 @@ __Sequence Diagram__
 end title
 
 participant AggregateRepository
-participant SnapshotRepository
+participant SnapshotStore
 participant AggregateFactory
 participant StateAggregate
 database Snapshot
@@ -17,15 +17,15 @@ database EventStore
 autonumber "<b>[00]</b>"
 
 [-> AggregateRepository++: load(aggregateId)
-AggregateRepository -> SnapshotRepository++: load(aggregateId)
-SnapshotRepository -> Snapshot++: load(aggregateId)
-SnapshotRepository <-- Snapshot--: snapshot
+AggregateRepository -> SnapshotStore++: load(aggregateId)
+SnapshotStore -> Snapshot++: load(aggregateId)
+SnapshotStore <-- Snapshot--: snapshot
 
 alt snapshot exist
     create StateAggregate
-    SnapshotRepository -> StateAggregate ++: deserialize snapshot to stateAggregate
-    SnapshotRepository <-- StateAggregate: stateAggregate
-    AggregateRepository <-- SnapshotRepository--: stateAggregate
+    SnapshotStore -> StateAggregate ++: deserialize snapshot to stateAggregate
+    SnapshotStore <-- StateAggregate: stateAggregate
+    AggregateRepository <-- SnapshotStore--: stateAggregate
 else snapshot not exist
     AggregateRepository -> AggregateFactory++: create(aggregateId)
     create StateAggregate
