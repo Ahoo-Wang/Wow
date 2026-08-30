@@ -305,6 +305,7 @@ export default function DashboardView() {
   const pressureInsightsReady =
     Boolean(snapshot.pressure.data?.length) &&
     Boolean(selectedActive) &&
+    snapshot.pressure.data![0].currentCount <= selectedActive! &&
     snapshot.pressure.updatedAt !== undefined &&
     snapshot.pressure.updatedAt === snapshot.recoverability.updatedAt &&
     !snapshot.pressure.error &&

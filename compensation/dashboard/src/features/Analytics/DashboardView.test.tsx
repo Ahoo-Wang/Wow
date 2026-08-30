@@ -569,6 +569,35 @@ describe("DashboardView", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("does not present incoherent pressure concentration", () => {
+    mocks.snapshotResult.recoverability.data = [
+      { recoverable: RecoverableType.UNRECOVERABLE, count: 20 },
+    ];
+    mocks.snapshotResult.pressure.data = [
+      {
+        contextName: "openapi-service",
+        currentCount: 25,
+        errorCode: "NotFound",
+        failedCount: 25,
+        functionKind: "EVENT",
+        functionName: "onQuotationApplied",
+        nextRetryAt: null,
+        oldestExecuteAt: null,
+        preparedCount: 0,
+        processorName: "QuotationSaga",
+      },
+    ];
+
+    render(<DashboardView />);
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Current failure pressure — Top 5 clusters",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Top cluster 125%")).not.toBeInTheDocument();
+  });
+
   it("uses the oldest successful section timestamp for the dashboard", () => {
     const oldestUpdatedAt = new Date(2026, 7, 29).getTime();
     mocks.snapshotResult.summary.updatedAt = oldestUpdatedAt + 60_000;
