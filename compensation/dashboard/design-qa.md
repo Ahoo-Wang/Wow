@@ -39,14 +39,15 @@
 4. P2：390 px 下 Recoverability 图例重叠；移动断点改为纵向排列。
 5. 语义：健康标题错误暗示 as-of 状态、集中度无阈值却标为 Critical、Recoverability 错误会重复播报；改为准确中性文案并统一错误归属。
 6. Review：已结算错误不再显示永久骨架；历史时间范围补充 newer 存量分解；健康卡允许完整内容驱动高度。
-7. 最终：桌面当前生产数据无横向或纵向溢出；移动端无横向溢出或图例重叠。
+7. Review：0% Coverage 与 0 次 Outcome 不再渲染伪色条；800 px 高度下活动卡内容保持完整。
+8. 最终：桌面当前生产数据无横向或纵向溢出；移动端无横向溢出或图例重叠。
 
 ## 验证
 
 - `pnpm test`：41 个测试文件、209 项测试通过。
 - `pnpm lint`：通过。
 - `pnpm build`：通过。
-- Playwright：23 项通过，5 项按项目条件跳过。
+- Playwright：24 项通过，6 项按项目条件跳过。
 - 独立代码复审：无 Critical 或 Important 问题。
 
 final result: passed
