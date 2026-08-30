@@ -16,6 +16,7 @@ package me.ahoo.wow.query.mask
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.mask.CompiledMask
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
@@ -110,7 +111,8 @@ internal class SchemaMasker private constructor(
                 QueryModel.EVENT_STREAM -> "body.body."
                 else -> throw QuerySchemaConflictException("Unsupported masked query model: [${schema.model}].")
             }
-            val paths = schema.maskedFields.map { (field, fieldSchema) ->
+            val pathRules = linkedMapOf<String, MaskRule>()
+            schema.maskedFields.forEach { (field, fieldSchema) ->
                 val responsePath = fieldSchema.projectionPath ?: field.value
                 val invalidPath = when {
                     !field.value.startsWith(prefix) -> "field" to field.value
@@ -123,14 +125,22 @@ internal class SchemaMasker private constructor(
                             "[${prefix.removeSuffix(".")}]: [${invalidPath.second}].",
                     )
                 }
-                MaskedPath(responsePath.split('.'), checkNotNull(fieldSchema.maskRule).compiled)
+                pathRules.add(responsePath, checkNotNull(fieldSchema.maskRule))
             }
+            val paths = pathRules.map { (path, rule) -> MaskedPath(path.split('.'), rule.compiled) }
             val eventBodyTypes = if (schema.model == QueryModel.EVENT_STREAM) {
                 schema.requiredEventBodyTypes()
             } else {
                 null
             }
             return SchemaMasker(paths, eventBodyTypes)
+        }
+
+        private fun MutableMap<String, MaskRule>.add(path: String, rule: MaskRule) {
+            val existing = putIfAbsent(path, rule)
+            if (existing != null && existing != rule) {
+                throw QuerySchemaConflictException("Conflicting mask rules for projection path: [$path].")
+            }
         }
 
         private fun QueryModelSchema.requiredEventBodyTypes(): Set<String> {

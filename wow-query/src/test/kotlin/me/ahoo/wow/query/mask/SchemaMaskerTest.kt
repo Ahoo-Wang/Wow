@@ -105,6 +105,54 @@ class SchemaMaskerTest {
     }
 
     @Test
+    fun `aliases with the same projection path and mask rule should mask once`() {
+        val rule = fullMaskRule().copyWith(CompiledMask { "[$it]" })
+        val masker = SchemaMasker.create(
+            QueryModelSchema(
+                model = QueryModel.SNAPSHOT,
+                capabilities = emptySet(),
+                fields = mapOf(
+                    LogicalField("state.primaryEmail") to fieldSchema(
+                        projectionPath = "state.email",
+                        maskRule = rule,
+                    ),
+                    LogicalField("state.secondaryEmail") to fieldSchema(
+                        projectionPath = "state.email",
+                        maskRule = rule,
+                    ),
+                ),
+            ),
+        )!!
+        val node = """{"state":{"email":"secret"}}""".toJsonNode<ObjectNode>()
+
+        masker.mask(node)
+
+        node.path("state").path("email").stringValue().assert().isEqualTo("[secret]")
+    }
+
+    @Test
+    fun `aliases with the same projection path and different mask rules should conflict`() {
+        assertThrows<QuerySchemaConflictException> {
+            SchemaMasker.create(
+                QueryModelSchema(
+                    model = QueryModel.SNAPSHOT,
+                    capabilities = emptySet(),
+                    fields = mapOf(
+                        LogicalField("state.primaryEmail") to fieldSchema(
+                            projectionPath = "state.email",
+                            maskRule = fullMaskRule(),
+                        ),
+                        LogicalField("state.secondaryEmail") to fieldSchema(
+                            projectionPath = "state.email",
+                            maskRule = keepMaskRule(),
+                        ),
+                    ),
+                ),
+            )
+        }
+    }
+
+    @Test
     fun `snapshot should reject masked fields outside state`() {
         assertThrows<QuerySchemaConflictException> {
             SchemaMasker.create(schema(QueryModel.SNAPSHOT, "secret" to fullMaskRule()))

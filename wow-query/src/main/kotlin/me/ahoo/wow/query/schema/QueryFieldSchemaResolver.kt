@@ -126,12 +126,12 @@ internal class QueryFieldSchemaResolver(
         }
         return true
     }
-}
 
-internal fun String.relativeTo(parent: String?): String? = when {
-    parent == null -> this
-    startsWith("$parent.") -> substring(parent.length + 1)
-    else -> null
+    private fun String.relativeTo(parent: String?): String? = when {
+        parent == null -> this
+        startsWith("$parent.") -> substring(parent.length + 1)
+        else -> null
+    }
 }
 
 internal fun Iterable<QueryCompatibilityLevel>.combined(): QueryCompatibilityLevel = when {
