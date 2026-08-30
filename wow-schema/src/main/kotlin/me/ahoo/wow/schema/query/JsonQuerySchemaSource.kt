@@ -182,8 +182,9 @@ private fun Method.isComputedGetter(): Boolean = Modifier.isPublic(modifiers) &&
     when {
         name == "getClass" -> false
         name.startsWith("get") -> name.length > 3
-        name.startsWith("is") -> name.length > 2 &&
-            (returnType == Boolean::class.java || returnType == Boolean::class.javaObjectType)
+        name.startsWith("is") ->
+            name.length > 2 &&
+                (returnType == Boolean::class.java || returnType == Boolean::class.javaObjectType)
         else -> false
     }
 

@@ -177,7 +177,10 @@ class DefaultSnapshotQueryGatewayTest {
         StepVerifier.create(
             gateway(
                 SchemaSnapshotBackend(Mono.just(schema)),
-                errorHandler = ErrorHandler { _, error -> observed += error; Mono.empty() },
+                errorHandler = ErrorHandler { _, error ->
+                    observed += error
+                    Mono.empty()
+                },
             ).dynamicSingle(singleQuery { }),
         ).expectErrorMatches { it === failure }.verify()
         observed.assert().containsExactly(failure)
