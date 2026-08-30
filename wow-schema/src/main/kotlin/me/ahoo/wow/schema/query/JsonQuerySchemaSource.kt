@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.mask.Masking
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryTemporal
 import me.ahoo.wow.configuration.requiredAggregateType
+import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.inheritedAnnotations
 import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.toMergedAnnotation
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.schema.DeclarationValue
@@ -56,6 +57,7 @@ import tools.jackson.databind.ser.std.ReferenceTypeSerializer
 import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
 import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.reflect.jvm.kotlinProperty
@@ -155,11 +157,16 @@ class JsonQuerySchemaSource(
         fun schemaGenerator(maskRuleCatalog: MaskRuleCatalog): SchemaGenerator =
             SchemaGeneratorBuilder().objectMapper(JsonSerializer).customizer { config ->
                 config.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
+                config.with(Option.NONSTATIC_NONVOID_NONGETTER_METHODS)
+                config.with(Option.FIELDS_DERIVED_FROM_ARGUMENTFREE_METHODS)
                 config.forFields()
                     .withCustomDefinitionProvider { scope, context -> scope.customSerializerDefinition(context) }
                     .withInstanceAttributeOverride(TemporalAttributeOverride<FieldScope>())
                     .withInstanceAttributeOverride(MaskAttributeOverride(maskRuleCatalog))
                 config.forMethods()
+                    .withIgnoreCheck { scope ->
+                        scope.findGetterField() == null && !scope.rawMember.isComputedGetter()
+                    }
                     .withCustomDefinitionProvider { scope, context -> scope.customSerializerDefinition(context) }
                     .withInstanceAttributeOverride(TemporalAttributeOverride<MethodScope>())
                     .withInstanceAttributeOverride(MaskAttributeOverride(maskRuleCatalog))
@@ -169,6 +176,15 @@ class JsonQuerySchemaSource(
             }.build()
     }
 }
+
+private fun Method.isComputedGetter(): Boolean = parameterCount == 0 &&
+    when {
+        name == "getClass" -> false
+        name.startsWith("get") -> name.length > 3
+        name.startsWith("is") -> name.length > 2 &&
+            (returnType == Boolean::class.java || returnType == Boolean::class.javaObjectType)
+        else -> false
+    }
 
 private class MaskRuleCatalog {
     private val rules = mutableListOf<MaskRule>()
@@ -241,7 +257,10 @@ private fun MemberScope<*, *>.annotationsConsideringFieldAndGetter(): List<Annot
         }
 
         is MethodScope -> {
-            rawMember.kotlinFunction?.toMergedAnnotation()?.mergedAnnotations?.let(::addAll)
+            addAll(
+                rawMember.kotlinFunction?.toMergedAnnotation()?.mergedAnnotations
+                    ?: rawMember.inheritedAnnotations(),
+            )
             findGetterField()?.rawMember?.kotlinProperty
                 ?.toMergedAnnotation()?.mergedAnnotations?.let(::addAll)
             addAll(rawMember.annotations)
