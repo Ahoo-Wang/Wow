@@ -22,6 +22,7 @@ sequenceDiagram
     participant Gateway as 聚合绑定 Gateway
     participant Filters as 一条 around chain
     participant Backend as 绑定的 QueryBackend
+    participant Mask as Schema Mask
     participant Jackson as 可选类型化转换
     Caller->>Entry: Query DTO / DSL
     Entry->>Gateway: 作用域重写后的查询
@@ -29,11 +30,12 @@ sequenceDiagram
     Gateway->>Filters: 执行请求过滤器
     Filters->>Backend: single / list / paged / count / aggregate
     Backend-->>Filters: ObjectNode / PagedList / count
-    Filters-->>Jackson: 完成 chain
+    Filters-->>Mask: 完成全部结果过滤（single/list/paged）
+    Mask-->>Jackson: 脱敏后的 ObjectNode
     Jackson-->>Caller: ObjectNode 或类型化结果
 ```
 
-Registrar 在装配 Gateway 时按 `NamedAggregate` 调用一次路由 Factory，并把选中的 Backend 绑定到 Gateway；每次请求不会再次路由。Backend 统一产生 `ObjectNode`，结果过滤器先处理节点；typed single/list/paged 在 chain 完成后才由 Jackson 物化。count 保持 `Long`，aggregation 保持 `ObjectNode` 行。
+Registrar 在装配 Gateway 时按 `NamedAggregate` 调用一次路由 Factory，并把选中的 Backend 绑定到 Gateway；每次请求不会再次路由。Backend 统一产生 `ObjectNode`，结果过滤器先处理节点；single/list/paged 数据结果随后按 Query Model Schema 脱敏，typed 结果最后才由 Jackson 物化。count 保持 `Long`，aggregation 保持 `ObjectNode` 行，并由 Schema 拒绝对 Mask 字段的分组、metric 与 expression 引用。
 
 ## QueryContext 与 QueryType
 
@@ -51,15 +53,17 @@ Gateway 在每次订阅时创建独立的 `QueryContext`，因此同一个响应
 
 `HttpQueryGuardFilter` 同时属于两个 Gateway，但只有 Reactor Context 中存在 `ServerRequest` 时才生效；它不会改变普通进程内查询的约束。
 
-## ABAC 与临时 Mask 降级
+## ABAC 与静态 Mask
 
-内建 `AbacQueryFilter` 位于快照查询网关。当前 V9 查询架构临时不提供内建 Mask API、Registry 或结果脱敏 Filter；Snapshot、EventStream 与直接 aggregate-state load 都不会自动遮蔽字段值。静态注解方案由后续任务统一恢复，在此之前不得把 Gateway 视为脱敏边界。
+内建 `AbacQueryFilter` 位于快照查询网关。对于提供 `QueryModelSchemaProvider` 的 Backend，Gateway 会在全部通用结果 Filter 完成后、typed 物化前，对 raw `ObjectNode` 执行 Schema 驱动的静态注解 Mask。Snapshot 与 EventStream 的 typed、dynamic 和 aggregate-state load 入口共享这条受管路径。
+
+成功取得的 Schema 判定会被 Gateway 缓存；瞬时 Schema 加载错误不会被缓存，后续订阅可以重试。根 Schema 没有任何 `masked` 字段时走快速路径，不创建执行器，也不遍历结果 JSON。事件流启用 Mask 时，缺失或未知 `bodyType` 会使结果 Publisher 失败关闭。
 
 认证、Principal 绑定和完整的失败关闭策略请参阅[数据权限](../data-access.md)。
 
 ## 原始 Factory 边界
 
-直接调用 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory` 会绕过整条 Gateway 治理链，包括 ABAC 与结果 Filter。这些 Factory 是受信低层 SPI，只适合存储扩展、聚焦诊断和后端合同测试；常规应用代码应注入聚合绑定的 Gateway。
+直接调用 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory` 会绕过整条 Gateway 治理链，包括 ABAC、结果 Filter 与 Mask。没有 `QueryModelSchemaProvider` 的自定义 Backend 也无法建立 Mask 合同。这两类路径都是返回原始值的受信低层边界，只适合存储扩展、聚焦诊断和后端合同测试；常规应用代码应注入聚合绑定的 Gateway。
 
 ## Bean 名
 

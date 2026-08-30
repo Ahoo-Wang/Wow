@@ -9,7 +9,7 @@ description: Migrate the V8 query JVM API to aggregate Gateways and ObjectNode B
 
 V9 removes the old JVM types without a bridge, type alias, or deprecation window. This breaks JVM source and binary users of those types. Recompile downstream code and migrate directly with the tables below.
 
-HTTP paths, request/response JSON structure, generated OpenAPI, wire structure, storage layouts, and existing data do not change because of this JVM refactor. No storage-data migration is required. The current V9 also temporarily removes all Mask capability, so response fields that were previously hidden return raw values; HTTP value and confidentiality semantics are not preserved. A separate follow-up task will deliver the static-annotation replacement.
+HTTP paths, request/response JSON structure, generated OpenAPI, Backend wire trees, storage layouts, and existing data do not change because of this JVM refactor or static-annotation masking. No storage-data migration is required, and raw values in the Backend and storage are not rewritten. After old mask rules move to field annotations, the managed Gateway restores response confidentiality semantics.
 
 ## JVM Type Mapping
 
@@ -47,15 +47,15 @@ HTTP paths, request/response JSON structure, generated OpenAPI, wire structure, 
 | `EventStreamQueryServiceRegistrar` | `EventStreamQueryGatewayRegistrar` |
 | `QueryServiceProxy` / `SnapshotQueryServiceProxy` / `EventStreamQueryServiceProxy` | Removed; inject the aggregate-bound Gateway directly |
 | `DynamicDocument` / `SimpleDynamicDocument` | `tools.jackson.databind.node.ObjectNode` |
-| `DynamicDocumentMasker` | Removed; no replacement in the current version |
-| `AggregateDynamicDocumentMasker` | Removed; no replacement in the current version |
-| `StateDynamicDocumentMasker` | Removed; no replacement in the current version |
-| `EventStreamDynamicDocumentMasker` | Removed; no replacement in the current version |
-| `AggregateDataMasker` / `DefaultAggregateDataMasker` | Removed; no replacement in the current version |
-| `DataMaskerRegistry` / `AbstractDataMaskerRegistry` | Removed; no replacement in the current version |
-| `StateDataMaskerRegistry` / `EventStreamMaskerRegistry` | Removed; no replacement in the current version |
-| `DataMasker` / `DataMasking` / `tryMask` | Removed; no replacement in the current version |
-| `MaskingDynamicDocumentQueryFilter` | Removed; no replacement in the current version |
+| `DynamicDocumentMasker` | Removed; use `@Mask`, `@KeepMask`, or a custom `@Masking` meta-annotation on domain fields |
+| `AggregateDynamicDocumentMasker` | Removed; managed Gateways mask Snapshot and EventStream results from Query Schema |
+| `StateDynamicDocumentMasker` | Removed; declare static mask annotations on state fields |
+| `EventStreamDynamicDocumentMasker` | Removed; declare static mask annotations on event-payload fields |
+| `AggregateDataMasker` / `DefaultAggregateDataMasker` | Removed; no runtime object-mask SPI is retained |
+| `DataMaskerRegistry` / `AbstractDataMaskerRegistry` | Removed; Query Schema discovers rules from field annotations |
+| `StateDataMaskerRegistry` / `EventStreamMaskerRegistry` | Removed; model maskers are no longer registered |
+| `DataMasker` / `DataMasking` / `tryMask` | Removed; migrate to static field annotations |
+| `MaskingDynamicDocumentQueryFilter` | Removed; masking has a fixed position after Gateway result filters |
 | `QueryType.DYNAMIC_SINGLE` | `QueryType.SINGLE` |
 | `QueryType.DYNAMIC_LIST` | `QueryType.LIST` |
 | `QueryType.DYNAMIC_PAGED` | `QueryType.PAGED` |
@@ -67,7 +67,47 @@ There is no one-to-one replacement for `QueryService<R>`: move storage queries a
 
 Filters no longer use `QueryType.isDynamic` to distinguish a final typed result from a node result. Both paths traverse the same ObjectNode FilterChain and differ only by optional Jackson materialization after the chain. Remove branches used only for typed/dynamic dispatch; do not invent a replacement result-type discriminator.
 
-Delete old Mask types, implementations, Beans, registries, and custom filters. The current version creates no ObjectNode Mask compatibility layer and provides no built-in replacement. Snapshot, EventStream, and direct aggregate-state loads do not mask values automatically. Until the static-annotation replacement ships, callers must treat raw field values as an accepted temporary downgrade and protect sensitive endpoints with access control or external isolation.
+Delete old Mask types, implementations, Beans, registries, and custom filters without creating an ObjectNode Mask compatibility layer. Once old rules are declared on domain fields, Snapshot and EventStream typed, dynamic, and aggregate-state load entries mask automatically on the same managed Gateway path. A direct Backend Factory or a custom Backend without `QueryModelSchemaProvider` remains a trusted low-level boundary that returns raw values.
+
+## Static Mask Migration
+
+Use `@Mask` for full masking and `@KeepMask(prefix, suffix)` for fields such as phone numbers that preserve leading and trailing characters:
+
+```kotlin
+import me.ahoo.wow.api.query.mask.KeepMask
+import me.ahoo.wow.api.query.mask.Mask
+
+data class AccountState(
+    @field:Mask
+    val password: String,
+    @field:KeepMask(prefix = 3, suffix = 4)
+    val phone: String?,
+)
+```
+
+`@Mask` emits one `*` per Unicode code point. `@KeepMask` preserves edges by code point and fully masks a value too short to preserve both sides. `null` and empty strings remain unchanged. An annotation can live on a field or getter and follows inherited parent Kotlin-property or interface-getter members. Query Schema traverses nested objects and collections by path.
+
+For a specialized rule, define a domain annotation with `@Masking(strategy)` instead of a Registry:
+
+```kotlin
+import me.ahoo.wow.api.query.mask.CompiledMask
+import me.ahoo.wow.api.query.mask.MaskStrategy
+import me.ahoo.wow.api.query.mask.Masking
+
+@Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER)
+@Retention(AnnotationRetention.RUNTIME)
+@Masking(FixedMaskStrategy::class)
+annotation class FixedMask(val replacement: String = "***")
+
+object FixedMaskStrategy : MaskStrategy<FixedMask> {
+    override fun compile(annotation: FixedMask): CompiledMask =
+        CompiledMask { annotation.replacement }
+}
+```
+
+Query Schema discovers, validates, and compiles the Strategy at runtime; KSP is not used. A custom Strategy is a Kotlin `object` or public no-argument class. Fields must have a `String` wire shape. Multiple effective rules, conflicting branch rules, a non-String branch, or Strategy construction failure fails Schema closed. With EventStream masking enabled, a missing or unknown `bodyType` terminates the entire result Publisher instead of falling back to raw values.
+
+Public Schema metadata adds only field-level `masked: Boolean`; Strategy details, annotation parameters, and executable `MaskRule` stay in memory. Ordinary filters, full-text search, and sort can reference a masked field. Groups, field metrics, and arithmetic expressions cannot; `COUNT` is unchanged.
 
 ## Spring Bean Mapping
 
@@ -102,5 +142,6 @@ JSON-array and SSE streaming behavior is unchanged. If a stream fails after emit
 
 1. Replace imports, constructor parameters, Bean qualifiers, and Factory implementations according to the tables.
 2. Make every custom Backend subscription return fresh, exclusively owned `ObjectNode` values containing only standard JSON-tree data, leaving typed conversion to the Gateway.
-3. Remove every old Mask implementation, Bean, and registry; confirm that queries and aggregate-state loads in this temporary version return raw field values, and tighten access to sensitive endpoints.
-4. Recompile, start the Spring context, and separately verify JVM, HTTP/OpenAPI, Schema, actual storage routing, and the temporary Mask downgrade boundary.
+3. Remove every old Mask implementation, Bean, registry, and filter; migrate each old rule to `@Mask`, `@KeepMask`, or a custom `@Masking(strategy)` field annotation.
+4. Check Schema `masked` metadata; separately verify Snapshot/EventStream typed, dynamic, state-only/aggregate-state load results, and the direct-Backend raw-value boundary.
+5. Verify that ordinary filter/search/sort and count remain usable, that a group, field metric, or expression referencing a masked field fails closed, and then check actual MongoDB/Elasticsearch routing, HTTP/OpenAPI, and raw stored values.
