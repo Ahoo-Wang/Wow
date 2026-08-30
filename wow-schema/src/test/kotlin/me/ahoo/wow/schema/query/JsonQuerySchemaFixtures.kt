@@ -489,6 +489,20 @@ internal data class ReversedConflictingInheritedGetterMaskedState(
     override val inheritedToken: String,
 ) : SuffixGetterMaskedState, PrefixGetterMaskedState
 
+internal interface BaseOverrideGetterMaskedState {
+    @get:KeepMask(prefix = 1)
+    val inheritedToken: String
+}
+
+internal interface MidOverrideGetterMaskedState : BaseOverrideGetterMaskedState {
+    @get:KeepMask(prefix = 2)
+    override val inheritedToken: String
+}
+
+internal data class MultiLevelOverrideGetterMaskedState(
+    override val inheritedToken: String,
+) : MidOverrideGetterMaskedState
+
 @Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER)
 @Retention(AnnotationRetention.RUNTIME)
 @Mask

@@ -61,24 +61,8 @@ class MergedAnnotation(val element: KAnnotatedElement) {
             }
         }
 
-        private fun KClass<*>.inheritedClass(
-            root: KClass<*> = this,
-            scanned: LinkedHashSet<KClass<*>> = linkedSetOf()
-        ): Set<KClass<*>> {
-            val existed = scanned.any { it == this }
-            if (existed) {
-                return scanned
-            }
-            if (this != root) {
-                scanned.add(this)
-            }
-            superclasses.filter {
-                it != this && it != Any::class
-            }.forEach {
-                it.inheritedClass(root, scanned)
-            }
-            return scanned
-        }
+        private val KClass<*>.directParents: List<KClass<*>>
+            get() = superclasses.filter { it != this && it != Any::class }
 
         private fun mergeInheritedAnnotations(
             local: Set<Annotation>,
@@ -91,14 +75,21 @@ class MergedAnnotation(val element: KAnnotatedElement) {
             }
         }
 
-        fun KClass<*>.inheritedAnnotations(): Set<Annotation> {
-            val intimateAnnotationElement = this.toIntimateAnnotationElement()
-            return mergeInheritedAnnotations(
-                intimateAnnotationElement.inheritedAnnotations,
-                inheritedClass().asSequence().flatMap {
-                    it.toIntimateAnnotationElement().inheritedAnnotations.asSequence()
-                },
-            )
+        private fun KClass<*>.effectiveAnnotations(
+            localAnnotations: (KClass<*>) -> Set<Annotation>,
+        ): Set<Annotation> = mergeInheritedAnnotations(
+            localAnnotations(this),
+            effectiveParentAnnotations(localAnnotations),
+        )
+
+        private fun KClass<*>.effectiveParentAnnotations(
+            localAnnotations: (KClass<*>) -> Set<Annotation>,
+        ): Sequence<Annotation> = directParents.asSequence().flatMap { parent ->
+            parent.effectiveAnnotations(localAnnotations).asSequence()
+        }
+
+        fun KClass<*>.inheritedAnnotations(): Set<Annotation> = effectiveAnnotations {
+            it.toIntimateAnnotationElement().inheritedAnnotations
         }
 
         fun KProperty<*>.inheritedAnnotations(): Set<Annotation> {
@@ -107,10 +98,12 @@ class MergedAnnotation(val element: KAnnotatedElement) {
             declaringClass ?: return intimateAnnotationElement.inheritedAnnotations
             return mergeInheritedAnnotations(
                 intimateAnnotationElement.inheritedAnnotations,
-                declaringClass.inheritedClass().asSequence()
-                    .flatMap { it.declaredMembers.asSequence() }
-                    .filter { it.name == this.name }
-                    .flatMap { it.toIntimateAnnotationElement().inheritedAnnotations.asSequence() },
+                declaringClass.effectiveParentAnnotations { parent ->
+                    parent.declaredMembers.asSequence()
+                        .filter { it.name == this.name }
+                        .flatMap { it.toIntimateAnnotationElement().inheritedAnnotations.asSequence() }
+                        .toCollection(linkedSetOf())
+                },
             )
         }
 
@@ -142,6 +135,15 @@ class MergedAnnotation(val element: KAnnotatedElement) {
             return true
         }
 
+        private fun KClass<*>.declaredFunctionAnnotations(
+            matches: (KFunction<*>) -> Boolean,
+        ): Set<Annotation> = (
+            declaredFunctions.asSequence() +
+                declaredMemberProperties.asSequence().map { property -> property.getter }
+            ).filter(matches)
+            .flatMap { it.toIntimateAnnotationElement().inheritedAnnotations.asSequence() }
+            .toCollection(linkedSetOf())
+
         fun Method.inheritedAnnotations(): Set<Annotation> {
             val local = annotations.asSequence()
                 .flatMap { it.flatRepeatableAnnotation() }
@@ -149,15 +151,9 @@ class MergedAnnotation(val element: KAnnotatedElement) {
                 .toCollection(linkedSetOf())
             return mergeInheritedAnnotations(
                 local,
-                declaringClass.kotlin.inheritedClass().asSequence()
-                    .flatMap {
-                        it.declaredFunctions.asSequence() +
-                            it.declaredMemberProperties.asSequence().map { property -> property.getter }
-                    }.filter {
-                        it.sameSignature(this)
-                    }.flatMap {
-                        it.toIntimateAnnotationElement().inheritedAnnotations.asSequence()
-                    },
+                declaringClass.kotlin.effectiveParentAnnotations { parent ->
+                    parent.declaredFunctionAnnotations { it.sameSignature(this) }
+                },
             )
         }
 
@@ -167,15 +163,9 @@ class MergedAnnotation(val element: KAnnotatedElement) {
             declaringClass ?: return intimateAnnotationElement.inheritedAnnotations
             return mergeInheritedAnnotations(
                 intimateAnnotationElement.inheritedAnnotations,
-                declaringClass.inheritedClass().asSequence()
-                    .flatMap {
-                        it.declaredFunctions.asSequence() +
-                            it.declaredMemberProperties.asSequence().map { property -> property.getter }
-                    }.filter {
-                        it.sameSignature(this)
-                    }.flatMap {
-                        it.toIntimateAnnotationElement().inheritedAnnotations.asSequence()
-                    },
+                declaringClass.effectiveParentAnnotations { parent ->
+                    parent.declaredFunctionAnnotations { it.sameSignature(this) }
+                },
             )
         }
     }
