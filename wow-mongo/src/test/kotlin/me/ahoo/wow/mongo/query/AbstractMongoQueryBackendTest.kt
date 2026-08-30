@@ -24,17 +24,26 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackend
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.converter.FieldConverter
+import me.ahoo.wow.query.schema.QueryFieldBinding
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
@@ -262,6 +271,40 @@ class AbstractMongoQueryBackendTest {
         page.list.single().has("physical_id").assert().isFalse()
     }
 
+    @Test
+    fun `built-in cursor mappers should hide cursor-only logical ids`() {
+        val builtIns = listOf(
+            MessageRecords.AGGREGATE_ID to builtInCursorBackend(
+                MessageRecords.AGGREGATE_ID,
+                QueryModel.SNAPSHOT,
+            ),
+            MessageRecords.ID to builtInCursorBackend(MessageRecords.ID, QueryModel.EVENT_STREAM),
+        )
+
+        builtIns.forEach { (logicalId, builtIn) ->
+            listOf(
+                Projection(include = listOf("name")),
+                Projection(exclude = listOf(logicalId)),
+            ).forEach { projection ->
+                cursorPublisher(
+                    listOf(
+                        Document("_id", "1").append("name", "one"),
+                        Document("_id", "2").append("name", "two"),
+                    ),
+                    limit = 2,
+                )
+
+                val page = builtIn.cursor(
+                    CursorQuery(MatchAllFilter, projection = projection, size = 1),
+                ).block()!!
+
+                page.list.single().path("name").asString().assert().isEqualTo("one")
+                page.list.single().has(logicalId).assert().isFalse()
+                MongoCursorCodec.decode(page.nextCursor!!, 1).single().assert().isEqualTo("1")
+            }
+        }
+    }
+
     private fun arrangePublisher(
         publisher: FindPublisher<Document>,
         bson: Bson,
@@ -289,4 +332,48 @@ class AbstractMongoQueryBackendTest {
         }
         return publisher
     }
+
+    private fun builtInCursorBackend(logicalId: String, model: QueryModel): QueryBackend {
+        val schemaProvider = mockk<QueryModelSchemaProvider>()
+        every { schemaProvider.schema() } returns Mono.just(
+            QueryModelSchema(
+                model = model,
+                capabilities = emptySet(),
+                fields = mapOf(
+                    LogicalField(logicalId) to cursorFieldSchema("_id"),
+                    LogicalField("name") to cursorFieldSchema("name"),
+                ),
+            ),
+        )
+        return if (model == QueryModel.SNAPSHOT) {
+            MongoSnapshotQueryBackend(
+                namedAggregate = MaterializedNamedAggregate("test", "aggregate"),
+                collection = collection,
+                schemaProvider = schemaProvider,
+            )
+        } else {
+            MongoEventStreamQueryBackend(
+                namedAggregate = MaterializedNamedAggregate("test", "aggregate"),
+                collection = collection,
+                schemaProvider = schemaProvider,
+            )
+        }
+    }
+
+    private fun cursorFieldSchema(physicalPath: String) = QueryFieldSchema(
+        title = null,
+        description = null,
+        enumValues = null,
+        valueTypes = setOf(QueryValueType.STRING),
+        nullable = false,
+        required = true,
+        cardinality = QueryCardinality.SINGLE,
+        semanticType = null,
+        dynamicChildren = false,
+        bindings = mapOf(
+            QueryCapability.PRESENCE to QueryFieldBinding(physicalPath, storageType = null),
+            QueryCapability.SORT to QueryFieldBinding(physicalPath, storageType = null),
+        ),
+        projectionPath = physicalPath,
+    )
 }

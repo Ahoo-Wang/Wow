@@ -109,6 +109,7 @@ internal fun <T : Any> List<Document>.toCursorPage(
     query: ICursorQuery,
     projection: MongoCursorProjection,
     sortFields: List<String> = query.sort.map { it.field },
+    deferredInternalFields: Set<String> = emptySet(),
     mapper: (Document) -> T,
 ): CursorPage<T> {
     val returned = take(query.size)
@@ -119,7 +120,7 @@ internal fun <T : Any> List<Document>.toCursorPage(
     }
     return CursorPage(
         list = returned.map { document ->
-            projection.internalFields.forEach { field ->
+            projection.internalFields.filterNot(deferredInternalFields::contains).forEach { field ->
                 document.removeAt(field, removeEmptyParents = projection.queryProjection.include.isNotEmpty())
             }
             mapper(document)
