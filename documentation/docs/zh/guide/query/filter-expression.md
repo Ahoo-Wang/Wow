@@ -48,7 +48,7 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 | --- | --- | --- |
 | `EQ` / `NE` | `{ "op": "EQ", "field": "state.status", "value": "PAID" }` | `"status" eq "PAID"` / `"status" ne "CANCELLED"` |
 | `GT` / `GTE` / `LT` / `LTE` | `{ "op": "GTE", "field": "state.total", "value": 100 }` | `"total" gte 100` |
-| `CONTAINS` / `STARTS_WITH` / `ENDS_WITH` | `{ "op": "CONTAINS", "field": "state.note", "value": "vip", "stringComparison": "CASE_INSENSITIVE" }` | `"note".contains("vip", StringComparison.CASE_INSENSITIVE)` |
+| `CONTAINS` / `STARTS_WITH` / `ENDS_WITH` | `{ "op": "CONTAINS", "field": "state.note", "value": "vip", "stringComparison": "CASE_INSENSITIVE" }` | `"note".containsText("vip", StringComparison.CASE_INSENSITIVE)` |
 
 字符串比较默认 `CASE_SENSITIVE`。比较和字符串能力由后端及其发布的 Schema 决定。
 
