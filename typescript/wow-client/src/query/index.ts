@@ -25,6 +25,5 @@ export * from './event';
 export * from './snapshot';
 export * from './state';
 export * from './cursorQuery';
-export * from './querySchema';
 export * from './queryClients';
 export * from './types';

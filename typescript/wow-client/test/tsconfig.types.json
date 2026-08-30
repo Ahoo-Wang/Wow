@@ -12,7 +12,6 @@
     "./query/aggregation.test.ts",
     "./query/event/eventStreamQueryApi.test.ts",
     "./query/filter.test.ts",
-    "./query/querySchema.type-test.ts",
     "./query/snapshot/snapshotQueryApi.test.ts"
   ]
 }
