@@ -64,8 +64,10 @@ V9 已将查询主链重构为 `QueryGateway → QueryBackend`，并通过静态
 ### 必选能力
 
 `QueryGateway` 与 `QueryBackend` 的 cursor 方法均为 V9 必须实现的抽象合同，不提供默认
-`UnsupportedOperationException`。标准 Snapshot API Client 直接包含 typed、dynamic、state-only cursor 方法，
-不再要求调用方额外继承 opt-in cursor 接口。Backend TCK 默认执行 cursor 合同，不提供 capability flag 或整组跳过。
+`UnsupportedOperationException`。保留现有 `SnapshotCursorQueryApi`、`ReactiveSnapshotCursorQueryApi` 与
+`SynchronousSnapshotCursorQueryApi` 作为可复用的 Cursor capability；标准 `ReactiveSnapshotQueryApi` 与
+`SynchronousSnapshotQueryApi` 必须组合对应 capability，使 typed、dynamic、state-only cursor 成为标准合同，
+而不是调用方额外选择的 opt-in 能力。Backend TCK 默认执行 cursor 合同，不提供 capability flag 或整组跳过。
 
 框架内建 NoOp Backend 返回 `CursorPage(emptyList(), null)`；Unavailable Backend 继续返回其既有 unavailable 错误。
 MongoDB、Elasticsearch 抽象 Backend 要求子类提供非空唯一排序字段，不再以 nullable 字段作为 unsupported 入口。
@@ -76,20 +78,23 @@ MongoDB、Elasticsearch 抽象 Backend 要求子类提供非空唯一排序字�
 flowchart LR
     Client["JVM / HTTP Client"] --> Gateway["QueryGateway"]
     Gateway --> Filters["QueryFilter chain"]
-    Filters --> Backend["QueryBackend.cursor"]
+    Filters --> RequestSchema["Request Query Schema context"]
+    RequestSchema --> Backend["QueryBackend.cursor"]
     Backend --> EffectiveSort["Append unique sort"]
     EffectiveSort --> Schema["QuerySchemaResolver.resolveCursor"]
     Schema -->|masked / unavailable| Reject["Fail closed"]
     Schema -->|accepted physical query| Store["MongoDB / Elasticsearch"]
     Store --> RawPage["CursorPage&lt;ObjectNode&gt;"]
     RawPage --> Masker["SchemaMasker"]
+    RequestSchema --> Masker
     Masker --> Result["Typed / dynamic CursorPage"]
 ```
 
 职责保持为：
 
-- Gateway 执行 QueryFilter chain、错误处理、结果 `SchemaMasker` 与 typed/dynamic 转换；
-- 具体 Backend 复用自身 `QueryModelSchemaProvider`，在访问存储前完成逻辑字段到物理字段解析；
+- Gateway 执行 QueryFilter chain、错误处理，并在结果 subscription 内固定一次 Query Schema；
+- 具体 Backend 的 Query 解析与结果 `SchemaMasker` 复用该请求级 Schema，前者在访问存储前完成逻辑字段到
+  物理字段解析，后者完成结果脱敏；
 - MongoDB/Elasticsearch 抽象 Backend 只负责各自的 continuation 执行与 token 格式；
 - HTTP/OpenAPI/API Client 只传递公共 `CursorQuery` / `CursorPage`，不解释 token。
 
@@ -158,7 +163,8 @@ Schema 整体不可用也始终阻塞 CursorQuery。
 - `QueryType` 只新增一个 `CURSOR`；typed 与 dynamic 共用该类型和过滤链。
 - Gateway 对 `CursorPage<ObjectNode>.list` 应用现有 `SchemaMasker`，保留 `nextCursor`，再转换 typed 结果。
 - Snapshot 提供 typed、dynamic、state-only cursor；EventStream 提供 typed、dynamic cursor。
-- 标准 Snapshot reactive/synchronous API Client 直接发布 cursor 方法，不保留额外 opt-in 接口。
+- 标准 Snapshot reactive/synchronous API Client 组合现有 Cursor capability 接口；保留该接口作为职责清晰的
+  复用单元，但不把它作为标准 API 的可选能力。
 - WebFlux 路由沿用现有查询 guard、body extractor 与错误映射；不新增 SSE cursor。
 - OpenAPI、JSON Schema、API Client 和 DSL 暴露与现有 CursorQuery 设计一致的契约。
 - 中英文文档明确 masked sort 拒绝、Schema fail-closed、token 非加密，以及不存在
@@ -179,8 +185,9 @@ Schema 整体不可用也始终阻塞 CursorQuery。
 ## 兼容与迁移
 
 - V9 CursorQuery 只基于新 QueryGateway/QueryBackend API，不引入旧 `QueryService` 适配层。
-- 自定义 Backend、Gateway、API Client 与 TCK 实现必须迁移到 V9 cursor 合同；不以默认方法、独立 opt-in
-  接口或测试 skip 保持 V8 源码兼容。
+- 自定义 Backend、Gateway、API Client 与 TCK 实现必须迁移到 V9 cursor 合同；不以默认方法、未组合的
+  capability 或测试 skip 保持 V8 源码兼容。现有 Cursor capability 接口保留并由标准 API 组合复用，
+  不复制其方法声明。
 - 旧 PR #3091 未合并，因此不提供加密 token 的 wire migration 或双格式 decode。
 - 删除 `QueryProperties.cursor.encryptionKey`、`CURSOR_ENCRYPTION_KEY` 常量及 Spring Boot codec wiring。
 - 不运行或声称 `javap` JVM ABI 验证。
@@ -193,7 +200,8 @@ Schema 整体不可用也始终阻塞 CursorQuery。
 - Gateway：typed/dynamic cursor 结果只 mask 一次，保留 `nextCursor`，错误进入现有 ErrorHandler；
 - MongoDB：keyset、唯一键、null/missing、projection 清理、Base64/结构/类型拒绝；
 - Elasticsearch：`search_after`、唯一键、`track_total_hits=false`、Base64/arity/type 拒绝；
-- HTTP/OpenAPI/API Client/DSL：路由、Schema、序列化与无结果合同；标准 API Client 直接包含 cursor；
+- HTTP/OpenAPI/API Client/DSL：路由、Schema、序列化与无结果合同；标准 API Client 通过既有 capability
+  组合包含 cursor；
 - TCK：cursor 用例默认执行，MongoDB/Elasticsearch fixture 显式实现 null/missing 数据准备；
 - Spring Boot：不存在 cursor key 配置或 Codec wiring；
 - 仓库扫描：生产代码、测试和 `documentation/docs` 均不存在 `encryption-key`、AES cursor 或真实密钥示例；
@@ -216,7 +224,8 @@ git diff --check
 ## 验收标准
 
 - CursorQuery 在 V9 QueryGateway/QueryBackend 主链可用于 Snapshot 与 EventStream；
-- Cursor 在 Backend、Gateway、标准 API Client 与 TCK 中均为必选合同，不存在 unsupported 默认实现或 opt-in 兼容层；
+- Cursor 在 Backend、Gateway、标准 API Client 与 TCK 中均为必选合同，不存在 unsupported 默认实现、
+  未组合 capability 或测试跳过；
 - MongoDB 不执行 count/skip，Elasticsearch 不执行 total/from；
 - masked 有效排序和 Schema unavailable 均在存储访问前失败；
 - 普通查询的 masked filter/sort/projection 行为无回归；

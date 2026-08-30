@@ -17,20 +17,27 @@ Element 聚合中的字段按当前 Element 根拼接。`expand("body")` 下的 
 
 恢复聚合字段原有的相对解析语义，并保留 Mask 新增的聚合拒绝规则：group、字段 metric 和 expression 引用 masked 字段时解析为 `INCOMPATIBLE`；`COUNT` 不受影响。
 
-## 请求级 Schema 一致性、Masker 生命周期与快速路径
+## 请求级 Query Schema 执行上下文、Masker 生命周期与快速路径
 
-Gateway 的最外层 Mask Filter 在每个结果查询开始时从 `QueryModelSchemaProvider.schema()` 取得一次当前
-Schema，并把该对象固定到本次 Reactor subscription。Backend 的 Query Schema resolve 与结果 Masker
-必须读取同一对象；`refresh()` 可以发布下一代 Schema，但不得让一个在途请求跨代解析和脱敏。
+统一复用现有 `QueryModelSchemaProvider` 作为 Schema capability，不新增 Mask 专用 Provider、Backend
+capability、`QueryExecution` DTO 或公共 Schema 参数。`SchemaMaskQueryFilter` 仍是最外层结果装饰器：它在
+结果 publisher 每次 subscription 时从 Provider 取得一次当前 Schema，先把该对象写入统一的 Query Schema
+subscription context，再订阅 Backend publisher，并用同一对象构建结果 Masker。
 
-固定值使用 Reactor Context 在当前 subscription 内传递，不使用全局注册表、`ThreadLocal`、锁或公共 API
-参数。直接调用 Backend 时没有固定值，仍从 Provider 读取当前 Schema。`count` 不加载 Schema；aggregation
-保持现有 Backend Schema resolve，不进入结果 Masker。
+所有 `QueryModelSchemaProvider.resolve(...)` 扩展先读取该 subscription context；不存在固定值时才调用
+`schema()`。因此受管 Gateway 中的 Query 解析、Backend 执行所使用的物理字段，以及结果 Mask 都绑定到同一
+Schema 对象。`refresh()` 可以发布下一代 Schema，但不得让一个在途请求跨代解析和脱敏。直接调用 Backend
+时没有请求上下文，继续从 Provider 读取当前 Schema。
+
+该上下文归属 `wow-query` 的 Query Schema 能力，只保存本次 subscription 的 `QueryModelSchema`，不放在
+Mask 包内，也不使用全局注册表、`ThreadLocal`、锁或跨请求可变状态。`count` 只有一次 Backend Schema
+解析，不需要额外固定；aggregation 继续复用现有 `ResolvedAggregationQuery` 把解析后的 query 与同一 Schema
+交给 compiler，不进入结果 Masker。
 
 Provider 已负责发布和缓存当前 Schema，Gateway 不再永久缓存首次返回的
 `Mono<Optional<SchemaMasker>>`。
 
-Gateway 仅按 `QueryModelSchema` 对象身份缓存最近一次编译结果：
+Gateway 仅按 `QueryModelSchema` 对象身份缓存最近一次 Masker 编译结果：
 
 - Schema 对象未变化时复用 `SchemaMasker`；
 - `refresh()` 发布新 Schema 对象后重新编译；
@@ -68,7 +75,8 @@ Query Schema 文档把 unavailable fallback 限定为直接 Schema 解析路径�
 
 1. Element 聚合 `body.data` 到 `body.body.data` 的回归测试，以及失败过的 Mongo EventStream 集成测试。
 2. Gateway 在 unmasked 到 masked、Mask 参数变化和 Event body type 变化后的 refresh 行为；并发 refresh 下
-   Backend resolve 与 Masker 使用同一 Schema 对象；根无 Mask 快速路径仍不映射结果。
+   Provider 解析与 Masker 从统一 subscription context 读取同一 Schema 对象；直接 Backend 调用在无上下文时
+   仍读取 Provider 当前值；根无 Mask 快速路径仍不映射结果。
 3. 同参数、多参数冲突、父接口顺序反转、本地覆盖和 Java getter 实现 Kotlin property 的继承注解行为。
 4. `KeepMask` 的 Unicode code point、Strategy 抛错转换为固定安全消息并经 Gateway ErrorHandler 传播，
    以及 Java 调用方使用 V9 新构造合同。
@@ -78,7 +86,8 @@ Query Schema 文档把 unavailable fallback 限定为直接 Schema 解析路径�
 
 - 原 CI 聚合失败消失；所有新回归测试先红后绿。
 - Schema refresh 后不复用旧 Mask 规则，也不存在未脱敏降级路径。
-- 单次请求只使用一个 Schema generation，MaskStrategy 失败不会向响应或默认日志泄露原始值。
+- 单次结果 subscription 只使用一个 Schema generation，Query 解析与 Mask 之间不存在私有旁路上下文，
+  MaskStrategy 失败不会向响应或默认日志泄露原始值。
 - 冲突注解与未知 Event body type 均失败关闭。
 - API 与文档明确 V9 源码和二进制边界，代码中没有为 V8 构造器保留兼容债务。
 - PR 分支基于最新 `main`，全量验证通过后才推送；不自动合并 PR。
