@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.materialize
+import me.ahoo.wow.api.query.schema.QueryTemporal
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.ErrorDetails
 import me.ahoo.wow.compensation.api.EventId
@@ -39,6 +40,8 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
         private set
     override lateinit var error: ErrorDetails
         private set
+
+    @field:QueryTemporal
     override var executeAt: Long = 0
         private set
     override lateinit var retrySpec: RetrySpec
