@@ -67,7 +67,24 @@ HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
 | 可选存储、消息、安全与可观测集成 | [wow-spring-boot-starter Feature Capabilities](wow-spring-boot-starter/build.gradle.kts) |
 | 补偿与恢复操作 | [补偿领域](compensation)与[控制台](documentation/docs/public/images/compensation/dashboard.png) |
 
-<p align="center"><img src="documentation/docs/public/images/Architecture.svg" alt="Wow 架构" width="95%"/></p>
+```mermaid
+flowchart LR
+    Client[客户端 / 应用入口] --> CommandGateway[CommandGateway]
+    CommandGateway --> CommandBus[CommandBus]
+    CommandBus --> Aggregate[聚合]
+    Aggregate --> EventStore[(EventStore)]
+    Aggregate --> DomainBus[DomainEventBus]
+    Aggregate --> StateBus[StateEventBus]
+    DomainBus --> Processor[EventProcessor / Saga]
+    DomainBus --> Projection[投影]
+    StateBus --> Projection
+    StateBus --> Snapshot[快照策略]
+    Snapshot --> SnapshotStore[(SnapshotStore)]
+    Projection --> ReadModel[(读模型)]
+    QueryClient[查询客户端] --> QueryGateway[QueryGateway]
+    QueryGateway --> QueryBackend[QueryBackend]
+    QueryBackend --> ReadModel
+```
 
 ## 兼容性基线
 

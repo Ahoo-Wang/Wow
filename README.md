@@ -67,7 +67,24 @@ That path proves the domain test, generated route, command pipeline, event sourc
 | Optional storage, messaging, security, and telemetry integrations | [wow-spring-boot-starter feature capabilities](wow-spring-boot-starter/build.gradle.kts) |
 | Compensation and recovery operations | [Compensation domain](compensation) and [dashboard](documentation/docs/public/images/compensation/dashboard.png) |
 
-<p align="center"><img src="documentation/docs/public/images/Architecture.svg" alt="Wow architecture" width="95%"/></p>
+```mermaid
+flowchart LR
+    Client[Client / application ingress] --> CommandGateway[CommandGateway]
+    CommandGateway --> CommandBus[CommandBus]
+    CommandBus --> Aggregate[Aggregate]
+    Aggregate --> EventStore[(EventStore)]
+    Aggregate --> DomainBus[DomainEventBus]
+    Aggregate --> StateBus[StateEventBus]
+    DomainBus --> Processor[EventProcessor / Saga]
+    DomainBus --> Projection[Projection]
+    StateBus --> Projection
+    StateBus --> Snapshot[Snapshot strategy]
+    Snapshot --> SnapshotStore[(SnapshotStore)]
+    Projection --> ReadModel[(Read model)]
+    QueryClient[Query client] --> QueryGateway[QueryGateway]
+    QueryGateway --> QueryBackend[QueryBackend]
+    QueryBackend --> ReadModel
+```
 
 ## Compatibility Baseline
 
