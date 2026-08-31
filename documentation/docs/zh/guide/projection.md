@@ -30,8 +30,9 @@ flowchart LR
     E --> B[领域/状态事件总线]
     B --> P[投影处理器]
     P --> R[(读模型)]
-    Q[查询服务] --> R
-    H[WebFlux 路由/API 客户端] --> Q
+    H[WebFlux 路由/API 客户端] --> G[查询网关]
+    G --> Q[查询后端]
+    Q --> R
 ```
 
 `ProjectionDispatcher` 同时订阅 `DomainEventBus` 与 `StateEventBus`。`ProjectionProcessorAutoRegistrar` 发现带 `@ProjectionProcessor` 的 Spring Bean，`ProjectionFunctionRegistrar` 注册其中的处理函数。

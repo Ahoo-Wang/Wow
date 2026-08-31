@@ -30,8 +30,9 @@ flowchart LR
     E --> B[Domain / State Event Bus]
     B --> P[Projection Processor]
     P --> R[(Read Model)]
-    Q[Query Service] --> R
-    H[WebFlux Route / API Client] --> Q
+    H[WebFlux Route / API Client] --> G[Query Gateway]
+    G --> Q[Query Backend]
+    Q --> R
 ```
 
 `ProjectionDispatcher` subscribes to both `DomainEventBus` and `StateEventBus`. `ProjectionProcessorAutoRegistrar` discovers Spring beans annotated with `@ProjectionProcessor`, and `ProjectionFunctionRegistrar` registers their handler functions.
