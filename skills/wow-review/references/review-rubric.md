@@ -10,7 +10,7 @@ Use this rubric after resolving the actual diff and reading the current definiti
 - Saga branches, Projection/EventProcessor side effects, duplicate delivery, retry, and idempotency are verified at the correct boundary.
 - Query filters preserve tenant/owner/deletion/authorization constraints, `FilterExpression` scope semantics, deterministic pagination, and backend null/numeric behavior. Aggregation `elements` keep the first path absolute, later paths relative, and sort by the effective output field.
 - Runtime query schemas preserve declaration merge, validation mode, backend bindings, and cache/refresh locality. OpenAPI `x-wow-query-fields` is not backend capability proof; refreshing one instance does not update other replicas, mappings, or historical data.
-- Cursor effective sort is Schema `EXACT`, `SINGLE`, unmasked, and stably unique, without logical, projection, or physical aliases.
+- Cursor effective sort is Schema `EXACT`, `SINGLE`, unmasked, and stably unique, and does not reach a masked field through logical, projection, or physical aliases.
 - Cursor tokens are opaque: application code does not decode, log, rewrite, or cross Backend boundaries with them; every page uses the managed Gateway and tokens carry no authorization.
 - Empty-string behavior distinguishes `""`, whitespace, null, missing fields, and collections; do not infer an HTTP expensive-operator guard from in-process capability.
 - EventStream aggregation uses the managed `EventStreamQueryGateway`, `EVENT_STREAM` schema, event-relative `body` paths, and generated HTTP/OpenAPI/Schema routes.
