@@ -58,6 +58,20 @@ class FilterExpressionDefinitionProviderTest {
     }
 
     @Test
+    fun `filter schema should accept operand free empty string operators`() {
+        val schema = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_7)
+            .getSchema(WowSchemaLoader.load(FilterExpression::class.java))
+        val mapper = JsonMapper.builder().build()
+
+        listOf("IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING").forEach { operator ->
+            schema.validate(mapper.readTree("""{"op":"$operator","field":"state.name"}"""))
+                .assert().isEmpty()
+            schema.validate(mapper.readTree("""{"op":"$operator","field":"state.name","value":""}"""))
+                .assert().isNotEmpty()
+        }
+    }
+
+    @Test
     fun `filter schema should accept at-prefixed logical fields`() {
         val schema = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_7)
             .getSchema(WowSchemaLoader.load(FilterExpression::class.java))

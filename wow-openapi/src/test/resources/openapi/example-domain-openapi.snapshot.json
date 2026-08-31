@@ -5270,6 +5270,10 @@
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isEmpty"
             }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isEmptyString"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNotEmptyString"
+            }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNotNull"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNull"
@@ -5407,6 +5411,10 @@
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/in"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isEmpty"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isEmptyString"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNotEmptyString"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNotNull"
             }, {
@@ -5563,6 +5571,32 @@
               },
               "op" : {
                 "enum" : [ "IS_EMPTY" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "isEmptyString" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "IS_EMPTY_STRING" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "isNotEmptyString" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "IS_NOT_EMPTY_STRING" ]
               }
             },
             "required" : [ "op", "field" ],

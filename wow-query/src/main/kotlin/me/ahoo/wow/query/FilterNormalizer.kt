@@ -22,6 +22,8 @@ import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
+import me.ahoo.wow.api.query.IsEmptyStringFilter
+import me.ahoo.wow.api.query.IsNotEmptyStringFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LastMonthFilter
@@ -75,6 +77,13 @@ class FilterNormalizer(
     private fun normalizeStructural(expression: FilterExpression): FilterExpression = when (expression) {
         is EqualFilter -> if (expression.value.isNull) IsNullFilter(expression.field) else expression
         is NotEqualFilter -> if (expression.value.isNull) IsNotNullFilter(expression.field) else expression
+        is IsEmptyStringFilter -> EqualFilter(expression.field, JsonNodeFactory.instance.stringNode(""))
+        is IsNotEmptyStringFilter -> AndFilter(
+            listOf(
+                IsNotNullFilter(expression.field),
+                NotEqualFilter(expression.field, JsonNodeFactory.instance.stringNode("")),
+            ),
+        )
         is AndFilter -> AndFilter(expression.operands.map(::normalizeStructural))
         is OrFilter -> OrFilter(expression.operands.map(::normalizeStructural))
         is NorFilter -> NorFilter(expression.operands.map(::normalizeStructural))

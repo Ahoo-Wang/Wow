@@ -49,8 +49,10 @@ Use these dedicated operators for system identities, tenant, owner, and space. D
 | `EQ` / `NE` | `{ "op": "EQ", "field": "state.status", "value": "PAID" }` | `"status" eq "PAID"` / `"status" ne "CANCELLED"` |
 | `GT` / `GTE` / `LT` / `LTE` | `{ "op": "GTE", "field": "state.total", "value": 100 }` | `"total" gte 100` |
 | `CONTAINS` / `STARTS_WITH` / `ENDS_WITH` | `{ "op": "CONTAINS", "field": "state.note", "value": "vip", "stringComparison": "CASE_INSENSITIVE" }` | `"note".containsText("vip", StringComparison.CASE_INSENSITIVE)` |
+| `IS_EMPTY_STRING` / `IS_NOT_EMPTY_STRING` | `{ "op": "IS_EMPTY_STRING", "field": "state.note" }` | `"note".isEmptyString()` / `"note".isNotEmptyString()` |
 
 String comparison defaults to `CASE_SENSITIVE`. Comparison and string capabilities depend on the backend and the Schema it publishes.
+The operand-free empty-string operators apply only to single-value string fields with exact-match capability. `IS_EMPTY_STRING` matches exactly `""`; `IS_NOT_EMPTY_STRING` requires the field to exist, be non-null, and differ from `""`. Whitespace-only strings are not empty.
 
 ## Collection and Presence Operators
 
@@ -160,6 +162,6 @@ flowchart TB
 
 The query-model Schema resolves logical fields into backend-proven capabilities; see the [Schema section in the query overview](./query-model-schema.md). MongoDB, Elasticsearch, and custom backends can support different comparison, presence, full-text, or time semantics; the shared operator list does not promise cross-backend equivalence.
 
-HTTP requests with a WebFlux `ServerRequest` context pass through `HttpQueryGuardFilter`. When `wow.webflux.query.allow-expensive-operators=false`, it rejects `NE`, `NOT_IN`, `NOR`, `IS_NULL`, `IS_NOT_NULL`, `NOT_EXISTS`, `IS_EMPTY`, `CONTAINS`, `ENDS_WITH`, and `STARTS_WITH` when empty or case-insensitive; the HTTP guard also caps filter nodes and values. Its compatibility default is not capacity evidence; see [infrastructure configuration](../../reference/config/infrastructure). In-process queries do not gain or lose backend capabilities because of this HTTP-only protection.
+HTTP requests with a WebFlux `ServerRequest` context pass through `HttpQueryGuardFilter`. When `wow.webflux.query.allow-expensive-operators=false`, it rejects `NE`, `NOT_IN`, `NOR`, `IS_NULL`, `IS_NOT_NULL`, `NOT_EXISTS`, `IS_EMPTY`, `IS_NOT_EMPTY_STRING`, `CONTAINS`, `ENDS_WITH`, and `STARTS_WITH` when empty or case-insensitive; the HTTP guard also caps filter nodes and values. Its compatibility default is not capacity evidence; see [infrastructure configuration](../../reference/config/infrastructure). In-process queries do not gain or lose backend capabilities because of this HTTP-only protection.
 
 The canonical V9 JVM API is `FilterExpression` and `FilterDsl`. V9.0.x temporarily retains deprecated `Condition`, `Operator`, `ConditionDsl`, legacy query constructors, and count client overloads, all normalized to `FilterExpression` before execution; these compatibility APIs are scheduled for removal in 9.1.0. The WebFlux REST boundary accepts the V8 `condition` property for list/paged/single requests and the bare `operator` shape for count requests during the same window. Canonical `filter`, OpenAPI, and outbound JSON still use only `op`. A request cannot mix `filter` with `condition` or `op` with `operator`.

@@ -250,6 +250,7 @@ class HttpQueryGuardFilter(
             FilterOperator.IS_NOT_NULL,
             FilterOperator.NOT_EXISTS,
             FilterOperator.IS_EMPTY,
+            FilterOperator.IS_NOT_EMPTY_STRING,
             FilterOperator.CONTAINS,
             FilterOperator.ENDS_WITH,
         )

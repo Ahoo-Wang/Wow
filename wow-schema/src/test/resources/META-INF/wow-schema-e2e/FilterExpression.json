@@ -73,6 +73,10 @@
       }, {
         "$ref" : "#/definitions/isEmpty"
       }, {
+        "$ref" : "#/definitions/isEmptyString"
+      }, {
+        "$ref" : "#/definitions/isNotEmptyString"
+      }, {
         "$ref" : "#/definitions/isNull"
       }, {
         "$ref" : "#/definitions/isNotNull"
@@ -157,6 +161,10 @@
         "$ref" : "#/definitions/containsAll"
       }, {
         "$ref" : "#/definitions/isEmpty"
+      }, {
+        "$ref" : "#/definitions/isEmptyString"
+      }, {
+        "$ref" : "#/definitions/isNotEmptyString"
       }, {
         "$ref" : "#/definitions/isNull"
       }, {
@@ -675,6 +683,32 @@
       "properties" : {
         "op" : {
           "enum" : [ "IS_EMPTY" ]
+        },
+        "field" : {
+          "$ref" : "#/definitions/logicalField"
+        }
+      },
+      "required" : [ "op", "field" ],
+      "additionalProperties" : false
+    },
+    "isEmptyString" : {
+      "type" : "object",
+      "properties" : {
+        "op" : {
+          "enum" : [ "IS_EMPTY_STRING" ]
+        },
+        "field" : {
+          "$ref" : "#/definitions/logicalField"
+        }
+      },
+      "required" : [ "op", "field" ],
+      "additionalProperties" : false
+    },
+    "isNotEmptyString" : {
+      "type" : "object",
+      "properties" : {
+        "op" : {
+          "enum" : [ "IS_NOT_EMPTY_STRING" ]
         },
         "field" : {
           "$ref" : "#/definitions/logicalField"

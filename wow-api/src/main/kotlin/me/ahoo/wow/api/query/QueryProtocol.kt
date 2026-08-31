@@ -50,6 +50,8 @@ internal object QueryProtocol {
             const val BETWEEN = "BETWEEN"
             const val CONTAINS_ALL = "CONTAINS_ALL"
             const val IS_EMPTY = "IS_EMPTY"
+            const val IS_EMPTY_STRING = "IS_EMPTY_STRING"
+            const val IS_NOT_EMPTY_STRING = "IS_NOT_EMPTY_STRING"
             const val IS_NULL = "IS_NULL"
             const val IS_NOT_NULL = "IS_NOT_NULL"
             const val EXISTS = "EXISTS"
