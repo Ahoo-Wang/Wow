@@ -47,6 +47,8 @@ AI 可以参与生成、搜索、重构和验证；这些问题仍需要领域�
 
 从 AI 协作视角看，这些结构让上下文更容易定位、让不可接受的行为更容易变成机械检查。它们的价值仍取决于模型是否来自真实业务理解。
 
+![DDD 将 AI 需要的业务知识转化为明确的工程边界](/images/articles/ddd-ai-era/ddd-context-engineering.webp)
+
 ## 当前 Wow 仓库的证据
 
 Wow 的订单示例提供了一个可检查的模型，而不是一个抽象成功故事：
@@ -57,6 +59,8 @@ PayOrder     → OrderPaid
 ShipOrder    → OrderShipped
 ReceiptOrder → OrderReceived
 ```
+
+![Wow 订单领域的命令、事件、状态与拒绝路径](/images/articles/ddd-ai-era/wow-order-flow.webp)
 
 - [`Order.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt) 把改址、支付、发货和收货实现为不同命令处理行为；
 - [`OrderState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt) 只通过事件溯源改变状态；
@@ -76,6 +80,8 @@ ReceiptOrder → OrderReceived
 5. 运行领域测试，再验证 HTTP、持久化与迁移影响。
 
 DDD 没有替 AI 做第 1 步的业务决策。它让后续改动落在明确的决策与验证边界内。Wow 中对应的建模和测试合同分别由[聚合与不变量](../guide/domain/aggregate.md)与[领域测试套件](../guide/test-suite.md)维护。
+
+![领域知识、AI 实现与可执行测试构成反馈闭环](/images/articles/ddd-ai-era/domain-feedback-loop.webp)
 
 ## DDD 不是 AI 时代的默认答案
 

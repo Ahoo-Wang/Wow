@@ -47,6 +47,8 @@ Eric Evans's primary [DDD Reference](https://www.domainlanguage.com/ddd/referenc
 
 For AI collaboration, these structures make context easier to locate and unacceptable behavior easier to encode as a mechanical check. Their value still depends on a model grounded in real domain knowledge.
 
+![DDD turns the business knowledge needed by AI into explicit engineering boundaries](/images/articles/ddd-ai-era/ddd-context-engineering.webp)
+
 ## Evidence in the Current Wow Repository
 
 Wow's order example is an inspectable model, not an abstract success story:
@@ -57,6 +59,8 @@ PayOrder     → OrderPaid
 ShipOrder    → OrderShipped
 ReceiptOrder → OrderReceived
 ```
+
+![Commands, events, state, and rejected paths in the Wow order domain](/images/articles/ddd-ai-era/wow-order-flow.webp)
 
 - [`Order.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt) implements address change, payment, shipment, and receipt as different command-handling behaviors;
 - [`OrderState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt) changes state through event sourcing;
@@ -76,6 +80,8 @@ Suppose the request is “allow a paid but unshipped order to change its address
 5. runs domain tests, then verifies HTTP, persistence, and migration effects.
 
 DDD does not make the business decision in step 1. It gives the later change explicit decision and verification boundaries. In Wow, [Aggregate and Invariants](../guide/domain/aggregate.md) and the [Domain Test Suite](../guide/test-suite.md) own those exact contracts.
+
+![Domain knowledge, AI implementation, and executable tests form a feedback loop](/images/articles/ddd-ai-era/domain-feedback-loop.webp)
 
 ## DDD Is Not the Default Answer for the AI Era
 
