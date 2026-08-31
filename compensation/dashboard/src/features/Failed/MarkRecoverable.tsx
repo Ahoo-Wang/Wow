@@ -40,6 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { commandErrorMessage } from "./commandErrors.ts";
+import { useI18n } from "@/i18n.tsx";
 
 export interface MarkRecoverableProps
   extends Identifier, MarkRecoverable, OnChangedCapable {
@@ -52,15 +53,24 @@ export function MarkRecoverable({
   onChanged,
   disabled,
 }: MarkRecoverableProps) {
+  const { t } = useI18n();
+  const label = (value: RecoverableType) =>
+    t(
+      value === RecoverableType.RECOVERABLE
+        ? "Recoverable"
+        : value === RecoverableType.UNRECOVERABLE
+          ? "Unrecoverable"
+          : "Unknown",
+    );
   const [pending, setPending] = useState<RecoverableType>();
   const promiseState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
-      toast.success("Recoverability updated");
+      toast.success(t("Recoverability updated"));
       setPending(undefined);
       onChanged?.();
     },
     onError: async (error) => {
-      toast.error("Failed to update recoverability", {
+      toast.error(t("Failed to update recoverability"), {
         description: await commandErrorMessage(error),
       });
     },
@@ -81,15 +91,15 @@ export function MarkRecoverable({
         onValueChange={(value) => setPending(value as RecoverableType)}
         disabled={disabled || promiseState.loading}
       >
-        <SelectTrigger size="sm" className="min-w-28" aria-label="Recoverable">
+        <SelectTrigger size="sm" className="min-w-28" aria-label={t("Recoverable")}>
           <SelectValue>
-            {recoverable.charAt(0) + recoverable.slice(1).toLowerCase()}
+            {label(recoverable)}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {Object.values(RecoverableType).map((value) => (
             <SelectItem key={value} value={value}>
-              {value.charAt(0) + value.slice(1).toLowerCase()}
+              {label(value)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -107,14 +117,16 @@ export function MarkRecoverable({
             <AlertDialogMedia className="bg-amber-50 text-amber-700">
               <ShieldAlert />
             </AlertDialogMedia>
-            <AlertDialogTitle>Change recoverability?</AlertDialogTitle>
+            <AlertDialogTitle>{t("Change recoverability?")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This changes execution eligibility from{" "}
-              {recoverable.toLowerCase()} to {pending?.toLowerCase()}.
+              {t("This changes execution eligibility from {from} to {to}.", {
+                from: label(recoverable),
+                to: pending ? label(pending) : "",
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(event) => {
                 event.preventDefault();
@@ -124,7 +136,7 @@ export function MarkRecoverable({
               }}
               disabled={disabled || !pending || promiseState.loading}
             >
-              Confirm change
+              {t("Confirm change")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

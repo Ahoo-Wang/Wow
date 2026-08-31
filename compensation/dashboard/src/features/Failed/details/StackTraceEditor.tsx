@@ -15,6 +15,7 @@ import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import java from "react-syntax-highlighter/dist/esm/languages/prism/java";
 import vscDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus";
 import { useMemo } from "react";
+import { useI18n } from "@/i18n.tsx";
 
 SyntaxHighlighter.registerLanguage("java-stack-trace", java);
 
@@ -29,6 +30,7 @@ export function StackTraceEditor({
   value,
   wrapLongLines = true,
 }: StackTraceEditorProps) {
+  const { t } = useI18n();
   const matchingLines = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase();
     if (!query) {
@@ -47,7 +49,7 @@ export function StackTraceEditor({
   return (
     <div
       role="region"
-      aria-label="Stack trace content"
+      aria-label={t("Stack trace content")}
       className="h-full overflow-auto bg-[#1e1e1e]"
       tabIndex={0}
     >

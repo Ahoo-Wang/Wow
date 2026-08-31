@@ -21,6 +21,7 @@ import { ApplyRetrySpec } from "../ApplyRetrySpec.tsx";
 import { MarkRecoverable } from "../MarkRecoverable.tsx";
 import { BooleanBadge } from "../StatusBadge.tsx";
 import type { OnChangedCapable } from "../types.ts";
+import { useI18n } from "@/i18n.tsx";
 
 type RecoveryState = Pick<
   ExecutionFailedState,
@@ -38,11 +39,12 @@ export function RecoveryStatus({
   mutationsDisabled,
 }: RecoveryStatusProps) {
   const { openDrawer } = useGlobalDrawer();
+  const { locale, t } = useI18n();
 
   const editRetry = () =>
     openDrawer({
-      title: "Apply retry specification",
-      description: "Tune retry limits and timing for this execution.",
+      title: t("Apply retry specification"),
+      description: t("Tune retry limits and timing for this execution."),
       width: 440,
       children: (
         <ApplyRetrySpec
@@ -56,17 +58,17 @@ export function RecoveryStatus({
   return (
     <section
       className="overflow-hidden rounded-lg border border-blue-200 bg-white shadow-sm"
-      aria-label="Recovery status"
+      aria-label={t("Recovery status")}
     >
       <div className="flex min-h-14 items-center justify-between gap-3 border-b bg-blue-50/60 px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <RotateCcw className="size-4 shrink-0 text-blue-600" />
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-slate-900">
-              Recovery status
+              {t("Recovery status")}
             </h2>
             <p className="text-xs text-slate-500">
-              Retry eligibility and timing
+              {t("Retry eligibility and timing")}
             </p>
           </div>
         </div>
@@ -74,7 +76,7 @@ export function RecoveryStatus({
           type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label="Edit retry specification"
+          aria-label={t("Edit retry specification")}
           disabled={mutationsDisabled}
           onClick={editRetry}
         >
@@ -83,24 +85,29 @@ export function RecoveryStatus({
       </div>
       <dl className="grid grid-cols-1 gap-x-4 gap-y-4 p-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
         <div>
-          <dt className="text-xs text-slate-500">Retry progress</dt>
+          <dt className="text-xs text-slate-500">{t("Retry progress")}</dt>
           <dd className="mt-1 text-sm tabular-nums text-slate-800">
             <span className="font-semibold">
-              {state.retryState.retries} of {state.retrySpec.maxRetries}
+              {t("{current} of {total}", {
+                current: state.retryState.retries,
+                total: state.retrySpec.maxRetries,
+              })}
             </span>
             <span className="mt-0.5 block text-xs text-slate-500">
-              Last: {formatDate(state.retryState.retryAt)}
+              {t("Last: {date}", {
+                date: formatDate(state.retryState.retryAt, undefined, locale),
+              })}
             </span>
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-slate-500">Next retry at</dt>
+          <dt className="text-xs text-slate-500">{t("Next retry at")}</dt>
           <dd className="mt-1 text-sm tabular-nums text-slate-800">
-            {formatDate(state.retryState.nextRetryAt)}
+            {formatDate(state.retryState.nextRetryAt, undefined, locale)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-slate-500">Recoverable</dt>
+          <dt className="text-xs text-slate-500">{t("Recoverable")}</dt>
           <dd className="mt-1">
             <MarkRecoverable
               id={state.id}
@@ -111,7 +118,7 @@ export function RecoveryStatus({
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-slate-500">Retryable</dt>
+          <dt className="text-xs text-slate-500">{t("Retryable")}</dt>
           <dd className="mt-1">
             <BooleanBadge value={state.isRetryable} />
           </dd>
@@ -119,16 +126,16 @@ export function RecoveryStatus({
       </dl>
       <dl className="grid grid-cols-2 gap-4 border-t bg-slate-50/70 px-4 py-3">
         <div>
-          <dt className="text-[11px] text-slate-500">Min backoff</dt>
+          <dt className="text-[11px] text-slate-500">{t("Min backoff")}</dt>
           <dd className="mt-0.5 text-xs tabular-nums text-slate-700">
-            {formatSeconds(state.retrySpec.minBackoff)} (
+            {formatSeconds(state.retrySpec.minBackoff, locale)} (
             {state.retrySpec.minBackoff.toLocaleString()} s)
           </dd>
         </div>
         <div>
-          <dt className="text-[11px] text-slate-500">Timeout</dt>
+          <dt className="text-[11px] text-slate-500">{t("Timeout")}</dt>
           <dd className="mt-0.5 text-xs tabular-nums text-slate-700">
-            {formatSeconds(state.retrySpec.executionTimeout)} (
+            {formatSeconds(state.retrySpec.executionTimeout, locale)} (
             {state.retrySpec.executionTimeout.toLocaleString()} s)
           </dd>
         </div>

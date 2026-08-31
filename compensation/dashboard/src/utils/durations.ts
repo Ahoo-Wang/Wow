@@ -11,7 +11,28 @@
  * limitations under the License.
  */
 
-export function formatSeconds(totalSeconds: number): string {
+import type { Locale } from "@/i18n.tsx";
+
+export function formatSeconds(
+  totalSeconds: number,
+  locale: Locale = "en",
+): string {
+  if (locale === "zh-CN") {
+    const hours = Math.floor(totalSeconds / 3_600);
+    const minutes = Math.floor((totalSeconds % 3_600) / 60);
+    const seconds = totalSeconds % 60;
+    if (totalSeconds < 60) {
+      return `${totalSeconds.toLocaleString()}秒`;
+    }
+    return [
+      hours > 0 ? `${hours.toLocaleString()}小时` : "",
+      minutes > 0 ? `${minutes.toLocaleString()}分钟` : "",
+      seconds > 0 ? `${seconds.toLocaleString()}秒` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+  }
+
   if (totalSeconds < 60) {
     return `${totalSeconds.toLocaleString()} ${totalSeconds === 1 ? "second" : "seconds"}`;
   }

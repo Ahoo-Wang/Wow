@@ -15,11 +15,12 @@ import {
   ExecutionFailedStatus,
   type ExecutionFailedState,
 } from "../../generated";
+import type { Message } from "@/i18n.tsx";
 
 export interface CompensationCapabilities {
   canForcePrepare: boolean;
   canPrepare: boolean;
-  unavailableReason?: string;
+  unavailableReason?: Message;
 }
 
 export function getCompensationCapabilities(

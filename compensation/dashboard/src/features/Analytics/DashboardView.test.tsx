@@ -7,6 +7,7 @@ import type {
   SnapshotAnalyticsResult,
 } from "./useSnapshotAnalytics.ts";
 import DashboardView from "./DashboardView.tsx";
+import { I18nProvider } from "@/i18n.tsx";
 
 const mocks = vi.hoisted(() => ({
   eventResult: undefined as unknown as AnalyticsSection<TrendPoint[]>,
@@ -130,6 +131,22 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("DashboardView", () => {
+  it("renders the dashboard key path in Chinese", () => {
+    localStorage.setItem("wow-dashboard-locale", "zh-CN");
+
+    render(
+      <I18nProvider>
+        <DashboardView />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByRole("region", { name: "补偿概览" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "刷新仪表盘" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /时间范围：2026年/ }),
+    ).toBeInTheDocument();
+  });
+
   it("composes the dashboard from shadcn cards", () => {
     render(<DashboardView />);
 

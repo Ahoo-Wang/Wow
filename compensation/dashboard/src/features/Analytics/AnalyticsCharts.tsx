@@ -21,6 +21,7 @@ import {
 } from "../../components/ui/chart.tsx";
 import { formatDate } from "../../utils/dates.ts";
 import { summarizeTrend, type TrendPoint } from "./analyticsQueries.ts";
+import { useI18n } from "@/i18n.tsx";
 
 interface DistributionDatum {
   color: string;
@@ -48,6 +49,7 @@ export function DistributionChart({
   description,
   title,
 }: DistributionChartProps): ReactElement {
+  const { t } = useI18n();
   const total = data.reduce((sum, { count }) => sum + count, 0);
   const labels = data.map(
     ({ count, label }) =>
@@ -93,7 +95,7 @@ export function DistributionChart({
           );
         })}
       </dl>
-      <p className="dashboard-chart-total">Total {total.toLocaleString()}</p>
+      <p className="dashboard-chart-total">{t("Total {total}", { total: total.toLocaleString() })}</p>
     </section>
   );
 }
@@ -105,6 +107,7 @@ export function RetryDistributionChart({
   data: DistributionDatum[];
   description?: string;
 }): ReactElement {
+  const { t } = useI18n();
   const total = data.reduce((sum, { count }) => sum + count, 0);
   const rows = data.map((datum) => ({
     ...datum,
@@ -113,16 +116,16 @@ export function RetryDistributionChart({
   const maxCount = Math.max(...rows.map(({ count }) => count), 1);
 
   return (
-    <section aria-label="Retry distribution">
-      <h3 className="font-medium">Retry distribution</h3>
+    <section aria-label={t("Retry distribution")}>
+      <h3 className="font-medium">{t("Retry distribution")}</h3>
       {description ? (
         <p className="text-sm text-muted-foreground">{description}</p>
       ) : null}
       <div
         role="img"
-        aria-label={`Retry distribution: ${rows
-          .map(({ display, label }) => `${label} ${display}`)
-          .join(", ")}`}
+        aria-label={t("Retry distribution: {rows}", {
+          rows: rows.map(({ display, label }) => `${label} ${display}`).join(", "),
+        })}
         className="mt-2 grid gap-1.5"
       >
         {rows.map(({ color, count, display, key, label }) => (
@@ -145,7 +148,7 @@ export function RetryDistributionChart({
           </div>
         ))}
       </div>
-      <p className="dashboard-chart-total">Total {total.toLocaleString()}</p>
+      <p className="dashboard-chart-total">{t("Total {total}", { total: total.toLocaleString() })}</p>
     </section>
   );
 }
@@ -162,49 +165,56 @@ export function CompensationTrendChart({
 }: {
   points: TrendPoint[];
 }): ReactElement {
+  const { locale, t } = useI18n();
+  const localizedTrendConfig = {
+    newFailures: { color: trendConfig.newFailures.color, label: t("New failures") },
+    prepared: { color: trendConfig.prepared.color, label: t("Prepared") },
+    retriedFailed: { color: trendConfig.retriedFailed.color, label: t("Retried failed") },
+    succeeded: { color: trendConfig.succeeded.color, label: t("Succeeded") },
+  } satisfies ChartConfig;
   const totals = summarizeTrend(points);
   const outcomeFlow = [
     {
       color: trendConfig.prepared.color,
       count: totals.prepared,
       key: "prepared",
-      label: trendConfig.prepared.label,
+      label: localizedTrendConfig.prepared.label,
     },
     {
       color: trendConfig.retriedFailed.color,
       count: totals.retriedFailed,
       key: "retriedFailed",
-      label: trendConfig.retriedFailed.label,
+      label: localizedTrendConfig.retriedFailed.label,
     },
     {
       color: trendConfig.succeeded.color,
       count: totals.succeeded,
       key: "succeeded",
-      label: trendConfig.succeeded.label,
+      label: localizedTrendConfig.succeeded.label,
     },
   ];
   const maxOutcome = Math.max(...outcomeFlow.map(({ count }) => count), 1);
 
   return (
     <section
-      aria-label="Compensation activity"
+      aria-label={t("Compensation activity")}
       className="dashboard-activity-chart"
     >
       <section className="dashboard-failure-inflow">
         <h3>
-          Failure inflow (new failures)
-          {points.length > 1 ? " — daily trend" : ""}
+          {t("Failure inflow (new failures)")}
+          {points.length > 1 ? t(" — daily trend") : ""}
         </h3>
         <p className="dashboard-series-label">
           <span
             aria-hidden="true"
             style={{ backgroundColor: trendConfig.newFailures.color }}
           />
-          New failures
+          {t("New failures")}
         </p>
         {points.length > 1 ? (
           <ChartContainer
-            config={trendConfig}
+            config={localizedTrendConfig}
             className="min-h-0 flex-1 w-full py-2 text-sm aspect-auto"
           >
             <LineChart
@@ -218,7 +228,9 @@ export function CompensationTrendChart({
                 axisLine={false}
                 tickLine={false}
                 tickMargin={8}
-                tickFormatter={(bucket: number) => formatDate(bucket, "MM-DD")}
+                tickFormatter={(bucket: number) =>
+                  formatDate(bucket, "MM-DD", locale)
+                }
               />
               <YAxis allowDecimals={false} axisLine={false} tickLine={false} />
               <ChartTooltip
@@ -228,6 +240,7 @@ export function CompensationTrendChart({
                       formatDate(
                         Number(payload[0]?.payload.bucket),
                         "MM-DD HH:mm",
+                        locale,
                       )
                     }
                   />
@@ -236,7 +249,7 @@ export function CompensationTrendChart({
               <Line
                 dataKey="newFailures"
                 dot={{ r: 2.5 }}
-                name={trendConfig.newFailures.label}
+                name={localizedTrendConfig.newFailures.label}
                 stroke={trendConfig.newFailures.color}
                 strokeWidth={2}
                 type="monotone"
@@ -245,17 +258,17 @@ export function CompensationTrendChart({
           </ChartContainer>
         ) : (
           <p className="dashboard-inflow-single">
-            {totals.newFailures.toLocaleString()} new failures
+            {t("{count} new failures", { count: totals.newFailures.toLocaleString() })}
           </p>
         )}
       </section>
       <section className="dashboard-outcome-flow">
-        <h3>Outcome flow (total in selected range)</h3>
+        <h3>{t("Outcome flow (total in selected range)")}</h3>
         <div
           role="img"
-          aria-label={`Outcome flow: ${outcomeFlow
-            .map(({ count, label }) => `${label} ${count}`)
-            .join(", ")}`}
+          aria-label={t("Outcome flow: {rows}", {
+            rows: outcomeFlow.map(({ count, label }) => `${label} ${count}`).join(", "),
+          })}
           className="dashboard-outcome-flow-bars"
         >
           {outcomeFlow.map(({ color, count, key, label }) => (
@@ -280,20 +293,20 @@ export function CompensationTrendChart({
           ))}
         </div>
       </section>
-      <table className="sr-only" aria-label="Compensation outcomes data">
+      <table className="sr-only" aria-label={t("Compensation outcomes data")}>
         <thead>
           <tr>
-            <th>Time</th>
-            <th>New failures</th>
-            <th>Prepared</th>
-            <th>Retried failed</th>
-            <th>Succeeded</th>
+            <th>{t("Time")}</th>
+            <th>{t("New failures")}</th>
+            <th>{t("Prepared")}</th>
+            <th>{t("Retried failed")}</th>
+            <th>{t("Succeeded")}</th>
           </tr>
         </thead>
         <tbody>
           {points.map((point) => (
             <tr key={point.bucket}>
-              <td>{formatDate(point.bucket)}</td>
+              <td>{formatDate(point.bucket, undefined, locale)}</td>
               <td>{point.newFailures}</td>
               <td>{point.prepared}</td>
               <td>{point.retriedFailed}</td>

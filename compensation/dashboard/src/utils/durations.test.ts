@@ -20,4 +20,8 @@ describe("formatSeconds", () => {
     expect(formatSeconds(120)).toBe("2 minutes");
     expect(formatSeconds(3_661)).toBe("1 hour 1 minute 1 second");
   });
+
+  it("formats durations in Chinese", () => {
+    expect(formatSeconds(3_661, "zh-CN")).toBe("1小时 1分钟 1秒");
+  });
 });

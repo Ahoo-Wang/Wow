@@ -18,6 +18,7 @@ import {
   ChartNoAxesCombined,
   Clock3,
   GitCommitHorizontal,
+  Languages,
   PanelLeftClose,
   PanelLeftOpen,
   Play,
@@ -44,6 +45,15 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useI18n } from "@/i18n.tsx";
+import { Button } from "@/components/ui/button";
 
 interface AppProps {
   navItems: readonly NavItem[];
@@ -72,9 +82,10 @@ function PrimaryNavigation({
   pathname: string;
 }) {
   const { isMobile, setOpenMobile } = useSidebar();
+  const { t } = useI18n();
 
   return (
-    <nav aria-label="Primary navigation">
+    <nav aria-label={t("Primary navigation")}>
       <SidebarMenu>
         {navItems.map((item) => {
           const Icon = navIcons[item.path] ?? CircleAlert;
@@ -88,12 +99,12 @@ function PrimaryNavigation({
               <SidebarMenuButton
                 isActive={isActive}
                 size="lg"
-                tooltip={item.label}
+                tooltip={t(item.label)}
                 render={
                   <NavLink
                     to={item.path}
                     end={item.path === NavItemPaths.Dashboard}
-                    aria-label={item.label}
+                    aria-label={t(item.label)}
                     onClick={() => {
                       if (isMobile) {
                         setOpenMobile(false);
@@ -103,7 +114,7 @@ function PrimaryNavigation({
                 }
               >
                 <Icon />
-                <span>{item.label}</span>
+                <span>{t(item.label)}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           );
@@ -115,26 +126,27 @@ function PrimaryNavigation({
 
 function SidebarBrand() {
   const { setOpenMobile } = useSidebar();
+  const { t } = useI18n();
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <SidebarMenuButton
           size="lg"
-          tooltip="Compensation Control Plane"
+          tooltip={t("Compensation Control Plane")}
           render={
             <Link
               to={NavItemPaths.Dashboard}
-              aria-label="Wow compensation dashboard"
+              aria-label={t("Wow compensation dashboard")}
               onClick={() => setOpenMobile(false)}
             />
           }
         >
           <img className="size-9 object-contain" src="/logo.svg" alt="" />
           <span className="grid min-w-0 text-left leading-tight">
-            <span className="truncate font-medium">Compensation</span>
+            <span className="truncate font-medium">{t("Compensation")}</span>
             <span className="truncate text-xs text-sidebar-foreground/70">
-              Control Plane
+              {t("Control Plane")}
             </span>
           </span>
         </SidebarMenuButton>
@@ -145,17 +157,18 @@ function SidebarBrand() {
 
 function NavigationToggle({ mobile }: { mobile: boolean }) {
   const { isMobile, openMobile, state, toggleSidebar } = useSidebar();
+  const { t } = useI18n();
   if (mobile !== isMobile) {
     return null;
   }
   const expanded = mobile ? openMobile : state === "expanded";
   const label = mobile
     ? expanded
-      ? "Close navigation"
-      : "Open navigation"
+      ? t("Close navigation")
+      : t("Open navigation")
     : expanded
-      ? "Collapse navigation"
-      : "Expand navigation";
+      ? t("Collapse navigation")
+      : t("Expand navigation");
 
   if (mobile) {
     return (
@@ -179,21 +192,61 @@ function NavigationToggle({ mobile }: { mobile: boolean }) {
           onClick={toggleSidebar}
         >
           <Icon />
-          <span>{expanded ? "Collapse" : "Expand"}</span>
+          <span>{expanded ? t("Collapse") : t("Expand")}</span>
         </SidebarMenuButton>
       </SidebarMenuItem>
     </SidebarMenu>
   );
 }
 
+function LanguageMenu() {
+  const { locale, setLocale, t } = useI18n();
+  const language = locale === "zh-CN" ? "中文" : "English";
+  const label = t("Current language: {language}", { language });
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="app-language-trigger"
+            aria-label={label}
+          />
+        }
+      >
+        <Languages />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuRadioGroup
+          value={locale}
+          onValueChange={(value) => {
+            if (value === "en" || value === "zh-CN") {
+              setLocale(value);
+            }
+          }}
+        >
+          <DropdownMenuRadioItem value="en">English</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="zh-CN">中文</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function App({ navItems }: AppProps) {
   const location = useLocation();
+  const { t } = useI18n();
 
   const activeTitle = useMemo(
     () =>
-      navItems.find((item) => item.path === location.pathname)?.label ??
-      "To Retry",
-    [location.pathname, navItems],
+      t(
+        navItems.find((item) => item.path === location.pathname)?.label ??
+          "To Retry",
+      ),
+    [location.pathname, navItems, t],
   );
 
   return (
@@ -207,19 +260,19 @@ export default function App({ navItems }: AppProps) {
         }
       >
         <a className="skip-link" href="#main-content">
-          Skip to main content
+          {t("Skip to main content")}
         </a>
         <Sidebar
           collapsible="icon"
           role="complementary"
-          aria-label="Application sidebar"
+          aria-label={t("Application sidebar")}
         >
           <SidebarHeader>
             <SidebarBrand />
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+              <SidebarGroupLabel>{t("Navigation")}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <PrimaryNavigation
                   navItems={navItems}
@@ -238,10 +291,10 @@ export default function App({ navItems }: AppProps) {
             <NavigationToggle mobile />
             <h1>{activeTitle}</h1>
             <div className="app-topbar-actions">
-              <div className="app-build-info" aria-label="Build information">
+              <div className="app-build-info" aria-label={t("Build information")}>
                 <span
                   className="app-build-info-item"
-                  title={`Version ${buildVersion}`}
+                  title={t("Version {version}", { version: buildVersion })}
                 >
                   <Tag />
                   <span>v{buildVersion}</span>
@@ -251,16 +304,21 @@ export default function App({ navItems }: AppProps) {
                   href={buildCommitUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={`GitHub commit ${buildCommitSha}`}
-                  title={`GitHub commit ${buildCommitSha}`}
+                  aria-label={t("GitHub commit {commit}", {
+                    commit: buildCommitSha,
+                  })}
+                  title={t("GitHub commit {commit}", {
+                    commit: buildCommitSha,
+                  })}
                 >
                   <GitCommitHorizontal />
                   <code>{buildCommitShort}</code>
                 </a>
               </div>
+              <LanguageMenu />
               <nav
                 className="app-project-links"
-                aria-label="Project repositories"
+                aria-label={t("Project repositories")}
               >
                 <a
                   className="app-project-link is-github"

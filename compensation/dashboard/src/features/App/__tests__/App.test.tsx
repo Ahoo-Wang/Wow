@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FindCategory } from "../../Failed/FindCategory.ts";
 import App from "../App.tsx";
+import { I18nProvider } from "../../../i18n.tsx";
+import type { NavItem } from "../../../routes/constants.tsx";
 
 const mocks = vi.hoisted(() => ({
   outletContext: undefined as unknown,
@@ -55,7 +56,7 @@ vi.mock("react-router", () => ({
   useLocation: () => ({ pathname: mocks.pathname }),
 }));
 
-const navItems = [
+const navItems: readonly NavItem[] = [
   {
     label: "Dashboard",
     path: "/",
@@ -63,14 +64,10 @@ const navItems = [
   {
     label: "To Retry",
     path: "/to-retry",
-    category: FindCategory.ToRetry,
-    component: () => null,
   },
   {
     label: "Executing",
     path: "/executing",
-    category: FindCategory.Executing,
-    component: () => null,
   },
 ];
 
@@ -165,6 +162,32 @@ describe("App", () => {
     );
     expect(version.closest(".app-topbar")).not.toBeNull();
     expect(version.closest("[data-slot='sidebar-footer']")).toBeNull();
+  });
+
+  it("switches the interface language from the topbar", async () => {
+    localStorage.setItem("wow-dashboard-locale", "en");
+    render(
+      <I18nProvider>
+        <App navItems={navItems} />
+      </I18nProvider>,
+    );
+
+    const languageButton = screen.getByRole("button", {
+      name: "Current language: English",
+    });
+    expect(languageButton.closest(".app-topbar")).not.toBeNull();
+    expect(languageButton.closest("[data-slot='sidebar-footer']")).toBeNull();
+
+    fireEvent.mouseDown(languageButton, { button: 0, ctrlKey: false });
+    expect(
+      await screen.findByRole("menuitemradio", { name: "English" }),
+    ).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "中文" }));
+
+    expect(
+      screen.getByRole("heading", { name: "执行中" }),
+    ).toBeInTheDocument();
+    expect(localStorage.getItem("wow-dashboard-locale")).toBe("zh-CN");
   });
 
   it("collapses and expands the desktop navigation", () => {

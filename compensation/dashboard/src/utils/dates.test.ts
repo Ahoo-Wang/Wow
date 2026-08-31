@@ -43,6 +43,17 @@ describe("dates", () => {
       const formatted = formatDate(timestamp, "YYYY/MM/DD HH:mm");
       expect(formatted).toBe("2022/12/25 08:30");
     });
+
+    it("formats full dates in Chinese", () => {
+      const timestamp = new Date("2023-01-01 12:00:00").getTime();
+      expect(formatDate(timestamp, undefined, "zh-CN")).toBe(
+        "2023年1月1日 12:00:00",
+      );
+      expect(formatDate(timestamp, "MM-DD", "zh-CN")).toBe("1月1日");
+      expect(formatDate(timestamp, "MM-DD HH:mm", "zh-CN")).toBe(
+        "1月1日 12:00",
+      );
+    });
   });
 
   describe("formatAge", () => {
@@ -63,6 +74,12 @@ describe("dates", () => {
 
     it("clamps future timestamps to zero", () => {
       expect(formatAge(now + 5_000, now)).toBe("0s");
+    });
+
+    it("formats compact ages in Chinese", () => {
+      expect(formatAge(now - 2 * 60 * 60_000 - 12 * 60_000, now, "zh-CN")).toBe(
+        "2小时 12分",
+      );
     });
   });
 });

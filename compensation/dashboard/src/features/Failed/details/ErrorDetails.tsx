@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/tooltip";
 import { copyTextToClipboard } from "@/utils/clipboard.ts";
 import { StackTraceEditor } from "./StackTraceEditor.tsx";
+import { useI18n } from "@/i18n.tsx";
 
 export interface ErrorDetailsProps {
   error: ErrorDetailsModel;
@@ -43,6 +44,7 @@ export function ErrorDetails({
   historical = false,
   defaultExpanded,
 }: ErrorDetailsProps) {
+  const { locale, t } = useI18n();
   const panelRef = useRef<HTMLDivElement>(null);
   const expandedContentRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(defaultExpanded ?? !historical);
@@ -77,7 +79,7 @@ export function ErrorDetails({
       try {
         await document.exitFullscreen();
       } catch {
-        toast.error("Unable to change fullscreen mode");
+        toast.error(t("Unable to change fullscreen mode"));
         return;
       }
     }
@@ -92,16 +94,16 @@ export function ErrorDetails({
         await panelRef.current?.requestFullscreen();
       }
     } catch {
-      toast.error("Unable to change fullscreen mode");
+      toast.error(t("Unable to change fullscreen mode"));
     }
   };
 
   const copy = async () => {
     if (!(await copyTextToClipboard(error.stackTrace))) {
-      toast.error("Unable to copy stack trace");
+      toast.error(t("Unable to copy stack trace"));
       return;
     }
-    toast.success("Stack trace copied");
+    toast.success(t("Stack trace copied"));
   };
   const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
   const matchCount = normalizedQuery
@@ -110,7 +112,8 @@ export function ErrorDetails({
         .filter((line) => line.toLocaleLowerCase().includes(normalizedQuery))
         .length
     : 0;
-  const title = historical ? "Last failure" : "Stack trace";
+  const title = historical ? t("Last failure") : t("Stack trace");
+  const actionTitle = locale === "en" ? title.toLowerCase() : title;
   const collapsible = historical || defaultExpanded !== undefined;
 
   return (
@@ -132,8 +135,8 @@ export function ErrorDetails({
               size="icon-sm"
               aria-label={
                 expanded
-                  ? `Collapse ${title.toLowerCase()}`
-                  : `Expand ${title.toLowerCase()}`
+                  ? t("Collapse {title}", { title: actionTitle })
+                  : t("Expand {title}", { title: actionTitle })
               }
               aria-expanded={expanded}
               onClick={() => void toggleExpanded()}
@@ -161,14 +164,14 @@ export function ErrorDetails({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="Copy stack trace"
+                  aria-label={t("Copy stack trace")}
                   onClick={copy}
                 />
               }
             >
               <Clipboard />
             </TooltipTrigger>
-            <TooltipContent>Copy stack trace</TooltipContent>
+            <TooltipContent>{t("Copy stack trace")}</TooltipContent>
           </Tooltip>
           {expanded ? (
             <Tooltip>
@@ -179,7 +182,7 @@ export function ErrorDetails({
                     variant="ghost"
                     size="icon-sm"
                     aria-label={
-                      fullscreen ? "Exit fullscreen" : "Open fullscreen"
+                      fullscreen ? t("Exit fullscreen") : t("Open fullscreen")
                     }
                     onClick={toggleFullscreen}
                   />
@@ -188,7 +191,7 @@ export function ErrorDetails({
                 {fullscreen ? <Minimize2 /> : <Maximize2 />}
               </TooltipTrigger>
               <TooltipContent>
-                {fullscreen ? "Exit fullscreen" : "Open fullscreen"}
+                {fullscreen ? t("Exit fullscreen") : t("Open fullscreen")}
               </TooltipContent>
             </Tooltip>
           ) : null}
@@ -200,9 +203,9 @@ export function ErrorDetails({
             <div className="min-w-[180px] flex-1">
               <Input
                 type="search"
-                aria-label="Search stack trace"
+                aria-label={t("Search stack trace")}
                 aria-describedby={matchStatusId}
-                placeholder="Search stack trace…"
+                placeholder={t("Search stack trace…")}
                 className="h-8 bg-white"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
@@ -215,7 +218,9 @@ export function ErrorDetails({
               className="text-xs text-slate-500 tabular-nums"
             >
               {normalizedQuery
-                ? `${matchCount} ${matchCount === 1 ? "match" : "matches"}`
+                ? t(matchCount === 1 ? "{count} match" : "{count} matches", {
+                    count: matchCount,
+                  })
                 : ""}
             </span>
             <Button
@@ -223,7 +228,9 @@ export function ErrorDetails({
               variant={wrapLongLines ? "secondary" : "ghost"}
               size="icon-sm"
               aria-label={
-                wrapLongLines ? "Disable line wrapping" : "Enable line wrapping"
+                wrapLongLines
+                  ? t("Disable line wrapping")
+                  : t("Enable line wrapping")
               }
               aria-pressed={wrapLongLines}
               onClick={() => setWrapLongLines((current) => !current)}

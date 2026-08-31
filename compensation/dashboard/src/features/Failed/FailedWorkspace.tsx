@@ -24,6 +24,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useI18n } from "@/i18n.tsx";
 
 const SPLIT_LAYOUT_KEY = "compensation-dashboard:failed-view-layout";
 const DEFAULT_SPLIT_LAYOUT = {
@@ -78,6 +79,7 @@ export function FailedWorkspace({
   master,
   onCloseDetails,
 }: FailedWorkspaceProps) {
+  const { t } = useI18n();
   const mobileDetailsFocusRef = useRef<HTMLDivElement>(null);
   const [splitLayout] = useState(loadSplitLayout);
 
@@ -100,15 +102,15 @@ export function FailedWorkspace({
             initialFocus={mobileDetailsFocusRef}
           >
             <SheetHeader className="sr-only">
-              <SheetTitle>Execution failed details</SheetTitle>
+              <SheetTitle>{t("Execution failed details")}</SheetTitle>
               <SheetDescription>
-                Inspect context and prepare compensation.
+                {t("Inspect context and prepare compensation.")}
               </SheetDescription>
             </SheetHeader>
             <div
               ref={mobileDetailsFocusRef}
               tabIndex={-1}
-              aria-label="Execution details panel"
+              aria-label={t("Execution details panel")}
               className="min-h-0 flex-1 overflow-hidden outline-none"
             >
               {details}
@@ -136,7 +138,7 @@ export function FailedWorkspace({
       </ResizablePanel>
       <ResizableHandle
         withHandle
-        aria-label="Resize execution list and details"
+        aria-label={t("Resize execution list and details")}
         className="z-20 bg-slate-200"
       />
       <ResizablePanel id="execution-details" minSize="48">
