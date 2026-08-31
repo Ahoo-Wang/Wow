@@ -10,13 +10,19 @@ sequenceDiagram
     participant EventStore
 
     Caller->>+AggregateRepository: load(aggregateId, metadata, tailVersion)
-    AggregateRepository->>+SnapshotStore: load(aggregateId)
-    SnapshotStore-->>-AggregateRepository: Snapshot<S> or empty
-
-    alt Snapshot exists
-        AggregateRepository->>+StateAggregate: snapshot.toStateAggregate()
-        StateAggregate-->>-AggregateRepository: stateAggregate
-    else Snapshot does not exist
+    alt tailVersion == Int.MAX_VALUE
+        AggregateRepository->>+SnapshotStore: load(aggregateId)
+        SnapshotStore-->>-AggregateRepository: Snapshot<S> or empty
+        alt Snapshot exists
+            AggregateRepository->>+StateAggregate: snapshot.toStateAggregate()
+            StateAggregate-->>-AggregateRepository: stateAggregate
+        else Snapshot does not exist
+            AggregateRepository->>+AggregateFactory: createAsMono(metadata, aggregateId)
+            AggregateFactory->>+StateAggregate: create(metadata, aggregateId)
+            StateAggregate-->>-AggregateFactory: stateAggregate
+            AggregateFactory-->>-AggregateRepository: stateAggregate
+        end
+    else Historical tailVersion
         AggregateRepository->>+AggregateFactory: createAsMono(metadata, aggregateId)
         AggregateFactory->>+StateAggregate: create(metadata, aggregateId)
         StateAggregate-->>-AggregateFactory: stateAggregate
