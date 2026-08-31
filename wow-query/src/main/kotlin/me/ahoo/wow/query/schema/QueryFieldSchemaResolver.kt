@@ -32,6 +32,14 @@ internal data class QueryFieldResolution(
 internal class QueryFieldSchemaResolver(
     private val schema: QueryModelSchema,
 ) {
+    private val elementScopePaths = buildSet {
+        schema.fields.forEach { (field, fieldSchema) ->
+            if (QueryCapability.ELEMENT_SCOPE in fieldSchema.bindings) {
+                add(field.value)
+            }
+        }
+    }
+
     fun resolveProjectionPath(path: String): QuerySchemaResolution<String> {
         val logicalField = try {
             LogicalField(path)
@@ -116,11 +124,12 @@ internal class QueryFieldSchemaResolver(
     }
 
     private fun LogicalField.isInElementScope(parent: LogicalField?): Boolean {
+        if (elementScopePaths.isEmpty()) return true
         var separator = value.lastIndexOf('.')
         while (separator > 0) {
-            val ancestor = LogicalField(value.substring(0, separator))
-            if (schema.fields[ancestor]?.bindings?.containsKey(QueryCapability.ELEMENT_SCOPE) == true) {
-                return ancestor == parent
+            val ancestorPath = value.substring(0, separator)
+            if (ancestorPath in elementScopePaths) {
+                return ancestorPath == parent?.value
             }
             separator = value.lastIndexOf('.', separator - 1)
         }

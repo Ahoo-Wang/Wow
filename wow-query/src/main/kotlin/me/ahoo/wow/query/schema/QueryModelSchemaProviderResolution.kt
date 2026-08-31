@@ -26,21 +26,21 @@ fun QueryModelSchemaProvider.resolve(
     mode: QuerySchemaValidationMode,
 ): Mono<ISingleQuery> = schemaForQuery()
     .map { it.resolver.resolve(query).requireAccepted(mode) }
-    .fallbackUnavailable(mode, query, !query.filter.referencesSystemTags())
+    .fallbackUnavailable(mode, query, query.filter)
 
 fun QueryModelSchemaProvider.resolve(
     query: IListQuery,
     mode: QuerySchemaValidationMode,
 ): Mono<IListQuery> = schemaForQuery()
     .map { it.resolver.resolve(query).requireAccepted(mode) }
-    .fallbackUnavailable(mode, query, !query.filter.referencesSystemTags())
+    .fallbackUnavailable(mode, query, query.filter)
 
 fun QueryModelSchemaProvider.resolve(
     query: IPagedQuery,
     mode: QuerySchemaValidationMode,
 ): Mono<IPagedQuery> = schemaForQuery()
     .map { it.resolver.resolve(query).requireAccepted(mode) }
-    .fallbackUnavailable(mode, query, !query.filter.referencesSystemTags())
+    .fallbackUnavailable(mode, query, query.filter)
 
 fun QueryModelSchemaProvider.resolve(
     query: ICursorQuery,
@@ -52,7 +52,7 @@ fun QueryModelSchemaProvider.resolve(
     mode: QuerySchemaValidationMode,
 ): Mono<FilterExpression> = schemaForQuery()
     .map { it.resolver.resolve(filter).requireAccepted(mode) }
-    .fallbackUnavailable(mode, filter, !filter.referencesSystemTags())
+    .fallbackUnavailable(mode, filter, filter)
 
 fun QueryModelSchemaProvider.resolve(
     query: AggregationQuery,
@@ -114,7 +114,11 @@ private fun LogicalField.isSystemTags(): Boolean =
 private fun <T : Any> Mono<T>.fallbackUnavailable(
     mode: QuerySchemaValidationMode,
     fallback: T,
-    allowFallback: Boolean,
+    filter: FilterExpression,
 ): Mono<T> = onErrorResume(QuerySchemaUnavailableException::class.java) { error ->
-    if (mode == QuerySchemaValidationMode.COMPATIBLE && allowFallback) Mono.just(fallback) else Mono.error(error)
+    if (mode == QuerySchemaValidationMode.COMPATIBLE && !filter.referencesSystemTags()) {
+        Mono.just(fallback)
+    } else {
+        Mono.error(error)
+    }
 }
