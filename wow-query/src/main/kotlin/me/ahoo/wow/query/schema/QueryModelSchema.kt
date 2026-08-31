@@ -48,23 +48,33 @@ data class QueryModelSchema(
     @get:JsonIgnore
     internal val hasMaskedFields: Boolean = maskedFields.isNotEmpty()
 
+    private val dynamicFields = buildMap {
+        fields.forEach { (field, fieldSchema) ->
+            if (fieldSchema.dynamicChildren) {
+                put(
+                    field.value,
+                    fieldSchema.copy(bindings = fieldSchema.bindings - QueryCapability.ELEMENT_SCOPE),
+                )
+            }
+        }
+    }
+
     @get:JsonIgnore
     internal val resolver = QuerySchemaResolver(this)
 
     fun resolve(field: LogicalField): QueryFieldSchema? {
         fields[field]?.let { return it }
+        if (dynamicFields.isEmpty()) return null
         var separator = field.value.lastIndexOf('.')
         while (separator > 0) {
             val ancestorPath = field.value.substring(0, separator)
-            val ancestor = fields[LogicalField(ancestorPath)]
-            if (ancestor?.dynamicChildren == true) {
+            val ancestor = dynamicFields[ancestorPath]
+            if (ancestor != null) {
                 val suffix = field.value.substring(separator + 1)
                 return ancestor.copy(
-                    bindings = ancestor.bindings
-                        .filterKeys { it != QueryCapability.ELEMENT_SCOPE }
-                        .mapValues { (_, binding) ->
-                            binding.copy(physicalPath = "${binding.physicalPath}.$suffix")
-                        },
+                    bindings = ancestor.bindings.mapValues { (_, binding) ->
+                        binding.copy(physicalPath = "${binding.physicalPath}.$suffix")
+                    },
                     projectionPath = ancestor.projectionPath?.let { "$it.$suffix" },
                 )
             }
