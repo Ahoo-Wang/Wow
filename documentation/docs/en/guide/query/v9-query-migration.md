@@ -70,7 +70,12 @@ Data-query HTTP request and result envelopes, Backend wire trees, storage layout
 | `SnapshotRepositorySaveSpanNameExtractor` | `SnapshotStoreSaveSpanNameExtractor` |
 | `SnapshotRepositoryLoadSpanNameExtractor` | `SnapshotStoreLoadSpanNameExtractor` |
 | `SnapshotRepositorySpec` | `SnapshotStoreSpec` |
-| `SnapshotStoreSpec.createSnapshotRepository()` / `SnapshotQueryBackendSpec.createSnapshotRepository()` | `createSnapshotStore()` |
+| `SnapshotStoreSpec.createSnapshotRepository()` / `CommandDispatcherSpec.createSnapshotRepository()` / `SnapshotQueryBackendSpec.createSnapshotRepository()` | `createSnapshotStore()` |
+| Mongo `createAggregateIdIndex()`, `createAggregateIdAndVersionUniqueIndex()`, `createRequestIdUniqueIndex()`, `createAggregateIdAndRequestIdUniqueIndex()`, `createTenantIdIndex()`, `createOwnerIdIndex()` | Removed; use `EventStreamSchemaInitializer` / `SnapshotSchemaInitializer` `initSchema()` or `initAll()` to reconcile the complete managed index set. For EventStream request id uniqueness, `enableRequestIdUniqueIndex = true` selects the request-id index; `false` (default) selects the aggregate-id/request-id compound index |
+| Elasticsearch `UNLIMITED_SIZE` / `Int.searchSize()` | Removed; pass `ListQuery.limit` directly (`0` remains unlimited) and let the Backend page with PIT / `search_after` |
+| `IndexTemplateInitializer.InitSubscriber` | Removed; compose and await `ensureAllTemplates()`, or call blocking `initAll()`; initialization failures propagate |
+| `EventStoreSpec.TIMES` | `EventStoreSpec.DEFAULT_CONCURRENCY_TEST_ITERATIONS` |
+| `EventStoreSpec.DEFAULT_PARALLELISM` | `EventStoreSpec.DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY` |
 
 Typed and node results share the `SINGLE`, `LIST`, and `PAGED` operation types. A Backend always returns `ObjectNode`; the Gateway optionally uses Jackson to materialize typed results after generic result filters complete.
 

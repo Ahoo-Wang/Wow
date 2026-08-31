@@ -70,7 +70,12 @@ V9 删除旧 JVM 类型，不提供 bridge、typealias 或 deprecation 过渡。
 | `SnapshotRepositorySaveSpanNameExtractor` | `SnapshotStoreSaveSpanNameExtractor` |
 | `SnapshotRepositoryLoadSpanNameExtractor` | `SnapshotStoreLoadSpanNameExtractor` |
 | `SnapshotRepositorySpec` | `SnapshotStoreSpec` |
-| `SnapshotStoreSpec.createSnapshotRepository()` / `SnapshotQueryBackendSpec.createSnapshotRepository()` | `createSnapshotStore()` |
+| `SnapshotStoreSpec.createSnapshotRepository()` / `CommandDispatcherSpec.createSnapshotRepository()` / `SnapshotQueryBackendSpec.createSnapshotRepository()` | `createSnapshotStore()` |
+| Mongo `createAggregateIdIndex()`、`createAggregateIdAndVersionUniqueIndex()`、`createRequestIdUniqueIndex()`、`createAggregateIdAndRequestIdUniqueIndex()`、`createTenantIdIndex()`、`createOwnerIdIndex()` | 已删除；通过 `EventStreamSchemaInitializer` / `SnapshotSchemaInitializer` 的 `initSchema()` 或 `initAll()` 统一对账完整的受管索引集合。EventStream request id 唯一性中，`enableRequestIdUniqueIndex = true` 选择 request-id 索引，`false`（默认）选择 aggregate-id/request-id 复合索引 |
+| Elasticsearch `UNLIMITED_SIZE` / `Int.searchSize()` | 已删除；直接传递 `ListQuery.limit`（`0` 仍表示不限），由 Backend 使用 PIT / `search_after` 分批读取 |
+| `IndexTemplateInitializer.InitSubscriber` | 已删除；组合并等待 `ensureAllTemplates()`，或调用阻塞式 `initAll()`；初始化失败会继续传播 |
+| `EventStoreSpec.TIMES` | `EventStoreSpec.DEFAULT_CONCURRENCY_TEST_ITERATIONS` |
+| `EventStoreSpec.DEFAULT_PARALLELISM` | `EventStoreSpec.DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY` |
 
 typed 与节点返回共享 `SINGLE`、`LIST`、`PAGED` 操作类型。Backend 始终返回 `ObjectNode`，Gateway 在通用结果 Filter 完成后按需使用 Jackson 物化 typed 结果。
 
