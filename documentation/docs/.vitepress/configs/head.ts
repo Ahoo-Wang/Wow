@@ -11,16 +11,15 @@
  * limitations under the License.
  */
 
-import {SITE_BASE} from "./SITE_BASE";
 import {HeadConfig} from "vitepress";
 
 export const head: HeadConfig[] = [
-    ['link', {rel: 'icon', href: `${SITE_BASE}favicon.ico`}],
+    ['link', {rel: 'icon', href: '/favicon.ico'}],
     ['meta', {
         name: 'keywords',
         content: 'Wow,领域驱动, DDD , Event-driven,事件驱动, Test , 测试驱动, 声明式设计, Reactor , Reactive ,响应式编程, CQRS , 命令查询职责分离, ES, 事件溯源'
     }],
-    ['link', {rel: 'manifest', href: `${SITE_BASE}manifest.webmanifest`}],
+    ['link', {rel: 'manifest', href: '/manifest.webmanifest'}],
     ['meta', {name: 'application-name', content: 'Wow'}],
     ['meta', {name: 'theme-color', content: '#5f67ee'}],
     [

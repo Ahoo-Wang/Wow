@@ -12,7 +12,7 @@
  */
 
 import DefaultTheme from 'vitepress/theme'
-import {h, onMounted, watch, nextTick} from 'vue'
+import {defineAsyncComponent, h, onMounted, watch, nextTick} from 'vue'
 import {type Theme, useRoute} from 'vitepress'
 import mediumZoom from 'medium-zoom'
 import './global.css'
@@ -27,11 +27,14 @@ export default {
     }),
     enhanceApp({app}) {
         app.component('CopyOrDownloadAsMarkdownButtons', CopyOrDownloadAsMarkdownButtons)
+        app.component('Mermaid', defineAsyncComponent(() => import('./Mermaid.vue')))
     },
     setup() {
         const route = useRoute()
         const initZoom = () => {
-            mediumZoom('.main img', {background: 'var(--vp-c-bg)'})
+            const images = [...document.querySelectorAll<HTMLImageElement>('.main img')]
+                .filter(image => !image.closest('a'))
+            mediumZoom(images, {background: 'var(--vp-c-bg)'})
         }
         onMounted(() => {
             initZoom()
