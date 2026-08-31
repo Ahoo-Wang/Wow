@@ -19,6 +19,7 @@ on:
     branches:
       - main
     paths:
+      - '.github/workflows/documentation-deploy.yml'
       - 'documentation/**'
   workflow_dispatch:
 
@@ -52,18 +53,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
-          cache: gradle
           settings-path: ${{ github.workspace }}
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Setup Pages
         uses: actions/configure-pages@v6

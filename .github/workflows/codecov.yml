@@ -32,8 +32,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
-          cache: gradle
           settings-path: ${{ github.workspace }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Build Code Coverage Report
         run: ./gradlew codeCoverageReport --stacktrace
