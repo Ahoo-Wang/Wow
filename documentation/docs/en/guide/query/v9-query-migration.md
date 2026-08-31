@@ -19,22 +19,26 @@ V9.0.x provides an explicit query-condition migration window: deprecated `Condit
 | `condition(existingCondition)` | `expression(existingFilter)` | The deprecated `existingCondition.toFilterExpression()` adapter is available only through 9.0.x |
 | `all()` | `matchAll()` | `matchNone()` is also available in V9 |
 | `and { ... }` / `or { ... }` / `nor { ... }` | Same calls | V9 logical blocks must not be empty |
-| `id(value)`, `ids(values)`, `aggregateId(value)`, `aggregateIds(values)`, `tenantId(value)`, `ownerId(value)`, `spaceId(value)` | Same calls | `SpaceId` was a `String` type alias; V9 accepts the string value directly |
+| `id(value)`, `ids(values)`, `aggregateId(value)`, `aggregateIds(values)`, `tenantId(value)`, `ownerId(value)`, `spaceId(value)` | Same calls | For empty `ids` or `aggregateIds`, call `matchNone()` instead; `SpaceId` was a `String` type alias, so V9 accepts the string value directly |
 | `deleted(state)` | `deletion(state)` | `DeletionState` is unchanged |
 | `field nested { ... }` | `field.path { ... }` | `path` is not infix; expressions inside the block use the scoped relative path |
 | `field eq value`, `ne`, `gt`, `gte`, `lt`, `lte` | Same infix calls on `String` fields | `KCallable` overloads are removed; use the logical field string |
 | `field.contains(value, ignoreCase)` | `field.containsText(value, StringComparison.CASE_*)` | Select `CASE_SENSITIVE` or `CASE_INSENSITIVE` explicitly |
 | `field startsWith value` / `field endsWith value` | `field.startsWithText(value)` / `field.endsWithText(value)` | The V9 text helpers are not infix; pass `StringComparison` when case-insensitive |
-| `field isIn values` / `field notIn values` | Same infix calls | V9 accepts `Iterable<*>` |
+| `field isIn values` / `field notIn values` | Same infix calls | V9 accepts non-empty `Iterable<*>`; map empty `isIn` to `matchNone()` and empty `notIn` to `matchAll()` |
 | `field between (lower to upper)` / `field between lower to upper` | `field.between(lower, upper)` | The intermediate `BetweenStart` form is removed |
-| `field all values` | `field containsAll values` | This is the collection contains-all predicate, not root match-all |
+| `field all values` | `field containsAll values` | This is the collection contains-all predicate; map an empty collection to `matchNone()` |
 | `field match query` | `field search query` | Or call `search(query, field)`; the legacy default maps to `SearchMode.TERMS` |
 | `field elemMatch { ... }` | `field.elementMatch { ... }` | `elementMatch` is not infix; the block must be non-empty and cannot contain root filters |
 | `field.isNull()`, `field.notNull()`, `field.isTrue()`, `field.isFalse()` | `field.isNull()`, `field.isNotNull()`, `field eq true`, `field eq false` | V9 equality accepts nullable values directly |
 | `field.exists(true)` / `field.exists(false)` | `field.exists()` / `field.notExists()` | The Boolean selector is replaced by explicit operations |
-| `field.today(...)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `recentDays`, `earlierDays` | Same dot-call names | Date patterns are `String?`; V9 also accepts `ZoneId` and `TimeUnit`, while `beforeToday` takes `LocalTime` |
+| `field beforeToday time` | `field.beforeToday(localTime, ...)` | The V9 helper is not infix and requires `LocalTime`; it also accepts `ZoneId`, `String?` date pattern, and `TimeUnit` |
+| `field recentDays days` / `Property::field recentDays days` | `field.recentDays(days, ...)` | The V9 helper is not infix and has no `KCallable` overload |
+| `field.today(...)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `earlierDays` | Same dot-call names | Date patterns are `String?`; V9 also accepts `ZoneId` and `TimeUnit` |
 
 Remove property-reference wrappers instead of recreating the deleted `KCallable` overloads. Use the stable logical field path required by Query Schema, such as `"state.status"`, and verify every migrated expression against its selected Backend.
+
+V9 collection filters reject empty values at construction time. Preserve V8 semantics with ordinary Kotlin branches inside the DSL: `if (ids.isEmpty()) matchNone() else ids(ids)`, `if (values.isEmpty()) matchNone() else "field" isIn values`, and `if (excluded.isEmpty()) matchAll() else "field" notIn excluded`.
 
 Data-query HTTP request and result envelopes, Backend wire trees, storage layouts, and existing data do not change because of this JVM refactor or static-annotation masking. Query Schema HTTP metadata and its generated OpenAPI component do change: each field adds `masked: Boolean`. No storage-data migration is required, and raw values in the Backend and storage are not rewritten. After old mask rules move to field annotations, the managed Gateway restores response confidentiality semantics.
 
