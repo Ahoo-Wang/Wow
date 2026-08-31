@@ -17,6 +17,7 @@ on:
     branches:
       - main
     paths:
+      - '.github/workflows/local-test.yml'
       - 'build.gradle.kts'
       - 'settings.gradle.kts'
       - 'gradle.properties'
@@ -32,6 +33,7 @@ on:
       - 'compensation/wow-compensation-server/**'
   pull_request:
     paths:
+      - '.github/workflows/local-test.yml'
       - 'build.gradle.kts'
       - 'settings.gradle.kts'
       - 'gradle.properties'
