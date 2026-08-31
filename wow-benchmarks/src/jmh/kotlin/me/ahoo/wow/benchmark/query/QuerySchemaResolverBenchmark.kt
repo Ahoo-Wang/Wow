@@ -67,6 +67,8 @@ private const val FILTER_OPERAND_COUNT = 8
 open class QuerySchemaResolverBenchmark {
     private val sortableField = LogicalField("state.createdAt")
     private val aggregatableField = LogicalField("state.category")
+    private val dynamicField = LogicalField("state.dynamic")
+    private val dynamicChildField = LogicalField("state.dynamic.child.grandchild")
     private val eventSecretField = LogicalField("body.body.secret")
     private val eventBodyTypeField = LogicalField("body.bodyType")
     private val schema = QueryModelSchema(
@@ -106,6 +108,16 @@ open class QuerySchemaResolverBenchmark {
                     maskRule = null,
                 ),
             )
+            put(
+                dynamicField,
+                maskedFieldSchema().copy(
+                    bindings = mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding("document.dynamic", null),
+                    ),
+                    dynamicChildren = true,
+                    maskRule = null,
+                ),
+            )
         },
     )
     private val resolver = QuerySchemaResolver(schema)
@@ -138,6 +150,10 @@ open class QuerySchemaResolverBenchmark {
         ),
     )
     private val eventProjection = Projection(include = listOf(eventSecretField.value))
+    private val dynamicFilter = EqualFilter(
+        dynamicChildField,
+        JsonNodeFactory.instance.stringNode("value"),
+    )
     private val aggregationQuery = AggregationQuery(
         groupBy = listOf(AggregationGroup.Terms(aggregatableField, "category")),
         metrics = listOf(AggregationMetric.Count("count")),
@@ -181,6 +197,11 @@ open class QuerySchemaResolverBenchmark {
     @Benchmark
     fun resolveAggregation(blackhole: Blackhole) {
         blackhole.consume(resolver.resolve(aggregationQuery))
+    }
+
+    @Benchmark
+    fun resolveDynamicFilter(blackhole: Blackhole) {
+        blackhole.consume(resolver.resolve(dynamicFilter))
     }
 
     private fun maskedFieldSchema(): QueryFieldSchema {
