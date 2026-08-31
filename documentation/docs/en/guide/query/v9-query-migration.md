@@ -22,15 +22,15 @@ V9.0.x provides an explicit query-condition migration window: deprecated `Condit
 | `and { ... }` / `or { ... }` / `nor { ... }` | Same calls when at least one predicate is emitted | If predicates are conditional, guard the whole logical-block call and omit it when none apply; inserting `matchAll()` changes `or`/`nor` semantics |
 | `id(value)`, `ids(values)`, `aggregateId(value)`, `aggregateIds(values)`, `tenantId(value)`, `ownerId(value)`, `spaceId(value)` | Same calls | For empty `ids` or `aggregateIds`, call `matchNone()` instead; `SpaceId` was a `String` type alias, so V9 accepts the string value directly |
 | `deleted(state)` | `deletion(state)` | `DeletionState` is unchanged |
-| `field nested { ... }` | `field.path { ... }` only when AND grouping is intended | V8 flattens nested children into the surrounding block; V9 `path` groups multiple children with implicit AND |
-| `field eq value`, `ne`, `gt`, `gte`, `lt`, `lte` | Same infix calls for scalar values | `KCallable` overloads are removed; structured JVM equality needs the explicit expression described below |
+| `field nested { ... }` | `field.path { ... }` only when AND grouping is intended | V8 flattens nested children into the surrounding block; V9 `path` groups multiple children with implicit AND and must be omitted when no child is emitted |
+| `field eq value`, `ne`, `gt`, `gte`, `lt`, `lte` | Same infix calls for scalar values | `KCallable` overloads are removed; structured JVM equality and range operands need the explicit expressions described below |
 | `field.contains(value, ignoreCase)` | `field.containsText(value, StringComparison.CASE_*)` | Select `CASE_SENSITIVE` or `CASE_INSENSITIVE` explicitly |
 | `field startsWith value` / `field endsWith value` | `field.startsWithText(value)` / `field.endsWithText(value)` | The V9 text helpers are not infix; pass `StringComparison` when case-insensitive |
 | `field isIn values` / `field notIn values` | Same infix calls | V9 accepts non-empty `Iterable<*>`; map empty `isIn` to `matchNone()` and empty `notIn` to `matchAll()` |
 | `field between (lower to upper)` / `field between lower to upper` | `field.between(lower, upper)` | The intermediate `BetweenStart` form is removed |
 | `field all values` | `field containsAll values` | This is the collection contains-all predicate; map an empty collection to `matchNone()` |
-| `field match query` | `field search query` | Or call `search(query, field)`; the legacy default maps to `SearchMode.TERMS` |
-| `field elemMatch { ... }` | `field.elementMatch { ... }` | `elementMatch` is not infix; the block must be non-empty and cannot contain root filters |
+| `field match query` | `field search query` | Or call `search(query, field)`; for the legacy blank field, use `search(query)` to retain global search; the default mode is `SearchMode.TERMS` |
+| `field elemMatch { ... }` | `field.elementMatch { ... }` | `elementMatch` is not infix and cannot contain root filters; replace a legacy empty block with `field.elementMatch { matchAll() }` |
 | `field.isNull()`, `field.notNull()`, `field.isTrue()`, `field.isFalse()` | `field.isNull()`, `field.isNotNull()`, `field eq true`, `field eq false` | V9 equality accepts nullable values directly |
 | `field.exists(true)` / `field.exists(false)` | `field.exists()` / `field.notExists()` | The Boolean selector is replaced by explicit operations |
 | `field beforeToday time` | `field.beforeToday(localTime, ...)` | The V9 helper is not infix and requires `LocalTime`; it also accepts `ZoneId`, `String?` date pattern, and `TimeUnit` |
@@ -42,11 +42,15 @@ Remove property-reference wrappers instead of recreating the deleted `KCallable`
 
 `ConditionDsl.nested` flattened its child predicates into the surrounding logical block. A direct `path` replacement is equivalent at the root, inside `and`, or for one child. Inside `or` or `nor`, keep the predicates as separate operands by writing their qualified paths at that same level; for example, migrate `or { "state" nested { "a" eq 1; "b" eq 2 } }` to `or { "state.a" eq 1; "state.b" eq 2 }`, not to one `"state".path { ... }` operand.
 
+If every predicate inside a legacy `nested` block is conditional, guard the entire `path` invocation and omit it when none apply. An empty V8 `nested` block was a no-op, while an empty V9 `path` block is invalid.
+
 When a logical block is populated conditionally, move the same guard around the block invocation so an empty block is omitted, as V8 did. For example, use `if (includeName || includeStatus) { or { if (includeName) "name" eq name; if (includeStatus) "status" eq status } }`. Do not put `matchAll()` into an empty `or` or `nor`.
 
 V9 collection filters reject empty values at construction time. Preserve V8 semantics with ordinary Kotlin branches inside the DSL: `if (ids.isEmpty()) matchNone() else ids(ids)`, `if (values.isEmpty()) matchNone() else "field" isIn values`, and `if (excluded.isEmpty()) matchAll() else "field" notIn excluded`.
 
-`FilterDsl` serializes arbitrary Kotlin objects and maps as JSON objects, which canonical `EQ`/`NE` reject. Scalar and scalar-array equality keeps the DSL form. To preserve a V8 in-process POJO/map equality comparison, construct `EqualFilter` or `NotEqualFilter` explicitly with `LogicalField(field)` and `JsonNodeFactory.instance.pojoNode(value)`. This runtime-only `POJONode` form is not a canonical REST payload; V9 REST equality supports JSON scalars only.
+`FilterDsl` serializes arbitrary Kotlin objects and maps as JSON objects, which canonical `EQ`/`NE` reject. Scalar and scalar-array equality keeps the DSL form. To preserve a V8 in-process POJO/map equality comparison, construct `EqualFilter` or `NotEqualFilter` explicitly with `LogicalField(field)` and `JsonNodeFactory.instance.pojoNode(value)`. This runtime-only `POJONode` form is not a canonical REST payload; V9 REST equality supports JSON scalars and scalar arrays.
+
+Structured V8 operands for `gt`, `gte`, `lt`, `lte`, or either `between` bound need the same JVM-only treatment. Construct the matching `GreaterThanFilter`, `GreaterThanOrEqualFilter`, `LessThanFilter`, `LessThanOrEqualFilter`, or `BetweenFilter` explicitly and wrap each POJO/map operand with `JsonNodeFactory.instance.pojoNode(value)`. Canonical REST range operands remain non-null JSON scalars.
 
 The same boundary applies to structured elements in `isIn`, `notIn`, and collection `all`: `FilterDsl` converts them to rejected JSON objects. For an in-process native-value collection, construct `InFilter`, `NotInFilter`, or `ContainsAllFilter` explicitly and map every structured element with `JsonNodeFactory.instance.pojoNode(value)`; for example, `InFilter(LogicalField(field), values.map(JsonNodeFactory.instance::pojoNode))`. Keep the empty-list branches above. `POJONode` collection elements are JVM-only; canonical REST collections contain non-null JSON scalars.
 
@@ -70,11 +74,11 @@ When V8 passes a `DateTimeFormatter` rather than a pattern string, use the match
 | `and`, `or`, `nor` | `AndFilter`, `OrFilter`, `NorFilter` with non-empty operand lists |
 | `id`, `ids`, `aggregateId`, `aggregateIds`, `tenantId`, `ownerId`, `spaceId` | `IdFilter`, `IdsFilter`, `AggregateIdFilter`, `AggregateIdsFilter`, `TenantIdFilter`, `OwnerIdFilter`, `SpaceIdFilter`; preserve the empty-list branches documented above |
 | `eq`, `ne` | `EqualFilter`, `NotEqualFilter`; use scalar `JsonNode` values, scalar arrays, or the JVM-only `POJONode` migration described above |
-| `gt`, `gte`, `lt`, `lte` | `GreaterThanFilter`, `GreaterThanOrEqualFilter`, `LessThanFilter`, `LessThanOrEqualFilter` |
+| `gt`, `gte`, `lt`, `lte` | `GreaterThanFilter`, `GreaterThanOrEqualFilter`, `LessThanFilter`, `LessThanOrEqualFilter`; use the JVM-only `POJONode` migration above for structured operands |
 | `contains`, `startsWith`, `endsWith` | `ContainsFilter`, `StartsWithFilter`, `EndsWithFilter` with explicit `StringComparison` |
-| `isIn`, `notIn`, `between`, collection `all` | `InFilter`, `NotInFilter`, `BetweenFilter`, `ContainsAllFilter` |
-| `match(field, query)` | `SearchFilter(query, setOf(LogicalField(field)), SearchMode.TERMS)` |
-| `elemMatch(field, condition)` | `ElementMatchFilter(LogicalField(field), predicate)`; combine multiple child predicates with a non-empty `AndFilter` |
+| `isIn`, `notIn`, `between`, collection `all` | `InFilter`, `NotInFilter`, `BetweenFilter`, `ContainsAllFilter`; use the JVM-only `POJONode` migration above for structured bounds |
+| `match(field, query)` | Non-blank field: `SearchFilter(query, setOf(LogicalField(field)), SearchMode.TERMS)`; blank field: `SearchFilter(query)` or `filterExpression { search(query) }` |
+| `elemMatch(field, condition)` | `ElementMatchFilter(LogicalField(field), predicate)`; combine multiple children with a non-empty `AndFilter`, and map `Condition.ALL` from an empty legacy DSL block to `MatchAllFilter` |
 | `isNull`, `notNull`, `isTrue`, `isFalse`, `exists(true)`, `exists(false)` | `IsNullFilter(LogicalField(field))`, `IsNotNullFilter(LogicalField(field))`, `filterExpression { field eq true }`, `filterExpression { field eq false }`, `ExistsFilter(LogicalField(field))`, `NotExistsFilter(LogicalField(field))` |
 | `today`, `beforeToday`, `tomorrow`, week/month, `recentDays`, `earlierDays` | Matching `TodayFilter`, `BeforeTodayFilter`, `TomorrowFilter`, `ThisWeekFilter`, `NextWeekFilter`, `LastWeekFilter`, `ThisMonthFilter`, `LastMonthFilter`, `RecentDaysFilter`, `EarlierDaysFilter`; use typed constructor properties and the formatter boundary above |
 | `condition.toFilterExpression()` | Transitional 9.0.x adapter only; replace stored/public `Condition` values with their concrete expression before 9.1.0 |

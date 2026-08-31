@@ -22,15 +22,15 @@ V9.0.x 为查询条件提供明确的迁移窗口：保留已弃用的 `Conditio
 | `and { ... }` / `or { ... }` / `nor { ... }` | 至少生成一个条件时调用不变 | 条件是动态生成的时，把 guard 移到整个逻辑块外；无条件时省略该块，插入 `matchAll()` 会改变 `or`/`nor` 语义 |
 | `id(value)`、`ids(values)`、`aggregateId(value)`、`aggregateIds(values)`、`tenantId(value)`、`ownerId(value)`、`spaceId(value)` | 调用不变 | `ids` 或 `aggregateIds` 为空时改用 `matchNone()`；`SpaceId` 原本就是 `String` typealias，V9 直接接收字符串值 |
 | `deleted(state)` | `deletion(state)` | `DeletionState` 不变 |
-| `field nested { ... }` | 仅在需要 AND 分组时使用 `field.path { ... }` | V8 会把 nested 子条件展平到外围逻辑块；V9 `path` 会把多个子条件组成隐式 AND |
-| `field eq value`、`ne`、`gt`、`gte`、`lt`、`lte` | scalar value 使用同名 infix 调用 | `KCallable` 重载已删除；结构化 JVM equality 使用下述显式 expression |
+| `field nested { ... }` | 仅在需要 AND 分组时使用 `field.path { ... }` | V8 会把 nested 子条件展平到外围逻辑块；V9 `path` 会把多个子条件组成隐式 AND，未生成子条件时必须省略整个调用 |
+| `field eq value`、`ne`、`gt`、`gte`、`lt`、`lte` | scalar value 使用同名 infix 调用 | `KCallable` 重载已删除；结构化 JVM equality 与 range operand 使用下述显式 expression |
 | `field.contains(value, ignoreCase)` | `field.containsText(value, StringComparison.CASE_*)` | 显式选择 `CASE_SENSITIVE` 或 `CASE_INSENSITIVE` |
 | `field startsWith value` / `field endsWith value` | `field.startsWithText(value)` / `field.endsWithText(value)` | V9 文本 helper 不是 infix；忽略大小写时传入 `StringComparison` |
 | `field isIn values` / `field notIn values` | 同名 infix 调用 | V9 只接受非空 `Iterable<*>`；空 `isIn` 映射为 `matchNone()`，空 `notIn` 映射为 `matchAll()` |
 | `field between (lower to upper)` / `field between lower to upper` | `field.between(lower, upper)` | 中间态 `BetweenStart` 已删除 |
 | `field all values` | `field containsAll values` | 这是集合 contains-all 条件；空集合映射为 `matchNone()` |
-| `field match query` | `field search query` | 也可调用 `search(query, field)`；旧默认语义映射为 `SearchMode.TERMS` |
-| `field elemMatch { ... }` | `field.elementMatch { ... }` | `elementMatch` 不是 infix；块不能为空，且不能包含 root filter |
+| `field match query` | `field search query` | 也可调用 `search(query, field)`；旧 field 为空时使用 `search(query)` 保留全局搜索，默认模式为 `SearchMode.TERMS` |
+| `field elemMatch { ... }` | `field.elementMatch { ... }` | `elementMatch` 不是 infix 且不能包含 root filter；旧空块改为 `field.elementMatch { matchAll() }` |
 | `field.isNull()`、`field.notNull()`、`field.isTrue()`、`field.isFalse()` | `field.isNull()`、`field.isNotNull()`、`field eq true`、`field eq false` | V9 equality 可直接接收 nullable value |
 | `field.exists(true)` / `field.exists(false)` | `field.exists()` / `field.notExists()` | Boolean selector 改为显式操作 |
 | `field beforeToday time` | `field.beforeToday(localTime, ...)` | V9 helper 不是 infix 且必须传 `LocalTime`；还可传 `ZoneId`、`String?` date pattern 与 `TimeUnit` |
@@ -42,11 +42,15 @@ V9.0.x 为查询条件提供明确的迁移窗口：保留已弃用的 `Conditio
 
 `ConditionDsl.nested` 会把子条件展平到外围逻辑块。根级、`and` 内或只有一个子条件时可以直接改为 `path`；在 `or` 或 `nor` 内，应把带完整前缀的子条件作为同级 operand 保留。例如，把 `or { "state" nested { "a" eq 1; "b" eq 2 } }` 改为 `or { "state.a" eq 1; "state.b" eq 2 }`，不能改成一个 `"state".path { ... }` operand。
 
+如果旧 `nested` 块内的条件全部按运行时分支生成，应在整个 `path` 调用外使用同一 guard，并在没有条件时省略它。V8 空 `nested` 块是 no-op，V9 空 `path` 块则非法。
+
 逻辑块按条件动态填充时，把相同 guard 移到整个 block invocation 外，让空块像 V8 一样被省略。例如：`if (includeName || includeStatus) { or { if (includeName) "name" eq name; if (includeStatus) "status" eq status } }`。不要在空 `or` 或 `nor` 中插入 `matchAll()`。
 
 V9 集合过滤器会在构造时拒绝空值。请在 DSL 内用普通 Kotlin 分支保留 V8 语义：`if (ids.isEmpty()) matchNone() else ids(ids)`、`if (values.isEmpty()) matchNone() else "field" isIn values`，以及 `if (excluded.isEmpty()) matchAll() else "field" notIn excluded`。
 
-`FilterDsl` 会把任意 Kotlin object 或 map 序列化为 JSON object，而规范 `EQ`/`NE` 会拒绝它。scalar 与 scalar array equality 继续使用 DSL。若要保留 V8 进程内 POJO/map equality，请显式构造 `EqualFilter` 或 `NotEqualFilter`，传入 `LogicalField(field)` 与 `JsonNodeFactory.instance.pojoNode(value)`。该运行时 `POJONode` 形式不能作为规范 REST payload；V9 REST equality 只支持 JSON scalar。
+`FilterDsl` 会把任意 Kotlin object 或 map 序列化为 JSON object，而规范 `EQ`/`NE` 会拒绝它。scalar 与 scalar array equality 继续使用 DSL。若要保留 V8 进程内 POJO/map equality，请显式构造 `EqualFilter` 或 `NotEqualFilter`，传入 `LogicalField(field)` 与 `JsonNodeFactory.instance.pojoNode(value)`。该运行时 `POJONode` 形式不能作为规范 REST payload；V9 REST equality 支持 JSON scalar 与 scalar array。
+
+V8 的 `gt`、`gte`、`lt`、`lte` 或 `between` 任一 bound 为结构化对象时，也需要采用同一 JVM-only 方式。显式构造对应的 `GreaterThanFilter`、`GreaterThanOrEqualFilter`、`LessThanFilter`、`LessThanOrEqualFilter` 或 `BetweenFilter`，并用 `JsonNodeFactory.instance.pojoNode(value)` 包装每个 POJO/map operand。规范 REST range operand 仍只能是非 null JSON scalar。
 
 `isIn`、`notIn` 与集合 `all` 中的结构化元素也遵循同一边界：`FilterDsl` 会把它们转换为被拒绝的 JSON object。进程内 native-value collection 应显式构造 `InFilter`、`NotInFilter` 或 `ContainsAllFilter`，并用 `JsonNodeFactory.instance.pojoNode(value)` 映射每个结构化元素，例如 `InFilter(LogicalField(field), values.map(JsonNodeFactory.instance::pojoNode))`；同时保留上文的空 list 分支。`POJONode` 集合元素仅限 JVM；规范 REST collection 只包含非 null JSON scalar。
 
@@ -70,11 +74,11 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 | `and`、`or`、`nor` | 使用非空 operand list 的 `AndFilter`、`OrFilter`、`NorFilter` |
 | `id`、`ids`、`aggregateId`、`aggregateIds`、`tenantId`、`ownerId`、`spaceId` | `IdFilter`、`IdsFilter`、`AggregateIdFilter`、`AggregateIdsFilter`、`TenantIdFilter`、`OwnerIdFilter`、`SpaceIdFilter`；保留上文记录的空 list 分支 |
 | `eq`、`ne` | `EqualFilter`、`NotEqualFilter`；使用 scalar `JsonNode`、scalar array，或上文 JVM-only `POJONode` 迁移 |
-| `gt`、`gte`、`lt`、`lte` | `GreaterThanFilter`、`GreaterThanOrEqualFilter`、`LessThanFilter`、`LessThanOrEqualFilter` |
+| `gt`、`gte`、`lt`、`lte` | `GreaterThanFilter`、`GreaterThanOrEqualFilter`、`LessThanFilter`、`LessThanOrEqualFilter`；结构化 operand 使用上文 JVM-only `POJONode` 迁移 |
 | `contains`、`startsWith`、`endsWith` | 带显式 `StringComparison` 的 `ContainsFilter`、`StartsWithFilter`、`EndsWithFilter` |
-| `isIn`、`notIn`、`between`、集合 `all` | `InFilter`、`NotInFilter`、`BetweenFilter`、`ContainsAllFilter` |
-| `match(field, query)` | `SearchFilter(query, setOf(LogicalField(field)), SearchMode.TERMS)` |
-| `elemMatch(field, condition)` | `ElementMatchFilter(LogicalField(field), predicate)`；多个 child predicate 用非空 `AndFilter` 组合 |
+| `isIn`、`notIn`、`between`、集合 `all` | `InFilter`、`NotInFilter`、`BetweenFilter`、`ContainsAllFilter`；结构化 bound 使用上文 JVM-only `POJONode` 迁移 |
+| `match(field, query)` | 非空 field：`SearchFilter(query, setOf(LogicalField(field)), SearchMode.TERMS)`；空 field：`SearchFilter(query)` 或 `filterExpression { search(query) }` |
+| `elemMatch(field, condition)` | `ElementMatchFilter(LogicalField(field), predicate)`；多个 child 用非空 `AndFilter` 组合，旧 DSL 空块产生的 `Condition.ALL` 映射为 `MatchAllFilter` |
 | `isNull`、`notNull`、`isTrue`、`isFalse`、`exists(true)`、`exists(false)` | `IsNullFilter(LogicalField(field))`、`IsNotNullFilter(LogicalField(field))`、`filterExpression { field eq true }`、`filterExpression { field eq false }`、`ExistsFilter(LogicalField(field))`、`NotExistsFilter(LogicalField(field))` |
 | `today`、`beforeToday`、`tomorrow`、week/month、`recentDays`、`earlierDays` | 对应 `TodayFilter`、`BeforeTodayFilter`、`TomorrowFilter`、`ThisWeekFilter`、`NextWeekFilter`、`LastWeekFilter`、`ThisMonthFilter`、`LastMonthFilter`、`RecentDaysFilter`、`EarlierDaysFilter`；使用 typed constructor property 与上文 formatter 边界 |
 | `condition.toFilterExpression()` | 仅用于 9.0.x 过渡；9.1.0 前把保存或公开的 `Condition` 值改为具体 expression |
