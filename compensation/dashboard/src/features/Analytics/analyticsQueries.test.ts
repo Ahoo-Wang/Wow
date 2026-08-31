@@ -76,24 +76,56 @@ describe("analyticsQueries", () => {
     [queries.actionableNow, queries.timedOut, queries.unrecoverable].forEach(
       expectSnapshotWindow,
     );
-    expect(queries).toHaveProperty("stockPartitions", {
-      filter: {
-        op: "IN",
-        field: "state.status",
-        values: [ExecutionFailedStatus.FAILED, ExecutionFailedStatus.PREPARED],
+    const activeFilter = {
+      op: "IN",
+      field: "state.status",
+      values: [ExecutionFailedStatus.FAILED, ExecutionFailedStatus.PREPARED],
+    };
+    expect(queries).toMatchObject({
+      activeTotal: {
+        filter: activeFilter,
+        metrics: [{ type: "COUNT", alias: "count" }],
       },
-      groupBy: [
-        {
-          alias: "executeAtBucket",
-          field: "state.executeAt",
-          timeZone: snapshotWindow.timeZone,
-          type: "DATE_HISTOGRAM",
-          unit: "DAY",
+      selectedInRange: {
+        filter: {
+          op: "AND",
+          operands: [
+            {
+              op: "GTE",
+              field: "state.executeAt",
+              value: snapshotWindow.start,
+            },
+            {
+              op: "LT",
+              field: "state.executeAt",
+              value: snapshotWindow.end,
+            },
+            activeFilter,
+          ],
         },
-      ],
-      metrics: [{ type: "COUNT", alias: "count" }],
-      limit: 1_000,
+        metrics: [{ type: "COUNT", alias: "count" }],
+      },
+      newerThanRange: {
+        filter: {
+          op: "AND",
+          operands: [
+            {
+              op: "GTE",
+              field: "state.executeAt",
+              value: snapshotWindow.end,
+            },
+            activeFilter,
+          ],
+        },
+        metrics: [{ type: "COUNT", alias: "count" }],
+      },
     });
+    expect(queries).not.toHaveProperty("stockPartitions");
+    [
+      queries.activeTotal,
+      queries.selectedInRange,
+      queries.newerThanRange,
+    ].forEach((query) => expect(query.groupBy).toBeUndefined());
     expect(queries.actionableNow.metrics).toEqual([
       { type: "COUNT", alias: "count" },
     ]);

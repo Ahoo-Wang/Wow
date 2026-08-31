@@ -42,6 +42,35 @@ function isQuery(
   return query?.groupBy?.some((groupBy) => groupBy.alias === alias);
 }
 
+const activeFilter = {
+  op: "IN",
+  field: "state.status",
+  values: ["FAILED", "PREPARED"],
+};
+
+function stockCountKind(query: { filter?: unknown } | undefined) {
+  if (JSON.stringify(query?.filter) === JSON.stringify(activeFilter)) {
+    return "activeTotal";
+  }
+  const filter = query?.filter as
+    { op?: string; operands?: Array<{ op?: string }> } | undefined;
+  if (filter?.op !== "AND" || !filter.operands) {
+    return undefined;
+  }
+  const hasActiveFilter = filter.operands.some(
+    (operand) => JSON.stringify(operand) === JSON.stringify(activeFilter),
+  );
+  if (!hasActiveFilter) {
+    return undefined;
+  }
+  const hasLowerBound = filter.operands.some(({ op }) => op === "GTE");
+  const hasUpperBound = filter.operands.some(({ op }) => op === "LT");
+  if (hasLowerBound && hasUpperBound) {
+    return "selectedInRange";
+  }
+  return hasLowerBound ? "newerThanRange" : undefined;
+}
+
 const initialWindow: TrendWindow = {
   buckets: Array.from({ length: 7 }, (_, index) =>
     new Date(2026, 7, 22 + index).getTime(),
@@ -62,12 +91,10 @@ const nextWindow: TrendWindow = {
 };
 
 function summaryRows(
-  query: { groupBy?: Array<{ alias?: string }> },
+  query: { filter?: unknown; groupBy?: Array<{ alias?: string }> },
   count: number,
 ) {
-  return isQuery(query, "executeAtBucket")
-    ? [{ count, executeAtBucket: initialWindow.end - 86_400_000 }]
-    : [{ count }];
+  return [{ count: stockCountKind(query) === "newerThanRange" ? 0 : count }];
 }
 
 describe("useSnapshotAnalytics", () => {
@@ -80,7 +107,7 @@ describe("useSnapshotAnalytics", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it("starts seven snapshot requests and waits for top clusters before status mix", async () => {
+  it("starts nine snapshot requests and waits for top clusters before status mix", async () => {
     const pressure = deferred<PressureClusterRow[]>();
     mocks.aggregate.mockImplementation((query) => {
       if (isQuery(query, "errorCode")) {
@@ -91,7 +118,7 @@ describe("useSnapshotAnalytics", () => {
 
     renderHook(() => useSnapshotAnalytics(initialWindow, 0));
 
-    expect(mocks.aggregate).toHaveBeenCalledTimes(7);
+    expect(mocks.aggregate).toHaveBeenCalledTimes(9);
     pressure.resolve([
       {
         errorCode: "TEST",
@@ -104,7 +131,7 @@ describe("useSnapshotAnalytics", () => {
         nextRetryAt: 2_000,
       },
     ]);
-    await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(8));
+    await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(10));
   });
 
   it("settles independent sections while the stock pair remains deferred", async () => {
@@ -156,14 +183,17 @@ describe("useSnapshotAnalytics", () => {
     });
   });
 
-  it("partitions active stock from one aggregation response", async () => {
+  it("derives stock partitions from three count responses", async () => {
     mocks.aggregate.mockImplementation((query) => {
-      if (isQuery(query, "executeAtBucket")) {
-        return Promise.resolve([
-          { count: 3, executeAtBucket: initialWindow.start - 86_400_000 },
-          { count: 5, executeAtBucket: initialWindow.start },
-          { count: 7, executeAtBucket: initialWindow.end },
-        ]);
+      const stockCount = stockCountKind(query);
+      if (stockCount === "activeTotal") {
+        return Promise.resolve([{ count: 15 }]);
+      }
+      if (stockCount === "selectedInRange") {
+        return Promise.resolve([{ count: 5 }]);
+      }
+      if (stockCount === "newerThanRange") {
+        return Promise.resolve([{ count: 7 }]);
       }
       if (
         isQuery(query, "errorCode") ||
@@ -188,15 +218,17 @@ describe("useSnapshotAnalytics", () => {
     );
   });
 
-  it("marks stock unavailable when the aggregation reaches its limit", async () => {
+  it("marks stock unavailable when concurrent counts are inconsistent", async () => {
     mocks.aggregate.mockImplementation((query) => {
-      if (isQuery(query, "executeAtBucket")) {
-        return Promise.resolve(
-          Array.from({ length: 1_000 }, (_, index) => ({
-            count: 1,
-            executeAtBucket: initialWindow.start + index * 86_400_000,
-          })),
-        );
+      const stockCount = stockCountKind(query);
+      if (stockCount === "activeTotal") {
+        return Promise.resolve([{ count: 10 }]);
+      }
+      if (stockCount === "selectedInRange") {
+        return Promise.resolve([{ count: 8 }]);
+      }
+      if (stockCount === "newerThanRange") {
+        return Promise.resolve([{ count: 4 }]);
       }
       if (
         isQuery(query, "errorCode") ||
@@ -301,10 +333,10 @@ describe("useSnapshotAnalytics", () => {
     });
   });
 
-  it("aborts the old window and starts seven requests with the applied window", async () => {
+  it("aborts the old window and starts nine requests with the applied window", async () => {
     const controllers: AbortController[] = [];
     const queries: Array<{
-      filter: { operands: Array<{ op: string; value?: number }> };
+      filter: unknown;
     }> = [];
     mocks.aggregate.mockImplementation((query, _attributes, controller) => {
       if (!controller) {
@@ -328,8 +360,8 @@ describe("useSnapshotAnalytics", () => {
       await Promise.resolve();
     });
 
-    expect(mocks.aggregate).toHaveBeenCalledTimes(14);
-    expect(controllers.slice(0, 7).every(({ signal }) => signal.aborted)).toBe(
+    expect(mocks.aggregate).toHaveBeenCalledTimes(18);
+    expect(controllers.slice(0, 9).every(({ signal }) => signal.aborted)).toBe(
       true,
     );
     const fullyWindowedQueries = queries.filter((query) => {
@@ -339,29 +371,29 @@ describe("useSnapshotAnalytics", () => {
         serializedFilter.includes('"op":"LT"')
       );
     });
-    expect(fullyWindowedQueries).toHaveLength(12);
+    expect(fullyWindowedQueries).toHaveLength(14);
     expect(
       queries.filter(
         (query) =>
           JSON.stringify(query.filter).includes('"state.executeAt"') &&
           !fullyWindowedQueries.includes(query),
       ),
-    ).toHaveLength(0);
+    ).toHaveLength(2);
     expect(
       queries.filter(
         (query) => !JSON.stringify(query.filter).includes('"state.executeAt"'),
       ),
     ).toHaveLength(2);
-    expect(JSON.stringify(fullyWindowedQueries.slice(0, 6))).toContain(
+    expect(JSON.stringify(fullyWindowedQueries.slice(0, 7))).toContain(
       String(initialWindow.start),
     );
-    expect(JSON.stringify(fullyWindowedQueries.slice(6))).toContain(
+    expect(JSON.stringify(fullyWindowedQueries.slice(7))).toContain(
       String(nextWindow.start),
     );
   });
 
   it("does not let settled stale requests overwrite refreshed sections", async () => {
-    const firstLoads = Array.from({ length: 7 }, () => deferred<unknown[]>());
+    const firstLoads = Array.from({ length: 9 }, () => deferred<unknown[]>());
     let firstCall = 0;
     let refresh = 0;
     mocks.aggregate.mockImplementation((query) => {
@@ -384,7 +416,7 @@ describe("useSnapshotAnalytics", () => {
       ({ token }) => useSnapshotAnalytics(initialWindow, token),
       { initialProps: { token: 0 } },
     );
-    expect(mocks.aggregate).toHaveBeenCalledTimes(7);
+    expect(mocks.aggregate).toHaveBeenCalledTimes(9);
 
     refresh = 1;
     await act(async () => {
@@ -399,12 +431,12 @@ describe("useSnapshotAnalytics", () => {
       firstLoads[0].resolve([{ count: 1 }]);
       firstLoads[1].resolve([{ count: 1 }]);
       firstLoads[2].resolve([{ count: 1 }]);
-      firstLoads[3].resolve([
-        { count: 1, executeAtBucket: initialWindow.end - 86_400_000 },
-      ]);
-      firstLoads[4].resolve([]);
-      firstLoads[5].resolve([{ count: 1, recoverable: "true" }]);
-      firstLoads[6].resolve([{ count: 1, retries: 0 }]);
+      firstLoads[3].resolve([{ count: 1 }]);
+      firstLoads[4].resolve([{ count: 1 }]);
+      firstLoads[5].resolve([{ count: 0 }]);
+      firstLoads[6].resolve([]);
+      firstLoads[7].resolve([{ count: 1, recoverable: "true" }]);
+      firstLoads[8].resolve([{ count: 1, retries: 0 }]);
       await Promise.all(firstLoads.map(({ promise }) => promise));
     });
 
