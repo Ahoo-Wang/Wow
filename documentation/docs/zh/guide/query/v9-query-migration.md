@@ -11,6 +11,31 @@ description: 将 V8 查询 JVM API 迁移到聚合级 Gateway 与 ObjectNode Bac
 
 V9.0.x 为查询条件提供明确的迁移窗口：保留已弃用的 `Condition`/`Operator` JVM 类型、`ConditionDsl`、旧查询构造器、count 客户端重载和既有反序列化，并统一适配为 `FilterExpression`。WebFlux list/paged/single 请求仍可提交 `condition`，count 请求仍可提交裸 `operator` 形状。上述兼容 API 计划在 9.1.0 删除；新代码应立即使用 `FilterExpression`/`FilterDsl`。规范 `filter`、OpenAPI 与出站 JSON 只使用 `op`。
 
+### ConditionDsl 迁移
+
+| V8.16.3 `ConditionDsl` | V9 `FilterDsl` | 迁移说明 |
+| --- | --- | --- |
+| `condition { ... }` | `filterExpression { ... }` | 旧空块表示 match-all；V9 空块非法，必须显式调用 `matchAll()` |
+| `condition(existingCondition)` | `expression(existingFilter)` | 已弃用的 `existingCondition.toFilterExpression()` 适配器仅在 9.0.x 保留 |
+| `all()` | `matchAll()` | V9 还提供 `matchNone()` |
+| `and { ... }` / `or { ... }` / `nor { ... }` | 调用不变 | V9 逻辑块不能为空 |
+| `id(value)`、`ids(values)`、`aggregateId(value)`、`aggregateIds(values)`、`tenantId(value)`、`ownerId(value)`、`spaceId(value)` | 调用不变 | `SpaceId` 原本就是 `String` typealias；V9 直接接收字符串值 |
+| `deleted(state)` | `deletion(state)` | `DeletionState` 不变 |
+| `field nested { ... }` | `field.path { ... }` | `path` 不是 infix；块内表达式使用作用域内的相对路径 |
+| `field eq value`、`ne`、`gt`、`gte`、`lt`、`lte` | `String` 字段上的同名 infix 调用 | `KCallable` 重载已删除，改用逻辑字段字符串 |
+| `field.contains(value, ignoreCase)` | `field.containsText(value, StringComparison.CASE_*)` | 显式选择 `CASE_SENSITIVE` 或 `CASE_INSENSITIVE` |
+| `field startsWith value` / `field endsWith value` | `field.startsWithText(value)` / `field.endsWithText(value)` | V9 文本 helper 不是 infix；忽略大小写时传入 `StringComparison` |
+| `field isIn values` / `field notIn values` | 同名 infix 调用 | V9 接收 `Iterable<*>` |
+| `field between (lower to upper)` / `field between lower to upper` | `field.between(lower, upper)` | 中间态 `BetweenStart` 已删除 |
+| `field all values` | `field containsAll values` | 这是集合 contains-all 条件，不是根级 match-all |
+| `field match query` | `field search query` | 也可调用 `search(query, field)`；旧默认语义映射为 `SearchMode.TERMS` |
+| `field elemMatch { ... }` | `field.elementMatch { ... }` | `elementMatch` 不是 infix；块不能为空，且不能包含 root filter |
+| `field.isNull()`、`field.notNull()`、`field.isTrue()`、`field.isFalse()` | `field.isNull()`、`field.isNotNull()`、`field eq true`、`field eq false` | V9 equality 可直接接收 nullable value |
+| `field.exists(true)` / `field.exists(false)` | `field.exists()` / `field.notExists()` | Boolean selector 改为显式操作 |
+| `field.today(...)`、`tomorrow`、`thisWeek`、`nextWeek`、`lastWeek`、`thisMonth`、`lastMonth`、`recentDays`、`earlierDays` | 同名 dot call | date pattern 改为 `String?`；V9 还接收 `ZoneId` 与 `TimeUnit`，`beforeToday` 改为接收 `LocalTime` |
+
+删除 property-reference wrapper，不要重建已移除的 `KCallable` 重载。改用 Query Schema 要求的稳定逻辑字段路径，例如 `"state.status"`，并在实际选中的 Backend 上验证每个迁移后的表达式。
+
 数据查询的 HTTP 请求/结果 envelope、Backend wire tree、存储布局和既有数据不因这次 JVM 重构或静态注解 Mask 改变。Query Schema HTTP 元数据及其生成的 OpenAPI component 会变化：每个字段新增 `masked: Boolean`。无需迁移存储数据，Backend 与存储中的原值也不会被改写。把原 Mask 配置迁移到字段注解后，受管 Gateway 会恢复响应的保密语义。
 
 ## JVM 类型映射
@@ -79,9 +104,9 @@ V9.0.x 为查询条件提供明确的迁移窗口：保留已弃用的 `Conditio
 | `EventStoreSpec.TIMES` | `EventStoreSpec.DEFAULT_CONCURRENCY_TEST_ITERATIONS` |
 | `EventStoreSpec.DEFAULT_PARALLELISM` | `EventStoreSpec.DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY` |
 
-typed 与节点返回共享 `SINGLE`、`LIST`、`PAGED` 操作类型。Backend 始终返回 `ObjectNode`，Gateway 在通用结果 Filter 完成后按需使用 Jackson 物化 typed 结果。
+typed 与节点返回共享 `SINGLE`、`LIST`、`PAGED`、`CURSOR` 操作类型。Backend 始终返回 `ObjectNode`，Gateway 在通用结果 Filter 完成后按需使用 Jackson 物化 typed 结果。
 
-原 `QueryService<R>` 没有一对一替代类型：存储查询与 Schema 能力迁移到返回 `ObjectNode` 的 `QueryBackend`，受管入口、过滤链与 typed 物化留在聚合级 `QueryGateway<R>`。原 `QueryGateway` 每次调用接收 `NamedAggregate`；V9 在构造 Gateway 时只绑定 `NamedAggregate` 与 routed Backend，因此 `single`、`list`、`paged`、`count` 和 `aggregate` 调用不再传聚合参数。自定义 `AbstractQueryGateway` 子类必须按新构造合同提供 `namedAggregate`、`backend`、`targetType`、`filters`、`filterType` 与 `errorHandler`；没有自定义入口策略时直接使用 Snapshot/EventStream 默认 Gateway。
+原 `QueryService<R>` 没有一对一替代类型：存储查询与 Schema 能力迁移到返回 `ObjectNode` 的 `QueryBackend`，受管入口、过滤链与 typed 物化留在聚合级 `QueryGateway<R>`。原 `QueryGateway` 每次调用接收 `NamedAggregate`；V9 在构造 Gateway 时只绑定 `NamedAggregate` 与 routed Backend，因此 `single`、`list`、`paged`、`cursor`、`count` 和 `aggregate` 调用不再传聚合参数。自定义 `AbstractQueryGateway` 子类必须按新构造合同提供 `namedAggregate`、`backend`、`targetType`、`filters`、`filterType` 与 `errorHandler`；没有自定义入口策略时直接使用 Snapshot/EventStream 默认 Gateway。
 
 Filter 不再通过 `QueryType.isDynamic` 判断最终返回 typed 对象还是节点；两条路径在同一 ObjectNode FilterChain 中处理，区别仅发生在链完成后的可选 Jackson 物化。删除只为 typed/dynamic 分流的分支，不要发明新的结果类型判别器。
 

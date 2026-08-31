@@ -163,7 +163,7 @@ Map key 必须是当前上下文中的 `aggregate`，或完整的 `context.aggre
 | `wow.eventsourcing.storage-routing.aggregates.<route>.snapshot.storage` | `StorageType?` | 选择 SnapshotStore 类型 binding |
 | `wow.eventsourcing.storage-routing.aggregates.<route>.snapshot.binding` | String? | 选择具名 SnapshotStore binding |
 
-一个已配置通道必须在 `storage` 与 `binding` 中恰好设置一个。空通道、二者同时设置、未知聚合、缺失 store binding，或缺失对应 query-service factory binding，都会快速失败。
+一个已配置通道必须在 `storage` 与 `binding` 中恰好设置一个。空通道、二者同时设置、未知聚合、缺失 store binding，或缺失对应 query-backend factory binding，都会快速失败。
 
 ```yaml
 wow:

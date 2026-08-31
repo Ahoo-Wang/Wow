@@ -163,7 +163,7 @@ A map key is either an `aggregate` in the current context or a qualified `contex
 | `wow.eventsourcing.storage-routing.aggregates.<route>.snapshot.storage` | `StorageType?` | Selects a SnapshotStore type binding |
 | `wow.eventsourcing.storage-routing.aggregates.<route>.snapshot.binding` | String? | Selects a named SnapshotStore binding |
 
-A configured channel must set exactly one of `storage` and `binding`. An empty channel, both values, an unknown aggregate, a missing store binding, or a missing corresponding query-service factory binding fails fast.
+A configured channel must set exactly one of `storage` and `binding`. An empty channel, both values, an unknown aggregate, a missing store binding, or a missing corresponding query-backend factory binding fails fast.
 
 ```yaml
 wow:
