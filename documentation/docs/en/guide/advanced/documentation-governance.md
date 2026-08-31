@@ -63,9 +63,11 @@ A document is expired when any of these conditions apply:
 
 Do not delete by date alone. Before deletion, search inbound links and compare the content with current source, tests, and canonical documentation. If the file contains unique current knowledge, migrate that knowledge first and delete the old file in the same PR.
 
-## Migration Documentation
+## Target Migration Policy
 
-The current site keeps only the direct path to the current major version and current operational migrations. For Wow V9, retain the V8-to-V9 path and current runtime or traditional-architecture migrations. Older version chains belong to their release tags; do not keep V6-to-V8 material in the V9 site.
+The documentation cleanup will converge the current site on the direct path to the current major version and current operational migrations. For Wow V9, the target is a complete V8-to-V9 path plus current runtime and traditional-architecture migrations. Older version chains then belong to their release tags.
+
+Today the site still publishes V6-to-V8 and provides a query-specific V8-to-V9 migration rather than one complete V8-to-V9 path. Keep those published links valid until the complete replacement is available; remove V6-to-V8 navigation and content only in the PR that publishes and links the replacement.
 
 ## Diagrams and Assets
 
@@ -89,9 +91,9 @@ Clean documentation in independently reviewable PRs:
 
 The final state removes `document/` and all tracked `docs/superpowers/` files.
 
-## Enforcement
+## Planned Enforcement
 
-The documentation layout check runs on relevant pull requests and fails when:
+A follow-up PR will add a documentation layout check to relevant pull requests. Once enabled, it will fail when:
 
 - tracked files appear under `document/` or `docs/superpowers/`;
 - Markdown is added outside approved root governance files, `documentation/docs/`, `skills/`, `wow-benchmarks/`, or a module README;
@@ -99,6 +101,8 @@ The documentation layout check runs on relevant pull requests and fails when:
 - the VitePress site cannot build with the locked dependency graph.
 
 The check uses repository scripts and existing toolchains; it does not add a documentation framework or another archive directory.
+
+Until that PR lands, reviewers enforce this policy manually; this page does not claim the current CI already rejects layout violations.
 
 ## Review Checklist
 

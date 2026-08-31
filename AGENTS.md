@@ -178,6 +178,8 @@ Before changing release or publish behavior, inspect the workflow and Gradle pub
 - Root README: `README.md`
 - Chinese README: `README.zh-CN.md`
 - VitePress docs: `documentation/docs/`
-- Design assets and diagrams: `document/design/`
+- Static documentation assets: `documentation/docs/public/`
+- Diagram sources Mermaid cannot express: `documentation/diagrams/`
+- `document/` and tracked `docs/superpowers/` are legacy migration sources; do not add new files there.
 - Prefer Mermaid source (`.mmd` or fenced `mermaid`) for every diagram Mermaid supports; do not commit a generated SVG beside it. Use PlantUML only for unsupported diagram kinds such as use case diagrams.
 - Project-local skills: `skills/`
