@@ -108,6 +108,18 @@ class FilterExpressionTest {
     }
 
     @Test
+    fun `legacy query condition should reject mixed discriminators`() {
+        val body = """{"condition":{"op":"MATCH_ALL","operator":"ALL"}}"""
+        val accepted = listOf(
+            runCatching { jsonMapper.readValue(body, ListQuery::class.java) }.isSuccess,
+            runCatching { jsonMapper.readValue(body, PagedQuery::class.java) }.isSuccess,
+            runCatching { jsonMapper.readValue(body, SingleQuery::class.java) }.isSuccess,
+        )
+
+        accepted.assert().containsExactly(false, false, false)
+    }
+
+    @Test
     fun `canonical filter tree should reject nested legacy condition`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             jsonMapper.readValue(
