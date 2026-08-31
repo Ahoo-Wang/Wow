@@ -1050,6 +1050,77 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `query should combine component compatibility by the strictest level`() {
+        val compatible = LogicalField("state.unknown")
+        val incompatible = LogicalField("state.declared")
+        val resolver = QuerySchemaResolver(schema(mapOf(incompatible to fieldSchema())))
+        val filters = mapOf(
+            QueryCompatibilityLevel.EXACT to MatchAllFilter,
+            QueryCompatibilityLevel.COMPATIBLE to EqualFilter(compatible, json(1)),
+            QueryCompatibilityLevel.INCOMPATIBLE to EqualFilter(incompatible, json(1)),
+        )
+        val projections = mapOf(
+            QueryCompatibilityLevel.EXACT to Projection.ALL,
+            QueryCompatibilityLevel.COMPATIBLE to Projection(include = listOf(compatible.value)),
+            QueryCompatibilityLevel.INCOMPATIBLE to Projection(include = listOf(incompatible.value)),
+        )
+        val sorts = mapOf(
+            QueryCompatibilityLevel.EXACT to emptyList(),
+            QueryCompatibilityLevel.COMPATIBLE to listOf(Sort(compatible.value, Sort.Direction.ASC)),
+            QueryCompatibilityLevel.INCOMPATIBLE to listOf(Sort(incompatible.value, Sort.Direction.ASC)),
+        )
+
+        QueryCompatibilityLevel.entries.forEach { filterLevel ->
+            QueryCompatibilityLevel.entries.forEach { projectionLevel ->
+                QueryCompatibilityLevel.entries.forEach { sortLevel ->
+                    val expected = maxOf(filterLevel, projectionLevel, sortLevel)
+                    resolver.resolve(
+                        ListQuery(
+                            filter = filters.getValue(filterLevel),
+                            projection = projections.getValue(projectionLevel),
+                            sort = sorts.getValue(sortLevel),
+                            limit = 1,
+                        ),
+                    ).compatibility.assert().isEqualTo(expected)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `empty projection and cursor sort should preserve masking contracts`() {
+        val snapshotResolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("state.secret") to fieldSchema(maskRule = fullMaskRule()),
+                ),
+            ),
+        )
+        snapshotResolver.resolve(Projection()).assert().isEqualTo(
+            QuerySchemaResolution(Projection.ALL, QueryCompatibilityLevel.EXACT),
+        )
+
+        val eventResolver = QuerySchemaResolver(
+            QueryModelSchema(
+                QueryModel.EVENT_STREAM,
+                emptySet(),
+                mapOf(
+                    LogicalField("body.body.secret") to fieldSchema(maskRule = fullMaskRule()),
+                    LogicalField("body.bodyType") to fieldSchema(
+                        QueryCapability.PRESENCE to "document.events.type",
+                    ),
+                ),
+            ),
+        )
+        eventResolver.resolve(Projection()).assert().isEqualTo(
+            QuerySchemaResolution(Projection.ALL, QueryCompatibilityLevel.EXACT),
+        )
+        eventResolver.resolve(CursorQuery(MatchAllFilter)).assert().isEqualTo(
+            QuerySchemaResolution(CursorQuery(MatchAllFilter), QueryCompatibilityLevel.EXACT),
+        )
+    }
+
+    @Test
     fun `aggregation should validate relative elements groups and numeric expression fields`() {
         val query = AggregationQuery(
             filter = EqualFilter(LogicalField("state.status"), json("OPEN")),
