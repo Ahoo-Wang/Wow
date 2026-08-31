@@ -11,6 +11,31 @@ Except for the `Condition` migration window below, V9 removes old JVM types with
 
 V9.0.x provides an explicit query-condition migration window: deprecated `Condition`/`Operator` JVM types, `ConditionDsl`, legacy query constructors, count client overloads, and existing deserialization remain available and are normalized to `FilterExpression`. WebFlux list/paged/single requests may still submit `condition`, and count requests may still submit the bare `operator` shape. These compatibility APIs are scheduled for removal in 9.1.0; new code should use `FilterExpression`/`FilterDsl` immediately. Canonical `filter`, OpenAPI, and outbound JSON use only `op`.
 
+### ConditionDsl Migration
+
+| V8.16.3 `ConditionDsl` | V9 `FilterDsl` | Migration note |
+| --- | --- | --- |
+| `condition { ... }` | `filterExpression { ... }` | An empty legacy block meant match-all; an empty V9 block is invalid, so use `matchAll()` explicitly |
+| `condition(existingCondition)` | `expression(existingFilter)` | The deprecated `existingCondition.toFilterExpression()` adapter is available only through 9.0.x |
+| `all()` | `matchAll()` | `matchNone()` is also available in V9 |
+| `and { ... }` / `or { ... }` / `nor { ... }` | Same calls | V9 logical blocks must not be empty |
+| `id(value)`, `ids(values)`, `aggregateId(value)`, `aggregateIds(values)`, `tenantId(value)`, `ownerId(value)`, `spaceId(value)` | Same calls | `SpaceId` was a `String` type alias; V9 accepts the string value directly |
+| `deleted(state)` | `deletion(state)` | `DeletionState` is unchanged |
+| `field nested { ... }` | `field.path { ... }` | `path` is not infix; expressions inside the block use the scoped relative path |
+| `field eq value`, `ne`, `gt`, `gte`, `lt`, `lte` | Same infix calls on `String` fields | `KCallable` overloads are removed; use the logical field string |
+| `field.contains(value, ignoreCase)` | `field.containsText(value, StringComparison.CASE_*)` | Select `CASE_SENSITIVE` or `CASE_INSENSITIVE` explicitly |
+| `field startsWith value` / `field endsWith value` | `field.startsWithText(value)` / `field.endsWithText(value)` | The V9 text helpers are not infix; pass `StringComparison` when case-insensitive |
+| `field isIn values` / `field notIn values` | Same infix calls | V9 accepts `Iterable<*>` |
+| `field between (lower to upper)` / `field between lower to upper` | `field.between(lower, upper)` | The intermediate `BetweenStart` form is removed |
+| `field all values` | `field containsAll values` | This is the collection contains-all predicate, not root match-all |
+| `field match query` | `field search query` | Or call `search(query, field)`; the legacy default maps to `SearchMode.TERMS` |
+| `field elemMatch { ... }` | `field.elementMatch { ... }` | `elementMatch` is not infix; the block must be non-empty and cannot contain root filters |
+| `field.isNull()`, `field.notNull()`, `field.isTrue()`, `field.isFalse()` | `field.isNull()`, `field.isNotNull()`, `field eq true`, `field eq false` | V9 equality accepts nullable values directly |
+| `field.exists(true)` / `field.exists(false)` | `field.exists()` / `field.notExists()` | The Boolean selector is replaced by explicit operations |
+| `field.today(...)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `recentDays`, `earlierDays` | Same dot-call names | Date patterns are `String?`; V9 also accepts `ZoneId` and `TimeUnit`, while `beforeToday` takes `LocalTime` |
+
+Remove property-reference wrappers instead of recreating the deleted `KCallable` overloads. Use the stable logical field path required by Query Schema, such as `"state.status"`, and verify every migrated expression against its selected Backend.
+
 Data-query HTTP request and result envelopes, Backend wire trees, storage layouts, and existing data do not change because of this JVM refactor or static-annotation masking. Query Schema HTTP metadata and its generated OpenAPI component do change: each field adds `masked: Boolean`. No storage-data migration is required, and raw values in the Backend and storage are not rewritten. After old mask rules move to field annotations, the managed Gateway restores response confidentiality semantics.
 
 ## JVM Type Mapping
@@ -79,9 +104,9 @@ Data-query HTTP request and result envelopes, Backend wire trees, storage layout
 | `EventStoreSpec.TIMES` | `EventStoreSpec.DEFAULT_CONCURRENCY_TEST_ITERATIONS` |
 | `EventStoreSpec.DEFAULT_PARALLELISM` | `EventStoreSpec.DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY` |
 
-Typed and node results share the `SINGLE`, `LIST`, and `PAGED` operation types. A Backend always returns `ObjectNode`; the Gateway optionally uses Jackson to materialize typed results after generic result filters complete.
+Typed and node results share the `SINGLE`, `LIST`, `PAGED`, and `CURSOR` operation types. A Backend always returns `ObjectNode`; the Gateway optionally uses Jackson to materialize typed results after generic result filters complete.
 
-There is no one-to-one replacement for `QueryService<R>`: move storage queries and Schema capability to an `ObjectNode`-returning `QueryBackend`, while the managed entry, filter chain, and typed materialization remain in the aggregate `QueryGateway<R>`. The old `QueryGateway` accepted a `NamedAggregate` on every call; V9 binds only the `NamedAggregate` and routed Backend when constructing the Gateway, so `single`, `list`, `paged`, `count`, and `aggregate` calls no longer pass an aggregate argument. A custom `AbstractQueryGateway` subclass must supply the new `namedAggregate`, `backend`, `targetType`, `filters`, `filterType`, and `errorHandler` constructor contract; use the default Snapshot/EventStream Gateway when no custom entry policy is required.
+There is no one-to-one replacement for `QueryService<R>`: move storage queries and Schema capability to an `ObjectNode`-returning `QueryBackend`, while the managed entry, filter chain, and typed materialization remain in the aggregate `QueryGateway<R>`. The old `QueryGateway` accepted a `NamedAggregate` on every call; V9 binds only the `NamedAggregate` and routed Backend when constructing the Gateway, so `single`, `list`, `paged`, `cursor`, `count`, and `aggregate` calls no longer pass an aggregate argument. A custom `AbstractQueryGateway` subclass must supply the new `namedAggregate`, `backend`, `targetType`, `filters`, `filterType`, and `errorHandler` constructor contract; use the default Snapshot/EventStream Gateway when no custom entry policy is required.
 
 Filters no longer use `QueryType.isDynamic` to distinguish a final typed result from a node result. Both paths traverse the same ObjectNode FilterChain and differ only by optional Jackson materialization after the chain. Remove branches used only for typed/dynamic dispatch; do not invent a replacement result-type discriminator.
 
