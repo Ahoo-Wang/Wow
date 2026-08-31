@@ -1772,6 +1772,33 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `masked event projection should allow body type wildcard exclusion when body is not selected`() {
+        val resolver = QuerySchemaResolver(
+            QueryModelSchema(
+                QueryModel.EVENT_STREAM,
+                emptySet(),
+                mapOf(
+                    LogicalField("body.body.secret") to fieldSchema(
+                        QueryCapability.PRESENCE to "body.body.secret",
+                        maskRule = fullMaskRule(),
+                    ),
+                    LogicalField("body.bodyType") to fieldSchema(
+                        QueryCapability.PRESENCE to "body.bodyType",
+                    ),
+                ),
+            ),
+        )
+        val projection = Projection(
+            include = listOf("body.aggregateId"),
+            exclude = listOf("body.bodyT*"),
+        )
+
+        resolver.resolve(projection).assert().isEqualTo(
+            QuerySchemaResolution(projection, QueryCompatibilityLevel.COMPATIBLE),
+        )
+    }
+
+    @Test
     fun `masked event projection should restore body type excluded through an alias`() {
         val resolver = QuerySchemaResolver(
             QueryModelSchema(
