@@ -65,6 +65,7 @@ Use [Configuration Reference](../reference/config/core.md), [Examples](../refere
 - **API** is available from the top navigation and provides Kotlin and Java symbols and signatures through Dokka.
 - **[Onboarding](../onboarding/)** provides role-specific paths for contributors, architects, executives, and product managers.
 - **[Articles](../articles/)** explain trade-offs through concrete problems; they do not replace API or configuration reference.
+- **[Documentation Governance](./advanced/documentation-governance.md)** defines canonical locations, lifecycle, evidence, and cleanup rules.
 
 ::: warning Version and source of truth
 Documentation explains the repository but does not replace it. If prose differs from the public contracts, configuration classes, tests, or release notes for the tag you selected, follow that version's source.

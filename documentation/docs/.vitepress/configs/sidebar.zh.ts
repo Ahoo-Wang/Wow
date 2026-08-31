@@ -205,6 +205,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '序列化', link: 'serialization'},
                 {text: '数据流', link: 'data-flow'},
                 {text: '模块依赖', link: 'module-dependencies'},
+                {text: '文档治理', link: 'documentation-governance'},
                 {text: 'ID 生成器', link: 'id-generator'},
                 {text: '编译器', link: 'compiler'},
                 {text: '预分配 Key', link: 'prepare-key'},
