@@ -15,13 +15,14 @@ V9.0.x 为查询条件提供明确的迁移窗口：保留已弃用的 `Conditio
 
 | V8.16.3 `ConditionDsl` | V9 `FilterDsl` | 迁移说明 |
 | --- | --- | --- |
-| `condition { ... }` | `filterExpression { ... }` | 旧空块表示 match-all；V9 空块非法，必须显式调用 `matchAll()` |
-| `condition(existingCondition)` | `expression(existingFilter)` | 已弃用的 `existingCondition.toFilterExpression()` 适配器仅在 9.0.x 保留 |
+| 独立的 `condition { ... }` | `filterExpression { ... }` | 旧空块表示 match-all；V9 空块非法，必须显式调用 `matchAll()` |
+| `listQuery` / `pagedQuery` / `singleQuery` / `cursorQuery` 的 `{ condition { ... } }` | 同一 query builder 中改用 `filter { ... }` | 在 query builder 内调用 `filterExpression { ... }` 只会创建并丢弃一个独立值 |
+| Condition block 内的 `condition(existingCondition)` | `expression(existingFilter)` | 已弃用的 `existingCondition.toFilterExpression()` 适配器仅在 9.0.x 保留；query builder 应改用 `filter(existingFilter)` |
 | `all()` | `matchAll()` | V9 还提供 `matchNone()` |
 | `and { ... }` / `or { ... }` / `nor { ... }` | 调用不变 | V9 逻辑块不能为空 |
 | `id(value)`、`ids(values)`、`aggregateId(value)`、`aggregateIds(values)`、`tenantId(value)`、`ownerId(value)`、`spaceId(value)` | 调用不变 | `ids` 或 `aggregateIds` 为空时改用 `matchNone()`；`SpaceId` 原本就是 `String` typealias，V9 直接接收字符串值 |
 | `deleted(state)` | `deletion(state)` | `DeletionState` 不变 |
-| `field nested { ... }` | `field.path { ... }` | `path` 不是 infix；块内表达式使用作用域内的相对路径 |
+| `field nested { ... }` | 仅在需要 AND 分组时使用 `field.path { ... }` | V8 会把 nested 子条件展平到外围逻辑块；V9 `path` 会把多个子条件组成隐式 AND |
 | `field eq value`、`ne`、`gt`、`gte`、`lt`、`lte` | `String` 字段上的同名 infix 调用 | `KCallable` 重载已删除，改用逻辑字段字符串 |
 | `field.contains(value, ignoreCase)` | `field.containsText(value, StringComparison.CASE_*)` | 显式选择 `CASE_SENSITIVE` 或 `CASE_INSENSITIVE` |
 | `field startsWith value` / `field endsWith value` | `field.startsWithText(value)` / `field.endsWithText(value)` | V9 文本 helper 不是 infix；忽略大小写时传入 `StringComparison` |
@@ -34,9 +35,12 @@ V9.0.x 为查询条件提供明确的迁移窗口：保留已弃用的 `Conditio
 | `field.exists(true)` / `field.exists(false)` | `field.exists()` / `field.notExists()` | Boolean selector 改为显式操作 |
 | `field beforeToday time` | `field.beforeToday(localTime, ...)` | V9 helper 不是 infix 且必须传 `LocalTime`；还可传 `ZoneId`、`String?` date pattern 与 `TimeUnit` |
 | `field recentDays days` / `Property::field recentDays days` | `field.recentDays(days, ...)` | V9 helper 不是 infix，且没有 `KCallable` 重载 |
-| `field.today(...)`、`tomorrow`、`thisWeek`、`nextWeek`、`lastWeek`、`thisMonth`、`lastMonth`、`earlierDays` | 同名 dot call | date pattern 改为 `String?`；V9 还接收 `ZoneId` 与 `TimeUnit` |
+| `field.today(pattern)`、`tomorrow`、week/month helper | `field.today(datePattern = pattern)` 及对应的 named-argument 调用 | V9 在 `datePattern` 前新增 `ZoneId?`；不能保留旧 pattern 位置参数 |
+| `field.recentDays(days, pattern)` / `field.earlierDays(days, pattern)` | `field.recentDays(days, datePattern = pattern)` / `field.earlierDays(days, datePattern = pattern)` | V9 还接收 `ZoneId` 与 `TimeUnit` |
 
 删除 property-reference wrapper，不要重建已移除的 `KCallable` 重载。改用 Query Schema 要求的稳定逻辑字段路径，例如 `"state.status"`，并在实际选中的 Backend 上验证每个迁移后的表达式。
+
+`ConditionDsl.nested` 会把子条件展平到外围逻辑块。根级、`and` 内或只有一个子条件时可以直接改为 `path`；在 `or` 或 `nor` 内，应把带完整前缀的子条件作为同级 operand 保留。例如，把 `or { "state" nested { "a" eq 1; "b" eq 2 } }` 改为 `or { "state.a" eq 1; "state.b" eq 2 }`，不能改成一个 `"state".path { ... }` operand。
 
 V9 集合过滤器会在构造时拒绝空值。请在 DSL 内用普通 Kotlin 分支保留 V8 语义：`if (ids.isEmpty()) matchNone() else ids(ids)`、`if (values.isEmpty()) matchNone() else "field" isIn values`，以及 `if (excluded.isEmpty()) matchAll() else "field" notIn excluded`。
 

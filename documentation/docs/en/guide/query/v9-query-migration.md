@@ -15,13 +15,14 @@ V9.0.x provides an explicit query-condition migration window: deprecated `Condit
 
 | V8.16.3 `ConditionDsl` | V9 `FilterDsl` | Migration note |
 | --- | --- | --- |
-| `condition { ... }` | `filterExpression { ... }` | An empty legacy block meant match-all; an empty V9 block is invalid, so use `matchAll()` explicitly |
-| `condition(existingCondition)` | `expression(existingFilter)` | The deprecated `existingCondition.toFilterExpression()` adapter is available only through 9.0.x |
+| Standalone `condition { ... }` | `filterExpression { ... }` | An empty legacy block meant match-all; an empty V9 block is invalid, so use `matchAll()` explicitly |
+| `listQuery` / `pagedQuery` / `singleQuery` / `cursorQuery` `{ condition { ... } }` | The same query builder with `filter { ... }` | Calling `filterExpression { ... }` inside a query builder creates and discards a standalone value |
+| `condition(existingCondition)` inside a Condition block | `expression(existingFilter)` | The deprecated `existingCondition.toFilterExpression()` adapter is available only through 9.0.x; a query builder instead uses `filter(existingFilter)` |
 | `all()` | `matchAll()` | `matchNone()` is also available in V9 |
 | `and { ... }` / `or { ... }` / `nor { ... }` | Same calls | V9 logical blocks must not be empty |
 | `id(value)`, `ids(values)`, `aggregateId(value)`, `aggregateIds(values)`, `tenantId(value)`, `ownerId(value)`, `spaceId(value)` | Same calls | For empty `ids` or `aggregateIds`, call `matchNone()` instead; `SpaceId` was a `String` type alias, so V9 accepts the string value directly |
 | `deleted(state)` | `deletion(state)` | `DeletionState` is unchanged |
-| `field nested { ... }` | `field.path { ... }` | `path` is not infix; expressions inside the block use the scoped relative path |
+| `field nested { ... }` | `field.path { ... }` only when AND grouping is intended | V8 flattens nested children into the surrounding block; V9 `path` groups multiple children with implicit AND |
 | `field eq value`, `ne`, `gt`, `gte`, `lt`, `lte` | Same infix calls on `String` fields | `KCallable` overloads are removed; use the logical field string |
 | `field.contains(value, ignoreCase)` | `field.containsText(value, StringComparison.CASE_*)` | Select `CASE_SENSITIVE` or `CASE_INSENSITIVE` explicitly |
 | `field startsWith value` / `field endsWith value` | `field.startsWithText(value)` / `field.endsWithText(value)` | The V9 text helpers are not infix; pass `StringComparison` when case-insensitive |
@@ -34,9 +35,12 @@ V9.0.x provides an explicit query-condition migration window: deprecated `Condit
 | `field.exists(true)` / `field.exists(false)` | `field.exists()` / `field.notExists()` | The Boolean selector is replaced by explicit operations |
 | `field beforeToday time` | `field.beforeToday(localTime, ...)` | The V9 helper is not infix and requires `LocalTime`; it also accepts `ZoneId`, `String?` date pattern, and `TimeUnit` |
 | `field recentDays days` / `Property::field recentDays days` | `field.recentDays(days, ...)` | The V9 helper is not infix and has no `KCallable` overload |
-| `field.today(...)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `earlierDays` | Same dot-call names | Date patterns are `String?`; V9 also accepts `ZoneId` and `TimeUnit` |
+| `field.today(pattern)`, `tomorrow`, week/month helpers | `field.today(datePattern = pattern)`, and matching named-argument calls | V9 inserts `ZoneId?` before `datePattern`; do not keep the old positional pattern argument |
+| `field.recentDays(days, pattern)` / `field.earlierDays(days, pattern)` | `field.recentDays(days, datePattern = pattern)` / `field.earlierDays(days, datePattern = pattern)` | V9 also accepts `ZoneId` and `TimeUnit` |
 
 Remove property-reference wrappers instead of recreating the deleted `KCallable` overloads. Use the stable logical field path required by Query Schema, such as `"state.status"`, and verify every migrated expression against its selected Backend.
+
+`ConditionDsl.nested` flattened its child predicates into the surrounding logical block. A direct `path` replacement is equivalent at the root, inside `and`, or for one child. Inside `or` or `nor`, keep the predicates as separate operands by writing their qualified paths at that same level; for example, migrate `or { "state" nested { "a" eq 1; "b" eq 2 } }` to `or { "state.a" eq 1; "state.b" eq 2 }`, not to one `"state".path { ... }` operand.
 
 V9 collection filters reject empty values at construction time. Preserve V8 semantics with ordinary Kotlin branches inside the DSL: `if (ids.isEmpty()) matchNone() else ids(ids)`, `if (values.isEmpty()) matchNone() else "field" isIn values`, and `if (excluded.isEmpty()) matchAll() else "field" notIn excluded`.
 
