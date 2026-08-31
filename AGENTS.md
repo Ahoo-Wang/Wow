@@ -179,4 +179,5 @@ Before changing release or publish behavior, inspect the workflow and Gradle pub
 - Chinese README: `README.zh-CN.md`
 - VitePress docs: `documentation/docs/`
 - Design assets and diagrams: `document/design/`
+- Prefer Mermaid source (`.mmd` or fenced `mermaid`) for every diagram Mermaid supports; do not commit a generated SVG beside it. Use PlantUML only for unsupported diagram kinds such as use case diagrams.
 - Project-local skills: `skills/`
