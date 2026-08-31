@@ -17,7 +17,52 @@ on:
     types: [created]
   workflow_dispatch:
 jobs:
-  publish:
+  preflight:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Verify release tag
+        if: github.event_name == 'release'
+        shell: bash
+        run: |
+          project_version="$(sed -n 's/^version=//p' gradle.properties)"
+          test "${GITHUB_REF_NAME}" = "v${project_version}"
+
+      - name: Verify release build
+        run: ./gradlew build allIntegrationTest
+
+      - name: Verify release artifacts
+        run: ./gradlew publishToMavenLocal
+        env:
+          SIGNING_KEYID: ${{ secrets.SIGNING_KEYID }}
+          SIGNING_SECRETKEY: ${{ secrets.SIGNING_SECRETKEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            **/build/libs/**
+            **/build/publications/**
+          if-no-files-found: error
+          overwrite: true
+
+  github-deploy:
+    needs: preflight
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,36 +82,63 @@ jobs:
           cache: gradle
           settings-path: ${{ github.workspace }}
 
-      - name: Verify release tag
-        if: github.event_name == 'release'
-        shell: bash
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: .
+
+      - name: Publish package
         run: |
-          project_version="$(sed -n 's/^version=//p' gradle.properties)"
-          test "${GITHUB_REF_NAME}" = "v${project_version}"
-
-      - name: Verify release build
-        run: ./gradlew build allIntegrationTest
-
-      - name: Verify release artifacts
-        run: ./gradlew publishToMavenLocal
-        env:
-          SIGNING_KEYID: ${{ secrets.SIGNING_KEYID }}
-          SIGNING_SECRETKEY: ${{ secrets.SIGNING_SECRETKEY }}
-          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-
-      - name: Publish package to GitHub Packages
-        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository
+          ./gradlew publishAllPublicationsToGitHubPackagesRepository \
+            -x jar \
+            -x sourcesJar \
+            -x javadocJar \
+            -x generatePomFileForMavenLibraryPublication \
+            -x generatePomFileForMavenBomPublication \
+            -x generateMetadataFileForMavenLibraryPublication \
+            -x generateMetadataFileForMavenBomPublication \
+            -x signMavenLibraryPublication \
+            -x signMavenBomPublication
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SIGNING_KEYID: ${{ secrets.SIGNING_KEYID }}
-          SIGNING_SECRETKEY: ${{ secrets.SIGNING_SECRETKEY }}
-          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
 
-      - name: Publish package to Maven Central
-        run: ./gradlew publishToSonatype closeAndReleaseSonatypeStagingRepository
+  central-deploy:
+    needs: preflight
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: .
+
+      - name: Publish package
+        run: |
+          ./gradlew publishToSonatype closeAndReleaseSonatypeStagingRepository \
+            -x jar \
+            -x sourcesJar \
+            -x javadocJar \
+            -x generatePomFileForMavenLibraryPublication \
+            -x generatePomFileForMavenBomPublication \
+            -x generateMetadataFileForMavenLibraryPublication \
+            -x generateMetadataFileForMavenBomPublication \
+            -x signMavenLibraryPublication \
+            -x signMavenBomPublication
         env:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          SIGNING_KEYID: ${{ secrets.SIGNING_KEYID }}
-          SIGNING_SECRETKEY: ${{ secrets.SIGNING_SECRETKEY }}
-          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
