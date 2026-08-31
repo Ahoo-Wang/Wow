@@ -48,6 +48,8 @@ V9 集合过滤器会在构造时拒绝空值。请在 DSL 内用普通 Kotlin �
 
 `FilterDsl` 会把任意 Kotlin object 或 map 序列化为 JSON object，而规范 `EQ`/`NE` 会拒绝它。scalar 与 scalar array equality 继续使用 DSL。若要保留 V8 进程内 POJO/map equality，请显式构造 `EqualFilter` 或 `NotEqualFilter`，传入 `LogicalField(field)` 与 `JsonNodeFactory.instance.pojoNode(value)`。该运行时 `POJONode` 形式不能作为规范 REST payload；V9 REST equality 只支持 JSON scalar。
 
+`isIn`、`notIn` 与集合 `all` 中的结构化元素也遵循同一边界：`FilterDsl` 会把它们转换为被拒绝的 JSON object。进程内 native-value collection 应显式构造 `InFilter`、`NotInFilter` 或 `ContainsAllFilter`，并用 `JsonNodeFactory.instance.pojoNode(value)` 映射每个结构化元素，例如 `InFilter(LogicalField(field), values.map(JsonNodeFactory.instance::pojoNode))`；同时保留上文的空 list 分支。`POJONode` 集合元素仅限 JVM；规范 REST collection 只包含非 null JSON scalar。
+
 V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 relative-time filter，并使用 named `dateFormatter` 属性，例如 `TodayFilter(LogicalField(field), dateFormatter = formatter)` 或 `RecentDaysFilter(LogicalField(field), days, dateFormatter = formatter)`。`BeforeTodayFilter` 还需要 `time = localTime.toString()`。`dateFormatter` 只用于 JVM 且不会进入 wire；规范 REST 使用 `datePattern`。
 
 ### Condition JVM 直接迁移

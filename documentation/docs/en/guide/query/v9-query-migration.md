@@ -48,6 +48,8 @@ V9 collection filters reject empty values at construction time. Preserve V8 sema
 
 `FilterDsl` serializes arbitrary Kotlin objects and maps as JSON objects, which canonical `EQ`/`NE` reject. Scalar and scalar-array equality keeps the DSL form. To preserve a V8 in-process POJO/map equality comparison, construct `EqualFilter` or `NotEqualFilter` explicitly with `LogicalField(field)` and `JsonNodeFactory.instance.pojoNode(value)`. This runtime-only `POJONode` form is not a canonical REST payload; V9 REST equality supports JSON scalars only.
 
+The same boundary applies to structured elements in `isIn`, `notIn`, and collection `all`: `FilterDsl` converts them to rejected JSON objects. For an in-process native-value collection, construct `InFilter`, `NotInFilter`, or `ContainsAllFilter` explicitly and map every structured element with `JsonNodeFactory.instance.pojoNode(value)`; for example, `InFilter(LogicalField(field), values.map(JsonNodeFactory.instance::pojoNode))`. Keep the empty-list branches above. `POJONode` collection elements are JVM-only; canonical REST collections contain non-null JSON scalars.
+
 When V8 passes a `DateTimeFormatter` rather than a pattern string, use the matching relative-time filter class directly with its named `dateFormatter` property, for example `TodayFilter(LogicalField(field), dateFormatter = formatter)` or `RecentDaysFilter(LogicalField(field), days, dateFormatter = formatter)`. `BeforeTodayFilter` additionally takes `time = localTime.toString()`. `dateFormatter` is JVM-only and ignored on the wire; canonical REST uses `datePattern`.
 
 ### Direct Condition JVM Migration
