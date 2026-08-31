@@ -13,6 +13,23 @@
 
 name: Local Test
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradle/**'
+      - 'config/**'
+      - 'wow-*/**'
+      - 'test/**'
+      - 'example/**'
+      - 'compensation/wow-compensation-api/**'
+      - 'compensation/wow-compensation-core/**'
+      - 'compensation/wow-compensation-domain/**'
+      - 'compensation/wow-compensation-server/**'
   pull_request:
     paths:
       - 'build.gradle.kts'
@@ -51,8 +68,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
-          cache: gradle
           settings-path: ${{ github.workspace }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Run local tests with coverage
         run: ./gradlew allLocalTest :code-coverage-report:localCoverageReport --stacktrace
