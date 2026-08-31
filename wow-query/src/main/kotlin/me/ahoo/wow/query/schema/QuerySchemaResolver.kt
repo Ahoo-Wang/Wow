@@ -199,7 +199,10 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         if (sort.isEmpty()) {
             return QuerySchemaResolution(emptyList(), QueryCompatibilityLevel.EXACT)
         }
-        val resolved = sort.map { item ->
+        val values = ArrayList<Sort>(sort.size)
+        val fields = HashSet<String>(sort.size)
+        var compatibility = QueryCompatibilityLevel.EXACT
+        sort.forEach { item ->
             val field = runCatching { LogicalField(item.field) }.getOrNull()?.let { logical ->
                 fieldResolver.resolve(logical, QueryCapability.SORT, null, null)
             }
@@ -207,18 +210,13 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
                 field.fieldSchema != null && field.fieldSchema.cardinality == QueryCardinality.SINGLE &&
                 field.fieldSchema.maskRule == null && field.value !in FORBIDDEN_CURSOR_SORTS &&
                 !field.matchesMaskedCandidate()
-            item.copy(field = field?.value ?: item.field) to
-                if (accepted) QueryCompatibilityLevel.EXACT else QueryCompatibilityLevel.INCOMPATIBLE
+            val value = item.copy(field = field?.value ?: item.field)
+            values += value
+            if (!accepted || !fields.add(value.field)) {
+                compatibility = QueryCompatibilityLevel.INCOMPATIBLE
+            }
         }
-        val values = resolved.map { it.first }
-        return QuerySchemaResolution(
-            values,
-            if (values.map(Sort::field).distinct().size == values.size) {
-                resolved.map { it.second }.combined()
-            } else {
-                QueryCompatibilityLevel.INCOMPATIBLE
-            },
-        )
+        return QuerySchemaResolution(values, compatibility)
     }
 
     fun resolve(query: AggregationQuery): QuerySchemaResolution<AggregationQuery> {
