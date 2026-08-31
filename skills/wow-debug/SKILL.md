@@ -14,6 +14,7 @@ Own the complete diagnosis or diagnose-and-fix task. Do not route to another Wow
 ## Contract
 
 - Keep diagnosis-only requests read-only.
+- Resolve the actual Wow version from the downstream build and dependency graph before applying exact symbols, defaults, or V9 rules; label version-specific conclusions unverified when the version cannot be confirmed.
 - Attempt the narrowest safe, non-mutating reproduction before explaining. If reproduction is unavailable, unsafe, or outside authorization, state that limit and use the strongest available evidence.
 - Prefer one falsifiable hypothesis over a list of speculative causes.
 - Compare with a working path in the same checkout.
