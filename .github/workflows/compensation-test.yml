@@ -53,8 +53,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
-          cache: gradle
           settings-path: ${{ github.workspace }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Test Compensation-Core
         run: ./gradlew wow-compensation-core:check --stacktrace
@@ -71,8 +73,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
-          cache: gradle
           settings-path: ${{ github.workspace }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Test Compensation-Domain
         run: ./gradlew wow-compensation-domain:check --stacktrace

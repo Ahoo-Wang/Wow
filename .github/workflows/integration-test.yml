@@ -58,8 +58,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
-          cache: gradle
           settings-path: ${{ github.workspace }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Run integration tests with coverage
         run: ./gradlew allIntegrationTest :code-coverage-report:integrationCoverageReport --stacktrace
