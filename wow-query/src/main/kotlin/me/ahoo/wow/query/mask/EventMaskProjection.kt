@@ -42,21 +42,18 @@ internal fun Projection.requiresInternalEventBodyType(
 
 internal fun Projection.hasUnrestorableInternalEventBodyTypeExclusion(
     bodyTypePath: String = EVENT_BODY_TYPE_PATH,
-): Boolean =
-    requiresInternalEventBodyType(bodyTypePath) && exclude.any {
-        '*' in it && bodyTypePath.matchesProjectionPattern(it)
-    }
+): Boolean = exclude.any {
+    '*' in it && bodyTypePath.matchesProjectionPattern(it)
+}
 
 internal fun Projection.withInternalEventBodyType(
     bodyTypePath: String = EVENT_BODY_TYPE_PATH,
-): Projection {
-    if (!requiresInternalEventBodyType(bodyTypePath)) return this
-    return if (include.isNotEmpty()) {
+): Projection =
+    if (include.isNotEmpty()) {
         copy(include = include + bodyTypePath, exclude = exclude - bodyTypePath)
     } else {
         copy(exclude = exclude - bodyTypePath)
     }
-}
 
 internal fun ObjectNode.removeInternalEventBodyType(): ObjectNode = apply {
     get(EVENT_BODY_PATH)?.takeIf(JsonNode::isArray)?.forEach { event ->
@@ -70,5 +67,7 @@ private fun String.isSelectedBy(pattern: String): Boolean =
 private fun String.intersectsSelection(pattern: String): Boolean =
     isSelectedBy(pattern) || pattern.startsWith("$this.")
 
-private fun String.matchesProjectionPattern(pattern: String): Boolean =
-    pattern.split('*').joinToString(".*", "^", "$") { Regex.escape(it) }.toRegex().matches(this)
+private fun String.matchesProjectionPattern(pattern: String): Boolean {
+    if ('*' !in pattern) return false
+    return pattern.split('*').joinToString(".*", "^", "$") { Regex.escape(it) }.toRegex().matches(this)
+}

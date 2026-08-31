@@ -75,6 +75,12 @@ fun <T> QuerySchemaResolution<T>.requireAccepted(mode: QuerySchemaValidationMode
 class QuerySchemaResolver(private val schema: QueryModelSchema) {
     private val fieldResolver = QueryFieldSchemaResolver(schema)
     private val filterResolver = QueryFilterSchemaResolver(schema, fieldResolver)
+    private val maskedEventProjection = schema.model == QueryModel.EVENT_STREAM && schema.hasMaskedFields
+    private val eventBodyType = if (maskedEventProjection) {
+        fieldResolver.resolveProjectionPath(EVENT_BODY_TYPE_PATH)
+    } else {
+        null
+    }
     private val maskedAggregationPaths = schema.maskedFields.flatMapTo(linkedSetOf()) { (logical, field) ->
         listOfNotNull(logical.value, field.projectionPath) + field.bindings.values.map { it.physicalPath }
     }
@@ -129,7 +135,6 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         filterResolver.resolve(filter)
 
     fun resolve(projection: Projection): QuerySchemaResolution<Projection> {
-        val maskedEventProjection = schema.model == QueryModel.EVENT_STREAM && schema.hasMaskedFields
         if (!maskedEventProjection && projection.isEmpty()) {
             return QuerySchemaResolution(Projection.ALL, QueryCompatibilityLevel.EXACT)
         }
@@ -147,7 +152,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         if (!maskedEventProjection) {
             return QuerySchemaResolution(resolvedProjection, compatibility.combined())
         }
-        val bodyType = fieldResolver.resolveProjectionPath(EVENT_BODY_TYPE_PATH)
+        val bodyType = checkNotNull(eventBodyType)
         val internalBodyType = resolvedProjection.requiresInternalEventBodyType(
             bodyType.value,
         )
@@ -163,7 +168,10 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
                 if (internalBodyType) {
                     add(bodyType.compatibility)
                 }
-                if (resolvedProjection.hasUnrestorableInternalEventBodyTypeExclusion(bodyType.value)) {
+                if (
+                    internalBodyType &&
+                    resolvedProjection.hasUnrestorableInternalEventBodyTypeExclusion(bodyType.value)
+                ) {
                     add(QueryCompatibilityLevel.INCOMPATIBLE)
                 }
             }.combined(),
@@ -171,12 +179,12 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     }
 
     internal fun requiresInternalEventBodyType(projection: Projection): Boolean {
-        if (schema.model != QueryModel.EVENT_STREAM || !schema.hasMaskedFields) return false
+        if (!maskedEventProjection) return false
         val resolvedProjection = Projection(
             include = projection.include.map { fieldResolver.resolveProjectionPath(it).value },
             exclude = projection.exclude.map { fieldResolver.resolveProjectionPath(it).value },
         )
-        val bodyTypePath = fieldResolver.resolveProjectionPath(EVENT_BODY_TYPE_PATH).value
+        val bodyTypePath = checkNotNull(eventBodyType).value
         return resolvedProjection.requiresInternalEventBodyType(bodyTypePath)
     }
 
