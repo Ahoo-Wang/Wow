@@ -46,8 +46,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
-          cache: gradle
           settings-path: ${{ github.workspace }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Run static analysis
         run: ./gradlew detekt --stacktrace
