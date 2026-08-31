@@ -1790,17 +1790,29 @@ class WowRuntimeTest {
     @Test
     fun `graceful failure remains primary when a later component reaches the deadline`() {
         val calls = mutableListOf<String>()
+        val hangingStopStarted = CountDownLatch(1)
+        val deadlineScheduler = ControllableDeadlineScheduler()
         val gracefulFailure = IllegalStateException("graceful")
-        val hanging = RecordingLifecycle("hanging", calls, stopGate = Sinks.empty())
+        val hanging = RecordingLifecycle(
+            "hanging",
+            calls,
+            stopGate = Sinks.empty(),
+            onStop = hangingStopStarted::countDown,
+        )
         val failing = RecordingLifecycle("failing", calls, stopFailure = gracefulFailure)
         val runtime = WowRuntime(
             listOf(hanging, failing),
             Duration.ofMillis(50),
             Duration.ZERO,
-        )
+        ).also {
+            it.shutdownDeadlineScheduler = deadlineScheduler
+        }
         runtime.start().block()
+        val termination = runtime.stopGracefully()
+        hangingStopStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+        deadlineScheduler.runScheduled()
 
-        StepVerifier.create(runtime.stopGracefully())
+        StepVerifier.create(termination)
             .expectErrorSatisfies { error ->
                 error.assert().isSameAs(gracefulFailure)
                 error.suppressedExceptions.assert().hasSize(1)
