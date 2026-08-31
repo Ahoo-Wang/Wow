@@ -48,7 +48,7 @@ V9.0.x 为查询条件提供明确的迁移窗口：保留已弃用的 `Conditio
 
 V9 集合过滤器会在构造时拒绝空值。请在 DSL 内用普通 Kotlin 分支保留 V8 语义：`if (ids.isEmpty()) matchNone() else ids(ids)`、`if (values.isEmpty()) matchNone() else "field" isIn values`，以及 `if (excluded.isEmpty()) matchAll() else "field" notIn excluded`。
 
-`FilterDsl` 会把任意 Kotlin object 或 map 序列化为 JSON object，而规范 `EQ`/`NE` 会拒绝它。scalar 与 scalar array equality 继续使用 DSL。若要保留 V8 进程内 POJO/map equality，请显式构造 `EqualFilter` 或 `NotEqualFilter`，传入 `LogicalField(field)` 与 `JsonNodeFactory.instance.pojoNode(value)`。该运行时 `POJONode` 形式不能作为规范 REST payload；V9 REST equality 支持 JSON scalar 与 scalar array。
+`FilterDsl` 会把任意 Kotlin object 或 map 序列化为 JSON object，而规范 `EQ`/`NE` 会拒绝它。scalar 与 scalar array equality 继续使用 DSL。若要保留 V8 进程内 POJO/map equality，请显式构造 `EqualFilter` 或 `NotEqualFilter`，传入 `LogicalField(field)` 与 `JsonNodeFactory.instance.pojoNode(value)`。`POJONode` 与 scalar-array equality 仅用于 JVM 构造和旧 `Condition` 兼容；规范 V9 REST filter equality 只接受 JSON scalar。
 
 V8 的 `gt`、`gte`、`lt`、`lte` 或 `between` 任一 bound 为结构化对象时，也需要采用同一 JVM-only 方式。显式构造对应的 `GreaterThanFilter`、`GreaterThanOrEqualFilter`、`LessThanFilter`、`LessThanOrEqualFilter` 或 `BetweenFilter`，并用 `JsonNodeFactory.instance.pojoNode(value)` 包装每个 POJO/map operand。规范 REST range operand 仍只能是非 null JSON scalar。
 
