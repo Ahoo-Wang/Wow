@@ -16,7 +16,7 @@ outline: deep
 | `wow-compensation-domain` | `ExecutionFailed` aggregate and backoff calculation |
 | `wow-compensation-core` | Failure capture, result write-back, and source-event replay |
 | `wow-compensation-server` | Snapshot query, scheduling, OpenAPI, notification, and Dashboard hosting when a frontend build is present |
-| `dashboard` | Failure queues, details, and operator actions |
+| `dashboard` | Compensation posture, failure queues, details, and operator actions |
 
 Check the domain, core, and console first:
 
@@ -73,9 +73,36 @@ Run and verify the Dashboard separately:
 pnpm --dir compensation/dashboard dev
 ```
 
-## Dashboard
+## Compensation Control Plane
 
-The current Dashboard supplies these queues:
+`/` is the default control-plane entry point; `/dashboard` and `/analytics` redirect to it. The page uses the existing aggregation routes rather than a dedicated analytics backend:
+
+- Snapshot: `POST /execution_failed/snapshot/aggregation`;
+- EventStream: `POST /execution_failed/event/aggregation`.
+
+### Reading the Dashboard
+
+| Area | Question answered | Measurement |
+| --- | --- | --- |
+| **STOCK / Backlog exposure** | How large is the active failure backlog, and how much does the selected range cover? | Active `FAILED` / `PREPARED` snapshots, partitioned into selected, older, and newer records, with actionable-now, timed-out, and unrecoverable subsets |
+| **FLOW / Compensation effectiveness** | Is failure inflow improving relative to retry outcomes? | `New failures`, `Prepared`, `Retried failed`, and `Succeeded` domain events; `Net backlog = New failures - Succeeded`, and `Retry success = Succeeded / (Retried failed + Succeeded)` |
+| **Compensation activity** | How do new failures change by day, and what are the retry outcomes? | A daily new-failure trend plus selected-range totals for prepared, failed-again, and succeeded outcomes |
+| **Current health** | Are current records recoverable, and how many retries have they used? | Active snapshots in the selected range grouped by recoverability and `0`, `1–2`, `3–5`, or `6+` retries |
+| **Failure concentration** | Which failed functions dominate the pressure? | Top 5 clusters keyed by error code, context, processor, function name, and function kind, with `FAILED` / `PREPARED` share, oldest execution, and next retry |
+
+`Time range` defaults to the last seven calendar days. It also supports Today, Last 7 days, Last 30 days, and a complete custom range of up to 1,000 days. Boundaries use the browser time zone and constrain both Snapshot `state.executeAt` and EventStream `createTime`. Older failures remain in the STOCK total, while pressure, health, and most status indicators describe the selected range; check `Coverage` before interpreting those local ratios.
+
+`Refresh` reloads both aggregation sources. The last successful result stays visible while refreshing, and one failed region reports its own error without blocking the others. `Updated` is the oldest successful update time across all regions, making it the page-wide freshness boundary rather than the completion time of one request.
+
+These metrics are operator signals, not business reconciliation or proof of recovery. `Prepared` means replay preparation was accepted, while `Succeeded` means the target function completed on that compensation attempt; external side effects still require reconciliation through stable idempotency keys. When an aggregation reaches its protection limit, the Dashboard withholds derived views whose completeness cannot be proved instead of presenting truncated ratios.
+
+![Compensation control-plane Dashboard](/images/compensation/dashboard.png)
+
+_This screenshot is a real browser rendering of the current `9.0.0` frontend with deterministic test data; the values are not production metrics._
+
+### Queues and Operator Actions
+
+The Dashboard supplies these queues:
 
 | Queue | Condition |
 | --- | --- |
@@ -98,13 +125,9 @@ Available actions are:
 
 The current UI has no delete or deleted-aggregate recovery button and defines no operator role model, approval flow, or audit-retention policy. A deployment must supply those controls through network, authentication, authorization, and audit layers.
 
-![Event-Compensation-Dashboard](/images/compensation/dashboard.png)
+![Compensation queue and retry-spec action](/images/compensation/dashboard-apply-retry-spec.png)
 
-![Event-Compensation-Dashboard-Apply-Retry-Spec](/images/compensation/dashboard-apply-retry-spec.png)
-
-![Event-Compensation-Dashboard-Succeeded](/images/compensation/dashboard-succeeded.png)
-
-![Event-Compensation-Dashboard-Error](/images/compensation/dashboard-error.png)
+_This screenshot also comes from the current frontend build; the server state machine remains authoritative for every action._
 
 ## Management Endpoints
 

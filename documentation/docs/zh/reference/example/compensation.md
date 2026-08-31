@@ -16,7 +16,7 @@ outline: deep
 | `wow-compensation-domain` | `ExecutionFailed` 聚合与退避计算 |
 | `wow-compensation-core` | 失败捕获、结果写回与原事件重放 |
 | `wow-compensation-server` | 快照查询、调度、OpenAPI、通知，以及存在前端构建产物时的 Dashboard 托管 |
-| `dashboard` | 失败队列、详情与人工操作 |
+| `dashboard` | 补偿态势、失败队列、详情与人工操作 |
 
 先验证领域、核心与控制台：
 
@@ -73,9 +73,36 @@ Dashboard 需要单独启动并验证：
 pnpm --dir compensation/dashboard dev
 ```
 
-## Dashboard
+## 补偿控制面
 
-当前 Dashboard 提供以下队列：
+`/` 是默认控制面入口；`/dashboard` 与 `/analytics` 会跳转到该入口。页面直接使用现有聚合查询，不引入专用统计后端：
+
+- Snapshot：`POST /execution_failed/snapshot/aggregation`；
+- EventStream：`POST /execution_failed/event/aggregation`。
+
+### 如何读取 Dashboard
+
+| 区域 | 回答的问题 | 统计口径 |
+| --- | --- | --- |
+| **STOCK / Backlog exposure** | 当前失败积压有多大，所选时间是否覆盖主要积压 | 活动状态为 `FAILED` / `PREPARED`；区分所选范围、较早积压与较新记录，并展示当前可操作、已超时和不可恢复子集 |
+| **FLOW / Compensation effectiveness** | 所选范围内失败流入和重试结果是否改善 | `New failures`、`Prepared`、`Retried failed`、`Succeeded` 四类领域事件；`Net backlog = New failures - Succeeded`，`Retry success = Succeeded / (Retried failed + Succeeded)` |
+| **Compensation activity** | 新失败如何按日变化，重试结果各有多少 | 新失败按日绘制趋势；准备、再次失败与成功展示所选范围总量 |
+| **Current health** | 当前记录是否可恢复、已重试多少次 | 对所选范围内活动 Snapshot 按恢复性及 `0`、`1–2`、`3–5`、`6+` 次重试分组 |
+| **Failure concentration** | 压力集中在哪些失败函数 | 按错误码、context、processor、函数名与函数类型组成完整集群，展示 Top 5、`FAILED` / `PREPARED` 占比、最早执行时间和下次重试时间 |
+
+`Time range` 默认最近 7 个自然日，也支持 Today、Last 7 days、Last 30 days 和最长 1000 天的完整自定义范围。边界使用浏览器时区，同时约束 Snapshot 的 `state.executeAt` 与 EventStream 的 `createTime`。较早积压仍计入 STOCK 总量，但压力、健康度与大多数状态指标只统计所选范围；先看 `Coverage`，再解读局部比例。
+
+`Refresh` 会重新加载两类聚合。刷新期间保留最后一次成功结果；单一区域失败只在该区域提示，不阻断其他区域。`Updated` 取所有成功区域中最早的更新时间，因此比单个请求完成时间更适合作为整页新鲜度边界。
+
+这些数字是运营信号，不是业务对账或恢复完成证明。`Prepared` 只表示已进入重放准备状态，`Succeeded` 只表示目标函数本次补偿成功；外部副作用仍需按稳定幂等键核对。聚合结果达到保护上限时，Dashboard 会隐藏无法证明完整的派生视图，而不是展示截断比例。
+
+![补偿控制面 Dashboard](/images/compensation/dashboard.png)
+
+_截图来自当前 `9.0.0` 前端的真实浏览器渲染，使用确定性测试数据；数值不是生产环境指标。_
+
+### 队列与人工操作
+
+Dashboard 提供以下队列：
 
 | 队列 | 条件 |
 | --- | --- |
@@ -98,13 +125,9 @@ pnpm --dir compensation/dashboard dev
 
 当前 UI 不提供删除或恢复已删除聚合的按钮，也没有定义运营角色、审批流或审计保留策略。部署方必须在网络、认证、授权与审计层提供这些控制。
 
-![Event-Compensation-Dashboard](/images/compensation/dashboard.png)
+![补偿队列与重试规格操作](/images/compensation/dashboard-apply-retry-spec.png)
 
-![Event-Compensation-Dashboard-Apply-Retry-Spec](/images/compensation/dashboard-apply-retry-spec.png)
-
-![Event-Compensation-Dashboard-Succeeded](/images/compensation/dashboard-succeeded.png)
-
-![Event-Compensation-Dashboard-Error](/images/compensation/dashboard-error.png)
+_截图同样来自当前前端构建；操作是否成立仍由服务端状态机决定。_
 
 ## 管理端点
 

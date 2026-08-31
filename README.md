@@ -65,7 +65,7 @@ That path proves the domain test, generated route, command pipeline, event sourc
 | Given → When → Expect verification | [wow-test](test/wow-test/src/main/kotlin/me/ahoo/wow/test) |
 | Generated HTTP command and state routes | [wow-webflux](wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route) |
 | Optional storage, messaging, security, and telemetry integrations | [wow-spring-boot-starter feature capabilities](wow-spring-boot-starter/build.gradle.kts) |
-| Compensation and recovery operations | [Compensation domain](compensation) and [dashboard](documentation/docs/public/images/compensation/dashboard.png) |
+| Compensation and recovery operations | [Compensation domain](compensation) and [control plane](documentation/docs/en/reference/example/compensation.md#compensation-control-plane) |
 
 ```mermaid
 flowchart LR
@@ -106,7 +106,7 @@ Source, binary, and wire compatibility are separate concerns. Validate the one y
 
 - Start with the [Introduction](documentation/docs/en/guide/introduction.md), [Core Concepts](documentation/docs/en/guide/core-concepts.md), and [documentation map](documentation/docs/en/guide/index.md).
 - Read the Kotlin [Order Service](example) or Java [Bank Transfer](example/transfer) example.
-- Explore runtime completion in [Command Gateway](documentation/docs/en/guide/command-gateway.md), read models in [Projection](documentation/docs/en/guide/projection.md), and recovery in [Event Compensation](documentation/docs/en/guide/event-compensation.md).
+- Explore processing stages in [Command Completion](documentation/docs/en/guide/command/completion.md), read models in [Projection](documentation/docs/en/guide/projection.md), and recovery in [Event Compensation](documentation/docs/en/guide/event/compensation.md).
 - Review [Contributing](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md), and the [Security Policy](SECURITY.md).
 - Wow received the [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html) for evidence including its modular design, review discipline, testing, static analysis, bilingual documentation, and Maven Central release history.
 
