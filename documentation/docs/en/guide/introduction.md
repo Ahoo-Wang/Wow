@@ -48,9 +48,17 @@ The Given → When → Expect test DSL verifies commands, events, errors, and so
 
 Commands and state events already carry business meaning, so analytical pipelines can consume more than database field changes. Wow BI can generate synchronization scripts for analytical stores such as ClickHouse. Latency, data quality, schema evolution, and operational guarantees remain application responsibilities. See [Wow Business Intelligence](./bi.md) and [BI Operations](./bi-operations.md).
 
-<p align="center" style="text-align:center">
-  <img width="95%" src="/images/bi/bi.svg" alt="Wow business intelligence flow"/>
-</p>
+```mermaid
+flowchart LR
+    Service[Wow service] --> Commands[Command Kafka topic]
+    Service --> StateEvents[State-event Kafka topic]
+    Commands --> CommandTable[ClickHouse Kafka Engine]
+    StateEvents --> StateTable[ClickHouse Kafka Engine]
+    CommandTable --> Views[Materialized views]
+    StateTable --> Views
+    Views --> ReadModel[(MergeTree read model)]
+    Consumer[BI consumer] --> ReadModel
+```
 
 ### 6. Operation Audit
 
@@ -71,11 +79,7 @@ flowchart LR
 
 [Domain Model](./domain/) owns aggregate boundaries, event history, snapshots, and lifecycle. [Commands](./command/) owns definition, sending, completion, and reliability. [Events and Collaboration](./event/) owns processors, sagas, compensation, and event dispatch. [Projection](./projection.md) and [Query](./query.md) continue to own the read side. See [Data Flow](./advanced/data-flow.md) for cross-capability handoffs and [Runtime Lifecycle](./advanced/runtime-lifecycle.md) for startup and shutdown.
 
-The complete runtime architecture and data flow are shown below:
-
-<p align="center" style="text-align:center">
-  <img width="95%" src="/images/Architecture.svg" alt="Wow architecture and modules"/>
-</p>
+For the complete component and ownership view, continue to [Architecture Overview](./advanced/architecture.md).
 
 ## Fit Boundary
 

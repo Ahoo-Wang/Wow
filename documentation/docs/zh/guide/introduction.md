@@ -48,9 +48,17 @@ Given → When → Expect 测试 DSL 无需启动完整基础设施，即可验�
 
 命令和状态事件已经携带业务语义，分析链路可以消费比数据库字段变化更丰富的数据。Wow BI 能为 ClickHouse 等分析存储生成同步脚本；延迟、数据质量、模式演进和运行保障仍由应用负责。详见 [Wow 商业智能](./bi.md)与[商业智能运维](./bi-operations.md)。
 
-<p align="center" style="text-align:center">
-  <img width="95%" src="/images/bi/bi.svg" alt="Wow 商业智能链路"/>
-</p>
+```mermaid
+flowchart LR
+    Service[Wow 服务] --> Commands[命令 Kafka topic]
+    Service --> StateEvents[状态事件 Kafka topic]
+    Commands --> CommandTable[ClickHouse Kafka Engine]
+    StateEvents --> StateTable[ClickHouse Kafka Engine]
+    CommandTable --> Views[物化视图]
+    StateTable --> Views
+    Views --> ReadModel[(MergeTree 读模型)]
+    Consumer[BI 使用方] --> ReadModel
+```
 
 ### 6. 操作审计
 
@@ -71,11 +79,7 @@ flowchart LR
 
 [领域模型](./domain/)负责聚合边界、事件历史、快照与生命周期；[命令](./command/)负责命令定义、发送、完成与可靠性；[事件与协作](./event/)负责 Processor、Saga、补偿与事件分发。投影和查询仍由[投影](./projection.md)与[查询](./query.md)负责。跨能力交接见[数据流](./advanced/data-flow.md)，运行时启停见[运行时生命周期](./advanced/runtime-lifecycle.md)。
 
-完整的运行时架构与数据流如下：
-
-<p align="center" style="text-align:center">
-  <img width="95%" src="/images/Architecture.svg" alt="Wow 架构与模块"/>
-</p>
+完整组件与所有权视图见[架构概览](./advanced/architecture.md)。
 
 ## 适用边界
 
