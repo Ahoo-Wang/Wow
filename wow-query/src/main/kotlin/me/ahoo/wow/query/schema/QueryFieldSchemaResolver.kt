@@ -32,6 +32,16 @@ internal data class QueryFieldResolution(
 internal class QueryFieldSchemaResolver(
     private val schema: QueryModelSchema,
 ) {
+    private val knownFields = buildMap {
+        schema.fields.forEach { (field, fieldSchema) ->
+            put(field.value, field)
+            fieldSchema.bindings.values.forEach { binding ->
+                runCatching { LogicalField(binding.physicalPath) }.getOrNull()?.let {
+                    putIfAbsent(it.value, it)
+                }
+            }
+        }
+    }
     private val elementScopePaths = buildSet {
         schema.fields.forEach { (field, fieldSchema) ->
             if (QueryCapability.ELEMENT_SCOPE in fieldSchema.bindings) {
@@ -39,6 +49,8 @@ internal class QueryFieldSchemaResolver(
             }
         }
     }
+
+    fun resolveLogicalField(path: String): LogicalField = knownFields[path] ?: LogicalField(path)
 
     fun resolveProjectionPath(path: String): QuerySchemaResolution<String> {
         val logicalField = try {
