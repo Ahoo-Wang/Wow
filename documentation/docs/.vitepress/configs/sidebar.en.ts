@@ -205,6 +205,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Serialization', link: 'serialization'},
                 {text: 'Data Flow', link: 'data-flow'},
                 {text: 'Module Dependencies', link: 'module-dependencies'},
+                {text: 'Documentation Governance', link: 'documentation-governance'},
                 {text: 'ID Generator', link: 'id-generator'},
                 {text: 'Compiler', link: 'compiler'},
                 {text: 'Prepare Key', link: 'prepare-key'},
