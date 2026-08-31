@@ -1,26 +1,19 @@
 import {defineConfig} from 'vitepress'
 import llmstxt from 'vitepress-plugin-llms'
 import {copyOrDownloadAsMarkdownButtons} from 'vitepress-plugin-llms'
-import {withMermaid} from "vitepress-plugin-mermaid";
+import {MermaidMarkdown} from "vitepress-plugin-mermaid";
 import {navbarZh} from "./configs/navbar.zh";
 import {sidebarZh} from "./configs/sidebar.zh";
 import {navbarEn} from "./configs/navbar.en";
 import {sidebarEn} from "./configs/sidebar.en";
 import {head} from "./configs/head";
-import {SITE_BASE} from "./configs/SITE_BASE";
-
-let hostname = 'https://wow.ahoo.me/';
-if (SITE_BASE == '/wow/') {
-    hostname = 'https://ahoowang.gitee.io/wow/'
-}
 
 // https://vitepress.dev/reference/site-config
-let userConfig = defineConfig({
+const userConfig = defineConfig({
     // Local Swagger links are runnable-example targets, not documentation pages.
     // Keep VitePress dead-link validation enabled for every other link.
     ignoreDeadLinks: 'localhostLinks',
     head: head,
-    base: SITE_BASE,
     rewrites: {
         'en/:rest*': ':rest*'
     },
@@ -40,10 +33,10 @@ let userConfig = defineConfig({
         ]
     },
     sitemap: {
-        hostname: hostname,
+        hostname: 'https://wow.ahoo.me/',
         transformItems: (items) => {
             items.push({
-                url: `${hostname}dokka/index.html`,
+                url: 'https://wow.ahoo.me/dokka/index.html',
                 changefreq: 'weekly',
                 priority: 0.8
             })
@@ -79,6 +72,7 @@ let userConfig = defineConfig({
     markdown: {
         config(md) {
             md.use(copyOrDownloadAsMarkdownButtons)
+            md.use(MermaidMarkdown)
         }
     },
     locales: {
@@ -146,4 +140,4 @@ let userConfig = defineConfig({
     }
 })
 
-export default withMermaid(userConfig)
+export default userConfig
