@@ -49,6 +49,20 @@ data class ResolvedAggregationQuery(
     val schema: QueryModelSchema?,
 )
 
+private fun combined(
+    first: QueryCompatibilityLevel,
+    second: QueryCompatibilityLevel,
+    third: QueryCompatibilityLevel,
+): QueryCompatibilityLevel = when {
+    first == QueryCompatibilityLevel.INCOMPATIBLE ||
+        second == QueryCompatibilityLevel.INCOMPATIBLE ||
+        third == QueryCompatibilityLevel.INCOMPATIBLE -> QueryCompatibilityLevel.INCOMPATIBLE
+    first == QueryCompatibilityLevel.COMPATIBLE ||
+        second == QueryCompatibilityLevel.COMPATIBLE ||
+        third == QueryCompatibilityLevel.COMPATIBLE -> QueryCompatibilityLevel.COMPATIBLE
+    else -> QueryCompatibilityLevel.EXACT
+}
+
 fun <T> QuerySchemaResolution<T>.requireAccepted(mode: QuerySchemaValidationMode): T {
     if (!mode.accepts(compatibility)) {
         throw QuerySchemaValidationException(
@@ -71,7 +85,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val sort = resolve(query.sort)
         return QuerySchemaResolution(
             SingleQuery(filter.value, projection.value, sort.value),
-            listOf(filter.compatibility, projection.compatibility, sort.compatibility).combined(),
+            combined(filter.compatibility, projection.compatibility, sort.compatibility),
         )
     }
 
@@ -81,7 +95,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val sort = resolve(query.sort)
         return QuerySchemaResolution(
             ListQuery(filter.value, projection.value, sort.value, query.limit),
-            listOf(filter.compatibility, projection.compatibility, sort.compatibility).combined(),
+            combined(filter.compatibility, projection.compatibility, sort.compatibility),
         )
     }
 
@@ -91,7 +105,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val sort = resolve(query.sort)
         return QuerySchemaResolution(
             PagedQuery(filter.value, projection.value, sort.value, query.pagination),
-            listOf(filter.compatibility, projection.compatibility, sort.compatibility).combined(),
+            combined(filter.compatibility, projection.compatibility, sort.compatibility),
         )
     }
 
@@ -101,7 +115,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val sort = resolveCursorSort(query.sort)
         return QuerySchemaResolution(
             CursorQuery(filter.value, projection.value, sort.value, query.size, query.cursor),
-            listOf(filter.compatibility, projection.compatibility, sort.compatibility).combined(),
+            combined(filter.compatibility, projection.compatibility, sort.compatibility),
         )
     }
 
@@ -110,6 +124,9 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
 
     fun resolve(projection: Projection): QuerySchemaResolution<Projection> {
         val maskedEventProjection = schema.model == QueryModel.EVENT_STREAM && schema.hasMaskedFields
+        if (!maskedEventProjection && projection.isEmpty()) {
+            return QuerySchemaResolution(Projection.ALL, QueryCompatibilityLevel.EXACT)
+        }
         val include = projection.include.map {
             fieldResolver.resolveProjectionPath(it)
         }
@@ -158,6 +175,9 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     }
 
     fun resolve(sort: List<Sort>): QuerySchemaResolution<List<Sort>> {
+        if (sort.isEmpty()) {
+            return QuerySchemaResolution(emptyList(), QueryCompatibilityLevel.EXACT)
+        }
         val resolved = sort.map { item ->
             fieldResolver.resolvePath(item.field, QueryCapability.SORT).let { field ->
                 item.copy(field = field.value) to field.compatibility
@@ -170,6 +190,9 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     }
 
     private fun resolveCursorSort(sort: List<Sort>): QuerySchemaResolution<List<Sort>> {
+        if (sort.isEmpty()) {
+            return QuerySchemaResolution(emptyList(), QueryCompatibilityLevel.EXACT)
+        }
         val resolved = sort.map { item ->
             val field = runCatching { LogicalField(item.field) }.getOrNull()?.let { logical ->
                 fieldResolver.resolve(logical, QueryCapability.SORT, null, null)
