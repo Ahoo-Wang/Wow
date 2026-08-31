@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
@@ -31,6 +32,7 @@ import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.resolve
 import org.openjdk.jmh.annotations.Benchmark
@@ -61,6 +63,8 @@ private const val FILTER_OPERAND_COUNT = 8
 @Threads(1)
 open class QuerySchemaResolverBenchmark {
     private val sortableField = LogicalField("state.createdAt")
+    private val eventSecretField = LogicalField("body.body.secret")
+    private val eventBodyTypeField = LogicalField("body.bodyType")
     private val schema = QueryModelSchema(
         model = QueryModel.SNAPSHOT,
         capabilities = emptySet(),
@@ -98,6 +102,28 @@ open class QuerySchemaResolverBenchmark {
 
         override fun refresh(): Mono<QueryModelSchema> = schemaMono
     }
+    private val eventProjectionResolver = QuerySchemaResolver(
+        QueryModelSchema(
+            model = QueryModel.EVENT_STREAM,
+            capabilities = emptySet(),
+            fields = mapOf(
+                eventSecretField to maskedFieldSchema().copy(
+                    bindings = mapOf(
+                        QueryCapability.PRESENCE to QueryFieldBinding(eventSecretField.value, null),
+                    ),
+                    projectionPath = eventSecretField.value,
+                ),
+                eventBodyTypeField to maskedFieldSchema().copy(
+                    bindings = mapOf(
+                        QueryCapability.PRESENCE to QueryFieldBinding(eventBodyTypeField.value, null),
+                    ),
+                    projectionPath = eventBodyTypeField.value,
+                    maskRule = null,
+                ),
+            ),
+        ),
+    )
+    private val eventProjection = Projection(include = listOf(eventSecretField.value))
     private val query = SingleQuery(MatchAllFilter)
     private val compositeFilterQuery = SingleQuery(
         AndFilter(
@@ -127,6 +153,11 @@ open class QuerySchemaResolverBenchmark {
     @Benchmark
     fun resolveCursorSort(blackhole: Blackhole) {
         blackhole.consume(provider.resolve(cursorQuery, QuerySchemaValidationMode.COMPATIBLE).block())
+    }
+
+    @Benchmark
+    fun resolveEventProjection(blackhole: Blackhole) {
+        blackhole.consume(eventProjectionResolver.resolve(eventProjection))
     }
 
     private fun maskedFieldSchema(): QueryFieldSchema {
