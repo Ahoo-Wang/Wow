@@ -225,11 +225,6 @@ export interface SnapshotSummary {
   unrecoverable: number;
 }
 
-export interface StockPartitionRow {
-  count: number;
-  executeAtBucket: number;
-}
-
 export interface RecoverabilityRow {
   recoverable: RecoverableType;
   count: number;
@@ -276,7 +271,9 @@ export function createSnapshotSummaryQueries(
   window: TrendWindow,
 ): Record<
   | "actionableNow"
-  | "stockPartitions"
+  | "activeTotal"
+  | "newerThanRange"
+  | "selectedInRange"
   | "timedOut"
   | "unrecoverable",
   SnapshotAggregationQuery
@@ -291,20 +288,23 @@ export function createSnapshotSummaryQueries(
       ),
       metrics: [countMetric()],
     },
-    stockPartitions: {
+    activeTotal: {
       filter: activeFilter,
-      groupBy: [
-        aggregation.dateHistogram(
-          ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
-          {
-            alias: "executeAtBucket",
-            timeZone: window.timeZone,
-            unit: AggregationDateUnit.DAY,
-          },
-        ),
-      ],
       metrics: [countMetric()],
-      limit: MAX_TREND_DAYS,
+    },
+    selectedInRange: {
+      filter: withSnapshotWindow(window, activeFilter),
+      metrics: [countMetric()],
+    },
+    newerThanRange: {
+      filter: filter.and([
+        filter.gte(
+          ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
+          window.end,
+        ),
+        activeFilter,
+      ]),
+      metrics: [countMetric()],
     },
     timedOut: {
       filter: withSnapshotWindow(
