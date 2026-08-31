@@ -23,7 +23,6 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.filter.ErrorAccessor
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
@@ -114,7 +113,7 @@ abstract class AbstractQueryGateway<R : Any>(
             .onErrorResume { original -> observeError(context, original).thenMany(Flux.error(original)) }
     }
 
-    protected open fun prepareDynamicResult(query: Queryable<*>, result: ObjectNode): ObjectNode = result
+    protected open fun prepareDynamicResult(context: QueryContext<*, *>, result: ObjectNode): ObjectNode = result
 
     override fun single(query: ISingleQuery): Mono<R> =
         mono<ISingleQuery, Mono<ObjectNode>, R>(QueryType.SINGLE, query) { context ->
@@ -123,7 +122,7 @@ abstract class AbstractQueryGateway<R : Any>(
 
     override fun dynamicSingle(query: ISingleQuery): Mono<ObjectNode> =
         mono<ISingleQuery, Mono<ObjectNode>, ObjectNode>(QueryType.SINGLE, query) { context ->
-            context.getRequiredResult().map { result -> prepareDynamicResult(context.getQuery(), result) }
+            context.getRequiredResult().map { result -> prepareDynamicResult(context, result) }
         }
 
     override fun list(query: IListQuery): Flux<R> =
@@ -133,7 +132,7 @@ abstract class AbstractQueryGateway<R : Any>(
 
     override fun dynamicList(query: IListQuery): Flux<ObjectNode> =
         flux<IListQuery, Flux<ObjectNode>, ObjectNode>(QueryType.LIST, query) { context ->
-            context.getRequiredResult().map { result -> prepareDynamicResult(context.getQuery(), result) }
+            context.getRequiredResult().map { result -> prepareDynamicResult(context, result) }
         }
 
     override fun paged(query: IPagedQuery): Mono<PagedList<R>> =
@@ -146,7 +145,7 @@ abstract class AbstractQueryGateway<R : Any>(
     override fun dynamicPaged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
         mono<IPagedQuery, Mono<PagedList<ObjectNode>>, PagedList<ObjectNode>>(QueryType.PAGED, query) { context ->
             context.getRequiredResult().map { page ->
-                page.copy(list = page.list.map { prepareDynamicResult(context.getQuery(), it) })
+                page.copy(list = page.list.map { prepareDynamicResult(context, it) })
             }
         }
 
@@ -160,7 +159,7 @@ abstract class AbstractQueryGateway<R : Any>(
     override fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
         mono<ICursorQuery, Mono<CursorPage<ObjectNode>>, CursorPage<ObjectNode>>(QueryType.CURSOR, query) { context ->
             context.getRequiredResult().map { page ->
-                page.copy(list = page.list.map { prepareDynamicResult(context.getQuery(), it) })
+                page.copy(list = page.list.map { prepareDynamicResult(context, it) })
             }
         }
 

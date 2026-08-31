@@ -14,37 +14,47 @@
 package me.ahoo.wow.query.mask
 
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.query.filter.QueryContext
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 internal const val EVENT_BODY_TYPE_PATH = "body.bodyType"
 private const val EVENT_BODY_PATH = "body"
 private const val EVENT_BODY_PAYLOAD_PATH = "body.body"
+private const val INTERNAL_EVENT_BODY_TYPE_PROJECTED = "wow.query.internal-event-body-type-projected"
 
-internal fun Projection.requiresInternalEventBodyType(): Boolean {
-    val bodySelected = include.isEmpty() || include.any {
-        EVENT_BODY_PATH.isSelectedBy(it) || it.startsWith("$EVENT_BODY_PATH.")
+internal var QueryContext<*, *>.internalEventBodyTypeProjected: Boolean
+    get() = getAttribute<Boolean>(INTERNAL_EVENT_BODY_TYPE_PROJECTED) == true
+    set(value) {
+        setAttribute(INTERNAL_EVENT_BODY_TYPE_PROJECTED, value)
     }
-    val bodyExcluded = exclude.any {
-        EVENT_BODY_PATH.matchesProjectionPattern(it) || EVENT_BODY_PAYLOAD_PATH.matchesProjectionPattern(it)
-    }
+
+internal fun Projection.requiresInternalEventBodyType(
+    bodyTypePath: String = EVENT_BODY_TYPE_PATH,
+): Boolean {
+    val bodySelected = include.isEmpty() || include.any(EVENT_BODY_PAYLOAD_PATH::intersectsSelection)
+    val bodyExcluded = exclude.any(EVENT_BODY_PAYLOAD_PATH::isSelectedBy)
     if (!bodySelected || bodyExcluded) return false
 
-    val bodyTypeSelected = include.isEmpty() || include.any(EVENT_BODY_TYPE_PATH::isSelectedBy)
-    return !bodyTypeSelected || exclude.any(EVENT_BODY_TYPE_PATH::isSelectedBy)
+    val bodyTypeSelected = include.isEmpty() || include.any(bodyTypePath::isSelectedBy)
+    return !bodyTypeSelected || exclude.any(bodyTypePath::isSelectedBy)
 }
 
-internal fun Projection.hasUnrestorableInternalEventBodyTypeExclusion(): Boolean =
-    requiresInternalEventBodyType() && exclude.any {
-        '*' in it && EVENT_BODY_TYPE_PATH.matchesProjectionPattern(it)
+internal fun Projection.hasUnrestorableInternalEventBodyTypeExclusion(
+    bodyTypePath: String = EVENT_BODY_TYPE_PATH,
+): Boolean =
+    requiresInternalEventBodyType(bodyTypePath) && exclude.any {
+        '*' in it && bodyTypePath.matchesProjectionPattern(it)
     }
 
-internal fun Projection.withInternalEventBodyType(): Projection {
-    if (!requiresInternalEventBodyType()) return this
+internal fun Projection.withInternalEventBodyType(
+    bodyTypePath: String = EVENT_BODY_TYPE_PATH,
+): Projection {
+    if (!requiresInternalEventBodyType(bodyTypePath)) return this
     return if (include.isNotEmpty()) {
-        copy(include = include + EVENT_BODY_TYPE_PATH, exclude = exclude - EVENT_BODY_TYPE_PATH)
+        copy(include = include + bodyTypePath, exclude = exclude - bodyTypePath)
     } else {
-        copy(exclude = exclude - EVENT_BODY_TYPE_PATH)
+        copy(exclude = exclude - bodyTypePath)
     }
 }
 
@@ -56,6 +66,9 @@ internal fun ObjectNode.removeInternalEventBodyType(): ObjectNode = apply {
 
 private fun String.isSelectedBy(pattern: String): Boolean =
     this == pattern || startsWith("$pattern.") || matchesProjectionPattern(pattern)
+
+private fun String.intersectsSelection(pattern: String): Boolean =
+    isSelectedBy(pattern) || pattern.startsWith("$this.")
 
 private fun String.matchesProjectionPattern(pattern: String): Boolean =
     pattern.split('*').joinToString(".*", "^", "$") { Regex.escape(it) }.toRegex().matches(this)

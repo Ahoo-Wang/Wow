@@ -15,6 +15,8 @@ package me.ahoo.wow.query.mask
 
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.SimpleFilterChain
 import me.ahoo.wow.query.QueryBackend
@@ -23,6 +25,7 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.schema.withQueryModelSchema
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -38,54 +41,56 @@ internal class SchemaMaskQueryFilter(
     override fun filter(
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>,
-    ): Mono<Void> {
-        return next.filter(context).then(
-            Mono.fromRunnable {
+    ): Mono<Void> = next.filter(context).then(
+        Mono.defer {
+            when (context.queryType) {
+                QueryType.COUNT,
+                QueryType.AGGREGATION,
+                -> return@defer Mono.empty()
+                else -> Unit
+            }
+            Mono.defer(provider::schema).doOnNext { schema ->
+                context.internalEventBodyTypeProjected = QuerySchemaResolver(schema)
+                    .requiresInternalEventBodyType(
+                        (context.getQuery() as? Queryable<*>)?.projection ?: Projection.ALL,
+                    )
                 when (context.queryType) {
-                    QueryType.SINGLE -> context.asSingleQuery().rewriteResult { it.maskResult() }
-                    QueryType.LIST -> context.asListQuery().rewriteResult { it.maskResult() }
-                    QueryType.PAGED -> context.asPagedQuery().rewriteResult { it.maskPagedResult() }
-                    QueryType.CURSOR -> context.asCursorQuery().rewriteResult { it.maskCursorResult() }
+                    QueryType.SINGLE -> context.asSingleQuery().rewriteResult { it.maskResult(schema) }
+                    QueryType.LIST -> context.asListQuery().rewriteResult { it.maskResult(schema) }
+                    QueryType.PAGED -> context.asPagedQuery().rewriteResult { it.maskPagedResult(schema) }
+                    QueryType.CURSOR -> context.asCursorQuery().rewriteResult { it.maskCursorResult(schema) }
                     QueryType.COUNT,
                     QueryType.AGGREGATION,
                     -> Unit
                 }
-            },
-        )
-    }
+            }.then()
+        },
+    )
 
     private fun masker(schema: QueryModelSchema): Optional<SchemaMasker> =
         cached.get()?.takeIf { it.first === schema }?.second ?: Optional
             .ofNullable(SchemaMasker.create(schema))
             .also { cached.set(schema to it) }
 
-    private fun Mono<ObjectNode>.maskResult(): Mono<ObjectNode> =
-        Mono.defer(provider::schema).flatMap { schema ->
-            val source = withQueryModelSchema(schema)
-            masker(schema).map { schemaMasker ->
-                source.map(schemaMasker::mask)
-            }.orElse(source)
+    private fun Mono<ObjectNode>.maskResult(schema: QueryModelSchema): Mono<ObjectNode> =
+        withQueryModelSchema(schema).let { source ->
+            masker(schema).map { source.map(it::mask) }.orElse(source)
         }
 
-    private fun Flux<ObjectNode>.maskResult(): Flux<ObjectNode> =
-        Mono.defer(provider::schema).flatMapMany { schema ->
-            val source = withQueryModelSchema(schema)
-            masker(schema).map { schemaMasker ->
-                source.map(schemaMasker::mask)
-            }.orElse(source)
+    private fun Flux<ObjectNode>.maskResult(schema: QueryModelSchema): Flux<ObjectNode> =
+        withQueryModelSchema(schema).let { source ->
+            masker(schema).map { source.map(it::mask) }.orElse(source)
         }
 
-    private fun Mono<PagedList<ObjectNode>>.maskPagedResult(): Mono<PagedList<ObjectNode>> =
-        Mono.defer(provider::schema).flatMap { schema ->
-            val source = withQueryModelSchema(schema)
+    private fun Mono<PagedList<ObjectNode>>.maskPagedResult(schema: QueryModelSchema): Mono<PagedList<ObjectNode>> =
+        withQueryModelSchema(schema).let { source ->
             masker(schema).map { schemaMasker ->
                 source.map { page -> PagedList(page.total, page.list.map(schemaMasker::mask)) }
             }.orElse(source)
         }
 
-    private fun Mono<CursorPage<ObjectNode>>.maskCursorResult(): Mono<CursorPage<ObjectNode>> =
-        Mono.defer(provider::schema).flatMap { schema ->
-            val source = withQueryModelSchema(schema)
+    private fun Mono<CursorPage<ObjectNode>>.maskCursorResult(schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> =
+        withQueryModelSchema(schema).let { source ->
             masker(schema).map { schemaMasker ->
                 source.map { page -> page.copy(list = page.list.map(schemaMasker::mask)) }
             }.orElse(source)
