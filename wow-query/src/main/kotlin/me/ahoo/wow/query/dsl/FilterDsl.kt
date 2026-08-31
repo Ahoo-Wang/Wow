@@ -34,6 +34,8 @@ import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
+import me.ahoo.wow.api.query.IsEmptyStringFilter
+import me.ahoo.wow.api.query.IsNotEmptyStringFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LastMonthFilter
@@ -182,6 +184,10 @@ class FilterDsl internal constructor(
     infix fun String.containsAll(values: Iterable<*>) = add(ContainsAllFilter(field(this), values.literals()))
 
     fun String.isEmptyCollection() = add(IsEmptyFilter(field(this)))
+
+    fun String.isEmptyString() = add(IsEmptyStringFilter(field(this)))
+
+    fun String.isNotEmptyString() = add(IsNotEmptyStringFilter(field(this)))
 
     fun String.isNull() = add(IsNullFilter(field(this)))
 

@@ -100,6 +100,8 @@ private fun FilterExpression.referencesSystemTags(logicalParent: LogicalField? =
     is LessThanOrEqualFilter -> field.absoluteTo(logicalParent).isSystemTags()
     is BetweenFilter -> field.absoluteTo(logicalParent).isSystemTags()
     is IsEmptyFilter -> field.absoluteTo(logicalParent).isSystemTags()
+    is IsEmptyStringFilter -> field.absoluteTo(logicalParent).isSystemTags()
+    is IsNotEmptyStringFilter -> field.absoluteTo(logicalParent).isSystemTags()
     is IsNullFilter -> field.absoluteTo(logicalParent).isSystemTags()
     is IsNotNullFilter -> field.absoluteTo(logicalParent).isSystemTags()
     is ExistsFilter -> field.absoluteTo(logicalParent).isSystemTags()

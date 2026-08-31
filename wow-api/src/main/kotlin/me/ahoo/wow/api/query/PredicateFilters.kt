@@ -170,6 +170,16 @@ data class IsEmptyFilter(val field: LogicalField) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.IS_EMPTY
 }
 
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.IS_EMPTY_STRING)
+data class IsEmptyStringFilter(val field: LogicalField) : FilterExpression {
+    override val operator: FilterOperator = FilterOperator.IS_EMPTY_STRING
+}
+
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.IS_NOT_EMPTY_STRING)
+data class IsNotEmptyStringFilter(val field: LogicalField) : FilterExpression {
+    override val operator: FilterOperator = FilterOperator.IS_NOT_EMPTY_STRING
+}
+
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.IS_NULL)
 data class IsNullFilter(val field: LogicalField) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.IS_NULL

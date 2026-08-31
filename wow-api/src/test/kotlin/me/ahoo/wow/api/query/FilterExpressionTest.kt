@@ -86,6 +86,21 @@ class FilterExpressionTest {
     }
 
     @Test
+    fun `empty string filters should round trip without a value`() {
+        listOf("IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING").forEach { operator ->
+            val decoded = jsonMapper.readValue(
+                """{"op":"$operator","field":"state.name"}""",
+                FilterExpression::class.java,
+            )
+            val encoded = jsonMapper.readTree(jsonMapper.writeValueAsString(decoded))
+
+            encoded["op"].stringValue().assert().isEqualTo(operator)
+            encoded["field"].stringValue().assert().isEqualTo("state.name")
+            encoded.has("value").assert().isFalse()
+        }
+    }
+
+    @Test
     fun `should deserialize legacy condition as filter expression`() {
         val decoded = jsonMapper.readValue(
             """{"field":"state.status","operator":"EQ","value":"PAID"}""",

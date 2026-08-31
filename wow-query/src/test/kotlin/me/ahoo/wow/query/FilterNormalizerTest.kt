@@ -191,6 +191,31 @@ class FilterNormalizerTest {
     }
 
     @Test
+    fun `should normalize operand free empty string filters`() {
+        val field = LogicalField("field")
+        val emptyValue = JsonSerializer.valueToTree<JsonNode>("")
+        val noScope = FilterNormalizer(defaultDeletionState = null)
+        val empty = JsonSerializer.readValue(
+            """{"op":"IS_EMPTY_STRING","field":"field"}""",
+            FilterExpression::class.java,
+        )
+        val notEmpty = JsonSerializer.readValue(
+            """{"op":"IS_NOT_EMPTY_STRING","field":"field"}""",
+            FilterExpression::class.java,
+        )
+
+        noScope.normalize(empty).assert().isEqualTo(EqualFilter(field, emptyValue))
+        noScope.normalize(notEmpty).assert().isEqualTo(
+            AndFilter(
+                listOf(
+                    IsNotNullFilter(field),
+                    NotEqualFilter(field, emptyValue),
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun `should keep active scope around nested deletion filters`() {
         val predicate = EqualFilter(
             LogicalField("field"),

@@ -319,6 +319,59 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `empty string filters should require a single string field`() {
+        val name = LogicalField("state.name")
+        val aliases = LogicalField("state.aliases")
+        val count = LogicalField("state.count")
+        val untyped = LogicalField("state.untyped")
+        val custom = LogicalField("state.custom")
+        val mixed = LogicalField("state.mixed")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    name to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.name.keyword",
+                        valueTypes = setOf(QueryValueType.STRING),
+                    ),
+                    aliases to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.aliases.keyword",
+                        cardinality = QueryCardinality.MANY,
+                        valueTypes = setOf(QueryValueType.STRING),
+                    ),
+                    count to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.count",
+                        valueTypes = setOf(QueryValueType.INTEGER),
+                    ),
+                    untyped to fieldSchema(QueryCapability.EXACT_MATCH to "document.untyped"),
+                    custom to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.custom",
+                        valueTypes = setOf(QueryValueType("CUSTOM")),
+                    ),
+                    mixed to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.mixed",
+                        valueTypes = setOf(QueryValueType.STRING, QueryValueType.INTEGER),
+                    ),
+                ),
+            ),
+        )
+
+        listOf("IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING").forEach { operator ->
+            fun filter(field: LogicalField) = JsonSerializer.readValue(
+                """{"op":"$operator","field":"${field.value}"}""",
+                FilterExpression::class.java,
+            )
+
+            val resolved = resolver.resolve(filter(name))
+            resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+            JsonSerializer.writeValueAsString(resolved.value).contains("document.name.keyword").assert().isTrue()
+            listOf(aliases, count, untyped, custom, mixed).forEach { incompatible ->
+                resolver.resolve(filter(incompatible)).compatibility.assert()
+                    .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+            }
+        }
+    }
+
+    @Test
     fun `null equality filters should use presence bindings without changing their shape`() {
         val field = LogicalField("state.note")
         val physical = LogicalField("document.note")

@@ -49,8 +49,10 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 | `EQ` / `NE` | `{ "op": "EQ", "field": "state.status", "value": "PAID" }` | `"status" eq "PAID"` / `"status" ne "CANCELLED"` |
 | `GT` / `GTE` / `LT` / `LTE` | `{ "op": "GTE", "field": "state.total", "value": 100 }` | `"total" gte 100` |
 | `CONTAINS` / `STARTS_WITH` / `ENDS_WITH` | `{ "op": "CONTAINS", "field": "state.note", "value": "vip", "stringComparison": "CASE_INSENSITIVE" }` | `"note".containsText("vip", StringComparison.CASE_INSENSITIVE)` |
+| `IS_EMPTY_STRING` / `IS_NOT_EMPTY_STRING` | `{ "op": "IS_EMPTY_STRING", "field": "state.note" }` | `"note".isEmptyString()` / `"note".isNotEmptyString()` |
 
 字符串比较默认 `CASE_SENSITIVE`。比较和字符串能力由后端及其发布的 Schema 决定。
+无操作数的空字符串操作符仅适用于具备精确匹配能力的单值字符串字段。`IS_EMPTY_STRING` 只匹配 `""`；`IS_NOT_EMPTY_STRING` 要求字段存在、非 `null` 且不等于 `""`。仅含空白的字符串不视为空字符串。
 
 ## 集合与存在性操作符
 
@@ -160,6 +162,6 @@ flowchart TB
 
 查询模型 Schema 负责把逻辑字段解析为后端已证明的能力；请参阅[查询总览中的 Schema 说明](./query-model-schema.md)。MongoDB、Elasticsearch 或自定义后端可以支持不同的比较、存在性、全文搜索或时间语义，公共操作符列表不承诺跨后端一致性。
 
-HTTP 请求在 WebFlux `ServerRequest` context 中会经过 `HttpQueryGuardFilter`。`wow.webflux.query.allow-expensive-operators=false` 时，会拒绝 `NE`、`NOT_IN`、`NOR`、`IS_NULL`、`IS_NOT_NULL`、`NOT_EXISTS`、`IS_EMPTY`、`CONTAINS`、`ENDS_WITH`，以及空字符串或大小写不敏感的 `STARTS_WITH`；HTTP guard 还限制 filter 节点和值数量。该配置的兼容默认值不是容量证明，详见[基础设施配置](../../reference/config/infrastructure)。进程内查询不因这项 HTTP 专用保护而获得或失去后端能力。
+HTTP 请求在 WebFlux `ServerRequest` context 中会经过 `HttpQueryGuardFilter`。`wow.webflux.query.allow-expensive-operators=false` 时，会拒绝 `NE`、`NOT_IN`、`NOR`、`IS_NULL`、`IS_NOT_NULL`、`NOT_EXISTS`、`IS_EMPTY`、`IS_NOT_EMPTY_STRING`、`CONTAINS`、`ENDS_WITH`，以及空字符串或大小写不敏感的 `STARTS_WITH`；HTTP guard 还限制 filter 节点和值数量。该配置的兼容默认值不是容量证明，详见[基础设施配置](../../reference/config/infrastructure)。进程内查询不因这项 HTTP 专用保护而获得或失去后端能力。
 
 V9 的规范 JVM API 是 `FilterExpression` 与 `FilterDsl`。V9.0.x 暂时保留已弃用的 `Condition`、`Operator`、`ConditionDsl`、旧查询构造器和 count 客户端重载，并在执行前统一转换为 `FilterExpression`；这些兼容 API 计划在 9.1.0 删除。WebFlux REST 边界同期接受 V8 list/paged/single 请求的 `condition` 字段，以及 count 请求的裸 `operator` 形状；规范 `filter`、OpenAPI 与出站 JSON 仍只使用 `op`。`filter` 与 `condition` 不能同时出现，`op` 与 `operator` 也不能混用。

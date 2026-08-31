@@ -537,6 +537,24 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
+    fun `empty string guard should only reject the negative operator`() {
+        fun filter(operator: String) = JsonSerializer.readValue(
+            """{"op":"$operator","field":"state.name"}""",
+            FilterExpression::class.java,
+        )
+
+        guard(allowExpensiveOperators = false)
+            .validateForTest(CursorQuery(filter("IS_EMPTY_STRING")))
+            .test()
+            .verifyComplete()
+        guard(allowExpensiveOperators = false)
+            .validateForTest(CursorQuery(filter("IS_NOT_EMPTY_STRING")))
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
     fun `cursor should apply idle timeout after backend result is installed`() {
         val context = cursorContext(CursorQuery(IdFilter("aggregate-id")))
         guard(idleTimeout = Duration.ofMillis(10)).filter(

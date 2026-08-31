@@ -47,6 +47,19 @@ class FilterDslTest {
     }
 
     @Test
+    fun `should build operand free empty string filters`() {
+        val expression = filter {
+            "empty".isEmptyString()
+            "notEmpty".isNotEmptyString()
+        } as AndFilter
+
+        expression.operands.assert().containsExactly(
+            IsEmptyStringFilter(LogicalField("empty")),
+            IsNotEmptyStringFilter(LogicalField("notEmpty")),
+        )
+    }
+
+    @Test
     fun `should build extended relative calendar filters`() {
         val field = LogicalField("createdAt")
         val expression = filter {

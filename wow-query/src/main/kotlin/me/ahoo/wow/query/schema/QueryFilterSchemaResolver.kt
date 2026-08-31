@@ -170,6 +170,12 @@ internal class QueryFilterSchemaResolver(
             logicalParent,
             physicalParent,
         ) { filter.copy(field = it) }
+        is IsEmptyStringFilter -> resolveStringFieldFilter(filter.field, logicalParent, physicalParent) {
+            filter.copy(field = it)
+        }
+        is IsNotEmptyStringFilter -> resolveStringFieldFilter(filter.field, logicalParent, physicalParent) {
+            filter.copy(field = it)
+        }
         is IsNullFilter -> resolveFieldFilter(filter.field, QueryCapability.PRESENCE, logicalParent, physicalParent) {
             filter.copy(field = it)
         }
@@ -295,6 +301,26 @@ internal class QueryFilterSchemaResolver(
             resolved.compatibility,
             cardinality,
             resolved.valueCompatibility(values),
+        ).combined()
+        return QuerySchemaResolution(copy(LogicalField(resolved.value)), compatibility)
+    }
+
+    private inline fun resolveStringFieldFilter(
+        field: LogicalField,
+        logicalParent: LogicalField?,
+        physicalParent: String?,
+        copy: (LogicalField) -> FilterExpression,
+    ): QuerySchemaResolution<FilterExpression> {
+        val resolved = fieldResolver.resolve(field, QueryCapability.EXACT_MATCH, logicalParent, physicalParent)
+        val stringField = when {
+            resolved.compatibility != QueryCompatibilityLevel.EXACT -> QueryCompatibilityLevel.EXACT
+            resolved.fieldSchema?.cardinality == QueryCardinality.SINGLE &&
+                resolved.fieldSchema.valueTypes == setOf(QueryValueType.STRING) -> QueryCompatibilityLevel.EXACT
+            else -> QueryCompatibilityLevel.INCOMPATIBLE
+        }
+        val compatibility = listOf(
+            resolved.compatibility,
+            stringField,
         ).combined()
         return QuerySchemaResolution(copy(LogicalField(resolved.value)), compatibility)
     }
