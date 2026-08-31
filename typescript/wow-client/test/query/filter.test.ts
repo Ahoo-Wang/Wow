@@ -70,6 +70,16 @@ describe('filter', () => {
     });
   });
 
+  it('builds operand-free empty string filters', () => {
+    expect([
+      filter.isEmptyString('state.name'),
+      filter.isNotEmptyString('state.name'),
+    ]).toEqual([
+      { op: 'IS_EMPTY_STRING', field: 'state.name' },
+      { op: 'IS_NOT_EMPTY_STRING', field: 'state.name' },
+    ]);
+  });
+
   it('builds search filters with explicit defaults and phrase mode', () => {
     expect(filter.search('wow')).toEqual({
       op: FilterOperator.SEARCH,

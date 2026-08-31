@@ -45,6 +45,8 @@ export enum FilterOperator {
   BETWEEN = 'BETWEEN',
   CONTAINS_ALL = 'CONTAINS_ALL',
   IS_EMPTY = 'IS_EMPTY',
+  IS_EMPTY_STRING = 'IS_EMPTY_STRING',
+  IS_NOT_EMPTY_STRING = 'IS_NOT_EMPTY_STRING',
   IS_NULL = 'IS_NULL',
   IS_NOT_NULL = 'IS_NOT_NULL',
   EXISTS = 'EXISTS',
@@ -408,6 +410,8 @@ export type BetweenFilter<FIELDS extends string = string> = {
 export type FieldPresenceFilter<FIELDS extends string = string> = {
   op:
     | FilterOperator.IS_EMPTY
+    | FilterOperator.IS_EMPTY_STRING
+    | FilterOperator.IS_NOT_EMPTY_STRING
     | FilterOperator.IS_NULL
     | FilterOperator.IS_NOT_NULL
     | FilterOperator.EXISTS
@@ -775,6 +779,19 @@ export const filter = {
   },
   isEmpty<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
     return { op: FilterOperator.IS_EMPTY, field: logicalField(field) };
+  },
+  isEmptyString<FIELDS extends string>(
+    field: FIELDS,
+  ): FieldPresenceFilter<FIELDS> {
+    return { op: FilterOperator.IS_EMPTY_STRING, field: logicalField(field) };
+  },
+  isNotEmptyString<FIELDS extends string>(
+    field: FIELDS,
+  ): FieldPresenceFilter<FIELDS> {
+    return {
+      op: FilterOperator.IS_NOT_EMPTY_STRING,
+      field: logicalField(field),
+    };
   },
   isNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
     return { op: FilterOperator.IS_NULL, field: logicalField(field) };
