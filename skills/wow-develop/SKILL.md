@@ -14,6 +14,7 @@ Own the complete development task. Do not route to another Wow Skill.
 ## Contract
 
 - Treat the current checkout, its tests, generated contracts, and resolved dependencies as authoritative.
+- Resolve the actual Wow version from the downstream build and dependency graph before applying exact symbols, defaults, or V9 rules; label version-specific conclusions unverified when the version cannot be confirmed.
 - Treat commands as intent, domain events as committed facts, and sourced state as reconstructed memory.
 - Keep aggregate invariants inside the aggregate boundary and external side effects outside it.
 - Preserve reactive execution, serialization compatibility, module boundaries, and public contracts unless the user authorizes a breaking change.

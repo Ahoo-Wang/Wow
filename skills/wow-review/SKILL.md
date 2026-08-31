@@ -14,6 +14,7 @@ Own the complete review or review-and-fix task. Do not route to another Wow Skil
 ## Contract
 
 - Keep review-only requests read-only. Do not edit files, post or resolve comments, approve, merge, or change remote state without explicit authorization.
+- Resolve the actual Wow version from the downstream build and dependency graph before applying exact symbols, defaults, or V9 rules; label version-specific conclusions unverified when the version cannot be confirmed.
 - Review Wow semantics and observable behavior before style.
 - Derive findings from the requested diff, current source, tests, configuration, and generated contracts.
 - Separate review evidence from any later implementation evidence.
