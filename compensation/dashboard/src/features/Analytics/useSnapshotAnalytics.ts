@@ -195,6 +195,7 @@ async function loadSummary(
     activeTotal,
     selectedInRange,
     newerThanRange,
+    olderThanRange,
   ] = await Promise.all([
     aggregateExecutionFailedSnapshots<CountRow>(
       queries.actionableNow,
@@ -226,18 +227,25 @@ async function loadSummary(
       undefined,
       abortController,
     ),
+    aggregateExecutionFailedSnapshots<CountRow>(
+      queries.olderThanRange,
+      undefined,
+      abortController,
+    ),
   ]);
   const activeTotalCount = activeTotal[0]?.count ?? 0;
   const selectedInRangeCount = selectedInRange[0]?.count ?? 0;
   const newerThanRangeCount = newerThanRange[0]?.count ?? 0;
-  const partitionedCount = selectedInRangeCount + newerThanRangeCount;
+  const olderThanRangeCount = olderThanRange[0]?.count ?? 0;
+  const partitionedCount =
+    olderThanRangeCount + selectedInRangeCount + newerThanRangeCount;
   return {
     actionableNow: actionableNow[0]?.count ?? 0,
     activeTotal: activeTotalCount,
     newerThanRange: newerThanRangeCount,
-    olderThanRange: Math.max(activeTotalCount - partitionedCount, 0),
+    olderThanRange: olderThanRangeCount,
     selectedInRange: selectedInRangeCount,
-    stockTruncated: partitionedCount > activeTotalCount,
+    stockTruncated: partitionedCount !== activeTotalCount,
     timedOut: timedOut[0]?.count ?? 0,
     unrecoverable: unrecoverable[0]?.count ?? 0,
   };

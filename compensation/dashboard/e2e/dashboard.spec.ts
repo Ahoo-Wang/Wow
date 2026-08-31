@@ -18,6 +18,43 @@ type AggregationQueryBody = {
   groupBy?: Array<{ alias: string }>;
 };
 
+const activeStockFilter = {
+  op: "IN",
+  field: "state.status",
+  values: ["FAILED", "PREPARED"],
+};
+
+function stockCountKind(query: AggregationQueryBody) {
+  if (JSON.stringify(query.filter) === JSON.stringify(activeStockFilter)) {
+    return "activeTotal";
+  }
+  const root = query.filter as
+    | { op?: string; operands?: Array<{ field?: string; op?: string }> }
+    | undefined;
+  if (root?.op !== "AND" || !root.operands) {
+    return undefined;
+  }
+  const hasActiveFilter = root.operands.some(
+    (operand) => JSON.stringify(operand) === JSON.stringify(activeStockFilter),
+  );
+  if (!hasActiveFilter) {
+    return undefined;
+  }
+  const hasLowerBound = root.operands.some(
+    ({ field, op }) => field === "state.executeAt" && op === "GTE",
+  );
+  const hasUpperBound = root.operands.some(
+    ({ field, op }) => field === "state.executeAt" && op === "LT",
+  );
+  if (hasLowerBound && hasUpperBound) {
+    return "selectedInRange";
+  }
+  if (hasLowerBound) {
+    return "newerThanRange";
+  }
+  return hasUpperBound ? "olderThanRange" : undefined;
+}
+
 function queryWindow(query: AggregationQueryBody, field: string) {
   const matches: Array<{ field?: string; op?: string; value?: number }> = [];
   const visit = (value: unknown) => {
@@ -232,13 +269,6 @@ async function mockAnalyticsAggregations(
             nextRetryAt: 1_787_932_800_000,
           }),
         );
-      } else if (aliases.includes("executeAtBucket")) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        rows = [
-          { count: 680, executeAtBucket: today.getTime() - 365 * 86_400_000 },
-          { count: 320, executeAtBucket: today.getTime() },
-        ];
       } else if (aliases.includes("recoverable")) {
         rows = [
           { recoverable: "RECOVERABLE", count: 300 },
@@ -252,6 +282,14 @@ async function mockAnalyticsAggregations(
           { retries: 3, count: 2 },
           { retries: 6, count: 1 },
         ];
+      } else if (stockCountKind(query) === "activeTotal") {
+        rows = [{ count: 1_000 }];
+      } else if (stockCountKind(query) === "selectedInRange") {
+        rows = [{ count: 320 }];
+      } else if (stockCountKind(query) === "newerThanRange") {
+        rows = [{ count: 0 }];
+      } else if (stockCountKind(query) === "olderThanRange") {
+        rows = [{ count: 680 }];
       } else if (serializedFilter.includes("nextRetryAt")) {
         rows = [{ count: 128 }];
       } else if (serializedFilter.includes("timeoutAt")) {
@@ -534,7 +572,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
   await expect(
     page.getByRole("heading", { name: "FLOW / Compensation effectiveness" }),
   ).toBeVisible();
-  await expect.poll(() => snapshotRequests).toBe(8);
+  await expect.poll(() => snapshotRequests).toBe(11);
   await expect.poll(() => eventRequests).toBe(4);
   const timeRange = page.getByRole("button", { name: /^Time range:/ });
   await expect(timeRange).toContainText("–");
@@ -573,29 +611,34 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     ).toBeGreaterThanOrEqual(14);
   }
   await page.getByRole("button", { name: "Today", exact: true }).click();
-  await expect.poll(() => snapshotRequests).toBe(16);
+  await expect.poll(() => snapshotRequests).toBe(22);
   await expect.poll(() => eventRequests).toBe(8);
   await page.getByRole("button", { name: "Refresh dashboard" }).click();
-  await expect.poll(() => snapshotRequests).toBe(24);
+  await expect.poll(() => snapshotRequests).toBe(33);
   await expect.poll(() => eventRequests).toBe(12);
 
   const appliedWindows: Array<{ end: number; start: number }> = [];
   for (const batch of [0, 1, 2]) {
     const batchSnapshotQueries = snapshotQueries.slice(
-      batch * 8,
-      batch * 8 + 8,
+      batch * 11,
+      batch * 11 + 11,
     );
-    const stockPartitionSnapshots = batchSnapshotQueries.filter((query) =>
-      query.groupBy?.some(({ alias }) => alias === "executeAtBucket"),
+    const stockCountSnapshots = batchSnapshotQueries.filter((query) =>
+      stockCountKind(query),
     );
-    const snapshotWindows = batchSnapshotQueries
-      .filter((query) => !stockPartitionSnapshots.includes(query))
-      .map((query) => queryWindow(query, "state.executeAt"));
+    const snapshotWindows = batchSnapshotQueries.map((query) =>
+      queryWindow(query, "state.executeAt"),
+    );
     const fullyWindowedSnapshots = snapshotWindows.filter(
       ({ end, start }) => Number.isFinite(start) && Number.isFinite(end),
     );
-    expect(fullyWindowedSnapshots).toHaveLength(7);
-    expect(stockPartitionSnapshots).toHaveLength(1);
+    expect(fullyWindowedSnapshots).toHaveLength(8);
+    expect(stockCountSnapshots.map(stockCountKind).sort()).toEqual([
+      "activeTotal",
+      "newerThanRange",
+      "olderThanRange",
+      "selectedInRange",
+    ]);
     const eventWindows = eventQueries
       .slice(batch * 4, batch * 4 + 4)
       .map((query) => queryWindow(query, "createTime"));
@@ -904,30 +947,36 @@ test("keeps zero-valued dashboard bars visually empty", async ({
     onEvent: () => undefined,
     onSnapshot: () => undefined,
   });
-  await page.route("**/execution_failed/snapshot/aggregation", async (route) => {
-    const query = route.request().postDataJSON() as AggregationQueryBody;
-    const aliases = query.groupBy?.map(({ alias }) => alias) ?? [];
-    if (aliases.includes("recoverable")) {
-      await route.fulfill({ json: [] });
-      return;
-    }
-    if (aliases.includes("executeAtBucket")) {
-      await route.fulfill({
-        json: [{ count: 680, executeAtBucket: Date.now() - 365 * 86_400_000 }],
-      });
-      return;
-    }
-    const serializedFilter = JSON.stringify(query.filter);
-    if (
-      aliases.length === 0 &&
-      serializedFilter.includes('"op":"GTE"') &&
-      serializedFilter.includes('"op":"LT"')
-    ) {
-      await route.fulfill({ json: [{ count: 0 }] });
-      return;
-    }
-    await route.fallback();
-  });
+  await page.route(
+    "**/execution_failed/snapshot/aggregation",
+    async (route) => {
+      const query = route.request().postDataJSON() as AggregationQueryBody;
+      const aliases = query.groupBy?.map(({ alias }) => alias) ?? [];
+      if (aliases.includes("recoverable")) {
+        await route.fulfill({ json: [] });
+        return;
+      }
+      const stockCount = stockCountKind(query);
+      if (stockCount === "activeTotal" || stockCount === "olderThanRange") {
+        await route.fulfill({ json: [{ count: 680 }] });
+        return;
+      }
+      if (stockCount === "selectedInRange" || stockCount === "newerThanRange") {
+        await route.fulfill({ json: [{ count: 0 }] });
+        return;
+      }
+      const serializedFilter = JSON.stringify(query.filter);
+      if (
+        aliases.length === 0 &&
+        serializedFilter.includes('"op":"GTE"') &&
+        serializedFilter.includes('"op":"LT"')
+      ) {
+        await route.fulfill({ json: [{ count: 0 }] });
+        return;
+      }
+      await route.fallback();
+    },
+  );
   await page.route("**/execution_failed/event/aggregation", async (route) => {
     const query = route.request().postDataJSON() as AggregationQueryBody;
     const { start } = queryWindow(query, "createTime");

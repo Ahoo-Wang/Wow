@@ -119,12 +119,27 @@ describe("analyticsQueries", () => {
         },
         metrics: [{ type: "COUNT", alias: "count" }],
       },
+      olderThanRange: {
+        filter: {
+          op: "AND",
+          operands: [
+            {
+              op: "LT",
+              field: "state.executeAt",
+              value: snapshotWindow.start,
+            },
+            activeFilter,
+          ],
+        },
+        metrics: [{ type: "COUNT", alias: "count" }],
+      },
     });
     expect(queries).not.toHaveProperty("stockPartitions");
     [
       queries.activeTotal,
       queries.selectedInRange,
       queries.newerThanRange,
+      queries.olderThanRange,
     ].forEach((query) => expect(query.groupBy).toBeUndefined());
     expect(queries.actionableNow.metrics).toEqual([
       { type: "COUNT", alias: "count" },
