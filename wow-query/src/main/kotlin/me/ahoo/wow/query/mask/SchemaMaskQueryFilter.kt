@@ -25,7 +25,6 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.schema.withQueryModelSchema
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -50,7 +49,7 @@ internal class SchemaMaskQueryFilter(
                 else -> Unit
             }
             Mono.defer(provider::schema).doOnNext { schema ->
-                context.internalEventBodyTypeProjected = QuerySchemaResolver(schema)
+                context.internalEventBodyTypeProjected = schema.resolver
                     .requiresInternalEventBodyType(
                         (context.getQuery() as? Queryable<*>)?.projection ?: Projection.ALL,
                     )
