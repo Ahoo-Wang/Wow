@@ -25,6 +25,9 @@ const activeStockFilter = {
 };
 
 function stockCountKind(query: AggregationQueryBody) {
+  if (query.groupBy?.length) {
+    return undefined;
+  }
   if (JSON.stringify(query.filter) === JSON.stringify(activeStockFilter)) {
     return "activeTotal";
   }
