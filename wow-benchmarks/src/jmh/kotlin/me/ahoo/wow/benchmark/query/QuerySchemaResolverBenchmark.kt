@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.benchmark.query
 
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
@@ -63,6 +66,7 @@ private const val FILTER_OPERAND_COUNT = 8
 @Threads(1)
 open class QuerySchemaResolverBenchmark {
     private val sortableField = LogicalField("state.createdAt")
+    private val aggregatableField = LogicalField("state.category")
     private val eventSecretField = LogicalField("body.body.secret")
     private val eventBodyTypeField = LogicalField("body.bodyType")
     private val schema = QueryModelSchema(
@@ -93,8 +97,18 @@ open class QuerySchemaResolverBenchmark {
                     maskRule = null,
                 ),
             )
+            put(
+                aggregatableField,
+                maskedFieldSchema().copy(
+                    bindings = mapOf(
+                        QueryCapability.AGGREGATE_TERMS to QueryFieldBinding("document.category.keyword", null),
+                    ),
+                    maskRule = null,
+                ),
+            )
         },
     )
+    private val resolver = QuerySchemaResolver(schema)
     private val provider = object : QueryModelSchemaProvider {
         private val schemaMono = Mono.just(schema)
 
@@ -124,6 +138,10 @@ open class QuerySchemaResolverBenchmark {
         ),
     )
     private val eventProjection = Projection(include = listOf(eventSecretField.value))
+    private val aggregationQuery = AggregationQuery(
+        groupBy = listOf(AggregationGroup.Terms(aggregatableField, "category")),
+        metrics = listOf(AggregationMetric.Count("count")),
+    )
     private val query = SingleQuery(MatchAllFilter)
     private val compositeFilterQuery = SingleQuery(
         AndFilter(
@@ -158,6 +176,11 @@ open class QuerySchemaResolverBenchmark {
     @Benchmark
     fun resolveEventProjection(blackhole: Blackhole) {
         blackhole.consume(eventProjectionResolver.resolve(eventProjection))
+    }
+
+    @Benchmark
+    fun resolveAggregation(blackhole: Blackhole) {
+        blackhole.consume(resolver.resolve(aggregationQuery))
     }
 
     private fun maskedFieldSchema(): QueryFieldSchema {

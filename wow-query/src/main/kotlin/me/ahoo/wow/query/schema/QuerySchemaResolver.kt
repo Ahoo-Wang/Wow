@@ -311,15 +311,24 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     ).let { resolved ->
         val logicalCandidate = resolved.logical.value
         val physicalCandidate = resolved.physicalPath ?: logicalCandidate
-        val matchesMaskedCandidate = maskedAggregationPaths.any { maskedPath ->
-            logicalCandidate == maskedPath || logicalCandidate.startsWith("$maskedPath.") ||
-                physicalCandidate == maskedPath || physicalCandidate.startsWith("$maskedPath.")
-        }
+        val matchesMaskedCandidate = isMaskedAggregationCandidate(logicalCandidate) ||
+            physicalCandidate != logicalCandidate && isMaskedAggregationCandidate(physicalCandidate)
         if (resolved.fieldSchema?.maskRule == null && !matchesMaskedCandidate) {
             resolved
         } else {
             resolved.copy(compatibility = QueryCompatibilityLevel.INCOMPATIBLE)
         }
+    }
+
+    private fun isMaskedAggregationCandidate(path: String): Boolean {
+        if (maskedAggregationPaths.isEmpty()) return false
+        if (path in maskedAggregationPaths) return true
+        var separator = path.lastIndexOf('.')
+        while (separator > 0) {
+            if (path.substring(0, separator) in maskedAggregationPaths) return true
+            separator = path.lastIndexOf('.', separator - 1)
+        }
+        return false
     }
 
     private fun QueryFieldResolution.matchesMaskedCandidate(): Boolean {
