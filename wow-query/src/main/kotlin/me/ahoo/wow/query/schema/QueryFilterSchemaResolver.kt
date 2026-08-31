@@ -214,11 +214,11 @@ internal class QueryFilterSchemaResolver(
         val value = if (container.physicalPath == null) {
             filter
         } else {
-            ElementMatchFilter(LogicalField(container.value), predicate.value)
+            ElementMatchFilter(fieldResolver.resolveLogicalField(container.value), predicate.value)
         }
         return QuerySchemaResolution(
             value,
-            listOf(container.compatibility, predicate.compatibility).combined(),
+            maxOf(container.compatibility, predicate.compatibility),
         )
     }
 
@@ -245,7 +245,7 @@ internal class QueryFilterSchemaResolver(
         }
         if (fields.all { it.compatibility == QueryCompatibilityLevel.EXACT }) {
             return QuerySchemaResolution(
-                filter.copy(fields = fields.mapTo(linkedSetOf()) { LogicalField(it.value) }),
+                filter.copy(fields = fields.mapTo(linkedSetOf()) { fieldResolver.resolveLogicalField(it.value) }),
                 QueryCompatibilityLevel.EXACT,
             )
         }
@@ -281,8 +281,8 @@ internal class QueryFilterSchemaResolver(
     ): QuerySchemaResolution<FilterExpression> {
         val resolved = fieldResolver.resolve(field, capability, logicalParent, physicalParent)
         return QuerySchemaResolution(
-            copy(LogicalField(resolved.value)),
-            listOf(resolved.compatibility, resolved.valueCompatibility(values)).combined(),
+            copy(fieldResolver.resolveLogicalField(resolved.value)),
+            maxOf(resolved.compatibility, resolved.valueCompatibility(values)),
         )
     }
 
@@ -300,12 +300,12 @@ internal class QueryFilterSchemaResolver(
         } else {
             QueryCompatibilityLevel.EXACT
         }
-        val compatibility = listOf(
+        val compatibility = maxOf(
             resolved.compatibility,
             cardinality,
             resolved.valueCompatibility(values),
-        ).combined()
-        return QuerySchemaResolution(copy(LogicalField(resolved.value)), compatibility)
+        )
+        return QuerySchemaResolution(copy(fieldResolver.resolveLogicalField(resolved.value)), compatibility)
     }
 
     private inline fun resolveStringFieldFilter(
@@ -321,11 +321,8 @@ internal class QueryFilterSchemaResolver(
                 resolved.fieldSchema.valueTypes == setOf(QueryValueType.STRING) -> QueryCompatibilityLevel.EXACT
             else -> QueryCompatibilityLevel.INCOMPATIBLE
         }
-        val compatibility = listOf(
-            resolved.compatibility,
-            stringField,
-        ).combined()
-        return QuerySchemaResolution(copy(LogicalField(resolved.value)), compatibility)
+        val compatibility = maxOf(resolved.compatibility, stringField)
+        return QuerySchemaResolution(copy(fieldResolver.resolveLogicalField(resolved.value)), compatibility)
     }
 
     private fun resolveRelativeTime(
@@ -340,7 +337,7 @@ internal class QueryFilterSchemaResolver(
         if (filter.dateFormatter != null) {
             return QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE)
         }
-        val physicalField = LogicalField(resolved.value)
+        val physicalField = fieldResolver.resolveLogicalField(resolved.value)
         val configured = when (val temporal = resolved.fieldSchema?.semanticType) {
             is Temporal.Epoch -> {
                 if (filter.datePattern != null) {
