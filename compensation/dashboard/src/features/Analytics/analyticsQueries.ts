@@ -273,6 +273,7 @@ export function createSnapshotSummaryQueries(
   | "actionableNow"
   | "activeTotal"
   | "newerThanRange"
+  | "olderThanRange"
   | "selectedInRange"
   | "timedOut"
   | "unrecoverable",
@@ -301,6 +302,16 @@ export function createSnapshotSummaryQueries(
         filter.gte(
           ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
           window.end,
+        ),
+        activeFilter,
+      ]),
+      metrics: [countMetric()],
+    },
+    olderThanRange: {
+      filter: filter.and([
+        filter.lt(
+          ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
+          window.start,
         ),
         activeFilter,
       ]),
