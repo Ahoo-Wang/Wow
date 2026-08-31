@@ -19,11 +19,11 @@ V9.0.x 为查询条件提供明确的迁移窗口：保留已弃用的 `Conditio
 | `listQuery` / `pagedQuery` / `singleQuery` / `cursorQuery` 的 `{ condition { ... } }` | 同一 query builder 中改用 `filter { ... }` | 在 query builder 内调用 `filterExpression { ... }` 只会创建并丢弃一个独立值 |
 | Condition block 内的 `condition(existingCondition)` | `expression(existingFilter)` | 已弃用的 `existingCondition.toFilterExpression()` 适配器仅在 9.0.x 保留；query builder 应改用 `filter(existingFilter)` |
 | `all()` | `matchAll()` | V9 还提供 `matchNone()` |
-| `and { ... }` / `or { ... }` / `nor { ... }` | 调用不变 | V9 逻辑块不能为空 |
+| `and { ... }` / `or { ... }` / `nor { ... }` | 至少生成一个条件时调用不变 | 条件是动态生成的时，把 guard 移到整个逻辑块外；无条件时省略该块，插入 `matchAll()` 会改变 `or`/`nor` 语义 |
 | `id(value)`、`ids(values)`、`aggregateId(value)`、`aggregateIds(values)`、`tenantId(value)`、`ownerId(value)`、`spaceId(value)` | 调用不变 | `ids` 或 `aggregateIds` 为空时改用 `matchNone()`；`SpaceId` 原本就是 `String` typealias，V9 直接接收字符串值 |
 | `deleted(state)` | `deletion(state)` | `DeletionState` 不变 |
 | `field nested { ... }` | 仅在需要 AND 分组时使用 `field.path { ... }` | V8 会把 nested 子条件展平到外围逻辑块；V9 `path` 会把多个子条件组成隐式 AND |
-| `field eq value`、`ne`、`gt`、`gte`、`lt`、`lte` | `String` 字段上的同名 infix 调用 | `KCallable` 重载已删除，改用逻辑字段字符串 |
+| `field eq value`、`ne`、`gt`、`gte`、`lt`、`lte` | scalar value 使用同名 infix 调用 | `KCallable` 重载已删除；结构化 JVM equality 使用下述显式 expression |
 | `field.contains(value, ignoreCase)` | `field.containsText(value, StringComparison.CASE_*)` | 显式选择 `CASE_SENSITIVE` 或 `CASE_INSENSITIVE` |
 | `field startsWith value` / `field endsWith value` | `field.startsWithText(value)` / `field.endsWithText(value)` | V9 文本 helper 不是 infix；忽略大小写时传入 `StringComparison` |
 | `field isIn values` / `field notIn values` | 同名 infix 调用 | V9 只接受非空 `Iterable<*>`；空 `isIn` 映射为 `matchNone()`，空 `notIn` 映射为 `matchAll()` |
@@ -42,7 +42,40 @@ V9.0.x 为查询条件提供明确的迁移窗口：保留已弃用的 `Conditio
 
 `ConditionDsl.nested` 会把子条件展平到外围逻辑块。根级、`and` 内或只有一个子条件时可以直接改为 `path`；在 `or` 或 `nor` 内，应把带完整前缀的子条件作为同级 operand 保留。例如，把 `or { "state" nested { "a" eq 1; "b" eq 2 } }` 改为 `or { "state.a" eq 1; "state.b" eq 2 }`，不能改成一个 `"state".path { ... }` operand。
 
+逻辑块按条件动态填充时，把相同 guard 移到整个 block invocation 外，让空块像 V8 一样被省略。例如：`if (includeName || includeStatus) { or { if (includeName) "name" eq name; if (includeStatus) "status" eq status } }`。不要在空 `or` 或 `nor` 中插入 `matchAll()`。
+
 V9 集合过滤器会在构造时拒绝空值。请在 DSL 内用普通 Kotlin 分支保留 V8 语义：`if (ids.isEmpty()) matchNone() else ids(ids)`、`if (values.isEmpty()) matchNone() else "field" isIn values`，以及 `if (excluded.isEmpty()) matchAll() else "field" notIn excluded`。
+
+`FilterDsl` 会把任意 Kotlin object 或 map 序列化为 JSON object，而规范 `EQ`/`NE` 会拒绝它。scalar 与 scalar array equality 继续使用 DSL。若要保留 V8 进程内 POJO/map equality，请显式构造 `EqualFilter` 或 `NotEqualFilter`，传入 `LogicalField(field)` 与 `JsonNodeFactory.instance.pojoNode(value)`。该运行时 `POJONode` 形式不能作为规范 REST payload；V9 REST equality 只支持 JSON scalar。
+
+V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 relative-time filter，并使用 named `dateFormatter` 属性，例如 `TodayFilter(LogicalField(field), dateFormatter = formatter)` 或 `RecentDaysFilter(LogicalField(field), days, dateFormatter = formatter)`。`BeforeTodayFilter` 还需要 `time = localTime.toString()`。`dateFormatter` 只用于 JVM 且不会进入 wire；规范 REST 使用 `datePattern`。
+
+### Condition JVM 直接迁移
+
+`Condition`、`ICondition`、`Operator` 与通用 `ConditionOptions` map 只在 9.0.x 兼容窗口保留。请迁移到封闭的 `FilterExpression` 类型层级；下游不能新增 `FilterExpression` subtype。自定义 `ICondition` 若只表达内建 operator，应转换为对应内建 expression；真正自定义的查询语义应迁移到 request `QueryFilter` 或实际选中的 Backend，不要扩展规范 wire AST。
+
+`FilterOperator` 是具体 expression 暴露的 metadata，不是通用 constructor selector。删除根据 operator/options tuple 构造或解释一个通用 condition 的代码，改为读取 typed property：`DeletionFilter.deletionState`、文本 filter 的 `stringComparison`、relative-time 的 `zoneId`/`datePattern`/`dateFormatter`/`timeUnit`，以及各具体 expression 的 `value`、`values`、`operands`、`predicate`、`query` 或 `fields`。
+
+| V8 JVM surface | V9 规范 JVM surface |
+| --- | --- |
+| `Condition(...)` / 带 `field`、`operator`、`value`、`children`、`options` 的自定义 `ICondition` | 按下表构造具体 `FilterExpression`；不再有通用 condition constructor 或自定义 expression subtype |
+| `Operator` | `FilterOperator`；主要重命名为 `ALL → MATCH_ALL`、`DELETED → DELETION`、`ALL_IN → CONTAINS_ALL`、`ELEM_MATCH → ELEMENT_MATCH`、`NULL → IS_NULL`、`NOT_NULL → IS_NOT_NULL`、`MATCH → SEARCH`；`TRUE`/`FALSE` 改为 Boolean `EQ` |
+| `ConditionOptions`、option key 常量、`ignoreCaseOptions`、`datePatternOptions` | typed property：`stringComparison`、`zoneId`、`datePattern`、`dateFormatter`、`timeUnit` |
+| `valueAs`、`deletionState`、`ignoreCase`、`zoneId`、`datePattern` getter | 按具体 expression 类型分支并读取其 typed property |
+| `Condition.ALL` / `all()` | `MatchAllFilter` |
+| `Condition.ACTIVE` / `active()` / `deleted(false)` | `DeletionFilter(DeletionState.ACTIVE)` |
+| `deleted(true)` / `deleted(state)` | `DeletionFilter(DeletionState.DELETED)` / `DeletionFilter(state)` |
+| `and`、`or`、`nor` | 使用非空 operand list 的 `AndFilter`、`OrFilter`、`NorFilter` |
+| `id`、`ids`、`aggregateId`、`aggregateIds`、`tenantId`、`ownerId`、`spaceId` | `IdFilter`、`IdsFilter`、`AggregateIdFilter`、`AggregateIdsFilter`、`TenantIdFilter`、`OwnerIdFilter`、`SpaceIdFilter`；保留上文记录的空 list 分支 |
+| `eq`、`ne` | `EqualFilter`、`NotEqualFilter`；使用 scalar `JsonNode`、scalar array，或上文 JVM-only `POJONode` 迁移 |
+| `gt`、`gte`、`lt`、`lte` | `GreaterThanFilter`、`GreaterThanOrEqualFilter`、`LessThanFilter`、`LessThanOrEqualFilter` |
+| `contains`、`startsWith`、`endsWith` | 带显式 `StringComparison` 的 `ContainsFilter`、`StartsWithFilter`、`EndsWithFilter` |
+| `isIn`、`notIn`、`between`、集合 `all` | `InFilter`、`NotInFilter`、`BetweenFilter`、`ContainsAllFilter` |
+| `match(field, query)` | `SearchFilter(query, setOf(LogicalField(field)), SearchMode.TERMS)` |
+| `elemMatch(field, condition)` | `ElementMatchFilter(LogicalField(field), predicate)`；多个 child predicate 用非空 `AndFilter` 组合 |
+| `isNull`、`notNull`、`isTrue`、`isFalse`、`exists(true)`、`exists(false)` | `IsNullFilter(LogicalField(field))`、`IsNotNullFilter(LogicalField(field))`、`filterExpression { field eq true }`、`filterExpression { field eq false }`、`ExistsFilter(LogicalField(field))`、`NotExistsFilter(LogicalField(field))` |
+| `today`、`beforeToday`、`tomorrow`、week/month、`recentDays`、`earlierDays` | 对应 `TodayFilter`、`BeforeTodayFilter`、`TomorrowFilter`、`ThisWeekFilter`、`NextWeekFilter`、`LastWeekFilter`、`ThisMonthFilter`、`LastMonthFilter`、`RecentDaysFilter`、`EarlierDaysFilter`；使用 typed constructor property 与上文 formatter 边界 |
+| `condition.toFilterExpression()` | 仅用于 9.0.x 过渡；9.1.0 前把保存或公开的 `Condition` 值改为具体 expression |
 
 数据查询的 HTTP 请求/结果 envelope、Backend wire tree、存储布局和既有数据不因这次 JVM 重构或静态注解 Mask 改变。Query Schema HTTP 元数据及其生成的 OpenAPI component 会变化：每个字段新增 `masked: Boolean`。无需迁移存储数据，Backend 与存储中的原值也不会被改写。把原 Mask 配置迁移到字段注解后，受管 Gateway 会恢复响应的保密语义。
 
