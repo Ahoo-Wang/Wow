@@ -19,11 +19,11 @@ V9.0.x provides an explicit query-condition migration window: deprecated `Condit
 | `listQuery` / `pagedQuery` / `singleQuery` / `cursorQuery` `{ condition { ... } }` | The same query builder with `filter { ... }` | Calling `filterExpression { ... }` inside a query builder creates and discards a standalone value |
 | `condition(existingCondition)` inside a Condition block | `expression(existingFilter)` | The deprecated `existingCondition.toFilterExpression()` adapter is available only through 9.0.x; a query builder instead uses `filter(existingFilter)` |
 | `all()` | `matchAll()` | `matchNone()` is also available in V9 |
-| `and { ... }` / `or { ... }` / `nor { ... }` | Same calls | V9 logical blocks must not be empty |
+| `and { ... }` / `or { ... }` / `nor { ... }` | Same calls when at least one predicate is emitted | If predicates are conditional, guard the whole logical-block call and omit it when none apply; inserting `matchAll()` changes `or`/`nor` semantics |
 | `id(value)`, `ids(values)`, `aggregateId(value)`, `aggregateIds(values)`, `tenantId(value)`, `ownerId(value)`, `spaceId(value)` | Same calls | For empty `ids` or `aggregateIds`, call `matchNone()` instead; `SpaceId` was a `String` type alias, so V9 accepts the string value directly |
 | `deleted(state)` | `deletion(state)` | `DeletionState` is unchanged |
 | `field nested { ... }` | `field.path { ... }` only when AND grouping is intended | V8 flattens nested children into the surrounding block; V9 `path` groups multiple children with implicit AND |
-| `field eq value`, `ne`, `gt`, `gte`, `lt`, `lte` | Same infix calls on `String` fields | `KCallable` overloads are removed; use the logical field string |
+| `field eq value`, `ne`, `gt`, `gte`, `lt`, `lte` | Same infix calls for scalar values | `KCallable` overloads are removed; structured JVM equality needs the explicit expression described below |
 | `field.contains(value, ignoreCase)` | `field.containsText(value, StringComparison.CASE_*)` | Select `CASE_SENSITIVE` or `CASE_INSENSITIVE` explicitly |
 | `field startsWith value` / `field endsWith value` | `field.startsWithText(value)` / `field.endsWithText(value)` | The V9 text helpers are not infix; pass `StringComparison` when case-insensitive |
 | `field isIn values` / `field notIn values` | Same infix calls | V9 accepts non-empty `Iterable<*>`; map empty `isIn` to `matchNone()` and empty `notIn` to `matchAll()` |
@@ -42,7 +42,40 @@ Remove property-reference wrappers instead of recreating the deleted `KCallable`
 
 `ConditionDsl.nested` flattened its child predicates into the surrounding logical block. A direct `path` replacement is equivalent at the root, inside `and`, or for one child. Inside `or` or `nor`, keep the predicates as separate operands by writing their qualified paths at that same level; for example, migrate `or { "state" nested { "a" eq 1; "b" eq 2 } }` to `or { "state.a" eq 1; "state.b" eq 2 }`, not to one `"state".path { ... }` operand.
 
+When a logical block is populated conditionally, move the same guard around the block invocation so an empty block is omitted, as V8 did. For example, use `if (includeName || includeStatus) { or { if (includeName) "name" eq name; if (includeStatus) "status" eq status } }`. Do not put `matchAll()` into an empty `or` or `nor`.
+
 V9 collection filters reject empty values at construction time. Preserve V8 semantics with ordinary Kotlin branches inside the DSL: `if (ids.isEmpty()) matchNone() else ids(ids)`, `if (values.isEmpty()) matchNone() else "field" isIn values`, and `if (excluded.isEmpty()) matchAll() else "field" notIn excluded`.
+
+`FilterDsl` serializes arbitrary Kotlin objects and maps as JSON objects, which canonical `EQ`/`NE` reject. Scalar and scalar-array equality keeps the DSL form. To preserve a V8 in-process POJO/map equality comparison, construct `EqualFilter` or `NotEqualFilter` explicitly with `LogicalField(field)` and `JsonNodeFactory.instance.pojoNode(value)`. This runtime-only `POJONode` form is not a canonical REST payload; V9 REST equality supports JSON scalars only.
+
+When V8 passes a `DateTimeFormatter` rather than a pattern string, use the matching relative-time filter class directly with its named `dateFormatter` property, for example `TodayFilter(LogicalField(field), dateFormatter = formatter)` or `RecentDaysFilter(LogicalField(field), days, dateFormatter = formatter)`. `BeforeTodayFilter` additionally takes `time = localTime.toString()`. `dateFormatter` is JVM-only and ignored on the wire; canonical REST uses `datePattern`.
+
+### Direct Condition JVM Migration
+
+`Condition`, `ICondition`, `Operator`, and the generic `ConditionOptions` map are compatibility APIs only through 9.0.x. Replace them with the closed `FilterExpression` hierarchy; downstream code cannot add another `FilterExpression` subtype. If a custom `ICondition` only models built-in operators, translate it to the corresponding built-in expression. Move genuinely custom query semantics to a request `QueryFilter` or the selected Backend rather than extending the canonical wire AST.
+
+`FilterOperator` is metadata exposed by a concrete expression, not a selector for a generic constructor. Remove code that builds or interprets one generic condition from an operator/options tuple. Inspect typed properties instead: `DeletionFilter.deletionState`, text-filter `stringComparison`, relative-time `zoneId`/`datePattern`/`dateFormatter`/`timeUnit`, and each concrete expression's `value`, `values`, `operands`, `predicate`, `query`, or `fields` property.
+
+| V8 JVM surface | V9 canonical JVM surface |
+| --- | --- |
+| `Condition(...)` / custom `ICondition` with `field`, `operator`, `value`, `children`, `options` | Construct the concrete `FilterExpression` below; no generic condition constructor or custom expression subtype |
+| `Operator` | `FilterOperator`; notable renames are `ALL → MATCH_ALL`, `DELETED → DELETION`, `ALL_IN → CONTAINS_ALL`, `ELEM_MATCH → ELEMENT_MATCH`, `NULL → IS_NULL`, `NOT_NULL → IS_NOT_NULL`, and `MATCH → SEARCH`; `TRUE`/`FALSE` become `EQ` Boolean values |
+| `ConditionOptions`, option-key constants, `ignoreCaseOptions`, `datePatternOptions` | Typed properties: `stringComparison`, `zoneId`, `datePattern`, `dateFormatter`, and `timeUnit` |
+| `valueAs`, `deletionState`, `ignoreCase`, `zoneId`, `datePattern` inspectors | Pattern-match the concrete expression and read its typed property |
+| `Condition.ALL` / `all()` | `MatchAllFilter` |
+| `Condition.ACTIVE` / `active()` / `deleted(false)` | `DeletionFilter(DeletionState.ACTIVE)` |
+| `deleted(true)` / `deleted(state)` | `DeletionFilter(DeletionState.DELETED)` / `DeletionFilter(state)` |
+| `and`, `or`, `nor` | `AndFilter`, `OrFilter`, `NorFilter` with non-empty operand lists |
+| `id`, `ids`, `aggregateId`, `aggregateIds`, `tenantId`, `ownerId`, `spaceId` | `IdFilter`, `IdsFilter`, `AggregateIdFilter`, `AggregateIdsFilter`, `TenantIdFilter`, `OwnerIdFilter`, `SpaceIdFilter`; preserve the empty-list branches documented above |
+| `eq`, `ne` | `EqualFilter`, `NotEqualFilter`; use scalar `JsonNode` values, scalar arrays, or the JVM-only `POJONode` migration described above |
+| `gt`, `gte`, `lt`, `lte` | `GreaterThanFilter`, `GreaterThanOrEqualFilter`, `LessThanFilter`, `LessThanOrEqualFilter` |
+| `contains`, `startsWith`, `endsWith` | `ContainsFilter`, `StartsWithFilter`, `EndsWithFilter` with explicit `StringComparison` |
+| `isIn`, `notIn`, `between`, collection `all` | `InFilter`, `NotInFilter`, `BetweenFilter`, `ContainsAllFilter` |
+| `match(field, query)` | `SearchFilter(query, setOf(LogicalField(field)), SearchMode.TERMS)` |
+| `elemMatch(field, condition)` | `ElementMatchFilter(LogicalField(field), predicate)`; combine multiple child predicates with a non-empty `AndFilter` |
+| `isNull`, `notNull`, `isTrue`, `isFalse`, `exists(true)`, `exists(false)` | `IsNullFilter(LogicalField(field))`, `IsNotNullFilter(LogicalField(field))`, `filterExpression { field eq true }`, `filterExpression { field eq false }`, `ExistsFilter(LogicalField(field))`, `NotExistsFilter(LogicalField(field))` |
+| `today`, `beforeToday`, `tomorrow`, week/month, `recentDays`, `earlierDays` | Matching `TodayFilter`, `BeforeTodayFilter`, `TomorrowFilter`, `ThisWeekFilter`, `NextWeekFilter`, `LastWeekFilter`, `ThisMonthFilter`, `LastMonthFilter`, `RecentDaysFilter`, `EarlierDaysFilter`; use typed constructor properties and the formatter boundary above |
+| `condition.toFilterExpression()` | Transitional 9.0.x adapter only; replace stored/public `Condition` values with their concrete expression before 9.1.0 |
 
 Data-query HTTP request and result envelopes, Backend wire trees, storage layouts, and existing data do not change because of this JVM refactor or static-annotation masking. Query Schema HTTP metadata and its generated OpenAPI component do change: each field adds `masked: Boolean`. No storage-data migration is required, and raw values in the Backend and storage are not rewritten. After old mask rules move to field annotations, the managed Gateway restores response confidentiality semantics.
 
