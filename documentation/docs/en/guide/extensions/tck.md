@@ -17,7 +17,7 @@ testImplementation("me.ahoo.wow:wow-tck")
 
 Container-backed adapters normally place specifications in an `integrationTest` source set and use TCK Kafka, Mongo, Redis, or Elasticsearch Testcontainers fixtures. Missing Docker, image-pull failure, or backend-readiness failure must fail integration testing rather than being reported as compatibility.
 
-Published specifications include `CommandBusSpec`, `DomainEventBusSpec`, `StateEventBusSpec`, `EventStoreSpec`, `SnapshotStoreSpec`, `PrepareKeySpec`, both query-service specs, and dispatcher/repository/modeling specs.
+Published specifications include `CommandBusSpec`, `DomainEventBusSpec`, `StateEventBusSpec`, `EventStoreSpec`, `SnapshotStoreSpec`, `PrepareKeySpec`, `SnapshotQueryBackendSpec` and `EventStreamQueryBackendSpec`, and dispatcher/repository/modeling specs.
 
 ## Redis Extension Example
 

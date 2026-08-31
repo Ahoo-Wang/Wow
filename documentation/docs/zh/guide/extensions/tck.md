@@ -17,7 +17,7 @@ testImplementation("me.ahoo.wow:wow-tck")
 
 容器型 adapter 通常把规格放在 `integrationTest` source set，并使用 TCK 的 Kafka、Mongo、Redis 或 Elasticsearch Testcontainers fixture。Docker 不可用、镜像拉取失败或 backend readiness 失败会使集成测试失败，不应被跳过后报告为兼容。
 
-当前公开规格包括 `CommandBusSpec`、`DomainEventBusSpec`、`StateEventBusSpec`、`EventStoreSpec`、`SnapshotStoreSpec`、`PrepareKeySpec`、两个 query service spec，以及 dispatcher/repository/modeling 规格。
+当前公开规格包括 `CommandBusSpec`、`DomainEventBusSpec`、`StateEventBusSpec`、`EventStoreSpec`、`SnapshotStoreSpec`、`PrepareKeySpec`、`SnapshotQueryBackendSpec` 与 `EventStreamQueryBackendSpec`，以及 dispatcher/repository/modeling 规格。
 
 ## Redis 扩展案例
 

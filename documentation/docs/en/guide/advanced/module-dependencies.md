@@ -16,12 +16,12 @@ This page answers two questions: which module owns code, and which capability an
 | `wow-core` | CommandGateway, dispatchers, EventStore interfaces, event sourcing, projections, sagas, wait chains | Non-Spring runtime or domain implementation |
 | `wow-query` | Query models, schema resolution, snapshot/event query interfaces | Query extensions |
 | `wow-models` | Repository shared models and KSP-generated examples | Consumers of those shared models |
-| `wow-spring` | Spring container bridge and query-service registration | Custom Spring integration |
+| `wow-spring` | Spring container bridge and Query Gateway registration | Custom Spring integration |
 | `wow-spring-boot-starter` | Core auto-configuration and optional feature variants | Spring Boot services |
 | `wow-kafka` | Kafka Command/DomainEvent/StateEvent buses | Kafka without the Starter |
-| `wow-mongo` | Mongo EventStore, SnapshotStore, PrepareKey, and query services | Mongo without the Starter |
+| `wow-mongo` | Mongo EventStore, SnapshotStore, PrepareKey, and query backends | Mongo without the Starter |
 | `wow-redis` | Redis buses, EventStore, SnapshotStore, and PrepareKey | Redis without the Starter |
-| `wow-elasticsearch` | Elasticsearch EventStore, SnapshotStore, and query services | Elasticsearch without the Starter |
+| `wow-elasticsearch` | Elasticsearch EventStore, SnapshotStore, and query backends | Elasticsearch without the Starter |
 | `wow-webflux` | Built-in command, event, state, query, and operation route handlers | WebFlux without the Starter |
 | `wow-opentelemetry` | OpenTelemetry instrumenters for Wow flows | Tracing without the Starter |
 | `wow-cosec` | CoSec request-context propagation and query-space rewriting | Applications already using CoSec |
@@ -108,7 +108,7 @@ Representative types include `CommandMessage`, `DomainEvent`, `AggregateId`, `Na
 
 #### wow-spring
 
-`wow-spring` exposes `wow-core`, uses `wow-query` as an implementation dependency, and owns the Spring `ApplicationContext` bridge and query-service registration. It does not select storage or messaging implementations.
+`wow-spring` exposes `wow-core`, uses `wow-query` as an implementation dependency, and owns the Spring `ApplicationContext` bridge and Query Gateway registration. It does not select storage or messaging implementations.
 
 #### wow-spring-boot-starter
 

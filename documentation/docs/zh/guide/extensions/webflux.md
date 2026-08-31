@@ -61,7 +61,7 @@ wow:
       idle-timeout: 10s
 ```
 
-数值上限为 `0` 时关闭对应 HTTP guard；`idle-timeout=0s` 关闭 idle timeout。不要复制后端已负责的字段类型、mapping 或唯一性校验。`HttpQueryGuardFilter` 只保护带 WebFlux request context 的 HTTP 查询，程序内查询保持公共 service 行为。
+数值上限为 `0` 时关闭对应 HTTP guard；`idle-timeout=0s` 关闭 idle timeout。不要复制后端已负责的字段类型、mapping 或唯一性校验。`HttpQueryGuardFilter` 只保护带 WebFlux request context 的 HTTP 查询，程序内 `QueryGateway` 调用保持既有公共行为。
 
 ## 聚合查询路由
 

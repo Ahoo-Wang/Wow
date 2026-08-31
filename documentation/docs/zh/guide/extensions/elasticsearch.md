@@ -5,7 +5,7 @@ description: 使用 Elasticsearch 承载事件流、快照和后端感知查询�
 
 # Elasticsearch
 
-`wow-elasticsearch` 实现 Elasticsearch `EventStore`、`SnapshotStore` 以及事件流/快照查询服务。适合已经运维 Elasticsearch，且读侧需要全文、聚合或大批量游标查询的场景；不要仅为事件持久化而引入搜索集群。
+`wow-elasticsearch` 实现 Elasticsearch `EventStore`、`SnapshotStore` 以及事件流/快照查询后端。适合已经运维 Elasticsearch，且读侧需要全文、聚合或大批量游标查询的场景；不要仅为事件持久化而引入搜索集群。
 
 ## 架构概述
 

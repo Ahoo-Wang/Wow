@@ -116,9 +116,9 @@ Configuration class: `EventStoreProperties`; prefix: `wow.eventsourcing.store`.
 
 | Value | Implementation source | Notes |
 | --- | --- | --- |
-| `mongo` | `mongo-support` | MongoDB EventStore / SnapshotStore / query services |
+| `mongo` | `mongo-support` | MongoDB EventStore / SnapshotStore / query backends |
 | `redis` | `redis-support` | Redis EventStore / SnapshotStore; no general dynamic query implementation |
-| `elasticsearch` | `elasticsearch-support` | Elasticsearch EventStore / SnapshotStore / query services |
+| `elasticsearch` | `elasticsearch-support` | Elasticsearch EventStore / SnapshotStore / query backends |
 | `in_memory` | Base Starter | Lost at process exit |
 | `delay` | `mock-support` | Delayed test implementation, not a production backend |
 

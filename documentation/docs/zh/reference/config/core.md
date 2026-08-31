@@ -116,9 +116,9 @@ wow:
 
 | 值 | 实现来源 | 说明 |
 | --- | --- | --- |
-| `mongo` | `mongo-support` | MongoDB EventStore / SnapshotStore / 查询服务 |
+| `mongo` | `mongo-support` | MongoDB EventStore / SnapshotStore / 查询后端 |
 | `redis` | `redis-support` | Redis EventStore / SnapshotStore；无通用动态查询实现 |
-| `elasticsearch` | `elasticsearch-support` | Elasticsearch EventStore / SnapshotStore / 查询服务 |
+| `elasticsearch` | `elasticsearch-support` | Elasticsearch EventStore / SnapshotStore / 查询后端 |
 | `in_memory` | 基础 Starter | 进程退出即丢失 |
 | `delay` | `mock-support` | 延迟测试实现，不是生产后端 |
 
