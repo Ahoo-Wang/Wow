@@ -203,6 +203,37 @@ class DefaultEventStreamQueryGatewayTest {
     }
 
     @Test
+    fun `dynamic event gateway should clean body type excluded through an alias`() {
+        val eventStream = generateEventStream(
+            MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId()),
+            eventCount = 1,
+            createdEventSupplier = { MockAggregateCreated("secret") },
+        )
+        val raw = eventStream.toJsonNode<ObjectNode>()
+        val bodyType = raw.path("body").path(0).path("bodyType").stringValue()
+        val schema = eventSchema(bodyType).let {
+            it.copy(
+                fields = it.fields + mapOf(
+                    LogicalField("eventTypeAlias") to fieldSchema(projectionPath = "body.bodyType"),
+                ),
+            )
+        }
+        val gateway = DefaultEventStreamQueryGateway(
+            MOCK_AGGREGATE_METADATA,
+            SchemaEventBackend(eventStream::toJsonNode, schema),
+            errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+        )
+
+        val result = gateway.dynamicSingle(
+            singleQuery {
+                projection { exclude("eventTypeAlias") }
+            },
+        ).block()!!
+
+        result.path("body").path(0).has("bodyType").assert().isFalse()
+    }
+
+    @Test
     fun `event gateway should refresh masker when body type schema changes`() {
         val eventStream = generateEventStream(
             MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId()),
@@ -305,6 +336,7 @@ class DefaultEventStreamQueryGatewayTest {
         fun fieldSchema(
             enumValues: List<tools.jackson.databind.JsonNode>? = null,
             maskRule: MaskRule? = null,
+            projectionPath: String? = null,
         ) = QueryFieldSchema(
             title = null,
             description = null,
@@ -316,6 +348,7 @@ class DefaultEventStreamQueryGatewayTest {
             semanticType = null,
             dynamicChildren = false,
             bindings = emptyMap(),
+            projectionPath = projectionPath,
             maskRule = maskRule,
         )
     }

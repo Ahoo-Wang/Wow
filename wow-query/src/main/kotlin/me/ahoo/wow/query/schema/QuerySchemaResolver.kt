@@ -23,7 +23,9 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.FORBIDDEN_CURSOR_SORTS
+import me.ahoo.wow.query.mask.EVENT_BODY_TYPE_PATH
 import me.ahoo.wow.query.mask.hasUnrestorableInternalEventBodyTypeExclusion
+import me.ahoo.wow.query.mask.requiresInternalEventBodyType
 import me.ahoo.wow.query.mask.withInternalEventBodyType
 
 enum class QuerySchemaValidationMode {
@@ -108,29 +110,51 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
 
     fun resolve(projection: Projection): QuerySchemaResolution<Projection> {
         val maskedEventProjection = schema.model == QueryModel.EVENT_STREAM && schema.hasMaskedFields
-        val effectiveProjection = if (maskedEventProjection) {
-            projection.withInternalEventBodyType()
+        val include = projection.include.map {
+            fieldResolver.resolveProjectionPath(it)
+        }
+        val exclude = projection.exclude.map {
+            fieldResolver.resolveProjectionPath(it)
+        }
+        val resolvedProjection = Projection(
+            include.map { it.value },
+            exclude.map { it.value },
+        )
+        val compatibility = (include + exclude).map { it.compatibility }
+        if (!maskedEventProjection) {
+            return QuerySchemaResolution(resolvedProjection, compatibility.combined())
+        }
+        val bodyType = fieldResolver.resolveProjectionPath(EVENT_BODY_TYPE_PATH)
+        val internalBodyType = resolvedProjection.requiresInternalEventBodyType(
+            bodyType.value,
+        )
+        val effectiveProjection = if (internalBodyType) {
+            resolvedProjection.withInternalEventBodyType(bodyType.value)
         } else {
-            projection
-        }
-        val include = effectiveProjection.include.map {
-            fieldResolver.resolveProjectionPath(it)
-        }
-        val exclude = effectiveProjection.exclude.map {
-            fieldResolver.resolveProjectionPath(it)
+            resolvedProjection
         }
         return QuerySchemaResolution(
-            Projection(
-                include.map { it.value },
-                exclude.map { it.value },
-            ),
+            effectiveProjection,
             buildList {
-                addAll((include + exclude).map { it.compatibility })
-                if (maskedEventProjection && projection.hasUnrestorableInternalEventBodyTypeExclusion()) {
+                addAll(compatibility)
+                if (internalBodyType) {
+                    add(bodyType.compatibility)
+                }
+                if (resolvedProjection.hasUnrestorableInternalEventBodyTypeExclusion(bodyType.value)) {
                     add(QueryCompatibilityLevel.INCOMPATIBLE)
                 }
             }.combined(),
         )
+    }
+
+    internal fun requiresInternalEventBodyType(projection: Projection): Boolean {
+        if (schema.model != QueryModel.EVENT_STREAM || !schema.hasMaskedFields) return false
+        val resolvedProjection = Projection(
+            include = projection.include.map { fieldResolver.resolveProjectionPath(it).value },
+            exclude = projection.exclude.map { fieldResolver.resolveProjectionPath(it).value },
+        )
+        val bodyTypePath = fieldResolver.resolveProjectionPath(EVENT_BODY_TYPE_PATH).value
+        return resolvedProjection.requiresInternalEventBodyType(bodyTypePath)
     }
 
     fun resolve(sort: List<Sort>): QuerySchemaResolution<List<Sort>> {

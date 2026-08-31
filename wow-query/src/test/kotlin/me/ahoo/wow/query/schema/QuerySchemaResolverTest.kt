@@ -1637,7 +1637,7 @@ class QuerySchemaResolverTest {
                         maskRule = fullMaskRule(),
                     ),
                     LogicalField("body.bodyType") to fieldSchema(
-                        QueryCapability.PRESENCE to "document.events.type",
+                        QueryCapability.PRESENCE to "body.bodyType",
                     ),
                 ),
             ),
@@ -1645,6 +1645,31 @@ class QuerySchemaResolverTest {
 
         resolver.resolve(Projection(exclude = listOf("body.bodyT*"))).compatibility.assert()
             .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `masked event projection should restore body type excluded through an alias`() {
+        val resolver = QuerySchemaResolver(
+            QueryModelSchema(
+                QueryModel.EVENT_STREAM,
+                emptySet(),
+                mapOf(
+                    LogicalField("body.body.secret") to fieldSchema(
+                        QueryCapability.PRESENCE to "body.body.secret",
+                        maskRule = fullMaskRule(),
+                    ),
+                    LogicalField("body.bodyType") to fieldSchema(
+                        QueryCapability.PRESENCE to "body.bodyType",
+                    ),
+                    LogicalField("eventTypeAlias") to fieldSchema(
+                        QueryCapability.PRESENCE to "body.bodyType",
+                    ),
+                ),
+            ),
+        )
+
+        resolver.resolve(Projection(exclude = listOf("eventTypeAlias"))).value.assert()
+            .isEqualTo(Projection.ALL)
     }
 
     private fun schema(
