@@ -78,6 +78,12 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     private val maskedAggregationPaths = schema.maskedFields.flatMapTo(linkedSetOf()) { (logical, field) ->
         listOfNotNull(logical.value, field.projectionPath) + field.bindings.values.map { it.physicalPath }
     }
+    private val maskedProjectionPaths = schema.maskedFields.values.mapNotNullTo(hashSetOf()) { field ->
+        field.projectionPath?.takeIf { it.isNotEmpty() }
+    }
+    private val maskedPhysicalPaths = schema.maskedFields.values.flatMapTo(hashSetOf()) { field ->
+        field.bindings.values.map { it.physicalPath }
+    }
 
     fun resolve(query: ISingleQuery): QuerySchemaResolution<ISingleQuery> {
         val filter = resolve(query.filter)
@@ -314,13 +320,9 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val logicalCandidate = logical.value
         val projectionCandidate = fieldSchema?.projectionPath
         val physicalCandidate = physicalPath ?: logicalCandidate
-        return schema.maskedFields.values.any { maskedField ->
-            val projectionPath = maskedField.projectionPath
-            val matchesProjection = !projectionPath.isNullOrEmpty() &&
-                (projectionPath == logicalCandidate || projectionPath == projectionCandidate)
-            matchesProjection ||
-                maskedField.bindings.values.any { binding -> binding.physicalPath == physicalCandidate }
-        }
+        return logicalCandidate in maskedProjectionPaths ||
+            projectionCandidate != null && projectionCandidate in maskedProjectionPaths ||
+            physicalCandidate in maskedPhysicalPaths
     }
 
     private val AggregationGroup.capability: QueryCapability

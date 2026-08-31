@@ -13,15 +13,19 @@
 
 package me.ahoo.wow.benchmark.query
 
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.MaskRule
+import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
@@ -52,12 +56,26 @@ private const val MASKED_FIELD_COUNT = 64
 @Fork(3)
 @Threads(1)
 open class QuerySchemaResolverBenchmark {
+    private val sortableField = LogicalField("state.createdAt")
     private val schema = QueryModelSchema(
         model = QueryModel.SNAPSHOT,
         capabilities = emptySet(),
-        fields = List(MASKED_FIELD_COUNT) { index ->
-            LogicalField("state.secret$index") to maskedFieldSchema()
-        }.toMap(),
+        fields = buildMap {
+            putAll(
+                List(MASKED_FIELD_COUNT) { index ->
+                    LogicalField("state.secret$index") to maskedFieldSchema()
+                },
+            )
+            put(
+                sortableField,
+                maskedFieldSchema().copy(
+                    bindings = mapOf(
+                        QueryCapability.SORT to QueryFieldBinding("document.createdAt", null),
+                    ),
+                    maskRule = null,
+                ),
+            )
+        },
     )
     private val provider = object : QueryModelSchemaProvider {
         private val schemaMono = Mono.just(schema)
@@ -67,10 +85,19 @@ open class QuerySchemaResolverBenchmark {
         override fun refresh(): Mono<QueryModelSchema> = schemaMono
     }
     private val query = SingleQuery(MatchAllFilter)
+    private val cursorQuery = CursorQuery(
+        MatchAllFilter,
+        sort = listOf(Sort(sortableField.value, Sort.Direction.ASC)),
+    )
 
     @Benchmark
     fun resolve(blackhole: Blackhole) {
         blackhole.consume(provider.resolve(query, QuerySchemaValidationMode.COMPATIBLE).block())
+    }
+
+    @Benchmark
+    fun resolveCursorSort(blackhole: Blackhole) {
+        blackhole.consume(provider.resolve(cursorQuery, QuerySchemaValidationMode.COMPATIBLE).block())
     }
 
     private fun maskedFieldSchema(): QueryFieldSchema {
