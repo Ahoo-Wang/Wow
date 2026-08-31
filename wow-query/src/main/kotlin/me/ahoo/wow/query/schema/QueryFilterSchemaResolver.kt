@@ -261,11 +261,14 @@ internal class QueryFilterSchemaResolver(
         physicalParent: String?,
         create: (List<FilterExpression>) -> FilterExpression,
     ): QuerySchemaResolution<FilterExpression> {
-        val resolved = operands.map { resolve(it, logicalParent, physicalParent) }
-        return QuerySchemaResolution(
-            create(resolved.map { it.value }),
-            resolved.map { it.compatibility }.combined(),
-        )
+        val values = ArrayList<FilterExpression>(operands.size)
+        var compatibility = QueryCompatibilityLevel.EXACT
+        operands.forEach { operand ->
+            val resolved = resolve(operand, logicalParent, physicalParent)
+            values += resolved.value
+            compatibility = maxOf(compatibility, resolved.compatibility)
+        }
+        return QuerySchemaResolution(create(values), compatibility)
     }
 
     private inline fun resolveFieldFilter(

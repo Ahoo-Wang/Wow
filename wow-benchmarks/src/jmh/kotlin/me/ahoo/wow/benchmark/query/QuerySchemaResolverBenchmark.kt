@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.benchmark.query
 
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.SingleQuery
@@ -43,10 +45,12 @@ import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
 import org.openjdk.jmh.infra.Blackhole
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.JsonNodeFactory
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.jvm.javaField
 
 private const val MASKED_FIELD_COUNT = 64
+private const val FILTER_OPERAND_COUNT = 8
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -64,6 +68,16 @@ open class QuerySchemaResolverBenchmark {
             putAll(
                 List(MASKED_FIELD_COUNT) { index ->
                     LogicalField("state.secret$index") to maskedFieldSchema()
+                },
+            )
+            putAll(
+                List(FILTER_OPERAND_COUNT) { index ->
+                    LogicalField("state.filter$index") to maskedFieldSchema().copy(
+                        bindings = mapOf(
+                            QueryCapability.EXACT_MATCH to QueryFieldBinding("document.filter$index", null),
+                        ),
+                        maskRule = null,
+                    )
                 },
             )
             put(
@@ -85,6 +99,16 @@ open class QuerySchemaResolverBenchmark {
         override fun refresh(): Mono<QueryModelSchema> = schemaMono
     }
     private val query = SingleQuery(MatchAllFilter)
+    private val compositeFilterQuery = SingleQuery(
+        AndFilter(
+            List(FILTER_OPERAND_COUNT) { index ->
+                EqualFilter(
+                    LogicalField("state.filter$index"),
+                    JsonNodeFactory.instance.stringNode(index.toString()),
+                )
+            },
+        ),
+    )
     private val cursorQuery = CursorQuery(
         MatchAllFilter,
         sort = listOf(Sort(sortableField.value, Sort.Direction.ASC)),
@@ -93,6 +117,11 @@ open class QuerySchemaResolverBenchmark {
     @Benchmark
     fun resolve(blackhole: Blackhole) {
         blackhole.consume(provider.resolve(query, QuerySchemaValidationMode.COMPATIBLE).block())
+    }
+
+    @Benchmark
+    fun resolveCompositeFilter(blackhole: Blackhole) {
+        blackhole.consume(provider.resolve(compositeFilterQuery, QuerySchemaValidationMode.COMPATIBLE).block())
     }
 
     @Benchmark
