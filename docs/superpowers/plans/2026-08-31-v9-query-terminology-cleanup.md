@@ -259,7 +259,8 @@ if rg -n -i 'query[ -]?service|查询服务|公共 service 行为' \
   --glob '!**/v9-query-migration.md'; then
   exit 1
 fi
-git diff --check 339c7cf736b819a7ca01198c11a07a5e39d12220..HEAD
+comparison_base_sha=$(git merge-base origin/main HEAD)
+git diff --check "${comparison_base_sha}..HEAD"
 git status --short
 ```
 
