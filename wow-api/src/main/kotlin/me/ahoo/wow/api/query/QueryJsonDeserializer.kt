@@ -137,6 +137,9 @@ private fun JsonNode.removeUnknownLegacyConditionProperties() {
     if (this !is ObjectNode) {
         return
     }
+    require(!(has(QueryProtocol.FilterExpression.OP) && has(QueryProtocol.Condition.OPERATOR))) {
+        "op and operator cannot be used together."
+    }
     remove(propertyNames().filterNot(LEGACY_CONDITION_PROPERTIES::contains))
     get(QueryProtocol.Condition.CHILDREN)?.forEach(JsonNode::removeUnknownLegacyConditionProperties)
 }
