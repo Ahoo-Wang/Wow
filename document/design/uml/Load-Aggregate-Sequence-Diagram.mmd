@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    title Load Aggregate
+
+    actor Caller
+    participant AggregateRepository
+    participant SnapshotStore
+    participant AggregateFactory
+    participant StateAggregate
+    participant EventStore
+
+    Caller->>+AggregateRepository: load(aggregateId, metadata, tailVersion)
+    AggregateRepository->>+SnapshotStore: load(aggregateId)
+    SnapshotStore-->>-AggregateRepository: Snapshot<S> or empty
+
+    alt Snapshot exists
+        AggregateRepository->>+StateAggregate: snapshot.toStateAggregate()
+        StateAggregate-->>-AggregateRepository: stateAggregate
+    else Snapshot does not exist
+        AggregateRepository->>+AggregateFactory: createAsMono(metadata, aggregateId)
+        AggregateFactory->>+StateAggregate: create(metadata, aggregateId)
+        StateAggregate-->>-AggregateFactory: stateAggregate
+        AggregateFactory-->>-AggregateRepository: stateAggregate
+    end
+
+    AggregateRepository->>+EventStore: load(aggregateId, expectedNextVersion, tailVersion)
+    EventStore-->>-AggregateRepository: DomainEventStream(s)
+    AggregateRepository->>StateAggregate: onSourcing(each DomainEventStream)
+    AggregateRepository-->>-Caller: stateAggregate
