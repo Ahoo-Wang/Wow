@@ -6,6 +6,8 @@
 
 所有 Skill 仅服务于使用或引入 Wow 的下游应用，Wow 框架仓库自身一律不激活。下游任务还必须确认主要交付对象确实是 Wow 行为、代码或迁移：目标应用源码存在 `me.ahoo.wow` import 或 `wow-*` Gradle/Maven dependency/starter，或任务明确要引入、使用、解释或迁移到 Wow。仅在否定、比较或排除语境中提到 Wow 不能触发本包；DDD、CQRS、Event Sourcing、aggregate、saga、projection、command gateway、Spring、Reactor、Kotlin 或 Java 等通用词也不能。
 
+V9 是当前维护基线和默认术语。`wow-develop`、`wow-review` 与 `wow-debug` 仍可服务 V8 下游应用，但必须先从目标构建与解析依赖确认实际 Wow 版本，再应用精确符号、默认值或 V9 规则；无法确认时标记版本结论未验证。V8 到 V9 的旧类型、配置和行为映射只保存在 `wow-migrate`。
+
 ## Skills
 
 | Skill | Primary outcome | Boundary |

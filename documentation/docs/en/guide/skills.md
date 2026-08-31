@@ -9,6 +9,8 @@ This page answers: **which Primary Skill should a downstream Wow task use, and h
 
 The Wow repository owns Skill source and validation fixtures; the distribution repository and client own installation and discovery. Skills provide workflows, architectural invariants, authorization boundaries, and evidence gates. They do not replace target-version APIs, configuration, or generated contracts.
 
+V9 is the current maintenance baseline and default terminology. The three day-to-day Skills still support V8 downstream tasks, but they must first resolve the actual Wow version from the target build and dependency graph. Only `wow-migrate` keeps V8-to-V9 type, configuration, and behavior mappings; version-specific conclusions remain unverified when the version cannot be confirmed.
+
 ## Select one Primary Skill
 
 Choose once from the user's primary requested outcome, then let that Skill own the complete task:
