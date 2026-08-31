@@ -14,3 +14,4 @@
 {"id":"A56-none-framework-review","prompt":"审查 Wow 框架仓库中修改 wow-core CommandGateway 的 PR，判断能否发布。","expectedSkills":[],"tags":["negative","wow-framework-repository","review"]}
 {"id":"A62-none-review-checkout-wide-marker","fixture":"fixtures/non-wow-scope.patch","prompt":"审查 services/plain-service 的协程工具改动，判断是否可以合并。","expectedSkills":[],"tags":["negative","checkout-wide-marker","non-wow-scope","fixture","review"]}
 {"id":"A66-review-snapshot-aggregation","prompt":"审查下游 Wow 8.12 快照聚合 DSL 与 HTTP 调用改动，重点确认 elements 路径和默认路由，按严重度报告 findings。","expectedSkills":["wow-review"],"tags":["positive","review","query","aggregation"]}
+{"id":"A71-review-v9-cursor","prompt":"审查下游 Wow V9 cursor 查询 diff，重点检查受管 Gateway、token、稳定排序与字段 Mask；只报告阻塞 findings。","expectedSkills":["wow-review"]}

@@ -13,3 +13,4 @@
 {"id":"A55-none-framework-debug","prompt":"Wow 框架仓库的 DefaultCommandGatewayTest 失败；复现并定位 wow-core 中的根因。","expectedSkills":[],"tags":["negative","wow-framework-repository","debug"]}
 {"id":"A59-none-debug-checkout-wide-marker","fixture":"fixtures/non-wow-scope.patch","prompt":"services/plain-service 的请求偶发超时；定位根因，不要修改文件。","expectedSkills":[],"tags":["negative","checkout-wide-marker","non-wow-scope","fixture","debug"]}
 {"id":"A65-debug-aggregation-unsupported","prompt":"下游 Wow 8.12 服务的普通快照查询正常，但生成的聚合查询接口抛出 UnsupportedOperationException；只定位第一个失败阶段。","expectedSkills":["wow-debug"],"tags":["positive","query","aggregation","debug"]}
+{"id":"A70-debug-v9-cursor","prompt":"下游 Wow V9 服务的 Snapshot cursor 第一页正常，回传 nextCursor 后第二页报 Invalid cursor；只复现并定位首个失败阶段。","expectedSkills":["wow-debug"]}
