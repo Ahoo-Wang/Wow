@@ -64,45 +64,30 @@ class FilterNormalizer(
     private val defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
 ) {
     fun normalize(expression: FilterExpression): FilterExpression {
-        val structural = normalizeStructural(expression)
-        val scoped = if (defaultDeletionState == null || structural.hasExplicitDeletionScope()) {
-            structural
+        val hasDeletionScope = defaultDeletionState == null || expression.hasExplicitDeletionScope()
+        val normalized = normalize(expression, clock.instant())
+        return if (hasDeletionScope) {
+            normalized
         } else {
-            AndFilter(listOf(DeletionFilter(defaultDeletionState), structural))
+            simplifyAnd(listOf(DeletionFilter(checkNotNull(defaultDeletionState)), normalized))
         }
-        val now = clock.instant()
-        return simplify(expandRelativeTime(scoped, now))
     }
 
-    private fun normalizeStructural(expression: FilterExpression): FilterExpression = when (expression) {
+    @Suppress("CyclomaticComplexMethod")
+    private fun normalize(expression: FilterExpression, now: Instant): FilterExpression = when (expression) {
         is EqualFilter -> if (expression.value.isNull) IsNullFilter(expression.field) else expression
         is NotEqualFilter -> if (expression.value.isNull) IsNotNullFilter(expression.field) else expression
         is IsEmptyStringFilter -> EqualFilter(expression.field, JsonNodeFactory.instance.stringNode(""))
-        is IsNotEmptyStringFilter -> AndFilter(
+        is IsNotEmptyStringFilter -> simplifyAnd(
             listOf(
                 IsNotNullFilter(expression.field),
                 NotEqualFilter(expression.field, JsonNodeFactory.instance.stringNode("")),
             ),
         )
-        is AndFilter -> AndFilter(expression.operands.map(::normalizeStructural))
-        is OrFilter -> OrFilter(expression.operands.map(::normalizeStructural))
-        is NorFilter -> NorFilter(expression.operands.map(::normalizeStructural))
-        is ElementMatchFilter -> ElementMatchFilter(expression.field, normalizeStructural(expression.predicate))
-        else -> expression
-    }
-
-    private fun FilterExpression.hasExplicitDeletionScope(): Boolean = when (this) {
-        is DeletionFilter -> true
-        is AndFilter -> operands.any { it.hasExplicitDeletionScope() }
-        else -> false
-    }
-
-    @Suppress("CyclomaticComplexMethod")
-    private fun expandRelativeTime(expression: FilterExpression, now: Instant): FilterExpression = when (expression) {
-        is AndFilter -> AndFilter(expression.operands.map { expandRelativeTime(it, now) })
-        is OrFilter -> OrFilter(expression.operands.map { expandRelativeTime(it, now) })
-        is NorFilter -> NorFilter(expression.operands.map { expandRelativeTime(it, now) })
-        is ElementMatchFilter -> ElementMatchFilter(expression.field, expandRelativeTime(expression.predicate, now))
+        is AndFilter -> simplifyAnd(expression.operands.map { normalize(it, now) })
+        is OrFilter -> simplifyOr(expression.operands.map { normalize(it, now) })
+        is NorFilter -> simplifyNor(expression.operands.map { normalize(it, now) })
+        is ElementMatchFilter -> ElementMatchFilter(expression.field, normalize(expression.predicate, now))
         is YesterdayFilter -> expression.dayRange(now, -1)
         is TodayFilter -> expression.dayRange(now, 0)
         is TomorrowFilter -> expression.dayRange(now, 1)
@@ -145,6 +130,12 @@ class FilterNormalizer(
         }
 
         else -> expression
+    }
+
+    private fun FilterExpression.hasExplicitDeletionScope(): Boolean = when (this) {
+        is DeletionFilter -> true
+        is AndFilter -> operands.any { it.hasExplicitDeletionScope() }
+        else -> false
     }
 
     private fun RelativeTimeFilter.dayRange(now: Instant, offset: Long): FilterExpression =
@@ -233,18 +224,16 @@ class FilterNormalizer(
 
     private fun zone(zoneId: String?): ZoneId = zoneId?.let(ZoneId::of) ?: defaultZoneId
 
-    private fun simplify(expression: FilterExpression): FilterExpression = when (expression) {
-        is AndFilter -> simplifyAnd(expression.operands.map(::simplify))
-        is OrFilter -> simplifyOr(expression.operands.map(::simplify))
-        is NorFilter -> simplifyNor(expression.operands.map(::simplify))
-        is ElementMatchFilter -> ElementMatchFilter(expression.field, simplify(expression.predicate))
-        else -> expression
-    }
-
     private fun simplifyAnd(operands: List<FilterExpression>): FilterExpression {
-        if (operands.any { it === MatchNoneFilter }) return MatchNoneFilter
-        val flattened = operands.flatMap { if (it is AndFilter) it.operands else listOf(it) }
-            .filterNot { it === MatchAllFilter }
+        val flattened = ArrayList<FilterExpression>(operands.size)
+        operands.forEach { operand ->
+            when {
+                operand === MatchNoneFilter -> return MatchNoneFilter
+                operand === MatchAllFilter -> Unit
+                operand is AndFilter -> flattened.addAll(operand.operands)
+                else -> flattened += operand
+            }
+        }
         return when (flattened.size) {
             0 -> MatchAllFilter
             1 -> flattened.first()
@@ -253,9 +242,15 @@ class FilterNormalizer(
     }
 
     private fun simplifyOr(operands: List<FilterExpression>): FilterExpression {
-        if (operands.any { it === MatchAllFilter }) return MatchAllFilter
-        val flattened = operands.flatMap { if (it is OrFilter) it.operands else listOf(it) }
-            .filterNot { it === MatchNoneFilter }
+        val flattened = ArrayList<FilterExpression>(operands.size)
+        operands.forEach { operand ->
+            when {
+                operand === MatchAllFilter -> return MatchAllFilter
+                operand === MatchNoneFilter -> Unit
+                operand is OrFilter -> flattened.addAll(operand.operands)
+                else -> flattened += operand
+            }
+        }
         return when (flattened.size) {
             0 -> MatchNoneFilter
             1 -> flattened.first()
@@ -264,8 +259,13 @@ class FilterNormalizer(
     }
 
     private fun simplifyNor(operands: List<FilterExpression>): FilterExpression {
-        if (operands.any { it === MatchAllFilter }) return MatchNoneFilter
-        val filtered = operands.filterNot { it === MatchNoneFilter }
+        val filtered = ArrayList<FilterExpression>(operands.size)
+        operands.forEach { operand ->
+            when {
+                operand === MatchAllFilter -> return MatchNoneFilter
+                operand !== MatchNoneFilter -> filtered += operand
+            }
+        }
         return if (filtered.isEmpty()) MatchAllFilter else NorFilter(filtered)
     }
 }
