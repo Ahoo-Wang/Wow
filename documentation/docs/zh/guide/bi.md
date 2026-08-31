@@ -10,9 +10,19 @@ description: 从 Wow 命令与状态事件流生成并运行 ClickHouse 读模�
 传统报表管线通常从可变业务表抽取数据，还要推断“发生了什么变化”。Wow BI 则把不可变命令与状态事件
 Kafka topic 投影到 ClickHouse。事件存储仍是事实源，ClickHouse 是可重建的分析读模型。
 
-<p align="center" style="text-align:center">
-  <img width="95%" src="/images/eventstore/eventsourcing.svg" alt="事件溯源与传统数据存储对比"/>
-</p>
+```mermaid
+flowchart LR
+    subgraph Traditional[传统可变存储]
+        TCommand[命令] --> Current[(当前状态行)]
+        Current --> Next[(覆盖后的当前状态行)]
+    end
+    subgraph EventSourcing[事件溯源]
+        ECommand[命令] --> Events[(有序事件历史)]
+        Events --> Source[确定性溯源]
+        Source --> State[当前聚合状态]
+        State --> Snapshot[(可选快照)]
+    end
+```
 
 这一归属边界直接决定操作方式：
 
@@ -23,9 +33,17 @@ Kafka topic 投影到 ClickHouse。事件存储仍是事实源，ClickHouse 是�
 
 不要从 BI 表反写领域状态，也不要把 SQL 生成成功当作 ClickHouse 已追平的证据。
 
-<p align="center" style="text-align:center">
-  <img width="95%" src="/images/bi/bi.svg" alt="Wow 商业智能数据链路"/>
-</p>
+```mermaid
+flowchart LR
+    Service[Wow 服务] --> Commands[命令 Kafka topic]
+    Service --> StateEvents[状态事件 Kafka topic]
+    Commands --> CommandTable[ClickHouse Kafka Engine]
+    StateEvents --> StateTable[ClickHouse Kafka Engine]
+    CommandTable --> Views[物化视图]
+    StateTable --> Views
+    Views --> ReadModel[(MergeTree 读模型)]
+    Consumer[BI 使用方] --> ReadModel
+```
 
 ## 生成与获取 ETL 脚本
 
