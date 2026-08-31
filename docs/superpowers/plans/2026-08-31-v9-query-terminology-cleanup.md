@@ -47,7 +47,7 @@
 Run:
 
 ```bash
-rg -n -i 'query service|query-service|查询服务|公共 service 行为' \
+rg -n -i 'query[ -]?service|查询服务|公共 service 行为' \
   documentation/docs/en documentation/docs/zh \
   --glob '!**/v9-query-migration.md'
 ```
@@ -89,7 +89,7 @@ Do not change explicit old names in the migration tables.
 Run:
 
 ```bash
-if rg -n -i 'query service|query-service|查询服务|公共 service 行为' \
+if rg -n -i 'query[ -]?service|查询服务|公共 service 行为' \
   documentation/docs/en documentation/docs/zh \
   --glob '!**/v9-query-migration.md'; then
   exit 1
@@ -238,17 +238,28 @@ pnpm docs:build
 
 Expected: VitePress build succeeds.
 
-- [ ] **Step 3: Run the final textual and Git checks**
+- [ ] **Step 3: Verify old query-anchor definitions and references are gone**
+
+Run:
+
+```bash
+rg -n -i -P "<(?:a\\s+)?(?:id|href)=[\\x22\\x27]#?(?:query-service(?:-registrar)?|查询服务(?:注册器)?)[\\x22\\x27]|\\]\\([^)]*#(?:query-service(?:-registrar)?|查询服务(?:注册器)?)(?=[\\x22\\x27)\\s]|\\$)" \
+  README*.md documentation/docs document
+```
+
+Expected: no old `query-service` / `query-service-registrar` or Chinese anchor definitions and references. This scan is intentionally limited to HTML `id`/`href` attributes and Markdown fragments, so ordinary historical terminology is not treated as an anchor.
+
+- [ ] **Step 4: Run the final textual and Git checks**
 
 Run from the repository root:
 
 ```bash
-if rg -n -i 'query service|query-service|查询服务|公共 service 行为' \
+if rg -n -i 'query[ -]?service|查询服务|公共 service 行为' \
   documentation/docs/en documentation/docs/zh \
   --glob '!**/v9-query-migration.md'; then
   exit 1
 fi
-git diff --check HEAD~2..HEAD
+git diff --check 339c7cf736b819a7ca01198c11a07a5e39d12220..HEAD
 git status --short
 ```
 
