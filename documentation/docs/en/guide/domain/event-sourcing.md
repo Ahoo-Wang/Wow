@@ -8,9 +8,19 @@ outline: deep
 
 Event sourcing keeps an aggregate's facts that have already happened as ordered `DomainEventStream` values and restores state from those facts. Commands make decisions; an event becomes recoverable authoritative history only after `EventStore` appends it successfully.
 
-<p align="center" style="text-align:center">
-  <img width="95%" src="/images/eventstore/eventsourcing.svg" alt="Event sourcing compared with traditional data storage"/>
-</p>
+```mermaid
+flowchart LR
+    subgraph Traditional[Traditional mutable storage]
+        TCommand[Command] --> Current[(Current-state row)]
+        Current --> Next[(Overwritten current-state row)]
+    end
+    subgraph EventSourcing[Event sourcing]
+        ECommand[Command] --> Events[(Ordered event history)]
+        Events --> Source[Deterministic sourcing]
+        Source --> State[Current aggregate state]
+        State --> Snapshot[(Optional snapshot)]
+    end
+```
 
 ## Authoritative History Model
 
