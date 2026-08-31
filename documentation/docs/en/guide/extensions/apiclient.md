@@ -14,7 +14,7 @@ CommandRequest / Query DTO
   -> command or guarded query pipeline
 ```
 
-It does not generate server routes, discover aggregate-specific fields, create authorization headers, or turn a projection into a query service. The running server's OpenAPI document remains the source of truth for the path and wire contract.
+It does not generate server routes, discover aggregate-specific fields, create authorization headers, or turn a projection into a server-side `QueryGateway`. The running server's OpenAPI document remains the source of truth for the path and wire contract.
 
 For command-client registration, `CommandRequest`, target-service resolution, reactive/synchronous invocation, wait capabilities, and error mapping, use the authoritative [Command API Client](../command/api-client.md). This page retains extension installation and snapshot-query contracts.
 

@@ -5,7 +5,7 @@ description: Use Elasticsearch for event streams, snapshots, and backend-aware q
 
 # Elasticsearch
 
-`wow-elasticsearch` implements Elasticsearch-backed `EventStore`, `SnapshotStore`, and event-stream/snapshot query services. Use it when Elasticsearch is already operated and the read side needs full text, aggregations, or large cursor scans. Do not add a search cluster only for event persistence.
+`wow-elasticsearch` implements Elasticsearch-backed `EventStore`, `SnapshotStore`, and event-stream/snapshot query backends. Use it when Elasticsearch is already operated and the read side needs full text, aggregations, or large cursor scans. Do not add a search cluster only for event persistence.
 
 ## Architecture Overview
 

@@ -3,7 +3,7 @@ title: 查询
 description: 从查询网关进入快照与事件流的数据查询、聚合查询、查询后端和 API 客户端。
 ---
 
-<a id="查询服务"></a>
+<a id="query-gateway"></a>
 
 # 查询
 
@@ -86,7 +86,7 @@ V9 的规范 JVM 合同是 `FilterExpression` 与 `FilterDsl`。V9.0.x 暂时保
 
 通用 JSON Schema 定义线协议，OpenAPI 描述已发布请求，运行时 Query Model Schema 证明逻辑字段的后端能力。快照和事件流分别发布 `snapshot/schema` 与 `event/schema`，以及对应的 refresh 路由。来源、校验模式和 Provider 差异见[查询模型 Schema](./query/query-model-schema.md)。
 
-<a id="查询服务注册器"></a>
+<a id="query-gateway-registrars"></a>
 
 ## Query Gateway Registrars
 

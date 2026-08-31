@@ -61,7 +61,7 @@ wow:
       idle-timeout: 10s
 ```
 
-`0` disables each numeric HTTP guard; `idle-timeout=0s` disables idle timeout. Do not duplicate backend field-type, mapping, or uniqueness checks. `HttpQueryGuardFilter` protects HTTP queries with WebFlux request context; programmatic query services retain their public behavior.
+`0` disables each numeric HTTP guard; `idle-timeout=0s` disables idle timeout. Do not duplicate backend field-type, mapping, or uniqueness checks. `HttpQueryGuardFilter` protects HTTP queries with WebFlux request context; programmatic `QueryGateway` calls retain their public behavior.
 
 ## Aggregation Query Routes
 

@@ -3,7 +3,7 @@ title: Query
 description: Enter snapshot and event-stream data queries, aggregation queries, query backends, and API clients through the Query Gateway.
 ---
 
-<a id="query-service"></a>
+<a id="query-gateway"></a>
 
 # Query
 
@@ -84,7 +84,7 @@ The canonical V9 JVM contract is `FilterExpression` and `FilterDsl`. V9.0.x temp
 
 Generic JSON Schema defines the wire protocol, OpenAPI describes published requests, and runtime Query Model Schema proves logical-field backend capabilities. Snapshots and event streams publish `snapshot/schema` and `event/schema`, plus their refresh routes. See [Query Model Schema](./query/query-model-schema.md) for sources, validation modes, and Provider differences.
 
-<a id="query-service-registrar"></a>
+<a id="query-gateway-registrars"></a>
 
 ## Query Gateway Registrars
 

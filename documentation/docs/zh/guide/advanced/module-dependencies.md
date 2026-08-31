@@ -16,12 +16,12 @@ outline: deep
 | `wow-core` | CommandGateway、Dispatcher、EventStore 接口、事件溯源、投影、Saga、等待链 | 非 Spring 运行时或领域实现 |
 | `wow-query` | 查询模型、Schema 解析、Snapshot/Event 查询接口 | 编写查询扩展时 |
 | `wow-models` | 仓库共享的模型与 KSP 生成示例 | 使用这些共享模型时 |
-| `wow-spring` | Spring 容器桥接与查询服务注册 | 自定义 Spring 集成时 |
+| `wow-spring` | Spring 容器桥接与查询网关注册 | 自定义 Spring 集成时 |
 | `wow-spring-boot-starter` | 核心自动配置与可选 feature variants | Spring Boot 服务 |
 | `wow-kafka` | Kafka Command/DomainEvent/StateEvent Bus | 非 Starter 的 Kafka 集成 |
-| `wow-mongo` | Mongo EventStore、SnapshotStore、PrepareKey 与查询服务 | 非 Starter 的 Mongo 集成 |
+| `wow-mongo` | Mongo EventStore、SnapshotStore、PrepareKey 与查询后端 | 非 Starter 的 Mongo 集成 |
 | `wow-redis` | Redis Bus、EventStore、SnapshotStore 与 PrepareKey | 非 Starter 的 Redis 集成 |
-| `wow-elasticsearch` | Elasticsearch EventStore、SnapshotStore 与查询服务 | 非 Starter 的 Elasticsearch 集成 |
+| `wow-elasticsearch` | Elasticsearch EventStore、SnapshotStore 与查询后端 | 非 Starter 的 Elasticsearch 集成 |
 | `wow-webflux` | 内置命令、事件、状态、查询与运维 route 处理器 | 非 Starter 的 WebFlux 集成 |
 | `wow-opentelemetry` | Wow 链路的 OpenTelemetry instrumenter | 非 Starter 的追踪集成 |
 | `wow-cosec` | CoSec 请求上下文传播与查询 space 改写 | 应用已使用 CoSec 时 |
@@ -108,7 +108,7 @@ graph LR
 
 #### wow-spring
 
-`wow-spring` 通过 API 暴露 `wow-core`，以 implementation 使用 `wow-query`，负责 Spring `ApplicationContext` 桥接与查询服务注册。它不选择存储或消息实现。
+`wow-spring` 通过 API 暴露 `wow-core`，以 implementation 使用 `wow-query`，负责 Spring `ApplicationContext` 桥接与查询网关注册。它不选择存储或消息实现。
 
 #### wow-spring-boot-starter
 
