@@ -20,20 +20,22 @@ import { FailedTable } from "./FailedTable.tsx";
 import { FailedWorkspace } from "./FailedWorkspace.tsx";
 import type { FindCategory } from "./FindCategory.ts";
 import { useFailedQueueController } from "./useFailedQueueController.ts";
+import { useI18n } from "@/i18n.tsx";
 
 interface FailedViewProps {
   category: FindCategory;
 }
 
 function EmptyDetails() {
+  const { t } = useI18n();
   return (
     <div className="flex h-full items-center justify-center bg-slate-50 p-8 text-center">
       <div>
         <p className="text-sm font-medium text-slate-700">
-          Select an execution
+          {t("Select an execution")}
         </p>
         <p className="mt-1 text-xs text-slate-500">
-          Failure context and compensation actions will appear here.
+          {t("Failure context and compensation actions will appear here.")}
         </p>
       </div>
     </div>
@@ -41,16 +43,17 @@ function EmptyDetails() {
 }
 
 function LoadingPageDetails() {
+  const { t } = useI18n();
   return (
     <div
       role="status"
-      aria-label="Loading page details"
+      aria-label={t("Loading page details")}
       className="flex h-full items-center justify-center bg-slate-50 p-8 text-center"
     >
       <div>
-        <p className="text-sm font-medium text-slate-700">Loading page</p>
+        <p className="text-sm font-medium text-slate-700">{t("Loading page")}</p>
         <p className="mt-1 text-xs text-slate-500">
-          The next executions will appear here shortly.
+          {t("The next executions will appear here shortly.")}
         </p>
       </div>
     </div>
@@ -58,6 +61,7 @@ function LoadingPageDetails() {
 }
 
 export default function FailedView({ category }: FailedViewProps) {
+  const { t } = useI18n();
   const desktop = useMediaQuery("(min-width: 960px)");
   const { isOpen: isDrawerOpen } = useGlobalDrawer();
   const controller = useFailedQueueController({
@@ -69,7 +73,7 @@ export default function FailedView({ category }: FailedViewProps) {
   const master = (
     <section
       className="flex h-full min-h-0 flex-col border-r bg-white"
-      aria-label="Failed executions"
+      aria-label={t("Failed executions")}
     >
       <FailedSearch
         key={controller.searchResetToken}

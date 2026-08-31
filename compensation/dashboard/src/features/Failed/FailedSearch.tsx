@@ -24,6 +24,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ExecutionFailedAggregatedFields } from "@/generated";
+import { useI18n, type Message } from "@/i18n.tsx";
 
 interface FailedSearchProps {
   onSearch?: (filterExpression: FilterExpression, hasFilters: boolean) => void;
@@ -32,8 +33,8 @@ interface FailedSearchProps {
 
 interface SearchField {
   key: string;
-  label: string;
-  placeholder: string;
+  label: Message;
+  placeholder: Message;
   filter: (value: string) => FilterExpression;
 }
 
@@ -106,6 +107,7 @@ const searchFields: SearchField[] = [
 export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
   const [activeKeys, setActiveKeys] = useState<string[]>(["_id"]);
   const [values, setValues] = useState<Record<string, string>>({});
+  const { t } = useI18n();
 
   const activeFields = useMemo(
     () => searchFields.filter((field) => activeKeys.includes(field.key)),
@@ -155,16 +157,16 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
   return (
     <form
       className="border-b bg-white px-5 py-[22px]"
-      aria-label="Search executions"
+      aria-label={t("Search executions")}
       aria-busy={loading}
       onSubmit={submit}
     >
       <div className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1">
           <Input
-            aria-label="Execution ID"
+            aria-label={t("Execution ID")}
             className="h-11 pr-11 text-[15px]"
-            placeholder="Search by ID…"
+            placeholder={t("Search by ID…")}
             value={values._id ?? ""}
             onChange={(event) =>
               setValues((current) => ({ ...current, _id: event.target.value }))
@@ -175,7 +177,7 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
             variant="ghost"
             size="icon"
             className="absolute top-0 right-0 size-11"
-            aria-label="Search"
+            aria-label={t("Search")}
             disabled={loading}
           >
             {loading ? (
@@ -192,18 +194,18 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
                 type="button"
                 variant="outline"
                 className="h-11 px-4"
-                aria-label="Add filter"
+                aria-label={t("Add filter")}
               />
             }
           >
             <Filter />
             {appliedFilterCount > 0
-              ? `Filters (${appliedFilterCount})`
-              : "Add filter"}
+              ? t("Filters ({count})", { count: appliedFilterCount })
+              : t("Add filter")}
           </PopoverTrigger>
           <PopoverContent align="end" className="w-64 p-2">
             <div className="px-2 pb-2 text-xs font-medium text-muted-foreground">
-              Search fields
+              {t("Search fields")}
             </div>
             {searchFields.slice(1).map((field) => {
               const checked = activeKeys.includes(field.key);
@@ -218,7 +220,7 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
                       setFieldActive(field.key, value === true)
                     }
                   />
-                  {field.label}
+                  {t(field.label)}
                 </Label>
               );
             })}
@@ -231,12 +233,12 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
           {activeFields.slice(1).map((field) => (
             <div key={field.key} className="flex items-center gap-2">
               <Label className="w-28 shrink-0 text-xs text-muted-foreground">
-                {field.label}
+                {t(field.label)}
               </Label>
               <Input
-                aria-label={field.label}
+                aria-label={t(field.label)}
                 className="h-9"
-                placeholder={field.placeholder}
+                placeholder={t(field.placeholder)}
                 value={values[field.key] ?? ""}
                 onChange={(event) =>
                   setValues((current) => ({
@@ -249,7 +251,7 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                aria-label={`Remove ${field.label}`}
+                aria-label={t("Remove {label}", { label: t(field.label) })}
                 onClick={() => setFieldActive(field.key, false)}
               >
                 <X />
@@ -259,16 +261,16 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
         </div>
       ) : null}
       <div className="mt-2 flex min-h-5 items-center justify-between gap-3 text-xs text-slate-500">
-        <span>Exact match across all fields</span>
+        <span>{t("Exact match across all fields")}</span>
         {appliedFilterCount > 0 ? (
           <Button
             type="button"
             variant="link"
             className="h-auto px-0 text-xs"
-            aria-label="Clear all filters"
+            aria-label={t("Clear all filters")}
             onClick={clearAll}
           >
-            Clear all
+            {t("Clear all")}
           </Button>
         ) : null}
       </div>

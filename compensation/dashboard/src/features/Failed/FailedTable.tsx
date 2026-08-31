@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { useNow } from "@/hooks/useNow.ts";
 import { FailedPagination } from "./FailedPagination.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
+import { useI18n } from "@/i18n.tsx";
 
 const columnHelper = createColumnHelper<ExecutionFailedState>();
 
@@ -69,14 +70,15 @@ export function FailedTable({
   staleError,
 }: FailedTableProps) {
   const now = useNow();
+  const { locale, t } = useI18n();
   const columns = useMemo(
     () => [
       columnHelper.accessor("status", {
-        header: "Status",
+        header: t("Status"),
         cell: (info) => <StatusBadge status={info.getValue()} />,
       }),
       columnHelper.accessor("id", {
-        header: "Execution ID",
+        header: t("Execution ID"),
         cell: (info) => (
           <div className="min-w-0">
             <StatusBadge
@@ -86,7 +88,7 @@ export function FailedTable({
             <button
               type="button"
               disabled={loading}
-              aria-label={`View execution ${info.getValue()}`}
+              aria-label={t("View execution {id}", { id: info.getValue() })}
               className="block w-full truncate text-left font-medium text-slate-800 outline-none hover:text-blue-700 focus-visible:underline disabled:cursor-wait disabled:text-slate-700"
               onClick={(event) => {
                 event.stopPropagation();
@@ -104,7 +106,7 @@ export function FailedTable({
         ),
       }),
       columnHelper.accessor("function", {
-        header: "Processor / Function",
+        header: t("Processor / Function"),
         cell: (info) => (
           <div className="min-w-0">
             <div className="truncate text-sm text-slate-700">
@@ -118,7 +120,7 @@ export function FailedTable({
       }),
       columnHelper.display({
         id: "retry",
-        header: "Retry",
+        header: t("Retry"),
         cell: ({ row }) => (
           <span className="tabular-nums text-slate-700">
             {row.original.retryState.retries} /{" "}
@@ -127,18 +129,18 @@ export function FailedTable({
         ),
       }),
       columnHelper.accessor("executeAt", {
-        header: "Age",
+        header: t("Age"),
         cell: (info) => (
           <span
             className="text-xs tabular-nums text-slate-700"
-            title={formatDate(info.getValue())}
+            title={formatDate(info.getValue(), undefined, locale)}
           >
-            {formatAge(info.getValue(), now)}
+            {formatAge(info.getValue(), now, locale)}
           </span>
         ),
       }),
     ],
-    [loading, now, onSelect],
+    [loading, locale, now, onSelect, t],
   );
 
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table keeps its headless state local to this component.
@@ -158,12 +160,14 @@ export function FailedTable({
           className="flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900"
         >
           <span>
-            Refresh failed: {staleError.message}. Showing the last loaded page;
-            changes are disabled until refresh succeeds.
+            {t(
+              "Refresh failed: {message}. Showing the last loaded page; changes are disabled until refresh succeeds.",
+              { message: staleError.message },
+            )}
           </span>
           <Button type="button" variant="outline" size="sm" onClick={onRetry}>
             <RefreshCw />
-            Retry
+            {t("Retry")}
           </Button>
         </div>
       ) : null}
@@ -171,7 +175,7 @@ export function FailedTable({
         {loading && pagedList.list.length > 0 ? (
           <div
             role="status"
-            aria-label="Loading page"
+            aria-label={t("Loading page")}
             className="pointer-events-none sticky top-[42px] z-20 h-0.5 overflow-hidden bg-blue-100"
           >
             <div className="h-full w-full animate-pulse bg-blue-500 motion-reduce:animate-none" />
@@ -226,7 +230,7 @@ export function FailedTable({
                   <div role="alert" className="mx-auto max-w-sm">
                     <AlertCircle className="mx-auto size-5 text-red-600" />
                     <div className="mt-2 text-sm font-medium text-red-700">
-                      Failed to load executions
+                      {t("Failed to load executions")}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       {error.message}
@@ -238,7 +242,7 @@ export function FailedTable({
                       onClick={onRetry}
                     >
                       <RefreshCw />
-                      Retry
+                      {t("Retry")}
                     </Button>
                   </div>
                 </TableCell>
@@ -251,20 +255,20 @@ export function FailedTable({
                   className="h-56 whitespace-normal break-words text-center"
                 >
                   <div className="text-sm font-medium text-slate-700">
-                    No failed executions found
+                    {t("No failed executions found")}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    Try another queue or adjust the filters.
+                    {t("Try another queue or adjust the filters.")}
                   </div>
                   {hasActiveFilters ? (
                     <Button
                       type="button"
                       variant="outline"
                       className="mt-4"
-                      aria-label="Clear search filters"
+                      aria-label={t("Clear search filters")}
                       onClick={onClearFilters}
                     >
-                      Clear search
+                      {t("Clear search")}
                     </Button>
                   ) : null}
                 </TableCell>

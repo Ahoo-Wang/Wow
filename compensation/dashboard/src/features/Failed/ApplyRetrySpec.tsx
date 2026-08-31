@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { commandErrorMessage } from "./commandErrors.ts";
 import { CopyButton } from "@/components/CopyButton";
 import { formatSeconds } from "@/utils/durations.ts";
+import { useI18n } from "@/i18n.tsx";
 
 const INT32_MAX = 2_147_483_647;
 
@@ -48,6 +49,7 @@ export function ApplyRetrySpec({
   retrySpec,
   onChanged,
 }: ApplyRetrySpecProps) {
+  const { locale, t } = useI18n();
   const [draft, setDraft] = useState<RetrySpecDraft>({
     maxRetries: String(retrySpec.maxRetries),
     minBackoff: String(retrySpec.minBackoff),
@@ -56,12 +58,12 @@ export function ApplyRetrySpec({
   const { closeDrawer } = useGlobalDrawer();
   const promiseState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
-      toast.success("Retry specification updated");
+      toast.success(t("Retry specification updated"));
       closeDrawer();
       onChanged?.();
     },
     onError: async (error) => {
-      toast.error("Failed to apply retry specification", {
+      toast.error(t("Failed to apply retry specification"), {
         description: await commandErrorMessage(error),
       });
     },
@@ -99,7 +101,7 @@ export function ApplyRetrySpec({
   return (
     <form className="space-y-5" onSubmit={submit}>
       <div className="space-y-2">
-        <Label htmlFor="retry-id">Execution ID</Label>
+        <Label htmlFor="retry-id">{t("Execution ID")}</Label>
         <div className="relative">
           <Input
             id="retry-id"
@@ -113,7 +115,7 @@ export function ApplyRetrySpec({
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="max-retries">Max retries</Label>
+        <Label htmlFor="max-retries">{t("Max retries")}</Label>
         <Input
           id="max-retries"
           name="maxRetries"
@@ -132,7 +134,7 @@ export function ApplyRetrySpec({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="min-backoff">Min backoff (s)</Label>
+        <Label htmlFor="min-backoff">{t("Min backoff (s)")}</Label>
         <Input
           id="min-backoff"
           name="minBackoff"
@@ -152,12 +154,12 @@ export function ApplyRetrySpec({
         />
         <p id="min-backoff-preview" className="text-xs text-slate-500">
           {draft.minBackoff
-            ? formatSeconds(Number(draft.minBackoff))
-            : "Enter a duration"}
+            ? formatSeconds(Number(draft.minBackoff), locale)
+            : t("Enter a duration")}
         </p>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="execution-timeout">Execution timeout (s)</Label>
+        <Label htmlFor="execution-timeout">{t("Execution timeout (s)")}</Label>
         <Input
           id="execution-timeout"
           name="executionTimeout"
@@ -177,8 +179,8 @@ export function ApplyRetrySpec({
         />
         <p id="execution-timeout-preview" className="text-xs text-slate-500">
           {draft.executionTimeout
-            ? formatSeconds(Number(draft.executionTimeout))
-            : "Enter a duration"}
+            ? formatSeconds(Number(draft.executionTimeout), locale)
+            : t("Enter a duration")}
         </p>
       </div>
       <Button
@@ -186,7 +188,7 @@ export function ApplyRetrySpec({
         className="w-full"
         disabled={promiseState.loading || !dirty || !valid}
       >
-        {promiseState.loading ? "Applying…" : "Apply retry spec"}
+        {promiseState.loading ? t("Applying…") : t("Apply retry spec")}
       </Button>
     </form>
   );

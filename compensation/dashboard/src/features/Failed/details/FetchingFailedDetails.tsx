@@ -23,6 +23,7 @@ import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { OnChangedCapable } from "../types.ts";
+import { useI18n } from "@/i18n.tsx";
 
 export interface FetchingFailedDetailsProps extends OnChangedCapable {
   id: string;
@@ -34,6 +35,7 @@ export function FetchingFailedDetails({
   onChanged,
   mutationsDisabled,
 }: FetchingFailedDetailsProps) {
+  const { t } = useI18n();
   const query = useMemo(
     () =>
       singleQuery<ExecutionFailedAggregatedFields>({
@@ -63,7 +65,7 @@ export function FetchingFailedDetails({
     return (
       <div
         role="status"
-        aria-label="Loading execution details"
+        aria-label={t("Loading execution details")}
         className="h-full space-y-4 bg-slate-50 p-5"
       >
         <Skeleton className="h-20 w-full" />
@@ -81,7 +83,7 @@ export function FetchingFailedDetails({
       >
         <div>
           <p className="text-sm font-medium text-red-600">
-            Failed to load execution
+            {t("Failed to load execution")}
           </p>
           <p className="mt-1 text-xs text-slate-500">{error.message}</p>
           <Button
@@ -91,7 +93,7 @@ export function FetchingFailedDetails({
             onClick={() => void refreshDetails()}
           >
             <RefreshCw />
-            Retry
+            {t("Retry")}
           </Button>
         </div>
       </div>
@@ -102,7 +104,7 @@ export function FetchingFailedDetails({
     return (
       <div
         role="status"
-        aria-label="Loading execution details"
+        aria-label={t("Loading execution details")}
         className="h-full space-y-4 bg-slate-50 p-5"
       >
         <Skeleton className="h-20 w-full" />
@@ -117,10 +119,10 @@ export function FetchingFailedDetails({
       <div className="flex h-full min-h-60 items-center justify-center bg-slate-50 p-6 text-center">
         <div>
           <p className="text-sm font-medium text-slate-700">
-            Execution not found
+            {t("Execution not found")}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            No compensation execution matches {id}.
+            {t("No compensation execution matches {id}.", { id })}
           </p>
         </div>
       </div>

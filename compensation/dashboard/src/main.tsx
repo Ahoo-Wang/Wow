@@ -7,6 +7,7 @@ import { GlobalDrawerProvider } from "./components/GlobalDrawer";
 import "./services/compensationFetcher";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { I18nProvider } from "@/i18n.tsx";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -15,11 +16,13 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <TooltipProvider>
-      <GlobalDrawerProvider>
-        <RouterProvider router={AppRouter} />
-        <Toaster position="bottom-right" richColors />
-      </GlobalDrawerProvider>
-    </TooltipProvider>
+    <I18nProvider>
+      <TooltipProvider>
+        <GlobalDrawerProvider>
+          <RouterProvider router={AppRouter} />
+          <Toaster position="bottom-right" richColors />
+        </GlobalDrawerProvider>
+      </TooltipProvider>
+    </I18nProvider>
   </StrictMode>,
 );

@@ -21,14 +21,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { copyTextToClipboard } from "@/utils/clipboard.ts";
+import { useI18n, type Message } from "@/i18n.tsx";
 
 interface CopyButtonProps {
   value: string;
-  label?: string;
+  label?: Message;
 }
 
 export function CopyButton({ value, label = "value" }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
+  const { t } = useI18n();
+  const translatedLabel = t(label);
 
   useEffect(() => {
     if (!copied) {
@@ -40,7 +43,7 @@ export function CopyButton({ value, label = "value" }: CopyButtonProps) {
 
   const copy = async () => {
     if (!(await copyTextToClipboard(value))) {
-      toast.error(`Unable to copy ${label}`);
+      toast.error(t("Unable to copy {label}", { label: translatedLabel }));
       return;
     }
     setCopied(true);
@@ -54,14 +57,18 @@ export function CopyButton({ value, label = "value" }: CopyButtonProps) {
             type="button"
             variant="ghost"
             size="icon-xs"
-            aria-label={`Copy ${label}`}
+            aria-label={t("Copy {label}", { label: translatedLabel })}
             onClick={copy}
           />
         }
       >
         {copied ? <Check /> : <Copy />}
       </TooltipTrigger>
-      <TooltipContent>{copied ? "Copied" : `Copy ${label}`}</TooltipContent>
+      <TooltipContent>
+        {copied
+          ? t("Copied")
+          : t("Copy {label}", { label: translatedLabel })}
+      </TooltipContent>
     </Tooltip>
   );
 }

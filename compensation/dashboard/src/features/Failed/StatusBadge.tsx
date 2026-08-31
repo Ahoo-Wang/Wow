@@ -14,6 +14,7 @@
 import { ExecutionFailedStatus } from "@/generated";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useI18n, type Message } from "@/i18n.tsx";
 
 interface StatusBadgeProps {
   className?: string;
@@ -21,7 +22,8 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ className, status }: StatusBadgeProps) {
-  const labels: Record<ExecutionFailedStatus, string> = {
+  const { t } = useI18n();
+  const labels: Record<ExecutionFailedStatus, Message> = {
     [ExecutionFailedStatus.FAILED]: "Failed",
     [ExecutionFailedStatus.PREPARED]: "Prepared",
     [ExecutionFailedStatus.SUCCEEDED]: "Succeeded",
@@ -41,12 +43,13 @@ export function StatusBadge({ className, status }: StatusBadgeProps) {
         className,
       )}
     >
-      {labels[status]}
+      {t(labels[status])}
     </Badge>
   );
 }
 
 export function BooleanBadge({ value }: { value: boolean }) {
+  const { t } = useI18n();
   return (
     <Badge
       variant="outline"
@@ -57,7 +60,7 @@ export function BooleanBadge({ value }: { value: boolean }) {
           : "border-slate-300 bg-slate-50 text-slate-600",
       )}
     >
-      {value ? "Yes" : "No"}
+      {value ? t("Yes") : t("No")}
     </Badge>
   );
 }

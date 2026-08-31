@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { commandErrorMessage } from "./commandErrors.ts";
 import { CopyButton } from "@/components/CopyButton";
+import { useI18n } from "@/i18n.tsx";
 
 export interface ChangeFunctionProps extends OnChangedCapable {
   id: string;
@@ -51,16 +52,17 @@ export function ChangeFunction({
   functionInfo,
   onChanged,
 }: ChangeFunctionProps) {
+  const { t } = useI18n();
   const { closeDrawer } = useGlobalDrawer();
   const [draft, setDraft] = useState<FunctionDraft>({ ...functionInfo });
   const promiseState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
-      toast.success("Function updated");
+      toast.success(t("Function updated"));
       closeDrawer();
       onChanged?.();
     },
     onError: async (error) => {
-      toast.error("Failed to change function", {
+      toast.error(t("Failed to change function"), {
         description: await commandErrorMessage(error),
       });
     },
@@ -100,7 +102,7 @@ export function ChangeFunction({
   return (
     <form className="space-y-5" onSubmit={submit}>
       <div className="space-y-2">
-        <Label htmlFor="function-id">Execution ID</Label>
+        <Label htmlFor="function-id">{t("Execution ID")}</Label>
         <div className="relative">
           <Input
             id="function-id"
@@ -114,7 +116,7 @@ export function ChangeFunction({
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="context-name">Context name</Label>
+        <Label htmlFor="context-name">{t("Context name")}</Label>
         <Input
           id="context-name"
           name="contextName"
@@ -129,7 +131,7 @@ export function ChangeFunction({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="processor-name">Processor name</Label>
+        <Label htmlFor="processor-name">{t("Processor name")}</Label>
         <Input
           id="processor-name"
           name="processorName"
@@ -144,7 +146,7 @@ export function ChangeFunction({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="function-name">Function name</Label>
+        <Label htmlFor="function-name">{t("Function name")}</Label>
         <Input
           id="function-name"
           name="name"
@@ -159,7 +161,7 @@ export function ChangeFunction({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="function-kind">Function kind</Label>
+        <Label htmlFor="function-kind">{t("Function kind")}</Label>
         <Select
           name="functionKind"
           value={draft.functionKind}
@@ -186,7 +188,7 @@ export function ChangeFunction({
         className="w-full"
         disabled={promiseState.loading || !dirty || !valid}
       >
-        {promiseState.loading ? "Saving…" : "Save function"}
+        {promiseState.loading ? t("Saving…") : t("Save function")}
       </Button>
     </form>
   );

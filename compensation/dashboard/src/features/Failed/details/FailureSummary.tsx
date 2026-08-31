@@ -16,6 +16,7 @@ import type { ExecutionFailedState } from "../../../generated";
 import { ExecutionFailedStatus } from "../../../generated";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/dates";
+import { useI18n } from "@/i18n.tsx";
 
 export interface FailureSummaryProps {
   state: Pick<ExecutionFailedState, "error" | "executeAt" | "status">;
@@ -23,6 +24,7 @@ export interface FailureSummaryProps {
 
 export function FailureSummary({ state }: FailureSummaryProps) {
   const historical = state.status === ExecutionFailedStatus.SUCCEEDED;
+  const { locale, t } = useI18n();
 
   return (
     <section
@@ -30,7 +32,7 @@ export function FailureSummary({ state }: FailureSummaryProps) {
         "overflow-hidden rounded-lg border bg-white shadow-sm",
         historical ? "border-slate-200" : "border-red-200",
       )}
-      aria-label={historical ? "Last failure summary" : "Failure summary"}
+      aria-label={historical ? t("Last failure summary") : t("Failure summary")}
     >
       <div
         className={cn(
@@ -47,12 +49,12 @@ export function FailureSummary({ state }: FailureSummaryProps) {
           />
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-slate-900">
-              {historical ? "Last failure" : "Failure summary"}
+              {historical ? t("Last failure") : t("Failure summary")}
             </h2>
             <p className="text-xs text-slate-500">
               {historical
-                ? "Most recent recorded failure"
-                : "Current processing failure"}
+                ? t("Most recent recorded failure")
+                : t("Current processing failure")}
             </p>
           </div>
         </div>
@@ -73,10 +75,10 @@ export function FailureSummary({ state }: FailureSummaryProps) {
         <dl className="mt-4 border-t pt-3">
           <div>
             <dt className="text-xs text-slate-500">
-              {historical ? "Succeeded at" : "Failed at"}
+              {historical ? t("Succeeded at") : t("Failed at")}
             </dt>
             <dd className="mt-1 text-sm tabular-nums text-slate-800">
-              {formatDate(state.executeAt)}
+              {formatDate(state.executeAt, undefined, locale)}
             </dd>
           </div>
         </dl>

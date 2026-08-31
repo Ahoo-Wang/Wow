@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ChangeFunction } from "../ChangeFunction.tsx";
 import type { OnChangedCapable } from "../types.ts";
+import { useI18n } from "@/i18n.tsx";
 
 type ExecutionContextState = Pick<
   ExecutionFailedState,
@@ -58,13 +59,14 @@ export function ExecutionContext({
   onChanged,
   mutationsDisabled,
 }: ExecutionContextProps) {
+  const { t } = useI18n();
   const { openDrawer } = useGlobalDrawer();
   const aggregate = state.eventId.aggregateId;
 
   const editFunction = () =>
     openDrawer({
-      title: "Change function",
-      description: "Update the handler identity for this failed execution.",
+      title: t("Change function"),
+      description: t("Update the handler identity for this failed execution."),
       width: 500,
       children: (
         <ChangeFunction
@@ -78,29 +80,29 @@ export function ExecutionContext({
   return (
     <section
       className="overflow-hidden rounded-lg border bg-white shadow-sm"
-      aria-label="Execution context"
+      aria-label={t("Execution context")}
     >
       <div className="flex min-h-14 items-center gap-3 border-b bg-slate-50/70 px-4 py-3">
         <Workflow className="size-4 shrink-0 text-slate-500" />
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-slate-900">
-            Execution context
+            {t("Execution context")}
           </h2>
           <p className="text-xs text-slate-500">
-            Handler and source event identifiers
+            {t("Handler and source event identifiers")}
           </p>
         </div>
       </div>
       <dl className="grid grid-cols-1 gap-x-6 p-3 xl:grid-cols-2">
         <div className="space-y-1 xl:border-r xl:pr-6">
           <DetailRow
-            label="Processor"
+            label={t("Processor")}
             action={
               <Button
                 type="button"
                 variant="ghost"
                 size="icon-xs"
-                aria-label="Edit function"
+                aria-label={t("Edit function")}
                 disabled={mutationsDisabled}
                 onClick={editFunction}
               >
@@ -112,21 +114,21 @@ export function ExecutionContext({
               {state.function.processorName}
             </span>
           </DetailRow>
-          <DetailRow label="Function kind">
+          <DetailRow label={t("Function kind")}>
             {state.function.contextName} / {state.function.functionKind}
           </DetailRow>
-          <DetailRow label="Aggregate">
+          <DetailRow label={t("Aggregate")}>
             {aggregate.contextName} / {aggregate.aggregateName}
           </DetailRow>
-          <DetailRow label="Tenant">
+          <DetailRow label={t("Tenant")}>
             <span className="truncate">{aggregate.tenantId}</span>
           </DetailRow>
         </div>
 
         <div className="mt-4 space-y-1 border-t pt-4 xl:mt-0 xl:border-t-0 xl:pl-6 xl:pt-0">
-          <DetailRow label="Event version">{state.eventId.version}</DetailRow>
+          <DetailRow label={t("Event version")}>{state.eventId.version}</DetailRow>
           <DetailRow
-            label="Event ID"
+            label={t("Event ID")}
             action={<CopyButton value={state.eventId.id} label="event ID" />}
           >
             <span className="block truncate font-mono text-xs">
@@ -134,7 +136,7 @@ export function ExecutionContext({
             </span>
           </DetailRow>
           <DetailRow
-            label="Aggregate ID"
+            label={t("Aggregate ID")}
             action={
               <CopyButton value={aggregate.aggregateId} label="aggregate ID" />
             }

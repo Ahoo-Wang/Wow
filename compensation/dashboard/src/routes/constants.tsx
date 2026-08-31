@@ -14,6 +14,7 @@
 import type { ComponentType } from "react";
 import { FindCategory } from "../features/Failed/FindCategory.ts";
 import LazyFailedView from "./LazyFailedView.tsx";
+import type { Message } from "@/i18n.tsx";
 
 export const NavItemPaths = {
   Dashboard: "/",
@@ -27,7 +28,7 @@ export const NavItemPaths = {
 } as const;
 
 export interface NavItem {
-  readonly label: string;
+  readonly label: Message;
   readonly path: string;
 }
 

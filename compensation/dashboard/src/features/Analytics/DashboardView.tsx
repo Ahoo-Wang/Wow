@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ExchangeError } from "@ahoo-wang/fetcher";
 import { RecoverableType } from "@ahoo-wang/fetcher-wow";
 import type { DateRange } from "react-day-picker";
+import { zhCN } from "react-day-picker/locale";
 import { formatAge, formatDate } from "../../utils/dates.ts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +64,7 @@ import {
   type AnalyticsSection,
   useSnapshotAnalytics,
 } from "./useSnapshotAnalytics.ts";
+import { useI18n, type Locale, type Message } from "@/i18n.tsx";
 
 interface CompleteDateRange {
   from: Date;
@@ -74,7 +76,14 @@ function createDefaultDateRange(): CompleteDateRange {
   return { from: to.subtract(6, "day").toDate(), to: to.toDate() };
 }
 
-function formatDateRange({ from, to }: CompleteDateRange): string {
+function formatDateRange(
+  { from, to }: CompleteDateRange,
+  locale: Locale,
+): string {
+  if (locale === "zh-CN") {
+    const formatter = new Intl.DateTimeFormat(locale, { dateStyle: "medium" });
+    return `${formatter.format(from)} – ${formatter.format(to)}`;
+  }
   return `${dayjs(from).format("YYYY-MM-DD")} – ${dayjs(to).format("YYYY-MM-DD")}`;
 }
 
@@ -88,7 +97,7 @@ const recoverabilityDisplay = {
     color: "var(--chart-1)",
     label: "Unrecoverable",
   },
-} satisfies Record<RecoverableType, { color: string; label: string }>;
+} satisfies Record<RecoverableType, { color: string; label: Message }>;
 const retryBucketColors = {
   "0": "var(--chart-5)",
   "1–2": "var(--chart-2)",
@@ -131,17 +140,16 @@ function formatStatusShare(count: number, total: number): string {
   return `${count} (${percentage}%)`;
 }
 
-const percentageFormatter = new Intl.NumberFormat("en-US", {
-  maximumFractionDigits: 1,
-  style: "percent",
-});
-
-function formatPercentage(value: number): string {
-  const formatted = percentageFormatter.format(value);
+function formatPercentage(value: number, locale: Locale): string {
+  const formatted = new Intl.NumberFormat(locale, {
+    maximumFractionDigits: 1,
+    style: "percent",
+  }).format(value);
   return value > 0 && formatted === "0%" ? "<0.1%" : formatted;
 }
 
 function PressureStatusShare({ cluster }: { cluster: PressureCluster }) {
+  const { t } = useI18n();
   const failed = formatStatusShare(cluster.failedCount, cluster.currentCount);
   const prepared = formatStatusShare(
     cluster.preparedCount,
@@ -157,7 +165,7 @@ function PressureStatusShare({ cluster }: { cluster: PressureCluster }) {
       : (cluster.preparedCount / cluster.currentCount) * 100;
 
   return (
-    <div aria-label={`Failed ${failed}; Prepared ${prepared}`}>
+    <div aria-label={t("Failed {failed}; Prepared {prepared}", { failed, prepared })}>
       <div className="flex items-center gap-2 text-xs tabular-nums">
         <span>{failed}</span>
         <span>{prepared}</span>
@@ -175,15 +183,16 @@ function PressureStatusShare({ cluster }: { cluster: PressureCluster }) {
 
 function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
   const now = useNow();
+  const { locale, t } = useI18n();
   return (
-    <Table aria-label="Current failure pressure" className="min-w-[48rem]">
+    <Table aria-label={t("Current failure pressure")} className="min-w-[48rem]">
       <TableHeader>
         <TableRow>
-          <TableHead>Cluster</TableHead>
-          <TableHead className="text-right">Current</TableHead>
-          <TableHead>Failed / Prepared</TableHead>
-          <TableHead>Oldest</TableHead>
-          <TableHead>Next retry</TableHead>
+          <TableHead>{t("Cluster")}</TableHead>
+          <TableHead className="text-right">{t("Current")}</TableHead>
+          <TableHead>{t("Failed / Prepared")}</TableHead>
+          <TableHead>{t("Oldest")}</TableHead>
+          <TableHead>{t("Next retry")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -193,7 +202,7 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
               colSpan={5}
               className="h-24 text-center text-muted-foreground"
             >
-              No active failure clusters
+              {t("No active failure clusters")}
             </TableCell>
           </TableRow>
         ) : (
@@ -202,7 +211,7 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
               key={`${cluster.errorCode}:${cluster.contextName}:${cluster.processorName}:${cluster.functionName}:${cluster.functionKind}`}
               data-dominant={index === 0 ? "true" : undefined}
             >
-              <TableCell data-label="Cluster">
+              <TableCell data-label={t("Cluster")}>
                 <div className="font-medium">{cluster.errorCode}</div>
                 <div className="text-xs text-muted-foreground">
                   {cluster.contextName} · {cluster.processorName}/
@@ -211,24 +220,24 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
                 </div>
               </TableCell>
               <TableCell
-                data-label="Current"
+                data-label={t("Current")}
                 className="text-right tabular-nums"
               >
                 {cluster.currentCount}
               </TableCell>
-              <TableCell data-label="Failed / Prepared">
+              <TableCell data-label={t("Failed / Prepared")}>
                 <PressureStatusShare cluster={cluster} />
               </TableCell>
               <TableCell
-                data-label="Oldest"
-                title={formatDate(cluster.oldestExecuteAt ?? undefined)}
+                data-label={t("Oldest")}
+                title={formatDate(cluster.oldestExecuteAt ?? undefined, undefined, locale)}
               >
                 {cluster.oldestExecuteAt
-                  ? formatAge(cluster.oldestExecuteAt, now)
+                  ? formatAge(cluster.oldestExecuteAt, now, locale)
                   : "-"}
               </TableCell>
-              <TableCell data-label="Next retry">
-                {formatDate(cluster.nextRetryAt ?? undefined)}
+              <TableCell data-label={t("Next retry")}>
+                {formatDate(cluster.nextRetryAt ?? undefined, undefined, locale)}
               </TableCell>
             </TableRow>
           ))
@@ -239,6 +248,7 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
 }
 
 export default function DashboardView() {
+  const { locale, t } = useI18n();
   const [appliedRange, setAppliedRange] = useState<CompleteDateRange>(
     createDefaultDateRange,
   );
@@ -253,7 +263,7 @@ export default function DashboardView() {
     () => createTrendWindow(appliedRange.from, appliedRange.to, timeZone),
     [appliedRange, timeZone],
   );
-  const rangeLabel = formatDateRange(appliedRange);
+  const rangeLabel = formatDateRange(appliedRange, locale);
   const snapshot = useSnapshotAnalytics(window, refreshToken);
   const trend = useEventTrend(window, refreshToken);
   const sections = [
@@ -324,8 +334,10 @@ export default function DashboardView() {
     ? snapshot.pressure.data![0].currentCount / selectedActive!
     : 0;
   const pressureTitle = pressureInsightsReady
-    ? `Failure concentration · Top cluster ${formatPercentage(pressureShare)}`
-    : "Current failure pressure — Top 5 clusters";
+    ? t("Failure concentration · Top cluster {percentage}", {
+        percentage: formatPercentage(pressureShare, locale),
+      })
+    : t("Current failure pressure — Top 5 clusters");
 
   const applyRecentDays = (days: number) => {
     const to = dayjs(Date.now()).startOf("day");
@@ -339,12 +351,12 @@ export default function DashboardView() {
   return (
     <div className="dashboard-view">
       {initialLoading ? (
-        <span role="status" aria-label="Loading dashboard" className="sr-only">
-          Loading dashboard
+        <span role="status" aria-label={t("Loading dashboard")} className="sr-only">
+          {t("Loading dashboard")}
         </span>
       ) : null}
       <div className="dashboard-toolbar">
-        <span className="dashboard-time-range-label">Time range</span>
+        <span className="dashboard-time-range-label">{t("Time range")}</span>
         <Popover
           open={rangeOpen}
           onOpenChange={(open) => {
@@ -360,7 +372,7 @@ export default function DashboardView() {
                 type="button"
                 variant="outline"
                 className="dashboard-time-range-button"
-                aria-label={`Time range: ${rangeLabel}`}
+                aria-label={t("Time range: {range}", { range: rangeLabel })}
               />
             }
           >
@@ -373,16 +385,16 @@ export default function DashboardView() {
           >
             <div className="border-b p-2">
               <ToggleGroup
-                aria-label="Date range presets"
+                aria-label={t("Date range presets")}
                 variant="outline"
                 spacing={0}
                 className="w-full"
               >
-                {[
+                {([
                   ["Today", 1],
                   ["Last 7 days", 7],
                   ["Last 30 days", 30],
-                ].map(([label, days]) => (
+                ] satisfies [Message, number][]).map(([label, days]) => (
                   <ToggleGroupItem
                     key={label}
                     value={String(days)}
@@ -390,7 +402,7 @@ export default function DashboardView() {
                     className="flex-1"
                     onClick={() => applyRecentDays(Number(days))}
                   >
-                    {label}
+                    {t(label)}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
@@ -404,10 +416,11 @@ export default function DashboardView() {
               onSelect={setDraftRange}
               defaultMonth={draftRange.from}
               timeZone={timeZone}
+              locale={locale === "zh-CN" ? zhCN : undefined}
             />
             {draftRange.from && !draftRange.to ? (
               <p className="px-3 pb-2 text-sm text-muted-foreground">
-                Select an end date.
+                {t("Select an end date.")}
               </p>
             ) : null}
             <div className="flex justify-end gap-2 border-t p-2">
@@ -419,7 +432,7 @@ export default function DashboardView() {
                   setRangeOpen(false);
                 }}
               >
-                Cancel
+                {t("Cancel")}
               </Button>
               <Button
                 type="button"
@@ -434,23 +447,27 @@ export default function DashboardView() {
                   }
                 }}
               >
-                Apply
+                {t("Apply")}
               </Button>
             </div>
           </PopoverContent>
         </Popover>
         {dashboardUpdatedAt ? (
-          <span>Updated {formatDate(dashboardUpdatedAt)}</span>
+          <span>
+            {t("Updated {date}", {
+              date: formatDate(dashboardUpdatedAt, undefined, locale),
+            })}
+          </span>
         ) : null}
         <Button
           type="button"
           variant="outline"
           aria-busy={refreshing}
-          aria-label={refreshing ? "Refreshing dashboard" : "Refresh dashboard"}
+          aria-label={refreshing ? t("Refreshing dashboard") : t("Refresh dashboard")}
           onClick={() => setRefreshToken((value) => value + 1)}
         >
           <RefreshCw className={refreshing ? "animate-spin" : undefined} />
-          Refresh
+          {t("Refresh")}
         </Button>
       </div>
 
@@ -462,68 +479,72 @@ export default function DashboardView() {
       >
         <CardHeader className="sr-only">
           <CardTitle>
-            <h2 id="dashboard-overview-title">Compensation overview</h2>
+            <h2 id="dashboard-overview-title">{t("Compensation overview")}</h2>
           </CardTitle>
         </CardHeader>
         <CardContent className="dashboard-overview-content">
           <section
             role="region"
-            aria-label="Backlog exposure"
+            aria-label={t("Backlog exposure")}
             className="dashboard-stock"
           >
-            <h3 id="dashboard-stock-title">STOCK / Backlog exposure</h3>
+            <h3 id="dashboard-stock-title">{t("STOCK / Backlog exposure")}</h3>
             <SectionMeta section={snapshot.summary} />
             {scopeInsightsReady && snapshot.summary.data ? (
               <>
                 <dl className="dashboard-stock-metrics">
                   <div>
-                    <dt>Selected active</dt>
+                    <dt>{t("Selected active")}</dt>
                     <dd>{selectedActive.toLocaleString()}</dd>
                   </div>
                   <div>
-                    <dt>Older backlog</dt>
+                    <dt>{t("Older backlog")}</dt>
                     <dd>
                       {snapshot.summary.data.olderThanRange.toLocaleString()}
                     </dd>
                   </div>
                   <div>
-                    <dt>Unrecoverable</dt>
+                    <dt>{t("Unrecoverable")}</dt>
                     <dd>
                       {snapshot.summary.data.unrecoverable.toLocaleString()}
                     </dd>
                   </div>
                   <div>
-                    <dt>Coverage</dt>
-                    <dd>{formatPercentage(selectedCoverage)}</dd>
+                    <dt>{t("Coverage")}</dt>
+                    <dd>{formatPercentage(selectedCoverage, locale)}</dd>
                   </div>
                 </dl>
                 <Progress
-                  aria-label="Selected active coverage"
-                  aria-valuetext={formatPercentage(selectedCoverage)}
+                  aria-label={t("Selected active coverage")}
+                  aria-valuetext={formatPercentage(selectedCoverage, locale)}
                   value={selectedCoverage * 100}
                   className="dashboard-stock-progress"
                 />
                 <div className="dashboard-stock-scale">
                   <span>
-                    {selectedActive.toLocaleString()} selected (
-                    {formatPercentage(selectedCoverage)})
+                    {t("{count} selected ({percentage})", {
+                      count: selectedActive.toLocaleString(),
+                      percentage: formatPercentage(selectedCoverage, locale),
+                    })}
                   </span>
                   <span>
-                    {snapshot.summary.data.olderThanRange.toLocaleString()} older
+                    {t("{count} older", {
+                      count: snapshot.summary.data.olderThanRange.toLocaleString(),
+                    })}
                   </span>
-                  <span>{newerThanRange.toLocaleString()} newer</span>
-                  <span>{activeTotal.toLocaleString()} total</span>
+                  <span>{t("{count} newer", { count: newerThanRange.toLocaleString() })}</span>
+                  <span>{t("{count} total", { count: activeTotal.toLocaleString() })}</span>
                 </div>
                 <Separator />
                 <dl className="dashboard-stock-secondary">
                   <div>
-                    <dt>Actionable now</dt>
+                    <dt>{t("Actionable now")}</dt>
                     <dd>
                       {snapshot.summary.data.actionableNow.toLocaleString()}
                     </dd>
                   </div>
                   <div>
-                    <dt>Timed out</dt>
+                    <dt>{t("Timed out")}</dt>
                     <dd>{snapshot.summary.data.timedOut.toLocaleString()}</dd>
                   </div>
                 </dl>
@@ -532,37 +553,37 @@ export default function DashboardView() {
               <Skeleton className="h-44 w-full" />
             ) : (
               <p className="text-sm text-muted-foreground">
-                Backlog exposure unavailable.
+                {t("Backlog exposure unavailable.")}
               </p>
             )}
           </section>
           <section
             role="region"
-            aria-label="Compensation effectiveness"
+            aria-label={t("Compensation effectiveness")}
             className="dashboard-flow"
           >
-            <h3 id="dashboard-flow-title">FLOW / Compensation effectiveness</h3>
+            <h3 id="dashboard-flow-title">{t("FLOW / Compensation effectiveness")}</h3>
             <SectionMeta section={trend} />
             {trend.data ? (
               <>
                 <dl className="dashboard-flow-primary">
                   <div>
-                    <dt>New failures</dt>
+                    <dt>{t("New failures")}</dt>
                     <dd>{trendSummary.newFailures.toLocaleString()}</dd>
                   </div>
                   <div>
-                    <dt>Net backlog</dt>
+                    <dt>{t("Net backlog")}</dt>
                     <dd>
                       {trendSummary.netBacklog >= 0 ? "+" : ""}
                       {trendSummary.netBacklog.toLocaleString()}
                     </dd>
                   </div>
                   <div>
-                    <dt>Retry success</dt>
+                    <dt>{t("Retry success")}</dt>
                     <dd>
                       {trendSummary.retrySuccess === null
                         ? "—"
-                        : formatPercentage(trendSummary.retrySuccess)}
+                        : formatPercentage(trendSummary.retrySuccess, locale)}
                     </dd>
                   </div>
                 </dl>
@@ -571,21 +592,21 @@ export default function DashboardView() {
                   <div>
                     <dt>
                       <span aria-hidden="true" className="bg-chart-2" />
-                      Prepared
+                      {t("Prepared")}
                     </dt>
                     <dd>{trendSummary.prepared.toLocaleString()}</dd>
                   </div>
                   <div>
                     <dt>
                       <span aria-hidden="true" className="bg-chart-3" />
-                      Retried failed
+                      {t("Retried failed")}
                     </dt>
                     <dd>{trendSummary.retriedFailed.toLocaleString()}</dd>
                   </div>
                   <div>
                     <dt>
                       <span aria-hidden="true" className="bg-chart-4" />
-                      Succeeded
+                      {t("Succeeded")}
                     </dt>
                     <dd>{trendSummary.succeeded.toLocaleString()}</dd>
                   </div>
@@ -595,7 +616,7 @@ export default function DashboardView() {
               <Skeleton className="h-44 w-full" />
             ) : (
               <p className="text-sm text-muted-foreground">
-                Compensation effectiveness unavailable.
+                {t("Compensation effectiveness unavailable.")}
               </p>
             )}
           </section>
@@ -610,7 +631,7 @@ export default function DashboardView() {
       >
         <CardHeader className="sr-only">
           <CardTitle>
-            <h2 id="dashboard-activity-title">Dashboard activity</h2>
+            <h2 id="dashboard-activity-title">{t("Dashboard activity")}</h2>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -620,7 +641,7 @@ export default function DashboardView() {
             <CompensationTrendChart points={trend.data} />
           ) : (
             <p className="text-sm text-muted-foreground">
-              Compensation activity unavailable.
+              {t("Compensation activity unavailable.")}
             </p>
           )}
         </CardContent>
@@ -635,7 +656,7 @@ export default function DashboardView() {
         <CardHeader>
           <CardTitle>
             <h2 id="dashboard-health-title">
-              Current health for selected execution range
+              {t("Current health for selected execution range")}
             </h2>
           </CardTitle>
         </CardHeader>
@@ -647,10 +668,11 @@ export default function DashboardView() {
               <Skeleton className="h-24 w-full" />
             ) : snapshot.recoverability.data ? (
               <DistributionChart
-                title="Recoverability composition"
+                title={t("Recoverability composition")}
                 data={snapshot.recoverability.data.map(
                   ({ count, recoverable }) => ({
                     ...recoverabilityDisplay[recoverable],
+                    label: t(recoverabilityDisplay[recoverable].label),
                     count,
                     key: recoverable,
                   }),
@@ -669,7 +691,7 @@ export default function DashboardView() {
             ) : snapshot.retries.data?.truncated ? (
               <Alert>
                 <AlertDescription>
-                  Retry distribution is truncated and is not charted.
+                  {t("Retry distribution is truncated and is not charted.")}
                 </AlertDescription>
               </Alert>
             ) : snapshot.retries.data ? (
@@ -678,7 +700,7 @@ export default function DashboardView() {
                   color: retryBucketColors[key],
                   count,
                   key,
-                  label: `${key} retries`,
+                  label: t("{key} retries", { key }),
                 }))}
               />
             ) : null}
@@ -700,11 +722,15 @@ export default function DashboardView() {
             <CardAction className="max-sm:col-span-2 max-sm:row-start-2 max-sm:justify-self-start">
               <Badge variant="outline">
                 {snapshot.pressure.data!.length === 1
-                  ? "1 cluster"
+                  ? t("{count} cluster", { count: 1 })
                   : snapshot.pressure.data!.length === 5
-                    ? "Top 5 clusters"
-                    : `${snapshot.pressure.data!.length} clusters`}{" "}
-                · Top cluster {formatPercentage(pressureShare)}
+                    ? t("Top 5 clusters")
+                    : t("{count} clusters", {
+                        count: snapshot.pressure.data!.length,
+                      })}{" "}
+                · {t("Top cluster {percentage}", {
+                  percentage: formatPercentage(pressureShare, locale),
+                })}
               </Badge>
             </CardAction>
           ) : null}

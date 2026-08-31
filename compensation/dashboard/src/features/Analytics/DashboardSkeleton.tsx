@@ -13,12 +13,14 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { useI18n } from "@/i18n.tsx";
 
 export default function DashboardSkeleton() {
+  const { t } = useI18n();
   return (
     <div
       role="status"
-      aria-label="Loading dashboard"
+      aria-label={t("Loading dashboard")}
       className="dashboard-view dashboard-skeleton"
     >
       <div className="dashboard-toolbar">
@@ -27,7 +29,7 @@ export default function DashboardSkeleton() {
       </div>
       <Card size="sm" className="dashboard-overview">
         <CardHeader className="sr-only">
-          <span>Loading compensation overview</span>
+          <span>{t("Loading compensation overview")}</span>
         </CardHeader>
         <CardContent className="dashboard-overview-content">
           <section className="dashboard-stock">
@@ -42,7 +44,7 @@ export default function DashboardSkeleton() {
       </Card>
       <Card size="sm" className="dashboard-activity">
         <CardHeader className="sr-only">
-          <span>Loading dashboard activity</span>
+          <span>{t("Loading dashboard activity")}</span>
         </CardHeader>
         <CardContent>
           <Skeleton className="h-56 w-full" />

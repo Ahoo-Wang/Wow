@@ -15,6 +15,9 @@ vi.mock("react-dom/client", () => ({
   createRoot: mocks.createRoot,
 }));
 vi.mock("./index.css", () => ({}));
+vi.mock("@/i18n.tsx", () => ({
+  I18nProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
 vi.mock("react-router", () => ({
   RouterProvider: ({ router }: { router: unknown }) => (
     <div data-testid="router-provider">

@@ -51,6 +51,7 @@ import { copyTextToClipboard } from "@/utils/clipboard.ts";
 import type { OnChangedCapable } from "./types.ts";
 import { commandErrorMessage } from "./commandErrors.ts";
 import { getCompensationCapabilities } from "./compensationCapabilities.ts";
+import { useI18n } from "@/i18n.tsx";
 
 export interface ActionsProps
   extends StateCapable<ExecutionFailedState>, OnChangedCapable {
@@ -58,6 +59,7 @@ export interface ActionsProps
 }
 
 export function Actions({ state, onChanged, disabled }: ActionsProps) {
+  const { t } = useI18n();
   const [forceDialogOpen, setForceDialogOpen] = useState(false);
   const unavailableReasonId = useId();
   const stateCapabilities = getCompensationCapabilities(state);
@@ -65,17 +67,17 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
     ? {
         canForcePrepare: false,
         canPrepare: false,
-        unavailableReason: "Refreshing current execution state.",
+        unavailableReason: "Refreshing current execution state." as const,
       }
     : stateCapabilities;
 
   const prepareState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
-      toast.success("Compensation prepared");
+      toast.success(t("Compensation prepared"));
       onChanged?.();
     },
     onError: async (error) => {
-      toast.error("Prepare failed", {
+      toast.error(t("Prepare failed"), {
         description: await commandErrorMessage(error),
       });
     },
@@ -84,11 +86,11 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
   const forcePrepareState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
       setForceDialogOpen(false);
-      toast.success("Compensation force prepared");
+      toast.success(t("Compensation force prepared"));
       onChanged?.();
     },
     onError: async (error) => {
-      toast.error("Force prepare failed", {
+      toast.error(t("Force prepare failed"), {
         description: await commandErrorMessage(error),
       });
     },
@@ -112,17 +114,17 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
 
   const copyExecutionId = async () => {
     if (!(await copyTextToClipboard(state.id))) {
-      toast.error("Unable to copy execution ID");
+      toast.error(t("Unable to copy execution ID"));
       return;
     }
-    toast.success("Execution ID copied");
+    toast.success(t("Execution ID copied"));
   };
   const busy = prepareState.loading || forcePrepareState.loading;
   const unavailableAction = disabled
-    ? { label: "Refreshing state", icon: <LoaderCircle /> }
+    ? { label: t("Refreshing state"), icon: <LoaderCircle /> }
     : state.status === ExecutionFailedStatus.SUCCEEDED
-      ? { label: "Already succeeded", icon: <CircleCheck /> }
-      : { label: "Retry limit reached", icon: <ShieldAlert /> };
+      ? { label: t("Already succeeded"), icon: <CircleCheck /> }
+      : { label: t("Retry limit reached"), icon: <ShieldAlert /> };
 
   return (
     <>
@@ -150,7 +152,7 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
               <Play />
             )}
             {capabilities.canPrepare
-              ? "Prepare compensation"
+              ? t("Prepare compensation")
               : unavailableAction.label}
           </Button>
           <DropdownMenu>
@@ -161,7 +163,7 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
                   variant="outline"
                   size="icon-lg"
                   className="h-11 w-12"
-                  aria-label="More actions"
+                  aria-label={t("More actions")}
                   disabled={busy}
                 />
               }
@@ -176,11 +178,11 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
                 onClick={() => setForceDialogOpen(true)}
               >
                 <ShieldAlert />
-                Force prepare
+                {t("Force prepare")}
               </DropdownMenuItem>
               <DropdownMenuItem className="py-2" onClick={copyExecutionId}>
                 <Clipboard />
-                Copy execution ID
+                {t("Copy execution ID")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -190,7 +192,7 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
             id={unavailableReasonId}
             className="max-w-72 text-right text-xs text-slate-500"
           >
-            {capabilities.unavailableReason}
+            {t(capabilities.unavailableReason)}
           </p>
         ) : null}
       </div>
@@ -201,21 +203,22 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
             <AlertDialogMedia className="bg-red-50 text-red-600">
               <ShieldAlert />
             </AlertDialogMedia>
-            <AlertDialogTitle>Force prepare this execution?</AlertDialogTitle>
+            <AlertDialogTitle>{t("Force prepare this execution?")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This bypasses the retry limit for {state.id}. The server still
-              validates the current execution state. Use it only after verifying
-              the failure context.
+              {t(
+                "This bypasses the retry limit for {id}. The server still validates the current execution state. Use it only after verifying the failure context.",
+                { id: state.id },
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={forcePrepare}
               disabled={busy || !capabilities.canForcePrepare}
             >
-              Force prepare
+              {t("Force prepare")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

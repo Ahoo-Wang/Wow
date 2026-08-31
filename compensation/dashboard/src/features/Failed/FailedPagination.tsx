@@ -22,6 +22,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n.tsx";
 
 interface FailedPaginationProps {
   loading?: boolean;
@@ -41,6 +42,7 @@ export function FailedPagination({
   total,
 }: FailedPaginationProps) {
   const [jumpPage, setJumpPage] = useState("");
+  const { t } = useI18n();
   const firstItem = total === 0 ? 0 : (pageIndex - 1) * pageSize + 1;
   const lastItem = Math.min((pageIndex - 1) * pageSize + rowCount, total);
   const pageCount = Math.ceil(total / pageSize);
@@ -75,7 +77,7 @@ export function FailedPagination({
         aria-live="polite"
         className="text-sm text-slate-600 tabular-nums"
       >
-        {firstItem}–{lastItem} of {total}
+        {t("{first}–{last} of {total}", { first: firstItem, last: lastItem, total })}
       </span>
       <div className="flex items-center gap-1.5">
         <Button
@@ -83,7 +85,7 @@ export function FailedPagination({
           variant="outline"
           size="icon"
           className="failed-pagination-control"
-          aria-label="Previous page"
+          aria-label={t("Previous page")}
           disabled={pageCount === 0 || pageIndex <= 1 || loading}
           onClick={() => onPaginationChange?.(pageIndex - 1, pageSize)}
         >
@@ -95,7 +97,7 @@ export function FailedPagination({
             type="button"
             variant="outline"
             size="icon"
-            aria-label={`Page ${page}`}
+            aria-label={t("Page {page}", { page })}
             aria-current={page === pageIndex ? "page" : undefined}
             className={cn(
               "failed-pagination-control failed-table-page-button",
@@ -113,7 +115,7 @@ export function FailedPagination({
           variant="outline"
           size="icon"
           className="failed-pagination-control"
-          aria-label="Next page"
+          aria-label={t("Next page")}
           disabled={pageCount === 0 || pageIndex >= pageCount || loading}
           onClick={() => onPaginationChange?.(pageIndex + 1, pageSize)}
         >
@@ -127,7 +129,7 @@ export function FailedPagination({
                 variant="outline"
                 size="icon"
                 className="failed-pagination-control"
-                aria-label="Pagination options"
+                aria-label={t("Pagination options")}
                 disabled={loading}
               />
             }
@@ -137,7 +139,7 @@ export function FailedPagination({
           <PopoverContent align="end" className="w-64">
             <form className="space-y-4" onSubmit={submitPageJump}>
               <div className="space-y-2">
-                <Label htmlFor="page-jump">Go to page</Label>
+                <Label htmlFor="page-jump">{t("Go to page")}</Label>
                 <div className="flex gap-2">
                   <Input
                     id="page-jump"
@@ -148,15 +150,15 @@ export function FailedPagination({
                     onChange={(event) => setJumpPage(event.target.value)}
                   />
                   <Button type="submit" disabled={pageCount === 0 || !jumpPage}>
-                    Go
+                    {t("Go")}
                   </Button>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="rows-per-page">Rows per page</Label>
+                <Label htmlFor="rows-per-page">{t("Rows per page")}</Label>
                 <select
                   id="rows-per-page"
-                  aria-label="Rows per page"
+                  aria-label={t("Rows per page")}
                   className="h-9 w-full rounded-lg border border-input bg-white px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                   value={pageSize}
                   onChange={(event) =>

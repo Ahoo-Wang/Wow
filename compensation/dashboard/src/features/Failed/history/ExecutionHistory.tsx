@@ -29,6 +29,7 @@ import {
   type ExecutionEventStream,
   useExecutionHistory,
 } from "./useExecutionHistory.ts";
+import { useI18n } from "@/i18n.tsx";
 
 interface ExecutionHistoryProps {
   executionId: string;
@@ -36,31 +37,33 @@ interface ExecutionHistoryProps {
 }
 
 function EventStreamCard({ stream }: { stream: ExecutionEventStream }) {
+  const { locale, t } = useI18n();
   return (
     <article
       className="overflow-hidden rounded-lg border border-slate-200 bg-white"
-      aria-label={`Event stream version ${stream.version}`}
+      aria-label={t("Event stream version {version}", { version: stream.version })}
     >
       <header className="flex flex-wrap items-start justify-between gap-3 border-b bg-slate-50/80 px-4 py-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-md bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-200 ring-inset">
-              Version {stream.version}
+              {t("Version {version}", { version: stream.version })}
             </span>
             <span className="text-xs text-slate-500">
-              {stream.body.length}{" "}
-              {stream.body.length === 1 ? "event" : "events"}
+              {t(stream.body.length === 1 ? "{count} event" : "{count} events", {
+                count: stream.body.length,
+              })}
             </span>
           </div>
           <p
             className="mt-2 truncate font-mono text-[11px] text-slate-500"
             title={stream.id}
           >
-            Stream {stream.id}
+            {t("Stream {id}", { id: stream.id })}
           </p>
         </div>
         <time className="shrink-0 text-xs tabular-nums text-slate-500">
-          {formatDate(stream.createTime)}
+          {formatDate(stream.createTime, undefined, locale)}
         </time>
       </header>
 
@@ -75,7 +78,7 @@ function EventStreamCard({ stream }: { stream: ExecutionEventStream }) {
                     {event.name}
                   </span>
                   <span className="text-[11px] text-slate-500">
-                    revision {event.revision}
+                    {t("revision {revision}", { revision: event.revision })}
                   </span>
                 </div>
                 <p
@@ -86,7 +89,7 @@ function EventStreamCard({ stream }: { stream: ExecutionEventStream }) {
                 </p>
                 <details className="group mt-2 rounded-md border border-slate-200 bg-slate-50/60">
                   <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-700 outline-none hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset">
-                    Event payload
+                    {t("Event payload")}
                   </summary>
                   <pre className="max-h-72 overflow-auto border-t border-slate-200 bg-slate-950 p-3 text-[11px] leading-relaxed whitespace-pre-wrap text-slate-100">
                     {JSON.stringify(event.body, null, 2) ?? "null"}
@@ -105,6 +108,7 @@ export function ExecutionHistory({
   executionId,
   refreshToken = 0,
 }: ExecutionHistoryProps) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const { error, loadPage, loading, page, retry, settledPageIndex } =
     useExecutionHistory({
@@ -133,10 +137,10 @@ export function ExecutionHistory({
               id="execution-history-title"
               className="text-sm font-semibold text-slate-900"
             >
-              History
+              {t("History")}
             </h2>
             <p className="truncate text-xs text-slate-500">
-              EventStream lifecycle records, newest first
+              {t("EventStream lifecycle records, newest first")}
             </p>
           </div>
         </div>
@@ -146,7 +150,7 @@ export function ExecutionHistory({
               type="button"
               variant="ghost"
               size="icon-sm"
-              aria-label="Refresh history"
+              aria-label={t("Refresh history")}
               disabled={loading}
               onClick={() => loadPage(settledPageIndex)}
             >
@@ -157,11 +161,11 @@ export function ExecutionHistory({
             type="button"
             variant="ghost"
             size="sm"
-            aria-label={expanded ? "Collapse history" : "Expand history"}
+            aria-label={expanded ? t("Collapse history") : t("Expand history")}
             aria-expanded={expanded}
             onClick={() => setExpanded((current) => !current)}
           >
-            {expanded ? "Hide" : "View"}
+            {expanded ? t("Hide") : t("View")}
             {expanded ? <ChevronDown /> : <ChevronRight />}
           </Button>
         </div>
@@ -172,7 +176,7 @@ export function ExecutionHistory({
           {loading && page.list.length === 0 ? (
             <div
               role="status"
-              aria-label="Loading execution history"
+              aria-label={t("Loading execution history")}
               className="space-y-3"
             >
               <Skeleton className="h-28 w-full" />
@@ -187,7 +191,7 @@ export function ExecutionHistory({
             >
               <AlertCircle className="mx-auto size-5 text-red-600" />
               <p className="mt-2 text-sm font-medium text-red-700">
-                Failed to load history
+                {t("Failed to load history")}
               </p>
               <p className="mt-1 text-xs text-red-700/80">{error.message}</p>
               <Button
@@ -195,11 +199,11 @@ export function ExecutionHistory({
                 variant="outline"
                 size="sm"
                 className="mt-4 bg-white"
-                aria-label="Retry history"
+                aria-label={t("Retry history")}
                 onClick={retry}
               >
                 <RefreshCw />
-                Retry
+                {t("Retry")}
               </Button>
             </div>
           ) : null}
@@ -208,12 +212,12 @@ export function ExecutionHistory({
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center">
               <AlertCircle className="mx-auto size-5 text-amber-700" />
               <p className="mt-2 text-sm font-medium text-amber-900">
-                History unavailable
+                {t("History unavailable")}
               </p>
               <p className="mt-1 text-xs text-amber-800">
-                The configured event storage did not expose EventStream records
-                for this existing execution. Verify that it supports EventStream
-                queries.
+                {t(
+                  "The configured event storage did not expose EventStream records for this existing execution. Verify that it supports EventStream queries.",
+                )}
               </p>
             </div>
           ) : null}
@@ -227,10 +231,13 @@ export function ExecutionHistory({
                 <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-700" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-amber-900">
-                    Failed to load history page
+                    {t("Failed to load history page")}
                   </p>
                   <p className="text-xs text-amber-800">
-                    Showing page {settledPageIndex}. {error.message}
+                    {t("Showing page {page}. {message}", {
+                      page: settledPageIndex,
+                      message: error.message,
+                    })}
                   </p>
                 </div>
               </div>
@@ -239,11 +246,11 @@ export function ExecutionHistory({
                 variant="outline"
                 size="sm"
                 className="bg-white"
-                aria-label="Retry history"
+                aria-label={t("Retry history")}
                 onClick={retry}
               >
                 <RefreshCw />
-                Retry
+                {t("Retry")}
               </Button>
             </div>
           ) : null}
@@ -253,7 +260,7 @@ export function ExecutionHistory({
               {loading ? (
                 <div
                   role="status"
-                  aria-label="Loading history page"
+                  aria-label={t("Loading history page")}
                   className="h-0.5 overflow-hidden bg-blue-100"
                 >
                   <div className="h-full w-full animate-pulse bg-blue-500 motion-reduce:animate-none" />
@@ -268,14 +275,18 @@ export function ExecutionHistory({
           {page.total > 0 ? (
             <div className="mt-4 flex items-center justify-between gap-3 border-t pt-3">
               <span className="text-xs tabular-nums text-slate-500">
-                {firstItem}–{lastItem} of {page.total}
+                {t("{first}–{last} of {total}", {
+                  first: firstItem,
+                  last: lastItem,
+                  total: page.total,
+                })}
               </span>
               <div className="flex items-center gap-1.5">
                 <Button
                   type="button"
                   variant="outline"
                   size="icon-sm"
-                  aria-label="Previous history page"
+                  aria-label={t("Previous history page")}
                   disabled={loading || settledPageIndex <= 1}
                   onClick={() => loadPage(settledPageIndex - 1)}
                 >
@@ -288,7 +299,7 @@ export function ExecutionHistory({
                   type="button"
                   variant="outline"
                   size="icon-sm"
-                  aria-label="Next history page"
+                  aria-label={t("Next history page")}
                   disabled={loading || settledPageIndex >= pageCount}
                   onClick={() => loadPage(settledPageIndex + 1)}
                 >
