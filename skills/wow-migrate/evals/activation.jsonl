@@ -17,3 +17,4 @@
 {"id":"A61-none-migrate-checkout-wide-marker","fixture":"fixtures/non-wow-scope.patch","prompt":"把 services/plain-service 的 Flyway 报表表迁移到新 schema，要求对账和回滚。","expectedSkills":[],"tags":["negative","checkout-wide-marker","non-wow-scope","fixture","migration"]}
 {"id":"A67-migrate-aggregation-runtime-contract","prompt":"升级到 Wow V9 后自定义 SnapshotQueryBackend 编译和普通查询正常，但生成的聚合接口运行时报不支持；评估迁移缺口与最小门禁。","expectedSkills":["wow-migrate"],"tags":["positive","migration","runtime-contract","query","aggregation"]}
 {"id":"A68-migrate-boot3-boot4-platform","prompt":"下游服务使用 Wow，计划从 Spring Boot 3.5 升级到 4.1；需要审计 Wow starter/capability、配置属性、Jackson、运行时自动配置和兼容性。","expectedSkills":["wow-migrate"],"tags":["positive","migration","spring-boot","platform-contract","configuration"]}
+{"id":"A72-migrate-v9-cursor","prompt":"将下游服务从 Wow 8.16.3 升级到当前 V9，并评估把 QueryService/PagedQuery 改为 QueryGateway/CursorQuery 的源码、HTTP 与数据边界。","expectedSkills":["wow-migrate"]}
