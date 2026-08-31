@@ -13,7 +13,7 @@ VITE_API_BASE_URL=http://127.0.0.1:18083/ \
 pnpm --dir compensation/dashboard dev --host 127.0.0.1
 ```
 
-`VITE_API_BASE_URL` 是所有 Fetcher 请求的基地址。`.env.development` 默认指向开发集群服务；连接本地服务时必须像上面一样显式覆盖。本地补偿服务的安全启动命令见[补偿参考案例](../../documentation/docs/zh/reference/example/compensation.md#功能特性)。
+`VITE_API_BASE_URL` 是所有 Fetcher 请求的基地址。`.env.development` 默认指向开发集群服务；连接本地服务时必须像上面一样显式覆盖。本地补偿服务的安全启动命令见[补偿参考案例](../../documentation/docs/zh/reference/example/compensation.md#本地服务启动、健康与路由验证)。
 
 ## 仪表盘
 
@@ -51,4 +51,4 @@ Today / Last 7 days / Last 30 days 快捷项，或点击 Refresh，都会重载�
 
 业务代码通过 [`src/services/`](src/services/) 包装生成的 command/query client；基地址和 CoSec 策略也在该层组装。不要为规避后端/OpenAPI 缺陷而手改 `src/generated/`。ESLint 和覆盖率统计均明确排除该目录。
 
-补偿状态、运营权限与部署要求见[事件补偿指南](../../documentation/docs/zh/guide/event-compensation.md#控制台)。
+指标口径、补偿状态、运营权限与部署要求见[补偿控制面](../../documentation/docs/zh/reference/example/compensation.md#补偿控制面)和[事件补偿指南](../../documentation/docs/zh/guide/event/compensation.md)。

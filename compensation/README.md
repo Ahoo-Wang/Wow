@@ -25,7 +25,7 @@ pnpm --dir compensation/dashboard exec vitest run
 
 Dashboard 的安装、开发、构建和生成客户端命令见 [`dashboard/README.md`](dashboard/README.md)。
 
-如需启动服务，使用[补偿参考案例](../documentation/docs/zh/reference/example/compensation.md#功能特性)中已验证的 distribution + 直接 `java` 路径。不要把当前 Gradle `run` 作为默认本地入口：它的默认 JVM 参数会开启未认证、未启用 TLS 的 JMX 5555。参考案例中的本地命令只绑定 `127.0.0.1:18083`，将企业微信 WebHook 设为 `false`，且不继承这些 JMX 参数。
+如需启动服务，使用[补偿参考案例](../documentation/docs/zh/reference/example/compensation.md#本地服务启动、健康与路由验证)中已验证的 distribution + 直接 `java` 路径。不要把当前 Gradle `run` 作为默认本地入口：它的默认 JVM 参数会开启未认证、未启用 TLS 的 JMX 5555。参考案例中的本地命令只绑定 `127.0.0.1:18083`，将企业微信 WebHook 设为 `false`，且不继承这些 JMX 参数。
 
 ## 恢复所有权
 
@@ -38,7 +38,8 @@ Dashboard 的安装、开发、构建和生成客户端命令见 [`dashboard/REA
 
 规范与运行细节由以下文档统一维护，本 README 不复制配置表：
 
-- [事件补偿指南](../documentation/docs/zh/guide/event-compensation.md)
+- [事件补偿指南](../documentation/docs/zh/guide/event/compensation.md)
+- [补偿控制面](../documentation/docs/zh/reference/example/compensation.md#补偿控制面)
 - [事件补偿配置](../documentation/docs/zh/reference/config/compensation.md)
 - [备份、恢复与重放](../documentation/docs/zh/guide/recovery.md)
 - [故障排查](../documentation/docs/zh/guide/troubleshooting.md)

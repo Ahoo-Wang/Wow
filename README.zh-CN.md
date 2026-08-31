@@ -65,7 +65,7 @@ HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
 | Given → When → Expect 验证 | [wow-test](test/wow-test/src/main/kotlin/me/ahoo/wow/test) |
 | 生成的 HTTP 命令与状态路由 | [wow-webflux](wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route) |
 | 可选存储、消息、安全与可观测集成 | [wow-spring-boot-starter Feature Capabilities](wow-spring-boot-starter/build.gradle.kts) |
-| 补偿与恢复操作 | [补偿领域](compensation)与[控制台](documentation/docs/public/images/compensation/dashboard.png) |
+| 补偿与恢复操作 | [补偿领域](compensation)与[补偿控制面](documentation/docs/zh/reference/example/compensation.md#补偿控制面) |
 
 ```mermaid
 flowchart LR
@@ -106,7 +106,7 @@ flowchart LR
 
 - 从[简介](documentation/docs/zh/guide/introduction.md)、[核心概念](documentation/docs/zh/guide/core-concepts.md)和[文档导览](documentation/docs/zh/guide/index.md)开始。
 - 阅读 Kotlin [订单服务](example)或 Java [银行转账](example/transfer)示例。
-- 在[命令网关](documentation/docs/zh/guide/command-gateway.md)理解完成语义，在[投影](documentation/docs/zh/guide/projection.md)建立读模型，在[事件补偿](documentation/docs/zh/guide/event-compensation.md)了解恢复边界。
+- 在[命令完成语义](documentation/docs/zh/guide/command/completion.md)中理解处理阶段，在[投影](documentation/docs/zh/guide/projection.md)建立读模型，在[事件补偿](documentation/docs/zh/guide/event/compensation.md)了解恢复边界。
 - 查看[贡献指南](CONTRIBUTING.md)、[行为准则](CODE_OF_CONDUCT.md)和[安全策略](SECURITY.md)。
 - Wow 荣获 [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html)；官方结果给出的证据包括模块化设计、代码评审、测试、静态分析、双语文档和 Maven Central 发布历史。
 
