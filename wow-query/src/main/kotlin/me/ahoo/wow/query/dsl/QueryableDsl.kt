@@ -53,12 +53,12 @@ abstract class QueryableDsl<Q : Queryable<Q>> {
         filter(me.ahoo.wow.query.dsl.filter(block))
     }
 
-    @Deprecated("Scheduled for removal in 9.1.0. Use filter.")
+    @Deprecated("Scheduled for removal in 10.0.0. Use filter.")
     fun condition(condition: Condition) {
         filter(condition.toFilterExpression())
     }
 
-    @Deprecated("Scheduled for removal in 9.1.0. Use filter.")
+    @Deprecated("Scheduled for removal in 10.0.0. Use filter.")
     fun condition(block: ConditionDsl.() -> Unit) {
         condition(me.ahoo.wow.query.dsl.condition(block))
     }

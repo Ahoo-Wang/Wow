@@ -78,7 +78,7 @@ See [Snapshot Queries](./query/snapshot-query.md), [Event Stream Queries](./quer
 
 ## Compatibility and Migration
 
-The canonical V9 JVM contract is `FilterExpression` and `FilterDsl`. V9.0.x temporarily retains deprecated `Condition`/`Operator`, `ConditionDsl`, legacy query constructors, and count client overloads, all normalized to `FilterExpression`; these compatibility APIs are scheduled for removal in 9.1.0. REST `condition`/`operator` input remains compatible during the same window. See [V9 Query Migration](./query/v9-query-migration.md) for the breaking Gateway/Backend JVM mapping, compatibility boundary, and binding migration.
+The canonical V9 JVM contract is `FilterExpression` and `FilterDsl`. V9.x temporarily retains deprecated `Condition`/`Operator`, `ConditionDsl`, legacy query constructors, and count client overloads, all normalized to `FilterExpression`; these compatibility APIs are scheduled for removal in 10.0.0. REST `condition`/`operator` input remains compatible during the same window. See [V9 Query Migration](./query/v9-query-migration.md) for the breaking Gateway/Backend JVM mapping, compatibility boundary, and binding migration.
 
 ## JSON Schema
 

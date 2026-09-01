@@ -5,7 +5,7 @@ Use this reference for `FilterExpression`, Query DSL, snapshot or event-stream a
 ## Stable decisions
 
 - Keep query construction separate from backend conversion and execution.
-- Use `FilterExpression` and `FilterDsl` as the canonical JVM contract. V9.0.x retains deprecated `Condition`/`Operator` types, `ConditionDsl`, legacy query constructors, count client overloads, and REST `condition`/`operator` input only as adapters to `FilterExpression`; they are scheduled for removal in 9.1.0. Do not add new Condition-based APIs.
+- Use `FilterExpression` and `FilterDsl` as the canonical JVM contract. V9.x retains deprecated `Condition`/`Operator` types, `ConditionDsl`, legacy query constructors, count client overloads, and REST `condition`/`operator` input only as adapters to `FilterExpression`; they are scheduled for removal in 10.0.0. Do not add new Condition-based APIs.
 - On targets that provide them, use `isEmptyString()` for exact `""` and `isNotEmptyString()` for fields that are present, non-null, and non-empty strings. Require an exact-match, single-valued String field; whitespace, null, missing fields, and empty collections have separate semantics. HTTP may reject `IS_NOT_EMPTY_STRING` when expensive operators are disabled even though an in-process query is valid.
 - Apply tenant, owner, deletion, and authorization filters at the boundary that cannot be bypassed by callers.
 - Treat pagination ordering as a correctness contract; define a deterministic tie-breaker when records can share the primary sort value.

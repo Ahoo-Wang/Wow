@@ -164,4 +164,4 @@ flowchart TB
 
 HTTP 请求在 WebFlux `ServerRequest` context 中会经过 `HttpQueryGuardFilter`。`wow.webflux.query.allow-expensive-operators=false` 时，会拒绝 `NE`、`NOT_IN`、`NOR`、`IS_NULL`、`IS_NOT_NULL`、`NOT_EXISTS`、`IS_EMPTY`、`IS_NOT_EMPTY_STRING`、`CONTAINS`、`ENDS_WITH`，以及空字符串或大小写不敏感的 `STARTS_WITH`；HTTP guard 还限制 filter 节点和值数量。该配置的兼容默认值不是容量证明，详见[基础设施配置](../../reference/config/infrastructure)。进程内查询不因这项 HTTP 专用保护而获得或失去后端能力。
 
-V9 的规范 JVM API 是 `FilterExpression` 与 `FilterDsl`。V9.0.x 暂时保留已弃用的 `Condition`、`Operator`、`ConditionDsl`、旧查询构造器和 count 客户端重载，并在执行前统一转换为 `FilterExpression`；这些兼容 API 计划在 9.1.0 删除。WebFlux REST 边界同期接受 V8 list/paged/single 请求的 `condition` 字段，以及 count 请求的裸 `operator` 形状；规范 `filter`、OpenAPI 与出站 JSON 仍只使用 `op`。`filter` 与 `condition` 不能同时出现，`op` 与 `operator` 也不能混用。
+V9 的规范 JVM API 是 `FilterExpression` 与 `FilterDsl`。V9.x 暂时保留已弃用的 `Condition`、`Operator`、`ConditionDsl`、旧查询构造器和 count 客户端重载，并在执行前统一转换为 `FilterExpression`；这些兼容 API 计划在 10.0.0 删除。WebFlux REST 边界同期接受 V8 list/paged/single 请求的 `condition` 字段，以及 count 请求的裸 `operator` 形状；规范 `filter`、OpenAPI 与出站 JSON 仍只使用 `op`。`filter` 与 `condition` 不能同时出现，`op` 与 `operator` 也不能混用。

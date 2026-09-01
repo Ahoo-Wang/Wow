@@ -9,7 +9,7 @@ description: Migrate the V8 query JVM API to aggregate Gateways and ObjectNode B
 
 Except for the `Condition` migration window below, V9 removes old JVM types without bridges, type aliases, or deprecation windows. This breaks JVM source and binary users of those types, so recompile downstream code and migrate directly with the tables below. `QueryFieldSchemaMetadata.masked`, `QueryFieldDeclaration.maskRule`, `QueryFieldSchema.maskRule`, and `LogicalQueryFieldSchema.maskRule` are Schema constructor contracts with added masking fields and no V8 JVM constructor overload.
 
-V9.0.x provides an explicit query-condition migration window: deprecated `Condition`/`Operator` JVM types, `ConditionDsl`, legacy query constructors, count client overloads, and existing deserialization remain available and are normalized to `FilterExpression`. WebFlux list/paged/single requests may still submit `condition`, and count requests may still submit the bare `operator` shape. These compatibility APIs are scheduled for removal in 9.1.0; new code should use `FilterExpression`/`FilterDsl` immediately. Canonical `filter`, OpenAPI, and outbound JSON use only `op`.
+V9.x provides an explicit query-condition migration window: deprecated `Condition`/`Operator` JVM types, `ConditionDsl`, legacy query constructors, count client overloads, and existing deserialization remain available and are normalized to `FilterExpression`. WebFlux list/paged/single requests may still submit `condition`, and count requests may still submit the bare `operator` shape. These compatibility APIs are scheduled for removal in 10.0.0; new code should use `FilterExpression`/`FilterDsl` immediately. Canonical `filter`, OpenAPI, and outbound JSON use only `op`.
 
 ### ConditionDsl Migration
 
@@ -81,7 +81,7 @@ When V8 passes a `DateTimeFormatter` rather than a pattern string, use the match
 | `elemMatch(field, condition)` | `ElementMatchFilter(LogicalField(field), predicate)`; combine multiple children with a non-empty `AndFilter`, and map `Condition.ALL` from an empty legacy DSL block to `MatchAllFilter` |
 | `isNull`, `notNull`, `isTrue`, `isFalse`, `exists(true)`, `exists(false)` | `IsNullFilter(LogicalField(field))`, `IsNotNullFilter(LogicalField(field))`, `filterExpression { field eq true }`, `filterExpression { field eq false }`, `ExistsFilter(LogicalField(field))`, `NotExistsFilter(LogicalField(field))` |
 | `today`, `beforeToday`, `tomorrow`, week/month, `recentDays`, `earlierDays` | Matching `TodayFilter`, `BeforeTodayFilter`, `TomorrowFilter`, `ThisWeekFilter`, `NextWeekFilter`, `LastWeekFilter`, `ThisMonthFilter`, `LastMonthFilter`, `RecentDaysFilter`, `EarlierDaysFilter`; use typed constructor properties and the formatter boundary above |
-| `condition.toFilterExpression()` | Transitional 9.0.x adapter only; replace stored/public `Condition` values with their concrete expression before 9.1.0 |
+| `condition.toFilterExpression()` | Transitional V9.x adapter only; replace stored/public `Condition` values with their concrete expression before 10.0.0 |
 
 Data-query HTTP request and result envelopes, Backend wire trees, storage layouts, and existing data do not change because of this JVM refactor or static-annotation masking. Query Schema HTTP metadata and its generated OpenAPI component do change: each field adds `masked: Boolean`. No storage-data migration is required, and raw values in the Backend and storage are not rewritten. After old mask rules move to field annotations, the managed Gateway restores response confidentiality semantics.
 
