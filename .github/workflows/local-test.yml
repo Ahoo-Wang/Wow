@@ -59,9 +59,18 @@ env:
   CI: GITHUB_ACTIONS
 
 jobs:
-  local-test:
-    name: Local Test
+  local-test-shard:
+    name: Local Test Shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - shard: 1
+            coverage_task: localCoverageReportShard1
+            coverage_file: ./test/code-coverage-report/build/reports/jacoco/localCoverageReportShard1/localCoverageReportShard1.xml
+          - shard: 2
+            coverage_task: localCoverageReportShard2
+            coverage_file: ./test/code-coverage-report/build/reports/jacoco/localCoverageReportShard2/localCoverageReportShard2.xml
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -77,12 +86,44 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Run local tests with coverage
-        run: ./gradlew allLocalTest :code-coverage-report:localCoverageReport --stacktrace
+      - name: Run local test shard with coverage
+        run: ./gradlew :code-coverage-report:${{ matrix.coverage_task }} --stacktrace
+
+      - name: Upload local coverage shard
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-coverage-${{ matrix.shard }}
+          path: ${{ matrix.coverage_file }}
+          if-no-files-found: error
+
+  local-test:
+    name: Local Test
+    needs: local-test-shard
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful shards
+        env:
+          SHARD_RESULT: ${{ needs.local-test-shard.result }}
+        run: test "${SHARD_RESULT}" = "success"
+
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Download local coverage shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: local-coverage-*
+          path: ./coverage
+          merge-multiple: true
+
+      - name: Verify complete local coverage
+        run: |
+          test -s ./coverage/localCoverageReportShard1.xml
+          test -s ./coverage/localCoverageReportShard2.xml
 
       - name: Upload local coverage
         uses: codecov/codecov-action@v7
-        if: success()
         with:
           use_oidc: true
           flags: local
@@ -90,4 +131,4 @@ jobs:
           fail_ci_if_error: true
           verbose: true
           disable_search: true
-          files: ./test/code-coverage-report/build/reports/jacoco/localCoverageReport/localCoverageReport.xml
+          files: ./coverage/localCoverageReportShard1.xml,./coverage/localCoverageReportShard2.xml
