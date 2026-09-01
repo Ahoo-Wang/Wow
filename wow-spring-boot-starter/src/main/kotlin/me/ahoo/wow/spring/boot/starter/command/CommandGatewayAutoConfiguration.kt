@@ -40,17 +40,17 @@ import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
-import org.springframework.beans.factory.BeanFactoryUtils
-import org.springframework.beans.factory.NoSuchBeanDefinitionException
+import org.springframework.beans.factory.BeanCurrentlyInCreationException
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
-import org.springframework.beans.factory.support.AbstractBeanDefinition
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
+
+private const val COMMAND_GATEWAY_BEAN_NAME = "commandGateway"
+private const val MISSING_COMMAND_BUS_MESSAGE = "A backing CommandBus is required to create CommandGateway."
 
 @AutoConfiguration(after = [CommandAutoConfiguration::class])
 @ConditionalOnWowEnabled
@@ -145,24 +145,31 @@ class CommandGatewayAutoConfiguration {
     }
 
     @Suppress("LongParameterList")
-    @Bean("commandGateway")
+    @Bean(COMMAND_GATEWAY_BEAN_NAME)
     @Primary
     @ConditionalOnMissingBean
     fun commandGatewayBean(
         commandWaitEndpoint: CommandWaitEndpoint,
         commandBus: ObjectProvider<CommandBus>,
-        beanFactory: ConfigurableListableBeanFactory,
         validator: Validator,
         requestIdChecker: RequestIdChecker,
         waitCoordinator: WaitCoordinator,
         commandWaitNotifier: CommandWaitNotifier,
     ): CommandGateway {
-        check(beanFactory.hasBackingCommandBus()) {
-            "A backing CommandBus is required to create CommandGateway."
+        val backingCommandBus = try {
+            commandBus.getObject()
+        } catch (error: BeanCurrentlyInCreationException) {
+            if (error.beanName != COMMAND_GATEWAY_BEAN_NAME) {
+                throw error
+            }
+            throw IllegalStateException(MISSING_COMMAND_BUS_MESSAGE)
+        }
+        check(backingCommandBus !is CommandGateway) {
+            MISSING_COMMAND_BUS_MESSAGE
         }
         return commandGateway(
             commandWaitEndpoint = commandWaitEndpoint,
-            commandBus = commandBus.getObject(),
+            commandBus = backingCommandBus,
             validator = validator,
             requestIdChecker = requestIdChecker,
             waitCoordinator = waitCoordinator,
@@ -188,24 +195,5 @@ class CommandGatewayAutoConfiguration {
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = commandWaitNotifier,
         )
-    }
-
-    private fun ConfigurableListableBeanFactory.hasBackingCommandBus(): Boolean {
-        return BeanFactoryUtils
-            .beanNamesForTypeIncludingAncestors(this, CommandBus::class.java, true, false)
-            .asSequence()
-            .filter { beanName -> isDefaultAutowireCandidate(beanName) }
-            .mapNotNull { beanName -> getType(beanName, false) }
-            .any { beanType -> !CommandGateway::class.java.isAssignableFrom(beanType) }
-    }
-
-    private fun ConfigurableListableBeanFactory.isDefaultAutowireCandidate(beanName: String): Boolean {
-        val beanDefinition = try {
-            getMergedBeanDefinition(beanName)
-        } catch (_: NoSuchBeanDefinitionException) {
-            return true
-        }
-        return beanDefinition.isAutowireCandidate &&
-            (beanDefinition !is AbstractBeanDefinition || beanDefinition.isDefaultCandidate)
     }
 }
