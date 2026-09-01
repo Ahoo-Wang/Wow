@@ -161,6 +161,24 @@ class CommandGatewayAutoConfigurationTest {
     }
 
     @Test
+    fun `should create command gateway with resolvable command bus dependency`() {
+        contextRunner
+            .enableWow()
+            .withBean(CommandWaitNotifier::class.java, { mockk<CommandWaitNotifier>() })
+            .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
+            .withInitializer { context ->
+                context.beanFactory.registerResolvableDependency(CommandBus::class.java, InMemoryCommandBus())
+            }.withUserConfiguration(
+                CommandAutoConfiguration::class.java,
+                CommandGatewayAutoConfiguration::class.java,
+            ).run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasNotFailed()
+                    .hasSingleBean(CommandGateway::class.java)
+            }
+    }
+
+    @Test
     fun `should create prototype backing command bus only once`() {
         val creationCount = AtomicInteger()
         contextRunner
