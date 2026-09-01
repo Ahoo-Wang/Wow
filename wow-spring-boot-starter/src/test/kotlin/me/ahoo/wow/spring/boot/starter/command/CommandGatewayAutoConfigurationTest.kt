@@ -180,6 +180,24 @@ class CommandGatewayAutoConfigurationTest {
     }
 
     @Test
+    fun `should accept a command gateway declared as command bus`() {
+        val backingGateway = mockk<CommandGateway>(relaxed = true)
+        contextRunner
+            .enableWow()
+            .withBean(CommandWaitNotifier::class.java, { mockk<CommandWaitNotifier>() })
+            .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
+            .withBean("commandBus", CommandBus::class.java, { backingGateway })
+            .withUserConfiguration(
+                CommandAutoConfiguration::class.java,
+                CommandGatewayAutoConfiguration::class.java,
+            ).run { context: AssertableApplicationContext ->
+                context.assert().hasNotFailed()
+                context.getBean("commandGateway", CommandGateway::class.java).close()
+                verify(exactly = 1) { backingGateway.close() }
+            }
+    }
+
+    @Test
     fun `should create prototype backing command bus only once`() {
         val creationCount = AtomicInteger()
         contextRunner
