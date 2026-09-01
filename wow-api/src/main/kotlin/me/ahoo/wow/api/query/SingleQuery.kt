@@ -51,7 +51,7 @@ data class SingleQuery(
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList()
 ) : ISingleQuery {
-    @Deprecated("Scheduled for removal in 9.1.0. Use filter.")
+    @Deprecated("Scheduled for removal in 10.0.0. Use filter.")
     constructor(
         condition: Condition,
         projection: Projection = Projection.ALL,

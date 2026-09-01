@@ -88,7 +88,7 @@ fun aggregation(block: AggregationQueryDsl.() -> Unit): AggregationQuery {
  * @param block The DSL block to define the condition.
  * @return The constructed [Condition] object.
  */
-@Deprecated("Scheduled for removal in 9.1.0. Use filterExpression.")
+@Deprecated("Scheduled for removal in 10.0.0. Use filterExpression.")
 fun condition(block: ConditionDsl.() -> Unit): Condition {
     val dsl = ConditionDsl()
     dsl.block()

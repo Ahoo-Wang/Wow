@@ -27,7 +27,7 @@ interface SnapshotCountQueryApi<R> : SnapshotQueryApi {
     @PostExchange(SNAPSHOT_COUNT_RESOURCE_NAME)
     fun count(@RequestBody filter: FilterExpression): R
 
-    @Deprecated("Scheduled for removal in 9.1.0. Use count(FilterExpression).")
+    @Deprecated("Scheduled for removal in 10.0.0. Use count(FilterExpression).")
     @PostExchange(SNAPSHOT_COUNT_RESOURCE_NAME)
     fun count(@RequestBody condition: Condition): R = count(condition.toFilterExpression())
 }

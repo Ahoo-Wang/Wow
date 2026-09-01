@@ -23,7 +23,7 @@ private val LEGACY_VALUE_MAPPER = tools.jackson.databind.json.JsonMapper.builder
 private val LEGACY_NODE_FACTORY = tools.jackson.databind.node.JsonNodeFactory.instance
 
 @Suppress("CyclomaticComplexMethod", "LongMethod")
-@Deprecated("Scheduled for removal in 9.1.0. Use FilterExpression directly.")
+@Deprecated("Scheduled for removal in 10.0.0. Use FilterExpression directly.")
 fun Condition.toFilterExpression(): FilterExpression = when (operator) {
     Operator.ALL -> MatchAllFilter
     Operator.AND -> AndFilter(children.requireChildren("AND").map(Condition::toFilterExpression))

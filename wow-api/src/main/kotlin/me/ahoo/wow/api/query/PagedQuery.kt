@@ -59,7 +59,7 @@ data class PagedQuery(
     override val sort: List<Sort> = emptyList(),
     override val pagination: Pagination = Pagination.DEFAULT
 ) : IPagedQuery {
-    @Deprecated("Scheduled for removal in 9.1.0. Use filter.")
+    @Deprecated("Scheduled for removal in 10.0.0. Use filter.")
     constructor(
         condition: Condition,
         projection: Projection = Projection.ALL,

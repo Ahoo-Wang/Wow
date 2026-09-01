@@ -23,7 +23,7 @@ fun FilterExpression.count(snapshotQueryApi: ReactiveSnapshotCountQueryApi): Mon
     return snapshotQueryApi.count(this)
 }
 
-@Deprecated("Scheduled for removal in 9.1.0. Use FilterExpression.count.")
+@Deprecated("Scheduled for removal in 10.0.0. Use FilterExpression.count.")
 fun Condition.count(snapshotQueryApi: ReactiveSnapshotCountQueryApi): Mono<Long> {
     return snapshotQueryApi.count(this)
 }
