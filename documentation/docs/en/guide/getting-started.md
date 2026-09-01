@@ -27,7 +27,7 @@ This page was executed on 2026-08-27 against template commit [`1dc9267b7f276c8c3
 | Gradle Wrapper | `9.7.1` |
 | JDK used for the run | `17.0.7` |
 
-The current Wow documentation source is `9.0.3`, while the verified template pins `8.13.0`. The repositories evolve independently. Always inspect the cloned template's [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml); change versions only as one reviewed compatibility baseline for a selected [Wow release](https://github.com/Ahoo-Wang/Wow/releases).
+The current Wow documentation source is `9.0.4`, while the verified template pins `8.13.0`. The repositories evolve independently. Always inspect the cloned template's [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml); change versions only as one reviewed compatibility baseline for a selected [Wow release](https://github.com/Ahoo-Wang/Wow/releases).
 
 ## Before You Start
 
