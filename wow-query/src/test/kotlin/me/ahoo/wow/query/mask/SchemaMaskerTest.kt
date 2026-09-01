@@ -32,6 +32,8 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 import java.lang.reflect.Proxy
 import kotlin.reflect.jvm.javaField
@@ -46,6 +48,31 @@ class SchemaMaskerTest {
                 fields = emptyMap(),
             ),
         ).assert().isNull()
+    }
+
+    @Test
+    fun `sparse masked fields should read their shared branch once`() {
+        val masker = SchemaMasker.create(
+            QueryModelSchema(
+                model = QueryModel.SNAPSHOT,
+                capabilities = emptySet(),
+                fields = (0 until 64).associate { index ->
+                    LogicalField("state.secret$index") to fieldSchema(maskRule = fullMaskRule())
+                },
+            ),
+        )!!
+        val state = CountingObjectNode().also {
+            it.put("secret63", "value")
+        }
+        val node = CountingObjectNode().also {
+            it.set("state", state)
+        }
+
+        masker.mask(node)
+
+        node.path("state").path("secret63").stringValue().assert().isEqualTo("*****")
+        node.getCalls.assert().isOne()
+        state.getCalls.assert().isZero()
     }
 
     @Test
@@ -340,6 +367,15 @@ class SchemaMaskerTest {
             else -> error("Unexpected method: ${method.name}")
         }
     } as CompiledMask
+
+    private class CountingObjectNode : ObjectNode(JsonNodeFactory.instance) {
+        var getCalls: Int = 0
+
+        override fun get(propertyName: String): JsonNode? {
+            getCalls++
+            return super.get(propertyName)
+        }
+    }
 
     private data class Masked(
         @field:Mask val secret: String,

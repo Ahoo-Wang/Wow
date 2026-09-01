@@ -26,12 +26,12 @@ import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 
 internal class SchemaMasker private constructor(
-    private val paths: List<MaskedPath>,
+    private val root: MaskNode,
     private val eventBodyTypes: Set<String>?,
 ) {
     fun mask(node: ObjectNode): ObjectNode {
         eventBodyTypes?.let { validateEventBodyTypes(node, it) }
-        paths.forEach { path -> maskAt(node, path.segments, 0, path.mask) }
+        maskAt(node, root)
         return node
     }
 
@@ -49,21 +49,34 @@ internal class SchemaMasker private constructor(
         }
     }
 
-    private fun maskAt(node: JsonNode, segments: List<String>, index: Int, mask: CompiledMask) {
+    private fun maskAt(node: JsonNode, maskNode: MaskNode) {
         if (node.isArray) {
-            node.forEach { child -> maskAt(child, segments, index, mask) }
+            node.forEach { child -> maskAt(child, maskNode) }
             return
         }
         if (!node.isObject) {
             if (node.isNull) return
             throw QuerySchemaValidationException("Masked query field has an invalid JSON wire shape.")
         }
-        val child = node.get(segments[index]) ?: return
-        if (index < segments.lastIndex) {
-            maskAt(child, segments, index + 1, mask)
-            return
+        val objectNode = node as ObjectNode
+        if (maskNode.children.size <= objectNode.size()) {
+            maskNode.children.forEach { (field, childMaskNode) ->
+                objectNode.get(field)?.let { child -> maskChild(objectNode, field, child, childMaskNode) }
+            }
+        } else {
+            objectNode.forEachEntry { field, child ->
+                maskNode.children[field]?.let { childMaskNode ->
+                    maskChild(objectNode, field, child, childMaskNode)
+                }
+            }
         }
-        maskValue(node as ObjectNode, segments[index], child, mask)
+    }
+
+    private fun maskChild(parent: ObjectNode, field: String, value: JsonNode, maskNode: MaskNode) {
+        maskNode.mask?.let { mask -> maskValue(parent, field, value, mask) }
+        if (maskNode.children.isNotEmpty()) {
+            maskAt(value, maskNode)
+        }
     }
 
     private fun maskValue(parent: ObjectNode, field: String, value: JsonNode, mask: CompiledMask) {
@@ -132,13 +145,13 @@ internal class SchemaMasker private constructor(
                 }
                 pathRules.add(responsePath, checkNotNull(fieldSchema.maskRule))
             }
-            val paths = pathRules.map { (path, rule) -> MaskedPath(path.split('.'), rule.compiled) }
+            val root = pathRules.map { (path, rule) -> MaskedPath(path.split('.'), rule.compiled) }.toMaskNode()
             val eventBodyTypes = if (schema.model == QueryModel.EVENT_STREAM) {
                 schema.requiredEventBodyTypes()
             } else {
                 null
             }
-            return SchemaMasker(paths, eventBodyTypes)
+            return SchemaMasker(root, eventBodyTypes)
         }
 
         private fun MutableMap<String, MaskRule>.add(path: String, rule: MaskRule) {
@@ -157,7 +170,19 @@ internal class SchemaMasker private constructor(
             }
             return bodyTypes
         }
+
+        private fun List<MaskedPath>.toMaskNode(index: Int = 0): MaskNode = MaskNode(
+            mask = firstOrNull { it.segments.size == index }?.mask,
+            children = filter { index < it.segments.size }
+                .groupBy { it.segments[index] }
+                .mapValues { (_, paths) -> paths.toMaskNode(index + 1) },
+        )
     }
+
+    private data class MaskNode(
+        val mask: CompiledMask?,
+        val children: Map<String, MaskNode>,
+    )
 
     private data class MaskedPath(val segments: List<String>, val mask: CompiledMask)
 }
