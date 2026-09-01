@@ -85,11 +85,8 @@ fun registerLayerCoverageReport(
     taskName: String,
     projects: Iterable<Project>,
     testTaskName: String,
-    testProjects: Iterable<Project> = projects,
 ) {
-    val coverageProjects = projects.toSet()
-    val taskProjects = testProjects.toSet()
-    val coverageTestTasks = testTasks(taskProjects.intersect(coverageProjects), testTaskName)
+    val layerTestTasks = testTasks(projects, testTaskName)
     tasks.register<JacocoReport>(taskName) {
         description = "Generates the ${taskName.removeSuffix("CoverageReport")} coverage report."
         group = LifecycleBasePlugin.VERIFICATION_GROUP
@@ -99,8 +96,15 @@ fun registerLayerCoverageReport(
             csv.required.set(false)
             html.required.set(false)
         }
-        dependsOn(taskProjects.map { "${it.path}:$testTaskName" })
-        useCoverageData(coverageProjects, coverageTestTasks)
+        useCoverageData(projects, layerTestTasks)
+    }
+}
+
+fun registerLocalTestShard(taskName: String, projects: Iterable<Project>) {
+    tasks.register(taskName) {
+        description = "Runs $taskName tests."
+        group = LifecycleBasePlugin.VERIFICATION_GROUP
+        dependsOn(projects.map { "${it.path}:test" })
     }
 }
 
@@ -108,7 +112,8 @@ val localTestTasks = testTasks(localTestProjects, "test")
 val contractTestTasks = testTasks(localContractTestProjects, "contractTest")
 val integrationTestTasks = testTasks(integrationTestProjects, "integrationTest")
 val coveredTestTasks = localTestTasks + contractTestTasks + integrationTestTasks
-val localTestTaskProjects = localTestProjects.toSet() + project(":wow-compensation-server")
+val localCoverageProjects = localTestProjects.toSet()
+val localTestTaskProjects = localCoverageProjects + project(":wow-compensation-server")
 val localTestShard1Paths = setOf(
     ":wow-core",
     ":wow-openapi",
@@ -140,22 +145,73 @@ require(localTestShard1 + localTestShard2 == localTestTaskProjects) {
     "Local Test shards must cover every local test project."
 }
 
+fun Project.artifactClassDirectories() = listOf(
+    layout.buildDirectory.dir("classes/kotlin/main").get().asFile,
+    layout.buildDirectory.dir("classes/java/main").get().asFile,
+)
+
+fun Project.artifactExecutionData() = layout.buildDirectory.file("jacoco/test.exec").get().asFile
+
+fun Project.hasSource(sourceSetName: String): Boolean {
+    return extensions.getByType<SourceSetContainer>()
+        .named(sourceSetName)
+        .get()
+        .allSource.files
+        .any(File::isFile)
+}
+
+val artifactClassDirectories = localCoverageProjects.flatMap { it.artifactClassDirectories() }
+val artifactExecutionData = localCoverageProjects.map { it.artifactExecutionData() }
+val verifyLocalCoverageArtifacts = tasks.register("verifyLocalCoverageArtifacts") {
+    description = "Verifies downloaded Local Test coverage artifacts."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    doLast {
+        val missingClassProjects = localCoverageProjects.filter { project ->
+            project.hasSource(SourceSet.MAIN_SOURCE_SET_NAME) &&
+                project.artifactClassDirectories().none { classDirectory ->
+                    classDirectory.walkTopDown().any { it.isFile && it.extension == "class" }
+                }
+        }
+        require(missingClassProjects.isEmpty()) {
+            "Missing Local Test main classes: ${missingClassProjects.map { it.path }}"
+        }
+        val missingExecutionDataProjects = localCoverageProjects.filter { project ->
+            project.hasSource(SourceSet.TEST_SOURCE_SET_NAME) && !project.artifactExecutionData().isFile
+        }
+        require(missingExecutionDataProjects.isEmpty()) {
+            "Missing Local Test execution data: ${missingExecutionDataProjects.map { it.path }}"
+        }
+    }
+}
+
 tasks.named<JacocoReport>("codeCoverageReport") {
     useCoverageData(libraryProjects, coveredTestTasks)
 }
 
 registerLayerCoverageReport("localCoverageReport", localTestProjects, "test")
-registerLayerCoverageReport(
-    taskName = "localCoverageReportShard1",
-    projects = localTestProjects,
-    testTaskName = "test",
-    testProjects = localTestShard1,
-)
-registerLayerCoverageReport(
-    taskName = "localCoverageReportShard2",
-    projects = localTestProjects,
-    testTaskName = "test",
-    testProjects = localTestShard2,
-)
+registerLocalTestShard("localTestShard1", localTestShard1)
+registerLocalTestShard("localTestShard2", localTestShard2)
+tasks.register<JacocoReport>("localCoverageReportFromArtifacts") {
+    description = "Generates Local Test coverage from downloaded artifacts."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    dependsOn(verifyLocalCoverageArtifacts)
+    reports {
+        xml.required.set(true)
+        xml.outputLocation.set(
+            layout.buildDirectory.file(
+                "reports/jacoco/localCoverageReportFromArtifacts/localCoverageReportFromArtifacts.xml",
+            ),
+        )
+        csv.required.set(false)
+        html.required.set(false)
+    }
+    sourceDirectories.setFrom(
+        mainSourceSets(localCoverageProjects).map { sourceSet ->
+            sourceSet.map { it.allSource.srcDirs }
+        },
+    )
+    classDirectories.setFrom(artifactClassDirectories.filter(File::isDirectory))
+    executionData.setFrom(artifactExecutionData.filter(File::isFile))
+}
 registerLayerCoverageReport("contractCoverageReport", localContractTestProjects, "contractTest")
 registerLayerCoverageReport("integrationCoverageReport", integrationTestProjects, "integrationTest")

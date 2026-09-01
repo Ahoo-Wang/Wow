@@ -66,11 +66,9 @@ jobs:
       matrix:
         include:
           - shard: 1
-            coverage_task: localCoverageReportShard1
-            coverage_file: ./test/code-coverage-report/build/reports/jacoco/localCoverageReportShard1/localCoverageReportShard1.xml
+            test_task: localTestShard1
           - shard: 2
-            coverage_task: localCoverageReportShard2
-            coverage_file: ./test/code-coverage-report/build/reports/jacoco/localCoverageReportShard2/localCoverageReportShard2.xml
+            test_task: localTestShard2
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -86,14 +84,17 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Run local test shard with coverage
-        run: ./gradlew :code-coverage-report:${{ matrix.coverage_task }} --stacktrace
+      - name: Run local test shard
+        run: ./gradlew :code-coverage-report:${{ matrix.test_task }} --rerun-tasks --stacktrace
 
-      - name: Upload local coverage shard
+      - name: Upload raw local coverage shard
         uses: actions/upload-artifact@v4
         with:
-          name: local-coverage-${{ matrix.shard }}
-          path: ${{ matrix.coverage_file }}
+          name: local-raw-coverage-${{ matrix.shard }}
+          path: |
+            **/build/classes/kotlin/main/**
+            **/build/classes/java/main/**
+            **/build/jacoco/test.exec
           if-no-files-found: error
 
   local-test:
@@ -110,17 +111,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Download local coverage shards
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Download raw local coverage shard 1
         uses: actions/download-artifact@v4
         with:
-          pattern: local-coverage-*
-          path: ./coverage
-          merge-multiple: true
+          name: local-raw-coverage-1
+          path: .
 
-      - name: Verify complete local coverage
-        run: |
-          test -s ./coverage/localCoverageReportShard1.xml
-          test -s ./coverage/localCoverageReportShard2.xml
+      - name: Download raw local coverage shard 2
+        uses: actions/download-artifact@v4
+        with:
+          name: local-raw-coverage-2
+          path: .
+
+      - name: Aggregate raw local coverage
+        run: ./gradlew :code-coverage-report:localCoverageReportFromArtifacts --stacktrace
+
+      - name: Upload aggregated local coverage evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-raw-coverage-report
+          path: ./test/code-coverage-report/build/reports/jacoco/localCoverageReportFromArtifacts/localCoverageReportFromArtifacts.xml
+          if-no-files-found: error
 
       - name: Upload local coverage
         uses: codecov/codecov-action@v7
@@ -131,4 +153,72 @@ jobs:
           fail_ci_if_error: true
           verbose: true
           disable_search: true
-          files: ./coverage/localCoverageReportShard1.xml,./coverage/localCoverageReportShard2.xml
+          files: ./test/code-coverage-report/build/reports/jacoco/localCoverageReportFromArtifacts/localCoverageReportFromArtifacts.xml
+
+  local-coverage-baseline:
+    name: Local Coverage Baseline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Run unsharded local coverage baseline
+        run: ./gradlew allLocalTest :code-coverage-report:localCoverageReport --rerun-tasks --stacktrace
+
+      - name: Upload unsharded local coverage evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-unsharded-coverage-report
+          path: ./test/code-coverage-report/build/reports/jacoco/localCoverageReport/localCoverageReport.xml
+          if-no-files-found: error
+
+  local-coverage-parity:
+    name: Local Coverage Parity
+    needs:
+      - local-test
+      - local-coverage-baseline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download aggregated local coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: local-raw-coverage-report
+          path: ./coverage/aggregated
+
+      - name: Download unsharded local coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: local-unsharded-coverage-report
+          path: ./coverage/unsharded
+
+      - name: Compare semantic JaCoCo coverage
+        shell: python
+        run: |
+          import hashlib
+          import sys
+          import xml.etree.ElementTree as ET
+
+          def normalize(path):
+              root = ET.parse(path).getroot()
+              for session in list(root.findall("sessioninfo")):
+                  root.remove(session)
+              return ET.tostring(root, encoding="utf-8")
+
+          aggregated = normalize("coverage/aggregated/localCoverageReportFromArtifacts.xml")
+          unsharded = normalize("coverage/unsharded/localCoverageReport.xml")
+          print(f"aggregated_sha256={hashlib.sha256(aggregated).hexdigest()}")
+          print(f"unsharded_sha256={hashlib.sha256(unsharded).hexdigest()}")
+          if aggregated != unsharded:
+              print("Semantic JaCoCo coverage differs.", file=sys.stderr)
+              raise SystemExit(1)
