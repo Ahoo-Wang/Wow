@@ -30,6 +30,7 @@ import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUES
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC_TYPE
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TITLE
 import me.ahoo.wow.serialization.state.StateAggregateRecords
+import org.slf4j.LoggerFactory
 import tools.jackson.databind.JsonNode
 import java.util.concurrent.TimeUnit
 
@@ -72,6 +73,53 @@ private val ALTERNATIVE_COMPOSITIONS by lazy {
 private val COMPOSITIONS by lazy {
     listOf(JsonSchemaProperty.ALL_OF) + ALTERNATIVE_COMPOSITIONS
 }
+private val jsonSchemaWalkerLogger = LoggerFactory.getLogger(JsonSchemaWalker::class.java)
+
+private const val MEMBER_METADATA = 0
+private const val INLINE_METADATA = 1
+private const val REFERENCED_TYPE_METADATA = 2
+private const val DEEPER_COMPOSITION_METADATA = 3
+
+private data class DescriptiveMetadataSource(
+    val precedence: Int = MEMBER_METADATA,
+    val label: String = "member",
+) {
+    fun referenced(): DescriptiveMetadataSource = if (precedence <= INLINE_METADATA) {
+        DescriptiveMetadataSource(
+            precedence = REFERENCED_TYPE_METADATA,
+            label = "referenced-type",
+        )
+    } else {
+        DEEPER_METADATA_SOURCE
+    }
+
+    fun composed(composition: String): DescriptiveMetadataSource = if (precedence == MEMBER_METADATA) {
+        DescriptiveMetadataSource(
+            precedence = INLINE_METADATA,
+            label = "inline-$composition",
+        )
+    } else {
+        DEEPER_METADATA_SOURCE
+    }
+}
+
+private val MEMBER_METADATA_SOURCE = DescriptiveMetadataSource()
+private val DEEPER_METADATA_SOURCE =
+    DescriptiveMetadataSource(DEEPER_COMPOSITION_METADATA, "deeper-composition")
+
+private data class DescriptiveMetadataCandidate(
+    val value: String,
+    val localSource: DescriptiveMetadataSource,
+    val containerSource: DescriptiveMetadataSource,
+)
+
+private data class RankedDescriptiveMetadataCandidate(
+    val value: String,
+    val precedence: Int,
+    val label: String,
+)
+
+private data class SourcedJsonNode(val node: JsonNode, val source: DescriptiveMetadataSource)
 
 internal class JsonSchemaWalker(
     private val schema: JsonNode,
@@ -79,6 +127,8 @@ internal class JsonSchemaWalker(
     private val maskRuleResolver: (String) -> MaskRule,
 ) {
     private val fields = linkedMapOf<LogicalField, QueryFieldDeclaration>()
+    private val descriptiveMetadataCandidates =
+        mutableMapOf<Pair<LogicalField, String>, MutableList<DescriptiveMetadataCandidate>>()
 
     fun declaration(
         rootField: LogicalField = LogicalField(StateAggregateRecords.STATE),
@@ -86,31 +136,72 @@ internal class JsonSchemaWalker(
     ): QuerySchemaDeclaration {
         if (includeRoot) {
             val rootNodes = schema.effectiveNodes()
+            schema.collectDescriptiveMetadataCandidates(rootField, MEMBER_METADATA_SOURCE)
             fields[rootField] = QueryFieldDeclaration(
-                title = DeclarationValue.Set(
-                    rootNodes.consistentValue(rootField, TITLE) {
-                        it.textValueOrNull(JsonSchemaProperty.TITLE)
-                    },
-                ),
-                description = DeclarationValue.Set(
-                    rootNodes.consistentValue(rootField, DESCRIPTION) {
-                        it.textValueOrNull(JsonSchemaProperty.DESCRIPTION)
-                    },
-                ),
                 enumValues = DeclarationValue.Set(
                     rootNodes.consistentValue(rootField, ENUM_VALUES, JsonNode::enumValuesOrNull),
                 ),
                 dynamicChildren = DeclarationValue.Set(rootNodes.any(JsonNode::hasAdditionalProperties)),
             )
         }
-        fields.putAll(schema.collectProperties(rootField.value, setOf(ROOT_REFERENCE)))
-        return QuerySchemaDeclaration(fields)
+        fields.putAll(
+            schema.collectProperties(
+                parentName = rootField.value,
+                resolvingReferences = setOf(ROOT_REFERENCE),
+                source = MEMBER_METADATA_SOURCE,
+            ),
+        )
+        return QuerySchemaDeclaration(
+            fields.mapValuesTo(linkedMapOf()) { (field, declaration) ->
+                declaration.copy(
+                    title = DeclarationValue.Set(resolveDescriptiveMetadata(field, TITLE)),
+                    description = DeclarationValue.Set(resolveDescriptiveMetadata(field, DESCRIPTION)),
+                )
+            },
+        )
     }
 
     private fun JsonNode.collectProperties(
         parentName: String,
         resolvingReferences: Set<String>,
+        source: DescriptiveMetadataSource,
     ): Map<LogicalField, QueryFieldDeclaration> {
+        val collected = collectDirectProperties(parentName, resolvingReferences, source)
+        validateMaskedUnrepresentableDescendants(parentName, resolvingReferences)
+        reference()?.takeIf { it !in resolvingReferences }?.let { reference ->
+            rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
+                .takeUnless(JsonNode::isMissingNode)
+                ?.collectProperties(parentName, resolvingReferences + reference, source.referenced())
+                ?.let(collected::mergeConjunctive)
+        }
+        get(JsonSchemaProperty.ALL_OF)?.forEach { branch ->
+            collected.mergeConjunctive(
+                branch.collectProperties(
+                    parentName,
+                    resolvingReferences,
+                    source.composed(JsonSchemaProperty.ALL_OF),
+                ),
+            )
+        }
+        ALTERNATIVE_COMPOSITIONS.forEach { composition ->
+            get(composition)?.asSequence()?.map { alternative ->
+                alternative.collectProperties(
+                    parentName,
+                    resolvingReferences,
+                    source.composed(composition),
+                )
+            }?.toList()?.mergeAlternatives()?.let(collected::mergeConjunctive)
+        }
+        get(JsonSchemaProperty.ITEMS)?.collectProperties(parentName, resolvingReferences, source)
+            ?.let(collected::mergeConjunctive)
+        return collected
+    }
+
+    private fun JsonNode.collectDirectProperties(
+        parentName: String,
+        resolvingReferences: Set<String>,
+        source: DescriptiveMetadataSource,
+    ): MutableMap<LogicalField, QueryFieldDeclaration> {
         val collected = linkedMapOf<LogicalField, QueryFieldDeclaration>()
         val parentRequired = get(JsonSchemaProperty.REQUIRED)?.asSequence()
             ?.filter(JsonNode::isString)
@@ -129,28 +220,18 @@ internal class JsonSchemaWalker(
                 return@forEach
             }
             val field = LogicalField(fullName)
+            propertySchema.collectDescriptiveMetadataCandidates(field, source)
             collected.mergeConjunctive(
                 mapOf(field to propertySchema.toDeclaration(field, propertyName in parentRequired)),
             )
-            collected.mergeConjunctive(propertySchema.collectProperties(fullName, resolvingReferences))
+            collected.mergeConjunctive(
+                propertySchema.collectProperties(
+                    fullName,
+                    resolvingReferences,
+                    MEMBER_METADATA_SOURCE,
+                ),
+            )
         }
-        validateMaskedUnrepresentableDescendants(parentName, resolvingReferences)
-        reference()?.takeIf { it !in resolvingReferences }?.let { reference ->
-            rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
-                .takeUnless(JsonNode::isMissingNode)
-                ?.collectProperties(parentName, resolvingReferences + reference)
-                ?.let(collected::mergeConjunctive)
-        }
-        get(JsonSchemaProperty.ALL_OF)?.forEach { branch ->
-            collected.mergeConjunctive(branch.collectProperties(parentName, resolvingReferences))
-        }
-        ALTERNATIVE_COMPOSITIONS.forEach { composition ->
-            get(composition)?.asSequence()?.map { alternative ->
-                alternative.collectProperties(parentName, resolvingReferences)
-            }?.toList()?.mergeAlternatives()?.let(collected::mergeConjunctive)
-        }
-        get(JsonSchemaProperty.ITEMS)?.collectProperties(parentName, resolvingReferences)
-            ?.let(collected::mergeConjunctive)
         return collected
     }
 
@@ -186,14 +267,6 @@ internal class JsonSchemaWalker(
             Temporal.Epoch(TimeUnit.valueOf(unit))
         } ?: inferredTemporal
         return QueryFieldDeclaration(
-            title = DeclarationValue.Set(
-                nodes.consistentValue(field, TITLE) { it.textValueOrNull(JsonSchemaProperty.TITLE) },
-            ),
-            description = DeclarationValue.Set(
-                nodes.consistentValue(field, DESCRIPTION) {
-                    it.textValueOrNull(JsonSchemaProperty.DESCRIPTION)
-                },
-            ),
             enumValues = DeclarationValue.Set(
                 nodes.consistentValue(field, ENUM_VALUES, JsonNode::enumValuesOrNull),
             ),
@@ -207,6 +280,89 @@ internal class JsonSchemaWalker(
             dynamicChildren = DeclarationValue.Set(shapeNodes.any(JsonNode::hasAdditionalProperties)),
             maskRule = maskRuleId?.let { DeclarationValue.Set(maskRuleResolver(it)) } ?: DeclarationValue.Unset,
         )
+    }
+
+    private fun JsonNode.collectDescriptiveMetadataCandidates(
+        field: LogicalField,
+        containerSource: DescriptiveMetadataSource,
+    ) {
+        sourcedMetadataNodes().forEach { (node, localSource) ->
+            mapOf(
+                TITLE to node.textValueOrNull(JsonSchemaProperty.TITLE),
+                DESCRIPTION to node.textValueOrNull(JsonSchemaProperty.DESCRIPTION),
+            ).forEach { (property, value) ->
+                value?.let {
+                    descriptiveMetadataCandidates
+                        .getOrPut(field to property, ::mutableListOf)
+                        .add(DescriptiveMetadataCandidate(it, localSource, containerSource))
+                }
+            }
+        }
+    }
+
+    private fun JsonNode.sourcedMetadataNodes(
+        source: DescriptiveMetadataSource = MEMBER_METADATA_SOURCE,
+        resolvingReferences: Set<String> = emptySet(),
+    ): List<SourcedJsonNode> = buildList {
+        add(SourcedJsonNode(this@sourcedMetadataNodes, source))
+        reference()?.takeIf { it !in resolvingReferences }?.let { reference ->
+            rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
+                .takeUnless(JsonNode::isMissingNode)
+                ?.let {
+                    addAll(it.sourcedMetadataNodes(source.referenced(), resolvingReferences + reference))
+                }
+        }
+        COMPOSITIONS.forEach { composition ->
+            get(composition)?.forEach { branch ->
+                addAll(branch.sourcedMetadataNodes(source.composed(composition), resolvingReferences))
+            }
+        }
+    }
+
+    private fun resolveDescriptiveMetadata(field: LogicalField, property: String): String? {
+        val candidates = descriptiveMetadataCandidates[field to property].orEmpty()
+        val containerBaseline = candidates.minOfOrNull { it.containerSource.precedence } ?: return null
+        val ranked = candidates.map { candidate ->
+            val containerPrecedence = candidate.containerSource.precedence
+                .takeUnless { it == containerBaseline } ?: MEMBER_METADATA
+            val effectiveSource = if (candidate.localSource.precedence >= containerPrecedence) {
+                candidate.localSource
+            } else {
+                candidate.containerSource
+            }
+            RankedDescriptiveMetadataCandidate(
+                value = candidate.value,
+                precedence = maxOf(candidate.localSource.precedence, containerPrecedence),
+                label = effectiveSource.label,
+            )
+        }
+            .sortedWith(
+                compareBy<RankedDescriptiveMetadataCandidate>(
+                    RankedDescriptiveMetadataCandidate::precedence,
+                    RankedDescriptiveMetadataCandidate::value,
+                    RankedDescriptiveMetadataCandidate::label,
+                ),
+            )
+        val selected = ranked.first()
+        val ignored = ranked.asSequence()
+            .filter { it.value != selected.value }
+            .distinctBy(RankedDescriptiveMetadataCandidate::value)
+            .toList()
+        if (ignored.isNotEmpty()) {
+            val hasSamePrecedence = ignored.any { it.precedence == selected.precedence }
+            val precedence = buildList {
+                add(selected.label + if (hasSamePrecedence) "(stable-value-order)" else "")
+                ignored.asSequence()
+                    .filter { it.precedence > selected.precedence }
+                    .mapTo(this, RankedDescriptiveMetadataCandidate::label)
+            }.distinct().joinToString(" > ")
+            jsonSchemaWalkerLogger.warn(
+                "Query schema descriptive metadata conflict: " +
+                    "field=$field, property=$property, selected=${selected.value}, " +
+                    "ignored=${ignored.map(RankedDescriptiveMetadataCandidate::value)}, precedence=$precedence",
+            )
+        }
+        return selected.value
     }
 
     private fun JsonNode.effectiveNodes(

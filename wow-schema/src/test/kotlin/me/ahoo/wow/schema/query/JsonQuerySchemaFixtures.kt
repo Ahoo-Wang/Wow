@@ -18,6 +18,8 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonUnwrapped
 import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.query.mask.CompiledMask
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.KeepMask
@@ -54,6 +56,26 @@ internal data class StructuralState(
 )
 
 internal enum class StructuralStatus { ACTIVE, INACTIVE }
+
+internal data class DescriptiveMetadataState(
+    @field:Schema(title = "Account status", description = "Account status description")
+    val status: ReferencedStatus,
+    @field:Schema(title = "Shared status", description = "Shared status description")
+    val equalStatus: EqualReferencedStatus,
+    val referencedStatus: ReferencedOnlyStatus,
+)
+
+@Summary("Bank account status enum")
+@Description("Bank account status enum description")
+internal enum class ReferencedStatus { OK, DISABLED }
+
+@Summary("Shared status")
+@Description("Shared status description")
+internal enum class EqualReferencedStatus { OK, DISABLED }
+
+@Summary("Referenced status")
+@Description("Referenced status description")
+internal enum class ReferencedOnlyStatus { OK, DISABLED }
 
 internal data class StructuralAddress(val city: String)
 
