@@ -438,9 +438,9 @@ class JsonQuerySchemaSourceTest {
                 selected = "Direct member title",
                 ignored = listOf(
                     "Nearest field title",
-                    "Deep referenced title",
                     "Deeper field composition title",
                     "Referenced composition title",
+                    "Deep referenced title",
                 ),
                 precedence = "member > inline-allOf > deeper-composition",
             )
@@ -501,6 +501,28 @@ class JsonQuerySchemaSourceTest {
                 precedence = "referenced-type > deeper-composition",
             )
         }
+    }
+
+    @Test
+    fun `should prefer the nearer declaration within deeper compositions`() {
+        assertTitleResolution(
+            schema = """{"properties":{"value":{"allOf":[{"allOf":[{"title":"Zulu nearer"}]},{"allOf":[{"allOf":[{"title":"Alpha farther"}]}]}]}}}""",
+            field = "state.value",
+            selected = "Zulu nearer",
+            ignored = listOf("Alpha farther"),
+            precedence = "deeper-composition",
+        )
+    }
+
+    @Test
+    fun `should preserve outer composition provenance for nested fields`() {
+        assertTitleResolution(
+            schema = """{"properties":{"container":{"type":"object","properties":{"name":{"type":"string","title":"Zulu member"}}}},"allOf":[{"properties":{"container":{"type":"object","properties":{"name":{"type":"string","title":"Alpha inline"}}}}}]}""",
+            field = "state.container.name",
+            selected = "Zulu member",
+            ignored = listOf("Alpha inline"),
+            precedence = "member > inline-allOf",
+        )
     }
 
     @Test

@@ -90,7 +90,7 @@ private data class DescriptiveMetadataSource(
             label = "referenced-type",
         )
     } else {
-        DEEPER_METADATA_SOURCE
+        deeper()
     }
 
     fun composed(composition: String): DescriptiveMetadataSource = if (precedence == MEMBER_METADATA) {
@@ -99,13 +99,16 @@ private data class DescriptiveMetadataSource(
             label = "inline-$composition",
         )
     } else {
-        DEEPER_METADATA_SOURCE
+        deeper()
     }
+
+    private fun deeper(): DescriptiveMetadataSource = DescriptiveMetadataSource(
+        precedence = maxOf(DEEPER_COMPOSITION_METADATA, precedence + 1),
+        label = "deeper-composition",
+    )
 }
 
 private val MEMBER_METADATA_SOURCE = DescriptiveMetadataSource()
-private val DEEPER_METADATA_SOURCE =
-    DescriptiveMetadataSource(DEEPER_COMPOSITION_METADATA, "deeper-composition")
 
 private data class DescriptiveMetadataCandidate(
     val value: String,
@@ -228,7 +231,7 @@ internal class JsonSchemaWalker(
                 propertySchema.collectProperties(
                     fullName,
                     resolvingReferences,
-                    MEMBER_METADATA_SOURCE,
+                    source,
                 ),
             )
         }
