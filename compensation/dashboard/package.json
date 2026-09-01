@@ -1,7 +1,7 @@
 {
   "name": "wow-compensation-dashboard",
   "private": true,
-  "version": "9.0.2",
+  "version": "9.0.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
