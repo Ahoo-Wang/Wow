@@ -164,9 +164,6 @@ class CommandGatewayAutoConfiguration {
             }
             throw IllegalStateException(MISSING_COMMAND_BUS_MESSAGE)
         }
-        check(backingCommandBus !is CommandGateway) {
-            MISSING_COMMAND_BUS_MESSAGE
-        }
         return commandGateway(
             commandWaitEndpoint = commandWaitEndpoint,
             commandBus = backingCommandBus,
