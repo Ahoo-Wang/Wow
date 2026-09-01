@@ -1,6 +1,7 @@
 package me.ahoo.wow.spring.boot.starter.command
 
 import io.mockk.mockk
+import io.mockk.verify
 import jakarta.validation.Validator
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.cosid.machine.LocalHostAddressSupplier
@@ -207,12 +208,14 @@ class CommandGatewayAutoConfigurationTest {
 
     @Test
     fun `should select command bus by original parameter name`() {
+        val commandBus = mockk<CommandBus>(relaxed = true)
+        val otherCommandBus = mockk<CommandBus>(relaxed = true)
         contextRunner
             .enableWow()
             .withBean(CommandWaitNotifier::class.java, { mockk<CommandWaitNotifier>() })
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
-            .withBean("commandBus", CommandBus::class.java, { InMemoryCommandBus() })
-            .withBean("otherCommandBus", CommandBus::class.java, { InMemoryCommandBus() })
+            .withBean("commandBus", CommandBus::class.java, { commandBus })
+            .withBean("otherCommandBus", CommandBus::class.java, { otherCommandBus })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
                 CommandGatewayAutoConfiguration::class.java,
@@ -221,6 +224,9 @@ class CommandGatewayAutoConfigurationTest {
                 context.assert()
                     .hasNotFailed()
                     .hasSingleBean(CommandGateway::class.java)
+                context.getBean(CommandGateway::class.java).close()
+                verify(exactly = 1) { commandBus.close() }
+                verify(exactly = 0) { otherCommandBus.close() }
             }
     }
 
