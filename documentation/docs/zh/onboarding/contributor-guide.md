@@ -61,7 +61,7 @@ Pull Request 工作流是 CI 事实来源：
 
 ### Local Test 两分片合同
 
-Local Test 的目标是在不改变测试、覆盖率或必需检查名称的前提下降低 Pull Request 等待时间。它采用两个固定起点、自动补齐的 Gradle 分片；不引入第三个分片、更大 runner、新依赖或自定义调度器。
+Local Test 的目标是在不改变测试、覆盖率或必需检查名称的前提下降低 Pull Request 等待时间。它采用两个 test-only Gradle 分片，传递 raw JaCoCo execution data 与已编译 main classes，再由后置 job 生成唯一 XML；不引入第三个分片、更大 runner、新依赖或自定义调度器。
 
 #### 决策证据
 
@@ -69,9 +69,11 @@ Local Test 的目标是在不改变测试、覆盖率或必需检查名称的前
 
 [强制全量 Profile](https://github.com/Ahoo-Wang/Wow/actions/runs/33460101373/job/99708267226) 在 commit `8651f2bbcb05fb48e23e24283dfa83e667df9516` 上运行了全部 184 个 task：Gradle wall time 为 8 分 57 秒，累计 task time 为 26 分 59 秒。其中测试占 17 分 18 秒（约 64%），编译、KSP 与 KAPT 占 9 分 27 秒（约 35%），有效并行度约为 3.36。Profile 来自已关闭且未合并的 [PR #3134](https://github.com/Ahoo-Wang/Wow/pull/3134)，只作为本设计的测量证据。
 
+首个双 XML 候选在已关闭且未合并的 [PR #3138](https://github.com/Ahoo-Wang/Wow/pull/3138) 上完成[强制测量](https://github.com/Ahoo-Wang/Wow/actions/runs/33467569094)：生产路径为 382 秒，分片差为 7.65%，但累计 runner time 为 714 秒，超过 664 秒上限；Codecov 总覆盖率从未分片基线的 88.20% 降为 88.15%。排除 Codecov 将 complexity 归零的表示差异后，仍有 14 个文件、15 个行状态漂移。两个分片 XML 只有 branch/instruction 汇总计数，无法保留互补 JaCoCo probe 身份，因此该架构被拒绝；本设计改为先合并 raw execution data，再生成单一 XML。
+
 #### Gradle 分片
 
-`test/code-coverage-report/build.gradle.kts` 定义 `localCoverageReportShard1` 与 `localCoverageReportShard2`。每个任务只直接依赖所属分片的 `test` task，并生成一个 JaCoCo XML。两个报告都保留现有 `localCoverageReport` 的完整 source/class 范围，但各自只使用本分片与该范围相交项目的 execution data；`wow-compensation-server` 仍执行测试，但与现在一样不进入覆盖率报告。现有未分片任务继续作为本地回归基线。
+`test/code-coverage-report/build.gradle.kts` 定义 `localTestShard1` 与 `localTestShard2`。它们只依赖所属分片的 `test` task，不配置 JaCoCo report，也不通过完整 classDirectories 拉入另一分片的编译任务。`wow-compensation-server:test` 仍属于分片 2，但与现在一样不进入覆盖率报告。
 
 分片 1 固定为以下 15 个测量后较重或与其平衡的项目：
 
@@ -116,23 +118,26 @@ Local Test 的目标是在不改变测试、覆盖率或必需检查名称的前
 
 配置期守卫要求分片 1 的路径全部存在、两个分片非空、无交集，且并集严格等于 `localTestTaskProjects`。新 Local Test 项目因此自动进入分片 2；观察到失衡后再移动一个已有路径，而不是增加配置层。
 
+同一 build script 另外定义 `verifyLocalCoverageArtifacts` 与 `localCoverageReportFromArtifacts`。验证任务按当前 source set 判断应存在的 raw `build/jacoco/test.exec` 与 main class 文件；报告任务只读取下载后的显式文件路径，不依赖任何编译或测试 task，并复用现有 `localCoverageReport` 的完整 source/class 项目范围。原始 `localCoverageReport` 保留为未分片基线。
+
 #### Workflow 与覆盖率
 
-`.github/workflows/local-test.yml` 先运行一个两项 matrix，每项执行对应的 Gradle coverage task，并用 `if-no-files-found: error` 上传唯一命名的 XML artifact。后置 job 的名称仍为 `Local Test`，以保持 branch protection 使用的必需检查名；它下载两个 XML，并只调用一次 Codecov uploader，继续使用 `local` flag、OIDC、`disable_search: true` 和 `fail_ci_if_error: true`。Codecov 文档明确说明同一 flag 可接收多个报告并合并贡献到该 flag 的总覆盖率，见 [Flags](https://docs.codecov.com/docs/flags)。
+`.github/workflows/local-test.yml` 先运行一个两项 matrix，每项执行对应的 test-only Gradle task，并用 `actions/upload-artifact@v4` 上传该 runner 已产生的 `**/build/classes/kotlin/main/**`、`**/build/classes/java/main/**` 与 `**/build/jacoco/test.exec`。多路径 artifact 以工作区公共祖先为根保留相对目录；`if-no-files-found: error` 禁止空 artifact。当前本地产物按分片归属估算为 16.5 MiB 与 14.2 MiB（未压缩），最终仍以托管 runner 实测为准。
 
-后置 job 使用 `if: always()` 取得 matrix 汇总结果，但首先要求 matrix result 必须是 `success`。测试或 XML 缺失使所属分片失败；任何分片失败或取消时，守卫先失败且不下载 artifact。成功上传后若 artifact 无法下载或损坏，下载步骤失败。所有失败路径都不会运行 Codecov，禁止上传部分覆盖率。两个分片继续使用 `gradle/actions/setup-gradle`，并保留 `main` push 与 Pull Request 的现有触发和缓存种子语义。
+后置 job 的名称仍为 `Local Test`，以保持 branch protection 使用的必需检查名。它使用 `if: always()` 读取 matrix 汇总结果，并首先要求 result 为 `success`；随后按精确名称分别下载两个 artifact 到工作区根目录，运行 artifact 验证与 detached JaCoCo report，最后只上传这一份 XML 到 Codecov，继续使用 `local` flag、OIDC、`disable_search: true` 和 `fail_ci_if_error: true`。任一分片失败、取消、artifact 缺失、覆盖输入不完整、报告失败或 Codecov 失败都会使 `Local Test` 失败；禁止上传部分覆盖率。两个分片继续使用 `gradle/actions/setup-gradle`，并保留 `main` push、Pull Request trigger 与现有缓存种子语义。
 
 #### 验证与验收
 
 实现必须依次提供以下证据：
 
-1. Gradle 配置期分区守卫通过；两个分片的 `--dry-run` 均只包含预期 test task。
-2. `actionlint`、两个分片的完整执行以及原始 `allLocalTest :code-coverage-report:localCoverageReport` 回归通过。
-3. 在同一 commit 上比较未分片 XML 与两个分片经 Codecov 合并后的 `local` 覆盖率；line、branch 及文件级覆盖不得漂移。若 Codecov 合并语义产生漂移，停止上线并改用 raw JaCoCo exec 聚合，不接受放宽覆盖率。
-4. 临时 `--rerun-tasks` 仅用于一次真实 runner 测量，取得证据后必须从最终 diff 删除。
-5. 候选 workflow wall time 不超过 7 分钟，两个分片 wall time 差距不超过较慢分片的 15%，累计 runner-minutes 不超过旧 Local Test 8 分 51 秒中位数的 125%，即 11 分 04 秒。
+1. Gradle 配置期分区守卫通过；两个 test-only 分片的 `--dry-run` 只包含预期 test task；artifact report 的 `--dry-run` 只能包含验证与报告 task，不能出现 compile、KSP、KAPT 或 test task。
+2. `actionlint`、两个分片的完整执行、raw artifact 恢复、单 XML 生成以及原始 `allLocalTest :code-coverage-report:localCoverageReport` 回归通过。
+3. 诊断 PR 在同一 SHA 同时运行 forced 分片生产路径与独立 forced 未分片基线。comparison job 下载两份 XML，只移除非语义性的 JaCoCo `sessioninfo` 后比较完整 package、class、method、source line、branch 与 counter；任何漂移都失败。未分片基线与 comparison 只属于诊断，不进入最终 workflow。
+4. 临时 `--rerun-tasks`、基线 job、comparison job 和诊断 XML artifact 只用于一次真实 runner 测量，取得证据后必须从最终 diff 删除。
+5. 生产路径从 workflow `createdAt` 到最终 `Local Test` 的 `completedAt` 不超过 7 分钟；两个分片 wall time 差距不超过较慢分片的 15%；两个分片与最终 `Local Test` 的累计 runner time 不超过旧 Local Test 8 分 51 秒中位数的 125%，即 11 分 04 秒。诊断基线与 comparison 不计入生产指标。
+6. 最终候选必须只有一个 Codecov `local` session，且其唯一 XML 来自 raw execution data 聚合。
 
-合并后观察接下来 10 个触发 Local Test 的代码 Pull Request；按耗时升序排列后的第 9 个值作为 nearest-rank P90，并要求它不超过 7 分钟。若覆盖率漂移、必需检查失真或 runner 成本越界，单 commit 回滚 workflow 与分片 task。只有 P90 仍超标且 profile 证明第三分片能在成本预算内改善关键路径时，才重新设计；本方案不预留第三分片抽象。
+合并后观察接下来 10 个触发 Local Test 的代码 Pull Request；按耗时升序排列后的第 9 个值作为 nearest-rank P90，并要求它不超过 7 分钟。若 raw 方案在合并前仍出现覆盖漂移、必需检查失真或 runner 成本越界，放弃分片并恢复单 job；合并后违反持续门禁时，用一个 commit 回滚 workflow、Gradle task 与本节文档。本方案不预留第三分片抽象。
 
 只运行变化所需的层级。涉及共享运行时、TCK 或多个后端时再扩到聚合任务；不要把未运行的任务写成“已通过”。
 
