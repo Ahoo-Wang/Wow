@@ -87,7 +87,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Run local test shard with coverage
-        run: ./gradlew :code-coverage-report:${{ matrix.coverage_task }} --stacktrace
+        run: ./gradlew :code-coverage-report:${{ matrix.coverage_task }} --rerun-tasks --stacktrace
 
       - name: Upload local coverage shard
         uses: actions/upload-artifact@v4
