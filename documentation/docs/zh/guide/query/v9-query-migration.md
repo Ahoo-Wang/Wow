@@ -17,7 +17,7 @@ V9.x 为查询条件提供明确的迁移窗口：保留已弃用的 `Condition`
 | --- | --- | --- |
 | 独立的 `condition { ... }` | `filterExpression { ... }` | 旧空块表示 match-all；V9 空块非法，必须显式调用 `matchAll()` |
 | `listQuery` / `pagedQuery` / `singleQuery` / `cursorQuery` 的 `{ condition { ... } }` | 同一 query builder 中改用 `filter { ... }` | 在 query builder 内调用 `filterExpression { ... }` 只会创建并丢弃一个独立值 |
-| Condition block 内的 `condition(existingCondition)` | `expression(existingFilter)` | 已弃用的 `existingCondition.toFilterExpression()` 适配器仅在 9.0.x 保留；query builder 应改用 `filter(existingFilter)` |
+| Condition block 内的 `condition(existingCondition)` | `expression(existingFilter)` | 已弃用的 `existingCondition.toFilterExpression()` 适配器仅在 V9.x 保留；query builder 应改用 `filter(existingFilter)` |
 | `all()` | `matchAll()` | V9 还提供 `matchNone()` |
 | `and { ... }` / `or { ... }` / `nor { ... }` | 至少生成一个条件时调用不变 | 条件是动态生成的时，把 guard 移到整个逻辑块外；无条件时省略该块，插入 `matchAll()` 会改变 `or`/`nor` 语义 |
 | `id(value)`、`ids(values)`、`aggregateId(value)`、`aggregateIds(values)`、`tenantId(value)`、`ownerId(value)`、`spaceId(value)` | 调用不变 | `ids` 或 `aggregateIds` 为空时改用 `matchNone()`；`SpaceId` 原本就是 `String` typealias，V9 直接接收字符串值 |
@@ -58,7 +58,7 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 
 ### Condition JVM 直接迁移
 
-`Condition`、`ICondition`、`Operator` 与通用 `ConditionOptions` map 只在 9.0.x 兼容窗口保留。请迁移到封闭的 `FilterExpression` 类型层级；下游不能新增 `FilterExpression` subtype。自定义 `ICondition` 若只表达内建 operator，应转换为对应内建 expression；真正自定义的查询语义应迁移到 request `QueryFilter` 或实际选中的 Backend，不要扩展规范 wire AST。
+`Condition`、`ICondition`、`Operator` 与通用 `ConditionOptions` map 只在 V9.x 兼容窗口保留。请迁移到封闭的 `FilterExpression` 类型层级；下游不能新增 `FilterExpression` subtype。自定义 `ICondition` 若只表达内建 operator，应转换为对应内建 expression；真正自定义的查询语义应迁移到 request `QueryFilter` 或实际选中的 Backend，不要扩展规范 wire AST。
 
 `FilterOperator` 是具体 expression 暴露的 metadata，不是通用 constructor selector。删除根据 operator/options tuple 构造或解释一个通用 condition 的代码，改为读取 typed property：`DeletionFilter.deletionState`、文本 filter 的 `stringComparison`、relative-time 的 `zoneId`/`datePattern`/`dateFormatter`/`timeUnit`，以及各具体 expression 的 `value`、`values`、`operands`、`predicate`、`query` 或 `fields`。
 
