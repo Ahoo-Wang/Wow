@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.schema.query
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.query.LogicalField
@@ -47,6 +51,7 @@ import me.ahoo.wow.schema.query.maskfixture.privateMaskStrategyStateType
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
@@ -379,6 +384,164 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should resolve generated descriptive metadata by source precedence`() {
+        val (declaration, warnings) = captureMetadataWarnings {
+            load(DescriptiveMetadataState::class.java)
+        }
+
+        declaration.field("state.status").let { status ->
+            status.title.assert().isEqualTo(DeclarationValue.Set("Account status"))
+            status.description.assert().isEqualTo(DeclarationValue.Set("Account status description"))
+            checkNotNull((status.enumValues as DeclarationValue.Set).value)
+                .map { it.stringValue() }
+                .assert().containsExactly("OK", "DISABLED")
+        }
+        declaration.field("state.equalStatus").let { status ->
+            status.title.assert().isEqualTo(DeclarationValue.Set("Shared status"))
+            status.description.assert().isEqualTo(DeclarationValue.Set("Shared status description"))
+        }
+        declaration.field("state.referencedStatus").let { status ->
+            status.title.assert().isEqualTo(DeclarationValue.Set("Referenced status"))
+            status.description.assert().isEqualTo(DeclarationValue.Set("Referenced status description"))
+        }
+        warnings.assert().hasSize(2)
+        warnings.first().assert()
+            .contains("field=state.status")
+            .contains("property=title")
+            .contains("selected=Account status")
+            .contains("ignored=[Bank account status enum]")
+            .contains("inline-allOf > referenced-type")
+        warnings.last().assert()
+            .contains("field=state.status")
+            .contains("property=description")
+            .contains("selected=Account status description")
+            .contains("ignored=[Bank account status enum description]")
+    }
+
+    @Test
+    fun `should deterministically prefer nearest metadata through nested refs and allOf`() {
+        val schema =
+            """
+            {"definitions":{
+              "BaseStatus":{"type":"string","enum":["OK","DISABLED"],"title":"Deep referenced title"},
+              "WrappedStatus":{"allOf":[{"${'$'}ref":"#/definitions/BaseStatus"},
+                {"title":"Referenced composition title"}]}},
+             "properties":{"status":{"title":"Direct member title","allOf":[
+               {"${'$'}ref":"#/definitions/WrappedStatus"},
+               {"allOf":[{"title":"Deeper field composition title"}]},{"title":"Nearest field title"}]}}}
+            """.trimIndent()
+
+        val inferences = (1..5).map {
+            assertTitleResolution(
+                schema = schema,
+                field = "state.status",
+                selected = "Direct member title",
+                ignored = listOf(
+                    "Nearest field title",
+                    "Deep referenced title",
+                    "Deeper field composition title",
+                    "Referenced composition title",
+                ),
+                precedence = "member > inline-allOf > deeper-composition",
+            )
+        }
+
+        inferences.forEach { (declaration) ->
+            checkNotNull((declaration.field("state.status").enumValues as DeclarationValue.Set).value)
+                .map { it.stringValue() }
+                .assert().containsExactly("OK", "DISABLED")
+        }
+        inferences.map { (_, warning) -> warning }.distinct().assert().hasSize(1)
+    }
+
+    @Test
+    fun `should preserve direct member precedence across outer compositions and refs`() {
+        mapOf(
+            "inline-allOf" to
+                """{"properties":{"value":{"type":"string","title":"Alpha inline"}}}""",
+            "referenced-type" to
+                """{"${'$'}ref":"#/definitions/Inherited"}""",
+        ).forEach { (ignoredSource, branch) ->
+            val schema =
+                """
+                {"definitions":{"Inherited":{"properties":{"value":{"type":"string","title":"Alpha referenced"}}}},
+                 "properties":{"value":{"type":"string","title":"Zulu member"}},"allOf":[$branch]}
+                """.trimIndent()
+
+            assertTitleResolution(
+                schema = schema,
+                field = "state.value",
+                selected = "Zulu member",
+                ignored = listOf(if (ignoredSource == "inline-allOf") "Alpha inline" else "Alpha referenced"),
+                precedence = "member > $ignoredSource",
+            )
+        }
+    }
+
+    @Test
+    fun `should prefer referenced type metadata over deeper compositions`() {
+        listOf(
+            """
+            {"definitions":{"Status":{"type":"string","title":"Zulu referenced title",
+             "allOf":[{"title":"Alpha deeper title"}]}},
+             "properties":{"status":{"${'$'}ref":"#/definitions/Status"}}}
+            """.trimIndent() to "state.status",
+            """
+            {"definitions":{"Value":{"type":"string","title":"Zulu referenced title"},
+             "State":{"properties":{"value":{"${'$'}ref":"#/definitions/Value"}},
+             "allOf":[{"properties":{"value":{"allOf":[{"title":"Alpha deeper title"}]}}}]}},
+             "${'$'}ref":"#/definitions/State"}
+            """.trimIndent() to "state.value",
+        ).forEach { (schema, field) ->
+            assertTitleResolution(
+                schema = schema,
+                field = field,
+                selected = "Zulu referenced title",
+                ignored = listOf("Alpha deeper title"),
+                precedence = "referenced-type > deeper-composition",
+            )
+        }
+    }
+
+    @Test
+    fun `should emit one canonical warning for all same precedence values independent of order`() {
+        val cases = listOf(
+            Triple(listOf("Charlie", "Bravo", "Alpha"), "Alpha", listOf("Bravo", "Charlie")),
+            Triple(listOf("Alpha", "Bravo", "Charlie"), "Alpha", listOf("Bravo", "Charlie")),
+            Triple(listOf("First", "Second", "Second"), "First", listOf("Second")),
+        )
+        val warnings = cases.map { (values, selected, ignored) ->
+            val branches = values.joinToString(",") { value ->
+                """{"properties":{"value":{"type":"string","title":"$value"}}}"""
+            }
+            assertTitleResolution(
+                schema = """{"oneOf":[$branches]}""",
+                field = "state.value",
+                selected = selected,
+                ignored = ignored,
+                precedence = "stable-value-order",
+            ).second
+        }
+        warnings.take(2).distinct().assert().hasSize(1)
+    }
+
+    @Test
+    fun `should keep structural and security metadata conflicts fail closed`() {
+        mapOf(
+            "enumValues" to
+                """{"properties":{"value":{"allOf":[{"type":"string","enum":["A"]},{"type":"string","enum":["B"]}]}}}""",
+            "maskRule" to
+                """{"properties":{"value":{"allOf":[{"type":"string","$MASK_RULE_ATTRIBUTE":"0"},{"type":"string","$MASK_RULE_ATTRIBUTE":"1"}]}}}""",
+            "semanticType" to
+                """{"properties":{"value":{"allOf":[{"type":"integer","$TEMPORAL_UNIT":"SECONDS"},{"type":"integer","$TEMPORAL_UNIT":"MILLISECONDS"}]}}}""",
+        ).forEach { (property, schema) ->
+            assertThrows<QuerySchemaConflictException> {
+                loadSchema(schema)
+            }.message.assert().contains("state.value.$property")
+        }
+    }
+
+    @Test
     fun `should reject masked illegal logical property names`() {
         val error = assertThrows<QuerySchemaConflictException> {
             load(MaskedInvalidLogicalFieldState::class.java)
@@ -503,17 +666,43 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
-    fun `should reject conflicting composition metadata`() {
-        assertThrows<QuerySchemaConflictException> {
+    fun `should deterministically select conflicting composition metadata`() {
+        val (declaration, warnings) = captureMetadataWarnings {
             load(ConflictingCompositionState::class.java)
         }
+
+        declaration.field("state.union.value").title.assert()
+            .isEqualTo(DeclarationValue.Set("First"))
+        warnings.assert().hasSize(1)
+        warnings.single().assert()
+            .contains("field=state.union.value")
+            .contains("property=title")
+            .contains("selected=First")
+            .contains("ignored=[Second]")
+            .contains("member(stable-value-order)")
     }
 
     @Test
-    fun `should reject conflicting container metadata independent of branch order`() {
-        listOf(ForwardMetadataState::class.java, ReverseMetadataState::class.java).forEach { type ->
-            assertThrows<QuerySchemaConflictException> { load(type) }
+    fun `should select conflicting container metadata independent of branch order`() {
+        val inferences = listOf(ForwardMetadataState::class.java, ReverseMetadataState::class.java).map { type ->
+            captureMetadataWarnings { load(type) }
         }
+
+        inferences.forEach { (declaration, warnings) ->
+            declaration.field("state.value").let { value ->
+                value.title.assert().isEqualTo(DeclarationValue.Set("First title"))
+                value.description.assert().isEqualTo(DeclarationValue.Set("First description"))
+            }
+            warnings.assert().hasSize(2)
+            warnings.first().assert()
+                .contains("selected=First title")
+                .contains("ignored=[Second title]")
+                .contains("stable-value-order")
+            warnings.last().assert()
+                .contains("selected=First description")
+                .contains("ignored=[Second description]")
+        }
+        inferences.map { (_, warnings) -> warnings }.distinct().assert().hasSize(1)
     }
 
     @Test
@@ -832,6 +1021,48 @@ class JsonQuerySchemaSourceTest {
     }
 
     private fun load(type: Class<*>): QuerySchemaDeclaration = loadPublisher(type).single().block()!!
+
+    private fun loadSchema(schema: String): QuerySchemaDeclaration = JsonSchemaWalker(
+        schema = JsonSerializer.readTree(schema),
+        maskRuleResolver = { fullMaskRule() },
+    ).declaration()
+
+    private fun assertTitleResolution(
+        schema: String,
+        field: String,
+        selected: String,
+        ignored: List<String>,
+        precedence: String,
+    ): Pair<QuerySchemaDeclaration, String> {
+        val (declaration, warnings) = captureMetadataWarnings { loadSchema(schema) }
+        declaration.field(field).title.assert().isEqualTo(DeclarationValue.Set(selected))
+        warnings.assert().hasSize(1)
+        return declaration to warnings.single().also { warning ->
+            warning.assert()
+                .contains("field=$field")
+                .contains("property=title")
+                .contains("selected=$selected")
+                .contains("ignored=$ignored")
+                .contains(precedence)
+        }
+    }
+
+    private fun <T> captureMetadataWarnings(block: () -> T): Pair<T, List<String>> {
+        val logger = LoggerFactory.getLogger(JsonSchemaWalker::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply {
+            context = logger.loggerContext
+            start()
+        }
+        logger.addAppender(appender)
+        return try {
+            block() to appender.list
+                .filter { it.level == Level.WARN }
+                .map { it.formattedMessage }
+        } finally {
+            logger.detachAppender(appender)
+            appender.stop()
+        }
+    }
 
     private fun loadPublisher(type: Class<*>): Flux<QuerySchemaDeclaration> =
         JsonQuerySchemaSource(typeResolver = { type }).load(context)
