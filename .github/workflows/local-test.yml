@@ -78,7 +78,16 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Run local tests with coverage
-        run: ./gradlew allLocalTest :code-coverage-report:localCoverageReport --stacktrace
+        run: ./gradlew allLocalTest :code-coverage-report:localCoverageReport --stacktrace --profile
+
+      - name: Upload Gradle profile
+        uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: local-test-gradle-profile
+          path: build/reports/profile/
+          retention-days: 7
 
       - name: Upload local coverage
         uses: codecov/codecov-action@v7
