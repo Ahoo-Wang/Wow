@@ -17,7 +17,7 @@ V9.x provides an explicit query-condition migration window: deprecated `Conditio
 | --- | --- | --- |
 | Standalone `condition { ... }` | `filterExpression { ... }` | An empty legacy block meant match-all; an empty V9 block is invalid, so use `matchAll()` explicitly |
 | `listQuery` / `pagedQuery` / `singleQuery` / `cursorQuery` `{ condition { ... } }` | The same query builder with `filter { ... }` | Calling `filterExpression { ... }` inside a query builder creates and discards a standalone value |
-| `condition(existingCondition)` inside a Condition block | `expression(existingFilter)` | The deprecated `existingCondition.toFilterExpression()` adapter is available only through 9.0.x; a query builder instead uses `filter(existingFilter)` |
+| `condition(existingCondition)` inside a Condition block | `expression(existingFilter)` | The deprecated `existingCondition.toFilterExpression()` adapter is available only through V9.x; a query builder instead uses `filter(existingFilter)` |
 | `all()` | `matchAll()` | `matchNone()` is also available in V9 |
 | `and { ... }` / `or { ... }` / `nor { ... }` | Same calls when at least one predicate is emitted | If predicates are conditional, guard the whole logical-block call and omit it when none apply; inserting `matchAll()` changes `or`/`nor` semantics |
 | `id(value)`, `ids(values)`, `aggregateId(value)`, `aggregateIds(values)`, `tenantId(value)`, `ownerId(value)`, `spaceId(value)` | Same calls | For empty `ids` or `aggregateIds`, call `matchNone()` instead; `SpaceId` was a `String` type alias, so V9 accepts the string value directly |
@@ -58,7 +58,7 @@ When V8 passes a `DateTimeFormatter` rather than a pattern string, use the match
 
 ### Direct Condition JVM Migration
 
-`Condition`, `ICondition`, `Operator`, and the generic `ConditionOptions` map are compatibility APIs only through 9.0.x. Replace them with the closed `FilterExpression` hierarchy; downstream code cannot add another `FilterExpression` subtype. If a custom `ICondition` only models built-in operators, translate it to the corresponding built-in expression. Move genuinely custom query semantics to a request `QueryFilter` or the selected Backend rather than extending the canonical wire AST.
+`Condition`, `ICondition`, `Operator`, and the generic `ConditionOptions` map are compatibility APIs only through V9.x. Replace them with the closed `FilterExpression` hierarchy; downstream code cannot add another `FilterExpression` subtype. If a custom `ICondition` only models built-in operators, translate it to the corresponding built-in expression. Move genuinely custom query semantics to a request `QueryFilter` or the selected Backend rather than extending the canonical wire AST.
 
 `FilterOperator` is metadata exposed by a concrete expression, not a selector for a generic constructor. Remove code that builds or interprets one generic condition from an operator/options tuple. Inspect typed properties instead: `DeletionFilter.deletionState`, text-filter `stringComparison`, relative-time `zoneId`/`datePattern`/`dateFormatter`/`timeUnit`, and each concrete expression's `value`, `values`, `operands`, `predicate`, `query`, or `fields` property.
 
