@@ -25,12 +25,13 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.ResolvedAggregationQuery
 import me.ahoo.wow.query.withUniqueSort
 import org.bson.Document
@@ -60,99 +61,99 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
 
     protected open fun resolve(filter: FilterExpression): Mono<FilterExpression> = Mono.just(filter)
 
-    protected fun findDocument(queryable: Queryable<*>): FindPublisher<Document> {
-        return collection.findDocument(converter, queryable, projectionConverter, sortConverter)
+    protected fun findDocument(queryable: Queryable<*>, schema: QueryModelSchema?): FindPublisher<Document> {
+        return collection.findDocument(converter, queryable, projectionConverter, sortConverter, schema)
     }
 
-    private fun singleDocument(singleQuery: ISingleQuery): Mono<Document> {
-        return resolve(singleQuery).flatMap { resolved ->
-            findDocument(resolved)
-                .limit(1)
-                .first()
-                .toMono()
-        }
+    protected fun executeSingle(singleQuery: ISingleQuery, schema: QueryModelSchema?): Mono<ObjectNode> =
+        findDocument(singleQuery, schema)
+            .limit(1)
+            .first()
+            .toMono()
+            .map(::toObjectNode)
+
+    override fun single(query: ISingleQuery): Mono<ObjectNode> =
+        resolve(query).flatMap { executeSingle(it, null) }
+
+    protected fun executeList(listQuery: IListQuery, schema: QueryModelSchema?): Flux<ObjectNode> {
+        return findDocument(listQuery, schema)
+            .limit(listQuery.limit)
+            .toFlux()
+            .map(::toObjectNode)
     }
 
-    override fun single(query: ISingleQuery): Mono<ObjectNode> = singleDocument(query).map(::toObjectNode)
-
-    private fun listDocument(listQuery: IListQuery): Flux<Document> {
-        require(listQuery.limit >= 0) { "limit must be greater than or equal to 0." }
-        return resolve(listQuery).flatMapMany { resolved ->
-            findDocument(resolved)
-                .limit(resolved.limit)
-                .toFlux()
-        }
+    override fun list(query: IListQuery): Flux<ObjectNode> {
+        require(query.limit >= 0) { "limit must be greater than or equal to 0." }
+        return resolve(query).flatMapMany { executeList(it, null) }
     }
 
-    override fun list(query: IListQuery): Flux<ObjectNode> = listDocument(query).map(::toObjectNode)
+    protected fun executePaged(pagedQuery: IPagedQuery, schema: QueryModelSchema?): Mono<PagedList<ObjectNode>> {
+        val projectionBson = projectionConverter.convert(pagedQuery.projection, schema)
+        val filter = converter.convert(pagedQuery.filter)
+        val sort = sortConverter.convert(pagedQuery.sort)
 
-    private fun pagedDocument(pagedQuery: IPagedQuery): Mono<PagedList<ObjectNode>> {
-        return resolve(pagedQuery).flatMap { resolved ->
-            val projectionBson = projectionConverter.convert(resolved.projection)
-            val filter = converter.convert(resolved.filter)
-            val sort = sortConverter.convert(resolved.sort)
+        val totalPublisher = collection.countDocuments(filter).toMono()
+        val listPublisher = collection.find(filter)
+            .projection(projectionBson)
+            .sort(sort)
+            .skip(pagedQuery.pagination.offset())
+            .limit(pagedQuery.pagination.size)
+            .batchSize(pagedQuery.pagination.size)
+            .toFlux()
 
-            val totalPublisher = collection.countDocuments(filter).toMono()
-            val listPublisher = collection.find(filter)
-                .projection(projectionBson)
-                .sort(sort)
-                .skip(resolved.pagination.offset())
-                .limit(resolved.pagination.size)
-                .batchSize(resolved.pagination.size)
-                .toFlux()
-
-            val listMappedPublisher = listPublisher.map(::toObjectNode).collectList()
-            Mono.zip(totalPublisher, listMappedPublisher)
-                .map { result ->
-                    PagedList(result.t1, result.t2)
-                }
-        }
+        val listMappedPublisher = listPublisher.map(::toObjectNode).collectList()
+        return Mono.zip(totalPublisher, listMappedPublisher)
+            .map { result ->
+                PagedList(result.t1, result.t2)
+            }
     }
 
-    override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = pagedDocument(query)
+    override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
+        resolve(query).flatMap { executePaged(it, null) }
 
-    override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> {
+    protected fun executeCursor(query: ICursorQuery, schema: QueryModelSchema?): Mono<CursorPage<ObjectNode>> {
         val uniqueField = cursorUniqueField
-        return resolve(query.withUniqueSort(uniqueField)).flatMap { resolved ->
-            val physicalSort = resolved.sort.map { it.copy(field = QueryField(sortConverter.convertField(it.field.path))) }
-            val filter = resolved.cursor?.let {
-                MongoCursorFilterCompiler.compile(physicalSort, MongoCursorCodec.decode(it, resolved.sort.size))
-            }?.let { Filters.and(converter.convert(resolved.filter), it) }
-                ?: converter.convert(resolved.filter)
-            val projection = projectionConverter.cursorProjection(
-                resolved.projection,
-                physicalSort.map { it.field.path },
-            )
-            val deferredInternalFields = setOf(Documents.ID_FIELD).intersect(projection.internalFields)
-            collection.find(filter)
-                .projection(projectionConverter.convertCursor(projection))
-                .sort(sortConverter.convert(resolved.sort))
-                .limit(resolved.size + 1)
-                .toFlux()
-                .collectList()
-                .map { documents ->
-                    documents.toCursorPage(
-                        resolved,
-                        projection,
-                        physicalSort.map { it.field.path },
-                        deferredInternalFields,
-                    ) { document ->
-                        toObjectNode(document).also { result ->
-                            if (deferredInternalFields.isNotEmpty()) {
-                                result.remove(Documents.ID_FIELD)
-                                result.remove(uniqueField.path)
-                            }
+        val physicalSort = query.sort.map { it.copy(field = QueryField(sortConverter.convertField(it.field.path))) }
+        val filter = query.cursor?.let {
+            MongoCursorFilterCompiler.compile(physicalSort, MongoCursorCodec.decode(it, query.sort.size))
+        }?.let { Filters.and(converter.convert(query.filter), it) }
+            ?: converter.convert(query.filter)
+        val projection = projectionConverter.cursorProjection(
+            query.projection,
+            physicalSort.map { it.field.path },
+            schema,
+        )
+        val deferredInternalFields = setOf(Documents.ID_FIELD).intersect(projection.internalFields)
+        return collection.find(filter)
+            .projection(projectionConverter.convertCursor(projection))
+            .sort(sortConverter.convert(query.sort))
+            .limit(query.size + 1)
+            .toFlux()
+            .collectList()
+            .map { documents ->
+                documents.toCursorPage(
+                    query,
+                    projection,
+                    physicalSort.map { it.field.path },
+                    deferredInternalFields,
+                ) { document ->
+                    toObjectNode(document).also { result ->
+                        if (deferredInternalFields.isNotEmpty()) {
+                            result.remove(Documents.ID_FIELD)
+                            result.remove(uniqueField.path)
                         }
                     }
                 }
-        }
+            }
     }
 
-    override fun count(filter: FilterExpression): Mono<Long> {
-        return resolve(filter).flatMap { resolved ->
-            collection.countDocuments(converter.convert(resolved)).toMono()
-        }
-    }
+    override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+        resolve(query.withUniqueSort(cursorUniqueField)).flatMap { executeCursor(it, null) }
+
+    protected fun executeCount(filter: FilterExpression): Mono<Long> =
+        collection.countDocuments(converter.convert(filter)).toMono()
+
+    override fun count(filter: FilterExpression): Mono<Long> = resolve(filter).flatMap(::executeCount)
 
     protected fun executeAggregation(resolved: ResolvedAggregationQuery): Flux<ObjectNode> {
         val query = resolved.query

@@ -24,9 +24,9 @@ import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TodayFilter
@@ -43,12 +43,12 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.schema.DeclarationValue
-import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QueryFieldBinding
+import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QueryFieldSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
@@ -356,6 +356,34 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             .assertNext { document ->
                 document.path("state").path("opaque").path("name").asString().assert().isEqualTo("visible")
             }.verifyComplete()
+    }
+
+    @Test
+    fun `projection should compile logical scalar and object nodes to physical subtrees`() {
+        updateDocument(mapOf("document" to mapOf("name" to "visible", "secret" to "hidden")))
+        val service = ElasticsearchSnapshotQueryBackend(
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            elasticsearchClient = elasticsearchClient,
+            schemaProvider = projectionSchemaProvider(),
+            validationMode = QuerySchemaValidationMode.STRICT,
+        )
+        fun query(projection: Projection) = service.list(
+            ListQuery(MatchAllFilter, projection = projection, limit = 1),
+        ).blockFirst()!!
+
+        query(Projection(include = listOf(QueryField("view")))).path("document").let { document ->
+            document.path("name").asString().assert().isEqualTo("visible")
+            document.path("secret").asString().assert().isEqualTo("hidden")
+        }
+        query(Projection(include = listOf(QueryField("view.name")))).path("document").let { document ->
+            document.path("name").asString().assert().isEqualTo("visible")
+            document.has("secret").assert().isFalse()
+        }
+        query(Projection(exclude = listOf(QueryField("view")))).has("document").assert().isFalse()
+        query(Projection(exclude = listOf(QueryField("view.name")))).path("document").let { document ->
+            document.has("name").assert().isFalse()
+            document.path("secret").asString().assert().isEqualTo("hidden")
+        }
     }
 
     @Test
@@ -810,6 +838,36 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         dateHistogram(field, me.ahoo.wow.api.query.AggregationDateUnit.DAY, "day")
         count("count")
     }.query(service).collectList()
+
+    private fun projectionSchemaProvider(): QueryModelSchemaProvider {
+        val schema = QueryModelSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = mapOf(
+                QueryField("view") to projectionFieldSchema(QueryField("document")),
+                QueryField("view.name") to projectionFieldSchema(QueryField("document.name")),
+            ),
+        )
+        return object : QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
+            override fun refresh(): Mono<QueryModelSchema> = Mono.just(schema)
+        }
+    }
+
+    private fun projectionFieldSchema(projectionField: QueryField) = QueryFieldSchema(
+        title = null,
+        description = null,
+        enumValues = null,
+        valueTypes = emptySet(),
+        nullable = true,
+        required = false,
+        cardinality = QueryCardinality.SINGLE,
+        semanticType = null,
+        dynamicChildren = false,
+        bindings = emptyMap(),
+        projectionField = projectionField,
+        rewriteMode = QueryRewriteMode.NONE,
+    )
 
     @Suppress("UNCHECKED_CAST")
     private fun updateState(state: Map<String, Any>) {

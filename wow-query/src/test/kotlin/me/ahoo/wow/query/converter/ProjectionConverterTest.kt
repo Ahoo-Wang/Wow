@@ -34,7 +34,7 @@ class ProjectionConverterTest {
     @Test
     fun `should convert empty projection`() {
         val converter = RecordingProjectionConverter()
-        val result = converter.convert(Projection.ALL)
+        val result = converter.convert(Projection.ALL, null)
         result.assert().isEqualTo(Projection.ALL)
     }
 
@@ -47,7 +47,7 @@ class ProjectionConverterTest {
             include = listOf(QueryField("field1")),
             exclude = listOf(QueryField("field2"))
         )
-        converter.convert(projection)
+        converter.convert(projection, null)
         converter.lastConverted.assert().isEqualTo(
             Projection(
                 include = listOf(QueryField("state.field1")),
@@ -63,7 +63,7 @@ class ProjectionConverterTest {
             include = listOf(QueryField("field1")),
             exclude = listOf(QueryField("field2"))
         )
-        val result = converter.convert(projection)
+        val result = converter.convert(projection, null)
         result.assert().isEqualTo(projection)
     }
 
@@ -71,7 +71,7 @@ class ProjectionConverterTest {
     fun `should convert projection with only includes`() {
         val converter = RecordingProjectionConverter()
         val projection = Projection(include = listOf(QueryField("field1"), QueryField("field2")), exclude = emptyList())
-        converter.convert(projection)
+        converter.convert(projection, null)
         converter.lastConverted.include.assert().hasSize(2)
         converter.lastConverted.exclude.assert().isEmpty()
     }

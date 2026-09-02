@@ -19,28 +19,26 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.isEmpty
 import me.ahoo.wow.query.converter.AbstractProjectionConverter
 import me.ahoo.wow.query.converter.FieldConverter
+import me.ahoo.wow.query.schema.QueryModelSchema
 import org.bson.conversions.Bson
 
 class MongoProjectionConverter(override val fieldConverter: FieldConverter) : AbstractProjectionConverter<Bson?>() {
 
-    internal fun cursorProjection(projection: Projection, sortFields: List<String>): MongoCursorProjection {
-        val physical = if (projection.isEmpty()) {
-            projection
-        } else {
-            Projection(
-                include = projection.include.map { QueryField(fieldConverter.convert(it.path)) },
-                exclude = projection.exclude.map { QueryField(fieldConverter.convert(it.path)) },
-            )
-        }
-        return physical.withCursorFields(sortFields)
-    }
+    internal fun cursorProjection(
+        projection: Projection,
+        sortFields: List<String>,
+        schema: QueryModelSchema?,
+    ): MongoCursorProjection = convertProjection(projection, schema).withCursorFields(sortFields)
 
     internal fun convertCursor(projection: MongoCursorProjection): Bson? = internalConvert(projection.queryProjection)
 
     override fun internalConvert(projection: Projection): Bson? {
         if (projection.isEmpty()) return null
         if (projection.include.isNotEmpty() && projection.exclude.isNotEmpty()) {
-            return Projections.fields(Projections.include(projection.include.map(QueryField::path)), Projections.exclude(projection.exclude.map(QueryField::path)))
+            return Projections.fields(
+                Projections.include(projection.include.map(QueryField::path)),
+                Projections.exclude(projection.exclude.map(QueryField::path))
+            )
         }
         if (projection.include.isNotEmpty()) {
             return Projections.include(projection.include.map(QueryField::path))

@@ -14,7 +14,8 @@
 package me.ahoo.wow.query.converter
 
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.query.schema.QueryModelSchema
 
 interface ProjectionConverter<T> {
-    fun convert(projection: Projection): T
+    fun convert(projection: Projection, schema: QueryModelSchema?): T
 }

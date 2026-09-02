@@ -14,11 +14,27 @@
 package me.ahoo.wow.elasticsearch.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
 import me.ahoo.wow.query.dsl.projection
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import org.junit.jupiter.api.Test
 
 class ElasticsearchProjectionConverterTest {
+    private val schema = QueryModelSchema(
+        model = QueryModel.SNAPSHOT,
+        capabilities = emptySet(),
+        fields = mapOf(
+            QueryField("state") to projectionFieldSchema(QueryField("document")),
+            QueryField("state.name") to projectionFieldSchema(QueryField("document.name")),
+        ),
+    )
+
     @Test
     fun `should convert projection to SourceFilter`() {
         val projection = projection {
@@ -26,8 +42,50 @@ class ElasticsearchProjectionConverterTest {
             exclude("field2")
         }
 
-        val sourceFilter = projection.toSourceFilter()
-        sourceFilter.includes().assert().contains("field1")
-        sourceFilter.excludes().assert().contains("field2")
+        val sourceFilter = projection.toSourceFilter(null)
+        sourceFilter.includes().assert().containsExactly("field1", "field1.*")
+        sourceFilter.excludes().assert().containsExactly("field2", "field2.*")
     }
+
+    @Test
+    fun `should compile included logical subtrees to source filters`() {
+        val include = listOf(QueryField("state"), QueryField("state.name"))
+        val projection = Projection(include = include)
+
+        ElasticsearchProjectionConverter.convert(projection, schema).includes().assert().containsExactly(
+            "document",
+            "document.*",
+            "document.name",
+            "document.name.*",
+        )
+        projection.include.assert().isSameAs(include)
+    }
+
+    @Test
+    fun `should compile excluded logical subtrees to source filters`() {
+        ElasticsearchProjectionConverter.convert(
+            Projection(exclude = listOf(QueryField("state"), QueryField("state.name"))),
+            schema,
+        ).excludes().assert().containsExactly(
+            "document",
+            "document.*",
+            "document.name",
+            "document.name.*",
+        )
+    }
+
+    private fun projectionFieldSchema(projectionField: QueryField) = QueryFieldSchema(
+        title = null,
+        description = null,
+        enumValues = null,
+        valueTypes = emptySet(),
+        nullable = true,
+        required = false,
+        cardinality = QueryCardinality.SINGLE,
+        semanticType = null,
+        dynamicChildren = false,
+        bindings = emptyMap(),
+        projectionField = projectionField,
+        rewriteMode = QueryRewriteMode.NONE,
+    )
 }

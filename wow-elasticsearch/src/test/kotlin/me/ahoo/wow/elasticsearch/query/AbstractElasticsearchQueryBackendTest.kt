@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.elasticsearch.query
 
-import me.ahoo.wow.api.query.QueryField
-
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
@@ -43,10 +41,18 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackend
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackendFactory
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.dsl.filterExpression
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -192,10 +198,52 @@ class AbstractElasticsearchQueryBackendTest {
 
         request.captured.trackTotalHits()!!.enabled().assert().isFalse()
         request.captured.size().assert().isEqualTo(DEFAULT_SEARCH_BATCH_SIZE)
-        request.captured.source()!!.filter().includes().assert().containsExactly("field")
+        request.captured.source()!!.filter().includes().assert().containsExactly("field", "field.*")
         request.captured.sort().assert().hasSize(1)
         result.assert().hasSize(1)
         verify(exactly = 0) { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) }
+    }
+
+    @Test
+    fun `built-in list should compile projection with the admitted schema`() {
+        val schemaProvider = mockk<QueryModelSchemaProvider>()
+        every { schemaProvider.schema() } returns Mono.just(
+            QueryModelSchema(
+                model = QueryModel.SNAPSHOT,
+                capabilities = emptySet(),
+                fields = mapOf(
+                    QueryField("state") to projectionFieldSchema(QueryField("document")),
+                    QueryField("state.name") to projectionFieldSchema(QueryField("document.name")),
+                ),
+            ),
+        )
+        val request = slot<SearchRequest>()
+        every { elasticsearchClient.search(capture(request), ObjectNode::class.java) } returns Mono.just(
+            emptyObjectNodeSearchResponse(),
+        )
+        val backend = ElasticsearchSnapshotQueryBackend(
+            namedAggregate = MaterializedNamedAggregate("test", "aggregate"),
+            elasticsearchClient = elasticsearchClient,
+            schemaProvider = schemaProvider,
+        )
+
+        backend.list(
+            ListQuery(
+                MatchAllFilter,
+                projection = Projection(
+                    include = listOf(QueryField("state"), QueryField("state.name")),
+                ),
+                limit = 1,
+            ),
+        ).collectList().block()
+
+        request.captured.source()!!.filter().includes().assert().containsExactly(
+            "document",
+            "document.*",
+            "document.name",
+            "document.name.*",
+        )
+        verify(exactly = 1) { schemaProvider.schema() }
     }
 
     @Test
@@ -250,7 +298,7 @@ class AbstractElasticsearchQueryBackendTest {
         ).collectList().block()
 
         searchRequest.captured.size().assert().isEqualTo(DEFAULT_SEARCH_BATCH_SIZE)
-        searchRequest.captured.source()!!.filter().includes().assert().containsExactly("field")
+        searchRequest.captured.source()!!.filter().includes().assert().containsExactly("field", "field.*")
         searchRequest.captured.sort().map { it.field().field() }.assert()
             .containsExactly("_score", "field", "_shard_doc")
     }
@@ -494,6 +542,21 @@ class AbstractElasticsearchQueryBackendTest {
             .shards { shards -> shards.failed(0).successful(1).total(1) }
             .hits { hits -> hits.hits(emptyList()) }
     }
+
+    private fun projectionFieldSchema(projectionField: QueryField) = QueryFieldSchema(
+        title = null,
+        description = null,
+        enumValues = null,
+        valueTypes = emptySet(),
+        nullable = true,
+        required = false,
+        cardinality = QueryCardinality.SINGLE,
+        semanticType = null,
+        dynamicChildren = false,
+        bindings = emptyMap(),
+        projectionField = projectionField,
+        rewriteMode = QueryRewriteMode.NONE,
+    )
 
     private fun openPointInTimeResponse(): OpenPointInTimeResponse {
         return OpenPointInTimeResponse.of {

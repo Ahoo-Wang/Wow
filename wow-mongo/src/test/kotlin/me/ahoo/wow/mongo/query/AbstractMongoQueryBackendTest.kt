@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo.query
 
+import com.mongodb.client.model.Projections
 import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
 import io.mockk.every
@@ -226,6 +227,56 @@ class AbstractMongoQueryBackendTest {
     }
 
     @Test
+    fun `built-in list should compile projection with the admitted schema`() {
+        val schemaProvider = mockk<QueryModelSchemaProvider>()
+        every { schemaProvider.schema() } returns Mono.just(
+            QueryModelSchema(
+                model = QueryModel.SNAPSHOT,
+                capabilities = emptySet(),
+                fields = mapOf(
+                    QueryField("state") to cursorFieldSchema(
+                        source = QueryField("state"),
+                        physicalField = QueryField("document"),
+                        projectionField = QueryField("document"),
+                    ),
+                    QueryField("state.name") to cursorFieldSchema(
+                        source = QueryField("state.name"),
+                        physicalField = QueryField("document.name"),
+                        projectionField = QueryField("document.name"),
+                    ),
+                ),
+            ),
+        )
+        val projection = slot<Bson>()
+        val publisher = mockk<FindPublisher<Document>>()
+        every { collection.find(any<Bson>()) } returns publisher
+        every { publisher.projection(capture(projection)) } returns publisher
+        every { publisher.sort(null) } returns publisher
+        every { publisher.limit(1) } returns publisher
+        every { publisher.subscribe(any()) } answers {
+            Flux.empty<Document>().subscribe(firstArg<Subscriber<in Document>>())
+        }
+        val builtIn = MongoSnapshotQueryBackend(
+            namedAggregate = MaterializedNamedAggregate("test", "aggregate"),
+            collection = collection,
+            schemaProvider = schemaProvider,
+        )
+
+        builtIn.list(
+            ListQuery(
+                MatchAllFilter,
+                projection = Projection(
+                    include = listOf(QueryField("state"), QueryField("state.name")),
+                ),
+                limit = 1,
+            ),
+        ).test().verifyComplete()
+
+        projection.captured.assert().isEqualTo(Projections.include("document", "document.name"))
+        verify(exactly = 1) { schemaProvider.schema() }
+    }
+
+    @Test
     fun `built-in cursor should reject masked aliases before Mongo access`() {
         val schemaProvider = mockk<QueryModelSchemaProvider>()
         every { schemaProvider.schema() } returns Mono.just(
@@ -370,7 +421,7 @@ class AbstractMongoQueryBackendTest {
         bson: Bson,
         source: () -> Flux<Document>,
     ) {
-        every { backend.projectionConverter.convert(any()) } returns bson
+        every { backend.projectionConverter.convert(any(), null) } returns bson
         every { backend.sortConverter.convert(any()) } returns bson
         every { collection.find(any<Bson>()) } returns publisher
         every { publisher.projection(bson) } returns publisher

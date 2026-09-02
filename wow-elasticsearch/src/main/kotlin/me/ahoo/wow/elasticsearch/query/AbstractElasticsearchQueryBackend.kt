@@ -29,8 +29,8 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.isEmpty
 import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
@@ -38,6 +38,7 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
 import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.ResolvedAggregationQuery
 import me.ahoo.wow.query.withUniqueSort
 import me.ahoo.wow.serialization.JsonSerializer
@@ -67,31 +68,36 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
 
     protected open fun resolve(filter: FilterExpression): Mono<FilterExpression> = Mono.just(filter)
 
-    override fun single(query: ISingleQuery): Mono<ObjectNode> {
-        return resolve(query).flatMap { resolved ->
-            listResolved(
-                ListQuery(
-                    filter = resolved.filter,
-                    projection = resolved.projection,
-                    limit = 1,
-                    sort = resolved.sort,
-                ),
-            ).next()
-        }
-    }
+    protected fun executeSingle(query: ISingleQuery, schema: QueryModelSchema?): Mono<ObjectNode> =
+        listResolved(
+            ListQuery(
+                filter = query.filter,
+                projection = query.projection,
+                limit = 1,
+                sort = query.sort,
+            ),
+            schema,
+        ).next()
+
+    override fun single(query: ISingleQuery): Mono<ObjectNode> =
+        resolve(query).flatMap { executeSingle(it, null) }
 
     override fun list(query: IListQuery): Flux<ObjectNode> {
         require(query.limit >= 0) { "limit must be greater than or equal to 0." }
-        return resolve(query).flatMapMany(::listResolved)
+        return resolve(query).flatMapMany { executeList(it, null) }
     }
 
-    private fun listResolved(listQuery: IListQuery): Flux<ObjectNode> {
+    protected fun executeList(listQuery: IListQuery, schema: QueryModelSchema?): Flux<ObjectNode> {
+        return listResolved(listQuery, schema)
+    }
+
+    private fun listResolved(listQuery: IListQuery, schema: QueryModelSchema?): Flux<ObjectNode> {
         val resolved = compile(listQuery.filter, listQuery.sort)
         if (listQuery.limit == 0 || listQuery.limit > queryBatchSize) {
             return ElasticsearchQueryPager(elasticsearchClient, indexName, queryBatchSize, queryKeepAlive).search(
                 limit = listQuery.limit,
                 query = resolved.query,
-                sourceFilter = listQuery.sourceFilter(),
+                sourceFilter = listQuery.sourceFilter(schema),
                 sort = resolved.sortOptions.searchAfterSort(),
             ).mapNotNull { it.toObjectNode() }
         }
@@ -102,34 +108,41 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
                 from = 0,
                 size = listQuery.limit,
                 trackTotalHits = false,
+                schema = schema,
             )
         }.flatMap(::search)
             .flatMapIterable { it.list }
     }
 
-    override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> {
-        return resolve(query)
-            .map { resolved ->
-                createSearchRequest(
-                    query = resolved,
-                    resolved = compile(resolved.filter, resolved.sort),
-                    from = resolved.pagination.offset(),
-                    size = resolved.pagination.size,
-                    trackTotalHits = true,
-                )
-            }.flatMap(::search)
+    protected fun executePaged(query: IPagedQuery, schema: QueryModelSchema?): Mono<PagedList<ObjectNode>> =
+        Mono.fromSupplier {
+            createSearchRequest(
+                query = query,
+                resolved = compile(query.filter, query.sort),
+                from = query.pagination.offset(),
+                size = query.pagination.size,
+                trackTotalHits = true,
+                schema = schema,
+            )
+        }.flatMap(::search)
+
+    override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
+        resolve(query).flatMap { executePaged(it, null) }
+
+    protected fun executeCursor(query: ICursorQuery, schema: QueryModelSchema?): Mono<CursorPage<ObjectNode>> {
+        val compiled = compile(query.filter, query.sort)
+        return elasticsearchClient.search(cursorSearchRequest(query, compiled, schema), ObjectNode::class.java)
+            .map { response -> response.toCursorPage(query) }
     }
 
-    override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> {
-        val uniqueField = cursorUniqueField
-        return resolve(query.withUniqueSort(uniqueField)).flatMap { resolved ->
-            val compiled = compile(resolved.filter, resolved.sort)
-            elasticsearchClient.search(cursorSearchRequest(resolved, compiled), ObjectNode::class.java)
-                .map { response -> response.toCursorPage(resolved) }
-        }
-    }
+    override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+        resolve(query.withUniqueSort(cursorUniqueField)).flatMap { executeCursor(it, null) }
 
-    private fun cursorSearchRequest(query: ICursorQuery, resolved: ResolvedQuery): SearchRequest = SearchRequest.of {
+    private fun cursorSearchRequest(
+        query: ICursorQuery,
+        resolved: ResolvedQuery,
+        schema: QueryModelSchema?,
+    ): SearchRequest = SearchRequest.of {
         it.index(indexName)
             .query(resolved.query)
             .size(query.size + 1)
@@ -138,7 +151,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         query.cursor?.let { cursor -> ElasticsearchCursorCodec.decode(cursor, query.sort.size) }
             ?.let(it::searchAfter)
         if (!query.projection.isEmpty()) {
-            it.source { source -> source.filter(query.projection.toSourceFilter()) }
+            it.source { source -> source.filter(query.projection.toSourceFilter(schema)) }
         }
         it
     }
@@ -149,6 +162,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         from: Int,
         size: Int,
         trackTotalHits: Boolean,
+        schema: QueryModelSchema?,
     ): SearchRequest {
         val searchRequest = SearchRequest.of {
             it.index(indexName)
@@ -162,7 +176,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             }
             if (!query.projection.isEmpty()) {
                 it.source {
-                    it.filter(query.projection.toSourceFilter())
+                    it.filter(query.projection.toSourceFilter(schema))
                 }
             }
             it
@@ -170,8 +184,8 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         return searchRequest
     }
 
-    private fun IListQuery.sourceFilter(): SourceFilter? {
-        return if (projection.isEmpty()) null else projection.toSourceFilter()
+    private fun IListQuery.sourceFilter(schema: QueryModelSchema?): SourceFilter? {
+        return if (projection.isEmpty()) null else projection.toSourceFilter(schema)
     }
 
     private fun List<SortOptions>.searchAfterSort(): List<SortOptions> {
@@ -224,14 +238,14 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             }
     }
 
-    override fun count(filter: FilterExpression): Mono<Long> {
-        return resolve(filter).map { resolved ->
-            CountRequest.of {
-                it.index(indexName)
-                    .query(filterConverter.convert(resolved))
-            }
-        }.flatMap(elasticsearchClient::count).map { it.count() }
-    }
+    protected fun executeCount(filter: FilterExpression): Mono<Long> = Mono.fromSupplier {
+        CountRequest.of {
+            it.index(indexName)
+                .query(filterConverter.convert(filter))
+        }
+    }.flatMap(elasticsearchClient::count).map { it.count() }
+
+    override fun count(filter: FilterExpression): Mono<Long> = resolve(filter).flatMap(::executeCount)
 
     protected fun executeAggregation(resolved: ResolvedAggregationQuery): Flux<ObjectNode> =
         ElasticsearchAggregationPager(
