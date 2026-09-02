@@ -85,6 +85,21 @@ data class QueryModelSchema(
 
     private val dynamicFields = fields.filterValues(QueryFieldSchema::dynamicChildren)
 
+    @get:JsonIgnore
+    internal val elementDescendantDynamicFields: Set<QueryField> = buildSet {
+        dynamicFields.keys.forEach { dynamicField ->
+            if (
+                elementScopePaths.any { elementPath ->
+                    dynamicField.path.length > elementPath.length &&
+                        dynamicField.path.startsWith(elementPath) &&
+                        dynamicField.path[elementPath.length] == '.'
+                }
+            ) {
+                add(dynamicField)
+            }
+        }
+    }
+
     private val resolver = QuerySchemaResolver(this)
 
     fun supports(capability: QueryCapability): Boolean = capability in capabilities
@@ -97,15 +112,10 @@ data class QueryModelSchema(
             val ancestorField = QueryField(field.path.substring(0, separator))
             val ancestor = dynamicFields[ancestorField]
             if (ancestor != null) {
-                val elementAncestor = elementScopePaths.any { elementPath ->
-                    ancestorField.path.length > elementPath.length &&
-                        ancestorField.path.startsWith(elementPath) &&
-                        ancestorField.path[elementPath.length] == '.'
-                }
                 return ancestor.resolveDynamic(
                     source = ancestorField,
                     relative = checkNotNull(field.relativeTo(ancestorField)),
-                    elementAncestor = elementAncestor,
+                    elementAncestor = ancestorField in elementDescendantDynamicFields,
                 )
             }
             separator = ancestorField.path.lastIndexOf('.')

@@ -40,6 +40,7 @@ import tools.jackson.module.kotlin.jsonMapper
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.jvm.javaField
 
+@Suppress("LargeClass")
 class QueryModelSchemaTest {
     private val jsonMapper = jsonMapper()
 
@@ -455,6 +456,36 @@ class QueryModelSchemaTest {
         outerAndSelfElement.bindings.assert().doesNotContainKey(QueryCapability.ELEMENT_SCOPE)
         element.projectionField.assert().isEqualTo(child)
         element.masked.assert().isTrue()
+    }
+
+    @Test
+    fun `dynamic element ancestry index should contain only outer descendants`() {
+        fun entry(
+            path: String,
+            dynamic: Boolean,
+            vararg capabilities: QueryCapability,
+        ) = QueryField(path).let { field ->
+            field to fieldSchema(
+                dynamicChildren = dynamic,
+                bindings = capabilities.associateWith { QueryFieldBinding(field, field, null) },
+            )
+        }
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            linkedMapOf(
+                entry("state.orders", false, QueryCapability.ELEMENT_SCOPE),
+                entry("state.orders.attributes", true, QueryCapability.EXACT_MATCH),
+                entry("state.orders.lines", true, QueryCapability.EXACT_MATCH, QueryCapability.ELEMENT_SCOPE),
+                entry("state.items", true, QueryCapability.EXACT_MATCH, QueryCapability.ELEMENT_SCOPE),
+                entry("state.ordersArchive.attributes", true, QueryCapability.EXACT_MATCH),
+            ),
+        )
+
+        schema.elementDescendantDynamicFields.assert().containsExactlyInAnyOrder(
+            QueryField("state.orders.attributes"),
+            QueryField("state.orders.lines"),
+        )
     }
 
     @Test
