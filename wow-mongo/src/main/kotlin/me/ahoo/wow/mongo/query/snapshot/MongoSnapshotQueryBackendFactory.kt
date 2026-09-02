@@ -22,14 +22,12 @@ import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 
 class MongoSnapshotQueryBackendFactory(
     private val database: MongoDatabase,
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
-    private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
 ) : AbstractSnapshotQueryBackendFactory() {
     override fun createBackend(namedAggregate: NamedAggregate): SnapshotQueryBackend {
         val materialized = namedAggregate.materialize()
@@ -44,7 +42,6 @@ class MongoSnapshotQueryBackendFactory(
             namedAggregate = materialized,
             collection = collection,
             schemaProvider = provider,
-            validationMode = validationMode,
         )
     }
 }

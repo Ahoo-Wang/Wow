@@ -20,10 +20,10 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 
 abstract class AbstractProjectionConverter<T> : ProjectionConverter<T> {
     abstract val fieldConverter: FieldConverter
-    override fun convert(projection: Projection, schema: QueryModelSchema?): T =
+    override fun convert(projection: Projection, schema: QueryModelSchema): T =
         internalConvert(convertProjection(projection, schema))
 
-    protected fun convertProjection(projection: Projection, schema: QueryModelSchema?): Projection {
+    protected fun convertProjection(projection: Projection, schema: QueryModelSchema): Projection {
         if (projection.isEmpty()) {
             return projection
         }
@@ -33,8 +33,8 @@ abstract class AbstractProjectionConverter<T> : ProjectionConverter<T> {
         )
     }
 
-    private fun QueryField.toPhysicalField(schema: QueryModelSchema?): QueryField =
-        QueryField(fieldConverter.convert(schema?.field(this)?.projectionField?.path ?: path))
+    private fun QueryField.toPhysicalField(schema: QueryModelSchema): QueryField =
+        QueryField(fieldConverter.convert(schema.field(this)?.projectionField?.path ?: path))
 
     protected abstract fun internalConvert(projection: Projection): T
 }

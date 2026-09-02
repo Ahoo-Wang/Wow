@@ -27,7 +27,7 @@ class MongoProjectionConverter(override val fieldConverter: FieldConverter) : Ab
     internal fun cursorProjection(
         projection: Projection,
         sortFields: List<String>,
-        schema: QueryModelSchema?,
+        schema: QueryModelSchema,
     ): MongoCursorProjection = convertProjection(projection, schema).withCursorFields(sortFields)
 
     internal fun convertCursor(projection: MongoCursorProjection): Bson? = internalConvert(projection.queryProjection)
