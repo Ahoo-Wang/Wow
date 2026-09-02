@@ -4,7 +4,7 @@
   "title" : "Filter Expression",
   "$ref" : "#/definitions/filterExpression",
   "definitions" : {
-    "logicalField" : {
+    "queryField" : {
       "type" : "string",
       "pattern" : "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
     },
@@ -453,7 +453,7 @@
           "enum" : [ "EQ" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "value" : {
           "$ref" : "#/definitions/literal"
@@ -469,7 +469,7 @@
           "enum" : [ "NE" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "value" : {
           "$ref" : "#/definitions/literal"
@@ -485,7 +485,7 @@
           "enum" : [ "GT" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "value" : {
           "$ref" : "#/definitions/comparableLiteral"
@@ -501,7 +501,7 @@
           "enum" : [ "GTE" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "value" : {
           "$ref" : "#/definitions/comparableLiteral"
@@ -517,7 +517,7 @@
           "enum" : [ "LT" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "value" : {
           "$ref" : "#/definitions/comparableLiteral"
@@ -533,7 +533,7 @@
           "enum" : [ "LTE" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "value" : {
           "$ref" : "#/definitions/comparableLiteral"
@@ -549,7 +549,7 @@
           "enum" : [ "CONTAINS" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "value" : {
           "type" : "string"
@@ -568,7 +568,7 @@
           "enum" : [ "STARTS_WITH" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "value" : {
           "type" : "string"
@@ -587,7 +587,7 @@
           "enum" : [ "ENDS_WITH" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "value" : {
           "type" : "string"
@@ -606,7 +606,7 @@
           "enum" : [ "IN" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "values" : {
           "type" : "array",
@@ -626,7 +626,7 @@
           "enum" : [ "NOT_IN" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "values" : {
           "type" : "array",
@@ -646,7 +646,7 @@
           "enum" : [ "CONTAINS_ALL" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "values" : {
           "type" : "array",
@@ -666,7 +666,7 @@
           "enum" : [ "BETWEEN" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "lowerBound" : {
           "$ref" : "#/definitions/comparableLiteral"
@@ -685,7 +685,7 @@
           "enum" : [ "IS_EMPTY" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         }
       },
       "required" : [ "op", "field" ],
@@ -698,7 +698,7 @@
           "enum" : [ "IS_EMPTY_STRING" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         }
       },
       "required" : [ "op", "field" ],
@@ -711,7 +711,7 @@
           "enum" : [ "IS_NOT_EMPTY_STRING" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         }
       },
       "required" : [ "op", "field" ],
@@ -724,7 +724,7 @@
           "enum" : [ "IS_NULL" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         }
       },
       "required" : [ "op", "field" ],
@@ -737,7 +737,7 @@
           "enum" : [ "IS_NOT_NULL" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         }
       },
       "required" : [ "op", "field" ],
@@ -750,7 +750,7 @@
           "enum" : [ "EXISTS" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         }
       },
       "required" : [ "op", "field" ],
@@ -763,7 +763,7 @@
           "enum" : [ "NOT_EXISTS" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         }
       },
       "required" : [ "op", "field" ],
@@ -789,7 +789,7 @@
           "enum" : [ "ELEMENT_MATCH" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "predicate" : {
           "$ref" : "#/definitions/elementPredicate"
@@ -812,7 +812,7 @@
           "type" : "array",
           "uniqueItems" : true,
           "items" : {
-            "$ref" : "#/definitions/logicalField"
+            "$ref" : "#/definitions/queryField"
           },
           "default" : [ ]
         },
@@ -873,7 +873,7 @@
           "enum" : [ "TODAY" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "zoneId" : {
           "type" : "string",
@@ -897,7 +897,7 @@
           "enum" : [ "YESTERDAY" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "zoneId" : {
           "type" : "string",
@@ -921,7 +921,7 @@
           "enum" : [ "TOMORROW" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "zoneId" : {
           "type" : "string",
@@ -945,7 +945,7 @@
           "enum" : [ "THIS_WEEK" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "zoneId" : {
           "type" : "string",
@@ -969,7 +969,7 @@
           "enum" : [ "NEXT_WEEK" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "zoneId" : {
           "type" : "string",
@@ -993,7 +993,7 @@
           "enum" : [ "LAST_WEEK" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "zoneId" : {
           "type" : "string",
@@ -1017,7 +1017,7 @@
           "enum" : [ "THIS_MONTH" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "zoneId" : {
           "type" : "string",
@@ -1041,7 +1041,7 @@
           "enum" : [ "NEXT_MONTH" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "zoneId" : {
           "type" : "string",
@@ -1065,7 +1065,7 @@
           "enum" : [ "LAST_MONTH" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "zoneId" : {
           "type" : "string",
@@ -1089,7 +1089,7 @@
           "enum" : [ "LAST_YEAR" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "zoneId" : {
           "type" : "string",
@@ -1113,7 +1113,7 @@
           "enum" : [ "THIS_YEAR" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "zoneId" : {
           "type" : "string",
@@ -1137,7 +1137,7 @@
           "enum" : [ "NEXT_YEAR" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "zoneId" : {
           "type" : "string",
@@ -1161,7 +1161,7 @@
           "enum" : [ "BEFORE_TODAY" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "time" : {
           "type" : "string",
@@ -1189,7 +1189,7 @@
           "enum" : [ "RECENT_DAYS" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "days" : {
           "type" : "integer",
@@ -1217,7 +1217,7 @@
           "enum" : [ "EARLIER_DAYS" ]
         },
         "field" : {
-          "$ref" : "#/definitions/logicalField"
+          "$ref" : "#/definitions/queryField"
         },
         "days" : {
           "type" : "integer",

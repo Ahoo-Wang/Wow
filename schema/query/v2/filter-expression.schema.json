@@ -4,7 +4,7 @@
   "title": "Filter Expression",
   "$ref": "#/definitions/filterExpression",
   "definitions": {
-    "logicalField": {
+    "queryField": {
       "type": "string",
       "pattern": "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
     },
@@ -198,57 +198,57 @@
     "lt": { "$ref": "#/definitions/ltShape" },
     "lte": { "$ref": "#/definitions/lteShape" },
     "eqShape": {
-      "type": "object", "properties": { "op": { "enum": ["EQ"] }, "field": { "$ref": "#/definitions/logicalField" }, "value": { "$ref": "#/definitions/literal" } }, "required": ["op", "field", "value"], "additionalProperties": false
+      "type": "object", "properties": { "op": { "enum": ["EQ"] }, "field": { "$ref": "#/definitions/queryField" }, "value": { "$ref": "#/definitions/literal" } }, "required": ["op", "field", "value"], "additionalProperties": false
     },
     "neShape": {
-      "type": "object", "properties": { "op": { "enum": ["NE"] }, "field": { "$ref": "#/definitions/logicalField" }, "value": { "$ref": "#/definitions/literal" } }, "required": ["op", "field", "value"], "additionalProperties": false
+      "type": "object", "properties": { "op": { "enum": ["NE"] }, "field": { "$ref": "#/definitions/queryField" }, "value": { "$ref": "#/definitions/literal" } }, "required": ["op", "field", "value"], "additionalProperties": false
     },
     "gtShape": {
-      "type": "object", "properties": { "op": { "enum": ["GT"] }, "field": { "$ref": "#/definitions/logicalField" }, "value": { "$ref": "#/definitions/comparableLiteral" } }, "required": ["op", "field", "value"], "additionalProperties": false
+      "type": "object", "properties": { "op": { "enum": ["GT"] }, "field": { "$ref": "#/definitions/queryField" }, "value": { "$ref": "#/definitions/comparableLiteral" } }, "required": ["op", "field", "value"], "additionalProperties": false
     },
     "gteShape": {
-      "type": "object", "properties": { "op": { "enum": ["GTE"] }, "field": { "$ref": "#/definitions/logicalField" }, "value": { "$ref": "#/definitions/comparableLiteral" } }, "required": ["op", "field", "value"], "additionalProperties": false
+      "type": "object", "properties": { "op": { "enum": ["GTE"] }, "field": { "$ref": "#/definitions/queryField" }, "value": { "$ref": "#/definitions/comparableLiteral" } }, "required": ["op", "field", "value"], "additionalProperties": false
     },
     "ltShape": {
-      "type": "object", "properties": { "op": { "enum": ["LT"] }, "field": { "$ref": "#/definitions/logicalField" }, "value": { "$ref": "#/definitions/comparableLiteral" } }, "required": ["op", "field", "value"], "additionalProperties": false
+      "type": "object", "properties": { "op": { "enum": ["LT"] }, "field": { "$ref": "#/definitions/queryField" }, "value": { "$ref": "#/definitions/comparableLiteral" } }, "required": ["op", "field", "value"], "additionalProperties": false
     },
     "lteShape": {
-      "type": "object", "properties": { "op": { "enum": ["LTE"] }, "field": { "$ref": "#/definitions/logicalField" }, "value": { "$ref": "#/definitions/comparableLiteral" } }, "required": ["op", "field", "value"], "additionalProperties": false
+      "type": "object", "properties": { "op": { "enum": ["LTE"] }, "field": { "$ref": "#/definitions/queryField" }, "value": { "$ref": "#/definitions/comparableLiteral" } }, "required": ["op", "field", "value"], "additionalProperties": false
     },
     "contains": {
-      "type": "object", "properties": { "op": { "enum": ["CONTAINS"] }, "field": { "$ref": "#/definitions/logicalField" }, "value": { "type": "string" }, "stringComparison": { "$ref": "#/definitions/stringComparison" } }, "required": ["op", "field", "value"], "additionalProperties": false
+      "type": "object", "properties": { "op": { "enum": ["CONTAINS"] }, "field": { "$ref": "#/definitions/queryField" }, "value": { "type": "string" }, "stringComparison": { "$ref": "#/definitions/stringComparison" } }, "required": ["op", "field", "value"], "additionalProperties": false
     },
     "startsWith": {
-      "type": "object", "properties": { "op": { "enum": ["STARTS_WITH"] }, "field": { "$ref": "#/definitions/logicalField" }, "value": { "type": "string" }, "stringComparison": { "$ref": "#/definitions/stringComparison" } }, "required": ["op", "field", "value"], "additionalProperties": false
+      "type": "object", "properties": { "op": { "enum": ["STARTS_WITH"] }, "field": { "$ref": "#/definitions/queryField" }, "value": { "type": "string" }, "stringComparison": { "$ref": "#/definitions/stringComparison" } }, "required": ["op", "field", "value"], "additionalProperties": false
     },
     "endsWith": {
-      "type": "object", "properties": { "op": { "enum": ["ENDS_WITH"] }, "field": { "$ref": "#/definitions/logicalField" }, "value": { "type": "string" }, "stringComparison": { "$ref": "#/definitions/stringComparison" } }, "required": ["op", "field", "value"], "additionalProperties": false
+      "type": "object", "properties": { "op": { "enum": ["ENDS_WITH"] }, "field": { "$ref": "#/definitions/queryField" }, "value": { "type": "string" }, "stringComparison": { "$ref": "#/definitions/stringComparison" } }, "required": ["op", "field", "value"], "additionalProperties": false
     },
-    "in": { "type": "object", "properties": { "op": { "enum": ["IN"] }, "field": { "$ref": "#/definitions/logicalField" }, "values": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/comparableLiteral" } } }, "required": ["op", "field", "values"], "additionalProperties": false },
-    "notIn": { "type": "object", "properties": { "op": { "enum": ["NOT_IN"] }, "field": { "$ref": "#/definitions/logicalField" }, "values": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/comparableLiteral" } } }, "required": ["op", "field", "values"], "additionalProperties": false },
-    "containsAll": { "type": "object", "properties": { "op": { "enum": ["CONTAINS_ALL"] }, "field": { "$ref": "#/definitions/logicalField" }, "values": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/comparableLiteral" } } }, "required": ["op", "field", "values"], "additionalProperties": false },
+    "in": { "type": "object", "properties": { "op": { "enum": ["IN"] }, "field": { "$ref": "#/definitions/queryField" }, "values": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/comparableLiteral" } } }, "required": ["op", "field", "values"], "additionalProperties": false },
+    "notIn": { "type": "object", "properties": { "op": { "enum": ["NOT_IN"] }, "field": { "$ref": "#/definitions/queryField" }, "values": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/comparableLiteral" } } }, "required": ["op", "field", "values"], "additionalProperties": false },
+    "containsAll": { "type": "object", "properties": { "op": { "enum": ["CONTAINS_ALL"] }, "field": { "$ref": "#/definitions/queryField" }, "values": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/comparableLiteral" } } }, "required": ["op", "field", "values"], "additionalProperties": false },
     "between": {
       "type": "object",
-      "properties": { "op": { "enum": ["BETWEEN"] }, "field": { "$ref": "#/definitions/logicalField" }, "lowerBound": { "$ref": "#/definitions/comparableLiteral" }, "upperBound": { "$ref": "#/definitions/comparableLiteral" } },
+      "properties": { "op": { "enum": ["BETWEEN"] }, "field": { "$ref": "#/definitions/queryField" }, "lowerBound": { "$ref": "#/definitions/comparableLiteral" }, "upperBound": { "$ref": "#/definitions/comparableLiteral" } },
       "required": ["op", "field", "lowerBound", "upperBound"],
       "additionalProperties": false
     },
-    "isEmpty": { "type": "object", "properties": { "op": { "enum": ["IS_EMPTY"] }, "field": { "$ref": "#/definitions/logicalField" } }, "required": ["op", "field"], "additionalProperties": false },
-    "isEmptyString": { "type": "object", "properties": { "op": { "enum": ["IS_EMPTY_STRING"] }, "field": { "$ref": "#/definitions/logicalField" } }, "required": ["op", "field"], "additionalProperties": false },
-    "isNotEmptyString": { "type": "object", "properties": { "op": { "enum": ["IS_NOT_EMPTY_STRING"] }, "field": { "$ref": "#/definitions/logicalField" } }, "required": ["op", "field"], "additionalProperties": false },
-    "isNull": { "type": "object", "properties": { "op": { "enum": ["IS_NULL"] }, "field": { "$ref": "#/definitions/logicalField" } }, "required": ["op", "field"], "additionalProperties": false },
-    "isNotNull": { "type": "object", "properties": { "op": { "enum": ["IS_NOT_NULL"] }, "field": { "$ref": "#/definitions/logicalField" } }, "required": ["op", "field"], "additionalProperties": false },
-    "exists": { "type": "object", "properties": { "op": { "enum": ["EXISTS"] }, "field": { "$ref": "#/definitions/logicalField" } }, "required": ["op", "field"], "additionalProperties": false },
-    "notExists": { "type": "object", "properties": { "op": { "enum": ["NOT_EXISTS"] }, "field": { "$ref": "#/definitions/logicalField" } }, "required": ["op", "field"], "additionalProperties": false },
+    "isEmpty": { "type": "object", "properties": { "op": { "enum": ["IS_EMPTY"] }, "field": { "$ref": "#/definitions/queryField" } }, "required": ["op", "field"], "additionalProperties": false },
+    "isEmptyString": { "type": "object", "properties": { "op": { "enum": ["IS_EMPTY_STRING"] }, "field": { "$ref": "#/definitions/queryField" } }, "required": ["op", "field"], "additionalProperties": false },
+    "isNotEmptyString": { "type": "object", "properties": { "op": { "enum": ["IS_NOT_EMPTY_STRING"] }, "field": { "$ref": "#/definitions/queryField" } }, "required": ["op", "field"], "additionalProperties": false },
+    "isNull": { "type": "object", "properties": { "op": { "enum": ["IS_NULL"] }, "field": { "$ref": "#/definitions/queryField" } }, "required": ["op", "field"], "additionalProperties": false },
+    "isNotNull": { "type": "object", "properties": { "op": { "enum": ["IS_NOT_NULL"] }, "field": { "$ref": "#/definitions/queryField" } }, "required": ["op", "field"], "additionalProperties": false },
+    "exists": { "type": "object", "properties": { "op": { "enum": ["EXISTS"] }, "field": { "$ref": "#/definitions/queryField" } }, "required": ["op", "field"], "additionalProperties": false },
+    "notExists": { "type": "object", "properties": { "op": { "enum": ["NOT_EXISTS"] }, "field": { "$ref": "#/definitions/queryField" } }, "required": ["op", "field"], "additionalProperties": false },
     "deletion": {
       "type": "object", "properties": { "op": { "enum": ["DELETION"] }, "state": { "enum": ["ACTIVE", "DELETED", "ALL"] } }, "required": ["op", "state"], "additionalProperties": false
     },
     "elementMatch": {
-      "type": "object", "properties": { "op": { "enum": ["ELEMENT_MATCH"] }, "field": { "$ref": "#/definitions/logicalField" }, "predicate": { "$ref": "#/definitions/elementPredicate" } }, "required": ["op", "field", "predicate"], "additionalProperties": false
+      "type": "object", "properties": { "op": { "enum": ["ELEMENT_MATCH"] }, "field": { "$ref": "#/definitions/queryField" }, "predicate": { "$ref": "#/definitions/elementPredicate" } }, "required": ["op", "field", "predicate"], "additionalProperties": false
     },
     "search": {
       "type": "object",
-      "properties": { "op": { "enum": ["SEARCH"] }, "query": { "type": "string", "minLength": 1 }, "fields": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/logicalField" }, "default": [] }, "mode": { "type": "string", "enum": ["TERMS", "PHRASE"], "default": "TERMS" } },
+      "properties": { "op": { "enum": ["SEARCH"] }, "query": { "type": "string", "minLength": 1 }, "fields": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/queryField" }, "default": [] }, "mode": { "type": "string", "enum": ["TERMS", "PHRASE"], "default": "TERMS" } },
       "required": ["op", "query"],
       "additionalProperties": false
     },
@@ -265,22 +265,22 @@
     "lastYear": { "$ref": "#/definitions/lastYearShape" },
     "thisYear": { "$ref": "#/definitions/thisYearShape" },
     "nextYear": { "$ref": "#/definitions/nextYearShape" },
-    "todayShape": { "type": "object", "properties": { "op": { "enum": ["TODAY"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "yesterdayShape": { "type": "object", "properties": { "op": { "enum": ["YESTERDAY"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "tomorrowShape": { "type": "object", "properties": { "op": { "enum": ["TOMORROW"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "thisWeekShape": { "type": "object", "properties": { "op": { "enum": ["THIS_WEEK"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "nextWeekShape": { "type": "object", "properties": { "op": { "enum": ["NEXT_WEEK"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "lastWeekShape": { "type": "object", "properties": { "op": { "enum": ["LAST_WEEK"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "thisMonthShape": { "type": "object", "properties": { "op": { "enum": ["THIS_MONTH"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "nextMonthShape": { "type": "object", "properties": { "op": { "enum": ["NEXT_MONTH"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "lastMonthShape": { "type": "object", "properties": { "op": { "enum": ["LAST_MONTH"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "lastYearShape": { "type": "object", "properties": { "op": { "enum": ["LAST_YEAR"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "thisYearShape": { "type": "object", "properties": { "op": { "enum": ["THIS_YEAR"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "nextYearShape": { "type": "object", "properties": { "op": { "enum": ["NEXT_YEAR"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "todayShape": { "type": "object", "properties": { "op": { "enum": ["TODAY"] }, "field": { "$ref": "#/definitions/queryField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "yesterdayShape": { "type": "object", "properties": { "op": { "enum": ["YESTERDAY"] }, "field": { "$ref": "#/definitions/queryField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "tomorrowShape": { "type": "object", "properties": { "op": { "enum": ["TOMORROW"] }, "field": { "$ref": "#/definitions/queryField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "thisWeekShape": { "type": "object", "properties": { "op": { "enum": ["THIS_WEEK"] }, "field": { "$ref": "#/definitions/queryField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "nextWeekShape": { "type": "object", "properties": { "op": { "enum": ["NEXT_WEEK"] }, "field": { "$ref": "#/definitions/queryField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "lastWeekShape": { "type": "object", "properties": { "op": { "enum": ["LAST_WEEK"] }, "field": { "$ref": "#/definitions/queryField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "thisMonthShape": { "type": "object", "properties": { "op": { "enum": ["THIS_MONTH"] }, "field": { "$ref": "#/definitions/queryField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "nextMonthShape": { "type": "object", "properties": { "op": { "enum": ["NEXT_MONTH"] }, "field": { "$ref": "#/definitions/queryField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "lastMonthShape": { "type": "object", "properties": { "op": { "enum": ["LAST_MONTH"] }, "field": { "$ref": "#/definitions/queryField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "lastYearShape": { "type": "object", "properties": { "op": { "enum": ["LAST_YEAR"] }, "field": { "$ref": "#/definitions/queryField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "thisYearShape": { "type": "object", "properties": { "op": { "enum": ["THIS_YEAR"] }, "field": { "$ref": "#/definitions/queryField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "nextYearShape": { "type": "object", "properties": { "op": { "enum": ["NEXT_YEAR"] }, "field": { "$ref": "#/definitions/queryField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
     "beforeToday": {
-      "type": "object", "properties": { "op": { "enum": ["BEFORE_TODAY"] }, "field": { "$ref": "#/definitions/logicalField" }, "time": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\\.[0-9]{1,9})?)?$" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field", "time"], "additionalProperties": false
+      "type": "object", "properties": { "op": { "enum": ["BEFORE_TODAY"] }, "field": { "$ref": "#/definitions/queryField" }, "time": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\\.[0-9]{1,9})?)?$" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field", "time"], "additionalProperties": false
     },
-    "recentDays": { "type": "object", "properties": { "op": { "enum": ["RECENT_DAYS"] }, "field": { "$ref": "#/definitions/logicalField" }, "days": { "type": "integer", "minimum": 1 }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field", "days"], "additionalProperties": false },
-    "earlierDays": { "type": "object", "properties": { "op": { "enum": ["EARLIER_DAYS"] }, "field": { "$ref": "#/definitions/logicalField" }, "days": { "type": "integer", "minimum": 1 }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field", "days"], "additionalProperties": false }
+    "recentDays": { "type": "object", "properties": { "op": { "enum": ["RECENT_DAYS"] }, "field": { "$ref": "#/definitions/queryField" }, "days": { "type": "integer", "minimum": 1 }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field", "days"], "additionalProperties": false },
+    "earlierDays": { "type": "object", "properties": { "op": { "enum": ["EARLIER_DAYS"] }, "field": { "$ref": "#/definitions/queryField" }, "days": { "type": "integer", "minimum": 1 }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field", "days"], "additionalProperties": false }
   }
 }
