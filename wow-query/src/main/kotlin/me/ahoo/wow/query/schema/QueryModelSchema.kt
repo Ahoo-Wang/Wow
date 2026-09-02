@@ -20,7 +20,6 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -107,9 +106,6 @@ data class QueryModelSchema(
     fun resolve(filter: FilterExpression): QuerySchemaResolution<FilterExpression> = resolver.resolve(filter)
 
     fun resolve(query: AggregationQuery): QuerySchemaResolution<AggregationQuery> = resolver.resolve(query)
-
-    internal fun requiresInternalEventBodyType(projection: Projection): Boolean =
-        resolver.requiresInternalEventBodyType(projection)
 
     fun toMetadata(): QueryModelSchemaMetadata = QueryModelSchemaMetadata(
         model = model,

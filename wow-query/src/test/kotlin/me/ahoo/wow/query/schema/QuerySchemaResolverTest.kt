@@ -1791,53 +1791,30 @@ class QuerySchemaResolverTest {
     }
 
     @Test
-    fun `masked event projection should remain unchanged during internal validation`() {
-        val resolver = QuerySchemaResolver(
-            QueryModelSchema(
-                QueryModel.EVENT_STREAM,
-                emptySet(),
-                mapOf(
-                    QueryField("body.body.secret") to fieldSchema(
-                        QueryCapability.PRESENCE to "body.body.secret",
-                        maskRule = fullMaskRule(),
-                    ),
-                    QueryField("body.bodyType") to fieldSchema(
-                        QueryCapability.PRESENCE to "document.events.type",
-                    ),
-                ),
-            ),
+    fun `event projection should require body type when payload is selected`() {
+        val fields = listOf("body", "body.body", "body.body.secret", "body.bodyType")
+            .associate { path -> QueryField(path) to fieldSchema(QueryCapability.PRESENCE to path) }
+        val resolver = QuerySchemaResolver(QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), fields))
+        val cases = listOf(
+            Projection.ALL to QueryCompatibilityLevel.EXACT,
+            Projection(include = listOf(QueryField("body"))) to QueryCompatibilityLevel.EXACT,
+            Projection(include = listOf(QueryField("body.body"))) to QueryCompatibilityLevel.INCOMPATIBLE,
+            Projection(
+                include = listOf(QueryField("body.body"), QueryField("body.bodyType")),
+            ) to QueryCompatibilityLevel.EXACT,
+            Projection(
+                include = listOf(QueryField("body.body.secret"), QueryField("body.bodyType")),
+            ) to QueryCompatibilityLevel.EXACT,
+            Projection(exclude = listOf(QueryField("body.bodyType"))) to QueryCompatibilityLevel.INCOMPATIBLE,
+            Projection(exclude = listOf(QueryField("body.body"))) to QueryCompatibilityLevel.EXACT,
         )
 
-        val projection = Projection(include = listOf(QueryField("body.body.secret")))
-        val resolved = resolver.resolve(projection).value
+        cases.forEach { (projection, expected) ->
+            val resolution = resolver.resolve(projection)
 
-        resolved.assert().isSameAs(projection)
-    }
-
-    @Test
-    fun `masked event projection should preserve body type alias exclusions`() {
-        val resolver = QuerySchemaResolver(
-            QueryModelSchema(
-                QueryModel.EVENT_STREAM,
-                emptySet(),
-                mapOf(
-                    QueryField("body.body.secret") to fieldSchema(
-                        QueryCapability.PRESENCE to "body.body.secret",
-                        maskRule = fullMaskRule(),
-                    ),
-                    QueryField("body.bodyType") to fieldSchema(
-                        QueryCapability.PRESENCE to "body.bodyType",
-                    ),
-                    QueryField("eventTypeAlias") to fieldSchema(
-                        QueryCapability.PRESENCE to "body.bodyType",
-                    ),
-                ),
-            ),
-        )
-
-        val projection = Projection(exclude = listOf(QueryField("eventTypeAlias")))
-
-        resolver.resolve(projection).value.assert().isSameAs(projection)
+            resolution.compatibility.assert().isEqualTo(expected)
+            resolution.value.assert().isSameAs(projection)
+        }
     }
 
     private fun schema(
