@@ -63,6 +63,59 @@ class QuerySchemaSourcesTest {
     }
 
     @Test
+    fun `working directory source should prefer unified path over legacy path`() {
+        writeWorkingFile(conventionJson("Legacy"))
+        writeUnifiedWorkingFile(conventionJson("Unified"))
+
+        WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT)
+            .single().block()!!.title().assert().isEqualTo(DeclarationValue.Set("Unified"))
+    }
+
+    @Test
+    fun `working directory source should fall back to legacy path`() {
+        writeWorkingFile(conventionJson("Legacy"))
+
+        WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT)
+            .single().block()!!.title().assert().isEqualTo(DeclarationValue.Set("Legacy"))
+    }
+
+    @Test
+    fun `classpath source should prefer unified resources over legacy resources`() {
+        val root = tempDir.resolve("root")
+        writeClasspathFile(root, conventionJson("Legacy"))
+        writeUnifiedClasspathFile(root, conventionJson("Unified"))
+
+        URLClassLoader(arrayOf(root.toUri().toURL()), null).use { loader ->
+            ClasspathQuerySchemaSource(loader).load(ORDER_CONTEXT)
+                .single().block()!!.title().assert().isEqualTo(DeclarationValue.Set("Unified"))
+        }
+    }
+
+    @Test
+    fun `classpath source should fall back to legacy resources`() {
+        val root = tempDir.resolve("root")
+        writeClasspathFile(root, conventionJson("Legacy"))
+
+        URLClassLoader(arrayOf(root.toUri().toURL()), null).use { loader ->
+            ClasspathQuerySchemaSource(loader).load(ORDER_CONTEXT)
+                .single().block()!!.title().assert().isEqualTo(DeclarationValue.Set("Legacy"))
+        }
+    }
+
+    @Test
+    fun `unified classpath resources should preserve same-priority merge behavior`() {
+        val firstRoot = tempDir.resolve("a")
+        val secondRoot = tempDir.resolve("z")
+        writeUnifiedClasspathFile(firstRoot, conventionJson("Same"))
+        writeUnifiedClasspathFile(secondRoot, conventionJson("Same"))
+
+        URLClassLoader(arrayOf(secondRoot.toUri().toURL(), firstRoot.toUri().toURL()), null).use { loader ->
+            ClasspathQuerySchemaSource(loader).load(ORDER_CONTEXT).collectList().block()!!
+                .assert().hasSize(2)
+        }
+    }
+
+    @Test
     fun `convention file should preserve unset explicit null and typed values`() {
         val declaration = ClasspathQuerySchemaSource(javaClass.classLoader)
             .load(TEST_CONTEXT)
@@ -179,7 +232,7 @@ class QuerySchemaSourcesTest {
     @Test
     fun `classpath refresh should evict only the requested context and reread content`() {
         val root = tempDir.resolve("root")
-        val orderFile = writeClasspathFile(root, conventionJson("Before"), ORDER_CONTEXT)
+        val orderFile = writeUnifiedClasspathFile(root, conventionJson("Before"), ORDER_CONTEXT)
         writeClasspathFile(root, conventionJson("Cart"), CART_CONTEXT)
 
         URLClassLoader(arrayOf(root.toUri().toURL()), null).use { classLoader ->
@@ -250,12 +303,28 @@ class QuerySchemaSourcesTest {
         return Files.writeString(file, json)
     }
 
+    private fun writeUnifiedWorkingFile(json: String): Path {
+        val file = tempDir.resolve(ORDER_CONTEXT.unifiedWorkingPathForTest())
+        Files.createDirectories(file.parent)
+        return Files.writeString(file, json)
+    }
+
     private fun writeClasspathFile(
         root: Path,
         json: String,
         context: QuerySchemaContext = ORDER_CONTEXT,
     ): Path {
         val file = root.resolve(context.resourcePathForTest())
+        Files.createDirectories(file.parent)
+        return Files.writeString(file, json)
+    }
+
+    private fun writeUnifiedClasspathFile(
+        root: Path,
+        json: String,
+        context: QuerySchemaContext = ORDER_CONTEXT,
+    ): Path {
+        val file = root.resolve(context.unifiedResourcePathForTest())
         Files.createDirectories(file.parent)
         return Files.writeString(file, json)
     }
@@ -268,6 +337,14 @@ class QuerySchemaSourcesTest {
 
     private fun QuerySchemaContext.resourcePathForTest() =
         "wow-query-schema/${namedAggregate.contextName}/${namedAggregate.aggregateName}/${model.value.lowercase()}.json"
+
+    private fun QuerySchemaContext.unifiedResourcePathForTest() =
+        "META-INF/wow/query-schema/" +
+            "${namedAggregate.contextName}.${namedAggregate.aggregateName}.${model.value.lowercase()}.json"
+
+    private fun QuerySchemaContext.unifiedWorkingPathForTest() =
+        "wow/query-schema/" +
+            "${namedAggregate.contextName}.${namedAggregate.aggregateName}.${model.value.lowercase()}.json"
 
     private fun title(value: String): QuerySchemaDeclaration =
         QuerySchemaDeclaration(

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.configuration.WowResourceLocator
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.CARDINALITY
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DYNAMIC_CHILDREN
@@ -56,14 +57,19 @@ class WorkingDirectoryQuerySchemaSource(
     private val basePath: Path = Path.of("config"),
     private val readText: (Path) -> String = Files::readString,
 ) : QuerySchemaSource {
+    private val resources = WowResourceLocator(configDirectory = basePath, pathReader = readText)
+
     override val priority: Int = QuerySchemaSourcePriority.WORKING_DIRECTORY
 
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
-        val file = basePath.resolve(context.resourcePath())
-        if (Files.notExists(file)) {
+        resources.findWorkingDirectory(QUERY_SCHEMA_FEATURE, context.resourceKey())?.let { resource ->
+            return@defer Flux.just(readConventionDeclaration(resource.location, resource::readText))
+        }
+        val legacy = basePath.resolve(context.legacyResourcePath())
+        if (Files.notExists(legacy)) {
             Flux.empty()
         } else {
-            Flux.just(readConventionDeclaration(file.toString()) { readText(file) })
+            Flux.just(readConventionDeclaration(legacy.toString()) { readText(legacy) })
         }
     }.subscribeOn(Schedulers.boundedElastic())
 }
@@ -72,12 +78,12 @@ class ClasspathQuerySchemaSource(
     private val classLoader: ClassLoader =
         Thread.currentThread().contextClassLoader ?: ClasspathQuerySchemaSource::class.java.classLoader,
 ) : QuerySchemaSource {
+    private val resources = WowResourceLocator(classLoader = classLoader)
     private val cache = ConcurrentHashMap<QuerySchemaContext, List<QuerySchemaDeclaration>>()
 
     override val priority: Int = QuerySchemaSourcePriority.CLASSPATH
 
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
-        context.resourcePath()
         Flux.fromIterable(cache.computeIfAbsent(context, ::readDeclarations))
     }.subscribeOn(Schedulers.boundedElastic())
 
@@ -91,13 +97,26 @@ class ClasspathQuerySchemaSource(
         "TooGenericExceptionCaught",
     )
     private fun readDeclarations(context: QuerySchemaContext): List<QuerySchemaDeclaration> {
-        val resourcePath = context.resourcePath()
-        val resources = try {
-            Collections.list(classLoader.getResources(resourcePath)).sortedBy(URL::toExternalForm)
+        val unified = try {
+            resources.findClasspath(QUERY_SCHEMA_FEATURE, context.resourceKey())
         } catch (error: Exception) {
-            throw QuerySchemaUnavailableException("Unable to list query schema resources [$resourcePath].", error)
+            throw QuerySchemaUnavailableException(
+                "Unable to list query schema resources [${context.resourceKey()}].",
+                error,
+            )
         }
-        return resources.map { resource ->
+        if (unified.isNotEmpty()) {
+            return unified.map { resource ->
+                readConventionDeclaration(resource.location, resource::readText)
+            }
+        }
+        val legacyPath = context.legacyResourcePath()
+        val legacy = try {
+            Collections.list(classLoader.getResources(legacyPath)).sortedBy(URL::toExternalForm)
+        } catch (error: Exception) {
+            throw QuerySchemaUnavailableException("Unable to list query schema resources [$legacyPath].", error)
+        }
+        return legacy.map { resource ->
             readConventionDeclaration(resource.toExternalForm()) {
                 resource.openStream().bufferedReader().use { it.readText() }
             }
@@ -105,15 +124,21 @@ class ClasspathQuerySchemaSource(
     }
 }
 
-private fun QuerySchemaContext.resourcePath(): String {
+private const val QUERY_SCHEMA_FEATURE = "query-schema"
+
+private fun QuerySchemaContext.resourceKey(): String {
     val segments = listOf(namedAggregate.contextName, namedAggregate.aggregateName, model.value)
     segments.forEach { segment ->
         require(segment.isNotBlank() && '/' !in segment && '\\' !in segment && segment != "." && segment != "..") {
             "Query schema path segment is invalid: [$segment]."
         }
     }
-    return "wow-query-schema/${segments[0]}/${segments[1]}/${segments[2].lowercase(Locale.ROOT)}.json"
+    return "${segments[0]}.${segments[1]}.${segments[2].lowercase(Locale.ROOT)}"
 }
+
+private fun QuerySchemaContext.legacyResourcePath(): String =
+    "wow-query-schema/${namedAggregate.contextName}/${namedAggregate.aggregateName}/" +
+        "${model.value.lowercase(Locale.ROOT)}.json"
 
 // Convention parsing must retain any recoverable read or validation failure as its cause.
 @Suppress(

@@ -77,6 +77,24 @@ mapping 变化后，运行时 schema 必须重新解析。若 WebFlux/OpenAPI ca
 
 snapshot template 定义系统字段与动态状态映射基线。模板只影响新索引或后续 mapping 行为，不会自动修复已有索引。
 
+通用 snapshot template 是仅存储快照的后备方案。可查询快照应在 `META-INF/wow/elasticsearch/wow.sales.order.snapshot.json` 或 `config/wow/elasticsearch/wow.sales.order.snapshot.json` 提供包含业务 mapping 的具体索引定义：
+
+```json
+{
+  "mappings": {
+    "properties": {
+      "state": {
+        "properties": {
+          "status": { "type": "keyword" }
+        }
+      }
+    }
+  }
+}
+```
+
+资源键是 Wow 计算出的最终索引名。工作目录文件会替换 classpath 文件；没有工作目录文件时，重复的 classpath 文件会导致启动失败。资源缺失时仍使用通用模板行为。已有索引会被跳过，因此 mapping 变更需要显式 reindex 或迁移。资源 JSON 遵循 Elasticsearch client 与集群的校验语义。无论 storage routing 如何配置，只要资源存在就会请求创建索引。
+
 ## 全文搜索
 
 全文能力来自目标字段的 text mapping 与 analyzer，不是 `wow-elasticsearch` 对所有字符串的默认承诺。

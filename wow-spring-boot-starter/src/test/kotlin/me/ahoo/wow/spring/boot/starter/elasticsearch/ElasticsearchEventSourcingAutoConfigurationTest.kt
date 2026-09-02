@@ -22,6 +22,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotIndexInitializer
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
@@ -103,11 +104,83 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                 eventStore.batchOptions.assert()
                     .isEqualTo(ElasticsearchEventStoreBatchOptions())
             }
-        autoConfiguration.elasticsearchSnapshotStore(elasticsearchClient, indexTemplateInitializer, metricsProvider)
+        autoConfiguration.elasticsearchSnapshotStore(
+            elasticsearchClient,
+            indexTemplateInitializer,
+            mockk<ElasticsearchSnapshotIndexInitializer> { every { ensureAll() } returns Mono.empty() },
+            metricsProvider,
+        )
             .use { snapshotStore ->
                 snapshotStore.batchOptions.assert()
                     .isEqualTo(ElasticsearchSnapshotStoreBatchOptions())
             }
+    }
+
+    @Test
+    fun `snapshot store should initialize template then concrete indexes`() {
+        val order = mutableListOf<String>()
+        val template = mockk<IndexTemplateInitializer> {
+            every { ensureSnapshotTemplate() } returns Mono.fromRunnable { order += "template" }
+        }
+        val indexes = mockk<ElasticsearchSnapshotIndexInitializer> {
+            every { ensureAll() } returns Mono.fromRunnable { order += "indexes" }
+        }
+
+        ElasticsearchEventSourcingAutoConfiguration(
+            ElasticsearchProperties(autoInitTemplate = true),
+            ElasticsearchEventStoreBatchProperties(),
+            ElasticsearchSnapshotStoreBatchProperties(),
+        ).elasticsearchSnapshotStore(
+            mock(ReactiveElasticsearchClient::class.java),
+            template,
+            indexes,
+            metricsProvider,
+        ).close()
+
+        order.assert().containsExactly("template", "indexes")
+    }
+
+    @Test
+    fun `snapshot index initialization should run when template initialization is disabled`() {
+        val template = mockk<IndexTemplateInitializer>()
+        val indexes = mockk<ElasticsearchSnapshotIndexInitializer> {
+            every { ensureAll() } returns Mono.empty()
+        }
+
+        ElasticsearchEventSourcingAutoConfiguration(
+            ElasticsearchProperties(autoInitTemplate = false),
+            ElasticsearchEventStoreBatchProperties(),
+            ElasticsearchSnapshotStoreBatchProperties(),
+        ).elasticsearchSnapshotStore(
+            mock(ReactiveElasticsearchClient::class.java),
+            template,
+            indexes,
+            metricsProvider,
+        ).close()
+
+        verify(exactly = 0) { template.ensureSnapshotTemplate() }
+        verify(exactly = 1) { indexes.ensureAll() }
+    }
+
+    @Test
+    fun `snapshot index initialization failure should fail store creation`() {
+        val expected = IllegalStateException("index initialization failed")
+        val indexes = mockk<ElasticsearchSnapshotIndexInitializer> {
+            every { ensureAll() } returns Mono.error(expected)
+        }
+
+        assertThrownBy<IllegalStateException> {
+            ElasticsearchEventSourcingAutoConfiguration(
+                ElasticsearchProperties(autoInitTemplate = false),
+                ElasticsearchEventStoreBatchProperties(),
+                ElasticsearchSnapshotStoreBatchProperties(),
+            ).elasticsearchSnapshotStore(
+                mock(ReactiveElasticsearchClient::class.java),
+                mockk(),
+                indexes,
+                metricsProvider,
+            )
+        }.isSameAs(expected)
     }
 
     @Test

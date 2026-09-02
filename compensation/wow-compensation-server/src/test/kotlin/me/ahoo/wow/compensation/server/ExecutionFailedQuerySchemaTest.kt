@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.compensation.server
 
+import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.compensation.domain.ExecutionFailed
+import me.ahoo.wow.configuration.WowResourceLocator
+import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QuerySchemaContext
@@ -37,5 +40,20 @@ class ExecutionFailedQuerySchemaTest {
 
         declaration.fields.getValue(QueryField("state.executeAt")).semanticType.assert()
             .isEqualTo(DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)))
+    }
+
+    @Test
+    fun `should package Elasticsearch snapshot index config under its final index name`() {
+        val namedAggregate = ExecutionFailed::class.java.aggregateMetadata<Any, Any>().namedAggregate
+        val indexName = namedAggregate.toSnapshotIndexName()
+        val resources = WowResourceLocator().findClasspath("elasticsearch", indexName)
+
+        resources.assert().hasSize(1)
+        val request = resources.single().readText().byteInputStream().use { input ->
+            CreateIndexRequest.Builder().withJson(input).index(indexName).build()
+        }
+        request.index().assert().isEqualTo("wow.compensation.execution_failed.snapshot")
+        request.mappings()!!.properties()["state"]!!.`object`()
+            .properties()["status"]!!._kind().jsonValue().assert().isEqualTo("keyword")
     }
 }
