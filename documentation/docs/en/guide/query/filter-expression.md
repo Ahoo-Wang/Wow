@@ -44,7 +44,7 @@ Sibling expressions in one `filterExpression { ... }` block form an implicit `AN
 
 Use these dedicated operators for system identities, tenant, owner, and space. Do not hand-write apparently equivalent field paths to bypass their semantics.
 
-`ID`/`IDS` filter by storage-record identity, while `AGGREGATE_ID`/`AGGREGATE_IDS` filter by aggregate identity. In Snapshot queries both usually address the aggregate document identity; in EventStream queries, `ID` addresses the event record and `AGGREGATE_ID` addresses its owning aggregate. `IDS` and `AGGREGATE_IDS` require non-empty `values`; if the application collection can be empty, choose `MATCH_NONE` or `MATCH_ALL` explicitly before constructing the filter.
+`ID`/`IDS` filter by storage-record identity, while `AGGREGATE_ID`/`AGGREGATE_IDS` filter by aggregate identity. In Snapshot queries both usually address the aggregate document identity; in EventStream queries, `ID` addresses the `DomainEventStream.id` of the event-stream record and `AGGREGATE_ID` addresses its owning aggregate. The ID of an individual domain event is under `body.id`; query it inside an `ELEMENT_MATCH` predicate instead of using the root `ID`. `IDS` and `AGGREGATE_IDS` require non-empty `values`; if the application collection can be empty, choose `MATCH_NONE` or `MATCH_ALL` explicitly before constructing the filter.
 
 ## Comparison and String Operators
 
@@ -83,7 +83,7 @@ In `FilterDsl`, `"field" eq null` and `"field" ne null` directly construct `IS_N
 | `NOT_EXISTS` | `exists(field, false)` | `must_not exists` |
 | `IS_EMPTY` | `size(field, 0)` | `must_not exists` |
 
-In MongoDB, `IS_NULL` uses `field = null` and matches null or missing fields; `IS_NOT_NULL` uses `field != null` and matches existing, non-null fields; `EXISTS` includes fields whose value is null; `NOT_EXISTS` matches only missing fields; and `IS_EMPTY` uses `$size: 0`, which matches only an actual empty array. See [MongoDB's null and missing-field semantics](https://www.mongodb.com/docs/manual/tutorial/query-for-null-fields/) and [$size](https://www.mongodb.com/docs/manual/reference/operator/query/size/).
+For single-valued fields in MongoDB, `IS_NULL` uses `field = null` and matches null or missing fields; `IS_NOT_NULL` uses `field != null` and matches existing, non-null fields; `EXISTS` includes fields whose value is null; `NOT_EXISTS` matches only missing fields; and `IS_EMPTY` uses `$size: 0`, which matches only an actual empty array. When the target field is an array, MongoDB scalar comparisons also inspect array elements: for example, an array containing null can satisfy `field = null`, and `$ne: null` follows MongoDB's array-comparison semantics. See [MongoDB's null and missing-field semantics](https://www.mongodb.com/docs/manual/tutorial/query-for-null-fields/) and [$size](https://www.mongodb.com/docs/manual/reference/operator/query/size/).
 
 Consequently, Elasticsearch gives `IS_NULL` and `NOT_EXISTS` the same result, and likewise gives `IS_NOT_NULL` and `EXISTS` the same result. Without special mapping such as `null_value`, `null` and empty arrays produce no searchable indexed value there, so `IS_EMPTY` can also match missing or null fields. See the [Elasticsearch exists query](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-exists-query). Special mappings or ignored values can change the result of `exists`.
 
@@ -118,7 +118,7 @@ MongoDB compiles `ELEMENT_MATCH` to `$elemMatch`; Elasticsearch compiles it to a
 
 Use `DELETION` for deletion state instead of emulating it with a field path. Snapshot queries append `DELETION = ACTIVE` by default; event-stream queries retain the full history and do not append that guard.
 
-The `DELETION` state can also be `DELETED` or `ALL`, to select only deleted data or both deleted and active data. In Snapshot queries, an explicit deletion condition overrides the default `ACTIVE` scope only when it is at the root or within the root `AND` conjunction tree; a deletion condition inside `OR` or `NOR` does not remove the default scope.
+For Snapshot queries, the `DELETION` state can also be `DELETED` or `ALL`, to select only deleted data or both deleted and active data. In Snapshot queries, an explicit deletion condition overrides the default `ACTIVE` scope only when it is at the root or within the root `AND` conjunction tree; a deletion condition inside `OR` or `NOR` does not remove the default scope. EventStream has no deletion metadata or default deletion scope; a Schema-managed EventStream query using `DELETION` is rejected because the required capability is unavailable.
 
 ### SearchFilter
 

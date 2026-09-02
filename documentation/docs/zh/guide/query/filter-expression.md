@@ -44,7 +44,7 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 
 系统标识、租户、owner 与 space 必须使用这些专用操作符，不要手写看似等价的字段路径来绕过它们的语义。
 
-`ID`/`IDS` 按存储记录标识过滤，`AGGREGATE_ID`/`AGGREGATE_IDS` 按聚合标识过滤。快照中两者通常都对应聚合文档标识；事件流中 `ID` 对应事件记录标识，`AGGREGATE_ID` 对应事件所属聚合。`IDS` 和 `AGGREGATE_IDS` 的 `values` 必须非空；如果业务集合可能为空，应在构造过滤器前显式选择 `MATCH_NONE` 或 `MATCH_ALL` 的语义。
+`ID`/`IDS` 按存储记录标识过滤，`AGGREGATE_ID`/`AGGREGATE_IDS` 按聚合标识过滤。快照中两者通常都对应聚合文档标识；事件流中 `ID` 对应事件流记录的 `DomainEventStream.id`，`AGGREGATE_ID` 对应事件流所属聚合。单个领域事件的 ID 位于 `body.id`，应在 `ELEMENT_MATCH` 谓词中查询，而不是当作根 `ID` 使用。`IDS` 和 `AGGREGATE_IDS` 的 `values` 必须非空；如果业务集合可能为空，应在构造过滤器前显式选择 `MATCH_NONE` 或 `MATCH_ALL` 的语义。
 
 ## 比较与字符串操作符
 
@@ -83,7 +83,7 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 | `NOT_EXISTS` | `exists(field, false)` | `must_not exists` |
 | `IS_EMPTY` | `size(field, 0)` | `must_not exists` |
 
-MongoDB 中，`IS_NULL` 的 `field = null` 匹配 null 或缺失字段；`IS_NOT_NULL` 的 `field != null` 匹配存在且非 null 的字段；`EXISTS` 也包含值为 null 的字段；`NOT_EXISTS` 只匹配缺失字段；`IS_EMPTY` 的 `$size: 0` 只匹配实际的空数组。详见 [MongoDB 的 null 与缺失字段语义](https://www.mongodb.com/docs/manual/tutorial/query-for-null-fields/) 和 [$size](https://www.mongodb.com/docs/manual/reference/operator/query/size/)。
+MongoDB 中，对于单值字段，`IS_NULL` 的 `field = null` 匹配 null 或缺失字段；`IS_NOT_NULL` 的 `field != null` 匹配存在且非 null 的字段；`EXISTS` 也包含值为 null 的字段；`NOT_EXISTS` 只匹配缺失字段；`IS_EMPTY` 的 `$size: 0` 只匹配实际的空数组。目标字段为数组时，MongoDB 的标量比较还会检查数组元素，例如包含 null 的数组可以满足 `field = null`；`$ne: null` 也应按 MongoDB 的数组比较语义理解。详见 [MongoDB 的 null 与缺失字段语义](https://www.mongodb.com/docs/manual/tutorial/query-for-null-fields/) 和 [$size](https://www.mongodb.com/docs/manual/reference/operator/query/size/)。
 
 因此 Elasticsearch 中 `IS_NULL` 与 `NOT_EXISTS`、`IS_NOT_NULL` 与 `EXISTS` 的结果分别相同；在未配置 `null_value` 等特殊 mapping 时，`null` 和空数组不会产生可查询的 indexed value，`IS_EMPTY` 也可能匹配缺失或 null 字段。详见 [Elasticsearch exists 查询](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-exists-query)。特殊 mapping 或 ignored 值可能改变 `exists` 的结果。
 
@@ -118,7 +118,7 @@ MongoDB 将 `ELEMENT_MATCH` 编译为 `$elemMatch`；Elasticsearch 将其编译�
 
 删除标记使用 `DELETION`，不要以字段路径模拟。快照查询默认追加 `DELETION = ACTIVE`；事件流查询保留完整历史，不追加该 guard。
 
-`DELETION` 的 `state` 还可以是 `DELETED` 或 `ALL`，分别只查询已删除数据，或同时包含已删除和未删除数据。快照查询中的显式删除条件只有位于根表达式或根 `AND` 合取树中时，才会覆盖默认的 `ACTIVE` 范围；放在 `OR` 或 `NOR` 内部不会移除该默认条件。
+对于 Snapshot 查询，`DELETION` 的 `state` 还可以是 `DELETED` 或 `ALL`，分别只查询已删除数据，或同时包含已删除和未删除数据。Snapshot 查询中的显式删除条件只有位于根表达式或根 `AND` 合取树中时，才会覆盖默认的 `ACTIVE` 范围；放在 `OR` 或 `NOR` 内部不会移除该默认条件。EventStream 不提供删除元数据，也没有默认删除范围；受 Query Schema 管理的 EventStream 查询使用 `DELETION` 会因缺少对应能力而被拒绝。
 
 ### SearchFilter
 
