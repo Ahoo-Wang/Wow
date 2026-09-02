@@ -105,9 +105,9 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val backend = object :
             EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate),
             QueryModelSchemaProvider {
-            override fun schema(): Mono<QueryModelSchema> = Mono.fromSupplier {
+            override fun schema(): Mono<QueryModelSchema> {
                 schemaCalls.incrementAndGet()
-                querySchema
+                return Mono.just(querySchema)
             }
 
             override fun refresh(): Mono<QueryModelSchema> = schema()
@@ -217,13 +217,13 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 private fun ISingleQuery.query(
     backend: EventStreamQueryBackend,
     mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-): Mono<ObjectNode> = backend.requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+): Mono<ObjectNode> = Mono.defer { backend.requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
     backend.single(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
 }
 
 private fun AggregationQuery.query(
     backend: EventStreamQueryBackend,
     mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-): Flux<ObjectNode> = backend.requiredQueryModelSchemaProvider().schema().flatMapMany { schema ->
+): Flux<ObjectNode> = Mono.defer { backend.requiredQueryModelSchemaProvider().schema() }.flatMapMany { schema ->
     backend.aggregate(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
 }

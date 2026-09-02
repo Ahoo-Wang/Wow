@@ -225,9 +225,9 @@ class MemberAbacQueryFilter(
 
 ### 查询入口与策略执行
 
-Spring 注册的聚合 `SnapshotQueryGateway` 与 `EventStreamQueryGateway` 执行已配置的 ABAC 与通用查询过滤器。进程内调用不会执行 WebFlux `RewriteRequestFilter`；调用方必须在查询中显式提供 tenant、owner、space 作用域，或通过过滤器支持的受信上下文提供。受管 Gateway 会按 Query Model Schema 自动脱敏查询与 aggregate-state load 结果；直接 Backend Factory 或无 `QueryModelSchemaProvider` 的自定义 Backend 仍返回原始字段值，必须作为受信低层边界保护。完整边界见[字段脱敏](./query/masking.md)。
+Spring 注册的聚合 `SnapshotQueryGateway` 与 `EventStreamQueryGateway` 显式配对独立的 `QueryModelSchemaProvider`，并执行已配置的 ABAC 与通用查询过滤器。当前 Spring Registrar 以 routed Backend 调用 `requiredQueryModelSchemaProvider()` 来取得该 Provider，这只是装配细节；再将 Backend 与 Provider 分别传给 Gateway。进程内调用不会执行 WebFlux `RewriteRequestFilter`；调用方必须在查询中显式提供 tenant、owner、space 作用域，或通过过滤器支持的受信上下文提供。受管 Gateway 会按 Query Model Schema 自动脱敏查询与 aggregate-state load 结果。完整边界见[字段脱敏](./query/masking.md)。
 
-`SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 是原始后端入口。直接创建的 Backend 会绕过 `QueryGateway` 策略链，应视为受信基础设施访问。
+`SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 是原始后端入口。无论 Backend 是否实现 `QueryModelSchemaProvider`，直接调用 `QueryBackend` 都会绕过 `QueryGateway` 策略链，属于必须保护的受信基础设施访问。当前 Registrar 无法装配不提供 Provider 的 Backend；它不能被描述为“仅跳过 Mask”或“返回受管的原始结果”。
 
 聚合查询会复用快照过滤器链处理根 filter；Schema 允许普通 filter/search/sort 使用脱敏字段，但拒绝 group、字段 metric 或 expression 返回其原始值，count 不变。仍不能仅因普通快照查询受 ABAC 约束就开放敏感聚合接口。
 

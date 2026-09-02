@@ -296,9 +296,9 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val backend = object :
             SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
             QueryModelSchemaProvider {
-            override fun schema(): Mono<QueryModelSchema> = Mono.fromSupplier {
+            override fun schema(): Mono<QueryModelSchema> {
                 schemaCalls.incrementAndGet()
-                querySchema
+                return Mono.just(querySchema)
             }
 
             override fun refresh(): Mono<QueryModelSchema> = schema()
@@ -1095,7 +1095,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 private fun AggregationQuery.query(
     backend: SnapshotQueryBackend,
     mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-) = backend.requiredQueryModelSchemaProvider().schema().flatMapMany { schema ->
+) = Mono.defer { backend.requiredQueryModelSchemaProvider().schema() }.flatMapMany { schema ->
     backend.aggregate(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
 }
 
