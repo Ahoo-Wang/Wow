@@ -31,14 +31,11 @@ import tools.jackson.databind.jsontype.impl.AsPropertyTypeDeserializer
 import tools.jackson.databind.jsontype.impl.StdTypeResolverBuilder
 import tools.jackson.databind.node.TreeTraversingParser
 
-private val QUERY_FIELD_PATTERN =
-    Regex("@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*")
-
 data class QueryField(
     @get:JsonValue val path: String,
 ) {
     init {
-        require(QUERY_FIELD_PATTERN.matches(path)) { "Query field is invalid: [$path]." }
+        require(PATH_PATTERN.matches(path)) { "Query field is invalid: [$path]." }
     }
 
     fun append(relative: QueryField): QueryField = QueryField("$path.${relative.path}")
@@ -54,6 +51,9 @@ data class QueryField(
     override fun toString(): String = path
 
     companion object {
+        const val PATTERN = "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
+        private val PATH_PATTERN = Regex(PATTERN)
+
         @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
         fun from(path: String): QueryField = QueryField(path)

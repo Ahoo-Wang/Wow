@@ -6320,6 +6320,7 @@
         "type" : "string"
       },
       "wow.api.query.QueryField" : {
+        "pattern" : "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$",
         "type" : "string"
       },
       "wow.api.query.QueryFieldSchemaMetadata" : {
