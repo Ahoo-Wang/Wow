@@ -824,6 +824,80 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `multi level element should keep absolute parents and emit relative children`() {
+        val orders = QueryField("state.orders")
+        val lines = QueryField("state.orders.lines")
+        val price = QueryField("state.orders.lines.price")
+        val input = ElementMatchFilter(
+            orders,
+            ElementMatchFilter(
+                QueryField("lines"),
+                EqualFilter(QueryField("price"), json(10)),
+            ),
+        )
+
+        fun model(mapped: Boolean): QueryModelSchema {
+            val resolvedRoot = if (mapped) QueryField("document.orders") else orders
+            val resolvedLines = if (mapped) QueryField("document.orders.lines") else lines
+            val resolvedPrice = if (mapped) QueryField("document.orders.lines.price.keyword") else price
+            return schema(
+                mapOf(
+                    orders to fieldSchema(
+                        QueryCapability.ELEMENT_SCOPE to resolvedRoot.path,
+                        physicalPath = "storage.orders",
+                        rewriteMode = if (mapped) QueryRewriteMode.REQUIRED else QueryRewriteMode.NONE,
+                    ),
+                    lines to fieldSchema(
+                        QueryCapability.ELEMENT_SCOPE to resolvedLines.path,
+                        physicalPath = "storage.orders.lines",
+                        rewriteMode = QueryRewriteMode.INFER,
+                    ),
+                    price to fieldSchema(
+                        QueryCapability.EXACT_MATCH to resolvedPrice.path,
+                        physicalPath = "storage.orders.lines.price",
+                        rewriteMode = if (mapped) QueryRewriteMode.REQUIRED else QueryRewriteMode.NONE,
+                    ),
+                ),
+            )
+        }
+
+        val identity = model(mapped = false).resolve(input).value as ElementMatchFilter
+        identity.field.assert().isEqualTo(orders)
+        (identity.predicate as ElementMatchFilter).field.assert().isEqualTo(QueryField("lines"))
+        ((identity.predicate as ElementMatchFilter).predicate as EqualFilter).field.assert()
+            .isEqualTo(QueryField("price"))
+
+        val mapped = model(mapped = true).resolve(input).value as ElementMatchFilter
+        mapped.field.assert().isEqualTo(QueryField("document.orders"))
+        (mapped.predicate as ElementMatchFilter).field.assert().isEqualTo(QueryField("lines"))
+        ((mapped.predicate as ElementMatchFilter).predicate as EqualFilter).field.assert()
+            .isEqualTo(QueryField("price.keyword"))
+    }
+
+    @Test
+    fun `element match should reject a child physical binding outside its physical container`() {
+        val orders = QueryField("state.orders")
+        val price = QueryField("state.orders.price")
+        val schema = schema(
+            mapOf(
+                orders to fieldSchema(
+                    QueryCapability.ELEMENT_SCOPE to "document.orders",
+                    physicalPath = "storage.orders",
+                    rewriteMode = QueryRewriteMode.REQUIRED,
+                ),
+                price to fieldSchema(
+                    QueryCapability.EXACT_MATCH to "document.orders.price",
+                    physicalPath = "storage.prices.value",
+                    rewriteMode = QueryRewriteMode.REQUIRED,
+                ),
+            ),
+        )
+        val filter = ElementMatchFilter(orders, EqualFilter(QueryField("price"), json(10)))
+
+        schema.resolve(filter).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
     fun `element match should reject a child binding outside its physical container`() {
         val filter = ElementMatchFilter(
             QueryField("state.orders"),
@@ -951,20 +1025,20 @@ class QuerySchemaResolverTest {
             limit = 7,
         )
 
-        resolver.resolve(query).assert().isEqualTo(
+        val resolution = resolver.resolve(query)
+
+        resolution.assert().isEqualTo(
             QuerySchemaResolution(
                 ListQuery(
                     filter = EqualFilter(QueryField("document.name.keyword"), json("name")),
-                    projection = Projection(
-                        include = listOf(QueryField("document.name")),
-                        exclude = listOf(QueryField("document.name")),
-                    ),
+                    projection = query.projection,
                     sort = listOf(Sort(QueryField("document.name.sort"), Sort.Direction.DESC)),
                     limit = 7,
                 ),
                 QueryCompatibilityLevel.EXACT,
             ),
         )
+        resolution.value.projection.assert().isSameAs(query.projection)
     }
 
     @Test
@@ -981,12 +1055,11 @@ class QuerySchemaResolverTest {
             ),
         )
 
-        resolver.resolve(Projection(include = listOf(QueryField(field.path)))).assert().isEqualTo(
-            QuerySchemaResolution(
-                Projection(include = listOf(QueryField("document.name"))),
-                QueryCompatibilityLevel.EXACT,
-            ),
-        )
+        val projection = Projection(include = listOf(field))
+        val resolution = resolver.resolve(projection)
+
+        resolution.assert().isEqualTo(QuerySchemaResolution(projection, QueryCompatibilityLevel.EXACT))
+        resolution.value.assert().isSameAs(projection)
     }
 
     @Test
@@ -1023,12 +1096,11 @@ class QuerySchemaResolverTest {
             ),
         )
 
-        resolver.resolve(Projection(include = listOf(QueryField(field.path)))).assert().isEqualTo(
-            QuerySchemaResolution(
-                Projection(include = listOf(QueryField("document.orders.price"))),
-                QueryCompatibilityLevel.EXACT,
-            ),
-        )
+        val projection = Projection(include = listOf(field))
+        val resolution = resolver.resolve(projection)
+
+        resolution.assert().isEqualTo(QuerySchemaResolution(projection, QueryCompatibilityLevel.EXACT))
+        resolution.value.assert().isSameAs(projection)
     }
 
     @Test
@@ -1719,7 +1791,7 @@ class QuerySchemaResolverTest {
     }
 
     @Test
-    fun `masked event projection should include body type for internal validation`() {
+    fun `masked event projection should remain unchanged during internal validation`() {
         val resolver = QuerySchemaResolver(
             QueryModelSchema(
                 QueryModel.EVENT_STREAM,
@@ -1736,15 +1808,14 @@ class QuerySchemaResolverTest {
             ),
         )
 
-        val resolved = resolver.resolve(
-            Projection(include = listOf(QueryField("body.body.secret"))),
-        ).value
+        val projection = Projection(include = listOf(QueryField("body.body.secret")))
+        val resolved = resolver.resolve(projection).value
 
-        resolved.include.assert().containsExactly(QueryField("body.body.secret"), QueryField("document.events.type"))
+        resolved.assert().isSameAs(projection)
     }
 
     @Test
-    fun `masked event projection should restore body type excluded through an alias`() {
+    fun `masked event projection should preserve body type alias exclusions`() {
         val resolver = QuerySchemaResolver(
             QueryModelSchema(
                 QueryModel.EVENT_STREAM,
@@ -1764,8 +1835,9 @@ class QuerySchemaResolverTest {
             ),
         )
 
-        resolver.resolve(Projection(exclude = listOf(QueryField("eventTypeAlias")))).value.assert()
-            .isEqualTo(Projection.ALL)
+        val projection = Projection(exclude = listOf(QueryField("eventTypeAlias")))
+
+        resolver.resolve(projection).value.assert().isSameAs(projection)
     }
 
     private fun schema(
@@ -1778,10 +1850,11 @@ class QuerySchemaResolverTest {
         dynamicChildren: Boolean = false,
         semanticType: QuerySemanticType? = null,
         projectionPath: String? = null,
+        physicalPath: String? = null,
         cardinality: QueryCardinality = QueryCardinality.SINGLE,
         valueTypes: Set<QueryValueType> = emptySet(),
         maskRule: MaskRule? = null,
-        rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
+        rewriteMode: QueryRewriteMode = QueryRewriteMode.INFER,
     ) = QueryFieldSchema(
         title = null,
         description = null,
@@ -1795,7 +1868,7 @@ class QuerySchemaResolverTest {
         maskRule = maskRule,
         bindings = bindings.associate { (capability, path) ->
             val field = QueryField(path)
-            capability to QueryFieldBinding(field, field, storageType = null)
+            capability to QueryFieldBinding(field, QueryField(physicalPath ?: path), storageType = null)
         },
         projectionField = projectionPath?.let(::QueryField)
             ?: bindings.firstOrNull { it.first == QueryCapability.PRESENCE }?.second?.let(::QueryField),

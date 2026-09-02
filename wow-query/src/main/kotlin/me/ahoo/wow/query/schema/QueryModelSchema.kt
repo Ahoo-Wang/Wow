@@ -14,6 +14,13 @@
 package me.ahoo.wow.query.schema
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -67,8 +74,7 @@ data class QueryModelSchema(
 
     private val dynamicFields = fields.filterValues(QueryFieldSchema::dynamicChildren)
 
-    @get:JsonIgnore
-    internal val resolver = QuerySchemaResolver(this)
+    private val resolver = QuerySchemaResolver(this)
 
     fun supports(capability: QueryCapability): Boolean = capability in capabilities
 
@@ -89,6 +95,21 @@ data class QueryModelSchema(
 
     internal fun matchesValueTypes(field: QueryField, values: Iterable<JsonNode>): Boolean =
         fields[field]?.matchesValueTypes(values) ?: true
+
+    fun resolve(query: ISingleQuery): QuerySchemaResolution<ISingleQuery> = resolver.resolve(query)
+
+    fun resolve(query: IListQuery): QuerySchemaResolution<IListQuery> = resolver.resolve(query)
+
+    fun resolve(query: IPagedQuery): QuerySchemaResolution<IPagedQuery> = resolver.resolve(query)
+
+    fun resolve(query: ICursorQuery): QuerySchemaResolution<ICursorQuery> = resolver.resolve(query)
+
+    fun resolve(filter: FilterExpression): QuerySchemaResolution<FilterExpression> = resolver.resolve(filter)
+
+    fun resolve(query: AggregationQuery): QuerySchemaResolution<AggregationQuery> = resolver.resolve(query)
+
+    internal fun requiresInternalEventBodyType(projection: Projection): Boolean =
+        resolver.requiresInternalEventBodyType(projection)
 
     fun toMetadata(): QueryModelSchemaMetadata = QueryModelSchemaMetadata(
         model = model,

@@ -36,7 +36,6 @@ import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.resolve
 import org.openjdk.jmh.annotations.Benchmark
@@ -141,7 +140,6 @@ open class QuerySchemaResolverBenchmark {
             )
         },
     )
-    private val resolver = QuerySchemaResolver(schema)
     private val provider = object : QueryModelSchemaProvider {
         private val schemaMono = Mono.just(schema)
 
@@ -149,8 +147,7 @@ open class QuerySchemaResolverBenchmark {
 
         override fun refresh(): Mono<QueryModelSchema> = schemaMono
     }
-    private val eventProjectionResolver = QuerySchemaResolver(
-        QueryModelSchema(
+    private val eventProjectionSchema = QueryModelSchema(
             model = QueryModel.EVENT_STREAM,
             capabilities = emptySet(),
             fields = mapOf(
@@ -168,9 +165,9 @@ open class QuerySchemaResolverBenchmark {
                     maskRule = null,
                 ),
             ),
-        ),
-    )
+        )
     private val eventProjection = Projection(include = listOf(QueryField(eventSecretField.path)))
+    private val eventProjectionQuery = SingleQuery(MatchAllFilter, projection = eventProjection)
     private val dynamicFilter = EqualFilter(
         dynamicChildField,
         JsonNodeFactory.instance.stringNode("value"),
@@ -212,17 +209,17 @@ open class QuerySchemaResolverBenchmark {
 
     @Benchmark
     fun resolveEventProjection(blackhole: Blackhole) {
-        blackhole.consume(eventProjectionResolver.resolve(eventProjection))
+        blackhole.consume(eventProjectionSchema.resolve(eventProjectionQuery))
     }
 
     @Benchmark
     fun resolveAggregation(blackhole: Blackhole) {
-        blackhole.consume(resolver.resolve(aggregationQuery))
+        blackhole.consume(schema.resolve(aggregationQuery))
     }
 
     @Benchmark
     fun resolveDynamicFilter(blackhole: Blackhole) {
-        blackhole.consume(resolver.resolve(dynamicFilter))
+        blackhole.consume(schema.resolve(dynamicFilter))
     }
 
     private fun maskedFieldSchema(): QueryFieldSchema {

@@ -37,7 +37,8 @@ internal class QueryFilterSchemaResolver(
     fun resolve(
         filter: FilterExpression,
         logicalParent: QueryField? = null,
-        physicalParent: String? = null,
+        resolvedParent: QueryField? = null,
+        physicalParent: QueryField? = null,
     ): QuerySchemaResolution<FilterExpression> = when (filter) {
         MatchAllFilter,
         MatchNoneFilter,
@@ -53,158 +54,247 @@ internal class QueryFilterSchemaResolver(
         is OwnerIdFilter -> metadata(filter, MessageRecords.OWNER_ID)
         is SpaceIdFilter -> metadata(filter, MessageRecords.SPACE_ID)
         is DeletionFilter -> metadata(filter, StateAggregateRecords.DELETED)
-        is AndFilter -> resolveOperands(filter.operands, logicalParent, physicalParent, ::AndFilter)
-        is OrFilter -> resolveOperands(filter.operands, logicalParent, physicalParent, ::OrFilter)
-        is NorFilter -> resolveOperands(filter.operands, logicalParent, physicalParent, ::NorFilter)
+        is AndFilter -> resolveOperands(
+            filter,
+            filter.operands,
+            logicalParent,
+            resolvedParent,
+            physicalParent,
+            ::AndFilter
+        )
+        is OrFilter -> resolveOperands(
+            filter,
+            filter.operands,
+            logicalParent,
+            resolvedParent,
+            physicalParent,
+            ::OrFilter
+        )
+        is NorFilter -> resolveOperands(
+            filter,
+            filter.operands,
+            logicalParent,
+            resolvedParent,
+            physicalParent,
+            ::NorFilter
+        )
         is EqualFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             if (filter.value.isNull) QueryCapability.PRESENCE else QueryCapability.EXACT_MATCH,
             logicalParent,
+            resolvedParent,
             physicalParent,
             filter.value.queryValues(),
         ) {
             filter.copy(field = it)
         }
         is NotEqualFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             if (filter.value.isNull) QueryCapability.PRESENCE else QueryCapability.EXACT_MATCH,
             logicalParent,
+            resolvedParent,
             physicalParent,
             filter.value.queryValues(),
         ) { filter.copy(field = it) }
         is InFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             QueryCapability.EXACT_MATCH,
             logicalParent,
+            resolvedParent,
             physicalParent,
             filter.values,
         ) {
             filter.copy(field = it)
         }
         is NotInFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             QueryCapability.EXACT_MATCH,
             logicalParent,
+            resolvedParent,
             physicalParent,
             filter.values,
         ) {
             filter.copy(field = it)
         }
         is ContainsAllFilter -> resolveCollectionFieldFilter(
+            filter,
             filter.field,
             QueryCapability.EXACT_MATCH,
             logicalParent,
+            resolvedParent,
             physicalParent,
             filter.values,
         ) { filter.copy(field = it) }
         is ContainsFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             QueryCapability.LITERAL_MATCH,
             logicalParent,
+            resolvedParent,
             physicalParent,
         ) { filter.copy(field = it) }
         is StartsWithFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             QueryCapability.LITERAL_MATCH,
             logicalParent,
+            resolvedParent,
             physicalParent,
         ) { filter.copy(field = it) }
         is EndsWithFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             QueryCapability.LITERAL_MATCH,
             logicalParent,
+            resolvedParent,
             physicalParent,
         ) { filter.copy(field = it) }
         is GreaterThanFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             QueryCapability.RANGE,
             logicalParent,
+            resolvedParent,
             physicalParent,
             listOf(filter.value),
         ) { filter.copy(field = it) }
         is GreaterThanOrEqualFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             QueryCapability.RANGE,
             logicalParent,
+            resolvedParent,
             physicalParent,
             listOf(filter.value),
         ) { filter.copy(field = it) }
         is LessThanFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             QueryCapability.RANGE,
             logicalParent,
+            resolvedParent,
             physicalParent,
             listOf(filter.value),
         ) {
             filter.copy(field = it)
         }
         is LessThanOrEqualFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             QueryCapability.RANGE,
             logicalParent,
+            resolvedParent,
             physicalParent,
             listOf(filter.value),
         ) { filter.copy(field = it) }
         is BetweenFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             QueryCapability.RANGE,
             logicalParent,
+            resolvedParent,
             physicalParent,
             listOf(filter.lowerBound, filter.upperBound),
         ) {
             filter.copy(field = it)
         }
         is IsEmptyFilter -> resolveCollectionFieldFilter(
+            filter,
             filter.field,
             QueryCapability.PRESENCE,
             logicalParent,
+            resolvedParent,
             physicalParent,
         ) { filter.copy(field = it) }
-        is IsEmptyStringFilter -> resolveStringFieldFilter(filter.field, logicalParent, physicalParent) {
+        is IsEmptyStringFilter -> resolveStringFieldFilter(
+            filter,
+            filter.field,
+            logicalParent,
+            resolvedParent,
+            physicalParent
+        ) {
             filter.copy(field = it)
         }
-        is IsNotEmptyStringFilter -> resolveStringFieldFilter(filter.field, logicalParent, physicalParent) {
+        is IsNotEmptyStringFilter -> resolveStringFieldFilter(
+            filter,
+            filter.field,
+            logicalParent,
+            resolvedParent,
+            physicalParent,
+        ) {
             filter.copy(field = it)
         }
-        is IsNullFilter -> resolveFieldFilter(filter.field, QueryCapability.PRESENCE, logicalParent, physicalParent) {
+        is IsNullFilter -> resolveFieldFilter(
+            filter,
+            filter.field,
+            QueryCapability.PRESENCE,
+            logicalParent,
+            resolvedParent,
+            physicalParent,
+        ) {
             filter.copy(field = it)
         }
         is IsNotNullFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             QueryCapability.PRESENCE,
             logicalParent,
+            resolvedParent,
             physicalParent,
         ) { filter.copy(field = it) }
-        is ExistsFilter -> resolveFieldFilter(filter.field, QueryCapability.PRESENCE, logicalParent, physicalParent) {
+        is ExistsFilter -> resolveFieldFilter(
+            filter,
+            filter.field,
+            QueryCapability.PRESENCE,
+            logicalParent,
+            resolvedParent,
+            physicalParent,
+        ) {
             filter.copy(field = it)
         }
         is NotExistsFilter -> resolveFieldFilter(
+            filter,
             filter.field,
             QueryCapability.PRESENCE,
             logicalParent,
+            resolvedParent,
             physicalParent,
         ) { filter.copy(field = it) }
-        is RelativeTimeFilter -> resolveRelativeTime(filter, logicalParent, physicalParent)
-        is SearchFilter -> resolveSearch(filter, logicalParent, physicalParent)
-        is ElementMatchFilter -> resolveElementMatch(filter, logicalParent, physicalParent)
+        is RelativeTimeFilter -> resolveRelativeTime(filter, logicalParent, resolvedParent, physicalParent)
+        is SearchFilter -> resolveSearch(filter, logicalParent, resolvedParent, physicalParent)
+        is ElementMatchFilter -> resolveElementMatch(filter, logicalParent, resolvedParent, physicalParent)
     }
 
     private fun resolveElementMatch(
         filter: ElementMatchFilter,
         logicalParent: QueryField?,
-        physicalParent: String?,
+        resolvedParent: QueryField?,
+        physicalParent: QueryField?,
     ): QuerySchemaResolution<FilterExpression> {
         val container = fieldResolver.resolve(
             filter.field,
             QueryCapability.ELEMENT_SCOPE,
             logicalParent,
+            resolvedParent,
             physicalParent,
         )
-        val predicate = resolve(filter.predicate, container.logical, container.physicalPath)
-        val value = if (container.physicalPath == null) {
+        val predicate = resolve(
+            filter.predicate,
+            container.logical,
+            container.resolvedField,
+            container.physicalField,
+        )
+        val value = if (
+            schema.rewriteMode == QueryRewriteMode.NONE ||
+            container.value === filter.field && predicate.value === filter.predicate
+        ) {
             filter
         } else {
-            ElementMatchFilter(fieldResolver.resolveQueryField(container.value), predicate.value)
+            ElementMatchFilter(container.value, predicate.value)
         }
         return QuerySchemaResolution(
             value,
@@ -215,7 +305,8 @@ internal class QueryFilterSchemaResolver(
     private fun resolveSearch(
         filter: SearchFilter,
         logicalParent: QueryField?,
-        physicalParent: String?,
+        resolvedParent: QueryField?,
+        physicalParent: QueryField?,
     ): QuerySchemaResolution<FilterExpression> {
         val capability = when (filter.mode) {
             SearchMode.TERMS -> QueryCapability.FULL_TEXT_TERMS
@@ -229,62 +320,89 @@ internal class QueryFilterSchemaResolver(
             }
             return QuerySchemaResolution(filter, compatibility)
         }
-        val fields = filter.fields.map { fieldResolver.resolve(it, capability, logicalParent, physicalParent) }
+        val fields = filter.fields.map {
+            fieldResolver.resolve(it, capability, logicalParent, resolvedParent, physicalParent)
+        }
         if (fields.any { !it.elementScopeAccepted }) {
             return QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE)
         }
         if (fields.all { it.compatibility == QueryCompatibilityLevel.EXACT }) {
+            val resolvedFields = fields.mapTo(linkedSetOf(), QueryFieldResolution::value)
             return QuerySchemaResolution(
-                filter.copy(fields = fields.mapTo(linkedSetOf()) { fieldResolver.resolveQueryField(it.value) }),
+                if (schema.rewriteMode == QueryRewriteMode.NONE || resolvedFields == filter.fields) {
+                    filter
+                } else {
+                    filter.copy(fields = resolvedFields)
+                },
                 QueryCompatibilityLevel.EXACT,
             )
         }
         if (capability in schema.capabilities) {
-            return QuerySchemaResolution(filter.copy(fields = emptySet()), QueryCompatibilityLevel.COMPATIBLE)
+            return QuerySchemaResolution(
+                if (schema.rewriteMode == QueryRewriteMode.NONE) filter else filter.copy(fields = emptySet()),
+                QueryCompatibilityLevel.COMPATIBLE,
+            )
         }
         return QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE)
     }
 
     private fun resolveOperands(
+        original: FilterExpression,
         operands: List<FilterExpression>,
         logicalParent: QueryField?,
-        physicalParent: String?,
+        resolvedParent: QueryField?,
+        physicalParent: QueryField?,
         create: (List<FilterExpression>) -> FilterExpression,
     ): QuerySchemaResolution<FilterExpression> {
-        val values = ArrayList<FilterExpression>(operands.size)
+        var values: ArrayList<FilterExpression>? = null
         var compatibility = QueryCompatibilityLevel.EXACT
-        operands.forEach { operand ->
-            val resolved = resolve(operand, logicalParent, physicalParent)
-            values += resolved.value
+        operands.forEachIndexed { index, operand ->
+            val resolved = resolve(operand, logicalParent, resolvedParent, physicalParent)
+            if (values != null) {
+                values += resolved.value
+            } else if (resolved.value !== operand) {
+                values = ArrayList<FilterExpression>(operands.size).apply {
+                    addAll(operands.subList(0, index))
+                    add(resolved.value)
+                }
+            }
             compatibility = maxOf(compatibility, resolved.compatibility)
         }
-        return QuerySchemaResolution(create(values), compatibility)
+        return QuerySchemaResolution(values?.let(create) ?: original, compatibility)
     }
 
     private inline fun resolveFieldFilter(
+        original: FilterExpression,
         field: QueryField,
         capability: QueryCapability,
         logicalParent: QueryField?,
-        physicalParent: String?,
+        resolvedParent: QueryField?,
+        physicalParent: QueryField?,
         values: Iterable<JsonNode> = emptyList(),
         copy: (QueryField) -> FilterExpression,
     ): QuerySchemaResolution<FilterExpression> {
-        val resolved = fieldResolver.resolve(field, capability, logicalParent, physicalParent)
+        val resolved = fieldResolver.resolve(field, capability, logicalParent, resolvedParent, physicalParent)
         return QuerySchemaResolution(
-            copy(fieldResolver.resolveQueryField(resolved.value)),
+            if (schema.rewriteMode == QueryRewriteMode.NONE || resolved.value === field) {
+                original
+            } else {
+                copy(resolved.value)
+            },
             maxOf(resolved.compatibility, resolved.valueCompatibility(values)),
         )
     }
 
     private inline fun resolveCollectionFieldFilter(
+        original: FilterExpression,
         field: QueryField,
         capability: QueryCapability,
         logicalParent: QueryField?,
-        physicalParent: String?,
+        resolvedParent: QueryField?,
+        physicalParent: QueryField?,
         values: Iterable<JsonNode> = emptyList(),
         copy: (QueryField) -> FilterExpression,
     ): QuerySchemaResolution<FilterExpression> {
-        val resolved = fieldResolver.resolve(field, capability, logicalParent, physicalParent)
+        val resolved = fieldResolver.resolve(field, capability, logicalParent, resolvedParent, physicalParent)
         val cardinality = if (schema.fields[resolved.logical]?.cardinality == QueryCardinality.SINGLE) {
             QueryCompatibilityLevel.INCOMPATIBLE
         } else {
@@ -295,16 +413,31 @@ internal class QueryFilterSchemaResolver(
             cardinality,
             resolved.valueCompatibility(values),
         )
-        return QuerySchemaResolution(copy(fieldResolver.resolveQueryField(resolved.value)), compatibility)
+        return QuerySchemaResolution(
+            if (schema.rewriteMode == QueryRewriteMode.NONE || resolved.value === field) {
+                original
+            } else {
+                copy(resolved.value)
+            },
+            compatibility,
+        )
     }
 
     private inline fun resolveStringFieldFilter(
+        original: FilterExpression,
         field: QueryField,
         logicalParent: QueryField?,
-        physicalParent: String?,
+        resolvedParent: QueryField?,
+        physicalParent: QueryField?,
         copy: (QueryField) -> FilterExpression,
     ): QuerySchemaResolution<FilterExpression> {
-        val resolved = fieldResolver.resolve(field, QueryCapability.EXACT_MATCH, logicalParent, physicalParent)
+        val resolved = fieldResolver.resolve(
+            field,
+            QueryCapability.EXACT_MATCH,
+            logicalParent,
+            resolvedParent,
+            physicalParent,
+        )
         val stringField = when {
             resolved.compatibility != QueryCompatibilityLevel.EXACT -> QueryCompatibilityLevel.EXACT
             resolved.fieldSchema?.cardinality == QueryCardinality.SINGLE &&
@@ -312,22 +445,36 @@ internal class QueryFilterSchemaResolver(
             else -> QueryCompatibilityLevel.INCOMPATIBLE
         }
         val compatibility = maxOf(resolved.compatibility, stringField)
-        return QuerySchemaResolution(copy(fieldResolver.resolveQueryField(resolved.value)), compatibility)
+        return QuerySchemaResolution(
+            if (schema.rewriteMode == QueryRewriteMode.NONE || resolved.value === field) {
+                original
+            } else {
+                copy(resolved.value)
+            },
+            compatibility,
+        )
     }
 
     private fun resolveRelativeTime(
         filter: RelativeTimeFilter,
         logicalParent: QueryField?,
-        physicalParent: String?,
+        resolvedParent: QueryField?,
+        physicalParent: QueryField?,
     ): QuerySchemaResolution<FilterExpression> {
-        val resolved = fieldResolver.resolve(filter.field, QueryCapability.RANGE, logicalParent, physicalParent)
+        val resolved = fieldResolver.resolve(
+            filter.field,
+            QueryCapability.RANGE,
+            logicalParent,
+            resolvedParent,
+            physicalParent,
+        )
         if (resolved.compatibility != QueryCompatibilityLevel.EXACT) {
             return QuerySchemaResolution(filter, resolved.compatibility)
         }
         if (filter.dateFormatter != null) {
             return QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE)
         }
-        val physicalField = fieldResolver.resolveQueryField(resolved.value)
+        val resolvedField = resolved.value
         val configured = when (val temporal = resolved.fieldSchema?.semanticType) {
             is Temporal.Epoch -> {
                 if (filter.datePattern != null) {
@@ -336,13 +483,13 @@ internal class QueryFilterSchemaResolver(
                         QueryCompatibilityLevel.INCOMPATIBLE,
                     )
                 }
-                filter.copyResolved(physicalField, timeUnit = temporal.timeUnit)
+                filter.copyResolved(resolvedField, timeUnit = temporal.timeUnit)
             }
             is Temporal.Formatted -> {
                 if (filter.datePattern != null && filter.datePattern != temporal.pattern) {
                     return QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE)
                 }
-                filter.copyResolved(physicalField, datePattern = temporal.pattern)
+                filter.copyResolved(resolvedField, datePattern = temporal.pattern)
             }
             Temporal.Date -> {
                 if (filter.datePattern != null) {
@@ -351,7 +498,7 @@ internal class QueryFilterSchemaResolver(
                         QueryCompatibilityLevel.INCOMPATIBLE,
                     )
                 }
-                filter.copyResolved(physicalField)
+                filter.copyResolved(resolvedField)
             }
             else -> return QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE)
         }
@@ -363,22 +510,25 @@ internal class QueryFilterSchemaResolver(
         field: QueryField,
         datePattern: String? = this.datePattern,
         timeUnit: TimeUnit = this.timeUnit,
-    ): RelativeTimeFilter = when (this) {
-        is TodayFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is BeforeTodayFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is TomorrowFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is ThisWeekFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is NextWeekFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is LastWeekFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is ThisMonthFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is LastMonthFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is RecentDaysFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is EarlierDaysFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is YesterdayFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is NextMonthFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is LastYearFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is ThisYearFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is NextYearFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+    ): RelativeTimeFilter {
+        if (field === this.field && datePattern == this.datePattern && timeUnit == this.timeUnit) return this
+        return when (this) {
+            is TodayFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is BeforeTodayFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is TomorrowFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is ThisWeekFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is NextWeekFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is LastWeekFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is ThisMonthFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is LastMonthFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is RecentDaysFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is EarlierDaysFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is YesterdayFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is NextMonthFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is LastYearFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is ThisYearFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+            is NextYearFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+        }
     }
 
     private fun metadata(
@@ -386,7 +536,7 @@ internal class QueryFilterSchemaResolver(
         field: String,
     ): QuerySchemaResolution<FilterExpression> = QuerySchemaResolution(
         filter,
-        fieldResolver.resolve(QueryField(field), QueryCapability.EXACT_MATCH, null, null).compatibility,
+        fieldResolver.resolve(QueryField(field), QueryCapability.EXACT_MATCH, null, null, null).compatibility,
     )
 
     private fun QueryFieldResolution.valueCompatibility(values: Iterable<JsonNode>): QueryCompatibilityLevel {

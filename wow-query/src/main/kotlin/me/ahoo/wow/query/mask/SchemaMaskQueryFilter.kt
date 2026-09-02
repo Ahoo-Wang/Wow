@@ -49,7 +49,7 @@ internal class SchemaMaskQueryFilter(
                 else -> Unit
             }
             Mono.defer(provider::schema).doOnNext { schema ->
-                context.internalEventBodyTypeProjected = schema.resolver
+                context.internalEventBodyTypeProjected = schema
                     .requiresInternalEventBodyType(
                         (context.getQuery() as? Queryable<*>)?.projection ?: Projection.ALL,
                     )
