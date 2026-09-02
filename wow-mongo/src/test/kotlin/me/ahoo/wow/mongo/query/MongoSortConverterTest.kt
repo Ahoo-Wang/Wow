@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.mongo.query
 
+import me.ahoo.wow.api.query.QueryField
+
 import com.mongodb.client.model.Sorts
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Sort
@@ -50,13 +52,13 @@ class MongoSortConverterTest {
             return Stream.of(
                 Arguments.of(emptyList<Sort>(), null),
                 Arguments.of(
-                    listOf(Sort(MessageRecords.AGGREGATE_ID, Sort.Direction.ASC)),
+                    listOf(Sort(QueryField(MessageRecords.AGGREGATE_ID), Sort.Direction.ASC)),
                     Sorts.orderBy(Sorts.ascending(Documents.ID_FIELD))
                 ),
                 Arguments.of(
                     listOf(
-                        Sort(MessageRecords.AGGREGATE_ID, Sort.Direction.ASC),
-                        Sort(MessageRecords.AGGREGATE_ID, Sort.Direction.DESC)
+                        Sort(QueryField(MessageRecords.AGGREGATE_ID), Sort.Direction.ASC),
+                        Sort(QueryField(MessageRecords.AGGREGATE_ID), Sort.Direction.DESC)
                     ),
                     Sorts.orderBy(Sorts.ascending(Documents.ID_FIELD), Sorts.descending(Documents.ID_FIELD))
                 ),
@@ -68,13 +70,13 @@ class MongoSortConverterTest {
             return Stream.of(
                 Arguments.of(emptyList<Sort>(), null),
                 Arguments.of(
-                    listOf(Sort(MessageRecords.ID, Sort.Direction.ASC)),
+                    listOf(Sort(QueryField(MessageRecords.ID), Sort.Direction.ASC)),
                     Sorts.orderBy(Sorts.ascending(Documents.ID_FIELD))
                 ),
                 Arguments.of(
                     listOf(
-                        Sort(MessageRecords.ID, Sort.Direction.ASC),
-                        Sort(MessageRecords.ID, Sort.Direction.DESC)
+                        Sort(QueryField(MessageRecords.ID), Sort.Direction.ASC),
+                        Sort(QueryField(MessageRecords.ID), Sort.Direction.DESC)
                     ),
                     Sorts.orderBy(Sorts.ascending(Documents.ID_FIELD), Sorts.descending(Documents.ID_FIELD))
                 ),

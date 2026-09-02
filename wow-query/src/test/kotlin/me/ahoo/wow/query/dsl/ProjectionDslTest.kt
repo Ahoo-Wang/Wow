@@ -15,6 +15,7 @@ package me.ahoo.wow.query.dsl
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.snapshot.nestedState
 import org.junit.jupiter.api.Test
 
@@ -28,8 +29,8 @@ class ProjectionDslTest {
         }
         projection.assert().isEqualTo(
             Projection(
-                include = listOf("field1"),
-                exclude = listOf("field2")
+                include = listOf(QueryField("field1")),
+                exclude = listOf(QueryField("field2"))
             )
         )
     }
@@ -43,8 +44,8 @@ class ProjectionDslTest {
         }
         projection.assert().isEqualTo(
             Projection(
-                include = listOf("state.field1"),
-                exclude = listOf("state.field2")
+                include = listOf(QueryField("state.field1")),
+                exclude = listOf(QueryField("state.field2"))
             )
         )
     }
@@ -80,6 +81,6 @@ class ProjectionDslTest {
             nested("custom")
             include("field1")
         }
-        projection.include.assert().isEqualTo(listOf("custom.field1"))
+        projection.include.assert().isEqualTo(listOf(QueryField("custom.field1")))
     }
 }

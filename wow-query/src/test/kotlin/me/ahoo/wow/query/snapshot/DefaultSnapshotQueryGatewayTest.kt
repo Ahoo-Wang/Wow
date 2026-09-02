@@ -30,10 +30,10 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.mask.CompiledMask
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
@@ -177,7 +177,7 @@ class DefaultSnapshotQueryGatewayTest {
     fun `cursor should mask raw page and preserve next cursor`() {
         val backend = SchemaSnapshotBackend(Mono.just(maskedSchema()))
         val gateway = gateway(backend)
-        val query = CursorQuery(MatchAllFilter, sort = listOf(Sort("aggregateId", Sort.Direction.ASC)))
+        val query = CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)))
 
         gateway.dynamicCursor(query)
             .test()

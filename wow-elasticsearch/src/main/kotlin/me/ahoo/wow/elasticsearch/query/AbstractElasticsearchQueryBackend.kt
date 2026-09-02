@@ -30,6 +30,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.isEmpty
 import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
@@ -55,7 +56,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     abstract val indexName: String
     protected open val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     protected open val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
-    protected abstract val cursorUniqueField: String
+    protected abstract val cursorUniqueField: QueryField
     protected open fun resolve(query: ISingleQuery): Mono<ISingleQuery> = Mono.just(query)
 
     protected open fun resolve(query: IListQuery): Mono<IListQuery> = Mono.just(query)

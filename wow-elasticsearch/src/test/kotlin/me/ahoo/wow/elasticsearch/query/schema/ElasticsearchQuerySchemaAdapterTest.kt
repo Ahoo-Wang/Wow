@@ -164,8 +164,8 @@ class ElasticsearchQuerySchemaAdapterTest {
         )
 
         schema.binding(field.path, QueryCapability.EXACT_MATCH).assertPath(field.path, "flattened")
-        QuerySchemaResolver(schema).resolve(Projection(include = listOf(field.path))).let { resolved ->
-            resolved.value.assert().isEqualTo(Projection(include = listOf(field.path)))
+        QuerySchemaResolver(schema).resolve(Projection(include = listOf(QueryField(field.path)))).let { resolved ->
+            resolved.value.assert().isEqualTo(Projection(include = listOf(QueryField(field.path))))
             resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
         }
     }
@@ -185,14 +185,14 @@ class ElasticsearchQuerySchemaAdapterTest {
                 INDEX,
                 TypeMapping.of { mapping ->
                     mapping.properties("state.opaque") { it.`object` { field -> field.enabled(false) } }
-                        .runtime(runtime.value) { it.type(RuntimeFieldType.Keyword) }
+                        .runtime(runtime.path) { it.type(RuntimeFieldType.Keyword) }
                 },
             ),
         )
 
         schema.fields.getValue(source).projectionPath.assert().isEqualTo(source.path)
         schema.fields.getValue(runtime).projectionPath.assert().isNull()
-        QuerySchemaResolver(schema).resolve(Projection(include = listOf(source.path))).compatibility.assert()
+        QuerySchemaResolver(schema).resolve(Projection(include = listOf(QueryField(source.path)))).compatibility.assert()
             .isEqualTo(QueryCompatibilityLevel.EXACT)
     }
 
@@ -214,8 +214,8 @@ class ElasticsearchQuerySchemaAdapterTest {
 
         schema.binding(field.path, QueryCapability.PRESENCE)
             .assertPath("${field.path}.keyword", "keyword")
-        QuerySchemaResolver(schema).resolve(Projection(include = listOf(field.path))).let { resolved ->
-            resolved.value.assert().isEqualTo(Projection(include = listOf(field.path)))
+        QuerySchemaResolver(schema).resolve(Projection(include = listOf(QueryField(field.path)))).let { resolved ->
+            resolved.value.assert().isEqualTo(Projection(include = listOf(QueryField(field.path))))
             resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
         }
     }
@@ -226,7 +226,7 @@ class ElasticsearchQuerySchemaAdapterTest {
             LogicalQuerySchema(emptyMap()),
             ElasticsearchIndexMapping.from(INDEX, TypeMapping.of { it }),
         )
-        val sort = listOf("_score", "_doc", "_shard_doc").map { Sort(it, Sort.Direction.ASC) }
+        val sort = listOf("_score", "_doc", "_shard_doc").map { Sort(QueryField(it), Sort.Direction.ASC) }
 
         QuerySchemaResolver(schema).resolve(sort).let { resolved ->
             resolved.value.assert().isEqualTo(sort)
@@ -781,11 +781,11 @@ class ElasticsearchQuerySchemaAdapterTest {
             .assertPath("state.runtimeAt", "date")
         schema.binding("state.runtime.code", QueryCapability.AGGREGATE_TERMS)
             .assertPath("state.runtime.code", "keyword")
-        QuerySchemaResolver(schema).resolve(Projection(include = listOf("state.nameAlias"))).let { resolved ->
-            resolved.value.assert().isEqualTo(Projection(include = listOf("state.name")))
+        QuerySchemaResolver(schema).resolve(Projection(include = listOf(QueryField("state.nameAlias")))).let { resolved ->
+            resolved.value.assert().isEqualTo(Projection(include = listOf(QueryField("state.name"))))
             resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
         }
-        QuerySchemaResolver(schema).resolve(Projection(include = listOf("state.runtimeCode"))).compatibility.assert()
+        QuerySchemaResolver(schema).resolve(Projection(include = listOf(QueryField("state.runtimeCode")))).compatibility.assert()
             .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
 
         schema.fields.getValue(QueryField("state.ambiguous")).bindings.assert()

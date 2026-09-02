@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Projections
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.isEmpty
 import me.ahoo.wow.query.converter.AbstractProjectionConverter
 import me.ahoo.wow.query.converter.FieldConverter
@@ -27,8 +28,8 @@ class MongoProjectionConverter(override val fieldConverter: FieldConverter) : Ab
             projection
         } else {
             Projection(
-                include = projection.include.map(fieldConverter::convert),
-                exclude = projection.exclude.map(fieldConverter::convert),
+                include = projection.include.map { QueryField(fieldConverter.convert(it.path)) },
+                exclude = projection.exclude.map { QueryField(fieldConverter.convert(it.path)) },
             )
         }
         return physical.withCursorFields(sortFields)
@@ -39,11 +40,11 @@ class MongoProjectionConverter(override val fieldConverter: FieldConverter) : Ab
     override fun internalConvert(projection: Projection): Bson? {
         if (projection.isEmpty()) return null
         if (projection.include.isNotEmpty() && projection.exclude.isNotEmpty()) {
-            return Projections.fields(Projections.include(projection.include), Projections.exclude(projection.exclude))
+            return Projections.fields(Projections.include(projection.include.map(QueryField::path)), Projections.exclude(projection.exclude.map(QueryField::path)))
         }
         if (projection.include.isNotEmpty()) {
-            return Projections.include(projection.include)
+            return Projections.include(projection.include.map(QueryField::path))
         }
-        return Projections.exclude(projection.exclude)
+        return Projections.exclude(projection.exclude.map(QueryField::path))
     }
 }

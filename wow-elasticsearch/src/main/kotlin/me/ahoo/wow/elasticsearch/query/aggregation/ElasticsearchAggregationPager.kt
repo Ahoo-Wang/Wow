@@ -337,9 +337,9 @@ private fun rankedRowComparator(
     groupIndexes: Map<String, Int>,
 ): Comparator<RankedRow> = Comparator { left, right ->
     sort.firstNotNullOfOrNull { field ->
-        val comparison = groupIndexes[field.field]?.let { index ->
+        val comparison = groupIndexes[field.field.path]?.let { index ->
             left.groupOrder[index].compareTo(right.groupOrder[index])
-        } ?: compareValues(left.row[field.field], right.row[field.field])
+        } ?: compareValues(left.row[field.field.path], right.row[field.field.path])
             .let { if (field.direction == Sort.Direction.ASC) it else -it }
         comparison.takeIf { it != 0 }
     } ?: 0

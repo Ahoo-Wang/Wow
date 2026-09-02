@@ -17,6 +17,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import org.bson.BsonTimestamp
 import org.bson.Document
 import org.bson.RawBsonDocument
@@ -66,21 +67,21 @@ internal data class MongoCursorProjection(
 internal fun Projection.withCursorFields(sortFields: List<String>): MongoCursorProjection {
     val internalFields = when {
         include.isNotEmpty() -> sortFields.filterNot { field ->
-            include.any { included -> field == included || field.startsWith("$included.") }
+            include.any { included -> field == included.path || field.startsWith("${included.path}.") }
         }.toSet()
         exclude.isNotEmpty() -> exclude.filter { excluded ->
-            sortFields.any { field -> field == excluded || field.startsWith("$excluded.") }
-        }.toSet()
+            sortFields.any { field -> field == excluded.path || field.startsWith("${excluded.path}.") }
+        }.map(QueryField::path).toSet()
         else -> emptySet()
     }
     val queryProjection = when {
         include.isNotEmpty() -> copy(
-            include = (include + internalFields).distinct(),
+            include = (include + internalFields.map { QueryField(it) }).distinct(),
             exclude = exclude.filterNot { excluded ->
-                internalFields.any { field -> field == excluded || field.startsWith("$excluded.") }
+                internalFields.any { field -> field == excluded.path || field.startsWith("${excluded.path}.") }
             },
         )
-        exclude.isNotEmpty() -> copy(exclude = exclude.filterNot(internalFields::contains))
+        exclude.isNotEmpty() -> copy(exclude = exclude.filterNot { it.path in internalFields })
         else -> this
     }
     return MongoCursorProjection(queryProjection, internalFields)
@@ -108,7 +109,7 @@ private fun Document.removeAt(path: String, removeEmptyParents: Boolean) {
 internal fun <T : Any> List<Document>.toCursorPage(
     query: ICursorQuery,
     projection: MongoCursorProjection,
-    sortFields: List<String> = query.sort.map { it.field },
+    sortFields: List<String> = query.sort.map { it.field.path },
     deferredInternalFields: Set<String> = emptySet(),
     mapper: (Document) -> T,
 ): CursorPage<T> {

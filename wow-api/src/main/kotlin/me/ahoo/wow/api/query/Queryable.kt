@@ -26,12 +26,12 @@ import io.swagger.v3.oas.annotations.media.Schema
  * @property direction The direction of sorting (ascending or descending).
  *
  * ```
- * val sortByName = Sort("name", Sort.Direction.ASC)
- * val sortByDate = Sort("createdDate", Sort.Direction.DESC)
+ * val sortByName = Sort(QueryField("name"), Sort.Direction.ASC)
+ * val sortByDate = Sort(QueryField("createdDate"), Sort.Direction.DESC)
  * ```
  */
 data class Sort(
-    val field: String,
+    val field: QueryField,
     val direction: Direction
 ) {
     /**
@@ -108,18 +108,18 @@ data class Pagination(
  * @property exclude List of field names to exclude from the results. Ignored if include list is non-empty.
  *
  * ```
- * val includeOnly = Projection(include = listOf("name", "email"))  // Only return name and email
- * val excludeSome = Projection(exclude = listOf("password", "secret"))  // Return all except password and secret
+ * val includeOnly = Projection(include = listOf(QueryField("name"), QueryField("email")))  // Only return name and email
+ * val excludeSome = Projection(exclude = listOf(QueryField("password"), QueryField("secret")))  // Return all except password and secret
  * val allFields = Projection.ALL  // Return all fields
  * ```
  */
 data class Projection(
     @field:Schema(defaultValue = "[]")
     @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
-    val include: List<String> = emptyList(),
+    val include: List<QueryField> = emptyList(),
     @field:Schema(defaultValue = "[]")
     @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
-    val exclude: List<String> = emptyList()
+    val exclude: List<QueryField> = emptyList()
 ) {
     companion object {
         /**

@@ -20,12 +20,12 @@ import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
@@ -68,23 +68,23 @@ class QuerySchemaValidationModeTest {
         val provider = FixedProvider(Mono.just(schema()))
         val field = QueryField("state.name")
         val filter = EqualFilter(field, JsonNodeFactory.instance.stringNode("name"))
-        val projection = Projection(include = listOf(field.value))
-        val sort = listOf(Sort(field.value, Sort.Direction.DESC))
+        val projection = Projection(include = listOf(field))
+        val sort = listOf(Sort(field, Sort.Direction.DESC))
 
         provider.resolve(SingleQuery(filter, projection, sort), QuerySchemaValidationMode.STRICT).block()
             .assert().isEqualTo(
                 SingleQuery(
                     EqualFilter(QueryField("document.name.keyword"), filter.value),
-                    Projection(include = listOf("document.name")),
-                    listOf(Sort("document.name.sort", Sort.Direction.DESC)),
+                    Projection(include = listOf(QueryField("document.name"))),
+                    listOf(Sort(QueryField("document.name.sort"), Sort.Direction.DESC)),
                 ),
             )
         provider.resolve(ListQuery(filter, projection, sort, limit = 17), QuerySchemaValidationMode.STRICT).block()
             .assert().isEqualTo(
                 ListQuery(
                     EqualFilter(QueryField("document.name.keyword"), filter.value),
-                    Projection(include = listOf("document.name")),
-                    listOf(Sort("document.name.sort", Sort.Direction.DESC)),
+                    Projection(include = listOf(QueryField("document.name"))),
+                    listOf(Sort(QueryField("document.name.sort"), Sort.Direction.DESC)),
                     limit = 17,
                 ),
             )
@@ -94,8 +94,8 @@ class QuerySchemaValidationModeTest {
         ).block().assert().isEqualTo(
             PagedQuery(
                 EqualFilter(QueryField("document.name.keyword"), filter.value),
-                Projection(include = listOf("document.name")),
-                listOf(Sort("document.name.sort", Sort.Direction.DESC)),
+                Projection(include = listOf(QueryField("document.name"))),
+                listOf(Sort(QueryField("document.name.sort"), Sort.Direction.DESC)),
                 Pagination(3, 19),
             ),
         )
@@ -138,8 +138,8 @@ class QuerySchemaValidationModeTest {
         val unavailable = QuerySchemaUnavailableException("unavailable")
         val provider = FixedProvider(Mono.error(unavailable))
         val filter = EqualFilter(QueryField("state.name"), JsonNodeFactory.instance.stringNode("name"))
-        val tagsProjection = Projection(include = listOf("tags.department"))
-        val tagsSort = listOf(Sort("tags.department", Sort.Direction.ASC))
+        val tagsProjection = Projection(include = listOf(QueryField("tags.department")))
+        val tagsSort = listOf(Sort(QueryField("tags.department"), Sort.Direction.ASC))
         val single = SingleQuery(filter, tagsProjection, tagsSort)
         val list = ListQuery(filter, tagsProjection, tagsSort, limit = 7)
         val paged = PagedQuery(filter, tagsProjection, tagsSort, Pagination(2, 11))
@@ -159,7 +159,7 @@ class QuerySchemaValidationModeTest {
         }
 
         provider.resolve(
-            CursorQuery(MatchAllFilter, sort = listOf(Sort("aggregateId", Sort.Direction.ASC))),
+            CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC))),
             QuerySchemaValidationMode.COMPATIBLE,
         )
             .test().expectError(QuerySchemaUnavailableException::class.java).verify()

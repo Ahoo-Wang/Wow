@@ -419,7 +419,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             val projectionQuery = invalidService.list(
                 ListQuery(
                     filter = MatchAllFilter,
-                    projection = Projection(include = listOf("tags.department")),
+                    projection = Projection(include = listOf(QueryField("tags.department"))),
                     limit = 10,
                 ),
             ).test()
@@ -512,7 +512,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         service.list(
             ListQuery(
                 filter = MatchAllFilter,
-                sort = listOf(Sort("state.nativeDate", Sort.Direction.ASC)),
+                sort = listOf(Sort(QueryField("state.nativeDate"), Sort.Direction.ASC)),
                 limit = 10,
             ),
         ).test().expectNextCount(1).verifyComplete()
@@ -600,7 +600,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         invalidService.list(
             ListQuery(
                 filter = MatchAllFilter,
-                sort = listOf(Sort("state.orders.status", Sort.Direction.ASC)),
+                sort = listOf(Sort(QueryField("state.orders.status"), Sort.Direction.ASC)),
                 limit = 10,
             ),
         ).test().expectError(QuerySchemaValidationException::class.java).verify()

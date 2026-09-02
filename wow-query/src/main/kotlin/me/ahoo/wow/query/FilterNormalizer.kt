@@ -30,7 +30,6 @@ import me.ahoo.wow.api.query.LastMonthFilter
 import me.ahoo.wow.api.query.LastWeekFilter
 import me.ahoo.wow.api.query.LastYearFilter
 import me.ahoo.wow.api.query.LessThanFilter
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.NextMonthFilter
@@ -39,6 +38,7 @@ import me.ahoo.wow.api.query.NextYearFilter
 import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.OrFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.ThisMonthFilter

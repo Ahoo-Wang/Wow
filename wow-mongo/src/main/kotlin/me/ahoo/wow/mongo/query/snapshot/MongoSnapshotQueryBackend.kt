@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
@@ -58,7 +59,7 @@ class MongoSnapshotQueryBackend(
         get() = MongoSnapshotStore.NAME
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
     override val sortConverter: MongoSortConverter = MongoSortConverter(SnapshotFieldConverter)
-    override val cursorUniqueField: String = MessageRecords.AGGREGATE_ID
+    override val cursorUniqueField: QueryField = QueryField(MessageRecords.AGGREGATE_ID)
     override fun toObjectNode(document: Document): ObjectNode =
         document.replacePrimaryKeyToAggregateId().toObjectNode()
 

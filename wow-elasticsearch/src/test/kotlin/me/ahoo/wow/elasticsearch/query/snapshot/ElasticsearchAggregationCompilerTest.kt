@@ -257,9 +257,9 @@ class ElasticsearchAggregationCompilerTest {
             .containsExactly("count", "total", "average", "minimum", "maximum")
         plan.effectiveSort.assert().isEqualTo(
             listOf(
-                Sort("amountRange", Sort.Direction.DESC),
-                Sort("product", Sort.Direction.ASC),
-                Sort("day", Sort.Direction.ASC),
+                Sort(QueryField("amountRange"), Sort.Direction.DESC),
+                Sort(QueryField("product"), Sort.Direction.ASC),
+                Sort(QueryField("day"), Sort.Direction.ASC),
             ),
         )
         plan.limit.assert().isEqualTo(7)

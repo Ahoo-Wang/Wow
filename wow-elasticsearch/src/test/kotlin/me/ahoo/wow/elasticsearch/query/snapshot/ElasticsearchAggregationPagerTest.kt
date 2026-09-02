@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import me.ahoo.wow.api.query.QueryField
+
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
 import co.elastic.clients.elasticsearch._types.aggregations.Buckets
@@ -189,7 +191,7 @@ class ElasticsearchAggregationPagerTest {
 
         selectTopRows(
             rows,
-            listOf(Sort("total", Sort.Direction.DESC), Sort("product", Sort.Direction.ASC)),
+            listOf(Sort(QueryField("total"), Sort.Direction.DESC), Sort(QueryField("product"), Sort.Direction.ASC)),
             limit = 2,
         ).map { it.path("product").asString() }.assert().containsExactly("a", "b")
     }
@@ -203,7 +205,7 @@ class ElasticsearchAggregationPagerTest {
 
         selectTopRows(
             rows,
-            listOf(Sort("count", Sort.Direction.DESC), Sort("product", Sort.Direction.ASC)),
+            listOf(Sort(QueryField("count"), Sort.Direction.DESC), Sort(QueryField("product"), Sort.Direction.ASC)),
             limit = 1,
         ).single().path("product").asString().assert().isEqualTo("z")
     }
@@ -216,7 +218,7 @@ class ElasticsearchAggregationPagerTest {
             mapOf("active" to false).toObjectNode(),
         )
 
-        selectTopRows(rows, listOf(Sort("active", Sort.Direction.ASC)), limit = 3)
+        selectTopRows(rows, listOf(Sort(QueryField("active"), Sort.Direction.ASC)), limit = 3)
             .map { if (it.path("active").isNull) null else it.path("active").booleanValue() }
             .assert().containsExactly(null, false, true)
     }
@@ -229,7 +231,7 @@ class ElasticsearchAggregationPagerTest {
         )
 
         assertThrows<IllegalStateException> {
-            selectTopRows(rows, listOf(Sort("value", Sort.Direction.ASC)), limit = 2)
+            selectTopRows(rows, listOf(Sort(QueryField("value"), Sort.Direction.ASC)), limit = 2)
         }.message.assert().contains("Aggregation sort values must have comparable types")
     }
 
@@ -242,7 +244,7 @@ class ElasticsearchAggregationPagerTest {
 
         selectTopRows(
             rows,
-            listOf(Sort("value", Sort.Direction.ASC), Sort("id", Sort.Direction.DESC)),
+            listOf(Sort(QueryField("value"), Sort.Direction.ASC), Sort(QueryField("id"), Sort.Direction.DESC)),
             limit = 2,
         ).map { it.path("id").asString() }.assert().containsExactly("b", "a")
     }
@@ -255,7 +257,7 @@ class ElasticsearchAggregationPagerTest {
         )
 
         assertThrows<IllegalStateException> {
-            selectTopRows(rows, listOf(Sort("value", Sort.Direction.ASC)), limit = 2)
+            selectTopRows(rows, listOf(Sort(QueryField("value"), Sort.Direction.ASC)), limit = 2)
         }.message.assert().contains("Aggregation sort values must have comparable types")
     }
 

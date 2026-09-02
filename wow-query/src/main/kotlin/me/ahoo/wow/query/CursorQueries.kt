@@ -16,11 +16,12 @@ package me.ahoo.wow.query
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ICursorQuery
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 
-internal val FORBIDDEN_CURSOR_SORTS = setOf("_score", "_doc", "_shard_doc")
+internal val FORBIDDEN_CURSOR_SORTS = setOf(QueryField("_score"), QueryField("_doc"), QueryField("_shard_doc"))
 
-fun ICursorQuery.withUniqueSort(uniqueField: String): ICursorQuery {
+fun ICursorQuery.withUniqueSort(uniqueField: QueryField): ICursorQuery {
     val effective = if (sort.any { it.field == uniqueField }) {
         sort
     } else {

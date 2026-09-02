@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -24,10 +25,10 @@ import org.junit.jupiter.api.assertThrows
 class CursorQueriesTest {
     @Test
     fun `should append unique sort once`() {
-        CursorQuery(MatchAllFilter, sort = listOf(Sort("version", Sort.Direction.DESC)))
-            .withUniqueSort("aggregateId").sort.assert().containsExactly(
-                Sort("version", Sort.Direction.DESC),
-                Sort("aggregateId", Sort.Direction.ASC),
+        CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("version"), Sort.Direction.DESC)))
+            .withUniqueSort(QueryField("aggregateId")).sort.assert().containsExactly(
+                Sort(QueryField("version"), Sort.Direction.DESC),
+                Sort(QueryField("aggregateId"), Sort.Direction.ASC),
             )
     }
 
@@ -36,20 +37,20 @@ class CursorQueriesTest {
         assertThrows<IllegalArgumentException> {
             CursorQuery(
                 MatchAllFilter,
-                sort = listOf(Sort("id", Sort.Direction.ASC), Sort("id", Sort.Direction.DESC)),
-            ).withUniqueSort("aggregateId")
+                sort = listOf(Sort(QueryField("id"), Sort.Direction.ASC), Sort(QueryField("id"), Sort.Direction.DESC)),
+            ).withUniqueSort(QueryField("aggregateId"))
         }
         listOf("_score", "_doc", "_shard_doc").forEach { field ->
             assertThrows<IllegalArgumentException> {
-                CursorQuery(MatchAllFilter, sort = listOf(Sort(field, Sort.Direction.ASC)))
-                    .withUniqueSort("aggregateId")
+                CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField(field), Sort.Direction.ASC)))
+                    .withUniqueSort(QueryField("aggregateId"))
             }
         }
         assertThrows<IllegalArgumentException> {
             CursorQuery(
                 MatchAllFilter,
-                sort = List(AggregationQuery.MAX_SORT_FIELDS) { Sort("field$it", Sort.Direction.ASC) },
-            ).withUniqueSort("aggregateId")
+                sort = List(AggregationQuery.MAX_SORT_FIELDS) { Sort(QueryField("field$it"), Sort.Direction.ASC) },
+            ).withUniqueSort(QueryField("aggregateId"))
         }
     }
 }

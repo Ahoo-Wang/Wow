@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.toObjectNode
@@ -47,7 +48,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     abstract val sortConverter: MongoSortConverter
     protected abstract fun toObjectNode(document: Document): ObjectNode
 
-    protected abstract val cursorUniqueField: String
+    protected abstract val cursorUniqueField: QueryField
 
     protected open fun resolve(query: ISingleQuery): Mono<ISingleQuery> = Mono.just(query)
 
@@ -113,14 +114,14 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> {
         val uniqueField = cursorUniqueField
         return resolve(query.withUniqueSort(uniqueField)).flatMap { resolved ->
-            val physicalSort = resolved.sort.map { it.copy(field = sortConverter.convertField(it.field)) }
+            val physicalSort = resolved.sort.map { it.copy(field = QueryField(sortConverter.convertField(it.field.path))) }
             val filter = resolved.cursor?.let {
                 MongoCursorFilterCompiler.compile(physicalSort, MongoCursorCodec.decode(it, resolved.sort.size))
             }?.let { Filters.and(converter.convert(resolved.filter), it) }
                 ?: converter.convert(resolved.filter)
             val projection = projectionConverter.cursorProjection(
                 resolved.projection,
-                physicalSort.map { it.field },
+                physicalSort.map { it.field.path },
             )
             val deferredInternalFields = setOf(Documents.ID_FIELD).intersect(projection.internalFields)
             collection.find(filter)
@@ -133,13 +134,13 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
                     documents.toCursorPage(
                         resolved,
                         projection,
-                        physicalSort.map { it.field },
+                        physicalSort.map { it.field.path },
                         deferredInternalFields,
                     ) { document ->
                         toObjectNode(document).also { result ->
                             if (deferredInternalFields.isNotEmpty()) {
                                 result.remove(Documents.ID_FIELD)
-                                result.remove(uniqueField)
+                                result.remove(uniqueField.path)
                             }
                         }
                     }

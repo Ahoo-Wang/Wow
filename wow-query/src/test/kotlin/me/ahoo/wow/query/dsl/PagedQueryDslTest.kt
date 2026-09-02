@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.toFilterExpression
 import org.junit.jupiter.api.Test
@@ -65,7 +66,7 @@ class PagedQueryDslTest {
         }
         pagedQuery.pagination.index.assert().isOne()
         pagedQuery.pagination.size.assert().isEqualTo(10)
-        pagedQuery.sort.assert().isEqualTo(listOf(Sort("field1", Sort.Direction.ASC)))
+        pagedQuery.sort.assert().isEqualTo(listOf(Sort(QueryField("field1"), Sort.Direction.ASC)))
         pagedQuery.filter.assert().isEqualTo(
             Condition.and(
                 listOf(

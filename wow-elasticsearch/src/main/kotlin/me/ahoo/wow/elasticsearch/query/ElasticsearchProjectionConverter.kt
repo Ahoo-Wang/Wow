@@ -20,8 +20,8 @@ import me.ahoo.wow.query.converter.ProjectionConverter
 object ElasticsearchProjectionConverter : ProjectionConverter<SourceFilter> {
     override fun convert(projection: Projection): SourceFilter {
         return SourceFilter.of {
-            it.includes(projection.include)
-            it.excludes(projection.exclude)
+            it.includes(projection.include.map { field -> field.path })
+            it.excludes(projection.exclude.map { field -> field.path })
         }
     }
 

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.mongo.query
 
+import me.ahoo.wow.api.query.QueryField
+
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -81,7 +83,7 @@ class MongoCursorDocumentsTest {
 
     @Test
     fun `included projection should remove cursor-only empty parents`() {
-        val projection = Projection(include = listOf("name")).withCursorFields(listOf("state.createdAt"))
+        val projection = Projection(include = listOf(QueryField("name"))).withCursorFields(listOf("state.createdAt"))
         val page = listOf(
             Document("name", "one").append("state", Document("createdAt", 1)),
             Document("name", "two").append("state", Document("createdAt", 2)),
@@ -93,7 +95,7 @@ class MongoCursorDocumentsTest {
 
     @Test
     fun `user included sort field should remain in response`() {
-        val projection = Projection(include = listOf("state.createdAt"))
+        val projection = Projection(include = listOf(QueryField("state.createdAt")))
             .withCursorFields(listOf("state.createdAt"))
         val page = listOf(
             Document("state", Document("createdAt", 1)),
@@ -105,7 +107,7 @@ class MongoCursorDocumentsTest {
 
     @Test
     fun `excluded parent temporarily read for child sort should remain excluded`() {
-        val projection = Projection(exclude = listOf("state", "state.createdAt"))
+        val projection = Projection(exclude = listOf(QueryField("state"), QueryField("state.createdAt")))
             .withCursorFields(listOf("state.createdAt"))
         val page = listOf(
             Document("state", Document("name", "one").append("createdAt", 1)),
@@ -119,7 +121,7 @@ class MongoCursorDocumentsTest {
 
     @Test
     fun `excluding only cursor child should retain exclusion projection semantics`() {
-        val projection = Projection(exclude = listOf("state.createdAt"))
+        val projection = Projection(exclude = listOf(QueryField("state.createdAt")))
             .withCursorFields(listOf("state.createdAt"))
         val page = listOf(
             Document("state", Document("createdAt", 1)),
@@ -131,7 +133,7 @@ class MongoCursorDocumentsTest {
 
     private fun cursorQuery(sortField: String = "rank") = CursorQuery(
         MatchAllFilter,
-        sort = listOf(Sort(sortField, Sort.Direction.ASC)),
+        sort = listOf(Sort(QueryField(sortField), Sort.Direction.ASC)),
         size = 1,
     )
 

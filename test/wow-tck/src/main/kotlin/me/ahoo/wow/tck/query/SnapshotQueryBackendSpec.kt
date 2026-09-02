@@ -201,7 +201,7 @@ abstract class SnapshotQueryBackendSpec {
         )
         val query = CursorQuery(
             filter = filterExpression { aggregateIds(*cursorAggregateIds.toTypedArray()) },
-            sort = listOf(Sort("version", Sort.Direction.ASC)),
+            sort = listOf(Sort(QueryField("version"), Sort.Direction.ASC)),
             size = 2,
         )
 
@@ -225,8 +225,8 @@ abstract class SnapshotQueryBackendSpec {
         val query = CursorQuery(
             filter = filterExpression { aggregateIds(*cursorAggregateIds.toTypedArray()) },
             sort = listOf(
-                Sort("state.createdAt", Sort.Direction.DESC),
-                Sort("aggregateId", Sort.Direction.DESC),
+                Sort(QueryField("state.createdAt"), Sort.Direction.DESC),
+                Sort(QueryField("aggregateId"), Sort.Direction.DESC),
             ),
             size = 2,
         )
@@ -259,7 +259,7 @@ abstract class SnapshotQueryBackendSpec {
         ).forEach { (direction, expectedIds) ->
             val query = CursorQuery(
                 filter = filterExpression { aggregateIds(*cursorAggregateIds.toTypedArray()) },
-                sort = listOf(Sort("state.createdAt", direction)),
+                sort = listOf(Sort(QueryField("state.createdAt"), direction)),
                 size = 2,
             )
 
@@ -284,8 +284,8 @@ abstract class SnapshotQueryBackendSpec {
         snapshotQueryBackend.cursor(
             CursorQuery(
                 filter = IdFilter(snapshot.aggregateId.id),
-                projection = Projection(include = listOf("state.data")),
-                sort = listOf(Sort("version", Sort.Direction.ASC)),
+                projection = Projection(include = listOf(QueryField("state.data"))),
+                sort = listOf(Sort(QueryField("version"), Sort.Direction.ASC)),
             ),
         ).test()
             .assertNext { page ->
@@ -302,7 +302,7 @@ abstract class SnapshotQueryBackendSpec {
         snapshotQueryBackend.cursor(
             CursorQuery(
                 IdFilter("missing"),
-                sort = listOf(Sort("aggregateId", Sort.Direction.ASC)),
+                sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)),
             ),
         ).test()
             .expectNext(CursorPage(emptyList(), null))

@@ -149,7 +149,7 @@ open class QuerySchemaResolverBenchmark {
             ),
         ),
     )
-    private val eventProjection = Projection(include = listOf(eventSecretField.path))
+    private val eventProjection = Projection(include = listOf(QueryField(eventSecretField.path)))
     private val dynamicFilter = EqualFilter(
         dynamicChildField,
         JsonNodeFactory.instance.stringNode("value"),
@@ -171,7 +171,7 @@ open class QuerySchemaResolverBenchmark {
     )
     private val cursorQuery = CursorQuery(
         MatchAllFilter,
-        sort = listOf(Sort(sortableField.path, Sort.Direction.ASC)),
+        sort = listOf(Sort(QueryField(sortableField.path), Sort.Direction.ASC)),
     )
 
     @Benchmark

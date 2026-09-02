@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.converter
 
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 
 abstract class AbstractSortConverter<T> : SortConverter<T> {
@@ -24,7 +25,7 @@ abstract class AbstractSortConverter<T> : SortConverter<T> {
             return internalConvert(sort)
         }
         val converted = sort.map {
-            it.copy(field = fieldConverter.convert(it.field))
+            it.copy(field = QueryField(fieldConverter.convert(it.field.path)))
         }
         return internalConvert(converted)
     }

@@ -50,7 +50,7 @@ data class AggregationQuery(
 
         val aliases = groupBy.map(AggregationGroup::alias) + metrics.map(AggregationMetric::alias)
         require(aliases.distinct().size == aliases.size) { "aggregation aliases must be unique." }
-        val sortFields = sort.map(Sort::field)
+        val sortFields = sort.map { it.field.path }
         require(sortFields.distinct().size == sortFields.size) { "sort fields must be unique." }
         require(sortFields.all(aliases::contains)) { "sort fields must reference aggregation aliases." }
         require(effectiveSort().size <= MAX_SORT_FIELDS) {
@@ -62,10 +62,10 @@ data class AggregationQuery(
 
     fun effectiveSort(): List<Sort> = buildList {
         addAll(sort)
-        val sorted = sort.mapTo(hashSetOf(), Sort::field)
+        val sorted = sort.mapTo(hashSetOf()) { it.field.path }
         groupBy.map(AggregationGroup::alias)
             .filterNot(sorted::contains)
-            .forEach { add(Sort(it, Sort.Direction.ASC)) }
+            .forEach { add(Sort(QueryField(it), Sort.Direction.ASC)) }
     }
 
     companion object {

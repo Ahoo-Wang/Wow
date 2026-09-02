@@ -176,7 +176,7 @@ class HttpQueryGuardFilterTest {
         val metricSort = AggregationQuery(
             groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status")),
             metrics = listOf(AggregationMetric.Count("count")),
-            sort = listOf(Sort("count", Sort.Direction.ASC)),
+            sort = listOf(Sort(QueryField("count"), Sort.Direction.ASC)),
         )
         guard(allowExpensiveOperators = false).filter(aggregationContext(metricSort), unexpectedBackend())
             .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
@@ -200,7 +200,7 @@ class HttpQueryGuardFilterTest {
         val query = AggregationQuery(
             groupBy = listOf(AggregationGroup.Terms(QueryField("state.productId"), "productId")),
             metrics = listOf(AggregationMetric.Any(QueryField("state.productName"), "productName")),
-            sort = listOf(Sort("productName", Sort.Direction.ASC)),
+            sort = listOf(Sort(QueryField("productName"), Sort.Direction.ASC)),
         )
 
         guard(allowExpensiveOperators = false)
@@ -301,7 +301,7 @@ class HttpQueryGuardFilterTest {
             AggregationQuery(
                 groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status")),
                 metrics = listOf(AggregationMetric.Count("count")),
-                sort = listOf(Sort("status", Sort.Direction.ASC)),
+                sort = listOf(Sort(QueryField("status"), Sort.Direction.ASC)),
             ),
         )
 
@@ -414,7 +414,7 @@ class HttpQueryGuardFilterTest {
         val context = pagedContext(
             PagedQuery(
                 filter,
-                sort = listOf(Sort(MessageRecords.AGGREGATE_ID, Sort.Direction.DESC)),
+                sort = listOf(Sort(QueryField(MessageRecords.AGGREGATE_ID), Sort.Direction.DESC)),
             ),
         )
         guard().filter(

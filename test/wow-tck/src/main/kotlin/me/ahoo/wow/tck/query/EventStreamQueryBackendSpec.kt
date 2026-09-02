@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.event.DomainEventStream
@@ -168,7 +169,7 @@ abstract class EventStreamQueryBackendSpec {
         }
         val query = CursorQuery(
             TenantIdFilter(tenantId),
-            sort = listOf(Sort("version", Sort.Direction.ASC)),
+            sort = listOf(Sort(QueryField("version"), Sort.Direction.ASC)),
             size = 2,
         )
 
@@ -193,8 +194,8 @@ abstract class EventStreamQueryBackendSpec {
         val query = CursorQuery(
             TenantIdFilter(tenantId),
             sort = listOf(
-                Sort("version", Sort.Direction.DESC),
-                Sort("id", Sort.Direction.DESC),
+                Sort(QueryField("version"), Sort.Direction.DESC),
+                Sort(QueryField("id"), Sort.Direction.DESC),
             ),
             size = 2,
         )
@@ -226,7 +227,7 @@ abstract class EventStreamQueryBackendSpec {
         ).forEach { (direction, expectedIds) ->
             val query = CursorQuery(
                 TenantIdFilter(tenantId),
-                sort = listOf(Sort("ownerId", direction)),
+                sort = listOf(Sort(QueryField("ownerId"), direction)),
                 size = 2,
             )
 
@@ -254,8 +255,8 @@ abstract class EventStreamQueryBackendSpec {
         eventStreamQueryBackend.cursor(
             CursorQuery(
                 TenantIdFilter(tenantId),
-                projection = Projection(include = listOf("tenantId")),
-                sort = listOf(Sort("version", Sort.Direction.ASC)),
+                projection = Projection(include = listOf(QueryField("tenantId"))),
+                sort = listOf(Sort(QueryField("version"), Sort.Direction.ASC)),
             ),
         ).test()
             .assertNext { page ->
@@ -274,7 +275,7 @@ abstract class EventStreamQueryBackendSpec {
         eventStreamQueryBackend.cursor(
             CursorQuery(
                 MatchAllFilter,
-                sort = listOf(Sort("version", Sort.Direction.ASC)),
+                sort = listOf(Sort(QueryField("version"), Sort.Direction.ASC)),
                 cursor = "malformed",
             ),
         ).test()
@@ -289,7 +290,7 @@ abstract class EventStreamQueryBackendSpec {
         eventStreamQueryBackend.cursor(
             CursorQuery(
                 TenantIdFilter("missing"),
-                sort = listOf(Sort("id", Sort.Direction.ASC)),
+                sort = listOf(Sort(QueryField("id"), Sort.Direction.ASC)),
             ),
         ).test()
             .expectNext(CursorPage(emptyList(), null))

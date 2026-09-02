@@ -24,8 +24,8 @@ object ElasticsearchSortConverter : SortConverter<List<SortOptions>> {
         return sort.map {
             SortOptions.of { sortBuilder ->
                 sortBuilder.field { fieldBuilder ->
-                    fieldBuilder.field(it.field).order(it.direction.toSortOrder())
-                    if (it.field.startsWith("${MessageRecords.BODY}.")) {
+                    fieldBuilder.field(it.field.path).order(it.direction.toSortOrder())
+                    if (it.field.path.startsWith("${MessageRecords.BODY}.")) {
                         fieldBuilder.nested { nested -> nested.path(MessageRecords.BODY) }
                     }
                     fieldBuilder

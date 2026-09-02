@@ -31,6 +31,31 @@ class AggregationQueryTest {
     }
 
     @Test
+    fun `projection and sort should keep string json shapes`() {
+        val projection = Projection(include = listOf(QueryField("state.name")))
+        val sort = Sort(QueryField("state.createdAt"), Sort.Direction.DESC)
+
+        configuredMapper.writeValueAsString(projection).assert()
+            .isEqualTo("{\"include\":[\"state.name\"]}")
+        configuredMapper.writeValueAsString(sort).assert()
+            .isEqualTo("{\"field\":\"state.createdAt\",\"direction\":\"DESC\"}")
+        assertThrows<JacksonException> {
+            configuredMapper.readValue("{\"include\":[\"state.*\"]}", Projection::class.java)
+        }
+    }
+
+    @Test
+    fun `aggregation sort should compare query field paths with string aliases`() {
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status")),
+            metrics = listOf(AggregationMetric.Count("count")),
+            sort = listOf(Sort(QueryField("status"), Sort.Direction.DESC)),
+        )
+
+        query.effectiveSort().assert().containsExactly(Sort(QueryField("status"), Sort.Direction.DESC))
+    }
+
+    @Test
     fun `configured mapper should apply omitted query defaults`() {
         val json = """{"metrics":[{"type":"COUNT","alias":"count"}]}"""
 
@@ -296,10 +321,10 @@ class AggregationQueryTest {
                 AggregationGroup.Terms(QueryField("category"), "category"),
             ),
             metrics = listOf(AggregationMetric.Count("count")),
-            sort = listOf(Sort("category", Sort.Direction.DESC)),
+            sort = listOf(Sort(QueryField("category"), Sort.Direction.DESC)),
         ).effectiveSort().assert().containsExactly(
-            Sort("category", Sort.Direction.DESC),
-            Sort("status", Sort.Direction.ASC),
+            Sort(QueryField("category"), Sort.Direction.DESC),
+            Sort(QueryField("status"), Sort.Direction.ASC),
         )
     }
 

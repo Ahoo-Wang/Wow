@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.mongo.query
 
+import me.ahoo.wow.api.query.QueryField
+
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Sort
 import org.bson.Document
@@ -23,7 +25,7 @@ class MongoCursorFilterCompilerTest {
     @Test
     fun `should compile mixed direction lexicographic cursor`() {
         MongoCursorFilterCompiler.compile(
-            listOf(Sort("createdAt", Sort.Direction.DESC), Sort("_id", Sort.Direction.ASC)),
+            listOf(Sort(QueryField("createdAt"), Sort.Direction.DESC), Sort(QueryField("_id"), Sort.Direction.ASC)),
             listOf(100, "id-1"),
         ).toBsonDocument().toJson().assert().contains(
             "\"createdAt\": {\"\$lt\": 100}",
@@ -35,17 +37,17 @@ class MongoCursorFilterCompilerTest {
     @Test
     fun `should preserve Mongo null and missing ordering`() {
         MongoCursorFilterCompiler.compile(
-            listOf(Sort("rank", Sort.Direction.ASC)),
+            listOf(Sort(QueryField("rank"), Sort.Direction.ASC)),
             listOf(null),
         ).toBsonDocument().toJson().assert().contains("\$ne")
 
         MongoCursorFilterCompiler.compile(
-            listOf(Sort("rank", Sort.Direction.DESC)),
+            listOf(Sort(QueryField("rank"), Sort.Direction.DESC)),
             listOf(1),
         ).toBsonDocument().toJson().assert().contains("\$lt", "\"rank\": null")
 
         MongoCursorFilterCompiler.compile(
-            listOf(Sort("rank", Sort.Direction.DESC), Sort("_id", Sort.Direction.ASC)),
+            listOf(Sort(QueryField("rank"), Sort.Direction.DESC), Sort(QueryField("_id"), Sort.Direction.ASC)),
             listOf(null, "id-1"),
         ).toBsonDocument().toJson().assert().contains("\$expr", "\$gt")
     }
@@ -54,13 +56,13 @@ class MongoCursorFilterCompilerTest {
     fun `should reject arity mismatch and object values`() {
         assertThrows<IllegalArgumentException> {
             MongoCursorFilterCompiler.compile(
-                listOf(Sort("rank", Sort.Direction.ASC)),
+                listOf(Sort(QueryField("rank"), Sort.Direction.ASC)),
                 emptyList(),
             )
         }
         assertThrows<IllegalArgumentException> {
             MongoCursorFilterCompiler.compile(
-                listOf(Sort("rank", Sort.Direction.ASC)),
+                listOf(Sort(QueryField("rank"), Sort.Direction.ASC)),
                 listOf(Document("nested", 1)),
             )
         }

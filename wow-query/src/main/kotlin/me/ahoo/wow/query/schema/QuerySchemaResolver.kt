@@ -139,14 +139,14 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             return QuerySchemaResolution(Projection.ALL, QueryCompatibilityLevel.EXACT)
         }
         val include = projection.include.map {
-            fieldResolver.resolveProjectionPath(it)
+            fieldResolver.resolveProjectionPath(it.path)
         }
         val exclude = projection.exclude.map {
-            fieldResolver.resolveProjectionPath(it)
+            fieldResolver.resolveProjectionPath(it.path)
         }
         val resolvedProjection = Projection(
-            include.map { it.value },
-            exclude.map { it.value },
+            include.map { QueryField(it.value) },
+            exclude.map { QueryField(it.value) },
         )
         val compatibility = (include + exclude).map { it.compatibility }
         if (!maskedEventProjection) {
@@ -181,8 +181,8 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     internal fun requiresInternalEventBodyType(projection: Projection): Boolean {
         if (!maskedEventProjection) return false
         val resolvedProjection = Projection(
-            include = projection.include.map { fieldResolver.resolveProjectionPath(it).value },
-            exclude = projection.exclude.map { fieldResolver.resolveProjectionPath(it).value },
+            include = projection.include.map { QueryField(fieldResolver.resolveProjectionPath(it.path).value) },
+            exclude = projection.exclude.map { QueryField(fieldResolver.resolveProjectionPath(it.path).value) },
         )
         val bodyTypePath = checkNotNull(eventBodyType).value
         return resolvedProjection.requiresInternalEventBodyType(bodyTypePath)
@@ -193,8 +193,8 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             return QuerySchemaResolution(emptyList(), QueryCompatibilityLevel.EXACT)
         }
         val resolved = sort.map { item ->
-            fieldResolver.resolvePath(item.field, QueryCapability.SORT).let { field ->
-                item.copy(field = field.value) to field.compatibility
+            fieldResolver.resolvePath(item.field.path, QueryCapability.SORT).let { field ->
+                item.copy(field = QueryField(field.value)) to field.compatibility
             }
         }
         return QuerySchemaResolution(
@@ -208,17 +208,17 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             return QuerySchemaResolution(emptyList(), QueryCompatibilityLevel.EXACT)
         }
         val values = ArrayList<Sort>(sort.size)
-        val fields = HashSet<String>(sort.size)
+        val fields = HashSet<QueryField>(sort.size)
         var compatibility = QueryCompatibilityLevel.EXACT
         sort.forEach { item ->
-            val field = runCatching { QueryField(item.field) }.getOrNull()?.let { logical ->
+            val field = runCatching { item.field }.getOrNull()?.let { logical ->
                 fieldResolver.resolve(logical, QueryCapability.SORT, null, null)
             }
             val accepted = field?.compatibility == QueryCompatibilityLevel.EXACT &&
                 field.fieldSchema != null && field.fieldSchema.cardinality == QueryCardinality.SINGLE &&
-                field.fieldSchema.maskRule == null && field.value !in FORBIDDEN_CURSOR_SORTS &&
+                field.fieldSchema.maskRule == null && QueryField(field.value) !in FORBIDDEN_CURSOR_SORTS &&
                 !field.matchesMaskedCandidate()
-            val value = item.copy(field = field?.value ?: item.field)
+            val value = item.copy(field = field?.value?.let(::QueryField) ?: item.field)
             values += value
             if (!accepted || !fields.add(value.field)) {
                 compatibility = QueryCompatibilityLevel.INCOMPATIBLE
