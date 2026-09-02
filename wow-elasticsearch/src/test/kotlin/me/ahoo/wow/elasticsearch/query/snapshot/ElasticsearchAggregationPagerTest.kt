@@ -32,9 +32,11 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
@@ -43,6 +45,7 @@ import me.ahoo.wow.elasticsearch.query.aggregation.selectTopRows
 import me.ahoo.wow.elasticsearch.query.toObjectNode
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
@@ -54,6 +57,11 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
+
+private val AGGREGATION_SCHEMA = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+
+private fun compileAggregation(query: AggregationQuery) =
+    ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(query, AGGREGATION_SCHEMA)
 
 class ElasticsearchAggregationPagerTest {
     private val client = mockk<ReactiveElasticsearchClient>()
@@ -80,7 +88,7 @@ class ElasticsearchAggregationPagerTest {
             Mono.just(groupResponse("pit-2", listOf(bucket("a", 2), bucket("b", 3)), "b")),
             Mono.just(groupResponse("pit-3", listOf(bucket("c", 1)))),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.product", "product")
                 count("count")
@@ -111,7 +119,7 @@ class ElasticsearchAggregationPagerTest {
             Mono.just(groupResponse("pit-2", listOf(metricBucket("a", 3.0), metricBucket("b", 9.0)), "b")),
             Mono.just(groupResponse("pit-3", listOf(metricBucket("c", 7.0)))),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.product", "product")
                 sum(field("state.total") * constant(2.0), "total")
@@ -139,7 +147,7 @@ class ElasticsearchAggregationPagerTest {
         every { client.search(capture(requests), Map::class.java) } returns Mono.just(
             groupResponse("pit-2", emptyList()),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.product", "product")
                 sum("state.amount", "total")
@@ -168,7 +176,7 @@ class ElasticsearchAggregationPagerTest {
                 listOf(metricBucket("2.0.0.1", 7.0), metricBucket("10.0.0.1", 7.0)),
             ),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.address", "product")
                 sum("state.total", "total")
@@ -269,7 +277,7 @@ class ElasticsearchAggregationPagerTest {
     fun `summary should request once and normalize empty values`() {
         stubPointInTime()
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(summaryResponse())
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 count("count")
                 sum("state.total", "total")
@@ -293,7 +301,7 @@ class ElasticsearchAggregationPagerTest {
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
             groupResponse("pit-2", emptyList(), "next"),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.product", "product")
                 count("count")
@@ -313,7 +321,7 @@ class ElasticsearchAggregationPagerTest {
                 listOf(bucket(FieldValue.TRUE, 1)),
             ),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.active", "product")
                 count("count")
@@ -331,7 +339,7 @@ class ElasticsearchAggregationPagerTest {
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
             groupResponse("pit-2", listOf(bucket(FieldValue.NULL, 1))),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.value", "product")
                 count("count")
@@ -349,7 +357,7 @@ class ElasticsearchAggregationPagerTest {
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
             groupResponse("pit-2", listOf(bucket(FieldValue.of(JsonData.of("unsupported")), 1))),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.value", "product")
                 count("count")
@@ -368,7 +376,7 @@ class ElasticsearchAggregationPagerTest {
         every { client.search(capture(requests), Map::class.java) } returns Mono.just(
             groupResponse("pit-2", listOf(anyBucket("alpha", stringTerms("Alpha")))),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.productId", "product")
                 any("state.productName", "productName")
@@ -393,7 +401,7 @@ class ElasticsearchAggregationPagerTest {
         every { client.search(capture(requests), Map::class.java) } returns Mono.just(
             groupResponse("pit-2", emptyList()),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.productId", "product")
                 any("state.productName", "productName")
@@ -424,7 +432,7 @@ class ElasticsearchAggregationPagerTest {
                 ),
             ),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.productId", "product")
                 any("state.value", "productName")
@@ -472,7 +480,7 @@ class ElasticsearchAggregationPagerTest {
                 ),
             ),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.productId", "product")
                 any("state.value", "productName")
@@ -495,7 +503,7 @@ class ElasticsearchAggregationPagerTest {
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
             groupResponse("pit-2", listOf(bucket("a", 1), bucket("b", 1)), "b"),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.product", "product")
                 count("count")
@@ -515,7 +523,7 @@ class ElasticsearchAggregationPagerTest {
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
             groupResponse("pit-2", listOf(metricBucket("a", Double.POSITIVE_INFINITY))),
         )
-        val plan = compiler().compile(
+        val plan = compileAggregation(
             aggregation {
                 terms("state.product", "product")
                 sum("state.total", "total")
@@ -568,8 +576,6 @@ class ElasticsearchAggregationPagerTest {
         verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
         verify(exactly = 0) { client.indices() }
     }
-
-    private fun compiler() = ElasticsearchAggregationCompiler(SnapshotFilterConverter)
 
     private fun pager(batchSize: Int? = null) = if (batchSize == null) {
         ElasticsearchAggregationPager(client, "test-index")

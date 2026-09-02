@@ -214,7 +214,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
+        val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema())
         pipeline.map { it.toBsonDocument().keys.first() }.assert().containsExactly(
             "\$match",
             "\$unwind",
@@ -248,7 +248,7 @@ class MongoAggregationCompilerTest {
             limit(7)
         }
 
-        val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
+        val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema())
         val stages = pipeline.associateBy { it.toBsonDocument().keys.first() }
         stages.getValue("\$group").toBsonDocument().toJson().assert()
             .contains("\$floor")
@@ -273,7 +273,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
+        MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema())
             .first { it.toBsonDocument().containsKey("\$group") }
             .toBsonDocument().toJson().assert()
             .contains("\"unit\": \"week\"")
@@ -288,7 +288,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
+        MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema())
             .first { it.toBsonDocument().containsKey("\$group") }
             .toBsonDocument().toJson().assert().contains("\"timezone\": \"UTC\"")
     }
@@ -297,7 +297,7 @@ class MongoAggregationCompilerTest {
     fun `summary compiler should retain contribution counts`() {
         val query = aggregation { sum("state.amount", "total") }
 
-        MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
+        MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema())
             .joinToString { it.toBsonDocument().toJson() }
             .assert().contains("__wow_value_count_total")
     }
@@ -312,7 +312,7 @@ class MongoAggregationCompilerTest {
             )
         }
 
-        val groupJson = MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
+        val groupJson = MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema())
             .first { it.toBsonDocument().containsKey("\$group") }
             .toBsonDocument()
             .toJson()
@@ -332,6 +332,7 @@ class MongoAggregationCompilerTest {
     fun `plain field metric should normalize scalar or singleton values without conversion`() {
         val groupJson = MongoAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation { sum("state.amount", "total") },
+            schema(),
         )[1].toBsonDocument().toJson()
 
         groupJson.assert()
@@ -349,7 +350,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
+        val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema())
         pipeline[0].toBsonDocument().toJson().assert().contains("\"deleted\": true")
         pipeline[2].toBsonDocument().toJson().assert().doesNotContain("deleted")
     }
@@ -361,7 +362,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
+        val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema())
         pipeline[1].toBsonDocument().toJson().assert()
             .contains("\"_id\"")
             .doesNotContain(MessageRecords.AGGREGATE_ID)
@@ -372,7 +373,7 @@ class MongoAggregationCompilerTest {
     fun `numeric contribution count should accept only Mongo numeric values`() {
         val query = aggregation { sum("state.amount", "total") }
 
-        val group = MongoAggregationCompiler(SnapshotFilterConverter).compile(query)[1]
+        val group = MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema())[1]
         group.toBsonDocument().toJson().assert()
             .contains("\$isNumber")
             .doesNotContain("\$ne")
@@ -385,7 +386,7 @@ class MongoAggregationCompilerTest {
             max("state.amount", "maximum")
         }
 
-        val group = MongoAggregationCompiler(SnapshotFilterConverter).compile(query)[1]
+        val group = MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema())[1]
             .toBsonDocument().getDocument("\$group")
         listOf("minimum", "maximum").forEach { alias ->
             group.getDocument(alias).toJson().assert()
@@ -405,7 +406,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        val pipeline = MongoAggregationCompiler(converter).compile(query)
+        val pipeline = MongoAggregationCompiler(converter).compile(query, schema())
         pipeline[0].toBsonDocument().toJson().assert().contains("physical.state.status")
         pipeline[2].toBsonDocument().toJson().assert()
             .contains("physical.state.items.quantity")
@@ -422,7 +423,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        MongoAggregationCompiler(converter).compile(query)[2].toBsonDocument().toJson().assert()
+        MongoAggregationCompiler(converter).compile(query, schema())[2].toBsonDocument().toJson().assert()
             .contains("\$physical.state.status")
     }
 
