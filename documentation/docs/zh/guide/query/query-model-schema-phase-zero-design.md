@@ -402,7 +402,7 @@ data class QueryModelSchema(
 val query = schema.resolve(input).requireAccepted(validationMode)
 ```
 
-`QueryModelSchemaProvider.resolve(...)` 在 0 阶段改为委托 `QueryModelSchema.resolve(...)`，暂时保留现有 Schema 获取、Unavailable fallback 与 Reactor Context 桥接。阶段一由 Gateway 持有 Schema 后删除这些执行链机制。
+0 阶段的过渡解析入口曾委托 `QueryModelSchema.resolve(...)`。Gateway 持有 Schema 后，Provider 只保留加载与刷新职责，Unavailable fallback 与 Reactor Context 桥接均已删除。
 
 ## 聚合边界
 

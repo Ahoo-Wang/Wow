@@ -101,11 +101,11 @@ Cursor 解析也属于 Schema 行为。`QueryModelSchema.resolve(ICursorQuery)` 
 - **Wire：** 合法 QueryField 仍保持字符串 JSON 形态，但公共 Projection 与 Sort 不再接受 `state.*` 等后端 pattern。EventStream 选择 `body.body` 或其子节点时，还必须包含且不得排除 `body.bodyType`。
 - **OpenAPI：** component identity 从 `wow.api.query.LogicalField` 变为 `wow.api.query.QueryField`；Projection 的 items 与 Sort.field 都引用新 component，不保留旧 component/ref。
 
-## 系统标签与回退
+## Schema 不可用
 
-Schema 来源或后端事实不可用时，只有 `COMPATIBLE` 模式可以让不引用系统 `tags` 的过滤请求按原路径回退。过滤条件直接或通过逻辑组合、搜索、相对时间、Element predicate 在作用域解析后引用根系统 `tags` 或 `tags.*` 时仍传播 `QuerySchemaUnavailableException`，保持失败关闭；元素自身名为 `tags` 的业务字段不等于根系统标签。`STRICT` 对所有请求都不回退。
+`QueryModelSchemaProvider` 只负责加载和刷新 Schema，不提供查询解析或 unavailable 回退。受管 Gateway 必须先取得 Schema 才会创建 Context，因此 Schema 不可用时 single、list、paged、cursor、count 与 aggregate 全部失败关闭，Filter 与 Backend 均不会执行。count 不执行结果脱敏，但仍需要 Schema 完成受管请求准入。
 
-因此不能把回退理解为“Schema 关闭后所有字段可查询”。回退只保留原请求，不证明字段能力，也不会放宽系统标签查询。字段已明确解析为 `INCOMPATIBLE`、来源冲突或普通校验失败同样不会触发 unavailable 回退。这个 `COMPATIBLE` unavailable 回退只适用于直接 `QueryModelSchemaProvider.resolve(...)` 的请求解析；受管 Gateway 必须先取得 Schema 才会创建 Context，因此 Schema 不可用时 single、list、paged、cursor、count 与 aggregate 全部失败关闭，Filter 与 Backend 均不会执行。count 不执行结果脱敏，但仍需要 Schema 完成受管请求准入。系统标签的授权语义见[数据权限](../data-access.md)。
+直接调用 Backend 是受信低层边界；调用方必须显式取得 Schema，调用 `schema.resolve(query).requireAccepted(validationMode)`，再构造 `ResolvedQuery`。系统标签的授权语义见[数据权限](../data-access.md)。
 
 ## HTTP 与 OpenAPI 扩展
 

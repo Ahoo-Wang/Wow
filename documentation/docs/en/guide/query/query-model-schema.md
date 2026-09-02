@@ -101,11 +101,11 @@ On every subscription, a managed Gateway calls the Provider once and obtains one
 - **Wire semantics:** valid QueryField values keep their string JSON shape, but public Projection and Sort no longer accept backend patterns such as `state.*`. An EventStream projection that selects `body.body` or any descendant must include and must not exclude `body.bodyType`.
 - **OpenAPI:** the component identity changes from `wow.api.query.LogicalField` to `wow.api.query.QueryField`; Projection items and Sort.field reference the new component, with no legacy component or ref.
 
-## System Tags and Fallback
+## Unavailable Schema
 
-When a Schema source or backend fact is unavailable, only `COMPATIBLE` mode can fall back to the unchanged path for a filter that does not reference system `tags`. A filter that resolves to root system `tags` or `tags.*`, directly or through logical composition, search, relative time, or an Element predicate, still propagates `QuerySchemaUnavailableException` and remains fail-closed; a business field named `tags` inside an element is not the root system tag field. `STRICT` never uses this fallback.
+`QueryModelSchemaProvider` only loads and refreshes Schema; it does not resolve queries or provide an unavailable fallback. A managed Gateway must obtain Schema before it creates the Context, so unavailable Schema fails `single`, `list`, `paged`, `cursor`, `count`, and `aggregate` closed; neither Filters nor the Backend execute. Count performs no result masking but still requires Schema for managed request admission.
 
-Fallback therefore does not mean "all fields are queryable when Schema is disabled." It preserves the original request without proving capability and does not relax system-tag queries. A field that resolves as `INCOMPATIBLE`, a source conflict, or an ordinary validation failure does not trigger the unavailable fallback either. This `COMPATIBLE` unavailable fallback applies only to direct `QueryModelSchemaProvider.resolve(...)` request resolution. A managed Gateway must obtain Schema before it creates the Context, so unavailable Schema fails `single`, `list`, `paged`, `cursor`, `count`, and `aggregate` closed; neither Filters nor the Backend execute. Count performs no result masking but still requires Schema for managed request admission. See [Data Access Control](../data-access.md) for the authorization semantics of system tags.
+Direct Backend access is a trusted low-level boundary. Its caller must explicitly obtain Schema, call `schema.resolve(query).requireAccepted(validationMode)`, and construct `ResolvedQuery`. See [Data Access Control](../data-access.md) for the authorization semantics of system tags.
 
 ## HTTP and the OpenAPI Extension
 
