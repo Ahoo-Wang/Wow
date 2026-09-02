@@ -123,6 +123,17 @@ data class ResolvedQuery<out Q : Any>(
 resolvedQuery.schema === queryContext.schema
 ```
 
+### Cursor 唯一排序
+
+Cursor 的唯一排序是公共查询执行语义，不属于存储编译。`QueryModelSchema.resolve(ICursorQuery)` 在执行字段准入与改写前，按 `schema.model` 补充稳定的唯一排序字段：
+
+- `QueryModel.SNAPSHOT` 使用 `aggregateId`；
+- `QueryModel.EVENT_STREAM` 使用 `id`。
+
+两者不能统一为同一个字段名：Snapshot 的记录身份是 `aggregateId`，而 EventStream 中同一 `aggregateId` 可以对应多条流记录，只有流记录 `id` 唯一。框架统一的是补充与验证机制，不引入虚拟 `id`、Schema alias 或额外的 Cursor Planner。
+
+`QueryBackend` 收到的 Cursor Query 已包含唯一排序。Backend 不再补充唯一字段，也不再次调用 Schema 解析。
+
 ## QueryBackend 合同
 
 ```kotlin
@@ -190,6 +201,8 @@ sequenceDiagram
 
 受管 Gateway 不再使用“Schema unavailable 时保留原查询”的回退：Context 的 Schema 非空是执行前置条件，Schema 不可用时全部查询形态失败关闭且不订阅 Backend。
 
+`AbstractQueryGateway` 显式接收 `QueryModelSchemaProvider` 与 `QuerySchemaValidationMode`。Spring Boot 继续使用现有 `wow.query.schema.validation-mode` 配置；`QuerySchemaAutoConfiguration` 发布对应的 `QuerySchemaValidationMode` Bean，Snapshot 与 EventStream Registrar 从 routed Backend 取得 Provider，并把 Provider 与 Mode 作为独立参数传给 Gateway。MongoDB、Elasticsearch Backend 及其 Factory 不再保存 Mode。
+
 直接调用现有 `QueryModelSchemaProvider.resolve(...)` 的兼容回退不属于本阶段 Gateway 合同；阶段一不依赖它，是否删除留待 Schema 专项审查。
 
 ## Schema Mask
@@ -220,7 +233,8 @@ Gateway 必须显式接收 `QueryModelSchemaProvider`。为控制第一阶段范
 7. `repeat`、`retry` 与并发订阅仍保持 Context 和可变 `ObjectNode` 隔离；
 8. Snapshot 与 EventStream 的 single、list、paged、cursor、count、aggregate 合同测试全部通过；
 9. MongoDB、Elasticsearch 集成测试证明物理字段解析结果与改造前一致；
-10. 删除 `ResolvedAggregationQuery` 与查询执行路径中的 Reactor Context Schema 桥接，不保留兼容包装层。
+10. Cursor 唯一排序在 `QueryModelSchema.resolve(ICursorQuery)` 中按 QueryModel 补充并验证，Backend 不再补充或二次解析；
+11. 删除 `ResolvedAggregationQuery` 与查询执行路径中的 Reactor Context Schema 桥接，不保留兼容包装层。
 
 ## 非目标
 
