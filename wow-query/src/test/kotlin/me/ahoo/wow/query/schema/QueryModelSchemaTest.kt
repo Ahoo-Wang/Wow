@@ -32,6 +32,7 @@ import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -43,6 +44,28 @@ import kotlin.reflect.jvm.javaField
 @Suppress("LargeClass")
 class QueryModelSchemaTest {
     private val jsonMapper = jsonMapper()
+
+    @Test
+    fun `cursor resolution should append the model unique field`() {
+        listOf(
+            QueryModel.SNAPSHOT to QueryField(MessageRecords.AGGREGATE_ID),
+            QueryModel.EVENT_STREAM to QueryField(MessageRecords.ID),
+        ).forEach { (model, expected) ->
+            val schema = QueryModelSchema(model, emptySet(), emptyMap())
+            val resolution = schema.resolve(CursorQuery(MatchAllFilter))
+
+            resolution.value.sort.map(Sort::field).assert().containsExactly(expected)
+        }
+    }
+
+    @Test
+    fun `cursor resolution should not duplicate an existing unique field`() {
+        val unique = QueryField(MessageRecords.AGGREGATE_ID)
+        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+        val query = CursorQuery(MatchAllFilter, sort = listOf(Sort(unique, Sort.Direction.DESC)))
+
+        schema.resolve(query).value.sort.assert().containsExactly(Sort(unique, Sort.Direction.DESC))
+    }
 
     @Test
     @Suppress("LongMethod")

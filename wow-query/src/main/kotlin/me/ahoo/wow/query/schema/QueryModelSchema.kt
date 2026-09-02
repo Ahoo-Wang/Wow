@@ -29,6 +29,8 @@ import me.ahoo.wow.api.query.schema.QueryModelSchemaMetadata
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.query.withUniqueSort
+import me.ahoo.wow.serialization.MessageRecords
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.POJONode
@@ -36,6 +38,8 @@ import java.math.BigDecimal
 import java.math.BigInteger
 
 private val QUERY_STORAGE_TYPE_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*")
+private val SNAPSHOT_CURSOR_UNIQUE_FIELD = QueryField(MessageRecords.AGGREGATE_ID)
+private val EVENT_STREAM_CURSOR_UNIQUE_FIELD = QueryField(MessageRecords.ID)
 
 data class QueryStorageType(val value: String) {
     init {
@@ -132,7 +136,15 @@ data class QueryModelSchema(
 
     fun resolve(query: IPagedQuery): QuerySchemaResolution<IPagedQuery> = resolver.resolve(query)
 
-    fun resolve(query: ICursorQuery): QuerySchemaResolution<ICursorQuery> = resolver.resolve(query)
+    fun resolve(query: ICursorQuery): QuerySchemaResolution<ICursorQuery> = resolver.resolve(
+        query.withUniqueSort(
+            when (model) {
+                QueryModel.SNAPSHOT -> SNAPSHOT_CURSOR_UNIQUE_FIELD
+                QueryModel.EVENT_STREAM -> EVENT_STREAM_CURSOR_UNIQUE_FIELD
+                else -> throw QuerySchemaValidationException("Cursor query model [$model] is unsupported.")
+            },
+        ),
+    )
 
     fun resolve(filter: FilterExpression): QuerySchemaResolution<FilterExpression> = resolver.resolve(filter)
 
