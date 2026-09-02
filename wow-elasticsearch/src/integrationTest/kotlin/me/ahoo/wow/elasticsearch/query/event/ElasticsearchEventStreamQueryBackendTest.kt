@@ -127,9 +127,9 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val backend = object :
             EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate),
             QueryModelSchemaProvider {
-            override fun schema(): Mono<QueryModelSchema> = Mono.fromSupplier {
+            override fun schema(): Mono<QueryModelSchema> {
                 schemaCalls.incrementAndGet()
-                querySchema
+                return Mono.just(querySchema)
             }
 
             override fun refresh(): Mono<QueryModelSchema> = schema()
@@ -279,14 +279,14 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 }
 
 private fun FilterExpression.count(backend: EventStreamQueryBackend) =
-    backend.requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+    Mono.defer { backend.requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
         backend.count(
             ResolvedQuery(schema.resolve(this).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema),
         )
     }
 
 private fun IListQuery.query(backend: EventStreamQueryBackend) =
-    backend.requiredQueryModelSchemaProvider().schema().flatMapMany { schema ->
+    Mono.defer { backend.requiredQueryModelSchemaProvider().schema() }.flatMapMany { schema ->
         backend.list(
             ResolvedQuery(schema.resolve(this).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema),
         )

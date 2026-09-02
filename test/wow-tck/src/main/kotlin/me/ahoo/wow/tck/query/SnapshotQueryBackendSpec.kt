@@ -47,9 +47,12 @@ import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.requireAccepted
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
@@ -71,6 +74,7 @@ import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 @Suppress("LargeClass")
 abstract class SnapshotQueryBackendSpec {
@@ -104,6 +108,28 @@ abstract class SnapshotQueryBackendSpec {
         val backend1 = snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         val backend2 = snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         backend1.assert().isSameAs(backend2)
+    }
+
+    @Test
+    fun `query helpers defer schema lookup until subscription`() {
+        val schemaCalls = AtomicInteger()
+        val backend = object :
+            SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
+            QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> {
+                schemaCalls.incrementAndGet()
+                return Mono.just(QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap()))
+            }
+
+            override fun refresh(): Mono<QueryModelSchema> = schema()
+        }
+
+        val single = singleQuery { }.query(backend)
+        val aggregate = aggregation { count("count") }.query(backend)
+
+        schemaCalls.get().assert().isZero()
+        single.thenMany(aggregate).test().verifyComplete()
+        schemaCalls.get().assert().isEqualTo(2)
     }
 
     @Test
@@ -920,32 +946,32 @@ abstract class SnapshotQueryBackendSpec {
 }
 
 private fun SnapshotQueryBackend.single(query: ISingleQuery): Mono<ObjectNode> =
-    requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
         single(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
 private fun SnapshotQueryBackend.list(query: IListQuery): Flux<ObjectNode> =
-    requiredQueryModelSchemaProvider().schema().flatMapMany { schema ->
+    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMapMany { schema ->
         list(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
 private fun SnapshotQueryBackend.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
-    requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
         paged(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
 private fun SnapshotQueryBackend.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
-    requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
         cursor(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
 private fun SnapshotQueryBackend.count(filter: FilterExpression): Mono<Long> =
-    requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
         count(ResolvedQuery(schema.resolve(filter).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
 private fun SnapshotQueryBackend.aggregate(query: AggregationQuery): Flux<ObjectNode> =
-    requiredQueryModelSchemaProvider().schema().flatMapMany { schema ->
+    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMapMany { schema ->
         aggregate(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
