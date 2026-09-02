@@ -61,6 +61,7 @@ import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
@@ -286,6 +287,28 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         ).test()
             .expectNextCount(1)
             .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation helper should prepare only on subscription`() {
+        val querySchema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+        val schemaCalls = AtomicInteger()
+        val backend = object :
+            SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
+            QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.fromSupplier {
+                schemaCalls.incrementAndGet()
+                querySchema
+            }
+
+            override fun refresh(): Mono<QueryModelSchema> = schema()
+        }
+
+        val publisher = aggregation { count("count") }.query(backend)
+
+        schemaCalls.get().assert().isZero()
+        publisher.test().verifyComplete()
+        schemaCalls.get().assert().isOne()
     }
 
     @Test
@@ -1072,7 +1095,9 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 private fun AggregationQuery.query(
     backend: SnapshotQueryBackend,
     mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-) = backend.aggregate(resolved(backend, this, mode))
+) = backend.requiredQueryModelSchemaProvider().schema().flatMapMany { schema ->
+    backend.aggregate(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
+}
 
 private fun resolved(
     backend: SnapshotQueryBackend,

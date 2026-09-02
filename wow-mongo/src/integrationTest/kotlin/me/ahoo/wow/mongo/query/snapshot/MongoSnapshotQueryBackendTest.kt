@@ -61,6 +61,7 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
@@ -226,6 +227,28 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             .assertNext { row ->
                 row.assertWireEquals(mapOf("minimum" to 10.0, "maximum" to 10.0))
             }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation helper should prepare only on subscription`() {
+        val querySchema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+        val schemaCalls = AtomicInteger()
+        val backend = object :
+            SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
+            QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.fromSupplier {
+                schemaCalls.incrementAndGet()
+                querySchema
+            }
+
+            override fun refresh(): Mono<QueryModelSchema> = schema()
+        }
+
+        val publisher = aggregation { count("count") }.query(backend)
+
+        schemaCalls.get().assert().isZero()
+        publisher.test().verifyComplete()
+        schemaCalls.get().assert().isOne()
     }
 
     @Test
@@ -1127,7 +1150,9 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 private fun AggregationQuery.query(
     backend: SnapshotQueryBackend,
     mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-): Flux<ObjectNode> = backend.aggregate(resolved(backend, this, mode))
+): Flux<ObjectNode> = backend.requiredQueryModelSchemaProvider().schema().flatMapMany { schema ->
+    backend.aggregate(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
+}
 
 private fun resolved(
     backend: SnapshotQueryBackend,
