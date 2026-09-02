@@ -381,18 +381,32 @@ class QueryModelSchemaTest {
             bindings: Map<QueryCapability, QueryFieldBinding>,
             semanticType: Temporal? = null,
             maskRule: MaskRule? = null,
+            outerElement: Boolean = false,
         ) = QueryModelSchema(
             QueryModel.SNAPSHOT,
             emptySet(),
-            mapOf(
-                source to fieldSchema(
-                    dynamicChildren = true,
-                    bindings = bindings,
-                    projectionField = source,
-                    semanticType = semanticType,
-                    maskRule = maskRule,
-                ),
-            ),
+            buildMap {
+                if (outerElement) {
+                    val outer = QueryField("state")
+                    put(
+                        outer,
+                        fieldSchema(
+                            bindings = mapOf(QueryCapability.ELEMENT_SCOPE to binding(outer.path)),
+                            rewriteMode = QueryRewriteMode.INFER,
+                        ),
+                    )
+                }
+                put(
+                    source,
+                    fieldSchema(
+                        dynamicChildren = true,
+                        bindings = bindings,
+                        projectionField = source,
+                        semanticType = semanticType,
+                        maskRule = maskRule,
+                    ),
+                )
+            },
         ).field(child)!!
 
         val identity = resolve(mapOf(QueryCapability.EXACT_MATCH to binding(source.path)))
@@ -403,6 +417,10 @@ class QueryModelSchemaTest {
             ),
         )
         val required = resolve(mapOf(QueryCapability.EXACT_MATCH to binding("document.dynamic")))
+        val outerElement = resolve(
+            mapOf(QueryCapability.EXACT_MATCH to binding(source.path)),
+            outerElement = true,
+        )
         val temporal = resolve(
             mapOf(QueryCapability.RANGE to binding(source.path)),
             semanticType = Temporal.Date,
@@ -414,16 +432,27 @@ class QueryModelSchemaTest {
             ),
             maskRule = fullMaskRule(),
         )
+        val outerAndSelfElement = resolve(
+            mapOf(
+                QueryCapability.EXACT_MATCH to binding(source.path),
+                QueryCapability.ELEMENT_SCOPE to binding(source.path),
+            ),
+            outerElement = true,
+        )
 
-        listOf(identity, mixed, required, temporal, element).map(QueryFieldSchema::rewriteMode).assert()
+        listOf(identity, mixed, required, outerElement, temporal, element, outerAndSelfElement)
+            .map(QueryFieldSchema::rewriteMode).assert()
             .containsExactly(
                 QueryRewriteMode.NONE,
                 QueryRewriteMode.INFER,
                 QueryRewriteMode.REQUIRED,
                 QueryRewriteMode.INFER,
+                QueryRewriteMode.INFER,
                 QueryRewriteMode.NONE,
+                QueryRewriteMode.INFER,
             )
         element.bindings.assert().doesNotContainKey(QueryCapability.ELEMENT_SCOPE)
+        outerAndSelfElement.bindings.assert().doesNotContainKey(QueryCapability.ELEMENT_SCOPE)
         element.projectionField.assert().isEqualTo(child)
         element.masked.assert().isTrue()
     }

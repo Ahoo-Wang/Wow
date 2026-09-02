@@ -144,6 +144,51 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `element dynamic descendants should retain relative rewrite context`() {
+        val orders = QueryField("state.orders")
+        val attributes = QueryField("state.orders.attributes")
+        val color = QueryField("state.orders.attributes.color")
+        val schema = MongoQuerySchemaAdapter.bind(
+            logicalSchema = LogicalQuerySchema(
+                linkedMapOf(
+                    orders to field(QueryValueType.OBJECT, QueryCardinality.MANY),
+                    attributes to field(QueryValueType.OBJECT, dynamicChildren = true),
+                ),
+            ),
+            indexes = emptyList(),
+            validatorSchema = null,
+            model = QueryModel.SNAPSHOT,
+            fieldConverter = FieldConverter { it },
+        )
+        val relative = ElementMatchFilter(
+            orders,
+            EqualFilter(QueryField("attributes.color"), StringNode.valueOf("red")),
+        )
+        val absolute = ElementMatchFilter(orders, EqualFilter(color, StringNode.valueOf("red")))
+
+        schema.fields.getValue(attributes).let { fieldSchema ->
+            fieldSchema.dynamicChildren.assert().isTrue()
+            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
+            fieldSchema.binding(QueryCapability.EXACT_MATCH)!!.let { binding ->
+                binding.resolvedField.assert().isEqualTo(attributes)
+                binding.physicalField.assert().isEqualTo(attributes)
+            }
+        }
+        schema.field(color)!!.let { fieldSchema ->
+            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
+            fieldSchema.binding(QueryCapability.EXACT_MATCH)!!.let { binding ->
+                binding.resolvedField.assert().isEqualTo(color)
+                binding.physicalField.assert().isEqualTo(color)
+            }
+        }
+        schema.resolve(relative).value.assert().isSameAs(relative)
+        val resolution = schema.resolve(absolute)
+        resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        val resolved = resolution.value as ElementMatchFilter
+        (resolved.predicate as EqualFilter).field.assert().isEqualTo(QueryField("attributes.color"))
+    }
+
+    @Test
     fun `numeric arrays should retain backend-supported range and aggregation bindings`() {
         val amount = QueryField("state.amounts")
         val logical = LogicalQuerySchema(
