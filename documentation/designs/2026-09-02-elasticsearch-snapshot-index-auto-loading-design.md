@@ -23,6 +23,8 @@ Wow 当前通过通用 `wow-snapshot-template` 支持 Elasticsearch SnapshotStor
 - 不更新、合并或 reconcile 已存在索引的 mapping/settings。
 - 不自动执行 reindex、alias 切换或数据迁移。
 - 不根据 Query Schema 生成 Elasticsearch mapping。
+- 不替 Elasticsearch client/cluster 校验原生 Create Index JSON 的未知字段。
+- 不根据 storage routing 判断是否应创建资源声明的索引。
 - 不移除通用 snapshot template，也不改变 `auto-init-template` 默认值。
 - 不扩展到 EventStore concrete index；需要时再按同一规范增加。
 
@@ -65,6 +67,7 @@ config/wow/query-schema/sales.order.snapshot.json
 ```
 
 `model` 沿用现有小写值，例如 `snapshot`、`event_stream`。
+点号沿用 Wow named aggregate 的保留分隔符约定；上述名称片段不再增加转义或编码层。
 
 迁移规则按来源分别处理：
 
@@ -116,7 +119,7 @@ config/wow/elasticsearch/wow.compensation.execution_failed.snapshot.json
 }
 ```
 
-Wow 不复制 Elasticsearch 的字段级校验规则。JSON 由 Elasticsearch client 解析为原生 Create Index 请求，未知或非法配置由 client/cluster 拒绝。请求的 index 参数始终由 Wow 设置。
+Wow 不复制 Elasticsearch 的字段级校验规则，也不改变 client 对未知字段的处理方式。JSON 由 Elasticsearch client 解析为原生 Create Index 请求；其支持与校验语义以 client/cluster 为准。请求的 index 参数始终由 Wow 设置。
 
 ## 组件
 
