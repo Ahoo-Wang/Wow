@@ -24,12 +24,16 @@ import org.springframework.http.codec.ServerSentEvent
 class OpenAPISchemaBuilderTest {
 
     @Test
-    fun `should expose delegating query field as a string`() {
+    fun `should expose delegating query field contract`() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
         openAPISchemaBuilder.generateSchema(QueryField::class.java)
 
-        openAPISchemaBuilder.build().getValue("wow.api.query.QueryField")
-            .types.assert().contains("string").doesNotContain("object")
+        openAPISchemaBuilder.build().getValue("wow.api.query.QueryField").let { schema ->
+            schema.types.assert().contains("string").doesNotContain("object")
+            schema.pattern.assert().isEqualTo(
+                "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$",
+            )
+        }
     }
 
     @Test

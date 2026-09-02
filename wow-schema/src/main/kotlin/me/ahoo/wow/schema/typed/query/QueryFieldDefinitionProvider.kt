@@ -31,6 +31,7 @@ object QueryFieldDefinitionProvider : CustomDefinitionProviderV2 {
             context.getKeyword(SchemaKeyword.TAG_TYPE),
             context.getKeyword(SchemaKeyword.TAG_TYPE_STRING),
         )
+        definition.put(context.getKeyword(SchemaKeyword.TAG_PATTERN), QueryField.PATTERN)
         return CustomDefinition(definition)
     }
 }
