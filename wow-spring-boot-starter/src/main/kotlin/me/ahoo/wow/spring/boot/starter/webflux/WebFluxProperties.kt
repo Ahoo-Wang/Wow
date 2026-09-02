@@ -44,10 +44,10 @@ constructor(
     ) : EnabledCapable
 
     data class Batch(
-        @DefaultValue("1")
-        var concurrency: Int = 1,
-        @DefaultValue("1")
-        var prefetch: Int = 1
+        @DefaultValue("128")
+        var concurrency: Int = 128,
+        @DefaultValue("4")
+        var prefetch: Int = 4
     )
 
     data class Query(

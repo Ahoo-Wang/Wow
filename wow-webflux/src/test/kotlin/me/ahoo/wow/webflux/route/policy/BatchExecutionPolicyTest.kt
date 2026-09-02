@@ -27,8 +27,8 @@ class BatchExecutionPolicyTest {
     fun `should use default execution options`() {
         val policy = BatchExecutionPolicy()
 
-        policy.concurrency.assert().isOne()
-        policy.prefetch.assert().isOne()
+        policy.concurrency.assert().isEqualTo(128)
+        policy.prefetch.assert().isEqualTo(4)
     }
 
     @Test

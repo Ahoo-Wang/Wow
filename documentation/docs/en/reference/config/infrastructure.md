@@ -147,8 +147,8 @@ Configuration class: `WebFluxProperties`; required capability: `webflux-support`
 | --- | --- | --- | --- |
 | `wow.webflux.enabled` | Boolean | `true` | Enables built-in Wow HTTP route wiring |
 | `wow.webflux.global-error.enabled` | Boolean | `true` | Registers Wow's global `WebExceptionHandler` |
-| `wow.webflux.batch.concurrency` | Int | `1` | Concurrency for batch operation/command tasks |
-| `wow.webflux.batch.prefetch` | Int | `1` | Batch-task prefetch |
+| `wow.webflux.batch.concurrency` | Int | `128` | Concurrency for batch snapshot regeneration and StateEvent resend tasks |
+| `wow.webflux.batch.prefetch` | Int | `4` | Batch-task prefetch |
 | `wow.webflux.query.max-list-size` | Int | `1000` | List/aggregation limit; `0` removes the cap and permits limit `0` |
 | `wow.webflux.query.max-page-size` | Int | `100` | Page-size cap; `0` disables it |
 | `wow.webflux.query.max-page-window` | Long | `10000` | `page.index * page.size` cap; `0` disables it |
@@ -160,5 +160,7 @@ Configuration class: `WebFluxProperties`; required capability: `webflux-support`
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Adds the resolved remote IP to command context |
 
 All numeric query caps must be non-negative. Ordinary page size must still be at least `1`, and page offset cannot exceed `Int.MAX_VALUE`. `allow-expensive-operators=true` is the compatibility default, not capacity evidence. Test existing requests and the upgrade path before tightening it.
+
+Batch concurrency applies per request and is shared by snapshot rebuild and StateEvent resend. Concurrent requests multiply downstream load; lower it to match application and storage capacity.
 
 `webflux-support` wires built-in command, event, snapshot-query, rebuild, and compensation routes. It does not provide business authentication, authorization, or management-plane isolation. Read actual paths from the runtime OpenAPI and protect modifying operation routes with authorization, audit, rate limits, and a controlled network entry point.

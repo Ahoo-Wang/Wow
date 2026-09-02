@@ -17,8 +17,8 @@ import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
 
 class BatchExecutionPolicy(
-    val concurrency: Int = 1,
-    val prefetch: Int = 1
+    val concurrency: Int = 128,
+    val prefetch: Int = 4
 ) {
     init {
         require(concurrency > 0) {
