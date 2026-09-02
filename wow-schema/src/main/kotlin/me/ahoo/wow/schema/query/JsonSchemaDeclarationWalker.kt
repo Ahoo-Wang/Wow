@@ -218,7 +218,7 @@ internal class JsonSchemaWalker(
             val fullName = "$parentName.$propertyName"
             if (!propertyName.isQueryFieldSegment()) {
                 propertySchema.requireNoMaskRule(
-                    "Masked query schema field has an invalid logical name: [$parentName[\"$propertyName\"]].",
+                    "Masked query schema property is not a valid QueryField: [$parentName[\"$propertyName\"]].",
                 )
                 return@forEach
             }
