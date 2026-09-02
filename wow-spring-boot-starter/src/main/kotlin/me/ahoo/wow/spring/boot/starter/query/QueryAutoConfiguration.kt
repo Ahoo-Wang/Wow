@@ -30,7 +30,7 @@ import org.springframework.context.annotation.Import
  *
  * @author ahoo wang
  */
-@AutoConfiguration
+@AutoConfiguration(after = [QuerySchemaAutoConfiguration::class])
 @Import(SnapshotQueryGatewayRegistrar::class, EventStreamQueryGatewayRegistrar::class)
 @ConditionalOnWowEnabled
 class QueryAutoConfiguration {

@@ -38,7 +38,6 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStreamQueryBac
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryBackendFactoryBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
-import me.ahoo.wow.spring.boot.starter.query.QueryProperties
 import me.ahoo.wow.spring.boot.starter.query.QuerySchemaAutoConfiguration
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Autowired
@@ -139,7 +138,6 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
         elasticsearchIndexMappingResolver: ElasticsearchIndexMappingResolver =
             ElasticsearchIndexMappingResolver(elasticsearchClient),
         sources: List<QuerySchemaSource> = emptyList(),
-        schemaQueryProperties: QueryProperties,
     ): ElasticsearchEventStreamQueryBackendFactory {
         return ElasticsearchEventStreamQueryBackendFactory(
             elasticsearchClient,
@@ -147,7 +145,6 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             queryProperties.keepAlive,
             elasticsearchIndexMappingResolver,
             sources,
-            schemaQueryProperties.schema.validationMode,
         )
     }
 
@@ -199,7 +196,6 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
         elasticsearchClient: ReactiveElasticsearchClient,
         elasticsearchIndexMappingResolver: ElasticsearchIndexMappingResolver,
         sources: List<QuerySchemaSource>,
-        schemaQueryProperties: QueryProperties,
     ): ElasticsearchSnapshotQueryBackendFactory {
         return ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
@@ -207,7 +203,6 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             queryKeepAlive = queryProperties.keepAlive,
             indexMappingResolver = elasticsearchIndexMappingResolver,
             schemaSources = sources,
-            validationMode = schemaQueryProperties.schema.validationMode,
         )
     }
 

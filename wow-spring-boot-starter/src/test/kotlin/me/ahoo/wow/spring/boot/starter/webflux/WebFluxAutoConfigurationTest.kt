@@ -68,6 +68,7 @@ import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
@@ -1179,9 +1180,12 @@ internal class WebFluxAutoConfigurationTest {
                     "${namedAggregate.contextName}.${namedAggregate.aggregateName}.SnapshotQueryGateway",
                     SnapshotQueryGateway::class.java,
                     {
+                        val backend = TestSnapshotQueryBackend(namedAggregate)
                         DefaultSnapshotQueryGateway<Any>(
                             namedAggregate = namedAggregate,
-                            backend = TestSnapshotQueryBackend(namedAggregate),
+                            backend = backend,
+                            schemaProvider = backend,
+                            validationMode = QuerySchemaValidationMode.COMPATIBLE,
                             targetType = JsonSerializer.typeFactory.constructParametricType(
                                 MaterializedSnapshot::class.java,
                                 Any::class.java,
@@ -1193,9 +1197,12 @@ internal class WebFluxAutoConfigurationTest {
                     "${namedAggregate.contextName}.${namedAggregate.aggregateName}.EventStreamQueryGateway",
                     EventStreamQueryGateway::class.java,
                     {
+                        val backend = TestEventStreamQueryBackend(namedAggregate)
                         DefaultEventStreamQueryGateway(
                             namedAggregate = namedAggregate,
-                            backend = TestEventStreamQueryBackend(namedAggregate),
+                            backend = backend,
+                            schemaProvider = backend,
+                            validationMode = QuerySchemaValidationMode.COMPATIBLE,
                         )
                     },
                 )

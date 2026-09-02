@@ -20,8 +20,10 @@ import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
+import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
 
@@ -48,6 +50,9 @@ class EventStreamQueryGatewayRegistrar : QueryGatewayRegistrar() {
 
         val beanDefinition = BeanDefinitionBuilder.rootBeanDefinition(EventStreamQueryGateway::class.java) {
             val backend = appContext.getBean(EventStreamQueryBackendFactory::class.java).create(namedAggregate)
+            val schemaProvider = backend.requiredQueryModelSchemaProvider()
+            val validationMode = appContext.getBeanProvider(QuerySchemaValidationMode::class.java)
+                .getIfAvailable { QuerySchemaValidationMode.COMPATIBLE }
 
             @Suppress("UNCHECKED_CAST")
             val filters = appContext.getBeanProvider(QueryFilter::class.java).toList()
@@ -59,6 +64,8 @@ class EventStreamQueryGatewayRegistrar : QueryGatewayRegistrar() {
             DefaultEventStreamQueryGateway(
                 namedAggregate = namedAggregate,
                 backend = backend,
+                schemaProvider = schemaProvider,
+                validationMode = validationMode,
                 filters = filters,
                 errorHandler = errorHandler,
             )

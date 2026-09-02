@@ -16,24 +16,22 @@ package me.ahoo.wow.spring.boot.starter.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.AggregationMetric
-import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.messaging.handler.RetryableFilter
+import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -65,7 +63,7 @@ class QueryAutoConfigurationTest {
         contextRunner.enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
             .withBean(RecordingSnapshotQueryBackendFactory::class.java, { RecordingSnapshotQueryBackendFactory() })
-            .withBean(EventStreamQueryBackendFactory::class.java, { NoOpEventStreamQueryBackendFactory })
+            .withBean(EventStreamQueryBackendFactory::class.java, { EventStreamQueryBackendFactory(::EventBackend) })
             .withBean(RetryableFilter::class.java, { RetryableFilter<DomainEventExchange<Any>>() })
             .withBean(RecordingQueryFilter::class.java, { RecordingQueryFilter(genericCalls) })
             .withBean(RecordingSnapshotQueryFilter::class.java, { RecordingSnapshotQueryFilter(snapshotCalls) })
@@ -115,27 +113,20 @@ class QueryAutoConfigurationTest {
     }
 
     @Test
-    fun `unavailable backends should fail every operation with exact error`() {
+    fun `unavailable backend should fail during schema acquisition before filters`() {
+        val filterCalls = AtomicInteger()
         contextRunner.enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
+            .withBean(RecordingQueryFilter::class.java, { RecordingQueryFilter(filterCalls) })
             .run { context: AssertableApplicationContext ->
-                val snapshotFactory = context.getBean(SnapshotQueryBackendFactory::class.java)
-                val eventFactory = context.getBean(EventStreamQueryBackendFactory::class.java)
-                val snapshot = snapshotFactory.create<Any>(MOCK_AGGREGATE_METADATA)
-                val event = eventFactory.create(MOCK_AGGREGATE_METADATA)
+                context.assert().hasNotFailed()
+                @Suppress("UNCHECKED_CAST")
+                val snapshot = context.getBean(SNAPSHOT_GATEWAY_BEAN_NAME) as SnapshotQueryGateway<Any>
+                val event = context.getBean(EVENT_STREAM_GATEWAY_BEAN_NAME) as EventStreamQueryGateway
 
-                listOf(snapshot, event).forEach { backend ->
-                    backend.single(singleQuery { }).test().expectErrorSatisfies(::assertUnavailable).verify()
-                    backend.list(ListQuery(MatchAllFilter, limit = 1))
-                        .test().expectErrorSatisfies(::assertUnavailable).verify()
-                    backend.paged(PagedQuery(MatchAllFilter))
-                        .test().expectErrorSatisfies(::assertUnavailable).verify()
-                    backend.cursor(CursorQuery(MatchAllFilter))
-                        .test().expectErrorSatisfies(::assertUnavailable).verify()
-                    backend.count(MatchAllFilter).test().expectErrorSatisfies(::assertUnavailable).verify()
-                    backend.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
-                        .test().expectErrorSatisfies(::assertUnavailable).verify()
-                }
+                snapshot.dynamicSingle(singleQuery { }).test().expectErrorSatisfies(::assertUnavailable).verify()
+                event.dynamicSingle(singleQuery { }).test().expectErrorSatisfies(::assertUnavailable).verify()
+                filterCalls.get().assert().isZero()
             }
     }
 
@@ -153,23 +144,23 @@ class QueryAutoConfigurationTest {
                 val query = singleQuery { }
 
                 gateway.dynamicSingle(query).test().expectNextCount(1).verifyComplete()
-                factory.backend.lastQuery!!.filter.operator.assert()
+                factory.backend.lastQuery!!.query.filter.operator.assert()
                     .isNotEqualTo(me.ahoo.wow.api.query.FilterOperator.MATCH_ALL)
 
                 val rawBackend = factory.create<Any>(MOCK_AGGREGATE_METADATA)
                 rawBackend.assert().isSameAs(factory.backend)
-                rawBackend.single(query).test()
+                rawBackend.single(ResolvedQuery(query, factory.backend.schema)).test()
                     .consumeNextWith { it["state"][SECRET].stringValue().assert().isEqualTo(RAW_SECRET) }
                     .verifyComplete()
-                factory.backend.lastQuery.assert().isSameAs(query)
+                factory.backend.lastQuery!!.query.assert().isSameAs(query)
             }
     }
 
     private fun assertUnavailable(error: Throwable) {
-        error.assert().isInstanceOf(WowException::class.java)
-        (error as WowException).errorCode.assert().isEqualTo(ErrorCodes.INTERNAL_SERVER_ERROR)
+        error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
         error.message.assert().isEqualTo(
-            "No query backend is configured for aggregate[${MOCK_AGGREGATE_METADATA.namedAggregate}]."
+            "No query backend is configured for aggregate[MaterializedNamedAggregate(" +
+                "contextName=example-service, aggregateName=order)]."
         )
     }
 
@@ -178,12 +169,18 @@ class QueryAutoConfigurationTest {
         override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryBackend = backend
     }
 
-    internal class RecordingSnapshotQueryBackend : SnapshotQueryBackend by
-    NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA) {
+    internal class RecordingSnapshotQueryBackend :
+        SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
+        QueryModelSchemaProvider {
         override val name: String = "raw"
-        var lastQuery: me.ahoo.wow.api.query.ISingleQuery? = null
+        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+        var lastQuery: ResolvedQuery<me.ahoo.wow.api.query.ISingleQuery>? = null
 
-        override fun single(query: me.ahoo.wow.api.query.ISingleQuery): Mono<ObjectNode> {
+        override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
+
+        override fun refresh(): Mono<QueryModelSchema> = schema()
+
+        override fun single(query: ResolvedQuery<me.ahoo.wow.api.query.ISingleQuery>): Mono<ObjectNode> {
             lastQuery = query
             return Mono.just(
                 JsonNodeFactory.instance.objectNode().set(
@@ -192,6 +189,16 @@ class QueryAutoConfigurationTest {
                 )
             )
         }
+    }
+
+    internal class EventBackend(namedAggregate: NamedAggregate) :
+        EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate),
+        QueryModelSchemaProvider {
+        private val schema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+
+        override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
+
+        override fun refresh(): Mono<QueryModelSchema> = schema()
     }
 
     internal object TestAbacQueryFilter : AbacQueryFilter() {

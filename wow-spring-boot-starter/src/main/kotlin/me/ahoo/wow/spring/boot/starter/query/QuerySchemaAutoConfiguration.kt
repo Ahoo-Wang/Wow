@@ -16,11 +16,13 @@ package me.ahoo.wow.spring.boot.starter.query
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.ClasspathQuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.WorkingDirectoryQuerySchemaSource
 import me.ahoo.wow.schema.query.JsonQuerySchemaSource
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 
@@ -28,6 +30,11 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnWowEnabled
 @EnableConfigurationProperties(QueryProperties::class)
 class QuerySchemaAutoConfiguration {
+    @Bean
+    @ConditionalOnMissingBean(QuerySchemaValidationMode::class)
+    fun querySchemaValidationMode(properties: QueryProperties): QuerySchemaValidationMode =
+        properties.schema.validationMode
+
     @Bean
     fun jsonQuerySchemaSource(): JsonQuerySchemaSource = JsonQuerySchemaSource()
 
