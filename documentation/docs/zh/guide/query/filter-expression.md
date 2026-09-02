@@ -94,7 +94,61 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 | `DELETION` | `{ "op": "DELETION", "state": "ACTIVE" }` | `deletion(DeletionState.ACTIVE)` |
 | `SEARCH` | `{ "op": "SEARCH", "query": "wireless", "fields": ["state.note"], "mode": "TERMS" }` | `search("wireless", "note")` |
 
-删除标记使用 `DELETION`，不要以字段路径模拟。快照查询默认追加 `DELETION = ACTIVE`；事件流查询保留完整历史，不追加该 guard。`SEARCH` 的 `query` 不可为空，`mode` 为 `TERMS` 或 `PHRASE`；可搜索字段、分词和结果语义取决于后端。
+删除标记使用 `DELETION`，不要以字段路径模拟。快照查询默认追加 `DELETION = ACTIVE`；事件流查询保留完整历史，不追加该 guard。
+
+### SearchFilter
+
+`SearchFilter` 表示全文搜索，不是普通字符串的 `CONTAINS` 匹配。搜索文本会交给后端的全文索引和 analyzer 处理，因此是否命中、如何分词以及结果如何排序取决于后端配置。
+
+| 属性 | 说明 |
+| --- | --- |
+| `query` | 搜索文本，不能是空字符串或全空白字符串。 |
+| `fields` | 可选的逻辑字段集合。为空时使用后端默认的全文搜索字段；不为空时请求限定到这些字段，但最终是否保留字段范围取决于 Schema 校验结果。 |
+| `mode` | `TERMS` 或 `PHRASE`，默认是 `TERMS`。 |
+
+直接构造或使用 DSL：
+
+```kotlin
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.SearchMode
+import me.ahoo.wow.query.dsl.filterExpression
+
+SearchFilter("wireless")
+
+SearchFilter(
+    query = "event sourcing",
+    fields = setOf(QueryField("state.description")),
+    mode = SearchMode.PHRASE,
+)
+
+filterExpression {
+    search("wireless", "state.title", "state.description")
+    search("event sourcing", SearchMode.PHRASE, "state.description")
+}
+```
+
+对应的 JSON：
+
+```json
+{
+  "op": "SEARCH",
+  "query": "event sourcing",
+  "fields": ["state.description"],
+  "mode": "PHRASE"
+}
+```
+
+`TERMS` 是分词后的普通全文搜索，不要求原始字符串完整连续出现；`event sourcing` 可能按两个 term 参与匹配。`PHRASE` 是短语搜索，要求分析后的词项按顺序和位置匹配，但仍受 analyzer 影响，并不等同于原始字符串相等。
+
+后端编译前，Query Schema 会先解析 `fields`。所有字段都能精确解析时，字段范围会保留（必要时改写为后端物理路径）；如果字段不能全部精确解析、但模型支持对应的全文能力，兼容校验模式会清空 `fields`，退化为后端默认范围，并将结果标记为 `COMPATIBLE`。这可能扩大搜索范围；严格校验模式只接受 `EXACT`，会拒绝这种请求。
+
+#### 后端实现
+
+- **MongoDB**：转换为 MongoDB 的 `$text` 查询。`TERMS` 直接使用查询文本；`PHRASE` 会将查询文本包装为双引号短语，查询文本本身不能包含双引号。collection 必须存在 text index，可搜索字段由该 text index 决定。当前 MongoDB 转换器不会把 `fields` 编译成逐字段限制；显式字段通常会在 Schema 层以 `COMPATIBLE` 方式降级为不带字段的 `$text` 查询，严格校验模式会拒绝它。
+- **Elasticsearch**：转换为 `multi_match` 查询。指定 `fields` 且精确解析时，字段会映射为 Elasticsearch 的物理字段路径；不指定时由 `index.query.default_field` 决定，并设置 `lenient`。如果显式字段没有精确解析，兼容校验模式同样可能先将其清空，再执行默认字段范围的搜索。`TERMS` 使用 `multi_match` 默认的 `best_fields` 语义，即各字段分别执行 `match`，使用最佳字段的相关性得分；`PHRASE` 设置 `type: phrase`，相当于对各字段执行 `match_phrase`。字段是否支持全文或短语搜索由 Elasticsearch mapping 和 Query Schema 决定。
+
+`SEARCH` 是 root-only 过滤器，不能放入 `ELEMENT_MATCH` 的元素谓词中。需要字面量的包含、前缀或后缀匹配时，应使用 `CONTAINS`、`STARTS_WITH` 或 `ENDS_WITH`。
 
 ## 相对时间操作符
 

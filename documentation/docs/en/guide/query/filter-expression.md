@@ -94,7 +94,61 @@ An element predicate cannot contain the root-only `ID`, `IDS`, `AGGREGATE_ID`, `
 | `DELETION` | `{ "op": "DELETION", "state": "ACTIVE" }` | `deletion(DeletionState.ACTIVE)` |
 | `SEARCH` | `{ "op": "SEARCH", "query": "wireless", "fields": ["state.note"], "mode": "TERMS" }` | `search("wireless", "note")` |
 
-Use `DELETION` for deletion state instead of emulating it with a field path. Snapshot queries append `DELETION = ACTIVE` by default; event-stream queries retain the full history and do not append that guard. `SEARCH` requires a non-blank `query`; its `mode` is `TERMS` or `PHRASE`. Searchable fields, analysis, and result semantics depend on the backend.
+Use `DELETION` for deletion state instead of emulating it with a field path. Snapshot queries append `DELETION = ACTIVE` by default; event-stream queries retain the full history and do not append that guard.
+
+### SearchFilter
+
+`SearchFilter` represents full-text search, not a literal string `CONTAINS` match. The query is processed by the backend's full-text index and analyzer, so matching, analysis, and result ordering depend on the backend configuration.
+
+| Property | Description |
+| --- | --- |
+| `query` | Search text; it cannot be empty or blank. |
+| `fields` | Optional set of logical fields. When empty, the backend's default full-text fields are used; when present, the search requests those fields, subject to Schema validation. |
+| `mode` | `TERMS` or `PHRASE`; defaults to `TERMS`. |
+
+Construct it directly or with the DSL:
+
+```kotlin
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.SearchMode
+import me.ahoo.wow.query.dsl.filterExpression
+
+SearchFilter("wireless")
+
+SearchFilter(
+    query = "event sourcing",
+    fields = setOf(QueryField("state.description")),
+    mode = SearchMode.PHRASE,
+)
+
+filterExpression {
+    search("wireless", "state.title", "state.description")
+    search("event sourcing", SearchMode.PHRASE, "state.description")
+}
+```
+
+The corresponding JSON is:
+
+```json
+{
+  "op": "SEARCH",
+  "query": "event sourcing",
+  "fields": ["state.description"],
+  "mode": "PHRASE"
+}
+```
+
+`TERMS` is ordinary full-text search over analyzed terms; it does not require the original string to occur as one contiguous value. `event sourcing` can participate in matching as two terms. `PHRASE` is phrase search: analyzed terms must match in order and position, but the result still depends on the analyzer and is not raw-string equality.
+
+Before backend compilation, Query Schema resolves `fields`. When every field resolves exactly, the field scope is preserved, with a rewrite to physical backend paths when necessary. If fields cannot all resolve exactly but the model supports the requested full-text capability, compatible validation clears `fields`, falls back to the backend's default scope, and marks the result `COMPATIBLE`. This can broaden the search scope; strict validation accepts only `EXACT` and rejects that request.
+
+#### Backend implementation
+
+- **MongoDB**: Compiles to MongoDB `$text`. `TERMS` uses the query text directly; `PHRASE` wraps it in double quotes, so the query text itself cannot contain double quotes. The collection must have a text index, whose definition determines the searchable fields. The current MongoDB converter does not compile `fields` into a per-field restriction; explicit fields normally fall back to an unscoped `$text` query as `COMPATIBLE` at the Schema layer, while strict validation rejects it.
+- **Elasticsearch**: Compiles to `multi_match`. When `fields` is present and resolves exactly, they are mapped to Elasticsearch physical field paths; when it is empty, Elasticsearch's `index.query.default_field` determines the fields and Wow sets `lenient`. If explicit fields do not resolve exactly, compatible validation can clear them before compilation and search the default field scope instead. `TERMS` uses the default `best_fields` semantics: each field runs a `match` query and the best field supplies the relevance score. `PHRASE` sets `type: phrase`, equivalent to running `match_phrase` per field. Field support for term and phrase search is determined by the Elasticsearch mapping and Query Schema.
+
+`SEARCH` is a root-only filter and cannot be used inside an `ELEMENT_MATCH` predicate. For literal substring, prefix, or suffix matching, use `CONTAINS`, `STARTS_WITH`, or `ENDS_WITH` instead.
 
 ## Relative-time Operators
 
