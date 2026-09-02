@@ -24,7 +24,6 @@ import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -37,7 +36,6 @@ class ElasticsearchSnapshotQueryBackendFactory(
     private val indexMappingResolver: ElasticsearchIndexMappingResolver =
         ElasticsearchIndexMappingResolver(elasticsearchClient),
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
-    private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
 ) : AbstractSnapshotQueryBackendFactory() {
     override fun createBackend(namedAggregate: NamedAggregate): SnapshotQueryBackend {
         val materialized = namedAggregate.materialize()
@@ -53,7 +51,6 @@ class ElasticsearchSnapshotQueryBackendFactory(
             queryBatchSize = queryBatchSize,
             queryKeepAlive = queryKeepAlive,
             schemaProvider = provider,
-            validationMode = validationMode,
         )
     }
 }

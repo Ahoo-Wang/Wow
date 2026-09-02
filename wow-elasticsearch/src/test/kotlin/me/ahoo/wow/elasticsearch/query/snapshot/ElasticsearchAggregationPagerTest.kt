@@ -32,6 +32,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
@@ -40,8 +41,12 @@ import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompi
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
 import me.ahoo.wow.elasticsearch.query.aggregation.selectTopRows
 import me.ahoo.wow.elasticsearch.query.toObjectNode
+import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -534,7 +539,19 @@ class ElasticsearchAggregationPagerTest {
             filterConverter = converter,
         )
 
-        service.aggregate(
+        val gateway = DefaultSnapshotQueryGateway<Any>(
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            backend = service,
+            schemaProvider = service,
+            validationMode = QuerySchemaValidationMode.COMPATIBLE,
+            targetType = JsonSerializer.typeFactory.constructParametricType(
+                MaterializedSnapshot::class.java,
+                Any::class.java,
+            ),
+            errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+        )
+
+        gateway.aggregate(
             aggregation {
                 count("count")
                 sum("physical.total", "total")
