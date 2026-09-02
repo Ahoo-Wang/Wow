@@ -26,11 +26,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
-import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
-import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
@@ -40,9 +37,7 @@ import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
-import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import me.ahoo.wow.mongo.query.event.EventStreamFieldConverter
-import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
 import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
@@ -51,8 +46,6 @@ import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaResolution
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.bson.Document
@@ -900,99 +893,6 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
-    fun `strict service should reject an unknown field before Mongo find`() {
-        val fixture = serviceFixture(indexes())
-        val service = MongoSnapshotQueryBackendFactory(
-            database = fixture.database,
-            validationMode = QuerySchemaValidationMode.STRICT,
-        ).create<Any>(MOCK_AGGREGATE_METADATA)
-
-        service.list(unknownListQuery()).test()
-            .expectError(QuerySchemaValidationException::class.java)
-            .verify()
-
-        verify(exactly = 0) { fixture.collection.find(any<Bson>()) }
-    }
-
-    @Test
-    fun `compatible service should preserve the current path when schema is unavailable`() {
-        val fixture = serviceFixture(failingIndexes(IllegalStateException("offline")))
-        val service = MongoSnapshotQueryBackendFactory(database = fixture.database)
-            .create<Any>(MOCK_AGGREGATE_METADATA)
-
-        service.list(unknownListQuery()).test().verifyComplete()
-
-        verify(exactly = 1) { fixture.collection.find(any<Bson>()) }
-    }
-
-    @Test
-    fun `compatible service should not find system tags when schema is unavailable`() {
-        val failure = IllegalStateException("offline")
-        val fixture = serviceFixture(failingIndexes(failure))
-        val service = MongoSnapshotQueryBackendFactory(database = fixture.database)
-            .create<Any>(MOCK_AGGREGATE_METADATA)
-
-        service.list(
-            ListQuery(
-                EqualFilter(QueryField("tags.department"), StringNode.valueOf("eng")),
-                limit = 1,
-            ),
-        ).test()
-            .expectErrorSatisfies { error ->
-                error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
-                error.cause.assert().isSameAs(failure)
-            }
-            .verify()
-
-        verify(exactly = 0) { fixture.collection.find(any<Bson>()) }
-    }
-
-    @Test
-    fun `service should pass resolved filter projection and sort paths to Mongo`() {
-        val fixture = serviceFixture(indexes())
-        val service = MongoSnapshotQueryBackendFactory(
-            database = fixture.database,
-            validationMode = QuerySchemaValidationMode.STRICT,
-        ).create<Any>(MOCK_AGGREGATE_METADATA)
-        val query = ListQuery(
-            filter = EqualFilter(QueryField("aggregateId"), StringNode.valueOf("id")),
-            projection = Projection(include = listOf(QueryField("aggregateId"))),
-            sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)),
-            limit = 1,
-        )
-
-        service.list(query).test().verifyComplete()
-
-        fixture.filter.single().toBsonDocument().toJson().assert().contains("_id").doesNotContain("aggregateId")
-        fixture.projection.single().toBsonDocument().toJson().assert().contains("_id").doesNotContain("aggregateId")
-        fixture.sort.single().toBsonDocument().toJson().assert().contains("_id").doesNotContain("aggregateId")
-    }
-
-    @Test
-    fun `direct service should preserve custom converter path ownership`() {
-        val fixture = serviceFixture(indexes())
-        val converter = object : AbstractMongoFilterConverter() {
-            override val fieldConverter: FieldConverter = FieldConverter { "custom.$it" }
-        }
-        val service = MongoSnapshotQueryBackend(
-            namedAggregate = MOCK_AGGREGATE_METADATA,
-            collection = fixture.collection,
-            converter = converter,
-        )
-
-        service.list(
-            ListQuery(
-                EqualFilter(QueryField("aggregateId"), StringNode.valueOf("id")),
-                limit = 1,
-            ),
-        ).test().verifyComplete()
-
-        fixture.filter.single().toBsonDocument().toJson().assert()
-            .contains("custom.aggregateId")
-            .doesNotContain("custom._id")
-    }
-
-    @Test
     fun `service refresh should reread Mongo indexes`() {
         val reads = AtomicInteger()
         val fixture = serviceFixture(
@@ -1044,13 +944,6 @@ class MongoQuerySchemaAdapterTest {
         val filter: List<Bson>,
         val projection: List<Bson>,
         val sort: List<Bson>,
-    )
-
-    private fun unknownListQuery() = ListQuery(
-        EqualFilter(QueryField("state.unknown"), StringNode.valueOf("value")),
-        projection = Projection(include = listOf(QueryField("state.unknown"))),
-        sort = listOf(Sort(QueryField("state.unknown"), Sort.Direction.ASC)),
-        limit = 1,
     )
 
     private fun logicalSchema() = LogicalQuerySchema(

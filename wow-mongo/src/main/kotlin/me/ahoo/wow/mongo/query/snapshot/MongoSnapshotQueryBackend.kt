@@ -15,14 +15,6 @@ package me.ahoo.wow.mongo.query.snapshot
 
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
@@ -37,15 +29,8 @@ import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.executeWithQuerySchema
-import me.ahoo.wow.query.schema.requireAccepted
-import me.ahoo.wow.query.schema.resolve
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
-import me.ahoo.wow.query.withUniqueSort
-import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 
@@ -55,7 +40,6 @@ class MongoSnapshotQueryBackend(
     override val converter: AbstractMongoFilterConverter = SnapshotFilterConverter,
     private val schemaProvider: QueryModelSchemaProvider =
         defaultSchemaProvider(namedAggregate, collection, converter),
-    private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
 ) : AbstractMongoQueryBackend(),
     SnapshotQueryBackend,
     QueryModelSchemaProvider by schemaProvider {
@@ -63,55 +47,8 @@ class MongoSnapshotQueryBackend(
         get() = MongoSnapshotStore.NAME
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
     override val sortConverter: MongoSortConverter = MongoSortConverter(SnapshotFieldConverter)
-    override val cursorUniqueField: QueryField = QueryField(MessageRecords.AGGREGATE_ID)
     override fun toObjectNode(document: Document): ObjectNode =
         document.replacePrimaryKeyToAggregateId().toObjectNode()
-
-    override fun single(query: ISingleQuery): Mono<ObjectNode> = schemaProvider.executeWithQuerySchema(
-        mode = validationMode,
-        filter = query.filter,
-        unavailableFallback = { executeSingle(query, null) },
-    ) { schema ->
-        executeSingle(schema.resolve(query).requireAccepted(validationMode), schema)
-    }.singleOrEmpty()
-
-    override fun list(query: IListQuery): Flux<ObjectNode> {
-        require(query.limit >= 0) { "limit must be greater than or equal to 0." }
-        return schemaProvider.executeWithQuerySchema(
-            mode = validationMode,
-            filter = query.filter,
-            unavailableFallback = { executeList(query, null) },
-        ) { schema ->
-            executeList(schema.resolve(query).requireAccepted(validationMode), schema)
-        }
-    }
-
-    override fun paged(query: IPagedQuery) = schemaProvider.executeWithQuerySchema(
-        mode = validationMode,
-        filter = query.filter,
-        unavailableFallback = { executePaged(query, null) },
-    ) { schema ->
-        executePaged(schema.resolve(query).requireAccepted(validationMode), schema)
-    }.singleOrEmpty()
-
-    override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> {
-        val executable = query.withUniqueSort(cursorUniqueField)
-        return schemaProvider.executeWithQuerySchema(validationMode, executable.filter) { schema ->
-            executeCursor(schema.resolve(executable).requireAccepted(validationMode), schema)
-        }.singleOrEmpty()
-    }
-
-    override fun count(filter: FilterExpression) = schemaProvider.executeWithQuerySchema(
-        mode = validationMode,
-        filter = filter,
-        unavailableFallback = { executeCount(filter) },
-    ) { schema ->
-        executeCount(schema.resolve(filter).requireAccepted(validationMode))
-    }.singleOrEmpty()
-
-    override fun aggregate(query: AggregationQuery): Flux<ObjectNode> {
-        return schemaProvider.resolve(query, validationMode).flatMapMany(::executeAggregation)
-    }
 
     companion object {
         private fun defaultSchemaProvider(

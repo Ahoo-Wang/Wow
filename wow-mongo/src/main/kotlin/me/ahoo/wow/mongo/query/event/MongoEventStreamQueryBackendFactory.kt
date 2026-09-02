@@ -23,12 +23,10 @@ import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 
 class MongoEventStreamQueryBackendFactory(
     private val database: MongoDatabase,
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
-    private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
 ) :
     AbstractEventStreamQueryBackendFactory() {
 
@@ -50,7 +48,6 @@ class MongoEventStreamQueryBackendFactory(
             namedAggregate = materialized,
             collection = collection,
             schemaProvider = provider,
-            validationMode = validationMode,
         )
     }
 }

@@ -16,9 +16,12 @@ package me.ahoo.wow.query.converter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.query.schema.QueryModelSchema
 import org.junit.jupiter.api.Test
 
 class ProjectionConverterTest {
+    private val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
 
     private class RecordingProjectionConverter(
         override val fieldConverter: FieldConverter = FieldConverter { it }
@@ -34,7 +37,7 @@ class ProjectionConverterTest {
     @Test
     fun `should convert empty projection`() {
         val converter = RecordingProjectionConverter()
-        val result = converter.convert(Projection.ALL, null)
+        val result = converter.convert(Projection.ALL, schema)
         result.assert().isEqualTo(Projection.ALL)
     }
 
@@ -47,7 +50,7 @@ class ProjectionConverterTest {
             include = listOf(QueryField("field1")),
             exclude = listOf(QueryField("field2"))
         )
-        converter.convert(projection, null)
+        converter.convert(projection, schema)
         converter.lastConverted.assert().isEqualTo(
             Projection(
                 include = listOf(QueryField("state.field1")),
@@ -63,7 +66,7 @@ class ProjectionConverterTest {
             include = listOf(QueryField("field1")),
             exclude = listOf(QueryField("field2"))
         )
-        val result = converter.convert(projection, null)
+        val result = converter.convert(projection, schema)
         result.assert().isEqualTo(projection)
     }
 
@@ -71,7 +74,7 @@ class ProjectionConverterTest {
     fun `should convert projection with only includes`() {
         val converter = RecordingProjectionConverter()
         val projection = Projection(include = listOf(QueryField("field1"), QueryField("field2")), exclude = emptyList())
-        converter.convert(projection, null)
+        converter.convert(projection, schema)
         converter.lastConverted.include.assert().hasSize(2)
         converter.lastConverted.exclude.assert().isEmpty()
     }

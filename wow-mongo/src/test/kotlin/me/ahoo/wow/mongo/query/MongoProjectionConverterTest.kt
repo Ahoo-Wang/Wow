@@ -63,14 +63,14 @@ class MongoProjectionConverterTest {
     @ParameterizedTest
     @MethodSource("toSnapshotMongoProjectionParameters")
     fun toSnapshotMongoProjection(projection: Projection, expected: Bson?) {
-        val actual = snapshotProjectionConverter.convert(projection, null)
+        val actual = snapshotProjectionConverter.convert(projection, schema)
         actual.assert().isEqualTo(expected)
     }
 
     @ParameterizedTest
     @MethodSource("toEventStreamMongoProjectionParameters")
     fun toEventStreamMongoProjection(projection: Projection, expected: Bson?) {
-        val actual = eventStreamProjectionConverter.convert(projection, null)
+        val actual = eventStreamProjectionConverter.convert(projection, schema)
         actual.assert().isEqualTo(expected)
     }
 
