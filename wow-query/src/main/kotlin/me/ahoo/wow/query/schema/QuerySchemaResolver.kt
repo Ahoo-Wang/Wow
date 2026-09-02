@@ -243,9 +243,10 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
         var compatibility = QueryCompatibilityLevel.EXACT
         sort.forEachIndexed { index, item ->
             val field = fieldResolver.resolve(item.field, QueryCapability.SORT, null, null, null)
+            val resolvedField = field.resolvedField ?: field.value
             val accepted = field.compatibility == QueryCompatibilityLevel.EXACT &&
                 field.fieldSchema != null && field.fieldSchema.cardinality == QueryCardinality.SINGLE &&
-                field.fieldSchema.maskRule == null && field.value !in FORBIDDEN_CURSOR_SORTS &&
+                field.fieldSchema.maskRule == null && resolvedField !in FORBIDDEN_CURSOR_SORTS &&
                 !field.matchesMaskedCandidate()
             val value = if (schema.rewriteMode == QueryRewriteMode.NONE || field.value === item.field) {
                 item

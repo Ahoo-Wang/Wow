@@ -15,7 +15,9 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
@@ -42,30 +44,81 @@ class QueryModelSchemaTest {
     private val jsonMapper = jsonMapper()
 
     @Test
-    fun `identity schema should return the same query graph`() {
-        val field = QueryField("state.name")
-        val fieldSchema = fieldSchema(
-            bindings = mapOf(
-                QueryCapability.EXACT_MATCH to QueryFieldBinding(field, field, null),
-                QueryCapability.SORT to QueryFieldBinding(field, field, null),
+    @Suppress("LongMethod")
+    fun `none rewrite model should preserve identity and enforce admission`() {
+        val valid = QueryField("state.name")
+        val missingCapability = QueryField("state.missingCapability")
+        val integer = QueryField("state.integer")
+        val single = QueryField("state.single")
+        val masked = QueryField("state.masked")
+        val unstableAlias = QueryField("state.rank")
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(
+                valid to fieldSchema(
+                    bindings = mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(valid, valid, null),
+                        QueryCapability.SORT to QueryFieldBinding(valid, valid, null),
+                    ),
+                    projectionField = valid,
+                ),
+                missingCapability to fieldSchema(),
+                integer to fieldSchema(
+                    bindings = mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(integer, integer, null),
+                    ),
+                    valueTypes = setOf(QueryValueType.INTEGER),
+                ),
+                single to fieldSchema(
+                    bindings = mapOf(
+                        QueryCapability.PRESENCE to QueryFieldBinding(single, single, null),
+                    ),
+                ),
+                masked to fieldSchema(
+                    bindings = mapOf(
+                        QueryCapability.SORT to QueryFieldBinding(masked, masked, null),
+                    ),
+                    maskRule = fullMaskRule(),
+                ),
+                unstableAlias to fieldSchema(
+                    bindings = mapOf(
+                        QueryCapability.SORT to QueryFieldBinding(
+                            QueryField("_score"),
+                            QueryField("_score"),
+                            null,
+                        ),
+                    ),
+                ),
             ),
-            projectionField = field,
-            rewriteMode = QueryRewriteMode.NONE,
         )
-        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), mapOf(field to fieldSchema))
         val query = ListQuery(
-            filter = AndFilter(listOf(EqualFilter(field, JsonNodeFactory.instance.stringNode("A")))),
-            projection = Projection(include = listOf(field)),
-            sort = listOf(Sort(field, Sort.Direction.ASC)),
+            filter = AndFilter(listOf(EqualFilter(valid, JsonNodeFactory.instance.stringNode("A")))),
+            projection = Projection(include = listOf(valid)),
+            sort = listOf(Sort(valid, Sort.Direction.ASC)),
             limit = 10,
         )
 
+        schema.rewriteMode.assert().isEqualTo(QueryRewriteMode.NONE)
         val resolution = schema.resolve(query)
 
         resolution.value.assert().isSameAs(query)
         resolution.value.filter.assert().isSameAs(query.filter)
         resolution.value.projection.assert().isSameAs(query.projection)
         resolution.value.sort.assert().isSameAs(query.sort)
+        listOf(
+            schema.resolve(EqualFilter(missingCapability, JsonNodeFactory.instance.stringNode("A"))),
+            schema.resolve(EqualFilter(integer, JsonNodeFactory.instance.stringNode("not-an-integer"))),
+            schema.resolve(IsEmptyFilter(single)),
+            schema.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(masked, Sort.Direction.ASC)))),
+            schema.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(unstableAlias, Sort.Direction.ASC)))),
+        ).map { it.compatibility }.assert().containsExactly(
+            QueryCompatibilityLevel.INCOMPATIBLE,
+            QueryCompatibilityLevel.INCOMPATIBLE,
+            QueryCompatibilityLevel.INCOMPATIBLE,
+            QueryCompatibilityLevel.INCOMPATIBLE,
+            QueryCompatibilityLevel.INCOMPATIBLE,
+        )
     }
 
     @Test
@@ -499,11 +552,12 @@ class QueryModelSchemaTest {
         projectionField: QueryField? = null,
         rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
         maskRule: MaskRule? = null,
+        valueTypes: Set<QueryValueType> = setOf(QueryValueType.STRING),
     ): QueryFieldSchema = QueryFieldSchema(
         title = title,
         description = null,
         enumValues = listOf(JsonNodeFactory.instance.stringNode("OPEN")),
-        valueTypes = setOf(QueryValueType.STRING),
+        valueTypes = valueTypes,
         nullable = false,
         required = true,
         cardinality = QueryCardinality.SINGLE,
