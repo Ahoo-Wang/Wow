@@ -25,6 +25,7 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
@@ -48,6 +49,7 @@ import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QuerySchemaResolution
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
@@ -186,6 +188,32 @@ class MongoQuerySchemaAdapterTest {
         resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
         val resolved = resolution.value as ElementMatchFilter
         (resolved.predicate as EqualFilter).field.assert().isEqualTo(QueryField("attributes.color"))
+    }
+
+    @Test
+    fun `self dynamic element should relativize absolute presence predicates`() {
+        val items = QueryField("state.items")
+        val code = QueryField("state.items.code")
+        val schema = MongoQuerySchemaAdapter.bind(
+            logicalSchema = LogicalQuerySchema(
+                mapOf(items to field(QueryValueType.OBJECT, QueryCardinality.MANY, dynamicChildren = true)),
+            ),
+            indexes = emptyList(),
+            validatorSchema = null,
+            model = QueryModel.SNAPSHOT,
+            fieldConverter = FieldConverter { it },
+        )
+        val relative = ElementMatchFilter(items, ExistsFilter(QueryField("code")))
+        val absolute = ElementMatchFilter(items, ExistsFilter(code))
+
+        schema.field(code)!!.rewriteMode.assert().isEqualTo(QueryRewriteMode.NONE)
+        schema.resolve(relative).value.assert().isSameAs(relative)
+        schema.resolve(absolute).assert().isEqualTo(
+            QuerySchemaResolution(
+                ElementMatchFilter(items, ExistsFilter(QueryField("code"))),
+                QueryCompatibilityLevel.EXACT,
+            ),
+        )
     }
 
     @Test

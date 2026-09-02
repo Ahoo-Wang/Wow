@@ -106,11 +106,9 @@ internal class QueryFieldSchemaResolver(
                 physicalField = binding.physicalField,
             )
         }
-        val value = if (
-            schema.rewriteMode == QueryRewriteMode.NONE ||
-            fieldSchema.rewriteMode == QueryRewriteMode.NONE ||
-            resolved == field
-        ) {
+        val topLevelNoRewrite = resolvedParent == null && physicalParent == null &&
+            (schema.rewriteMode == QueryRewriteMode.NONE || fieldSchema.rewriteMode == QueryRewriteMode.NONE)
+        val value = if (resolved == field || topLevelNoRewrite) {
             field
         } else {
             resolved
