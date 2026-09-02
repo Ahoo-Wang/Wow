@@ -14,9 +14,7 @@ const userConfig = defineConfig({
     // Keep VitePress dead-link validation enabled for every other link.
     ignoreDeadLinks: 'localhostLinks',
     head: head,
-    rewrites: {
-        'en/:rest*': ':rest*'
-    },
+    rewrites: (id) => id.startsWith('en/') ? id.slice(3) : id,
     transformHead({page, title, description}) {
         const isChinese = page.startsWith('zh/')
         const isArticle = (page.startsWith('articles/') || page.startsWith('zh/articles/')) &&
@@ -64,7 +62,13 @@ const userConfig = defineConfig({
         },
     },
     vite: {
-        plugins: [llmstxt({workDir: 'en', ignoreFiles: ['index.md']})],
+        plugins: [llmstxt({
+            ignoreFiles: ['index.md'],
+            ignoreFilesPerOutput: {
+                llmsTxt: ['zh.md', 'zh/**'],
+                llmsFullTxt: ['zh.md', 'zh/**']
+            }
+        })],
         optimizeDeps: {
             include: ['mermaid']
         }
