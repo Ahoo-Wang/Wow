@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi
 
+import io.swagger.v3.core.util.ObjectMapperFactory
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.test.asserts.assert
@@ -114,6 +115,7 @@ internal class ExampleDomainOpenAPITest {
                 .assert().contains("string").doesNotContain("object")
             querySchema.properties.getValue("filter").`$ref`
                 .assert().isEqualTo("#/components/schemas/wow.api.query.FilterExpression")
+            assertFilterExpressionQueryFieldDefinition()
             val elementSchema = openAPI.components.schemas.getValue("wow.api.query.AggregationElement")
             assertAggregationExpressionSchema()
             listOf(
@@ -165,6 +167,15 @@ internal class ExampleDomainOpenAPITest {
             val anySchema = openAPI.components.schemas.getValue("wow.api.query.AggregationMetric.Any")
             anySchema.required.assert().containsExactlyInAnyOrder("field", "alias", "type")
             anySchema.properties.getValue("field").`$ref`.assert().isEqualTo(logicalFieldRef)
+        }
+
+        private fun assertFilterExpressionQueryFieldDefinition() {
+            val definitions = ObjectMapperFactory.createJson31()
+                .valueToTree<com.fasterxml.jackson.databind.JsonNode>(
+                    openAPI.components.schemas.getValue("wow.api.query.FilterExpression"),
+                )["definitions"]
+            definitions.has("queryField").assert().isTrue()
+            definitions.has("logicalField").assert().isFalse()
         }
 
         private fun assertAggregationExpressionSchema() {

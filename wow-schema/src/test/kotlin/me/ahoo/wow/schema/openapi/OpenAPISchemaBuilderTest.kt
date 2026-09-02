@@ -42,10 +42,14 @@ class OpenAPISchemaBuilderTest {
         val schema = requireNotNull(openAPISchemaBuilder.build()[schemaName])
         val schemaNode = ObjectMapperFactory.createJson31().valueToTree<com.fasterxml.jackson.databind.JsonNode>(schema)
         val references = schemaNode.findValues("\$ref").map { it.asText() }
+        val definitions = schemaNode["definitions"]
 
         schemaNode["\$id"].assert().isNull()
         schemaNode["\$ref"].asText().assert().isEqualTo("$componentPath/definitions/filterExpression")
+        definitions.has("queryField").assert().isTrue()
+        definitions.has("logicalField").assert().isFalse()
         references.assert().contains("$componentPath/definitions/matchAll")
+        references.assert().contains("$componentPath/definitions/queryField")
         references.filter { it.startsWith("#/definitions/") }.assert().isEmpty()
     }
 
