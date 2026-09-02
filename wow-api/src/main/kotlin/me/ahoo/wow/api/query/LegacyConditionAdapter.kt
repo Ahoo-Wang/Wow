@@ -38,40 +38,40 @@ fun Condition.toFilterExpression(): FilterExpression = when (operator) {
     Operator.OWNER_ID -> OwnerIdFilter(valueAs())
     Operator.SPACE_ID -> SpaceIdFilter(valueAs())
     Operator.DELETED -> DeletionFilter(deletionState())
-    Operator.EQ -> EqualFilter(LogicalField(field), value.toFilterValue())
-    Operator.NE -> NotEqualFilter(LogicalField(field), value.toFilterValue())
-    Operator.GT -> GreaterThanFilter(LogicalField(field), value.toFilterValue())
-    Operator.GTE -> GreaterThanOrEqualFilter(LogicalField(field), value.toFilterValue())
-    Operator.LT -> LessThanFilter(LogicalField(field), value.toFilterValue())
-    Operator.LTE -> LessThanOrEqualFilter(LogicalField(field), value.toFilterValue())
-    Operator.CONTAINS -> ContainsFilter(LogicalField(field), valueAs(), stringComparison())
-    Operator.STARTS_WITH -> StartsWithFilter(LogicalField(field), valueAs(), stringComparison())
-    Operator.ENDS_WITH -> EndsWithFilter(LogicalField(field), valueAs(), stringComparison())
+    Operator.EQ -> EqualFilter(QueryField(field), value.toFilterValue())
+    Operator.NE -> NotEqualFilter(QueryField(field), value.toFilterValue())
+    Operator.GT -> GreaterThanFilter(QueryField(field), value.toFilterValue())
+    Operator.GTE -> GreaterThanOrEqualFilter(QueryField(field), value.toFilterValue())
+    Operator.LT -> LessThanFilter(QueryField(field), value.toFilterValue())
+    Operator.LTE -> LessThanOrEqualFilter(QueryField(field), value.toFilterValue())
+    Operator.CONTAINS -> ContainsFilter(QueryField(field), valueAs(), stringComparison())
+    Operator.STARTS_WITH -> StartsWithFilter(QueryField(field), valueAs(), stringComparison())
+    Operator.ENDS_WITH -> EndsWithFilter(QueryField(field), valueAs(), stringComparison())
     Operator.IN -> valueAs<List<Any>>().takeIf { it.isNotEmpty() }
         ?.map { it.toFilterValue() }
-        ?.let { InFilter(LogicalField(field), it) } ?: MatchNoneFilter
+        ?.let { InFilter(QueryField(field), it) } ?: MatchNoneFilter
     Operator.NOT_IN -> valueAs<List<Any>>().takeIf { it.isNotEmpty() }
         ?.map { it.toFilterValue() }
-        ?.let { NotInFilter(LogicalField(field), it) } ?: MatchAllFilter
+        ?.let { NotInFilter(QueryField(field), it) } ?: MatchAllFilter
     Operator.BETWEEN -> betweenFilter()
     Operator.ALL_IN -> valueAs<List<Any>>().takeIf { it.isNotEmpty() }
         ?.map { it.toFilterValue() }
-        ?.let { ContainsAllFilter(LogicalField(field), it) } ?: MatchNoneFilter
+        ?.let { ContainsAllFilter(QueryField(field), it) } ?: MatchNoneFilter
     Operator.ELEM_MATCH -> elementMatchFilter()
-    Operator.NULL -> IsNullFilter(LogicalField(field))
-    Operator.NOT_NULL -> IsNotNullFilter(LogicalField(field))
-    Operator.TRUE -> EqualFilter(LogicalField(field), true.toFilterValue())
-    Operator.FALSE -> EqualFilter(LogicalField(field), false.toFilterValue())
+    Operator.NULL -> IsNullFilter(QueryField(field))
+    Operator.NOT_NULL -> IsNotNullFilter(QueryField(field))
+    Operator.TRUE -> EqualFilter(QueryField(field), true.toFilterValue())
+    Operator.FALSE -> EqualFilter(QueryField(field), false.toFilterValue())
     Operator.EXISTS -> {
         if (valueAs<Boolean>()) {
-            ExistsFilter(LogicalField(field))
+            ExistsFilter(QueryField(field))
         } else {
-            NotExistsFilter(LogicalField(field))
+            NotExistsFilter(QueryField(field))
         }
     }
     Operator.MATCH -> SearchFilter(
         query = valueAs(),
-        fields = field.takeIf(String::isNotBlank)?.let { setOf(LogicalField(it)) }.orEmpty(),
+        fields = field.takeIf(String::isNotBlank)?.let { setOf(QueryField(it)) }.orEmpty(),
     )
     Operator.TODAY -> todayFilter()
     Operator.BEFORE_TODAY -> beforeTodayFilter()
@@ -105,7 +105,7 @@ private fun Condition.betweenFilter(): FilterExpression {
     val bounds = valueAs<List<Any>>()
     require(bounds.size == 2) { "BETWEEN value must contain exactly 2 elements." }
     return BetweenFilter(
-        LogicalField(field),
+        QueryField(field),
         bounds[0].toFilterValue(),
         bounds[1].toFilterValue(),
     )
@@ -113,10 +113,10 @@ private fun Condition.betweenFilter(): FilterExpression {
 
 private fun Condition.elementMatchFilter(): FilterExpression {
     val predicates = children.requireChildren("ELEM_MATCH").map(Condition::toFilterExpression)
-    return ElementMatchFilter(LogicalField(field), predicates.singleOrNull() ?: AndFilter(predicates))
+    return ElementMatchFilter(QueryField(field), predicates.singleOrNull() ?: AndFilter(predicates))
 }
 
-private val Condition.logicalField: LogicalField get() = LogicalField(field)
+private val Condition.logicalField: QueryField get() = QueryField(field)
 private val Condition.zoneValue: String? get() = zoneId()?.id
 private val Condition.patternValue: String?
     get() = options[Condition.DATE_PATTERN_OPTION_KEY] as? String

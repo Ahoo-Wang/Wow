@@ -34,7 +34,7 @@ class FilterNormalizerTest {
 
     @Test
     fun `should inject active deletion and expand today once`() {
-        val normalized = normalizer.normalize(TodayFilter(LogicalField("createdAt"), "UTC")) as AndFilter
+        val normalized = normalizer.normalize(TodayFilter(QueryField("createdAt"), "UTC")) as AndFilter
 
         normalized.operands.assert().hasSize(3)
         normalized.operands[0].assert().isEqualTo(DeletionFilter(DeletionState.ACTIVE))
@@ -53,7 +53,7 @@ class FilterNormalizerTest {
     @Test
     fun `should preserve deletion scope nested in conjunctions`() {
         val predicate = EqualFilter(
-            LogicalField("field"),
+            QueryField("field"),
             JsonSerializer.valueToTree<JsonNode>("value"),
         )
         val deleted = DeletionFilter(DeletionState.DELETED)
@@ -79,7 +79,7 @@ class FilterNormalizerTest {
     fun `should preserve runtime date formatter`() {
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         val normalized = normalizer.normalize(
-            TodayFilter(LogicalField("createdAt"), dateFormatter = formatter),
+            TodayFilter(QueryField("createdAt"), dateFormatter = formatter),
         ) as AndFilter
 
         (normalized.operands[1] as GreaterThanOrEqualFilter).value.asText().assert()
@@ -94,7 +94,7 @@ class FilterNormalizerTest {
             defaultDeletionState = null,
         ).normalize(
             BeforeTodayFilter(
-                field = LogicalField("createdAt"),
+                field = QueryField("createdAt"),
                 time = "12:00:00.123456789",
                 zoneId = "UTC",
                 timeUnit = TimeUnit.NANOSECONDS,
@@ -106,7 +106,7 @@ class FilterNormalizerTest {
 
     @Test
     fun `should expand extended calendar filters in their local zone across leap year`() {
-        val field = LogicalField("createdAt")
+        val field = QueryField("createdAt")
         val zoneId = "Asia/Shanghai"
         val localNormalizer = FilterNormalizer(
             clock = Clock.fixed(Instant.parse("2024-02-29T12:00:00Z"), ZoneOffset.UTC),
@@ -139,7 +139,7 @@ class FilterNormalizerTest {
 
     @Test
     fun `should expand every relative time filter`() {
-        val field = LogicalField("createdAt")
+        val field = QueryField("createdAt")
         listOf(
             YesterdayFilter(field, "UTC"),
             TomorrowFilter(field, "UTC"),
@@ -162,7 +162,7 @@ class FilterNormalizerTest {
 
     @Test
     fun `should normalize nulls and simplify logical filters`() {
-        val field = LogicalField("field")
+        val field = QueryField("field")
         val value = JsonSerializer.valueToTree<JsonNode>("value")
         val nullValue = JsonSerializer.valueToTree<JsonNode>(null)
         val noScope = FilterNormalizer(defaultDeletionState = null)
@@ -192,7 +192,7 @@ class FilterNormalizerTest {
 
     @Test
     fun `should normalize operand free empty string filters`() {
-        val field = LogicalField("field")
+        val field = QueryField("field")
         val emptyValue = JsonSerializer.valueToTree<JsonNode>("")
         val noScope = FilterNormalizer(defaultDeletionState = null)
         val empty = JsonSerializer.readValue(
@@ -218,7 +218,7 @@ class FilterNormalizerTest {
     @Test
     fun `should keep active scope around nested deletion filters`() {
         val predicate = EqualFilter(
-            LogicalField("field"),
+            QueryField("field"),
             JsonSerializer.valueToTree<JsonNode>("value"),
         )
         listOf(

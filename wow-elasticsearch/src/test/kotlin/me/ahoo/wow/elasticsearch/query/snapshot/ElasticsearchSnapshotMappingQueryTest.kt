@@ -32,7 +32,7 @@ import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
@@ -136,8 +136,8 @@ class ElasticsearchSnapshotMappingQueryTest {
         val service = strictQueryBackend()
 
         listOf(
-            ExistsFilter(LogicalField("state")),
-            IsEmptyFilter(LogicalField("state.orders")),
+            ExistsFilter(QueryField("state")),
+            IsEmptyFilter(QueryField("state.orders")),
         ).forEach { filter ->
             service.list(ListQuery(filter = filter, limit = 10)).test()
                 .expectError(QuerySchemaValidationException::class.java)
@@ -497,27 +497,27 @@ class ElasticsearchSnapshotMappingQueryTest {
             "state.age" to QueryValueType.INTEGER,
             "state.newField" to QueryValueType.STRING,
         ).associate { (field, type) ->
-            LogicalField(field) to QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(type)))
+            QueryField(field) to QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(type)))
         }.toMutableMap()
-        fields[LogicalField("state.orders")] = QueryFieldDeclaration(
+        fields[QueryField("state.orders")] = QueryFieldDeclaration(
             valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
             cardinality = DeclarationValue.Set(QueryCardinality.MANY),
         )
-        fields[LogicalField("state.orders.status")] = QueryFieldDeclaration(
+        fields[QueryField("state.orders.status")] = QueryFieldDeclaration(
             valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
         )
-        fields[LogicalField("state.singleOrders")] = QueryFieldDeclaration(
+        fields[QueryField("state.singleOrders")] = QueryFieldDeclaration(
             valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
             cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
         )
-        fields[LogicalField("state.singleOrders.status")] = QueryFieldDeclaration(
+        fields[QueryField("state.singleOrders.status")] = QueryFieldDeclaration(
             valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
         )
-        fields[LogicalField("state.stringOrders")] = QueryFieldDeclaration(
+        fields[QueryField("state.stringOrders")] = QueryFieldDeclaration(
             valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
             cardinality = DeclarationValue.Set(QueryCardinality.MANY),
         )
-        fields[LogicalField("state.stringOrders.status")] = QueryFieldDeclaration(
+        fields[QueryField("state.stringOrders.status")] = QueryFieldDeclaration(
             valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
         )
         return listOf(
@@ -528,7 +528,7 @@ class ElasticsearchSnapshotMappingQueryTest {
     }
 
     private fun equal(field: String, value: Any): EqualFilter =
-        EqualFilter(LogicalField(field), JsonSerializer.valueToTree(value))
+        EqualFilter(QueryField(field), JsonSerializer.valueToTree(value))
 
     private fun mappingResponse(mapping: TypeMapping): GetMappingResponse =
         GetMappingResponse.of { response ->

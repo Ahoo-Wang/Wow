@@ -15,7 +15,7 @@ package me.ahoo.wow.schema.query
 
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import com.github.victools.jsonschema.generator.SchemaVersion
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -129,12 +129,12 @@ internal class JsonSchemaWalker(
     private val rootSchema: JsonNode = schema,
     private val maskRuleResolver: (String) -> MaskRule,
 ) {
-    private val fields = linkedMapOf<LogicalField, QueryFieldDeclaration>()
+    private val fields = linkedMapOf<QueryField, QueryFieldDeclaration>()
     private val descriptiveMetadataCandidates =
-        mutableMapOf<Pair<LogicalField, String>, MutableList<DescriptiveMetadataCandidate>>()
+        mutableMapOf<Pair<QueryField, String>, MutableList<DescriptiveMetadataCandidate>>()
 
     fun declaration(
-        rootField: LogicalField = LogicalField(StateAggregateRecords.STATE),
+        rootField: QueryField = QueryField(StateAggregateRecords.STATE),
         includeRoot: Boolean = true,
     ): QuerySchemaDeclaration {
         if (includeRoot) {
@@ -149,7 +149,7 @@ internal class JsonSchemaWalker(
         }
         fields.putAll(
             schema.collectProperties(
-                parentName = rootField.value,
+                parentName = rootField.path,
                 resolvingReferences = setOf(ROOT_REFERENCE),
                 source = MEMBER_METADATA_SOURCE,
             ),
@@ -168,7 +168,7 @@ internal class JsonSchemaWalker(
         parentName: String,
         resolvingReferences: Set<String>,
         source: DescriptiveMetadataSource,
-    ): Map<LogicalField, QueryFieldDeclaration> {
+    ): Map<QueryField, QueryFieldDeclaration> {
         val collected = collectDirectProperties(parentName, resolvingReferences, source)
         validateMaskedUnrepresentableDescendants(parentName, resolvingReferences)
         reference()?.takeIf { it !in resolvingReferences }?.let { reference ->
@@ -204,8 +204,8 @@ internal class JsonSchemaWalker(
         parentName: String,
         resolvingReferences: Set<String>,
         source: DescriptiveMetadataSource,
-    ): MutableMap<LogicalField, QueryFieldDeclaration> {
-        val collected = linkedMapOf<LogicalField, QueryFieldDeclaration>()
+    ): MutableMap<QueryField, QueryFieldDeclaration> {
+        val collected = linkedMapOf<QueryField, QueryFieldDeclaration>()
         val parentRequired = get(JsonSchemaProperty.REQUIRED)?.asSequence()
             ?.filter(JsonNode::isString)
             ?.map(JsonNode::stringValue)
@@ -216,13 +216,13 @@ internal class JsonSchemaWalker(
                 return@forEach
             }
             val fullName = "$parentName.$propertyName"
-            if (!propertyName.isLogicalFieldSegment()) {
+            if (!propertyName.isQueryFieldSegment()) {
                 propertySchema.requireNoMaskRule(
                     "Masked query schema field has an invalid logical name: [$parentName[\"$propertyName\"]].",
                 )
                 return@forEach
             }
-            val field = LogicalField(fullName)
+            val field = QueryField(fullName)
             propertySchema.collectDescriptiveMetadataCandidates(field, source)
             collected.mergeConjunctive(
                 mapOf(field to propertySchema.toDeclaration(field, propertyName in parentRequired)),
@@ -239,7 +239,7 @@ internal class JsonSchemaWalker(
     }
 
     private fun JsonNode.toDeclaration(
-        field: LogicalField,
+        field: QueryField,
         required: Boolean,
     ): QueryFieldDeclaration {
         val nodes = effectiveNodes()
@@ -286,7 +286,7 @@ internal class JsonSchemaWalker(
     }
 
     private fun JsonNode.collectDescriptiveMetadataCandidates(
-        field: LogicalField,
+        field: QueryField,
         containerSource: DescriptiveMetadataSource,
     ) {
         sourcedMetadataNodes().forEach { (node, localSource) ->
@@ -322,7 +322,7 @@ internal class JsonSchemaWalker(
         }
     }
 
-    private fun resolveDescriptiveMetadata(field: LogicalField, property: String): String? {
+    private fun resolveDescriptiveMetadata(field: QueryField, property: String): String? {
         val candidates = descriptiveMetadataCandidates[field to property].orEmpty()
         val containerBaseline = candidates.minOfOrNull { it.containerSource.precedence } ?: return null
         val ranked = candidates.map { candidate ->
@@ -548,7 +548,7 @@ private fun JsonNode.arrayItems(): List<JsonNode> = buildList {
 }
 
 private inline fun <T : Any> List<JsonNode>.consistentValue(
-    field: LogicalField,
+    field: QueryField,
     leaf: String,
     value: (JsonNode) -> T?,
 ): T? {
@@ -559,5 +559,5 @@ private inline fun <T : Any> List<JsonNode>.consistentValue(
     return values.singleOrNull()
 }
 
-private fun String.isLogicalFieldSegment(): Boolean =
-    '.' !in this && runCatching { LogicalField(this) }.isSuccess
+private fun String.isQueryFieldSegment(): Boolean =
+    '.' !in this && runCatching { QueryField(this) }.isSuccess

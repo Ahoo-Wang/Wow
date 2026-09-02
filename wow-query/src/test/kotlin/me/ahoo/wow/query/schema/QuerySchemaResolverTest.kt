@@ -54,7 +54,7 @@ import me.ahoo.wow.api.query.LastYearFilter
 import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.NextMonthFilter
@@ -106,11 +106,11 @@ import kotlin.reflect.jvm.javaField
 class QuerySchemaResolverTest {
     @Test
     fun `filter capability matrix should rewrite exact literal range and presence fields`() {
-        val field = LogicalField("state.value")
-        val exact = LogicalField("document.value.keyword")
-        val literal = LogicalField("document.value.literal")
-        val range = LogicalField("document.value.range")
-        val presence = LogicalField("document.value")
+        val field = QueryField("state.value")
+        val exact = QueryField("document.value.keyword")
+        val literal = QueryField("document.value.literal")
+        val range = QueryField("document.value.range")
+        val presence = QueryField("document.value")
         val schema = schema(
             mapOf(
                 field to fieldSchema(
@@ -153,10 +153,10 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `declared built-in field types should reject incompatible predicate values`() {
-        val integer = LogicalField("state.createdAt")
-        val string = LogicalField("state.status")
-        val boolean = LogicalField("state.active")
-        val strings = LogicalField("state.labels")
+        val integer = QueryField("state.createdAt")
+        val string = QueryField("state.status")
+        val boolean = QueryField("state.active")
+        val strings = QueryField("state.labels")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -213,8 +213,8 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `declared built-in field types should accept matching values`() {
-        val field = LogicalField("state.value")
-        val physical = LogicalField("document.value")
+        val field = QueryField("state.value")
+        val physical = QueryField("document.value")
 
         listOf(
             QueryValueType.STRING to JsonNodeFactory.instance.stringNode("value"),
@@ -252,8 +252,8 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `collection filters should require collection cardinality`() {
-        val single = LogicalField("state.single")
-        val many = LogicalField("state.many")
+        val single = QueryField("state.single")
+        val many = QueryField("state.many")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -278,25 +278,25 @@ class QuerySchemaResolverTest {
             resolver.resolve(filter).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
         }
         listOf(
-            IsEmptyFilter(many) to IsEmptyFilter(LogicalField("document.many")),
-            ContainsAllFilter(many, values) to ContainsAllFilter(LogicalField("document.many"), values),
+            IsEmptyFilter(many) to IsEmptyFilter(QueryField("document.many")),
+            ContainsAllFilter(many, values) to ContainsAllFilter(QueryField("document.many"), values),
         ).forEach { (filter, expected) ->
             resolver.resolve(filter).assert().isEqualTo(
                 QuerySchemaResolution(expected, QueryCompatibilityLevel.EXACT),
             )
         }
         listOf(
-            IsEmptyFilter(LogicalField("state.unknown")),
-            ContainsAllFilter(LogicalField("state.unknown"), values),
+            IsEmptyFilter(QueryField("state.unknown")),
+            ContainsAllFilter(QueryField("state.unknown"), values),
         ).forEach { filter ->
             resolver.resolve(filter).compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
         }
 
-        val dynamic = LogicalField("tags.department")
+        val dynamic = QueryField("tags.department")
         QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("tags") to fieldSchema(
+                    QueryField("tags") to fieldSchema(
                         QueryCapability.PRESENCE to "document.tags",
                         QueryCapability.EXACT_MATCH to "document.tags",
                         dynamicChildren = true,
@@ -305,9 +305,9 @@ class QuerySchemaResolverTest {
             ),
         ).let { dynamicResolver ->
             listOf(
-                IsEmptyFilter(dynamic) to IsEmptyFilter(LogicalField("document.tags.department")),
+                IsEmptyFilter(dynamic) to IsEmptyFilter(QueryField("document.tags.department")),
                 ContainsAllFilter(dynamic, values) to ContainsAllFilter(
-                    LogicalField("document.tags.department"),
+                    QueryField("document.tags.department"),
                     values,
                 ),
             ).forEach { (filter, expected) ->
@@ -320,12 +320,12 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `empty string filters should require a single string field`() {
-        val name = LogicalField("state.name")
-        val aliases = LogicalField("state.aliases")
-        val count = LogicalField("state.count")
-        val untyped = LogicalField("state.untyped")
-        val custom = LogicalField("state.custom")
-        val mixed = LogicalField("state.mixed")
+        val name = QueryField("state.name")
+        val aliases = QueryField("state.aliases")
+        val count = QueryField("state.count")
+        val untyped = QueryField("state.untyped")
+        val custom = QueryField("state.custom")
+        val mixed = QueryField("state.mixed")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -356,8 +356,8 @@ class QuerySchemaResolverTest {
         )
 
         listOf("IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING").forEach { operator ->
-            fun filter(field: LogicalField) = JsonSerializer.readValue(
-                """{"op":"$operator","field":"${field.value}"}""",
+            fun filter(field: QueryField) = JsonSerializer.readValue(
+                """{"op":"$operator","field":"${field.path}"}""",
                 FilterExpression::class.java,
             )
 
@@ -373,8 +373,8 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `null equality filters should use presence bindings without changing their shape`() {
-        val field = LogicalField("state.note")
-        val physical = LogicalField("document.note")
+        val field = QueryField("state.note")
+        val physical = QueryField("document.note")
         val nullValue = JsonNodeFactory.instance.nullNode()
         val resolver = QuerySchemaResolver(
             schema(mapOf(field to fieldSchema(QueryCapability.PRESENCE to physical.value))),
@@ -402,7 +402,7 @@ class QuerySchemaResolverTest {
         )
         val schema = schema(
             mapOf(
-                LogicalField("state.note") to fieldSchema(
+                QueryField("state.note") to fieldSchema(
                     QueryCapability.PRESENCE to "document.note",
                 ),
             ),
@@ -412,13 +412,13 @@ class QuerySchemaResolverTest {
             .requireAccepted(QuerySchemaValidationMode.STRICT)
         val normalized = FilterNormalizer(defaultDeletionState = null).normalize(resolved)
 
-        normalized.assert().isEqualTo(IsNullFilter(LogicalField("document.note")))
+        normalized.assert().isEqualTo(IsNullFilter(QueryField("document.note")))
     }
 
     @Test
     fun `every relative time filter should apply the negotiated epoch unit and physical field`() {
-        val field = LogicalField("state.createdAt")
-        val physical = LogicalField("document.created_at")
+        val field = QueryField("state.createdAt")
+        val physical = QueryField("document.created_at")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -460,7 +460,7 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `formatted temporal should inject its pattern without changing the filter time unit`() {
-        val field = LogicalField("state.createdAt")
+        val field = QueryField("state.createdAt")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -475,7 +475,7 @@ class QuerySchemaResolverTest {
         resolver.resolve(TodayFilter(field, timeUnit = TimeUnit.SECONDS)).assert().isEqualTo(
             QuerySchemaResolution(
                 TodayFilter(
-                    LogicalField("document.created_at"),
+                    QueryField("document.created_at"),
                     datePattern = "yyyy-MM-dd",
                     timeUnit = TimeUnit.SECONDS,
                 ),
@@ -488,7 +488,7 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `formatted temporal should reject a conflicting explicit pattern`() {
-        val field = LogicalField("state.createdAt")
+        val field = QueryField("state.createdAt")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -506,7 +506,7 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `epoch temporal should reject an explicit date pattern`() {
-        val field = LogicalField("state.createdAt")
+        val field = QueryField("state.createdAt")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -524,7 +524,7 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `date temporal should preserve native configuration and reject an explicit pattern`() {
-        val field = LogicalField("state.createdAt")
+        val field = QueryField("state.createdAt")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -538,7 +538,7 @@ class QuerySchemaResolverTest {
 
         resolver.resolve(TodayFilter(field)).assert().isEqualTo(
             QuerySchemaResolution(
-                TodayFilter(LogicalField("document.created_at")),
+                TodayFilter(QueryField("document.created_at")),
                 QueryCompatibilityLevel.EXACT,
             ),
         )
@@ -548,7 +548,7 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `relative time filter should reject a field without temporal semantics`() {
-        val field = LogicalField("state.createdAt")
+        val field = QueryField("state.createdAt")
         val resolver = QuerySchemaResolver(
             schema(mapOf(field to fieldSchema(QueryCapability.RANGE to "document.created_at"))),
         )
@@ -560,7 +560,7 @@ class QuerySchemaResolverTest {
     @Test
     fun `unknown relative time field should preserve caller configuration as compatible`() {
         val filter = TodayFilter(
-            LogicalField("state.createdAt"),
+            QueryField("state.createdAt"),
             datePattern = "yyyy-MM-dd",
             timeUnit = TimeUnit.SECONDS,
         )
@@ -572,7 +572,7 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `epoch temporal should reject an opaque formatter in strict mode`() {
-        val field = LogicalField("state.createdAt")
+        val field = QueryField("state.createdAt")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -595,7 +595,7 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `formatted temporal should reject an opaque formatter with matching or missing pattern`() {
-        val field = LogicalField("state.createdAt")
+        val field = QueryField("state.createdAt")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -622,7 +622,7 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `date temporal should reject an opaque formatter`() {
-        val field = LogicalField("state.createdAt")
+        val field = QueryField("state.createdAt")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -642,11 +642,11 @@ class QuerySchemaResolverTest {
     fun `root metadata filters should be exact when their system field has an exact binding`() {
         val schema = schema(
             mapOf(
-                LogicalField("aggregateId") to fieldSchema(QueryCapability.EXACT_MATCH to "_id"),
-                LogicalField("tenantId") to fieldSchema(QueryCapability.EXACT_MATCH to "tenant_id"),
-                LogicalField("ownerId") to fieldSchema(QueryCapability.EXACT_MATCH to "owner_id"),
-                LogicalField("spaceId") to fieldSchema(QueryCapability.EXACT_MATCH to "space_id"),
-                LogicalField("deleted") to fieldSchema(QueryCapability.EXACT_MATCH to "is_deleted"),
+                QueryField("aggregateId") to fieldSchema(QueryCapability.EXACT_MATCH to "_id"),
+                QueryField("tenantId") to fieldSchema(QueryCapability.EXACT_MATCH to "tenant_id"),
+                QueryField("ownerId") to fieldSchema(QueryCapability.EXACT_MATCH to "owner_id"),
+                QueryField("spaceId") to fieldSchema(QueryCapability.EXACT_MATCH to "space_id"),
+                QueryField("deleted") to fieldSchema(QueryCapability.EXACT_MATCH to "is_deleted"),
             ),
         )
         val resolver = QuerySchemaResolver(schema)
@@ -670,9 +670,9 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `unknown field without dynamic ancestor should remain unchanged and compatible`() {
-        val filter = EqualFilter(LogicalField("state.unknown"), json("value"))
+        val filter = EqualFilter(QueryField("state.unknown"), json("value"))
         val schema = schema(
-            mapOf(LogicalField("state") to fieldSchema(dynamicChildren = false)),
+            mapOf(QueryField("state") to fieldSchema(dynamicChildren = false)),
         )
 
         QuerySchemaResolver(schema).resolve(filter).assert().isEqualTo(
@@ -682,10 +682,10 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `dynamic ancestor should append the suffix and remain exact`() {
-        val filter = EqualFilter(LogicalField("state.attributes.color"), json("blue"))
+        val filter = EqualFilter(QueryField("state.attributes.color"), json("blue"))
         val schema = schema(
             mapOf(
-                LogicalField("state.attributes") to fieldSchema(
+                QueryField("state.attributes") to fieldSchema(
                     QueryCapability.EXACT_MATCH to "document.attributes",
                     dynamicChildren = true,
                 ),
@@ -694,7 +694,7 @@ class QuerySchemaResolverTest {
 
         QuerySchemaResolver(schema).resolve(filter).assert().isEqualTo(
             QuerySchemaResolution(
-                filter.copy(field = LogicalField("document.attributes.color")),
+                filter.copy(field = QueryField("document.attributes.color")),
                 QueryCompatibilityLevel.EXACT,
             ),
         )
@@ -702,10 +702,10 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `bound tags without dynamic support should be incompatible`() {
-        val filter = EqualFilter(LogicalField("tags.department"), json("eng"))
+        val filter = EqualFilter(QueryField("tags.department"), json("eng"))
         val schema = schema(
             mapOf(
-                LogicalField("tags") to fieldSchema(dynamicChildren = false),
+                QueryField("tags") to fieldSchema(dynamicChildren = false),
             ),
         )
 
@@ -721,14 +721,14 @@ class QuerySchemaResolverTest {
     fun `dynamic nested suffix should not become an exact element scope`() {
         val query = AggregationQuery(
             elements = listOf(
-                AggregationElement(LogicalField("state.orders")),
-                AggregationElement(LogicalField("items")),
+                AggregationElement(QueryField("state.orders")),
+                AggregationElement(QueryField("items")),
             ),
             metrics = listOf(AggregationMetric.Count("count")),
         )
         val schema = schema(
             mapOf(
-                LogicalField("state.orders") to fieldSchema(
+                QueryField("state.orders") to fieldSchema(
                     QueryCapability.ELEMENT_SCOPE to "document.orders",
                     dynamicChildren = true,
                 ),
@@ -745,10 +745,10 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `known field without required capability should be incompatible`() {
-        val filter = GreaterThanFilter(LogicalField("state.status"), json(1))
+        val filter = GreaterThanFilter(QueryField("state.status"), json(1))
         val schema = schema(
             mapOf(
-                LogicalField("state.status") to fieldSchema(QueryCapability.EXACT_MATCH to "status_keyword"),
+                QueryField("state.status") to fieldSchema(QueryCapability.EXACT_MATCH to "status_keyword"),
             ),
         )
 
@@ -759,10 +759,10 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `structural filters should rewrite operands and combine their compatibility levels`() {
-        val field = LogicalField("state.status")
-        val physical = LogicalField("document.status")
+        val field = QueryField("state.status")
+        val physical = QueryField("document.status")
         val exact = EqualFilter(field, json("OPEN"))
-        val unknown = EqualFilter(LogicalField("state.unknown"), json("value"))
+        val unknown = EqualFilter(QueryField("state.unknown"), json("value"))
         val incompatible = GreaterThanFilter(field, json(1))
         val resolver = QuerySchemaResolver(
             schema(mapOf(field to fieldSchema(QueryCapability.EXACT_MATCH to physical.value))),
@@ -791,19 +791,19 @@ class QuerySchemaResolverTest {
     @Test
     fun `nested element match should validate absolute logical fields and emit relative physical children`() {
         val filter = ElementMatchFilter(
-            LogicalField("state.orders"),
+            QueryField("state.orders"),
             ElementMatchFilter(
-                LogicalField("items"),
-                EqualFilter(LogicalField("sku"), json("sku-1")),
+                QueryField("items"),
+                EqualFilter(QueryField("sku"), json("sku-1")),
             ),
         )
         val schema = schema(
             mapOf(
-                LogicalField("state.orders") to fieldSchema(QueryCapability.ELEMENT_SCOPE to "document.orders"),
-                LogicalField("state.orders.items") to fieldSchema(
+                QueryField("state.orders") to fieldSchema(QueryCapability.ELEMENT_SCOPE to "document.orders"),
+                QueryField("state.orders.items") to fieldSchema(
                     QueryCapability.ELEMENT_SCOPE to "document.orders.items",
                 ),
-                LogicalField("state.orders.items.sku") to fieldSchema(
+                QueryField("state.orders.items.sku") to fieldSchema(
                     QueryCapability.EXACT_MATCH to "document.orders.items.sku.keyword",
                 ),
             ),
@@ -812,10 +812,10 @@ class QuerySchemaResolverTest {
         QuerySchemaResolver(schema).resolve(filter).assert().isEqualTo(
             QuerySchemaResolution(
                 ElementMatchFilter(
-                    LogicalField("document.orders"),
+                    QueryField("document.orders"),
                     ElementMatchFilter(
-                        LogicalField("items"),
-                        EqualFilter(LogicalField("sku.keyword"), json("sku-1")),
+                        QueryField("items"),
+                        EqualFilter(QueryField("sku.keyword"), json("sku-1")),
                     ),
                 ),
                 QueryCompatibilityLevel.EXACT,
@@ -826,15 +826,15 @@ class QuerySchemaResolverTest {
     @Test
     fun `element match should reject a child binding outside its physical container`() {
         val filter = ElementMatchFilter(
-            LogicalField("state.orders"),
-            EqualFilter(LogicalField("sku"), json("sku-1")),
+            QueryField("state.orders"),
+            EqualFilter(QueryField("sku"), json("sku-1")),
         )
         val schema = schema(
             mapOf(
-                LogicalField("state.orders") to fieldSchema(
+                QueryField("state.orders") to fieldSchema(
                     QueryCapability.ELEMENT_SCOPE to "document.orders",
                 ),
-                LogicalField("state.orders.sku") to fieldSchema(
+                QueryField("state.orders.sku") to fieldSchema(
                     QueryCapability.EXACT_MATCH to "document.skus.keyword",
                 ),
             ),
@@ -846,11 +846,11 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `root filter should reject a field below an element scope`() {
-        val field = LogicalField("state.orders.price")
+        val field = QueryField("state.orders.price")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("state.orders") to fieldSchema(
+                    QueryField("state.orders") to fieldSchema(
                         QueryCapability.ELEMENT_SCOPE to "document.orders",
                     ),
                     field to fieldSchema(QueryCapability.EXACT_MATCH to "document.orders.price"),
@@ -864,11 +864,11 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `root search should not downgrade an element scoped field to model full text`() {
-        val field = LogicalField("state.orders.note")
+        val field = QueryField("state.orders.note")
         val resolver = QuerySchemaResolver(
             schema(
                 fields = mapOf(
-                    LogicalField("state.orders") to fieldSchema(
+                    QueryField("state.orders") to fieldSchema(
                         QueryCapability.ELEMENT_SCOPE to "document.orders",
                     ),
                     field to fieldSchema(QueryCapability.FULL_TEXT_TERMS to "document.orders.note"),
@@ -885,8 +885,8 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `search should use exact field bindings or an explicit model fallback`() {
-        val title = LogicalField("state.title")
-        val body = LogicalField("state.body")
+        val title = QueryField("state.title")
+        val body = QueryField("state.body")
         val schema = schema(
             fields = mapOf(
                 title to fieldSchema(QueryCapability.FULL_TEXT_TERMS to "document.title.text"),
@@ -898,7 +898,7 @@ class QuerySchemaResolverTest {
 
         resolver.resolve(SearchFilter("hello", linkedSetOf(title))).assert().isEqualTo(
             QuerySchemaResolution(
-                SearchFilter("hello", linkedSetOf(LogicalField("document.title.text"))),
+                SearchFilter("hello", linkedSetOf(QueryField("document.title.text"))),
                 QueryCompatibilityLevel.EXACT,
             ),
         )
@@ -906,13 +906,13 @@ class QuerySchemaResolverTest {
             QuerySchemaResolution(
                 SearchFilter(
                     "hello world",
-                    linkedSetOf(LogicalField("document.body.text")),
+                    linkedSetOf(QueryField("document.body.text")),
                     SearchMode.PHRASE,
                 ),
                 QueryCompatibilityLevel.EXACT,
             ),
         )
-        resolver.resolve(SearchFilter("hello", linkedSetOf(LogicalField("state.unknown")))).assert().isEqualTo(
+        resolver.resolve(SearchFilter("hello", linkedSetOf(QueryField("state.unknown")))).assert().isEqualTo(
             QuerySchemaResolution(SearchFilter("hello"), QueryCompatibilityLevel.COMPATIBLE),
         )
         resolver.resolve(SearchFilter("hello")).assert().isEqualTo(
@@ -922,7 +922,7 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `search should be incompatible when neither field nor model supports its mode`() {
-        val filter = SearchFilter("hello", linkedSetOf(LogicalField("state.title")))
+        val filter = SearchFilter("hello", linkedSetOf(QueryField("state.title")))
 
         QuerySchemaResolver(schema()).resolve(filter).assert().isEqualTo(
             QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE),
@@ -933,7 +933,7 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `projection sort and list query should use their capability-specific physical paths`() {
-        val field = LogicalField("state.name")
+        val field = QueryField("state.name")
         val schema = schema(
             mapOf(
                 field to fieldSchema(
@@ -946,15 +946,15 @@ class QuerySchemaResolverTest {
         val resolver = QuerySchemaResolver(schema)
         val query = ListQuery(
             filter = EqualFilter(field, json("name")),
-            projection = Projection(include = listOf(field.value), exclude = listOf(field.value)),
-            sort = listOf(Sort(field.value, Sort.Direction.DESC)),
+            projection = Projection(include = listOf(field.path), exclude = listOf(field.path)),
+            sort = listOf(Sort(field.path, Sort.Direction.DESC)),
             limit = 7,
         )
 
         resolver.resolve(query).assert().isEqualTo(
             QuerySchemaResolution(
                 ListQuery(
-                    filter = EqualFilter(LogicalField("document.name.keyword"), json("name")),
+                    filter = EqualFilter(QueryField("document.name.keyword"), json("name")),
                     projection = Projection(
                         include = listOf("document.name"),
                         exclude = listOf("document.name"),
@@ -969,7 +969,7 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `projection should use its path without requiring a presence binding`() {
-        val field = LogicalField("state.name")
+        val field = QueryField("state.name")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -981,7 +981,7 @@ class QuerySchemaResolverTest {
             ),
         )
 
-        resolver.resolve(Projection(include = listOf(field.value))).assert().isEqualTo(
+        resolver.resolve(Projection(include = listOf(field.path))).assert().isEqualTo(
             QuerySchemaResolution(
                 Projection(include = listOf("document.name")),
                 QueryCompatibilityLevel.EXACT,
@@ -991,12 +991,12 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `root sort should reject a field below an element scope`() {
-        val field = LogicalField("state.orders.price")
-        val sort = listOf(Sort(field.value, Sort.Direction.ASC))
+        val field = QueryField("state.orders.price")
+        val sort = listOf(Sort(field.path, Sort.Direction.ASC))
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("state.orders") to fieldSchema(
+                    QueryField("state.orders") to fieldSchema(
                         QueryCapability.ELEMENT_SCOPE to "document.orders",
                     ),
                     field to fieldSchema(QueryCapability.SORT to "document.orders.price"),
@@ -1011,11 +1011,11 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `projection should allow source fields below an element scope`() {
-        val field = LogicalField("state.orders.price")
+        val field = QueryField("state.orders.price")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("state.orders") to fieldSchema(
+                    QueryField("state.orders") to fieldSchema(
                         QueryCapability.ELEMENT_SCOPE to "document.orders",
                     ),
                     field to fieldSchema(QueryCapability.PRESENCE to "document.orders.price"),
@@ -1023,7 +1023,7 @@ class QuerySchemaResolverTest {
             ),
         )
 
-        resolver.resolve(Projection(include = listOf(field.value))).assert().isEqualTo(
+        resolver.resolve(Projection(include = listOf(field.path))).assert().isEqualTo(
             QuerySchemaResolution(
                 Projection(include = listOf("document.orders.price")),
                 QueryCompatibilityLevel.EXACT,
@@ -1051,8 +1051,8 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `query should combine component compatibility by the strictest level`() {
-        val compatible = LogicalField("state.unknown")
-        val incompatible = LogicalField("state.declared")
+        val compatible = QueryField("state.unknown")
+        val incompatible = QueryField("state.declared")
         val resolver = QuerySchemaResolver(schema(mapOf(incompatible to fieldSchema())))
         val filters = mapOf(
             QueryCompatibilityLevel.EXACT to MatchAllFilter,
@@ -1092,7 +1092,7 @@ class QuerySchemaResolverTest {
         val snapshotResolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("state.secret") to fieldSchema(maskRule = fullMaskRule()),
+                    QueryField("state.secret") to fieldSchema(maskRule = fullMaskRule()),
                 ),
             ),
         )
@@ -1105,8 +1105,8 @@ class QuerySchemaResolverTest {
                 QueryModel.EVENT_STREAM,
                 emptySet(),
                 mapOf(
-                    LogicalField("body.body.secret") to fieldSchema(maskRule = fullMaskRule()),
-                    LogicalField("body.bodyType") to fieldSchema(
+                    QueryField("body.body.secret") to fieldSchema(maskRule = fullMaskRule()),
+                    QueryField("body.bodyType") to fieldSchema(
                         QueryCapability.PRESENCE to "document.events.type",
                     ),
                 ),
@@ -1123,22 +1123,22 @@ class QuerySchemaResolverTest {
     @Test
     fun `aggregation should validate relative elements groups and numeric expression fields`() {
         val query = AggregationQuery(
-            filter = EqualFilter(LogicalField("state.status"), json("OPEN")),
+            filter = EqualFilter(QueryField("state.status"), json("OPEN")),
             elements = listOf(
                 AggregationElement(
-                    LogicalField("state.orders"),
-                    EqualFilter(LogicalField("active"), json(true)),
+                    QueryField("state.orders"),
+                    EqualFilter(QueryField("active"), json(true)),
                 ),
                 AggregationElement(
-                    LogicalField("items"),
-                    GreaterThanFilter(LogicalField("price"), json(0)),
+                    QueryField("items"),
+                    GreaterThanFilter(QueryField("price"), json(0)),
                 ),
             ),
             groupBy = listOf(
-                AggregationGroup.Terms(LogicalField("category"), "category"),
-                AggregationGroup.Histogram(LogicalField("price"), "price", 10.0),
+                AggregationGroup.Terms(QueryField("category"), "category"),
+                AggregationGroup.Histogram(QueryField("price"), "price", 10.0),
                 AggregationGroup.DateHistogram(
-                    LogicalField("createdAt"),
+                    QueryField("createdAt"),
                     "createdAt",
                     AggregationDateUnit.DAY,
                 ),
@@ -1149,8 +1149,8 @@ class QuerySchemaResolverTest {
                     AggregationFunction.SUM,
                     AggregationExpression.Binary(
                         AggregationExpressionOperator.SUBTRACT,
-                        AggregationExpression.Field(LogicalField("price")),
-                        AggregationExpression.Field(LogicalField("discount")),
+                        AggregationExpression.Field(QueryField("price")),
+                        AggregationExpression.Field(QueryField("discount")),
                     ),
                     "total",
                 ),
@@ -1159,23 +1159,23 @@ class QuerySchemaResolverTest {
         )
         val schema = schema(
             mapOf(
-                LogicalField("state.status") to fieldSchema(QueryCapability.EXACT_MATCH to "document.status"),
-                LogicalField("state.orders") to fieldSchema(QueryCapability.ELEMENT_SCOPE to "document.orders"),
-                LogicalField("state.orders.active") to fieldSchema(QueryCapability.EXACT_MATCH to "document.orders.active"),
-                LogicalField("state.orders.items") to fieldSchema(
+                QueryField("state.status") to fieldSchema(QueryCapability.EXACT_MATCH to "document.status"),
+                QueryField("state.orders") to fieldSchema(QueryCapability.ELEMENT_SCOPE to "document.orders"),
+                QueryField("state.orders.active") to fieldSchema(QueryCapability.EXACT_MATCH to "document.orders.active"),
+                QueryField("state.orders.items") to fieldSchema(
                     QueryCapability.ELEMENT_SCOPE to "document.orders.items",
                 ),
-                LogicalField("state.orders.items.category") to fieldSchema(
+                QueryField("state.orders.items.category") to fieldSchema(
                     QueryCapability.AGGREGATE_TERMS to "document.orders.items.category",
                 ),
-                LogicalField("state.orders.items.price") to fieldSchema(
+                QueryField("state.orders.items.price") to fieldSchema(
                     QueryCapability.RANGE to "document.orders.items.price",
                     QueryCapability.AGGREGATE_NUMERIC to "document.orders.items.price",
                 ),
-                LogicalField("state.orders.items.discount") to fieldSchema(
+                QueryField("state.orders.items.discount") to fieldSchema(
                     QueryCapability.AGGREGATE_NUMERIC to "document.orders.items.discount",
                 ),
-                LogicalField("state.orders.items.createdAt") to fieldSchema(
+                QueryField("state.orders.items.createdAt") to fieldSchema(
                     QueryCapability.AGGREGATE_TEMPORAL to "document.orders.items.created_at",
                 ),
             ),
@@ -1184,7 +1184,7 @@ class QuerySchemaResolverTest {
         QuerySchemaResolver(schema).resolve(query).assert().isEqualTo(
             QuerySchemaResolution(
                 query.copy(
-                    filter = EqualFilter(LogicalField("document.status"), json("OPEN")),
+                    filter = EqualFilter(QueryField("document.status"), json("OPEN")),
                 ),
                 QueryCompatibilityLevel.EXACT,
             ),
@@ -1193,33 +1193,33 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `aggregation should return rewritten root and nested element filters without mutating the request`() {
-        val rootFilter = TodayFilter(LogicalField("state.createdAt"))
-        val outerFilter = EqualFilter(LogicalField("status"), json("PAID"))
-        val innerFilter = TodayFilter(LogicalField("createdAt"))
+        val rootFilter = TodayFilter(QueryField("state.createdAt"))
+        val outerFilter = EqualFilter(QueryField("status"), json("PAID"))
+        val innerFilter = TodayFilter(QueryField("createdAt"))
         val query = AggregationQuery(
             filter = rootFilter,
             elements = listOf(
-                AggregationElement(LogicalField("state.orders"), outerFilter),
-                AggregationElement(LogicalField("items"), innerFilter),
+                AggregationElement(QueryField("state.orders"), outerFilter),
+                AggregationElement(QueryField("items"), innerFilter),
             ),
             metrics = listOf(AggregationMetric.Count("count")),
         )
         val schema = schema(
             mapOf(
-                LogicalField("state.createdAt") to fieldSchema(
+                QueryField("state.createdAt") to fieldSchema(
                     QueryCapability.RANGE to "document.created_at",
                     semanticType = Temporal.Epoch(TimeUnit.SECONDS),
                 ),
-                LogicalField("state.orders") to fieldSchema(
+                QueryField("state.orders") to fieldSchema(
                     QueryCapability.ELEMENT_SCOPE to "document.orders",
                 ),
-                LogicalField("state.orders.status") to fieldSchema(
+                QueryField("state.orders.status") to fieldSchema(
                     QueryCapability.EXACT_MATCH to "document.orders.status.keyword",
                 ),
-                LogicalField("state.orders.items") to fieldSchema(
+                QueryField("state.orders.items") to fieldSchema(
                     QueryCapability.ELEMENT_SCOPE to "document.orders.items",
                 ),
-                LogicalField("state.orders.items.createdAt") to fieldSchema(
+                QueryField("state.orders.items.createdAt") to fieldSchema(
                     QueryCapability.RANGE to "document.orders.items.created_at",
                     semanticType = Temporal.Formatted("yyyy-MM-dd"),
                 ),
@@ -1229,13 +1229,13 @@ class QuerySchemaResolverTest {
         QuerySchemaResolver(schema).resolve(query).assert().isEqualTo(
             QuerySchemaResolution(
                 query.copy(
-                    filter = TodayFilter(LogicalField("document.created_at"), timeUnit = TimeUnit.SECONDS),
+                    filter = TodayFilter(QueryField("document.created_at"), timeUnit = TimeUnit.SECONDS),
                     elements = listOf(
                         query.elements[0].copy(
-                            filter = outerFilter.copy(field = LogicalField("status.keyword")),
+                            filter = outerFilter.copy(field = QueryField("status.keyword")),
                         ),
                         query.elements[1].copy(
-                            filter = TodayFilter(LogicalField("created_at"), datePattern = "yyyy-MM-dd"),
+                            filter = TodayFilter(QueryField("created_at"), datePattern = "yyyy-MM-dd"),
                         ),
                     ),
                 ),
@@ -1251,17 +1251,17 @@ class QuerySchemaResolverTest {
     fun `aggregation elements should resolve paths relative to the root element`() {
         val query = AggregationQuery(
             elements = listOf(
-                AggregationElement(LogicalField("state.orders")),
-                AggregationElement(LogicalField("items")),
+                AggregationElement(QueryField("state.orders")),
+                AggregationElement(QueryField("items")),
             ),
             metrics = listOf(AggregationMetric.Count("count")),
         )
         val schema = schema(
             mapOf(
-                LogicalField("state.orders") to fieldSchema(
+                QueryField("state.orders") to fieldSchema(
                     QueryCapability.ELEMENT_SCOPE to "document.orders",
                 ),
-                LogicalField("state.orders.items") to fieldSchema(
+                QueryField("state.orders.items") to fieldSchema(
                     QueryCapability.ELEMENT_SCOPE to "document.orders.items",
                 ),
             ),
@@ -1275,27 +1275,27 @@ class QuerySchemaResolverTest {
     @Test
     fun `aggregation groups and expressions should resolve relative to the innermost element`() {
         val query = AggregationQuery(
-            elements = listOf(AggregationElement(LogicalField("state.orders"))),
+            elements = listOf(AggregationElement(QueryField("state.orders"))),
             groupBy = listOf(
-                AggregationGroup.Terms(LogicalField("category"), "category"),
+                AggregationGroup.Terms(QueryField("category"), "category"),
             ),
             metrics = listOf(
                 AggregationMetric.Numeric(
                     AggregationFunction.SUM,
-                    AggregationExpression.Field(LogicalField("amount")),
+                    AggregationExpression.Field(QueryField("amount")),
                     "total",
                 ),
             ),
         )
         val schema = schema(
             mapOf(
-                LogicalField("state.orders") to fieldSchema(
+                QueryField("state.orders") to fieldSchema(
                     QueryCapability.ELEMENT_SCOPE to "document.orders",
                 ),
-                LogicalField("state.orders.category") to fieldSchema(
+                QueryField("state.orders.category") to fieldSchema(
                     QueryCapability.AGGREGATE_TERMS to "document.orders.category",
                 ),
-                LogicalField("state.orders.amount") to fieldSchema(
+                QueryField("state.orders.amount") to fieldSchema(
                     QueryCapability.AGGREGATE_NUMERIC to "document.orders.amount",
                 ),
             ),
@@ -1309,17 +1309,17 @@ class QuerySchemaResolverTest {
     @Test
     fun `aggregation fields should remain relative to the innermost element`() {
         val query = AggregationQuery(
-            elements = listOf(AggregationElement(LogicalField("body"))),
-            groupBy = listOf(AggregationGroup.Terms(LogicalField("body.data"), "data")),
+            elements = listOf(AggregationElement(QueryField("body"))),
+            groupBy = listOf(AggregationGroup.Terms(QueryField("body.data"), "data")),
             metrics = listOf(AggregationMetric.Count("count")),
         )
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("body") to fieldSchema(
+                    QueryField("body") to fieldSchema(
                         QueryCapability.ELEMENT_SCOPE to "event.body",
                     ),
-                    LogicalField("body.body.data") to fieldSchema(
+                    QueryField("body.body.data") to fieldSchema(
                         QueryCapability.AGGREGATE_TERMS to "event.body.body.data.keyword",
                     ),
                 ),
@@ -1331,14 +1331,14 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `aggregation any should require a single terms-capable field in the innermost element`() {
-        val productName = LogicalField("state.orders.lines.productName")
+        val productName = QueryField("state.orders.lines.productName")
         val baseFields = linkedMapOf(
-            LogicalField("state.orders") to fieldSchema(
+            QueryField("state.orders") to fieldSchema(
                 QueryCapability.ELEMENT_SCOPE to "document.orders",
                 cardinality = QueryCardinality.MANY,
                 valueTypes = setOf(QueryValueType.OBJECT),
             ),
-            LogicalField("state.orders.lines") to fieldSchema(
+            QueryField("state.orders.lines") to fieldSchema(
                 QueryCapability.ELEMENT_SCOPE to "document.orders.lines",
                 cardinality = QueryCardinality.MANY,
                 valueTypes = setOf(QueryValueType.OBJECT),
@@ -1350,10 +1350,10 @@ class QuerySchemaResolverTest {
         )
         val query = AggregationQuery(
             elements = listOf(
-                AggregationElement(LogicalField("state.orders")),
-                AggregationElement(LogicalField("lines")),
+                AggregationElement(QueryField("state.orders")),
+                AggregationElement(QueryField("lines")),
             ),
-            metrics = listOf(AggregationMetric.Any(LogicalField("productName"), "productName")),
+            metrics = listOf(AggregationMetric.Any(QueryField("productName"), "productName")),
         )
 
         QuerySchemaResolver(schema(baseFields)).resolve(query).compatibility.assert()
@@ -1370,8 +1370,8 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `masked fields should be rejected only from aggregation references`() {
-        val rootSecret = LogicalField("state.secret")
-        val nestedSecret = LogicalField("state.orders.secret")
+        val rootSecret = QueryField("state.secret")
+        val nestedSecret = QueryField("state.orders.secret")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -1382,7 +1382,7 @@ class QuerySchemaResolverTest {
                         QueryCapability.AGGREGATE_NUMERIC to "document.secret",
                         maskRule = fullMaskRule(),
                     ),
-                    LogicalField("state.orders") to fieldSchema(
+                    QueryField("state.orders") to fieldSchema(
                         QueryCapability.ELEMENT_SCOPE to "document.orders",
                     ),
                     nestedSecret to fieldSchema(
@@ -1412,8 +1412,8 @@ class QuerySchemaResolverTest {
                 ),
             ),
             AggregationQuery(
-                elements = listOf(AggregationElement(LogicalField("state.orders"))),
-                groupBy = listOf(AggregationGroup.Terms(LogicalField("secret"), "secret")),
+                elements = listOf(AggregationElement(QueryField("state.orders"))),
+                groupBy = listOf(AggregationGroup.Terms(QueryField("secret"), "secret")),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         )
@@ -1432,7 +1432,7 @@ class QuerySchemaResolverTest {
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("state.email") to fieldSchema(
+                    QueryField("state.email") to fieldSchema(
                         QueryCapability.AGGREGATE_TERMS to "state.email.keyword",
                         maskRule = fullMaskRule(),
                     ),
@@ -1440,7 +1440,7 @@ class QuerySchemaResolverTest {
             ),
         )
         val query = AggregationQuery(
-            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.email.keyword"), "email")),
+            groupBy = listOf(AggregationGroup.Terms(QueryField("state.email.keyword"), "email")),
             metrics = listOf(AggregationMetric.Count("count")),
         )
 
@@ -1452,10 +1452,10 @@ class QuerySchemaResolverTest {
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("state.orders") to fieldSchema(
+                    QueryField("state.orders") to fieldSchema(
                         QueryCapability.ELEMENT_SCOPE to "document.orders",
                     ),
-                    LogicalField("state.orders.email") to fieldSchema(
+                    QueryField("state.orders.email") to fieldSchema(
                         QueryCapability.AGGREGATE_TERMS to "document.orders.email.keyword",
                         maskRule = fullMaskRule(),
                     ),
@@ -1463,8 +1463,8 @@ class QuerySchemaResolverTest {
             ),
         )
         val query = AggregationQuery(
-            elements = listOf(AggregationElement(LogicalField("state.orders"))),
-            groupBy = listOf(AggregationGroup.Terms(LogicalField("email.keyword"), "email")),
+            elements = listOf(AggregationElement(QueryField("state.orders"))),
+            groupBy = listOf(AggregationGroup.Terms(QueryField("email.keyword"), "email")),
             metrics = listOf(AggregationMetric.Count("count")),
         )
 
@@ -1476,10 +1476,10 @@ class QuerySchemaResolverTest {
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("state.orders") to fieldSchema(
+                    QueryField("state.orders") to fieldSchema(
                         QueryCapability.ELEMENT_SCOPE to "document.orders",
                     ),
-                    LogicalField("state.orders.email") to fieldSchema(
+                    QueryField("state.orders.email") to fieldSchema(
                         QueryCapability.AGGREGATE_TERMS to "state.orders.email.keyword",
                         maskRule = fullMaskRule(),
                     ),
@@ -1487,8 +1487,8 @@ class QuerySchemaResolverTest {
             ),
         )
         val query = AggregationQuery(
-            elements = listOf(AggregationElement(LogicalField("state.orders"))),
-            groupBy = listOf(AggregationGroup.Terms(LogicalField("email.keyword"), "email")),
+            elements = listOf(AggregationElement(QueryField("state.orders"))),
+            groupBy = listOf(AggregationGroup.Terms(QueryField("email.keyword"), "email")),
             metrics = listOf(AggregationMetric.Count("count")),
         )
 
@@ -1500,7 +1500,7 @@ class QuerySchemaResolverTest {
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("state.emailAlias") to fieldSchema(
+                    QueryField("state.emailAlias") to fieldSchema(
                         projectionPath = "state.email",
                         maskRule = fullMaskRule(),
                     ),
@@ -1508,7 +1508,7 @@ class QuerySchemaResolverTest {
             ),
         )
         val query = AggregationQuery(
-            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.email"), "email")),
+            groupBy = listOf(AggregationGroup.Terms(QueryField("state.email"), "email")),
             metrics = listOf(AggregationMetric.Count("count")),
         )
 
@@ -1520,18 +1520,18 @@ class QuerySchemaResolverTest {
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("state.emailAlias") to fieldSchema(
+                    QueryField("state.emailAlias") to fieldSchema(
                         projectionPath = "state.email",
                         maskRule = fullMaskRule(),
                     ),
-                    LogicalField("state.email") to fieldSchema(
+                    QueryField("state.email") to fieldSchema(
                         QueryCapability.AGGREGATE_TERMS to "document.email.keyword",
                     ),
                 ),
             ),
         )
         val query = AggregationQuery(
-            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.email"), "email")),
+            groupBy = listOf(AggregationGroup.Terms(QueryField("state.email"), "email")),
             metrics = listOf(AggregationMetric.Count("count")),
         )
 
@@ -1543,18 +1543,18 @@ class QuerySchemaResolverTest {
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("state.emailAlias") to fieldSchema(
+                    QueryField("state.emailAlias") to fieldSchema(
                         projectionPath = "state.email",
                         maskRule = fullMaskRule(),
                     ),
-                    LogicalField("state.status") to fieldSchema(
+                    QueryField("state.status") to fieldSchema(
                         QueryCapability.AGGREGATE_TERMS to "document.status.keyword",
                     ),
                 ),
             ),
         )
         val query = AggregationQuery(
-            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.status"), "status")),
+            groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status")),
             metrics = listOf(AggregationMetric.Count("count")),
         )
 
@@ -1566,7 +1566,7 @@ class QuerySchemaResolverTest {
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("state.email") to fieldSchema(
+                    QueryField("state.email") to fieldSchema(
                         QueryCapability.AGGREGATE_TERMS to "state.email.keyword",
                         maskRule = fullMaskRule(),
                     ),
@@ -1574,7 +1574,7 @@ class QuerySchemaResolverTest {
             ),
         )
         val query = AggregationQuery(
-            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.unknown.keyword"), "unknown")),
+            groupBy = listOf(AggregationGroup.Terms(QueryField("state.unknown.keyword"), "unknown")),
             metrics = listOf(AggregationMetric.Count("count")),
         )
 
@@ -1583,7 +1583,7 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `cursor sort should require exact unmasked bindings while ordinary sort remains allowed`() {
-        val secret = LogicalField("state.secret")
+        val secret = QueryField("state.secret")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -1602,7 +1602,7 @@ class QuerySchemaResolverTest {
         resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort("state.unknown", Sort.Direction.ASC))))
             .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
 
-        val dynamic = LogicalField("state.dynamic")
+        val dynamic = QueryField("state.dynamic")
         val dynamicResolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -1624,13 +1624,13 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `cursor sort should reject masked projection and physical aliases`() {
-        val projectionAlias = LogicalField("state.email")
-        val siblingProjectionAlias = LogicalField("state.emailSibling")
-        val physicalAlias = LogicalField("state.secretAlias")
+        val projectionAlias = QueryField("state.email")
+        val siblingProjectionAlias = QueryField("state.emailSibling")
+        val physicalAlias = QueryField("state.secretAlias")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("state.emailAlias") to fieldSchema(
+                    QueryField("state.emailAlias") to fieldSchema(
                         projectionPath = projectionAlias.value,
                         maskRule = fullMaskRule(),
                     ),
@@ -1639,7 +1639,7 @@ class QuerySchemaResolverTest {
                         QueryCapability.SORT to "document.email.raw",
                         projectionPath = projectionAlias.value,
                     ),
-                    LogicalField("state.secret") to fieldSchema(
+                    QueryField("state.secret") to fieldSchema(
                         QueryCapability.SORT to "document.secret.keyword",
                         maskRule = fullMaskRule(),
                     ),
@@ -1658,8 +1658,8 @@ class QuerySchemaResolverTest {
 
     @Test
     fun `cursor sort should reject multi valued fields while ordinary sort remains allowed`() {
-        val many = LogicalField("state.many")
-        val single = LogicalField("state.single")
+        val many = QueryField("state.many")
+        val single = QueryField("state.single")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -1683,9 +1683,9 @@ class QuerySchemaResolverTest {
     @Test
     fun `cursor sort should reject aliases resolved to unstable metadata fields`() {
         val aliases = mapOf(
-            LogicalField("state.scoreRank") to "_score",
-            LogicalField("state.documentRank") to "_doc",
-            LogicalField("state.shardRank") to "_shard_doc",
+            QueryField("state.scoreRank") to "_score",
+            QueryField("state.documentRank") to "_doc",
+            QueryField("state.shardRank") to "_shard_doc",
         )
         val resolver = QuerySchemaResolver(
             schema(
@@ -1708,8 +1708,8 @@ class QuerySchemaResolverTest {
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    LogicalField("state.idAlias") to fieldSchema(QueryCapability.SORT to "_id"),
-                    LogicalField("aggregateId") to fieldSchema(QueryCapability.SORT to "_id"),
+                    QueryField("state.idAlias") to fieldSchema(QueryCapability.SORT to "_id"),
+                    QueryField("aggregateId") to fieldSchema(QueryCapability.SORT to "_id"),
                 ),
             ),
         )
@@ -1731,11 +1731,11 @@ class QuerySchemaResolverTest {
                 QueryModel.EVENT_STREAM,
                 emptySet(),
                 mapOf(
-                    LogicalField("body.body.secret") to fieldSchema(
+                    QueryField("body.body.secret") to fieldSchema(
                         QueryCapability.PRESENCE to "body.body.secret",
                         maskRule = fullMaskRule(),
                     ),
-                    LogicalField("body.bodyType") to fieldSchema(
+                    QueryField("body.bodyType") to fieldSchema(
                         QueryCapability.PRESENCE to "document.events.type",
                     ),
                 ),
@@ -1756,11 +1756,11 @@ class QuerySchemaResolverTest {
                 QueryModel.EVENT_STREAM,
                 emptySet(),
                 mapOf(
-                    LogicalField("body.body.secret") to fieldSchema(
+                    QueryField("body.body.secret") to fieldSchema(
                         QueryCapability.PRESENCE to "body.body.secret",
                         maskRule = fullMaskRule(),
                     ),
-                    LogicalField("body.bodyType") to fieldSchema(
+                    QueryField("body.bodyType") to fieldSchema(
                         QueryCapability.PRESENCE to "body.bodyType",
                     ),
                 ),
@@ -1778,11 +1778,11 @@ class QuerySchemaResolverTest {
                 QueryModel.EVENT_STREAM,
                 emptySet(),
                 mapOf(
-                    LogicalField("body.body.secret") to fieldSchema(
+                    QueryField("body.body.secret") to fieldSchema(
                         QueryCapability.PRESENCE to "body.body.secret",
                         maskRule = fullMaskRule(),
                     ),
-                    LogicalField("body.bodyType") to fieldSchema(
+                    QueryField("body.bodyType") to fieldSchema(
                         QueryCapability.PRESENCE to "body.bodyType",
                     ),
                 ),
@@ -1805,14 +1805,14 @@ class QuerySchemaResolverTest {
                 QueryModel.EVENT_STREAM,
                 emptySet(),
                 mapOf(
-                    LogicalField("body.body.secret") to fieldSchema(
+                    QueryField("body.body.secret") to fieldSchema(
                         QueryCapability.PRESENCE to "body.body.secret",
                         maskRule = fullMaskRule(),
                     ),
-                    LogicalField("body.bodyType") to fieldSchema(
+                    QueryField("body.bodyType") to fieldSchema(
                         QueryCapability.PRESENCE to "body.bodyType",
                     ),
-                    LogicalField("eventTypeAlias") to fieldSchema(
+                    QueryField("eventTypeAlias") to fieldSchema(
                         QueryCapability.PRESENCE to "body.bodyType",
                     ),
                 ),
@@ -1824,7 +1824,7 @@ class QuerySchemaResolverTest {
     }
 
     private fun schema(
-        fields: Map<LogicalField, QueryFieldSchema> = emptyMap(),
+        fields: Map<QueryField, QueryFieldSchema> = emptyMap(),
         capabilities: Set<QueryCapability> = emptySet(),
     ) = QueryModelSchema(QueryModel.SNAPSHOT, capabilities, fields)
 

@@ -15,7 +15,7 @@ package me.ahoo.wow.benchmark.query
 
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
@@ -76,7 +76,7 @@ open class SchemaMaskGatewayBenchmark {
             model = QueryModel.SNAPSHOT,
             capabilities = emptySet(),
             fields = (0 until maskedFieldCount).associate { index ->
-                LogicalField("state.secret$index") to maskedFieldSchema()
+                QueryField("state.secret$index") to maskedFieldSchema()
             },
         )
         val results = List(resultCount) {

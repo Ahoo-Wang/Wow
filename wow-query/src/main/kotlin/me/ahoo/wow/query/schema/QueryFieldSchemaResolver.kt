@@ -13,14 +13,14 @@
 
 package me.ahoo.wow.query.schema
 
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 
 internal data class QueryFieldResolution(
-    val logical: LogicalField,
+    val logical: QueryField,
     val value: String,
     val physicalPath: String?,
     val compatibility: QueryCompatibilityLevel,
@@ -34,10 +34,10 @@ internal class QueryFieldSchemaResolver(
 ) {
     private val knownFields = buildMap {
         schema.fields.forEach { (field, fieldSchema) ->
-            put(field.value, field)
+            put(field.path, field)
             fieldSchema.bindings.values.forEach { binding ->
-                runCatching { LogicalField(binding.physicalPath) }.getOrNull()?.let {
-                    putIfAbsent(it.value, it)
+                runCatching { QueryField(binding.physicalPath) }.getOrNull()?.let {
+                    putIfAbsent(it.path, it)
                 }
             }
         }
@@ -45,16 +45,16 @@ internal class QueryFieldSchemaResolver(
     private val elementScopePaths = buildSet {
         schema.fields.forEach { (field, fieldSchema) ->
             if (QueryCapability.ELEMENT_SCOPE in fieldSchema.bindings) {
-                add(field.value)
+                add(field.path)
             }
         }
     }
 
-    fun resolveLogicalField(path: String): LogicalField = knownFields[path] ?: LogicalField(path)
+    fun resolveQueryField(path: String): QueryField = knownFields[path] ?: QueryField(path)
 
     fun resolveProjectionPath(path: String): QuerySchemaResolution<String> {
         val logicalField = try {
-            LogicalField(path)
+            QueryField(path)
         } catch (_: IllegalArgumentException) {
             return QuerySchemaResolution(path, QueryCompatibilityLevel.COMPATIBLE)
         }
@@ -71,7 +71,7 @@ internal class QueryFieldSchemaResolver(
         enforceElementScope: Boolean = true,
     ): QuerySchemaResolution<String> {
         val logicalField = try {
-            LogicalField(path)
+            QueryField(path)
         } catch (_: IllegalArgumentException) {
             return QuerySchemaResolution(path, QueryCompatibilityLevel.COMPATIBLE)
         }
@@ -80,9 +80,9 @@ internal class QueryFieldSchemaResolver(
     }
 
     fun resolve(
-        field: LogicalField,
+        field: QueryField,
         capability: QueryCapability,
-        logicalParent: LogicalField?,
+        logicalParent: QueryField?,
         physicalParent: String?,
         enforceElementScope: Boolean = true,
         fieldIsAbsolute: Boolean = false,
@@ -91,7 +91,7 @@ internal class QueryFieldSchemaResolver(
         if (enforceElementScope && !logical.isInElementScope(logicalParent)) {
             return QueryFieldResolution(
                 logical,
-                field.value,
+                field.path,
                 null,
                 QueryCompatibilityLevel.INCOMPATIBLE,
                 elementScopeAccepted = false,
@@ -101,11 +101,11 @@ internal class QueryFieldSchemaResolver(
         val fieldSchema = declaredFieldSchema ?: schema.resolve(logical)
             ?: return QueryFieldResolution(
                 logical,
-                field.value,
+                field.path,
                 null,
                 if (
-                    logical.value.startsWith("${StateAggregateRecords.TAGS}.") &&
-                    schema.fields[LogicalField(StateAggregateRecords.TAGS)]?.dynamicChildren == false
+                    logical.path.startsWith("${StateAggregateRecords.TAGS}.") &&
+                    schema.fields[QueryField(StateAggregateRecords.TAGS)]?.dynamicChildren == false
                 ) {
                     QueryCompatibilityLevel.INCOMPATIBLE
                 } else {
@@ -115,7 +115,7 @@ internal class QueryFieldSchemaResolver(
         val binding = fieldSchema.bindings[capability]
             ?: return QueryFieldResolution(
                 logical,
-                field.value,
+                field.path,
                 null,
                 if (declaredFieldSchema == null && fieldSchema.dynamicChildren) {
                     QueryCompatibilityLevel.COMPATIBLE
@@ -124,7 +124,7 @@ internal class QueryFieldSchemaResolver(
                 },
             )
         val relativePath = binding.physicalPath.relativeTo(physicalParent)
-            ?: return QueryFieldResolution(logical, field.value, null, QueryCompatibilityLevel.INCOMPATIBLE)
+            ?: return QueryFieldResolution(logical, field.path, null, QueryCompatibilityLevel.INCOMPATIBLE)
         return QueryFieldResolution(
             logical,
             relativePath,
@@ -135,15 +135,15 @@ internal class QueryFieldSchemaResolver(
         )
     }
 
-    private fun LogicalField.isInElementScope(parent: LogicalField?): Boolean {
+    private fun QueryField.isInElementScope(parent: QueryField?): Boolean {
         if (elementScopePaths.isEmpty()) return true
-        var separator = value.lastIndexOf('.')
+        var separator = path.lastIndexOf('.')
         while (separator > 0) {
-            val ancestorPath = value.substring(0, separator)
+            val ancestorPath = path.substring(0, separator)
             if (ancestorPath in elementScopePaths) {
-                return ancestorPath == parent?.value
+                return ancestorPath == parent?.path
             }
-            separator = value.lastIndexOf('.', separator - 1)
+            separator = path.lastIndexOf('.', separator - 1)
         }
         return true
     }

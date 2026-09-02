@@ -104,7 +104,7 @@ internal data class JacksonDetails(
     val nested: String,
 )
 
-internal data class MaskedInvalidLogicalFieldState(
+internal data class MaskedInvalidQueryFieldState(
     @field:JsonProperty("phone.number")
     @field:Mask val phone: String,
 )

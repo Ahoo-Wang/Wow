@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.query.schema
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.module.kotlin.jsonMapper
@@ -25,7 +25,7 @@ class QuerySchemaMetadataTest {
     @Test
     fun `field schema exposes logical metadata without storage details`() {
         val field = QueryFieldSchemaMetadata(
-            field = LogicalField("status"),
+            field = QueryField("status"),
             title = "Status",
             description = "Current order status.",
             enumValues = listOf(JsonNodeFactory.instance.stringNode("OPEN")),
@@ -51,7 +51,7 @@ class QuerySchemaMetadataTest {
     @Test
     fun `model schema retains its capabilities and field list`() {
         val field = QueryFieldSchemaMetadata(
-            field = LogicalField("createdAt"),
+            field = QueryField("createdAt"),
             title = null,
             description = null,
             enumValues = null,

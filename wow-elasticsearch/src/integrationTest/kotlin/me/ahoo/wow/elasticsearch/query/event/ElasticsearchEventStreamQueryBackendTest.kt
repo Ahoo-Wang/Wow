@@ -19,7 +19,7 @@ import co.elastic.clients.elasticsearch.core.UpdateRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -106,8 +106,8 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val schema = eventStreamQueryBackend.requiredQueryModelSchemaProvider().schema().block()!!
 
         schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
-        schema.fields.assert().containsKey(LogicalField("body.name"))
-        schema.fields.getValue(LogicalField("body")).bindings.assert()
+        schema.fields.assert().containsKey(QueryField("body.name"))
+        schema.fields.getValue(QueryField("body")).bindings.assert()
             .containsKey(QueryCapability.ELEMENT_SCOPE)
     }
 

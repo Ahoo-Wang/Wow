@@ -31,7 +31,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.Temporal
@@ -86,7 +86,7 @@ internal class ElasticsearchAggregationCompiler(
         var logicalParent: String? = null
         query.elements.forEach { element ->
             val previousLogicalParent = logicalParent
-            logicalParent = if (logicalParent == null) element.path.value else "$logicalParent.${element.path.value}"
+            logicalParent = if (logicalParent == null) element.path.path else "$logicalParent.${element.path.path}"
             val nestedPath = element.path.resolve(previousLogicalParent, schema, QueryCapability.ELEMENT_SCOPE)
             val unscopedFilter = AndFilter(
                 listOf(element.filter, DeletionFilter(DeletionState.ALL)),
@@ -166,7 +166,7 @@ internal class ElasticsearchAggregationCompiler(
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): String {
         val logicalField = field.absolute(parent)
-        val fieldSchema = schema?.resolve(logicalField) ?: return logicalField.value
+        val fieldSchema = schema?.resolve(logicalField) ?: return logicalField.path
         val physicalPath = fieldSchema.bindings[QueryCapability.AGGREGATE_TEMPORAL]?.physicalPath
             ?: throw QuerySchemaValidationException(
                 "Query field [$logicalField] does not support [${QueryCapability.AGGREGATE_TEMPORAL}].",
@@ -290,7 +290,7 @@ internal class ElasticsearchAggregationCompiler(
             else -> error("Unsupported aggregation expression: ${expression::class.java.name}.")
         }
 
-        private fun appendField(field: LogicalField): String {
+        private fun appendField(field: QueryField): String {
             val id = nextId++
             val value = "v$id"
             val fieldVariable = "f$id"
@@ -354,19 +354,19 @@ internal class ElasticsearchAggregationCompiler(
             AggregationExpressionOperator.DIVIDE -> "/"
         }
 
-    private fun LogicalField.resolve(
+    private fun QueryField.resolve(
         parent: String?,
         schema: QueryModelSchema?,
         capability: QueryCapability,
     ): String {
         val logicalField = absolute(parent)
-        val fieldSchema = schema?.resolve(logicalField) ?: return logicalField.value
+        val fieldSchema = schema?.resolve(logicalField) ?: return logicalField.path
         return fieldSchema.bindings[capability]?.physicalPath
             ?: throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
     }
 
-    private fun LogicalField.absolute(parent: String?): LogicalField =
-        LogicalField(if (parent == null) value else "$parent.$value")
+    private fun QueryField.absolute(parent: String?): QueryField =
+        QueryField(if (parent == null) path else "$parent.$path")
 
     private val TimeUnit.epochFactors: Pair<Long, Long>
         get() = when (this) {

@@ -16,7 +16,7 @@ package me.ahoo.wow.jackson
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.query.AggregationExpression
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.serialization.toJsonString
@@ -47,7 +47,7 @@ internal class JacksonCompatibilityTest {
     fun `SPI discovered Wow module should apply missing type implementation`() {
         val decoded = """{"field":"amount"}""".toObject<AggregationExpression>()
 
-        decoded.assert().isEqualTo(AggregationExpression.Field(LogicalField("amount")))
+        decoded.assert().isEqualTo(AggregationExpression.Field(QueryField("amount")))
     }
 
     private data class ConstructorOnlyDto(val id: String)

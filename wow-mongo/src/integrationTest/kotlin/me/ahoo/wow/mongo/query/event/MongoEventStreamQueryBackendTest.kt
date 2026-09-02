@@ -5,7 +5,7 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -87,8 +87,8 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val schema = eventStreamQueryBackend.requiredQueryModelSchemaProvider().schema().block()!!
 
         schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
-        schema.fields.assert().containsKey(LogicalField("body.name"))
-        schema.fields.getValue(LogicalField("body")).bindings.assert()
+        schema.fields.assert().containsKey(QueryField("body.name"))
+        schema.fields.getValue(QueryField("body")).bindings.assert()
             .containsKey(QueryCapability.ELEMENT_SCOPE)
     }
 
@@ -174,7 +174,7 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.just(
             QuerySchemaDeclaration(
                 mapOf(
-                    LogicalField("body.body.data") to QueryFieldDeclaration(
+                    QueryField("body.body.data") to QueryFieldDeclaration(
                         valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
                         nullable = DeclarationValue.Set(false),
                         required = DeclarationValue.Set(true),

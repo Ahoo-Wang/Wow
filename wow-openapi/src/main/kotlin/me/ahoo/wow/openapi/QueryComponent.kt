@@ -19,9 +19,9 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
@@ -52,7 +52,7 @@ internal fun OpenAPIComponentContext.aggregatedFieldsSchema(
     val fields = buildSet {
         addAll(SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT).fields.keys)
         addAll(inferred.fields.keys)
-    }.map(LogicalField::value).sorted()
+    }.map(QueryField::path).sorted()
     val key = "${aggregateMetadata.toStringWithAlias()}." +
         "${aggregateMetadata.command.aggregateType.simpleName}${QueryComponent.AGGREGATED_FIELDS_SUFFIX}"
     return componentSchema(key, StringSchema()._enum(fields))

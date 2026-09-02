@@ -30,7 +30,7 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
@@ -246,7 +246,7 @@ class DefaultSnapshotQueryGatewayTest {
             QueryModelSchema(
                 QueryModel.SNAPSHOT,
                 emptySet(),
-                mapOf(LogicalField("state.value") to fieldSchema(rule)),
+                mapOf(QueryField("state.value") to fieldSchema(rule)),
             ),
         )
         gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("st*******ue")
@@ -261,7 +261,7 @@ class DefaultSnapshotQueryGatewayTest {
             QueryModel.SNAPSHOT,
             emptySet(),
             mapOf(
-                LogicalField("state.value") to fieldSchema(
+                QueryField("state.value") to fieldSchema(
                     MaskRule(FullMaskStrategy::class, annotation, CompiledMask { throw failure }),
                 ),
             ),
@@ -291,7 +291,7 @@ class DefaultSnapshotQueryGatewayTest {
             QueryModel.SNAPSHOT,
             emptySet(),
             mapOf(
-                LogicalField("state.value") to fieldSchema(
+                QueryField("state.value") to fieldSchema(
                     MaskRule(FullMaskStrategy::class, annotation, CompiledMask { throw failure }),
                 ),
             ),
@@ -617,7 +617,7 @@ class DefaultSnapshotQueryGatewayTest {
             return QueryModelSchema(
                 model = QueryModel.SNAPSHOT,
                 capabilities = emptySet(),
-                fields = mapOf(LogicalField("state.value") to fieldSchema(rule)),
+                fields = mapOf(QueryField("state.value") to fieldSchema(rule)),
             )
         }
 

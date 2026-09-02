@@ -26,7 +26,7 @@ class FilterExpressionTest {
 
     @Test
     fun `new relative calendar filters should round trip through the common contract`() {
-        val field = LogicalField("state.createTime")
+        val field = QueryField("state.createTime")
         val filters = listOf<RelativeTimeFilter>(
             YesterdayFilter(field, "UTC", "yyyy-MM-dd"),
             NextMonthFilter(field, "UTC", "yyyy-MM-dd"),
@@ -54,7 +54,7 @@ class FilterExpressionTest {
 
     @Test
     fun `relative calendar filters should reject invalid common configuration`() {
-        val field = LogicalField("state.createTime")
+        val field = QueryField("state.createTime")
 
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             YesterdayFilter(field, zoneId = "")
@@ -72,8 +72,8 @@ class FilterExpressionTest {
         val expression: FilterExpression = AndFilter(
             listOf(
                 DeletionFilter(DeletionState.ACTIVE),
-                EqualFilter(LogicalField("state.status"), jsonMapper.valueToTree<JsonNode>("PAID")),
-                SearchFilter("wow", setOf(LogicalField("state.name"))),
+                EqualFilter(QueryField("state.status"), jsonMapper.valueToTree<JsonNode>("PAID")),
+                SearchFilter("wow", setOf(QueryField("state.name"))),
             ),
         )
 
@@ -108,7 +108,7 @@ class FilterExpressionTest {
         )
 
         decoded.assert().isEqualTo(
-            EqualFilter(LogicalField("state.status"), jsonMapper.valueToTree<JsonNode>("PAID")),
+            EqualFilter(QueryField("state.status"), jsonMapper.valueToTree<JsonNode>("PAID")),
         )
     }
 
@@ -193,7 +193,7 @@ class FilterExpressionTest {
             FilterExpression::class.java,
         ) as SearchFilter
 
-        decoded.assert().isEqualTo(SearchFilter("wow", setOf(LogicalField("state.name"))))
+        decoded.assert().isEqualTo(SearchFilter("wow", setOf(QueryField("state.name"))))
         decoded.mode.assert().isEqualTo(SearchMode.TERMS)
     }
 
@@ -201,7 +201,7 @@ class FilterExpressionTest {
     fun `phrase search should round trip`() {
         val phrase = SearchFilter(
             query = "event sourcing",
-            fields = setOf(LogicalField("state.description")),
+            fields = setOf(QueryField("state.description")),
             mode = SearchMode.PHRASE,
         )
 
@@ -251,21 +251,21 @@ class FilterExpressionTest {
     @Test
     fun `element match should reject root metadata filters`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
-            ElementMatchFilter(LogicalField("state.items"), TenantIdFilter("tenant-1"))
+            ElementMatchFilter(QueryField("state.items"), TenantIdFilter("tenant-1"))
         }
     }
 
     @Test
     fun `should reject non scalar predicate value`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
-            EqualFilter(LogicalField("state"), jsonMapper.readTree("{}"))
+            EqualFilter(QueryField("state"), jsonMapper.readTree("{}"))
         }
     }
 
     @Test
     fun `should accept scalar array equality value`() {
-        EqualFilter(LogicalField("state.tags"), jsonMapper.valueToTree<JsonNode>(listOf("a", "b")))
-        NotEqualFilter(LogicalField("state.tags"), jsonMapper.valueToTree<JsonNode>(listOf("a", "b")))
+        EqualFilter(QueryField("state.tags"), jsonMapper.valueToTree<JsonNode>(listOf("a", "b")))
+        NotEqualFilter(QueryField("state.tags"), jsonMapper.valueToTree<JsonNode>(listOf("a", "b")))
     }
 
     @Test
@@ -283,21 +283,21 @@ class FilterExpressionTest {
     @Test
     fun `should reject null range value`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
-            GreaterThanFilter(LogicalField("state.version"), jsonMapper.nullNode())
+            GreaterThanFilter(QueryField("state.version"), jsonMapper.nullNode())
         }
     }
 
     @Test
     fun `should reject null collection value`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
-            InFilter(LogicalField("state.status"), listOf(jsonMapper.nullNode()))
+            InFilter(QueryField("state.status"), listOf(jsonMapper.nullNode()))
         }
     }
 
     @Test
     fun `should round trip relative time date pattern without exposing formatter`() {
         val expression: FilterExpression = TodayFilter(
-            LogicalField("state.createTime"),
+            QueryField("state.createTime"),
             zoneId = "UTC",
             datePattern = "yyyy-MM-dd HH:mm:ss",
         )
@@ -352,9 +352,9 @@ class FilterExpressionTest {
     @Suppress("DEPRECATION", "LongMethod")
     @Test
     fun `should resolve every legacy operator with its options`() {
-        val field = LogicalField("state.value")
-        val dateField = LogicalField("state.createdAt")
-        val nestedField = LogicalField("name")
+        val field = QueryField("state.value")
+        val dateField = QueryField("state.createdAt")
+        val nestedField = QueryField("name")
         val one = jsonMapper.valueToTree<JsonNode>(1)
         val two = jsonMapper.valueToTree<JsonNode>(2)
         val text = jsonMapper.valueToTree<JsonNode>("Wow")
@@ -369,9 +369,9 @@ class FilterExpressionTest {
             Condition.DATE_PATTERN_OPTION_KEY to formatter,
         )
         val cases = listOf(
-            Condition.and(Condition.eq(field.value, 1)) to AndFilter(listOf(equal)),
-            Condition.or(Condition.eq(field.value, 1)) to OrFilter(listOf(equal)),
-            Condition.nor(Condition.eq(field.value, 1)) to NorFilter(listOf(equal)),
+            Condition.and(Condition.eq(field.path, 1)) to AndFilter(listOf(equal)),
+            Condition.or(Condition.eq(field.path, 1)) to OrFilter(listOf(equal)),
+            Condition.nor(Condition.eq(field.path, 1)) to NorFilter(listOf(equal)),
             Condition.id("id-1") to IdFilter("id-1"),
             Condition.ids("id-1", "id-2") to IdsFilter(listOf("id-1", "id-2")),
             Condition.aggregateId("aggregate-1") to AggregateIdFilter("aggregate-1"),
@@ -382,97 +382,97 @@ class FilterExpressionTest {
             Condition.spaceId("space-1") to SpaceIdFilter("space-1"),
             Condition.deleted(DeletionState.DELETED) to DeletionFilter(DeletionState.DELETED),
             Condition.ALL to MatchAllFilter,
-            Condition.eq(field.value, 1) to equal,
-            Condition.ne(field.value, 1) to NotEqualFilter(field, one),
-            Condition.gt(field.value, 1) to GreaterThanFilter(field, one),
-            Condition.lt(field.value, 1) to LessThanFilter(field, one),
-            Condition.gte(field.value, 1) to GreaterThanOrEqualFilter(field, one),
-            Condition.lte(field.value, 1) to LessThanOrEqualFilter(field, one),
-            Condition.contains(field.value, "Wow", ignoreCase = true) to
+            Condition.eq(field.path, 1) to equal,
+            Condition.ne(field.path, 1) to NotEqualFilter(field, one),
+            Condition.gt(field.path, 1) to GreaterThanFilter(field, one),
+            Condition.lt(field.path, 1) to LessThanFilter(field, one),
+            Condition.gte(field.path, 1) to GreaterThanOrEqualFilter(field, one),
+            Condition.lte(field.path, 1) to LessThanOrEqualFilter(field, one),
+            Condition.contains(field.path, "Wow", ignoreCase = true) to
                 ContainsFilter(field, "Wow", StringComparison.CASE_INSENSITIVE),
-            Condition.isIn(field.value, listOf<Any>(1, 2)) to InFilter(field, listOf(one, two)),
-            Condition.notIn(field.value, listOf<Any>(1, 2)) to NotInFilter(field, listOf(one, two)),
-            Condition.between(field.value, 1, 2) to BetweenFilter(field, one, two),
-            Condition.all(field.value, listOf<Any>(1, 2)) to ContainsAllFilter(field, listOf(one, two)),
-            Condition.startsWith(field.value, "Wow") to StartsWithFilter(field, "Wow"),
-            Condition.endsWith(field.value, "Wow", ignoreCase = true) to
+            Condition.isIn(field.path, listOf<Any>(1, 2)) to InFilter(field, listOf(one, two)),
+            Condition.notIn(field.path, listOf<Any>(1, 2)) to NotInFilter(field, listOf(one, two)),
+            Condition.between(field.path, 1, 2) to BetweenFilter(field, one, two),
+            Condition.all(field.path, listOf<Any>(1, 2)) to ContainsAllFilter(field, listOf(one, two)),
+            Condition.startsWith(field.path, "Wow") to StartsWithFilter(field, "Wow"),
+            Condition.endsWith(field.path, "Wow", ignoreCase = true) to
                 EndsWithFilter(field, "Wow", StringComparison.CASE_INSENSITIVE),
-            Condition.elemMatch("state.items", Condition.eq(nestedField.value, "Wow")) to
-                ElementMatchFilter(LogicalField("state.items"), EqualFilter(nestedField, text)),
+            Condition.elemMatch("state.items", Condition.eq(nestedField.path, "Wow")) to
+                ElementMatchFilter(QueryField("state.items"), EqualFilter(nestedField, text)),
             Condition(
                 field = "state.items",
                 operator = Operator.ELEM_MATCH,
-                children = listOf(Condition.eq(nestedField.value, "Wow"), Condition.gt("price", 1)),
+                children = listOf(Condition.eq(nestedField.path, "Wow"), Condition.gt("price", 1)),
             ) to ElementMatchFilter(
-                LogicalField("state.items"),
+                QueryField("state.items"),
                 AndFilter(
                     listOf(
                         EqualFilter(nestedField, text),
-                        GreaterThanFilter(LogicalField("price"), one),
+                        GreaterThanFilter(QueryField("price"), one),
                     ),
                 ),
             ),
-            Condition.isNull(field.value) to IsNullFilter(field),
-            Condition.notNull(field.value) to IsNotNullFilter(field),
-            Condition.isTrue(field.value) to EqualFilter(field, jsonMapper.valueToTree(true)),
-            Condition.isFalse(field.value) to EqualFilter(field, jsonMapper.valueToTree(false)),
-            Condition.exists(field.value) to ExistsFilter(field),
-            Condition.exists(field.value, false) to NotExistsFilter(field),
+            Condition.isNull(field.path) to IsNullFilter(field),
+            Condition.notNull(field.path) to IsNotNullFilter(field),
+            Condition.isTrue(field.path) to EqualFilter(field, jsonMapper.valueToTree(true)),
+            Condition.isFalse(field.path) to EqualFilter(field, jsonMapper.valueToTree(false)),
+            Condition.exists(field.path) to ExistsFilter(field),
+            Condition.exists(field.path, false) to NotExistsFilter(field),
             Condition(
-                field = dateField.value,
+                field = dateField.path,
                 operator = Operator.TODAY,
                 options = relativeOptions,
             ) to TodayFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.path,
                 operator = Operator.BEFORE_TODAY,
                 value = LocalTime.of(8, 30),
                 options = formatterOptions,
             ) to BeforeTodayFilter(dateField, "08:30", "UTC", dateFormatter = formatter),
             Condition(
-                field = dateField.value,
+                field = dateField.path,
                 operator = Operator.TOMORROW,
                 options = relativeOptions,
             ) to TomorrowFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.path,
                 operator = Operator.THIS_WEEK,
                 options = relativeOptions,
             ) to ThisWeekFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.path,
                 operator = Operator.NEXT_WEEK,
                 options = relativeOptions,
             ) to NextWeekFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.path,
                 operator = Operator.LAST_WEEK,
                 options = relativeOptions,
             ) to LastWeekFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.path,
                 operator = Operator.THIS_MONTH,
                 options = relativeOptions,
             ) to ThisMonthFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.path,
                 operator = Operator.LAST_MONTH,
                 options = relativeOptions,
             ) to LastMonthFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.path,
                 operator = Operator.RECENT_DAYS,
                 value = 7,
                 options = relativeOptions,
             ) to RecentDaysFilter(dateField, 7, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.path,
                 operator = Operator.EARLIER_DAYS,
                 value = 30,
                 options = relativeOptions,
             ) to EarlierDaysFilter(dateField, 30, "UTC", "yyyy-MM-dd"),
             Condition.match("state.description", "Wow") to
-                SearchFilter("Wow", setOf(LogicalField("state.description"))),
+                SearchFilter("Wow", setOf(QueryField("state.description"))),
             Condition.match("", "Wow") to SearchFilter("Wow"),
         )
 
@@ -485,15 +485,15 @@ class FilterExpressionTest {
     @Suppress("DEPRECATION")
     @Test
     fun `should normalize empty legacy collections`() {
-        val field = LogicalField("state.values")
+        val field = QueryField("state.values")
         val emptyArray = jsonMapper.valueToTree<JsonNode>(emptyList<Any>())
         val cases = listOf(
             Condition.ids(emptyList()) to MatchNoneFilter,
             Condition.aggregateIds(emptyList()) to MatchNoneFilter,
-            Condition.isIn(field.value, emptyList()) to MatchNoneFilter,
-            Condition.notIn(field.value, emptyList()) to MatchAllFilter,
-            Condition.all(field.value, emptyList()) to MatchNoneFilter,
-            Condition.eq(field.value, emptyList<Any>()) to EqualFilter(field, emptyArray),
+            Condition.isIn(field.path, emptyList()) to MatchNoneFilter,
+            Condition.notIn(field.path, emptyList()) to MatchAllFilter,
+            Condition.all(field.path, emptyList()) to MatchNoneFilter,
+            Condition.eq(field.path, emptyList<Any>()) to EqualFilter(field, emptyArray),
         )
 
         cases.forEach { (condition, expected) ->
@@ -507,7 +507,7 @@ class FilterExpressionTest {
         val executable = Condition.eq("@timestamp", "now")
             .toFilterExpression() as EqualFilter
 
-        executable.field.value.assert().isEqualTo("@timestamp")
+        executable.field.path.assert().isEqualTo("@timestamp")
     }
 
     @Suppress("DEPRECATION")
@@ -536,7 +536,7 @@ class FilterExpressionTest {
     fun `query models should deserialize legacy condition property`() {
         val condition = """{"field":"state.status","operator":"EQ","value":"PAID"}"""
         val expected = EqualFilter(
-            LogicalField("state.status"),
+            QueryField("state.status"),
             jsonMapper.valueToTree<JsonNode>("PAID"),
         )
         val filters = listOf(

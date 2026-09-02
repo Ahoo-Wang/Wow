@@ -66,7 +66,7 @@ fun QueryModelSchemaProvider.resolve(
     }
 
 @Suppress("CyclomaticComplexMethod")
-private fun FilterExpression.referencesSystemTags(logicalParent: LogicalField? = null): Boolean = when (this) {
+private fun FilterExpression.referencesSystemTags(logicalParent: QueryField? = null): Boolean = when (this) {
     MatchAllFilter,
     MatchNoneFilter,
     is IdFilter,
@@ -108,8 +108,8 @@ private fun FilterExpression.referencesSystemTags(logicalParent: LogicalField? =
     is NotExistsFilter -> field.absoluteTo(logicalParent).isSystemTags()
 }
 
-private fun LogicalField.isSystemTags(): Boolean =
-    value == StateAggregateRecords.TAGS || value.startsWith("${StateAggregateRecords.TAGS}.")
+private fun QueryField.isSystemTags(): Boolean =
+    path == StateAggregateRecords.TAGS || path.startsWith("${StateAggregateRecords.TAGS}.")
 
 private fun <T : Any> Mono<T>.fallbackUnavailable(
     mode: QuerySchemaValidationMode,

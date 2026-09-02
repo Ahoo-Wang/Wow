@@ -23,7 +23,7 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Projection
@@ -214,7 +214,7 @@ class DefaultEventStreamQueryGatewayTest {
         val schema = eventSchema(bodyType).let {
             it.copy(
                 fields = it.fields + mapOf(
-                    LogicalField("eventTypeAlias") to fieldSchema(projectionPath = "body.bodyType"),
+                    QueryField("eventTypeAlias") to fieldSchema(projectionPath = "body.bodyType"),
                 ),
             )
         }
@@ -325,8 +325,8 @@ class DefaultEventStreamQueryGatewayTest {
                 model = QueryModel.EVENT_STREAM,
                 capabilities = emptySet(),
                 fields = mapOf(
-                    LogicalField("body.body.data") to fieldSchema(maskRule = rule),
-                    LogicalField("body.bodyType") to fieldSchema(
+                    QueryField("body.body.data") to fieldSchema(maskRule = rule),
+                    QueryField("body.bodyType") to fieldSchema(
                         enumValues = listOf(JsonSerializer.valueToTree(bodyType)),
                     ),
                 ),

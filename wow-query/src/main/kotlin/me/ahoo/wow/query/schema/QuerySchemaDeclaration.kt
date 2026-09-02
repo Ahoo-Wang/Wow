@@ -15,7 +15,7 @@ package me.ahoo.wow.query.schema
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
@@ -62,7 +62,7 @@ data class QuerySchemaRegistration(
 )
 
 data class QuerySchemaDeclaration(
-    val fields: Map<LogicalField, QueryFieldDeclaration>,
+    val fields: Map<QueryField, QueryFieldDeclaration>,
 )
 
 data class QueryFieldDeclaration(
@@ -100,7 +100,7 @@ internal data class PrioritizedQuerySchemaDeclaration(
 
 internal fun QueryFieldDeclaration.merge(
     higher: QueryFieldDeclaration,
-    field: LogicalField,
+    field: QueryField,
     rejectDifferent: Boolean,
 ): QueryFieldDeclaration = QueryFieldDeclaration(
     title = title.merge(higher.title, field, TITLE, rejectDifferent),
@@ -117,7 +117,7 @@ internal fun QueryFieldDeclaration.merge(
 
 private fun DeclarationValue<MaskRule>.mergeMaskRule(
     higher: DeclarationValue<MaskRule>,
-    field: LogicalField,
+    field: QueryField,
 ): DeclarationValue<MaskRule> {
     if (this is DeclarationValue.Unset) return higher
     if (higher is DeclarationValue.Unset) return this
@@ -127,7 +127,7 @@ private fun DeclarationValue<MaskRule>.mergeMaskRule(
 
 private fun <T> DeclarationValue<T>.merge(
     higher: DeclarationValue<T>,
-    field: LogicalField,
+    field: QueryField,
     leaf: String,
     rejectDifferent: Boolean,
 ): DeclarationValue<T> {

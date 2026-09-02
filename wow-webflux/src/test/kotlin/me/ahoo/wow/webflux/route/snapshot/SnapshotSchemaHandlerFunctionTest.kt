@@ -15,7 +15,7 @@ package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -173,8 +173,8 @@ class SnapshotSchemaHandlerFunctionTest {
             model = QueryModel.SNAPSHOT,
             capabilities = setOf(QueryCapability.EXACT_MATCH),
             fields = linkedMapOf(
-                LogicalField("state.z") to FIELD_SCHEMA,
-                LogicalField("state.a") to FIELD_SCHEMA,
+                QueryField("state.z") to FIELD_SCHEMA,
+                QueryField("state.a") to FIELD_SCHEMA,
             ),
         )
     }

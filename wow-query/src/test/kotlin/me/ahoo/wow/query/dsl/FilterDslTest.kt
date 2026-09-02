@@ -40,7 +40,7 @@ class FilterDslTest {
         expression.assert().isEqualTo(
             SearchFilter(
                 query = "event sourcing",
-                fields = linkedSetOf(LogicalField("title"), LogicalField("description")),
+                fields = linkedSetOf(QueryField("title"), QueryField("description")),
                 mode = SearchMode.PHRASE,
             ),
         )
@@ -54,14 +54,14 @@ class FilterDslTest {
         } as AndFilter
 
         expression.operands.assert().containsExactly(
-            IsEmptyStringFilter(LogicalField("empty")),
-            IsNotEmptyStringFilter(LogicalField("notEmpty")),
+            IsEmptyStringFilter(QueryField("empty")),
+            IsNotEmptyStringFilter(QueryField("notEmpty")),
         )
     }
 
     @Test
     fun `should build extended relative calendar filters`() {
-        val field = LogicalField("createdAt")
+        val field = QueryField("createdAt")
         val expression = filter {
             "createdAt".yesterday(ZoneOffset.UTC, "yyyy-MM-dd")
             "createdAt".nextMonth(ZoneOffset.UTC, "yyyy-MM-dd")
@@ -87,7 +87,7 @@ class FilterDslTest {
 
         expression.assert().isEqualTo(
             BeforeTodayFilter(
-                field = LogicalField("createdAt"),
+                field = QueryField("createdAt"),
                 time = "12:00",
                 timeUnit = TimeUnit.SECONDS,
             ),
@@ -141,8 +141,8 @@ class FilterDslTest {
         }
 
         val element = expression as ElementMatchFilter
-        element.field.assert().isEqualTo(LogicalField("state.items"))
-        (element.predicate as EqualFilter).field.assert().isEqualTo(LogicalField("productId"))
+        element.field.assert().isEqualTo(QueryField("state.items"))
+        (element.predicate as EqualFilter).field.assert().isEqualTo(QueryField("productId"))
     }
 
     @Test
@@ -162,11 +162,11 @@ class FilterDslTest {
         expression.operands.assert().hasSize(2)
         val state = expression.operands[0] as AndFilter
         state.operands.assert().hasSize(4)
-        (state.operands[0] as EqualFilter).field.assert().isEqualTo(LogicalField("state.state"))
-        (state.operands[1] as EqualFilter).field.assert().isEqualTo(LogicalField("state.name"))
-        (state.operands[2] as EqualFilter).field.assert().isEqualTo(LogicalField("state.statement"))
-        (state.operands[3] as EqualFilter).field.assert().isEqualTo(LogicalField("state.items.productId"))
-        (expression.operands[1] as EqualFilter).field.assert().isEqualTo(LogicalField("tenantId"))
+        (state.operands[0] as EqualFilter).field.assert().isEqualTo(QueryField("state.state"))
+        (state.operands[1] as EqualFilter).field.assert().isEqualTo(QueryField("state.name"))
+        (state.operands[2] as EqualFilter).field.assert().isEqualTo(QueryField("state.statement"))
+        (state.operands[3] as EqualFilter).field.assert().isEqualTo(QueryField("state.items.productId"))
+        (expression.operands[1] as EqualFilter).field.assert().isEqualTo(QueryField("tenantId"))
     }
 
     @Test
@@ -183,7 +183,7 @@ class FilterDslTest {
 
         expression.operands.assert().hasSize(2)
         (expression.operands[0] as AndFilter).operands.assert().hasSize(2)
-        (expression.operands[1] as EqualFilter).field.assert().isEqualTo(LogicalField("tenantId"))
+        (expression.operands[1] as EqualFilter).field.assert().isEqualTo(QueryField("tenantId"))
     }
 
     @Test
@@ -316,6 +316,6 @@ class FilterDslTest {
         } as AndFilter
 
         expression.operands.assert().hasSize(51)
-        (expression.operands[6] as EqualFilter).field.assert().isEqualTo(LogicalField("state.name"))
+        (expression.operands[6] as EqualFilter).field.assert().isEqualTo(QueryField("state.name"))
     }
 }

@@ -39,7 +39,7 @@ import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.Operator
@@ -145,7 +145,7 @@ class HttpQueryGuardFilterTest {
             ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.isNull() }, limit = 1),
             ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.isNotNull() }, limit = 1),
             ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.notExists() }, limit = 1),
-            ListQuery(IsEmptyFilter(LogicalField("state.items")), limit = 1),
+            ListQuery(IsEmptyFilter(QueryField("state.items")), limit = 1),
             ListQuery(filterExpression { MessageRecords.AGGREGATE_ID isIn List(1001) { it } }, limit = 1),
             ListQuery(IdsFilter(List(1001) { it.toString() }), limit = 1),
             ListQuery(AggregateIdsFilter(List(1001) { it.toString() }), limit = 1),
@@ -162,7 +162,7 @@ class HttpQueryGuardFilterTest {
     @Test
     fun `aggregation Guard should reuse existing limits and reject expensive work`() {
         val oversized = AggregationQuery(
-            elements = listOf(AggregationElement(LogicalField("state.orders"))),
+            elements = listOf(AggregationElement(QueryField("state.orders"))),
             metrics = listOf(AggregationMetric.Count("count")),
             limit = 101,
         )
@@ -174,7 +174,7 @@ class HttpQueryGuardFilterTest {
             .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
 
         val metricSort = AggregationQuery(
-            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.status"), "status")),
+            groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status")),
             metrics = listOf(AggregationMetric.Count("count")),
             sort = listOf(Sort("count", Sort.Direction.ASC)),
         )
@@ -198,8 +198,8 @@ class HttpQueryGuardFilterTest {
     @Test
     fun `aggregation Guard should treat any alias sorting as expensive but allow plain any`() {
         val query = AggregationQuery(
-            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.productId"), "productId")),
-            metrics = listOf(AggregationMetric.Any(LogicalField("state.productName"), "productName")),
+            groupBy = listOf(AggregationGroup.Terms(QueryField("state.productId"), "productId")),
+            metrics = listOf(AggregationMetric.Any(QueryField("state.productName"), "productName")),
             sort = listOf(Sort("productName", Sort.Direction.ASC)),
         )
 
@@ -227,8 +227,8 @@ class HttpQueryGuardFilterTest {
                     AggregationFunction.SUM,
                     AggregationExpression.Binary(
                         AggregationExpressionOperator.MULTIPLY,
-                        AggregationExpression.Field(LogicalField("state.price")),
-                        AggregationExpression.Field(LogicalField("state.quantity")),
+                        AggregationExpression.Field(QueryField("state.price")),
+                        AggregationExpression.Field(QueryField("state.quantity")),
                     ),
                     "total",
                 ),
@@ -255,7 +255,7 @@ class HttpQueryGuardFilterTest {
             filter = filterExpression { "state.status" eq "ACTIVE" },
             elements = listOf(
                 AggregationElement(
-                    path = LogicalField("state.orders"),
+                    path = QueryField("state.orders"),
                     filter = filterExpression { "status" eq "PAID" },
                 ),
             ),
@@ -276,7 +276,7 @@ class HttpQueryGuardFilterTest {
         val elementIn = AggregationQuery(
             elements = listOf(
                 AggregationElement(
-                    path = LogicalField("state.orders"),
+                    path = QueryField("state.orders"),
                     filter = filterExpression { "status" isIn listOf("ACTIVE", "PAID") },
                 ),
             ),
@@ -299,7 +299,7 @@ class HttpQueryGuardFilterTest {
         val row = JsonNodeFactory.instance.objectNode().put("status", "ACTIVE").put("count", 1L)
         val context = aggregationContext(
             AggregationQuery(
-                groupBy = listOf(AggregationGroup.Terms(LogicalField("state.status"), "status")),
+                groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status")),
                 metrics = listOf(AggregationMetric.Count("count")),
                 sort = listOf(Sort("status", Sort.Direction.ASC)),
             ),
@@ -364,7 +364,7 @@ class HttpQueryGuardFilterTest {
 
     @Test
     fun `should allow expensive http operators by default`() {
-        val context = listContext(ListQuery(IsNotNullFilter(LogicalField("state.status")), limit = 1))
+        val context = listContext(ListQuery(IsNotNullFilter(QueryField("state.status")), limit = 1))
         HttpQueryGuardFilter(idleTimeout = Duration.ZERO).filter(
             context,
             FilterChain {
@@ -530,7 +530,7 @@ class HttpQueryGuardFilterTest {
             .expectError(IllegalArgumentException::class.java)
             .verify()
         guard(allowExpensiveOperators = false).validateForTest(
-            CursorQuery(ContainsFilter(LogicalField("state.name"), "x")),
+            CursorQuery(ContainsFilter(QueryField("state.name"), "x")),
         ).test()
             .expectError(IllegalArgumentException::class.java)
             .verify()

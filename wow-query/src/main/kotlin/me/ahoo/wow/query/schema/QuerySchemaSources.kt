@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -139,7 +139,7 @@ private fun parseConventionDeclaration(json: String): QuerySchemaDeclaration {
     return QuerySchemaDeclaration(
         fields.properties().associate { (field, declaration) ->
             require(declaration is ObjectNode) { "Query schema field [$field] must be an object." }
-            LogicalField(field) to declaration.toDeclaration(field)
+            QueryField(field) to declaration.toDeclaration(field)
         },
     )
 }

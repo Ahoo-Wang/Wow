@@ -20,7 +20,7 @@ import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.PagedQuery
@@ -66,7 +66,7 @@ class QuerySchemaValidationModeTest {
     @Test
     fun `provider should resolve single list paged and filter requests without losing request fields`() {
         val provider = FixedProvider(Mono.just(schema()))
-        val field = LogicalField("state.name")
+        val field = QueryField("state.name")
         val filter = EqualFilter(field, JsonNodeFactory.instance.stringNode("name"))
         val projection = Projection(include = listOf(field.value))
         val sort = listOf(Sort(field.value, Sort.Direction.DESC))
@@ -74,7 +74,7 @@ class QuerySchemaValidationModeTest {
         provider.resolve(SingleQuery(filter, projection, sort), QuerySchemaValidationMode.STRICT).block()
             .assert().isEqualTo(
                 SingleQuery(
-                    EqualFilter(LogicalField("document.name.keyword"), filter.value),
+                    EqualFilter(QueryField("document.name.keyword"), filter.value),
                     Projection(include = listOf("document.name")),
                     listOf(Sort("document.name.sort", Sort.Direction.DESC)),
                 ),
@@ -82,7 +82,7 @@ class QuerySchemaValidationModeTest {
         provider.resolve(ListQuery(filter, projection, sort, limit = 17), QuerySchemaValidationMode.STRICT).block()
             .assert().isEqualTo(
                 ListQuery(
-                    EqualFilter(LogicalField("document.name.keyword"), filter.value),
+                    EqualFilter(QueryField("document.name.keyword"), filter.value),
                     Projection(include = listOf("document.name")),
                     listOf(Sort("document.name.sort", Sort.Direction.DESC)),
                     limit = 17,
@@ -93,14 +93,14 @@ class QuerySchemaValidationModeTest {
             QuerySchemaValidationMode.STRICT,
         ).block().assert().isEqualTo(
             PagedQuery(
-                EqualFilter(LogicalField("document.name.keyword"), filter.value),
+                EqualFilter(QueryField("document.name.keyword"), filter.value),
                 Projection(include = listOf("document.name")),
                 listOf(Sort("document.name.sort", Sort.Direction.DESC)),
                 Pagination(3, 19),
             ),
         )
         provider.resolve(filter, QuerySchemaValidationMode.STRICT).block().assert().isEqualTo(
-            EqualFilter(LogicalField("document.name.keyword"), filter.value),
+            EqualFilter(QueryField("document.name.keyword"), filter.value),
         )
     }
 
@@ -108,14 +108,14 @@ class QuerySchemaValidationModeTest {
     fun `provider should return the rewritten aggregation request with its schema`() {
         val schema = schema()
         val provider = FixedProvider(Mono.just(schema))
-        val filter = EqualFilter(LogicalField("state.name"), JsonNodeFactory.instance.stringNode("name"))
+        val filter = EqualFilter(QueryField("state.name"), JsonNodeFactory.instance.stringNode("name"))
         val query = AggregationQuery(filter = filter, metrics = listOf(AggregationMetric.Count("count")))
 
         val resolved = provider.resolve(query, QuerySchemaValidationMode.STRICT).block()!!
 
         resolved.assert().isEqualTo(
             ResolvedAggregationQuery(
-                query.copy(filter = filter.copy(field = LogicalField("document.name.keyword"))),
+                query.copy(filter = filter.copy(field = QueryField("document.name.keyword"))),
                 schema,
             ),
         )
@@ -137,7 +137,7 @@ class QuerySchemaValidationModeTest {
     fun `compatible mode should fall back for non aggregation requests when schema is unavailable`() {
         val unavailable = QuerySchemaUnavailableException("unavailable")
         val provider = FixedProvider(Mono.error(unavailable))
-        val filter = EqualFilter(LogicalField("state.name"), JsonNodeFactory.instance.stringNode("name"))
+        val filter = EqualFilter(QueryField("state.name"), JsonNodeFactory.instance.stringNode("name"))
         val tagsProjection = Projection(include = listOf("tags.department"))
         val tagsSort = listOf(Sort("tags.department", Sort.Direction.ASC))
         val single = SingleQuery(filter, tagsProjection, tagsSort)
@@ -180,7 +180,7 @@ class QuerySchemaValidationModeTest {
     fun `compatible mode should propagate schema unavailable for system tags filters`() {
         val unavailable = QuerySchemaUnavailableException("unavailable")
         val provider = FixedProvider(Mono.error(unavailable))
-        val filter = EqualFilter(LogicalField("tags.department"), JsonNodeFactory.instance.stringNode("eng"))
+        val filter = EqualFilter(QueryField("tags.department"), JsonNodeFactory.instance.stringNode("eng"))
         val requests = listOf<Mono<*>>(
             provider.resolve(filter, QuerySchemaValidationMode.COMPATIBLE),
             provider.resolve(SingleQuery(filter), QuerySchemaValidationMode.COMPATIBLE),
@@ -214,7 +214,7 @@ class QuerySchemaValidationModeTest {
     fun `compatible mode should fall back for non-tag relative time when schema is unavailable`() {
         val unavailable = QuerySchemaUnavailableException("unavailable")
         val provider = FixedProvider(Mono.error(unavailable))
-        val filter = TodayFilter(LogicalField("state.createdAt"))
+        val filter = TodayFilter(QueryField("state.createdAt"))
 
         StepVerifier.create(provider.resolve(filter, QuerySchemaValidationMode.COMPATIBLE))
             .expectNext(filter)
@@ -226,8 +226,8 @@ class QuerySchemaValidationModeTest {
         val unavailable = QuerySchemaUnavailableException("unavailable")
         val provider = FixedProvider(Mono.error(unavailable))
         val filter = ElementMatchFilter(
-            LogicalField("state.items"),
-            EqualFilter(LogicalField("tags.department"), JsonNodeFactory.instance.stringNode("eng")),
+            QueryField("state.items"),
+            EqualFilter(QueryField("tags.department"), JsonNodeFactory.instance.stringNode("eng")),
         )
 
         StepVerifier.create(provider.resolve(filter, QuerySchemaValidationMode.COMPATIBLE))
@@ -240,7 +240,7 @@ class QuerySchemaValidationModeTest {
         val unavailable = QuerySchemaUnavailableException("unavailable")
         val provider = FixedProvider(Mono.error(unavailable))
         val filter = EqualFilter(
-            LogicalField("tagsExtra.department"),
+            QueryField("tagsExtra.department"),
             JsonNodeFactory.instance.stringNode("eng"),
         )
 
@@ -254,11 +254,11 @@ class QuerySchemaValidationModeTest {
         val unavailable = QuerySchemaUnavailableException("unavailable")
         val provider = FixedProvider(Mono.error(unavailable))
         val filters = listOf(
-            SearchFilter("hello", setOf(LogicalField("tags.department"))),
+            SearchFilter("hello", setOf(QueryField("tags.department"))),
             OrFilter(
                 listOf(
                     MatchAllFilter,
-                    EqualFilter(LogicalField("tags.department"), JsonNodeFactory.instance.stringNode("eng")),
+                    EqualFilter(QueryField("tags.department"), JsonNodeFactory.instance.stringNode("eng")),
                 ),
             ),
         )
@@ -274,7 +274,7 @@ class QuerySchemaValidationModeTest {
     fun `strict mode should propagate schema unavailable for every request shape`() {
         val unavailable = QuerySchemaUnavailableException("unavailable")
         val provider = FixedProvider(Mono.error(unavailable))
-        val filter = EqualFilter(LogicalField("state.name"), JsonNodeFactory.instance.stringNode("name"))
+        val filter = EqualFilter(QueryField("state.name"), JsonNodeFactory.instance.stringNode("name"))
         val requests = listOf<Mono<*>>(
             provider.resolve(filter, QuerySchemaValidationMode.STRICT),
             provider.resolve(SingleQuery(filter), QuerySchemaValidationMode.STRICT),
@@ -297,7 +297,7 @@ class QuerySchemaValidationModeTest {
     fun `schema conflict should propagate in every validation mode`() {
         val conflict = QuerySchemaConflictException("conflict")
         val provider = FixedProvider(Mono.error(conflict))
-        val filter = EqualFilter(LogicalField("state.name"), JsonNodeFactory.instance.stringNode("name"))
+        val filter = EqualFilter(QueryField("state.name"), JsonNodeFactory.instance.stringNode("name"))
 
         QuerySchemaValidationMode.entries.forEach { mode ->
             StepVerifier.create(provider.resolve(filter, mode))
@@ -324,7 +324,7 @@ class QuerySchemaValidationModeTest {
         QueryModel.SNAPSHOT,
         emptySet(),
         mapOf(
-            LogicalField("state.name") to QueryFieldSchema(
+            QueryField("state.name") to QueryFieldSchema(
                 title = null,
                 description = null,
                 enumValues = null,

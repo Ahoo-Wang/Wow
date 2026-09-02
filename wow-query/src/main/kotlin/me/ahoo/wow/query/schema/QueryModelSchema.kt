@@ -14,7 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryFieldSchemaMetadata
@@ -40,10 +40,10 @@ data class QueryFieldBinding(
 data class QueryModelSchema(
     val model: QueryModel,
     val capabilities: Set<QueryCapability>,
-    val fields: Map<LogicalField, QueryFieldSchema>,
+    val fields: Map<QueryField, QueryFieldSchema>,
 ) {
     @get:JsonIgnore
-    internal val maskedFields: Map<LogicalField, QueryFieldSchema> = fields.filterValues { it.maskRule != null }
+    internal val maskedFields: Map<QueryField, QueryFieldSchema> = fields.filterValues { it.maskRule != null }
 
     @get:JsonIgnore
     internal val hasMaskedFields: Boolean = maskedFields.isNotEmpty()
@@ -52,7 +52,7 @@ data class QueryModelSchema(
         fields.forEach { (field, fieldSchema) ->
             if (fieldSchema.dynamicChildren) {
                 put(
-                    field.value,
+                    field.path,
                     fieldSchema.copy(bindings = fieldSchema.bindings - QueryCapability.ELEMENT_SCOPE),
                 )
             }
@@ -62,15 +62,15 @@ data class QueryModelSchema(
     @get:JsonIgnore
     internal val resolver = QuerySchemaResolver(this)
 
-    fun resolve(field: LogicalField): QueryFieldSchema? {
+    fun resolve(field: QueryField): QueryFieldSchema? {
         fields[field]?.let { return it }
         if (dynamicFields.isEmpty()) return null
-        var separator = field.value.lastIndexOf('.')
+        var separator = field.path.lastIndexOf('.')
         while (separator > 0) {
-            val ancestorPath = field.value.substring(0, separator)
+            val ancestorPath = field.path.substring(0, separator)
             val ancestor = dynamicFields[ancestorPath]
             if (ancestor != null) {
-                val suffix = field.value.substring(separator + 1)
+                val suffix = field.path.substring(separator + 1)
                 return ancestor.copy(
                     bindings = ancestor.bindings.mapValues { (_, binding) ->
                         binding.copy(physicalPath = "${binding.physicalPath}.$suffix")
@@ -100,7 +100,7 @@ data class QueryFieldSchema(
 )
 
 data class LogicalQuerySchema(
-    val fields: Map<LogicalField, LogicalQueryFieldSchema>,
+    val fields: Map<QueryField, LogicalQueryFieldSchema>,
 )
 
 data class LogicalQueryFieldSchema(
@@ -120,7 +120,7 @@ fun QueryModelSchema.toMetadata(): QueryModelSchemaMetadata =
     QueryModelSchemaMetadata(
         model = model,
         capabilities = capabilities,
-        fields = fields.entries.sortedBy { it.key.value }.map { (field, schema) ->
+        fields = fields.entries.sortedBy { it.key.path }.map { (field, schema) ->
             QueryFieldSchemaMetadata(
                 field = field,
                 title = schema.title,

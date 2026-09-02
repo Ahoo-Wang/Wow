@@ -43,7 +43,7 @@ import me.ahoo.wow.api.query.LastWeekFilter
 import me.ahoo.wow.api.query.LastYearFilter
 import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.LessThanOrEqualFilter
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.NextMonthFilter
@@ -134,7 +134,7 @@ class FilterDsl internal constructor(
      * Multiple expressions in [block] form one implicit AND operand.
      */
     fun String.path(block: FilterDsl.() -> Unit) {
-        val scoped = FilterDsl(prefix = field(this).value).apply(block)
+        val scoped = FilterDsl(prefix = field(this).path).apply(block)
         require(scoped.expressions.isNotEmpty()) { "path block cannot be empty." }
         add(scoped.build())
     }
@@ -315,7 +315,7 @@ class FilterDsl internal constructor(
         return create(nested.expressions.toList())
     }
 
-    private fun field(value: String): LogicalField = LogicalField(resolvePath(value))
+    private fun field(value: String): QueryField = QueryField(resolvePath(value))
 
     private fun resolvePath(value: String): String =
         if (prefix == "" || value.startsWith(prefix = "$prefix.")) value else "$prefix.$value"

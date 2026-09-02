@@ -17,7 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
@@ -92,7 +92,7 @@ class DefaultRewriteRequestFilterTest {
     fun `generic query rewrite should preserve typed search fields`() {
         val search = SearchFilter(
             query = "wow",
-            fields = linkedSetOf(LogicalField("state.name"), LogicalField("state.description")),
+            fields = linkedSetOf(QueryField("state.name"), QueryField("state.description")),
         )
 
         val rewritten = DefaultRewriteRequestFilter.rewrite(

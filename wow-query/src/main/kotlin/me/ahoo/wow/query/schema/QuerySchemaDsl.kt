@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
@@ -35,10 +35,10 @@ import java.util.concurrent.TimeUnit
 import kotlin.reflect.KClass
 
 class QuerySchemaDeclarationBuilder {
-    private val fields = linkedMapOf<LogicalField, QueryFieldDeclaration>()
+    private val fields = linkedMapOf<QueryField, QueryFieldDeclaration>()
 
     fun field(field: String, block: QueryFieldDeclarationBuilder.() -> Unit) {
-        val logicalField = LogicalField(field)
+        val logicalField = QueryField(field)
         val declaration = QueryFieldDeclarationBuilder().apply(block).build()
         fields[logicalField] = fields[logicalField]
             ?.merge(declaration, logicalField, rejectDifferent = true)

@@ -17,7 +17,7 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.query.FilterNormalizer
 import org.openjdk.jmh.annotations.Benchmark
@@ -77,7 +77,7 @@ open class FilterNormalizerBenchmark {
     private fun filter(size: Int): FilterExpression = AndFilter(
         List(size) { index ->
             EqualFilter(
-                LogicalField("state.field$index"),
+                QueryField("state.field$index"),
                 JsonNodeFactory.instance.numberNode(index),
             )
         },

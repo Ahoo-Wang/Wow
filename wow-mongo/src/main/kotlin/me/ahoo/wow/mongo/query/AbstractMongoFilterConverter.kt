@@ -178,11 +178,11 @@ abstract class AbstractMongoFilterConverter(
         else -> error("Unsupported filter expression: ${filter::class.java.name}.")
     }
 
-    private fun me.ahoo.wow.api.query.LogicalField.convert(parent: String?, mapField: Boolean): String =
+    private fun me.ahoo.wow.api.query.QueryField.convert(parent: String?, mapField: Boolean): String =
         path(parent).let { if (mapField) fieldConverter.convert(it) else it }
 
-    private fun me.ahoo.wow.api.query.LogicalField.path(parent: String?): String =
-        if (parent == null || value == parent || value.startsWith("$parent.")) value else "$parent.$value"
+    private fun me.ahoo.wow.api.query.QueryField.path(parent: String?): String =
+        if (parent == null || path == parent || path.startsWith("$parent.")) path else "$parent.$path"
 
     private val StringComparison.ignoreCase: Boolean
         get() = this == StringComparison.CASE_INSENSITIVE

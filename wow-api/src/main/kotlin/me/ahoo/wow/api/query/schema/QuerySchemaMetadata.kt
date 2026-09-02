@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.api.query.schema
 
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import tools.jackson.databind.JsonNode
 
 data class QueryModelSchemaMetadata(
@@ -23,7 +23,7 @@ data class QueryModelSchemaMetadata(
 )
 
 data class QueryFieldSchemaMetadata(
-    val field: LogicalField,
+    val field: QueryField,
     val title: String?,
     val description: String?,
     val enumValues: List<JsonNode>?,

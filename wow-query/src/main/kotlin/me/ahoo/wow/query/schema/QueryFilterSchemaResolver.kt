@@ -46,7 +46,7 @@ internal class QueryFilterSchemaResolver(
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun resolve(
         filter: FilterExpression,
-        logicalParent: LogicalField? = null,
+        logicalParent: QueryField? = null,
         physicalParent: String? = null,
     ): QuerySchemaResolution<FilterExpression> = when (filter) {
         MatchAllFilter,
@@ -201,7 +201,7 @@ internal class QueryFilterSchemaResolver(
 
     private fun resolveElementMatch(
         filter: ElementMatchFilter,
-        logicalParent: LogicalField?,
+        logicalParent: QueryField?,
         physicalParent: String?,
     ): QuerySchemaResolution<FilterExpression> {
         val container = fieldResolver.resolve(
@@ -214,7 +214,7 @@ internal class QueryFilterSchemaResolver(
         val value = if (container.physicalPath == null) {
             filter
         } else {
-            ElementMatchFilter(fieldResolver.resolveLogicalField(container.value), predicate.value)
+            ElementMatchFilter(fieldResolver.resolveQueryField(container.value), predicate.value)
         }
         return QuerySchemaResolution(
             value,
@@ -224,7 +224,7 @@ internal class QueryFilterSchemaResolver(
 
     private fun resolveSearch(
         filter: SearchFilter,
-        logicalParent: LogicalField?,
+        logicalParent: QueryField?,
         physicalParent: String?,
     ): QuerySchemaResolution<FilterExpression> {
         val capability = when (filter.mode) {
@@ -245,7 +245,7 @@ internal class QueryFilterSchemaResolver(
         }
         if (fields.all { it.compatibility == QueryCompatibilityLevel.EXACT }) {
             return QuerySchemaResolution(
-                filter.copy(fields = fields.mapTo(linkedSetOf()) { fieldResolver.resolveLogicalField(it.value) }),
+                filter.copy(fields = fields.mapTo(linkedSetOf()) { fieldResolver.resolveQueryField(it.value) }),
                 QueryCompatibilityLevel.EXACT,
             )
         }
@@ -257,7 +257,7 @@ internal class QueryFilterSchemaResolver(
 
     private fun resolveOperands(
         operands: List<FilterExpression>,
-        logicalParent: LogicalField?,
+        logicalParent: QueryField?,
         physicalParent: String?,
         create: (List<FilterExpression>) -> FilterExpression,
     ): QuerySchemaResolution<FilterExpression> {
@@ -272,27 +272,27 @@ internal class QueryFilterSchemaResolver(
     }
 
     private inline fun resolveFieldFilter(
-        field: LogicalField,
+        field: QueryField,
         capability: QueryCapability,
-        logicalParent: LogicalField?,
+        logicalParent: QueryField?,
         physicalParent: String?,
         values: Iterable<JsonNode> = emptyList(),
-        copy: (LogicalField) -> FilterExpression,
+        copy: (QueryField) -> FilterExpression,
     ): QuerySchemaResolution<FilterExpression> {
         val resolved = fieldResolver.resolve(field, capability, logicalParent, physicalParent)
         return QuerySchemaResolution(
-            copy(fieldResolver.resolveLogicalField(resolved.value)),
+            copy(fieldResolver.resolveQueryField(resolved.value)),
             maxOf(resolved.compatibility, resolved.valueCompatibility(values)),
         )
     }
 
     private inline fun resolveCollectionFieldFilter(
-        field: LogicalField,
+        field: QueryField,
         capability: QueryCapability,
-        logicalParent: LogicalField?,
+        logicalParent: QueryField?,
         physicalParent: String?,
         values: Iterable<JsonNode> = emptyList(),
-        copy: (LogicalField) -> FilterExpression,
+        copy: (QueryField) -> FilterExpression,
     ): QuerySchemaResolution<FilterExpression> {
         val resolved = fieldResolver.resolve(field, capability, logicalParent, physicalParent)
         val cardinality = if (schema.fields[resolved.logical]?.cardinality == QueryCardinality.SINGLE) {
@@ -305,14 +305,14 @@ internal class QueryFilterSchemaResolver(
             cardinality,
             resolved.valueCompatibility(values),
         )
-        return QuerySchemaResolution(copy(fieldResolver.resolveLogicalField(resolved.value)), compatibility)
+        return QuerySchemaResolution(copy(fieldResolver.resolveQueryField(resolved.value)), compatibility)
     }
 
     private inline fun resolveStringFieldFilter(
-        field: LogicalField,
-        logicalParent: LogicalField?,
+        field: QueryField,
+        logicalParent: QueryField?,
         physicalParent: String?,
-        copy: (LogicalField) -> FilterExpression,
+        copy: (QueryField) -> FilterExpression,
     ): QuerySchemaResolution<FilterExpression> {
         val resolved = fieldResolver.resolve(field, QueryCapability.EXACT_MATCH, logicalParent, physicalParent)
         val stringField = when {
@@ -322,12 +322,12 @@ internal class QueryFilterSchemaResolver(
             else -> QueryCompatibilityLevel.INCOMPATIBLE
         }
         val compatibility = maxOf(resolved.compatibility, stringField)
-        return QuerySchemaResolution(copy(fieldResolver.resolveLogicalField(resolved.value)), compatibility)
+        return QuerySchemaResolution(copy(fieldResolver.resolveQueryField(resolved.value)), compatibility)
     }
 
     private fun resolveRelativeTime(
         filter: RelativeTimeFilter,
-        logicalParent: LogicalField?,
+        logicalParent: QueryField?,
         physicalParent: String?,
     ): QuerySchemaResolution<FilterExpression> {
         val resolved = fieldResolver.resolve(filter.field, QueryCapability.RANGE, logicalParent, physicalParent)
@@ -337,7 +337,7 @@ internal class QueryFilterSchemaResolver(
         if (filter.dateFormatter != null) {
             return QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE)
         }
-        val physicalField = fieldResolver.resolveLogicalField(resolved.value)
+        val physicalField = fieldResolver.resolveQueryField(resolved.value)
         val configured = when (val temporal = resolved.fieldSchema?.semanticType) {
             is Temporal.Epoch -> {
                 if (filter.datePattern != null) {
@@ -370,7 +370,7 @@ internal class QueryFilterSchemaResolver(
 
     @Suppress("CyclomaticComplexMethod")
     private fun RelativeTimeFilter.copyResolved(
-        field: LogicalField,
+        field: QueryField,
         datePattern: String? = this.datePattern,
         timeUnit: TimeUnit = this.timeUnit,
     ): RelativeTimeFilter = when (this) {
@@ -396,7 +396,7 @@ internal class QueryFilterSchemaResolver(
         field: String,
     ): QuerySchemaResolution<FilterExpression> = QuerySchemaResolution(
         filter,
-        fieldResolver.resolve(LogicalField(field), QueryCapability.EXACT_MATCH, null, null).compatibility,
+        fieldResolver.resolve(QueryField(field), QueryCapability.EXACT_MATCH, null, null).compatibility,
     )
 
     private fun QueryFieldResolution.valueCompatibility(values: Iterable<JsonNode>): QueryCompatibilityLevel {

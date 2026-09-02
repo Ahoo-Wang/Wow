@@ -14,7 +14,7 @@
 package me.ahoo.wow.compensation.server
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.compensation.domain.ExecutionFailed
@@ -35,7 +35,7 @@ class ExecutionFailedQuerySchemaTest {
 
         val declaration = JsonQuerySchemaSource().load(context).single().block()!!
 
-        declaration.fields.getValue(LogicalField("state.executeAt")).semanticType.assert()
+        declaration.fields.getValue(QueryField("state.executeAt")).semanticType.assert()
             .isEqualTo(DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)))
     }
 }

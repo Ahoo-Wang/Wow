@@ -23,7 +23,7 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
@@ -326,19 +326,19 @@ abstract class SnapshotQueryBackendSpec {
             .assertNext { schema ->
                 schema.model.assert().isEqualTo(QueryModel.SNAPSHOT)
                 schema.fields.keys.assert().contains(
-                    LogicalField("aggregateId"),
-                    LogicalField("eventTime"),
-                    LogicalField("state"),
-                    LogicalField("state.data"),
-                    LogicalField("state.createdAt"),
-                    LogicalField("state.orders"),
-                    LogicalField("state.decimalValue"),
+                    QueryField("aggregateId"),
+                    QueryField("eventTime"),
+                    QueryField("state"),
+                    QueryField("state.data"),
+                    QueryField("state.createdAt"),
+                    QueryField("state.orders"),
+                    QueryField("state.decimalValue"),
                 )
-                schema.fields.getValue(LogicalField("state.data")).bindings.keys.assert().contains(
+                schema.fields.getValue(QueryField("state.data")).bindings.keys.assert().contains(
                     QueryCapability.EXACT_MATCH,
                     QueryCapability.SORT,
                 )
-                val createdAt = schema.fields.getValue(LogicalField("state.createdAt"))
+                val createdAt = schema.fields.getValue(QueryField("state.createdAt"))
                 createdAt.valueTypes.assert().isEqualTo(setOf(QueryValueType.INTEGER))
                 createdAt.semanticType.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
                 createdAt.bindings.keys.assert().contains(
@@ -346,18 +346,18 @@ abstract class SnapshotQueryBackendSpec {
                     QueryCapability.SORT,
                     QueryCapability.AGGREGATE_TEMPORAL,
                 )
-                val orders = schema.fields.getValue(LogicalField("state.orders"))
+                val orders = schema.fields.getValue(QueryField("state.orders"))
                 orders.cardinality.assert().isEqualTo(QueryCardinality.MANY)
                 orders.valueTypes.assert().isEqualTo(setOf(QueryValueType.OBJECT))
                 orders.bindings.keys.assert().contains(QueryCapability.ELEMENT_SCOPE)
-                schema.fields.getValue(LogicalField("state.decimalValue")).bindings.keys.assert().contains(
+                schema.fields.getValue(QueryField("state.decimalValue")).bindings.keys.assert().contains(
                     QueryCapability.AGGREGATE_TERMS,
                     QueryCapability.AGGREGATE_NUMERIC,
                 )
 
                 val metadata = schema.toMetadata()
-                metadata.fields.map { it.field.value }.assert().isEqualTo(
-                    metadata.fields.map { it.field.value }.sorted(),
+                metadata.fields.map { it.field.path }.assert().isEqualTo(
+                    metadata.fields.map { it.field.path }.sorted(),
                 )
                 JsonSerializer.writeValueAsString(metadata).assert()
                     .doesNotContain("physicalPath", "storageType")
