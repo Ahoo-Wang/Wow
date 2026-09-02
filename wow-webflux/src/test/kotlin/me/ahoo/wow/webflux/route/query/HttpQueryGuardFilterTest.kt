@@ -39,13 +39,13 @@ import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.toFilterExpression

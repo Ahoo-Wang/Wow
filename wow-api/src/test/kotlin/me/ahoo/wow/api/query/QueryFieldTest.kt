@@ -38,6 +38,6 @@ class QueryFieldTest {
         val field = QueryField("state.name")
         jsonMapper.writeValueAsString(field).assert().isEqualTo("\"state.name\"")
         jsonMapper.readValue("\"state.name\"", QueryField::class.java).assert().isEqualTo(field)
-        assertThrows<IllegalArgumentException> { QueryField("state.*") }
+        assertThrows<IllegalArgumentException> { QueryField("field.*") }
     }
 }

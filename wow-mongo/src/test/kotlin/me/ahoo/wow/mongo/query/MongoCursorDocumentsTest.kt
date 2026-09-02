@@ -13,12 +13,11 @@
 
 package me.ahoo.wow.mongo.query
 
-import me.ahoo.wow.api.query.QueryField
-
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import org.bson.BsonTimestamp
 import org.bson.Document

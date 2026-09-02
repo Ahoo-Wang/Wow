@@ -39,9 +39,6 @@ class AggregationQueryTest {
             .isEqualTo("{\"include\":[\"state.name\"]}")
         configuredMapper.writeValueAsString(sort).assert()
             .isEqualTo("{\"field\":\"state.createdAt\",\"direction\":\"DESC\"}")
-        assertThrows<JacksonException> {
-            configuredMapper.readValue("{\"include\":[\"state.*\"]}", Projection::class.java)
-        }
     }
 
     @Test

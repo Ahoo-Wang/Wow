@@ -224,6 +224,25 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
+    fun `relative field sharing its parent prefix should still resolve inside the element`() {
+        val schema = schema(
+            field("body", QueryCapability.ELEMENT_SCOPE, "events", "nested"),
+            field("body.body.data", QueryCapability.AGGREGATE_TERMS, "events.payload.data.keyword", "keyword"),
+        )
+
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+            aggregation {
+                expand("body")
+                terms("body.data", "data")
+                count("count")
+            },
+            schema,
+        )
+
+        plan.groupSources.single().value().terms().field().assert().isEqualTo("events.payload.data.keyword")
+    }
+
+    @Test
     fun `compiler should order composite sources by effective group sort`() {
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation {

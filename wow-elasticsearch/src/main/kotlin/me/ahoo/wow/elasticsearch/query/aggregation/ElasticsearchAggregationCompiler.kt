@@ -86,7 +86,7 @@ internal class ElasticsearchAggregationCompiler(
         var logicalParent: QueryField? = null
         query.elements.forEach { element ->
             val previousLogicalParent = logicalParent
-            logicalParent = element.path.absoluteTo(previousLogicalParent)
+            logicalParent = previousLogicalParent?.append(element.path) ?: element.path
             val nestedPath = element.path.resolve(previousLogicalParent, schema, QueryCapability.ELEMENT_SCOPE)
             val unscopedFilter = AndFilter(
                 listOf(element.filter, DeletionFilter(DeletionState.ALL)),
@@ -165,7 +165,7 @@ internal class ElasticsearchAggregationCompiler(
         schema: QueryModelSchema?,
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): String {
-        val logicalField = field.absoluteTo(parent)
+        val logicalField = parent?.append(field) ?: field
         val fieldSchema = schema?.field(logicalField) ?: return logicalField.path
         val physicalPath = fieldSchema.binding(QueryCapability.AGGREGATE_TEMPORAL)?.physicalField?.path
             ?: throw QuerySchemaValidationException(
@@ -359,7 +359,7 @@ internal class ElasticsearchAggregationCompiler(
         schema: QueryModelSchema?,
         capability: QueryCapability,
     ): String {
-        val logicalField = absoluteTo(parent)
+        val logicalField = parent?.append(this) ?: this
         val fieldSchema = schema?.field(logicalField) ?: return logicalField.path
         return fieldSchema.binding(capability)?.physicalField?.path
             ?: throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")

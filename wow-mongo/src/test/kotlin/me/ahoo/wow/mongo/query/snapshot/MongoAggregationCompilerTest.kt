@@ -96,6 +96,25 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `relative field sharing its parent prefix should still resolve inside the element`() {
+        val schema = schema(
+            field("body", QueryCapability.ELEMENT_SCOPE, "events", QueryValueType.OBJECT),
+            field("body.body.data", QueryCapability.AGGREGATE_TERMS, "events.payload.data"),
+        )
+
+        val group = MongoAggregationCompiler(SnapshotFilterConverter).compile(
+            aggregation {
+                expand("body")
+                terms("body.data", "data")
+                count("count")
+            },
+            schema,
+        ).first { it.toBsonDocument().containsKey("\$group") }.toBsonDocument().toJson()
+
+        group.assert().contains("\$events.payload.data").doesNotContain("\$body.data")
+    }
+
+    @Test
     fun `dynamic suffix without terms binding should use the conventional physical path`() {
         val schema = schema(
             field(

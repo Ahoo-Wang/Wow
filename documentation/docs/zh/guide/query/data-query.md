@@ -49,8 +49,8 @@ flowchart LR
 ```kotlin
 val query = PagedQuery(
     filter = filterExpression { "status" eq "READY" },
-    projection = Projection(include = listOf("id", "status")),
-    sort = listOf(Sort("updatedAt", Sort.Direction.DESC)),
+    projection = Projection(include = listOf(QueryField("id"), QueryField("status"))),
+    sort = listOf(Sort(QueryField("updatedAt"), Sort.Direction.DESC)),
     pagination = Pagination(index = 1, size = 20)
 )
 ```
@@ -66,7 +66,9 @@ val query = PagedQuery(
 }
 ```
 
-其中：`index` 是从 1 开始的页码，`size` 是页大小；`sort` 是按逻辑字段排列的字段和方向；`filter` 是一个 `FilterExpression`。`projection` 可用 `include` 或 `exclude` 控制字段，空投影表示返回全部字段。
+其中：`index` 是从 1 开始的页码，`size` 是页大小；`sort` 是按逻辑字段排列的字段和方向；`filter` 是一个 `FilterExpression`。JVM 中 Projection 与 Sort 使用 `QueryField`，合法字段在 JSON 中仍是字符串。
+
+`projection` 可用 `include` 或 `exclude` 控制字段，空投影表示返回全部字段。每个 QueryField 选择一个节点及其全部后代：选择对象节点会返回整棵子树，选择标量节点等同于精确字段。公共 Projection 与 Sort 不接受后端通配 pattern；要选择整个 `state` 子树，应写 `state`，而不是存储侧表达式。
 
 ## Count
 

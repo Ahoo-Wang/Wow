@@ -13,6 +13,20 @@ description: 查询聚合事件历史、事件流字段路径及已发布的 HTT
 
 根字段直接查询，例如 `aggregateId`、`tenantId`、`version`、`createTime`。`body` 是事件数组；单个事件的元数据为 `body.id`、`body.name`、`body.revision`、`body.bodyType`，payload 位于 `body.body`。payload 字段必须由 Query Model Schema 声明，并受 MongoDB 可查询存储或 Elasticsearch `body.body` mapping 能力约束。
 
+### Payload 投影与 bodyType
+
+Projection 选择 `body.body` 或它的任意子节点时，必须同时选择 `body.bodyType`，并且不能排除 `body.bodyType`。反序列化 payload 需要这个类型信息；Runtime 只校验合同，不会暗中补字段或改写 Projection。例如下面的 payload 投影是合法的：
+
+```json
+{
+  "projection": {
+    "include": ["body.body", "body.bodyType"]
+  }
+}
+```
+
+`include: ["body"]` 已经同时覆盖 payload 与 bodyType；只包含 `body.body`、只包含 payload 子字段，或仍选择 payload 却排除 `body.bodyType`，都会被 Query Model Schema 拒绝。这是查询语义的破坏性变化。
+
 ## JVM 查询
 
 `EventStreamQueryGateway` 在 JVM 支持 typed 和 dynamic 的 single/list/paged/cursor/count；`dynamicQuery` 返回 `ObjectNode`。Gateway 也提供 JVM aggregation，其 JVM 与 HTTP/OpenAPI 合同和示例见[事件流聚合](./event-stream-aggregation.md)。

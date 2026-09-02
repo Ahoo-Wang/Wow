@@ -1104,16 +1104,6 @@ class QuerySchemaResolverTest {
     }
 
     @Test
-    fun `projection wildcard should be rejected by query field`() {
-        assertThrows<IllegalArgumentException> { QueryField("state.*") }
-    }
-
-    @Test
-    fun `sort wildcard should be rejected by query field`() {
-        assertThrows<IllegalArgumentException> { QueryField("state.*") }
-    }
-
-    @Test
     fun `query should combine component compatibility by the strictest level`() {
         val compatible = QueryField("state.unknown")
         val incompatible = QueryField("state.declared")

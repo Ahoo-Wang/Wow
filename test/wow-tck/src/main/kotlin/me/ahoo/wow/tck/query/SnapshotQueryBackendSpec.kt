@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
@@ -164,6 +165,48 @@ abstract class SnapshotQueryBackendSpec {
         }.dynamicQuery(snapshotQueryBackend)
             .test()
             .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `projection should preserve scalar and object subtree semantics`() {
+        fun query(projection: Projection): ObjectNode = snapshotQueryBackend.list(
+            ListQuery(IdFilter(snapshot.aggregateId.id), projection = projection, limit = 1),
+        ).blockFirst()!!
+
+        query(Projection(include = listOf(QueryField("state")))).path("state").let { state ->
+            state.isObject.assert().isTrue()
+            state.has("data").assert().isTrue()
+            state.has("orders").assert().isTrue()
+        }
+        query(Projection(include = listOf(QueryField("state.data")))).path("state").let { state ->
+            state.has("data").assert().isTrue()
+            state.has("orders").assert().isFalse()
+        }
+        query(Projection(exclude = listOf(QueryField("state")))).has("state").assert().isFalse()
+        query(Projection(exclude = listOf(QueryField("state.data")))).path("state").let { state ->
+            state.has("data").assert().isFalse()
+            state.has("orders").assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `list should execute QueryField sort`() {
+        val aggregateIds = saveCursorSnapshots(
+            MockStateAggregate(id = "query-field-sort-a", createdAt = 1),
+            MockStateAggregate(id = "query-field-sort-b", createdAt = 2),
+        )
+
+        snapshotQueryBackend.list(
+            ListQuery(
+                filter = filterExpression { aggregateIds(*aggregateIds.toTypedArray()) },
+                sort = listOf(Sort(QueryField("state.createdAt"), Sort.Direction.DESC)),
+                limit = 2,
+            ),
+        ).map { it.path("aggregateId").textValue() }
+            .collectList()
+            .test()
+            .expectNext(listOf("query-field-sort-b", "query-field-sort-a"))
             .verifyComplete()
     }
 

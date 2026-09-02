@@ -96,6 +96,22 @@ internal class ExampleDomainOpenAPITest {
         }
 
         @Test
+        fun `projection and sort should reference the query field component`() {
+            val queryFieldRef = "#/components/schemas/wow.api.query.QueryField"
+            val schemas = openAPI.components.schemas
+
+            schemas.assert().containsKey("wow.api.query.QueryField")
+            schemas.getValue("wow.api.query.QueryField").types.assert().containsExactly("string")
+
+            val projection = schemas.getValue("wow.api.query.Projection")
+            listOf("include", "exclude").forEach { property ->
+                projection.properties.getValue(property).items.`$ref`.assert().isEqualTo(queryFieldRef)
+            }
+            schemas.getValue("wow.api.query.Sort").properties.getValue("field").`$ref`.assert()
+                .isEqualTo(queryFieldRef)
+        }
+
+        @Test
         fun `snapshot aggregation should use generic query body and expose dynamic rows`() {
             val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.AggregationQuery"])
             val responseSchema = requireNotNull(

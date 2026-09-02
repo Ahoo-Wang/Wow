@@ -7,7 +7,7 @@ description: 了解运行时查询字段的来源、后端能力、校验模式�
 
 ## Schema 解决什么问题
 
-Query Model Schema 是运行时查询能力合同，分别描述 `QueryModel.SNAPSHOT` 与 `QueryModel.EVENT_STREAM`。它把请求中的逻辑字段解析为后端物理路径，并记录值类型、基数、时间语义、动态子字段、投影路径以及每种操作的 capability。`QuerySchemaResolver` 据此重写并校验过滤、投影、排序和[聚合查询](./aggregation-query.md)，而不是仅凭 DTO 中存在某个属性就假定后端可以查询。
+Query Model Schema 是运行时查询能力合同，分别描述 `QueryModel.SNAPSHOT` 与 `QueryModel.EVENT_STREAM`。它把请求中的逻辑字段解析为后端物理路径，并记录值类型、基数、时间语义、动态子字段、投影路径以及每种操作的 capability。公共入口是 `QueryModelSchema.resolve(...)`；它据此重写并校验过滤、投影、排序和[聚合查询](./aggregation-query.md)，而不是仅凭 DTO 中存在某个属性就假定后端可以查询。`QuerySchemaResolver` 只是内部算法实现，不是外部业务入口。
 
 它与[通用 JSON Schema](../advanced/schema.md)不同：JSON Schema 描述序列化形状并可参与 OpenAPI 生成；Query Model Schema 还必须由所选 MongoDB 或 Elasticsearch adapter 结合实际存储事实解析，才能证明某个操作可用。
 
@@ -24,8 +24,8 @@ flowchart LR
     Working["Working Directory 400"] --> Merger
     Merger --> Adapter["MongoDB / Elasticsearch Adapter"]
     Adapter --> Schema["QueryModelSchema"]
-    Schema --> Resolver["QuerySchemaResolver"]
-    Resolver --> Query["Filter / Sort / Aggregation"]
+    Schema --> Resolve["QueryModelSchema.resolve"]
+    Resolve --> Query["Filter / Projection / Sort / Aggregation"]
     Schema --> HTTP["Schema / refresh HTTP"]
 ```
 
@@ -43,6 +43,19 @@ flowchart LR
 [Elasticsearch](../extensions/elasticsearch.md) adapter 读取目标 mapping，并分别考虑字段类型、multi-field、nested、doc values、alias 与 runtime field。全文字段可以绑定到 text 路径，精确匹配、排序或 TERMS 聚合可能绑定到 keyword multi-field；对象数组只有在对应 nested mapping 成立时才获得 Element scope。
 
 两种 adapter 共享公共 capability 名称，但不会产生相同的物理路径、全文语义、数组作用域或时间能力。自定义 filter converter 会使内置 Query Model Schema 不可用；只有调用方同时提供与该 converter 一致的 Provider/adapter 实现，才能重新建立能力合同。
+
+## QueryField 与 Projection
+
+Filter、Projection、Sort、Aggregation 与 Schema metadata 统一使用 `QueryField` 表示合法的逻辑字段路径。JVM 构造示例如下；JSON 中的合法字段仍序列化为普通字符串：
+
+```kotlin
+val projection = Projection(
+    include = listOf(QueryField("state.customer")),
+)
+val sort = Sort(QueryField("state.createdAt"), Sort.Direction.DESC)
+```
+
+Projection 的每个 QueryField 表示该节点及其全部后代。Runtime 使用 Query Model Schema 完成准入后保留原 Projection；Backend 再用同一个 Schema 编译存储侧投影。MongoDB 直接投影节点，Elasticsearch 可在本地 source filter 中生成 `path` 与 `path.*`，但这个通配形式不会进入公共 Query、Schema metadata 或解析结果。
 
 ## 字段能力
 
@@ -77,6 +90,12 @@ flowchart LR
 - `INCOMPATIBLE`：字段已知但缺少所需 capability，或值类型、基数、Element scope 不符合合同。
 
 `QuerySchemaValidationMode.COMPATIBLE` 接受 `EXACT` 与 `COMPATIBLE`，拒绝 `INCOMPATIBLE`；`QuerySchemaValidationMode.STRICT` 只接受 `EXACT`。模式控制解析结果是否被接受，不会为后端补建索引或 mapping。
+
+## 0 阶段破坏性变化
+
+- **源码与二进制：** `LogicalField` 已由 `QueryField` 取代，`Projection.include/exclude` 改为 `List<QueryField>`，`Sort.field` 改为 `QueryField`。不提供 typealias、兼容类或旧构造器；下游需修改源码并重新编译。
+- **Wire：** 合法 QueryField 仍保持字符串 JSON 形态，但公共 Projection 与 Sort 不再接受 `state.*` 等后端 pattern。EventStream 选择 `body.body` 或其子节点时，还必须包含且不得排除 `body.bodyType`。
+- **OpenAPI：** component identity 从 `wow.api.query.LogicalField` 变为 `wow.api.query.QueryField`；Projection 的 items 与 Sort.field 都引用新 component，不保留旧 component/ref。
 
 ## 系统标签与回退
 

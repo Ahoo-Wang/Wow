@@ -13,9 +13,8 @@
 
 package me.ahoo.wow.mongo.query
 
-import me.ahoo.wow.api.query.QueryField
-
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import org.bson.Document
 import org.junit.jupiter.api.Test
