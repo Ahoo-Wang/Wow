@@ -19,6 +19,7 @@ import co.elastic.clients.elasticsearch.core.UpdateRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.schema.QueryCapability
@@ -38,7 +39,10 @@ import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.requireAccepted
@@ -50,8 +54,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
+import java.util.concurrent.atomic.AtomicInteger
 
 class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 
@@ -112,6 +118,29 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         schema.fields.assert().containsKey(QueryField("body.name"))
         schema.fields.getValue(QueryField("body")).bindings.assert()
             .containsKey(QueryCapability.ELEMENT_SCOPE)
+    }
+
+    @Test
+    fun `query helpers should prepare only on subscription`() {
+        val querySchema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        val schemaCalls = AtomicInteger()
+        val backend = object :
+            EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate),
+            QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.fromSupplier {
+                schemaCalls.incrementAndGet()
+                querySchema
+            }
+
+            override fun refresh(): Mono<QueryModelSchema> = schema()
+        }
+
+        val countPublisher = MatchAllFilter.count(backend)
+        val listPublisher = listQuery { }.query(backend)
+
+        schemaCalls.get().assert().isZero()
+        countPublisher.thenMany(listPublisher).test().verifyComplete()
+        schemaCalls.get().assert().isEqualTo(2)
     }
 
     @Test
@@ -250,23 +279,15 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 }
 
 private fun FilterExpression.count(backend: EventStreamQueryBackend) =
-    backend.count(resolved(backend, this))
+    backend.requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+        backend.count(
+            ResolvedQuery(schema.resolve(this).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema),
+        )
+    }
 
 private fun IListQuery.query(backend: EventStreamQueryBackend) =
-    Flux.defer { backend.list(resolved(backend, this)) }
-
-private fun resolved(
-    backend: EventStreamQueryBackend,
-    query: FilterExpression,
-): ResolvedQuery<FilterExpression> {
-    val schema = backend.requiredQueryModelSchemaProvider().schema().block()!!
-    return ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema)
-}
-
-private fun resolved(
-    backend: EventStreamQueryBackend,
-    query: IListQuery,
-): ResolvedQuery<IListQuery> {
-    val schema = backend.requiredQueryModelSchemaProvider().schema().block()!!
-    return ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema)
-}
+    backend.requiredQueryModelSchemaProvider().schema().flatMapMany { schema ->
+        backend.list(
+            ResolvedQuery(schema.resolve(this).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema),
+        )
+    }

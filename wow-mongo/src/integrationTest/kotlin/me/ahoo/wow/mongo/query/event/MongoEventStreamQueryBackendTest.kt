@@ -22,9 +22,12 @@ import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
@@ -46,6 +49,7 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
+import java.util.concurrent.atomic.AtomicInteger
 
 class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 
@@ -92,6 +96,29 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         schema.fields.assert().containsKey(QueryField("body.name"))
         schema.fields.getValue(QueryField("body")).bindings.assert()
             .containsKey(QueryCapability.ELEMENT_SCOPE)
+    }
+
+    @Test
+    fun `query helpers should prepare only on subscription`() {
+        val querySchema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        val schemaCalls = AtomicInteger()
+        val backend = object :
+            EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate),
+            QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.fromSupplier {
+                schemaCalls.incrementAndGet()
+                querySchema
+            }
+
+            override fun refresh(): Mono<QueryModelSchema> = schema()
+        }
+
+        val singlePublisher = singleQuery { }.query(backend)
+        val aggregationPublisher = aggregation { count("count") }.query(backend)
+
+        schemaCalls.get().assert().isZero()
+        singlePublisher.thenMany(aggregationPublisher).test().verifyComplete()
+        schemaCalls.get().assert().isEqualTo(2)
     }
 
     @Test
@@ -190,27 +217,13 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 private fun ISingleQuery.query(
     backend: EventStreamQueryBackend,
     mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-): Mono<ObjectNode> = backend.single(resolved(backend, this, mode))
+): Mono<ObjectNode> = backend.requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+    backend.single(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
+}
 
 private fun AggregationQuery.query(
     backend: EventStreamQueryBackend,
     mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-): Flux<ObjectNode> = backend.aggregate(resolved(backend, this, mode))
-
-private fun resolved(
-    backend: EventStreamQueryBackend,
-    query: ISingleQuery,
-    mode: QuerySchemaValidationMode,
-): ResolvedQuery<ISingleQuery> {
-    val schema = backend.requiredQueryModelSchemaProvider().schema().block()!!
-    return ResolvedQuery(schema.resolve(query).requireAccepted(mode), schema)
-}
-
-private fun resolved(
-    backend: EventStreamQueryBackend,
-    query: AggregationQuery,
-    mode: QuerySchemaValidationMode,
-): ResolvedQuery<AggregationQuery> {
-    val schema = backend.requiredQueryModelSchemaProvider().schema().block()!!
-    return ResolvedQuery(schema.resolve(query).requireAccepted(mode), schema)
+): Flux<ObjectNode> = backend.requiredQueryModelSchemaProvider().schema().flatMapMany { schema ->
+    backend.aggregate(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
 }
