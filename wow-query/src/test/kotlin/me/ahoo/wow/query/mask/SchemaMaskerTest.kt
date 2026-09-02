@@ -280,6 +280,7 @@ class SchemaMaskerTest {
         listOf(
             """{"body":[{"bodyType":"example.UnknownEvent","body":{"secret":"one"}}]}""",
             """{"body":[{"body":{"secret":"one"}}]}""",
+            """{"body":[{"bodyType":1,"body":{"secret":"one"}}]}""",
         ).forEach { json ->
             assertThrows<QuerySchemaValidationException> {
                 masker.mask(json.toJsonNode<ObjectNode>())
@@ -288,7 +289,22 @@ class SchemaMaskerTest {
     }
 
     @Test
-    fun `event stream should preserve projected results with missing or null body`() {
+    fun `event stream should preserve metadata-only items without body type`() {
+        val masker = SchemaMasker.create(eventSchema("body.body.secret" to fullMaskRule()))!!
+
+        listOf(
+            """{"body":[{"id":"event-id"}]}""",
+            """{"body":[{"id":"event-id","body":null}]}""",
+            """{"body":[{"id":"event-id","bodyType":"example.UnknownEvent"}]}""",
+        ).forEach { json ->
+            val node = json.toJsonNode<ObjectNode>()
+
+            masker.mask(node).assert().isSameAs(node)
+        }
+    }
+
+    @Test
+    fun `event stream should preserve results with missing or null event array`() {
         val masker = SchemaMasker.create(eventSchema("body.body.secret" to fullMaskRule()))!!
 
         listOf("{}", """{"body":null}""").forEach { json ->
@@ -304,6 +320,17 @@ class SchemaMaskerTest {
 
         assertThrows<QuerySchemaValidationException> {
             masker.mask("""{"body":{}}""".toJsonNode<ObjectNode>())
+        }
+    }
+
+    @Test
+    fun `event stream should fail closed for invalid metadata-only event items`() {
+        val masker = SchemaMasker.create(eventSchema("body.body.secret" to fullMaskRule()))!!
+
+        listOf("""{"body":[null]}""", """{"body":["event"]}""").forEach { json ->
+            assertThrows<QuerySchemaValidationException> {
+                masker.mask(json.toJsonNode<ObjectNode>())
+            }
         }
     }
 

@@ -25,7 +25,9 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
@@ -45,6 +47,7 @@ import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
@@ -117,6 +120,56 @@ class DefaultEventStreamQueryGatewayTest {
         val typedCursor = gateway.cursor(query).block()!!
         typedCursor.nextCursor.assert().isEqualTo("next")
         (typedCursor.list.single().body.single().body as MockAggregateCreated).data.assert().isEqualTo("******")
+    }
+
+    @Test
+    fun `event gateway should allow metadata-only projections with a masked payload schema`() {
+        val cases = listOf(
+            Projection(include = listOf(QueryField("body.id"))) to
+                """{"body":[{"id":"event-id"}]}""",
+            Projection(exclude = listOf(QueryField("body.body"), QueryField("body.bodyType"))) to
+                """{"body":[{"id":"event-id"}]}""",
+        )
+
+        cases.forEach { (projection, json) ->
+            val gateway = DefaultEventStreamQueryGateway(
+                MOCK_AGGREGATE_METADATA,
+                SchemaEventBackend(
+                    { json.toJsonNode<ObjectNode>() },
+                    eventSchema("example.KnownEvent"),
+                ),
+                errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+            )
+
+            gateway.dynamicSingle(SingleQuery(MatchAllFilter, projection = projection))
+                .test()
+                .assertNext { node ->
+                    node.path("body").path(0).path("id").asString().assert().isEqualTo("event-id")
+                }
+                .verifyComplete()
+        }
+    }
+
+    @Test
+    fun `event gateway should fail closed when payload lacks a known body type`() {
+        listOf(
+            """{"body":[{"body":{"data":"secret"}}]}""",
+            """{"body":[{"bodyType":"example.UnknownEvent","body":{"data":"secret"}}]}""",
+        ).forEach { json ->
+            val gateway = DefaultEventStreamQueryGateway(
+                MOCK_AGGREGATE_METADATA,
+                SchemaEventBackend(
+                    { json.toJsonNode<ObjectNode>() },
+                    eventSchema("example.KnownEvent"),
+                ),
+                errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+            )
+
+            gateway.dynamicSingle(SingleQuery(MatchAllFilter))
+                .test()
+                .expectError(QuerySchemaValidationException::class.java)
+                .verify()
+        }
     }
 
     @Test

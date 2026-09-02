@@ -7,7 +7,7 @@ description: Understand runtime query-field sources, backend capabilities, valid
 
 ## What the Schema Solves
 
-Query Model Schema is the runtime query-capability contract for `QueryModel.SNAPSHOT` and `QueryModel.EVENT_STREAM`. It resolves logical request fields to backend physical paths and records value types, cardinality, temporal semantics, dynamic children, projection paths, and the capabilities available for each operation. `QuerySchemaResolver` uses it to rewrite and validate filters, projections, sorting, and [aggregation queries](./aggregation-query.md), rather than assuming that a property is queryable merely because it exists in a DTO.
+Query Model Schema is the runtime query-capability contract for `QueryModel.SNAPSHOT` and `QueryModel.EVENT_STREAM`. It resolves logical request fields to backend bindings and records value types, cardinality, temporal semantics, dynamic children, projection paths, and the capabilities available for each operation. The public entry point is `QueryModelSchema.resolve(...)`; it rewrites and validates filters, projections, sorting, and [aggregation queries](./aggregation-query.md), rather than assuming that a property is queryable merely because it exists in a DTO. `QuerySchemaResolver` is an internal algorithm, not an application entry point.
 
 It differs from [general JSON Schema](../advanced/schema.md): JSON Schema describes serialization shape and can contribute to OpenAPI generation, while Query Model Schema must also be resolved by the selected MongoDB or Elasticsearch adapter against actual storage facts before an operation is proven available.
 
@@ -24,8 +24,8 @@ flowchart LR
     Working["Working Directory 400"] --> Merger
     Merger --> Adapter["MongoDB / Elasticsearch Adapter"]
     Adapter --> Schema["QueryModelSchema"]
-    Schema --> Resolver["QuerySchemaResolver"]
-    Resolver --> Query["Filter / Sort / Aggregation"]
+    Schema --> Resolve["QueryModelSchema.resolve"]
+    Resolve --> Query["Filter / Projection / Sort / Aggregation"]
     Schema --> HTTP["Schema / refresh HTTP"]
 ```
 
@@ -43,6 +43,19 @@ The [MongoDB](../extensions/mongo.md) adapter maps logical fields through a `Fie
 The [Elasticsearch](../extensions/elasticsearch.md) adapter reads the target mapping and separately accounts for field types, multi-fields, nested mappings, doc values, aliases, and runtime fields. Full text may bind to a text path, while exact matching, sorting, or TERMS aggregation may bind to a keyword multi-field. An object array receives Element scope only when the corresponding nested mapping supports it.
 
 The adapters share public capability names but do not produce identical physical paths, full-text behavior, array scopes, or temporal capabilities. A custom filter converter makes the built-in Query Model Schema unavailable. The capability contract exists again only if the caller also supplies a Provider/adapter implementation consistent with that converter.
+
+## QueryField and Projection
+
+Filter, Projection, Sort, Aggregation, and Schema metadata use `QueryField` for valid logical field paths. Valid fields still serialize as ordinary JSON strings:
+
+```kotlin
+val projection = Projection(
+    include = listOf(QueryField("state.customer")),
+)
+val sort = Sort(QueryField("state.createdAt"), Sort.Direction.DESC)
+```
+
+Each Projection QueryField selects that node and all of its descendants. Runtime admission preserves the original Projection; the Backend then uses the same Query Model Schema to compile its storage-side projection. MongoDB projects the node directly. Elasticsearch may emit `path` and `path.*` in its local source filter, but that wildcard form never enters a public Query, Schema metadata, or the resolved public query.
 
 ## Field Capabilities
 
@@ -77,6 +90,12 @@ Every resolution has one compatibility level:
 - `INCOMPATIBLE`: the field is known but lacks the required capability, or its value type, cardinality, or Element scope violates the contract.
 
 `QuerySchemaValidationMode.COMPATIBLE` accepts both `EXACT` and `COMPATIBLE` and rejects `INCOMPATIBLE`. `QuerySchemaValidationMode.STRICT` accepts only `EXACT`. The mode controls whether a resolution is accepted; it never creates an index or mapping for the backend.
+
+## Phase 0 Breaking Changes
+
+- **Source and binary:** `LogicalField` is replaced by `QueryField`, `Projection.include/exclude` now use `List<QueryField>`, and `Sort.field` uses `QueryField`. There is no type alias, compatibility class, or legacy constructor; downstream code must migrate and recompile.
+- **Wire semantics:** valid QueryField values keep their string JSON shape, but public Projection and Sort no longer accept backend patterns such as `state.*`. An EventStream projection that selects `body.body` or any descendant must include and must not exclude `body.bodyType`.
+- **OpenAPI:** the component identity changes from `wow.api.query.LogicalField` to `wow.api.query.QueryField`; Projection items and Sort.field reference the new component, with no legacy component or ref.
 
 ## System Tags and Fallback
 

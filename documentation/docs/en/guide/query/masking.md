@@ -98,9 +98,10 @@ For every result query, `SchemaMaskQueryFilter` reads the Provider's current Sch
 | One member has multiple effective mask annotations, or Schema branches have conflicting rules | Schema conflict |
 | A Strategy cannot be constructed, or `compile` throws | Schema construction fails with the original error preserved |
 | A response value is not a String/String array, Strategy execution throws, or a custom `CompiledMask` returns `null` | The current result Publisher fails instead of returning the raw value |
-| An EventStream `body` array contains a missing or unknown `bodyType` | The current result Publisher fails |
+| An EventStream event item contains a non-null payload but its `bodyType` is missing, non-string, or unknown | The current result Publisher fails |
+| An EventStream `body` is not an array, or the array contains a non-object event item | The current result Publisher fails |
 
-Masking safely skips an Event projection with no `body`, or with the top-level `body` projected as `null`. Once `body` is present, it must be a valid event array. A non-array shape, invalid event entry, or missing/unknown `bodyType` fails closed.
+Masking safely skips an Event projection with no top-level `body`, or with that event array projected as `null`. When present, the top-level `body` must be an array and every event item must be an object. Inside a valid event item, a missing or null payload property `body` means metadata-only or payload-excluded output: there is no sensitive payload to mask, so `bodyType` is not required. A non-null payload still requires a known string `bodyType`; missing, non-string, or unknown types fail closed before masking.
 
 ## Trusted Raw-Value Boundaries
 

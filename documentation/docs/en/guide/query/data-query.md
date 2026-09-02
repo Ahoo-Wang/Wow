@@ -49,8 +49,8 @@ These shapes can operate on different data models. See [Snapshot Queries](./snap
 ```kotlin
 val query = PagedQuery(
     filter = filterExpression { "status" eq "READY" },
-    projection = Projection(include = listOf("id", "status")),
-    sort = listOf(Sort("updatedAt", Sort.Direction.DESC)),
+    projection = Projection(include = listOf(QueryField("id"), QueryField("status"))),
+    sort = listOf(Sort(QueryField("updatedAt"), Sort.Direction.DESC)),
     pagination = Pagination(index = 1, size = 20)
 )
 ```
@@ -66,7 +66,9 @@ The equivalent JSON request shape is below. `status` and `updatedAt` are neutral
 }
 ```
 
-Here, `index` is the 1-based page number and `size` is the page size; `sort` names logical fields and directions; and `filter` is a `FilterExpression`. `projection` can use `include` or `exclude`; an empty projection returns all fields.
+Here, `index` is the 1-based page number and `size` is the page size; `sort` names logical fields and directions; and `filter` is a `FilterExpression`. On the JVM, Projection and Sort use `QueryField`; valid fields remain strings in JSON.
+
+`projection` can use `include` or `exclude`; an empty projection returns all fields. Each QueryField selects one node and all of its descendants: selecting an object returns its whole subtree, while selecting a scalar is an exact field selection. Public Projection and Sort do not accept backend wildcard patterns. Select `state` itself for the whole state subtree instead of using a storage-side expression.
 
 ## Count
 
