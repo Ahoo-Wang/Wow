@@ -43,6 +43,7 @@ import org.openjdk.jmh.infra.Blackhole
 import org.openjdk.jmh.infra.ThreadParams
 import reactor.core.publisher.Flux
 import java.time.Duration
+import java.util.concurrent.atomic.AtomicBoolean
 
 @State(Scope.Benchmark)
 open class BatchRegenerateAggregateSnapshotBenchmark {
@@ -62,6 +63,7 @@ open class BatchRegenerateAggregateSnapshotBenchmark {
     private lateinit var batchExecutionPolicy: BatchExecutionPolicy
     private lateinit var snapshotIndex: String
     private lateinit var aggregateIds: List<AggregateId>
+    private val resourcesClosed = AtomicBoolean()
 
     @Setup(Level.Trial)
     fun setupTrial(threadParams: ThreadParams) {
@@ -106,63 +108,65 @@ open class BatchRegenerateAggregateSnapshotBenchmark {
 
     @Setup(Level.Iteration)
     fun setupIteration() {
-        resetSnapshotIndex()
+        try {
+            resetSnapshotIndex()
+        } catch (error: Throwable) {
+            closeInitializedResources()
+            throw error
+        }
     }
 
     @TearDown(Level.Iteration)
     fun verifyIteration() {
-        val result = checkNotNull(
-            elasticsearchFixture.client.count(
-                CountRequest.of { it.index(snapshotIndex) },
-            ).block(SNAPSHOT_TIMEOUT),
-        )
-        check(result.count() == aggregateIds.size.toLong()) {
-            "Snapshot count mismatch: expected=${aggregateIds.size}, actual=${result.count()}."
-        }
-        val versions = checkNotNull(
-            elasticsearchFixture.client.search({
-                it.index(snapshotIndex).size(aggregateIds.size)
-            }, Map::class.java).block(SNAPSHOT_TIMEOUT),
-        ).hits().hits().map { hit -> hit.source()?.get(MessageRecords.VERSION) }
-        check(versions.size == aggregateIds.size && versions.all { it == EVENTS_PER_AGGREGATE }) {
-            "Snapshot version validation failed: expected $EVENTS_PER_AGGREGATE for " +
-                "${aggregateIds.size} snapshots, actual=$versions."
+        try {
+            val result = checkNotNull(
+                elasticsearchFixture.client.count(
+                    CountRequest.of { it.index(snapshotIndex) },
+                ).block(SNAPSHOT_TIMEOUT),
+            )
+            check(result.count() == aggregateIds.size.toLong()) {
+                "Snapshot count mismatch: expected=${aggregateIds.size}, actual=${result.count()}."
+            }
+            val versions = checkNotNull(
+                elasticsearchFixture.client.search({
+                    it.index(snapshotIndex).size(aggregateIds.size)
+                }, Map::class.java).block(SNAPSHOT_TIMEOUT),
+            ).hits().hits().map { hit -> hit.source()?.get(MessageRecords.VERSION) }
+            check(versions.size == aggregateIds.size && versions.all { it == EVENTS_PER_AGGREGATE }) {
+                "Snapshot version validation failed: expected $EVENTS_PER_AGGREGATE for " +
+                    "${aggregateIds.size} snapshots, actual=$versions."
+            }
+        } catch (error: Throwable) {
+            closeInitializedResources()
+            throw error
         }
     }
 
     @TearDown(Level.Trial)
     fun tearDownTrial() {
-        try {
-            batchSnapshotStore.close()
-        } finally {
-            try {
-                singleSnapshotStore.close()
-            } finally {
-                try {
-                    elasticsearchFixture.client.indices()
-                        .delete { it.index(snapshotIndex).ignoreUnavailable(true) }
-                        .block(SNAPSHOT_TIMEOUT)
-                } finally {
-                    try {
-                        elasticsearchFixture.close()
-                    } finally {
-                        mongoFixture.close()
-                    }
-                }
-            }
-        }
+        closeInitializedResources()
     }
 
     @Benchmark
     @OperationsPerInvocation(AGGREGATES_PER_INVOCATION)
     fun regenerateWithSingleSnapshotStore(threadParams: ThreadParams, blackhole: Blackhole) {
-        regenerate(threadParams, singleSnapshotRegenerator, blackhole)
+        try {
+            regenerate(threadParams, singleSnapshotRegenerator, blackhole)
+        } catch (error: Throwable) {
+            closeInitializedResources()
+            throw error
+        }
     }
 
     @Benchmark
     @OperationsPerInvocation(AGGREGATES_PER_INVOCATION)
     fun regenerateWithBatchSnapshotStore(threadParams: ThreadParams, blackhole: Blackhole) {
-        regenerate(threadParams, batchSnapshotRegenerator, blackhole)
+        try {
+            regenerate(threadParams, batchSnapshotRegenerator, blackhole)
+        } catch (error: Throwable) {
+            closeInitializedResources()
+            throw error
+        }
     }
 
     private fun regenerate(
@@ -232,6 +236,9 @@ open class BatchRegenerateAggregateSnapshotBenchmark {
     }
 
     private fun closeInitializedResources() {
+        if (!resourcesClosed.compareAndSet(false, true)) {
+            return
+        }
         if (this::batchSnapshotStore.isInitialized) {
             runCatching { batchSnapshotStore.close() }
         }

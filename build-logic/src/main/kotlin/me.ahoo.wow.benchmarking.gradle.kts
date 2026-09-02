@@ -5794,7 +5794,8 @@ fun StringBuilder.appendBatchRegenerateAggregateSnapshotComparisons(
         "Each invocation scans 128 aggregates from MongoEventStore, replays 10 events per aggregate, " +
             "and saves the rebuilt snapshots to ElasticsearchSnapshotStore. Both rows use the same " +
             "BatchExecutionPolicy; the batched row enables Elasticsearch snapshot save batching. " +
-            "The benchmark validates that all 128 aggregates and snapshot versions complete per iteration."
+            "Each JMH worker uses a distinct 128-aggregate partition; iteration validation checks one " +
+            "snapshot per seeded aggregate and version correctness."
     )
     appendLine()
     appendBatchRegenerateAggregateSnapshotMetric(rows, throughput = true)
