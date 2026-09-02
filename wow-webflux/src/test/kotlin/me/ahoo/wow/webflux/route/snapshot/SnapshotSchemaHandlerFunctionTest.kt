@@ -26,6 +26,7 @@ import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
@@ -67,7 +68,7 @@ class SnapshotSchemaHandlerFunctionTest {
         json["fields"][0]["enumValues"][0].stringValue().assert().isEqualTo("OPEN")
         json["fields"][0]["enumValues"][1].intValue().assert().isEqualTo(2)
         json["fields"][0]["enumValues"][2].booleanValue().assert().isTrue()
-        body.assert().doesNotContain("physicalPath", "storageType", "projectionPath")
+        body.assert().doesNotContain("resolvedField", "physicalField", "storageType", "projectionField", "rewriteMode")
 
         backend.schemaCalls.get().assert().isOne()
         backend.refreshCalls.get().assert().isZero()
@@ -164,10 +165,12 @@ class SnapshotSchemaHandlerFunctionTest {
             dynamicChildren = false,
             bindings = mapOf(
                 QueryCapability.EXACT_MATCH to QueryFieldBinding(
-                    physicalPath = "secret.path",
+                    resolvedField = QueryField("secret.path"),
+                    physicalField = QueryField("secret.path"),
                     storageType = QueryStorageType("keyword"),
                 )
             ),
+            rewriteMode = QueryRewriteMode.REQUIRED,
         )
         val SCHEMA = QueryModelSchema(
             model = QueryModel.SNAPSHOT,

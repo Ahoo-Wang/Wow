@@ -131,7 +131,7 @@ internal class SchemaMasker private constructor(
             }
             val pathRules = linkedMapOf<String, MaskRule>()
             schema.maskedFields.forEach { (field, fieldSchema) ->
-                val responsePath = fieldSchema.projectionPath ?: field.path
+                val responsePath = fieldSchema.projectionField?.path ?: field.path
                 val invalidPath = when {
                     !field.path.startsWith(prefix) -> "field" to field.path
                     !responsePath.startsWith(prefix) -> "projection path" to responsePath

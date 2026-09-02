@@ -83,10 +83,10 @@ internal class ElasticsearchAggregationCompiler(
     fun compile(query: AggregationQuery, schema: QueryModelSchema? = null): ElasticsearchAggregationPlan {
         val rootQuery = filterConverter.convert(query.filter)
         val elements = mutableListOf<ElasticsearchAggregationElement>()
-        var logicalParent: String? = null
+        var logicalParent: QueryField? = null
         query.elements.forEach { element ->
             val previousLogicalParent = logicalParent
-            logicalParent = if (logicalParent == null) element.path.path else "$logicalParent.${element.path.path}"
+            logicalParent = element.path.absoluteTo(previousLogicalParent)
             val nestedPath = element.path.resolve(previousLogicalParent, schema, QueryCapability.ELEMENT_SCOPE)
             val unscopedFilter = AndFilter(
                 listOf(element.filter, DeletionFilter(DeletionState.ALL)),
@@ -122,7 +122,7 @@ internal class ElasticsearchAggregationCompiler(
     }
 
     private fun AggregationGroup.toSource(
-        parent: String?,
+        parent: QueryField?,
         sort: Sort,
         index: Int,
         schema: QueryModelSchema?,
@@ -160,14 +160,14 @@ internal class ElasticsearchAggregationCompiler(
     }
 
     private fun AggregationGroup.DateHistogram.dateField(
-        parent: String?,
+        parent: QueryField?,
         index: Int,
         schema: QueryModelSchema?,
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): String {
-        val logicalField = field.absolute(parent)
-        val fieldSchema = schema?.resolve(logicalField) ?: return logicalField.path
-        val physicalPath = fieldSchema.bindings[QueryCapability.AGGREGATE_TEMPORAL]?.physicalPath
+        val logicalField = field.absoluteTo(parent)
+        val fieldSchema = schema?.field(logicalField) ?: return logicalField.path
+        val physicalPath = fieldSchema.binding(QueryCapability.AGGREGATE_TEMPORAL)?.physicalField?.path
             ?: throw QuerySchemaValidationException(
                 "Query field [$logicalField] does not support [${QueryCapability.AGGREGATE_TEMPORAL}].",
             )
@@ -235,7 +235,7 @@ internal class ElasticsearchAggregationCompiler(
     }
 
     private fun AggregationMetric.toPlan(
-        parent: String?,
+        parent: QueryField?,
         index: Int,
         schema: QueryModelSchema?,
         runtimeMappings: MutableMap<String, RuntimeField>,
@@ -261,7 +261,7 @@ internal class ElasticsearchAggregationCompiler(
     }
 
     private inner class RuntimeExpressionCompiler(
-        private val parent: String?,
+        private val parent: QueryField?,
         private val schema: QueryModelSchema?,
     ) {
         private val source = StringBuilder()
@@ -355,18 +355,15 @@ internal class ElasticsearchAggregationCompiler(
         }
 
     private fun QueryField.resolve(
-        parent: String?,
+        parent: QueryField?,
         schema: QueryModelSchema?,
         capability: QueryCapability,
     ): String {
-        val logicalField = absolute(parent)
-        val fieldSchema = schema?.resolve(logicalField) ?: return logicalField.path
-        return fieldSchema.bindings[capability]?.physicalPath
+        val logicalField = absoluteTo(parent)
+        val fieldSchema = schema?.field(logicalField) ?: return logicalField.path
+        return fieldSchema.binding(capability)?.physicalField?.path
             ?: throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
     }
-
-    private fun QueryField.absolute(parent: String?): QueryField =
-        QueryField(if (parent == null) path else "$parent.$path")
 
     private val TimeUnit.epochFactors: Pair<Long, Long>
         get() = when (this) {

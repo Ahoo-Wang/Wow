@@ -16,7 +16,6 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
-import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 
 internal data class QueryFieldResolution(
@@ -25,8 +24,8 @@ internal data class QueryFieldResolution(
     val physicalPath: String?,
     val compatibility: QueryCompatibilityLevel,
     val fieldSchema: QueryFieldSchema? = null,
-    val declaredValueTypes: Set<QueryValueType> = emptySet(),
     val elementScopeAccepted: Boolean = true,
+    val physicalField: QueryField? = null,
 )
 
 internal class QueryFieldSchemaResolver(
@@ -36,9 +35,7 @@ internal class QueryFieldSchemaResolver(
         schema.fields.forEach { (field, fieldSchema) ->
             put(field.path, field)
             fieldSchema.bindings.values.forEach { binding ->
-                runCatching { QueryField(binding.physicalPath) }.getOrNull()?.let {
-                    putIfAbsent(it.path, it)
-                }
+                putIfAbsent(binding.resolvedField.path, binding.resolvedField)
             }
         }
     }
@@ -58,10 +55,10 @@ internal class QueryFieldSchemaResolver(
         } catch (_: IllegalArgumentException) {
             return QuerySchemaResolution(path, QueryCompatibilityLevel.COMPATIBLE)
         }
-        val fieldSchema = schema.fields[logicalField] ?: schema.resolve(logicalField)
+        val fieldSchema = schema.field(logicalField)
             ?: return QuerySchemaResolution(path, QueryCompatibilityLevel.COMPATIBLE)
-        return fieldSchema.projectionPath?.let {
-            QuerySchemaResolution(it, QueryCompatibilityLevel.EXACT)
+        return fieldSchema.projectionField?.let {
+            QuerySchemaResolution(it.path, QueryCompatibilityLevel.EXACT)
         } ?: QuerySchemaResolution(path, QueryCompatibilityLevel.INCOMPATIBLE)
     }
 
@@ -98,7 +95,7 @@ internal class QueryFieldSchemaResolver(
             )
         }
         val declaredFieldSchema = schema.fields[logical]
-        val fieldSchema = declaredFieldSchema ?: schema.resolve(logical)
+        val fieldSchema = declaredFieldSchema ?: schema.field(logical)
             ?: return QueryFieldResolution(
                 logical,
                 field.path,
@@ -112,7 +109,7 @@ internal class QueryFieldSchemaResolver(
                     QueryCompatibilityLevel.COMPATIBLE
                 },
             )
-        val binding = fieldSchema.bindings[capability]
+        val binding = fieldSchema.binding(capability)
             ?: return QueryFieldResolution(
                 logical,
                 field.path,
@@ -123,15 +120,15 @@ internal class QueryFieldSchemaResolver(
                     QueryCompatibilityLevel.INCOMPATIBLE
                 },
             )
-        val relativePath = binding.physicalPath.relativeTo(physicalParent)
+        val relativePath = binding.resolvedField.path.relativeTo(physicalParent)
             ?: return QueryFieldResolution(logical, field.path, null, QueryCompatibilityLevel.INCOMPATIBLE)
         return QueryFieldResolution(
             logical,
             relativePath,
-            binding.physicalPath,
+            binding.resolvedField.path,
             QueryCompatibilityLevel.EXACT,
             fieldSchema = fieldSchema,
-            declaredValueTypes = declaredFieldSchema?.valueTypes.orEmpty(),
+            physicalField = binding.physicalField,
         )
     }
 

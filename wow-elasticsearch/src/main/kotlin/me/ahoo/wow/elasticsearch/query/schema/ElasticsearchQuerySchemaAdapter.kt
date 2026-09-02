@@ -28,6 +28,7 @@ import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaBackendAdapter
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
@@ -90,10 +91,13 @@ class ElasticsearchQuerySchemaAdapter(
                         put(
                             field,
                             logical.toFieldSchema(
-                                projectionPath = mapping.fields[field.path]?.projectionPath
-                                    ?: field.path.takeIf { field.path !in mapping.fields },
+                                source = field,
+                                projectionField = (
+                                    mapping.fields[field.path]?.projectionPath
+                                        ?: field.path.takeIf { field.path !in mapping.fields }
+                                    )?.let(::QueryField),
                                 bindings = BUILT_IN_CAPABILITIES.mapNotNull { capability ->
-                                    mapping.binding(field.path, logical, capability, invalidNestedParents)
+                                    mapping.binding(field, logical, capability, invalidNestedParents)
                                         ?.let { capability to it }
                                 }.toMap(),
                             ),
@@ -133,11 +137,12 @@ class ElasticsearchQuerySchemaAdapter(
         )
 
         private fun ElasticsearchIndexMapping.binding(
-            physicalPath: String,
+            source: QueryField,
             logical: LogicalQueryFieldSchema,
             capability: QueryCapability,
             invalidNestedParents: Set<String>,
         ): QueryFieldBinding? {
+            val physicalPath = source.path
             if (invalidNestedParents.any { physicalPath.startsWith("$it.") }) return null
             if (logical.dynamicChildren && capability != QueryCapability.ELEMENT_SCOPE) return null
             val mapped = find(physicalPath) ?: return null
@@ -147,8 +152,10 @@ class ElasticsearchQuerySchemaAdapter(
             } else {
                 mapped.selectMultiField(this, capability, logical) ?: return null
             }
+            val selectedField = QueryField(selected.first)
             return QueryFieldBinding(
-                physicalPath = selected.first,
+                resolvedField = selectedField,
+                physicalField = selectedField,
                 storageType = QueryStorageType(selected.second.kind.jsonValue()),
             )
         }
@@ -175,10 +182,18 @@ class ElasticsearchQuerySchemaAdapter(
         }
 
         private fun LogicalQueryFieldSchema.toFieldSchema(
-            projectionPath: String?,
+            source: QueryField,
+            projectionField: QueryField?,
             bindings: Map<QueryCapability, QueryFieldBinding>,
-        ) =
-            QueryFieldSchema(
+        ): QueryFieldSchema {
+            val rewrites = bindings.values.map { it.resolvedField != source }.distinct()
+            val rewriteMode = when {
+                semanticType is Temporal || QueryCapability.ELEMENT_SCOPE in bindings -> QueryRewriteMode.INFER
+                bindings.isEmpty() || rewrites == listOf(false) -> QueryRewriteMode.NONE
+                rewrites == listOf(true) -> QueryRewriteMode.REQUIRED
+                else -> QueryRewriteMode.INFER
+            }
+            return QueryFieldSchema(
                 title = title,
                 description = description,
                 enumValues = enumValues,
@@ -189,29 +204,43 @@ class ElasticsearchQuerySchemaAdapter(
                 semanticType = semanticType,
                 dynamicChildren = false,
                 bindings = bindings,
-                projectionPath = projectionPath,
+                projectionField = projectionField,
+                rewriteMode = rewriteMode,
                 maskRule = maskRule,
             )
+        }
 
         private fun metadataField(
             path: String,
             valueType: QueryValueType,
             capability: QueryCapability,
-        ) = QueryFieldSchema(
-            title = null,
-            description = null,
-            enumValues = null,
-            valueTypes = setOf(valueType),
-            nullable = false,
-            required = false,
-            cardinality = QueryCardinality.SINGLE,
-            semanticType = null,
-            dynamicChildren = false,
-            bindings = mapOf(
-                capability to QueryFieldBinding(path, storageType = null),
-            ),
-            projectionPath = null,
-        )
+        ): QueryFieldSchema {
+            val source = QueryField(path)
+            val bindings = mapOf(
+                capability to QueryFieldBinding(source, source, storageType = null),
+            )
+            val rewrites = bindings.values.map { it.resolvedField != source }.distinct()
+            val rewriteMode = when {
+                QueryCapability.ELEMENT_SCOPE in bindings -> QueryRewriteMode.INFER
+                bindings.isEmpty() || rewrites == listOf(false) -> QueryRewriteMode.NONE
+                rewrites == listOf(true) -> QueryRewriteMode.REQUIRED
+                else -> QueryRewriteMode.INFER
+            }
+            return QueryFieldSchema(
+                title = null,
+                description = null,
+                enumValues = null,
+                valueTypes = setOf(valueType),
+                nullable = false,
+                required = false,
+                cardinality = QueryCardinality.SINGLE,
+                semanticType = null,
+                dynamicChildren = false,
+                bindings = bindings,
+                projectionField = null,
+                rewriteMode = rewriteMode,
+            )
+        }
     }
 }
 

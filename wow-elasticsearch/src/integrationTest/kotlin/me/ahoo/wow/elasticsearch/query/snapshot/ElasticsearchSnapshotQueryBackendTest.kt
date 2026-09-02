@@ -46,6 +46,7 @@ import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
@@ -701,12 +702,15 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
         val refreshed = provider.refresh().block()!!
         refreshed.fields.getValue(QueryField("state.keywordOnly"))
-            .bindings.getValue(QueryCapability.EXACT_MATCH).physicalPath.assert().isEqualTo("state.keywordOnly")
+            .bindings.getValue(QueryCapability.EXACT_MATCH).physicalField.assert()
+            .isEqualTo(QueryField("state.keywordOnly"))
         refreshed.fields.getValue(QueryField("state.textOnly"))
-            .bindings.getValue(QueryCapability.FULL_TEXT_TERMS).physicalPath.assert().isEqualTo("state.textOnly")
+            .bindings.getValue(QueryCapability.FULL_TEXT_TERMS).physicalField.assert()
+            .isEqualTo(QueryField("state.textOnly"))
         refreshed.fields.getValue(QueryField("state.runtimeCode"))
-            .bindings.getValue(QueryCapability.SORT).physicalPath.assert().isEqualTo("state.runtimeCode")
-        refreshed.fields.getValue(QueryField("state.runtimeCode")).projectionPath.assert().isNull()
+            .bindings.getValue(QueryCapability.SORT).physicalField.assert()
+            .isEqualTo(QueryField("state.runtimeCode"))
+        refreshed.fields.getValue(QueryField("state.runtimeCode")).projectionField.assert().isNull()
         provider.schema().block().assert().isSameAs(refreshed)
 
         service.list(
@@ -747,7 +751,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             .forEach { field ->
                 schema.fields.getValue(QueryField(field)).bindings
                     .getValue(QueryCapability.AGGREGATE_TEMPORAL).let { binding ->
-                        binding.physicalPath.assert().isEqualTo(field)
+                        binding.physicalField.assert().isEqualTo(QueryField(field))
                         binding.storageType?.value.assert().isEqualTo("long")
                     }
             }
@@ -898,10 +902,12 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         dynamicChildren = false,
         bindings = mapOf(
             QueryCapability.AGGREGATE_TEMPORAL to QueryFieldBinding(
-                physicalPath = field.path,
+                resolvedField = field,
+                physicalField = field,
                 storageType = QueryStorageType("double"),
             ),
         ),
+        rewriteMode = QueryRewriteMode.INFER,
     )
 
     private fun source(vararg fields: Pair<QueryField, QueryFieldDeclaration>): QuerySchemaSource =

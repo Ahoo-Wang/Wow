@@ -24,9 +24,9 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -43,6 +43,7 @@ import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.serialization.MessageRecords
@@ -232,19 +233,34 @@ class AbstractMongoQueryBackendTest {
                 model = QueryModel.SNAPSHOT,
                 capabilities = emptySet(),
                 fields = mapOf(
-                    QueryField(MessageRecords.AGGREGATE_ID) to cursorFieldSchema("_id"),
+                    QueryField(MessageRecords.AGGREGATE_ID) to cursorFieldSchema(
+                        QueryField(MessageRecords.AGGREGATE_ID),
+                        QueryField("_id"),
+                    ),
                     QueryField("state.emailAlias") to cursorFieldSchema(
-                        physicalPath = "masked_email",
-                        projectionPath = "state.email",
+                        source = QueryField("state.emailAlias"),
+                        physicalField = QueryField("masked_email"),
+                        projectionField = QueryField("state.email"),
                         maskRule = mockk(),
                     ),
-                    QueryField("state.email") to cursorFieldSchema("email"),
-                    QueryField("state.emailSibling") to cursorFieldSchema(
-                        physicalPath = "email_sibling",
-                        projectionPath = "state.email",
+                    QueryField("state.email") to cursorFieldSchema(
+                        QueryField("state.email"),
+                        QueryField("email"),
                     ),
-                    QueryField("state.secret") to cursorFieldSchema("secret", maskRule = mockk()),
-                    QueryField("state.secretAlias") to cursorFieldSchema("secret"),
+                    QueryField("state.emailSibling") to cursorFieldSchema(
+                        source = QueryField("state.emailSibling"),
+                        physicalField = QueryField("email_sibling"),
+                        projectionField = QueryField("state.email"),
+                    ),
+                    QueryField("state.secret") to cursorFieldSchema(
+                        QueryField("state.secret"),
+                        QueryField("secret"),
+                        maskRule = mockk(),
+                    ),
+                    QueryField("state.secretAlias") to cursorFieldSchema(
+                        QueryField("state.secretAlias"),
+                        QueryField("secret"),
+                    ),
                 ),
             ),
         )
@@ -384,8 +400,8 @@ class AbstractMongoQueryBackendTest {
                 model = model,
                 capabilities = emptySet(),
                 fields = mapOf(
-                    QueryField(logicalId) to cursorFieldSchema("_id"),
-                    QueryField("name") to cursorFieldSchema("name"),
+                    QueryField(logicalId) to cursorFieldSchema(QueryField(logicalId), QueryField("_id")),
+                    QueryField("name") to cursorFieldSchema(QueryField("name"), QueryField("name")),
                 ),
             ),
         )
@@ -405,9 +421,11 @@ class AbstractMongoQueryBackendTest {
     }
 
     private fun cursorFieldSchema(
-        physicalPath: String,
-        projectionPath: String = physicalPath,
+        source: QueryField,
+        physicalField: QueryField,
+        projectionField: QueryField = source,
         maskRule: MaskRule? = null,
+        rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
     ) = QueryFieldSchema(
         title = null,
         description = null,
@@ -419,10 +437,11 @@ class AbstractMongoQueryBackendTest {
         semanticType = null,
         dynamicChildren = false,
         bindings = mapOf(
-            QueryCapability.PRESENCE to QueryFieldBinding(physicalPath, storageType = null),
-            QueryCapability.SORT to QueryFieldBinding(physicalPath, storageType = null),
+            QueryCapability.PRESENCE to QueryFieldBinding(source, physicalField, storageType = null),
+            QueryCapability.SORT to QueryFieldBinding(source, physicalField, storageType = null),
         ),
-        projectionPath = projectionPath,
+        projectionField = projectionField,
+        rewriteMode = rewriteMode,
         maskRule = maskRule,
     )
 }

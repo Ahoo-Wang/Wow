@@ -16,6 +16,7 @@ package me.ahoo.wow.mongo.query.schema
 import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -28,6 +29,7 @@ import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaBackendAdapter
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
@@ -99,14 +101,20 @@ class MongoQuerySchemaAdapter(
                 capabilities = capabilities,
                 fields = logicalSchema.fields.mapValues { (logicalField, logicalSchema) ->
                     val physicalPath = fieldConverter.convert(logicalField.path)
+                    val physicalField = QueryField(physicalPath)
                     val storageSchema = storageSchemas[physicalPath]
-                    val binding = QueryFieldBinding(physicalPath, storageSchema?.types?.singleOrNull())
+                    val binding = QueryFieldBinding(logicalField, physicalField, storageSchema?.types?.singleOrNull())
                     if (invalidContainers.any { logicalField.path == it || logicalField.path.startsWith("$it.") }) {
-                        return@mapValues logicalSchema.toFieldSchema(projectionPath = null, bindings = emptyMap())
+                        return@mapValues logicalSchema.toFieldSchema(
+                            source = logicalField,
+                            projectionField = null,
+                            bindings = emptyMap(),
+                        )
                     }
                     logicalSchema.toFieldSchema(
-                        physicalPath,
-                        logicalSchema.capabilities()
+                        source = logicalField,
+                        projectionField = logicalField,
+                        bindings = logicalSchema.capabilities()
                             .filter { logicalSchema.supports(it, storageSchema) }
                             .associateWith { binding },
                     )
@@ -231,22 +239,33 @@ class MongoQuerySchemaAdapter(
         }
 
         private fun LogicalQueryFieldSchema.toFieldSchema(
-            projectionPath: String?,
+            source: QueryField,
+            projectionField: QueryField?,
             bindings: Map<QueryCapability, QueryFieldBinding>,
-        ) = QueryFieldSchema(
-            title = title,
-            description = description,
-            enumValues = enumValues,
-            valueTypes = valueTypes,
-            nullable = nullable,
-            required = required,
-            cardinality = cardinality,
-            semanticType = semanticType,
-            dynamicChildren = dynamicChildren && bindings.keys.any { it != QueryCapability.ELEMENT_SCOPE },
-            bindings = bindings,
-            projectionPath = projectionPath,
-            maskRule = maskRule,
-        )
+        ): QueryFieldSchema {
+            val rewrites = bindings.values.map { it.resolvedField != source }.distinct()
+            val rewriteMode = when {
+                semanticType is Temporal || QueryCapability.ELEMENT_SCOPE in bindings -> QueryRewriteMode.INFER
+                bindings.isEmpty() || rewrites == listOf(false) -> QueryRewriteMode.NONE
+                rewrites == listOf(true) -> QueryRewriteMode.REQUIRED
+                else -> QueryRewriteMode.INFER
+            }
+            return QueryFieldSchema(
+                title = title,
+                description = description,
+                enumValues = enumValues,
+                valueTypes = valueTypes,
+                nullable = nullable,
+                required = required,
+                cardinality = cardinality,
+                semanticType = semanticType,
+                dynamicChildren = dynamicChildren && bindings.keys.any { it != QueryCapability.ELEMENT_SCOPE },
+                bindings = bindings,
+                projectionField = projectionField,
+                rewriteMode = rewriteMode,
+                maskRule = maskRule,
+            )
+        }
 
         private fun List<Document>.hasTextIndex(): Boolean = any { index ->
             index["hidden"] != true && !index.containsKey("partialFilterExpression") &&

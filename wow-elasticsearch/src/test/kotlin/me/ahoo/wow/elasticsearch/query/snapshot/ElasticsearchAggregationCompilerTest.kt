@@ -34,6 +34,7 @@ import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaResolver
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
@@ -158,6 +159,7 @@ class ElasticsearchAggregationCompilerTest {
                 QueryCapability.AGGREGATE_TERMS,
                 "document.productName.keyword",
                 "keyword",
+                resolvedPath = "resolved.productName.keyword",
             ),
         )
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
@@ -319,7 +321,7 @@ class ElasticsearchAggregationCompilerTest {
         QueryModel.SNAPSHOT,
         emptySet(),
         fields.associate { testField ->
-            QueryField(testField.logicalPath) to QueryFieldSchema(
+            testField.logicalField to QueryFieldSchema(
                 title = null,
                 description = null,
                 enumValues = null,
@@ -331,10 +333,12 @@ class ElasticsearchAggregationCompilerTest {
                 dynamicChildren = false,
                 bindings = mapOf(
                     testField.capability to QueryFieldBinding(
-                        testField.physicalPath,
+                        testField.resolvedField,
+                        testField.physicalField,
                         me.ahoo.wow.query.schema.QueryStorageType(testField.storageType),
                     ),
                 ),
+                rewriteMode = testField.rewriteMode,
             )
         },
     )
@@ -345,13 +349,25 @@ class ElasticsearchAggregationCompilerTest {
         physicalPath: String,
         storageType: String,
         semanticType: Temporal? = null,
-    ) = TestField(logicalPath, capability, physicalPath, storageType, semanticType)
+        resolvedPath: String = physicalPath,
+        rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
+    ) = TestField(
+        QueryField(logicalPath),
+        capability,
+        QueryField(resolvedPath),
+        QueryField(physicalPath),
+        storageType,
+        semanticType,
+        rewriteMode,
+    )
 
     private data class TestField(
-        val logicalPath: String,
+        val logicalField: QueryField,
         val capability: QueryCapability,
-        val physicalPath: String,
+        val resolvedField: QueryField,
+        val physicalField: QueryField,
         val storageType: String,
         val semanticType: Temporal?,
+        val rewriteMode: QueryRewriteMode,
     )
 }

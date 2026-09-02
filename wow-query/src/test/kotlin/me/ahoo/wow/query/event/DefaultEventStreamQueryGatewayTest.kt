@@ -45,6 +45,7 @@ import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
@@ -337,6 +338,7 @@ class DefaultEventStreamQueryGatewayTest {
             enumValues: List<tools.jackson.databind.JsonNode>? = null,
             maskRule: MaskRule? = null,
             projectionPath: String? = null,
+            rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
         ) = QueryFieldSchema(
             title = null,
             description = null,
@@ -348,7 +350,8 @@ class DefaultEventStreamQueryGatewayTest {
             semanticType = null,
             dynamicChildren = false,
             bindings = emptyMap(),
-            projectionPath = projectionPath,
+            projectionField = projectionPath?.let(::QueryField),
+            rewriteMode = rewriteMode,
             maskRule = maskRule,
         )
     }
