@@ -67,6 +67,9 @@ data class QueryModelSchema(
     internal val hasMaskedFields: Boolean = maskedFields.isNotEmpty()
 
     val rewriteMode: QueryRewriteMode = when {
+        capabilities.any {
+            it == QueryCapability.FULL_TEXT_TERMS || it == QueryCapability.FULL_TEXT_PHRASE
+        } -> QueryRewriteMode.INFER
         fields.values.any { it.rewriteMode != QueryRewriteMode.NONE } -> QueryRewriteMode.INFER
         else -> QueryRewriteMode.NONE
     }
@@ -154,20 +157,28 @@ data class QueryFieldSchema(
 
     internal fun resolveDynamic(source: QueryField, relative: QueryField): QueryFieldSchema {
         val resolvedSource = source.append(relative)
-        val resolvedBindings = bindings
-            .filterKeys { it != QueryCapability.ELEMENT_SCOPE }
-            .mapValues { (_, binding) ->
-                binding.copy(
-                    resolvedField = binding.resolvedField.append(relative),
-                    physicalField = binding.physicalField.append(relative),
-                )
+        val resolvedBindings = LinkedHashMap<QueryCapability, QueryFieldBinding>(bindings.size)
+        var hasIdentity = false
+        var hasRewrite = false
+        bindings.forEach { (capability, binding) ->
+            if (capability == QueryCapability.ELEMENT_SCOPE) {
+                return@forEach
             }
-        val rewrites = resolvedBindings.values.map { it.resolvedField != resolvedSource }.distinct()
+            val resolvedBinding = binding.copy(
+                resolvedField = binding.resolvedField.append(relative),
+                physicalField = binding.physicalField.append(relative),
+            )
+            resolvedBindings[capability] = resolvedBinding
+            if (resolvedBinding.resolvedField == resolvedSource) {
+                hasIdentity = true
+            } else {
+                hasRewrite = true
+            }
+        }
         val resolvedRewriteMode = when {
-            semanticType is Temporal || QueryCapability.ELEMENT_SCOPE in resolvedBindings -> QueryRewriteMode.INFER
-            resolvedBindings.isEmpty() || rewrites == listOf(false) -> QueryRewriteMode.NONE
-            rewrites == listOf(true) -> QueryRewriteMode.REQUIRED
-            else -> QueryRewriteMode.INFER
+            semanticType is Temporal || hasIdentity && hasRewrite -> QueryRewriteMode.INFER
+            hasRewrite -> QueryRewriteMode.REQUIRED
+            else -> QueryRewriteMode.NONE
         }
         return QueryFieldSchema(
             title = title,

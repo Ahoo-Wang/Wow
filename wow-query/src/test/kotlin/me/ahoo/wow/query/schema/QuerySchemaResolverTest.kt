@@ -835,6 +835,10 @@ class QuerySchemaResolverTest {
                 EqualFilter(QueryField("price"), json(10)),
             ),
         )
+        val absoluteInput = ElementMatchFilter(
+            orders,
+            ElementMatchFilter(lines, EqualFilter(price, json(10))),
+        )
 
         fun model(mapped: Boolean): QueryModelSchema {
             val resolvedRoot = if (mapped) QueryField("document.orders") else orders
@@ -845,7 +849,7 @@ class QuerySchemaResolverTest {
                     orders to fieldSchema(
                         QueryCapability.ELEMENT_SCOPE to resolvedRoot.path,
                         physicalPath = "storage.orders",
-                        rewriteMode = if (mapped) QueryRewriteMode.REQUIRED else QueryRewriteMode.NONE,
+                        rewriteMode = if (mapped) QueryRewriteMode.REQUIRED else QueryRewriteMode.INFER,
                     ),
                     lines to fieldSchema(
                         QueryCapability.ELEMENT_SCOPE to resolvedLines.path,
@@ -855,7 +859,7 @@ class QuerySchemaResolverTest {
                     price to fieldSchema(
                         QueryCapability.EXACT_MATCH to resolvedPrice.path,
                         physicalPath = "storage.orders.lines.price",
-                        rewriteMode = if (mapped) QueryRewriteMode.REQUIRED else QueryRewriteMode.NONE,
+                        rewriteMode = if (mapped) QueryRewriteMode.REQUIRED else QueryRewriteMode.INFER,
                     ),
                 ),
             )
@@ -866,11 +870,20 @@ class QuerySchemaResolverTest {
         (identity.predicate as ElementMatchFilter).field.assert().isEqualTo(QueryField("lines"))
         ((identity.predicate as ElementMatchFilter).predicate as EqualFilter).field.assert()
             .isEqualTo(QueryField("price"))
+        val identityAbsolute = model(mapped = false).resolve(absoluteInput).value as ElementMatchFilter
+        (identityAbsolute.predicate as ElementMatchFilter).field.assert().isEqualTo(QueryField("lines"))
+        ((identityAbsolute.predicate as ElementMatchFilter).predicate as EqualFilter).field.assert()
+            .isEqualTo(QueryField("price"))
 
         val mapped = model(mapped = true).resolve(input).value as ElementMatchFilter
         mapped.field.assert().isEqualTo(QueryField("document.orders"))
         (mapped.predicate as ElementMatchFilter).field.assert().isEqualTo(QueryField("lines"))
         ((mapped.predicate as ElementMatchFilter).predicate as EqualFilter).field.assert()
+            .isEqualTo(QueryField("price.keyword"))
+        val mappedAbsolute = model(mapped = true).resolve(absoluteInput).value as ElementMatchFilter
+        mappedAbsolute.field.assert().isEqualTo(QueryField("document.orders"))
+        (mappedAbsolute.predicate as ElementMatchFilter).field.assert().isEqualTo(QueryField("lines"))
+        ((mappedAbsolute.predicate as ElementMatchFilter).predicate as EqualFilter).field.assert()
             .isEqualTo(QueryField("price.keyword"))
     }
 
@@ -1764,8 +1777,14 @@ class QuerySchemaResolverTest {
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    QueryField("state.idAlias") to fieldSchema(QueryCapability.SORT to "_id"),
-                    QueryField("aggregateId") to fieldSchema(QueryCapability.SORT to "_id"),
+                    QueryField("state.idAlias") to fieldSchema(
+                        QueryCapability.SORT to "document.idAlias",
+                        physicalPath = "_id",
+                    ),
+                    QueryField("aggregateId") to fieldSchema(
+                        QueryCapability.SORT to "document.aggregateId",
+                        physicalPath = "_id",
+                    ),
                 ),
             ),
         )
@@ -1778,6 +1797,54 @@ class QuerySchemaResolverTest {
         )
 
         resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `cursor sort should validate physical fields without exposing them`() {
+        val unsafe = QueryField("state.rank")
+        val unsafeResolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    unsafe to fieldSchema(
+                        QueryCapability.SORT to "document.rank",
+                        physicalPath = "_score",
+                    ),
+                ),
+            ),
+        )
+
+        unsafeResolver.resolve(
+            CursorQuery(MatchAllFilter, sort = listOf(Sort(unsafe, Sort.Direction.ASC))),
+        ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+
+        val first = QueryField("state.first")
+        val second = QueryField("state.second")
+        val stableResolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    first to fieldSchema(
+                        QueryCapability.SORT to "document.first",
+                        physicalPath = "storage.first",
+                    ),
+                    second to fieldSchema(
+                        QueryCapability.SORT to "document.second",
+                        physicalPath = "storage.second",
+                    ),
+                ),
+            ),
+        )
+        val resolution = stableResolver.resolve(
+            CursorQuery(
+                MatchAllFilter,
+                sort = listOf(Sort(first, Sort.Direction.ASC), Sort(second, Sort.Direction.DESC)),
+            ),
+        )
+
+        resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        resolution.value.sort.map(Sort::field).assert().containsExactly(
+            QueryField("document.first"),
+            QueryField("document.second"),
+        )
     }
 
     @Test

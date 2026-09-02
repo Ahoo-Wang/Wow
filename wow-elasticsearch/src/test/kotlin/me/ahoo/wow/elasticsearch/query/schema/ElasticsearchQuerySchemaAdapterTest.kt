@@ -26,6 +26,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.ListQuery
@@ -62,6 +63,7 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import tools.jackson.databind.node.IntNode
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.jvm.javaField
 
@@ -126,6 +128,35 @@ class ElasticsearchQuerySchemaAdapterTest {
         }
         schema.fields.getValue(name).bindings.assert().containsKey(QueryCapability.AGGREGATE_TERMS)
         schema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
+    }
+
+    @Test
+    fun `nested descendants should infer relative rewrites from absolute predicates`() {
+        val items = QueryField("state.items")
+        val quantity = QueryField("state.items.quantity")
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                linkedMapOf(
+                    items to field(QueryValueType.OBJECT, QueryCardinality.MANY),
+                    quantity to field(QueryValueType.INTEGER),
+                ),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { type ->
+                    type.properties(items.path) { property ->
+                        property.nested { nested ->
+                            nested.properties("quantity") { it.integer { integer -> integer } }
+                        }
+                    }
+                },
+            ),
+        )
+        val filter = ElementMatchFilter(items, EqualFilter(quantity, IntNode.valueOf(10)))
+
+        schema.fields.getValue(quantity).rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
+        val resolved = schema.resolve(filter).value as ElementMatchFilter
+        (resolved.predicate as EqualFilter).field.assert().isEqualTo(QueryField("quantity"))
     }
 
     @Test

@@ -145,18 +145,35 @@ class QueryModelSchemaTest {
     }
 
     @Test
-    fun `none rewrite model should preserve model search fallback filter`() {
-        val filter = SearchFilter("name", setOf(QueryField("state.unknown")))
+    fun `model search fallback should make rewrite mode infer`() {
+        val known = QueryField("state.name")
+        val knownFilter = SearchFilter("name", setOf(known))
+        val unknownFilter = SearchFilter("name", setOf(QueryField("state.unknown")))
         val schema = QueryModelSchema(
             QueryModel.SNAPSHOT,
             setOf(QueryCapability.FULL_TEXT_TERMS),
-            emptyMap(),
+            mapOf(
+                known to fieldSchema(
+                    bindings = mapOf(
+                        QueryCapability.FULL_TEXT_TERMS to QueryFieldBinding(known, known, null),
+                    ),
+                ),
+            ),
         )
 
-        val resolution = schema.resolve(filter)
+        schema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
+        schema.resolve(knownFilter).let { resolution ->
+            resolution.value.assert().isSameAs(knownFilter)
+            resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        }
+        schema.resolve(unknownFilter).assert().isEqualTo(
+            QuerySchemaResolution(SearchFilter("name"), QueryCompatibilityLevel.COMPATIBLE),
+        )
 
-        resolution.value.assert().isSameAs(filter)
-        resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+        QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap()).resolve(unknownFilter).let { resolution ->
+            resolution.value.assert().isSameAs(unknownFilter)
+            resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        }
     }
 
     @Test
@@ -353,6 +370,62 @@ class QueryModelSchemaTest {
             .isEqualTo(QueryField("document.customer.name"))
         resolved.projectionField.assert().isEqualTo(QueryField("source.customer.name"))
         resolved.bindings.assert().doesNotContainKey(QueryCapability.ELEMENT_SCOPE)
+    }
+
+    @Test
+    fun `dynamic child should recompute rewrite mode while dropping element scope`() {
+        val source = QueryField("state.dynamic")
+        val child = QueryField("state.dynamic.code")
+        fun binding(path: String) = QueryFieldBinding(QueryField(path), QueryField(path), null)
+        fun resolve(
+            bindings: Map<QueryCapability, QueryFieldBinding>,
+            semanticType: Temporal? = null,
+            maskRule: MaskRule? = null,
+        ) = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(
+                source to fieldSchema(
+                    dynamicChildren = true,
+                    bindings = bindings,
+                    projectionField = source,
+                    semanticType = semanticType,
+                    maskRule = maskRule,
+                ),
+            ),
+        ).field(child)!!
+
+        val identity = resolve(mapOf(QueryCapability.EXACT_MATCH to binding(source.path)))
+        val mixed = resolve(
+            mapOf(
+                QueryCapability.EXACT_MATCH to binding(source.path),
+                QueryCapability.SORT to binding("document.dynamic"),
+            ),
+        )
+        val required = resolve(mapOf(QueryCapability.EXACT_MATCH to binding("document.dynamic")))
+        val temporal = resolve(
+            mapOf(QueryCapability.RANGE to binding(source.path)),
+            semanticType = Temporal.Date,
+        )
+        val element = resolve(
+            mapOf(
+                QueryCapability.EXACT_MATCH to binding(source.path),
+                QueryCapability.ELEMENT_SCOPE to binding(source.path),
+            ),
+            maskRule = fullMaskRule(),
+        )
+
+        listOf(identity, mixed, required, temporal, element).map(QueryFieldSchema::rewriteMode).assert()
+            .containsExactly(
+                QueryRewriteMode.NONE,
+                QueryRewriteMode.INFER,
+                QueryRewriteMode.REQUIRED,
+                QueryRewriteMode.INFER,
+                QueryRewriteMode.NONE,
+            )
+        element.bindings.assert().doesNotContainKey(QueryCapability.ELEMENT_SCOPE)
+        element.projectionField.assert().isEqualTo(child)
+        element.masked.assert().isTrue()
     }
 
     @Test
@@ -553,6 +626,7 @@ class QueryModelSchemaTest {
         rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
         maskRule: MaskRule? = null,
         valueTypes: Set<QueryValueType> = setOf(QueryValueType.STRING),
+        semanticType: Temporal? = null,
     ): QueryFieldSchema = QueryFieldSchema(
         title = title,
         description = null,
@@ -561,7 +635,7 @@ class QueryModelSchemaTest {
         nullable = false,
         required = true,
         cardinality = QueryCardinality.SINGLE,
-        semanticType = null,
+        semanticType = semanticType,
         dynamicChildren = dynamicChildren,
         maskRule = maskRule,
         bindings = bindings,

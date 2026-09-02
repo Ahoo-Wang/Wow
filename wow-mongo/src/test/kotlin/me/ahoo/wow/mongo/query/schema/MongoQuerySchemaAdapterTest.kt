@@ -23,6 +23,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Projection
@@ -58,6 +59,7 @@ import org.junit.jupiter.api.Test
 import org.reactivestreams.Subscriber
 import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
+import tools.jackson.databind.node.IntNode
 import tools.jackson.databind.node.StringNode
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -98,6 +100,47 @@ class MongoQuerySchemaAdapterTest {
             }
             fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.NONE)
         }
+    }
+
+    @Test
+    fun `element descendants should infer relative rewrites from absolute predicates`() {
+        val orders = QueryField("state.orders")
+        val lines = QueryField("state.orders.lines")
+        val price = QueryField("state.orders.lines.price")
+        val schema = MongoQuerySchemaAdapter.bind(
+            logicalSchema = LogicalQuerySchema(
+                linkedMapOf(
+                    orders to field(QueryValueType.OBJECT, QueryCardinality.MANY),
+                    lines to field(QueryValueType.OBJECT, QueryCardinality.MANY),
+                    price to field(QueryValueType.INTEGER),
+                ),
+            ),
+            indexes = emptyList(),
+            validatorSchema = null,
+            model = QueryModel.SNAPSHOT,
+            fieldConverter = FieldConverter { "document.$it" },
+        )
+        val relative = ElementMatchFilter(
+            orders,
+            ElementMatchFilter(QueryField("lines"), EqualFilter(QueryField("price"), IntNode.valueOf(10))),
+        )
+        val absolute = ElementMatchFilter(
+            orders,
+            ElementMatchFilter(lines, EqualFilter(price, IntNode.valueOf(10))),
+        )
+
+        schema.fields.getValue(price).let { fieldSchema ->
+            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
+            fieldSchema.binding(QueryCapability.EXACT_MATCH)!!.let { binding ->
+                binding.resolvedField.assert().isEqualTo(price)
+                binding.physicalField.assert().isEqualTo(QueryField("document.state.orders.lines.price"))
+            }
+        }
+        schema.resolve(relative).value.assert().isSameAs(relative)
+        val resolved = schema.resolve(absolute).value as ElementMatchFilter
+        val resolvedLines = resolved.predicate as ElementMatchFilter
+        resolvedLines.field.assert().isEqualTo(QueryField("lines"))
+        (resolvedLines.predicate as EqualFilter).field.assert().isEqualTo(QueryField("price"))
     }
 
     @Test
