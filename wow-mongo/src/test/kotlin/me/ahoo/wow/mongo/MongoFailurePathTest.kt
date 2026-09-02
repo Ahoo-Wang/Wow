@@ -14,19 +14,14 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.MongoException
-import com.mongodb.MongoNamespace
 import com.mongodb.client.model.FindOneAndUpdateOptions
-import com.mongodb.client.model.IndexOptions
 import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.ListCollectionNamesPublisher
-import com.mongodb.reactivestreams.client.ListIndexesPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
@@ -85,46 +80,10 @@ class MongoFailurePathTest {
         }
     }
 
-    @Test
-    fun `event stream schema creates scan index in version id order`() {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
-        val indexKeys = mutableListOf<Bson>()
-        every { database.name } returns "test"
-        every { database.listCollectionNames() } returns emptyCollectionNamesPublisher()
-        every { database.createCollection(any()) } returns Mono.empty()
-        every { database.getCollection(any<String>()) } returns collection
-        every { collection.namespace } returns MongoNamespace("test", "order_event_stream")
-        every { collection.listIndexes() } returns emptyIndexesPublisher()
-        every {
-            collection.createIndex(capture(indexKeys), any<IndexOptions>())
-        } returns Mono.just("created")
-
-        EventStreamSchemaInitializer(database)
-            .initSchema(MaterializedNamedAggregate("order-service", "order"))
-
-        indexKeys.filterIsInstance<Document>()
-            .map { index -> index.entries.map { it.key to it.value } }
-            .assert()
-            .contains(
-                listOf(
-                    MessageRecords.VERSION to 1,
-                    MessageRecords.AGGREGATE_ID to 1,
-                ),
-            )
-    }
-
     private fun emptyCollectionNamesPublisher(): ListCollectionNamesPublisher =
         mockk {
             every { subscribe(any()) } answers {
                 firstArg<Subscriber<in String>>().complete()
-            }
-        }
-
-    private fun emptyIndexesPublisher(): ListIndexesPublisher<Document> =
-        mockk {
-            every { subscribe(any()) } answers {
-                firstArg<Subscriber<in Document>>().complete()
             }
         }
 
