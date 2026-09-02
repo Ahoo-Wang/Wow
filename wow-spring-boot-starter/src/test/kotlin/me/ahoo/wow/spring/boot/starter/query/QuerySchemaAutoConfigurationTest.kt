@@ -54,6 +54,8 @@ class QuerySchemaAutoConfigurationTest {
             .run { context ->
                 context.getBean(QueryProperties::class.java)
                     .schema.validationMode.assert().isEqualTo(QuerySchemaValidationMode.STRICT)
+                context.getBean(QuerySchemaValidationMode::class.java)
+                    .assert().isEqualTo(QuerySchemaValidationMode.STRICT)
             }
     }
 

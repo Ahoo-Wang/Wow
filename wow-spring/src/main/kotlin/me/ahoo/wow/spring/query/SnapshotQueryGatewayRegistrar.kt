@@ -21,9 +21,11 @@ import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
@@ -54,6 +56,9 @@ class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
         val gatewayType = ResolvableType.forClassWithGenerics(SnapshotQueryGateway::class.java, stateType)
         val beanDefinition = BeanDefinitionBuilder.rootBeanDefinition(gatewayType) {
             val backend = appContext.getBean(SnapshotQueryBackendFactory::class.java).create<Any>(namedAggregate)
+            val schemaProvider = backend.requiredQueryModelSchemaProvider()
+            val validationMode = appContext.getBeanProvider(QuerySchemaValidationMode::class.java)
+                .getIfAvailable { QuerySchemaValidationMode.COMPATIBLE }
 
             @Suppress("UNCHECKED_CAST")
             val filters = appContext.getBeanProvider(QueryFilter::class.java).toList()
@@ -65,6 +70,8 @@ class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
             DefaultSnapshotQueryGateway<Any>(
                 namedAggregate = namedAggregate,
                 backend = backend,
+                schemaProvider = schemaProvider,
+                validationMode = validationMode,
                 targetType = JsonSerializer.typeFactory.constructParametricType(
                     MaterializedSnapshot::class.java,
                     stateType,

@@ -37,7 +37,6 @@ import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
@@ -45,7 +44,6 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBindin
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
-import me.ahoo.wow.spring.boot.starter.query.QueryProperties
 import me.ahoo.wow.spring.boot.starter.query.QuerySchemaAutoConfiguration
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -81,11 +79,6 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
         ).elasticsearchEventStreamQueryBackendFactory(
             elasticsearchClient = mock(ReactiveElasticsearchClient::class.java),
-            schemaQueryProperties = QueryProperties(
-                schema = QueryProperties.Schema(
-                    validationMode = QuerySchemaValidationMode.COMPATIBLE,
-                ),
-            ),
         ).assert().isInstanceOf(ElasticsearchEventStreamQueryBackendFactory::class.java)
     }
 
@@ -195,11 +188,6 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             elasticsearchClient = mock(ReactiveElasticsearchClient::class.java),
             elasticsearchIndexMappingResolver = mockk<ElasticsearchIndexMappingResolver>(),
             sources = listOf(failingQuerySchemaSource(expected)),
-            schemaQueryProperties = QueryProperties(
-                schema = QueryProperties.Schema(
-                    validationMode = QuerySchemaValidationMode.COMPATIBLE,
-                ),
-            ),
         )
 
         (factory.create<Any>(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
@@ -221,11 +209,6 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             elasticsearchClient = mock(ReactiveElasticsearchClient::class.java),
             elasticsearchIndexMappingResolver = mockk<ElasticsearchIndexMappingResolver>(),
             sources = listOf(failingQuerySchemaSource(expected)),
-            schemaQueryProperties = QueryProperties(
-                schema = QueryProperties.Schema(
-                    validationMode = QuerySchemaValidationMode.STRICT,
-                ),
-            ),
         )
 
         (factory.create(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
