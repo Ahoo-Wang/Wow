@@ -62,7 +62,7 @@ A cursor is not a policy snapshot. Every later HTTP request reapplies tenant, ow
 
 ## ABAC and Field Masking
 
-The built-in `AbacQueryFilter` belongs to the snapshot Gateway. A managed Gateway is explicitly paired with a `QueryModelSchemaProvider`, and its framework-owned `SchemaMaskQueryFilter` applies Schema-driven field masking after all generic result filters and before typed materialization. If that Provider is unavailable, the query fails closed before Filter or Backend execution; masking is never merely skipped. Snapshot and EventStream typed, dynamic, cursor, and aggregate-state load entries share this managed path. See [Field Masking](./masking.md) for annotations, caching, the behavior matrix, and fail-closed rules.
+The built-in `AbacQueryFilter` belongs to the snapshot Gateway. `QueryGateway` receives `QueryModelSchemaProvider` through a constructor parameter independent of its Backend. In the current Spring assembly, the Registrar calls `requiredQueryModelSchemaProvider()` on the routed Backend and passes that Provider to the Gateway; this is only the current wiring mechanism. The framework-owned `SchemaMaskQueryFilter` applies Schema-driven field masking after all generic result filters and before typed materialization. If the paired Provider is unavailable, the query fails closed before Filter or Backend execution; masking is never merely skipped. Snapshot and EventStream typed, dynamic, cursor, and aggregate-state load entries share this managed path. See [Field Masking](./masking.md) for annotations, caching, the behavior matrix, and fail-closed rules.
 
 For authentication, Principal binding, and the complete fail-closed policy, see [Data Access Control](../data-access.md).
 
