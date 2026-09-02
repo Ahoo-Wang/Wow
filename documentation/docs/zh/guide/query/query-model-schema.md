@@ -31,7 +31,7 @@ flowchart LR
 
 - `System` 为 Snapshot 和 EventStream 提供各自的系统字段。扩展只能位于 Snapshot 的 `state` 或 EventStream 的 `body.body` 根下；已经由系统设置的字段叶不能被覆盖。
 - `JsonQuerySchemaSource (100)` 从聚合状态的 JSON 形状推断 Snapshot 字段，并从领域事件 payload 推断 EventStream 的 `body.body.*` 字段。
-- `ClasspathQuerySchemaSource (200)` 读取 `wow-query-schema/{context}/{aggregate}/{model}.json`；`WorkingDirectoryQuerySchemaSource (400)` 从 `config/` 下的同一相对路径读取。`model` 文件名使用小写，例如 `snapshot.json`、`event_stream.json`。
+- `ClasspathQuerySchemaSource (200)` 读取 `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`；`WorkingDirectoryQuerySchemaSource (400)` 读取 `config/wow/query-schema/{context}.{aggregate}.{model}.json`。`model` 段使用小写：`snapshot` 或 `event_stream`；点号是 Wow 保留的命名聚合分隔符。仅当新路径没有资源时，每个 source 才回退到 `wow-query-schema/{context}/{aggregate}/{model}.json`。source 优先级、classpath 合并与刷新行为保持不变。
 - `BeanQuerySchemaSource (300)` 合并当前上下文注册的 `QuerySchemaRegistration`。
 
 `QuerySchemaMerger` 按数字从小到大合并，后来的高优先级来源只覆盖其显式设置的叶，未设置的叶沿用低优先级值。同一优先级的多个声明若对同一叶给出不同值会抛出 Schema conflict，而不是依赖加载顺序。刷新只重新加载当前进程中的来源与后端事实并替换缓存；它不会修改索引、mapping、validator 或历史数据。

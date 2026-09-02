@@ -77,6 +77,24 @@ With `auto-init-template=true`, `IndexTemplateInitializer` verifies the event te
 
 The snapshot template defines system fields and the dynamic-state baseline. A template affects new indexes or later mapping behavior; it does not repair an existing index.
 
+The generic snapshot template is the fallback for storage-only snapshots. Queryable snapshots should provide a concrete index definition with business mappings at `META-INF/wow/elasticsearch/wow.sales.order.snapshot.json` or `config/wow/elasticsearch/wow.sales.order.snapshot.json`:
+
+```json
+{
+  "mappings": {
+    "properties": {
+      "state": {
+        "properties": {
+          "status": { "type": "keyword" }
+        }
+      }
+    }
+  }
+}
+```
+
+The resource key is the final index name computed by Wow. The working-directory file replaces classpath files; without a working file, duplicate classpath files fail startup. Missing resources keep the generic-template behavior. Existing indexes are skipped, so mapping changes require explicit reindex or migration. Resource JSON follows Elasticsearch client and cluster validation semantics. Resource presence requests creation regardless of storage-routing configuration.
+
 ## Full-Text Search
 
 Full text comes from a target field's text mapping and analyzer. `wow-elasticsearch` does not promise it for every string.
