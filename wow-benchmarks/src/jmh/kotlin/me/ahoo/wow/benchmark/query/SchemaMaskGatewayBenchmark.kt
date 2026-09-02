@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
@@ -121,6 +122,7 @@ open class SchemaMaskGatewayBenchmark {
             semanticType = null,
             dynamicChildren = false,
             bindings = emptyMap(),
+            rewriteMode = QueryRewriteMode.NONE,
             maskRule = MaskRule(
                 FullMaskStrategy::class,
                 annotation,

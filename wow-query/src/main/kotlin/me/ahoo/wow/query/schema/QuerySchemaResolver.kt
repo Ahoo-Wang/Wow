@@ -82,13 +82,15 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         null
     }
     private val maskedAggregationPaths = schema.maskedFields.flatMapTo(linkedSetOf()) { (logical, field) ->
-        listOfNotNull(logical.path, field.projectionPath) + field.bindings.values.map { it.physicalPath }
+        listOfNotNull(logical.path, field.projectionField?.path) + field.bindings.values.flatMap {
+            listOf(it.resolvedField.path, it.physicalField.path)
+        }
     }
     private val maskedProjectionPaths = schema.maskedFields.values.mapNotNullTo(hashSetOf()) { field ->
-        field.projectionPath?.takeIf { it.isNotEmpty() }
+        field.projectionField?.path
     }
     private val maskedPhysicalPaths = schema.maskedFields.values.flatMapTo(hashSetOf()) { field ->
-        field.bindings.values.map { it.physicalPath }
+        field.bindings.values.flatMap { listOf(it.resolvedField.path, it.physicalField.path) }
     }
 
     fun resolve(query: ISingleQuery): QuerySchemaResolution<ISingleQuery> {
@@ -311,8 +313,11 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     ).let { resolved ->
         val logicalCandidate = resolved.logical.path
         val physicalCandidate = resolved.physicalPath ?: logicalCandidate
+        val backendCandidate = resolved.physicalField?.path
         val matchesMaskedCandidate = isMaskedAggregationCandidate(logicalCandidate) ||
-            physicalCandidate != logicalCandidate && isMaskedAggregationCandidate(physicalCandidate)
+            physicalCandidate != logicalCandidate && isMaskedAggregationCandidate(physicalCandidate) ||
+            backendCandidate != null && backendCandidate != physicalCandidate &&
+            isMaskedAggregationCandidate(backendCandidate)
         if (resolved.fieldSchema?.maskRule == null && !matchesMaskedCandidate) {
             resolved
         } else {
@@ -333,11 +338,13 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
 
     private fun QueryFieldResolution.matchesMaskedCandidate(): Boolean {
         val logicalCandidate = logical.path
-        val projectionCandidate = fieldSchema?.projectionPath
+        val projectionCandidate = fieldSchema?.projectionField?.path
         val physicalCandidate = physicalPath ?: logicalCandidate
+        val backendCandidate = physicalField?.path
         return logicalCandidate in maskedProjectionPaths ||
             projectionCandidate != null && projectionCandidate in maskedProjectionPaths ||
-            physicalCandidate in maskedPhysicalPaths
+            physicalCandidate in maskedPhysicalPaths ||
+            backendCandidate != null && backendCandidate in maskedPhysicalPaths
     }
 
     private val AggregationGroup.capability: QueryCapability

@@ -25,8 +25,8 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TodayFilter
@@ -46,6 +46,7 @@ import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.MaskRule
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
@@ -76,7 +77,7 @@ class MongoQuerySchemaAdapterTest {
             null,
         )
 
-        schema.fields.getValue(secret).maskRule.assert().isSameAs(rule)
+        schema.fields.getValue(secret).masked.assert().isTrue()
     }
 
     @Test
@@ -91,8 +92,13 @@ class MongoQuerySchemaAdapterTest {
         )
 
         schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
-        schema.fields.getValue(id).bindings.getValue(QueryCapability.EXACT_MATCH).physicalPath.assert()
-            .isEqualTo("_id")
+        schema.fields.getValue(id).let { fieldSchema ->
+            fieldSchema.binding(QueryCapability.EXACT_MATCH)!!.let { binding ->
+                binding.resolvedField.assert().isEqualTo(id)
+                binding.physicalField.assert().isEqualTo(QueryField("_id"))
+            }
+            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.NONE)
+        }
     }
 
     @Test
@@ -360,19 +366,25 @@ class MongoQuerySchemaAdapterTest {
         )
         schema.fields.getValue(QueryField("aggregateId"))
             .bindings.getValue(QueryCapability.EXACT_MATCH).let { binding ->
-                binding.physicalPath.assert().isEqualTo("_id")
+                binding.resolvedField.assert().isEqualTo(QueryField("aggregateId"))
+                binding.physicalField.assert().isEqualTo(QueryField("_id"))
                 binding.storageType?.value.assert().isEqualTo("string")
             }
         schema.fields.getValue(QueryField("state.name"))
             .bindings.getValue(QueryCapability.LITERAL_MATCH).let { binding ->
-                binding.physicalPath.assert().isEqualTo("state.name")
+                binding.resolvedField.assert().isEqualTo(QueryField("state.name"))
+                binding.physicalField.assert().isEqualTo(QueryField("state.name"))
                 binding.storageType?.value.assert().isEqualTo("string")
             }
-        schema.fields.getValue(QueryField("state.items"))
-            .bindings.getValue(QueryCapability.ELEMENT_SCOPE).let { binding ->
-                binding.physicalPath.assert().isEqualTo("state.items")
+        schema.fields.getValue(QueryField("state.items")).let { fieldSchema ->
+            fieldSchema.bindings.getValue(QueryCapability.ELEMENT_SCOPE).let { binding ->
+                binding.resolvedField.assert().isEqualTo(QueryField("state.items"))
+                binding.physicalField.assert().isEqualTo(QueryField("state.items"))
                 binding.storageType?.value.assert().isEqualTo("array")
             }
+            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
+        }
+        schema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
         schema.fields.values.flatMap { it.bindings.keys }.assert()
             .doesNotContain(QueryCapability.FULL_TEXT_TERMS)
             .doesNotContain(QueryCapability.FULL_TEXT_PHRASE)
@@ -400,7 +412,7 @@ class MongoQuerySchemaAdapterTest {
             QueryCapability.RANGE,
             QueryCapability.AGGREGATE_NUMERIC,
         )
-        schema.resolve(QueryField("tags.department"))?.bindings?.keys.assert().contains(
+        schema.field(QueryField("tags.department"))?.bindings?.keys.assert().contains(
             QueryCapability.PRESENCE,
             QueryCapability.EXACT_MATCH,
         )
@@ -678,9 +690,13 @@ class MongoQuerySchemaAdapterTest {
             QueryCapability.EXACT_MATCH,
         )
         schema.fields.getValue(QueryField("tags")).dynamicChildren.assert().isTrue()
-        schema.resolve(QueryField("tags.department"))
-            ?.bindings?.getValue(QueryCapability.EXACT_MATCH)
-            ?.physicalPath.assert().isEqualTo("tags.department")
+        schema.field(QueryField("tags.department"))?.let { fieldSchema ->
+            fieldSchema.binding(QueryCapability.EXACT_MATCH)!!.let { binding ->
+                binding.resolvedField.assert().isEqualTo(QueryField("tags.department"))
+                binding.physicalField.assert().isEqualTo(QueryField("tags.department"))
+            }
+            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.NONE)
+        }
     }
 
     @Test
@@ -693,7 +709,7 @@ class MongoQuerySchemaAdapterTest {
 
         schema.fields.getValue(QueryField("tags")).bindings.assert().isEmpty()
         schema.fields.getValue(QueryField("tags")).dynamicChildren.assert().isFalse()
-        schema.resolve(QueryField("tags.department")).assert().isNull()
+        schema.field(QueryField("tags.department")).assert().isNull()
     }
 
     @Test

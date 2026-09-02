@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.serialization.JsonSerializer
@@ -329,6 +330,7 @@ class SchemaMaskerTest {
         enumValues: List<tools.jackson.databind.JsonNode>? = null,
         projectionPath: String? = null,
         maskRule: MaskRule? = null,
+        rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
     ) = QueryFieldSchema(
         title = null,
         description = null,
@@ -340,7 +342,8 @@ class SchemaMaskerTest {
         semanticType = null,
         dynamicChildren = false,
         bindings = emptyMap(),
-        projectionPath = projectionPath,
+        projectionField = projectionPath?.let(::QueryField),
+        rewriteMode = rewriteMode,
         maskRule = maskRule,
     )
 

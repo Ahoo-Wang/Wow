@@ -26,8 +26,8 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.Temporal
@@ -44,15 +44,11 @@ internal class MongoAggregationCompiler(
     fun compile(query: AggregationQuery, schema: QueryModelSchema? = null): List<Bson> = buildList {
         add(Aggregates.match(converter.convert(query.filter)))
 
-        var logicalParent: String? = null
+        var logicalParent: QueryField? = null
         var physicalParent: String? = null
         query.elements.forEach { element ->
             val previousLogicalParent = logicalParent
-            logicalParent = if (logicalParent == null) {
-                element.path.path
-            } else {
-                "$logicalParent.${element.path.path}"
-            }
+            logicalParent = element.path.absoluteTo(previousLogicalParent)
             physicalParent = element.path.resolve(
                 parent = previousLogicalParent,
                 schema = schema,
@@ -89,7 +85,7 @@ internal class MongoAggregationCompiler(
         add(Aggregates.limit(query.limit))
     }
 
-    private fun group(query: AggregationQuery, parent: String?, schema: QueryModelSchema?): Bson {
+    private fun group(query: AggregationQuery, parent: QueryField?, schema: QueryModelSchema?): Bson {
         val id = query.groupBy
             .takeIf { it.isNotEmpty() }
             ?.associateTo(Document()) { it.alias to it.expression(parent, schema) }
@@ -153,7 +149,7 @@ internal class MongoAggregationCompiler(
         AggregationFunction.MAX -> Accumulators.max(field, input)
     }
 
-    private fun AggregationGroup.expression(parent: String?, schema: QueryModelSchema?): Any = when (this) {
+    private fun AggregationGroup.expression(parent: QueryField?, schema: QueryModelSchema?): Any = when (this) {
         is AggregationGroup.Terms -> "\$${field.resolve(parent, schema, QueryCapability.AGGREGATE_TERMS)}"
         is AggregationGroup.Histogram -> {
             val field = field.resolve(parent, schema, QueryCapability.AGGREGATE_NUMERIC)
@@ -187,7 +183,7 @@ internal class MongoAggregationCompiler(
     }
 
     private fun AggregationMetric.Numeric.toMongoInput(
-        parent: String?,
+        parent: QueryField?,
         schema: QueryModelSchema?,
     ): Pair<Any, Any> {
         val metricExpression = expression
@@ -208,7 +204,7 @@ internal class MongoAggregationCompiler(
         return input to Document("\$ne", listOf(input, null))
     }
 
-    private fun AggregationExpression.toMongoExpression(parent: String?, schema: QueryModelSchema?): Any = when (this) {
+    private fun AggregationExpression.toMongoExpression(parent: QueryField?, schema: QueryModelSchema?): Any = when (this) {
         is AggregationExpression.Field -> {
             val field = field.resolve(parent, schema, QueryCapability.AGGREGATE_NUMERIC)
             val fieldReference = "\$$field"
@@ -295,13 +291,13 @@ internal class MongoAggregationCompiler(
             ),
     )
 
-    private fun AggregationGroup.DateHistogram.dateInput(parent: String?, schema: QueryModelSchema?): Any {
-        val logicalField = field.absolute(parent)
-        val fieldSchema = schema?.resolve(logicalField)
+    private fun AggregationGroup.DateHistogram.dateInput(parent: QueryField?, schema: QueryModelSchema?): Any {
+        val logicalField = field.absoluteTo(parent)
+        val fieldSchema = schema?.field(logicalField)
         if (fieldSchema == null) {
             return Document("\$toDate", "\$${converter.convertField(logicalField.path)}")
         }
-        val physicalPath = fieldSchema.bindings[QueryCapability.AGGREGATE_TEMPORAL]?.physicalPath
+        val physicalPath = fieldSchema.binding(QueryCapability.AGGREGATE_TEMPORAL)?.physicalField?.path
             ?: throw QuerySchemaValidationException(
                 "Query field [$logicalField] does not support [${QueryCapability.AGGREGATE_TEMPORAL}].",
             )
@@ -389,20 +385,17 @@ internal class MongoAggregationCompiler(
     )
 
     private fun QueryField.resolve(
-        parent: String?,
+        parent: QueryField?,
         schema: QueryModelSchema?,
         capability: QueryCapability,
     ): String {
-        val logicalField = absolute(parent)
-        schema?.resolve(logicalField)?.bindings?.get(capability)?.physicalPath?.let { return it }
+        val logicalField = absoluteTo(parent)
+        schema?.field(logicalField)?.binding(capability)?.physicalField?.path?.let { return it }
         if (schema == null || logicalField !in schema.fields) {
             return converter.convertField(logicalField.path)
         }
         throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
     }
-
-    private fun QueryField.absolute(parent: String?): QueryField =
-        QueryField(if (parent == null) path else "$parent.$path")
 
     private val AggregationGroup.capability: QueryCapability
         get() = when (this) {

@@ -57,6 +57,7 @@ import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
@@ -638,6 +639,7 @@ class DefaultSnapshotQueryGatewayTest {
             semanticType = null,
             dynamicChildren = false,
             bindings = emptyMap(),
+            rewriteMode = QueryRewriteMode.NONE,
             maskRule = maskRule,
         )
 

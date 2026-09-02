@@ -1781,6 +1781,7 @@ class QuerySchemaResolverTest {
         cardinality: QueryCardinality = QueryCardinality.SINGLE,
         valueTypes: Set<QueryValueType> = emptySet(),
         maskRule: MaskRule? = null,
+        rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
     ) = QueryFieldSchema(
         title = null,
         description = null,
@@ -1793,10 +1794,12 @@ class QuerySchemaResolverTest {
         dynamicChildren = dynamicChildren,
         maskRule = maskRule,
         bindings = bindings.associate { (capability, path) ->
-            capability to QueryFieldBinding(path, storageType = null)
+            val field = QueryField(path)
+            capability to QueryFieldBinding(field, field, storageType = null)
         },
-        projectionPath = projectionPath
-            ?: bindings.firstOrNull { it.first == QueryCapability.PRESENCE }?.second,
+        projectionField = projectionPath?.let(::QueryField)
+            ?: bindings.firstOrNull { it.first == QueryCapability.PRESENCE }?.second?.let(::QueryField),
+        rewriteMode = rewriteMode,
     )
 
     private fun json(value: Any): JsonNode = JsonNodeFactory.instance.pojoNode(value)

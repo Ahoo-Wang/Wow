@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaResolver
@@ -84,8 +85,13 @@ open class QuerySchemaResolverBenchmark {
                 List(FILTER_OPERAND_COUNT) { index ->
                     QueryField("state.filter$index") to maskedFieldSchema().copy(
                         bindings = mapOf(
-                            QueryCapability.EXACT_MATCH to QueryFieldBinding("document.filter$index", null),
+                            QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                                QueryField("document.filter$index"),
+                                QueryField("document.filter$index"),
+                                null,
+                            ),
                         ),
+                        rewriteMode = QueryRewriteMode.REQUIRED,
                         maskRule = null,
                     )
                 },
@@ -94,8 +100,13 @@ open class QuerySchemaResolverBenchmark {
                 sortableField,
                 maskedFieldSchema().copy(
                     bindings = mapOf(
-                        QueryCapability.SORT to QueryFieldBinding("document.createdAt", null),
+                        QueryCapability.SORT to QueryFieldBinding(
+                            QueryField("document.createdAt"),
+                            QueryField("document.createdAt"),
+                            null,
+                        ),
                     ),
+                    rewriteMode = QueryRewriteMode.REQUIRED,
                     maskRule = null,
                 ),
             )
@@ -103,8 +114,13 @@ open class QuerySchemaResolverBenchmark {
                 aggregatableField,
                 maskedFieldSchema().copy(
                     bindings = mapOf(
-                        QueryCapability.AGGREGATE_TERMS to QueryFieldBinding("document.category.keyword", null),
+                        QueryCapability.AGGREGATE_TERMS to QueryFieldBinding(
+                            QueryField("document.category.keyword"),
+                            QueryField("document.category.keyword"),
+                            null,
+                        ),
                     ),
+                    rewriteMode = QueryRewriteMode.REQUIRED,
                     maskRule = null,
                 ),
             )
@@ -112,9 +128,14 @@ open class QuerySchemaResolverBenchmark {
                 dynamicField,
                 maskedFieldSchema().copy(
                     bindings = mapOf(
-                        QueryCapability.EXACT_MATCH to QueryFieldBinding("document.dynamic", null),
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                            QueryField("document.dynamic"),
+                            QueryField("document.dynamic"),
+                            null,
+                        ),
                     ),
                     dynamicChildren = true,
+                    rewriteMode = QueryRewriteMode.REQUIRED,
                     maskRule = null,
                 ),
             )
@@ -135,15 +156,15 @@ open class QuerySchemaResolverBenchmark {
             fields = mapOf(
                 eventSecretField to maskedFieldSchema().copy(
                     bindings = mapOf(
-                        QueryCapability.PRESENCE to QueryFieldBinding(eventSecretField.path, null),
+                        QueryCapability.PRESENCE to QueryFieldBinding(eventSecretField, eventSecretField, null),
                     ),
-                    projectionPath = eventSecretField.path,
+                    projectionField = eventSecretField,
                 ),
                 eventBodyTypeField to maskedFieldSchema().copy(
                     bindings = mapOf(
-                        QueryCapability.PRESENCE to QueryFieldBinding(eventBodyTypeField.path, null),
+                        QueryCapability.PRESENCE to QueryFieldBinding(eventBodyTypeField, eventBodyTypeField, null),
                     ),
-                    projectionPath = eventBodyTypeField.path,
+                    projectionField = eventBodyTypeField,
                     maskRule = null,
                 ),
             ),
@@ -217,6 +238,7 @@ open class QuerySchemaResolverBenchmark {
             semanticType = null,
             dynamicChildren = false,
             bindings = emptyMap(),
+            rewriteMode = QueryRewriteMode.NONE,
             maskRule = MaskRule(
                 FullMaskStrategy::class,
                 annotation,

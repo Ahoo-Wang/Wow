@@ -28,8 +28,8 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.InFilter
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
@@ -49,6 +49,7 @@ import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
@@ -85,7 +86,7 @@ class ElasticsearchQuerySchemaAdapterTest {
             ),
         )
 
-        schema.fields.getValue(secret).maskRule.assert().isSameAs(rule)
+        schema.fields.getValue(secret).masked.assert().isTrue()
         val query = AggregationQuery(
             groupBy = listOf(AggregationGroup.Terms(QueryField("${secret.path}.raw"), "secret")),
             metrics = listOf(AggregationMetric.Count("count")),
@@ -118,8 +119,12 @@ class ElasticsearchQuerySchemaAdapterTest {
         )
 
         schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
-        schema.fields.getValue(body).bindings.assert().containsKey(QueryCapability.ELEMENT_SCOPE)
+        schema.fields.getValue(body).let { fieldSchema ->
+            fieldSchema.bindings.assert().containsKey(QueryCapability.ELEMENT_SCOPE)
+            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
+        }
         schema.fields.getValue(name).bindings.assert().containsKey(QueryCapability.AGGREGATE_TERMS)
+        schema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
     }
 
     @Test
@@ -190,9 +195,11 @@ class ElasticsearchQuerySchemaAdapterTest {
             ),
         )
 
-        schema.fields.getValue(source).projectionPath.assert().isEqualTo(source.path)
-        schema.fields.getValue(runtime).projectionPath.assert().isNull()
-        QuerySchemaResolver(schema).resolve(Projection(include = listOf(QueryField(source.path)))).compatibility.assert()
+        schema.fields.getValue(source).projectionField.assert().isEqualTo(source)
+        schema.fields.getValue(runtime).projectionField.assert().isNull()
+        QuerySchemaResolver(schema)
+            .resolve(Projection(include = listOf(QueryField(source.path))))
+            .compatibility.assert()
             .isEqualTo(QueryCompatibilityLevel.EXACT)
     }
 
@@ -214,6 +221,7 @@ class ElasticsearchQuerySchemaAdapterTest {
 
         schema.binding(field.path, QueryCapability.PRESENCE)
             .assertPath("${field.path}.keyword", "keyword")
+        schema.fields.getValue(field).rewriteMode.assert().isEqualTo(QueryRewriteMode.REQUIRED)
         QuerySchemaResolver(schema).resolve(Projection(include = listOf(QueryField(field.path)))).let { resolved ->
             resolved.value.assert().isEqualTo(Projection(include = listOf(QueryField(field.path))))
             resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
@@ -625,7 +633,7 @@ class ElasticsearchQuerySchemaAdapterTest {
         ).forEach { path ->
             schema.fields.getValue(QueryField(path)).dynamicChildren.assert().isFalse()
         }
-        schema.resolve(QueryField("tags.department")).assert().isNull()
+        schema.field(QueryField("tags.department")).assert().isNull()
         schema.bindings("state.labels").assert().isEmpty()
         schema.bindings("state.blocked").assert().isEmpty()
         schema.bindings("state.strict").assert().isEmpty()
@@ -653,7 +661,7 @@ class ElasticsearchQuerySchemaAdapterTest {
 
         schema.bindings("state.items").assert().containsExactly(QueryCapability.ELEMENT_SCOPE)
         schema.fields.getValue(QueryField("state.items")).dynamicChildren.assert().isFalse()
-        schema.resolve(QueryField("state.items.unknown")).assert().isNull()
+        schema.field(QueryField("state.items.unknown")).assert().isNull()
     }
 
     @Test
@@ -748,11 +756,13 @@ class ElasticsearchQuerySchemaAdapterTest {
         schema.binding("state.name", QueryCapability.LITERAL_MATCH).assertPath("state.name.keyword", "keyword")
         schema.binding("state.name", QueryCapability.SORT).assertPath("state.name.keyword", "keyword")
         schema.binding("state.name", QueryCapability.AGGREGATE_TERMS).assertPath("state.name.keyword", "keyword")
+        schema.fields.getValue(QueryField("state.name")).rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
 
         schema.binding("state.score", QueryCapability.RANGE).assertPath("state.score", "double")
         schema.binding("state.score", QueryCapability.AGGREGATE_NUMERIC).assertPath("state.score", "double")
         schema.binding("state.createdAt", QueryCapability.AGGREGATE_TEMPORAL)
             .assertPath("state.createdAt", "date")
+        schema.fields.getValue(QueryField("state.createdAt")).rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
         schema.binding("state.createdNanos", QueryCapability.AGGREGATE_TEMPORAL)
             .assertPath("state.createdNanos", "date_nanos")
         schema.binding("state.epoch", QueryCapability.AGGREGATE_TEMPORAL).assertPath("state.epoch", "long")
@@ -761,7 +771,7 @@ class ElasticsearchQuerySchemaAdapterTest {
             .doesNotContainKey(QueryCapability.AGGREGATE_TEMPORAL)
 
         schema.binding("state.items", QueryCapability.ELEMENT_SCOPE).assertPath("state.items", "nested")
-        schema.resolve(QueryField("state.labels.release")).assert().isNull()
+        schema.field(QueryField("state.labels.release")).assert().isNull()
     }
 
     @Test
@@ -781,11 +791,15 @@ class ElasticsearchQuerySchemaAdapterTest {
             .assertPath("state.runtimeAt", "date")
         schema.binding("state.runtime.code", QueryCapability.AGGREGATE_TERMS)
             .assertPath("state.runtime.code", "keyword")
-        QuerySchemaResolver(schema).resolve(Projection(include = listOf(QueryField("state.nameAlias")))).let { resolved ->
-            resolved.value.assert().isEqualTo(Projection(include = listOf(QueryField("state.name"))))
-            resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
-        }
-        QuerySchemaResolver(schema).resolve(Projection(include = listOf(QueryField("state.runtimeCode")))).compatibility.assert()
+        QuerySchemaResolver(schema)
+            .resolve(Projection(include = listOf(QueryField("state.nameAlias"))))
+            .let { resolved ->
+                resolved.value.assert().isEqualTo(Projection(include = listOf(QueryField("state.name"))))
+                resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+            }
+        QuerySchemaResolver(schema)
+            .resolve(Projection(include = listOf(QueryField("state.runtimeCode"))))
+            .compatibility.assert()
             .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
 
         schema.fields.getValue(QueryField("state.ambiguous")).bindings.assert()
@@ -823,11 +837,12 @@ class ElasticsearchQuerySchemaAdapterTest {
 
         provider.schema().test()
             .assertNext { schema ->
-                schema.binding("state.name", QueryCapability.FULL_TEXT_TERMS).physicalPath.assert()
-                    .isEqualTo("state.name")
+                schema.binding("state.name", QueryCapability.FULL_TEXT_TERMS).physicalField.assert()
+                    .isEqualTo(QueryField("state.name"))
             }.verifyComplete()
         val refreshed = provider.refresh().block()!!
-        refreshed.binding("state.name", QueryCapability.EXACT_MATCH).physicalPath.assert().isEqualTo("state.name")
+        refreshed.binding("state.name", QueryCapability.EXACT_MATCH).physicalField.assert()
+            .isEqualTo(QueryField("state.name"))
         refreshed.fields.getValue(QueryField("state.name")).bindings.assert()
             .doesNotContainKey(QueryCapability.FULL_TEXT_TERMS)
         provider.schema().block().assert().isSameAs(refreshed)
@@ -842,7 +857,8 @@ class ElasticsearchQuerySchemaAdapterTest {
         fields.getValue(QueryField(field)).bindings.keys
 
     private fun me.ahoo.wow.query.schema.QueryFieldBinding.assertPath(path: String, storageType: String) {
-        physicalPath.assert().isEqualTo(path)
+        resolvedField.assert().isEqualTo(QueryField(path))
+        physicalField.assert().isEqualTo(QueryField(path))
         this.storageType?.value.assert().isEqualTo(storageType)
     }
 

@@ -26,18 +26,8 @@ import me.ahoo.wow.serialization.state.StateAggregateRecords
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.POJONode
-import java.math.BigDecimal
-import java.math.BigInteger
 import java.util.concurrent.TimeUnit
 import java.lang.reflect.Array as ReflectArray
-
-private val BUILT_IN_QUERY_VALUE_TYPES = setOf(
-    QueryValueType.STRING,
-    QueryValueType.INTEGER,
-    QueryValueType.DECIMAL,
-    QueryValueType.BOOLEAN,
-    QueryValueType.OBJECT,
-)
 
 internal class QueryFilterSchemaResolver(
     private val schema: QueryModelSchema,
@@ -400,13 +390,7 @@ internal class QueryFilterSchemaResolver(
     )
 
     private fun QueryFieldResolution.valueCompatibility(values: Iterable<JsonNode>): QueryCompatibilityLevel {
-        if (declaredValueTypes.isEmpty() || declaredValueTypes.any { it !in BUILT_IN_QUERY_VALUE_TYPES }) {
-            return QueryCompatibilityLevel.EXACT
-        }
-        return if (values.all { value ->
-                value.isNull || declaredValueTypes.any { type -> value.matches(type) }
-            }
-        ) {
+        return if (schema.matchesValueTypes(logical, values)) {
             QueryCompatibilityLevel.EXACT
         } else {
             QueryCompatibilityLevel.INCOMPATIBLE
@@ -426,48 +410,5 @@ private fun JsonNode.queryValues(): Iterable<JsonNode> {
     }
 }
 
-private fun JsonNode.matches(type: QueryValueType): Boolean {
-    if (isPojo) return pojoValue.matches(type)
-    return when (type) {
-        QueryValueType.STRING -> isString
-        QueryValueType.INTEGER -> isNumber && canConvertToExactIntegral()
-        QueryValueType.DECIMAL -> isNumber
-        QueryValueType.BOOLEAN -> isBoolean
-        QueryValueType.OBJECT -> isObject
-        else -> true
-    }
-}
-
 private val JsonNode.pojoValue: Any?
     get() = (this as? POJONode)?.pojo
-
-private fun Any?.matches(type: QueryValueType): Boolean = when (this) {
-    is CharSequence,
-    is Char,
-    is Enum<*>,
-    -> type == QueryValueType.STRING
-    is Boolean -> type == QueryValueType.BOOLEAN
-    is Byte,
-    is Short,
-    is Int,
-    is Long,
-    is BigInteger,
-    -> type == QueryValueType.INTEGER || type == QueryValueType.DECIMAL
-    is Float,
-    is Double,
-    is BigDecimal,
-    -> type.matchesNumber(this as Number)
-    else -> true
-}
-
-private fun QueryValueType.matchesNumber(value: Number): Boolean {
-    if (this == QueryValueType.DECIMAL) return true
-    if (this != QueryValueType.INTEGER) return false
-    val node = when (value) {
-        is Float -> JsonNodeFactory.instance.numberNode(value)
-        is Double -> JsonNodeFactory.instance.numberNode(value)
-        is BigDecimal -> JsonNodeFactory.instance.numberNode(value)
-        else -> return true
-    }
-    return node.canConvertToExactIntegral()
-}

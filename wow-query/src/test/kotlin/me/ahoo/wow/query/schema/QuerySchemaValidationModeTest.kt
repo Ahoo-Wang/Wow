@@ -335,10 +335,23 @@ class QuerySchemaValidationModeTest {
                 semanticType = null,
                 dynamicChildren = false,
                 bindings = mapOf(
-                    QueryCapability.EXACT_MATCH to QueryFieldBinding("document.name.keyword", null),
-                    QueryCapability.PRESENCE to QueryFieldBinding("document.name", null),
-                    QueryCapability.SORT to QueryFieldBinding("document.name.sort", null),
+                    QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                        QueryField("document.name.keyword"),
+                        QueryField("document.name.keyword"),
+                        null,
+                    ),
+                    QueryCapability.PRESENCE to QueryFieldBinding(
+                        QueryField("document.name"),
+                        QueryField("document.name"),
+                        null,
+                    ),
+                    QueryCapability.SORT to QueryFieldBinding(
+                        QueryField("document.name.sort"),
+                        QueryField("document.name.sort"),
+                        null,
+                    ),
                 ),
+                rewriteMode = QueryRewriteMode.REQUIRED,
             ),
         ),
     )

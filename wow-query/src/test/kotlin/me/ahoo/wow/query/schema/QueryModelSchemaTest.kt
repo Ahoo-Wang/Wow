@@ -37,7 +37,13 @@ class QueryModelSchemaTest {
     fun `exact field should win over a dynamic ancestor`() {
         val exact = fieldSchema(
             dynamicChildren = false,
-            bindings = mapOf(QueryCapability.EXACT_MATCH to QueryFieldBinding("exact_name", null)),
+            bindings = mapOf(
+                QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                    QueryField("exact_name"),
+                    QueryField("exact_name"),
+                    null,
+                ),
+            ),
         )
         val schema = QueryModelSchema(
             QueryModel.SNAPSHOT,
@@ -45,13 +51,19 @@ class QueryModelSchemaTest {
             mapOf(
                 QueryField("state") to fieldSchema(
                     dynamicChildren = true,
-                    bindings = mapOf(QueryCapability.EXACT_MATCH to QueryFieldBinding("document", null)),
+                    bindings = mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                            QueryField("document"),
+                            QueryField("document"),
+                            null,
+                        ),
+                    ),
                 ),
                 QueryField("state.name") to exact,
             ),
         )
 
-        schema.resolve(QueryField("state.name")).assert().isSameAs(exact)
+        schema.field(QueryField("state.name")).assert().isSameAs(exact)
     }
 
     @Test
@@ -62,27 +74,40 @@ class QueryModelSchemaTest {
             mapOf(
                 QueryField("state") to fieldSchema(
                     dynamicChildren = true,
-                    bindings = mapOf(QueryCapability.EXACT_MATCH to QueryFieldBinding("document", null)),
+                    bindings = mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                            QueryField("document"),
+                            QueryField("document"),
+                            null,
+                        ),
+                    ),
                 ),
                 QueryField("state.customer") to fieldSchema(
                     dynamicChildren = true,
-                    bindings = mapOf(QueryCapability.SORT to QueryFieldBinding("customer_doc", QueryStorageType("keyword"))),
-                    projectionPath = "customer_doc",
+                    bindings = mapOf(
+                        QueryCapability.SORT to QueryFieldBinding(
+                            QueryField("customer_doc"),
+                            QueryField("customer_doc"),
+                            QueryStorageType("keyword"),
+                        ),
+                    ),
+                    projectionField = QueryField("customer_doc"),
                 ),
             ),
         )
 
-        val resolved = schema.resolve(QueryField("state.customer.address.city"))!!
+        val resolved = schema.field(QueryField("state.customer.address.city"))!!
 
         resolved.bindings.assert().isEqualTo(
             mapOf(
                 QueryCapability.SORT to QueryFieldBinding(
-                    "customer_doc.address.city",
+                    QueryField("customer_doc.address.city"),
+                    QueryField("customer_doc.address.city"),
                     QueryStorageType("keyword"),
                 ),
             ),
         )
-        resolved.projectionPath.assert().isEqualTo("customer_doc.address.city")
+        resolved.projectionField.assert().isEqualTo(QueryField("customer_doc.address.city"))
     }
 
     @Test
@@ -93,12 +118,18 @@ class QueryModelSchemaTest {
             mapOf(
                 QueryField("state") to fieldSchema(
                     dynamicChildren = true,
-                    bindings = mapOf(QueryCapability.EXACT_MATCH to QueryFieldBinding("document", null)),
+                    bindings = mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                            QueryField("document"),
+                            QueryField("document"),
+                            null,
+                        ),
+                    ),
                 ),
             ),
         )
 
-        schema.resolve(QueryField("state.name"))!!.bindings.keys
+        schema.field(QueryField("state.name"))!!.bindings.keys
             .assert().isEqualTo(setOf(QueryCapability.EXACT_MATCH))
     }
 
@@ -111,15 +142,91 @@ class QueryModelSchemaTest {
                 QueryField("state.orders") to fieldSchema(
                     dynamicChildren = true,
                     bindings = mapOf(
-                        QueryCapability.EXACT_MATCH to QueryFieldBinding("document.orders", null),
-                        QueryCapability.ELEMENT_SCOPE to QueryFieldBinding("document.orders", null),
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                            QueryField("document.orders"),
+                            QueryField("document.orders"),
+                            null,
+                        ),
+                        QueryCapability.ELEMENT_SCOPE to QueryFieldBinding(
+                            QueryField("document.orders"),
+                            QueryField("document.orders"),
+                            null,
+                        ),
                     ),
                 ),
             ),
         )
 
-        schema.resolve(QueryField("state.orders.items"))!!.bindings.keys.assert()
+        schema.field(QueryField("state.orders.items"))!!.bindings.keys.assert()
             .containsExactly(QueryCapability.EXACT_MATCH)
+    }
+
+    @Test
+    fun `identity dynamic child should keep none rewrite mode`() {
+        val parent = QueryField("state.dynamic")
+        val child = QueryField("state.dynamic.code")
+        val fieldSchema = fieldSchema(
+            dynamicChildren = true,
+            bindings = mapOf(
+                QueryCapability.EXACT_MATCH to QueryFieldBinding(parent, parent, null),
+            ),
+            projectionField = parent,
+            rewriteMode = QueryRewriteMode.NONE,
+        )
+        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), mapOf(parent to fieldSchema))
+
+        schema.field(child)!!.binding(QueryCapability.EXACT_MATCH)!!.resolvedField.assert().isEqualTo(child)
+        schema.field(child)!!.rewriteMode.assert().isEqualTo(QueryRewriteMode.NONE)
+    }
+
+    @Test
+    fun `nearest dynamic ancestor should derive every field and drop element scope`() {
+        val root = QueryField("state")
+        val customer = QueryField("state.customer")
+        val requested = QueryField("state.customer.name")
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(
+                root to fieldSchema(
+                    dynamicChildren = true,
+                    bindings = mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                            QueryField("root"),
+                            QueryField("root"),
+                            null,
+                        ),
+                    ),
+                    projectionField = QueryField("root"),
+                    rewriteMode = QueryRewriteMode.REQUIRED,
+                ),
+                customer to fieldSchema(
+                    dynamicChildren = true,
+                    bindings = mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                            customer,
+                            QueryField("document.customer"),
+                            null,
+                        ),
+                        QueryCapability.ELEMENT_SCOPE to QueryFieldBinding(
+                            customer,
+                            QueryField("document.customer"),
+                            null,
+                        ),
+                    ),
+                    projectionField = QueryField("source.customer"),
+                    rewriteMode = QueryRewriteMode.INFER,
+                ),
+            ),
+        )
+
+        val resolved = schema.field(requested)!!
+        resolved.binding(QueryCapability.EXACT_MATCH)!!.resolvedField.assert()
+            .isEqualTo(QueryField("state.customer.name"))
+        resolved.binding(QueryCapability.EXACT_MATCH)!!.physicalField.assert()
+            .isEqualTo(QueryField("document.customer.name"))
+        resolved.projectionField.assert().isEqualTo(QueryField("source.customer.name"))
+        resolved.bindings.assert().doesNotContainKey(QueryCapability.ELEMENT_SCOPE)
     }
 
     @Test
@@ -130,9 +237,13 @@ class QueryModelSchemaTest {
             linkedMapOf(
                 QueryField("state.z") to fieldSchema(
                     bindings = mapOf(
-                        QueryCapability.EXACT_MATCH to QueryFieldBinding("private_z", QueryStorageType("keyword")),
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                            QueryField("private_z"),
+                            QueryField("private_z"),
+                            QueryStorageType("keyword"),
+                        ),
                     ),
-                    projectionPath = "private_source_z",
+                    projectionField = QueryField("private_source_z"),
                 ),
                 QueryField("state.a") to fieldSchema(title = "A"),
             ),
@@ -188,6 +299,7 @@ class QueryModelSchemaTest {
             false,
             emptyMap(),
             null,
+            QueryRewriteMode.NONE,
         )
 
         declaration.maskRule.assert().isEqualTo(DeclarationValue.Unset)
@@ -311,7 +423,8 @@ class QueryModelSchemaTest {
         title: String? = null,
         dynamicChildren: Boolean = false,
         bindings: Map<QueryCapability, QueryFieldBinding> = emptyMap(),
-        projectionPath: String? = null,
+        projectionField: QueryField? = null,
+        rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
         maskRule: MaskRule? = null,
     ): QueryFieldSchema = QueryFieldSchema(
         title = title,
@@ -325,7 +438,8 @@ class QueryModelSchemaTest {
         dynamicChildren = dynamicChildren,
         maskRule = maskRule,
         bindings = bindings,
-        projectionPath = projectionPath,
+        projectionField = projectionField,
+        rewriteMode = rewriteMode,
     )
 
     private fun fullMaskRule(): MaskRule {

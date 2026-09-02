@@ -30,6 +30,7 @@ import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.serialization.MessageRecords
@@ -419,18 +420,23 @@ class MongoAggregationCompilerTest {
         valueType: QueryValueType = QueryValueType.STRING,
         semanticType: Temporal? = null,
         dynamicChildren: Boolean = false,
-    ) = QueryField(logicalPath) to QueryFieldSchema(
-        title = null,
-        description = null,
-        enumValues = null,
-        valueTypes = setOf(valueType),
-        nullable = false,
-        required = true,
-        cardinality = QueryCardinality.SINGLE,
-        semanticType = semanticType,
-        dynamicChildren = dynamicChildren,
-        bindings = mapOf(
-            capability to QueryFieldBinding(physicalPath, QueryStorageType("test")),
-        ),
-    )
+        rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
+    ): Pair<QueryField, QueryFieldSchema> {
+        val source = QueryField(logicalPath)
+        return source to QueryFieldSchema(
+            title = null,
+            description = null,
+            enumValues = null,
+            valueTypes = setOf(valueType),
+            nullable = false,
+            required = true,
+            cardinality = QueryCardinality.SINGLE,
+            semanticType = semanticType,
+            dynamicChildren = dynamicChildren,
+            bindings = mapOf(
+                capability to QueryFieldBinding(source, QueryField(physicalPath), QueryStorageType("test")),
+            ),
+            rewriteMode = rewriteMode,
+        )
+    }
 }
