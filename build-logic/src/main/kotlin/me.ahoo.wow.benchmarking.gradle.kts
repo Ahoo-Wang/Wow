@@ -374,6 +374,7 @@ val quickBenchmarkJvmArgs = listOf(
 
 val mongoBatchQuickCurrentOptions = "128x1000us"
 val mongoBatchQuickCandidateOptions = "192x250us"
+val quickBatchRegenerateAggregateSnapshotLaneCounts = listOf(1, 2, 4)
 
 val asyncBenchmarkJvmArgs = listOf(
     "-Xmx2g",
@@ -429,6 +430,16 @@ val quickMongoSnapshotBatchSaveProfile = quickProfile.copy(
     threads = benchmarkThreadsProperty("benchmarkQuickMongoSnapshotBatchThreads", listOf(1, 4)),
     benchmarkModes = listOf("thrpt", "avgt"),
     parameters = mapOf("batchOptions" to mongoBatchQuickCurrentOptions),
+)
+
+val quickBatchRegenerateAggregateSnapshotProfile = quickProfile.copy(
+    id = "quick-batch-regenerate-aggregate-snapshot",
+    threads = benchmarkThreadsProperty("benchmarkQuickBatchRegenerateSnapshotThreads", listOf(1, 4)),
+    benchmarkModes = listOf("thrpt", "avgt"),
+    parameters = mapOf(
+        "batchOptions" to mongoBatchQuickCurrentOptions,
+        "laneCount" to quickBatchRegenerateAggregateSnapshotLaneCounts.joinToString(","),
+    ),
 )
 
 val quickMongoBatchCandidateE2EProfile = BenchmarkRunProfile(
@@ -829,6 +840,38 @@ val mongoSnapshotBatchSaveSuite = BenchmarkSuite(
     ),
 )
 
+val batchRegenerateAggregateSnapshotSuite = BenchmarkSuite(
+    id = "batch-regenerate-aggregate-snapshot",
+    displayName = "Batch Regenerate Aggregate Snapshot",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.infrastructure.snapshot.BatchRegenerateAggregateSnapshotBenchmark",
+    ),
+    resultFileName = "batch-regenerate-aggregate-snapshot.json",
+    humanFileName = "batch-regenerate-aggregate-snapshot-human.txt",
+    requiredForGroupedReport = false,
+    formalRegressionSource = false,
+    requiredServices = mongoBatchAppendSuite.requiredServices + listOf(
+        BenchmarkRequiredService(
+            service = "Elasticsearch",
+            host = benchmarkDockerConfig("WOW_BENCHMARK_ELASTICSEARCH_HOST", "localhost"),
+            port = benchmarkDockerPort("WOW_BENCHMARK_ELASTICSEARCH_HOST_PORT", 9200),
+        ),
+    ),
+    runMetadata = linkedMapOf(
+        "experiment" to "quick-batch-regenerate-aggregate-snapshot",
+        "evidenceClass" to "quick-engineering",
+        "formalProtocol" to "false",
+        "batchOptions" to mongoBatchQuickCurrentOptions,
+        "laneCount" to quickBatchRegenerateAggregateSnapshotLaneCounts.joinToString(","),
+        "operationsPerInvocation" to "128",
+        "aggregatesPerInvocation" to "128",
+        "eventsPerAggregate" to "10",
+        "executionConcurrency" to "128",
+        "threadPartitioning" to "thread-indexed-aggregate-batches",
+        "correctnessCheck" to "processed-count-and-snapshot-document-count-and-version",
+    ),
+)
+
 val quickMongoBatchCandidateE2ESuite = mongoBatchAppendSuite.copy(
     id = "mongo-batch-append-quick-engineering",
     displayName = "Quick Mongo Batch Candidate E2E",
@@ -1191,6 +1234,14 @@ val quickMongoSnapshotBatchSaveTaskSpec = BenchmarkTaskSpec(
     description = "Compares Mongo snapshot updateOne, native bulkWrite, and coordinated batch throughput and latency.",
 )
 
+val quickBatchRegenerateAggregateSnapshotTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkQuickBatchRegenerateAggregateSnapshot",
+    suite = batchRegenerateAggregateSnapshotSuite,
+    profile = quickBatchRegenerateAggregateSnapshotProfile,
+    description =
+        "Measures batch aggregate snapshot regeneration from MongoEventStore into ElasticsearchSnapshotStore.",
+)
+
 val quickMongoBatchCandidateE2ETaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkQuickMongoBatchAppendCandidateE2E",
     suite = quickMongoBatchCandidateE2ESuite,
@@ -1330,6 +1381,7 @@ val benchmarkTaskSpecs = listOf(
     quickInfrastructureE2ETaskSpec,
     quickMongoBatchAppendTaskSpec,
     quickMongoSnapshotBatchSaveTaskSpec,
+    quickBatchRegenerateAggregateSnapshotTaskSpec,
     quickMongoBatchCandidateE2ETaskSpec,
     quickMongoBatchCoordinatorConcurrencyTaskSpec,
     confirmationMongoBatchAppendTaskSpec,
@@ -2551,6 +2603,8 @@ val benchmarkReportFile = reportsDir.file("quick-framework-e2e.md")
 val batchBenchmarkReportFile = reportsDir.file("quick-batch-command-write-e2e.md")
 val mongoBatchAppendReportFile = reportsDir.file("quick-mongo-batch-append.md")
 val mongoSnapshotBatchSaveReportFile = reportsDir.file("quick-mongo-snapshot-batch-save.md")
+val batchRegenerateAggregateSnapshotReportFile =
+    reportsDir.file("quick-batch-regenerate-aggregate-snapshot.md")
 val mongoBatchAppendConfirmationReportFile = reportsDir.file("confirmation-mongo-batch-append.md")
 val mongoBatchAppendPairedE2EReportFile = reportsDir.file("mongo-batch-append-paired-e2e.md")
 val elasticsearchBatchAppendReportFile = reportsDir.file("quick-elasticsearch-batch-append.md")
@@ -5668,6 +5722,86 @@ fun StringBuilder.appendMongoSnapshotBatchSaveComparisons(rows: List<ParsedBench
     )
 }
 
+fun StringBuilder.appendBatchRegenerateAggregateSnapshotMetric(
+    rows: List<ParsedBenchmarkResult>,
+    throughput: Boolean,
+) {
+    val metricRows = if (throughput) {
+        rows.filter { it.unit.equals("ops/s", ignoreCase = true) }
+    } else {
+        rows.filter { it.mode == "avgt" }
+    }
+    val rowsByKey = metricRows.groupBy(::storageBatchComparisonKey)
+    val metricName = if (throughput) "Throughput" else "Amortized time per aggregate"
+    appendLine("### $metricName")
+    appendLine()
+    appendLine(
+        "| JMH Threads | Parameters | Single SnapshotStore | Batched SnapshotStore | Batch vs single |"
+    )
+    appendLine("|-------------|------------|---------------------|----------------------|----------------|")
+    rowsByKey.entries
+        .sortedWith(compareBy({ it.key.threads }, { storageBatchParameters(it.key.parameters) }))
+        .forEach { (key, comparisonRows) ->
+            val rowsByMethod = comparisonRows.groupBy(::benchmarkMethodName)
+            fun requiredRow(method: String): ParsedBenchmarkResult {
+                val matchingRows = rowsByMethod[method].orEmpty()
+                if (matchingRows.size != 1) {
+                    throw GradleException(
+                        "Batch snapshot regeneration comparison requires exactly one $method row for $key, " +
+                            "found ${matchingRows.size}."
+                    )
+                }
+                return matchingRows.single()
+            }
+
+            val single = requiredRow("regenerateWithSingleSnapshotStore")
+            val batch = requiredRow("regenerateWithBatchSnapshotStore")
+            check(single.unit == batch.unit) {
+                "Batch snapshot regeneration comparison units do not match for $key."
+            }
+            val scale = benchmarkMetricScale(listOf(single.score, batch.score), single.unit)
+            val singleScore = formatScaledBenchmarkScore(single.score, single.scoreError, scale)
+            val batchScore = formatScaledBenchmarkScore(batch.score, batch.scoreError, scale)
+            val change = if (throughput) {
+                relativeChangePercent(single.score, batch.score)
+            } else {
+                reductionPercent(single.score, batch.score)
+            }
+            appendLine(
+                "| ${key.threads} | `${storageBatchParameters(key.parameters)}` | " +
+                    "${singleScore.scoreWithUnit} | ${batchScore.scoreWithUnit} | " +
+                    "${formatSignedPercent(change)} |"
+            )
+        }
+    appendLine()
+    appendLine(
+        if (throughput) {
+            "Higher throughput is better; positive changes are gains."
+        } else {
+            "Lower amortized time is better; positive changes are reductions. " +
+                "JMH normalizes each 128-aggregate invocation by 128."
+        }
+    )
+    appendLine()
+}
+
+fun StringBuilder.appendBatchRegenerateAggregateSnapshotComparisons(
+    rows: List<ParsedBenchmarkResult>,
+) {
+    appendLine("## Batch Regenerate Comparison")
+    appendLine()
+    appendLine(
+        "Each invocation scans 128 aggregates from MongoEventStore, replays 10 events per aggregate, " +
+            "and saves the rebuilt snapshots to ElasticsearchSnapshotStore. Both rows use the same " +
+            "BatchExecutionPolicy; the batched row enables Elasticsearch snapshot save batching. " +
+            "Each JMH worker uses a distinct 128-aggregate partition; iteration validation checks one " +
+            "snapshot per seeded aggregate and version correctness."
+    )
+    appendLine()
+    appendBatchRegenerateAggregateSnapshotMetric(rows, throughput = true)
+    appendBatchRegenerateAggregateSnapshotMetric(rows, throughput = false)
+}
+
 val quickMongoSnapshotBatchSaveMethods = setOf(
     "saveWithUpdateOne",
     "saveWithNativeBulkWrite",
@@ -5687,6 +5821,31 @@ val quickMongoSnapshotBatchSaveMatrix = BenchmarkMatrixSpec(
 fun validateQuickMongoSnapshotBatchSaveRows(rows: List<ParsedBenchmarkResult>) {
     validateBenchmarkMatrix(
         quickMongoSnapshotBatchSaveMatrix,
+        rows.map(ParsedBenchmarkResult::toBuildLogicRow),
+    )
+}
+
+val quickBatchRegenerateAggregateSnapshotMethods = setOf(
+    "regenerateWithSingleSnapshotStore",
+    "regenerateWithBatchSnapshotStore",
+)
+
+val quickBatchRegenerateAggregateSnapshotMatrix = BenchmarkMatrixSpec(
+    name = "Quick batch aggregate snapshot regeneration",
+    suiteId = batchRegenerateAggregateSnapshotSuite.id,
+    profile = quickBatchRegenerateAggregateSnapshotProfile.id,
+    methods = quickBatchRegenerateAggregateSnapshotMethods,
+    threads = quickBatchRegenerateAggregateSnapshotProfile.threads.toSet(),
+    modes = quickBatchRegenerateAggregateSnapshotProfile.benchmarkModes.toSet(),
+    fixedParameters = mapOf("batchOptions" to mongoBatchQuickCurrentOptions),
+    parameterDimensions = mapOf(
+        "laneCount" to quickBatchRegenerateAggregateSnapshotLaneCounts.map(Int::toString),
+    ),
+)
+
+fun validateQuickBatchRegenerateAggregateSnapshotRows(rows: List<ParsedBenchmarkResult>) {
+    validateBenchmarkMatrix(
+        quickBatchRegenerateAggregateSnapshotMatrix,
         rows.map(ParsedBenchmarkResult::toBuildLogicRow),
     )
 }
@@ -9518,6 +9677,79 @@ val verifyMongoSnapshotBatchProtocol = tasks.register("verifyMongoSnapshotBatchP
     }
 }
 
+val verifyBatchRegenerateAggregateSnapshotProtocol = tasks.register(
+    "verifyBatchRegenerateAggregateSnapshotProtocol"
+) {
+    description = "Verify the batch aggregate snapshot regeneration benchmark protocol."
+    group = "verification"
+
+    doLast {
+        check(batchRegenerateAggregateSnapshotSuite.id == "batch-regenerate-aggregate-snapshot")
+        check(
+            batchRegenerateAggregateSnapshotSuite.includeClasses ==
+                listOf(
+                    "me.ahoo.wow.benchmark.infrastructure.snapshot." +
+                        "BatchRegenerateAggregateSnapshotBenchmark"
+                )
+        )
+        check(
+            batchRegenerateAggregateSnapshotSuite.requiredServices.map(BenchmarkRequiredService::service)
+                .toSet() == setOf("MongoDB", "Elasticsearch")
+        )
+        check(
+            batchRegenerateAggregateSnapshotSuite.runMetadata["correctnessCheck"] ==
+                "processed-count-and-snapshot-document-count-and-version"
+        )
+        check(
+            batchRegenerateAggregateSnapshotSuite.runMetadata["threadPartitioning"] ==
+                "thread-indexed-aggregate-batches"
+        )
+        check(batchRegenerateAggregateSnapshotSuite.runMetadata["laneCount"] == "1,2,4")
+        check(batchRegenerateAggregateSnapshotSuite.runMetadata["aggregatesPerInvocation"] == "128")
+        check(batchRegenerateAggregateSnapshotSuite.runMetadata["eventsPerAggregate"] == "10")
+        check(quickBatchRegenerateAggregateSnapshotProfile.id == "quick-batch-regenerate-aggregate-snapshot")
+        check(quickBatchRegenerateAggregateSnapshotProfile.warmupIterations == 1)
+        check(quickBatchRegenerateAggregateSnapshotProfile.warmupTime == "2s")
+        check(quickBatchRegenerateAggregateSnapshotProfile.measurementIterations == 2)
+        check(quickBatchRegenerateAggregateSnapshotProfile.measurementTime == "3s")
+        check(quickBatchRegenerateAggregateSnapshotProfile.forks == 1)
+        check(quickBatchRegenerateAggregateSnapshotProfile.threads.isNotEmpty())
+        check(quickBatchRegenerateAggregateSnapshotProfile.threads.all { it > 0 })
+        check(
+            quickBatchRegenerateAggregateSnapshotProfile.benchmarkModes ==
+                listOf("thrpt", "avgt")
+        )
+        check(quickBatchRegenerateAggregateSnapshotProfile.includeGcProfiler)
+        check(
+            quickBatchRegenerateAggregateSnapshotProfile.parameters ==
+                mapOf(
+                    "batchOptions" to mongoBatchQuickCurrentOptions,
+                    "laneCount" to "1,2,4",
+                )
+        )
+        check(
+            quickBatchRegenerateAggregateSnapshotMatrix.methods ==
+                quickBatchRegenerateAggregateSnapshotMethods
+        )
+        check(
+            quickBatchRegenerateAggregateSnapshotMatrix.threads ==
+                quickBatchRegenerateAggregateSnapshotProfile.threads.toSet()
+        )
+        check(
+            quickBatchRegenerateAggregateSnapshotMatrix.fixedParameters ==
+                mapOf("batchOptions" to mongoBatchQuickCurrentOptions)
+        )
+        check(
+            quickBatchRegenerateAggregateSnapshotMatrix.parameterDimensions ==
+                mapOf("laneCount" to listOf("1", "2", "4"))
+        )
+        check(
+            quickBatchRegenerateAggregateSnapshotTaskSpec.taskName ==
+                "benchmarkQuickBatchRegenerateAggregateSnapshot"
+        )
+    }
+}
+
 tasks.named("check") {
     dependsOn(verifyBenchmarkRequiredServiceManifest)
     dependsOn(verifyBenchmarkInfrastructureManifest)
@@ -9526,6 +9758,7 @@ tasks.named("check") {
     dependsOn(verifyMongoBatchOptionsPairedStatistics)
     dependsOn(verifyMongoBatchOptionsQuickProtocol)
     dependsOn(verifyMongoSnapshotBatchProtocol)
+    dependsOn(verifyBatchRegenerateAggregateSnapshotProtocol)
 }
 
 fun StringBuilder.appendBenchmarkTable(rows: List<ParsedBenchmarkResult>) {
@@ -9998,6 +10231,43 @@ tasks.register("generateMongoSnapshotBatchSaveBenchmarkReport") {
         outputFile.writeText(report)
         logger.lifecycle(
             "Mongo SnapshotStore batch-save benchmark report generated: ${outputFile.absolutePath}"
+        )
+    }
+}
+
+tasks.register("generateBatchRegenerateAggregateSnapshotBenchmarkReport") {
+    description = "Generate the quick batch aggregate snapshot regeneration report."
+    group = "benchmark"
+    mustRunAfter("benchmarkQuickBatchRegenerateAggregateSnapshot")
+    outputs.file(batchRegenerateAggregateSnapshotReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(quickBatchRegenerateAggregateSnapshotTaskSpec),
+            title = "Quick Batch Regenerate Aggregate Snapshot Benchmark Report",
+            command = "./gradlew :wow-benchmarks:benchmarkQuickBatchRegenerateAggregateSnapshot " +
+                ":wow-benchmarks:generateBatchRegenerateAggregateSnapshotBenchmarkReport " +
+                "-PbenchmarkQuickBatchRegenerateSnapshotThreads=" +
+                "${quickBatchRegenerateAggregateSnapshotProfile.threads.joinToString(",")} " +
+                "--no-parallel --no-daemon",
+            description = "This directional infrastructure benchmark measures batch aggregate snapshot " +
+                "regeneration across MongoEventStore and ElasticsearchSnapshotStore. Each invocation scans " +
+                "128 aggregates, replays 10 events per aggregate, and compares the direct and batched " +
+                "Elasticsearch snapshot save paths. At multiple JMH threads, each worker uses a distinct " +
+                "aggregate partition. It is local evidence rather than a production capacity claim.",
+            includeInfrastructureRuntime = true,
+            validateRows = ::validateQuickBatchRegenerateAggregateSnapshotRows,
+            appendBeforeResults = { rows ->
+                appendBatchRegenerateAggregateSnapshotComparisons(rows)
+            },
+        )
+
+        val outputFile = batchRegenerateAggregateSnapshotReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle(
+            "Batch aggregate snapshot regeneration benchmark report generated: ${outputFile.absolutePath}"
         )
     }
 }
