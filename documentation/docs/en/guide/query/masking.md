@@ -7,7 +7,7 @@ description: Configure Schema-driven masking for managed Snapshot and EventStrea
 
 ## Scope and Execution Order
 
-Field masking is implemented by the framework-owned `SchemaMaskQueryFilter` in the managed `QueryGateway` response chain and requires the selected Backend to provide `QueryModelSchemaProvider`. The framework always installs this filter as the outermost filter; its result phase is fixed after every generic result filter and before Jackson materializes a typed result:
+Field masking is implemented by the framework-owned `SchemaMaskQueryFilter` in the managed `QueryGateway` response chain and requires the Gateway to receive an explicit `QueryModelSchemaProvider`. The Spring Registrar obtains that Provider from the selected routed Backend. The framework always installs this filter as the outermost filter; its result phase is fixed after every generic result filter and before Jackson materializes a typed result:
 
 ```mermaid
 flowchart LR
@@ -74,7 +74,7 @@ A Strategy can be a Kotlin `object` or a public no-argument class. The example d
 
 At runtime, `JsonQuerySchemaSource` discovers effective annotations on fields, Jackson-visible non-public getters, inherited parent Kotlin properties, and interface getters. Rules flow through Query Schema merging and backend adapters, but public `QueryModelSchemaMetadata` exposes only field-level `masked: Boolean`. Strategy types, annotation parameters, compiled rules, and executable functions remain in memory.
 
-For every result query, `SchemaMaskQueryFilter` reads the Provider's current Schema: the same Schema instance reuses its compiled Masker, while a refresh-published new instance recompiles it. A Schema-load failure is not cached, so a later subscription or `retry` can load again. When the root Schema has no `masked` field, result handling reuses an empty masking decision on an O(1) fast path: it creates no masker, does not walk JSON, and adds no per-result `map`.
+Before creating `QueryContext`, the Gateway reads the Provider's current Schema once per subscription, and `SchemaMaskQueryFilter` uses `QueryContext.schema` directly. Filter, Resolver, Backend, and Mask therefore share the same instance. After refresh publishes a new instance, a new subscription obtains it and recompiles the Masker. A Schema-load failure is not cached, so a later subscription or `retry` can load again; the failed subscription creates no Context and executes neither Filters nor the Backend. When the root Schema has no `masked` field, result handling reuses an empty masking decision on an O(1) fast path: it creates no masker, does not walk JSON, and adds no per-result `map`.
 
 ## Behavior Matrix
 
@@ -86,7 +86,7 @@ For every result query, `SchemaMaskQueryFilter` reads the Provider's current Sch
 | Snapshot state-only / aggregate-state load | Reuses the Snapshot Gateway and is masked |
 | Ordinary filter, full-text search, sort | May reference a masked field; the backend matches or sorts raw values, while the response remains masked |
 | `CursorQuery` effective sort | Must resolve exactly, be single-valued, carry no masking rule, and not alias a masked projection or physical binding; otherwise it is rejected before Backend execution so raw sort values or multi-value arrays cannot enter `nextCursor` |
-| Data-query `count` | Count is unchanged; the masking layer neither loads Schema nor reads field values |
+| Data-query `count` | Count is unchanged; the Gateway still loads Schema for admission, but the masking layer reads no field values |
 | Aggregation group, field metric, numeric expression | A masked-field reference resolves as `INCOMPATIBLE` and is rejected before Backend execution |
 | Schema required by aggregation is unavailable | Fails closed; even a count-only aggregation does not fall back to execution |
 
@@ -106,7 +106,7 @@ Masking safely skips an Event projection with no top-level `body`, or with that 
 ## Trusted Raw-Value Boundaries
 
 - Calling `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` directly bypasses the entire Gateway, including query filters, error observation, and masking, and returns raw Backend values.
-- A custom Backend without `QueryModelSchemaProvider` still runs Gateway filters and error handling when wrapped by a Gateway, but only masking is skipped; field values retain their raw form.
+- A custom Backend used by a managed Gateway must be paired with a `QueryModelSchemaProvider`. An unavailable Provider fails closed before Context and Backend execution instead of skipping masking and returning raw values.
 
 Both are suitable only for storage extensions, Backend contract tests, and trusted diagnostics, not ordinary application queries.
 

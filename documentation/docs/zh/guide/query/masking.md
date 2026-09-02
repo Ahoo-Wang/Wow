@@ -7,7 +7,7 @@ description: 使用静态字段注解为受管 Snapshot 与 EventStream 查询�
 
 ## 适用范围与执行顺序
 
-字段脱敏由受管 `QueryGateway` 响应链中的框架内建 `SchemaMaskQueryFilter` 承担，并要求选中的 Backend 提供 `QueryModelSchemaProvider`。该 Filter 由框架强制装配在最外层；它的结果阶段固定在全部通用结果 Filter 完成之后、typed 结果由 Jackson 物化之前：
+字段脱敏由受管 `QueryGateway` 响应链中的框架内建 `SchemaMaskQueryFilter` 承担，并要求 Gateway 显式取得 `QueryModelSchemaProvider`。Spring Registrar 从选中的 routed Backend 取得该 Provider。该 Filter 由框架强制装配在最外层；它的结果阶段固定在全部通用结果 Filter 完成之后、typed 结果由 Jackson 物化之前：
 
 ```mermaid
 flowchart LR
@@ -74,7 +74,7 @@ Strategy 可以是 Kotlin `object` 或公开无参类。示例不按 UTF-16 code
 
 `JsonQuerySchemaSource` 在运行时发现字段、Jackson 可见的非 public getter，以及从父类 Kotlin property 或接口 getter 继承的有效注解。规则随 Query Schema 合并和后端 adapter 传递，但公开 `QueryModelSchemaMetadata` 只暴露字段级 `masked: Boolean`；Strategy 类型、注解参数、编译后的规则和可执行函数只存在于内存中。
 
-`SchemaMaskQueryFilter` 每次结果查询都会读取 Provider 当前 Schema：同一 Schema 实例复用已编译的 Masker，refresh 发布新实例后会重新编译。Schema 加载失败不会被缓存，后续订阅或 `retry` 可以重新加载。根 Schema 没有 `masked` 字段时，复用空 Mask 判定走 O(1) 快速路径：不创建 masker、不遍历 JSON，也不为每条结果追加 `map`。
+Gateway 每次订阅在创建 `QueryContext` 前读取一次 Provider 当前 Schema，`SchemaMaskQueryFilter` 直接使用 `QueryContext.schema`；Filter、Resolver、Backend 与 Mask 因而共享同一实例。refresh 发布新实例后，新的订阅会取得它并重新编译 Masker。Schema 加载失败不会被缓存，后续订阅或 `retry` 可以重新加载；失败的订阅不会创建 Context，也不会执行 Filter 或 Backend。根 Schema 没有 `masked` 字段时，复用空 Mask 判定走 O(1) 快速路径：不创建 masker、不遍历 JSON，也不为每条结果追加 `map`。
 
 ## 行为矩阵
 
@@ -86,7 +86,7 @@ Strategy 可以是 Kotlin `object` 或公开无参类。示例不按 UTF-16 code
 | Snapshot state-only / aggregate-state load | 复用 Snapshot Gateway，同样脱敏 |
 | 普通 filter、全文 search、sort | 允许引用 Mask 字段；后端按原值匹配或排序，响应仍脱敏 |
 | `CursorQuery` 有效 sort | 必须精确解析、是单值字段、不能带 Mask 规则，也不能通过 projection 或物理 binding alias 指向 masked 字段；否则在 Backend 前拒绝，避免原始排序值或多值数组进入 `nextCursor` |
-| 数据查询 `count` | 计数不变；Mask 层不加载 Schema、不处理字段值 |
+| 数据查询 `count` | 计数不变；Gateway 仍加载 Schema 完成准入，但 Mask 层不处理字段值 |
 | 聚合 group、字段 metric、数值 expression | 引用 Mask 字段时解析为 `INCOMPATIBLE` 并在 Backend 执行前拒绝 |
 | 聚合所需 Schema 不可用 | 失败关闭；即使聚合只含 `COUNT` 也不降级执行 |
 
@@ -106,7 +106,7 @@ Event projection 完全没有顶层 `body`，或把该事件数组投影为 `nul
 ## 受信原始值边界
 
 - 直接调用 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory` 会绕过整个 Gateway，包括查询 Filter、错误观察和 Mask，并返回 Backend 原始值。
-- 无 `QueryModelSchemaProvider` 的自定义 Backend 即使由 Gateway 包装，仍会执行 Gateway Filter 与错误处理，但只跳过 Mask；字段值保持原始形态。
+- 自定义 Backend 接入受管 Gateway 时必须同时提供 `QueryModelSchemaProvider`；Provider 不可用时在 Context 与 Backend 之前失败关闭，不会跳过 Mask 返回原值。
 
 两者都只适合存储扩展、Backend 合同测试和受信诊断，不能作为普通业务查询入口。
 

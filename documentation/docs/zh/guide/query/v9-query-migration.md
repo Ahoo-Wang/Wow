@@ -155,11 +155,26 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 
 typed 与节点返回共享 `SINGLE`、`LIST`、`PAGED`、`CURSOR` 操作类型。Backend 始终返回 `ObjectNode`，Gateway 在通用结果 Filter 完成后按需使用 Jackson 物化 typed 结果。
 
-原 `QueryService<R>` 没有一对一替代类型：存储查询与 Schema 能力迁移到返回 `ObjectNode` 的 `QueryBackend`，受管入口、过滤链与 typed 物化留在聚合级 `QueryGateway<R>`。原 `QueryGateway` 每次调用接收 `NamedAggregate`；V9 在构造 Gateway 时只绑定 `NamedAggregate` 与 routed Backend，因此 `single`、`list`、`paged`、`cursor`、`count` 和 `aggregate` 调用不再传聚合参数。自定义 `AbstractQueryGateway` 子类必须按新构造合同提供 `namedAggregate`、`backend`、`targetType`、`filters`、`filterType` 与 `errorHandler`；没有自定义入口策略时直接使用 Snapshot/EventStream 默认 Gateway。
+原 `QueryService<R>` 没有一对一替代类型：存储查询与 Schema 能力迁移到返回 `ObjectNode` 的 `QueryBackend`，受管入口、过滤链与 typed 物化留在聚合级 `QueryGateway<R>`。原 `QueryGateway` 每次调用接收 `NamedAggregate`；V9 在构造 Gateway 时只绑定 `NamedAggregate` 与 routed Backend，因此 `single`、`list`、`paged`、`cursor`、`count` 和 `aggregate` 调用不再传聚合参数。自定义 `AbstractQueryGateway` 子类必须按新构造合同提供 `namedAggregate`、`backend`、`schemaProvider`、`validationMode`、`targetType`、`filters`、`filterType` 与 `errorHandler`；没有自定义入口策略时直接使用 Snapshot/EventStream 默认 Gateway。
+
+### 自定义 QueryBackend 迁移
+
+自定义 Backend 必须一次性迁移全部六个执行签名；V9 不提供接收原始 Query 的兼容重载：
+
+```kotlin
+fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode>
+fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode>
+fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
+fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
+fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
+fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
+```
+
+用 `query.query` 编译已准入的查询，用非空的 `query.schema` 编译 Projection 和 Aggregation。删除执行路径中的 Provider 读取、Schema resolve、验证模式分支和 Cursor 唯一字段追加；`QueryModelSchema` 已按模型追加并验证唯一排序。受管 Gateway 每次订阅在创建 Context 前获取一次 Schema，Filter 链从开始即可读取同一实例；Schema 获取失败时 Filter 和 Backend 都不会执行。具体 Backend 可以继续委托实现 `QueryModelSchemaProvider` 供 Factory、Schema HTTP 与 Gateway 装配使用，但六个执行方法不得依赖该委托能力。
 
 Filter 不再通过 `QueryType.isDynamic` 判断最终返回 typed 对象还是节点；两条路径在同一 ObjectNode FilterChain 中处理，区别仅发生在链完成后的可选 Jackson 物化。删除只为 typed/dynamic 分流的分支，不要发明新的结果类型判别器。
 
-删除旧 Mask 类型、实现、Bean、Registry 与自定义 Filter，不建立 ObjectNode Mask 兼容层。把原规则声明到领域字段后，Snapshot、EventStream 的 typed、dynamic 与 aggregate-state load 会在同一条受管 Gateway 路径自动脱敏；框架内建 `SchemaMaskQueryFilter` 每次结果查询读取当前 Schema，同一实例复用 Masker，refresh 新实例重新编译，Schema 不可用时结果查询失败关闭且不订阅 Backend，count 不读取 Mask Schema。直接 Backend Factory 或不提供 `QueryModelSchemaProvider` 的自定义 Backend 仍是返回原始值的受信低层边界；`COMPATIBLE` unavailable fallback 只属于直接 `QueryModelSchemaProvider.resolve(...)` 请求解析。
+删除旧 Mask 类型、实现、Bean、Registry 与自定义 Filter，不建立 ObjectNode Mask 兼容层。把原规则声明到领域字段后，Snapshot、EventStream 的 typed、dynamic 与 aggregate-state load 会在同一条受管 Gateway 路径自动脱敏；框架内建 `SchemaMaskQueryFilter` 读取 `QueryContext.schema`，同一实例复用 Masker，refresh 后的新订阅读取新实例并重新编译。Schema 不可用时所有受管 Gateway 调用在 Context、Filter 与 Backend 之前失败关闭；count 不执行结果脱敏，但仍需要 Schema 完成请求准入。直接 Backend Factory 是返回原始值的受信低层边界，调用方必须自行提供已接受的 `ResolvedQuery`；`COMPATIBLE` unavailable fallback 只属于直接 `QueryModelSchemaProvider.resolve(...)` 请求解析。
 
 ## 静态 Mask 迁移
 
@@ -202,7 +217,8 @@ JSON 数组与 SSE 的流式行为保持不变。若流在输出部分元素后�
 ## 最小迁移步骤
 
 1. 按表替换 import、构造参数、Bean qualifier 与 Factory 实现。
-2. 让自定义 Backend 的每次订阅返回独占、只含标准 JSON tree 的新 `ObjectNode`，把 typed 转换留给 Gateway。
-3. 删除全部旧 Mask 实现、Bean、Registry 与 Filter；按[字段脱敏](./masking.md)把每条旧规则迁移为 `@Mask`、`@KeepMask` 或自定义 `@Masking(strategy)` 字段注解。
-4. 检查 Schema 的 `masked` 元数据；分别验证 Snapshot/EventStream 的 typed、dynamic、state-only/aggregate-state load，以及 direct Backend 原始值边界。
-5. 验证普通 filter/search/sort 和 count 保持可用，并确认 group、字段 metric、expression 引用 Mask 字段时失败关闭；再核对实际 MongoDB/Elasticsearch 路由、HTTP/OpenAPI 与存储原值。
+2. 把自定义 Backend 的六个方法全部改为接收 `ResolvedQuery`，删除原始 Query 重载、执行期 Schema resolve、验证模式与 Cursor 唯一字段追加，并用 `query.schema` 编译 Projection 和 Aggregation。
+3. 让自定义 Backend 的每次订阅返回独占、只含标准 JSON tree 的新 `ObjectNode`，把 typed 转换留给 Gateway。
+4. 删除全部旧 Mask 实现、Bean、Registry 与 Filter；按[字段脱敏](./masking.md)把每条旧规则迁移为 `@Mask`、`@KeepMask` 或自定义 `@Masking(strategy)` 字段注解。
+5. 检查 Schema 的 `masked` 元数据；分别验证 Snapshot/EventStream 的 typed、dynamic、state-only/aggregate-state load，以及 direct Backend 原始值边界。
+6. 验证普通 filter/search/sort 和 count 保持可用，并确认 group、字段 metric、expression 引用 Mask 字段时失败关闭；再核对实际 MongoDB/Elasticsearch 路由、HTTP/OpenAPI 与存储原值。

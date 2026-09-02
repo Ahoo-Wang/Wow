@@ -5,7 +5,7 @@ description: 固化 QueryContext Schema 快照与 ResolvedQuery 到 QueryBackend
 
 # QueryGateway ResolvedQuery 一阶段演进设计
 
-> 状态：设计已确认，尚未实现。本文描述目标架构，不代表当前运行时行为。
+> 状态：已实现。
 
 ## 目标
 

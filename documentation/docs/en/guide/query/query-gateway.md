@@ -20,26 +20,31 @@ sequenceDiagram
     participant Caller as Caller
     participant Entry as WebFlux Handler / JVM
     participant Gateway as Aggregate-bound Gateway
+    participant Provider as QueryModelSchemaProvider
     participant Filters as One around chain
     participant Backend as Bound QueryBackend
     participant Mask as SchemaMaskQueryFilter
     participant Jackson as Optional typed conversion
     Caller->>Entry: Query DTO / DSL
     Entry->>Gateway: Query after scope rewriting
-    Gateway->>Gateway: Create QueryContext + QueryType
+    Gateway->>Provider: Obtain Schema once per subscription
+    Provider-->>Gateway: Non-null QueryModelSchema
+    Gateway->>Gateway: Create QueryContext(query, schema)
     Gateway->>Filters: Run request filters
-    Filters->>Backend: single / list / paged / cursor / count / aggregate
+    Filters-->>Gateway: Final logical query
+    Gateway->>Gateway: Resolve and validate with context.schema
+    Gateway->>Backend: ResolvedQuery(query, context.schema)
     Backend-->>Filters: ObjectNode / PagedList / CursorPage / count
     Filters-->>Mask: Complete all result filters (single/list/paged/cursor)
     Mask-->>Jackson: Masked ObjectNode
     Jackson-->>Caller: ObjectNode or typed result
 ```
 
-At Gateway assembly, the registrar calls the routing Factory once for the `NamedAggregate` and binds the selected Backend. Requests are not routed again. The Backend produces `ObjectNode`. The framework-owned outermost `SchemaMaskQueryFilter` reads the Provider's current Schema after all generic result filters and masks the final node, reusing a Masker for the same Schema instance and recompiling for a refresh-published instance, before Jackson finally materializes typed results. Unavailable Schema fails these managed result queries closed without subscribing to the Backend. Count remains `Long` and does not read masking Schema. Aggregation remains a stream of `ObjectNode` rows, with Schema rejecting groups, metrics, and expressions that reference masked fields.
+At Gateway assembly, the registrar calls the routing Factory once for the `NamedAggregate` and binds the selected Backend. Requests are not routed again. On each subscription, the Gateway obtains one Schema from the Provider, creates the Context, runs Filters, resolves the final query under the configured validation mode, and passes only a `ResolvedQuery` to the Backend. The Backend produces `ObjectNode`; it neither obtains Schema nor chooses a validation mode. The framework-owned outermost `SchemaMaskQueryFilter` reads `QueryContext.schema` after all generic result filters and masks the final node. Filter, Resolver, Backend, and Mask therefore share one Schema instance. Jackson finally materializes typed results. Unavailable Schema fails every managed Gateway call closed before Context or Backend execution. Count remains `Long` and performs no result masking. Aggregation remains a stream of `ObjectNode` rows, with Schema rejecting groups, metrics, and expressions that reference masked fields.
 
 ## QueryContext and QueryType
 
-The Gateway creates an independent `QueryContext` for every subscription, so separate subscriptions to the same reactive Publisher do not share the query, result, or attributes. The context holds the aggregate identity, query object, result, and `QueryType` for filters that rewrite queries or results.
+For every subscription, the Gateway obtains one currently published Schema and creates an independent `QueryContext`, so separate subscriptions to the same reactive Publisher do not share the query, result, or attributes. From the beginning of the Filter chain, the context exposes a non-null immutable `schema` reference alongside the aggregate identity, query object, result, and `QueryType`.
 
 `QueryType` contains only `SINGLE`, `LIST`, `PAGED`, `CURSOR`, `COUNT`, and `AGGREGATION`; typed and `ObjectNode` results share the same operation type. Concrete query models, entries, and protocol exposure can still differ.
 
@@ -63,7 +68,7 @@ For authentication, Principal binding, and the complete fail-closed policy, see 
 
 ## Raw Factory Boundary
 
-Calling `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` directly bypasses the entire Gateway governance chain, including ABAC, result filters, and field masking. A custom Backend without `QueryModelSchemaProvider` cannot establish a masking contract either. Both are trusted raw-value boundaries for storage extensions, focused diagnostics, and backend contract tests. Ordinary application code should inject the aggregate-bound Gateway.
+Calling `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` directly bypasses the entire Gateway governance chain, including Schema acquisition and admission, ABAC, result filters, and field masking; the caller must construct an accepted `ResolvedQuery` itself. This trusted raw-value boundary is only for storage extensions, focused diagnostics, and backend contract tests. Ordinary application code should inject the aggregate-bound Gateway.
 
 ## Bean Names
 
@@ -71,4 +76,4 @@ Aggregate Bean names are exactly `{contextAlias.}{aggregateName}.SnapshotQueryGa
 
 ## Validation strategy boundaries
 
-The Gateway owns the policy chain; it does not replace backend field capability, Schema resolution, or application validation. A Cursor effective sort must resolve exactly in Query Schema, be single-valued, carry no Mask rule, and not alias a masked projection or physical binding. Mask rules include those compiled from `@Mask`, `@KeepMask`, or a custom `@Masking` meta-annotation; unavailable Schema fails closed rather than falling back in compatible mode. If a JSON-array or SSE stream fails after emitting rows, those rows are not rolled back. SSE attempts to emit an `ErrorInfo` error event. A `RequestExceptionHandler` failure or a failure while generating, rendering, or serializing that error event is attached to the original as a suppressed error only when distinct and not already recorded. The original terminal error is always propagated; partial failure never completes successfully.
+The Gateway owns the policy chain and Schema admission; it does not replace backend field capability or application validation. Spring's `wow.query.schema.validation-mode` controls only Gateway admission; the Backend never chooses the mode. Before Cursor field admission, `QueryModelSchema` appends the model-specific unique sort: Snapshot uses `aggregateId`, while EventStream uses the stream-record `id`. The final effective sort must resolve exactly in Query Schema, be single-valued, carry no Mask rule, and not alias a masked projection or physical binding. Mask rules include those compiled from `@Mask`, `@KeepMask`, or a custom `@Masking` meta-annotation; unavailable Schema fails closed rather than falling back in compatible mode. If a JSON-array or SSE stream fails after emitting rows, those rows are not rolled back. SSE attempts to emit an `ErrorInfo` error event. A `RequestExceptionHandler` failure or a failure while generating, rendering, or serializing that error event is attached to the original as a suppressed error only when distinct and not already recorded. The original terminal error is always propagated; partial failure never completes successfully.

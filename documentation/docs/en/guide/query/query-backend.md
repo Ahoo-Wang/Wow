@@ -7,7 +7,18 @@ description: Learn how ObjectNode query backends, aggregate Gateways, Factory ro
 
 ## QueryBackend contract
 
-`QueryBackend` is the aggregate-bound low-level contract. Single, list, paged, cursor, and aggregate use `tools.jackson.databind.node.ObjectNode`; count returns `Long`, while cursor wraps nodes in `CursorPage<ObjectNode>`. `SnapshotQueryBackend` and `EventStreamQueryBackend` distinguish the data model and Schema Provider capability. Typed materialization belongs to the Gateway, not the Backend.
+`QueryBackend` is the aggregate-bound low-level contract. Its six execution methods accept only a `ResolvedQuery` prepared by the Gateway:
+
+```kotlin
+fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode>
+fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode>
+fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
+fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
+fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
+fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
+```
+
+There are no compatibility overloads accepting raw queries. A Backend neither obtains nor resolves Schema and never chooses `QuerySchemaValidationMode`; it only compiles and executes `ResolvedQuery.query` with the non-null `ResolvedQuery.schema`. Projection and Aggregation compilers both receive that Schema instance. Single, list, paged, cursor, and aggregate use `tools.jackson.databind.node.ObjectNode`; count returns `Long`, while cursor wraps nodes in `CursorPage<ObjectNode>`. `SnapshotQueryBackend` and `EventStreamQueryBackend` distinguish the data model and Schema Provider capability. Typed materialization belongs to the Gateway, not the Backend. A concrete Backend may still delegate Provider capability for Factory, Schema HTTP, and Gateway assembly, but its six execution methods do not use it.
 
 ## Node ownership constraints
 
@@ -54,7 +65,7 @@ When it creates a Gateway, the registrar calls `SnapshotQueryBackendFactory` or 
 
 ## Factories, caching, and storage routing
 
-`SnapshotQueryBackendFactory` and `EventStreamQueryBackendFactory` create raw Backends; their abstract base classes cache by materialized aggregate. MongoDB, Elasticsearch, or another configured implementation compiles the public query into a physical query and normalizes results as `ObjectNode`.
+`SnapshotQueryBackendFactory` and `EventStreamQueryBackendFactory` create raw Backends; their abstract base classes cache by materialized aggregate. MongoDB, Elasticsearch, or another configured implementation compiles the admitted `ResolvedQuery` into a physical query and normalizes results as `ObjectNode`.
 
 A direct Factory call does not pass through the Gateway. Application code should use the Spring-registered aggregate Gateway; only low-level diagnostics, contract tests, and storage extensions should call the Factory directly.
 
@@ -68,7 +79,7 @@ Direct Factory access is for trusted infrastructure extensions or cases that exp
 
 ## Cursor Execution and Tokens
 
-The built-in Snapshot Backend appends `aggregateId` as a unique tie-breaker, while the EventStream Backend appends `id`. MongoDB uses a keyset filter. Elasticsearch uses `search_after` without PIT. Both request `size + 1` to detect another page, perform no count or offset, and return no total. Traversal is forward-only and has no cross-request snapshot; concurrent writes can change what a later page observes.
+Before validation, `QueryModelSchema.resolve(ICursorQuery)` appends the model-specific unique tie-breaker: Snapshot uses `aggregateId`, while EventStream uses the stream-record `id`. The Backend receives that sort inside `ResolvedQuery<ICursorQuery>` and neither appends nor resolves it again. MongoDB uses a keyset filter. Elasticsearch uses `search_after` without PIT. Both request `size + 1` to detect another page, perform no count or offset, and return no total. Traversal is forward-only and has no cross-request snapshot; concurrent writes can change what a later page observes.
 
 The backend encodes effective sort values as an unpadded Base64URL continuation. The token is neither encrypted nor signed, carries no authorization, and should not be logged; the framework has no cursor encryption-key configuration. Callers should pass it back unchanged rather than parse or construct it.
 
