@@ -22,7 +22,7 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
 import java.time.ZoneId
@@ -45,18 +45,18 @@ class AggregationQueryDsl {
         filter(me.ahoo.wow.query.dsl.filter(block))
     }
 
-    fun expand(path: String) = elements.add(AggregationElement(LogicalField(path)))
+    fun expand(path: String) = elements.add(AggregationElement(QueryField(path)))
 
     fun expand(path: String, block: FilterDsl.() -> Unit) = elements.add(
-        AggregationElement(LogicalField(path), me.ahoo.wow.query.dsl.filter(block)),
+        AggregationElement(QueryField(path), me.ahoo.wow.query.dsl.filter(block)),
     )
 
     fun terms(field: String, alias: String) {
-        groups += AggregationGroup.Terms(LogicalField(field), alias)
+        groups += AggregationGroup.Terms(QueryField(field), alias)
     }
 
     fun histogram(field: String, interval: Double, alias: String) {
-        groups += AggregationGroup.Histogram(LogicalField(field), alias, interval)
+        groups += AggregationGroup.Histogram(QueryField(field), alias, interval)
     }
 
     fun dateHistogram(
@@ -65,7 +65,7 @@ class AggregationQueryDsl {
         alias: String,
         timeZone: ZoneId = ZoneOffset.UTC,
     ) {
-        groups += AggregationGroup.DateHistogram(LogicalField(field), alias, unit, timeZone.id)
+        groups += AggregationGroup.DateHistogram(QueryField(field), alias, unit, timeZone.id)
     }
 
     fun count(alias: String) {
@@ -73,10 +73,10 @@ class AggregationQueryDsl {
     }
 
     fun any(field: String, alias: String) {
-        metrics += AggregationMetric.Any(LogicalField(field), alias)
+        metrics += AggregationMetric.Any(QueryField(field), alias)
     }
 
-    fun field(name: String): AggregationExpression = AggregationExpression.Field(LogicalField(name))
+    fun field(name: String): AggregationExpression = AggregationExpression.Field(QueryField(name))
 
     fun constant(value: Double): AggregationExpression = AggregationExpression.Constant(value)
 

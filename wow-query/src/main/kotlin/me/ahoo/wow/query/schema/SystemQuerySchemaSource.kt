@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
@@ -108,7 +108,7 @@ object SystemQuerySchemaSource : QuerySchemaSource {
         semanticType: DeclarationValue<QuerySemanticType?> = DeclarationValue.Unset,
         dynamicChildren: DeclarationValue<Boolean> = DeclarationValue.Unset,
         cardinality: QueryCardinality = QueryCardinality.SINGLE,
-    ): Pair<LogicalField, QueryFieldDeclaration> = LogicalField(this) to QueryFieldDeclaration(
+    ): Pair<QueryField, QueryFieldDeclaration> = QueryField(this) to QueryFieldDeclaration(
         valueTypes = DeclarationValue.Set(setOf(valueType)),
         nullable = DeclarationValue.Set(false),
         required = DeclarationValue.Set(true),

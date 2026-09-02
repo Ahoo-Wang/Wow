@@ -32,7 +32,7 @@ class WowDefinitionProviderRegistryTest {
             "SnapshotDefinitionProvider",
             "StateEventDefinitionProvider",
             "ServerSentEventCustomDefinitionProvider",
-            "LogicalFieldDefinitionProvider",
+            "QueryFieldDefinitionProvider",
             "QuerySchemaValueDefinitionProvider",
             "JsonNodeDefinitionProvider",
             "MapDefinitionProvider",

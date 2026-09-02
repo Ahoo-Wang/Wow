@@ -24,7 +24,7 @@ import com.github.victools.jsonschema.generator.MethodScope
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaGenerator
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.mask.MaskStrategy
 import me.ahoo.wow.api.query.mask.Masking
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -101,8 +101,8 @@ class JsonQuerySchemaSource(
     }
 
     private companion object {
-        val eventPayloadField = LogicalField("${MessageRecords.BODY}.${MessageRecords.BODY}")
-        val eventBodyTypeField = LogicalField("${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}")
+        val eventPayloadField = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY}")
+        val eventBodyTypeField = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}")
 
         fun inferDeclaration(model: QueryModel, type: Class<*>): QuerySchemaDeclaration {
             val maskRuleCatalog = MaskRuleCatalog()

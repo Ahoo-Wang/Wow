@@ -14,7 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -40,9 +40,9 @@ class SystemQuerySchemaSourceTest {
     @Test
     fun `snapshot system fields should reject forced mutable map mutation`() {
         val declaration = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
-        val state = LogicalField("state")
+        val state = QueryField("state")
         val original = declaration.fields.getValue(state)
-        val mutableFields = declaration.fields as MutableMap<LogicalField, QueryFieldDeclaration>
+        val mutableFields = declaration.fields as MutableMap<QueryField, QueryFieldDeclaration>
 
         try {
             assertThrows<UnsupportedOperationException> {
@@ -72,7 +72,7 @@ class SystemQuerySchemaSourceTest {
     fun `snapshot system declaration should match serialized fields`() {
         val fields = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT).fields
 
-        fields.keys.map(LogicalField::value).toSet().assert().isEqualTo(
+        fields.keys.map(QueryField::path).toSet().assert().isEqualTo(
             setOf(
                 "contextName",
                 "aggregateName",
@@ -101,7 +101,7 @@ class SystemQuerySchemaSourceTest {
     @Test
     fun `snapshot state should be a single object while display leaves remain unset`() {
         val state = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
-            .fields.getValue(LogicalField("state"))
+            .fields.getValue(QueryField("state"))
 
         state.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
         state.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.SINGLE))
@@ -113,7 +113,7 @@ class SystemQuerySchemaSourceTest {
     @Test
     fun `snapshot tags should be a dynamic single object`() {
         val tags = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
-            .fields.getValue(LogicalField("tags"))
+            .fields.getValue(QueryField("tags"))
 
         tags.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
         tags.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.SINGLE))
@@ -128,8 +128,8 @@ class SystemQuerySchemaSourceTest {
         val epoch = DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS))
 
         listOf("firstEventTime", "eventTime", "snapshotTime").forEach { field ->
-            fields.getValue(LogicalField(field)).semanticType.assert().isEqualTo(epoch)
-            fields.getValue(LogicalField(field)).valueTypes
+            fields.getValue(QueryField(field)).semanticType.assert().isEqualTo(epoch)
+            fields.getValue(QueryField(field)).valueTypes
                 .assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
         }
     }
@@ -145,18 +145,18 @@ class SystemQuerySchemaSourceTest {
         val event = serialized[MessageRecords.BODY][0] as ObjectNode
         serializedFields += event.properties().map { "${MessageRecords.BODY}.${it.key}" }
 
-        fields.keys.map(LogicalField::value).toSet().assert().isEqualTo(serializedFields)
+        fields.keys.map(QueryField::path).toSet().assert().isEqualTo(serializedFields)
         fields.values.forEach { field ->
             field.required.assert().isEqualTo(DeclarationValue.Set(true))
             field.nullable.assert().isEqualTo(DeclarationValue.Set(false))
         }
-        fields.getValue(LogicalField("body")).cardinality.assert()
+        fields.getValue(QueryField("body")).cardinality.assert()
             .isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
-        fields.getValue(LogicalField("body.body")).dynamicChildren.assert()
+        fields.getValue(QueryField("body.body")).dynamicChildren.assert()
             .isEqualTo(DeclarationValue.Set(false))
-        fields.getValue(LogicalField("header")).dynamicChildren.assert()
+        fields.getValue(QueryField("header")).dynamicChildren.assert()
             .isEqualTo(DeclarationValue.Set(true))
-        fields.getValue(LogicalField("createTime")).semanticType.assert()
+        fields.getValue(QueryField("createTime")).semanticType.assert()
             .isEqualTo(DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)))
     }
 }

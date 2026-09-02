@@ -14,7 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.schema
 
 import co.elastic.clients.elasticsearch._types.mapping.Property
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -90,21 +90,21 @@ class ElasticsearchQuerySchemaAdapter(
                         put(
                             field,
                             logical.toFieldSchema(
-                                projectionPath = mapping.fields[field.value]?.projectionPath
-                                    ?: field.value.takeIf { field.value !in mapping.fields },
+                                projectionPath = mapping.fields[field.path]?.projectionPath
+                                    ?: field.path.takeIf { field.path !in mapping.fields },
                                 bindings = BUILT_IN_CAPABILITIES.mapNotNull { capability ->
-                                    mapping.binding(field.value, logical, capability, invalidNestedParents)
+                                    mapping.binding(field.path, logical, capability, invalidNestedParents)
                                         ?.let { capability to it }
                                 }.toMap(),
                             ),
                         )
                     }
                     putIfAbsent(
-                        LogicalField(DOCUMENT_ID_FIELD),
+                        QueryField(DOCUMENT_ID_FIELD),
                         metadataField(DOCUMENT_ID_FIELD, QueryValueType.STRING, QueryCapability.EXACT_MATCH),
                     )
                     METADATA_SORT_FIELDS.forEach { (path, valueType) ->
-                        putIfAbsent(LogicalField(path), metadataField(path, valueType, QueryCapability.SORT))
+                        putIfAbsent(QueryField(path), metadataField(path, valueType, QueryCapability.SORT))
                     }
                 },
             )
@@ -252,7 +252,7 @@ private val LogicalQueryFieldSchema.isElementScope: Boolean
 
 private fun ElasticsearchIndexMapping.invalidNestedParents(logicalSchema: LogicalQuerySchema): Set<String> =
     fields.filterValues { it.kind == Property.Kind.Nested }.keys.filterTo(linkedSetOf()) { path ->
-        logicalSchema.fields[LogicalField(path)]?.isElementScope != true
+        logicalSchema.fields[QueryField(path)]?.isElementScope != true
     }
 
 private fun LogicalQueryFieldSchema.proves(capability: QueryCapability, kind: Property.Kind): Boolean =

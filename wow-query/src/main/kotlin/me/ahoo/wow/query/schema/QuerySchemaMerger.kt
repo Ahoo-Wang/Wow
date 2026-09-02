@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.CARDINALITY
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
@@ -32,7 +32,7 @@ internal class QuerySchemaMerger {
         system: QuerySchemaDeclaration,
         extensions: List<PrioritizedQuerySchemaDeclaration>,
     ): LogicalQuerySchema {
-        val extensionRoot = if (LogicalField(StateAggregateRecords.STATE) in system.fields) {
+        val extensionRoot = if (QueryField(StateAggregateRecords.STATE) in system.fields) {
             StateAggregateRecords.STATE
         } else {
             "${MessageRecords.BODY}.${MessageRecords.BODY}"
@@ -51,7 +51,7 @@ internal class QuerySchemaMerger {
         extensions.groupBy(PrioritizedQuerySchemaDeclaration::priority)
             .toSortedMap()
             .forEach { (_, declarations) ->
-                val priorityFields = mutableMapOf<LogicalField, QueryFieldDeclaration>()
+                val priorityFields = mutableMapOf<QueryField, QueryFieldDeclaration>()
                 declarations.forEach { prioritized ->
                     prioritized.declaration.fields.forEach { (field, declaration) ->
                         priorityFields[field] = priorityFields[field]
@@ -67,20 +67,20 @@ internal class QuerySchemaMerger {
             }
 
         return LogicalQuerySchema(
-            merged.toSortedMap(compareBy(LogicalField::value)).mapValues { (_, declaration) ->
+            merged.toSortedMap(compareBy(QueryField::path)).mapValues { (_, declaration) ->
                 declaration.materialize()
             },
         )
     }
 
-    private fun validateExtensionPath(field: LogicalField, extensionRoot: String) {
-        if (field.value != extensionRoot && !field.value.startsWith("$extensionRoot.")) {
+    private fun validateExtensionPath(field: QueryField, extensionRoot: String) {
+        if (field.path != extensionRoot && !field.path.startsWith("$extensionRoot.")) {
             throw QuerySchemaConflictException("Query schema extension must be under [$extensionRoot]: [$field].")
         }
     }
 
     private fun isEventBodyTypeEnumEnrichment(
-        field: LogicalField,
+        field: QueryField,
         system: QuerySchemaDeclaration,
         extensionRoot: String,
         extension: QueryFieldDeclaration,
@@ -97,7 +97,7 @@ internal class QuerySchemaMerger {
     }
 
     private fun QueryFieldDeclaration.rejectSystemOverwrite(
-        field: LogicalField,
+        field: QueryField,
         extension: QueryFieldDeclaration,
     ) {
         rejectSystemLeaf(field, TITLE, title, extension.title)
@@ -112,7 +112,7 @@ internal class QuerySchemaMerger {
     }
 
     private fun rejectSystemLeaf(
-        field: LogicalField,
+        field: QueryField,
         leaf: String,
         system: DeclarationValue<*>,
         extension: DeclarationValue<*>,
@@ -147,6 +147,6 @@ internal class QuerySchemaMerger {
 
     private companion object {
         const val EVENT_PAYLOAD_ROOT = "${MessageRecords.BODY}.${MessageRecords.BODY}"
-        val EVENT_BODY_TYPE_FIELD = LogicalField("${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}")
+        val EVENT_BODY_TYPE_FIELD = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}")
     }
 }

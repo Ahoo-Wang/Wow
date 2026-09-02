@@ -24,7 +24,7 @@ import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SearchFilter
@@ -297,7 +297,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
         strictService.list(
             ListQuery(
-                filter = SearchFilter("searchable", setOf(LogicalField("state.data"))),
+                filter = SearchFilter("searchable", setOf(QueryField("state.data"))),
                 limit = 10,
             ),
         ).test().expectNextCount(1).verifyComplete()
@@ -359,11 +359,11 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
     @Test
     fun `strict should execute metadata sort and formatted temporal range`() {
-        val field = LogicalField("state.formattedDate")
+        val field = QueryField("state.formattedDate")
         val today = Instant.now().atZone(ZoneOffset.UTC).toLocalDate().toString()
         updateState(mapOf("formattedDate" to today))
         val service = strictService(
-            querySchemaSources + source(formattedField(field.value, "yyyy-MM-dd")),
+            querySchemaSources + source(formattedField(field.path, "yyyy-MM-dd")),
         )
 
         service.list(
@@ -506,7 +506,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         )
         val strictService = strictService()
         strictService.requiredQueryModelSchemaProvider().schema().block()!!
-            .fields.getValue(LogicalField("tags")).bindings.assert().isEmpty()
+            .fields.getValue(QueryField("tags")).bindings.assert().isEmpty()
         updateDocument(mapOf("tags" to mapOf("department" to listOf("eng"))))
 
         strictService.list(
@@ -529,7 +529,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         )
         val compatibleService = compatibleService()
         compatibleService.requiredQueryModelSchemaProvider().schema().block()!!
-            .fields.getValue(LogicalField("tags")).bindings.assert().isEmpty()
+            .fields.getValue(QueryField("tags")).bindings.assert().isEmpty()
         updateDocument(
             mapOf(
                 "tags" to mapOf(
@@ -634,7 +634,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         service.schema().test()
             .assertNext { schema ->
                 schema.model.assert().isEqualTo(QueryModel.SNAPSHOT)
-                schema.fields.keys.assert().contains(LogicalField("aggregateId"))
+                schema.fields.keys.assert().contains(QueryField("aggregateId"))
             }.verifyComplete()
     }
 
@@ -678,7 +678,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         val provider = service.requiredQueryModelSchemaProvider()
         val initial = provider.schema().block()!!
-        initial.fields.getValue(LogicalField("state.runtimeCode")).bindings.assert()
+        initial.fields.getValue(QueryField("state.runtimeCode")).bindings.assert()
             .doesNotContainKey(QueryCapability.EXACT_MATCH)
 
         elasticsearchClient.indices().putMapping(
@@ -700,13 +700,13 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         ).block()
 
         val refreshed = provider.refresh().block()!!
-        refreshed.fields.getValue(LogicalField("state.keywordOnly"))
+        refreshed.fields.getValue(QueryField("state.keywordOnly"))
             .bindings.getValue(QueryCapability.EXACT_MATCH).physicalPath.assert().isEqualTo("state.keywordOnly")
-        refreshed.fields.getValue(LogicalField("state.textOnly"))
+        refreshed.fields.getValue(QueryField("state.textOnly"))
             .bindings.getValue(QueryCapability.FULL_TEXT_TERMS).physicalPath.assert().isEqualTo("state.textOnly")
-        refreshed.fields.getValue(LogicalField("state.runtimeCode"))
+        refreshed.fields.getValue(QueryField("state.runtimeCode"))
             .bindings.getValue(QueryCapability.SORT).physicalPath.assert().isEqualTo("state.runtimeCode")
-        refreshed.fields.getValue(LogicalField("state.runtimeCode")).projectionPath.assert().isNull()
+        refreshed.fields.getValue(QueryField("state.runtimeCode")).projectionPath.assert().isNull()
         provider.schema().block().assert().isSameAs(refreshed)
 
         service.list(
@@ -745,7 +745,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val schema = service.requiredQueryModelSchemaProvider().schema().block()!!
         listOf("state.epochMicros", "state.epochMillis", "state.epochNanos", "state.epochSeconds")
             .forEach { field ->
-                schema.fields.getValue(LogicalField(field)).bindings
+                schema.fields.getValue(QueryField(field)).bindings
                     .getValue(QueryCapability.AGGREGATE_TEMPORAL).let { binding ->
                         binding.physicalPath.assert().isEqualTo(field)
                         binding.storageType?.value.assert().isEqualTo("long")
@@ -867,7 +867,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     }
 
     private fun defensiveEpochService(): SnapshotQueryBackend {
-        val field = LogicalField("state.epochFraction")
+        val field = QueryField("state.epochFraction")
         val schema = QueryModelSchema(
             QueryModel.SNAPSHOT,
             emptySet(),
@@ -886,7 +886,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         )
     }
 
-    private fun defensiveEpochField(field: LogicalField) = QueryFieldSchema(
+    private fun defensiveEpochField(field: QueryField) = QueryFieldSchema(
         title = null,
         description = null,
         enumValues = null,
@@ -898,13 +898,13 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         dynamicChildren = false,
         bindings = mapOf(
             QueryCapability.AGGREGATE_TEMPORAL to QueryFieldBinding(
-                physicalPath = field.value,
+                physicalPath = field.path,
                 storageType = QueryStorageType("double"),
             ),
         ),
     )
 
-    private fun source(vararg fields: Pair<LogicalField, QueryFieldDeclaration>): QuerySchemaSource =
+    private fun source(vararg fields: Pair<QueryField, QueryFieldDeclaration>): QuerySchemaSource =
         object : QuerySchemaSource {
             override val priority: Int = QuerySchemaSourcePriority.BEAN
 
@@ -912,16 +912,16 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                 Flux.just(QuerySchemaDeclaration(fields.toMap()))
         }
 
-    private fun stringField(field: String) = LogicalField(field) to QueryFieldDeclaration(
+    private fun stringField(field: String) = QueryField(field) to QueryFieldDeclaration(
         valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
     )
 
-    private fun formattedField(field: String, pattern: String) = LogicalField(field) to QueryFieldDeclaration(
+    private fun formattedField(field: String, pattern: String) = QueryField(field) to QueryFieldDeclaration(
         valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
         semanticType = DeclarationValue.Set(Temporal.Formatted(pattern)),
     )
 
-    private fun epochField(field: String, timeUnit: TimeUnit) = LogicalField(field) to QueryFieldDeclaration(
+    private fun epochField(field: String, timeUnit: TimeUnit) = QueryField(field) to QueryFieldDeclaration(
         valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER)),
         nullable = DeclarationValue.Set(true),
         required = DeclarationValue.Set(false),

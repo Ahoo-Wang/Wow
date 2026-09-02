@@ -19,7 +19,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.KeepMask
 import me.ahoo.wow.api.query.mask.KeepMaskStrategy
@@ -85,11 +85,11 @@ class JsonQuerySchemaSourceTest {
         val declaration = JsonQuerySchemaSource().load(eventStreamContext).single().block()!!
 
         declaration.fields.keys.assert()
-            .contains(LogicalField("body.body.added.productId"))
-            .contains(LogicalField("body.body.added.quantity"))
-            .contains(LogicalField("body.body.productIds"))
-            .contains(LogicalField("body.body.changed.productId"))
-            .contains(LogicalField("body.body.changed.quantity"))
+            .contains(QueryField("body.body.added.productId"))
+            .contains(QueryField("body.body.added.quantity"))
+            .contains(QueryField("body.body.productIds"))
+            .contains(QueryField("body.body.changed.productId"))
+            .contains(QueryField("body.body.changed.quantity"))
         declaration.field("body.body.added.productId").valueTypes.assert()
             .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
         declaration.field("body.body.productIds").cardinality.assert()
@@ -128,7 +128,7 @@ class JsonQuerySchemaSourceTest {
 
         provider.schema().block()!!
 
-        checkNotNull(resolved.get().fields.getValue(LogicalField("body.bodyType")).enumValues)
+        checkNotNull(resolved.get().fields.getValue(QueryField("body.bodyType")).enumValues)
             .map { it.stringValue() }
             .assert()
             .containsExactly(
@@ -146,7 +146,7 @@ class JsonQuerySchemaSourceTest {
         )
 
         JsonQuerySchemaSource().load(snapshotContext).single().block()!!
-            .fields.keys.assert().contains(LogicalField("state.items.productId"))
+            .fields.keys.assert().contains(QueryField("state.items.productId"))
     }
 
     @Test
@@ -156,7 +156,7 @@ class JsonQuerySchemaSourceTest {
         source.load(context).single().block()!!
         val eventStream = source.load(context.copy(model = QueryModel.EVENT_STREAM)).single().block()!!
 
-        eventStream.fields.keys.assert().contains(LogicalField("body.body.added.productId"))
+        eventStream.fields.keys.assert().contains(QueryField("body.body.added.productId"))
     }
 
     @Test
@@ -202,7 +202,7 @@ class JsonQuerySchemaSourceTest {
                 val inference = inferenceCount.incrementAndGet()
                 QuerySchemaDeclaration(
                     mapOf(
-                        LogicalField("state") to QueryFieldDeclaration(
+                        QueryField("state") to QueryFieldDeclaration(
                             title = DeclarationValue.Set("inference-$inference"),
                         ),
                     ),
@@ -374,13 +374,13 @@ class JsonQuerySchemaSourceTest {
         val declaration = load(JacksonState::class.java)
 
         declaration.fields.keys.assert()
-            .contains(LogicalField("state.display_name"))
-            .contains(LogicalField("state.detail_nested_value"))
-            .contains(LogicalField("state.visible"))
-            .doesNotContain(LogicalField("state.secret"))
-        declaration.fields.keys.any { it.value in setOf("state.display.name", "state.display name", "state.0") }
+            .contains(QueryField("state.display_name"))
+            .contains(QueryField("state.detail_nested_value"))
+            .contains(QueryField("state.visible"))
+            .doesNotContain(QueryField("state.secret"))
+        declaration.fields.keys.any { it.path in setOf("state.display.name", "state.display name", "state.0") }
             .assert().isFalse()
-        declaration.fields.keys.any { it.value.startsWith("state.details") }.assert().isFalse()
+        declaration.fields.keys.any { it.path.startsWith("state.details") }.assert().isFalse()
     }
 
     @Test
@@ -566,7 +566,7 @@ class JsonQuerySchemaSourceTest {
     @Test
     fun `should reject masked illegal logical property names`() {
         val error = assertThrows<QuerySchemaConflictException> {
-            load(MaskedInvalidLogicalFieldState::class.java)
+            load(MaskedInvalidQueryFieldState::class.java)
         }
 
         error.message.assert().contains("state[\"phone.number\"]")
@@ -610,7 +610,7 @@ class JsonQuerySchemaSourceTest {
             .isEqualTo(DeclarationValue.Set(emptySet<QueryValueType>()))
         declaration.field("state.propertyValue").valueTypes.assert()
             .isEqualTo(DeclarationValue.Set(emptySet<QueryValueType>()))
-        declaration.fields.keys.any { it.value.endsWith(".hidden") }.assert().isFalse()
+        declaration.fields.keys.any { it.path.endsWith(".hidden") }.assert().isFalse()
     }
 
     @Test
@@ -618,15 +618,15 @@ class JsonQuerySchemaSourceTest {
         val declaration = load(CompositionState::class.java)
 
         declaration.fields.keys.assert()
-            .contains(LogicalField("state.allOf.inherited"))
-            .contains(LogicalField("state.allOf.own"))
-            .contains(LogicalField("state.anyOf.left"))
-            .contains(LogicalField("state.anyOf.right"))
-            .contains(LogicalField("state.oneOf.first"))
-            .contains(LogicalField("state.oneOf.second"))
-            .contains(LogicalField("state.payment.kind"))
-            .contains(LogicalField("state.payment.cardNumber"))
-            .contains(LogicalField("state.payment.account"))
+            .contains(QueryField("state.allOf.inherited"))
+            .contains(QueryField("state.allOf.own"))
+            .contains(QueryField("state.anyOf.left"))
+            .contains(QueryField("state.anyOf.right"))
+            .contains(QueryField("state.oneOf.first"))
+            .contains(QueryField("state.oneOf.second"))
+            .contains(QueryField("state.payment.kind"))
+            .contains(QueryField("state.payment.cardNumber"))
+            .contains(QueryField("state.payment.account"))
         listOf("state.allOf.inherited", "state.allOf.own").forEach { field ->
             declaration.field(field).required.assert().isEqualTo(DeclarationValue.Set(true))
         }
@@ -759,14 +759,14 @@ class JsonQuerySchemaSourceTest {
         val declaration = load(RecursiveState::class.java)
 
         declaration.fields.keys.assert()
-            .contains(LogicalField("state.child"))
-            .contains(LogicalField("state.children"))
+            .contains(QueryField("state.child"))
+            .contains(QueryField("state.children"))
         declaration.field("state.child").valueTypes.assert()
             .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
         declaration.field("state.children").cardinality.assert()
             .isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
         declaration.fields.keys.any {
-            it.value.startsWith("state.child.") || it.value.startsWith("state.children.")
+            it.path.startsWith("state.child.") || it.path.startsWith("state.children.")
         }.assert().isFalse()
     }
 
@@ -787,7 +787,7 @@ class JsonQuerySchemaSourceTest {
     @Test
     fun `should not truncate deep acyclic state paths`() {
         load(DeepLevelOne::class.java).fields.keys.assert()
-            .contains(LogicalField("state.two.three.four.five.six.value"))
+            .contains(QueryField("state.two.three.four.five.six.value"))
     }
 
     @Test
@@ -1089,7 +1089,7 @@ class JsonQuerySchemaSourceTest {
     private fun loadPublisher(type: Class<*>): Flux<QuerySchemaDeclaration> =
         JsonQuerySchemaSource(typeResolver = { type }).load(context)
 
-    private fun QuerySchemaDeclaration.field(name: String): QueryFieldDeclaration = fields.getValue(LogicalField(name))
+    private fun QuerySchemaDeclaration.field(name: String): QueryFieldDeclaration = fields.getValue(QueryField(name))
 
     private fun QueryFieldDeclaration.assertMaskRule(rule: MaskRule) {
         valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))

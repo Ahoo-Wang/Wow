@@ -17,7 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -406,7 +406,7 @@ class MongoAggregationCompilerTest {
             .contains("\$physical.state.status")
     }
 
-    private fun schema(vararg fields: Pair<LogicalField, QueryFieldSchema>) = QueryModelSchema(
+    private fun schema(vararg fields: Pair<QueryField, QueryFieldSchema>) = QueryModelSchema(
         model = QueryModel.SNAPSHOT,
         capabilities = emptySet(),
         fields = fields.toMap(),
@@ -419,7 +419,7 @@ class MongoAggregationCompilerTest {
         valueType: QueryValueType = QueryValueType.STRING,
         semanticType: Temporal? = null,
         dynamicChildren: Boolean = false,
-    ) = LogicalField(logicalPath) to QueryFieldSchema(
+    ) = QueryField(logicalPath) to QueryFieldSchema(
         title = null,
         description = null,
         enumValues = null,

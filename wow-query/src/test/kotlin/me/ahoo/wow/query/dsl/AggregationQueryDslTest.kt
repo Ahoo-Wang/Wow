@@ -20,7 +20,7 @@ import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
 
@@ -40,7 +40,7 @@ class AggregationQueryDslTest {
             limit(20)
         }
 
-        query.elements.map { it.path.value }.assert().containsExactly("state.orders", "lines", "discounts")
+        query.elements.map { it.path.path }.assert().containsExactly("state.orders", "lines", "discounts")
         query.groupBy.assert().hasSize(1)
         query.metrics.assert().hasSize(2)
         query.limit.assert().isEqualTo(20)
@@ -55,9 +55,9 @@ class AggregationQueryDslTest {
         }
 
         query.groupBy.assert().containsExactly(
-            AggregationGroup.Histogram(LogicalField("amount"), "amountBucket", 50.0),
+            AggregationGroup.Histogram(QueryField("amount"), "amountBucket", 50.0),
             AggregationGroup.DateHistogram(
-                LogicalField("createdAt"),
+                QueryField("createdAt"),
                 "day",
                 AggregationDateUnit.DAY,
                 "Asia/Shanghai",
@@ -74,10 +74,10 @@ class AggregationQueryDslTest {
         }
 
         query.groupBy.assert().containsExactly(
-            AggregationGroup.Terms(LogicalField("productId"), "productId"),
+            AggregationGroup.Terms(QueryField("productId"), "productId"),
         )
         query.metrics.assert().containsExactly(
-            AggregationMetric.Any(LogicalField("productName"), "productName"),
+            AggregationMetric.Any(QueryField("productName"), "productName"),
             AggregationMetric.Count("count"),
         )
     }
@@ -96,8 +96,8 @@ class AggregationQueryDslTest {
                     AggregationExpressionOperator.SUBTRACT,
                     AggregationExpression.Binary(
                         AggregationExpressionOperator.MULTIPLY,
-                        AggregationExpression.Field(LogicalField("price")),
-                        AggregationExpression.Field(LogicalField("quantity")),
+                        AggregationExpression.Field(QueryField("price")),
+                        AggregationExpression.Field(QueryField("quantity")),
                     ),
                     AggregationExpression.Constant(10.0),
                 ),
@@ -109,10 +109,10 @@ class AggregationQueryDslTest {
                     AggregationExpressionOperator.ADD,
                     AggregationExpression.Binary(
                         AggregationExpressionOperator.DIVIDE,
-                        AggregationExpression.Field(LogicalField("amount")),
+                        AggregationExpression.Field(QueryField("amount")),
                         AggregationExpression.Constant(2.0),
                     ),
-                    AggregationExpression.Field(LogicalField("fee")),
+                    AggregationExpression.Field(QueryField("fee")),
                 ),
                 "average",
             ),

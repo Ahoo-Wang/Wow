@@ -26,7 +26,7 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
@@ -49,9 +49,9 @@ internal class MongoAggregationCompiler(
         query.elements.forEach { element ->
             val previousLogicalParent = logicalParent
             logicalParent = if (logicalParent == null) {
-                element.path.value
+                element.path.path
             } else {
-                "$logicalParent.${element.path.value}"
+                "$logicalParent.${element.path.path}"
             }
             physicalParent = element.path.resolve(
                 parent = previousLogicalParent,
@@ -299,7 +299,7 @@ internal class MongoAggregationCompiler(
         val logicalField = field.absolute(parent)
         val fieldSchema = schema?.resolve(logicalField)
         if (fieldSchema == null) {
-            return Document("\$toDate", "\$${converter.convertField(logicalField.value)}")
+            return Document("\$toDate", "\$${converter.convertField(logicalField.path)}")
         }
         val physicalPath = fieldSchema.bindings[QueryCapability.AGGREGATE_TEMPORAL]?.physicalPath
             ?: throw QuerySchemaValidationException(
@@ -388,7 +388,7 @@ internal class MongoAggregationCompiler(
             .append("onNull", null),
     )
 
-    private fun LogicalField.resolve(
+    private fun QueryField.resolve(
         parent: String?,
         schema: QueryModelSchema?,
         capability: QueryCapability,
@@ -396,13 +396,13 @@ internal class MongoAggregationCompiler(
         val logicalField = absolute(parent)
         schema?.resolve(logicalField)?.bindings?.get(capability)?.physicalPath?.let { return it }
         if (schema == null || logicalField !in schema.fields) {
-            return converter.convertField(logicalField.value)
+            return converter.convertField(logicalField.path)
         }
         throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
     }
 
-    private fun LogicalField.absolute(parent: String?): LogicalField =
-        LogicalField(if (parent == null) value else "$parent.$value")
+    private fun QueryField.absolute(parent: String?): QueryField =
+        QueryField(if (parent == null) path else "$parent.$path")
 
     private val AggregationGroup.capability: QueryCapability
         get() = when (this) {

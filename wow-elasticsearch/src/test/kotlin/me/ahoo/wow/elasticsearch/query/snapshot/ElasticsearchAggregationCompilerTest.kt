@@ -21,7 +21,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -306,7 +306,7 @@ class ElasticsearchAggregationCompilerTest {
 
     private fun maximumExpression(depth: Int = 8): AggregationExpression =
         if (depth == 1) {
-            AggregationExpression.Field(LogicalField("amount"))
+            AggregationExpression.Field(QueryField("amount"))
         } else {
             AggregationExpression.Binary(
                 AggregationExpressionOperator.ADD,
@@ -319,7 +319,7 @@ class ElasticsearchAggregationCompilerTest {
         QueryModel.SNAPSHOT,
         emptySet(),
         fields.associate { testField ->
-            LogicalField(testField.logicalPath) to QueryFieldSchema(
+            QueryField(testField.logicalPath) to QueryFieldSchema(
                 title = null,
                 description = null,
                 enumValues = null,

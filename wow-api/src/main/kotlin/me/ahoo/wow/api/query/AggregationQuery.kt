@@ -84,7 +84,7 @@ data class AggregationQuery(
 
 @Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
 data class AggregationElement(
-    val path: LogicalField,
+    val path: QueryField,
     val filter: FilterExpression = MatchAllFilter,
 ) {
     init {
@@ -101,11 +101,11 @@ data class AggregationElement(
     JsonSubTypes.Type(AggregationGroup.DateHistogram::class, name = "DATE_HISTOGRAM"),
 )
 sealed interface AggregationGroup {
-    val field: LogicalField
+    val field: QueryField
     val alias: String
 
     data class Terms(
-        override val field: LogicalField,
+        override val field: QueryField,
         override val alias: String,
     ) : AggregationGroup {
         init {
@@ -114,7 +114,7 @@ sealed interface AggregationGroup {
     }
 
     data class Histogram(
-        override val field: LogicalField,
+        override val field: QueryField,
         override val alias: String,
         @get:Schema(minimum = "0", exclusiveMinimum = true)
         val interval: Double,
@@ -128,7 +128,7 @@ sealed interface AggregationGroup {
     }
 
     data class DateHistogram(
-        override val field: LogicalField,
+        override val field: QueryField,
         override val alias: String,
         val unit: AggregationDateUnit,
         val timeZone: String = "UTC",
@@ -167,7 +167,7 @@ enum class AggregationDateUnit {
     discriminatorProperty = QueryProtocol.Polymorphic.TYPE,
 )
 interface AggregationExpression {
-    data class Field(val field: LogicalField) : AggregationExpression
+    data class Field(val field: QueryField) : AggregationExpression
 
     data class Constant(val value: Double) : AggregationExpression {
         init {
@@ -224,7 +224,7 @@ sealed interface AggregationMetric {
     }
 
     data class Any(
-        val field: LogicalField,
+        val field: QueryField,
         override val alias: String,
     ) : AggregationMetric {
         init {
@@ -243,7 +243,7 @@ enum class AggregationFunction {
 private fun requireAggregationAlias(alias: String) {
     require('.' !in alias) { "aggregation alias must contain one segment." }
     require(!alias.startsWith("__wow")) { "aggregation alias must not use the reserved __wow prefix." }
-    LogicalField(alias)
+    QueryField(alias)
 }
 
 private data class PendingExpression(

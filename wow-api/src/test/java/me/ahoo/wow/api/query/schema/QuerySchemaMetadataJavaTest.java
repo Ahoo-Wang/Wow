@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.api.query.schema;
 
-import me.ahoo.wow.api.query.LogicalField;
+import me.ahoo.wow.api.query.QueryField;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Constructor;
@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class QuerySchemaMetadataJavaTest {
     @Test
     void shouldExposeV9QueryFieldSchemaMetadataConstructor() {
-        LogicalField field = new LogicalField("state.name");
+        QueryField field = new QueryField("state.name");
         Set<QueryValueType> valueTypes = Set.of(new QueryValueType("STRING"));
         Set<QueryCapability> capabilities = Set.of(new QueryCapability("PRESENCE"));
         QueryFieldSchemaMetadata metadata = new QueryFieldSchemaMetadata(

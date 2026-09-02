@@ -91,17 +91,17 @@ class MongoQuerySchemaAdapter(
                 emptySet()
             }
             val invalidContainers = logicalSchema.fields.mapNotNullTo(linkedSetOf()) { (logicalField, fieldSchema) ->
-                val storageSchema = storageSchemas[fieldConverter.convert(logicalField.value)]
-                logicalField.value.takeIf { fieldSchema.invalidContainer(storageSchema) }
+                val storageSchema = storageSchemas[fieldConverter.convert(logicalField.path)]
+                logicalField.path.takeIf { fieldSchema.invalidContainer(storageSchema) }
             }
             return QueryModelSchema(
                 model = model,
                 capabilities = capabilities,
                 fields = logicalSchema.fields.mapValues { (logicalField, logicalSchema) ->
-                    val physicalPath = fieldConverter.convert(logicalField.value)
+                    val physicalPath = fieldConverter.convert(logicalField.path)
                     val storageSchema = storageSchemas[physicalPath]
                     val binding = QueryFieldBinding(physicalPath, storageSchema?.types?.singleOrNull())
-                    if (invalidContainers.any { logicalField.value == it || logicalField.value.startsWith("$it.") }) {
+                    if (invalidContainers.any { logicalField.path == it || logicalField.path.startsWith("$it.") }) {
                         return@mapValues logicalSchema.toFieldSchema(projectionPath = null, bindings = emptyMap())
                     }
                     logicalSchema.toFieldSchema(

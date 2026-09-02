@@ -82,7 +82,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         null
     }
     private val maskedAggregationPaths = schema.maskedFields.flatMapTo(linkedSetOf()) { (logical, field) ->
-        listOfNotNull(logical.value, field.projectionPath) + field.bindings.values.map { it.physicalPath }
+        listOfNotNull(logical.path, field.projectionPath) + field.bindings.values.map { it.physicalPath }
     }
     private val maskedProjectionPaths = schema.maskedFields.values.mapNotNullTo(hashSetOf()) { field ->
         field.projectionPath?.takeIf { it.isNotEmpty() }
@@ -211,7 +211,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val fields = HashSet<String>(sort.size)
         var compatibility = QueryCompatibilityLevel.EXACT
         sort.forEach { item ->
-            val field = runCatching { LogicalField(item.field) }.getOrNull()?.let { logical ->
+            val field = runCatching { QueryField(item.field) }.getOrNull()?.let { logical ->
                 fieldResolver.resolve(logical, QueryCapability.SORT, null, null)
             }
             val accepted = field?.compatibility == QueryCompatibilityLevel.EXACT &&
@@ -230,7 +230,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     fun resolve(query: AggregationQuery): QuerySchemaResolution<AggregationQuery> {
         val rootFilter = resolve(query.filter)
         val levels = mutableListOf(rootFilter.compatibility)
-        var logicalParent: LogicalField? = null
+        var logicalParent: QueryField? = null
         var physicalParent: String? = null
         val elements = query.elements.map { element ->
             val container = resolveAggregationField(
@@ -277,7 +277,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
 
     private fun collectExpressionLevels(
         expression: AggregationExpression,
-        logicalParent: LogicalField?,
+        logicalParent: QueryField?,
         physicalParent: String?,
         levels: MutableList<QueryCompatibilityLevel>,
     ) {
@@ -298,18 +298,18 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     }
 
     private fun resolveAggregationField(
-        field: LogicalField,
+        field: QueryField,
         capability: QueryCapability,
-        logicalParent: LogicalField?,
+        logicalParent: QueryField?,
         physicalParent: String?,
     ): QueryFieldResolution = fieldResolver.resolve(
-        field = if (logicalParent == null) field else LogicalField("${logicalParent.value}.${field.value}"),
+        field = if (logicalParent == null) field else QueryField("${logicalParent.path}.${field.path}"),
         capability = capability,
         logicalParent = logicalParent,
         physicalParent = physicalParent,
         fieldIsAbsolute = true,
     ).let { resolved ->
-        val logicalCandidate = resolved.logical.value
+        val logicalCandidate = resolved.logical.path
         val physicalCandidate = resolved.physicalPath ?: logicalCandidate
         val matchesMaskedCandidate = isMaskedAggregationCandidate(logicalCandidate) ||
             physicalCandidate != logicalCandidate && isMaskedAggregationCandidate(physicalCandidate)
@@ -332,7 +332,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     }
 
     private fun QueryFieldResolution.matchesMaskedCandidate(): Boolean {
-        val logicalCandidate = logical.value
+        val logicalCandidate = logical.path
         val projectionCandidate = fieldSchema?.projectionPath
         val physicalCandidate = physicalPath ?: logicalCandidate
         return logicalCandidate in maskedProjectionPaths ||
@@ -347,10 +347,3 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             is AggregationGroup.DateHistogram -> QueryCapability.AGGREGATE_TEMPORAL
         }
 }
-
-internal fun LogicalField.absoluteTo(parent: LogicalField?): LogicalField =
-    if (parent == null || value == parent.value || value.startsWith("${parent.value}.")) {
-        this
-    } else {
-        LogicalField("${parent.value}.$value")
-    }

@@ -37,7 +37,7 @@ interface ISingleQuery : Queryable<ISingleQuery>
  *
  * ```
  * val query = SingleQuery(
- *     filter = EqualFilter(LogicalField("id"), value),
+ *     filter = EqualFilter(QueryField("id"), value),
  *     projection = Projection(include = listOf("name", "email")),
  *     sort = listOf(Sort("createdDate", Direction.DESC))
  * )

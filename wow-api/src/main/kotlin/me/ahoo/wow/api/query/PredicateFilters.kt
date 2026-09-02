@@ -44,7 +44,7 @@ private fun List<JsonNode>.requireFilterLiterals(operator: FilterOperator) {
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.EQ)
-data class EqualFilter(val field: LogicalField, val value: JsonNode) : FilterExpression {
+data class EqualFilter(val field: QueryField, val value: JsonNode) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.EQ
 
     init {
@@ -53,7 +53,7 @@ data class EqualFilter(val field: LogicalField, val value: JsonNode) : FilterExp
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.NE)
-data class NotEqualFilter(val field: LogicalField, val value: JsonNode) : FilterExpression {
+data class NotEqualFilter(val field: QueryField, val value: JsonNode) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.NE
 
     init {
@@ -62,7 +62,7 @@ data class NotEqualFilter(val field: LogicalField, val value: JsonNode) : Filter
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.GT)
-data class GreaterThanFilter(val field: LogicalField, val value: JsonNode) : FilterExpression {
+data class GreaterThanFilter(val field: QueryField, val value: JsonNode) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.GT
 
     init {
@@ -71,7 +71,7 @@ data class GreaterThanFilter(val field: LogicalField, val value: JsonNode) : Fil
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.GTE)
-data class GreaterThanOrEqualFilter(val field: LogicalField, val value: JsonNode) : FilterExpression {
+data class GreaterThanOrEqualFilter(val field: QueryField, val value: JsonNode) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.GTE
 
     init {
@@ -80,7 +80,7 @@ data class GreaterThanOrEqualFilter(val field: LogicalField, val value: JsonNode
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.LT)
-data class LessThanFilter(val field: LogicalField, val value: JsonNode) : FilterExpression {
+data class LessThanFilter(val field: QueryField, val value: JsonNode) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.LT
 
     init {
@@ -89,7 +89,7 @@ data class LessThanFilter(val field: LogicalField, val value: JsonNode) : Filter
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.LTE)
-data class LessThanOrEqualFilter(val field: LogicalField, val value: JsonNode) : FilterExpression {
+data class LessThanOrEqualFilter(val field: QueryField, val value: JsonNode) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.LTE
 
     init {
@@ -99,7 +99,7 @@ data class LessThanOrEqualFilter(val field: LogicalField, val value: JsonNode) :
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.CONTAINS)
 data class ContainsFilter(
-    val field: LogicalField,
+    val field: QueryField,
     val value: String,
     val stringComparison: StringComparison = StringComparison.CASE_SENSITIVE,
 ) : FilterExpression {
@@ -108,7 +108,7 @@ data class ContainsFilter(
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.STARTS_WITH)
 data class StartsWithFilter(
-    val field: LogicalField,
+    val field: QueryField,
     val value: String,
     val stringComparison: StringComparison = StringComparison.CASE_SENSITIVE,
 ) : FilterExpression {
@@ -117,7 +117,7 @@ data class StartsWithFilter(
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.ENDS_WITH)
 data class EndsWithFilter(
-    val field: LogicalField,
+    val field: QueryField,
     val value: String,
     val stringComparison: StringComparison = StringComparison.CASE_SENSITIVE,
 ) : FilterExpression {
@@ -125,7 +125,7 @@ data class EndsWithFilter(
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.IN)
-data class InFilter(val field: LogicalField, val values: List<JsonNode>) : FilterExpression {
+data class InFilter(val field: QueryField, val values: List<JsonNode>) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.IN
 
     init {
@@ -134,7 +134,7 @@ data class InFilter(val field: LogicalField, val values: List<JsonNode>) : Filte
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.NOT_IN)
-data class NotInFilter(val field: LogicalField, val values: List<JsonNode>) : FilterExpression {
+data class NotInFilter(val field: QueryField, val values: List<JsonNode>) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.NOT_IN
 
     init {
@@ -144,7 +144,7 @@ data class NotInFilter(val field: LogicalField, val values: List<JsonNode>) : Fi
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.BETWEEN)
 data class BetweenFilter(
-    val field: LogicalField,
+    val field: QueryField,
     val lowerBound: JsonNode,
     val upperBound: JsonNode,
 ) : FilterExpression {
@@ -157,7 +157,7 @@ data class BetweenFilter(
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.CONTAINS_ALL)
-data class ContainsAllFilter(val field: LogicalField, val values: List<JsonNode>) : FilterExpression {
+data class ContainsAllFilter(val field: QueryField, val values: List<JsonNode>) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.CONTAINS_ALL
 
     init {
@@ -166,36 +166,36 @@ data class ContainsAllFilter(val field: LogicalField, val values: List<JsonNode>
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.IS_EMPTY)
-data class IsEmptyFilter(val field: LogicalField) : FilterExpression {
+data class IsEmptyFilter(val field: QueryField) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.IS_EMPTY
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.IS_EMPTY_STRING)
-data class IsEmptyStringFilter(val field: LogicalField) : FilterExpression {
+data class IsEmptyStringFilter(val field: QueryField) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.IS_EMPTY_STRING
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.IS_NOT_EMPTY_STRING)
-data class IsNotEmptyStringFilter(val field: LogicalField) : FilterExpression {
+data class IsNotEmptyStringFilter(val field: QueryField) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.IS_NOT_EMPTY_STRING
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.IS_NULL)
-data class IsNullFilter(val field: LogicalField) : FilterExpression {
+data class IsNullFilter(val field: QueryField) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.IS_NULL
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.IS_NOT_NULL)
-data class IsNotNullFilter(val field: LogicalField) : FilterExpression {
+data class IsNotNullFilter(val field: QueryField) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.IS_NOT_NULL
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.EXISTS)
-data class ExistsFilter(val field: LogicalField) : FilterExpression {
+data class ExistsFilter(val field: QueryField) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.EXISTS
 }
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.NOT_EXISTS)
-data class NotExistsFilter(val field: LogicalField) : FilterExpression {
+data class NotExistsFilter(val field: QueryField) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.NOT_EXISTS
 }

@@ -4703,7 +4703,7 @@
             "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
           },
           "path" : {
-            "$ref" : "#/components/schemas/wow.api.query.LogicalField"
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
           }
         },
         "required" : [ "path" ],
@@ -4760,7 +4760,7 @@
       "wow.api.query.AggregationExpression.Field" : {
         "properties" : {
           "field" : {
-            "$ref" : "#/components/schemas/wow.api.query.LogicalField"
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
           },
           "type" : {
             "const" : "FIELD"
@@ -4783,7 +4783,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/wow.api.query.LogicalField"
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
           },
           "timeZone" : {
             "type" : "string"
@@ -4804,7 +4804,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/wow.api.query.LogicalField"
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
           },
           "interval" : {
             "exclusiveMinimum" : 0,
@@ -4824,7 +4824,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/wow.api.query.LogicalField"
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
           },
           "type" : {
             "const" : "TERMS"
@@ -4861,7 +4861,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/wow.api.query.LogicalField"
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
           },
           "type" : {
             "const" : "ANY"
@@ -6255,9 +6255,6 @@
         "required" : [ "filter" ],
         "type" : "object"
       },
-      "wow.api.query.LogicalField" : {
-        "type" : "string"
-      },
       "wow.api.query.PagedQuery" : {
         "additionalProperties" : false,
         "properties" : {
@@ -6322,6 +6319,9 @@
         "enum" : [ "SINGLE", "MANY" ],
         "type" : "string"
       },
+      "wow.api.query.QueryField" : {
+        "type" : "string"
+      },
       "wow.api.query.QueryFieldSchemaMetadata" : {
         "properties" : {
           "capabilities" : {
@@ -6354,7 +6354,7 @@
             } ]
           },
           "field" : {
-            "$ref" : "#/components/schemas/wow.api.query.LogicalField"
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
           },
           "masked" : {
             "type" : "boolean"

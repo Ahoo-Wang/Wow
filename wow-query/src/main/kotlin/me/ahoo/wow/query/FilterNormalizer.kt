@@ -30,7 +30,7 @@ import me.ahoo.wow.api.query.LastMonthFilter
 import me.ahoo.wow.api.query.LastWeekFilter
 import me.ahoo.wow.api.query.LastYearFilter
 import me.ahoo.wow.api.query.LessThanFilter
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.NextMonthFilter
@@ -167,7 +167,7 @@ class FilterNormalizer(
     }
 
     private fun weekRange(
-        field: LogicalField,
+        field: QueryField,
         today: LocalDate,
         offset: Long,
         zoneId: ZoneId,
@@ -179,7 +179,7 @@ class FilterNormalizer(
     }
 
     private fun monthRange(
-        field: LogicalField,
+        field: QueryField,
         today: LocalDate,
         offset: Long,
         zoneId: ZoneId,
@@ -191,7 +191,7 @@ class FilterNormalizer(
     }
 
     private fun range(
-        field: LogicalField,
+        field: QueryField,
         start: java.time.LocalDateTime,
         end: java.time.LocalDateTime,
         zoneId: ZoneId,

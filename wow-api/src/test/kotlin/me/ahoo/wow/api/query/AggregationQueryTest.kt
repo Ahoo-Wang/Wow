@@ -131,8 +131,8 @@ class AggregationQueryTest {
                 AggregationExpressionOperator.SUBTRACT,
                 AggregationExpression.Binary(
                     AggregationExpressionOperator.MULTIPLY,
-                    AggregationExpression.Field(LogicalField("price")),
-                    AggregationExpression.Field(LogicalField("quantity")),
+                    AggregationExpression.Field(QueryField("price")),
+                    AggregationExpression.Field(QueryField("quantity")),
                 ),
                 AggregationExpression.Constant(10.0),
             ),
@@ -157,7 +157,7 @@ class AggregationQueryTest {
         val query = configuredMapper.readValue(json, AggregationQuery::class.java)
 
         query.metrics.assert().containsExactly(
-            AggregationMetric.Any(LogicalField("state.productName"), "productName"),
+            AggregationMetric.Any(QueryField("state.productName"), "productName"),
         )
         configuredMapper.writeValueAsString(query).assert().contains("\"type\":\"ANY\"")
     }
@@ -165,7 +165,7 @@ class AggregationQueryTest {
     @Test
     fun `any metric should reject internal aliases`() {
         assertThrows<IllegalArgumentException> {
-            AggregationMetric.Any(LogicalField("state.productName"), "__wow_productName")
+            AggregationMetric.Any(QueryField("state.productName"), "__wow_productName")
         }
     }
 
@@ -211,7 +211,7 @@ class AggregationQueryTest {
 
     private fun nestedExpression(depth: Int): AggregationExpression =
         (2..depth).fold<Int, AggregationExpression>(
-            AggregationExpression.Field(LogicalField("amount")),
+            AggregationExpression.Field(QueryField("amount")),
         ) { expression, _ ->
             AggregationExpression.Binary(
                 AggregationExpressionOperator.ADD,
@@ -224,14 +224,14 @@ class AggregationQueryTest {
     fun `elements should preserve ordered relative paths`() {
         val query = AggregationQuery(
             elements = listOf(
-                AggregationElement(LogicalField("state.orders")),
-                AggregationElement(LogicalField("lines")),
-                AggregationElement(LogicalField("discounts")),
+                AggregationElement(QueryField("state.orders")),
+                AggregationElement(QueryField("lines")),
+                AggregationElement(QueryField("discounts")),
             ),
             metrics = listOf(AggregationMetric.Count("count")),
         )
 
-        query.elements.map { it.path.value }.assert().containsExactly("state.orders", "lines", "discounts")
+        query.elements.map { it.path.path }.assert().containsExactly("state.orders", "lines", "discounts")
     }
 
     @Test
@@ -245,13 +245,13 @@ class AggregationQueryTest {
     fun `invalid aliases and root element filters should fail`() {
         assertThrows<IllegalArgumentException> {
             AggregationQuery(
-                elements = listOf(AggregationElement(LogicalField("state.orders"), TenantIdFilter("tenant"))),
+                elements = listOf(AggregationElement(QueryField("state.orders"), TenantIdFilter("tenant"))),
                 metrics = listOf(AggregationMetric.Count("count")),
             )
         }
         assertThrows<IllegalArgumentException> {
             AggregationQuery(
-                groupBy = listOf(AggregationGroup.Terms(LogicalField("state.status"), "same")),
+                groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "same")),
                 metrics = listOf(AggregationMetric.Count("same")),
             )
         }
@@ -260,7 +260,7 @@ class AggregationQueryTest {
     @Test
     fun `groups and metrics should reject internal aliases`() {
         assertThrows<IllegalArgumentException> {
-            AggregationGroup.Terms(LogicalField("state.status"), "__wow_group")
+            AggregationGroup.Terms(QueryField("state.status"), "__wow_group")
         }
         assertThrows<IllegalArgumentException> {
             AggregationMetric.Count("__wow_count")
@@ -268,7 +268,7 @@ class AggregationQueryTest {
         assertThrows<IllegalArgumentException> {
             AggregationMetric.Numeric(
                 AggregationFunction.SUM,
-                AggregationExpression.Field(LogicalField("state.amount")),
+                AggregationExpression.Field(QueryField("state.amount")),
                 "__wow_total",
             )
         }
@@ -279,7 +279,7 @@ class AggregationQueryTest {
         assertThrows<IllegalArgumentException> { AggregationQuery(metrics = emptyList()) }
         assertThrows<IllegalArgumentException> {
             AggregationQuery(
-                elements = List(AggregationQuery.MAX_ELEMENTS + 1) { AggregationElement(LogicalField("items$it")) },
+                elements = List(AggregationQuery.MAX_ELEMENTS + 1) { AggregationElement(QueryField("items$it")) },
                 metrics = listOf(AggregationMetric.Count("count")),
             )
         }
@@ -292,8 +292,8 @@ class AggregationQueryTest {
 
         AggregationQuery(
             groupBy = listOf(
-                AggregationGroup.Terms(LogicalField("status"), "status"),
-                AggregationGroup.Terms(LogicalField("category"), "category"),
+                AggregationGroup.Terms(QueryField("status"), "status"),
+                AggregationGroup.Terms(QueryField("category"), "category"),
             ),
             metrics = listOf(AggregationMetric.Count("count")),
             sort = listOf(Sort("category", Sort.Direction.DESC)),
@@ -307,11 +307,11 @@ class AggregationQueryTest {
     fun `groups should reject invalid local histogram options`() {
         listOf(0.0, -1.0, Double.NaN, Double.POSITIVE_INFINITY).forEach { interval ->
             assertThrows<IllegalArgumentException> {
-                AggregationGroup.Histogram(LogicalField("amount"), "band", interval)
+                AggregationGroup.Histogram(QueryField("amount"), "band", interval)
             }
         }
         assertThrows<DateTimeException> {
-            AggregationGroup.DateHistogram(LogicalField("createdAt"), "day", AggregationDateUnit.DAY, "invalid")
+            AggregationGroup.DateHistogram(QueryField("createdAt"), "day", AggregationDateUnit.DAY, "invalid")
         }
     }
 }

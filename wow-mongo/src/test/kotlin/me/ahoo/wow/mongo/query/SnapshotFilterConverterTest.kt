@@ -62,12 +62,12 @@ class SnapshotFilterConverterTest {
     fun `equality filters should preserve scalar arrays and legacy ObjectId values`() {
         val objectId = ObjectId()
         assertConvert(
-            SnapshotFilterConverter.convert(EqualFilter(LogicalField("state.tags"), json(listOf("a", "b")))),
+            SnapshotFilterConverter.convert(EqualFilter(QueryField("state.tags"), json(listOf("a", "b")))),
             Filters.eq("state.tags", listOf("a", "b")),
         )
         assertConvert(
             SnapshotFilterConverter.convert(
-                NotEqualFilter(LogicalField("state.tags"), json(listOf("a", "b"))),
+                NotEqualFilter(QueryField("state.tags"), json(listOf("a", "b"))),
             ),
             Filters.ne("state.tags", listOf("a", "b")),
         )
@@ -131,8 +131,8 @@ class SnapshotFilterConverterTest {
         assertConvert(
             SnapshotFilterConverter.convert(
                 ElementMatchFilter(
-                    LogicalField("state.items"),
-                    EqualFilter(LogicalField(MessageRecords.AGGREGATE_ID), json("nested-aggregate-id")),
+                    QueryField("state.items"),
+                    EqualFilter(QueryField(MessageRecords.AGGREGATE_ID), json("nested-aggregate-id")),
                 ),
             ),
             Filters.elemMatch(
@@ -165,7 +165,7 @@ class SnapshotFilterConverterTest {
     fun `scoped element predicate fields should remain relative`() {
         assertConvert(
             SnapshotFilterConverter.convert(
-                ElementMatchFilter(LogicalField("items"), EqualFilter(LogicalField("quantity"), json(1))),
+                ElementMatchFilter(QueryField("items"), EqualFilter(QueryField("quantity"), json(1))),
                 "state.orders.lines",
             ),
             Filters.elemMatch("state.orders.lines.items", Filters.eq("quantity", 1)),
@@ -178,7 +178,7 @@ class SnapshotFilterConverterTest {
             AndFilter(
                 listOf(
                     DeletionFilter(DeletionState.DELETED),
-                    EqualFilter(LogicalField("state.name"), json("Wow")),
+                    EqualFilter(QueryField("state.name"), json("Wow")),
                 ),
             ),
         ).toBsonDocument().assert().isEqualTo(
@@ -213,8 +213,8 @@ class SnapshotFilterConverterTest {
 
         @JvmStatic
         fun mongoFilterParameters(): Stream<Arguments> {
-            val field = LogicalField("state.value")
-            val nestedField = LogicalField("name")
+            val field = QueryField("state.value")
+            val nestedField = QueryField("name")
             val one = json(1)
             val two = json(2)
             val text = json("value")

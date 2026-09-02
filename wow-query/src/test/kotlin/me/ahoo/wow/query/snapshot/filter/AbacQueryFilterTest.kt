@@ -23,7 +23,7 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.ExistsFilter
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.filter.DefaultQueryContext
@@ -61,7 +61,7 @@ class AbacQueryFilterTest {
     fun `tag key equal to tags path should remain relative`() {
         val filter = mapOf("tags" to listOf("*")).entries.first().toFilterExpression()
 
-        (filter as ExistsFilter).field.assert().isEqualTo(LogicalField("tags.tags"))
+        (filter as ExistsFilter).field.assert().isEqualTo(QueryField("tags.tags"))
     }
 
     @Test
@@ -111,8 +111,8 @@ class AbacQueryFilterTest {
     @Test
     fun `aggregation should append ABAC filter only to root filter`() {
         val query = AggregationQuery(
-            filter = ExistsFilter(LogicalField("tenantId")),
-            elements = listOf(AggregationElement(LogicalField("state.items"), ExistsFilter(LogicalField("sku")))),
+            filter = ExistsFilter(QueryField("tenantId")),
+            elements = listOf(AggregationElement(QueryField("state.items"), ExistsFilter(QueryField("sku")))),
             metrics = listOf(AggregationMetric.Count("count")),
         )
         val context = DefaultQueryContext<AggregationQuery, Any>(

@@ -22,7 +22,7 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SearchFilter
@@ -240,7 +240,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         service.schema().test()
             .assertNext { schema ->
                 schema.model.assert().isEqualTo(QueryModel.SNAPSHOT)
-                schema.fields.keys.assert().contains(LogicalField("aggregateId"))
+                schema.fields.keys.assert().contains(QueryField("aggregateId"))
             }
             .verifyComplete()
     }
@@ -251,7 +251,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
         snapshotQueryBackend.list(
             ListQuery(
-                filter = SearchFilter("searchable", setOf(LogicalField("state.data"))),
+                filter = SearchFilter("searchable", setOf(QueryField("state.data"))),
                 limit = 10,
             ),
         ).test().expectNextCount(1).verifyComplete()
@@ -315,7 +315,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
     @Test
     fun `strict should execute a client-declared formatted temporal range`() {
-        val field = LogicalField("state.formattedDate")
+        val field = QueryField("state.formattedDate")
         val today = Instant.now().atZone(ZoneOffset.UTC).toLocalDate().toString()
         setStateValidator(Document("formattedDate", Document("bsonType", "string")))
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
@@ -471,7 +471,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             filterExpression {
                 "state.nativeTimestamp".between(now.minusSeconds(60).toEpochMilli(), now.plusSeconds(60).toEpochMilli())
             },
-            TodayFilter(LogicalField("state.nativeDate"), zoneId = "UTC"),
+            TodayFilter(QueryField("state.nativeDate"), zoneId = "UTC"),
         )
 
         QuerySchemaValidationMode.entries.forEach { mode ->
@@ -538,7 +538,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
             service.list(
                 ListQuery(
-                    filter = TodayFilter(LogicalField("state.nativeDate"), zoneId = "UTC"),
+                    filter = TodayFilter(QueryField("state.nativeDate"), zoneId = "UTC"),
                     limit = 10,
                 ),
             ).test().expectError(QuerySchemaValidationException::class.java).verify()
@@ -741,7 +741,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
 
         aggregation {
-            filter(TodayFilter(LogicalField("state.epochSeconds"), zoneId = timeZone.id))
+            filter(TodayFilter(QueryField("state.epochSeconds"), zoneId = timeZone.id))
             expand("state.events") { "occurredAt".today(timeZone) }
             count("count")
         }.query(service)
@@ -819,7 +819,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.just(
             QuerySchemaDeclaration(
                 listOf("state.nativeDate", "state.nativeTimestamp").associate { field ->
-                    LogicalField(field) to QueryFieldDeclaration(
+                    QueryField(field) to QueryFieldDeclaration(
                         valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
                         nullable = DeclarationValue.Set(false),
                         required = DeclarationValue.Set(true),
@@ -831,7 +831,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         )
     }
 
-    private fun formattedTemporalSource(field: LogicalField, pattern: String): QuerySchemaSource =
+    private fun formattedTemporalSource(field: QueryField, pattern: String): QuerySchemaSource =
         object : QuerySchemaSource {
             override val priority: Int = QuerySchemaSourcePriority.BEAN
 
@@ -853,7 +853,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.just(
             QuerySchemaDeclaration(
                 mapOf(
-                    LogicalField(field) to QueryFieldDeclaration(
+                    QueryField(field) to QueryFieldDeclaration(
                         valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER)),
                         cardinality = DeclarationValue.Set(QueryCardinality.MANY),
                     ),
@@ -868,7 +868,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.just(
             QuerySchemaDeclaration(
                 mapOf(
-                    LogicalField("state.attributes") to QueryFieldDeclaration(
+                    QueryField("state.attributes") to QueryFieldDeclaration(
                         valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
                         nullable = DeclarationValue.Set(false),
                         required = DeclarationValue.Set(true),
@@ -886,7 +886,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.just(
             QuerySchemaDeclaration(
                 mapOf(
-                    LogicalField(field) to QueryFieldDeclaration(
+                    QueryField(field) to QueryFieldDeclaration(
                         valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER)),
                         nullable = DeclarationValue.Set(true),
                         required = DeclarationValue.Set(false),
@@ -904,12 +904,12 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.just(
             QuerySchemaDeclaration(
                 mapOf(
-                    LogicalField("state.epochSeconds") to epochDeclaration(),
-                    LogicalField("state.events") to QueryFieldDeclaration(
+                    QueryField("state.epochSeconds") to epochDeclaration(),
+                    QueryField("state.events") to QueryFieldDeclaration(
                         valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
                         cardinality = DeclarationValue.Set(QueryCardinality.MANY),
                     ),
-                    LogicalField("state.events.occurredAt") to epochDeclaration(),
+                    QueryField("state.events.occurredAt") to epochDeclaration(),
                 ),
             ),
         )

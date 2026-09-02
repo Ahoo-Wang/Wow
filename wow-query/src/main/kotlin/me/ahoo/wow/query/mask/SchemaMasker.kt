@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.query.mask
 
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.mask.CompiledMask
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.schema.MaskRule
@@ -131,9 +131,9 @@ internal class SchemaMasker private constructor(
             }
             val pathRules = linkedMapOf<String, MaskRule>()
             schema.maskedFields.forEach { (field, fieldSchema) ->
-                val responsePath = fieldSchema.projectionPath ?: field.value
+                val responsePath = fieldSchema.projectionPath ?: field.path
                 val invalidPath = when {
-                    !field.value.startsWith(prefix) -> "field" to field.value
+                    !field.path.startsWith(prefix) -> "field" to field.path
                     !responsePath.startsWith(prefix) -> "projection path" to responsePath
                     else -> null
                 }
@@ -162,7 +162,7 @@ internal class SchemaMasker private constructor(
         }
 
         private fun QueryModelSchema.requiredEventBodyTypes(): Set<String> {
-            val values = fields[LogicalField("body.bodyType")]?.enumValues
+            val values = fields[QueryField("body.bodyType")]?.enumValues
                 ?: throw QuerySchemaConflictException("Masked event schema requires body.bodyType enum values.")
             val bodyTypes = values.mapNotNull { it.takeIf(JsonNode::isString)?.stringValue() }.toSet()
             if (bodyTypes.size != values.size || bodyTypes.isEmpty()) {

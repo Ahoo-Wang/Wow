@@ -24,7 +24,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
@@ -232,19 +232,19 @@ class AbstractMongoQueryBackendTest {
                 model = QueryModel.SNAPSHOT,
                 capabilities = emptySet(),
                 fields = mapOf(
-                    LogicalField(MessageRecords.AGGREGATE_ID) to cursorFieldSchema("_id"),
-                    LogicalField("state.emailAlias") to cursorFieldSchema(
+                    QueryField(MessageRecords.AGGREGATE_ID) to cursorFieldSchema("_id"),
+                    QueryField("state.emailAlias") to cursorFieldSchema(
                         physicalPath = "masked_email",
                         projectionPath = "state.email",
                         maskRule = mockk(),
                     ),
-                    LogicalField("state.email") to cursorFieldSchema("email"),
-                    LogicalField("state.emailSibling") to cursorFieldSchema(
+                    QueryField("state.email") to cursorFieldSchema("email"),
+                    QueryField("state.emailSibling") to cursorFieldSchema(
                         physicalPath = "email_sibling",
                         projectionPath = "state.email",
                     ),
-                    LogicalField("state.secret") to cursorFieldSchema("secret", maskRule = mockk()),
-                    LogicalField("state.secretAlias") to cursorFieldSchema("secret"),
+                    QueryField("state.secret") to cursorFieldSchema("secret", maskRule = mockk()),
+                    QueryField("state.secretAlias") to cursorFieldSchema("secret"),
                 ),
             ),
         )
@@ -384,8 +384,8 @@ class AbstractMongoQueryBackendTest {
                 model = model,
                 capabilities = emptySet(),
                 fields = mapOf(
-                    LogicalField(logicalId) to cursorFieldSchema("_id"),
-                    LogicalField("name") to cursorFieldSchema("name"),
+                    QueryField(logicalId) to cursorFieldSchema("_id"),
+                    QueryField("name") to cursorFieldSchema("name"),
                 ),
             ),
         )

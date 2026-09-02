@@ -14,7 +14,7 @@
 package me.ahoo.wow.query.mask
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.mask.CompiledMask
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.KeepMask
@@ -57,7 +57,7 @@ class SchemaMaskerTest {
                 model = QueryModel.SNAPSHOT,
                 capabilities = emptySet(),
                 fields = (0 until 64).associate { index ->
-                    LogicalField("state.secret$index") to fieldSchema(maskRule = fullMaskRule())
+                    QueryField("state.secret$index") to fieldSchema(maskRule = fullMaskRule())
                 },
             ),
         )!!
@@ -117,7 +117,7 @@ class SchemaMaskerTest {
                 model = QueryModel.SNAPSHOT,
                 capabilities = emptySet(),
                 fields = mapOf(
-                    LogicalField("state.emailAlias") to fieldSchema(
+                    QueryField("state.emailAlias") to fieldSchema(
                         projectionPath = "state.email",
                         maskRule = fullMaskRule(),
                     ),
@@ -139,11 +139,11 @@ class SchemaMaskerTest {
                 model = QueryModel.SNAPSHOT,
                 capabilities = emptySet(),
                 fields = mapOf(
-                    LogicalField("state.primaryEmail") to fieldSchema(
+                    QueryField("state.primaryEmail") to fieldSchema(
                         projectionPath = "state.email",
                         maskRule = rule,
                     ),
-                    LogicalField("state.secondaryEmail") to fieldSchema(
+                    QueryField("state.secondaryEmail") to fieldSchema(
                         projectionPath = "state.email",
                         maskRule = rule,
                     ),
@@ -165,11 +165,11 @@ class SchemaMaskerTest {
                     model = QueryModel.SNAPSHOT,
                     capabilities = emptySet(),
                     fields = mapOf(
-                        LogicalField("state.primaryEmail") to fieldSchema(
+                        QueryField("state.primaryEmail") to fieldSchema(
                             projectionPath = "state.email",
                             maskRule = fullMaskRule(),
                         ),
-                        LogicalField("state.secondaryEmail") to fieldSchema(
+                        QueryField("state.secondaryEmail") to fieldSchema(
                             projectionPath = "state.email",
                             maskRule = keepMaskRule(),
                         ),
@@ -194,7 +194,7 @@ class SchemaMaskerTest {
                     model = QueryModel.SNAPSHOT,
                     capabilities = emptySet(),
                     fields = mapOf(
-                        LogicalField("state.secret") to fieldSchema(
+                        QueryField("state.secret") to fieldSchema(
                             projectionPath = "secret",
                             maskRule = fullMaskRule(),
                         ),
@@ -311,7 +311,7 @@ class SchemaMaskerTest {
             model = model,
             capabilities = emptySet(),
             fields = fields.associate { (field, rule) ->
-                LogicalField(field) to fieldSchema(maskRule = rule)
+                QueryField(field) to fieldSchema(maskRule = rule)
             },
         )
 
@@ -319,7 +319,7 @@ class SchemaMaskerTest {
         schema(QueryModel.EVENT_STREAM, *fields).let { schema ->
             schema.copy(
                 fields = schema.fields + Pair(
-                    LogicalField("body.bodyType"),
+                    QueryField("body.bodyType"),
                     fieldSchema(enumValues = listOf(JsonSerializer.valueToTree("example.KnownEvent"))),
                 ),
             )

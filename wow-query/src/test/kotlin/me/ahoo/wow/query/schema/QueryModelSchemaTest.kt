@@ -14,7 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCapability
@@ -43,15 +43,15 @@ class QueryModelSchemaTest {
             QueryModel.SNAPSHOT,
             setOf(QueryCapability.EXACT_MATCH),
             mapOf(
-                LogicalField("state") to fieldSchema(
+                QueryField("state") to fieldSchema(
                     dynamicChildren = true,
                     bindings = mapOf(QueryCapability.EXACT_MATCH to QueryFieldBinding("document", null)),
                 ),
-                LogicalField("state.name") to exact,
+                QueryField("state.name") to exact,
             ),
         )
 
-        schema.resolve(LogicalField("state.name")).assert().isSameAs(exact)
+        schema.resolve(QueryField("state.name")).assert().isSameAs(exact)
     }
 
     @Test
@@ -60,11 +60,11 @@ class QueryModelSchemaTest {
             QueryModel.SNAPSHOT,
             setOf(QueryCapability.EXACT_MATCH, QueryCapability.SORT),
             mapOf(
-                LogicalField("state") to fieldSchema(
+                QueryField("state") to fieldSchema(
                     dynamicChildren = true,
                     bindings = mapOf(QueryCapability.EXACT_MATCH to QueryFieldBinding("document", null)),
                 ),
-                LogicalField("state.customer") to fieldSchema(
+                QueryField("state.customer") to fieldSchema(
                     dynamicChildren = true,
                     bindings = mapOf(QueryCapability.SORT to QueryFieldBinding("customer_doc", QueryStorageType("keyword"))),
                     projectionPath = "customer_doc",
@@ -72,7 +72,7 @@ class QueryModelSchemaTest {
             ),
         )
 
-        val resolved = schema.resolve(LogicalField("state.customer.address.city"))!!
+        val resolved = schema.resolve(QueryField("state.customer.address.city"))!!
 
         resolved.bindings.assert().isEqualTo(
             mapOf(
@@ -91,14 +91,14 @@ class QueryModelSchemaTest {
             QueryModel.SNAPSHOT,
             setOf(QueryCapability.EXACT_MATCH, QueryCapability.SORT),
             mapOf(
-                LogicalField("state") to fieldSchema(
+                QueryField("state") to fieldSchema(
                     dynamicChildren = true,
                     bindings = mapOf(QueryCapability.EXACT_MATCH to QueryFieldBinding("document", null)),
                 ),
             ),
         )
 
-        schema.resolve(LogicalField("state.name"))!!.bindings.keys
+        schema.resolve(QueryField("state.name"))!!.bindings.keys
             .assert().isEqualTo(setOf(QueryCapability.EXACT_MATCH))
     }
 
@@ -108,7 +108,7 @@ class QueryModelSchemaTest {
             QueryModel.SNAPSHOT,
             emptySet(),
             mapOf(
-                LogicalField("state.orders") to fieldSchema(
+                QueryField("state.orders") to fieldSchema(
                     dynamicChildren = true,
                     bindings = mapOf(
                         QueryCapability.EXACT_MATCH to QueryFieldBinding("document.orders", null),
@@ -118,7 +118,7 @@ class QueryModelSchemaTest {
             ),
         )
 
-        schema.resolve(LogicalField("state.orders.items"))!!.bindings.keys.assert()
+        schema.resolve(QueryField("state.orders.items"))!!.bindings.keys.assert()
             .containsExactly(QueryCapability.EXACT_MATCH)
     }
 
@@ -128,19 +128,19 @@ class QueryModelSchemaTest {
             QueryModel.SNAPSHOT,
             setOf(QueryCapability.EXACT_MATCH),
             linkedMapOf(
-                LogicalField("state.z") to fieldSchema(
+                QueryField("state.z") to fieldSchema(
                     bindings = mapOf(
                         QueryCapability.EXACT_MATCH to QueryFieldBinding("private_z", QueryStorageType("keyword")),
                     ),
                     projectionPath = "private_source_z",
                 ),
-                LogicalField("state.a") to fieldSchema(title = "A"),
+                QueryField("state.a") to fieldSchema(title = "A"),
             ),
         )
 
         val metadata = schema.toMetadata()
 
-        metadata.fields.map { it.field.value }.assert().containsExactly("state.a", "state.z")
+        metadata.fields.map { it.field.path }.assert().containsExactly("state.a", "state.z")
         metadata.fields.last().capabilities.assert().isEqualTo(setOf(QueryCapability.EXACT_MATCH))
     }
 
@@ -149,7 +149,7 @@ class QueryModelSchemaTest {
         val schema = QueryModelSchema(
             QueryModel.SNAPSHOT,
             emptySet(),
-            mapOf(LogicalField("state.secret") to fieldSchema(maskRule = fullMaskRule())),
+            mapOf(QueryField("state.secret") to fieldSchema(maskRule = fullMaskRule())),
         )
 
         val metadata = schema.toMetadata()
@@ -196,17 +196,17 @@ class QueryModelSchemaTest {
 
     @Test
     fun `mask cache should distinguish schemas with and without masked fields`() {
-        val maskedField = LogicalField("state.secret")
+        val maskedField = QueryField("state.secret")
         val maskedSchema = QueryModelSchema(
             QueryModel.SNAPSHOT,
             emptySet(),
             mapOf(
                 maskedField to fieldSchema(maskRule = fullMaskRule()),
-                LogicalField("state.name") to fieldSchema(),
+                QueryField("state.name") to fieldSchema(),
             ),
         )
         val unmaskedSchema = maskedSchema.copy(
-            fields = mapOf(LogicalField("state.name") to fieldSchema()),
+            fields = mapOf(QueryField("state.name") to fieldSchema()),
         )
 
         maskedSchema.hasMaskedFields.assert().isTrue()
@@ -228,7 +228,7 @@ class QueryModelSchemaTest {
                 valueTypes(QueryValueType.INTEGER)
                 temporalEpoch(TimeUnit.SECONDS)
             }
-        }.build().fields.getValue(LogicalField("state.createdAt"))
+        }.build().fields.getValue(QueryField("state.createdAt"))
 
         declaration.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
         declaration.semanticType.assert().isEqualTo(DeclarationValue.Set(Temporal.Epoch(TimeUnit.SECONDS)))
@@ -252,7 +252,7 @@ class QueryModelSchemaTest {
                 semanticType(Temporal.Date)
                 dynamicChildren()
             }
-        }.build().fields.getValue(LogicalField("state.status"))
+        }.build().fields.getValue(QueryField("state.status"))
 
         declaration.assert().isEqualTo(
             QueryFieldDeclaration(
@@ -289,7 +289,7 @@ class QueryModelSchemaTest {
 
         registration.context.model.assert().isEqualTo(QueryModel.SNAPSHOT)
         registration.context.namedAggregate.aggregateName.assert().isEqualTo("mock_aggregate")
-        registration.declaration.fields.getValue(LogicalField("state.name")).title
+        registration.declaration.fields.getValue(QueryField("state.name")).title
             .assert().isEqualTo(DeclarationValue.Set("Name"))
     }
 

@@ -22,7 +22,7 @@ import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IdsFilter
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.serialization.JsonSerializer
@@ -60,8 +60,8 @@ class EventStreamFilterConverterTest {
         EventStreamFilterConverter.convert(
             AndFilter(
                 listOf(
-                    EqualFilter(LogicalField(MessageRecords.ID), JsonSerializer.valueToTree("event-id")),
-                    EqualFilter(LogicalField("body.name"), JsonSerializer.valueToTree("event-name")),
+                    EqualFilter(QueryField(MessageRecords.ID), JsonSerializer.valueToTree("event-id")),
+                    EqualFilter(QueryField("body.name"), JsonSerializer.valueToTree("event-name")),
                 ),
             ),
         ).toBsonDocument().assert().isEqualTo(
@@ -76,8 +76,8 @@ class EventStreamFilterConverterTest {
     fun `element predicate fields should remain relative`() {
         EventStreamFilterConverter.convert(
             ElementMatchFilter(
-                LogicalField("body"),
-                EqualFilter(LogicalField(MessageRecords.ID), JsonSerializer.valueToTree("event-body-id")),
+                QueryField("body"),
+                EqualFilter(QueryField(MessageRecords.ID), JsonSerializer.valueToTree("event-body-id")),
             ),
         ).toBsonDocument().assert().isEqualTo(
             Filters.elemMatch(

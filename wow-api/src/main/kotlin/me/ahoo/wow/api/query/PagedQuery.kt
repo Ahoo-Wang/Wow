@@ -43,7 +43,7 @@ interface IPagedQuery : Queryable<IPagedQuery> {
  *
  * ```
  * val query = PagedQuery(
- *     filter = EqualFilter(LogicalField("status"), value),
+ *     filter = EqualFilter(QueryField("status"), value),
  *     projection = Projection(listOf("name", "email")),
  *     sort = listOf(Sort("name", Direction.ASC)),
  *     pagination = Pagination(index = 2, size = 20)

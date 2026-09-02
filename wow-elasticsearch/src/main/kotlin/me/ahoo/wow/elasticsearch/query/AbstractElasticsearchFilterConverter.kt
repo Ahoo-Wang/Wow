@@ -159,11 +159,11 @@ abstract class AbstractElasticsearchFilterConverter(
         else -> error("Unsupported filter expression: ${filter::class.java.name}.")
     }
 
-    private val LogicalField.isDocumentId: Boolean
-        get() = value == "_id"
+    private val QueryField.isDocumentId: Boolean
+        get() = path == "_id"
 
-    private fun LogicalField.path(parent: String?): String =
-        if (parent == null || value == parent || value.startsWith("$parent.")) value else "$parent.$value"
+    private fun QueryField.path(parent: String?): String =
+        if (parent == null || path == parent || path.startsWith("$parent.")) path else "$parent.$path"
 
     private fun documentIdEqual(value: String): Query = documentIdField?.let { field ->
         term { it.field(field).value(value) }

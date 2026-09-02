@@ -14,7 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -69,7 +69,7 @@ class QuerySchemaSourcesTest {
             .single()
             .block()!!
 
-        val createdAt = declaration.fields.getValue(LogicalField("state.createdAt"))
+        val createdAt = declaration.fields.getValue(QueryField("state.createdAt"))
         createdAt.title.assert().isEqualTo(DeclarationValue.Set(null))
         createdAt.description.assert().isEqualTo(DeclarationValue.Set("Creation time"))
         createdAt.enumValues.assert().isInstanceOf(DeclarationValue.Set::class.java)
@@ -80,7 +80,7 @@ class QuerySchemaSourcesTest {
         createdAt.semanticType.assert().isEqualTo(DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)))
         createdAt.dynamicChildren.assert().isEqualTo(DeclarationValue.Set(false))
 
-        val note = declaration.fields.getValue(LogicalField("state.note"))
+        val note = declaration.fields.getValue(QueryField("state.note"))
         note.title.assert().isEqualTo(DeclarationValue.Set("Note"))
         note.description.assert().isEqualTo(DeclarationValue.Set(null))
         note.enumValues.assert().isEqualTo(DeclarationValue.Set(null))
@@ -148,7 +148,7 @@ class QuerySchemaSourcesTest {
             QuerySchemaMerger().merge(
                 SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT),
                 declarations.map { PrioritizedQuerySchemaDeclaration(source.priority, it) },
-            ).fields.getValue(LogicalField("state.name")).title.assert().isEqualTo("Same")
+            ).fields.getValue(QueryField("state.name")).title.assert().isEqualTo("Same")
         }
     }
 
@@ -264,14 +264,14 @@ class QuerySchemaSourcesTest {
         """{"fields":{"state.name":{"title":"$title"}}}"""
 
     private fun QuerySchemaDeclaration.title(): DeclarationValue<String?> =
-        fields.getValue(LogicalField("state.name")).title
+        fields.getValue(QueryField("state.name")).title
 
     private fun QuerySchemaContext.resourcePathForTest() =
         "wow-query-schema/${namedAggregate.contextName}/${namedAggregate.aggregateName}/${model.value.lowercase()}.json"
 
     private fun title(value: String): QuerySchemaDeclaration =
         QuerySchemaDeclaration(
-            mapOf(LogicalField("state.name") to QueryFieldDeclaration(title = DeclarationValue.Set(value))),
+            mapOf(QueryField("state.name") to QueryFieldDeclaration(title = DeclarationValue.Set(value))),
         )
 
     private fun <T> onNamedCallerThread(block: () -> T): T {

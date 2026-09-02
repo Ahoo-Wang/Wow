@@ -14,7 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.mask.CompiledMask
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.KeepMask
@@ -45,7 +45,7 @@ class QuerySchemaMergerTest {
                 PrioritizedQuerySchemaDeclaration(100, json),
                 PrioritizedQuerySchemaDeclaration(300, bean),
             ),
-        ).fields.getValue(LogicalField("state.createdAt"))
+        ).fields.getValue(QueryField("state.createdAt"))
 
         field.valueTypes.assert().isEqualTo(setOf(QueryValueType.INTEGER))
         field.semanticType.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
@@ -61,7 +61,7 @@ class QuerySchemaMergerTest {
             ),
         )
 
-        result.fields.getValue(LogicalField("state.name")).title.assert().isEqualTo("Bean")
+        result.fields.getValue(QueryField("state.name")).title.assert().isEqualTo("Bean")
     }
 
     @Test
@@ -89,7 +89,7 @@ class QuerySchemaMergerTest {
                 PrioritizedQuerySchemaDeclaration(300, declaration),
                 PrioritizedQuerySchemaDeclaration(300, declaration),
             ),
-        ).fields.getValue(LogicalField("state.name")).title.assert().isEqualTo("Name")
+        ).fields.getValue(QueryField("state.name")).title.assert().isEqualTo("Name")
     }
 
     @Test
@@ -101,12 +101,12 @@ class QuerySchemaMergerTest {
                     300,
                     QuerySchemaDeclaration(
                         mapOf(
-                            LogicalField("state.name") to QueryFieldDeclaration(),
+                            QueryField("state.name") to QueryFieldDeclaration(),
                         )
                     )
                 )
             ),
-        ).fields.getValue(LogicalField("state.name"))
+        ).fields.getValue(QueryField("state.name"))
 
         field.title.assert().isNull()
         field.description.assert().isNull()
@@ -124,7 +124,7 @@ class QuerySchemaMergerTest {
         merger.merge(
             system(),
             listOf(PrioritizedQuerySchemaDeclaration(300, title("Name"))),
-        ).fields.assert().containsKey(LogicalField("state.name"))
+        ).fields.assert().containsKey(QueryField("state.name"))
     }
 
     @Test
@@ -134,7 +134,7 @@ class QuerySchemaMergerTest {
         merger.merge(
             SystemQuerySchemaSource.declaration(QueryModel.EVENT_STREAM),
             listOf(PrioritizedQuerySchemaDeclaration(300, payload)),
-        ).fields.assert().containsKey(LogicalField("body.body.data"))
+        ).fields.assert().containsKey(QueryField("body.body.data"))
     }
 
     @Test
@@ -147,7 +147,7 @@ class QuerySchemaMergerTest {
                     bodyType(QueryFieldDeclaration(enumValues = DeclarationValue.Set(enumValues("example.Event")))),
                 ),
             ),
-        ).fields.getValue(LogicalField("body.bodyType"))
+        ).fields.getValue(QueryField("body.bodyType"))
 
         field.enumValues.assert().isEqualTo(listOf(JsonNodeFactory.instance.stringNode("example.Event")))
         field.valueTypes.assert().isEqualTo(setOf(QueryValueType.STRING))
@@ -216,7 +216,7 @@ class QuerySchemaMergerTest {
                         300,
                         QuerySchemaDeclaration(
                             mapOf(
-                                LogicalField("body.name") to QueryFieldDeclaration(
+                                QueryField("body.name") to QueryFieldDeclaration(
                                     enumValues = DeclarationValue.Set(listOf(JsonNodeFactory.instance.stringNode("event"))),
                                 ),
                             ),
@@ -237,7 +237,7 @@ class QuerySchemaMergerTest {
                         300,
                         QuerySchemaDeclaration(
                             mapOf(
-                                LogicalField("custom") to QueryFieldDeclaration(title = DeclarationValue.Set("Custom")),
+                                QueryField("custom") to QueryFieldDeclaration(title = DeclarationValue.Set("Custom")),
                             )
                         )
                     )
@@ -258,7 +258,7 @@ class QuerySchemaMergerTest {
                         300,
                         QuerySchemaDeclaration(
                             mapOf(
-                                LogicalField("state") to QueryFieldDeclaration(
+                                QueryField("state") to QueryFieldDeclaration(
                                     cardinality = DeclarationValue.Set(QueryCardinality.MANY),
                                 ),
                             )
@@ -283,7 +283,7 @@ class QuerySchemaMergerTest {
                 PrioritizedQuerySchemaDeclaration(100, declaration("state.secret")),
                 PrioritizedQuerySchemaDeclaration(100, masked),
             ),
-        ).fields.getValue(LogicalField("state.secret")).maskRule.assert().isEqualTo(rule)
+        ).fields.getValue(QueryField("state.secret")).maskRule.assert().isEqualTo(rule)
 
         merger.merge(
             system(),
@@ -294,7 +294,7 @@ class QuerySchemaMergerTest {
                     declaration("state.secret", setOf(QueryValueType.STRING), maskRule = sameRule),
                 ),
             ),
-        ).fields.getValue(LogicalField("state.secret")).maskRule.assert().isEqualTo(rule)
+        ).fields.getValue(QueryField("state.secret")).maskRule.assert().isEqualTo(rule)
 
         assertThrows<QuerySchemaConflictException> {
             merger.merge(
@@ -339,7 +339,7 @@ class QuerySchemaMergerTest {
     ): QuerySchemaDeclaration =
         QuerySchemaDeclaration(
             mapOf(
-                LogicalField(field) to QueryFieldDeclaration(
+                QueryField(field) to QueryFieldDeclaration(
                     valueTypes = valueTypes?.let { DeclarationValue.Set(it) } ?: DeclarationValue.Unset,
                     semanticType = semanticType?.let { DeclarationValue.Set(it) } ?: DeclarationValue.Unset,
                     maskRule = maskRule?.let { DeclarationValue.Set(it) } ?: DeclarationValue.Unset,
@@ -359,12 +359,12 @@ class QuerySchemaMergerTest {
 
     private fun title(value: String): QuerySchemaDeclaration =
         QuerySchemaDeclaration(
-            mapOf(LogicalField("state.name") to QueryFieldDeclaration(title = DeclarationValue.Set(value))),
+            mapOf(QueryField("state.name") to QueryFieldDeclaration(title = DeclarationValue.Set(value))),
         )
 
     private fun bodyType(declaration: QueryFieldDeclaration): QuerySchemaDeclaration = QuerySchemaDeclaration(
         mapOf(
-            LogicalField("body.bodyType") to declaration,
+            QueryField("body.bodyType") to declaration,
         ),
     )
 

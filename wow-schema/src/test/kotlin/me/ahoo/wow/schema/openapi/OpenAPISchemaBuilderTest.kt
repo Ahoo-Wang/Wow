@@ -7,10 +7,10 @@ import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.schema.AnnotationFixture
 import me.ahoo.wow.schema.ChangeTestName
@@ -24,11 +24,11 @@ import org.springframework.http.codec.ServerSentEvent
 class OpenAPISchemaBuilderTest {
 
     @Test
-    fun `should expose delegating logical field as a string`() {
+    fun `should expose delegating query field as a string`() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
-        openAPISchemaBuilder.generateSchema(LogicalField::class.java)
+        openAPISchemaBuilder.generateSchema(QueryField::class.java)
 
-        openAPISchemaBuilder.build().getValue("wow.api.query.LogicalField")
+        openAPISchemaBuilder.build().getValue("wow.api.query.QueryField")
             .types.assert().contains("string").doesNotContain("object")
     }
 

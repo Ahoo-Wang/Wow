@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.schema.query
 
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
@@ -30,7 +30,7 @@ private const val MASK_RULE = "maskRule"
 
 private fun QueryFieldDeclaration.mergeStructural(
     other: QueryFieldDeclaration,
-    field: LogicalField,
+    field: QueryField,
     valueTypes: DeclarationValue<Set<QueryValueType>>,
     required: Boolean,
 ): QueryFieldDeclaration = QueryFieldDeclaration(
@@ -46,8 +46,8 @@ private fun QueryFieldDeclaration.mergeStructural(
     maskRule = maskRule.requireSame(other.maskRule, field, MASK_RULE),
 )
 
-internal fun MutableMap<LogicalField, QueryFieldDeclaration>.mergeConjunctive(
-    other: Map<LogicalField, QueryFieldDeclaration>,
+internal fun MutableMap<QueryField, QueryFieldDeclaration>.mergeConjunctive(
+    other: Map<QueryField, QueryFieldDeclaration>,
 ) {
     other.forEach { (field, next) ->
         merge(field, next) { current, merged ->
@@ -62,9 +62,8 @@ internal fun MutableMap<LogicalField, QueryFieldDeclaration>.mergeConjunctive(
     requireMaskedStringFields()
 }
 
-internal fun List<Map<LogicalField, QueryFieldDeclaration>>.mergeAlternatives():
-    Map<LogicalField, QueryFieldDeclaration> {
-    val merged = linkedMapOf<LogicalField, QueryFieldDeclaration>()
+internal fun List<Map<QueryField, QueryFieldDeclaration>>.mergeAlternatives(): Map<QueryField, QueryFieldDeclaration> {
+    val merged = linkedMapOf<QueryField, QueryFieldDeclaration>()
     forEach { alternative ->
         alternative.forEach { (field, next) ->
             merged.merge(field, next) { current, branch ->
@@ -81,10 +80,10 @@ internal fun List<Map<LogicalField, QueryFieldDeclaration>>.mergeAlternatives():
         declaration.copy(
             required = DeclarationValue.Set(all { alternative -> alternative[field]?.isRequired() == true }),
         )
-    }.also(Map<LogicalField, QueryFieldDeclaration>::requireMaskedStringFields)
+    }.also(Map<QueryField, QueryFieldDeclaration>::requireMaskedStringFields)
 }
 
-private fun Map<LogicalField, QueryFieldDeclaration>.requireMaskedStringFields() {
+private fun Map<QueryField, QueryFieldDeclaration>.requireMaskedStringFields() {
     forEach { (_, declaration) ->
         if (declaration.maskRule is DeclarationValue.Set &&
             declaration.valueTypes != DeclarationValue.Set(setOf(QueryValueType.STRING))
@@ -107,7 +106,7 @@ private fun DeclarationValue<Set<QueryValueType>>.union(
 
 private fun DeclarationValue<Set<QueryValueType>>.intersect(
     other: DeclarationValue<Set<QueryValueType>>,
-    field: LogicalField,
+    field: QueryField,
 ): DeclarationValue<Set<QueryValueType>> = when {
     this !is DeclarationValue.Set -> other
     other !is DeclarationValue.Set -> this
@@ -129,7 +128,7 @@ private fun DeclarationValue<Set<QueryValueType>>.intersect(
 
 private fun <T> DeclarationValue<T>.requireSame(
     other: DeclarationValue<T>,
-    field: LogicalField,
+    field: QueryField,
     leaf: String,
 ): DeclarationValue<T> {
     if (this === DeclarationValue.Unset) return other

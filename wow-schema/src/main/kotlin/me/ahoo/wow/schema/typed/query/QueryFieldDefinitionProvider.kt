@@ -18,14 +18,14 @@ import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 
-object LogicalFieldDefinitionProvider : CustomDefinitionProviderV2 {
+object QueryFieldDefinitionProvider : CustomDefinitionProviderV2 {
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
         context: SchemaGenerationContext,
     ): CustomDefinition? {
-        if (javaType.erasedType != LogicalField::class.java) return null
+        if (javaType.erasedType != QueryField::class.java) return null
         val definition = context.generatorConfig.createObjectNode()
         definition.put(
             context.getKeyword(SchemaKeyword.TAG_TYPE),

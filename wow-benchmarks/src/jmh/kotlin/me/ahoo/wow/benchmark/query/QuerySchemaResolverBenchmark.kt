@@ -19,7 +19,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SingleQuery
@@ -65,24 +65,24 @@ private const val FILTER_OPERAND_COUNT = 8
 @Fork(3)
 @Threads(1)
 open class QuerySchemaResolverBenchmark {
-    private val sortableField = LogicalField("state.createdAt")
-    private val aggregatableField = LogicalField("state.category")
-    private val dynamicField = LogicalField("state.dynamic")
-    private val dynamicChildField = LogicalField("state.dynamic.child.grandchild")
-    private val eventSecretField = LogicalField("body.body.secret")
-    private val eventBodyTypeField = LogicalField("body.bodyType")
+    private val sortableField = QueryField("state.createdAt")
+    private val aggregatableField = QueryField("state.category")
+    private val dynamicField = QueryField("state.dynamic")
+    private val dynamicChildField = QueryField("state.dynamic.child.grandchild")
+    private val eventSecretField = QueryField("body.body.secret")
+    private val eventBodyTypeField = QueryField("body.bodyType")
     private val schema = QueryModelSchema(
         model = QueryModel.SNAPSHOT,
         capabilities = emptySet(),
         fields = buildMap {
             putAll(
                 List(MASKED_FIELD_COUNT) { index ->
-                    LogicalField("state.secret$index") to maskedFieldSchema()
+                    QueryField("state.secret$index") to maskedFieldSchema()
                 },
             )
             putAll(
                 List(FILTER_OPERAND_COUNT) { index ->
-                    LogicalField("state.filter$index") to maskedFieldSchema().copy(
+                    QueryField("state.filter$index") to maskedFieldSchema().copy(
                         bindings = mapOf(
                             QueryCapability.EXACT_MATCH to QueryFieldBinding("document.filter$index", null),
                         ),
@@ -135,21 +135,21 @@ open class QuerySchemaResolverBenchmark {
             fields = mapOf(
                 eventSecretField to maskedFieldSchema().copy(
                     bindings = mapOf(
-                        QueryCapability.PRESENCE to QueryFieldBinding(eventSecretField.value, null),
+                        QueryCapability.PRESENCE to QueryFieldBinding(eventSecretField.path, null),
                     ),
-                    projectionPath = eventSecretField.value,
+                    projectionPath = eventSecretField.path,
                 ),
                 eventBodyTypeField to maskedFieldSchema().copy(
                     bindings = mapOf(
-                        QueryCapability.PRESENCE to QueryFieldBinding(eventBodyTypeField.value, null),
+                        QueryCapability.PRESENCE to QueryFieldBinding(eventBodyTypeField.path, null),
                     ),
-                    projectionPath = eventBodyTypeField.value,
+                    projectionPath = eventBodyTypeField.path,
                     maskRule = null,
                 ),
             ),
         ),
     )
-    private val eventProjection = Projection(include = listOf(eventSecretField.value))
+    private val eventProjection = Projection(include = listOf(eventSecretField.path))
     private val dynamicFilter = EqualFilter(
         dynamicChildField,
         JsonNodeFactory.instance.stringNode("value"),
@@ -163,7 +163,7 @@ open class QuerySchemaResolverBenchmark {
         AndFilter(
             List(FILTER_OPERAND_COUNT) { index ->
                 EqualFilter(
-                    LogicalField("state.filter$index"),
+                    QueryField("state.filter$index"),
                     JsonNodeFactory.instance.stringNode(index.toString()),
                 )
             },
@@ -171,7 +171,7 @@ open class QuerySchemaResolverBenchmark {
     )
     private val cursorQuery = CursorQuery(
         MatchAllFilter,
-        sort = listOf(Sort(sortableField.value, Sort.Direction.ASC)),
+        sort = listOf(Sort(sortableField.path, Sort.Direction.ASC)),
     )
 
     @Benchmark

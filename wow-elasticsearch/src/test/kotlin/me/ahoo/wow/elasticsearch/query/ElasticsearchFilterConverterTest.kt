@@ -48,7 +48,7 @@ class ElasticsearchFilterConverterTest {
     fun `model level search should be lenient while explicit fields keep strict parsing`() {
         RawFilterConverter.convert(SearchFilter("value")).multiMatch().lenient().assert().isTrue()
         RawFilterConverter.convert(
-            SearchFilter("value", setOf(LogicalField("state.value"))),
+            SearchFilter("value", setOf(QueryField("state.value"))),
         ).multiMatch().lenient().assert().isNull()
     }
 
@@ -104,11 +104,11 @@ class ElasticsearchFilterConverterTest {
     @Test
     fun `generic document id predicates should preserve exact id queries`() {
         assertConvert(
-            SnapshotFilterConverter.convert(EqualFilter(LogicalField("_id"), json("id-1"))),
+            SnapshotFilterConverter.convert(EqualFilter(QueryField("_id"), json("id-1"))),
             ids { it.values("id-1") },
         )
         assertConvert(
-            SnapshotFilterConverter.convert(InFilter(LogicalField("_id"), listOf(json("id-1"), json("id-2")))),
+            SnapshotFilterConverter.convert(InFilter(QueryField("_id"), listOf(json("id-1"), json("id-2")))),
             ids { it.values("id-1", "id-2") },
         )
     }
@@ -119,12 +119,12 @@ class ElasticsearchFilterConverterTest {
         val arrayValue = listOf("a", "b")
 
         assertConvert(
-            SnapshotFilterConverter.convert(EqualFilter(LogicalField("state.tags"), json(arrayValue))),
+            SnapshotFilterConverter.convert(EqualFilter(QueryField("state.tags"), json(arrayValue))),
             term { it.field("state.tags").value(FieldValue.of(arrayValue)) },
         )
 
         val pojoQuery = SnapshotFilterConverter.convert(
-            EqualFilter(LogicalField("state.native"), JsonNodeFactory.instance.pojoNode(nativeValue)),
+            EqualFilter(QueryField("state.native"), JsonNodeFactory.instance.pojoNode(nativeValue)),
         ).bool().filter().last().term()
         pojoQuery.value().isAny.assert().isTrue()
         pojoQuery.value().anyValue().toJson(WowJsonpMapper).toString().assert()
@@ -134,7 +134,7 @@ class ElasticsearchFilterConverterTest {
     @Test
     @Suppress("LongMethod")
     fun `should compile typed filter operators`() {
-        val field = LogicalField("state.value")
+        val field = QueryField("state.value")
         val one = json(1)
         val two = json(2)
         val text = json("value")
@@ -199,7 +199,7 @@ class ElasticsearchFilterConverterTest {
             IsNotNullFilter(field) to exists { it.field("state.value") },
             ExistsFilter(field) to exists { it.field("state.value") },
             NotExistsFilter(field) to bool { it.mustNot(exists { exists -> exists.field("state.value") }) },
-            ElementMatchFilter(LogicalField("state.items"), EqualFilter(LogicalField("name"), text)) to
+            ElementMatchFilter(QueryField("state.items"), EqualFilter(QueryField("name"), text)) to
                 nested { it.path("state.items").query(term { term -> term.field("state.items.name").value("value") }) },
             SearchFilter("value", linkedSetOf(field)) to
                 multiMatch { it.query("value").fields("state.value") },
@@ -225,7 +225,7 @@ class ElasticsearchFilterConverterTest {
                 AndFilter(
                     listOf(
                         DeletionFilter(DeletionState.DELETED),
-                        EqualFilter(LogicalField("state.name"), json("Wow")),
+                        EqualFilter(QueryField("state.name"), json("Wow")),
                     ),
                 ),
             ),
@@ -238,7 +238,7 @@ class ElasticsearchFilterConverterTest {
 
     @Test
     fun `relative time filter should normalize before compilation`() {
-        SnapshotFilterConverter.convert(TodayFilter(LogicalField("state.time")))._kind().assert()
+        SnapshotFilterConverter.convert(TodayFilter(QueryField("state.time")))._kind().assert()
             .isEqualTo(Query.Kind.Bool)
     }
 
