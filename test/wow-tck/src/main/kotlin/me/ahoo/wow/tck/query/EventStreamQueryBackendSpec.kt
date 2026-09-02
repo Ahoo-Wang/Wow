@@ -173,6 +173,50 @@ abstract class EventStreamQueryBackendSpec {
     }
 
     @Test
+    fun `metadata-only projection should omit payload and body type`() {
+        val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
+        eventStore.append(eventStream).block()
+
+        eventStreamQueryBackend.single(
+            SingleQuery(
+                filter = TenantIdFilter(eventStream.aggregateId.tenantId),
+                projection = Projection(include = listOf(QueryField("body.id"))),
+            ),
+        ).test()
+            .assertNext { node ->
+                node.path("body").path(0).let { event ->
+                    event.path("id").asString().assert().isNotBlank()
+                    event.has("body").assert().isFalse()
+                    event.has("bodyType").assert().isFalse()
+                }
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `excluding payload and body type should retain event metadata`() {
+        val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
+        eventStore.append(eventStream).block()
+
+        eventStreamQueryBackend.single(
+            SingleQuery(
+                filter = TenantIdFilter(eventStream.aggregateId.tenantId),
+                projection = Projection(
+                    exclude = listOf(QueryField("body.body"), QueryField("body.bodyType")),
+                ),
+            ),
+        ).test()
+            .assertNext { node ->
+                node.path("body").path(0).let { event ->
+                    event.path("id").asString().assert().isNotBlank()
+                    event.has("body").assert().isFalse()
+                    event.has("bodyType").assert().isFalse()
+                }
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun paged() {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()

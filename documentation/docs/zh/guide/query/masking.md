@@ -98,9 +98,10 @@ Strategy 可以是 Kotlin `object` 或公开无参类。示例不按 UTF-16 code
 | 同一成员有多个有效 Mask 注解，或 Schema 分支规则冲突 | Schema conflict |
 | Strategy 无法构造，或 `compile` 抛错 | Schema 构建失败，错误保留 |
 | 响应值为非 String/非 String 数组，Strategy 执行抛错，或自定义 `CompiledMask` 返回 `null` | 当前结果 Publisher 失败，不返回原值 |
-| EventStream `body` 数组中 `bodyType` 缺失或未知 | 当前结果 Publisher 失败 |
+| EventStream event item 含非 null payload，但 `bodyType` 缺失、不是字符串或未知 | 当前结果 Publisher 失败 |
+| EventStream 顶层 `body` 不是数组，或数组包含非 object event item | 当前结果 Publisher 失败 |
 
-Event projection 完全没有 `body`，或把顶层 `body` 投影为 `null` 时，Mask 安全跳过。只要 `body` 存在，它就必须是合法事件数组；非数组形状、无效事件项或缺失/未知 `bodyType` 都失败关闭。
+Event projection 完全没有顶层 `body`，或把该事件数组投影为 `null` 时，Mask 安全跳过。顶层 `body` 存在时必须是数组，且每个 event item 都必须是 object。合法 event item 内的 payload 属性 `body` 缺失或为 null，表示 metadata-only 或 payload 已排除；此时没有敏感 payload 可泄漏，不要求 `bodyType`。非 null payload 仍必须携带已知的字符串 `bodyType`；缺失、非字符串或未知类型都会在 Mask 前失败关闭。
 
 ## 受信原始值边界
 
