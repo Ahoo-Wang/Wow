@@ -17,6 +17,8 @@ import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch.core.search.Hit
+import co.elastic.clients.json.JsonData
+import jakarta.json.JsonString
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -215,20 +217,17 @@ class ElasticsearchEventStore(
                 it
                     .index(namedAggregate.toEventStreamIndexName())
                     .query(EventStreamFilterConverter.convert(filter))
-                    .source { sourceBuilder ->
-                        sourceBuilder.filter { sourceFilterBuilder ->
-                            sourceFilterBuilder.includes(MessageRecords.AGGREGATE_ID, MessageRecords.TENANT_ID)
-                        }
-                    }
+                    .source { sourceBuilder -> sourceBuilder.fetch(false) }
+                    .docvalueFields { field -> field.field(MessageRecords.AGGREGATE_ID) }
+                    .docvalueFields { field -> field.field(MessageRecords.TENANT_ID) }
                     .size(limit)
                     .sort(sort)
             }, Map::class.java)
             .onErrorResume(::missingIndexAsEmpty)
             .flatMapIterable<AggregateId> {
                 it.hits().hits().map { hit ->
-                    val source = requireNotNull(hit.source())
-                    val aggregateId = checkNotNull(source[MessageRecords.AGGREGATE_ID] as String)
-                    val tenantId = checkNotNull(source[MessageRecords.TENANT_ID] as String)
+                    val aggregateId = hit.fields().requiredStringDocValue(MessageRecords.AGGREGATE_ID)
+                    val tenantId = hit.fields().requiredStringDocValue(MessageRecords.TENANT_ID)
                     namedAggregate.aggregateId(aggregateId, tenantId)
                 }
             }
@@ -244,4 +243,12 @@ class ElasticsearchEventStore(
     override fun close() {
         appender.close()
     }
+}
+
+private fun Map<String, JsonData>.requiredStringDocValue(field: String): String {
+    val value = checkNotNull(this[field])
+        .toJson()
+        .asJsonArray()
+        .single()
+    return checkNotNull(value as? JsonString).string
 }

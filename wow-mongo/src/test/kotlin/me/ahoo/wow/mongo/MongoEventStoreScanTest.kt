@@ -49,7 +49,7 @@ class MongoEventStoreScanTest {
     }
 
     @Test
-    fun `scan aggregate id should filter by named aggregate fields`() {
+    fun `scan aggregate id should rely on physical aggregate scope`() {
         val database = mockk<MongoDatabase>()
         val collection = mockk<MongoCollection<Document>>()
         val findPublisher = mockk<FindPublisher<Document>>()
@@ -66,11 +66,8 @@ class MongoEventStoreScanTest {
         val filterJson = filter.captured
             .toBsonDocument(BsonDocument::class.java, MongoClientSettings.getDefaultCodecRegistry())
             .toJson()
-        filterJson.assert().contains(MessageRecords.CONTEXT_NAME)
-        filterJson.assert().contains("order-service")
-        filterJson.assert().contains(MessageRecords.AGGREGATE_NAME)
-        filterJson.assert().contains("order")
-        filterJson.assert().contains(MessageRecords.AGGREGATE_ID)
-        filterJson.assert().contains(MessageRecords.VERSION)
+        filterJson.assert()
+            .doesNotContain(MessageRecords.CONTEXT_NAME, MessageRecords.AGGREGATE_NAME)
+            .contains(MessageRecords.AGGREGATE_ID, MessageRecords.VERSION)
     }
 }

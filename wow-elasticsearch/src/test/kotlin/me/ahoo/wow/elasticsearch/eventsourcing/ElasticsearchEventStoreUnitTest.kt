@@ -18,13 +18,17 @@ import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.SearchResponse
 import co.elastic.clients.elasticsearch.core.search.ResponseBody
+import co.elastic.clients.json.JsonData
 import co.elastic.clients.util.ObjectBuilder
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -94,6 +98,29 @@ class ElasticsearchEventStoreUnitTest {
             .verify()
     }
 
+    @Test
+    fun `aggregate id scan uses doc values without source`() {
+        val search = slot<Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>>>()
+        every {
+            client.search(capture(search), Map::class.java)
+        } returns Mono.just(aggregateIdScanResponse())
+        val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
+
+        ElasticsearchEventStore(client).scanAggregateId(namedAggregate)
+            .test()
+            .assertNext {
+                it.assert().isEqualTo(namedAggregate.aggregateId("id", "tenant"))
+            }
+            .verifyComplete()
+
+        val request = search.captured.apply(SearchRequest.Builder()).build()
+        request.source()!!.fetch().assert().isFalse()
+        request.docvalueFields().map { it.field() }.assert().containsExactly(
+            MessageRecords.AGGREGATE_ID,
+            MessageRecords.TENANT_ID,
+        )
+    }
+
     private fun stubSearch(response: Mono<ResponseBody<DomainEventStream>>) {
         every {
             client.search(
@@ -118,6 +145,22 @@ class ElasticsearchEventStoreUnitTest {
                             .sort(sort)
                         source?.let(hit::source)
                         hit
+                    }
+                }
+        }
+    }
+
+    private fun aggregateIdScanResponse(): SearchResponse<Map<*, *>> {
+        return SearchResponse.of<Map<*, *>> { response ->
+            response.took(1)
+                .timedOut(false)
+                .shards { shards -> shards.failed(0).successful(1).total(1) }
+                .hits { hits ->
+                    hits.hits { hit ->
+                        hit.index("test-index")
+                            .id("id")
+                            .fields(MessageRecords.AGGREGATE_ID, JsonData.fromJson("[\"id\"]"))
+                            .fields(MessageRecords.TENANT_ID, JsonData.fromJson("[\"tenant\"]"))
                     }
                 }
         }
