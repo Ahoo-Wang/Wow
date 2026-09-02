@@ -66,6 +66,10 @@ class EventStreamSchemaInitializer(
             expectedIndexes = listOf(
                 hashedIndex(MessageRecords.AGGREGATE_ID),
                 ascendingIndex(MessageRecords.AGGREGATE_ID, MessageRecords.VERSION, unique = true),
+                ascendingIndex(
+                    MessageRecords.VERSION,
+                    MessageRecords.AGGREGATE_ID,
+                ),
                 requestIdIndex,
                 hashedIndex(MessageRecords.TENANT_ID),
                 hashedIndex(MessageRecords.OWNER_ID),

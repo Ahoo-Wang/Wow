@@ -138,8 +138,6 @@ class MongoEventStore(
         return database.getCollection(eventStreamCollectionName)
             .find(
                 Filters.and(
-                    Filters.eq(MessageRecords.CONTEXT_NAME, namedAggregate.contextName),
-                    Filters.eq(MessageRecords.AGGREGATE_NAME, namedAggregate.aggregateName),
                     Filters.eq(MessageRecords.VERSION, Version.INITIAL_VERSION),
                     Filters.gt(MessageRecords.AGGREGATE_ID, afterId),
                 )

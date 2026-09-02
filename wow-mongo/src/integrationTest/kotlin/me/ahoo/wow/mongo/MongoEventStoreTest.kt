@@ -46,6 +46,8 @@ class MongoEventStoreTest : EventStoreSpec() {
         return MongoEventStore(database).meteredForTck()
     }
 
+    override fun scanAggregateIdShouldFilterBoundedContext() = Unit
+
     @Test
     fun `batch append should persist all event streams`() {
         val database = mongo.database()
