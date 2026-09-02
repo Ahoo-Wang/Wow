@@ -31,13 +31,7 @@ internal data class QueryFieldResolution(
 internal class QueryFieldSchemaResolver(
     private val schema: QueryModelSchema,
 ) {
-    private val elementScopePaths = buildSet {
-        schema.fields.forEach { (field, fieldSchema) ->
-            if (QueryCapability.ELEMENT_SCOPE in fieldSchema.bindings) {
-                add(field.path)
-            }
-        }
-    }
+    private val elementScopePaths = schema.elementScopePaths
 
     fun resolveProjection(field: QueryField): QuerySchemaResolution<QueryField> = QuerySchemaResolution(
         field,

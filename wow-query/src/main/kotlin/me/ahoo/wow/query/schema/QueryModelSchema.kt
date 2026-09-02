@@ -66,6 +66,15 @@ data class QueryModelSchema(
     @get:JsonIgnore
     internal val hasMaskedFields: Boolean = maskedFields.isNotEmpty()
 
+    @get:JsonIgnore
+    internal val elementScopePaths: Set<String> = buildSet {
+        fields.forEach { (field, fieldSchema) ->
+            if (QueryCapability.ELEMENT_SCOPE in fieldSchema.bindings) {
+                add(field.path)
+            }
+        }
+    }
+
     val rewriteMode: QueryRewriteMode = when {
         capabilities.any {
             it == QueryCapability.FULL_TEXT_TERMS || it == QueryCapability.FULL_TEXT_PHRASE
@@ -88,7 +97,16 @@ data class QueryModelSchema(
             val ancestorField = QueryField(field.path.substring(0, separator))
             val ancestor = dynamicFields[ancestorField]
             if (ancestor != null) {
-                return ancestor.resolveDynamic(ancestorField, checkNotNull(field.relativeTo(ancestorField)))
+                val elementAncestor = elementScopePaths.any { elementPath ->
+                    ancestorField.path.length > elementPath.length &&
+                        ancestorField.path.startsWith(elementPath) &&
+                        ancestorField.path[elementPath.length] == '.'
+                }
+                return ancestor.resolveDynamic(
+                    source = ancestorField,
+                    relative = checkNotNull(field.relativeTo(ancestorField)),
+                    elementAncestor = elementAncestor,
+                )
             }
             separator = ancestorField.path.lastIndexOf('.')
         }
@@ -155,7 +173,11 @@ data class QueryFieldSchema(
 
     fun binding(capability: QueryCapability): QueryFieldBinding? = bindings[capability]
 
-    internal fun resolveDynamic(source: QueryField, relative: QueryField): QueryFieldSchema {
+    internal fun resolveDynamic(
+        source: QueryField,
+        relative: QueryField,
+        elementAncestor: Boolean,
+    ): QueryFieldSchema {
         val resolvedSource = source.append(relative)
         val resolvedBindings = LinkedHashMap<QueryCapability, QueryFieldBinding>(bindings.size)
         var hasIdentity = false
@@ -176,7 +198,8 @@ data class QueryFieldSchema(
             }
         }
         val resolvedRewriteMode = when {
-            semanticType is Temporal || hasIdentity && hasRewrite -> QueryRewriteMode.INFER
+            (elementAncestor && resolvedBindings.isNotEmpty()) ||
+                semanticType is Temporal || hasIdentity && hasRewrite -> QueryRewriteMode.INFER
             hasRewrite -> QueryRewriteMode.REQUIRED
             else -> QueryRewriteMode.NONE
         }

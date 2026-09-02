@@ -888,6 +888,44 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `element match should emit relative dynamic descendants for absolute input`() {
+        val orders = QueryField("state.orders")
+        val attributes = QueryField("state.orders.attributes")
+        val color = QueryField("state.orders.attributes.color")
+        val model = schema(
+            mapOf(
+                orders to fieldSchema(
+                    QueryCapability.ELEMENT_SCOPE to orders.path,
+                    cardinality = QueryCardinality.MANY,
+                    valueTypes = setOf(QueryValueType.OBJECT),
+                ),
+                attributes to fieldSchema(
+                    QueryCapability.EXACT_MATCH to attributes.path,
+                    dynamicChildren = true,
+                    valueTypes = setOf(QueryValueType.OBJECT),
+                ),
+            ),
+        )
+        val relative = ElementMatchFilter(
+            orders,
+            EqualFilter(QueryField("attributes.color"), json("red")),
+        )
+        val absolute = ElementMatchFilter(orders, EqualFilter(color, json("red")))
+
+        model.field(color)!!.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
+        model.resolve(relative).value.assert().isSameAs(relative)
+        model.resolve(absolute).assert().isEqualTo(
+            QuerySchemaResolution(
+                ElementMatchFilter(
+                    orders,
+                    EqualFilter(QueryField("attributes.color"), json("red")),
+                ),
+                QueryCompatibilityLevel.EXACT,
+            ),
+        )
+    }
+
+    @Test
     fun `element match should reject a child physical binding outside its physical container`() {
         val orders = QueryField("state.orders")
         val price = QueryField("state.orders.price")
