@@ -35,7 +35,6 @@ import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
-import me.ahoo.wow.query.schema.QuerySchemaResolver
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
@@ -200,7 +199,7 @@ class ElasticsearchAggregationCompilerTest {
                 Temporal.Date,
             ),
         )
-        val query = QuerySchemaResolver(schema).resolve(
+        val query = schema.resolve(
             aggregation {
                 expand("state.orders") { "status" eq "PAID" }
                 expand("lines") { "quantity" gt 0 }

@@ -71,34 +71,46 @@ class QuerySchemaValidationModeTest {
         val projection = Projection(include = listOf(field))
         val sort = listOf(Sort(field, Sort.Direction.DESC))
 
-        provider.resolve(SingleQuery(filter, projection, sort), QuerySchemaValidationMode.STRICT).block()
-            .assert().isEqualTo(
-                SingleQuery(
-                    EqualFilter(QueryField("document.name.keyword"), filter.value),
-                    Projection(include = listOf(QueryField("document.name"))),
-                    listOf(Sort(QueryField("document.name.sort"), Sort.Direction.DESC)),
-                ),
-            )
-        provider.resolve(ListQuery(filter, projection, sort, limit = 17), QuerySchemaValidationMode.STRICT).block()
-            .assert().isEqualTo(
-                ListQuery(
-                    EqualFilter(QueryField("document.name.keyword"), filter.value),
-                    Projection(include = listOf(QueryField("document.name"))),
-                    listOf(Sort(QueryField("document.name.sort"), Sort.Direction.DESC)),
-                    limit = 17,
-                ),
-            )
-        provider.resolve(
+        val single = provider.resolve(
+            SingleQuery(filter, projection, sort),
+            QuerySchemaValidationMode.STRICT,
+        ).block()!!
+        single.assert().isEqualTo(
+            SingleQuery(
+                EqualFilter(QueryField("document.name.keyword"), filter.value),
+                projection,
+                listOf(Sort(QueryField("document.name.sort"), Sort.Direction.DESC)),
+            ),
+        )
+        single.projection.assert().isSameAs(projection)
+
+        val list = provider.resolve(
+            ListQuery(filter, projection, sort, limit = 17),
+            QuerySchemaValidationMode.STRICT,
+        ).block()!!
+        list.assert().isEqualTo(
+            ListQuery(
+                EqualFilter(QueryField("document.name.keyword"), filter.value),
+                projection,
+                listOf(Sort(QueryField("document.name.sort"), Sort.Direction.DESC)),
+                limit = 17,
+            ),
+        )
+        list.projection.assert().isSameAs(projection)
+
+        val paged = provider.resolve(
             PagedQuery(filter, projection, sort, Pagination(3, 19)),
             QuerySchemaValidationMode.STRICT,
-        ).block().assert().isEqualTo(
+        ).block()!!
+        paged.assert().isEqualTo(
             PagedQuery(
                 EqualFilter(QueryField("document.name.keyword"), filter.value),
-                Projection(include = listOf(QueryField("document.name"))),
+                projection,
                 listOf(Sort(QueryField("document.name.sort"), Sort.Direction.DESC)),
                 Pagination(3, 19),
             ),
         )
+        paged.projection.assert().isSameAs(projection)
         provider.resolve(filter, QuerySchemaValidationMode.STRICT).block().assert().isEqualTo(
             EqualFilter(QueryField("document.name.keyword"), filter.value),
         )

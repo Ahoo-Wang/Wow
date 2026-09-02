@@ -14,11 +14,19 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
@@ -32,6 +40,71 @@ import kotlin.reflect.jvm.javaField
 
 class QueryModelSchemaTest {
     private val jsonMapper = jsonMapper()
+
+    @Test
+    fun `identity schema should return the same query graph`() {
+        val field = QueryField("state.name")
+        val fieldSchema = fieldSchema(
+            bindings = mapOf(
+                QueryCapability.EXACT_MATCH to QueryFieldBinding(field, field, null),
+                QueryCapability.SORT to QueryFieldBinding(field, field, null),
+            ),
+            projectionField = field,
+            rewriteMode = QueryRewriteMode.NONE,
+        )
+        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), mapOf(field to fieldSchema))
+        val query = ListQuery(
+            filter = AndFilter(listOf(EqualFilter(field, JsonNodeFactory.instance.stringNode("A")))),
+            projection = Projection(include = listOf(field)),
+            sort = listOf(Sort(field, Sort.Direction.ASC)),
+            limit = 10,
+        )
+
+        val resolution = schema.resolve(query)
+
+        resolution.value.assert().isSameAs(query)
+        resolution.value.filter.assert().isSameAs(query.filter)
+        resolution.value.projection.assert().isSameAs(query.projection)
+        resolution.value.sort.assert().isSameAs(query.sort)
+    }
+
+    @Test
+    fun `projection binding should validate without rewriting the public projection`() {
+        val field = QueryField("state.name")
+        val projection = Projection(include = listOf(field))
+        val query = ListQuery(MatchAllFilter, projection = projection)
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(
+                field to fieldSchema(
+                    projectionField = QueryField("document.name"),
+                    rewriteMode = QueryRewriteMode.NONE,
+                ),
+            ),
+        )
+
+        val resolution = schema.resolve(query)
+
+        resolution.value.assert().isSameAs(query)
+        resolution.value.projection.assert().isSameAs(projection)
+        resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+    }
+
+    @Test
+    fun `none rewrite model should preserve model search fallback filter`() {
+        val filter = SearchFilter("name", setOf(QueryField("state.unknown")))
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            setOf(QueryCapability.FULL_TEXT_TERMS),
+            emptyMap(),
+        )
+
+        val resolution = schema.resolve(filter)
+
+        resolution.value.assert().isSameAs(filter)
+        resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+    }
 
     @Test
     fun `exact field should win over a dynamic ancestor`() {

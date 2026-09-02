@@ -28,6 +28,8 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.InFilter
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
@@ -53,7 +55,6 @@ import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
-import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -91,7 +92,7 @@ class ElasticsearchQuerySchemaAdapterTest {
             groupBy = listOf(AggregationGroup.Terms(QueryField("${secret.path}.raw"), "secret")),
             metrics = listOf(AggregationMetric.Count("count")),
         )
-        QuerySchemaResolver(schema).resolve(query).compatibility.assert()
+        schema.resolve(query).compatibility.assert()
             .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
     }
 
@@ -151,7 +152,7 @@ class ElasticsearchQuerySchemaAdapterTest {
         schema.capabilities.assert()
             .doesNotContain(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
         schema.fields.getValue(child).bindings.assert().containsKey(QueryCapability.FULL_TEXT_TERMS)
-        QuerySchemaResolver(schema).resolve(SearchFilter("note")).compatibility.assert()
+        schema.resolve(SearchFilter("note")).compatibility.assert()
             .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
     }
 
@@ -169,8 +170,9 @@ class ElasticsearchQuerySchemaAdapterTest {
         )
 
         schema.binding(field.path, QueryCapability.EXACT_MATCH).assertPath(field.path, "flattened")
-        QuerySchemaResolver(schema).resolve(Projection(include = listOf(QueryField(field.path)))).let { resolved ->
-            resolved.value.assert().isEqualTo(Projection(include = listOf(QueryField(field.path))))
+        val projection = Projection(include = listOf(field))
+        schema.resolve(ListQuery(MatchAllFilter, projection = projection)).let { resolved ->
+            resolved.value.projection.assert().isSameAs(projection)
             resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
         }
     }
@@ -197,8 +199,7 @@ class ElasticsearchQuerySchemaAdapterTest {
 
         schema.fields.getValue(source).projectionField.assert().isEqualTo(source)
         schema.fields.getValue(runtime).projectionField.assert().isNull()
-        QuerySchemaResolver(schema)
-            .resolve(Projection(include = listOf(QueryField(source.path))))
+        schema.resolve(ListQuery(MatchAllFilter, projection = Projection(include = listOf(source))))
             .compatibility.assert()
             .isEqualTo(QueryCompatibilityLevel.EXACT)
     }
@@ -222,8 +223,9 @@ class ElasticsearchQuerySchemaAdapterTest {
         schema.binding(field.path, QueryCapability.PRESENCE)
             .assertPath("${field.path}.keyword", "keyword")
         schema.fields.getValue(field).rewriteMode.assert().isEqualTo(QueryRewriteMode.REQUIRED)
-        QuerySchemaResolver(schema).resolve(Projection(include = listOf(QueryField(field.path)))).let { resolved ->
-            resolved.value.assert().isEqualTo(Projection(include = listOf(QueryField(field.path))))
+        val projection = Projection(include = listOf(field))
+        schema.resolve(ListQuery(MatchAllFilter, projection = projection)).let { resolved ->
+            resolved.value.projection.assert().isSameAs(projection)
             resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
         }
     }
@@ -236,8 +238,8 @@ class ElasticsearchQuerySchemaAdapterTest {
         )
         val sort = listOf("_score", "_doc", "_shard_doc").map { Sort(QueryField(it), Sort.Direction.ASC) }
 
-        QuerySchemaResolver(schema).resolve(sort).let { resolved ->
-            resolved.value.assert().isEqualTo(sort)
+        schema.resolve(ListQuery(MatchAllFilter, sort = sort)).let { resolved ->
+            resolved.value.sort.assert().isSameAs(sort)
             resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
         }
         listOf(
@@ -247,7 +249,7 @@ class ElasticsearchQuerySchemaAdapterTest {
                 listOf(tools.jackson.databind.node.StringNode.valueOf("id")),
             ),
         ).forEach { filter ->
-            QuerySchemaResolver(schema).resolve(filter).let { resolved ->
+            schema.resolve(filter).let { resolved ->
                 resolved.value.assert().isEqualTo(filter)
                 resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
             }
@@ -791,14 +793,18 @@ class ElasticsearchQuerySchemaAdapterTest {
             .assertPath("state.runtimeAt", "date")
         schema.binding("state.runtime.code", QueryCapability.AGGREGATE_TERMS)
             .assertPath("state.runtime.code", "keyword")
-        QuerySchemaResolver(schema)
-            .resolve(Projection(include = listOf(QueryField("state.nameAlias"))))
+        val aliasProjection = Projection(include = listOf(QueryField("state.nameAlias")))
+        schema.resolve(ListQuery(MatchAllFilter, projection = aliasProjection))
             .let { resolved ->
-                resolved.value.assert().isEqualTo(Projection(include = listOf(QueryField("state.name"))))
+                resolved.value.projection.assert().isSameAs(aliasProjection)
                 resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
             }
-        QuerySchemaResolver(schema)
-            .resolve(Projection(include = listOf(QueryField("state.runtimeCode"))))
+        schema.resolve(
+            ListQuery(
+                MatchAllFilter,
+                projection = Projection(include = listOf(QueryField("state.runtimeCode"))),
+            ),
+        )
             .compatibility.assert()
             .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
 

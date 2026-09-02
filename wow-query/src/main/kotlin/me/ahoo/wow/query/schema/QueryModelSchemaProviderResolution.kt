@@ -25,33 +25,33 @@ fun QueryModelSchemaProvider.resolve(
     query: ISingleQuery,
     mode: QuerySchemaValidationMode,
 ): Mono<ISingleQuery> = schemaForQuery()
-    .map { it.resolver.resolve(query).requireAccepted(mode) }
+    .map { it.resolve(query).requireAccepted(mode) }
     .fallbackUnavailable(mode, query, query.filter)
 
 fun QueryModelSchemaProvider.resolve(
     query: IListQuery,
     mode: QuerySchemaValidationMode,
 ): Mono<IListQuery> = schemaForQuery()
-    .map { it.resolver.resolve(query).requireAccepted(mode) }
+    .map { it.resolve(query).requireAccepted(mode) }
     .fallbackUnavailable(mode, query, query.filter)
 
 fun QueryModelSchemaProvider.resolve(
     query: IPagedQuery,
     mode: QuerySchemaValidationMode,
 ): Mono<IPagedQuery> = schemaForQuery()
-    .map { it.resolver.resolve(query).requireAccepted(mode) }
+    .map { it.resolve(query).requireAccepted(mode) }
     .fallbackUnavailable(mode, query, query.filter)
 
 fun QueryModelSchemaProvider.resolve(
     query: ICursorQuery,
     mode: QuerySchemaValidationMode,
-): Mono<ICursorQuery> = schemaForQuery().map { it.resolver.resolve(query).requireAccepted(mode) }
+): Mono<ICursorQuery> = schemaForQuery().map { it.resolve(query).requireAccepted(mode) }
 
 fun QueryModelSchemaProvider.resolve(
     filter: FilterExpression,
     mode: QuerySchemaValidationMode,
 ): Mono<FilterExpression> = schemaForQuery()
-    .map { it.resolver.resolve(filter).requireAccepted(mode) }
+    .map { it.resolve(filter).requireAccepted(mode) }
     .fallbackUnavailable(mode, filter, filter)
 
 fun QueryModelSchemaProvider.resolve(
@@ -60,7 +60,7 @@ fun QueryModelSchemaProvider.resolve(
 ): Mono<ResolvedAggregationQuery> = schemaForQuery()
     .map { schema ->
         ResolvedAggregationQuery(
-            schema.resolver.resolve(query).requireAccepted(mode),
+            schema.resolve(query).requireAccepted(mode),
             schema,
         )
     }

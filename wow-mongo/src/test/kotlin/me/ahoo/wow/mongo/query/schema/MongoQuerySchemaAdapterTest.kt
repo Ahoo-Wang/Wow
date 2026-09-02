@@ -47,7 +47,6 @@ import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryRewriteMode
-import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
@@ -320,7 +319,7 @@ class MongoQuerySchemaAdapterTest {
         schema.fields.getValue(field).bindings.keys.assert()
             .contains(QueryCapability.RANGE)
             .doesNotContain(QueryCapability.AGGREGATE_TEMPORAL)
-        QuerySchemaResolver(schema).resolve(TodayFilter(field)).let { resolved ->
+        schema.resolve(TodayFilter(field)).let { resolved ->
             resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
             (resolved.value as TodayFilter).datePattern.assert().isEqualTo("yyyy-MM-dd")
         }
@@ -587,7 +586,7 @@ class MongoQuerySchemaAdapterTest {
 
         schema.fields.getValue(QueryField("state.name"))
             .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
-        QuerySchemaResolver(schema).resolve(
+        schema.resolve(
             EqualFilter(QueryField("state.name"), StringNode.valueOf("value")),
         ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
     }
@@ -776,7 +775,7 @@ class MongoQuerySchemaAdapterTest {
             null,
         )
 
-        val resolution = QuerySchemaResolver(schema).resolve(
+        val resolution = schema.resolve(
             SearchFilter("hello", setOf(QueryField("state.name"))),
         )
 

@@ -26,7 +26,6 @@ import me.ahoo.wow.query.FORBIDDEN_CURSOR_SORTS
 import me.ahoo.wow.query.mask.EVENT_BODY_TYPE_PATH
 import me.ahoo.wow.query.mask.hasUnrestorableInternalEventBodyTypeExclusion
 import me.ahoo.wow.query.mask.requiresInternalEventBodyType
-import me.ahoo.wow.query.mask.withInternalEventBodyType
 
 enum class QuerySchemaValidationMode {
     COMPATIBLE,
@@ -72,7 +71,7 @@ fun <T> QuerySchemaResolution<T>.requireAccepted(mode: QuerySchemaValidationMode
     return value
 }
 
-class QuerySchemaResolver(private val schema: QueryModelSchema) {
+internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
     private val fieldResolver = QueryFieldSchemaResolver(schema)
     private val filterResolver = QueryFilterSchemaResolver(schema, fieldResolver)
     private val maskedEventProjection = schema.model == QueryModel.EVENT_STREAM && schema.hasMaskedFields
@@ -98,7 +97,14 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val projection = resolve(query.projection)
         val sort = resolve(query.sort)
         return QuerySchemaResolution(
-            SingleQuery(filter.value, projection.value, sort.value),
+            if (
+                schema.rewriteMode == QueryRewriteMode.NONE ||
+                filter.value === query.filter && sort.value === query.sort
+            ) {
+                query
+            } else {
+                SingleQuery(filter.value, projection.value, sort.value)
+            },
             combined(filter.compatibility, projection.compatibility, sort.compatibility),
         )
     }
@@ -108,7 +114,14 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val projection = resolve(query.projection)
         val sort = resolve(query.sort)
         return QuerySchemaResolution(
-            ListQuery(filter.value, projection.value, sort.value, query.limit),
+            if (
+                schema.rewriteMode == QueryRewriteMode.NONE ||
+                filter.value === query.filter && sort.value === query.sort
+            ) {
+                query
+            } else {
+                ListQuery(filter.value, projection.value, sort.value, query.limit)
+            },
             combined(filter.compatibility, projection.compatibility, sort.compatibility),
         )
     }
@@ -118,7 +131,14 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val projection = resolve(query.projection)
         val sort = resolve(query.sort)
         return QuerySchemaResolution(
-            PagedQuery(filter.value, projection.value, sort.value, query.pagination),
+            if (
+                schema.rewriteMode == QueryRewriteMode.NONE ||
+                filter.value === query.filter && sort.value === query.sort
+            ) {
+                query
+            } else {
+                PagedQuery(filter.value, projection.value, sort.value, query.pagination)
+            },
             combined(filter.compatibility, projection.compatibility, sort.compatibility),
         )
     }
@@ -128,7 +148,14 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val projection = resolve(query.projection)
         val sort = resolveCursorSort(query.sort)
         return QuerySchemaResolution(
-            CursorQuery(filter.value, projection.value, sort.value, query.size, query.cursor),
+            if (
+                schema.rewriteMode == QueryRewriteMode.NONE ||
+                filter.value === query.filter && sort.value === query.sort
+            ) {
+                query
+            } else {
+                CursorQuery(filter.value, projection.value, sort.value, query.size, query.cursor)
+            },
             combined(filter.compatibility, projection.compatibility, sort.compatibility),
         )
     }
@@ -137,34 +164,22 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         filterResolver.resolve(filter)
 
     fun resolve(projection: Projection): QuerySchemaResolution<Projection> {
-        if (!maskedEventProjection && projection.isEmpty()) {
-            return QuerySchemaResolution(Projection.ALL, QueryCompatibilityLevel.EXACT)
+        if (projection.isEmpty()) {
+            return QuerySchemaResolution(projection, QueryCompatibilityLevel.EXACT)
         }
-        val include = projection.include.map {
-            fieldResolver.resolveProjectionPath(it.path)
-        }
-        val exclude = projection.exclude.map {
-            fieldResolver.resolveProjectionPath(it.path)
-        }
-        val resolvedProjection = Projection(
-            include.map { QueryField(it.value) },
-            exclude.map { QueryField(it.value) },
-        )
+        val include = projection.include.map(fieldResolver::resolveProjection)
+        val exclude = projection.exclude.map(fieldResolver::resolveProjection)
         val compatibility = (include + exclude).map { it.compatibility }
         if (!maskedEventProjection) {
-            return QuerySchemaResolution(resolvedProjection, compatibility.combined())
+            return QuerySchemaResolution(projection, compatibility.combined())
         }
+        val resolvedProjection = resolveEventProjectionPaths(projection)
         val bodyType = checkNotNull(eventBodyType)
         val internalBodyType = resolvedProjection.requiresInternalEventBodyType(
             bodyType.value,
         )
-        val effectiveProjection = if (internalBodyType) {
-            resolvedProjection.withInternalEventBodyType(bodyType.value)
-        } else {
-            resolvedProjection
-        }
         return QuerySchemaResolution(
-            effectiveProjection,
+            projection,
             buildList {
                 addAll(compatibility)
                 if (internalBodyType) {
@@ -182,77 +197,119 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
 
     internal fun requiresInternalEventBodyType(projection: Projection): Boolean {
         if (!maskedEventProjection) return false
-        val resolvedProjection = Projection(
-            include = projection.include.map { QueryField(fieldResolver.resolveProjectionPath(it.path).value) },
-            exclude = projection.exclude.map { QueryField(fieldResolver.resolveProjectionPath(it.path).value) },
-        )
+        val resolvedProjection = resolveEventProjectionPaths(projection)
         val bodyTypePath = checkNotNull(eventBodyType).value
         return resolvedProjection.requiresInternalEventBodyType(bodyTypePath)
     }
 
+    private fun resolveEventProjectionPaths(projection: Projection): Projection = Projection(
+        include = projection.include.map { QueryField(fieldResolver.resolveProjectionPath(it.path).value) },
+        exclude = projection.exclude.map { QueryField(fieldResolver.resolveProjectionPath(it.path).value) },
+    )
+
     fun resolve(sort: List<Sort>): QuerySchemaResolution<List<Sort>> {
         if (sort.isEmpty()) {
-            return QuerySchemaResolution(emptyList(), QueryCompatibilityLevel.EXACT)
+            return QuerySchemaResolution(sort, QueryCompatibilityLevel.EXACT)
         }
-        val resolved = sort.map { item ->
-            fieldResolver.resolvePath(item.field.path, QueryCapability.SORT).let { field ->
-                item.copy(field = QueryField(field.value)) to field.compatibility
+        var values: ArrayList<Sort>? = null
+        var compatibility = QueryCompatibilityLevel.EXACT
+        sort.forEachIndexed { index, item ->
+            val field = fieldResolver.resolve(item.field, QueryCapability.SORT, null, null, null)
+            val value = if (schema.rewriteMode == QueryRewriteMode.NONE || field.value === item.field) {
+                item
+            } else {
+                item.copy(field = field.value)
             }
+            if (values != null) {
+                values += value
+            } else if (value !== item) {
+                values = ArrayList<Sort>(sort.size).apply {
+                    addAll(sort.subList(0, index))
+                    add(value)
+                }
+            }
+            compatibility = maxOf(compatibility, field.compatibility)
         }
-        return QuerySchemaResolution(
-            resolved.map(Pair<Sort, QueryCompatibilityLevel>::first),
-            resolved.map(Pair<Sort, QueryCompatibilityLevel>::second).combined(),
-        )
+        return QuerySchemaResolution(values ?: sort, compatibility)
     }
 
+    @Suppress("CyclomaticComplexMethod")
     private fun resolveCursorSort(sort: List<Sort>): QuerySchemaResolution<List<Sort>> {
         if (sort.isEmpty()) {
-            return QuerySchemaResolution(emptyList(), QueryCompatibilityLevel.EXACT)
+            return QuerySchemaResolution(sort, QueryCompatibilityLevel.EXACT)
         }
-        val values = ArrayList<Sort>(sort.size)
+        var values: ArrayList<Sort>? = null
         val fields = HashSet<QueryField>(sort.size)
         var compatibility = QueryCompatibilityLevel.EXACT
-        sort.forEach { item ->
-            val field = runCatching { item.field }.getOrNull()?.let { logical ->
-                fieldResolver.resolve(logical, QueryCapability.SORT, null, null)
-            }
-            val accepted = field?.compatibility == QueryCompatibilityLevel.EXACT &&
+        sort.forEachIndexed { index, item ->
+            val field = fieldResolver.resolve(item.field, QueryCapability.SORT, null, null, null)
+            val accepted = field.compatibility == QueryCompatibilityLevel.EXACT &&
                 field.fieldSchema != null && field.fieldSchema.cardinality == QueryCardinality.SINGLE &&
-                field.fieldSchema.maskRule == null && QueryField(field.value) !in FORBIDDEN_CURSOR_SORTS &&
+                field.fieldSchema.maskRule == null && field.value !in FORBIDDEN_CURSOR_SORTS &&
                 !field.matchesMaskedCandidate()
-            val value = item.copy(field = field?.value?.let(::QueryField) ?: item.field)
-            values += value
+            val value = if (schema.rewriteMode == QueryRewriteMode.NONE || field.value === item.field) {
+                item
+            } else {
+                item.copy(field = field.value)
+            }
+            if (values != null) {
+                values += value
+            } else if (value !== item) {
+                values = ArrayList<Sort>(sort.size).apply {
+                    addAll(sort.subList(0, index))
+                    add(value)
+                }
+            }
             if (!accepted || !fields.add(value.field)) {
                 compatibility = QueryCompatibilityLevel.INCOMPATIBLE
             }
         }
-        return QuerySchemaResolution(values, compatibility)
+        return QuerySchemaResolution(values ?: sort, compatibility)
     }
 
+    @Suppress("LongMethod")
     fun resolve(query: AggregationQuery): QuerySchemaResolution<AggregationQuery> {
         val rootFilter = resolve(query.filter)
         val levels = mutableListOf(rootFilter.compatibility)
         var logicalParent: QueryField? = null
-        var physicalParent: String? = null
-        val elements = query.elements.map { element ->
+        var resolvedParent: QueryField? = null
+        var physicalParent: QueryField? = null
+        var elements: ArrayList<AggregationElement>? = null
+        query.elements.forEachIndexed { index, element ->
             val container = resolveAggregationField(
                 element.path,
                 QueryCapability.ELEMENT_SCOPE,
                 logicalParent,
+                resolvedParent,
                 physicalParent,
             )
             levels += container.compatibility
-            val filter = filterResolver.resolve(element.filter, container.logical, container.physicalPath)
+            val filter = filterResolver.resolve(
+                element.filter,
+                container.logical,
+                container.resolvedField,
+                container.physicalField,
+            )
             levels += filter.compatibility
             logicalParent = container.logical
-            physicalParent = container.physicalPath
-            element.copy(filter = filter.value)
+            resolvedParent = container.resolvedField
+            physicalParent = container.physicalField
+            val value = if (filter.value === element.filter) element else element.copy(filter = filter.value)
+            if (elements != null) {
+                elements += value
+            } else if (value !== element) {
+                elements = ArrayList<AggregationElement>(query.elements.size).apply {
+                    addAll(query.elements.subList(0, index))
+                    add(value)
+                }
+            }
         }
         query.groupBy.forEach { group ->
             levels += resolveAggregationField(
                 group.field,
                 group.capability,
                 logicalParent,
+                resolvedParent,
                 physicalParent,
             ).compatibility
         }
@@ -261,6 +318,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
                 metric.field,
                 QueryCapability.AGGREGATE_TERMS,
                 logicalParent,
+                resolvedParent,
                 physicalParent,
             )
             levels += resolved.compatibility
@@ -269,10 +327,18 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             }
         }
         query.metrics.filterIsInstance<AggregationMetric.Numeric>().forEach { metric ->
-            collectExpressionLevels(metric.expression, logicalParent, physicalParent, levels)
+            collectExpressionLevels(metric.expression, logicalParent, resolvedParent, physicalParent, levels)
         }
+        val resolvedElements = elements ?: query.elements
         return QuerySchemaResolution(
-            query.copy(filter = rootFilter.value, elements = elements),
+            if (
+                schema.rewriteMode == QueryRewriteMode.NONE ||
+                rootFilter.value === query.filter && resolvedElements === query.elements
+            ) {
+                query
+            } else {
+                query.copy(filter = rootFilter.value, elements = resolvedElements)
+            },
             levels.combined(),
         )
     }
@@ -280,7 +346,8 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     private fun collectExpressionLevels(
         expression: AggregationExpression,
         logicalParent: QueryField?,
-        physicalParent: String?,
+        resolvedParent: QueryField?,
+        physicalParent: QueryField?,
         levels: MutableList<QueryCompatibilityLevel>,
     ) {
         when (expression) {
@@ -288,12 +355,13 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
                 expression.field,
                 QueryCapability.AGGREGATE_NUMERIC,
                 logicalParent,
+                resolvedParent,
                 physicalParent,
             ).compatibility
             is AggregationExpression.Constant -> Unit
             is AggregationExpression.Binary -> {
-                collectExpressionLevels(expression.left, logicalParent, physicalParent, levels)
-                collectExpressionLevels(expression.right, logicalParent, physicalParent, levels)
+                collectExpressionLevels(expression.left, logicalParent, resolvedParent, physicalParent, levels)
+                collectExpressionLevels(expression.right, logicalParent, resolvedParent, physicalParent, levels)
             }
             else -> levels += QueryCompatibilityLevel.INCOMPATIBLE
         }
@@ -303,21 +371,22 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         field: QueryField,
         capability: QueryCapability,
         logicalParent: QueryField?,
-        physicalParent: String?,
+        resolvedParent: QueryField?,
+        physicalParent: QueryField?,
     ): QueryFieldResolution = fieldResolver.resolve(
-        field = if (logicalParent == null) field else QueryField("${logicalParent.path}.${field.path}"),
+        field = logicalParent?.append(field) ?: field,
         capability = capability,
         logicalParent = logicalParent,
+        resolvedParent = resolvedParent,
         physicalParent = physicalParent,
-        fieldIsAbsolute = true,
     ).let { resolved ->
         val logicalCandidate = resolved.logical.path
-        val physicalCandidate = resolved.physicalPath ?: logicalCandidate
-        val backendCandidate = resolved.physicalField?.path
+        val resolvedCandidate = resolved.resolvedField?.path ?: logicalCandidate
+        val physicalCandidate = resolved.physicalField?.path
         val matchesMaskedCandidate = isMaskedAggregationCandidate(logicalCandidate) ||
-            physicalCandidate != logicalCandidate && isMaskedAggregationCandidate(physicalCandidate) ||
-            backendCandidate != null && backendCandidate != physicalCandidate &&
-            isMaskedAggregationCandidate(backendCandidate)
+            resolvedCandidate != logicalCandidate && isMaskedAggregationCandidate(resolvedCandidate) ||
+            physicalCandidate != null && physicalCandidate != resolvedCandidate &&
+            isMaskedAggregationCandidate(physicalCandidate)
         if (resolved.fieldSchema?.maskRule == null && !matchesMaskedCandidate) {
             resolved
         } else {
@@ -339,12 +408,12 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     private fun QueryFieldResolution.matchesMaskedCandidate(): Boolean {
         val logicalCandidate = logical.path
         val projectionCandidate = fieldSchema?.projectionField?.path
-        val physicalCandidate = physicalPath ?: logicalCandidate
-        val backendCandidate = physicalField?.path
+        val resolvedCandidate = resolvedField?.path ?: logicalCandidate
+        val physicalCandidate = physicalField?.path
         return logicalCandidate in maskedProjectionPaths ||
             projectionCandidate != null && projectionCandidate in maskedProjectionPaths ||
-            physicalCandidate in maskedPhysicalPaths ||
-            backendCandidate != null && backendCandidate in maskedPhysicalPaths
+            resolvedCandidate in maskedPhysicalPaths ||
+            physicalCandidate != null && physicalCandidate in maskedPhysicalPaths
     }
 
     private val AggregationGroup.capability: QueryCapability
