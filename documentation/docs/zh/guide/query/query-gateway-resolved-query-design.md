@@ -203,7 +203,7 @@ sequenceDiagram
 
 `AbstractQueryGateway` 显式接收 `QueryModelSchemaProvider` 与 `QuerySchemaValidationMode`。Spring Boot 继续使用现有 `wow.query.schema.validation-mode` 配置；`QuerySchemaAutoConfiguration` 发布对应的 `QuerySchemaValidationMode` Bean，Snapshot 与 EventStream Registrar 从 routed Backend 取得 Provider，并把 Provider 与 Mode 作为独立参数传给 Gateway。MongoDB、Elasticsearch Backend 及其 Factory 不再保存 Mode。
 
-直接调用现有 `QueryModelSchemaProvider.resolve(...)` 的兼容回退不属于本阶段 Gateway 合同；阶段一不依赖它，是否删除留待 Schema 专项审查。
+`QueryModelSchemaProvider` 只负责 Schema 生命周期。旧的 Provider 解析扩展与 unavailable 兼容回退已经删除；查询解析和准入统一由持有具体 Schema 实例的调用方完成。
 
 ## Schema Mask
 

@@ -174,7 +174,7 @@ fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
 
 Filter 不再通过 `QueryType.isDynamic` 判断最终返回 typed 对象还是节点；两条路径在同一 ObjectNode FilterChain 中处理，区别仅发生在链完成后的可选 Jackson 物化。删除只为 typed/dynamic 分流的分支，不要发明新的结果类型判别器。
 
-删除旧 Mask 类型、实现、Bean、Registry 与自定义 Filter，不建立 ObjectNode Mask 兼容层。把原规则声明到领域字段后，Snapshot、EventStream 的 typed、dynamic 与 aggregate-state load 会在同一条受管 Gateway 路径自动脱敏；框架内建 `SchemaMaskQueryFilter` 读取 `QueryContext.schema`，同一实例复用 Masker，refresh 后的新订阅读取新实例并重新编译。Schema 不可用时所有受管 Gateway 调用在 Context、Filter 与 Backend 之前失败关闭；count 不执行结果脱敏，但仍需要 Schema 完成请求准入。直接 Backend Factory 是返回原始值的受信低层边界，调用方必须自行提供已接受的 `ResolvedQuery`；`COMPATIBLE` unavailable fallback 只属于直接 `QueryModelSchemaProvider.resolve(...)` 请求解析。
+删除旧 Mask 类型、实现、Bean、Registry 与自定义 Filter，不建立 ObjectNode Mask 兼容层。把原规则声明到领域字段后，Snapshot、EventStream 的 typed、dynamic 与 aggregate-state load 会在同一条受管 Gateway 路径自动脱敏；框架内建 `SchemaMaskQueryFilter` 读取 `QueryContext.schema`，同一实例复用 Masker，refresh 后的新订阅读取新实例并重新编译。Schema 不可用时所有受管 Gateway 调用在 Context、Filter 与 Backend 之前失败关闭；count 不执行结果脱敏，但仍需要 Schema 完成请求准入。直接 Backend Factory 是返回原始值的受信低层边界；调用方必须显式取得 Schema、完成解析与准入，再构造 `ResolvedQuery`，不存在 Provider 级 unavailable fallback。
 
 ## 静态 Mask 迁移
 
