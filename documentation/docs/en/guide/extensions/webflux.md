@@ -49,8 +49,8 @@ wow:
     global-error:
       enabled: true
     batch:
-      concurrency: 1
-      prefetch: 1
+      concurrency: 128
+      prefetch: 4
     query:
       max-list-size: 1000
       max-page-size: 100
@@ -60,6 +60,8 @@ wow:
       allow-expensive-operators: true
       idle-timeout: 10s
 ```
+
+Batch concurrency applies per request and is shared by snapshot rebuild and StateEvent resend. Concurrent requests multiply downstream load; lower it to match application and storage capacity.
 
 `0` disables each numeric HTTP guard; `idle-timeout=0s` disables idle timeout. Do not duplicate backend field-type, mapping, or uniqueness checks. `HttpQueryGuardFilter` protects HTTP queries with WebFlux request context; programmatic `QueryGateway` calls retain their public behavior.
 

@@ -147,8 +147,8 @@ spring:
 | --- | --- | --- | --- |
 | `wow.webflux.enabled` | Boolean | `true` | 启用内置 Wow HTTP route 装配 |
 | `wow.webflux.global-error.enabled` | Boolean | `true` | 注册 Wow 全局 `WebExceptionHandler` |
-| `wow.webflux.batch.concurrency` | Int | `1` | 批量运维/命令任务并发度 |
-| `wow.webflux.batch.prefetch` | Int | `1` | 批量任务 prefetch |
+| `wow.webflux.batch.concurrency` | Int | `128` | 批量快照重建与 StateEvent 重发任务并发度 |
+| `wow.webflux.batch.prefetch` | Int | `4` | 批量任务 prefetch |
 | `wow.webflux.query.max-list-size` | Int | `1000` | list/aggregation limit；`0` 关闭上限并允许 limit `0` |
 | `wow.webflux.query.max-page-size` | Int | `100` | page size 上限；`0` 关闭 |
 | `wow.webflux.query.max-page-window` | Long | `10000` | `page.index * page.size` 上限；`0` 关闭 |
@@ -160,5 +160,7 @@ spring:
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | 把解析出的远端 IP 写入命令上下文 |
 
 所有数值型查询上限必须非负；普通 page size 仍至少为 `1`，page offset 仍不得超过 `Int.MAX_VALUE`。`allow-expensive-operators=true` 是兼容性默认值，不是容量证明；收紧前需验证现有请求和升级路径。
+
+批量并发度按请求生效，并由快照重建与 StateEvent 重发共享；多个并发请求会叠加下游负载，应按应用与存储容量下调。
 
 `webflux-support` 注册命令、事件、快照查询以及重建/补偿等内置 route，但不自动提供业务认证、授权或管理面隔离。应用必须从运行时 OpenAPI 取得实际路径，并为修改性运维 route 配置鉴权、审计、限流和受控网络入口。

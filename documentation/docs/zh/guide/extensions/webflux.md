@@ -49,8 +49,8 @@ wow:
     global-error:
       enabled: true
     batch:
-      concurrency: 1
-      prefetch: 1
+      concurrency: 128
+      prefetch: 4
     query:
       max-list-size: 1000
       max-page-size: 100
@@ -60,6 +60,8 @@ wow:
       allow-expensive-operators: true
       idle-timeout: 10s
 ```
+
+批量并发度按请求生效，并由快照重建与 StateEvent 重发共享；多个并发请求会叠加下游负载，应按应用与存储容量下调。
 
 数值上限为 `0` 时关闭对应 HTTP guard；`idle-timeout=0s` 关闭 idle timeout。不要复制后端已负责的字段类型、mapping 或唯一性校验。`HttpQueryGuardFilter` 只保护带 WebFlux request context 的 HTTP 查询，程序内 `QueryGateway` 调用保持既有公共行为。
 

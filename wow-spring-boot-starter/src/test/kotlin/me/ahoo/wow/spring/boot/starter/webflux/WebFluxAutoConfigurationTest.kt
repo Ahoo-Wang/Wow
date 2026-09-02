@@ -269,8 +269,8 @@ internal class WebFluxAutoConfigurationTest {
                     .hasSingleBean(WebFluxProperties::class.java)
                     .hasSingleBean(BiScriptProperties::class.java)
                 val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
-                batchExecutionPolicy.concurrency.assert().isOne()
-                batchExecutionPolicy.prefetch.assert().isOne()
+                batchExecutionPolicy.concurrency.assert().isEqualTo(128)
+                batchExecutionPolicy.prefetch.assert().isEqualTo(4)
                 val queryProperties = context.getBean(WebFluxProperties::class.java).query
                 queryProperties.maxFilterNodes.assert().isEqualTo(128)
                 queryProperties.allowExpensiveOperators.assert().isTrue()
