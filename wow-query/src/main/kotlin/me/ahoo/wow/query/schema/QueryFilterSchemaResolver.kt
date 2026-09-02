@@ -353,7 +353,7 @@ internal class QueryFilterSchemaResolver(
         }
         if (capability in schema.capabilities) {
             return QuerySchemaResolution(
-                if (schema.rewriteMode == QueryRewriteMode.NONE) filter else filter.copy(fields = emptySet()),
+                filter.copy(fields = emptySet()),
                 QueryCompatibilityLevel.COMPATIBLE,
             )
         }

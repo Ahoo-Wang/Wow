@@ -220,14 +220,14 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
             return QuerySchemaResolution(sort, QueryCompatibilityLevel.EXACT)
         }
         var values: ArrayList<Sort>? = null
-        val fields = HashSet<QueryField>(sort.size)
+        val physicalFields = HashSet<QueryField>(sort.size)
         var compatibility = QueryCompatibilityLevel.EXACT
         sort.forEachIndexed { index, item ->
             val field = fieldResolver.resolve(item.field, QueryCapability.SORT, null, null, null)
-            val resolvedField = field.resolvedField ?: field.value
+            val physicalField = field.physicalField ?: field.value
             val accepted = field.compatibility == QueryCompatibilityLevel.EXACT &&
                 field.fieldSchema != null && field.fieldSchema.cardinality == QueryCardinality.SINGLE &&
-                field.fieldSchema.maskRule == null && resolvedField !in FORBIDDEN_CURSOR_SORTS &&
+                field.fieldSchema.maskRule == null && physicalField !in FORBIDDEN_CURSOR_SORTS &&
                 !field.matchesMaskedCandidate()
             val value = if (schema.rewriteMode == QueryRewriteMode.NONE || field.value === item.field) {
                 item
@@ -242,7 +242,7 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
                     add(value)
                 }
             }
-            if (!accepted || !fields.add(value.field)) {
+            if (!accepted || !physicalFields.add(physicalField)) {
                 compatibility = QueryCompatibilityLevel.INCOMPATIBLE
             }
         }

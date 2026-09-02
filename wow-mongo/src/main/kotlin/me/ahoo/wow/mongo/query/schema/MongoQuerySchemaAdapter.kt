@@ -96,6 +96,17 @@ class MongoQuerySchemaAdapter(
                 val storageSchema = storageSchemas[fieldConverter.convert(logicalField.path)]
                 logicalField.path.takeIf { fieldSchema.invalidContainer(storageSchema) }
             }
+            val elementFields = logicalSchema.fields.mapNotNullTo(linkedSetOf()) { (logicalField, fieldSchema) ->
+                if (invalidContainers.any { logicalField.path == it || logicalField.path.startsWith("$it.") }) {
+                    return@mapNotNullTo null
+                }
+                val storageSchema = storageSchemas[fieldConverter.convert(logicalField.path)]
+                logicalField.takeIf {
+                    fieldSchema.cardinality == QueryCardinality.MANY &&
+                        QueryValueType.OBJECT in fieldSchema.valueTypes &&
+                        fieldSchema.supports(QueryCapability.ELEMENT_SCOPE, storageSchema)
+                }
+            }
             return QueryModelSchema(
                 model = model,
                 capabilities = capabilities,
@@ -117,6 +128,7 @@ class MongoQuerySchemaAdapter(
                         bindings = logicalSchema.capabilities()
                             .filter { logicalSchema.supports(it, storageSchema) }
                             .associateWith { binding },
+                        elementChild = elementFields.any { logicalField.relativeTo(it) != null },
                     )
                 },
             )
@@ -242,10 +254,13 @@ class MongoQuerySchemaAdapter(
             source: QueryField,
             projectionField: QueryField?,
             bindings: Map<QueryCapability, QueryFieldBinding>,
+            elementChild: Boolean = false,
         ): QueryFieldSchema {
             val rewrites = bindings.values.map { it.resolvedField != source }.distinct()
             val rewriteMode = when {
-                semanticType is Temporal || QueryCapability.ELEMENT_SCOPE in bindings -> QueryRewriteMode.INFER
+                (elementChild && bindings.isNotEmpty()) ||
+                    semanticType is Temporal || QueryCapability.ELEMENT_SCOPE in bindings ->
+                    QueryRewriteMode.INFER
                 bindings.isEmpty() || rewrites == listOf(false) -> QueryRewriteMode.NONE
                 rewrites == listOf(true) -> QueryRewriteMode.REQUIRED
                 else -> QueryRewriteMode.INFER

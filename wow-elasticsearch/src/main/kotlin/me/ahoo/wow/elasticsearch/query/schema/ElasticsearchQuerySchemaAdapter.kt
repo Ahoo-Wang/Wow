@@ -76,6 +76,9 @@ class ElasticsearchQuerySchemaAdapter(
             val rootSearchFields = mapping.fields.filterKeys { path ->
                 nestedPaths.none { path.startsWith("$it.") }
             }.values
+            val elementFields = logicalSchema.fields.mapNotNullTo(linkedSetOf()) { (field, logical) ->
+                mapping.binding(field, logical, QueryCapability.ELEMENT_SCOPE, invalidNestedParents)?.let { field }
+            }
             return QueryModelSchema(
                 model = model,
                 capabilities = buildSet {
@@ -100,6 +103,7 @@ class ElasticsearchQuerySchemaAdapter(
                                     mapping.binding(field, logical, capability, invalidNestedParents)
                                         ?.let { capability to it }
                                 }.toMap(),
+                                elementChild = elementFields.any { field.relativeTo(it) != null },
                             ),
                         )
                     }
@@ -185,10 +189,13 @@ class ElasticsearchQuerySchemaAdapter(
             source: QueryField,
             projectionField: QueryField?,
             bindings: Map<QueryCapability, QueryFieldBinding>,
+            elementChild: Boolean,
         ): QueryFieldSchema {
             val rewrites = bindings.values.map { it.resolvedField != source }.distinct()
             val rewriteMode = when {
-                semanticType is Temporal || QueryCapability.ELEMENT_SCOPE in bindings -> QueryRewriteMode.INFER
+                (elementChild && bindings.isNotEmpty()) ||
+                    semanticType is Temporal || QueryCapability.ELEMENT_SCOPE in bindings ->
+                    QueryRewriteMode.INFER
                 bindings.isEmpty() || rewrites == listOf(false) -> QueryRewriteMode.NONE
                 rewrites == listOf(true) -> QueryRewriteMode.REQUIRED
                 else -> QueryRewriteMode.INFER
