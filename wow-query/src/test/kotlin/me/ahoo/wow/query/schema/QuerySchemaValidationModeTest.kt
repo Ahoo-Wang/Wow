@@ -35,12 +35,14 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.query.ResolvedQuery
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import reactor.test.StepVerifier
 import tools.jackson.databind.node.JsonNodeFactory
+import java.util.concurrent.atomic.AtomicInteger
 
 class QuerySchemaValidationModeTest {
     @Test
@@ -126,7 +128,7 @@ class QuerySchemaValidationModeTest {
         val resolved = provider.resolve(query, QuerySchemaValidationMode.STRICT).block()!!
 
         resolved.assert().isEqualTo(
-            ResolvedAggregationQuery(
+            ResolvedQuery(
                 query.copy(filter = filter.copy(field = QueryField("document.name.keyword"))),
                 schema,
             ),
@@ -135,14 +137,24 @@ class QuerySchemaValidationModeTest {
     }
 
     @Test
-    fun `provider resolution should reuse the schema pinned to the subscription`() {
-        val provider = FixedProvider(Mono.error(AssertionError("provider schema must not be loaded")))
+    fun `provider resolution should defer schema lookup to each subscription`() {
+        val calls = AtomicInteger()
+        val provider = object : QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> {
+                calls.incrementAndGet()
+                return Mono.just(this@QuerySchemaValidationModeTest.schema())
+            }
 
-        provider.resolve(SingleQuery(MatchAllFilter), QuerySchemaValidationMode.STRICT)
-            .withQueryModelSchema(schema())
+            override fun refresh(): Mono<QueryModelSchema> = schema()
+        }
+        val publisher = provider.resolve(SingleQuery(MatchAllFilter), QuerySchemaValidationMode.STRICT)
+
+        calls.get().assert().isZero()
+        publisher.repeat(1)
             .test()
-            .expectNext(SingleQuery(MatchAllFilter))
+            .expectNextCount(2)
             .verifyComplete()
+        calls.get().assert().isEqualTo(2)
     }
 
     @Test

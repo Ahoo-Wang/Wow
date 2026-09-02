@@ -25,10 +25,12 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -86,7 +88,8 @@ class AbacQueryFilterTest {
     fun `filter for EmptyAbacQueryFilter`() {
         val context = DefaultQueryContext<me.ahoo.wow.api.query.FilterExpression, Any>(
             queryType = QueryType.COUNT,
-            MOCK_AGGREGATE_METADATA
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = QUERY_SCHEMA,
         ).setQuery(MatchAllFilter)
         val chain = FilterChain<QueryContext<*, *>> {
             it.getQuery().assert().isSameAs(MatchAllFilter)
@@ -99,7 +102,8 @@ class AbacQueryFilterTest {
     fun `filter for MockAbacQueryFilter`() {
         val context = DefaultQueryContext<me.ahoo.wow.api.query.FilterExpression, Any>(
             queryType = QueryType.COUNT,
-            MOCK_AGGREGATE_METADATA
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = QUERY_SCHEMA,
         ).setQuery(MatchAllFilter)
         val chain = FilterChain<QueryContext<*, *>> {
             it.getQuery().assert().isInstanceOf(AndFilter::class.java)
@@ -117,7 +121,8 @@ class AbacQueryFilterTest {
         )
         val context = DefaultQueryContext<AggregationQuery, Any>(
             queryType = QueryType.AGGREGATION,
-            MOCK_AGGREGATE_METADATA,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = QUERY_SCHEMA,
         ).setQuery(query)
         val chain = FilterChain<QueryContext<*, *>> {
             val rewritten = it.getQuery() as AggregationQuery
@@ -144,3 +149,5 @@ class AbacQueryFilterTest {
         }
     }
 }
+
+private val QUERY_SCHEMA = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())

@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -53,19 +54,20 @@ class SnapshotQueryBackendFactoryTest {
         override val namedAggregate: NamedAggregate,
     ) : SnapshotQueryBackend {
         override val name: String = NoOpSnapshotStore.NAME
-        override fun single(query: ISingleQuery): Mono<ObjectNode> = Mono.fromSupplier(JsonSerializer::createObjectNode)
+        override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> =
+            Mono.fromSupplier(JsonSerializer::createObjectNode)
         override fun list(
-            query: IListQuery,
+            query: ResolvedQuery<IListQuery>,
         ): Flux<ObjectNode> = Flux.defer {
             Flux.just(JsonSerializer.createObjectNode())
         }
-        override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
+        override fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> =
             Mono.fromSupplier { PagedList(1, listOf(JsonSerializer.createObjectNode())) }
 
-        override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+        override fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
             Mono.just(CursorPage(emptyList(), null))
-        override fun count(filter: FilterExpression): Mono<Long> = Mono.just(0L)
-        override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
+        override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = Mono.just(0L)
+        override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
     }
 
     private class DecoratedNamedAggregate(

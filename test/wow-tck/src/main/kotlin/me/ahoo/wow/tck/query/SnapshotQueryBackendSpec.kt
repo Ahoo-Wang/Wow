@@ -19,11 +19,13 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
@@ -39,12 +41,15 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
+import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
@@ -913,6 +918,36 @@ abstract class SnapshotQueryBackendSpec {
         const val AGGREGATION_SNAPSHOT_TIME = 1_767_225_600_000L
     }
 }
+
+private fun SnapshotQueryBackend.single(query: ISingleQuery): Mono<ObjectNode> =
+    requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+        single(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+    }
+
+private fun SnapshotQueryBackend.list(query: IListQuery): Flux<ObjectNode> =
+    requiredQueryModelSchemaProvider().schema().flatMapMany { schema ->
+        list(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+    }
+
+private fun SnapshotQueryBackend.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
+    requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+        paged(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+    }
+
+private fun SnapshotQueryBackend.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+    requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+        cursor(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+    }
+
+private fun SnapshotQueryBackend.count(filter: FilterExpression): Mono<Long> =
+    requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+        count(ResolvedQuery(schema.resolve(filter).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+    }
+
+private fun SnapshotQueryBackend.aggregate(query: AggregationQuery): Flux<ObjectNode> =
+    requiredQueryModelSchemaProvider().schema().flatMapMany { schema ->
+        aggregate(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+    }
 
 private fun ISingleQuery.query(backend: SnapshotQueryBackend): Mono<ObjectNode> = backend.single(this)
 private fun ISingleQuery.dynamicQuery(backend: SnapshotQueryBackend): Mono<ObjectNode> = backend.single(this)

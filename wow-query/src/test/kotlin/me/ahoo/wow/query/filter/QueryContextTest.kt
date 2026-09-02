@@ -23,7 +23,9 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -32,12 +34,27 @@ import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 
 class QueryContextTest {
+    private val contextSchema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+
+    @Test
+    fun `schema should be a required first class property`() {
+        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+        val context = DefaultQueryContext<ISingleQuery, Mono<Any>>(
+            QueryType.SINGLE,
+            MOCK_AGGREGATE_METADATA,
+            schema,
+        )
+
+        context.schema.assert().isSameAs(schema)
+        context.attributes.values.none { it === schema }.assert().isTrue()
+    }
 
     @Test
     fun `should set and get query`() {
         val context = DefaultQueryContext<ISingleQuery, Mono<Any>>(
             queryType = QueryType.SINGLE,
-            namedAggregate = MOCK_AGGREGATE_METADATA
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         )
         val query = singleQuery { }
         context.setQuery(query)
@@ -48,7 +65,8 @@ class QueryContextTest {
     fun `should throw when get query without set`() {
         val context = DefaultQueryContext<ISingleQuery, Mono<Any>>(
             queryType = QueryType.SINGLE,
-            namedAggregate = MOCK_AGGREGATE_METADATA
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         )
         org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException::class.java) {
             context.getQuery()
@@ -59,7 +77,8 @@ class QueryContextTest {
     fun `should rewrite query`() {
         val context = DefaultQueryContext<ISingleQuery, Mono<Any>>(
             queryType = QueryType.SINGLE,
-            namedAggregate = MOCK_AGGREGATE_METADATA
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         )
         val query = singleQuery {
             filter { id("id-1") }
@@ -77,7 +96,8 @@ class QueryContextTest {
     fun `should set and get result`() {
         val context = DefaultQueryContext<ISingleQuery, Mono<Any>>(
             queryType = QueryType.SINGLE,
-            namedAggregate = MOCK_AGGREGATE_METADATA
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         )
         val result: Mono<Any> = Mono.just("result")
         context.setResult(result)
@@ -88,7 +108,8 @@ class QueryContextTest {
     fun `should set result from query handler`() {
         val context = DefaultQueryContext<ISingleQuery, Mono<String>>(
             queryType = QueryType.SINGLE,
-            namedAggregate = MOCK_AGGREGATE_METADATA
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         )
         val query = singleQuery { }
         context.setQuery(query)
@@ -103,7 +124,8 @@ class QueryContextTest {
     fun `should rewrite result`() {
         val context = DefaultQueryContext<ISingleQuery, Mono<String>>(
             queryType = QueryType.SINGLE,
-            namedAggregate = MOCK_AGGREGATE_METADATA
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         )
         context.setResult(Mono.just("original"))
         context.rewriteResult { it.map { "$it-modified" } }
@@ -114,7 +136,8 @@ class QueryContextTest {
     fun `should set and get generic attributes`() {
         val context = DefaultQueryContext<ISingleQuery, Mono<Any>>(
             queryType = QueryType.SINGLE,
-            namedAggregate = MOCK_AGGREGATE_METADATA
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         )
         context.setAttribute("key1", "value1")
         val value: String? = context.getAttribute("key1")
@@ -125,7 +148,8 @@ class QueryContextTest {
     fun `should return null for missing attribute`() {
         val context = DefaultQueryContext<ISingleQuery, Mono<Any>>(
             queryType = QueryType.SINGLE,
-            namedAggregate = MOCK_AGGREGATE_METADATA
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         )
         val value: String? = context.getAttribute("missing")
         value.assert().isNull()
@@ -136,6 +160,7 @@ class QueryContextTest {
         val context = DefaultQueryContext<FilterExpression, Mono<Long>>(
             queryType = QueryType.COUNT,
             namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         ).setQuery(MatchAllFilter)
 
         context.asCountQuery().getQuery().assert().isSameAs(MatchAllFilter)
@@ -147,6 +172,7 @@ class QueryContextTest {
         val context = DefaultQueryContext<ISingleQuery, Mono<ObjectNode>>(
             queryType = QueryType.SINGLE,
             namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         ).setQuery(singleQuery { }).setResult(Mono.just(node))
 
         context.asSingleQuery().getRequiredResult().block().assert().isSameAs(node)
@@ -159,6 +185,7 @@ class QueryContextTest {
         val context = DefaultQueryContext<ICursorQuery, Mono<CursorPage<ObjectNode>>>(
             queryType = QueryType.CURSOR,
             namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         ).setQuery(query).setResult(Mono.just(page))
 
         context.asCursorQuery().getQuery().assert().isSameAs(query)
@@ -171,6 +198,7 @@ class QueryContextTest {
         val context = DefaultQueryContext<AggregationQuery, Flux<ObjectNode>>(
             queryType = QueryType.AGGREGATION,
             namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         ).setQuery(query)
 
         context.asAggregationQuery().getQuery().assert().isSameAs(query)
@@ -181,6 +209,7 @@ class QueryContextTest {
         val context = DefaultQueryContext<FilterExpression, Mono<Long>>(
             queryType = QueryType.COUNT,
             namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         ).setQuery(MatchAllFilter)
         val appended = IdFilter("id-1")
 
@@ -194,6 +223,7 @@ class QueryContextTest {
         val context = DefaultQueryContext<String, Mono<Long>>(
             queryType = QueryType.COUNT,
             namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = contextSchema,
         ).setQuery("unsupported")
 
         org.junit.jupiter.api.assertThrows<IllegalStateException> {

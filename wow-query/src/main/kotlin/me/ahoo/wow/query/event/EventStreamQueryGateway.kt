@@ -21,6 +21,8 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryLogErrorHandler
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.serialization.JsonSerializer
 
 interface EventStreamQueryGateway : QueryGateway<DomainEventStream>
@@ -28,12 +30,16 @@ interface EventStreamQueryGateway : QueryGateway<DomainEventStream>
 class DefaultEventStreamQueryGateway(
     namedAggregate: NamedAggregate,
     backend: EventStreamQueryBackend,
+    schemaProvider: QueryModelSchemaProvider,
+    validationMode: QuerySchemaValidationMode,
     filters: List<QueryFilter<QueryContext<*, *>>> = emptyList(),
     errorHandler: ErrorHandler<QueryContext<*, *>> = QueryLogErrorHandler(),
 ) : EventStreamQueryGateway,
     AbstractQueryGateway<DomainEventStream>(
         namedAggregate,
         backend,
+        schemaProvider,
+        validationMode,
         JsonSerializer.typeFactory.constructType(DomainEventStream::class.java),
         filters,
         EventStreamQueryGateway::class,

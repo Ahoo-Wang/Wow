@@ -32,6 +32,9 @@ import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.withSchemaMaskFilter
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -55,6 +58,8 @@ interface QueryGateway<R : Any> : NamedAggregateDecorator {
 abstract class AbstractQueryGateway<R : Any>(
     override val namedAggregate: NamedAggregate,
     private val backend: QueryBackend,
+    private val schemaProvider: QueryModelSchemaProvider,
+    private val validationMode: QuerySchemaValidationMode,
     private val targetType: JavaType,
     filters: List<QueryFilter<QueryContext<*, *>>>,
     filterType: KClass<*>,
@@ -64,16 +69,34 @@ abstract class AbstractQueryGateway<R : Any>(
         .addFilters(filters)
         .filterCondition(filterType)
         .build(FilterChain(::invokeBackend))
-        .withSchemaMaskFilter(backend)
+        .withSchemaMaskFilter()
 
     private fun invokeBackend(context: QueryContext<*, *>): Mono<Void> {
         when (context.queryType) {
-            QueryType.SINGLE -> context.asSingleQuery().setResult { backend.single(it) }
-            QueryType.LIST -> context.asListQuery().setResult { backend.list(it) }
-            QueryType.PAGED -> context.asPagedQuery().setResult { backend.paged(it) }
-            QueryType.CURSOR -> context.asCursorQuery().setResult { backend.cursor(it) }
-            QueryType.COUNT -> context.asCountQuery().setResult { backend.count(it) }
-            QueryType.AGGREGATION -> context.asAggregationQuery().setResult { backend.aggregate(it) }
+            QueryType.SINGLE -> context.asSingleQuery().run {
+                val accepted = schema.resolve(getQuery()).requireAccepted(validationMode)
+                setResult(backend.single(ResolvedQuery(accepted, schema)))
+            }
+            QueryType.LIST -> context.asListQuery().run {
+                val accepted = schema.resolve(getQuery()).requireAccepted(validationMode)
+                setResult(backend.list(ResolvedQuery(accepted, schema)))
+            }
+            QueryType.PAGED -> context.asPagedQuery().run {
+                val accepted = schema.resolve(getQuery()).requireAccepted(validationMode)
+                setResult(backend.paged(ResolvedQuery(accepted, schema)))
+            }
+            QueryType.CURSOR -> context.asCursorQuery().run {
+                val accepted = schema.resolve(getQuery()).requireAccepted(validationMode)
+                setResult(backend.cursor(ResolvedQuery(accepted, schema)))
+            }
+            QueryType.COUNT -> context.asCountQuery().run {
+                val accepted = schema.resolve(getQuery()).requireAccepted(validationMode)
+                setResult(backend.count(ResolvedQuery(accepted, schema)))
+            }
+            QueryType.AGGREGATION -> context.asAggregationQuery().run {
+                val accepted = schema.resolve(getQuery()).requireAccepted(validationMode)
+                setResult(backend.aggregate(ResolvedQuery(accepted, schema)))
+            }
         }
         return Mono.empty()
     }
@@ -96,10 +119,12 @@ abstract class AbstractQueryGateway<R : Any>(
         query: Q,
         result: (QueryContext<Q, RESULT>) -> Mono<T>,
     ): Mono<T> = Mono.defer {
-        val context = DefaultQueryContext<Q, RESULT>(queryType, namedAggregate).setQuery(query)
-        Mono.defer { chain.filter(context) }
-            .then(Mono.defer { result(context) })
-            .onErrorResume { original -> observeError(context, original).then(Mono.error(original)) }
+        schemaProvider.schema().flatMap { schema ->
+            val context = DefaultQueryContext<Q, RESULT>(queryType, namedAggregate, schema).setQuery(query)
+            Mono.defer { chain.filter(context) }
+                .then(Mono.defer { result(context) })
+                .onErrorResume { original -> observeError(context, original).then(Mono.error(original)) }
+        }
     }
 
     private fun <Q : Any, RESULT : Any, T : Any> flux(
@@ -107,10 +132,12 @@ abstract class AbstractQueryGateway<R : Any>(
         query: Q,
         result: (QueryContext<Q, RESULT>) -> Flux<T>,
     ): Flux<T> = Flux.defer {
-        val context = DefaultQueryContext<Q, RESULT>(queryType, namedAggregate).setQuery(query)
-        Mono.defer { chain.filter(context) }
-            .thenMany(Flux.defer { result(context) })
-            .onErrorResume { original -> observeError(context, original).thenMany(Flux.error(original)) }
+        schemaProvider.schema().flatMapMany { schema ->
+            val context = DefaultQueryContext<Q, RESULT>(queryType, namedAggregate, schema).setQuery(query)
+            Mono.defer { chain.filter(context) }
+                .thenMany(Flux.defer { result(context) })
+                .onErrorResume { original -> observeError(context, original).thenMany(Flux.error(original)) }
+        }
     }
 
     protected open fun prepareDynamicResult(context: QueryContext<*, *>, result: ObjectNode): ObjectNode = result
