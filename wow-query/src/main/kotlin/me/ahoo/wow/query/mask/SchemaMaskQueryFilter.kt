@@ -15,8 +15,6 @@ package me.ahoo.wow.query.mask
 
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.Projection
-import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.SimpleFilterChain
 import me.ahoo.wow.query.QueryBackend
@@ -49,10 +47,6 @@ internal class SchemaMaskQueryFilter(
                 else -> Unit
             }
             Mono.defer(provider::schema).doOnNext { schema ->
-                context.internalEventBodyTypeProjected = schema
-                    .requiresInternalEventBodyType(
-                        (context.getQuery() as? Queryable<*>)?.projection ?: Projection.ALL,
-                    )
                 when (context.queryType) {
                     QueryType.SINGLE -> context.asSingleQuery().rewriteResult { it.maskResult(schema) }
                     QueryType.LIST -> context.asListQuery().rewriteResult { it.maskResult(schema) }

@@ -39,19 +39,6 @@ internal class QueryFieldSchemaResolver(
         }
     }
 
-    fun resolveProjectionPath(path: String): QuerySchemaResolution<String> {
-        val logicalField = try {
-            QueryField(path)
-        } catch (_: IllegalArgumentException) {
-            return QuerySchemaResolution(path, QueryCompatibilityLevel.COMPATIBLE)
-        }
-        val fieldSchema = schema.field(logicalField)
-            ?: return QuerySchemaResolution(path, QueryCompatibilityLevel.COMPATIBLE)
-        return fieldSchema.projectionField?.let {
-            QuerySchemaResolution(it.path, QueryCompatibilityLevel.EXACT)
-        } ?: QuerySchemaResolution(path, QueryCompatibilityLevel.INCOMPATIBLE)
-    }
-
     fun resolveProjection(field: QueryField): QuerySchemaResolution<QueryField> = QuerySchemaResolution(
         field,
         schema.field(field)?.let {
