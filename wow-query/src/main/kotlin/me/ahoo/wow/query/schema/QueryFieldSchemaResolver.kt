@@ -108,7 +108,7 @@ internal class QueryFieldSchemaResolver(
         }
         val topLevelNoRewrite = resolvedParent == null && physicalParent == null &&
             (schema.rewriteMode == QueryRewriteMode.NONE || fieldSchema.rewriteMode == QueryRewriteMode.NONE)
-        val value = if (resolved == field || topLevelNoRewrite) {
+        val value = if (topLevelNoRewrite || resolved == field) {
             field
         } else {
             resolved
