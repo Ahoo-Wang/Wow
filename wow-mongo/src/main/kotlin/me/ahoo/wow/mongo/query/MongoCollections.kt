@@ -24,6 +24,13 @@ fun MongoCollection<Document>.findDocument(
     queryable: Queryable<*>,
     projectionConverter: MongoProjectionConverter,
     sortConverter: MongoSortConverter,
+): FindPublisher<Document> = findDocument(converter, queryable, projectionConverter, sortConverter, null)
+
+internal fun MongoCollection<Document>.findDocument(
+    converter: AbstractMongoFilterConverter,
+    queryable: Queryable<*>,
+    projectionConverter: MongoProjectionConverter,
+    sortConverter: MongoSortConverter,
     schema: QueryModelSchema?,
 ): FindPublisher<Document> {
     val projectionBson = projectionConverter.convert(queryable.projection, schema)

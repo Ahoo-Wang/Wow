@@ -42,7 +42,7 @@ class ElasticsearchProjectionConverterTest {
             exclude("field2")
         }
 
-        val sourceFilter = projection.toSourceFilter(null)
+        val sourceFilter = projection.toSourceFilter()
         sourceFilter.includes().assert().containsExactly("field1", "field1.*")
         sourceFilter.excludes().assert().containsExactly("field2", "field2.*")
     }

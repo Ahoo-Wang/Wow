@@ -27,7 +27,11 @@ object ElasticsearchProjectionConverter : ProjectionConverter<SourceFilter> {
         }
     }
 
-    fun Projection.toSourceFilter(schema: QueryModelSchema?): SourceFilter {
+    fun Projection.toSourceFilter(): SourceFilter {
+        return convert(this, null)
+    }
+
+    internal fun Projection.toSourceFilter(schema: QueryModelSchema?): SourceFilter {
         return convert(this, schema)
     }
 

@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -79,11 +80,29 @@ class AbstractMongoQueryBackendTest {
         override val projectionConverter = MongoProjectionConverter(FieldConverter { it })
         override val sortConverter = MongoSortConverter(FieldConverter { it })
         override val cursorUniqueField = QueryField("id")
+        fun find(queryable: Queryable<*>): FindPublisher<Document> = findDocument(queryable)
         override fun resolve(query: ICursorQuery): Mono<ICursorQuery> = Mono.just(query).doOnNext {
             resolvedCursorQuery = it
         }
         override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
         override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
+    }
+
+    @Test
+    fun `existing Mongo find document APIs should remain callable`() {
+        val publisher = mockk<FindPublisher<Document>>()
+        every { collection.find(any<Bson>()) } returns publisher
+        every { publisher.projection(null) } returns publisher
+        every { publisher.sort(null) } returns publisher
+        val query = ListQuery(MatchAllFilter, limit = 1)
+
+        cursorBackend.find(query).assert().isSameAs(publisher)
+        collection.findDocument(
+            converter = cursorBackend.converter,
+            queryable = query,
+            projectionConverter = cursorBackend.projectionConverter,
+            sortConverter = cursorBackend.sortConverter,
+        ).assert().isSameAs(publisher)
     }
 
     @Test
@@ -273,6 +292,52 @@ class AbstractMongoQueryBackendTest {
         ).test().verifyComplete()
 
         projection.captured.assert().isEqualTo(Projections.include("document", "document.name"))
+        verify(exactly = 1) { schemaProvider.schema() }
+    }
+
+    @Test
+    fun `compatible unavailable schema should execute the original query after one provider call`() {
+        val schemaProvider = mockk<QueryModelSchemaProvider>()
+        every { schemaProvider.schema() } returnsMany listOf(
+            Mono.error(QuerySchemaUnavailableException("unavailable")),
+            Mono.just(
+                QueryModelSchema(
+                    model = QueryModel.SNAPSHOT,
+                    capabilities = emptySet(),
+                    fields = mapOf(
+                        QueryField("state.alias") to cursorFieldSchema(
+                            source = QueryField("state.alias"),
+                            physicalField = QueryField("document"),
+                            projectionField = QueryField("document"),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val projection = slot<Bson>()
+        val publisher = mockk<FindPublisher<Document>>()
+        every { collection.find(any<Bson>()) } returns publisher
+        every { publisher.projection(capture(projection)) } returns publisher
+        every { publisher.sort(null) } returns publisher
+        every { publisher.limit(1) } returns publisher
+        every { publisher.subscribe(any()) } answers {
+            Flux.empty<Document>().subscribe(firstArg<Subscriber<in Document>>())
+        }
+        val builtIn = MongoSnapshotQueryBackend(
+            namedAggregate = MaterializedNamedAggregate("test", "aggregate"),
+            collection = collection,
+            schemaProvider = schemaProvider,
+        )
+
+        builtIn.list(
+            ListQuery(
+                MatchAllFilter,
+                projection = Projection(include = listOf(QueryField("state.alias"))),
+                limit = 1,
+            ),
+        ).test().verifyComplete()
+
+        projection.captured.assert().isEqualTo(Projections.include("state.alias"))
         verify(exactly = 1) { schemaProvider.schema() }
     }
 
