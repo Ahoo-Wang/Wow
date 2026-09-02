@@ -48,7 +48,6 @@ class EventStreamSchemaInitializerTest : SchemaInitializerSpec() {
     override fun getExpectedIndexNames(): Set<String> = setOf(
         "${MessageRecords.AGGREGATE_ID}_hashed",
         AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME,
-        "${MessageRecords.VERSION}_1_${MessageRecords.AGGREGATE_ID}_1",
         "${MessageRecords.AGGREGATE_ID}_1_${MessageRecords.REQUEST_ID}_1",
         "${MessageRecords.TENANT_ID}_hashed",
         "${MessageRecords.OWNER_ID}_hashed",
