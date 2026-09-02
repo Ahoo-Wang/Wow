@@ -32,6 +32,8 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 
 一个 `filterExpression { ... }` 块中并列的表达式会构成隐式 `AND`；需要改变组合语义时使用显式 `and`、`or` 或 `nor`。
 
+`AND` 要求所有 operand 都匹配；`OR` 要求至少一个 operand 匹配；`NOR` 要求所有 operand 都不匹配。`MATCH_ALL` 与 `MATCH_NONE` 分别表示当前查询作用域中的全部和无任何结果。过滤器执行前会进行规范化：例如 `MATCH_ALL` 不改变 `AND`，而 `MATCH_NONE` 会使 `AND` 变为 `MATCH_NONE`；`OR` 与 `NOR` 也会应用对应的恒等项和吸收项规则。
+
 ## 标识与租户操作符
 
 | 操作符 | JSON 形状 | Kotlin DSL |
@@ -41,6 +43,8 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 | `TENANT_ID` / `OWNER_ID` / `SPACE_ID` | `{ "op": "TENANT_ID", "value": "..." }` | `tenantId("...")` / `ownerId("...")` / `spaceId("...")` |
 
 系统标识、租户、owner 与 space 必须使用这些专用操作符，不要手写看似等价的字段路径来绕过它们的语义。
+
+`ID`/`IDS` 按存储记录标识过滤，`AGGREGATE_ID`/`AGGREGATE_IDS` 按聚合标识过滤。快照中两者通常都对应聚合文档标识；事件流中 `ID` 对应事件记录标识，`AGGREGATE_ID` 对应事件所属聚合。`IDS` 和 `AGGREGATE_IDS` 的 `values` 必须非空；如果业务集合可能为空，应在构造过滤器前显式选择 `MATCH_NONE` 或 `MATCH_ALL` 的语义。
 
 ## 比较与字符串操作符
 
@@ -54,6 +58,8 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 字符串比较默认 `CASE_SENSITIVE`。比较和字符串能力由后端及其发布的 Schema 决定。
 无操作数的空字符串操作符仅适用于具备精确匹配能力的单值字符串字段。`IS_EMPTY_STRING` 只匹配 `""`；`IS_NOT_EMPTY_STRING` 要求字段存在、非 `null` 且不等于 `""`。仅含空白的字符串不视为空字符串。
 
+`CONTAINS`、`STARTS_WITH` 和 `ENDS_WITH` 是字面量匹配，不使用全文 analyzer：MongoDB 使用转义后的正则表达式，Elasticsearch 使用 wildcard/prefix 查询。`CASE_INSENSITIVE` 会改变后端查询选项，可能比大小写敏感查询更昂贵；HTTP 查询保护关闭 expensive operators 时，这些操作符的部分形式会被拒绝。
+
 ## 集合与存在性操作符
 
 | 操作符 | JSON 形状 | Kotlin DSL |
@@ -65,7 +71,21 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 | `IS_NULL` / `IS_NOT_NULL` | `{ "op": "IS_NULL", "field": "state.note" }` | `"note".isNull()` / `"note".isNotNull()` |
 | `EXISTS` / `NOT_EXISTS` | `{ "op": "EXISTS", "field": "state.note" }` | `"note".exists()` / `"note".notExists()` |
 
-要求可比较值的 `GT`、`GTE`、`LT`、`LTE` 以及 `BETWEEN` 的两个边界不接受 `null`。`IN`、`NOT_IN` 与 `CONTAINS_ALL` 的 `values` 不能为空，也不能包含 `null`。检查 null、存在性或空集合时使用无操作数的专用操作符 `IS_NULL`、`IS_NOT_NULL`、`EXISTS`、`NOT_EXISTS` 或 `IS_EMPTY`。
+要求可比较值的 `GT`、`GTE`、`LT`、`LTE` 以及 `BETWEEN` 的两个边界不接受 `null`。`BETWEEN` 包含下界和上界；相对时间过滤器规范化后的上界则通常是排他的。`IN`、`NOT_IN` 与 `CONTAINS_ALL` 的 `values` 不能为空，也不能包含 `null`。检查 null、存在性或空集合时使用无操作数的专用操作符 `IS_NULL`、`IS_NOT_NULL`、`EXISTS`、`NOT_EXISTS` 或 `IS_EMPTY`。
+
+`FilterDsl` 中的 `"field" eq null` 和 `"field" ne null` 会直接构造为 `IS_NULL` 和 `IS_NOT_NULL`。这些操作符最终使用后端原生的 null、缺失和存在性语义：
+
+| 操作符 | MongoDB 编译形式 | Elasticsearch 编译形式 |
+| --- | --- | --- |
+| `IS_NULL` | `field = null` | `must_not exists` |
+| `IS_NOT_NULL` | `field != null` | `exists` |
+| `EXISTS` | `exists(field)` | `exists` |
+| `NOT_EXISTS` | `exists(field, false)` | `must_not exists` |
+| `IS_EMPTY` | `size(field, 0)` | `must_not exists` |
+
+MongoDB 中，`IS_NULL` 的 `field = null` 匹配 null 或缺失字段；`IS_NOT_NULL` 的 `field != null` 匹配存在且非 null 的字段；`EXISTS` 也包含值为 null 的字段；`NOT_EXISTS` 只匹配缺失字段；`IS_EMPTY` 的 `$size: 0` 只匹配实际的空数组。详见 [MongoDB 的 null 与缺失字段语义](https://www.mongodb.com/docs/manual/tutorial/query-for-null-fields/) 和 [$size](https://www.mongodb.com/docs/manual/reference/operator/query/size/)。
+
+因此 Elasticsearch 中 `IS_NULL` 与 `NOT_EXISTS`、`IS_NOT_NULL` 与 `EXISTS` 的结果分别相同；在未配置 `null_value` 等特殊 mapping 时，`null` 和空数组不会产生可查询的 indexed value，`IS_EMPTY` 也可能匹配缺失或 null 字段。详见 [Elasticsearch exists 查询](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-exists-query)。特殊 mapping 或 ignored 值可能改变 `exists` 的结果。
 
 ## 数组元素匹配
 
@@ -87,6 +107,8 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 
 元素谓词不能包含 root-only 的 `ID`、`IDS`、`AGGREGATE_ID`、`AGGREGATE_IDS`、`TENANT_ID`、`OWNER_ID`、`SPACE_ID`、`DELETION` 或 `SEARCH`，即使它们嵌套在 `AND`、`OR`、`NOR` 或另一个 `ELEMENT_MATCH` 中。
 
+MongoDB 将 `ELEMENT_MATCH` 编译为 `$elemMatch`；Elasticsearch 将其编译为 `nested` 查询，因此 Elasticsearch 需要对应字段使用 `nested` mapping。是否存在可用的元素作用域由 Query Schema 的 `ELEMENT_SCOPE` 能力决定；普通对象数组与 nested 数组不能互相推断。
+
 ## 删除标记与全文搜索
 
 | 操作符 | JSON 形状 | Kotlin DSL |
@@ -95,6 +117,8 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 | `SEARCH` | `{ "op": "SEARCH", "query": "wireless", "fields": ["state.note"], "mode": "TERMS" }` | `search("wireless", "note")` |
 
 删除标记使用 `DELETION`，不要以字段路径模拟。快照查询默认追加 `DELETION = ACTIVE`；事件流查询保留完整历史，不追加该 guard。
+
+`DELETION` 的 `state` 还可以是 `DELETED` 或 `ALL`，分别只查询已删除数据，或同时包含已删除和未删除数据。快照查询中的显式删除条件只有位于根表达式或根 `AND` 合取树中时，才会覆盖默认的 `ACTIVE` 范围；放在 `OR` 或 `NOR` 内部不会移除该默认条件。
 
 ### SearchFilter
 
@@ -161,6 +185,13 @@ filterExpression {
 | `RECENT_DAYS` / `EARLIER_DAYS` | `{ "op": "RECENT_DAYS", "field": "state.createTime", "days": 7 }` | `"createTime".recentDays(7)` / `.earlierDays(7)` |
 
 可选 `zoneId`、`datePattern` 与 `timeUnit` 适用于相对时间过滤器；默认 `timeUnit` 是 `MILLISECONDS`，配置 `datePattern` 时忽略它。`RECENT_DAYS` 和 `EARLIER_DAYS` 的 `days` 至少为 `1`。时区、日期格式和物理时间字段能力仍由 Schema 与后端确定。
+
+有明确时间窗口的相对时间过滤器会在后端编译前按半开区间 `[start, end)` 规范化；`BEFORE_TODAY` 和 `EARLIER_DAYS` 使用排他的上界：
+
+- `TODAY`、`YESTERDAY`、`TOMORROW` 分别表示指定时区的日历日；`BEFORE_TODAY(time)` 表示早于今天该时刻。
+- `THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK` 使用周一作为周起点；月和年过滤器使用对应日历月、日历年。
+- `RECENT_DAYS(7)` 包含今天和此前六个日历日；`EARLIER_DAYS(7)` 表示早于这七个日历日窗口的时间。
+- 未指定 `zoneId` 时使用进程默认时区。`datePattern` 只适用于 Schema 声明为格式化时间的字段，且必须与 Schema 中的 pattern 相同；数值 epoch 字段或原生日期字段不能配置 `datePattern`。数值字段的 `timeUnit` 以 Schema 声明为准，配置 `datePattern` 后则生成格式化字符串并忽略 `timeUnit`。
 
 ## JSON 与 Kotlin DSL 对照
 
