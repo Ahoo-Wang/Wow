@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.event.DomainEventStream
@@ -38,6 +39,7 @@ import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.metrics.meteredForTck
 import org.junit.jupiter.api.BeforeEach
@@ -131,6 +133,43 @@ abstract class EventStreamQueryBackendSpec {
             .test()
             .expectNextCount(1)
             .verifyComplete()
+    }
+
+    @Test
+    fun `payload projection should retain body type`() {
+        val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
+        eventStore.append(eventStream).block()
+
+        eventStreamQueryBackend.single(
+            SingleQuery(
+                filter = TenantIdFilter(eventStream.aggregateId.tenantId),
+                projection = Projection(
+                    include = listOf(QueryField("body.body"), QueryField("body.bodyType")),
+                ),
+            ),
+        ).test()
+            .assertNext { node ->
+                node.path("body").path(0).let { event ->
+                    event.path("body").isObject.assert().isTrue()
+                    event.path("bodyType").asString().assert().isNotBlank()
+                }
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `payload projection without body type should be rejected`() {
+        val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
+        eventStore.append(eventStream).block()
+
+        eventStreamQueryBackend.single(
+            SingleQuery(
+                filter = TenantIdFilter(eventStream.aggregateId.tenantId),
+                projection = Projection(include = listOf(QueryField("body.body"))),
+            ),
+        ).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
     }
 
     @Test

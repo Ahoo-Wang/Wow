@@ -48,7 +48,7 @@ internal class MongoAggregationCompiler(
         var physicalParent: String? = null
         query.elements.forEach { element ->
             val previousLogicalParent = logicalParent
-            logicalParent = element.path.absoluteTo(previousLogicalParent)
+            logicalParent = previousLogicalParent?.append(element.path) ?: element.path
             physicalParent = element.path.resolve(
                 parent = previousLogicalParent,
                 schema = schema,
@@ -292,7 +292,7 @@ internal class MongoAggregationCompiler(
     )
 
     private fun AggregationGroup.DateHistogram.dateInput(parent: QueryField?, schema: QueryModelSchema?): Any {
-        val logicalField = field.absoluteTo(parent)
+        val logicalField = parent?.append(field) ?: field
         val fieldSchema = schema?.field(logicalField)
         if (fieldSchema == null) {
             return Document("\$toDate", "\$${converter.convertField(logicalField.path)}")
@@ -389,7 +389,7 @@ internal class MongoAggregationCompiler(
         schema: QueryModelSchema?,
         capability: QueryCapability,
     ): String {
-        val logicalField = absoluteTo(parent)
+        val logicalField = parent?.append(this) ?: this
         schema?.field(logicalField)?.binding(capability)?.physicalField?.path?.let { return it }
         if (schema == null || logicalField !in schema.fields) {
             return converter.convertField(logicalField.path)

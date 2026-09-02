@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.mongo.query
 
-import me.ahoo.wow.api.query.QueryField
-
 import com.mongodb.client.model.Sorts
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.event.EventStreamFieldConverter

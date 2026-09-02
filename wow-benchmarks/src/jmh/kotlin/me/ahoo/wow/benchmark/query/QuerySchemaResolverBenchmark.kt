@@ -13,31 +13,20 @@
 
 package me.ahoo.wow.benchmark.query
 
-import me.ahoo.wow.api.query.AggregationGroup
-import me.ahoo.wow.api.query.AggregationMetric
-import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
-import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.resolve
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -49,13 +38,8 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
 import org.openjdk.jmh.infra.Blackhole
-import reactor.core.publisher.Mono
 import tools.jackson.databind.node.JsonNodeFactory
 import java.util.concurrent.TimeUnit
-import kotlin.reflect.jvm.javaField
-
-private const val MASKED_FIELD_COUNT = 64
-private const val FILTER_OPERAND_COUNT = 8
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -65,184 +49,142 @@ private const val FILTER_OPERAND_COUNT = 8
 @Fork(3)
 @Threads(1)
 open class QuerySchemaResolverBenchmark {
-    private val sortableField = QueryField("state.createdAt")
-    private val aggregatableField = QueryField("state.category")
-    private val dynamicField = QueryField("state.dynamic")
-    private val dynamicChildField = QueryField("state.dynamic.child.grandchild")
-    private val eventSecretField = QueryField("body.body.secret")
-    private val eventBodyTypeField = QueryField("body.bodyType")
-    private val schema = QueryModelSchema(
-        model = QueryModel.SNAPSHOT,
-        capabilities = emptySet(),
-        fields = buildMap {
-            putAll(
-                List(MASKED_FIELD_COUNT) { index ->
-                    QueryField("state.secret$index") to maskedFieldSchema()
-                },
-            )
-            putAll(
-                List(FILTER_OPERAND_COUNT) { index ->
-                    QueryField("state.filter$index") to maskedFieldSchema().copy(
-                        bindings = mapOf(
-                            QueryCapability.EXACT_MATCH to QueryFieldBinding(
-                                QueryField("document.filter$index"),
-                                QueryField("document.filter$index"),
-                                null,
-                            ),
-                        ),
-                        rewriteMode = QueryRewriteMode.REQUIRED,
-                        maskRule = null,
-                    )
-                },
-            )
-            put(
-                sortableField,
-                maskedFieldSchema().copy(
-                    bindings = mapOf(
-                        QueryCapability.SORT to QueryFieldBinding(
-                            QueryField("document.createdAt"),
-                            QueryField("document.createdAt"),
-                            null,
-                        ),
-                    ),
-                    rewriteMode = QueryRewriteMode.REQUIRED,
-                    maskRule = null,
-                ),
-            )
-            put(
-                aggregatableField,
-                maskedFieldSchema().copy(
-                    bindings = mapOf(
-                        QueryCapability.AGGREGATE_TERMS to QueryFieldBinding(
-                            QueryField("document.category.keyword"),
-                            QueryField("document.category.keyword"),
-                            null,
-                        ),
-                    ),
-                    rewriteMode = QueryRewriteMode.REQUIRED,
-                    maskRule = null,
-                ),
-            )
-            put(
-                dynamicField,
-                maskedFieldSchema().copy(
-                    bindings = mapOf(
-                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
-                            QueryField("document.dynamic"),
-                            QueryField("document.dynamic"),
-                            null,
-                        ),
-                    ),
-                    dynamicChildren = true,
-                    rewriteMode = QueryRewriteMode.REQUIRED,
-                    maskRule = null,
-                ),
-            )
-        },
-    )
-    private val provider = object : QueryModelSchemaProvider {
-        private val schemaMono = Mono.just(schema)
+    private val value = JsonNodeFactory.instance.stringNode("value")
+    private val identityField = QueryField("state.name")
+    private val mappedSortField = QueryField("state.createdAt")
+    private val mappedFilterField = QueryField("state.status")
+    private val dynamicRoot = QueryField("state.dynamic")
+    private val dynamicChild = QueryField("state.dynamic.code")
 
-        override fun schema(): Mono<QueryModelSchema> = schemaMono
-
-        override fun refresh(): Mono<QueryModelSchema> = schemaMono
-    }
-    private val eventProjectionSchema = QueryModelSchema(
-            model = QueryModel.EVENT_STREAM,
-            capabilities = emptySet(),
-            fields = mapOf(
-                eventSecretField to maskedFieldSchema().copy(
-                    bindings = mapOf(
-                        QueryCapability.PRESENCE to QueryFieldBinding(eventSecretField, eventSecretField, null),
-                    ),
-                    projectionField = eventSecretField,
-                ),
-                eventBodyTypeField to maskedFieldSchema().copy(
-                    bindings = mapOf(
-                        QueryCapability.PRESENCE to QueryFieldBinding(eventBodyTypeField, eventBodyTypeField, null),
-                    ),
-                    projectionField = eventBodyTypeField,
-                    maskRule = null,
-                ),
-            ),
-        )
-    private val eventProjection = Projection(include = listOf(QueryField(eventSecretField.path)))
-    private val eventProjectionQuery = SingleQuery(MatchAllFilter, projection = eventProjection)
-    private val dynamicFilter = EqualFilter(
-        dynamicChildField,
-        JsonNodeFactory.instance.stringNode("value"),
-    )
-    private val aggregationQuery = AggregationQuery(
-        groupBy = listOf(AggregationGroup.Terms(aggregatableField, "category")),
-        metrics = listOf(AggregationMetric.Count("count")),
-    )
-    private val query = SingleQuery(MatchAllFilter)
-    private val compositeFilterQuery = SingleQuery(
-        AndFilter(
-            List(FILTER_OPERAND_COUNT) { index ->
-                EqualFilter(
-                    QueryField("state.filter$index"),
-                    JsonNodeFactory.instance.stringNode(index.toString()),
-                )
-            },
+    private val modelNoneSchema = schema(
+        identityField to fieldSchema(
+            bindings = setOf(
+                QueryCapability.EXACT_MATCH,
+                QueryCapability.PRESENCE,
+                QueryCapability.SORT,
+            ).associateWith { identityField.binding() },
+            rewriteMode = QueryRewriteMode.NONE,
         ),
     )
-    private val cursorQuery = CursorQuery(
-        MatchAllFilter,
-        sort = listOf(Sort(QueryField(sortableField.path), Sort.Direction.ASC)),
+    private val modelNoneQuery = SingleQuery(
+        filter = EqualFilter(identityField, value),
+        projection = Projection(include = listOf(identityField)),
+        sort = listOf(Sort(identityField, Sort.Direction.ASC)),
     )
 
-    @Benchmark
-    fun resolve(blackhole: Blackhole) {
-        blackhole.consume(provider.resolve(query, QuerySchemaValidationMode.COMPATIBLE).block())
-    }
-
-    @Benchmark
-    fun resolveCompositeFilter(blackhole: Blackhole) {
-        blackhole.consume(provider.resolve(compositeFilterQuery, QuerySchemaValidationMode.COMPATIBLE).block())
-    }
-
-    @Benchmark
-    fun resolveCursorSort(blackhole: Blackhole) {
-        blackhole.consume(provider.resolve(cursorQuery, QuerySchemaValidationMode.COMPATIBLE).block())
-    }
-
-    @Benchmark
-    fun resolveEventProjection(blackhole: Blackhole) {
-        blackhole.consume(eventProjectionSchema.resolve(eventProjectionQuery))
-    }
-
-    @Benchmark
-    fun resolveAggregation(blackhole: Blackhole) {
-        blackhole.consume(schema.resolve(aggregationQuery))
-    }
-
-    @Benchmark
-    fun resolveDynamicFilter(blackhole: Blackhole) {
-        blackhole.consume(schema.resolve(dynamicFilter))
-    }
-
-    private fun maskedFieldSchema(): QueryFieldSchema {
-        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
-        return QueryFieldSchema(
-            title = null,
-            description = null,
-            enumValues = null,
-            valueTypes = setOf(QueryValueType.STRING),
-            nullable = true,
-            required = false,
-            cardinality = QueryCardinality.SINGLE,
-            semanticType = null,
-            dynamicChildren = false,
-            bindings = emptyMap(),
-            rewriteMode = QueryRewriteMode.NONE,
-            maskRule = MaskRule(
-                FullMaskStrategy::class,
-                annotation,
-                FullMaskStrategy.compile(annotation),
+    private val fieldInferSchema = schema(
+        mappedSortField to fieldSchema(
+            bindings = mapOf(
+                QueryCapability.SORT to mappedSortField.binding(QueryField("document.createdAt")),
             ),
-        )
+            rewriteMode = QueryRewriteMode.INFER,
+        ),
+    )
+    private val fieldInferQuery = SingleQuery(
+        MatchAllFilter,
+        sort = listOf(Sort(mappedSortField, Sort.Direction.ASC)),
+    )
+
+    private val fieldRequiredSchema = schema(
+        mappedFilterField to fieldSchema(
+            bindings = mapOf(
+                QueryCapability.EXACT_MATCH to mappedFilterField.binding(QueryField("document.status.keyword")),
+            ),
+            rewriteMode = QueryRewriteMode.REQUIRED,
+        ),
+    )
+    private val fieldRequiredFilter = EqualFilter(mappedFilterField, value)
+
+    private val identityDynamicSchema = schema(
+        dynamicRoot to fieldSchema(
+            bindings = mapOf(QueryCapability.EXACT_MATCH to dynamicRoot.binding()),
+            dynamicChildren = true,
+            rewriteMode = QueryRewriteMode.NONE,
+        ),
+    )
+    private val rewriteDynamicSchema = schema(
+        dynamicRoot to fieldSchema(
+            bindings = mapOf(
+                QueryCapability.EXACT_MATCH to dynamicRoot.binding(QueryField("document.dynamic")),
+            ),
+            dynamicChildren = true,
+            rewriteMode = QueryRewriteMode.REQUIRED,
+        ),
+    )
+    private val dynamicFilter = EqualFilter(dynamicChild, value)
+
+    private val projectionSchema = schema(
+        identityField to fieldSchema(
+            bindings = mapOf(QueryCapability.PRESENCE to identityField.binding()),
+            rewriteMode = QueryRewriteMode.NONE,
+        ),
+    )
+    private val projection = Projection(include = listOf(identityField))
+    private val projectionQuery = SingleQuery(MatchAllFilter, projection = projection)
+
+    @Benchmark
+    fun modelNoneIdentityQuery(blackhole: Blackhole) {
+        val resolution = modelNoneSchema.resolve(modelNoneQuery)
+        check(resolution.value === modelNoneQuery)
+        blackhole.consume(resolution)
     }
 
-    private data class Masked(@field:Mask val secret: String)
+    @Benchmark
+    fun fieldInferMappedSort(blackhole: Blackhole) {
+        blackhole.consume(fieldInferSchema.resolve(fieldInferQuery))
+    }
+
+    @Benchmark
+    fun fieldRequiredMappedFilter(blackhole: Blackhole) {
+        blackhole.consume(fieldRequiredSchema.resolve(fieldRequiredFilter))
+    }
+
+    @Benchmark
+    fun identityDynamicFilter(blackhole: Blackhole) {
+        val resolution = identityDynamicSchema.resolve(dynamicFilter)
+        check(resolution.value === dynamicFilter)
+        blackhole.consume(resolution)
+    }
+
+    @Benchmark
+    fun rewriteDynamicFilter(blackhole: Blackhole) {
+        blackhole.consume(rewriteDynamicSchema.resolve(dynamicFilter))
+    }
+
+    @Benchmark
+    fun projectionValidationPassThrough(blackhole: Blackhole) {
+        val resolution = projectionSchema.resolve(projectionQuery)
+        check(resolution.value.projection === projection)
+        blackhole.consume(resolution)
+    }
+
+    private fun schema(vararg fields: Pair<QueryField, QueryFieldSchema>) = QueryModelSchema(
+        model = QueryModel.SNAPSHOT,
+        capabilities = emptySet(),
+        fields = mapOf(*fields),
+    )
+
+    private fun fieldSchema(
+        bindings: Map<QueryCapability, QueryFieldBinding>,
+        dynamicChildren: Boolean = false,
+        rewriteMode: QueryRewriteMode,
+    ) = QueryFieldSchema(
+        title = null,
+        description = null,
+        enumValues = null,
+        valueTypes = setOf(QueryValueType.STRING),
+        nullable = true,
+        required = false,
+        cardinality = QueryCardinality.SINGLE,
+        semanticType = null,
+        dynamicChildren = dynamicChildren,
+        bindings = bindings,
+        rewriteMode = rewriteMode,
+    )
+
+    private fun QueryField.binding(resolvedField: QueryField = this) = QueryFieldBinding(
+        resolvedField = resolvedField,
+        physicalField = resolvedField,
+        storageType = null,
+    )
 }

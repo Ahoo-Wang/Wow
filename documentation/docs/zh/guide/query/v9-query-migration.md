@@ -9,6 +9,8 @@ description: 将 V8 查询 JVM API 迁移到聚合级 Gateway 与 ObjectNode Bac
 
 除下述 `Condition` 迁移窗口外，V9 删除旧 JVM 类型，不提供 bridge、typealias 或 deprecation 过渡。该变更会破坏依赖旧类型的 JVM 源码与二进制；请重新编译下游代码，并按下表直接迁移。`QueryFieldSchemaMetadata.masked`、`QueryFieldDeclaration.maskRule`、`QueryFieldSchema.maskRule` 与 `LogicalQueryFieldSchema.maskRule` 是新增 Mask 字段的 Schema 构造合同，不保留 V8 JVM constructor overload。
 
+查询字段值对象也发生破坏性重命名：`LogicalField` 改为 `QueryField`，字段字符串从 `value` 属性改由 `path` 读取；不提供兼容类或 typealias。`Projection.include/exclude` 现在接收 `List<QueryField>`，`Sort.field` 接收 `QueryField`。合法字段的 JSON 仍是字符串，但公共 Projection 与 Sort 不再接受 `state.*` 等后端 pattern；EventStream payload 投影还必须同时选择 `body.bodyType`。
+
 V9.x 为查询条件提供明确的迁移窗口：保留已弃用的 `Condition`/`Operator` JVM 类型、`ConditionDsl`、旧查询构造器、count 客户端重载和既有反序列化，并统一适配为 `FilterExpression`。WebFlux list/paged/single 请求仍可提交 `condition`，count 请求仍可提交裸 `operator` 形状。上述兼容 API 计划在 10.0.0 删除；新代码应立即使用 `FilterExpression`/`FilterDsl`。规范 `filter`、OpenAPI 与出站 JSON 只使用 `op`。
 
 ### ConditionDsl 迁移
@@ -48,13 +50,13 @@ V9.x 为查询条件提供明确的迁移窗口：保留已弃用的 `Condition`
 
 V9 集合过滤器会在构造时拒绝空值。请在 DSL 内用普通 Kotlin 分支保留 V8 语义：`if (ids.isEmpty()) matchNone() else ids(ids)`、`if (values.isEmpty()) matchNone() else "field" isIn values`，以及 `if (excluded.isEmpty()) matchAll() else "field" notIn excluded`。
 
-`FilterDsl` 会把任意 Kotlin object 或 map 序列化为 JSON object，而规范 `EQ`/`NE` 会拒绝它。scalar 与 scalar array equality 继续使用 DSL。若要保留 V8 进程内 POJO/map equality，请显式构造 `EqualFilter` 或 `NotEqualFilter`，传入 `LogicalField(field)` 与 `JsonNodeFactory.instance.pojoNode(value)`。`POJONode` 与 scalar-array equality 仅用于 JVM 构造和旧 `Condition` 兼容；规范 V9 REST filter equality 只接受 JSON scalar。
+`FilterDsl` 会把任意 Kotlin object 或 map 序列化为 JSON object，而规范 `EQ`/`NE` 会拒绝它。scalar 与 scalar array equality 继续使用 DSL。若要保留 V8 进程内 POJO/map equality，请显式构造 `EqualFilter` 或 `NotEqualFilter`，传入 `QueryField(field)` 与 `JsonNodeFactory.instance.pojoNode(value)`。`POJONode` 与 scalar-array equality 仅用于 JVM 构造和旧 `Condition` 兼容；规范 V9 REST filter equality 只接受 JSON scalar。
 
 V8 的 `gt`、`gte`、`lt`、`lte` 或 `between` 任一 bound 为结构化对象时，也需要采用同一 JVM-only 方式。显式构造对应的 `GreaterThanFilter`、`GreaterThanOrEqualFilter`、`LessThanFilter`、`LessThanOrEqualFilter` 或 `BetweenFilter`，并用 `JsonNodeFactory.instance.pojoNode(value)` 包装每个 POJO/map operand。规范 REST range operand 仍只能是非 null JSON scalar。
 
-`isIn`、`notIn` 与集合 `all` 中的结构化元素也遵循同一边界：`FilterDsl` 会把它们转换为被拒绝的 JSON object。进程内 native-value collection 应显式构造 `InFilter`、`NotInFilter` 或 `ContainsAllFilter`，并用 `JsonNodeFactory.instance.pojoNode(value)` 映射每个结构化元素，例如 `InFilter(LogicalField(field), values.map(JsonNodeFactory.instance::pojoNode))`；同时保留上文的空 list 分支。`POJONode` 集合元素仅限 JVM；规范 REST collection 只包含非 null JSON scalar。
+`isIn`、`notIn` 与集合 `all` 中的结构化元素也遵循同一边界：`FilterDsl` 会把它们转换为被拒绝的 JSON object。进程内 native-value collection 应显式构造 `InFilter`、`NotInFilter` 或 `ContainsAllFilter`，并用 `JsonNodeFactory.instance.pojoNode(value)` 映射每个结构化元素，例如 `InFilter(QueryField(field), values.map(JsonNodeFactory.instance::pojoNode))`；同时保留上文的空 list 分支。`POJONode` 集合元素仅限 JVM；规范 REST collection 只包含非 null JSON scalar。
 
-V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 relative-time filter，并使用 named `dateFormatter` 属性，例如 `TodayFilter(LogicalField(field), dateFormatter = formatter)` 或 `RecentDaysFilter(LogicalField(field), days, dateFormatter = formatter)`。`BeforeTodayFilter` 还需要 `time = localTime.toString()`。`dateFormatter` 只用于 JVM 且不会进入 wire；规范 REST 使用 `datePattern`。
+V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 relative-time filter，并使用 named `dateFormatter` 属性，例如 `TodayFilter(QueryField(field), dateFormatter = formatter)` 或 `RecentDaysFilter(QueryField(field), days, dateFormatter = formatter)`。`BeforeTodayFilter` 还需要 `time = localTime.toString()`。`dateFormatter` 只用于 JVM 且不会进入 wire；规范 REST 使用 `datePattern`。
 
 ### Condition JVM 直接迁移
 
@@ -77,9 +79,9 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 | `gt`、`gte`、`lt`、`lte` | `GreaterThanFilter`、`GreaterThanOrEqualFilter`、`LessThanFilter`、`LessThanOrEqualFilter`；结构化 operand 使用上文 JVM-only `POJONode` 迁移 |
 | `contains`、`startsWith`、`endsWith` | 带显式 `StringComparison` 的 `ContainsFilter`、`StartsWithFilter`、`EndsWithFilter` |
 | `isIn`、`notIn`、`between`、集合 `all` | `InFilter`、`NotInFilter`、`BetweenFilter`、`ContainsAllFilter`；结构化 bound 使用上文 JVM-only `POJONode` 迁移 |
-| `match(field, query)` | 非空 field：`SearchFilter(query, setOf(LogicalField(field)), SearchMode.TERMS)`；空 field：`SearchFilter(query)` 或 `filterExpression { search(query) }` |
-| `elemMatch(field, condition)` | `ElementMatchFilter(LogicalField(field), predicate)`；多个 child 用非空 `AndFilter` 组合，旧 DSL 空块产生的 `Condition.ALL` 映射为 `MatchAllFilter` |
-| `isNull`、`notNull`、`isTrue`、`isFalse`、`exists(true)`、`exists(false)` | `IsNullFilter(LogicalField(field))`、`IsNotNullFilter(LogicalField(field))`、`filterExpression { field eq true }`、`filterExpression { field eq false }`、`ExistsFilter(LogicalField(field))`、`NotExistsFilter(LogicalField(field))` |
+| `match(field, query)` | 非空 field：`SearchFilter(query, setOf(QueryField(field)), SearchMode.TERMS)`；空 field：`SearchFilter(query)` 或 `filterExpression { search(query) }` |
+| `elemMatch(field, condition)` | `ElementMatchFilter(QueryField(field), predicate)`；多个 child 用非空 `AndFilter` 组合，旧 DSL 空块产生的 `Condition.ALL` 映射为 `MatchAllFilter` |
+| `isNull`、`notNull`、`isTrue`、`isFalse`、`exists(true)`、`exists(false)` | `IsNullFilter(QueryField(field))`、`IsNotNullFilter(QueryField(field))`、`filterExpression { field eq true }`、`filterExpression { field eq false }`、`ExistsFilter(QueryField(field))`、`NotExistsFilter(QueryField(field))` |
 | `today`、`beforeToday`、`tomorrow`、week/month、`recentDays`、`earlierDays` | 对应 `TodayFilter`、`BeforeTodayFilter`、`TomorrowFilter`、`ThisWeekFilter`、`NextWeekFilter`、`LastWeekFilter`、`ThisMonthFilter`、`LastMonthFilter`、`RecentDaysFilter`、`EarlierDaysFilter`；使用 typed constructor property 与上文 formatter 边界 |
 | `condition.toFilterExpression()` | 仅用于 V9.x 过渡；10.0.0 前把保存或公开的 `Condition` 值改为具体 expression |
 

@@ -6298,14 +6298,14 @@
           "exclude" : {
             "default" : [ ],
             "items" : {
-              "type" : "string"
+              "$ref" : "#/components/schemas/wow.api.query.QueryField"
             },
             "type" : "array"
           },
           "include" : {
             "default" : [ ],
             "items" : {
-              "type" : "string"
+              "$ref" : "#/components/schemas/wow.api.query.QueryField"
             },
             "type" : "array"
           }
@@ -6459,7 +6459,7 @@
             "$ref" : "#/components/schemas/wow.api.query.Sort.Direction"
           },
           "field" : {
-            "type" : "string"
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
           }
         },
         "required" : [ "direction", "field" ],
