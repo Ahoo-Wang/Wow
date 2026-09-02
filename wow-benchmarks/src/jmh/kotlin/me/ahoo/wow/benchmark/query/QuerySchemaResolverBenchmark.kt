@@ -55,6 +55,9 @@ open class QuerySchemaResolverBenchmark {
     private val mappedFilterField = QueryField("state.status")
     private val dynamicRoot = QueryField("state.dynamic")
     private val dynamicChild = QueryField("state.dynamic.code")
+    private val unrelatedElementA = QueryField("state.orders")
+    private val unrelatedElementB = QueryField("state.shipments")
+    private val unrelatedElementC = QueryField("state.invoices")
 
     private val modelNoneSchema = schema(
         identityField to fieldSchema(
@@ -96,6 +99,18 @@ open class QuerySchemaResolverBenchmark {
     private val fieldRequiredFilter = EqualFilter(mappedFilterField, value)
 
     private val identityDynamicSchema = schema(
+        unrelatedElementA to fieldSchema(
+            bindings = mapOf(QueryCapability.ELEMENT_SCOPE to unrelatedElementA.binding()),
+            rewriteMode = QueryRewriteMode.INFER,
+        ),
+        unrelatedElementB to fieldSchema(
+            bindings = mapOf(QueryCapability.ELEMENT_SCOPE to unrelatedElementB.binding()),
+            rewriteMode = QueryRewriteMode.INFER,
+        ),
+        unrelatedElementC to fieldSchema(
+            bindings = mapOf(QueryCapability.ELEMENT_SCOPE to unrelatedElementC.binding()),
+            rewriteMode = QueryRewriteMode.INFER,
+        ),
         dynamicRoot to fieldSchema(
             bindings = mapOf(QueryCapability.EXACT_MATCH to dynamicRoot.binding()),
             dynamicChildren = true,
