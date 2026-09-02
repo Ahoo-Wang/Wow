@@ -926,6 +926,63 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `self dynamic element should relativize absolute children and preserve relative leaves`() {
+        val items = QueryField("state.items")
+        val code = QueryField("state.items.code")
+        val identity = dynamicElementSchema(items)
+        val mappedItems = QueryField("document.items")
+        val mapped = dynamicElementSchema(items, mappedItems, QueryField("storage.items"))
+        val relativeField = QueryField("code")
+        val relativeLeaf = ExistsFilter(relativeField)
+        val relative = ElementMatchFilter(items, relativeLeaf)
+        val absolute = ElementMatchFilter(items, ExistsFilter(code))
+
+        identity.field(code)!!.rewriteMode.assert().isEqualTo(QueryRewriteMode.NONE)
+        identity.resolve(relative).value.assert().isSameAs(relative)
+        identity.resolve(absolute).assert().isEqualTo(
+            QuerySchemaResolution(
+                ElementMatchFilter(items, ExistsFilter(QueryField("code"))),
+                QueryCompatibilityLevel.EXACT,
+            ),
+        )
+
+        mapped.field(code)!!.rewriteMode.assert().isEqualTo(QueryRewriteMode.REQUIRED)
+        val mappedRelative = mapped.resolve(relative).value as ElementMatchFilter
+        mappedRelative.field.assert().isEqualTo(mappedItems)
+        mappedRelative.predicate.assert().isSameAs(relativeLeaf)
+        mapped.resolve(absolute).assert().isEqualTo(
+            QuerySchemaResolution(
+                ElementMatchFilter(mappedItems, ExistsFilter(QueryField("code"))),
+                QueryCompatibilityLevel.EXACT,
+            ),
+        )
+    }
+
+    @Test
+    fun `self dynamic element should reject a child outside its physical parent`() {
+        val items = QueryField("state.items")
+        val resolvedItems = QueryField("document.items")
+        val base = dynamicElementSchema(items, resolvedItems, QueryField("storage.items"))
+        val itemSchema = base.fields.getValue(items)
+        val schema = schema(
+            mapOf(
+                items to itemSchema.copy(
+                    bindings = itemSchema.bindings + mapOf(
+                        QueryCapability.PRESENCE to QueryFieldBinding(
+                            resolvedItems,
+                            QueryField("storage.other"),
+                            null,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        schema.resolve(ElementMatchFilter(items, ExistsFilter(QueryField("state.items.code"))))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
     fun `element match should reject a child physical binding outside its physical container`() {
         val orders = QueryField("state.orders")
         val price = QueryField("state.orders.price")
@@ -1916,6 +1973,24 @@ class QuerySchemaResolverTest {
         fields: Map<QueryField, QueryFieldSchema> = emptyMap(),
         capabilities: Set<QueryCapability> = emptySet(),
     ) = QueryModelSchema(QueryModel.SNAPSHOT, capabilities, fields)
+
+    private fun dynamicElementSchema(
+        logical: QueryField,
+        resolved: QueryField = logical,
+        physical: QueryField = resolved,
+    ) = schema(
+        mapOf(
+            logical to fieldSchema(
+                QueryCapability.ELEMENT_SCOPE to resolved.path,
+                QueryCapability.PRESENCE to resolved.path,
+                dynamicChildren = true,
+                physicalPath = physical.path,
+                cardinality = QueryCardinality.MANY,
+                valueTypes = setOf(QueryValueType.OBJECT),
+                rewriteMode = QueryRewriteMode.INFER,
+            ),
+        ),
+    )
 
     private fun fieldSchema(
         vararg bindings: Pair<QueryCapability, String>,
