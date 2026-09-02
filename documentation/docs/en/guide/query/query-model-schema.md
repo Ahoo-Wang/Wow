@@ -57,6 +57,8 @@ val sort = Sort(QueryField("state.createdAt"), Sort.Direction.DESC)
 
 Each Projection QueryField selects that node and all of its descendants. Runtime admission preserves the original Projection; the Backend then uses the same Query Model Schema to compile its storage-side projection. MongoDB projects the node directly. Elasticsearch may emit `path` and `path.*` in its local source filter, but that wildcard form never enters a public Query, Schema metadata, or the resolved public query.
 
+Cursor preparation is also Schema behavior. `QueryModelSchema.resolve(ICursorQuery)` first appends the model-specific unique sort and then resolves and validates the complete sort: Snapshot appends `aggregateId`, while EventStream appends the stream-record `id`. The Backend therefore receives stable ordering in its `ResolvedQuery` and does not add a unique field itself.
+
 ## Field Capabilities
 
 There are eleven built-in capabilities:
@@ -91,6 +93,8 @@ Every resolution has one compatibility level:
 
 `QuerySchemaValidationMode.COMPATIBLE` accepts both `EXACT` and `COMPATIBLE` and rejects `INCOMPATIBLE`. `QuerySchemaValidationMode.STRICT` accepts only `EXACT`. The mode controls whether a resolution is accepted; it never creates an index or mapping for the backend.
 
+On every subscription, a managed Gateway calls the Provider once and obtains one Schema before constructing `QueryContext`. The Context exposes non-null Schema from the beginning of the Filter chain, and Filter, Resolver, `ResolvedQuery`, Backend compiler, and Mask share that instance. Only the Gateway applies the validation mode; the Backend neither reads the Provider nor resolves the query again.
+
 ## Phase 0 Breaking Changes
 
 - **Source and binary:** `LogicalField` is replaced by `QueryField`, `Projection.include/exclude` now use `List<QueryField>`, and `Sort.field` uses `QueryField`. There is no type alias, compatibility class, or legacy constructor; downstream code must migrate and recompile.
@@ -101,7 +105,7 @@ Every resolution has one compatibility level:
 
 When a Schema source or backend fact is unavailable, only `COMPATIBLE` mode can fall back to the unchanged path for a filter that does not reference system `tags`. A filter that resolves to root system `tags` or `tags.*`, directly or through logical composition, search, relative time, or an Element predicate, still propagates `QuerySchemaUnavailableException` and remains fail-closed; a business field named `tags` inside an element is not the root system tag field. `STRICT` never uses this fallback.
 
-Fallback therefore does not mean "all fields are queryable when Schema is disabled." It preserves the original request without proving capability and does not relax system-tag queries. A field that resolves as `INCOMPATIBLE`, a source conflict, or an ordinary validation failure does not trigger the unavailable fallback either. This `COMPATIBLE` unavailable fallback applies only to direct `QueryModelSchemaProvider.resolve(...)` request resolution: the managed response chain's `SchemaMaskQueryFilter` must obtain Schema before returning data, so unavailable Schema fails closed for `single`, `list`, and `paged` without subscribing to the Backend; only `count` does not read the masking Schema. See [Data Access Control](../data-access.md) for the authorization semantics of system tags.
+Fallback therefore does not mean "all fields are queryable when Schema is disabled." It preserves the original request without proving capability and does not relax system-tag queries. A field that resolves as `INCOMPATIBLE`, a source conflict, or an ordinary validation failure does not trigger the unavailable fallback either. This `COMPATIBLE` unavailable fallback applies only to direct `QueryModelSchemaProvider.resolve(...)` request resolution. A managed Gateway must obtain Schema before it creates the Context, so unavailable Schema fails `single`, `list`, `paged`, `cursor`, `count`, and `aggregate` closed; neither Filters nor the Backend execute. Count performs no result masking but still requires Schema for managed request admission. See [Data Access Control](../data-access.md) for the authorization semantics of system tags.
 
 ## HTTP and the OpenAPI Extension
 

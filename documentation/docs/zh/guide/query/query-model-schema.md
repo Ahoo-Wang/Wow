@@ -57,6 +57,8 @@ val sort = Sort(QueryField("state.createdAt"), Sort.Direction.DESC)
 
 Projection 的每个 QueryField 表示该节点及其全部后代。Runtime 使用 Query Model Schema 完成准入后保留原 Projection；Backend 再用同一个 Schema 编译存储侧投影。MongoDB 直接投影节点，Elasticsearch 可在本地 source filter 中生成 `path` 与 `path.*`，但这个通配形式不会进入公共 Query、Schema metadata 或解析结果。
 
+Cursor 解析也属于 Schema 行为。`QueryModelSchema.resolve(ICursorQuery)` 会先按模型追加唯一排序字段，再统一解析和验证全部 sort：Snapshot 追加 `aggregateId`，EventStream 追加流记录 `id`。因此 Backend 收到的 `ResolvedQuery` 已包含稳定排序，不再补充唯一字段。
+
 ## 字段能力
 
 当前内置 capability 共十一种：
@@ -91,6 +93,8 @@ Projection 的每个 QueryField 表示该节点及其全部后代。Runtime 使�
 
 `QuerySchemaValidationMode.COMPATIBLE` 接受 `EXACT` 与 `COMPATIBLE`，拒绝 `INCOMPATIBLE`；`QuerySchemaValidationMode.STRICT` 只接受 `EXACT`。模式控制解析结果是否被接受，不会为后端补建索引或 mapping。
 
+受管 Gateway 在每次订阅中先调用 Provider 一次，取得一个 Schema 后才构造 `QueryContext`。Context 从 Filter 链开始暴露非空 Schema，Filter、Resolver、`ResolvedQuery`、Backend Compiler 与 Mask 使用同一实例。验证模式只由 Gateway 应用，Backend 不读取 Provider 或再次解析查询。
+
 ## 0 阶段破坏性变化
 
 - **源码与二进制：** `LogicalField` 已由 `QueryField` 取代，`Projection.include/exclude` 改为 `List<QueryField>`，`Sort.field` 改为 `QueryField`。不提供 typealias、兼容类或旧构造器；下游需修改源码并重新编译。
@@ -101,7 +105,7 @@ Projection 的每个 QueryField 表示该节点及其全部后代。Runtime 使�
 
 Schema 来源或后端事实不可用时，只有 `COMPATIBLE` 模式可以让不引用系统 `tags` 的过滤请求按原路径回退。过滤条件直接或通过逻辑组合、搜索、相对时间、Element predicate 在作用域解析后引用根系统 `tags` 或 `tags.*` 时仍传播 `QuerySchemaUnavailableException`，保持失败关闭；元素自身名为 `tags` 的业务字段不等于根系统标签。`STRICT` 对所有请求都不回退。
 
-因此不能把回退理解为“Schema 关闭后所有字段可查询”。回退只保留原请求，不证明字段能力，也不会放宽系统标签查询。字段已明确解析为 `INCOMPATIBLE`、来源冲突或普通校验失败同样不会触发 unavailable 回退。这个 `COMPATIBLE` unavailable 回退只适用于直接 `QueryModelSchemaProvider.resolve(...)` 的请求解析；受管响应链的 `SchemaMaskQueryFilter` 必须在返回数据前取得 Schema，Schema 不可用时 `single`、`list`、`paged` 失败关闭且不会订阅 Backend，只有 `count` 不读取 Mask Schema。系统标签的授权语义见[数据权限](../data-access.md)。
+因此不能把回退理解为“Schema 关闭后所有字段可查询”。回退只保留原请求，不证明字段能力，也不会放宽系统标签查询。字段已明确解析为 `INCOMPATIBLE`、来源冲突或普通校验失败同样不会触发 unavailable 回退。这个 `COMPATIBLE` unavailable 回退只适用于直接 `QueryModelSchemaProvider.resolve(...)` 的请求解析；受管 Gateway 必须先取得 Schema 才会创建 Context，因此 Schema 不可用时 single、list、paged、cursor、count 与 aggregate 全部失败关闭，Filter 与 Backend 均不会执行。count 不执行结果脱敏，但仍需要 Schema 完成受管请求准入。系统标签的授权语义见[数据权限](../data-access.md)。
 
 ## HTTP 与 OpenAPI 扩展
 

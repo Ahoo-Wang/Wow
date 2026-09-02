@@ -7,7 +7,18 @@ description: 了解 ObjectNode 查询后端、聚合级 Gateway、Factory 路由
 
 ## QueryBackend 契约
 
-`QueryBackend` 是聚合绑定的低层合同：single、list、paged、cursor 与 aggregate 使用 `tools.jackson.databind.node.ObjectNode`，count 返回 `Long`；cursor 把节点包装在 `CursorPage<ObjectNode>` 中。`SnapshotQueryBackend` 和 `EventStreamQueryBackend` 只区分数据模型与 Schema Provider 能力；typed 物化属于 Gateway，不属于 Backend。
+`QueryBackend` 是聚合绑定的低层合同。六个执行方法只接受由 Gateway 准备的 `ResolvedQuery`：
+
+```kotlin
+fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode>
+fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode>
+fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
+fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
+fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
+fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
+```
+
+不存在接收原始 Query 的兼容重载。Backend 不获取或解析 Schema，也不决定 `QuerySchemaValidationMode`；它只用 `ResolvedQuery.query` 和非空的 `ResolvedQuery.schema` 编译并执行查询。Projection 与 Aggregation Compiler 都接收这个 Schema 实例。single、list、paged、cursor 与 aggregate 返回 `tools.jackson.databind.node.ObjectNode`，count 返回 `Long`；cursor 把节点包装在 `CursorPage<ObjectNode>` 中。`SnapshotQueryBackend` 和 `EventStreamQueryBackend` 区分数据模型与 Schema Provider 能力；typed 物化属于 Gateway，不属于 Backend。具体 Backend 可继续委托实现 Provider 以供 Factory、Schema HTTP 与 Gateway 装配复用，但六个执行方法不使用该能力。
 
 ## 节点所有权约束
 
@@ -54,7 +65,7 @@ Registrar 创建 Gateway 时，以当前 `NamedAggregate` 调用一次 `Snapshot
 
 ## Factory、缓存与存储路由
 
-`SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 是原始 Backend 的创建入口；其抽象基类按 materialized aggregate 缓存 Backend。MongoDB、Elasticsearch 或其他配置实现最终把公共查询编译为物理查询，并规范化为 `ObjectNode`。
+`SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 是原始 Backend 的创建入口；其抽象基类按 materialized aggregate 缓存 Backend。MongoDB、Elasticsearch 或其他配置实现最终把已准入的 `ResolvedQuery` 编译为物理查询，并规范化为 `ObjectNode`。
 
 直接 Factory 调用不经过 Gateway。应用代码应使用 Spring 注册的聚合级 Gateway；只有低层诊断、合同测试与存储扩展直接使用 Factory。
 
@@ -68,7 +79,7 @@ Registrar 创建 Gateway 时，以当前 `NamedAggregate` 调用一次 `Snapshot
 
 ## 游标执行与 token
 
-内置 Snapshot Backend 把 `aggregateId`、EventStream Backend 把 `id` 追加为唯一 tie-breaker。MongoDB 用 keyset filter，Elasticsearch 用不带 PIT 的 `search_after`；两者都请求 `size + 1` 判断是否还有下一页，不执行 count、offset，也不返回 total。游标只向后移动，没有跨请求快照；并发写入可能改变后续页看到的数据。
+`QueryModelSchema.resolve(ICursorQuery)` 在验证前追加模型专属唯一 tie-breaker：Snapshot 使用 `aggregateId`，EventStream 使用流记录 `id`。Backend 接收的 `ResolvedQuery<ICursorQuery>` 已包含该排序，不再追加或二次解析。MongoDB 用 keyset filter，Elasticsearch 用不带 PIT 的 `search_after`；两者都请求 `size + 1` 判断是否还有下一页，不执行 count、offset，也不返回 total。游标只向后移动，没有跨请求快照；并发写入可能改变后续页看到的数据。
 
 后端把有效排序值编码为无 padding 的 Base64URL continuation。token 不加密、不签名、不承载授权，也不应记录到日志；框架没有游标加密密钥配置。调用方只应原样传回 token，不应解析或构造它。
 

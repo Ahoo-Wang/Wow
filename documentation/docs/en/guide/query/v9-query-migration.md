@@ -155,11 +155,26 @@ Data-query HTTP request and result envelopes, Backend wire trees, storage layout
 
 Typed and node results share the `SINGLE`, `LIST`, `PAGED`, and `CURSOR` operation types. A Backend always returns `ObjectNode`; the Gateway optionally uses Jackson to materialize typed results after generic result filters complete.
 
-There is no one-to-one replacement for `QueryService<R>`: move storage queries and Schema capability to an `ObjectNode`-returning `QueryBackend`, while the managed entry, filter chain, and typed materialization remain in the aggregate `QueryGateway<R>`. The old `QueryGateway` accepted a `NamedAggregate` on every call; V9 binds only the `NamedAggregate` and routed Backend when constructing the Gateway, so `single`, `list`, `paged`, `cursor`, `count`, and `aggregate` calls no longer pass an aggregate argument. A custom `AbstractQueryGateway` subclass must supply the new `namedAggregate`, `backend`, `targetType`, `filters`, `filterType`, and `errorHandler` constructor contract; use the default Snapshot/EventStream Gateway when no custom entry policy is required.
+There is no one-to-one replacement for `QueryService<R>`: move storage queries and Schema capability to an `ObjectNode`-returning `QueryBackend`, while the managed entry, filter chain, and typed materialization remain in the aggregate `QueryGateway<R>`. The old `QueryGateway` accepted a `NamedAggregate` on every call; V9 binds only the `NamedAggregate` and routed Backend when constructing the Gateway, so `single`, `list`, `paged`, `cursor`, `count`, and `aggregate` calls no longer pass an aggregate argument. A custom `AbstractQueryGateway` subclass must supply the new `namedAggregate`, `backend`, `schemaProvider`, `validationMode`, `targetType`, `filters`, `filterType`, and `errorHandler` constructor contract; use the default Snapshot/EventStream Gateway when no custom entry policy is required.
+
+### Custom QueryBackend Migration
+
+A custom Backend must migrate all six execution signatures together. V9 provides no compatibility overloads that accept raw queries:
+
+```kotlin
+fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode>
+fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode>
+fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
+fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
+fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
+fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
+```
+
+Compile the admitted query from `query.query`, and use the non-null `query.schema` for Projection and Aggregation compilation. Remove Provider reads, Schema resolution, validation-mode branches, and Cursor unique-field appending from execution paths; `QueryModelSchema` now appends and validates the unique sort for each model. On every subscription, a managed Gateway obtains one Schema before creating the Context, so the Filter chain exposes that same instance from its beginning. If Schema acquisition fails, neither Filters nor the Backend execute. A concrete Backend may still delegate `QueryModelSchemaProvider` for Factory, Schema HTTP, and Gateway assembly, but its six execution methods must not depend on that delegated capability.
 
 Filters no longer use `QueryType.isDynamic` to distinguish a final typed result from a node result. Both paths traverse the same ObjectNode FilterChain and differ only by optional Jackson materialization after the chain. Remove branches used only for typed/dynamic dispatch; do not invent a replacement result-type discriminator.
 
-Delete old Mask types, implementations, Beans, registries, and custom filters without creating an ObjectNode Mask compatibility layer. Once old rules are declared on domain fields, Snapshot and EventStream typed, dynamic, and aggregate-state load entries mask automatically on the same managed Gateway path: the framework-owned `SchemaMaskQueryFilter` reads current Schema for every result query, the same instance reuses its Masker, a refresh-published instance recompiles it, unavailable Schema fails result queries closed without subscribing to the Backend, and count does not read masking Schema. A direct Backend Factory or a custom Backend without `QueryModelSchemaProvider` remains a trusted low-level boundary that returns raw values; `COMPATIBLE` unavailable fallback belongs only to direct `QueryModelSchemaProvider.resolve(...)` request resolution.
+Delete old Mask types, implementations, Beans, registries, and custom filters without creating an ObjectNode Mask compatibility layer. Once old rules are declared on domain fields, Snapshot and EventStream typed, dynamic, and aggregate-state load entries mask automatically on the same managed Gateway path: the framework-owned `SchemaMaskQueryFilter` reads `QueryContext.schema`, the same instance reuses its Masker, and a new subscription after refresh reads the new instance and recompiles it. Unavailable Schema fails every managed Gateway call closed before Context, Filters, or Backend execution. Count performs no result masking but still requires Schema for request admission. A direct Backend Factory is a trusted low-level raw-value boundary whose caller must provide an accepted `ResolvedQuery`; `COMPATIBLE` unavailable fallback belongs only to direct `QueryModelSchemaProvider.resolve(...)` request resolution.
 
 ## Static Mask Migration
 
@@ -202,7 +217,8 @@ JSON-array and SSE streaming behavior is unchanged. If a stream fails after emit
 ## Minimal Migration Steps
 
 1. Replace imports, constructor parameters, Bean qualifiers, and Factory implementations according to the tables.
-2. Make every custom Backend subscription return fresh, exclusively owned `ObjectNode` values containing only standard JSON-tree data, leaving typed conversion to the Gateway.
-3. Remove every old Mask implementation, Bean, registry, and filter; use [Field Masking](./masking.md) to migrate each rule to `@Mask`, `@KeepMask`, or a custom `@Masking(strategy)` field annotation.
-4. Check Schema `masked` metadata; separately verify Snapshot/EventStream typed, dynamic, state-only/aggregate-state load results, and the direct-Backend raw-value boundary.
-5. Verify that ordinary filter/search/sort and count remain usable, that a group, field metric, or expression referencing a masked field fails closed, and then check actual MongoDB/Elasticsearch routing, HTTP/OpenAPI, and raw stored values.
+2. Change all six custom Backend methods to accept `ResolvedQuery`; remove raw-query overloads, execution-time Schema resolution, validation-mode branches, and Cursor unique-field appending, and compile Projection and Aggregation with `query.schema`.
+3. Make every custom Backend subscription return fresh, exclusively owned `ObjectNode` values containing only standard JSON-tree data, leaving typed conversion to the Gateway.
+4. Remove every old Mask implementation, Bean, registry, and filter; use [Field Masking](./masking.md) to migrate each rule to `@Mask`, `@KeepMask`, or a custom `@Masking(strategy)` field annotation.
+5. Check Schema `masked` metadata; separately verify Snapshot/EventStream typed, dynamic, state-only/aggregate-state load results, and the direct-Backend raw-value boundary.
+6. Verify that ordinary filter/search/sort and count remain usable, that a group, field metric, or expression referencing a masked field fails closed, and then check actual MongoDB/Elasticsearch routing, HTTP/OpenAPI, and raw stored values.
