@@ -62,6 +62,7 @@ import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
@@ -792,18 +793,21 @@ class HttpQueryGuardFilterTest {
         DefaultQueryContext<IListQuery, Flux<ObjectNode>>(
             QueryType.LIST,
             MOCK_AGGREGATE_METADATA,
+            RouteTestFixtures.SNAPSHOT_QUERY_SCHEMA,
         ).setQuery(query)
 
     private fun pagedContext(query: IPagedQuery): QueryContext<IPagedQuery, Mono<PagedList<ObjectNode>>> =
         DefaultQueryContext<IPagedQuery, Mono<PagedList<ObjectNode>>>(
             QueryType.PAGED,
             MOCK_AGGREGATE_METADATA,
+            RouteTestFixtures.SNAPSHOT_QUERY_SCHEMA,
         ).setQuery(query)
 
     private fun cursorContext(query: ICursorQuery): QueryContext<ICursorQuery, Mono<CursorPage<ObjectNode>>> =
         DefaultQueryContext<ICursorQuery, Mono<CursorPage<ObjectNode>>>(
             QueryType.CURSOR,
             MOCK_AGGREGATE_METADATA,
+            RouteTestFixtures.SNAPSHOT_QUERY_SCHEMA,
         ).setQuery(query).setResult(Mono.just(CursorPage(emptyList(), null)))
 
     private fun HttpQueryGuardFilter.validateForTest(query: ICursorQuery): Mono<Void> =
@@ -813,12 +817,14 @@ class HttpQueryGuardFilterTest {
         DefaultQueryContext<FilterExpression, Mono<Long>>(
             QueryType.COUNT,
             MOCK_AGGREGATE_METADATA,
+            RouteTestFixtures.SNAPSHOT_QUERY_SCHEMA,
         ).setQuery(filter)
 
     private fun aggregationContext(query: AggregationQuery): QueryContext<AggregationQuery, Flux<ObjectNode>> =
         DefaultQueryContext<AggregationQuery, Flux<ObjectNode>>(
             QueryType.AGGREGATION,
             MOCK_AGGREGATE_METADATA,
+            RouteTestFixtures.SNAPSHOT_QUERY_SCHEMA,
         ).setQuery(query)
 
     private fun unexpectedBackend(): FilterChain<QueryContext<*, *>> = FilterChain {
@@ -837,6 +843,8 @@ class HttpQueryGuardFilterTest {
         return DefaultSnapshotQueryGateway(
             namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
             backend = queryBackendFactory.create<Any>(MOCK_AGGREGATE_METADATA.namedAggregate),
+            schemaProvider = RouteTestFixtures.SNAPSHOT_QUERY_SCHEMA_PROVIDER,
+            validationMode = QuerySchemaValidationMode.COMPATIBLE,
             targetType = JsonSerializer.typeFactory.constructParametricType(
                 MaterializedSnapshot::class.java,
                 Any::class.java,
@@ -849,6 +857,8 @@ class HttpQueryGuardFilterTest {
         return DefaultEventStreamQueryGateway(
             namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
             backend = NoOpEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate),
+            schemaProvider = RouteTestFixtures.EVENT_STREAM_QUERY_SCHEMA_PROVIDER,
+            validationMode = QuerySchemaValidationMode.COMPATIBLE,
             filters = listOf(guard),
         )
     }
