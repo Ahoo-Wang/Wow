@@ -36,9 +36,13 @@ import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.query.schema.resolve
+import me.ahoo.wow.query.withUniqueSort
 import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 
@@ -57,17 +61,39 @@ class ElasticsearchEventStreamQueryBackend(
     override val indexName: String = namedAggregate.toEventStreamIndexName()
     override val cursorUniqueField: QueryField = QueryField(MessageRecords.ID)
 
-    override fun resolve(query: ISingleQuery) = schemaProvider.resolve(query, validationMode)
+    override fun single(query: ISingleQuery): Mono<ObjectNode> = schemaProvider.schema()
+        .flatMap { schema -> executeSingle(schema.resolve(query).requireAccepted(validationMode), schema) }
+        .onErrorResume(QuerySchemaUnavailableException::class.java) {
+            schemaProvider.resolve(query, validationMode).flatMap { executeSingle(it, null) }
+        }
 
-    override fun resolve(query: IListQuery) = schemaProvider.resolve(query, validationMode)
+    override fun list(query: IListQuery): Flux<ObjectNode> {
+        require(query.limit >= 0) { "limit must be greater than or equal to 0." }
+        return schemaProvider.schema()
+            .flatMapMany { schema -> executeList(schema.resolve(query).requireAccepted(validationMode), schema) }
+            .onErrorResume(QuerySchemaUnavailableException::class.java) {
+                schemaProvider.resolve(query, validationMode).flatMapMany { executeList(it, null) }
+            }
+    }
 
-    override fun resolve(query: IPagedQuery) = schemaProvider.resolve(query, validationMode)
+    override fun paged(query: IPagedQuery) = schemaProvider.schema()
+        .flatMap { schema -> executePaged(schema.resolve(query).requireAccepted(validationMode), schema) }
+        .onErrorResume(QuerySchemaUnavailableException::class.java) {
+            schemaProvider.resolve(query, validationMode).flatMap { executePaged(it, null) }
+        }
 
-    override fun resolve(query: ICursorQuery) = schemaProvider.resolve(query, validationMode)
+    override fun cursor(query: ICursorQuery) = schemaProvider.schema().flatMap { schema ->
+        val resolved = schema.resolve(query.withUniqueSort(cursorUniqueField)).requireAccepted(validationMode)
+        executeCursor(resolved, schema)
+    }
 
-    override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
+    override fun count(filter: FilterExpression) = schemaProvider.schema()
+        .flatMap { schema -> executeCount(schema.resolve(filter).requireAccepted(validationMode)) }
+        .onErrorResume(QuerySchemaUnavailableException::class.java) {
+            schemaProvider.resolve(filter, validationMode).flatMap(::executeCount)
+        }
 
-    override fun aggregate(query: AggregationQuery): reactor.core.publisher.Flux<ObjectNode> =
+    override fun aggregate(query: AggregationQuery): Flux<ObjectNode> =
         schemaProvider.resolve(query, validationMode).flatMapMany(::executeAggregation)
 
     companion object {
@@ -79,14 +105,14 @@ class ElasticsearchEventStreamQueryBackend(
         ): QueryModelSchemaProvider {
             if (filterConverter !== EventStreamFilterConverter) {
                 return object : QueryModelSchemaProvider {
-                    override fun schema(): reactor.core.publisher.Mono<me.ahoo.wow.query.schema.QueryModelSchema> =
+                    override fun schema(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> =
                         unavailable()
 
-                    override fun refresh(): reactor.core.publisher.Mono<me.ahoo.wow.query.schema.QueryModelSchema> =
+                    override fun refresh(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> =
                         unavailable()
 
-                    private fun unavailable(): reactor.core.publisher.Mono<me.ahoo.wow.query.schema.QueryModelSchema> =
-                        reactor.core.publisher.Mono.error(
+                    private fun unavailable(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> =
+                        Mono.error(
                             QuerySchemaUnavailableException(
                                 "Elasticsearch query schema is unavailable for custom filter converters.",
                             ),

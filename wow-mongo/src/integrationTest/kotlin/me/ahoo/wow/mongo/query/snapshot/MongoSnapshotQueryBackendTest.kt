@@ -13,18 +13,18 @@
 
 package me.ahoo.wow.mongo.query.snapshot
 
-import com.mongodb.reactivestreams.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.UpdateOptions
+import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TodayFilter
@@ -32,8 +32,8 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
@@ -43,6 +43,10 @@ import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
@@ -51,8 +55,8 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
-import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
+import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -60,8 +64,8 @@ import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.tck.query.SnapshotQueryBackendSpec
 import org.bson.BsonDocument
 import org.bson.BsonInt32
-import org.bson.Document
 import org.bson.BsonTimestamp
+import org.bson.Document
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -321,7 +325,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
             .updateOne(
                 Document("_id", snapshot.aggregateId.id),
-                Document("\$set", Document(field.value, today)),
+                Document("\$set", Document(field.path, today)),
             ).toMono().test().expectNextCount(1).verifyComplete()
         val service = MongoSnapshotQueryBackendFactory(
             database = database,
@@ -398,6 +402,41 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
         strictService.list(ListQuery(filter = abacFilter, limit = 10))
             .test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `projection should compile logical scalar and object nodes to physical subtrees`() {
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(
+                Document("_id", snapshot.aggregateId.id),
+                Document(
+                    "\$set",
+                    Document("document", Document("name", "visible").append("secret", "hidden")),
+                ),
+            ).toMono().test().expectNextCount(1).verifyComplete()
+        val service = MongoSnapshotQueryBackend(
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            collection = database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName()),
+            schemaProvider = projectionSchemaProvider(),
+            validationMode = QuerySchemaValidationMode.STRICT,
+        )
+        fun query(projection: Projection) = service.list(
+            ListQuery(MatchAllFilter, projection = projection, limit = 1),
+        ).blockFirst()!!
+
+        query(Projection(include = listOf(QueryField("view")))).path("document").let { document ->
+            document.path("name").asString().assert().isEqualTo("visible")
+            document.path("secret").asString().assert().isEqualTo("hidden")
+        }
+        query(Projection(include = listOf(QueryField("view.name")))).path("document").let { document ->
+            document.path("name").asString().assert().isEqualTo("visible")
+            document.has("secret").assert().isFalse()
+        }
+        query(Projection(exclude = listOf(QueryField("view")))).has("document").assert().isFalse()
+        query(Projection(exclude = listOf(QueryField("view.name")))).path("document").let { document ->
+            document.has("name").assert().isFalse()
+            document.path("secret").asString().assert().isEqualTo("hidden")
+        }
     }
 
     @Test
@@ -753,6 +792,36 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     private fun epochDocument(id: String, value: Any): Document = Document("_id", id)
         .append("deleted", false)
         .append("state", Document("epochMicros", value))
+
+    private fun projectionSchemaProvider(): QueryModelSchemaProvider {
+        val schema = QueryModelSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = mapOf(
+                QueryField("view") to projectionFieldSchema(QueryField("document")),
+                QueryField("view.name") to projectionFieldSchema(QueryField("document.name")),
+            ),
+        )
+        return object : QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
+            override fun refresh(): Mono<QueryModelSchema> = Mono.just(schema)
+        }
+    }
+
+    private fun projectionFieldSchema(projectionField: QueryField) = QueryFieldSchema(
+        title = null,
+        description = null,
+        enumValues = null,
+        valueTypes = emptySet(),
+        nullable = true,
+        required = false,
+        cardinality = QueryCardinality.SINGLE,
+        semanticType = null,
+        dynamicChildren = false,
+        bindings = emptyMap(),
+        projectionField = projectionField,
+        rewriteMode = QueryRewriteMode.NONE,
+    )
 
     private fun updateStateData(value: String) {
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())

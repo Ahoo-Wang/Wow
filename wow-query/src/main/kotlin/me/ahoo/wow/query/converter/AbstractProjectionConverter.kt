@@ -16,19 +16,25 @@ package me.ahoo.wow.query.converter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.isEmpty
+import me.ahoo.wow.query.schema.QueryModelSchema
 
 abstract class AbstractProjectionConverter<T> : ProjectionConverter<T> {
     abstract val fieldConverter: FieldConverter
-    override fun convert(projection: Projection): T {
+    override fun convert(projection: Projection, schema: QueryModelSchema?): T =
+        internalConvert(convertProjection(projection, schema))
+
+    protected fun convertProjection(projection: Projection, schema: QueryModelSchema?): Projection {
         if (projection.isEmpty()) {
-            return internalConvert(projection)
+            return projection
         }
-        val converted = Projection(
-            include = projection.include.map { QueryField(fieldConverter.convert(it.path)) },
-            exclude = projection.exclude.map { QueryField(fieldConverter.convert(it.path)) }
+        return Projection(
+            include = projection.include.map { it.toPhysicalField(schema) },
+            exclude = projection.exclude.map { it.toPhysicalField(schema) },
         )
-        return internalConvert(converted)
     }
+
+    private fun QueryField.toPhysicalField(schema: QueryModelSchema?): QueryField =
+        QueryField(fieldConverter.convert(schema?.field(this)?.projectionField?.path ?: path))
 
     protected abstract fun internalConvert(projection: Projection): T
 }

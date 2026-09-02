@@ -32,9 +32,9 @@ import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -324,7 +324,10 @@ class ElasticsearchSnapshotMappingQueryTest {
         filters[3].wildcard().field().assert().isEqualTo("state.name.keyword")
         filters[4].range().untyped().field().assert().isEqualTo("state.age")
         searchRequest.captured.sort().single().field().field().assert().isEqualTo("state.name.keyword")
-        searchRequest.captured.source()!!.filter().includes().assert().containsExactly("state.name")
+        searchRequest.captured.source()!!.filter().includes().assert().containsExactly(
+            "state.name",
+            "state.name.*",
+        )
     }
 
     @Suppress("DEPRECATION")
