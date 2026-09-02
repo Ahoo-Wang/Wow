@@ -48,17 +48,7 @@ The Given → When → Expect test DSL verifies commands, events, errors, and so
 
 Commands and state events already carry business meaning, so analytical pipelines can consume more than database field changes. Wow BI can generate synchronization scripts for analytical stores such as ClickHouse. Latency, data quality, schema evolution, and operational guarantees remain application responsibilities. See [Wow Business Intelligence](./bi.md) and [BI Operations](./bi-operations.md).
 
-```mermaid
-flowchart LR
-    Service[Wow service] --> Commands[Command Kafka topic]
-    Service --> StateEvents[State-event Kafka topic]
-    Commands --> CommandTable[ClickHouse Kafka Engine]
-    StateEvents --> StateTable[ClickHouse Kafka Engine]
-    CommandTable --> Views[Materialized views]
-    StateTable --> Views
-    Views --> ReadModel[(MergeTree read model)]
-    Consumer[BI consumer] --> ReadModel
-```
+![Business Intelligence](/images/bi/bi.svg)
 
 ### 6. Operation Audit
 
