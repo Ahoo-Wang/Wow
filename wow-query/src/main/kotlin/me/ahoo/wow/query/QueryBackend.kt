@@ -22,9 +22,15 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.query.schema.QueryModelSchema
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
+
+data class ResolvedQuery<out Q : Any>(
+    val query: Q,
+    val schema: QueryModelSchema,
+)
 
 /**
  * Aggregate-bound SPI for raw query results.
