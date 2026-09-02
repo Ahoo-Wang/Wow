@@ -23,11 +23,13 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
@@ -80,11 +82,6 @@ open class SchemaMaskGatewayBenchmark {
                 QueryField("state.secret$index") to maskedFieldSchema()
             },
         )
-        val results = List(resultCount) {
-            JsonNodeFactory.instance.objectNode().also { node ->
-                node.putObject("state").put("visible", "value")
-            }
-        }
         val backend = object :
             SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate),
             QueryModelSchemaProvider {
@@ -94,11 +91,17 @@ open class SchemaMaskGatewayBenchmark {
 
             override fun refresh(): Mono<QueryModelSchema> = schemaMono
 
-            override fun list(query: IListQuery): Flux<ObjectNode> = Flux.fromIterable(results)
+            override fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode> = Flux.range(0, resultCount).map {
+                JsonNodeFactory.instance.objectNode().also { node ->
+                    node.putObject("state").put("visible", "value")
+                }
+            }
         }
         gateway = DefaultSnapshotQueryGateway(
             namedAggregate = namedAggregate,
             backend = backend,
+            schemaProvider = backend,
+            validationMode = QuerySchemaValidationMode.COMPATIBLE,
             targetType = JsonSerializer.typeFactory.constructType(ObjectNode::class.java),
         )
         query = ListQuery(MatchAllFilter, limit = resultCount)

@@ -33,12 +33,15 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.query.EventStreamQueryBackendSpec
@@ -246,6 +249,24 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
     }
 }
 
-private fun FilterExpression.count(backend: EventStreamQueryBackend) = backend.count(this)
+private fun FilterExpression.count(backend: EventStreamQueryBackend) =
+    backend.count(resolved(backend, this))
 
-private fun IListQuery.query(backend: EventStreamQueryBackend) = backend.list(this)
+private fun IListQuery.query(backend: EventStreamQueryBackend) =
+    Flux.defer { backend.list(resolved(backend, this)) }
+
+private fun resolved(
+    backend: EventStreamQueryBackend,
+    query: FilterExpression,
+): ResolvedQuery<FilterExpression> {
+    val schema = backend.requiredQueryModelSchemaProvider().schema().block()!!
+    return ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema)
+}
+
+private fun resolved(
+    backend: EventStreamQueryBackend,
+    query: IListQuery,
+): ResolvedQuery<IListQuery> {
+    val schema = backend.requiredQueryModelSchemaProvider().schema().block()!!
+    return ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema)
+}

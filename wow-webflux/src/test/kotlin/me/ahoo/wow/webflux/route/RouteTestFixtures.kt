@@ -14,21 +14,32 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackendFactory
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import reactor.core.publisher.Mono
 
 internal object RouteTestFixtures {
     val MOCK_AGGREGATE_ROUTE_METADATA =
         MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+    val SNAPSHOT_QUERY_SCHEMA = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+    val SNAPSHOT_QUERY_SCHEMA_PROVIDER = SNAPSHOT_QUERY_SCHEMA.asProvider()
+    val EVENT_STREAM_QUERY_SCHEMA_PROVIDER =
+        QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap()).asProvider()
 
     val snapshotQueryGateway = DefaultSnapshotQueryGateway<Any>(
         namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
         backend = NoOpSnapshotQueryBackendFactory.create<Any>(MOCK_AGGREGATE_METADATA.namedAggregate),
+        schemaProvider = SNAPSHOT_QUERY_SCHEMA_PROVIDER,
+        validationMode = QuerySchemaValidationMode.COMPATIBLE,
         targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
             Any::class.java,
@@ -38,5 +49,12 @@ internal object RouteTestFixtures {
     val eventStreamQueryGateway = DefaultEventStreamQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
         backend = NoOpEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate),
+        schemaProvider = EVENT_STREAM_QUERY_SCHEMA_PROVIDER,
+        validationMode = QuerySchemaValidationMode.COMPATIBLE,
     )
+}
+
+private fun QueryModelSchema.asProvider(): QueryModelSchemaProvider = object : QueryModelSchemaProvider {
+    override fun schema(): Mono<QueryModelSchema> = Mono.just(this@asProvider)
+    override fun refresh(): Mono<QueryModelSchema> = schema()
 }

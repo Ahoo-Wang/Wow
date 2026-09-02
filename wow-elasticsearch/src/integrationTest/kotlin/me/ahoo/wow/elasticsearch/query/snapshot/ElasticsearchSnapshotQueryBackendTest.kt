@@ -23,6 +23,7 @@ import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
@@ -40,6 +41,7 @@ import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.schema.DeclarationValue
@@ -55,6 +57,7 @@ import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -66,6 +69,7 @@ import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.tck.query.SnapshotQueryBackendSpec
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -180,7 +184,6 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = querySchemaSources,
-            validationMode = QuerySchemaValidationMode.COMPATIBLE,
         )
 
     override fun createSnapshotStore(): SnapshotStore = ElasticsearchSnapshotStore(elasticsearchClient)
@@ -214,7 +217,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val attempts = AtomicInteger()
         val seen = mutableListOf<ObjectNode>()
 
-        snapshotQueryBackend.list(snapshotOwnershipQuery())
+        snapshotQueryBackend.list(resolved(snapshotQueryBackend, snapshotOwnershipQuery()))
             .next()
             .doOnNext { node ->
                 seen += node
@@ -234,7 +237,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
     @Test
     fun `repeat should create clean snapshot object nodes for every subscription`() {
-        snapshotQueryBackend.list(snapshotOwnershipQuery())
+        snapshotQueryBackend.list(resolved(snapshotQueryBackend, snapshotOwnershipQuery()))
             .next()
             .repeat(1)
             .index()
@@ -255,7 +258,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
     @Test
     fun `concurrent subscriptions should receive isolated snapshot object nodes`() {
-        val publisher = snapshotQueryBackend.list(snapshotOwnershipQuery()).next()
+        val publisher = snapshotQueryBackend.list(resolved(snapshotQueryBackend, snapshotOwnershipQuery())).next()
 
         Mono.zip(
             publisher.subscribeOn(Schedulers.parallel()),
@@ -279,7 +282,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         updateState(mapOf("data" to "searchable"))
 
         snapshotQueryBackend.list(
-            ListQuery(filter = SearchFilter("searchable"), limit = 10),
+            resolved(snapshotQueryBackend, ListQuery(filter = SearchFilter("searchable"), limit = 10)),
         ).test()
             .expectNextCount(1)
             .verifyComplete()
@@ -293,13 +296,16 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = querySchemaSources,
-            validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
 
         strictService.list(
-            ListQuery(
-                filter = SearchFilter("searchable", setOf(QueryField("state.data"))),
-                limit = 10,
+            resolved(
+                strictService,
+                ListQuery(
+                    filter = SearchFilter("searchable", setOf(QueryField("state.data"))),
+                    limit = 10,
+                ),
+                QuerySchemaValidationMode.STRICT,
             ),
         ).test().expectNextCount(1).verifyComplete()
     }
@@ -311,10 +317,14 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val service = strictService(querySchemaSources + source(stringField(field)))
 
         service.list(
-            ListQuery(
-                filter = filterExpression { field gt "alpha" },
-                projection = Projection(include = listOf(QueryField(field))),
-                limit = 10,
+            resolved(
+                service,
+                ListQuery(
+                    filter = filterExpression { field gt "alpha" },
+                    projection = Projection(include = listOf(QueryField(field))),
+                    limit = 10,
+                ),
+                QuerySchemaValidationMode.STRICT,
             ),
         ).test()
             .assertNext { document ->
@@ -329,10 +339,14 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val service = strictService(querySchemaSources + source(stringField(field)))
 
         service.list(
-            ListQuery(
-                filter = MatchAllFilter,
-                projection = Projection(include = listOf(QueryField(field))),
-                limit = 10,
+            resolved(
+                service,
+                ListQuery(
+                    filter = MatchAllFilter,
+                    projection = Projection(include = listOf(QueryField(field))),
+                    limit = 10,
+                ),
+                QuerySchemaValidationMode.STRICT,
             ),
         ).test()
             .assertNext { document ->
@@ -347,10 +361,14 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val service = strictService(querySchemaSources + source(stringField(field)))
 
         service.list(
-            ListQuery(
-                filter = MatchAllFilter,
-                projection = Projection(include = listOf(QueryField(field))),
-                limit = 10,
+            resolved(
+                service,
+                ListQuery(
+                    filter = MatchAllFilter,
+                    projection = Projection(include = listOf(QueryField(field))),
+                    limit = 10,
+                ),
+                QuerySchemaValidationMode.STRICT,
             ),
         ).test()
             .assertNext { document ->
@@ -365,10 +383,13 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             namedAggregate = MOCK_AGGREGATE_METADATA,
             elasticsearchClient = elasticsearchClient,
             schemaProvider = projectionSchemaProvider(),
-            validationMode = QuerySchemaValidationMode.STRICT,
         )
         fun query(projection: Projection) = service.list(
-            ListQuery(MatchAllFilter, projection = projection, limit = 1),
+            resolved(
+                service,
+                ListQuery(MatchAllFilter, projection = projection, limit = 1),
+                QuerySchemaValidationMode.STRICT,
+            ),
         ).blockFirst()!!
 
         query(Projection(include = listOf(QueryField("view")))).path("document").let { document ->
@@ -396,20 +417,29 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         )
 
         service.list(
-            ListQuery(
-                filter = TodayFilter(field, zoneId = "UTC"),
-                sort = listOf(Sort(QueryField("_score"), Sort.Direction.DESC)),
-                limit = 10,
+            resolved(
+                service,
+                ListQuery(
+                    filter = TodayFilter(field, zoneId = "UTC"),
+                    sort = listOf(Sort(QueryField("_score"), Sort.Direction.DESC)),
+                    limit = 10,
+                ),
+                QuerySchemaValidationMode.STRICT,
             ),
         ).test().expectNextCount(1).verifyComplete()
     }
 
     @Test
     fun `strict should execute generic document id equality`() {
-        strictService().list(
-            ListQuery(
-                filter = filterExpression { "_id" eq snapshot.aggregateId.id },
-                limit = 10,
+        val service = strictService()
+        service.list(
+            resolved(
+                service,
+                ListQuery(
+                    filter = filterExpression { "_id" eq snapshot.aggregateId.id },
+                    limit = 10,
+                ),
+                QuerySchemaValidationMode.STRICT,
             ),
         ).test().expectNextCount(1).verifyComplete()
     }
@@ -432,17 +462,21 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         )
 
         service.list(
-            ListQuery(
-                filter = filterExpression {
-                    "state.ipValue" eq "192.0.2.1"
-                    "state.ipValue" gt "192.0.2.0"
-                    "state.versionValue" eq "1.2.3"
-                },
-                sort = listOf(
-                    Sort(QueryField("state.ipValue"), Sort.Direction.ASC),
-                    Sort(QueryField("state.versionValue"), Sort.Direction.ASC),
+            resolved(
+                service,
+                ListQuery(
+                    filter = filterExpression {
+                        "state.ipValue" eq "192.0.2.1"
+                        "state.ipValue" gt "192.0.2.0"
+                        "state.versionValue" eq "1.2.3"
+                    },
+                    sort = listOf(
+                        Sort(QueryField("state.ipValue"), Sort.Direction.ASC),
+                        Sort(QueryField("state.versionValue"), Sort.Direction.ASC),
+                    ),
+                    limit = 10,
                 ),
-                limit = 10,
+                QuerySchemaValidationMode.STRICT,
             ),
         ).test().expectNextCount(1).verifyComplete()
         aggregation {
@@ -450,7 +484,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             terms("state.ipValue", "ip")
             terms("state.versionValue", "version")
             count("count")
-        }.query(service).test()
+        }.query(service, QuerySchemaValidationMode.STRICT).test()
             .assertNext { row ->
                 row.path("category").asString().assert().isEqualTo("alpha")
                 row.path("ip").asString().assert().isEqualTo("192.0.2.1")
@@ -466,10 +500,14 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val service = strictService(querySchemaSources + source(stringField(field)))
 
         service.list(
-            ListQuery(
-                filter = filterExpression { field eq "green" },
-                projection = Projection(include = listOf(QueryField(field))),
-                limit = 10,
+            resolved(
+                service,
+                ListQuery(
+                    filter = filterExpression { field eq "green" },
+                    projection = Projection(include = listOf(QueryField(field))),
+                    limit = 10,
+                ),
+                QuerySchemaValidationMode.STRICT,
             ),
         ).test().expectNextCount(1).verifyComplete()
     }
@@ -477,7 +515,10 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     @Test
     fun `strict should reject unknown fields while compatible executes fallback`() {
         snapshotQueryBackend.list(
-            ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
+            resolved(
+                snapshotQueryBackend,
+                ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
+            ),
         ).test().verifyComplete()
 
         val strictService = ElasticsearchSnapshotQueryBackendFactory(
@@ -485,22 +526,32 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = querySchemaSources,
-            validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
-        strictService.list(
-            ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
-        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        assertThrows<QuerySchemaValidationException> {
+            resolved(
+                strictService,
+                ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
+                QuerySchemaValidationMode.STRICT,
+            )
+        }
     }
 
     @Test
     fun `all modes should reject invalid declared epoch literals before Elasticsearch`() {
-        listOf(snapshotQueryBackend, strictService()).forEach { service ->
-            service.list(
-                ListQuery(
-                    filter = filterExpression { "firstEventTime" lte "not-a-timestamp" },
-                    limit = 10,
-                ),
-            ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        listOf(
+            snapshotQueryBackend to QuerySchemaValidationMode.COMPATIBLE,
+            strictService() to QuerySchemaValidationMode.STRICT,
+        ).forEach { (service, mode) ->
+            assertThrows<QuerySchemaValidationException> {
+                resolved(
+                    service,
+                    ListQuery(
+                        filter = filterExpression { "firstEventTime" lte "not-a-timestamp" },
+                        limit = 10,
+                    ),
+                    mode,
+                )
+            }
         }
     }
 
@@ -515,9 +566,13 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         )
         val mismatchedPrincipal = mapOf("department" to listOf("eng")).toFilterExpression()
 
-        listOf(snapshotQueryBackend, strictService()).forEach { service ->
-            service.list(ListQuery(filter = mismatchedPrincipal, limit = 10))
-                .test().expectError(QuerySchemaValidationException::class.java).verify()
+        listOf(
+            snapshotQueryBackend to QuerySchemaValidationMode.COMPATIBLE,
+            strictService() to QuerySchemaValidationMode.STRICT,
+        ).forEach { (service, mode) ->
+            assertThrows<QuerySchemaValidationException> {
+                resolved(service, ListQuery(filter = mismatchedPrincipal, limit = 10), mode)
+            }
         }
     }
 
@@ -538,12 +593,16 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             .fields.getValue(QueryField("tags")).bindings.assert().isEmpty()
         updateDocument(mapOf("tags" to mapOf("department" to listOf("eng"))))
 
-        strictService.list(
-            ListQuery(
-                filter = mapOf("department" to listOf("eng")).toFilterExpression(),
-                limit = 10,
-            ),
-        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        assertThrows<QuerySchemaValidationException> {
+            resolved(
+                strictService,
+                ListQuery(
+                    filter = mapOf("department" to listOf("eng")).toFilterExpression(),
+                    limit = 10,
+                ),
+                QuerySchemaValidationMode.STRICT,
+            )
+        }
     }
 
     @Test
@@ -569,42 +628,61 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         )
 
         val filter = mapOf("department" to listOf("eng")).toFilterExpression()
-        listOf(compatibleService, strictService()).forEach { service ->
-            service.list(ListQuery(filter = filter, limit = 10))
-                .test().expectError(QuerySchemaValidationException::class.java).verify()
+        listOf(
+            compatibleService to QuerySchemaValidationMode.COMPATIBLE,
+            strictService() to QuerySchemaValidationMode.STRICT,
+        ).forEach { (service, mode) ->
+            assertThrows<QuerySchemaValidationException> {
+                resolved(service, ListQuery(filter = filter, limit = 10), mode)
+            }
         }
     }
 
     @Test
     fun `strict should reject a root nested child filter`() {
-        strictService().list(
-            ListQuery(filter = filterExpression { "state.orders.status" eq "PAID" }, limit = 10),
-        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        val service = strictService()
+        assertThrows<QuerySchemaValidationException> {
+            resolved(
+                service,
+                ListQuery(filter = filterExpression { "state.orders.status" eq "PAID" }, limit = 10),
+                QuerySchemaValidationMode.STRICT,
+            )
+        }
     }
 
     @Test
     fun `strict should reject a root nested child sort`() {
-        strictService().list(
-            ListQuery(
-                filter = MatchAllFilter,
-                sort = listOf(Sort(QueryField("state.orders.status"), Sort.Direction.ASC)),
-                limit = 10,
-            ),
-        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        val service = strictService()
+        assertThrows<QuerySchemaValidationException> {
+            resolved(
+                service,
+                ListQuery(
+                    filter = MatchAllFilter,
+                    sort = listOf(Sort(QueryField("state.orders.status"), Sort.Direction.ASC)),
+                    limit = 10,
+                ),
+                QuerySchemaValidationMode.STRICT,
+            )
+        }
     }
 
     @Test
     fun `strict should execute a nested child inside element match`() {
         updateState(mapOf("orders" to listOf(mapOf("status" to "PAID"))))
 
-        strictService().list(
-            ListQuery(
-                filter = filterExpression {
-                    "state.orders".elementMatch {
-                        "status" eq "PAID"
-                    }
-                },
-                limit = 10,
+        val service = strictService()
+        service.list(
+            resolved(
+                service,
+                ListQuery(
+                    filter = filterExpression {
+                        "state.orders".elementMatch {
+                            "status" eq "PAID"
+                        }
+                    },
+                    limit = 10,
+                ),
+                QuerySchemaValidationMode.STRICT,
             ),
         ).test().expectNextCount(1).verifyComplete()
     }
@@ -637,7 +715,6 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                 stringField("state.orders.lines.productName"),
                 epochField("state.orders.lines.epochSeconds", TimeUnit.SECONDS),
             ),
-            validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
 
         aggregation {
@@ -647,7 +724,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                 "epochSeconds".today(timeZone)
             }
             count("count")
-        }.query(service)
+        }.query(service, QuerySchemaValidationMode.STRICT)
             .test()
             .assertNext { row -> row.path("count").longValue().assert().isEqualTo(1L) }
             .verifyComplete()
@@ -703,7 +780,6 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                     stringField("state.runtimeCode"),
                 ),
             ),
-            validationMode = me.ahoo.wow.query.schema.QuerySchemaValidationMode.COMPATIBLE,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         val provider = service.requiredQueryModelSchemaProvider()
         val initial = provider.schema().block()!!
@@ -742,10 +818,13 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         provider.schema().block().assert().isSameAs(refreshed)
 
         service.list(
-            ListQuery(
-                filter = filterExpression { "state.runtimeCode" eq "runtime" },
-                sort = listOf(Sort(QueryField("state.runtimeCode"), Sort.Direction.ASC)),
-                limit = 10,
+            resolved(
+                service,
+                ListQuery(
+                    filter = filterExpression { "state.runtimeCode" eq "runtime" },
+                    sort = listOf(Sort(QueryField("state.runtimeCode"), Sort.Direction.ASC)),
+                    limit = 10,
+                ),
             ),
         ).test().expectNextCount(1).verifyComplete()
     }
@@ -772,7 +851,6 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                     epochField("state.epochSeconds", TimeUnit.SECONDS),
                 ),
             ),
-            validationMode = QuerySchemaValidationMode.COMPATIBLE,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         val schema = service.requiredQueryModelSchemaProvider().schema().block()!!
         listOf("state.epochMicros", "state.epochMillis", "state.epochNanos", "state.epochSeconds")
@@ -895,7 +973,6 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = schemaSources,
-            validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
 
     private fun compatibleService(): SnapshotQueryBackend =
@@ -904,7 +981,6 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = querySchemaSources,
-            validationMode = QuerySchemaValidationMode.COMPATIBLE,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
 
     private fun currentMapping(): TypeMapping = elasticsearchClient.indices().getMapping { request ->
@@ -944,7 +1020,6 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             namedAggregate = MOCK_AGGREGATE_METADATA,
             elasticsearchClient = elasticsearchClient,
             schemaProvider = provider,
-            validationMode = QuerySchemaValidationMode.COMPATIBLE,
         )
     }
 
@@ -994,4 +1069,25 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     )
 }
 
-private fun AggregationQuery.query(backend: SnapshotQueryBackend) = backend.aggregate(this)
+private fun AggregationQuery.query(
+    backend: SnapshotQueryBackend,
+    mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
+) = backend.aggregate(resolved(backend, this, mode))
+
+private fun resolved(
+    backend: SnapshotQueryBackend,
+    query: IListQuery,
+    mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
+): ResolvedQuery<IListQuery> {
+    val schema = backend.requiredQueryModelSchemaProvider().schema().block()!!
+    return ResolvedQuery(schema.resolve(query).requireAccepted(mode), schema)
+}
+
+private fun resolved(
+    backend: SnapshotQueryBackend,
+    query: AggregationQuery,
+    mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
+): ResolvedQuery<AggregationQuery> {
+    val schema = backend.requiredQueryModelSchemaProvider().schema().block()!!
+    return ResolvedQuery(schema.resolve(query).requireAccepted(mode), schema)
+}

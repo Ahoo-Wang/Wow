@@ -17,6 +17,7 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
+import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
@@ -30,6 +31,7 @@ import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -151,7 +153,6 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val queryService = MongoEventStreamQueryBackendFactory(
             database,
             listOf(eventPayloadSource()),
-            QuerySchemaValidationMode.STRICT,
         ).create(namedAggregate)
 
         aggregation {
@@ -159,7 +160,7 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
             expand("body")
             terms("body.data", "data")
             count("count")
-        }.query(queryService)
+        }.query(queryService, QuerySchemaValidationMode.STRICT)
             .test()
             .assertNext { row ->
                 row.path("data").textValue().assert().isEqualTo("created")
@@ -186,5 +187,30 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
     }
 }
 
-private fun ISingleQuery.query(backend: EventStreamQueryBackend): Mono<ObjectNode> = backend.single(this)
-private fun AggregationQuery.query(backend: EventStreamQueryBackend): Flux<ObjectNode> = backend.aggregate(this)
+private fun ISingleQuery.query(
+    backend: EventStreamQueryBackend,
+    mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
+): Mono<ObjectNode> = backend.single(resolved(backend, this, mode))
+
+private fun AggregationQuery.query(
+    backend: EventStreamQueryBackend,
+    mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
+): Flux<ObjectNode> = backend.aggregate(resolved(backend, this, mode))
+
+private fun resolved(
+    backend: EventStreamQueryBackend,
+    query: ISingleQuery,
+    mode: QuerySchemaValidationMode,
+): ResolvedQuery<ISingleQuery> {
+    val schema = backend.requiredQueryModelSchemaProvider().schema().block()!!
+    return ResolvedQuery(schema.resolve(query).requireAccepted(mode), schema)
+}
+
+private fun resolved(
+    backend: EventStreamQueryBackend,
+    query: AggregationQuery,
+    mode: QuerySchemaValidationMode,
+): ResolvedQuery<AggregationQuery> {
+    val schema = backend.requiredQueryModelSchemaProvider().schema().block()!!
+    return ResolvedQuery(schema.resolve(query).requireAccepted(mode), schema)
+}
