@@ -19,7 +19,6 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
-import me.ahoo.wow.query.dsl.projection
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
@@ -36,15 +35,11 @@ class ElasticsearchProjectionConverterTest {
     )
 
     @Test
-    fun `should convert projection to SourceFilter`() {
-        val projection = projection {
-            include("field1")
-            exclude("field2")
-        }
+    fun `should require schema when converting projection`() {
+        val projection = Projection(include = listOf(QueryField("state")))
 
-        val sourceFilter = projection.toSourceFilter()
-        sourceFilter.includes().assert().containsExactly("field1", "field1.*")
-        sourceFilter.excludes().assert().containsExactly("field2", "field2.*")
+        projection.toSourceFilter(schema).includes().assert()
+            .containsExactly("document", "document.*")
     }
 
     @Test

@@ -20,24 +20,20 @@ import me.ahoo.wow.query.converter.ProjectionConverter
 import me.ahoo.wow.query.schema.QueryModelSchema
 
 object ElasticsearchProjectionConverter : ProjectionConverter<SourceFilter> {
-    override fun convert(projection: Projection, schema: QueryModelSchema?): SourceFilter {
+    override fun convert(projection: Projection, schema: QueryModelSchema): SourceFilter {
         return SourceFilter.of {
             it.includes(projection.include.toSourceFields(schema))
             it.excludes(projection.exclude.toSourceFields(schema))
         }
     }
 
-    fun Projection.toSourceFilter(): SourceFilter {
-        return convert(this, null)
-    }
-
-    internal fun Projection.toSourceFilter(schema: QueryModelSchema?): SourceFilter {
+    internal fun Projection.toSourceFilter(schema: QueryModelSchema): SourceFilter {
         return convert(this, schema)
     }
 
-    private fun List<QueryField>.toSourceFields(schema: QueryModelSchema?): List<String> =
+    private fun List<QueryField>.toSourceFields(schema: QueryModelSchema): List<String> =
         flatMap { field ->
-            val path = schema?.field(field)?.projectionField?.path ?: field.path
+            val path = schema.field(field)?.projectionField?.path ?: field.path
             listOf(path, "$path.*")
         }.distinct()
 }

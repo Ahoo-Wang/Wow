@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
@@ -42,11 +43,14 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
+import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
@@ -54,6 +58,8 @@ import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.requireAccepted
+import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -79,13 +85,13 @@ class ElasticsearchSnapshotMappingQueryTest {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             mappingResponse(queryMapping()),
         )
-        val service = ElasticsearchSnapshotQueryBackendFactory(
+        val backend = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = client,
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = emptyList(),
-            validationMode = QuerySchemaValidationMode.STRICT,
         ).create<Any>(MOCK_AGGREGATE_METADATA)
+        val service = queryGateway(backend as ElasticsearchSnapshotQueryBackend, QuerySchemaValidationMode.STRICT)
 
         service.list(ListQuery(filter = equal("state.unknown", "value"), limit = 10)).test()
             .expectError(QuerySchemaValidationException::class.java)
@@ -100,7 +106,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        strictQueryBackend().list(
+        strictQueryGateway().list(
             ListQuery(filter = equal("state.orders.status", "PAID"), limit = 10),
         ).test()
             .expectError(QuerySchemaValidationException::class.java)
@@ -115,7 +121,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        strictQueryBackend().list(
+        strictQueryGateway().list(
             ListQuery(
                 filter = MatchAllFilter,
                 sort = listOf(Sort(QueryField("state.orders.status"), Sort.Direction.ASC)),
@@ -133,7 +139,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             mappingResponse(queryMapping()),
         )
-        val service = strictQueryBackend()
+        val service = strictQueryGateway()
 
         listOf(
             ExistsFilter(QueryField("state")),
@@ -153,7 +159,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        strictQueryBackend().list(
+        strictQueryGateway().list(
             ListQuery(
                 filter = filter {
                     "state.orders".elementMatch {
@@ -176,7 +182,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        strictQueryBackend().list(
+        strictQueryGateway().list(
             ListQuery(filter = equal("state.singleOrders.status", "PAID"), limit = 10),
         ).test()
             .expectError(QuerySchemaValidationException::class.java)
@@ -191,7 +197,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        strictQueryBackend().list(
+        strictQueryGateway().list(
             ListQuery(
                 filter = MatchAllFilter,
                 sort = listOf(Sort(QueryField("state.stringOrders.status"), Sort.Direction.ASC)),
@@ -214,7 +220,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             ),
         )
 
-        strictQueryBackend(emptyList()).list(
+        strictQueryGateway(emptyList()).list(
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
         ).test()
             .expectError(QuerySchemaValidationException::class.java)
@@ -235,7 +241,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             ),
         )
 
-        strictQueryBackend(emptyList()).list(
+        strictQueryGateway(emptyList()).list(
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
         ).test()
             .expectError(QuerySchemaValidationException::class.java)
@@ -256,7 +262,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             ),
         )
 
-        queryBackend().list(
+        queryGateway().list(
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
         ).test().expectError(QuerySchemaValidationException::class.java).verify()
 
@@ -268,7 +274,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         val failure = IllegalStateException("mapping unavailable")
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.error(failure)
 
-        queryBackend().list(
+        queryGateway().list(
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
         ).test()
             .expectErrorSatisfies { error ->
@@ -290,7 +296,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             ),
         )
 
-        strictQueryBackend(emptyList()).list(
+        strictQueryGateway(emptyList()).list(
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
         ).test().expectError(QuerySchemaValidationException::class.java).verify()
 
@@ -309,7 +315,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             "state.age" gt 18
         }
 
-        queryBackend().list(
+        queryGateway().list(
             ListQuery(
                 filter = filter,
                 projection = Projection(include = listOf(QueryField("state.name"))),
@@ -337,7 +343,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        queryBackend().list(
+        queryGateway().list(
             ListQuery(condition = Condition.eq("state.name", "Wow"), limit = 10),
         ).collectList().block()
 
@@ -350,7 +356,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             mappingResponse(queryMapping()),
         )
-        val service = queryBackend()
+        val service = queryGateway()
 
         repeat(2) {
             service.list(
@@ -370,7 +376,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        queryBackend().list(
+        queryGateway().list(
             ListQuery(
                 filter = filter {
                     "body".elementMatch {
@@ -392,13 +398,14 @@ class ElasticsearchSnapshotMappingQueryTest {
             Mono.just(mappingResponse(queryMapping())),
             Mono.just(mappingResponse(queryMapping(includeNewField = true))),
         )
-        val service = queryBackend()
+        val backend = queryBackend()
+        val service = queryGateway(backend, QuerySchemaValidationMode.COMPATIBLE)
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
         service.list(query).test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
-        service.requiredQueryModelSchemaProvider().refresh().block()
+        backend.refresh().block()
         service.list(query).collectList().block()
 
         searchRequest.captured.query()!!.bool().filter()[1].term().field().assert().isEqualTo("state.newField")
@@ -416,15 +423,15 @@ class ElasticsearchSnapshotMappingQueryTest {
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = schemaSources(),
-            validationMode = QuerySchemaValidationMode.COMPATIBLE,
         )
-        val service = factory.create<Any>(MOCK_AGGREGATE_METADATA)
+        val backend = factory.create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryBackend
+        val service = queryGateway(backend, QuerySchemaValidationMode.COMPATIBLE)
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
         service.list(query).test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
-        service.requiredQueryModelSchemaProvider().refresh().block()
+        backend.refresh().block()
         service.list(query).collectList().block()
 
         verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
@@ -442,7 +449,6 @@ class ElasticsearchSnapshotMappingQueryTest {
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
             indexMappingResolver = resolver,
             schemaSources = schemaSources(),
-            validationMode = QuerySchemaValidationMode.COMPATIBLE,
         ).create<Any>(MOCK_AGGREGATE_METADATA)
 
         service.requiredQueryModelSchemaProvider().schema().test()
@@ -467,22 +473,20 @@ class ElasticsearchSnapshotMappingQueryTest {
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
         )
 
-        service.list(ListQuery(filter = filter, limit = 10)).collectList().block()
+        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+        val query = ListQuery(filter = filter, limit = 10)
+        service.list(
+            ResolvedQuery(
+                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
+                schema,
+            ),
+        ).collectList().block()
 
         convertedFilter.captured.assert().isSameAs(filter)
         verify(exactly = 0) { client.indices() }
     }
 
-    private fun queryBackend(): ElasticsearchSnapshotQueryBackend =
-        ElasticsearchSnapshotQueryBackendFactory(
-            elasticsearchClient = client,
-            queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
-            queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources = schemaSources(),
-            validationMode = QuerySchemaValidationMode.COMPATIBLE,
-        ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryBackend
-
-    private fun strictQueryBackend(
+    private fun queryBackend(
         sources: List<QuerySchemaSource> = schemaSources(),
     ): ElasticsearchSnapshotQueryBackend =
         ElasticsearchSnapshotQueryBackendFactory(
@@ -490,8 +494,30 @@ class ElasticsearchSnapshotMappingQueryTest {
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = sources,
-            validationMode = QuerySchemaValidationMode.STRICT,
         ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryBackend
+
+    private fun queryGateway(): DefaultSnapshotQueryGateway<Any> =
+        queryGateway(queryBackend(), QuerySchemaValidationMode.COMPATIBLE)
+
+    private fun strictQueryGateway(
+        sources: List<QuerySchemaSource> = schemaSources(),
+    ): DefaultSnapshotQueryGateway<Any> =
+        queryGateway(queryBackend(sources), QuerySchemaValidationMode.STRICT)
+
+    private fun queryGateway(
+        backend: ElasticsearchSnapshotQueryBackend,
+        validationMode: QuerySchemaValidationMode,
+    ): DefaultSnapshotQueryGateway<Any> = DefaultSnapshotQueryGateway(
+        namedAggregate = MOCK_AGGREGATE_METADATA,
+        backend = backend,
+        schemaProvider = backend,
+        validationMode = validationMode,
+        targetType = JsonSerializer.typeFactory.constructParametricType(
+            MaterializedSnapshot::class.java,
+            Any::class.java,
+        ),
+        errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+    )
 
     private fun schemaSources(): List<QuerySchemaSource> {
         val context = QuerySchemaContext(MOCK_AGGREGATE_METADATA.materialize(), QueryModel.SNAPSHOT)
