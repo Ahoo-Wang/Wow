@@ -21,6 +21,7 @@ import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
@@ -47,6 +48,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.SignalType
 import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
+import tools.jackson.databind.node.StringNode
 
 class AbstractMongoQueryBackendTest {
     private val collection = mockk<MongoCollection<Document>>()
@@ -116,6 +118,41 @@ class AbstractMongoQueryBackendTest {
         backend.list(ResolvedQuery(ListQuery(MatchAllFilter, limit = 1), schema)).test().verifyComplete()
 
         verify(exactly = 1) { publisher.limit(1) }
+    }
+
+    @Test
+    fun `custom filter converter should retain path ownership`() {
+        val converter = object : AbstractMongoFilterConverter() {
+            override val fieldConverter = FieldConverter { "custom.$it" }
+        }
+        val customBackend = MongoSnapshotQueryBackend(
+            namedAggregate = MaterializedNamedAggregate("test", "aggregate"),
+            collection = collection,
+            converter = converter,
+        )
+        val filter = slot<Bson>()
+        val publisher = mockk<FindPublisher<Document>>()
+        every { collection.find(capture(filter)) } returns publisher
+        every { publisher.projection(null) } returns publisher
+        every { publisher.sort(null) } returns publisher
+        every { publisher.limit(1) } returns publisher
+        every { publisher.subscribe(any()) } answers {
+            Flux.empty<Document>().subscribe(firstArg<Subscriber<in Document>>())
+        }
+
+        customBackend.list(
+            ResolvedQuery(
+                ListQuery(
+                    EqualFilter(QueryField("aggregateId"), StringNode.valueOf("id")),
+                    limit = 1,
+                ),
+                schema,
+            ),
+        ).test().verifyComplete()
+
+        filter.captured.toBsonDocument().toJson().assert()
+            .contains("custom.aggregateId")
+            .doesNotContain("custom._id")
     }
 
     @Test
