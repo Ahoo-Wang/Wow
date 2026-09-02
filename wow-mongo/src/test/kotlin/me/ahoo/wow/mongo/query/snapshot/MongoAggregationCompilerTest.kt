@@ -414,7 +414,7 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
-    fun `custom field converter should apply to aggregation fields without schema`() {
+    fun `custom field converter should apply to aggregation fields without a declared field`() {
         val converter = object : AbstractMongoFilterConverter() {
             override val fieldConverter: FieldConverter = FieldConverter { "physical.$it" }
         }
