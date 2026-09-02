@@ -635,6 +635,16 @@ fun `empty create response should fail`() {
 }
 
 @Test
+fun `empty exists response should fail`() {
+    writeWorkingResource(indexJson())
+    every { indices.exists(any<ExistsRequest>()) } returns Mono.empty()
+
+    val error = assertThrows<IllegalStateException> { initializer().ensureAll().block() }
+
+    error.message.assert().contains(INDEX).contains(tempDir.resolve("wow/elasticsearch/$INDEX.json").toString())
+}
+
+@Test
 fun `unacknowledged create response should fail`() {
     writeWorkingResource(indexJson())
     every { indices.exists(any<ExistsRequest>()) } returns Mono.just(BooleanResponse(false))
@@ -715,6 +725,7 @@ class ElasticsearchSnapshotIndexInitializer(
         val resource = findResource(indexName) ?: return@defer Mono.empty()
         val request = parseRequest(indexName, resource)
         elasticsearchClient.indices().exists { it.index(indexName) }
+            .switchIfEmpty(Mono.error(failure(indexName, resource, null)))
             .flatMap { exists ->
                 if (exists.value()) Mono.empty()
                 else create(request, resource)
@@ -1170,12 +1181,12 @@ Expected: the documentation build passes.
 - [ ] **Step 4: Inspect the final diff and repository state**
 
 ```bash
-git diff --check
+git diff --check 51f3ec22038dfd6fe9585515f26562076550d68f..HEAD
 git status --short
 git log --oneline -8
 ```
 
-Expected: `git diff --check` is silent, only intended files are modified or committed, and Tasks 1–5 appear as focused commits.
+Expected: `git diff --check 51f3ec22038dfd6fe9585515f26562076550d68f..HEAD` is silent, only intended files are modified or committed, and Tasks 1–5 appear as focused commits.
 
 - [ ] **Step 5: Commit any verification-only correction**
 

@@ -40,6 +40,7 @@ class ElasticsearchSnapshotIndexInitializer(
         val resource = findResource(indexName) ?: return@defer Mono.empty()
         val request = parseRequest(indexName, resource)
         elasticsearchClient.indices().exists(ExistsRequest.Builder().index(indexName).build())
+            .switchIfEmpty(Mono.error(failure(indexName, resource, null)))
             .flatMap { exists ->
                 if (exists.value()) {
                     Mono.empty()

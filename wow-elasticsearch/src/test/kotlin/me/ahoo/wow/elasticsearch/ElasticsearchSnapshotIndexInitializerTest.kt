@@ -130,6 +130,16 @@ class ElasticsearchSnapshotIndexInitializerTest {
     }
 
     @Test
+    fun `empty exists response should fail`() {
+        writeWorkingResource(indexJson())
+        every { indices.exists(any<ExistsRequest>()) } returns Mono.empty()
+
+        val error = assertThrows<IllegalStateException> { initializer().ensureAll().block() }
+
+        error.message.assert().contains(INDEX).contains(tempDir.resolve("wow/elasticsearch/$INDEX.json").toString())
+    }
+
+    @Test
     fun `unacknowledged create response should fail`() {
         writeWorkingResource(indexJson())
         every { indices.exists(any<ExistsRequest>()) } returns Mono.just(BooleanResponse(false))
