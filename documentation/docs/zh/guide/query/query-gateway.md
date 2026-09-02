@@ -62,7 +62,7 @@ Gateway 在每次订阅时获取 Provider 当前发布的一个 Schema，并用�
 
 ## ABAC 与字段脱敏
 
-内建 `AbacQueryFilter` 位于快照查询网关。对于提供 `QueryModelSchemaProvider` 的 Backend，框架内建 `SchemaMaskQueryFilter` 会在全部通用结果 Filter 完成后、typed 物化前执行 Schema 驱动的字段脱敏；Snapshot 与 EventStream 的 typed、dynamic、cursor 和 aggregate-state load 入口共享这条受管路径。注解、缓存、行为矩阵与失败关闭规则见[字段脱敏](./masking.md)。
+内建 `AbacQueryFilter` 位于快照查询网关。受管 Gateway 显式配对 `QueryModelSchemaProvider`，框架内建 `SchemaMaskQueryFilter` 会在全部通用结果 Filter 完成后、typed 物化前执行 Schema 驱动的字段脱敏。Provider 不可用时查询在 Filter 与 Backend 执行前失败关闭，绝不会仅跳过 Mask。Snapshot 与 EventStream 的 typed、dynamic、cursor 和 aggregate-state load 入口共享这条受管路径。注解、缓存、行为矩阵与失败关闭规则见[字段脱敏](./masking.md)。
 
 认证、Principal 绑定和完整的失败关闭策略请参阅[数据权限](../data-access.md)。
 
