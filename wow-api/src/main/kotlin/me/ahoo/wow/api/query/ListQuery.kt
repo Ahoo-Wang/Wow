@@ -46,8 +46,8 @@ interface IListQuery : Queryable<IListQuery> {
  * ```
  * val query = ListQuery(
  *     filter = EqualFilter(QueryField("status"), value),
- *     projection = Projection(listOf("name", "email")),
- *     sort = listOf(Sort("name", Direction.ASC)),
+ *     projection = Projection(listOf(QueryField("name"), QueryField("email"))),
+ *     sort = listOf(Sort(QueryField("name"), Direction.ASC)),
  *     limit = 50
  * )
  * ```

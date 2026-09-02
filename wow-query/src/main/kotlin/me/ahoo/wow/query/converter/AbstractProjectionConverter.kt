@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.converter
 
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.isEmpty
 
 abstract class AbstractProjectionConverter<T> : ProjectionConverter<T> {
@@ -23,8 +24,8 @@ abstract class AbstractProjectionConverter<T> : ProjectionConverter<T> {
             return internalConvert(projection)
         }
         val converted = Projection(
-            include = projection.include.map { fieldConverter.convert(it) },
-            exclude = projection.exclude.map { fieldConverter.convert(it) }
+            include = projection.include.map { QueryField(fieldConverter.convert(it.path)) },
+            exclude = projection.exclude.map { QueryField(fieldConverter.convert(it.path)) }
         )
         return internalConvert(converted)
     }

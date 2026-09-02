@@ -101,7 +101,7 @@ internal class ElasticsearchAggregationCompiler(
         val effectiveSort = query.effectiveSort()
         val groups = query.groupBy.withIndex().associateBy { it.value.alias }
         val groupSources = effectiveSort.mapNotNull { sort ->
-            groups[sort.field]?.let { indexed ->
+            groups[sort.field.path]?.let { indexed ->
                 indexed.value.toSource(logicalParent, sort, indexed.index, schema, runtimeMappings)
             }
         }
@@ -117,7 +117,7 @@ internal class ElasticsearchAggregationCompiler(
             runtimeMappings = runtimeMappings,
             effectiveSort = effectiveSort,
             limit = query.limit,
-            metricSorted = effectiveSort.any { it.field in metricAliases },
+            metricSorted = effectiveSort.any { it.field.path in metricAliases },
         )
     }
 

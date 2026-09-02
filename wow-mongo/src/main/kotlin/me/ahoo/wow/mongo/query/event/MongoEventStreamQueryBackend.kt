@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
@@ -54,7 +55,7 @@ class MongoEventStreamQueryBackend(
     QueryModelSchemaProvider by schemaProvider {
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(EventStreamFieldConverter)
     override val sortConverter: MongoSortConverter = MongoSortConverter(EventStreamFieldConverter)
-    override val cursorUniqueField: String = MessageRecords.ID
+    override val cursorUniqueField: QueryField = QueryField(MessageRecords.ID)
     override fun toObjectNode(document: Document): ObjectNode =
         document.replacePrimaryKeyToId().toObjectNode()
 

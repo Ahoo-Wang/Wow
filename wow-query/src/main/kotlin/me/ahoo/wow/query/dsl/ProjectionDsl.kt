@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dsl
 
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 
 /**
  * DSL for building a [Projection] that defines which fields to include or exclude in the query result.
@@ -35,19 +36,15 @@ import me.ahoo.wow.api.query.Projection
 @QueryDslMarker
 class ProjectionDsl : NestedFieldDsl() {
 
-    private val include = mutableListOf<String>()
-    private val exclude = mutableListOf<String>()
+    private val include = mutableListOf<QueryField>()
+    private val exclude = mutableListOf<QueryField>()
 
     fun include(vararg fields: String) {
-        fields.forEach {
-            include.add(it.withNestedField())
-        }
+        fields.mapTo(include) { QueryField(it.withNestedField()) }
     }
 
     fun exclude(vararg fields: String) {
-        fields.forEach {
-            exclude.add(it.withNestedField())
-        }
+        fields.mapTo(exclude) { QueryField(it.withNestedField()) }
     }
 
     fun build(): Projection {

@@ -15,12 +15,12 @@ package me.ahoo.wow.query.mask
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import org.junit.jupiter.api.Test
 
 class EventMaskProjectionTest {
     @Test
-    fun `wildcard include should preserve explicitly selected body type`() {
-        Projection(include = listOf("body.*")).requiresInternalEventBodyType().assert().isFalse()
-        Projection(include = listOf("body.bodyT*")).requiresInternalEventBodyType().assert().isFalse()
+    fun `explicit body type include should not require an internal body type`() {
+        Projection(include = listOf(QueryField("body.bodyType"))).requiresInternalEventBodyType().assert().isFalse()
     }
 }

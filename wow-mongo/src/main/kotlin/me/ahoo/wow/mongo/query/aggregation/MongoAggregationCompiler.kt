@@ -414,8 +414,8 @@ internal class MongoAggregationCompiler(
     private fun List<Sort>.toBson(): Bson = Sorts.orderBy(
         map {
             when (it.direction) {
-                Sort.Direction.ASC -> Sorts.ascending(it.field)
-                Sort.Direction.DESC -> Sorts.descending(it.field)
+                Sort.Direction.ASC -> Sorts.ascending(it.field.path)
+                Sort.Direction.DESC -> Sorts.descending(it.field.path)
             }
         }
     )

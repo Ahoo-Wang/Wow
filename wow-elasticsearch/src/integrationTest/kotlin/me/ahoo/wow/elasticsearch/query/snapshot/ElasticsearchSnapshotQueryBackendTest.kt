@@ -312,7 +312,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         service.list(
             ListQuery(
                 filter = filterExpression { field gt "alpha" },
-                projection = Projection(include = listOf(field)),
+                projection = Projection(include = listOf(QueryField(field))),
                 limit = 10,
             ),
         ).test()
@@ -330,7 +330,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         service.list(
             ListQuery(
                 filter = MatchAllFilter,
-                projection = Projection(include = listOf(field)),
+                projection = Projection(include = listOf(QueryField(field))),
                 limit = 10,
             ),
         ).test()
@@ -348,7 +348,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         service.list(
             ListQuery(
                 filter = MatchAllFilter,
-                projection = Projection(include = listOf(field)),
+                projection = Projection(include = listOf(QueryField(field))),
                 limit = 10,
             ),
         ).test()
@@ -369,7 +369,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         service.list(
             ListQuery(
                 filter = TodayFilter(field, zoneId = "UTC"),
-                sort = listOf(Sort("_score", Sort.Direction.DESC)),
+                sort = listOf(Sort(QueryField("_score"), Sort.Direction.DESC)),
                 limit = 10,
             ),
         ).test().expectNextCount(1).verifyComplete()
@@ -410,8 +410,8 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                     "state.versionValue" eq "1.2.3"
                 },
                 sort = listOf(
-                    Sort("state.ipValue", Sort.Direction.ASC),
-                    Sort("state.versionValue", Sort.Direction.ASC),
+                    Sort(QueryField("state.ipValue"), Sort.Direction.ASC),
+                    Sort(QueryField("state.versionValue"), Sort.Direction.ASC),
                 ),
                 limit = 10,
             ),
@@ -439,7 +439,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         service.list(
             ListQuery(
                 filter = filterExpression { field eq "green" },
-                projection = Projection(include = listOf(field)),
+                projection = Projection(include = listOf(QueryField(field))),
                 limit = 10,
             ),
         ).test().expectNextCount(1).verifyComplete()
@@ -558,7 +558,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         strictService().list(
             ListQuery(
                 filter = MatchAllFilter,
-                sort = listOf(Sort("state.orders.status", Sort.Direction.ASC)),
+                sort = listOf(Sort(QueryField("state.orders.status"), Sort.Direction.ASC)),
                 limit = 10,
             ),
         ).test().expectError(QuerySchemaValidationException::class.java).verify()
@@ -712,7 +712,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         service.list(
             ListQuery(
                 filter = filterExpression { "state.runtimeCode" eq "runtime" },
-                sort = listOf(Sort("state.runtimeCode", Sort.Direction.ASC)),
+                sort = listOf(Sort(QueryField("state.runtimeCode"), Sort.Direction.ASC)),
                 limit = 10,
             ),
         ).test().expectNextCount(1).verifyComplete()

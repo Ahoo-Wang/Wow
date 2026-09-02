@@ -31,7 +31,7 @@ internal object MongoCursorFilterCompiler {
                 Filters.and(
                     buildList {
                         repeat(index) { equalIndex ->
-                            add(Filters.eq(sort[equalIndex].field, values[equalIndex]))
+                            add(Filters.eq(sort[equalIndex].field.path, values[equalIndex]))
                         }
                         add(after(sort[index], values[index]))
                     },
@@ -41,9 +41,9 @@ internal object MongoCursorFilterCompiler {
     }
 
     private fun after(sort: Sort, value: Any?): Bson = when {
-        value == null && sort.direction == Sort.Direction.ASC -> Filters.ne(sort.field, null)
+        value == null && sort.direction == Sort.Direction.ASC -> Filters.ne(sort.field.path, null)
         value == null -> Document("\$expr", false)
-        sort.direction == Sort.Direction.ASC -> Filters.gt(sort.field, value)
-        else -> Filters.or(Filters.lt(sort.field, value), Filters.eq(sort.field, null))
+        sort.direction == Sort.Direction.ASC -> Filters.gt(sort.field.path, value)
+        else -> Filters.or(Filters.lt(sort.field.path, value), Filters.eq(sort.field.path, null))
     }
 }

@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.toFilterExpression
 import org.junit.jupiter.api.Test
@@ -44,7 +45,7 @@ class ListQueryDslTest {
         }
         query.projection.assert().isEqualTo(Projection.ALL)
         query.limit.assert().isOne()
-        query.sort.assert().isEqualTo(listOf(Sort("field1", Sort.Direction.ASC)))
+        query.sort.assert().isEqualTo(listOf(Sort(QueryField("field1"), Sort.Direction.ASC)))
         query.filter.assert().isEqualTo(
             Condition.and(
                 listOf(

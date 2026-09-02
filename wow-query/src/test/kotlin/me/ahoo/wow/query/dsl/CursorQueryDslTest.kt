@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.snapshot.toStateCursorPage
 import me.ahoo.wow.query.snapshot.toStateDocumentCursorPage
@@ -39,8 +40,8 @@ class CursorQueryDslTest {
         }
 
         query.filter.assert().isNotEqualTo(MatchAllFilter)
-        query.projection.assert().isEqualTo(Projection(include = listOf("state.value")))
-        query.sort.assert().containsExactly(Sort("version", Sort.Direction.DESC))
+        query.projection.assert().isEqualTo(Projection(include = listOf(QueryField("state.value"))))
+        query.sort.assert().containsExactly(Sort(QueryField("version"), Sort.Direction.DESC))
         query.size.assert().isEqualTo(20)
         query.cursor.assert().isEqualTo("cursor")
     }

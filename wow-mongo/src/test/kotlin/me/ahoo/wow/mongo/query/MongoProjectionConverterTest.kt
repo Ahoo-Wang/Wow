@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.mongo.query
 
+import me.ahoo.wow.api.query.QueryField
+
 import com.mongodb.client.model.Projections
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Projection
@@ -51,17 +53,17 @@ class MongoProjectionConverterTest {
             return Stream.of(
                 Arguments.of(Projection.ALL, null),
                 Arguments.of(
-                    Projection(include = listOf(MessageRecords.AGGREGATE_ID)),
+                    Projection(include = listOf(QueryField(MessageRecords.AGGREGATE_ID))),
                     Projections.include(listOf(Documents.ID_FIELD))
                 ),
                 Arguments.of(
-                    Projection(exclude = listOf(MessageRecords.AGGREGATE_ID)),
+                    Projection(exclude = listOf(QueryField(MessageRecords.AGGREGATE_ID))),
                     Projections.exclude(listOf(Documents.ID_FIELD))
                 ),
                 Arguments.of(
                     Projection(
-                        include = listOf(MessageRecords.AGGREGATE_ID),
-                        exclude = listOf(MessageRecords.AGGREGATE_ID)
+                        include = listOf(QueryField(MessageRecords.AGGREGATE_ID)),
+                        exclude = listOf(QueryField(MessageRecords.AGGREGATE_ID))
                     ),
                     Projections.fields(
                         Projections.include(listOf(Documents.ID_FIELD)),
@@ -76,15 +78,15 @@ class MongoProjectionConverterTest {
             return Stream.of(
                 Arguments.of(Projection.ALL, null),
                 Arguments.of(
-                    Projection(include = listOf(MessageRecords.ID, "field1")),
+                    Projection(include = listOf(QueryField(MessageRecords.ID), QueryField("field1"))),
                     Projections.include(listOf(Documents.ID_FIELD, "field1"))
                 ),
                 Arguments.of(
-                    Projection(exclude = listOf(MessageRecords.ID)),
+                    Projection(exclude = listOf(QueryField(MessageRecords.ID))),
                     Projections.exclude(listOf(Documents.ID_FIELD))
                 ),
                 Arguments.of(
-                    Projection(include = listOf(MessageRecords.ID), exclude = listOf(MessageRecords.ID)),
+                    Projection(include = listOf(QueryField(MessageRecords.ID)), exclude = listOf(QueryField(MessageRecords.ID))),
                     Projections.fields(
                         Projections.include(listOf(Documents.ID_FIELD)),
                         Projections.exclude(listOf(Documents.ID_FIELD))

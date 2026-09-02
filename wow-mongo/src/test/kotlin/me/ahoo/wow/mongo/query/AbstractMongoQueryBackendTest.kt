@@ -65,7 +65,7 @@ class AbstractMongoQueryBackendTest {
         override val converter = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
         override val projectionConverter = mockk<MongoProjectionConverter>()
         override val sortConverter = mockk<MongoSortConverter>()
-        override val cursorUniqueField: String = "id"
+        override val cursorUniqueField = QueryField("id")
         override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
         override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
     }
@@ -76,7 +76,7 @@ class AbstractMongoQueryBackendTest {
         override val converter = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
         override val projectionConverter = MongoProjectionConverter(FieldConverter { it })
         override val sortConverter = MongoSortConverter(FieldConverter { it })
-        override val cursorUniqueField: String = "id"
+        override val cursorUniqueField = QueryField("id")
         override fun resolve(query: ICursorQuery): Mono<ICursorQuery> = Mono.just(query).doOnNext {
             resolvedCursorQuery = it
         }
@@ -173,7 +173,7 @@ class AbstractMongoQueryBackendTest {
         )
 
         val page = cursorBackend.cursor(
-            CursorQuery(MatchAllFilter, sort = listOf(Sort("rank", Sort.Direction.ASC)), size = 1),
+            CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("rank"), Sort.Direction.ASC)), size = 1),
         ).block()!!
 
         page.list.single().path("rank").asInt().assert().isEqualTo(1)
@@ -188,12 +188,12 @@ class AbstractMongoQueryBackendTest {
         cursorPublisher(emptyList(), limit = 2)
 
         cursorBackend.cursor(
-            CursorQuery(MatchAllFilter, sort = listOf(Sort("rank", Sort.Direction.DESC)), size = 1),
+            CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("rank"), Sort.Direction.DESC)), size = 1),
         ).block()
 
         resolvedCursorQuery.sort.assert().containsExactly(
-            Sort("rank", Sort.Direction.DESC),
-            Sort("id", Sort.Direction.ASC),
+            Sort(QueryField("rank"), Sort.Direction.DESC),
+            Sort(QueryField("id"), Sort.Direction.ASC),
         )
     }
 
@@ -255,7 +255,7 @@ class AbstractMongoQueryBackendTest {
         )
 
         listOf("state.email", "state.emailSibling", "state.secretAlias").forEach { alias ->
-            builtIn.cursor(CursorQuery(MatchAllFilter, sort = listOf(Sort(alias, Sort.Direction.ASC))))
+            builtIn.cursor(CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField(alias), Sort.Direction.ASC))))
                 .test()
                 .expectError(QuerySchemaValidationException::class.java)
                 .verify()
@@ -273,7 +273,7 @@ class AbstractMongoQueryBackendTest {
             override val converter = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
             override val projectionConverter = MongoProjectionConverter(FieldConverter { "physical_$it" })
             override val sortConverter = MongoSortConverter(FieldConverter { "physical_$it" })
-            override val cursorUniqueField: String = "id"
+            override val cursorUniqueField = QueryField("id")
             override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
             override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
         }
@@ -300,8 +300,8 @@ class AbstractMongoQueryBackendTest {
         val page = mappedBackend.cursor(
             CursorQuery(
                 MatchAllFilter,
-                projection = Projection(include = listOf("name")),
-                sort = listOf(Sort("rank", Sort.Direction.ASC)),
+                projection = Projection(include = listOf(QueryField("name"))),
+                sort = listOf(Sort(QueryField("rank"), Sort.Direction.ASC)),
                 size = 1,
                 cursor = MongoCursorCodec.encode(listOf(1, "1")),
             ),
@@ -327,8 +327,8 @@ class AbstractMongoQueryBackendTest {
 
         builtIns.forEach { (logicalId, builtIn) ->
             listOf(
-                Projection(include = listOf("name")),
-                Projection(exclude = listOf(logicalId)),
+                Projection(include = listOf(QueryField("name"))),
+                Projection(exclude = listOf(QueryField(logicalId))),
             ).forEach { projection ->
                 cursorPublisher(
                     listOf(

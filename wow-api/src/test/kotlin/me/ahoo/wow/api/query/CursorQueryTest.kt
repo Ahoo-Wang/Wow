@@ -35,7 +35,7 @@ class CursorQueryTest {
         assertThrows<IllegalArgumentException> {
             CursorQuery(
                 MatchAllFilter,
-                sort = List(AggregationQuery.MAX_SORT_FIELDS + 1) { Sort("field$it", Sort.Direction.ASC) },
+                sort = List(AggregationQuery.MAX_SORT_FIELDS + 1) { Sort(QueryField("field$it"), Sort.Direction.ASC) },
             )
         }
     }
@@ -44,10 +44,10 @@ class CursorQueryTest {
     fun `should preserve cursor while rewriting filter and projection`() {
         val query = CursorQuery(MatchAllFilter, size = 20, cursor = "next")
             .withFilter(IdFilter("id"))
-            .withProjection(Projection(include = listOf("state.name")))
+            .withProjection(Projection(include = listOf(QueryField("state.name"))))
 
         query.filter.assert().isEqualTo(IdFilter("id"))
-        query.projection.include.assert().containsExactly("state.name")
+        query.projection.include.assert().containsExactly(QueryField("state.name"))
         query.size.assert().isEqualTo(20)
         query.cursor.assert().isEqualTo("next")
     }

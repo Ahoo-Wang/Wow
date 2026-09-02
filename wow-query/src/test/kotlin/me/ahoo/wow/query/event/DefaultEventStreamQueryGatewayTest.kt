@@ -23,10 +23,10 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
@@ -109,7 +109,7 @@ class DefaultEventStreamQueryGatewayTest {
         val typed = gateway.single(singleQuery { }).block()!!
         (typed.body.single().body as MockAggregateCreated).data.assert().isEqualTo("******")
 
-        val query = CursorQuery(MatchAllFilter, sort = listOf(Sort("id", Sort.Direction.ASC)))
+        val query = CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("id"), Sort.Direction.ASC)))
         val dynamicCursor = gateway.dynamicCursor(query).block()!!
         dynamicCursor.nextCursor.assert().isEqualTo("next")
         dynamicCursor.list.single().path("body").path(0).path("body").path("data").stringValue()
@@ -181,7 +181,7 @@ class DefaultEventStreamQueryGatewayTest {
         val rewriteProjection = object : EventStreamQueryFilter {
             override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
                 context.asSingleQuery().rewriteQuery {
-                    it.withProjection(Projection(exclude = listOf("body.bodyType")))
+                    it.withProjection(Projection(exclude = listOf(QueryField("body.bodyType"))))
                 }
                 return next.filter(context)
             }

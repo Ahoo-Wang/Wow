@@ -15,6 +15,7 @@ package me.ahoo.wow.query.converter
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import org.junit.jupiter.api.Test
 
 class ProjectionConverterTest {
@@ -43,14 +44,14 @@ class ProjectionConverterTest {
             fieldConverter = FieldConverter { "state.$it" }
         )
         val projection = Projection(
-            include = listOf("field1"),
-            exclude = listOf("field2")
+            include = listOf(QueryField("field1")),
+            exclude = listOf(QueryField("field2"))
         )
         converter.convert(projection)
         converter.lastConverted.assert().isEqualTo(
             Projection(
-                include = listOf("state.field1"),
-                exclude = listOf("state.field2")
+                include = listOf(QueryField("state.field1")),
+                exclude = listOf(QueryField("state.field2"))
             )
         )
     }
@@ -59,8 +60,8 @@ class ProjectionConverterTest {
     fun `should convert projection without field changes`() {
         val converter = RecordingProjectionConverter()
         val projection = Projection(
-            include = listOf("field1"),
-            exclude = listOf("field2")
+            include = listOf(QueryField("field1")),
+            exclude = listOf(QueryField("field2"))
         )
         val result = converter.convert(projection)
         result.assert().isEqualTo(projection)
@@ -69,7 +70,7 @@ class ProjectionConverterTest {
     @Test
     fun `should convert projection with only includes`() {
         val converter = RecordingProjectionConverter()
-        val projection = Projection(include = listOf("field1", "field2"), exclude = emptyList())
+        val projection = Projection(include = listOf(QueryField("field1"), QueryField("field2")), exclude = emptyList())
         converter.convert(projection)
         converter.lastConverted.include.assert().hasSize(2)
         converter.lastConverted.exclude.assert().isEmpty()

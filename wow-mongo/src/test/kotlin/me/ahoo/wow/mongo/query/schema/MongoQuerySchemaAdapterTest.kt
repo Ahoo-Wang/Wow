@@ -825,8 +825,8 @@ class MongoQuerySchemaAdapterTest {
         ).create<Any>(MOCK_AGGREGATE_METADATA)
         val query = ListQuery(
             filter = EqualFilter(QueryField("aggregateId"), StringNode.valueOf("id")),
-            projection = Projection(include = listOf("aggregateId")),
-            sort = listOf(Sort("aggregateId", Sort.Direction.ASC)),
+            projection = Projection(include = listOf(QueryField("aggregateId"))),
+            sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)),
             limit = 1,
         )
 
@@ -917,8 +917,8 @@ class MongoQuerySchemaAdapterTest {
 
     private fun unknownListQuery() = ListQuery(
         EqualFilter(QueryField("state.unknown"), StringNode.valueOf("value")),
-        projection = Projection(include = listOf("state.unknown")),
-        sort = listOf(Sort("state.unknown", Sort.Direction.ASC)),
+        projection = Projection(include = listOf(QueryField("state.unknown"))),
+        sort = listOf(Sort(QueryField("state.unknown"), Sort.Direction.ASC)),
         limit = 1,
     )
 

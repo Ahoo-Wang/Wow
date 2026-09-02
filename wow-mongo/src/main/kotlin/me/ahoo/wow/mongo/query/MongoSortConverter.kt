@@ -27,8 +27,8 @@ class MongoSortConverter(override val fieldConverter: FieldConverter) : Abstract
         if (sort.isEmpty()) return null
         return sort.map {
             when (it.direction) {
-                Sort.Direction.ASC -> Sorts.ascending(it.field)
-                Sort.Direction.DESC -> Sorts.descending(it.field)
+                Sort.Direction.ASC -> Sorts.ascending(it.field.path)
+                Sort.Direction.DESC -> Sorts.descending(it.field.path)
             }
         }.toList().let {
             Sorts.orderBy(it)

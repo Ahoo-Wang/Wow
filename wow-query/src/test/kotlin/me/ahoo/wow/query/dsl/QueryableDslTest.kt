@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.toFilterExpression
@@ -48,7 +49,7 @@ class QueryableDslTest {
     @Test
     fun `should set projection directly`() {
         val dsl = TestQueryableDsl()
-        val projection = Projection(include = listOf("field1"), exclude = emptyList())
+        val projection = Projection(include = listOf(QueryField("field1")), exclude = emptyList())
         dsl.projection(projection)
         dsl.exposedProjection().assert().isEqualTo(projection)
     }
@@ -82,7 +83,7 @@ class QueryableDslTest {
     @Test
     fun `should set sort directly`() {
         val dsl = TestQueryableDsl()
-        val sorts = listOf(Sort("field1", Sort.Direction.ASC))
+        val sorts = listOf(Sort(QueryField("field1"), Sort.Direction.ASC))
         dsl.sort(sorts)
         dsl.exposedSort().assert().isEqualTo(sorts)
     }
@@ -93,7 +94,7 @@ class QueryableDslTest {
         dsl.sort {
             "field1".asc()
         }
-        dsl.exposedSort().assert().isEqualTo(listOf(Sort("field1", Sort.Direction.ASC)))
+        dsl.exposedSort().assert().isEqualTo(listOf(Sort(QueryField("field1"), Sort.Direction.ASC)))
     }
 
     @Test

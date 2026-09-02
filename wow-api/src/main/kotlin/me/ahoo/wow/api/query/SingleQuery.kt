@@ -38,8 +38,8 @@ interface ISingleQuery : Queryable<ISingleQuery>
  * ```
  * val query = SingleQuery(
  *     filter = EqualFilter(QueryField("id"), value),
- *     projection = Projection(include = listOf("name", "email")),
- *     sort = listOf(Sort("createdDate", Direction.DESC))
+ *     projection = Projection(include = listOf(QueryField("name"), QueryField("email"))),
+ *     sort = listOf(Sort(QueryField("createdDate"), Direction.DESC))
  * )
  * ```
  */

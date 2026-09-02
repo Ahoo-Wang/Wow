@@ -86,7 +86,7 @@ class HttpQueryGuardFilter(
                     "HTTP aggregation elements are disabled because expensive operators are not allowed."
                 }
                 val metricAliases = query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
-                require(allowExpensiveOperators || query.sort.none { it.field in metricAliases }) {
+                require(allowExpensiveOperators || query.sort.none { it.field.path in metricAliases }) {
                     "HTTP aggregation metric sorting is disabled because expensive operators are not allowed."
                 }
                 require(

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import me.ahoo.wow.api.query.QueryField
+
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
@@ -182,8 +184,8 @@ class AbstractElasticsearchQueryBackendTest {
         val result = queryBackend.list(
             ListQuery(
                 filter = MatchAllFilter,
-                projection = Projection(include = listOf("field")),
-                sort = listOf(Sort("field", Sort.Direction.ASC)),
+                projection = Projection(include = listOf(QueryField("field"))),
+                sort = listOf(Sort(QueryField("field"), Sort.Direction.ASC)),
                 limit = DEFAULT_SEARCH_BATCH_SIZE,
             )
         ).collectList().block()!!
@@ -238,10 +240,10 @@ class AbstractElasticsearchQueryBackendTest {
         queryBackend.list(
             ListQuery(
                 filter = MatchAllFilter,
-                projection = Projection(include = listOf("field")),
+                projection = Projection(include = listOf(QueryField("field"))),
                 sort = listOf(
-                    Sort("_score", Sort.Direction.DESC),
-                    Sort("field", Sort.Direction.ASC),
+                    Sort(QueryField("_score"), Sort.Direction.DESC),
+                    Sort(QueryField("field"), Sort.Direction.ASC),
                 ),
                 limit = DEFAULT_SEARCH_BATCH_SIZE + 1,
             )
@@ -296,7 +298,7 @@ class AbstractElasticsearchQueryBackendTest {
         queryBackend.list(
             ListQuery(
                 filter = filter,
-                sort = listOf(Sort("logicalField", Sort.Direction.ASC)),
+                sort = listOf(Sort(QueryField("logicalField"), Sort.Direction.ASC)),
                 limit = 1,
             ),
         ).collectList().block()
@@ -342,7 +344,7 @@ class AbstractElasticsearchQueryBackendTest {
         val page = queryBackend.cursor(
             CursorQuery(
                 MatchAllFilter,
-                sort = listOf(Sort("version", Sort.Direction.DESC)),
+                sort = listOf(Sort(QueryField("version"), Sort.Direction.DESC)),
                 size = 1,
             ),
         ).block()!!
@@ -374,7 +376,7 @@ class AbstractElasticsearchQueryBackendTest {
         val page = queryBackend.cursor(
             CursorQuery(
                 MatchAllFilter,
-                sort = listOf(Sort("version", Sort.Direction.ASC)),
+                sort = listOf(Sort(QueryField("version"), Sort.Direction.ASC)),
                 size = 1,
                 cursor = cursor,
             ),
@@ -458,7 +460,7 @@ class AbstractElasticsearchQueryBackendTest {
             queryBackend.cursor(
                 CursorQuery(
                     MatchAllFilter,
-                    sort = listOf(Sort("version", Sort.Direction.ASC)),
+                    sort = listOf(Sort(QueryField("version"), Sort.Direction.ASC)),
                     size = 1,
                 ),
             ).block()
@@ -518,7 +520,7 @@ class AbstractElasticsearchQueryBackendTest {
     ) : AbstractElasticsearchQueryBackend() {
         override val namedAggregate: NamedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val indexName: String = "test-index"
-        override val cursorUniqueField: String = "id"
+        override val cursorUniqueField = QueryField("id")
         override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
     }
 }

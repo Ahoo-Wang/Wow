@@ -118,7 +118,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         strictQueryBackend().list(
             ListQuery(
                 filter = MatchAllFilter,
-                sort = listOf(Sort("state.orders.status", Sort.Direction.ASC)),
+                sort = listOf(Sort(QueryField("state.orders.status"), Sort.Direction.ASC)),
                 limit = 10,
             ),
         ).test()
@@ -194,7 +194,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         strictQueryBackend().list(
             ListQuery(
                 filter = MatchAllFilter,
-                sort = listOf(Sort("state.stringOrders.status", Sort.Direction.ASC)),
+                sort = listOf(Sort(QueryField("state.stringOrders.status"), Sort.Direction.ASC)),
                 limit = 10,
             ),
         ).test()
@@ -312,8 +312,8 @@ class ElasticsearchSnapshotMappingQueryTest {
         queryBackend().list(
             ListQuery(
                 filter = filter,
-                projection = Projection(include = listOf("state.name")),
-                sort = listOf(Sort("state.name", Sort.Direction.ASC)),
+                projection = Projection(include = listOf(QueryField("state.name"))),
+                sort = listOf(Sort(QueryField("state.name"), Sort.Direction.ASC)),
                 limit = 10,
             ),
         ).collectList().block()

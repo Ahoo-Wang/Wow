@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.mask
 
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.filter.QueryContext
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -32,27 +33,27 @@ internal var QueryContext<*, *>.internalEventBodyTypeProjected: Boolean
 internal fun Projection.requiresInternalEventBodyType(
     bodyTypePath: String = EVENT_BODY_TYPE_PATH,
 ): Boolean {
-    val bodySelected = include.isEmpty() || include.any(EVENT_BODY_PAYLOAD_PATH::intersectsSelection)
-    val bodyExcluded = exclude.any(EVENT_BODY_PAYLOAD_PATH::isSelectedBy)
+    val bodySelected = include.isEmpty() || include.any { EVENT_BODY_PAYLOAD_PATH.intersectsSelection(it.path) }
+    val bodyExcluded = exclude.any { EVENT_BODY_PAYLOAD_PATH.isSelectedBy(it.path) }
     if (!bodySelected || bodyExcluded) return false
 
-    val bodyTypeSelected = include.isEmpty() || include.any(bodyTypePath::isSelectedBy)
-    return !bodyTypeSelected || exclude.any(bodyTypePath::isSelectedBy)
+    val bodyTypeSelected = include.isEmpty() || include.any { bodyTypePath.isSelectedBy(it.path) }
+    return !bodyTypeSelected || exclude.any { bodyTypePath.isSelectedBy(it.path) }
 }
 
 internal fun Projection.hasUnrestorableInternalEventBodyTypeExclusion(
     bodyTypePath: String = EVENT_BODY_TYPE_PATH,
 ): Boolean = exclude.any {
-    '*' in it && bodyTypePath.matchesProjectionPattern(it)
+    '*' in it.path && bodyTypePath.matchesProjectionPattern(it.path)
 }
 
 internal fun Projection.withInternalEventBodyType(
     bodyTypePath: String = EVENT_BODY_TYPE_PATH,
 ): Projection =
     if (include.isNotEmpty()) {
-        copy(include = include + bodyTypePath, exclude = exclude - bodyTypePath)
+        copy(include = include + QueryField(bodyTypePath), exclude = exclude - QueryField(bodyTypePath))
     } else {
-        copy(exclude = exclude - bodyTypePath)
+        copy(exclude = exclude - QueryField(bodyTypePath))
     }
 
 internal fun ObjectNode.removeInternalEventBodyType(): ObjectNode = apply {

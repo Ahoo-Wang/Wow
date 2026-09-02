@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.dsl
 
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 
 /**
@@ -41,11 +42,11 @@ class SortDsl : NestedFieldDsl() {
     }
 
     fun String.asc() {
-        sort(Sort(this.withNestedField(), Sort.Direction.ASC))
+        sort(Sort(QueryField(withNestedField()), Sort.Direction.ASC))
     }
 
     fun String.desc() {
-        sort(Sort(this.withNestedField(), Sort.Direction.DESC))
+        sort(Sort(QueryField(withNestedField()), Sort.Direction.DESC))
     }
 
     fun build(): List<Sort> {

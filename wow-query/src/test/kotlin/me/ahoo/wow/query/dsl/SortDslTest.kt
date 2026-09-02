@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dsl
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import org.junit.jupiter.api.Test
 
@@ -27,8 +28,8 @@ class SortDslTest {
         }
         sort.assert().isEqualTo(
             listOf(
-                Sort("field1", Sort.Direction.ASC),
-                Sort("field2", Sort.Direction.DESC)
+                Sort(QueryField("field1"), Sort.Direction.ASC),
+                Sort(QueryField("field2"), Sort.Direction.DESC)
             )
         )
     }
@@ -45,7 +46,7 @@ class SortDslTest {
             nested("state")
             "field1".asc()
         }
-        sort.assert().isEqualTo(listOf(Sort("state.field1", Sort.Direction.ASC)))
+        sort.assert().isEqualTo(listOf(Sort(QueryField("state.field1"), Sort.Direction.ASC)))
     }
 
     @Test
@@ -56,8 +57,8 @@ class SortDslTest {
             "field3".asc()
         }
         sort.assert().hasSize(3)
-        sort[0].assert().isEqualTo(Sort("field1", Sort.Direction.ASC))
-        sort[1].assert().isEqualTo(Sort("field2", Sort.Direction.DESC))
-        sort[2].assert().isEqualTo(Sort("field3", Sort.Direction.ASC))
+        sort[0].assert().isEqualTo(Sort(QueryField("field1"), Sort.Direction.ASC))
+        sort[1].assert().isEqualTo(Sort(QueryField("field2"), Sort.Direction.DESC))
+        sort[2].assert().isEqualTo(Sort(QueryField("field3"), Sort.Direction.ASC))
     }
 }

@@ -54,7 +54,6 @@ import me.ahoo.wow.api.query.LastYearFilter
 import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.NextMonthFilter
@@ -67,6 +66,7 @@ import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SearchMode
@@ -114,10 +114,10 @@ class QuerySchemaResolverTest {
         val schema = schema(
             mapOf(
                 field to fieldSchema(
-                    QueryCapability.EXACT_MATCH to exact.value,
-                    QueryCapability.LITERAL_MATCH to literal.value,
-                    QueryCapability.RANGE to range.value,
-                    QueryCapability.PRESENCE to presence.value,
+                    QueryCapability.EXACT_MATCH to exact.path,
+                    QueryCapability.LITERAL_MATCH to literal.path,
+                    QueryCapability.RANGE to range.path,
+                    QueryCapability.PRESENCE to presence.path,
                 ),
             ),
         )
@@ -234,7 +234,7 @@ class QuerySchemaResolverTest {
                 schema(
                     mapOf(
                         field to fieldSchema(
-                            QueryCapability.EXACT_MATCH to physical.value,
+                            QueryCapability.EXACT_MATCH to physical.path,
                             valueTypes = setOf(valueType),
                         ),
                     ),
@@ -377,7 +377,7 @@ class QuerySchemaResolverTest {
         val physical = QueryField("document.note")
         val nullValue = JsonNodeFactory.instance.nullNode()
         val resolver = QuerySchemaResolver(
-            schema(mapOf(field to fieldSchema(QueryCapability.PRESENCE to physical.value))),
+            schema(mapOf(field to fieldSchema(QueryCapability.PRESENCE to physical.path))),
         )
 
         resolver.resolve(EqualFilter(field, nullValue)).assert().isEqualTo(
@@ -423,7 +423,7 @@ class QuerySchemaResolverTest {
             schema(
                 mapOf(
                     field to fieldSchema(
-                        QueryCapability.RANGE to physical.value,
+                        QueryCapability.RANGE to physical.path,
                         semanticType = Temporal.Epoch(TimeUnit.SECONDS),
                     ),
                 ),
@@ -765,7 +765,7 @@ class QuerySchemaResolverTest {
         val unknown = EqualFilter(QueryField("state.unknown"), json("value"))
         val incompatible = GreaterThanFilter(field, json(1))
         val resolver = QuerySchemaResolver(
-            schema(mapOf(field to fieldSchema(QueryCapability.EXACT_MATCH to physical.value))),
+            schema(mapOf(field to fieldSchema(QueryCapability.EXACT_MATCH to physical.path))),
         )
 
         resolver.resolve(AndFilter(listOf(exact, MatchAllFilter))).assert().isEqualTo(
@@ -946,8 +946,8 @@ class QuerySchemaResolverTest {
         val resolver = QuerySchemaResolver(schema)
         val query = ListQuery(
             filter = EqualFilter(field, json("name")),
-            projection = Projection(include = listOf(field.path), exclude = listOf(field.path)),
-            sort = listOf(Sort(field.path, Sort.Direction.DESC)),
+            projection = Projection(include = listOf(QueryField(field.path)), exclude = listOf(QueryField(field.path))),
+            sort = listOf(Sort(QueryField(field.path), Sort.Direction.DESC)),
             limit = 7,
         )
 
@@ -956,10 +956,10 @@ class QuerySchemaResolverTest {
                 ListQuery(
                     filter = EqualFilter(QueryField("document.name.keyword"), json("name")),
                     projection = Projection(
-                        include = listOf("document.name"),
-                        exclude = listOf("document.name"),
+                        include = listOf(QueryField("document.name")),
+                        exclude = listOf(QueryField("document.name")),
                     ),
-                    sort = listOf(Sort("document.name.sort", Sort.Direction.DESC)),
+                    sort = listOf(Sort(QueryField("document.name.sort"), Sort.Direction.DESC)),
                     limit = 7,
                 ),
                 QueryCompatibilityLevel.EXACT,
@@ -981,9 +981,9 @@ class QuerySchemaResolverTest {
             ),
         )
 
-        resolver.resolve(Projection(include = listOf(field.path))).assert().isEqualTo(
+        resolver.resolve(Projection(include = listOf(QueryField(field.path)))).assert().isEqualTo(
             QuerySchemaResolution(
-                Projection(include = listOf("document.name")),
+                Projection(include = listOf(QueryField("document.name"))),
                 QueryCompatibilityLevel.EXACT,
             ),
         )
@@ -992,7 +992,7 @@ class QuerySchemaResolverTest {
     @Test
     fun `root sort should reject a field below an element scope`() {
         val field = QueryField("state.orders.price")
-        val sort = listOf(Sort(field.path, Sort.Direction.ASC))
+        val sort = listOf(Sort(QueryField(field.path), Sort.Direction.ASC))
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -1023,30 +1023,22 @@ class QuerySchemaResolverTest {
             ),
         )
 
-        resolver.resolve(Projection(include = listOf(field.path))).assert().isEqualTo(
+        resolver.resolve(Projection(include = listOf(QueryField(field.path)))).assert().isEqualTo(
             QuerySchemaResolution(
-                Projection(include = listOf("document.orders.price")),
+                Projection(include = listOf(QueryField("document.orders.price"))),
                 QueryCompatibilityLevel.EXACT,
             ),
         )
     }
 
     @Test
-    fun `projection should preserve a raw backend wildcard as compatible`() {
-        val projection = Projection(include = listOf("state.*"))
-
-        QuerySchemaResolver(schema()).resolve(projection).assert().isEqualTo(
-            QuerySchemaResolution(projection, QueryCompatibilityLevel.COMPATIBLE),
-        )
+    fun `projection wildcard should be rejected by query field`() {
+        assertThrows<IllegalArgumentException> { QueryField("state.*") }
     }
 
     @Test
-    fun `sort should preserve a raw backend wildcard as compatible`() {
-        val sort = listOf(Sort("state.*", Sort.Direction.ASC))
-
-        QuerySchemaResolver(schema()).resolve(sort).assert().isEqualTo(
-            QuerySchemaResolution(sort, QueryCompatibilityLevel.COMPATIBLE),
-        )
+    fun `sort wildcard should be rejected by query field`() {
+        assertThrows<IllegalArgumentException> { QueryField("state.*") }
     }
 
     @Test
@@ -1061,13 +1053,13 @@ class QuerySchemaResolverTest {
         )
         val projections = mapOf(
             QueryCompatibilityLevel.EXACT to Projection.ALL,
-            QueryCompatibilityLevel.COMPATIBLE to Projection(include = listOf(compatible.value)),
-            QueryCompatibilityLevel.INCOMPATIBLE to Projection(include = listOf(incompatible.value)),
+            QueryCompatibilityLevel.COMPATIBLE to Projection(include = listOf(compatible)),
+            QueryCompatibilityLevel.INCOMPATIBLE to Projection(include = listOf(incompatible)),
         )
         val sorts = mapOf(
             QueryCompatibilityLevel.EXACT to emptyList(),
-            QueryCompatibilityLevel.COMPATIBLE to listOf(Sort(compatible.value, Sort.Direction.ASC)),
-            QueryCompatibilityLevel.INCOMPATIBLE to listOf(Sort(incompatible.value, Sort.Direction.ASC)),
+            QueryCompatibilityLevel.COMPATIBLE to listOf(Sort(compatible, Sort.Direction.ASC)),
+            QueryCompatibilityLevel.INCOMPATIBLE to listOf(Sort(incompatible, Sort.Direction.ASC)),
         )
 
         QueryCompatibilityLevel.entries.forEach { filterLevel ->
@@ -1155,7 +1147,7 @@ class QuerySchemaResolverTest {
                     "total",
                 ),
             ),
-            sort = listOf(Sort("category", Sort.Direction.ASC)),
+            sort = listOf(Sort(QueryField("category"), Sort.Direction.ASC)),
         )
         val schema = schema(
             mapOf(
@@ -1423,7 +1415,7 @@ class QuerySchemaResolverTest {
         }
         resolver.resolve(EqualFilter(rootSecret, json("secret"))).compatibility.assert()
             .isEqualTo(QueryCompatibilityLevel.EXACT)
-        resolver.resolve(listOf(Sort(rootSecret.value, Sort.Direction.ASC))).compatibility.assert()
+        resolver.resolve(listOf(Sort(rootSecret, Sort.Direction.ASC))).compatibility.assert()
             .isEqualTo(QueryCompatibilityLevel.EXACT)
     }
 
@@ -1595,11 +1587,13 @@ class QuerySchemaResolverTest {
             ),
         )
 
-        resolver.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(secret.value, Sort.Direction.ASC))))
+        resolver.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(secret, Sort.Direction.ASC))))
             .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
-        resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(secret.value, Sort.Direction.ASC))))
+        resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(secret, Sort.Direction.ASC))))
             .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
-        resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort("state.unknown", Sort.Direction.ASC))))
+        resolver.resolve(
+            CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("state.unknown"), Sort.Direction.ASC)))
+        )
             .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
 
         val dynamic = QueryField("state.dynamic")
@@ -1617,7 +1611,7 @@ class QuerySchemaResolverTest {
         dynamicResolver.resolve(
             CursorQuery(
                 MatchAllFilter,
-                sort = listOf(Sort("state.dynamic.secret", Sort.Direction.ASC)),
+                sort = listOf(Sort(QueryField("state.dynamic.secret"), Sort.Direction.ASC)),
             ),
         ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
     }
@@ -1631,13 +1625,13 @@ class QuerySchemaResolverTest {
             schema(
                 mapOf(
                     QueryField("state.emailAlias") to fieldSchema(
-                        projectionPath = projectionAlias.value,
+                        projectionPath = projectionAlias.path,
                         maskRule = fullMaskRule(),
                     ),
                     projectionAlias to fieldSchema(QueryCapability.SORT to "document.email.keyword"),
                     siblingProjectionAlias to fieldSchema(
                         QueryCapability.SORT to "document.email.raw",
-                        projectionPath = projectionAlias.value,
+                        projectionPath = projectionAlias.path,
                     ),
                     QueryField("state.secret") to fieldSchema(
                         QueryCapability.SORT to "document.secret.keyword",
@@ -1649,9 +1643,9 @@ class QuerySchemaResolverTest {
         )
 
         listOf(projectionAlias, siblingProjectionAlias, physicalAlias).forEach { alias ->
-            resolver.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(alias.value, Sort.Direction.ASC))))
+            resolver.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(alias, Sort.Direction.ASC))))
                 .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
-            resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(alias.value, Sort.Direction.ASC))))
+            resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(alias, Sort.Direction.ASC))))
                 .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
         }
     }
@@ -1672,11 +1666,11 @@ class QuerySchemaResolverTest {
             ),
         )
 
-        resolver.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(many.value, Sort.Direction.ASC))))
+        resolver.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(many, Sort.Direction.ASC))))
             .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
-        resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(many.value, Sort.Direction.ASC))))
+        resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(many, Sort.Direction.ASC))))
             .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
-        resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(single.value, Sort.Direction.ASC))))
+        resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(single, Sort.Direction.ASC))))
             .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
     }
 
@@ -1696,9 +1690,9 @@ class QuerySchemaResolverTest {
         )
 
         aliases.keys.forEach { alias ->
-            resolver.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(alias.value, Sort.Direction.ASC))))
+            resolver.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(alias, Sort.Direction.ASC))))
                 .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
-            resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(alias.value, Sort.Direction.ASC))))
+            resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(alias, Sort.Direction.ASC))))
                 .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
         }
     }
@@ -1716,8 +1710,8 @@ class QuerySchemaResolverTest {
         val query = CursorQuery(
             MatchAllFilter,
             sort = listOf(
-                Sort("state.idAlias", Sort.Direction.DESC),
-                Sort("aggregateId", Sort.Direction.ASC),
+                Sort(QueryField("state.idAlias"), Sort.Direction.DESC),
+                Sort(QueryField("aggregateId"), Sort.Direction.ASC),
             ),
         )
 
@@ -1743,59 +1737,10 @@ class QuerySchemaResolverTest {
         )
 
         val resolved = resolver.resolve(
-            Projection(include = listOf("body.body.secret")),
+            Projection(include = listOf(QueryField("body.body.secret"))),
         ).value
 
-        resolved.include.assert().containsExactly("body.body.secret", "document.events.type")
-    }
-
-    @Test
-    fun `masked event projection should reject wildcard exclusion of body type`() {
-        val resolver = QuerySchemaResolver(
-            QueryModelSchema(
-                QueryModel.EVENT_STREAM,
-                emptySet(),
-                mapOf(
-                    QueryField("body.body.secret") to fieldSchema(
-                        QueryCapability.PRESENCE to "body.body.secret",
-                        maskRule = fullMaskRule(),
-                    ),
-                    QueryField("body.bodyType") to fieldSchema(
-                        QueryCapability.PRESENCE to "body.bodyType",
-                    ),
-                ),
-            ),
-        )
-
-        resolver.resolve(Projection(exclude = listOf("body.bodyT*"))).compatibility.assert()
-            .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
-    }
-
-    @Test
-    fun `masked event projection should allow body type wildcard exclusion when body is not selected`() {
-        val resolver = QuerySchemaResolver(
-            QueryModelSchema(
-                QueryModel.EVENT_STREAM,
-                emptySet(),
-                mapOf(
-                    QueryField("body.body.secret") to fieldSchema(
-                        QueryCapability.PRESENCE to "body.body.secret",
-                        maskRule = fullMaskRule(),
-                    ),
-                    QueryField("body.bodyType") to fieldSchema(
-                        QueryCapability.PRESENCE to "body.bodyType",
-                    ),
-                ),
-            ),
-        )
-        val projection = Projection(
-            include = listOf("body.aggregateId"),
-            exclude = listOf("body.bodyT*"),
-        )
-
-        resolver.resolve(projection).assert().isEqualTo(
-            QuerySchemaResolution(projection, QueryCompatibilityLevel.COMPATIBLE),
-        )
+        resolved.include.assert().containsExactly(QueryField("body.body.secret"), QueryField("document.events.type"))
     }
 
     @Test
@@ -1819,7 +1764,7 @@ class QuerySchemaResolverTest {
             ),
         )
 
-        resolver.resolve(Projection(exclude = listOf("eventTypeAlias"))).value.assert()
+        resolver.resolve(Projection(exclude = listOf(QueryField("eventTypeAlias")))).value.assert()
             .isEqualTo(Projection.ALL)
     }
 

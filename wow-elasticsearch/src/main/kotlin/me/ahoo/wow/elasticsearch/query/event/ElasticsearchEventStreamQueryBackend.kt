@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
@@ -54,7 +55,7 @@ class ElasticsearchEventStreamQueryBackend(
     EventStreamQueryBackend,
     QueryModelSchemaProvider by schemaProvider {
     override val indexName: String = namedAggregate.toEventStreamIndexName()
-    override val cursorUniqueField: String = MessageRecords.ID
+    override val cursorUniqueField: QueryField = QueryField(MessageRecords.ID)
 
     override fun resolve(query: ISingleQuery) = schemaProvider.resolve(query, validationMode)
 

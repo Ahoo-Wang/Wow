@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.converter
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import org.junit.jupiter.api.Test
 
@@ -42,10 +43,10 @@ class SortConverterTest {
         val converter = RecordingSortConverter(
             fieldConverter = FieldConverter { "prefix.$it" }
         )
-        val sort = listOf(Sort("field1", Sort.Direction.ASC))
+        val sort = listOf(Sort(QueryField("field1"), Sort.Direction.ASC))
         converter.convert(sort)
         converter.lastConverted.assert().isEqualTo(
-            listOf(Sort("prefix.field1", Sort.Direction.ASC))
+            listOf(Sort(QueryField("prefix.field1"), Sort.Direction.ASC))
         )
     }
 
@@ -53,8 +54,8 @@ class SortConverterTest {
     fun `should convert multiple sort fields`() {
         val converter = RecordingSortConverter()
         val sorts = listOf(
-            Sort("field1", Sort.Direction.ASC),
-            Sort("field2", Sort.Direction.DESC)
+            Sort(QueryField("field1"), Sort.Direction.ASC),
+            Sort(QueryField("field2"), Sort.Direction.DESC)
         )
         val result = converter.convert(sorts)
         result.assert().isEqualTo(sorts)
@@ -63,7 +64,7 @@ class SortConverterTest {
     @Test
     fun `should pass through without field converter`() {
         val converter = RecordingSortConverter()
-        val sorts = listOf(Sort("field1", Sort.Direction.ASC))
+        val sorts = listOf(Sort(QueryField("field1"), Sort.Direction.ASC))
         converter.convert(sorts)
         converter.lastConverted.assert().isEqualTo(sorts)
     }

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
@@ -59,7 +60,7 @@ class ElasticsearchSnapshotQueryBackend(
     override val name: String
         get() = ElasticsearchSnapshotStore.NAME
     override val indexName: String = namedAggregate.toSnapshotIndexName()
-    override val cursorUniqueField: String = MessageRecords.AGGREGATE_ID
+    override val cursorUniqueField: QueryField = QueryField(MessageRecords.AGGREGATE_ID)
 
     override fun resolve(query: ISingleQuery) = schemaProvider.resolve(query, validationMode)
 
