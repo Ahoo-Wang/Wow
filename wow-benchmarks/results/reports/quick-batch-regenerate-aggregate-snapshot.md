@@ -5,7 +5,7 @@
 
 # Quick Batch Regenerate Aggregate Snapshot Benchmark Report
 
-This directional infrastructure benchmark measures batch aggregate snapshot regeneration across MongoEventStore and ElasticsearchSnapshotStore. Each invocation scans 128 aggregates, replays 10 events per aggregate, and compares the direct and batched Elasticsearch snapshot save paths. It is local evidence rather than a production capacity claim.
+This directional infrastructure benchmark measures batch aggregate snapshot regeneration across MongoEventStore and ElasticsearchSnapshotStore. Each invocation scans 128 aggregates, replays 10 events per aggregate, and compares the direct and batched Elasticsearch snapshot save paths. At multiple JMH threads, each worker uses a distinct aggregate partition. It is local evidence rather than a production capacity claim.
 
 ## Reading Values
 
@@ -16,10 +16,10 @@ This directional infrastructure benchmark measures batch aggregate snapshot rege
 - `±` is the JMH-reported error. Scaling changes presentation only; calculations keep raw precision.
 
 ## Benchmark Run Provenance
-- **Source Commit**: `55b768123f577b527d857a54f78a8bbb099a3aff`
-- **Source Dirty**: `true`
+- **Source Commit**: `ea8962145e84c65f674a2a819c931f2ec0aabe8a`
+- **Source Dirty**: `false`
 - **Project Version**: `9.0.6`
-- **JMH Jar SHA-256**: `88f2f9aedd4ec2d3c6851785bec6934575ecd769cbbe917efd7080da6de8aebc`
+- **JMH Jar SHA-256**: `a7aea47c4a05b4827b0fc31b30ff105aceac720a0bb14da3e2a136e31af10de3`
 - **Runtime JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS / Java 17.0.7
 - **Runtime OS**: Mac OS X 26.6.2 aarch64
 - **CPU Cores**: 14
@@ -28,7 +28,7 @@ This directional infrastructure benchmark measures batch aggregate snapshot rege
 
 ### Manifest-bound Run-Time Infrastructure
 
-- **Captured At**: 2026-09-02T14:59:26.219241Z to 2026-09-02T15:04:32.973317Z
+- **Captured At**: 2026-09-02T15:26:56.136560Z to 2026-09-02T15:33:09.433294Z
 - **Benchmark Client**: host JVM
 - **Docker Server**: Server=29.7.2 CPUs=4 Memory=5.8 GiB Kernel=7.0.12-linuxkit
 - **Elasticsearch Container**: ` wow-benchmark-elasticsearch `
@@ -56,14 +56,14 @@ This directional infrastructure benchmark measures batch aggregate snapshot rege
 
 | Suite | Profile | Threads | Run ID | Started | Completed | Profilers | Rows | Result SHA-256 |
 |-------|---------|---------|--------|---------|-----------|-----------|------|----------------|
-| batch-regenerate-aggregate-snapshot | quick-batch-regenerate-aggregate-snapshot | 1 | `2750f5c5-89bc-470b-b56c-dc1ef8e5b783` | 2026-09-02T14:59:26.219467Z | 2026-09-02T15:01:34.386105Z | `-prof gc` | 12 | `b28e8c96be2a5d4a0cab19ee96c34d300399c989cb0f59c2ce9c5d01caf70228` |
-| batch-regenerate-aggregate-snapshot | quick-batch-regenerate-aggregate-snapshot | 4 | `2750f5c5-89bc-470b-b56c-dc1ef8e5b783` | 2026-09-02T15:01:34.643123Z | 2026-09-02T15:04:32.973914Z | `-prof gc` | 12 | `fc690f4fd77fb343c55b97aedc1a19dd4e4782dbe4c7464ce111532a53d9cf25` |
+| batch-regenerate-aggregate-snapshot | quick-batch-regenerate-aggregate-snapshot | 1 | `56f7efa7-4c32-45a8-acfb-d588f1ff6658` | 2026-09-02T15:26:56.136719Z | 2026-09-02T15:29:18.729117Z | `-prof gc` | 12 | `d8c8e2345caf2f9cd53ef485a1b113c4c6a342cf7aacfdd90d25433090f5fc49` |
+| batch-regenerate-aggregate-snapshot | quick-batch-regenerate-aggregate-snapshot | 4 | `56f7efa7-4c32-45a8-acfb-d588f1ff6658` | 2026-09-02T15:29:19.083641Z | 2026-09-02T15:33:09.433842Z | `-prof gc` | 12 | `e7404b2f0aab2e36267aa3c66194c6e379c3238d466b21074d2a2ec3a5271307` |
 
 ## Report Generation Environment
 - **Version**: 9.0.6
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.6.2 aarch64
-- **Generated At**: 2026-09-02T23:04:43+08:00
+- **Generated At**: 2026-09-02T23:33:21+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx1g -Xms1g -XX:+UseG1GC`
@@ -94,12 +94,12 @@ Each invocation scans 128 aggregates from MongoEventStore, replays 10 events per
 
 | JMH Threads | Parameters | Single SnapshotStore | Batched SnapshotStore | Batch vs single |
 |-------------|------------|---------------------|----------------------|----------------|
-| 1 | `batchOptions=128x1000us, laneCount=1` | 0.4 k ops/s | 1.38 k ops/s | +247.0% |
-| 1 | `batchOptions=128x1000us, laneCount=2` | 0.43 k ops/s | 1.84 k ops/s | +329.3% |
-| 1 | `batchOptions=128x1000us, laneCount=4` | 0.41 k ops/s | 1.63 k ops/s | +296.0% |
-| 4 | `batchOptions=128x1000us, laneCount=1` | 0.37 k ops/s | 2.97 k ops/s | +709.3% |
-| 4 | `batchOptions=128x1000us, laneCount=2` | 0.5 k ops/s | 2.64 k ops/s | +430.3% |
-| 4 | `batchOptions=128x1000us, laneCount=4` | 0.5 k ops/s | 2.08 k ops/s | +318.5% |
+| 1 | `batchOptions=128x1000us, laneCount=1` | 293.4 ops/s | 497.92 ops/s | +69.7% |
+| 1 | `batchOptions=128x1000us, laneCount=2` | 0.31 k ops/s | 1.26 k ops/s | +303.1% |
+| 1 | `batchOptions=128x1000us, laneCount=4` | 294.19 ops/s | 855.15 ops/s | +190.7% |
+| 4 | `batchOptions=128x1000us, laneCount=1` | 0.31 k ops/s | 1.66 k ops/s | +442.8% |
+| 4 | `batchOptions=128x1000us, laneCount=2` | 0.26 k ops/s | 1.01 k ops/s | +293.9% |
+| 4 | `batchOptions=128x1000us, laneCount=4` | 0.38 k ops/s | 1.04 k ops/s | +172.5% |
 
 Higher throughput is better; positive changes are gains.
 
@@ -107,12 +107,12 @@ Higher throughput is better; positive changes are gains.
 
 | JMH Threads | Parameters | Single SnapshotStore | Batched SnapshotStore | Batch vs single |
 |-------------|------------|---------------------|----------------------|----------------|
-| 1 | `batchOptions=128x1000us, laneCount=1` | 2.68 ms/op | 0.4 ms/op | +84.9% |
-| 1 | `batchOptions=128x1000us, laneCount=2` | 2.57 ms/op | 0.41 ms/op | +84.1% |
-| 1 | `batchOptions=128x1000us, laneCount=4` | 2.19 ms/op | 0.58 ms/op | +73.4% |
-| 4 | `batchOptions=128x1000us, laneCount=1` | 8.69 ms/op | 1.33 ms/op | +84.7% |
-| 4 | `batchOptions=128x1000us, laneCount=2` | 8.82 ms/op | 1.89 ms/op | +78.5% |
-| 4 | `batchOptions=128x1000us, laneCount=4` | 8.12 ms/op | 1.73 ms/op | +78.7% |
+| 1 | `batchOptions=128x1000us, laneCount=1` | 5.88 ms/op | 0.73 ms/op | +87.5% |
+| 1 | `batchOptions=128x1000us, laneCount=2` | 8.86 ms/op | 1.33 ms/op | +85.0% |
+| 1 | `batchOptions=128x1000us, laneCount=4` | 4.05 ms/op | 1.3 ms/op | +67.7% |
+| 4 | `batchOptions=128x1000us, laneCount=1` | 9.8 ms/op | 1.94 ms/op | +80.2% |
+| 4 | `batchOptions=128x1000us, laneCount=2` | 12.45 ms/op | 2.22 ms/op | +82.2% |
+| 4 | `batchOptions=128x1000us, laneCount=4` | 10.13 ms/op | 3.95 ms/op | +61.0% |
 
 Lower amortized time is better; positive changes are reductions. JMH normalizes each 128-aggregate invocation by 128.
 
@@ -120,27 +120,27 @@ Lower amortized time is better; positive changes are reductions. JMH normalizes 
 
 | Suite | Benchmark | Threads | Mode | Score | Error | gc.alloc.rate.norm |
 |-------|-----------|---------|------|-------|-------|-------------------|
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=1) | 1 | avgt | 404.19 µs/op | - | 213.56 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=1) | 1 | thrpt | 1.38 k ops/s | - | 223.03 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=1) | 4 | avgt | 1.33 ms/op | - | 211.53 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=1) | 4 | thrpt | 2.97 k ops/s | - | 212.84 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=2) | 1 | avgt | 407.81 µs/op | - | 214.02 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=2) | 1 | thrpt | 1.84 k ops/s | - | 215.87 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=2) | 4 | avgt | 1.89 ms/op | - | 212.68 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=2) | 4 | thrpt | 2.64 k ops/s | - | 213.28 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=4) | 1 | avgt | 581.12 µs/op | - | 217.04 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=4) | 1 | thrpt | 1.63 k ops/s | - | 218.55 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=4) | 4 | avgt | 1.73 ms/op | - | 215.08 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=4) | 4 | thrpt | 2.08 k ops/s | - | 214.63 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=1) | 1 | avgt | 2.68 ms/op | - | 264.26 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=1) | 1 | thrpt | 397.39 ops/s | - | 262.43 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=1) | 4 | avgt | 8.69 ms/op | - | 256.83 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=1) | 4 | thrpt | 366.68 ops/s | - | 251.88 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=2) | 1 | avgt | 2.57 ms/op | - | 262.83 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=2) | 1 | thrpt | 429.32 ops/s | - | 262.88 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=2) | 4 | avgt | 8.82 ms/op | - | 255.31 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=2) | 4 | thrpt | 497.38 ops/s | - | 250.53 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=4) | 1 | avgt | 2.19 ms/op | - | 260.93 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=4) | 1 | thrpt | 410.54 ops/s | - | 260.81 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=4) | 4 | avgt | 8.12 ms/op | - | 254.31 KiB/op |
-| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=4) | 4 | thrpt | 496.07 ops/s | - | 255.64 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=1) | 1 | avgt | 734.21 µs/op | - | 217.86 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=1) | 1 | thrpt | 497.92 ops/s | - | 235.32 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=1) | 4 | avgt | 1.94 ms/op | - | 213.93 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=1) | 4 | thrpt | 1.66 k ops/s | - | 216.89 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=2) | 1 | avgt | 1.33 ms/op | - | 225.4 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=2) | 1 | thrpt | 1.26 k ops/s | - | 220.48 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=2) | 4 | avgt | 2.22 ms/op | - | 214.97 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=2) | 4 | thrpt | 1.01 k ops/s | - | 219.1 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=4) | 1 | avgt | 1.3 ms/op | - | 229.3 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=4) | 1 | thrpt | 855.15 ops/s | - | 226.4 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=4) | 4 | avgt | 3.95 ms/op | - | 218.48 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithBatchSnapshotStore (batchOptions=128x1000us, laneCount=4) | 4 | thrpt | 1.04 k ops/s | - | 219.83 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=1) | 1 | avgt | 5.88 ms/op | - | 277.1 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=1) | 1 | thrpt | 293.4 ops/s | - | 271.89 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=1) | 4 | avgt | 9.8 ms/op | - | 254.65 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=1) | 4 | thrpt | 306.23 ops/s | - | 260.49 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=2) | 1 | avgt | 8.86 ms/op | - | 278.72 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=2) | 1 | thrpt | 312.44 ops/s | - | 269.36 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=2) | 4 | avgt | 12.45 ms/op | - | 255.07 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=2) | 4 | thrpt | 255.27 ops/s | - | 258.53 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=4) | 1 | avgt | 4.05 ms/op | - | 273.93 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=4) | 1 | thrpt | 294.19 ops/s | - | 269.47 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=4) | 4 | avgt | 10.13 ms/op | - | 255.95 KiB/op |
+| Batch Regenerate Aggregate Snapshot | BatchRegenerateAggregateSnapshotBenchmark.regenerateWithSingleSnapshotStore (batchOptions=128x1000us, laneCount=4) | 4 | thrpt | 380.69 ops/s | - | 259.39 KiB/op |
