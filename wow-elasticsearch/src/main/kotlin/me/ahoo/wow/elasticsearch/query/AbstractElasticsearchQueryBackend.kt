@@ -68,7 +68,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
 
     protected open fun resolve(filter: FilterExpression): Mono<FilterExpression> = Mono.just(filter)
 
-    protected fun executeSingle(query: ISingleQuery, schema: QueryModelSchema?): Mono<ObjectNode> =
+    internal fun executeSingle(query: ISingleQuery, schema: QueryModelSchema?): Mono<ObjectNode> =
         listResolved(
             ListQuery(
                 filter = query.filter,
@@ -87,7 +87,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         return resolve(query).flatMapMany { executeList(it, null) }
     }
 
-    protected fun executeList(listQuery: IListQuery, schema: QueryModelSchema?): Flux<ObjectNode> {
+    internal fun executeList(listQuery: IListQuery, schema: QueryModelSchema?): Flux<ObjectNode> {
         return listResolved(listQuery, schema)
     }
 
@@ -114,7 +114,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             .flatMapIterable { it.list }
     }
 
-    protected fun executePaged(query: IPagedQuery, schema: QueryModelSchema?): Mono<PagedList<ObjectNode>> =
+    internal fun executePaged(query: IPagedQuery, schema: QueryModelSchema?): Mono<PagedList<ObjectNode>> =
         Mono.fromSupplier {
             createSearchRequest(
                 query = query,
@@ -129,7 +129,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
         resolve(query).flatMap { executePaged(it, null) }
 
-    protected fun executeCursor(query: ICursorQuery, schema: QueryModelSchema?): Mono<CursorPage<ObjectNode>> {
+    internal fun executeCursor(query: ICursorQuery, schema: QueryModelSchema?): Mono<CursorPage<ObjectNode>> {
         val compiled = compile(query.filter, query.sort)
         return elasticsearchClient.search(cursorSearchRequest(query, compiled, schema), ObjectNode::class.java)
             .map { response -> response.toCursorPage(query) }
@@ -175,8 +175,8 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
                 it.sort(resolved.sortOptions)
             }
             if (!query.projection.isEmpty()) {
-                it.source {
-                    it.filter(query.projection.toSourceFilter(schema))
+                it.source { source ->
+                    source.filter(query.projection.toSourceFilter(schema))
                 }
             }
             it
@@ -238,7 +238,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             }
     }
 
-    protected fun executeCount(filter: FilterExpression): Mono<Long> = Mono.fromSupplier {
+    internal fun executeCount(filter: FilterExpression): Mono<Long> = Mono.fromSupplier {
         CountRequest.of {
             it.index(indexName)
                 .query(filterConverter.convert(filter))

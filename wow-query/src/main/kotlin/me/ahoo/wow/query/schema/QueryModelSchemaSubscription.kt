@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.query.FilterExpression
+import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -26,6 +28,25 @@ internal fun QueryModelSchemaProvider.schemaForQuery(): Mono<QueryModelSchema> =
             schema()
         }
     }
+
+/**
+ * Backend-native Phase 0 bridge that preserves the subscription-pinned Schema and the existing unavailable fallback.
+ */
+@JvmSynthetic
+fun <T : Any> QueryModelSchemaProvider.executeWithQuerySchema(
+    mode: QuerySchemaValidationMode,
+    filter: FilterExpression,
+    unavailableFallback: (() -> Publisher<out T>)? = null,
+    execute: (QueryModelSchema) -> Publisher<out T>,
+): Flux<T> = schemaForQuery()
+    .map<() -> Publisher<out T>> { schema -> { execute(schema) } }
+    .onErrorResume(QuerySchemaUnavailableException::class.java) { error ->
+        if (unavailableFallback != null && mode.acceptsUnavailableFallback(filter)) {
+            Mono.just(unavailableFallback)
+        } else {
+            Mono.error(error)
+        }
+    }.flatMapMany { publisher -> Flux.defer { Flux.from(publisher()) } }
 
 internal fun <T : Any> Mono<T>.withQueryModelSchema(schema: QueryModelSchema): Mono<T> =
     contextWrite { it.put(QueryModelSchemaContextKey, schema) }

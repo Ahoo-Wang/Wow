@@ -26,8 +26,11 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TodayFilter
+import me.ahoo.wow.api.query.mask.FullMaskStrategy
+import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -42,6 +45,7 @@ import me.ahoo.wow.mongo.versionGuardedSnapshotReplacement
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -53,6 +57,7 @@ import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
@@ -82,6 +87,7 @@ import java.time.ZoneOffset
 import java.util.Date
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.reflect.jvm.javaField
 
 class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
@@ -437,6 +443,63 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             document.has("name").assert().isFalse()
             document.path("secret").asString().assert().isEqualTo("hidden")
         }
+    }
+
+    @Test
+    fun `gateway should pin projection compilation and masking to one schema generation`() {
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(
+                Document("_id", snapshot.aggregateId.id),
+                Document(
+                    "\$set",
+                    Document("state.secret", "top-secret").append("state.safe", "decoy"),
+                ),
+            ).toMono().test().expectNextCount(1).verifyComplete()
+        val maskRule = maskRule()
+        val first = QueryModelSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = mapOf(
+                QueryField("state.alias") to projectionFieldSchema(QueryField("state.secret"), maskRule),
+            ),
+        )
+        val second = QueryModelSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = mapOf(
+                QueryField("state.alias") to projectionFieldSchema(QueryField("state.safe"), maskRule),
+            ),
+        )
+        val schemaCalls = AtomicInteger()
+        val schemaProvider = object : QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.just(
+                if (schemaCalls.getAndIncrement() == 0) first else second,
+            )
+
+            override fun refresh(): Mono<QueryModelSchema> = schema()
+        }
+        val backend = MongoSnapshotQueryBackend(
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            collection = database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName()),
+            schemaProvider = schemaProvider,
+            validationMode = QuerySchemaValidationMode.STRICT,
+        )
+        val gateway = DefaultSnapshotQueryGateway<Any>(
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            backend = backend,
+            targetType = JsonSerializer.typeFactory.constructType(Any::class.java),
+        )
+
+        val result = gateway.dynamicSingle(
+            SingleQuery(
+                MatchAllFilter,
+                projection = Projection(include = listOf(QueryField("state.alias"))),
+            ),
+        ).block()!!
+
+        result.path("state").path("secret").asString().assert().isEqualTo("**********")
+        result.path("state").has("safe").assert().isFalse()
+        schemaCalls.get().assert().isOne()
     }
 
     @Test
@@ -808,7 +871,10 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         }
     }
 
-    private fun projectionFieldSchema(projectionField: QueryField) = QueryFieldSchema(
+    private fun projectionFieldSchema(
+        projectionField: QueryField,
+        maskRule: MaskRule? = null,
+    ) = QueryFieldSchema(
         title = null,
         description = null,
         enumValues = null,
@@ -821,7 +887,13 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         bindings = emptyMap(),
         projectionField = projectionField,
         rewriteMode = QueryRewriteMode.NONE,
+        maskRule = maskRule,
     )
+
+    private fun maskRule(): MaskRule {
+        val annotation = Masked::value.javaField!!.getAnnotation(Mask::class.java)
+        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+    }
 
     private fun updateStateData(value: String) {
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
@@ -1027,3 +1099,5 @@ private fun Document.convertLineDates() {
         }
     }
 }
+
+private data class Masked(@field:Mask val value: String)

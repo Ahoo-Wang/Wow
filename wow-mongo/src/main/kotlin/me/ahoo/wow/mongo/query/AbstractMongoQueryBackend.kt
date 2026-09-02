@@ -61,11 +61,15 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
 
     protected open fun resolve(filter: FilterExpression): Mono<FilterExpression> = Mono.just(filter)
 
-    protected fun findDocument(queryable: Queryable<*>, schema: QueryModelSchema?): FindPublisher<Document> {
+    protected fun findDocument(queryable: Queryable<*>): FindPublisher<Document> {
+        return collection.findDocument(converter, queryable, projectionConverter, sortConverter)
+    }
+
+    internal fun findDocument(queryable: Queryable<*>, schema: QueryModelSchema?): FindPublisher<Document> {
         return collection.findDocument(converter, queryable, projectionConverter, sortConverter, schema)
     }
 
-    protected fun executeSingle(singleQuery: ISingleQuery, schema: QueryModelSchema?): Mono<ObjectNode> =
+    internal fun executeSingle(singleQuery: ISingleQuery, schema: QueryModelSchema?): Mono<ObjectNode> =
         findDocument(singleQuery, schema)
             .limit(1)
             .first()
@@ -75,7 +79,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     override fun single(query: ISingleQuery): Mono<ObjectNode> =
         resolve(query).flatMap { executeSingle(it, null) }
 
-    protected fun executeList(listQuery: IListQuery, schema: QueryModelSchema?): Flux<ObjectNode> {
+    internal fun executeList(listQuery: IListQuery, schema: QueryModelSchema?): Flux<ObjectNode> {
         return findDocument(listQuery, schema)
             .limit(listQuery.limit)
             .toFlux()
@@ -87,7 +91,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
         return resolve(query).flatMapMany { executeList(it, null) }
     }
 
-    protected fun executePaged(pagedQuery: IPagedQuery, schema: QueryModelSchema?): Mono<PagedList<ObjectNode>> {
+    internal fun executePaged(pagedQuery: IPagedQuery, schema: QueryModelSchema?): Mono<PagedList<ObjectNode>> {
         val projectionBson = projectionConverter.convert(pagedQuery.projection, schema)
         val filter = converter.convert(pagedQuery.filter)
         val sort = sortConverter.convert(pagedQuery.sort)
@@ -111,7 +115,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
         resolve(query).flatMap { executePaged(it, null) }
 
-    protected fun executeCursor(query: ICursorQuery, schema: QueryModelSchema?): Mono<CursorPage<ObjectNode>> {
+    internal fun executeCursor(query: ICursorQuery, schema: QueryModelSchema?): Mono<CursorPage<ObjectNode>> {
         val uniqueField = cursorUniqueField
         val physicalSort = query.sort.map { it.copy(field = QueryField(sortConverter.convertField(it.field.path))) }
         val filter = query.cursor?.let {
@@ -150,7 +154,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
         resolve(query.withUniqueSort(cursorUniqueField)).flatMap { executeCursor(it, null) }
 
-    protected fun executeCount(filter: FilterExpression): Mono<Long> =
+    internal fun executeCount(filter: FilterExpression): Mono<Long> =
         collection.countDocuments(converter.convert(filter)).toMono()
 
     override fun count(filter: FilterExpression): Mono<Long> = resolve(filter).flatMap(::executeCount)

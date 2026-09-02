@@ -111,12 +111,15 @@ private fun FilterExpression.referencesSystemTags(logicalParent: QueryField? = n
 private fun QueryField.isSystemTags(): Boolean =
     path == StateAggregateRecords.TAGS || path.startsWith("${StateAggregateRecords.TAGS}.")
 
+internal fun QuerySchemaValidationMode.acceptsUnavailableFallback(filter: FilterExpression): Boolean =
+    this == QuerySchemaValidationMode.COMPATIBLE && !filter.referencesSystemTags()
+
 private fun <T : Any> Mono<T>.fallbackUnavailable(
     mode: QuerySchemaValidationMode,
     fallback: T,
     filter: FilterExpression,
 ): Mono<T> = onErrorResume(QuerySchemaUnavailableException::class.java) { error ->
-    if (mode == QuerySchemaValidationMode.COMPATIBLE && !filter.referencesSystemTags()) {
+    if (mode.acceptsUnavailableFallback(filter)) {
         Mono.just(fallback)
     } else {
         Mono.error(error)
