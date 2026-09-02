@@ -84,6 +84,7 @@ class ElasticsearchAggregationCompilerTest {
     fun `maximum expression should fit the default script source limit`() {
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation { sum(maximumExpression(), "total") },
+            schema(),
         )
 
         val source = requireNotNull(plan.runtimeMappings.values.single().script()?.source()).scriptString()
@@ -97,6 +98,7 @@ class ElasticsearchAggregationCompilerTest {
                 expand("state.items")
                 sum(field("price") * field("quantity") - constant(10.0), "total")
             },
+            schema(),
         )
 
         (plan.metrics.single() as ElasticsearchAggregationMetric.Numeric).field.assert().isEqualTo("__wow_expression_0")
@@ -144,6 +146,7 @@ class ElasticsearchAggregationCompilerTest {
     fun `plain field metric should not create a runtime field`() {
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation { sum("state.amount", "total") },
+            schema(),
         )
 
         plan.runtimeMappings.assert().isEmpty()
@@ -260,6 +263,7 @@ class ElasticsearchAggregationCompilerTest {
                 }
                 limit(7)
             },
+            schema(),
         )
 
         plan.groupSources.map { it.name() }.assert().containsExactly("amountRange", "product", "day")
@@ -293,6 +297,7 @@ class ElasticsearchAggregationCompilerTest {
                 dateHistogram("state.createdAt", AggregationDateUnit.SECOND, "second")
                 count("count")
             },
+            schema(),
         )
 
         plan.groupSources.single().value().dateHistogram().apply {
@@ -317,6 +322,7 @@ class ElasticsearchAggregationCompilerTest {
                 terms("physical.product", "product")
                 count("count")
             },
+            schema(),
         )
 
         plan.elements.single().path.assert().isEqualTo("physical.items")

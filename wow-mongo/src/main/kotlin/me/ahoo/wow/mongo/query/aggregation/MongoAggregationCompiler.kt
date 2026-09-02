@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit
 internal class MongoAggregationCompiler(
     private val converter: AbstractMongoFilterConverter,
 ) {
-    fun compile(query: AggregationQuery, schema: QueryModelSchema? = null): List<Bson> = buildList {
+    fun compile(query: AggregationQuery, schema: QueryModelSchema): List<Bson> = buildList {
         add(Aggregates.match(converter.convert(query.filter)))
 
         var logicalParent: QueryField? = null
@@ -85,7 +85,7 @@ internal class MongoAggregationCompiler(
         add(Aggregates.limit(query.limit))
     }
 
-    private fun group(query: AggregationQuery, parent: QueryField?, schema: QueryModelSchema?): Bson {
+    private fun group(query: AggregationQuery, parent: QueryField?, schema: QueryModelSchema): Bson {
         val id = query.groupBy
             .takeIf { it.isNotEmpty() }
             ?.associateTo(Document()) { it.alias to it.expression(parent, schema) }
@@ -149,7 +149,7 @@ internal class MongoAggregationCompiler(
         AggregationFunction.MAX -> Accumulators.max(field, input)
     }
 
-    private fun AggregationGroup.expression(parent: QueryField?, schema: QueryModelSchema?): Any = when (this) {
+    private fun AggregationGroup.expression(parent: QueryField?, schema: QueryModelSchema): Any = when (this) {
         is AggregationGroup.Terms -> "\$${field.resolve(parent, schema, QueryCapability.AGGREGATE_TERMS)}"
         is AggregationGroup.Histogram -> {
             val field = field.resolve(parent, schema, QueryCapability.AGGREGATE_NUMERIC)
@@ -184,7 +184,7 @@ internal class MongoAggregationCompiler(
 
     private fun AggregationMetric.Numeric.toMongoInput(
         parent: QueryField?,
-        schema: QueryModelSchema?,
+        schema: QueryModelSchema,
     ): Pair<Any, Any> {
         val metricExpression = expression
         if (metricExpression is AggregationExpression.Field) {
@@ -204,7 +204,7 @@ internal class MongoAggregationCompiler(
         return input to Document("\$ne", listOf(input, null))
     }
 
-    private fun AggregationExpression.toMongoExpression(parent: QueryField?, schema: QueryModelSchema?): Any = when (this) {
+    private fun AggregationExpression.toMongoExpression(parent: QueryField?, schema: QueryModelSchema): Any = when (this) {
         is AggregationExpression.Field -> {
             val field = field.resolve(parent, schema, QueryCapability.AGGREGATE_NUMERIC)
             val fieldReference = "\$$field"
@@ -291,9 +291,9 @@ internal class MongoAggregationCompiler(
             ),
     )
 
-    private fun AggregationGroup.DateHistogram.dateInput(parent: QueryField?, schema: QueryModelSchema?): Any {
+    private fun AggregationGroup.DateHistogram.dateInput(parent: QueryField?, schema: QueryModelSchema): Any {
         val logicalField = parent?.append(field) ?: field
-        val fieldSchema = schema?.field(logicalField)
+        val fieldSchema = schema.field(logicalField)
         if (fieldSchema == null) {
             return Document("\$toDate", "\$${converter.convertField(logicalField.path)}")
         }
@@ -386,12 +386,12 @@ internal class MongoAggregationCompiler(
 
     private fun QueryField.resolve(
         parent: QueryField?,
-        schema: QueryModelSchema?,
+        schema: QueryModelSchema,
         capability: QueryCapability,
     ): String {
         val logicalField = parent?.append(this) ?: this
-        schema?.field(logicalField)?.binding(capability)?.physicalField?.path?.let { return it }
-        if (schema == null || logicalField !in schema.fields) {
+        schema.field(logicalField)?.binding(capability)?.physicalField?.path?.let { return it }
+        if (logicalField !in schema.fields) {
             return converter.convertField(logicalField.path)
         }
         throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")

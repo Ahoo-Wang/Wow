@@ -80,7 +80,7 @@ internal sealed interface ElasticsearchAggregationMetric {
 internal class ElasticsearchAggregationCompiler(
     private val filterConverter: AbstractElasticsearchFilterConverter,
 ) {
-    fun compile(query: AggregationQuery, schema: QueryModelSchema? = null): ElasticsearchAggregationPlan {
+    fun compile(query: AggregationQuery, schema: QueryModelSchema): ElasticsearchAggregationPlan {
         val rootQuery = filterConverter.convert(query.filter)
         val elements = mutableListOf<ElasticsearchAggregationElement>()
         var logicalParent: QueryField? = null
@@ -125,7 +125,7 @@ internal class ElasticsearchAggregationCompiler(
         parent: QueryField?,
         sort: Sort,
         index: Int,
-        schema: QueryModelSchema?,
+        schema: QueryModelSchema,
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): NamedValue<CompositeAggregationSource> {
         val source = when (this) {
@@ -162,11 +162,11 @@ internal class ElasticsearchAggregationCompiler(
     private fun AggregationGroup.DateHistogram.dateField(
         parent: QueryField?,
         index: Int,
-        schema: QueryModelSchema?,
+        schema: QueryModelSchema,
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): String {
         val logicalField = parent?.append(field) ?: field
-        val fieldSchema = schema?.field(logicalField) ?: return logicalField.path
+        val fieldSchema = schema.field(logicalField) ?: return logicalField.path
         val physicalPath = fieldSchema.binding(QueryCapability.AGGREGATE_TEMPORAL)?.physicalField?.path
             ?: throw QuerySchemaValidationException(
                 "Query field [$logicalField] does not support [${QueryCapability.AGGREGATE_TEMPORAL}].",
@@ -237,7 +237,7 @@ internal class ElasticsearchAggregationCompiler(
     private fun AggregationMetric.toPlan(
         parent: QueryField?,
         index: Int,
-        schema: QueryModelSchema?,
+        schema: QueryModelSchema,
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): ElasticsearchAggregationMetric = when (this) {
         is AggregationMetric.Count -> ElasticsearchAggregationMetric.Count(alias)
@@ -262,7 +262,7 @@ internal class ElasticsearchAggregationCompiler(
 
     private inner class RuntimeExpressionCompiler(
         private val parent: QueryField?,
-        private val schema: QueryModelSchema?,
+        private val schema: QueryModelSchema,
     ) {
         private val source = StringBuilder()
         private val params = linkedMapOf<String, JsonData>()
@@ -356,11 +356,11 @@ internal class ElasticsearchAggregationCompiler(
 
     private fun QueryField.resolve(
         parent: QueryField?,
-        schema: QueryModelSchema?,
+        schema: QueryModelSchema,
         capability: QueryCapability,
     ): String {
         val logicalField = parent?.append(this) ?: this
-        val fieldSchema = schema?.field(logicalField) ?: return logicalField.path
+        val fieldSchema = schema.field(logicalField) ?: return logicalField.path
         return fieldSchema.binding(capability)?.physicalField?.path
             ?: throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
     }
