@@ -43,10 +43,10 @@ data class ResolvedQuery<out Q : Any>(
  * `POJONode`, and arbitrary POJOs must be normalized inside the Backend or rejected before crossing this boundary.
  */
 interface QueryBackend : NamedAggregateDecorator {
-    fun single(query: ISingleQuery): Mono<ObjectNode>
-    fun list(query: IListQuery): Flux<ObjectNode>
-    fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>>
-    fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>>
-    fun count(filter: FilterExpression): Mono<Long>
-    fun aggregate(query: AggregationQuery): Flux<ObjectNode>
+    fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode>
+    fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode>
+    fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
+    fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
+    fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
+    fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
 }

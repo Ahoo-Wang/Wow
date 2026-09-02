@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.RewritableFilter
+import me.ahoo.wow.query.schema.QueryModelSchema
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
@@ -34,6 +35,7 @@ const val RESULT_KEY = "__RESULT__"
 @Suppress("UNCHECKED_CAST")
 interface QueryContext<Q : Any, R : Any> {
     val queryType: QueryType
+    val schema: QueryModelSchema
     val attributes: MutableMap<String, Any>
     val namedAggregate: NamedAggregate
     fun setQuery(query: Q): QueryContext<Q, R> {
@@ -109,5 +111,6 @@ interface QueryContext<Q : Any, R : Any> {
 class DefaultQueryContext<Q : Any, R : Any>(
     override val queryType: QueryType,
     override val namedAggregate: NamedAggregate,
+    override val schema: QueryModelSchema,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
 ) : QueryContext<Q, R>

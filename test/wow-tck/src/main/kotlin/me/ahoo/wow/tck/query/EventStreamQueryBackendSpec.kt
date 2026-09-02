@@ -18,10 +18,12 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
@@ -32,6 +34,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
@@ -39,7 +42,10 @@ import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.metrics.meteredForTck
 import org.junit.jupiter.api.BeforeEach
@@ -424,6 +430,36 @@ abstract class EventStreamQueryBackendSpec {
             .verifyComplete()
     }
 }
+
+private fun EventStreamQueryBackend.single(query: ISingleQuery): Mono<ObjectNode> =
+    requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+        single(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+    }
+
+private fun EventStreamQueryBackend.list(query: IListQuery): Flux<ObjectNode> =
+    requiredQueryModelSchemaProvider().schema().flatMapMany { schema ->
+        list(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+    }
+
+private fun EventStreamQueryBackend.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
+    requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+        paged(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+    }
+
+private fun EventStreamQueryBackend.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+    requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+        cursor(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+    }
+
+private fun EventStreamQueryBackend.count(filter: FilterExpression): Mono<Long> =
+    requiredQueryModelSchemaProvider().schema().flatMap { schema ->
+        count(ResolvedQuery(schema.resolve(filter).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+    }
+
+private fun EventStreamQueryBackend.aggregate(query: AggregationQuery): Flux<ObjectNode> =
+    requiredQueryModelSchemaProvider().schema().flatMapMany { schema ->
+        aggregate(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+    }
 
 private fun ISingleQuery.query(backend: EventStreamQueryBackend): Mono<ObjectNode> = backend.single(this)
 private fun ISingleQuery.dynamicQuery(backend: EventStreamQueryBackend): Mono<ObjectNode> = backend.single(this)

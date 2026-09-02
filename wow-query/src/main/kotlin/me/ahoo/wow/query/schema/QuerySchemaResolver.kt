@@ -49,11 +49,6 @@ data class QuerySchemaResolution<T>(
     val compatibility: QueryCompatibilityLevel,
 )
 
-data class ResolvedAggregationQuery(
-    val query: AggregationQuery,
-    val schema: QueryModelSchema?,
-)
-
 private fun combined(
     first: QueryCompatibilityLevel,
     second: QueryCompatibilityLevel,

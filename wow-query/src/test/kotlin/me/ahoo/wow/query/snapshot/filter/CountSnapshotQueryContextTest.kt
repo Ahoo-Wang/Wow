@@ -19,9 +19,11 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 
@@ -31,7 +33,8 @@ class CountSnapshotQueryContextTest {
     fun `should rewrite query with tenant id`() {
         val context = DefaultQueryContext<FilterExpression, Any>(
             queryType = QueryType.COUNT,
-            MOCK_AGGREGATE_METADATA
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = QUERY_SCHEMA,
         )
         context.setQuery(MatchAllFilter)
         context.appendFilter(TenantIdFilter("tenantId"))
@@ -42,7 +45,8 @@ class CountSnapshotQueryContextTest {
     fun `should rewrite query with appended condition`() {
         val context = DefaultQueryContext<FilterExpression, Any>(
             queryType = QueryType.COUNT,
-            MOCK_AGGREGATE_METADATA
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            schema = QUERY_SCHEMA,
         )
         val query = filter {
             "field1" eq "value1"
@@ -54,3 +58,5 @@ class CountSnapshotQueryContextTest {
         operands.last().assert().isEqualTo(OwnerIdFilter("ownerId"))
     }
 }
+
+private val QUERY_SCHEMA = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())

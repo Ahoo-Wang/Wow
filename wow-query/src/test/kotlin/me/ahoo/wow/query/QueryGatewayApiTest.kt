@@ -85,9 +85,17 @@ class QueryGatewayApiTest {
     }
 
     @Test
+    fun `backend should accept only resolved queries`() {
+        listOf("single", "list", "paged", "cursor", "count", "aggregate").forEach { method ->
+            QueryBackend::class.java.getMethod(method, ResolvedQuery::class.java)
+                .parameterTypes.assert().containsExactly(ResolvedQuery::class.java)
+        }
+    }
+
+    @Test
     fun `cursor should be a required backend and gateway contract`() {
         listOf(
-            QueryBackend::class.java.getMethod("cursor", ICursorQuery::class.java),
+            QueryBackend::class.java.getMethod("cursor", ResolvedQuery::class.java),
             QueryGateway::class.java.getMethod("cursor", ICursorQuery::class.java),
             QueryGateway::class.java.getMethod("dynamicCursor", ICursorQuery::class.java),
         ).all { Modifier.isAbstract(it.modifiers) }.assert().isTrue()

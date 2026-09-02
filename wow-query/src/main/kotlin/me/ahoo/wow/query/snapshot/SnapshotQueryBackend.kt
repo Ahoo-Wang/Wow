@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import reactor.core.publisher.Flux
@@ -41,11 +42,11 @@ class NoOpSnapshotQueryBackend(
     override val namedAggregate: NamedAggregate,
 ) : SnapshotQueryBackend {
     override val name: String = NoOpSnapshotStore.NAME
-    override fun single(query: ISingleQuery): Mono<ObjectNode> = Mono.empty()
-    override fun list(query: IListQuery): Flux<ObjectNode> = Flux.empty()
-    override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
-    override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+    override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.empty()
+    override fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
+    override fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
+    override fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
         Mono.just(CursorPage(emptyList(), null))
-    override fun count(filter: FilterExpression): Mono<Long> = Mono.just(0L)
-    override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
+    override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = Mono.just(0L)
+    override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
 }

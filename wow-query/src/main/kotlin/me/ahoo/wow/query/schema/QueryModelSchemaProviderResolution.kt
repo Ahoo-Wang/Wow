@@ -18,48 +18,49 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.*
+import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import reactor.core.publisher.Mono
 
 fun QueryModelSchemaProvider.resolve(
     query: ISingleQuery,
     mode: QuerySchemaValidationMode,
-): Mono<ISingleQuery> = schemaForQuery()
+): Mono<ISingleQuery> = Mono.defer { schema() }
     .map { it.resolve(query).requireAccepted(mode) }
     .fallbackUnavailable(mode, query, query.filter)
 
 fun QueryModelSchemaProvider.resolve(
     query: IListQuery,
     mode: QuerySchemaValidationMode,
-): Mono<IListQuery> = schemaForQuery()
+): Mono<IListQuery> = Mono.defer { schema() }
     .map { it.resolve(query).requireAccepted(mode) }
     .fallbackUnavailable(mode, query, query.filter)
 
 fun QueryModelSchemaProvider.resolve(
     query: IPagedQuery,
     mode: QuerySchemaValidationMode,
-): Mono<IPagedQuery> = schemaForQuery()
+): Mono<IPagedQuery> = Mono.defer { schema() }
     .map { it.resolve(query).requireAccepted(mode) }
     .fallbackUnavailable(mode, query, query.filter)
 
 fun QueryModelSchemaProvider.resolve(
     query: ICursorQuery,
     mode: QuerySchemaValidationMode,
-): Mono<ICursorQuery> = schemaForQuery().map { it.resolve(query).requireAccepted(mode) }
+): Mono<ICursorQuery> = Mono.defer { schema() }.map { it.resolve(query).requireAccepted(mode) }
 
 fun QueryModelSchemaProvider.resolve(
     filter: FilterExpression,
     mode: QuerySchemaValidationMode,
-): Mono<FilterExpression> = schemaForQuery()
+): Mono<FilterExpression> = Mono.defer { schema() }
     .map { it.resolve(filter).requireAccepted(mode) }
     .fallbackUnavailable(mode, filter, filter)
 
 fun QueryModelSchemaProvider.resolve(
     query: AggregationQuery,
     mode: QuerySchemaValidationMode,
-): Mono<ResolvedAggregationQuery> = schemaForQuery()
+): Mono<ResolvedQuery<AggregationQuery>> = Mono.defer { schema() }
     .map { schema ->
-        ResolvedAggregationQuery(
+        ResolvedQuery(
             schema.resolve(query).requireAccepted(mode),
             schema,
         )
