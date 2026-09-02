@@ -302,6 +302,7 @@ internal class QueryFilterSchemaResolver(
         )
     }
 
+    @Suppress("CyclomaticComplexMethod")
     private fun resolveSearch(
         filter: SearchFilter,
         logicalParent: QueryField?,
@@ -320,16 +321,29 @@ internal class QueryFilterSchemaResolver(
             }
             return QuerySchemaResolution(filter, compatibility)
         }
-        val fields = filter.fields.map {
-            fieldResolver.resolve(it, capability, logicalParent, resolvedParent, physicalParent)
+        var allExact = true
+        var resolvedFields: LinkedHashSet<QueryField>? = null
+        filter.fields.forEach { field ->
+            val resolved = fieldResolver.resolve(
+                field,
+                capability,
+                logicalParent,
+                resolvedParent,
+                physicalParent,
+            )
+            if (!resolved.elementScopeAccepted) {
+                return QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE)
+            }
+            allExact = allExact && resolved.compatibility == QueryCompatibilityLevel.EXACT
+            if (schema.rewriteMode != QueryRewriteMode.NONE) {
+                val values = resolvedFields
+                    ?: LinkedHashSet<QueryField>(filter.fields.size).also { resolvedFields = it }
+                values += resolved.value
+            }
         }
-        if (fields.any { !it.elementScopeAccepted }) {
-            return QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE)
-        }
-        if (fields.all { it.compatibility == QueryCompatibilityLevel.EXACT }) {
-            val resolvedFields = fields.mapTo(linkedSetOf(), QueryFieldResolution::value)
+        if (allExact) {
             return QuerySchemaResolution(
-                if (schema.rewriteMode == QueryRewriteMode.NONE || resolvedFields == filter.fields) {
+                if (resolvedFields == null || resolvedFields == filter.fields) {
                     filter
                 } else {
                     filter.copy(fields = resolvedFields)
