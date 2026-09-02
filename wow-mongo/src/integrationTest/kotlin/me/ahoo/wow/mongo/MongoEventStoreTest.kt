@@ -46,6 +46,7 @@ class MongoEventStoreTest : EventStoreSpec() {
         return MongoEventStore(database).meteredForTck()
     }
 
+    // MongoDatabaseContextGuard rejects cross-context databases before the EventStore is created.
     override fun scanAggregateIdShouldFilterBoundedContext() = Unit
 
     @Test
