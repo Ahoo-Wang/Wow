@@ -29,6 +29,7 @@ import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.conversions.Bson
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -51,6 +52,16 @@ class MongoSortCompilerTest {
     fun toEventStreamMongoSort(sort: List<Sort>, expected: Bson?) {
         val actual = compiler.compile(sort, eventStreamSchema)
         actual.assert().isEqualTo(expected)
+    }
+
+    @Test
+    fun `compatible unknown sort field should retain its logical path`() {
+        compiler.compile(
+            listOf(Sort(QueryField("unknown"), Sort.Direction.ASC)),
+            QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap()),
+        ).assert().isEqualTo(
+            Sorts.orderBy(Sorts.ascending("unknown")),
+        )
     }
 
     companion object {

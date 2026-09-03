@@ -275,10 +275,11 @@ class AbstractMongoQueryBackendTest {
         }
         val filter = slot<Bson>()
         val projection = slot<Bson>()
+        val sort = slot<Bson>()
         val publisher = mockk<FindPublisher<Document>>()
         every { collection.find(capture(filter)) } returns publisher
         every { publisher.projection(capture(projection)) } returns publisher
-        every { publisher.sort(any()) } returns publisher
+        every { publisher.sort(capture(sort)) } returns publisher
         every { publisher.limit(2) } returns publisher
         every { publisher.subscribe(any()) } answers {
             Flux.fromIterable(
@@ -312,6 +313,7 @@ class AbstractMongoQueryBackendTest {
         filter.captured.toBsonDocument().toJson().assert().contains("physical_rank", "physical_id")
         projection.captured.toBsonDocument().toJson().assert()
             .contains("physical_name", "physical_rank", "physical_id")
+        sort.captured.toBsonDocument().toJson().assert().contains("physical_rank", "physical_id")
         MongoCursorCodec.decode(page.nextCursor!!, 2).assert().containsExactly(2, "2")
         page.list.single().has("physical_rank").assert().isFalse()
         page.list.single().has("physical_id").assert().isFalse()
