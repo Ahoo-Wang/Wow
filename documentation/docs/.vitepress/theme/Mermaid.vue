@@ -16,7 +16,15 @@ import {nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useData} from 'vitepress'
 import {cycleFocus} from './mermaid-zoom.mjs'
 
-type PanZoomInstance = ReturnType<typeof import('svg-pan-zoom')>
+interface PanZoomInstance {
+    destroy(): void
+    resize(): PanZoomInstance
+    fit(): PanZoomInstance
+    center(): PanZoomInstance
+    zoomIn(): PanZoomInstance
+    zoomOut(): PanZoomInstance
+    reset(): PanZoomInstance
+}
 
 const props = withDefaults(defineProps<{
     graph: string
@@ -311,7 +319,7 @@ onBeforeUnmount(() => {
 .mermaid-viewer--expanded .mermaid-content > svg {
     width: 100% !important;
     height: 100% !important;
-    max-width: none !important;
+    max-width: 100% !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
