@@ -634,7 +634,9 @@ class DefaultSnapshotQueryGatewayTest {
         override fun refresh(): Mono<QueryModelSchema> = schema()
     }
 
-    private class SwitchingSchemaSnapshotBackend : SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA) {
+    private class SwitchingSchemaSnapshotBackend : SnapshotQueryBackend by NoOpSnapshotQueryBackend(
+        MOCK_AGGREGATE_METADATA
+    ) {
         val schemaProvider = SwitchingSchemaProvider()
         val schemaCalls: AtomicInteger
             get() = schemaProvider.schemaCalls

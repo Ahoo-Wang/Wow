@@ -112,10 +112,10 @@ class DefaultEventStreamQueryGatewayTest {
         val raw = eventStream.toJsonNode<ObjectNode>()
         val bodyType = raw.path("body").path(0).path("bodyType").stringValue()
         val backend = SchemaEventBackend(eventStream::toJsonNode, eventSchema(bodyType))
-            val gateway = DefaultEventStreamQueryGateway(
-                MOCK_AGGREGATE_METADATA,
-                backend,
-                backend.schemaProvider,
+        val gateway = DefaultEventStreamQueryGateway(
+            MOCK_AGGREGATE_METADATA,
+            backend,
+            backend.schemaProvider,
             QuerySchemaValidationMode.COMPATIBLE,
             errorHandler = ErrorHandler { _, error -> Mono.error(error) },
         )
