@@ -70,7 +70,7 @@ data class ResolvedQuery<out Q : Any>(
 Backend Compiler 在编译字段时调用 Schema 的统一行为：
 
 ```kotlin
-internal fun QueryModelSchema.resolvePhysicalField(
+fun QueryModelSchema.resolvePhysicalField(
     field: QueryField,
     capability: QueryCapability,
     logicalParent: QueryField? = null,
