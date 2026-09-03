@@ -20,20 +20,20 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
-import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
-import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -46,9 +46,9 @@ class SnapshotSchemaHandlerFunctionTest {
 
     @Test
     fun `get should return sorted public metadata without physical bindings`() {
-        val backend = RecordingSchemaBackend(SCHEMA)
+        val provider = RecordingSchemaProvider(SCHEMA)
         val handler = SnapshotSchemaHandlerFunctionFactory(
-            snapshotQueryBackendFactory = RecordingSnapshotQueryBackendFactory(backend),
+            snapshotQueryBackendFactory = RecordingSnapshotQueryBackendFactory(provider),
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA))
 
@@ -70,15 +70,15 @@ class SnapshotSchemaHandlerFunctionTest {
         json["fields"][0]["enumValues"][2].booleanValue().assert().isTrue()
         body.assert().doesNotContain("resolvedField", "physicalField", "storageType", "projectionField", "rewriteMode")
 
-        backend.schemaCalls.get().assert().isOne()
-        backend.refreshCalls.get().assert().isZero()
+        provider.schemaCalls.get().assert().isOne()
+        provider.refreshCalls.get().assert().isZero()
     }
 
     @Test
     fun `refresh should call refresh and return public metadata`() {
-        val backend = RecordingSchemaBackend(SCHEMA)
+        val provider = RecordingSchemaProvider(SCHEMA)
         val handler = SnapshotSchemaRefreshHandlerFunctionFactory(
-            snapshotQueryBackendFactory = RecordingSnapshotQueryBackendFactory(backend),
+            snapshotQueryBackendFactory = RecordingSnapshotQueryBackendFactory(provider),
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH))
 
@@ -91,14 +91,14 @@ class SnapshotSchemaHandlerFunctionTest {
         body.toJsonNode<tools.jackson.databind.JsonNode>()["fields"][0]["field"]
             .stringValue().assert().isEqualTo("state.a")
 
-        backend.schemaCalls.get().assert().isZero()
-        backend.refreshCalls.get().assert().isOne()
+        provider.schemaCalls.get().assert().isZero()
+        provider.refreshCalls.get().assert().isOne()
     }
 
     @Test
-    fun `backend without schema provider should start and return unavailable error`() {
+    fun `unavailable provider should return unavailable error`() {
         val backendFactory = RecordingSnapshotQueryBackendFactory(
-            NoOpSnapshotQueryBackend(NAMED_AGGREGATE),
+            UnavailableSchemaProvider,
         )
         val exceptionHandler = WebFluxRequestExceptionHandler()
         val schemaHandler = SnapshotSchemaHandlerFunctionFactory(
@@ -125,14 +125,15 @@ class SnapshotSchemaHandlerFunctionTest {
         ).build()
 
     private class RecordingSnapshotQueryBackendFactory(
-        private val backend: SnapshotQueryBackend,
+        private val schemaProvider: QueryModelSchemaProvider,
     ) : SnapshotQueryBackendFactory {
-        override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryBackend = backend
+        override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
+            QueryBackendBinding(NoOpSnapshotQueryBackend(namedAggregate), schemaProvider)
     }
 
-    private class RecordingSchemaBackend(
+    private class RecordingSchemaProvider(
         private val schema: QueryModelSchema,
-    ) : SnapshotQueryBackend by NoOpSnapshotQueryBackend(NAMED_AGGREGATE), QueryModelSchemaProvider {
+    ) : QueryModelSchemaProvider {
         val schemaCalls = AtomicInteger()
         val refreshCalls = AtomicInteger()
 
@@ -147,8 +148,15 @@ class SnapshotSchemaHandlerFunctionTest {
         }
     }
 
+    private object UnavailableSchemaProvider : QueryModelSchemaProvider {
+        override fun schema(): Mono<QueryModelSchema> = Mono.error(
+            QuerySchemaUnavailableException("Schema unavailable."),
+        )
+
+        override fun refresh(): Mono<QueryModelSchema> = schema()
+    }
+
     private companion object {
-        val NAMED_AGGREGATE = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA.aggregateMetadata.materialize()
         val FIELD_SCHEMA = QueryFieldSchema(
             title = null,
             description = null,

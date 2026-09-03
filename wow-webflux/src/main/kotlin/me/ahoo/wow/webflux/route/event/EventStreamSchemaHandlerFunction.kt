@@ -17,7 +17,6 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
-import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QuerySchemaHandlerFunction
@@ -33,8 +32,7 @@ class EventStreamSchemaHandlerFunctionFactory(
         metadata: HttpRouteHandlerMetadata.Aggregate,
     ): HandlerFunction<ServerResponse> = QuerySchemaHandlerFunction(
         provider = {
-            eventStreamQueryBackendFactory.create(aggregateMetadata(metadata))
-                .requiredQueryModelSchemaProvider()
+            eventStreamQueryBackendFactory.create(aggregateMetadata(metadata)).schemaProvider
         },
         exceptionHandler = exceptionHandler,
         refresh = false,
@@ -50,8 +48,7 @@ class EventStreamSchemaRefreshHandlerFunctionFactory(
         metadata: HttpRouteHandlerMetadata.Aggregate,
     ): HandlerFunction<ServerResponse> = QuerySchemaHandlerFunction(
         provider = {
-            eventStreamQueryBackendFactory.create(aggregateMetadata(metadata))
-                .requiredQueryModelSchemaProvider()
+            eventStreamQueryBackendFactory.create(aggregateMetadata(metadata)).schemaProvider
         },
         exceptionHandler = exceptionHandler,
         refresh = true,

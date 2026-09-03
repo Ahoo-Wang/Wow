@@ -18,7 +18,6 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
-import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QuerySchemaHandlerFunction
@@ -40,8 +39,7 @@ class SnapshotSchemaHandlerFunctionFactory(
         metadata: HttpRouteHandlerMetadata.Aggregate,
     ): HandlerFunction<ServerResponse> = SnapshotSchemaHandlerFunction(
         provider = {
-            snapshotQueryBackendFactory.create<Any>(aggregateMetadata(metadata))
-                .requiredQueryModelSchemaProvider()
+            snapshotQueryBackendFactory.create(aggregateMetadata(metadata)).schemaProvider
         },
         exceptionHandler = exceptionHandler,
         refresh = false,
@@ -57,8 +55,7 @@ class SnapshotSchemaRefreshHandlerFunctionFactory(
         metadata: HttpRouteHandlerMetadata.Aggregate,
     ): HandlerFunction<ServerResponse> = SnapshotSchemaHandlerFunction(
         provider = {
-            snapshotQueryBackendFactory.create<Any>(aggregateMetadata(metadata))
-                .requiredQueryModelSchemaProvider()
+            snapshotQueryBackendFactory.create(aggregateMetadata(metadata)).schemaProvider
         },
         exceptionHandler = exceptionHandler,
         refresh = true,
