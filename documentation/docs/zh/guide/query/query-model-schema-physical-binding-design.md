@@ -1,6 +1,6 @@
 ---
 title: QueryModelSchema 物理字段绑定统一设计
-description: 以 QueryFieldBinding 统一查询逻辑字段到后端物理字段的解析与执行，移除 FieldConverter 运行时映射。
+description: 以 QueryFieldBinding 统一查询逻辑字段到后端物理字段的解析与执行，移除通用 Converter 抽象。
 ---
 
 # QueryModelSchema 物理字段绑定统一设计
@@ -23,14 +23,14 @@ MongoDB 的 Snapshot 与 EventStream 还分别通过 `SnapshotFieldConverter` �
 2. 缺少元数据时，Resolver 的兼容性兜底与 Backend 的字段转换边界不清晰；
 3. Cursor、Element scope、投影和聚合需要分别维护逻辑路径与物理路径，容易出现重复转换或遗漏转换。
 
-本设计把 `QueryFieldBinding.physicalField` 设为唯一的物理字段来源，并保留逻辑 Query 与物理 Query 两份执行视图。
+本设计把 `QueryFieldBinding.physicalField` 设为唯一的物理字段来源。Query 保持单一逻辑结构，Backend Compiler 在编译边界通过 Schema 获取物理字段，不复制整棵 Query AST。
 
 ## 目标与非目标
 
 ### 目标
 
 - 由 Query Schema 一次性完成字段解析和物理字段绑定；
-- MongoDB 与 Elasticsearch Backend 只编译物理 Query，不再执行逻辑字段映射；
+- MongoDB 与 Elasticsearch Backend 只通过 Schema 获取物理字段，不再执行独立的逻辑字段映射；
 - 缺少字段元数据时继续使用 `COMPATIBLE` 宽松策略，并将原始路径作为物理路径兜底；
 - 正确保留 Snapshot `aggregateId -> _id` 与 EventStream `id -> _id` 的存储语义；
 - 保留逻辑字段用于 Cursor 协议、结果字段和用户可见语义；
@@ -56,22 +56,30 @@ data class QueryFieldBinding(
 )
 ```
 
-`resolvedField` 是逻辑查询解析后的路径，供 Query Schema 的重写和 capability 判断使用；`physicalField` 是 Backend 可以直接提交给存储引擎的路径。二者不再由 Backend 再次互相转换。
+`resolvedField` 是逻辑查询解析后的路径，供 Query Schema 的重写和 capability 判断使用；`physicalField` 是 Backend 可以提交给存储引擎的路径。二者不再由 Backend 通过另一个字符串转换器互相转换。
 
-Gateway 在 Schema 准入后构造双视图的 `ResolvedQuery`：
+`ResolvedQuery` 保持现有边界：
 
 ```kotlin
 data class ResolvedQuery<out Q : Any>(
     val query: Q,
     val schema: QueryModelSchema,
-    val physicalQuery: Q,
 )
 ```
 
-- `query` 保留已经完成逻辑解析的 Query；
-- `physicalQuery` 由同一次 Schema 解析产生，只替换字段路径，不改变操作符、值、别名、分页和 Cursor 参数；
-- `ResolvedQuery.query` 与 `ResolvedQuery.physicalQuery` 必须来自同一个不可变 Schema 实例的同一次解析；
-- 直接构造 `ResolvedQuery(query, schema)` 的旧构造合同不再保留，所有 Backend 输入必须明确提供物理视图。
+Backend Compiler 在编译字段时调用 Schema 的统一行为：
+
+```kotlin
+internal fun QueryModelSchema.resolvePhysicalField(
+    field: QueryField,
+    capability: QueryCapability,
+    logicalParent: QueryField? = null,
+    resolvedParent: QueryField? = null,
+    physicalParent: QueryField? = null,
+): QueryField
+```
+
+这个方法复用现有 `QueryFieldSchemaResolver` 的 parent 解析规则，不产生第二棵 Query AST。
 
 执行流如下：
 
@@ -79,10 +87,7 @@ data class ResolvedQuery<out Q : Any>(
 flowchart LR
     Request[Logical Query] --> Gateway[QueryGateway]
     Gateway --> Schema[QueryModelSchema.resolve]
-    Schema --> Logical[Resolved logical Query]
-    Schema --> Physical[Resolved physical Query]
-    Logical --> Resolved[ResolvedQuery]
-    Physical --> Resolved
+    Schema --> Resolved[ResolvedQuery]
     Resolved --> Mongo[MongoDB compiler]
     Resolved --> Elasticsearch[Elasticsearch compiler]
     Mongo --> Store[(Storage)]
@@ -98,7 +103,7 @@ Query Schema Resolver 在一次遍历中同时维护 `logicalParent`、`resolved
 - 下一层 Element 使用当前容器的绝对三种 parent；
 - 任一物理相对路径无法建立时，该 capability 仍为 `INCOMPATIBLE`。
 
-每个字段的物理路径按以下顺序取得：
+Backend Compiler 获取字段物理路径的顺序：
 
 1. 使用当前 capability 对应的 `binding.physicalField`；
 2. 对动态字段使用动态祖先 binding 的物理路径加相对路径；
@@ -133,13 +138,13 @@ MongoDB adapter 在构造 `QueryModelSchema` 时直接创建模型相关的 bind
 
 ## Cursor 与聚合
 
-Cursor 同时需要逻辑和物理排序字段：
+Cursor 仍然只保留一份公共 Query，但 Mongo Backend 需要在执行边界解析物理排序字段：
 
 - `query.sort` 用于保持公共 Cursor 参数和结果语义；
-- `physicalQuery.sort` 用于 MongoDB 的 `.sort(...)`、Cursor continuation filter 和从文档取 Cursor 值；
+- Schema 解析出的物理 sort 用于 MongoDB 的 `.sort(...)`、Cursor continuation filter 和从文档取 Cursor 值；
 - 下一页 Cursor 的编码格式不变，只编码排序值，不编码字段路径。
 
-聚合 Compiler 使用 `physicalQuery` 的字段和 Schema binding 的 storage type、temporal semantic。只有 Resolver 已判定为 `INCOMPATIBLE` 的字段才在 Schema 阶段拒绝；已按 `COMPATIBLE` 接受但缺少 binding 的动态字段使用原始路径，Compiler 不再自行调用 Converter 兜底。
+聚合 Compiler 使用 Schema binding 的 physical field、storage type 和 temporal semantic。只有 Resolver 已判定为 `INCOMPATIBLE` 的字段才在 Schema 阶段拒绝；已按 `COMPATIBLE` 接受但缺少 binding 的动态字段使用原始路径，Compiler 不再自行调用 Converter 兜底。
 
 ## Backend 责任
 
@@ -147,13 +152,12 @@ Cursor 同时需要逻辑和物理排序字段：
 
 - 获取一次 Schema；
 - 完成逻辑 Query 的准入和重写；
-- 从同一遍解析结果生成物理 Query；
-- 将两份 Query 封装到 `ResolvedQuery`。
+- 将逻辑 Query 与 Schema 封装到 `ResolvedQuery`。
 
 ### MongoDB / Elasticsearch Backend
 
-- 只读取 `ResolvedQuery.physicalQuery` 编译后端语法；
-- 只使用 `ResolvedQuery.query` 完成 Cursor 展示、结果映射和公共语义；
+- 读取 `ResolvedQuery.query` 编译后端语法，并通过其 Schema 获取物理字段；
+- 使用 `ResolvedQuery.query` 完成 Cursor 展示、结果映射和公共语义；
 - 不调用 `FieldConverter`；
 - 不自行重新解析 Schema 或决定兼容性。
 
@@ -168,31 +172,32 @@ Cursor 同时需要逻辑和物理排序字段：
 
 这是内部实现 API 的明确破坏性变更：
 
-- 删除 `FieldConverter`；
+- 删除 `FieldConverter`、`ProjectionConverter` 和 `SortConverter`；
 - 删除 `SnapshotFieldConverter` 和 `EventStreamFieldConverter`；
 - 删除依赖 `FieldConverter` 的 `AbstractProjectionConverter` 和 `AbstractSortConverter`；
-- 修改 `ResolvedQuery`，增加强制的 `physicalQuery`；
+- 保持 `ResolvedQuery(query, schema)`，不新增 `physicalQuery`；
 - MongoDB filter、projection、sort 和 aggregation compiler 删除逻辑字段转换参数；
+- 将具体后端的 `*Converter` 重命名为 `*Compiler`，不保留旧名称；
 - 更新所有 Backend、Factory、测试和 Benchmark 的构造调用；
 - 不保留 deprecated bridge、旧构造器、typealias 或兼容重载。
 
 ## 实施阶段
 
-### 阶段一：建立双视图解析合同
+### 阶段一：建立 Schema 物理字段解析合同
 
-在 `wow-query` 中扩展 Resolver，使 Filter、Projection、Sort、Cursor 和 Aggregation 都能从同一次 Schema 解析得到逻辑值与物理值。先覆盖动态字段、Element scope、模型身份字段和缺少 metadata 的 COMPATIBLE 兜底测试。
+在 `wow-query` 中增加 `resolvePhysicalField`，复用现有 Resolver 的 parent 上下文。先覆盖动态字段、Element scope、模型身份字段和缺少 metadata 的 COMPATIBLE 兜底测试。
 
-### 阶段二：切换 Gateway 与公共 Backend 边界
+### 阶段二：迁移 Backend Compiler 边界
 
-Gateway 构造带 `physicalQuery` 的 `ResolvedQuery`。更新 Backend 合同测试，禁止只提供逻辑 Query 的执行入口。
+保持 Gateway 与 `ResolvedQuery` 合同不变，更新 Backend Compiler，使所有物理路径都通过 Schema 获取。更新 Backend 合同测试，禁止在 Compiler 中保留独立字段映射。
 
 ### 阶段三：迁移 MongoDB
 
-更新 `MongoQuerySchemaAdapter`、`AbstractMongoFilterConverter`、`MongoProjectionConverter`、`MongoSortConverter`、`MongoAggregationCompiler`、Cursor 执行链和 Snapshot/EventStream Factory。所有 Mongo 编译器直接消费物理字段。
+更新 `MongoQuerySchemaAdapter`、`AbstractMongoFilterCompiler`、`MongoProjectionCompiler`、`MongoSortCompiler`、`MongoAggregationCompiler`、Cursor 执行链和 Snapshot/EventStream Factory。所有 Mongo 编译器直接消费物理字段。
 
 ### 阶段四：对齐 Elasticsearch 与清理旧 API
 
-让 Elasticsearch Projection、Sort、Filter 和 Aggregation 统一消费物理 Query；随后删除旧 Converter 类型，清理生产代码、测试、Benchmark 与文档引用。
+让 Elasticsearch Projection、Sort、Filter 和 Aggregation 统一使用 Schema binding；随后删除旧 Converter 类型，清理生产代码、测试、Benchmark 与文档引用。
 
 ### 阶段五：文档与回归验证
 
