@@ -18,7 +18,7 @@ fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
 fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
 ```
 
-不存在接收原始 Query 的兼容重载。Backend 不获取或解析 Schema，也不决定 `QuerySchemaValidationMode`；它只用 `ResolvedQuery.query` 和非空的 `ResolvedQuery.schema` 编译并执行查询。Projection 与 Aggregation Compiler 都接收这个 Schema 实例。single、list、paged、cursor 与 aggregate 返回 `tools.jackson.databind.node.ObjectNode`，count 返回 `Long`；cursor 把节点包装在 `CursorPage<ObjectNode>` 中。`SnapshotQueryBackend` 和 `EventStreamQueryBackend` 区分数据模型与 Schema Provider 能力；typed 物化属于 Gateway，不属于 Backend。具体 Backend 可继续委托实现 Provider 以供 Factory、Schema HTTP 与 Gateway 装配复用，但六个执行方法不使用该能力。
+不存在接收原始 Query 的兼容重载。Backend 不获取或解析 Schema，也不决定 `QuerySchemaValidationMode`；它只用 `ResolvedQuery.query` 和非空的 `ResolvedQuery.schema` 编译并执行查询。Projection 与 Aggregation Compiler 都接收这个 Schema 实例。single、list、paged、cursor 与 aggregate 返回 `tools.jackson.databind.node.ObjectNode`，count 返回 `Long`；cursor 把节点包装在 `CursorPage<ObjectNode>` 中。`SnapshotQueryBackend` 和 `EventStreamQueryBackend` 区分数据模型；typed 物化属于 Gateway，不属于 Backend。自定义 Backend 从不实现或委托 `QueryModelSchemaProvider`。
 
 ## 节点所有权约束
 
@@ -61,11 +61,11 @@ class OrderReader(
 
 ## Gateway 如何绑定 Backend
 
-Registrar 创建 Gateway 时，以当前 `NamedAggregate` 调用一次 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory`。Routing Factory 此时选择聚合专属路由或默认路由，Gateway 随后始终调用这个绑定的 Backend，不在每次请求中重复选择。
+Registrar 创建 Gateway 时，以该 `NamedAggregate` 调用一次 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory`。Factory 返回一个 `QueryBackendBinding`，Registrar 将其 `backend` 与 `schemaProvider` 一起传给 Gateway。Routing Factory 此时选择聚合专属路由或默认路由，Gateway 随后始终使用这对绑定对象，不在每次请求中重复选择。
 
 ## Factory、缓存与存储路由
 
-`SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 是原始 Backend 的创建入口；其抽象基类按 materialized aggregate 缓存 Backend。MongoDB、Elasticsearch 或其他配置实现最终把已准入的 `ResolvedQuery` 编译为物理查询，并规范化为 `ObjectNode`。
+`SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 返回 `QueryBackendBinding<Backend>`；其抽象基类按 materialized aggregate 缓存完整 binding。自定义 Factory 显式配对 Backend 与 `QueryModelSchemaProvider`，Routing Factory 原子转发这对对象。MongoDB、Elasticsearch 或其他配置实现最终把已准入的 `ResolvedQuery` 编译为物理查询，并规范化为 `ObjectNode`。
 
 直接 Factory 调用不经过 Gateway。应用代码应使用 Spring 注册的聚合级 Gateway；只有低层诊断、合同测试与存储扩展直接使用 Factory。
 
@@ -75,7 +75,7 @@ Registrar 创建 Gateway 时，以当前 `NamedAggregate` 调用一次 `Snapshot
 
 ## 原始后端访问
 
-直接使用 Factory 适合受信基础设施扩展或明确要求原始后端语义的场景。它绕过 Gateway 的请求过滤、ABAC、结果 Filter 与错误观察，调用方必须自行承担这些责任。
+直接使用 Factory 适合受信基础设施扩展或明确要求原始后端语义的场景：`factory.create(namedAggregate).backend`。它绕过 Gateway 的请求过滤、ABAC、结果 Filter、脱敏与错误观察，调用方必须自行承担这些责任。
 
 ## 游标执行与 token
 
@@ -87,6 +87,6 @@ Registrar 创建 Gateway 时，以当前 `NamedAggregate` 调用一次 `Snapshot
 
 ## Schema 使用同一路由
 
-Snapshot 与 EventStream Schema HTTP handler 都从各自 Backend Factory 取得 `QueryModelSchemaProvider`。因为注入的是同一个 routed Factory，Schema 与查询执行使用同一条存储路由；Provider 不可用时明确失败，不会回退到另一后端。
+Snapshot 与 EventStream Schema HTTP handler 都解包 `factory.create(namedAggregate).schemaProvider`。因为它们与 Registrar 使用同一个 routed binding，Schema 与查询执行使用同一条存储路由和同一个 Provider；Provider 不可用时明确失败，不会回退到另一后端。
 
 WebFlux 已分别发布 `snapshot/schema`、`snapshot/schema/refresh`、`event/schema` 与 `event/schema/refresh` 路由。运行时路由以 [WebFlux](../extensions/webflux.md) 为准，已发布 HTTP/OpenAPI 合同以 [OpenAPI](../open-api.md) 为准，客户端边界以 [API Client](./query-api-client.md) 为准。`wow-apiclient.query` 仍只提供 Snapshot 查询接口，没有 EventStream 查询接口。

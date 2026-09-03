@@ -7,7 +7,7 @@ description: 使用静态字段注解为受管 Snapshot 与 EventStream 查询�
 
 ## 适用范围与执行顺序
 
-字段脱敏由受管 `QueryGateway` 响应链中的框架内建 `SchemaMaskQueryFilter` 承担，并要求 Gateway 显式取得 `QueryModelSchemaProvider`。Spring Registrar 从选中的 routed Backend 取得该 Provider。该 Filter 由框架强制装配在最外层；它的结果阶段固定在全部通用结果 Filter 完成之后、typed 结果由 Jackson 物化之前：
+字段脱敏由受管 `QueryGateway` 响应链中的框架内建 `SchemaMaskQueryFilter` 承担，并要求 Gateway 接收在 `QueryBackendBinding` 中与 Backend 配对的 `schemaProvider`。该 Filter 由框架强制装配在最外层；它的结果阶段固定在全部通用结果 Filter 完成之后、typed 结果由 Jackson 物化之前：
 
 ```mermaid
 flowchart LR
@@ -105,8 +105,8 @@ Event projection 完全没有顶层 `body`，或把该事件数组投影为 `nul
 
 ## 受信原始值边界
 
-- 直接调用 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory` 会绕过整个 Gateway，包括查询 Filter、错误观察和 Mask，并返回 Backend 原始值。
-- 自定义 Backend 接入受管 Gateway 时必须同时提供 `QueryModelSchemaProvider`；Provider 不可用时在 Context 与 Backend 之前失败关闭，不会跳过 Mask 返回原值。
+- 直接调用 Factory 返回 binding；受信原始访问为 `factory.create(namedAggregate).backend`，会绕过整个 Gateway，包括查询 Filter、错误观察和 Mask。
+- 自定义 Factory 在 `QueryBackendBinding` 中配对 Backend 与 `QueryModelSchemaProvider`；自定义 Backend 从不实现 Provider。Provider 不可用时在 Context 与订阅 Backend 前失败关闭，不会跳过 Mask 返回原值。
 
 两者都只适合存储扩展、Backend 合同测试和受信诊断，不能作为普通业务查询入口。
 

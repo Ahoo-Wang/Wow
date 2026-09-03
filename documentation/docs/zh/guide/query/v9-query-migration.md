@@ -155,7 +155,7 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 
 typed 与节点返回共享 `SINGLE`、`LIST`、`PAGED`、`CURSOR` 操作类型。Backend 始终返回 `ObjectNode`，Gateway 在通用结果 Filter 完成后按需使用 Jackson 物化 typed 结果。
 
-原 `QueryService<R>` 没有一对一替代类型：存储查询与 Schema 能力迁移到返回 `ObjectNode` 的 `QueryBackend`，受管入口、过滤链与 typed 物化留在聚合级 `QueryGateway<R>`。原 `QueryGateway` 每次调用接收 `NamedAggregate`；V9 在构造 Gateway 时只绑定 `NamedAggregate` 与 routed Backend，因此 `single`、`list`、`paged`、`cursor`、`count` 和 `aggregate` 调用不再传聚合参数。自定义 `AbstractQueryGateway` 子类必须按新构造合同提供 `namedAggregate`、`backend`、`schemaProvider`、`validationMode`、`targetType`、`filters`、`filterType` 与 `errorHandler`；没有自定义入口策略时直接使用 Snapshot/EventStream 默认 Gateway。
+原 `QueryService<R>` 没有一对一替代类型：存储查询迁移到返回 `ObjectNode` 的 `QueryBackend`，受管入口、过滤链与 typed 物化留在聚合级 `QueryGateway<R>`。原 `QueryGateway` 每次调用接收 `NamedAggregate`；V9 在构造 Gateway 时绑定 `NamedAggregate` 与 routed `QueryBackendBinding`，因此 `single`、`list`、`paged`、`cursor`、`count` 和 `aggregate` 调用不再传聚合参数。自定义 `AbstractQueryGateway` 子类必须按新构造合同提供 `namedAggregate`、`backend`、`schemaProvider`、`validationMode`、`targetType`、`filters`、`filterType` 与 `errorHandler`；没有自定义入口策略时直接使用 Snapshot/EventStream 默认 Gateway。
 
 ### 自定义 QueryBackend 迁移
 
@@ -170,11 +170,11 @@ fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
 fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
 ```
 
-用 `query.query` 编译已准入的查询，用非空的 `query.schema` 编译 Projection 和 Aggregation。删除执行路径中的 Provider 读取、Schema resolve、验证模式分支和 Cursor 唯一字段追加；`QueryModelSchema` 已按模型追加并验证唯一排序。受管 Gateway 每次订阅在创建 Context 前获取一次 Schema，Filter 链从开始即可读取同一实例；Schema 获取失败时 Filter 和 Backend 都不会执行。具体 Backend 可以继续委托实现 `QueryModelSchemaProvider` 供 Factory、Schema HTTP 与 Gateway 装配使用，但六个执行方法不得依赖该委托能力。
+用 `query.query` 编译已准入的查询，用非空的 `query.schema` 编译 Projection 和 Aggregation。删除执行路径中的 Provider 读取、Schema resolve、验证模式分支和 Cursor 唯一字段追加；`QueryModelSchema` 已按模型追加并验证唯一排序。受管 Gateway 每次订阅在创建 Context 前获取一次 Schema，Filter 链从开始即可读取同一实例；Schema 获取失败时 Filter 和 Backend 都不会执行。自定义 Factory 在 `QueryBackendBinding` 中显式配对 Backend 与 `QueryModelSchemaProvider`；自定义 Backend 从不实现或委托 Provider 能力。
 
 Filter 不再通过 `QueryType.isDynamic` 判断最终返回 typed 对象还是节点；两条路径在同一 ObjectNode FilterChain 中处理，区别仅发生在链完成后的可选 Jackson 物化。删除只为 typed/dynamic 分流的分支，不要发明新的结果类型判别器。
 
-删除旧 Mask 类型、实现、Bean、Registry 与自定义 Filter，不建立 ObjectNode Mask 兼容层。把原规则声明到领域字段后，Snapshot、EventStream 的 typed、dynamic 与 aggregate-state load 会在同一条受管 Gateway 路径自动脱敏；框架内建 `SchemaMaskQueryFilter` 读取 `QueryContext.schema`，同一实例复用 Masker，refresh 后的新订阅读取新实例并重新编译。Schema 不可用时所有受管 Gateway 调用在 Context、Filter 与 Backend 之前失败关闭；count 不执行结果脱敏，但仍需要 Schema 完成请求准入。直接 Backend Factory 是返回原始值的受信低层边界；调用方必须显式取得 Schema、完成解析与准入，再构造 `ResolvedQuery`，不存在 Provider 级 unavailable fallback。
+删除旧 Mask 类型、实现、Bean、Registry 与自定义 Filter，不建立 ObjectNode Mask 兼容层。把原规则声明到领域字段后，Snapshot、EventStream 的 typed、dynamic 与 aggregate-state load 会在同一条受管 Gateway 路径自动脱敏；框架内建 `SchemaMaskQueryFilter` 读取 `QueryContext.schema`，同一实例复用 Masker，refresh 后的新订阅读取新实例并重新编译。Schema 不可用时所有受管 Gateway 调用在 Context、Filter 与订阅 Backend 前失败关闭；count 不执行结果脱敏，但仍需要 Schema 完成请求准入。受信原始边界是 `factory.create(namedAggregate).backend`；调用方必须显式取得 Schema、完成解析与准入，再构造 `ResolvedQuery`，不存在 Provider 级 unavailable fallback。
 
 ## 静态 Mask 迁移
 
@@ -196,13 +196,13 @@ Filter 不再通过 `QueryType.isDynamic` 判断最终返回 typed 对象还是�
 
 ## Binding 配置值
 
-Factory 与公开 binding 字符串统一使用 Backend 概念和 `*-query-backend-factory` 后缀，例如 `mongo-snapshot-query-backend-factory` 与 `elasticsearch-event-stream-query-backend-factory`。迁移已有路由配置值，不保留旧 binding alias。
+Factory 与公开 binding 字符串统一使用 Backend 概念和 `*-query-backend-factory` 后缀。`SnapshotQueryBackendFactory.create` 与 `EventStreamQueryBackendFactory.create` 现在返回 `QueryBackendBinding`，且 Snapshot Factory 删除未使用泛型；这两项都是源码与二进制 breaking change。迁移已有路由配置值，例如 `mongo-snapshot-query-backend-factory` 与 `elasticsearch-event-stream-query-backend-factory`，不保留旧 binding alias。Query JSON、Schema HTTP 路径和响应及 Gateway 公共方法没有 wire change。
 
 ## 调用入口
 
 业务代码注入聚合级 Gateway，让请求过滤、ABAC、通用结果处理与错误观察经过一条 around chain。只有受信低层诊断、Backend 合同测试与存储扩展直接调用 Backend Factory；该路径绕过 Gateway 治理。
 
-Schema handler 也使用 routed Backend Factory，因此 Schema 与实际查询按 `NamedAggregate` 选择同一 Backend。通用 `QueryFilter` 不标注 `@FilterType`；只有模型专属过滤器才限定对应 Gateway 类型。
+Schema handler 解包同一个 routed binding 的 `factory.create(namedAggregate).schemaProvider`，因此 Schema 与实际查询按 `NamedAggregate` 选择同一 Backend 和 Provider。通用 `QueryFilter` 不标注 `@FilterType`；只有模型专属过滤器才限定对应 Gateway 类型。
 
 ## ObjectNode 所有权
 

@@ -40,7 +40,7 @@ sequenceDiagram
     Jackson-->>Caller: ObjectNode 或类型化结果
 ```
 
-Registrar 在装配 Gateway 时按 `NamedAggregate` 调用一次路由 Factory，并把选中的 Backend 绑定到 Gateway；每次请求不会再次路由。每次订阅中，Gateway 先从 Provider 获取一次 Schema，再构造 Context、运行 Filter、按配置的验证模式解析最终查询，并只把 `ResolvedQuery` 交给 Backend。Backend 统一产生 `ObjectNode`，不获取 Schema，也不决定验证模式。框架强制装配在最外层的 `SchemaMaskQueryFilter` 在全部通用结果 Filter 完成后读取 `QueryContext.schema` 并脱敏；Filter、Resolver、Backend 与 Mask 始终共享同一个 Schema 实例。typed 结果最后才由 Jackson 物化。Schema 不可用时所有受管 Gateway 调用都在 Context 与 Backend 之前失败关闭；count 保持 `Long` 且不执行结果脱敏，aggregation 保持 `ObjectNode` 行，并由 Schema 拒绝对 Mask 字段的分组、metric 与 expression 引用。
+Registrar 在装配 Gateway 时按 `NamedAggregate` 调用一次路由 Factory，取得 `QueryBackendBinding` 并一起绑定其中的 Backend 和 Provider；每次请求不会再次路由。每次订阅中，Gateway 先从 Provider 获取一次 Schema，再构造 Context、运行 Filter、按配置的验证模式解析最终查询，并只把 `ResolvedQuery` 交给 Backend。Backend 统一产生 `ObjectNode`，不获取 Schema，也不决定验证模式。框架强制装配在最外层的 `SchemaMaskQueryFilter` 在全部通用结果 Filter 完成后读取 `QueryContext.schema` 并脱敏；Filter、Resolver、Backend 与 Mask 始终共享同一个 Schema 实例。typed 结果最后才由 Jackson 物化。Schema 不可用时所有受管 Gateway 调用都在 Context 与订阅 Backend 前失败关闭；count 保持 `Long` 且不执行结果脱敏，aggregation 保持 `ObjectNode` 行，并由 Schema 拒绝对 Mask 字段的分组、metric 与 expression 引用。
 
 ## QueryContext 与 QueryType
 
@@ -62,13 +62,13 @@ Gateway 在每次订阅时获取 Provider 当前发布的一个 Schema，并用�
 
 ## ABAC 与字段脱敏
 
-内建 `AbacQueryFilter` 位于快照查询网关。`QueryGateway` 通过独立于 Backend 的构造参数接收 `QueryModelSchemaProvider`。当前 Spring 装配中，Registrar 在 routed Backend 上调用 `requiredQueryModelSchemaProvider()`，再把取得的 Provider 传给 Gateway；这只是当前装配方式。框架内建 `SchemaMaskQueryFilter` 会在全部通用结果 Filter 完成后、typed 物化前执行 Schema 驱动的字段脱敏。配对的 Provider 不可用时，查询在 Filter 与 Backend 执行前失败关闭，绝不会仅跳过 Mask。Snapshot 与 EventStream 的 typed、dynamic、cursor 和 aggregate-state load 入口共享这条受管路径。注解、缓存、行为矩阵与失败关闭规则见[字段脱敏](./masking.md)。
+内建 `AbacQueryFilter` 位于快照查询网关。`QueryGateway` 从同一个 routed `QueryBackendBinding` 接收 Backend 与 `QueryModelSchemaProvider`；Backend 从不实现 Provider。框架内建 `SchemaMaskQueryFilter` 会在全部通用结果 Filter 完成后、typed 物化前执行 Schema 驱动的字段脱敏。配对的 Provider 不可用时，查询在 Filter 与订阅 Backend 前失败关闭，绝不会仅跳过 Mask。Snapshot 与 EventStream 的 typed、dynamic、cursor 和 aggregate-state load 入口共享这条受管路径。注解、缓存、行为矩阵与失败关闭规则见[字段脱敏](./masking.md)。
 
 认证、Principal 绑定和完整的失败关闭策略请参阅[数据权限](../data-access.md)。
 
 ## 原始 Factory 边界
 
-直接调用 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory` 会绕过整条 Gateway 治理链，包括 Schema 获取与准入、ABAC、结果 Filter 与字段脱敏；调用方必须自行构造已接受的 `ResolvedQuery`。这条返回原始值的受信低层边界只适合存储扩展、聚焦诊断和后端合同测试；常规应用代码应注入聚合绑定的 Gateway。
+直接调用 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory` 返回 binding；受信原始执行明确使用 `factory.create(namedAggregate).backend`。它会绕过整条 Gateway 治理链，包括 Schema 获取与准入、ABAC、结果 Filter 与字段脱敏；调用方必须自行构造已接受的 `ResolvedQuery`。这条返回原始值的受信低层边界只适合存储扩展、聚焦诊断和后端合同测试；常规应用代码应注入聚合绑定的 Gateway。
 
 ## Bean 名
 

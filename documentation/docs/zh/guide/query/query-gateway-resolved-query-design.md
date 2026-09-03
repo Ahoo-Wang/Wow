@@ -5,7 +5,7 @@ description: 固化 QueryContext Schema 快照、ResolvedQuery Backend 边界与
 
 # QueryGateway ResolvedQuery 架构设计
 
-> 状态：已固化，QueryBackendBinding 装配边界待实现。
+> 状态：已实现。
 
 ## 目标
 
@@ -325,4 +325,4 @@ Schema HTTP handler 使用 `queryBackendFactory.create(namedAggregate).schemaPro
 - 存储路由选择算法或 Schema HTTP wire 重构；
 - `ObjectNode` 边界替换。
 
-这些内容只有在后续审查或基准证明现有边界不足时才进入设计。
+这些内容不属于本架构。
