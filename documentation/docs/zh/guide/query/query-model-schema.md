@@ -103,9 +103,9 @@ Cursor 解析也属于 Schema 行为。`QueryModelSchema.resolve(ICursorQuery)` 
 
 ## Schema 不可用
 
-`QueryModelSchemaProvider` 只负责加载和刷新 Schema，不提供查询解析或 unavailable 回退。受管 Gateway 必须先取得 Schema 才会创建 Context，因此 Schema 不可用时 single、list、paged、cursor、count 与 aggregate 全部失败关闭，Filter 与 Backend 均不会执行。count 不执行结果脱敏，但仍需要 Schema 完成受管请求准入。
+`QueryModelSchemaProvider` 只负责加载和刷新 Schema，不提供查询解析或 unavailable 回退。受管 Gateway 从与 Backend 相同的 `QueryBackendBinding` 取得它，并且必须先取得 Schema 才会创建 Context，因此 Schema 不可用时 single、list、paged、cursor、count 与 aggregate 全部失败关闭，Filter 与 Backend 均不会订阅。count 不执行结果脱敏，但仍需要 Schema 完成受管请求准入。
 
-直接调用 Backend 是受信低层边界；调用方必须显式取得 Schema，调用 `schema.resolve(query).requireAccepted(validationMode)`，再构造 `ResolvedQuery`。系统标签的授权语义见[数据权限](../data-access.md)。
+直接调用 Backend 是受信低层边界：`factory.create(namedAggregate).backend`。调用方必须显式取得 Schema，调用 `schema.resolve(query).requireAccepted(validationMode)`，再构造 `ResolvedQuery`。系统标签的授权语义见[数据权限](../data-access.md)。
 
 ## HTTP 与 OpenAPI 扩展
 
@@ -122,7 +122,7 @@ Snapshot 与 EventStream 都发布无作用域变体的 Schema 与 refresh HTTP 
 
 ## Provider 与存储路由
 
-`SnapshotSchemaHandlerFunction` 从 `SnapshotQueryBackendFactory` 创建的 routed Backend 读取 `QueryModelSchemaProvider`，EventStream handler 同样使用 `EventStreamQueryBackendFactory`。因此 Schema 读取、refresh 与实际查询按同一个 `NamedAggregate` 选择同一 Backend 路由；不能绕过 routing Factory 从另一存储拼接 Schema。Provider 不可用时明确抛出 `QuerySchemaUnavailableException`。Factory 与 Gateway 的职责见[查询后端](./query-backend.md)。
+`SnapshotSchemaHandlerFunction` 解包 `SnapshotQueryBackendFactory.create(namedAggregate).schemaProvider`，EventStream handler 同样解包自己的 Factory binding。因此 Schema 读取、refresh 与实际查询按同一个 `NamedAggregate` 选择同一 Backend 路由和 Provider；不能绕过 routing Factory 从另一存储拼接 Schema。Provider 不可用时明确抛出 `QuerySchemaUnavailableException`。Factory 与 Gateway 的职责见[查询后端](./query-backend.md)。
 
 ## 排查字段不可查询
 

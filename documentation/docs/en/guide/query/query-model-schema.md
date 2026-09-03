@@ -103,9 +103,9 @@ On every subscription, a managed Gateway calls the Provider once and obtains one
 
 ## Unavailable Schema
 
-`QueryModelSchemaProvider` only loads and refreshes Schema; it does not resolve queries or provide an unavailable fallback. A managed Gateway must obtain Schema before it creates the Context, so unavailable Schema fails `single`, `list`, `paged`, `cursor`, `count`, and `aggregate` closed; neither Filters nor the Backend execute. Count performs no result masking but still requires Schema for managed request admission.
+`QueryModelSchemaProvider` only loads and refreshes Schema; it does not resolve queries or provide an unavailable fallback. A managed Gateway obtains it from the same `QueryBackendBinding` as its Backend and must obtain Schema before it creates the Context, so unavailable Schema fails `single`, `list`, `paged`, `cursor`, `count`, and `aggregate` closed; neither Filters nor the Backend subscribe. Count performs no result masking but still requires Schema for managed request admission.
 
-Direct Backend access is a trusted low-level boundary. Its caller must explicitly obtain Schema, call `schema.resolve(query).requireAccepted(validationMode)`, and construct `ResolvedQuery`. See [Data Access Control](../data-access.md) for the authorization semantics of system tags.
+Direct Backend access is a trusted low-level boundary: `factory.create(namedAggregate).backend`. Its caller must explicitly obtain Schema, call `schema.resolve(query).requireAccepted(validationMode)`, and construct `ResolvedQuery`. See [Data Access Control](../data-access.md) for the authorization semantics of system tags.
 
 ## HTTP and the OpenAPI Extension
 
@@ -122,7 +122,7 @@ These four model-level routes have no tenant, owner, or aggregate-ID variants. T
 
 ## Provider and Storage Routing
 
-`SnapshotSchemaHandlerFunction` reads `QueryModelSchemaProvider` from the routed Backend created by `SnapshotQueryBackendFactory`; the EventStream handler likewise uses `EventStreamQueryBackendFactory`. Schema reads, refreshes, and queries therefore select the same Backend route for the same `NamedAggregate`. A handler must not bypass the routing Factory to assemble Schema from another store. An unavailable Provider raises `QuerySchemaUnavailableException` explicitly. See [Query Backend](./query-backend.md) for Factory and Gateway responsibilities.
+`SnapshotSchemaHandlerFunction` reads `SnapshotQueryBackendFactory.create(namedAggregate).schemaProvider`; the EventStream handler likewise unwraps its Factory binding. Schema reads, refreshes, and queries therefore select the same Backend route and Provider for the same `NamedAggregate`. A handler must not bypass the routing Factory to assemble Schema from another store. An unavailable Provider raises `QuerySchemaUnavailableException` explicitly. See [Query Backend](./query-backend.md) for Factory and Gateway responsibilities.
 
 ## Troubleshooting an Unqueryable Field
 

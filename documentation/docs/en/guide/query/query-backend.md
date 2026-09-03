@@ -18,7 +18,7 @@ fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
 fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
 ```
 
-There are no compatibility overloads accepting raw queries. A Backend neither obtains nor resolves Schema and never chooses `QuerySchemaValidationMode`; it only compiles and executes `ResolvedQuery.query` with the non-null `ResolvedQuery.schema`. Projection and Aggregation compilers both receive that Schema instance. Single, list, paged, cursor, and aggregate use `tools.jackson.databind.node.ObjectNode`; count returns `Long`, while cursor wraps nodes in `CursorPage<ObjectNode>`. `SnapshotQueryBackend` and `EventStreamQueryBackend` distinguish the data model and Schema Provider capability. Typed materialization belongs to the Gateway, not the Backend. A concrete Backend may still delegate Provider capability for Factory, Schema HTTP, and Gateway assembly, but its six execution methods do not use it.
+There are no compatibility overloads accepting raw queries. A Backend neither obtains nor resolves Schema and never chooses `QuerySchemaValidationMode`; it only compiles and executes `ResolvedQuery.query` with the non-null `ResolvedQuery.schema`. Projection and Aggregation compilers both receive that Schema instance. Single, list, paged, cursor, and aggregate use `tools.jackson.databind.node.ObjectNode`; count returns `Long`, while cursor wraps nodes in `CursorPage<ObjectNode>`. `SnapshotQueryBackend` and `EventStreamQueryBackend` distinguish the data model. Typed materialization belongs to the Gateway, not the Backend; a custom Backend never implements or delegates `QueryModelSchemaProvider`.
 
 ## Node ownership constraints
 
@@ -61,11 +61,11 @@ When a same-name Gateway Bean exists, the Registrar retains it. A custom Bean ow
 
 ## How a Gateway binds its Backend
 
-When it creates a Gateway, the registrar calls `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` once with the current `NamedAggregate`. The routing Factory selects an aggregate-specific route or its default at that point. The Gateway then keeps the bound Backend instead of selecting again for every request.
+When it creates a Gateway, the registrar calls `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` once with the current `NamedAggregate`. The Factory returns one `QueryBackendBinding`, and the registrar passes its `backend` and `schemaProvider` together to the Gateway. The routing Factory selects an aggregate-specific route or its default at that point. The Gateway then keeps the bound pair instead of selecting again for every request.
 
 ## Factories, caching, and storage routing
 
-`SnapshotQueryBackendFactory` and `EventStreamQueryBackendFactory` create raw Backends; their abstract base classes cache by materialized aggregate. MongoDB, Elasticsearch, or another configured implementation compiles the admitted `ResolvedQuery` into a physical query and normalizes results as `ObjectNode`.
+`SnapshotQueryBackendFactory` and `EventStreamQueryBackendFactory` return `QueryBackendBinding<Backend>`; their abstract base classes cache the complete binding by materialized aggregate. A custom Factory explicitly pairs its Backend and `QueryModelSchemaProvider`; routing forwards that pair atomically. MongoDB, Elasticsearch, or another configured implementation compiles the admitted `ResolvedQuery` into a physical query and normalizes results as `ObjectNode`.
 
 A direct Factory call does not pass through the Gateway. Application code should use the Spring-registered aggregate Gateway; only low-level diagnostics, contract tests, and storage extensions should call the Factory directly.
 
@@ -75,7 +75,7 @@ Event-stream Gateways have no `STATE` generic. When multiple candidates exist, q
 
 ## Raw backend access
 
-Direct Factory access is for trusted infrastructure extensions or cases that explicitly require raw backend semantics. It bypasses Gateway request filters, ABAC, result filters, and error observation; the caller must own those responsibilities.
+Direct Factory access is for trusted infrastructure extensions or cases that explicitly require raw backend semantics: `factory.create(namedAggregate).backend`. It bypasses Gateway request filters, ABAC, result filters, masking, and error observation; the caller must own those responsibilities.
 
 ## Cursor Execution and Tokens
 
@@ -87,6 +87,6 @@ Every effective sort must resolve exactly in Query Schema, be single-valued, car
 
 ## Schema uses the same route
 
-Snapshot and EventStream Schema HTTP handlers both obtain `QueryModelSchemaProvider` from their Backend Factory. Because that injection uses the same routed Factory, Schema and query execution select the same storage route. An unavailable Provider fails explicitly instead of falling back to another backend.
+Snapshot and EventStream Schema HTTP handlers both obtain `factory.create(namedAggregate).schemaProvider`. Because this unwraps the same routed binding used by the Registrar, Schema and query execution select the same storage route and Provider. An unavailable Provider fails explicitly instead of falling back to another backend.
 
 WebFlux publishes `snapshot/schema`, `snapshot/schema/refresh`, `event/schema`, and `event/schema/refresh` routes. [WebFlux](../extensions/webflux.md) is authoritative for runtime routes, [OpenAPI](../open-api.md) for published HTTP/OpenAPI contracts, and [API Client](./query-api-client.md) for client boundaries. `wow-apiclient.query` still provides only Snapshot query interfaces and has no EventStream query interface.

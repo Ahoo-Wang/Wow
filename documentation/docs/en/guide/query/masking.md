@@ -7,7 +7,7 @@ description: Configure Schema-driven masking for managed Snapshot and EventStrea
 
 ## Scope and Execution Order
 
-Field masking is implemented by the framework-owned `SchemaMaskQueryFilter` in the managed `QueryGateway` response chain and requires the Gateway to receive an explicit `QueryModelSchemaProvider`. The Spring Registrar obtains that Provider from the selected routed Backend. The framework always installs this filter as the outermost filter; its result phase is fixed after every generic result filter and before Jackson materializes a typed result:
+Field masking is implemented by the framework-owned `SchemaMaskQueryFilter` in the managed `QueryGateway` response chain and requires the Gateway to receive the `schemaProvider` paired with its Backend in `QueryBackendBinding`. The framework always installs this filter as the outermost filter; its result phase is fixed after every generic result filter and before Jackson materializes a typed result:
 
 ```mermaid
 flowchart LR
@@ -105,8 +105,8 @@ Masking safely skips an Event projection with no top-level `body`, or with that 
 
 ## Trusted Raw-Value Boundaries
 
-- Calling `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` directly bypasses the entire Gateway, including query filters, error observation, and masking, and returns raw Backend values.
-- A custom Backend used by a managed Gateway must be paired with a `QueryModelSchemaProvider`. An unavailable Provider fails closed before Context and Backend execution instead of skipping masking and returning raw values.
+- Direct Factory calls return a binding; trusted raw access is `factory.create(namedAggregate).backend` and bypasses the entire Gateway, including query filters, error observation, and masking.
+- A custom Factory pairs its Backend with `QueryModelSchemaProvider` in `QueryBackendBinding`; custom Backends never implement Providers. An unavailable Provider fails closed before Context and Backend subscription instead of skipping masking and returning raw values.
 
 Both are suitable only for storage extensions, Backend contract tests, and trusted diagnostics, not ordinary application queries.
 
