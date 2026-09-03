@@ -24,9 +24,13 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.ResolvedQuery
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -35,18 +39,29 @@ import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.atomic.AtomicInteger
 
 class SnapshotQueryBackendFactoryTest {
+    private val schemaProvider = object : QueryModelSchemaProvider {
+        override fun schema(): Mono<QueryModelSchema> = Mono.just(SCHEMA)
+
+        override fun refresh(): Mono<QueryModelSchema> = schema()
+    }
+
     @Test
-    fun `should cache backend by materialized aggregate`() {
+    fun `should cache binding by materialized aggregate`() {
         val created = AtomicInteger()
         val factory = object : AbstractSnapshotQueryBackendFactory() {
-            override fun createBackend(namedAggregate: NamedAggregate): SnapshotQueryBackend {
+            override fun createBinding(namedAggregate: NamedAggregate) = QueryBackendBinding(
+                backend = StubSnapshotQueryBackend(namedAggregate),
+                schemaProvider = schemaProvider,
+            ).also {
                 created.incrementAndGet()
-                return StubSnapshotQueryBackend(namedAggregate)
             }
         }
 
-        factory.create<Any>(ORDER).assert().isSameAs(factory.create<Any>(DecoratedNamedAggregate(ORDER)))
-        factory.create<Any>(CART).assert().isNotSameAs(factory.create<Any>(ORDER))
+        val first = factory.create(ORDER)
+        factory.create(DecoratedNamedAggregate(ORDER)).assert().isSameAs(first)
+        first.backend.namedAggregate.assert().isEqualTo(ORDER)
+        first.schemaProvider.assert().isSameAs(schemaProvider)
+        factory.create(CART).assert().isNotSameAs(first)
         created.get().assert().isEqualTo(2)
     }
 
@@ -77,5 +92,6 @@ class SnapshotQueryBackendFactoryTest {
     companion object {
         private val ORDER = MaterializedNamedAggregate("order-service", "order")
         private val CART = MaterializedNamedAggregate("order-service", "cart")
+        private val SCHEMA = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
     }
 }

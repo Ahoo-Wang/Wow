@@ -16,22 +16,30 @@ package me.ahoo.wow.query.event
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.schema.UnavailableQueryModelSchemaProvider
 import java.util.concurrent.ConcurrentHashMap
 
 fun interface EventStreamQueryBackendFactory {
-    fun create(namedAggregate: NamedAggregate): EventStreamQueryBackend
+    fun create(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend>
 }
 
 abstract class AbstractEventStreamQueryBackendFactory : EventStreamQueryBackendFactory {
-    private val backendCache = ConcurrentHashMap<MaterializedNamedAggregate, EventStreamQueryBackend>()
+    private val backendCache =
+        ConcurrentHashMap<MaterializedNamedAggregate, QueryBackendBinding<EventStreamQueryBackend>>()
 
-    override fun create(namedAggregate: NamedAggregate): EventStreamQueryBackend =
-        backendCache.computeIfAbsent(namedAggregate.materialize(), ::createBackend)
+    override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> =
+        backendCache.computeIfAbsent(namedAggregate.materialize(), ::createBinding)
 
-    protected abstract fun createBackend(namedAggregate: NamedAggregate): EventStreamQueryBackend
+    protected abstract fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend>
 }
 
-object NoOpEventStreamQueryBackendFactory : EventStreamQueryBackendFactory {
-    override fun create(namedAggregate: NamedAggregate): EventStreamQueryBackend =
-        NoOpEventStreamQueryBackend(namedAggregate.materialize())
+object NoOpEventStreamQueryBackendFactory : AbstractEventStreamQueryBackendFactory() {
+    override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> =
+        QueryBackendBinding(
+            NoOpEventStreamQueryBackend(namedAggregate),
+            UnavailableQueryModelSchemaProvider(
+                "Event stream query backend [$namedAggregate] does not provide QueryModelSchema."
+            ),
+        )
 }

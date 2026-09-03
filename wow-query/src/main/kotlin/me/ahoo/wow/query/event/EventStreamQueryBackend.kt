@@ -24,19 +24,11 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.ResolvedQuery
-import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 
 interface EventStreamQueryBackend : QueryBackend
-
-fun EventStreamQueryBackend.requiredQueryModelSchemaProvider(): QueryModelSchemaProvider =
-    this as? QueryModelSchemaProvider
-        ?: throw QuerySchemaUnavailableException(
-            "Event stream query backend [$namedAggregate] does not provide QueryModelSchema.",
-        )
 
 class NoOpEventStreamQueryBackend(
     override val namedAggregate: NamedAggregate,
