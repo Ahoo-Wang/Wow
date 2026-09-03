@@ -39,6 +39,7 @@ const viewer = ref<HTMLElement>()
 const expandButton = ref<HTMLButtonElement>()
 const isExpanded = ref(false)
 let panZoom: PanZoomInstance | undefined
+let resizeObserver: ResizeObserver | undefined
 let previousBodyOverflow = ''
 
 const getSvg = () => viewer.value?.querySelector<SVGSVGElement>('.mermaid-content > svg')
@@ -50,6 +51,12 @@ const destroyPanZoom = () => {
 
 const fitPanZoom = () => {
     panZoom?.resize().fit().center()
+}
+
+const handleResize = () => {
+    if (!panZoom) return
+    if (isExpanded.value) fitPanZoom()
+    else panZoom.resize()
 }
 
 const initializePanZoom = async () => {
@@ -148,7 +155,6 @@ watch(isExpanded, async (expanded) => {
     if (typeof document === 'undefined') return
     if (expanded) {
         window.addEventListener('keydown', handleKeydown, true)
-        window.addEventListener('resize', fitPanZoom)
         previousBodyOverflow = document.body.style.overflow
         document.body.style.overflow = 'hidden'
         await nextTick()
@@ -158,7 +164,6 @@ watch(isExpanded, async (expanded) => {
         else viewer.value?.focus()
     } else {
         window.removeEventListener('keydown', handleKeydown, true)
-        window.removeEventListener('resize', fitPanZoom)
         await nextTick()
         fitPanZoom()
         document.body.style.overflow = previousBodyOverflow
@@ -166,13 +171,20 @@ watch(isExpanded, async (expanded) => {
     }
 })
 
-onMounted(() => void renderChart())
+onMounted(() => {
+    if (typeof ResizeObserver !== 'undefined' && viewer.value) {
+        resizeObserver = new ResizeObserver(handleResize)
+        resizeObserver.observe(viewer.value)
+    }
+    void renderChart()
+})
 watch(isDark, () => void renderChart())
 onBeforeUnmount(() => {
     destroyPanZoom()
+    resizeObserver?.disconnect()
+    resizeObserver = undefined
     if (typeof window !== 'undefined') {
         window.removeEventListener('keydown', handleKeydown, true)
-        window.removeEventListener('resize', fitPanZoom)
     }
     if (isExpanded.value && typeof document !== 'undefined') {
         document.body.style.overflow = previousBodyOverflow
