@@ -25,21 +25,7 @@ Wow 把一次业务写入表达为**命令 → 聚合决策 → 领域事件 →
 
 ## 运行时组件图
 
-```mermaid
-flowchart LR
-    Client[客户端 / 应用入口] --> Gateway[CommandGateway]
-    Gateway --> CommandBus[CommandBus]
-    CommandBus --> CommandDispatcher[CommandDispatcher]
-    CommandDispatcher --> Aggregate[CommandAggregate + StateAggregate]
-    Aggregate --> EventStore[(EventStore)]
-    Aggregate --> DomainBus[DomainEventBus]
-    Aggregate --> StateBus[StateEventBus]
-    DomainBus --> EventProcessor[EventProcessor]
-    DomainBus --> Projection[Projection]
-    DomainBus --> Saga[Stateless Saga]
-    StateBus --> Snapshot[Snapshot Dispatcher]
-    Snapshot --> SnapshotStore[(SnapshotStore)]
-```
+![Wow 架构](/images/Architecture.svg)
 
 这里有三类不同的所有权：
 

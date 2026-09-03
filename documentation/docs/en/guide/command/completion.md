@@ -25,14 +25,7 @@ For example, choose `SENT` when a write endpoint only needs bus acceptance, at l
 
 `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED` all depend on `PROCESSED`, but they are independent branches rather than one global linear chain:
 
-```mermaid
-flowchart LR
-    SENT --> PROCESSED
-    PROCESSED --> SNAPSHOT
-    PROCESSED --> PROJECTED
-    PROCESSED --> EVENT_HANDLED
-    PROCESSED --> SAGA_HANDLED
-```
+![WaitingForStage](/images/wait/WaitingForStage.svg)
 
 Observing `PROJECTED` therefore does not mean `SNAPSHOT` or `SAGA_HANDLED` has completed. Stage signals arrive in observed order. Distributed notification, scheduling, and concurrent processing can make a downstream signal visible to the waiter before `PROCESSED`.
 
@@ -74,6 +67,8 @@ An empty matching field is a wildcard; every non-empty field must match. Use the
 `CommandWait.chain` first waits for a matching main `SAGA_HANDLED` function, reads the downstream `commandId` values that the Saga emitted from its signal, and then waits for the configured tail stage and function on every downstream command. It means “this Saga invocation and the commands it actually emitted,” not every command of the same type in the system.
 
 A downstream command signal can arrive before the main Saga signal. The chain wait stores such signals temporarily. After the main signal confirms the actual downstream `commandId` values, it creates the tail states and replays matching signals in their original observed order. An unconfirmed pending signal cannot complete the chain.
+
+![WaitingForChain](/images/wait/WaitingForChain.svg)
 
 ## Final Result and Result Stream
 

@@ -11,19 +11,7 @@ In a traditional reporting pipeline, an ETL job reads mutable business tables an
 instead projects immutable command and state-event Kafka topics into ClickHouse. The event store remains the source of
 truth; ClickHouse is a rebuildable analytical read model.
 
-```mermaid
-flowchart LR
-    subgraph Traditional[Traditional mutable storage]
-        TCommand[Command] --> Current[(Current-state row)]
-        Current --> Next[(Overwritten current-state row)]
-    end
-    subgraph EventSourcing[Event sourcing]
-        ECommand[Command] --> Events[(Ordered event history)]
-        Events --> Source[Deterministic sourcing]
-        Source --> State[Current aggregate state]
-        State --> Snapshot[(Optional snapshot)]
-    end
-```
+![Event Sourcing VS Traditional Architecture](/images/eventstore/eventsourcing.svg)
 
 That ownership boundary has operational consequences:
 
@@ -35,17 +23,7 @@ That ownership boundary has operational consequences:
 Do not write domain state back from BI tables, and do not treat a successful SQL generation as proof that ClickHouse
 is current.
 
-```mermaid
-flowchart LR
-    Service[Wow service] --> Commands[Command Kafka topic]
-    Service --> StateEvents[State-event Kafka topic]
-    Commands --> CommandTable[ClickHouse Kafka Engine]
-    StateEvents --> StateTable[ClickHouse Kafka Engine]
-    CommandTable --> Views[Materialized views]
-    StateTable --> Views
-    Views --> ReadModel[(MergeTree read model)]
-    Consumer[BI consumer] --> ReadModel
-```
+![Business Intelligence](/images/bi/bi.svg)
 
 ## Generate and Retrieve ETL Scripts
 

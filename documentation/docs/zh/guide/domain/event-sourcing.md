@@ -8,19 +8,7 @@ outline: deep
 
 事件溯源把聚合的已发生事实保存为有序的 `DomainEventStream`，并从这些事实恢复状态。命令负责作出决策；事件一旦成功追加到 `EventStore`，才成为可恢复的权威历史。
 
-```mermaid
-flowchart LR
-    subgraph Traditional[传统可变存储]
-        TCommand[命令] --> Current[(当前状态行)]
-        Current --> Next[(覆盖后的当前状态行)]
-    end
-    subgraph EventSourcing[事件溯源]
-        ECommand[命令] --> Events[(有序事件历史)]
-        Events --> Source[确定性溯源]
-        Source --> State[当前聚合状态]
-        State --> Snapshot[(可选快照)]
-    end
-```
+![事件溯源 VS 传统架构](/images/eventstore/eventsourcing.svg)
 
 ## 权威历史模型
 

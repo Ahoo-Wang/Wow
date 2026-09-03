@@ -25,14 +25,7 @@ outline: deep
 
 `SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED` 和 `SAGA_HANDLED` 都依赖 `PROCESSED`，但彼此是独立分支，不是一条全局线性链：
 
-```mermaid
-flowchart LR
-    SENT --> PROCESSED
-    PROCESSED --> SNAPSHOT
-    PROCESSED --> PROJECTED
-    PROCESSED --> EVENT_HANDLED
-    PROCESSED --> SAGA_HANDLED
-```
+![WaitingForStage](/images/wait/WaitingForStage.svg)
 
 因此，观察到 `PROJECTED` 不表示 `SNAPSHOT` 或 `SAGA_HANDLED` 已完成。阶段信号按实际观察顺序到达；分布式通知、调度和并发处理都可能让下游信号先于 `PROCESSED` 被等待端观察到。
 
@@ -74,6 +67,8 @@ val waitPlan = CommandWait.projected(
 `CommandWait.chain` 先等待匹配的 `SAGA_HANDLED` 主函数，从其信号取得 Saga 发出的后续 `commandId`，再对每条后续命令等待指定的尾阶段和函数。它表达的是“这次 Saga 以及它实际发出的命令”，不是等待系统中所有同类命令。
 
 后续命令的信号可能早于主 Saga 信号到达。链式等待会先暂存这些信号；主信号确认实际的后续 `commandId` 后，再创建尾部状态并按原观察顺序重放。未被主信号确认的暂存信号不能完成链。
+
+![WaitingForChain](/images/wait/WaitingForChain.svg)
 
 ## 最终结果与结果流
 

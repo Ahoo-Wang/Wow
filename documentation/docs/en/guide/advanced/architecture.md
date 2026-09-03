@@ -25,21 +25,7 @@ Dependencies flow from public contracts to the core, with Spring and adapters co
 
 ## Runtime component view
 
-```mermaid
-flowchart LR
-    Client[Client / application ingress] --> Gateway[CommandGateway]
-    Gateway --> CommandBus[CommandBus]
-    CommandBus --> CommandDispatcher[CommandDispatcher]
-    CommandDispatcher --> Aggregate[CommandAggregate + StateAggregate]
-    Aggregate --> EventStore[(EventStore)]
-    Aggregate --> DomainBus[DomainEventBus]
-    Aggregate --> StateBus[StateEventBus]
-    DomainBus --> EventProcessor[EventProcessor]
-    DomainBus --> Projection[Projection]
-    DomainBus --> Saga[Stateless Saga]
-    StateBus --> Snapshot[Snapshot Dispatcher]
-    Snapshot --> SnapshotStore[(SnapshotStore)]
-```
+![Wow architecture](/images/Architecture.svg)
 
 Three ownership categories matter:
 
