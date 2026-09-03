@@ -37,7 +37,9 @@ class ElasticsearchEventStreamQueryBackendFactory(
         ElasticsearchIndexMappingResolver(elasticsearchClient),
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
 ) : AbstractEventStreamQueryBackendFactory() {
-    override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<ElasticsearchEventStreamQueryBackend> {
+    override fun createBinding(
+        namedAggregate: NamedAggregate,
+    ): QueryBackendBinding<ElasticsearchEventStreamQueryBackend> {
         val materialized = namedAggregate.materialize()
         val provider = DefaultQueryModelSchemaProvider(
             context = QuerySchemaContext(materialized, QueryModel.EVENT_STREAM),
