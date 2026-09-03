@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.serialization.MessageRecords
@@ -46,6 +47,14 @@ internal class QueryFilterSchemaResolver(
 
         is IdFilter,
         is IdsFilter,
+        -> metadata(
+            filter,
+            if (schema.model == QueryModel.EVENT_STREAM) {
+                MessageRecords.ID
+            } else {
+                MessageRecords.AGGREGATE_ID
+            },
+        )
         is AggregateIdFilter,
         is AggregateIdsFilter,
         -> metadata(filter, MessageRecords.AGGREGATE_ID)

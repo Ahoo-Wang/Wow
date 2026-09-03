@@ -669,6 +669,42 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `event stream should keep deletion filters compatible without deletion metadata`() {
+        val filter = DeletionFilter(DeletionState.ACTIVE)
+        val resolver = QuerySchemaResolver(
+            QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap()),
+        )
+
+        resolver.resolve(filter).assert().isEqualTo(
+            QuerySchemaResolution(filter, QueryCompatibilityLevel.COMPATIBLE),
+        )
+    }
+
+    @Test
+    fun `event stream id filters should use the stream id binding`() {
+        val filters = listOf(
+            IdFilter("stream-id"),
+            IdsFilter(listOf("stream-id")),
+        )
+        val resolver = QuerySchemaResolver(
+            QueryModelSchema(
+                QueryModel.EVENT_STREAM,
+                emptySet(),
+                mapOf(
+                    QueryField("id") to fieldSchema(QueryCapability.EXACT_MATCH to "document.id"),
+                    QueryField("aggregateId") to fieldSchema(),
+                ),
+            ),
+        )
+
+        filters.forEach { filter ->
+            resolver.resolve(filter).assert().isEqualTo(
+                QuerySchemaResolution(filter, QueryCompatibilityLevel.EXACT),
+            )
+        }
+    }
+
+    @Test
     fun `unknown field without dynamic ancestor should remain unchanged and compatible`() {
         val filter = EqualFilter(QueryField("state.unknown"), json("value"))
         val schema = schema(
