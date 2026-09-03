@@ -69,7 +69,6 @@ import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpre
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.tck.query.SnapshotQueryBackendSpec
 import org.bson.BsonDocument
 import org.bson.BsonInt32

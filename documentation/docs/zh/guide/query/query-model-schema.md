@@ -131,4 +131,4 @@ Snapshot 与 EventStream 都发布无作用域变体的 Schema 与 refresh HTTP 
 3. 检查实际后端事实：MongoDB 的索引与 validator，或 Elasticsearch 的 mapping、multi-field、nested、doc values 与 runtime field。不要从另一种后端的结果类推。
 4. 区分 `INCOMPATIBLE`、Schema conflict、Schema unavailable 与请求 DTO 错误，并核对当前使用 `COMPATIBLE` 还是 `STRICT`。
 5. 若刚修改声明或 mapping，可调用 refresh 重新读取当前进程视图；若 mapping 或历史文档本身不满足条件，refresh 不会修复数据。
-6. 若使用自定义 converter，确认 routed Backend 仍提供与转换规则一致的 `QueryModelSchemaProvider`。
+6. 若使用自定义 converter，确认 routed `QueryBackendBinding.schemaProvider` adapter 与 `binding.backend` converter 使用一致的 mapping 规则。
