@@ -25,11 +25,11 @@ interface SnapshotQueryBackendFactory {
 }
 
 abstract class AbstractSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
-    private val backendCache =
+    private val bindingCache =
         ConcurrentHashMap<MaterializedNamedAggregate, QueryBackendBinding<SnapshotQueryBackend>>()
 
     override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-        backendCache.computeIfAbsent(namedAggregate.materialize(), ::createBinding)
+        bindingCache.computeIfAbsent(namedAggregate.materialize(), ::createBinding)
 
     protected abstract fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend>
 }

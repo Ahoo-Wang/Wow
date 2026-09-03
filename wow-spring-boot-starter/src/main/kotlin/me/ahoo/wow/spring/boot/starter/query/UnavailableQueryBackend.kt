@@ -86,7 +86,7 @@ private class UnavailableQueryModelSchemaProvider(
     private val namedAggregate: NamedAggregate,
 ) : QueryModelSchemaProvider {
     override fun schema(): Mono<QueryModelSchema> = Mono.error(schemaUnavailable())
-    override fun refresh(): Mono<QueryModelSchema> = Mono.error(schemaUnavailable())
+    override fun refresh(): Mono<QueryModelSchema> = schema()
 
     private fun schemaUnavailable(): QuerySchemaUnavailableException = QuerySchemaUnavailableException(
         "No query backend is configured for aggregate[$namedAggregate].",
