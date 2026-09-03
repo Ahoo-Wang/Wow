@@ -119,9 +119,9 @@ resolution.value.projection === input.projection
 
 `QueryFieldSchema.projectionField` 只供 Backend Projection Compiler 使用，表示存储侧可投影节点的根路径，不表示公共 Query 字段，也不表示原生 Projection 表达式。
 
-Backend Projection Converter 再把解析后的节点编译为本地语法：
+Schema-aware Backend Projection Compiler 再把解析后的节点编译为本地语法：
 
-- MongoDB：FieldConverter 转换路径后投影该节点，MongoDB 节点投影自然覆盖其子树；
+- MongoDB：使用 `projectionField` 的物理路径投影该节点，MongoDB 节点投影自然覆盖其子树；
 - Elasticsearch：每个节点编译为 `path` 与 `path.*`，同时覆盖标量节点和对象子树；
 - `*` 只允许出现在 Elasticsearch 本地请求中，不能回写 `Projection`、`QueryFieldSchema` 或解析后的公共 Query；
 - Backend 编译可以创建本地 Projection 对象，但不能修改传入的公共 Projection。
@@ -254,7 +254,7 @@ val physical = if (physicalParent == null) {
 }
 ```
 
-任一相对路径无法建立时，该 capability 不兼容。Resolver 不能把绝对 `resolvedField` 直接写入 Element predicate；MongoDB 在 `$elemMatch` 内不再执行 FieldConverter，Elasticsearch 也需要在 nested parent 下编译子字段。
+任一相对路径无法建立时，该 capability 不兼容。Resolver 不能把绝对 `resolvedField` 直接写入 Element predicate；MongoDB 在 `$elemMatch` 内不再执行已删除的 `FieldConverter`，Elasticsearch 也需要在 nested parent 下编译子字段。
 
 logical、resolved 与 physical parent 始终保存当前 Element 的绝对字段。相对字段只写入当前 Query 节点，不能作为下一层 parent。进入下一层 Element 时分别更新为当前绝对 logical field、`binding.resolvedField` 与 `binding.physicalField`，从而保证多层 Element 可以继续正确调用 `relativeTo`。
 
@@ -480,7 +480,7 @@ resolution.value === inputQuery
 
 - `wow-api` 的 QueryField 及所有字段引用；
 - `wow-query` 的 QueryFieldSchema、QueryModelSchema 与内部 Resolver；
-- MongoDB、Elasticsearch Schema Adapter、Projection/Sort Converter 与 Compiler；
+- MongoDB、Elasticsearch Schema Adapter 与 Schema-aware Projection/Sort/Filter/Aggregation Compiler；
 - Schema Source、Merger、EventStream Projection/Mask、Metadata、OpenAPI Definition Provider 与快照的类型迁移；
 - JVM、Java、文档、Benchmark 与 Backend 集成测试更新。
 
@@ -505,7 +505,7 @@ resolution.value === inputQuery
 6. Projection 的每个 QueryField 表示节点及其子树，MongoDB 与 Elasticsearch 分别通过标量/对象 include/exclude 集成测试；
 7. Elasticsearch Projection pattern 只在本地 Compiler 输出中出现，不进入公共 Query；
 8. EventStream Projection 只使用逻辑 QueryField 的 selects/intersects 关系；选择 payload 时必须包含且不得排除 bodyType，删除 wildcard 正则、内部字段标记、补字段与删除字段分支，并覆盖 body、payload、bodyType 的 include/exclude 组合；公共 Projection 保持原引用；
-9. Sort、Sort DSL、`withUniqueSort` 与 Backend Converter 使用 QueryField；Aggregation alias 保持 String，并通过 `sort.field.path` 校验；
+9. Sort、Sort DSL、`withUniqueSort` 与 Backend Compiler 使用 QueryField；Aggregation alias 保持 String，并通过 `sort.field.path` 校验；
 10. 六类 Query 只能通过 `QueryModelSchema.resolve`，QuerySchemaResolver 不再是外部业务入口；
 11. Dynamic Field 使用最近 ancestor，正确派生 resolved、physical、projection 与 Rewrite Mode；
 12. Element predicate 的 resolved 与 physical 字段相对各自 parent，MongoDB、Elasticsearch 嵌套查询行为与改造前一致；

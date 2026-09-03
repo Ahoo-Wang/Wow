@@ -18,7 +18,7 @@ fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
 fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
 ```
 
-不存在接收原始 Query 的兼容重载。Backend 不获取或解析 Schema，也不决定 `QuerySchemaValidationMode`；它只用 `ResolvedQuery.query` 和非空的 `ResolvedQuery.schema` 编译并执行查询。Projection 与 Aggregation Compiler 都接收这个 Schema 实例。single、list、paged、cursor 与 aggregate 返回 `tools.jackson.databind.node.ObjectNode`，count 返回 `Long`；cursor 把节点包装在 `CursorPage<ObjectNode>` 中。`SnapshotQueryBackend` 和 `EventStreamQueryBackend` 区分数据模型；typed 物化属于 Gateway，不属于 Backend。自定义 Backend 从不实现或委托 `QueryModelSchemaProvider`。
+不存在接收原始 Query 的兼容重载。Backend 不获取或解析 Schema，也不决定 `QuerySchemaValidationMode`；它只用 `ResolvedQuery.query` 和非空的 `ResolvedQuery.schema` 编译并执行查询。Schema-aware 的 Projection、Sort、Filter 与 Aggregation Compiler 都以 `QueryFieldBinding.physicalField` 作为唯一物理路径来源；`projectionField` 已是物理路径，已接受但没有 binding 的 `COMPATIBLE` 字段保留原始路径。single、list、paged、cursor 与 aggregate 返回 `tools.jackson.databind.node.ObjectNode`，count 返回 `Long`；cursor 把节点包装在 `CursorPage<ObjectNode>` 中。`SnapshotQueryBackend` 和 `EventStreamQueryBackend` 区分数据模型；typed 物化属于 Gateway，不属于 Backend。自定义 Backend 从不实现或委托 `QueryModelSchemaProvider`。
 
 ## 节点所有权约束
 

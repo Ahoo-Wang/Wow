@@ -5,11 +5,11 @@ description: 以 QueryFieldBinding 统一查询逻辑字段到后端物理字段
 
 # QueryModelSchema 物理字段绑定统一设计
 
-> 状态：提案。
+> 状态：已在 9.0.8 实施。Schema-aware Backend Compiler 以 `QueryFieldBinding.physicalField` 为唯一物理路径来源；`projectionField` 是物理投影路径；已接受而缺少 binding 的 `COMPATIBLE` 字段原样透传。`ResolvedQuery(query, schema)`、Query JSON、Schema HTTP JSON、存储布局和 Cursor wire format 保持不变。
 
 ## 背景
 
-当前查询链路同时保存并使用两种逻辑字段到物理字段的映射：
+实施前的查询链路同时保存并使用两种逻辑字段到物理字段的映射：
 
 - `QueryFieldBinding.physicalField` 在 Query Schema 阶段记录后端实际字段；
 - `FieldConverter` 在 MongoDB 的过滤、投影、排序和 Schema adapter 中再次按字符串转换字段。
@@ -23,7 +23,7 @@ MongoDB 的 Snapshot 与 EventStream 还分别通过 `SnapshotFieldConverter` �
 2. 缺少元数据时，Resolver 的兼容性兜底与 Backend 的字段转换边界不清晰；
 3. Cursor、Element scope、投影和聚合需要分别维护逻辑路径与物理路径，容易出现重复转换或遗漏转换。
 
-本设计把 `QueryFieldBinding.physicalField` 设为唯一的物理字段来源。Query 保持单一逻辑结构，Backend Compiler 在编译边界通过 Schema 获取物理字段，不复制整棵 Query AST。
+已实施的方案把 `QueryFieldBinding.physicalField` 设为唯一的物理字段来源。Query 保持单一逻辑结构，Backend Compiler 在编译边界通过 Schema 获取物理字段，不复制整棵 Query AST。
 
 ## 目标与非目标
 
@@ -34,7 +34,7 @@ MongoDB 的 Snapshot 与 EventStream 还分别通过 `SnapshotFieldConverter` �
 - 缺少字段元数据时继续使用 `COMPATIBLE` 宽松策略，并将原始路径作为物理路径兜底；
 - 正确保留 Snapshot `aggregateId -> _id` 与 EventStream `id -> _id` 的存储语义；
 - 保留逻辑字段用于 Cursor 协议、结果字段和用户可见语义；
-- 删除 `FieldConverter` 及其相关运行时适配层。
+- 已删除 `FieldConverter` 及其相关运行时适配层。
 
 ### 非目标
 
@@ -128,7 +128,7 @@ MongoDB adapter 在构造 `QueryModelSchema` 时直接创建模型相关的 bind
 
 ## 投影路径
 
-`QueryFieldSchema.projectionField` 的语义统一为“物理投影路径”：
+`QueryFieldSchema.projectionField` 的已实施语义统一为“物理投影路径”：
 
 - MongoDB adapter 从 `PRESENCE` binding 的 `physicalField` 生成；
 - Elasticsearch adapter 保留 mapping 计算出的 `projectionPath`；
@@ -158,7 +158,7 @@ Cursor 仍然只保留一份公共 Query，但 Mongo Backend 需要在执行边�
 
 - 读取 `ResolvedQuery.query` 编译后端语法，并通过其 Schema 获取物理字段；
 - 使用 `ResolvedQuery.query` 完成 Cursor 展示、结果映射和公共语义；
-- 不调用 `FieldConverter`；
+- 不调用已删除的 `FieldConverter`；
 - 不自行重新解析 Schema 或决定兼容性。
 
 ### Query Schema Adapter
@@ -168,40 +168,40 @@ Cursor 仍然只保留一份公共 Query，但 Mongo Backend 需要在执行边�
 - 不向 Backend 暴露字段转换器；
 - MongoDB validator/index lookup 使用即将写入 binding 的物理路径。
 
-## API 变更
+## 已完成的 API 迁移
 
 这是内部实现 API 的明确破坏性变更：
 
-- 删除 `FieldConverter`、`ProjectionConverter` 和 `SortConverter`；
-- 删除 `SnapshotFieldConverter` 和 `EventStreamFieldConverter`；
-- 删除依赖 `FieldConverter` 的 `AbstractProjectionConverter` 和 `AbstractSortConverter`；
+- 已删除 `FieldConverter`、`ProjectionConverter` 和 `SortConverter`；
+- 已删除 `SnapshotFieldConverter` 和 `EventStreamFieldConverter`；
+- 已删除依赖 `FieldConverter` 的 `AbstractProjectionConverter` 和 `AbstractSortConverter`；
 - 保持 `ResolvedQuery(query, schema)`，不新增 `physicalQuery`；
 - MongoDB filter、projection、sort 和 aggregation compiler 删除逻辑字段转换参数；
 - 将具体后端的 `*Converter` 重命名为 `*Compiler`，不保留旧名称；
 - 更新所有 Backend、Factory、测试和 Benchmark 的构造调用；
 - 不保留 deprecated bridge、旧构造器、typealias 或兼容重载。
 
-## 实施阶段
+## 实施结果
 
-### 阶段一：建立 Schema 物理字段解析合同
+### 阶段一：Schema 物理字段解析合同
 
-在 `wow-query` 中增加 `resolvePhysicalField`，复用现有 Resolver 的 parent 上下文。先覆盖动态字段、Element scope、模型身份字段和缺少 metadata 的 COMPATIBLE 兜底测试。
+`wow-query` 已提供 `resolvePhysicalField`，复用现有 Resolver 的 parent 上下文，并覆盖动态字段、Element scope、模型身份字段和缺少 metadata 的 COMPATIBLE 兜底。
 
-### 阶段二：迁移 Backend Compiler 边界
+### 阶段二：Backend Compiler 边界
 
-保持 Gateway 与 `ResolvedQuery` 合同不变，更新 Backend Compiler，使所有物理路径都通过 Schema 获取。更新 Backend 合同测试，禁止在 Compiler 中保留独立字段映射。
+Gateway 与 `ResolvedQuery` 合同保持不变。Backend Compiler 的所有物理路径都通过 Schema 获取，且不保留独立字段映射。
 
-### 阶段三：迁移 MongoDB
+### 阶段三：MongoDB
 
-更新 `MongoQuerySchemaAdapter`、`AbstractMongoFilterCompiler`、`MongoProjectionCompiler`、`MongoSortCompiler`、`MongoAggregationCompiler`、Cursor 执行链和 Snapshot/EventStream Factory。所有 Mongo 编译器直接消费物理字段。
+`MongoQuerySchemaAdapter`、`AbstractMongoFilterCompiler`、`MongoProjectionCompiler`、`MongoSortCompiler`、`MongoAggregationCompiler`、Cursor 执行链和 Snapshot/EventStream Factory 已完成迁移；所有 Mongo 编译器直接消费物理字段。
 
-### 阶段四：对齐 Elasticsearch 与清理旧 API
+### 阶段四：Elasticsearch 与旧 API 清理
 
-让 Elasticsearch Projection、Sort、Filter 和 Aggregation 统一使用 Schema binding；随后删除旧 Converter 类型，清理生产代码、测试、Benchmark 与文档引用。
+Elasticsearch Projection、Sort、Filter 和 Aggregation 已统一使用 Schema binding；旧 Converter 类型已从生产代码、测试和 Benchmark 清理，迁移历史文档保留旧名称说明。
 
 ### 阶段五：文档与回归验证
 
-更新 `query-model-schema.md`、`query-model-schema-phase-zero-design.md` 和 Backend 文档，说明 physical binding 的唯一来源及 COMPATIBLE 兜底规则。
+`query-model-schema.md`、`query-model-schema-phase-zero-design.md` 和 Backend 文档已说明 physical binding 的唯一来源及 COMPATIBLE 兜底规则。
 
 ## 验收标准
 
