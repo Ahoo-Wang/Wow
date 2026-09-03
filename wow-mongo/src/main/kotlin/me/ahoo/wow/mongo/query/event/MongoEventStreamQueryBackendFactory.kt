@@ -18,6 +18,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.AbstractEventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
@@ -30,7 +31,7 @@ class MongoEventStreamQueryBackendFactory(
 ) :
     AbstractEventStreamQueryBackendFactory() {
 
-    override fun createBackend(namedAggregate: NamedAggregate): EventStreamQueryBackend {
+    override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> {
         val collectionName = namedAggregate.toEventStreamCollectionName()
         val collection = database.getCollection(collectionName)
         val materialized = namedAggregate.materialize()
@@ -44,10 +45,9 @@ class MongoEventStreamQueryBackendFactory(
                 EventStreamFieldConverter,
             ),
         )
-        return MongoEventStreamQueryBackend(
-            namedAggregate = materialized,
-            collection = collection,
-            schemaProvider = provider,
+        return QueryBackendBinding(
+            MongoEventStreamQueryBackend(materialized, collection),
+            provider,
         )
     }
 }

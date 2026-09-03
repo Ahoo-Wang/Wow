@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
@@ -29,7 +30,7 @@ class MongoSnapshotQueryBackendFactory(
     private val database: MongoDatabase,
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
 ) : AbstractSnapshotQueryBackendFactory() {
-    override fun createBackend(namedAggregate: NamedAggregate): SnapshotQueryBackend {
+    override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> {
         val materialized = namedAggregate.materialize()
         val collectionName = namedAggregate.toSnapshotCollectionName()
         val collection = database.getCollection(collectionName)
@@ -38,10 +39,9 @@ class MongoSnapshotQueryBackendFactory(
             sources = schemaSources,
             adapter = MongoQuerySchemaAdapter(collection, database),
         )
-        return MongoSnapshotQueryBackend(
-            namedAggregate = materialized,
-            collection = collection,
-            schemaProvider = provider,
+        return QueryBackendBinding(
+            MongoSnapshotQueryBackend(materialized, collection),
+            provider,
         )
     }
 }

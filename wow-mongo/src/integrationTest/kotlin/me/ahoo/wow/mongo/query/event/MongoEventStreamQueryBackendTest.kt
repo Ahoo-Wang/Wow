@@ -16,14 +16,13 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.MongoEventStore
-import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
-import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -32,7 +31,6 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
-import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.tck.container.MongoTestFixture
@@ -90,7 +88,7 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 
     @Test
     fun `should provide event stream query schema`() {
-        val schema = eventStreamQueryBackend.requiredQueryModelSchemaProvider().schema().block()!!
+        val schema = queryBackendBinding.schemaProvider.schema().block()!!
 
         schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
         schema.fields.assert().containsKey(QueryField("body.name"))
@@ -111,45 +109,18 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
             }
 
             override fun refresh(): Mono<QueryModelSchema> = schema()
-        }
+            }
+        val binding = QueryBackendBinding(
+            backend,
+            backend,
+        )
 
-        val singlePublisher = singleQuery { }.query(backend)
-        val aggregationPublisher = aggregation { count("count") }.query(backend)
+        val singlePublisher = singleQuery { }.query(binding)
+        val aggregationPublisher = aggregation { count("count") }.query(binding)
 
         schemaCalls.get().assert().isZero()
         singlePublisher.thenMany(aggregationPublisher).test().verifyComplete()
         schemaCalls.get().assert().isEqualTo(2)
-    }
-
-    @Test
-    fun `public constructor should expose default event stream schema`() {
-        val queryService = MongoEventStreamQueryBackend(
-            namedAggregate,
-            database.getCollection(namedAggregate.toEventStreamCollectionName()),
-        )
-
-        queryService.schema().test()
-            .assertNext { schema -> schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM) }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `custom filter converter should make schema unavailable`() {
-        val converter = object : AbstractMongoFilterConverter() {
-            override val fieldConverter = EventStreamFieldConverter
-        }
-        val queryService = MongoEventStreamQueryBackend(
-            namedAggregate,
-            database.getCollection(namedAggregate.toEventStreamCollectionName()),
-            converter,
-        )
-
-        queryService.schema().test()
-            .expectError(QuerySchemaUnavailableException::class.java)
-            .verify()
-        queryService.refresh().test()
-            .expectError(QuerySchemaUnavailableException::class.java)
-            .verify()
     }
 
     @Test
@@ -162,7 +133,7 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
                 MessageRecords.ID eq eventStream.id
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.query(eventStreamQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext { node -> node.path("id").textValue().assert().isEqualTo(eventStream.id) }
             .verifyComplete()
@@ -215,15 +186,15 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 }
 
 private fun ISingleQuery.query(
-    backend: EventStreamQueryBackend,
+    binding: QueryBackendBinding<EventStreamQueryBackend>,
     mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-): Mono<ObjectNode> = Mono.defer { backend.requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
-    backend.single(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
+): Mono<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMap { schema ->
+    binding.backend.single(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
 }
 
 private fun AggregationQuery.query(
-    backend: EventStreamQueryBackend,
+    binding: QueryBackendBinding<EventStreamQueryBackend>,
     mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-): Flux<ObjectNode> = Mono.defer { backend.requiredQueryModelSchemaProvider().schema() }.flatMapMany { schema ->
-    backend.aggregate(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
+): Flux<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
+    binding.backend.aggregate(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
 }

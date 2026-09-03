@@ -46,7 +46,6 @@ import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaResolution
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
-import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -901,8 +900,8 @@ class MongoQuerySchemaAdapterTest {
             },
         )
         val provider = MongoSnapshotQueryBackendFactory(database = fixture.database)
-            .create<Any>(MOCK_AGGREGATE_METADATA)
-            .requiredQueryModelSchemaProvider()
+            .create(MOCK_AGGREGATE_METADATA)
+            .schemaProvider
 
         provider.schema().test()
             .assertNext { schema -> schema.capabilities.assert().isEmpty() }
