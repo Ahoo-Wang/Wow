@@ -176,6 +176,21 @@ Filters no longer use `QueryType.isDynamic` to distinguish a final typed result 
 
 Delete old Mask types, implementations, Beans, registries, and custom filters without creating an ObjectNode Mask compatibility layer. Once old rules are declared on domain fields, Snapshot and EventStream typed, dynamic, and aggregate-state load entries mask automatically on the same managed Gateway path: the framework-owned `SchemaMaskQueryFilter` reads `QueryContext.schema`, the same instance reuses its Masker, and a new subscription after refresh reads the new instance and recompiles it. Unavailable Schema fails every managed Gateway call closed before Context, Filters, or Backend subscription. Count performs no result masking but still requires Schema for request admission. Trusted raw access is `factory.create(namedAggregate).backend`; its caller must explicitly obtain Schema, resolve and admit the query, and then construct `ResolvedQuery`. There is no Provider-level unavailable fallback.
 
+#### Removed and narrowed public API
+
+Beyond the six execution signatures and the Gateway constructor contract, the same release train removed or narrowed the following public API; migrate every direct use:
+
+| Removed or narrowed API | Migration |
+| --- | --- |
+| `ResolvedAggregationQuery` | Use `ResolvedQuery<AggregationQuery>`. |
+| All six `QueryModelSchemaProvider.resolve(query, mode)` extensions and the Provider-level `COMPATIBLE` unavailable fallback | Call `QueryModelSchema.resolve(...)` plus `requireAccepted(mode)` yourself; every path now fails closed with `QuerySchemaUnavailableException` on unavailable Schema. |
+| `ProjectionConverter.convert(projection, schema: QueryModelSchema?)` | The `schema` parameter is non-null; custom converters always compile from a non-null Schema. |
+| `QueryContext` / `DefaultQueryContext` | `QueryContext` declares a non-default `schema: QueryModelSchema` member; `DefaultQueryContext` takes it as the third constructor parameter. |
+| `schemaProvider` constructor parameter on the MongoDB and Elasticsearch Backends, and any Backend implementing or delegating `QueryModelSchemaProvider` | Pair the Provider in the Factory's `QueryBackendBinding` instead; Backends carry no Provider capability. |
+| `requiredQueryModelSchemaProvider()` extensions | Read `factory.create(namedAggregate).schemaProvider` from the binding. |
+| `MongoCollections.findDocument` four-argument public overload | The remaining overload requires a non-null `QueryModelSchema`. |
+| `validationMode` constructor parameter on the MongoDB and Elasticsearch Backend Factories | Validation mode is Gateway-owned; the default bean comes from `wow.query.schema.validation-mode`. |
+
 ## Static Mask Migration
 
 After removing the old Registry/filter, migrate full masking to `@Mask`, edge-preserving rules to `@KeepMask(prefix, suffix)`, and domain-specific rules to runtime field annotations carrying `@Masking(strategy)`. Do not add an ObjectNode compatibility layer or a new Registry. See [Field Masking](./masking.md) for the complete API, Unicode/empty-value semantics, behavior matrix, and fail-closed contract.
@@ -214,9 +229,11 @@ Only standard JSON trees may cross the Backend boundary. Storage-driver `Map`/`D
 
 JSON-array and SSE streaming behavior is unchanged. If a stream fails after emitting some elements, those elements are not rolled back. SSE attempts to emit an `ErrorInfo` error event. A `RequestExceptionHandler` failure or a failure while generating, rendering, or serializing that error event is attached to the original as a suppressed error only when distinct and not already recorded. The original terminal error is always propagated; migration must not rewrite that partial failure as an empty result or successful completion.
 
+When no Backend is configured or Schema acquisition fails, a managed Gateway call fails closed with `QuerySchemaUnavailableException` (error code `QuerySchemaUnavailable`, HTTP 503) before Filters run or the Backend is subscribed. Earlier releases surfaced this case as a generic `INTERNAL_SERVER_ERROR` `WowException` (HTTP 500); clients that match on the error code or HTTP status must update. Direct low-level Backend calls keep surfacing each Backend's own error, for example the unavailable Backend's `INTERNAL_SERVER_ERROR` `WowException`.
+
 ## Minimal Migration Steps
 
-1. Replace imports, constructor parameters, Bean qualifiers, and Factory implementations according to the tables.
+1. Replace imports, constructor parameters, Bean qualifiers, and Factory implementations according to the tables and the removed-or-narrowed API list.
 2. Change all six custom Backend methods to accept `ResolvedQuery`; remove raw-query overloads, execution-time Schema resolution, validation-mode branches, and Cursor unique-field appending, and compile Projection and Aggregation with `query.schema`.
 3. Make every custom Backend subscription return fresh, exclusively owned `ObjectNode` values containing only standard JSON-tree data, leaving typed conversion to the Gateway.
 4. Remove every old Mask implementation, Bean, registry, and filter; use [Field Masking](./masking.md) to migrate each rule to `@Mask`, `@KeepMask`, or a custom `@Masking(strategy)` field annotation.
