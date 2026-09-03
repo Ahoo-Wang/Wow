@@ -233,9 +233,8 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     fun `aggregation helper should prepare only on subscription`() {
         val querySchema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
         val schemaCalls = AtomicInteger()
-        val backend = object :
-            SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
-            QueryModelSchemaProvider {
+        val backend = object : SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA) {}
+        val schemaProvider = object : QueryModelSchemaProvider {
             override fun schema(): Mono<QueryModelSchema> {
                 schemaCalls.incrementAndGet()
                 return Mono.just(querySchema)
@@ -244,7 +243,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             override fun refresh(): Mono<QueryModelSchema> = schema()
         }
 
-        val publisher = aggregation { count("count") }.query(QueryBackendBinding(backend, backend))
+        val publisher = aggregation { count("count") }.query(QueryBackendBinding(backend, schemaProvider))
 
         schemaCalls.get().assert().isZero()
         publisher.test().verifyComplete()

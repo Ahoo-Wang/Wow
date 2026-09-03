@@ -100,19 +100,18 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
     fun `query helpers should prepare only on subscription`() {
         val querySchema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
         val schemaCalls = AtomicInteger()
-        val backend = object :
-            EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate),
-            QueryModelSchemaProvider {
+        val backend = object : EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate) {}
+        val schemaProvider = object : QueryModelSchemaProvider {
             override fun schema(): Mono<QueryModelSchema> {
                 schemaCalls.incrementAndGet()
                 return Mono.just(querySchema)
             }
 
             override fun refresh(): Mono<QueryModelSchema> = schema()
-            }
+        }
         val binding = QueryBackendBinding(
             backend,
-            backend,
+            schemaProvider,
         )
 
         val singlePublisher = singleQuery { }.query(binding)

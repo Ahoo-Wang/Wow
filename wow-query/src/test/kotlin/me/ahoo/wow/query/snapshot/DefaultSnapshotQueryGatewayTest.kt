@@ -309,7 +309,7 @@ class DefaultSnapshotQueryGatewayTest {
             DefaultSnapshotQueryGateway<TestState>(
                 namedAggregate = MOCK_AGGREGATE_METADATA,
                 backend = backend,
-                schemaProvider = backend,
+                schemaProvider = backend.schemaProvider,
                 validationMode = QuerySchemaValidationMode.COMPATIBLE,
                 targetType = JsonSerializer.typeFactory.constructParametricType(
                     MaterializedSnapshot::class.java,
@@ -476,7 +476,7 @@ class DefaultSnapshotQueryGatewayTest {
     ): DefaultSnapshotQueryGateway<TestState> = DefaultSnapshotQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA,
         backend = backend,
-        schemaProvider = backend,
+        schemaProvider = backend.schemaProvider,
         validationMode = QuerySchemaValidationMode.COMPATIBLE,
         targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
@@ -490,7 +490,7 @@ class DefaultSnapshotQueryGatewayTest {
         DefaultSnapshotQueryGateway(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             backend = backend,
-            schemaProvider = backend,
+            schemaProvider = backend.schemaProvider,
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
             targetType = JsonSerializer.typeFactory.constructParametricType(
                 MaterializedSnapshot::class.java,
@@ -583,20 +583,15 @@ class DefaultSnapshotQueryGatewayTest {
     private class SchemaSnapshotBackend(
         private val schemaPublisher: () -> Mono<QueryModelSchema>,
         private val nodeSupplier: () -> ObjectNode = ::snapshotNode,
-    ) : SnapshotQueryBackend, QueryModelSchemaProvider {
+    ) : SnapshotQueryBackend {
         constructor(schemaPublisher: Mono<QueryModelSchema>) : this({ schemaPublisher })
 
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
         override val name: String = "schema"
-        val schemaCalls = AtomicInteger()
+        val schemaProvider = SchemaSnapshotProvider(schemaPublisher)
+        val schemaCalls: AtomicInteger
+            get() = schemaProvider.schemaCalls
         val resultSubscriptions = AtomicInteger()
-
-        override fun schema(): Mono<QueryModelSchema> = Mono.defer {
-            schemaCalls.incrementAndGet()
-            schemaPublisher()
-        }
-
-        override fun refresh(): Mono<QueryModelSchema> = schema()
 
         override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.fromSupplier {
             resultSubscriptions.incrementAndGet()
@@ -626,9 +621,29 @@ class DefaultSnapshotQueryGatewayTest {
         }
     }
 
-    private class SwitchingSchemaSnapshotBackend :
-        SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
-        QueryModelSchemaProvider {
+    private class SchemaSnapshotProvider(
+        private val schemaPublisher: () -> Mono<QueryModelSchema>,
+    ) : QueryModelSchemaProvider {
+        val schemaCalls = AtomicInteger()
+
+        override fun schema(): Mono<QueryModelSchema> = Mono.defer {
+            schemaCalls.incrementAndGet()
+            schemaPublisher()
+        }
+
+        override fun refresh(): Mono<QueryModelSchema> = schema()
+    }
+
+    private class SwitchingSchemaSnapshotBackend : SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA) {
+        val schemaProvider = SwitchingSchemaProvider()
+        val schemaCalls: AtomicInteger
+            get() = schemaProvider.schemaCalls
+
+        override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> =
+            Mono.fromSupplier(::snapshotNode)
+    }
+
+    private class SwitchingSchemaProvider : QueryModelSchemaProvider {
         private val current = AtomicReference(maskedSchema())
         val schemaCalls = AtomicInteger()
 
@@ -641,9 +656,6 @@ class DefaultSnapshotQueryGatewayTest {
         }
 
         override fun refresh(): Mono<QueryModelSchema> = schema()
-
-        override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> =
-            Mono.fromSupplier(::snapshotNode)
     }
 
     private companion object {

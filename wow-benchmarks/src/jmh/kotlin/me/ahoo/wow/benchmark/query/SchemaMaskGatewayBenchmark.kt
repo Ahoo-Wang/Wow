@@ -82,25 +82,24 @@ open class SchemaMaskGatewayBenchmark {
                 QueryField("state.secret$index") to maskedFieldSchema()
             },
         )
-        val backend = object :
-            SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate),
-            QueryModelSchemaProvider {
-            private val schemaMono = Mono.just(schema)
-
-            override fun schema(): Mono<QueryModelSchema> = schemaMono
-
-            override fun refresh(): Mono<QueryModelSchema> = schemaMono
-
+        val backend = object : SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate) {
             override fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode> = Flux.range(0, resultCount).map {
                 JsonNodeFactory.instance.objectNode().also { node ->
                     node.putObject("state").put("visible", "value")
                 }
             }
         }
+        val schemaProvider = object : QueryModelSchemaProvider {
+            private val schemaMono = Mono.just(schema)
+
+            override fun schema(): Mono<QueryModelSchema> = schemaMono
+
+            override fun refresh(): Mono<QueryModelSchema> = schemaMono
+        }
         gateway = DefaultSnapshotQueryGateway(
             namedAggregate = namedAggregate,
             backend = backend,
-            schemaProvider = backend,
+            schemaProvider = schemaProvider,
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
             targetType = JsonSerializer.typeFactory.constructType(ObjectNode::class.java),
         )

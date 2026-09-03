@@ -1185,7 +1185,7 @@ internal class WebFluxAutoConfigurationTest {
                         DefaultSnapshotQueryGateway<Any>(
                             namedAggregate = namedAggregate,
                             backend = backend,
-                            schemaProvider = backend,
+                            schemaProvider = TestSnapshotQuerySchemaProvider,
                             validationMode = QuerySchemaValidationMode.COMPATIBLE,
                             targetType = JsonSerializer.typeFactory.constructParametricType(
                                 MaterializedSnapshot::class.java,
@@ -1202,7 +1202,7 @@ internal class WebFluxAutoConfigurationTest {
                         DefaultEventStreamQueryGateway(
                             namedAggregate = namedAggregate,
                             backend = backend,
-                            schemaProvider = backend,
+                            schemaProvider = TestEventStreamQuerySchemaProvider,
                             validationMode = QuerySchemaValidationMode.COMPATIBLE,
                         )
                     },
@@ -1243,24 +1243,26 @@ internal class WebFluxAutoConfigurationTest {
 
     private object TestSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
         override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-            TestSnapshotQueryBackend(namedAggregate).let { QueryBackendBinding(it, it) }
+            QueryBackendBinding(TestSnapshotQueryBackend(namedAggregate), TestSnapshotQuerySchemaProvider)
     }
 
     private class TestSnapshotQueryBackend(namedAggregate: NamedAggregate) :
-        SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate),
-        QueryModelSchemaProvider {
+        SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate)
+
+    private object TestSnapshotQuerySchemaProvider : QueryModelSchemaProvider {
         override fun schema(): Mono<QueryModelSchema> = Mono.just(SNAPSHOT_SCHEMA)
         override fun refresh(): Mono<QueryModelSchema> = schema()
     }
 
     private object TestEventStreamQueryBackendFactory : EventStreamQueryBackendFactory {
         override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> =
-            TestEventStreamQueryBackend(namedAggregate).let { QueryBackendBinding(it, it) }
+            QueryBackendBinding(TestEventStreamQueryBackend(namedAggregate), TestEventStreamQuerySchemaProvider)
     }
 
     private class TestEventStreamQueryBackend(namedAggregate: NamedAggregate) :
-        EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate),
-        QueryModelSchemaProvider {
+        EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate)
+
+    private object TestEventStreamQuerySchemaProvider : QueryModelSchemaProvider {
         override fun schema(): Mono<QueryModelSchema> = Mono.just(EVENT_STREAM_SCHEMA)
         override fun refresh(): Mono<QueryModelSchema> = schema()
     }
