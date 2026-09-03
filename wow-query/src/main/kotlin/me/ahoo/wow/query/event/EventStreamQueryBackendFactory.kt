@@ -25,11 +25,11 @@ fun interface EventStreamQueryBackendFactory {
 }
 
 abstract class AbstractEventStreamQueryBackendFactory : EventStreamQueryBackendFactory {
-    private val backendCache =
+    private val bindingCache =
         ConcurrentHashMap<MaterializedNamedAggregate, QueryBackendBinding<EventStreamQueryBackend>>()
 
     override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> =
-        backendCache.computeIfAbsent(namedAggregate.materialize(), ::createBinding)
+        bindingCache.computeIfAbsent(namedAggregate.materialize(), ::createBinding)
 
     protected abstract fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend>
 }
