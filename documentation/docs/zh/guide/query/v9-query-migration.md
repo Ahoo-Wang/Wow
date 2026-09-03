@@ -229,7 +229,7 @@ Backend 边界只允许标准 JSON tree。存储驱动的 `Map`/`Document`、BSO
 
 JSON 数组与 SSE 的流式行为保持不变。若流在输出部分元素后失败，已输出元素不会回滚；SSE 会尝试发送一个 `ErrorInfo` 错误事件。`RequestExceptionHandler` 失败，或该错误事件生成、渲染、序列化失败时，只要失败不同于原始错误且尚未记录，就附加为 suppressed error；原始终止错误始终继续传播，迁移不能把这种部分失败改写为空结果或成功完成。
 
-未配置 Backend 或 Schema 获取失败时，受管 Gateway 调用在 Filter 执行与 Backend 订阅之前，以 `QuerySchemaUnavailableException`（错误码 `QuerySchemaUnavailable`，HTTP 503）失败关闭。早期版本对该场景抛通用 `INTERNAL_SERVER_ERROR` `WowException`（HTTP 500）；依赖错误码或 HTTP 状态码做匹配的客户端必须更新。直接调用低层 Backend 仍会得到各 Backend 自身的错误，例如 unavailable Backend 的 `INTERNAL_SERVER_ERROR` `WowException`。
+未配置 Backend 时，受管 Gateway 调用在 Filter 执行与 Backend 订阅之前，以 `QuerySchemaUnavailableException`（错误码 `QuerySchemaUnavailable`，HTTP 503）失败关闭；内建 Provider 与 schema source 在 Schema 不可用或不可读时同样抛出该异常。若自定义 `QueryModelSchemaProvider` 或 `QuerySchemaSource` 以其它异常失败，Gateway 会原样传播该错误，按其自身错误码映射传输状态，而不是 503。早期版本对该场景抛通用 `INTERNAL_SERVER_ERROR` `WowException`（HTTP 500）；依赖错误码或 HTTP 状态码做匹配的客户端必须更新。直接调用低层 Backend 仍会得到各 Backend 自身的错误，例如 unavailable Backend 的 `INTERNAL_SERVER_ERROR` `WowException`。
 
 ## 最小迁移步骤
 
