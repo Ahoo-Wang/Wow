@@ -303,13 +303,15 @@ internal class MongoAggregationCompiler(
     private fun AggregationGroup.DateHistogram.dateInput(parent: QueryField?, schema: QueryModelSchema): Any {
         val logicalField = parent?.append(field) ?: field
         val fieldSchema = schema.field(logicalField)
-        if (fieldSchema == null) {
+        val temporalBinding = fieldSchema?.binding(QueryCapability.AGGREGATE_TEMPORAL)
+        val dynamicTemporal = fieldSchema?.let { logicalField !in schema.fields && it.dynamicChildren } == true
+        if (temporalBinding == null && (fieldSchema == null || dynamicTemporal)) {
             return Document(
                 "\$toDate",
                 "\$${schema.resolvePhysicalField(logicalField, QueryCapability.AGGREGATE_TEMPORAL).path}"
             )
         }
-        val physicalPath = fieldSchema.binding(QueryCapability.AGGREGATE_TEMPORAL)?.physicalField?.path
+        val physicalPath = temporalBinding?.physicalField?.path
             ?: throw QuerySchemaValidationException(
                 "Query field [$logicalField] does not support [${QueryCapability.AGGREGATE_TEMPORAL}].",
             )

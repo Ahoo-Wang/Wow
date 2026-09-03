@@ -69,6 +69,28 @@ class QueryModelSchemaTest {
     }
 
     @Test
+    fun `projection field should default to presence physical field`() {
+        val resolvedField = QueryField("document.name")
+        val physicalField = QueryField("storage.name")
+
+        QueryFieldSchema(
+            title = null,
+            description = null,
+            enumValues = null,
+            valueTypes = setOf(QueryValueType.STRING),
+            nullable = false,
+            required = true,
+            cardinality = QueryCardinality.SINGLE,
+            semanticType = null,
+            dynamicChildren = false,
+            bindings = mapOf(
+                QueryCapability.PRESENCE to QueryFieldBinding(resolvedField, physicalField, null),
+            ),
+            rewriteMode = QueryRewriteMode.NONE,
+        ).projectionField.assert().isEqualTo(physicalField)
+    }
+
+    @Test
     fun `physical field resolution should return the absolute logical field when it is missing`() {
         val field = QueryField("name")
         val logicalParent = QueryField("state")

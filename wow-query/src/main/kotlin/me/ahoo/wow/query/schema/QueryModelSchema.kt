@@ -210,7 +210,7 @@ data class QueryFieldSchema(
     val semanticType: QuerySemanticType?,
     val dynamicChildren: Boolean,
     val bindings: Map<QueryCapability, QueryFieldBinding>,
-    val projectionField: QueryField? = bindings[QueryCapability.PRESENCE]?.resolvedField,
+    val projectionField: QueryField? = bindings[QueryCapability.PRESENCE]?.physicalField,
     val rewriteMode: QueryRewriteMode,
     @get:JsonIgnore internal val maskRule: MaskRule? = null,
 ) {

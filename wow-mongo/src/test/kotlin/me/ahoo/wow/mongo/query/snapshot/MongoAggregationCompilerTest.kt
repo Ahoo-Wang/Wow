@@ -31,7 +31,9 @@ import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.QueryStorageType
+import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.BsonDocument
 import org.bson.BsonString
@@ -180,6 +182,46 @@ class MongoAggregationCompilerTest {
             .contains("\"onNull\": null")
             .contains("\$dateTrunc")
             .doesNotContain("state.createdAt")
+    }
+
+    @Test
+    fun `compatible dynamic temporal field should compile with its original path`() {
+        val schema = schema(
+            field(
+                "state.attributes",
+                QueryCapability.EXACT_MATCH,
+                "state.attributes",
+                QueryValueType.OBJECT,
+                dynamicChildren = true,
+            ),
+        )
+        val accepted = schema.resolve(
+            aggregation {
+                dateHistogram("state.attributes.createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
+        ).requireAccepted(QuerySchemaValidationMode.COMPATIBLE)
+
+        MongoAggregationCompiler(SnapshotFilterCompiler).compile(accepted, schema)
+            .single { it.toBsonDocument().containsKey("\$group") }
+            .toBsonDocument().toJson().assert()
+            .contains("\$toDate")
+            .contains("\$state.attributes.createdAt")
+    }
+
+    @Test
+    fun `declared temporal field without a temporal binding should fail compilation`() {
+        val schema = schema(
+            field("state.createdAt", QueryCapability.EXACT_MATCH, "state.createdAt"),
+        )
+        val query = aggregation {
+            dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+            count("count")
+        }
+
+        assertThrows<QuerySchemaValidationException> {
+            MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
+        }
     }
 
     @Test
