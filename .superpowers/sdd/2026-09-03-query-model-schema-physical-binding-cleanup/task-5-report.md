@@ -37,3 +37,14 @@ Gradle emitted pre-existing deprecation notices for Gradle 10 compatibility and 
 ## Unresolved concerns
 
 - No code concern. The requested RED phase could not be observed because predecessor Task 3 had already applied the schema-only aggregation/compiler wiring before this task began.
+
+## Review fix
+
+Removed the defaulted `AbstractMongoFilterCompiler` constructor injection points from `MongoSnapshotQueryBackend` and `MongoEventStreamQueryBackend`, including their imports. Each backend now declares its concrete compiler property directly (`SnapshotFilterCompiler` or `EventStreamFilterCompiler`), so no compatibility bridge remains. Factories still construct each backend with the same two arguments and routing/binding behavior is unchanged.
+
+### Review-fix verification
+
+| Command | Result |
+| --- | --- |
+| `./gradlew :wow-mongo:test --tests "me.ahoo.wow.mongo.query.AbstractMongoQueryBackendTest" --tests "me.ahoo.wow.mongo.query.snapshot.MongoAggregationCompilerTest"` | Exit 0, `BUILD SUCCESSFUL in 4s`; 38 actionable tasks, 2 executed, 2 from cache, 34 up-to-date. |
+| `./gradlew :wow-mongo:check` | Exit 0, `BUILD SUCCESSFUL in 8s`; 39 actionable tasks, 2 executed, 37 up-to-date. |
