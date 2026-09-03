@@ -176,6 +176,21 @@ Filter 不再通过 `QueryType.isDynamic` 判断最终返回 typed 对象还是�
 
 删除旧 Mask 类型、实现、Bean、Registry 与自定义 Filter，不建立 ObjectNode Mask 兼容层。把原规则声明到领域字段后，Snapshot、EventStream 的 typed、dynamic 与 aggregate-state load 会在同一条受管 Gateway 路径自动脱敏；框架内建 `SchemaMaskQueryFilter` 读取 `QueryContext.schema`，同一实例复用 Masker，refresh 后的新订阅读取新实例并重新编译。Schema 不可用时所有受管 Gateway 调用在 Context、Filter 与订阅 Backend 前失败关闭；count 不执行结果脱敏，但仍需要 Schema 完成请求准入。受信原始边界是 `factory.create(namedAggregate).backend`；调用方必须显式取得 Schema、完成解析与准入，再构造 `ResolvedQuery`，不存在 Provider 级 unavailable fallback。
 
+#### 已删除与收窄的公共 API
+
+除六个执行签名与 Gateway 构造合同外，同一发布列车还删除或收窄了以下公共 API；所有直接使用都必须迁移：
+
+| 已删除或收窄的 API | 迁移方式 |
+| --- | --- |
+| `ResolvedAggregationQuery` | 改用 `ResolvedQuery<AggregationQuery>`。 |
+| 全部六个 `QueryModelSchemaProvider.resolve(query, mode)` 扩展及 Provider 级 `COMPATIBLE` unavailable fallback | 自行调用 `QueryModelSchema.resolve(...)` 并 `requireAccepted(mode)`；所有路径在 Schema 不可用时统一以 `QuerySchemaUnavailableException` 失败关闭。 |
+| `ProjectionConverter.convert(projection, schema: QueryModelSchema?)` | `schema` 参数改为非空；自定义 converter 始终基于非空 Schema 编译。 |
+| `QueryContext` / `DefaultQueryContext` | `QueryContext` 新增无默认值的 `schema: QueryModelSchema` 成员；`DefaultQueryContext` 第三个构造参数必填。 |
+| MongoDB 与 Elasticsearch Backend 构造函数的 `schemaProvider` 参数，以及 Backend 实现或委托 `QueryModelSchemaProvider` | 改为在 Factory 的 `QueryBackendBinding` 中配对 Provider；Backend 不再承载 Provider 能力。 |
+| `requiredQueryModelSchemaProvider()` 扩展 | 从 binding 读取 `factory.create(namedAggregate).schemaProvider`。 |
+| `MongoCollections.findDocument` 四参数公有重载 | 仅存重载要求非空 `QueryModelSchema`。 |
+| MongoDB 与 Elasticsearch Backend Factory 构造函数的 `validationMode` 参数 | 验证模式归 Gateway 所有；默认 Bean 来自 `wow.query.schema.validation-mode`。 |
+
 ## 静态 Mask 迁移
 
 删除旧 Registry/Filter 后，把全量遮蔽迁移为 `@Mask`，保留前后字符的规则迁移为 `@KeepMask(prefix, suffix)`，领域专用规则迁移为带 `@Masking(strategy)` 的运行时字段注解。无需建立 ObjectNode 兼容层或新 Registry；完整 API、Unicode/空值语义、行为矩阵与失败关闭合同见[字段脱敏](./masking.md)。
@@ -214,9 +229,11 @@ Backend 边界只允许标准 JSON tree。存储驱动的 `Map`/`Document`、BSO
 
 JSON 数组与 SSE 的流式行为保持不变。若流在输出部分元素后失败，已输出元素不会回滚；SSE 会尝试发送一个 `ErrorInfo` 错误事件。`RequestExceptionHandler` 失败，或该错误事件生成、渲染、序列化失败时，只要失败不同于原始错误且尚未记录，就附加为 suppressed error；原始终止错误始终继续传播，迁移不能把这种部分失败改写为空结果或成功完成。
 
+未配置 Backend 时，受管 Gateway 调用在 Filter 执行与 Backend 订阅之前，以 `QuerySchemaUnavailableException`（错误码 `QuerySchemaUnavailable`，HTTP 503）失败关闭；内建 Provider 与 schema source 在 Schema 不可用或不可读时同样抛出该异常。若自定义 `QueryModelSchemaProvider` 或 `QuerySchemaSource` 以其它异常失败，Gateway 会原样传播该错误，按其自身错误码映射传输状态，而不是 503。早期版本对该场景抛通用 `INTERNAL_SERVER_ERROR` `WowException`（HTTP 500）；依赖错误码或 HTTP 状态码做匹配的客户端必须更新。直接调用低层 Backend 仍会得到各 Backend 自身的错误，例如 unavailable Backend 的 `INTERNAL_SERVER_ERROR` `WowException`。
+
 ## 最小迁移步骤
 
-1. 按表替换 import、构造参数、Bean qualifier 与 Factory 实现。
+1. 按表与"已删除与收窄的公共 API"清单替换 import、构造参数、Bean qualifier 与 Factory 实现。
 2. 把自定义 Backend 的六个方法全部改为接收 `ResolvedQuery`，删除原始 Query 重载、执行期 Schema resolve、验证模式与 Cursor 唯一字段追加，并用 `query.schema` 编译 Projection 和 Aggregation。
 3. 让自定义 Backend 的每次订阅返回独占、只含标准 JSON tree 的新 `ObjectNode`，把 typed 转换留给 Gateway。
 4. 删除全部旧 Mask 实现、Bean、Registry 与 Filter；按[字段脱敏](./masking.md)把每条旧规则迁移为 `@Mask`、`@KeepMask` 或自定义 `@Masking(strategy)` 字段注解。
