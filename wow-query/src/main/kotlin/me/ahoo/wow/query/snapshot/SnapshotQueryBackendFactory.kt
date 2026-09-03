@@ -16,22 +16,30 @@ package me.ahoo.wow.query.snapshot
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.schema.UnavailableQueryModelSchemaProvider
 import java.util.concurrent.ConcurrentHashMap
 
 interface SnapshotQueryBackendFactory {
-    fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryBackend
+    fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend>
 }
 
 abstract class AbstractSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
-    private val backendCache = ConcurrentHashMap<MaterializedNamedAggregate, SnapshotQueryBackend>()
+    private val backendCache =
+        ConcurrentHashMap<MaterializedNamedAggregate, QueryBackendBinding<SnapshotQueryBackend>>()
 
-    override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryBackend =
-        backendCache.computeIfAbsent(namedAggregate.materialize(), ::createBackend)
+    override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
+        backendCache.computeIfAbsent(namedAggregate.materialize(), ::createBinding)
 
-    protected abstract fun createBackend(namedAggregate: NamedAggregate): SnapshotQueryBackend
+    protected abstract fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend>
 }
 
-object NoOpSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
-    override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryBackend =
-        NoOpSnapshotQueryBackend(namedAggregate.materialize())
+object NoOpSnapshotQueryBackendFactory : AbstractSnapshotQueryBackendFactory() {
+    override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
+        QueryBackendBinding(
+            NoOpSnapshotQueryBackend(namedAggregate),
+            UnavailableQueryModelSchemaProvider(
+                "Snapshot query backend [$namedAggregate] does not provide QueryModelSchema."
+            ),
+        )
 }

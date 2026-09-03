@@ -35,6 +35,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
@@ -44,7 +45,6 @@ import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
-import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
@@ -64,13 +64,17 @@ abstract class EventStreamQueryBackendSpec {
     val namedAggregate = MaterializedNamedAggregate("tck", "event-stream-query-spec")
     lateinit var eventStore: EventStore
     lateinit var eventStreamQueryBackendFactory: EventStreamQueryBackendFactory
+    lateinit var queryBackendBinding: QueryBackendBinding<EventStreamQueryBackend>
     lateinit var eventStreamQueryBackend: EventStreamQueryBackend
+    lateinit var queryModelSchemaProvider: QueryModelSchemaProvider
 
     @BeforeEach
     open fun setup() {
         eventStore = createEventStore().meteredForTck()
         eventStreamQueryBackendFactory = createEventStreamQueryBackendFactory()
-        eventStreamQueryBackend = eventStreamQueryBackendFactory.create(namedAggregate)
+        queryBackendBinding = eventStreamQueryBackendFactory.create(namedAggregate)
+        eventStreamQueryBackend = queryBackendBinding.backend
+        queryModelSchemaProvider = queryBackendBinding.schemaProvider
     }
 
     protected abstract fun createEventStore(): EventStore
@@ -90,19 +94,20 @@ abstract class EventStreamQueryBackendSpec {
     @Test
     fun `query helpers defer schema lookup until subscription`() {
         val schemaCalls = AtomicInteger()
-        val backend = object :
-            EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate),
-            QueryModelSchemaProvider {
-            override fun schema(): Mono<QueryModelSchema> {
-                schemaCalls.incrementAndGet()
-                return Mono.just(QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap()))
-            }
+        val binding = QueryBackendBinding(
+            NoOpEventStreamQueryBackend(namedAggregate),
+            object : QueryModelSchemaProvider {
+                override fun schema(): Mono<QueryModelSchema> {
+                    schemaCalls.incrementAndGet()
+                    return Mono.just(QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap()))
+                }
 
-            override fun refresh(): Mono<QueryModelSchema> = schema()
-        }
+                override fun refresh(): Mono<QueryModelSchema> = schema()
+            },
+        )
 
-        val single = singleQuery { }.query(backend)
-        val aggregate = aggregation { count("count") }.query(backend)
+        val single = singleQuery { }.query(binding)
+        val aggregate = aggregation { count("count") }.query(binding)
 
         schemaCalls.get().assert().isZero()
         single.thenMany(aggregate).test().verifyComplete()
@@ -117,7 +122,7 @@ abstract class EventStreamQueryBackendSpec {
             filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.query(eventStreamQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext { node ->
                 node.path("id").textValue().assert().isEqualTo(eventStream.id)
@@ -134,7 +139,7 @@ abstract class EventStreamQueryBackendSpec {
             filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.dynamicQuery(eventStreamQueryBackend)
+        }.dynamicQuery(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -148,7 +153,7 @@ abstract class EventStreamQueryBackendSpec {
             filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.query(eventStreamQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -162,7 +167,7 @@ abstract class EventStreamQueryBackendSpec {
             filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.dynamicQuery(eventStreamQueryBackend)
+        }.dynamicQuery(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -173,7 +178,7 @@ abstract class EventStreamQueryBackendSpec {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
 
-        eventStreamQueryBackend.single(
+        queryBackendBinding.single(
             SingleQuery(
                 filter = TenantIdFilter(eventStream.aggregateId.tenantId),
                 projection = Projection(
@@ -195,7 +200,7 @@ abstract class EventStreamQueryBackendSpec {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
 
-        eventStreamQueryBackend.single(
+        queryBackendBinding.single(
             SingleQuery(
                 filter = TenantIdFilter(eventStream.aggregateId.tenantId),
                 projection = Projection(include = listOf(QueryField("body.body"))),
@@ -210,7 +215,7 @@ abstract class EventStreamQueryBackendSpec {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
 
-        eventStreamQueryBackend.single(
+        queryBackendBinding.single(
             SingleQuery(
                 filter = TenantIdFilter(eventStream.aggregateId.tenantId),
                 projection = Projection(include = listOf(QueryField("body.id"))),
@@ -231,7 +236,7 @@ abstract class EventStreamQueryBackendSpec {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
 
-        eventStreamQueryBackend.single(
+        queryBackendBinding.single(
             SingleQuery(
                 filter = TenantIdFilter(eventStream.aggregateId.tenantId),
                 projection = Projection(
@@ -257,7 +262,7 @@ abstract class EventStreamQueryBackendSpec {
             filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.query(eventStreamQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -271,7 +276,7 @@ abstract class EventStreamQueryBackendSpec {
             filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.dynamicQuery(eventStreamQueryBackend)
+        }.dynamicQuery(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -289,8 +294,8 @@ abstract class EventStreamQueryBackendSpec {
             size = 2,
         )
 
-        val first = eventStreamQueryBackend.cursor(query).block()!!
-        val second = eventStreamQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
+        val first = queryBackendBinding.cursor(query).block()!!
+        val second = queryBackendBinding.cursor(query.copy(cursor = first.nextCursor)).block()!!
 
         first.list.assert().hasSize(2)
         first.nextCursor.assert().isNotNull()
@@ -316,8 +321,8 @@ abstract class EventStreamQueryBackendSpec {
             size = 2,
         )
 
-        val first = eventStreamQueryBackend.cursor(query).block()!!
-        val second = eventStreamQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
+        val first = queryBackendBinding.cursor(query).block()!!
+        val second = queryBackendBinding.cursor(query.copy(cursor = first.nextCursor)).block()!!
 
         (first.list + second.list).map { it.path("id").textValue() }.assert().containsExactly(
             highest.id,
@@ -347,8 +352,8 @@ abstract class EventStreamQueryBackendSpec {
                 size = 2,
             )
 
-            val first = eventStreamQueryBackend.cursor(query).block()!!
-            val second = eventStreamQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
+            val first = queryBackendBinding.cursor(query).block()!!
+            val second = queryBackendBinding.cursor(query.copy(cursor = first.nextCursor)).block()!!
             val nodes = first.list + second.list
 
             nodes.map { it.path("id").textValue() }.assert().containsExactly(*expectedIds.toTypedArray())
@@ -368,7 +373,7 @@ abstract class EventStreamQueryBackendSpec {
         val tenantId = generateGlobalId()
         eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = tenantId))).block()
 
-        eventStreamQueryBackend.cursor(
+        queryBackendBinding.cursor(
             CursorQuery(
                 TenantIdFilter(tenantId),
                 projection = Projection(include = listOf(QueryField("tenantId"))),
@@ -388,7 +393,7 @@ abstract class EventStreamQueryBackendSpec {
     fun `cursor should reject a malformed token`() {
         eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))).block()
 
-        eventStreamQueryBackend.cursor(
+        queryBackendBinding.cursor(
             CursorQuery(
                 MatchAllFilter,
                 sort = listOf(Sort(QueryField("version"), Sort.Direction.ASC)),
@@ -403,7 +408,7 @@ abstract class EventStreamQueryBackendSpec {
     fun `cursor should return an empty terminal page`() {
         eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))).block()
 
-        eventStreamQueryBackend.cursor(
+        queryBackendBinding.cursor(
             CursorQuery(
                 TenantIdFilter("missing"),
                 sort = listOf(Sort(QueryField("id"), Sort.Direction.ASC)),
@@ -419,7 +424,7 @@ abstract class EventStreamQueryBackendSpec {
         eventStore.append(eventStream).block()
         filterExpression {
             tenantId(eventStream.aggregateId.tenantId)
-        }.count(eventStreamQueryBackend)
+        }.count(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -435,7 +440,7 @@ abstract class EventStreamQueryBackendSpec {
             expand("body")
             terms("name", "eventName")
             count("count")
-        }.query(eventStreamQueryBackend)
+        }.query(queryBackendBinding)
             .collectList()
             .test()
             .assertNext { rows ->
@@ -451,48 +456,48 @@ abstract class EventStreamQueryBackendSpec {
         aggregation {
             filter { tenantId(generateGlobalId()) }
             count("count")
-        }.query(eventStreamQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext { it.path("count").longValue().assert().isZero() }
             .verifyComplete()
     }
 }
 
-private fun EventStreamQueryBackend.single(query: ISingleQuery): Mono<ObjectNode> =
-    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
-        single(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+private fun QueryBackendBinding<EventStreamQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
+    Mono.defer { schemaProvider.schema() }.flatMap { schema ->
+        backend.single(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
-private fun EventStreamQueryBackend.list(query: IListQuery): Flux<ObjectNode> =
-    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMapMany { schema ->
-        list(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+private fun QueryBackendBinding<EventStreamQueryBackend>.list(query: IListQuery): Flux<ObjectNode> =
+    Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
+        backend.list(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
-private fun EventStreamQueryBackend.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
-    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
-        paged(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+private fun QueryBackendBinding<EventStreamQueryBackend>.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
+    Mono.defer { schemaProvider.schema() }.flatMap { schema ->
+        backend.paged(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
-private fun EventStreamQueryBackend.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
-    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
-        cursor(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+private fun QueryBackendBinding<EventStreamQueryBackend>.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+    Mono.defer { schemaProvider.schema() }.flatMap { schema ->
+        backend.cursor(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
-private fun EventStreamQueryBackend.count(filter: FilterExpression): Mono<Long> =
-    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
-        count(ResolvedQuery(schema.resolve(filter).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+private fun QueryBackendBinding<EventStreamQueryBackend>.count(filter: FilterExpression): Mono<Long> =
+    Mono.defer { schemaProvider.schema() }.flatMap { schema ->
+        backend.count(ResolvedQuery(schema.resolve(filter).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
-private fun EventStreamQueryBackend.aggregate(query: AggregationQuery): Flux<ObjectNode> =
-    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMapMany { schema ->
-        aggregate(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+private fun QueryBackendBinding<EventStreamQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
+    Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
+        backend.aggregate(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
-private fun ISingleQuery.query(backend: EventStreamQueryBackend): Mono<ObjectNode> = backend.single(this)
-private fun ISingleQuery.dynamicQuery(backend: EventStreamQueryBackend): Mono<ObjectNode> = backend.single(this)
-private fun IListQuery.query(backend: EventStreamQueryBackend): Flux<ObjectNode> = backend.list(this)
-private fun IListQuery.dynamicQuery(backend: EventStreamQueryBackend): Flux<ObjectNode> = backend.list(this)
-private fun IPagedQuery.query(backend: EventStreamQueryBackend) = backend.paged(this)
-private fun IPagedQuery.dynamicQuery(backend: EventStreamQueryBackend) = backend.paged(this)
-private fun FilterExpression.count(backend: EventStreamQueryBackend): Mono<Long> = backend.count(this)
-private fun AggregationQuery.query(backend: EventStreamQueryBackend): Flux<ObjectNode> = backend.aggregate(this)
+private fun ISingleQuery.query(binding: QueryBackendBinding<EventStreamQueryBackend>): Mono<ObjectNode> = binding.single(this)
+private fun ISingleQuery.dynamicQuery(binding: QueryBackendBinding<EventStreamQueryBackend>): Mono<ObjectNode> = binding.single(this)
+private fun IListQuery.query(binding: QueryBackendBinding<EventStreamQueryBackend>): Flux<ObjectNode> = binding.list(this)
+private fun IListQuery.dynamicQuery(binding: QueryBackendBinding<EventStreamQueryBackend>): Flux<ObjectNode> = binding.list(this)
+private fun IPagedQuery.query(binding: QueryBackendBinding<EventStreamQueryBackend>) = binding.paged(this)
+private fun IPagedQuery.dynamicQuery(binding: QueryBackendBinding<EventStreamQueryBackend>) = binding.paged(this)
+private fun FilterExpression.count(binding: QueryBackendBinding<EventStreamQueryBackend>): Mono<Long> = binding.count(this)
+private fun AggregationQuery.query(binding: QueryBackendBinding<EventStreamQueryBackend>): Flux<ObjectNode> = binding.aggregate(this)

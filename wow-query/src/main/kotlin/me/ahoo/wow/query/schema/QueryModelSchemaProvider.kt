@@ -29,6 +29,15 @@ interface QueryModelSchemaProvider {
     fun refresh(): Mono<QueryModelSchema>
 }
 
+internal class UnavailableQueryModelSchemaProvider(
+    private val message: String,
+) : QueryModelSchemaProvider {
+    override fun schema(): Mono<QueryModelSchema> =
+        Mono.error(QuerySchemaUnavailableException(message))
+
+    override fun refresh(): Mono<QueryModelSchema> = schema()
+}
+
 class DefaultQueryModelSchemaProvider(
     private val context: QuerySchemaContext,
     sources: List<QuerySchemaSource>,

@@ -16,11 +16,7 @@ package me.ahoo.wow.query.schema
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
-import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
-import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -218,22 +214,6 @@ class DefaultQueryModelSchemaProviderTest {
 
         first.assert().isNotSameAs(second)
         source.loads.get().assert().isEqualTo(2)
-    }
-
-    @Test
-    fun `required provider should return capable backend and reject incapable backend`() {
-        val capable = object :
-            SnapshotQueryBackend by NoOpSnapshotQueryBackend(CONTEXT.namedAggregate),
-            QueryModelSchemaProvider {
-            override fun schema(): Mono<QueryModelSchema> = Mono.just(newSchema())
-
-            override fun refresh(): Mono<QueryModelSchema> = schema()
-        }
-
-        capable.requiredQueryModelSchemaProvider().assert().isSameAs(capable)
-        assertThrows<QuerySchemaUnavailableException> {
-            NoOpSnapshotQueryBackend(CONTEXT.namedAggregate).requiredQueryModelSchemaProvider()
-        }
     }
 
     private fun provider(

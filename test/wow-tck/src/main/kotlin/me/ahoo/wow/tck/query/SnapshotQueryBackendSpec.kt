@@ -41,6 +41,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
@@ -55,7 +56,6 @@ import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
-import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.schema.query.JsonQuerySchemaSource
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -81,14 +81,18 @@ abstract class SnapshotQueryBackendSpec {
     protected val querySchemaSources: List<QuerySchemaSource> = listOf(JsonQuerySchemaSource())
     lateinit var snapshotStore: SnapshotStore
     lateinit var snapshotQueryBackendFactory: SnapshotQueryBackendFactory
+    lateinit var queryBackendBinding: QueryBackendBinding<SnapshotQueryBackend>
     lateinit var snapshotQueryBackend: SnapshotQueryBackend
+    lateinit var queryModelSchemaProvider: QueryModelSchemaProvider
     lateinit var snapshot: Snapshot<MockStateAggregate>
 
     @BeforeEach
     open fun setup() {
         snapshotStore = createSnapshotStore()
         snapshotQueryBackendFactory = createSnapshotQueryBackendFactory()
-        snapshotQueryBackend = snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        queryBackendBinding = snapshotQueryBackendFactory.create(MOCK_AGGREGATE_METADATA)
+        snapshotQueryBackend = queryBackendBinding.backend
+        queryModelSchemaProvider = queryBackendBinding.schemaProvider
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
         val stateAggregate =
             ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
@@ -105,27 +109,28 @@ abstract class SnapshotQueryBackendSpec {
 
     @Test
     fun createFromCache() {
-        val backend1 = snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
-        val backend2 = snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        val backend1 = snapshotQueryBackendFactory.create(MOCK_AGGREGATE_METADATA)
+        val backend2 = snapshotQueryBackendFactory.create(MOCK_AGGREGATE_METADATA)
         backend1.assert().isSameAs(backend2)
     }
 
     @Test
     fun `query helpers defer schema lookup until subscription`() {
         val schemaCalls = AtomicInteger()
-        val backend = object :
-            SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
-            QueryModelSchemaProvider {
-            override fun schema(): Mono<QueryModelSchema> {
-                schemaCalls.incrementAndGet()
-                return Mono.just(QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap()))
-            }
+        val binding = QueryBackendBinding(
+            NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
+            object : QueryModelSchemaProvider {
+                override fun schema(): Mono<QueryModelSchema> {
+                    schemaCalls.incrementAndGet()
+                    return Mono.just(QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap()))
+                }
 
-            override fun refresh(): Mono<QueryModelSchema> = schema()
-        }
+                override fun refresh(): Mono<QueryModelSchema> = schema()
+            },
+        )
 
-        val single = singleQuery { }.query(backend)
-        val aggregate = aggregation { count("count") }.query(backend)
+        val single = singleQuery { }.query(binding)
+        val aggregate = aggregation { count("count") }.query(binding)
 
         schemaCalls.get().assert().isZero()
         single.thenMany(aggregate).test().verifyComplete()
@@ -134,7 +139,7 @@ abstract class SnapshotQueryBackendSpec {
 
     @Test
     fun name() {
-        snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA).name.assert().isNotBlank()
+        snapshotQueryBackendFactory.create(MOCK_AGGREGATE_METADATA).backend.name.assert().isNotBlank()
     }
 
     @Test
@@ -143,7 +148,7 @@ abstract class SnapshotQueryBackendSpec {
             filter {
                 id(snapshot.aggregateId.id)
             }
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext { node ->
                 node.path("aggregateId").textValue().assert().isEqualTo(snapshot.aggregateId.id)
@@ -164,7 +169,7 @@ abstract class SnapshotQueryBackendSpec {
             sort {
                 "version".asc()
             }
-        }.dynamicQuery(snapshotQueryBackend)
+        }.dynamicQuery(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -177,7 +182,7 @@ abstract class SnapshotQueryBackendSpec {
                 id(snapshot.aggregateId.id)
             }
             limit(10)
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -193,7 +198,7 @@ abstract class SnapshotQueryBackendSpec {
                 exclude("firstEventTime")
             }
             limit(10)
-        }.dynamicQuery(snapshotQueryBackend)
+        }.dynamicQuery(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -201,7 +206,7 @@ abstract class SnapshotQueryBackendSpec {
 
     @Test
     fun `projection should preserve scalar and object subtree semantics`() {
-        fun query(projection: Projection): ObjectNode = snapshotQueryBackend.list(
+        fun query(projection: Projection): ObjectNode = queryBackendBinding.list(
             ListQuery(IdFilter(snapshot.aggregateId.id), projection = projection, limit = 1),
         ).blockFirst()!!
 
@@ -228,7 +233,7 @@ abstract class SnapshotQueryBackendSpec {
             MockStateAggregate(id = "query-field-sort-b", createdAt = 2),
         )
 
-        snapshotQueryBackend.list(
+        queryBackendBinding.list(
             ListQuery(
                 filter = filterExpression { aggregateIds(*aggregateIds.toTypedArray()) },
                 sort = listOf(Sort(QueryField("state.createdAt"), Sort.Direction.DESC)),
@@ -247,7 +252,7 @@ abstract class SnapshotQueryBackendSpec {
             filter {
                 id(snapshot.aggregateId.id)
             }
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -259,7 +264,7 @@ abstract class SnapshotQueryBackendSpec {
             filter {
                 id(snapshot.aggregateId.id)
             }
-        }.dynamicQuery(snapshotQueryBackend)
+        }.dynamicQuery(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -278,8 +283,8 @@ abstract class SnapshotQueryBackendSpec {
             size = 2,
         )
 
-        val first = snapshotQueryBackend.cursor(query).block()!!
-        val second = snapshotQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
+        val first = queryBackendBinding.cursor(query).block()!!
+        val second = queryBackendBinding.cursor(query.copy(cursor = first.nextCursor)).block()!!
 
         first.list.assert().hasSize(2)
         first.nextCursor.assert().isNotNull()
@@ -304,8 +309,8 @@ abstract class SnapshotQueryBackendSpec {
             size = 2,
         )
 
-        val first = snapshotQueryBackend.cursor(query).block()!!
-        val second = snapshotQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
+        val first = queryBackendBinding.cursor(query).block()!!
+        val second = queryBackendBinding.cursor(query.copy(cursor = first.nextCursor)).block()!!
 
         (first.list + second.list).map { it.path("aggregateId").textValue() }.assert()
             .containsExactly("cursor-desc-c", "cursor-desc-b", "cursor-desc-a")
@@ -336,8 +341,8 @@ abstract class SnapshotQueryBackendSpec {
                 size = 2,
             )
 
-            val first = snapshotQueryBackend.cursor(query).block()!!
-            val second = snapshotQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
+            val first = queryBackendBinding.cursor(query).block()!!
+            val second = queryBackendBinding.cursor(query.copy(cursor = first.nextCursor)).block()!!
             val nodes = first.list + second.list
 
             nodes.map { it.path("aggregateId").textValue() }.assert().containsExactly(*expectedIds.toTypedArray())
@@ -354,7 +359,7 @@ abstract class SnapshotQueryBackendSpec {
 
     @Test
     fun `cursor should not expose projection-only cursor fields`() {
-        snapshotQueryBackend.cursor(
+        queryBackendBinding.cursor(
             CursorQuery(
                 filter = IdFilter(snapshot.aggregateId.id),
                 projection = Projection(include = listOf(QueryField("state.data"))),
@@ -372,7 +377,7 @@ abstract class SnapshotQueryBackendSpec {
 
     @Test
     fun `cursor should return an empty terminal page`() {
-        snapshotQueryBackend.cursor(
+        queryBackendBinding.cursor(
             CursorQuery(
                 IdFilter("missing"),
                 sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)),
@@ -386,7 +391,7 @@ abstract class SnapshotQueryBackendSpec {
     fun count() {
         filterExpression {
             id(snapshot.aggregateId.id)
-        }.count(snapshotQueryBackend)
+        }.count(queryBackendBinding)
             .test()
             .expectNext(1L)
             .verifyComplete()
@@ -394,7 +399,7 @@ abstract class SnapshotQueryBackendSpec {
 
     @Test
     fun `schema should expose system state and backend-neutral capabilities`() {
-        snapshotQueryBackend.requiredQueryModelSchemaProvider().schema()
+        queryModelSchemaProvider.schema()
             .test()
             .assertNext { schema ->
                 schema.model.assert().isEqualTo(QueryModel.SNAPSHOT)
@@ -439,11 +444,10 @@ abstract class SnapshotQueryBackendSpec {
 
     @Test
     fun `schema refresh should replace and publish one new object`() {
-        val provider = snapshotQueryBackend.requiredQueryModelSchemaProvider()
-        provider.schema()
+        queryModelSchemaProvider.schema()
             .flatMap { initial ->
-                provider.refresh().flatMap { refreshed ->
-                    provider.schema().map { cached -> Triple(initial, refreshed, cached) }
+                queryModelSchemaProvider.refresh().flatMap { refreshed ->
+                    queryModelSchemaProvider.schema().map { cached -> Triple(initial, refreshed, cached) }
                 }
             }.test()
             .assertNext { (initial, refreshed, cached) ->
@@ -461,7 +465,7 @@ abstract class SnapshotQueryBackendSpec {
             }
             sort { "state.createdAt".asc() }
             limit(10)
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -472,7 +476,7 @@ abstract class SnapshotQueryBackendSpec {
         aggregation {
             dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
             count("count")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext {
                 it.assertWireEquals(mapOf("day" to 0L, "count" to 1L))
@@ -490,7 +494,7 @@ abstract class SnapshotQueryBackendSpec {
             avg("version", "average")
             min("version", "minimum")
             max("version", "maximum")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext {
                 it.assertWireEquals(
@@ -518,7 +522,7 @@ abstract class SnapshotQueryBackendSpec {
             avg(net, "average")
             min(net, "minimum")
             max(net, "maximum")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext {
                 it.assertWireEquals(
@@ -544,7 +548,7 @@ abstract class SnapshotQueryBackendSpec {
             sum(field("quantity") / (field("quantity") - field("quantity")), "zeroDivision")
             sum(field("missing") * constant(1.0), "missing")
             sum(constant(Double.MAX_VALUE) * constant(2.0), "overflow")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext {
                 it.assertWireEquals(
@@ -566,7 +570,7 @@ abstract class SnapshotQueryBackendSpec {
             expand("state.orders")
             expand("lines")
             sum(field("samples") * constant(1.0), "total")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext { it.assertWireEquals(mapOf("total" to 7.0)) }
             .verifyComplete()
@@ -583,7 +587,7 @@ abstract class SnapshotQueryBackendSpec {
             histogram("quantity", 2.0, "quantityBucket")
             dateHistogram("createdAt", me.ahoo.wow.api.query.AggregationDateUnit.DAY, "day")
             count("count")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .collectList()
             .test()
             .assertNext { rows ->
@@ -619,7 +623,7 @@ abstract class SnapshotQueryBackendSpec {
             expand("lines") { "productId" isIn listOf("gamma", "delta") }
             dateHistogram("createdAt", AggregationDateUnit.WEEK, "week")
             count("count")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .collectList()
             .test()
             .assertNext { rows ->
@@ -639,7 +643,7 @@ abstract class SnapshotQueryBackendSpec {
             expand("lines") { "productId" eq "beta" }
             dateHistogram("createdAt", AggregationDateUnit.SECOND, "second")
             count("count")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .collectList()
             .test()
             .assertNext { rows ->
@@ -663,7 +667,7 @@ abstract class SnapshotQueryBackendSpec {
             filter { aggregateIds("decimal-a", "decimal-b") }
             terms("state.decimalValue", "decimal")
             count("count")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .collectList()
             .test()
             .assertNext { rows ->
@@ -681,7 +685,7 @@ abstract class SnapshotQueryBackendSpec {
             any("state.data", "anyData")
             count("count")
             sum("version", "total")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext {
                 it.assertWireEquals(mapOf("anyData" to null, "count" to 0L, "total" to null))
@@ -698,7 +702,7 @@ abstract class SnapshotQueryBackendSpec {
             terms("productId", "productId")
             any("productName", "productName")
             count("count")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext { row ->
                 row.path("productId").textValue().assert().isEqualTo("alpha")
@@ -716,7 +720,7 @@ abstract class SnapshotQueryBackendSpec {
             expand("lines") { "productId" eq "gamma" }
             any("productName", "productName")
             count("count")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext { row ->
                 row.has("productName").assert().isTrue()
@@ -737,7 +741,7 @@ abstract class SnapshotQueryBackendSpec {
             avg("amount", "average")
             min("amount", "minimum")
             max("amount", "maximum")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext {
                 it.assertWireEquals(
@@ -763,7 +767,7 @@ abstract class SnapshotQueryBackendSpec {
             histogram("quantity", 2.0, "quantityBucket")
             count("count")
             sort { "product".asc() }
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .collectList()
             .test()
             .assertNext { rows ->
@@ -794,7 +798,7 @@ abstract class SnapshotQueryBackendSpec {
             sum("amount", "total")
             sort { "total".desc() }
             limit(1)
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .assertNext {
                 it.assertWireEquals(mapOf("type" to "PROMO", "total" to 8.0))
@@ -810,7 +814,7 @@ abstract class SnapshotQueryBackendSpec {
             expand("lines")
             terms("productId", "product")
             count("count")
-        }.query(snapshotQueryBackend)
+        }.query(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .thenCancel()
@@ -945,44 +949,44 @@ abstract class SnapshotQueryBackendSpec {
     }
 }
 
-private fun SnapshotQueryBackend.single(query: ISingleQuery): Mono<ObjectNode> =
-    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
-        single(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+private fun QueryBackendBinding<SnapshotQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
+    Mono.defer { schemaProvider.schema() }.flatMap { schema ->
+        backend.single(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
-private fun SnapshotQueryBackend.list(query: IListQuery): Flux<ObjectNode> =
-    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMapMany { schema ->
-        list(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+private fun QueryBackendBinding<SnapshotQueryBackend>.list(query: IListQuery): Flux<ObjectNode> =
+    Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
+        backend.list(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
-private fun SnapshotQueryBackend.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
-    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
-        paged(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+private fun QueryBackendBinding<SnapshotQueryBackend>.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
+    Mono.defer { schemaProvider.schema() }.flatMap { schema ->
+        backend.paged(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
-private fun SnapshotQueryBackend.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
-    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
-        cursor(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+private fun QueryBackendBinding<SnapshotQueryBackend>.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+    Mono.defer { schemaProvider.schema() }.flatMap { schema ->
+        backend.cursor(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
-private fun SnapshotQueryBackend.count(filter: FilterExpression): Mono<Long> =
-    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMap { schema ->
-        count(ResolvedQuery(schema.resolve(filter).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+private fun QueryBackendBinding<SnapshotQueryBackend>.count(filter: FilterExpression): Mono<Long> =
+    Mono.defer { schemaProvider.schema() }.flatMap { schema ->
+        backend.count(ResolvedQuery(schema.resolve(filter).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
-private fun SnapshotQueryBackend.aggregate(query: AggregationQuery): Flux<ObjectNode> =
-    Mono.defer { requiredQueryModelSchemaProvider().schema() }.flatMapMany { schema ->
-        aggregate(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+private fun QueryBackendBinding<SnapshotQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
+    Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
+        backend.aggregate(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
     }
 
-private fun ISingleQuery.query(backend: SnapshotQueryBackend): Mono<ObjectNode> = backend.single(this)
-private fun ISingleQuery.dynamicQuery(backend: SnapshotQueryBackend): Mono<ObjectNode> = backend.single(this)
-private fun IListQuery.query(backend: SnapshotQueryBackend): Flux<ObjectNode> = backend.list(this)
-private fun IListQuery.dynamicQuery(backend: SnapshotQueryBackend): Flux<ObjectNode> = backend.list(this)
-private fun IPagedQuery.query(backend: SnapshotQueryBackend) = backend.paged(this)
-private fun IPagedQuery.dynamicQuery(backend: SnapshotQueryBackend) = backend.paged(this)
-private fun FilterExpression.count(backend: SnapshotQueryBackend): Mono<Long> = backend.count(this)
-private fun AggregationQuery.query(backend: SnapshotQueryBackend): Flux<ObjectNode> = backend.aggregate(this)
+private fun ISingleQuery.query(binding: QueryBackendBinding<SnapshotQueryBackend>): Mono<ObjectNode> = binding.single(this)
+private fun ISingleQuery.dynamicQuery(binding: QueryBackendBinding<SnapshotQueryBackend>): Mono<ObjectNode> = binding.single(this)
+private fun IListQuery.query(binding: QueryBackendBinding<SnapshotQueryBackend>): Flux<ObjectNode> = binding.list(this)
+private fun IListQuery.dynamicQuery(binding: QueryBackendBinding<SnapshotQueryBackend>): Flux<ObjectNode> = binding.list(this)
+private fun IPagedQuery.query(binding: QueryBackendBinding<SnapshotQueryBackend>) = binding.paged(this)
+private fun IPagedQuery.dynamicQuery(binding: QueryBackendBinding<SnapshotQueryBackend>) = binding.paged(this)
+private fun FilterExpression.count(binding: QueryBackendBinding<SnapshotQueryBackend>): Mono<Long> = binding.count(this)
+private fun AggregationQuery.query(binding: QueryBackendBinding<SnapshotQueryBackend>): Flux<ObjectNode> = binding.aggregate(this)
 private fun Any.toWireJsonNode(): JsonNode = JsonSerializer.readTree(JsonSerializer.writeValueAsBytes(this))
 private fun ObjectNode.assertWireEquals(expected: Any) {
     toWireJsonNode().assert().isEqualTo(expected.toWireJsonNode())

@@ -16,8 +16,13 @@ package me.ahoo.wow.query.snapshot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Mono
 
 class RoutingSnapshotQueryBackendFactoryTest {
     @Test
@@ -26,8 +31,8 @@ class RoutingSnapshotQueryBackendFactoryTest {
         val orderFactory = RecordingSnapshotQueryBackendFactory()
         val routing = RoutingSnapshotQueryBackendFactory(defaultFactory, mapOf(ORDER to orderFactory))
 
-        routing.create<Any>(DecoratedNamedAggregate(ORDER)).assert().isSameAs(orderFactory.create<Any>(ORDER))
-        routing.create<Any>(CART).assert().isSameAs(defaultFactory.create<Any>(CART))
+        routing.create(DecoratedNamedAggregate(ORDER)).assert().isSameAs(orderFactory.create(ORDER))
+        routing.create(CART).assert().isSameAs(defaultFactory.create(CART))
         orderFactory.created.get().assert().isEqualTo(1)
         defaultFactory.created.get().assert().isEqualTo(1)
     }
@@ -35,9 +40,15 @@ class RoutingSnapshotQueryBackendFactoryTest {
     private class RecordingSnapshotQueryBackendFactory : AbstractSnapshotQueryBackendFactory() {
         val created = java.util.concurrent.atomic.AtomicInteger()
 
-        override fun createBackend(namedAggregate: NamedAggregate): SnapshotQueryBackend {
+        override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> {
             created.incrementAndGet()
-            return NoOpSnapshotQueryBackend(namedAggregate)
+            return QueryBackendBinding(NoOpSnapshotQueryBackend(namedAggregate), schemaProvider)
+        }
+
+        private val schemaProvider = object : QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.just(SCHEMA)
+
+            override fun refresh(): Mono<QueryModelSchema> = schema()
         }
     }
 
@@ -48,5 +59,6 @@ class RoutingSnapshotQueryBackendFactoryTest {
     companion object {
         private val ORDER = MaterializedNamedAggregate("order-service", "order")
         private val CART = MaterializedNamedAggregate("order-service", "cart")
+        private val SCHEMA = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
     }
 }
