@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
@@ -66,12 +67,16 @@ class QueryGatewayRegistrarTest {
         val filterCalls = AtomicInteger()
         val snapshotBackend = SnapshotBackend(NAMED_AGGREGATE)
         val eventBackend = EventBackend(NAMED_AGGREGATE)
+        val snapshotSchemaProvider = RecordingSchemaProvider(QueryModel.SNAPSHOT)
+        val eventSchemaProvider = RecordingSchemaProvider(QueryModel.EVENT_STREAM)
         val context = newContext(
             snapshotFactoryCalls,
             eventFactoryCalls,
             filterCalls,
             snapshotBackend,
             eventBackend,
+            snapshotSchemaProvider,
+            eventSchemaProvider,
         )
 
         context.use {
@@ -98,10 +103,10 @@ class QueryGatewayRegistrarTest {
                 QueryRegistrarOrderState::class.java,
             )
             (eventStream as EventStreamQueryGateway).dynamicSingle(singleQuery { }).block()
-            snapshotBackend.schemaCalls.get().assert().isOne()
-            snapshotBackend.backendSchema.get().assert().isSameAs(snapshotBackend.schema)
-            eventBackend.schemaCalls.get().assert().isOne()
-            eventBackend.backendSchema.get().assert().isSameAs(eventBackend.schema)
+            snapshotSchemaProvider.schemaCalls.get().assert().isOne()
+            snapshotBackend.backendSchema.get().assert().isSameAs(snapshotSchemaProvider.schema)
+            eventSchemaProvider.schemaCalls.get().assert().isOne()
+            eventBackend.backendSchema.get().assert().isSameAs(eventSchemaProvider.schema)
             filterCalls.get().assert().isEqualTo(2)
             snapshotFactoryCalls.get().assert().isOne()
             eventFactoryCalls.get().assert().isOne()
@@ -125,10 +130,11 @@ class QueryGatewayRegistrarTest {
         val eventFactoryCalls = AtomicInteger()
         val context = newContext(snapshotFactoryCalls, eventFactoryCalls, AtomicInteger())
         val customSnapshotBackend = SnapshotBackend(NAMED_AGGREGATE)
+        val customSnapshotSchemaProvider = RecordingSchemaProvider(QueryModel.SNAPSHOT)
         val customSnapshotGateway = DefaultSnapshotQueryGateway<QueryRegistrarOrderState>(
             namedAggregate = NAMED_AGGREGATE,
             backend = customSnapshotBackend,
-            schemaProvider = customSnapshotBackend,
+            schemaProvider = customSnapshotSchemaProvider,
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
             targetType = JsonSerializer.typeFactory.constructParametricType(
                 MaterializedSnapshot::class.java,
@@ -136,10 +142,11 @@ class QueryGatewayRegistrarTest {
             ),
         )
         val customEventBackend = EventBackend(NAMED_AGGREGATE)
+        val customEventSchemaProvider = RecordingSchemaProvider(QueryModel.EVENT_STREAM)
         val customEventGateway = DefaultEventStreamQueryGateway(
             namedAggregate = NAMED_AGGREGATE,
             backend = customEventBackend,
-            schemaProvider = customEventBackend,
+            schemaProvider = customEventSchemaProvider,
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
         )
         context.registerBean(
@@ -170,15 +177,17 @@ class QueryGatewayRegistrarTest {
         filterCalls: AtomicInteger,
         snapshotBackend: SnapshotBackend = SnapshotBackend(NAMED_AGGREGATE),
         eventBackend: EventBackend = EventBackend(NAMED_AGGREGATE),
+        snapshotSchemaProvider: RecordingSchemaProvider = RecordingSchemaProvider(QueryModel.SNAPSHOT),
+        eventSchemaProvider: RecordingSchemaProvider = RecordingSchemaProvider(QueryModel.EVENT_STREAM),
     ): GenericApplicationContext = GenericApplicationContext().apply {
         registerBean(QuerySchemaValidationMode::class.java, Supplier { QuerySchemaValidationMode.COMPATIBLE })
         registerBean(
             SnapshotQueryBackendFactory::class.java,
             Supplier {
                 object : SnapshotQueryBackendFactory {
-                    override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryBackend {
+                    override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> {
                         snapshotFactoryCalls.incrementAndGet()
-                        return snapshotBackend
+                        return QueryBackendBinding(snapshotBackend, snapshotSchemaProvider)
                     }
                 }
             },
@@ -188,7 +197,7 @@ class QueryGatewayRegistrarTest {
             Supplier {
                 EventStreamQueryBackendFactory {
                     eventFactoryCalls.incrementAndGet()
-                    eventBackend
+                    QueryBackendBinding(eventBackend, eventSchemaProvider)
                 }
             },
         )
@@ -230,18 +239,9 @@ class QueryGatewayRegistrarTest {
 
     private class SnapshotBackend(
         override val namedAggregate: NamedAggregate,
-    ) : SnapshotQueryBackend, QueryModelSchemaProvider {
-        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+    ) : SnapshotQueryBackend {
         val backendSchema = AtomicReference<QueryModelSchema>()
-        val schemaCalls = AtomicInteger()
         override val name: String = "test"
-
-        override fun schema(): Mono<QueryModelSchema> = Mono.fromSupplier {
-            schemaCalls.incrementAndGet()
-            schema
-        }
-
-        override fun refresh(): Mono<QueryModelSchema> = schema()
 
         override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.fromSupplier {
             backendSchema.set(query.schema)
@@ -264,17 +264,8 @@ class QueryGatewayRegistrarTest {
 
     private class EventBackend(
         override val namedAggregate: NamedAggregate,
-    ) : EventStreamQueryBackend, QueryModelSchemaProvider {
-        val schema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+    ) : EventStreamQueryBackend {
         val backendSchema = AtomicReference<QueryModelSchema>()
-        val schemaCalls = AtomicInteger()
-
-        override fun schema(): Mono<QueryModelSchema> = Mono.fromSupplier {
-            schemaCalls.incrementAndGet()
-            schema
-        }
-
-        override fun refresh(): Mono<QueryModelSchema> = schema()
 
         override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.fromSupplier {
             backendSchema.set(query.schema)
@@ -293,6 +284,18 @@ class QueryGatewayRegistrarTest {
         override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
 
         override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
+    }
+
+    private class RecordingSchemaProvider(model: QueryModel) : QueryModelSchemaProvider {
+        val schema = QueryModelSchema(model, emptySet(), emptyMap())
+        val schemaCalls = AtomicInteger()
+
+        override fun schema(): Mono<QueryModelSchema> = Mono.fromSupplier {
+            schemaCalls.incrementAndGet()
+            schema
+        }
+
+        override fun refresh(): Mono<QueryModelSchema> = schema()
     }
 
     private companion object {

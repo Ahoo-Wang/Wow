@@ -25,7 +25,6 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
@@ -55,8 +54,7 @@ class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
         val stateType = entry.value.aggregateMetadata<Any, Any>().state.aggregateType
         val gatewayType = ResolvableType.forClassWithGenerics(SnapshotQueryGateway::class.java, stateType)
         val beanDefinition = BeanDefinitionBuilder.rootBeanDefinition(gatewayType) {
-            val backend = appContext.getBean(SnapshotQueryBackendFactory::class.java).create<Any>(namedAggregate)
-            val schemaProvider = backend.requiredQueryModelSchemaProvider()
+            val binding = appContext.getBean(SnapshotQueryBackendFactory::class.java).create(namedAggregate)
             val validationMode = appContext.getBeanProvider(QuerySchemaValidationMode::class.java)
                 .getIfAvailable { QuerySchemaValidationMode.COMPATIBLE }
 
@@ -69,8 +67,8 @@ class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
                 as ErrorHandler<QueryContext<*, *>>
             DefaultSnapshotQueryGateway<Any>(
                 namedAggregate = namedAggregate,
-                backend = backend,
-                schemaProvider = schemaProvider,
+                backend = binding.backend,
+                schemaProvider = binding.schemaProvider,
                 validationMode = validationMode,
                 targetType = JsonSerializer.typeFactory.constructParametricType(
                     MaterializedSnapshot::class.java,
