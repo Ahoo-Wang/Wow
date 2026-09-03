@@ -22,6 +22,7 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryLogErrorHandler
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.serialization.JsonSerializer
 
@@ -42,4 +43,20 @@ class DefaultEventStreamQueryGateway(
         filters,
         EventStreamQueryGateway::class,
         errorHandler,
+    ) {
+    @Deprecated("Scheduled for removal in 10.0.0. Use QueryBackendBinding.")
+    constructor(
+        namedAggregate: NamedAggregate,
+        backend: EventStreamQueryBackend,
+        schemaProvider: QueryModelSchemaProvider,
+        validationMode: QuerySchemaValidationMode,
+        filters: List<QueryFilter<QueryContext<*, *>>> = emptyList(),
+        errorHandler: ErrorHandler<QueryContext<*, *>> = QueryLogErrorHandler(),
+    ) : this(
+        namedAggregate,
+        QueryBackendBinding(backend, schemaProvider),
+        validationMode,
+        filters,
+        errorHandler,
     )
+}

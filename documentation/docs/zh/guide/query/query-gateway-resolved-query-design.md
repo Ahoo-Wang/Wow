@@ -275,6 +275,8 @@ Schema HTTP handler 使用 `queryBackendFactory.create(namedAggregate).schemaPro
 
 ## 兼容性边界
 
+- `AbstractQueryGateway`、`DefaultSnapshotQueryGateway` 与 `DefaultEventStreamQueryGateway` 原先拆分 Backend/Provider 的构造器在 V9.x 以弃用委托入口保留，计划在 10.0.0 删除；新装配只使用完整 `QueryBackendBinding`；
+- `me.ahoo.wow.query.filter.Contexts` 在 V9.x 以弃用兼容入口保留，并与 WebFlux typed raw-request API 共用 Reactor Context 条目，计划在 10.0.0 删除；
 - `SnapshotQueryBackendFactory.create` 与 `EventStreamQueryBackendFactory.create` 返回类型改为 `QueryBackendBinding`，属于源码和二进制 breaking change；
 - Snapshot Factory 删除无意义的 `<S : Any>` 类型参数；
 - MongoDB、Elasticsearch Backend 构造器删除 `schemaProvider` 参数；

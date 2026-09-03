@@ -25,14 +25,81 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.Handler
+import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
+import me.ahoo.wow.query.event.EventStreamQueryBackend
+import me.ahoo.wow.query.filter.Contexts
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.util.context.ContextView
+import tools.jackson.databind.JavaType
 import java.lang.reflect.Modifier
+import kotlin.reflect.KClass
 
 class QueryGatewayApiTest {
+    @Test
+    fun `published gateway constructors should remain binary compatible`() {
+        AbstractQueryGateway::class.java.assertHasConstructor(
+            NamedAggregate::class.java,
+            QueryBackend::class.java,
+            QueryModelSchemaProvider::class.java,
+            QuerySchemaValidationMode::class.java,
+            JavaType::class.java,
+            List::class.java,
+            KClass::class.java,
+            ErrorHandler::class.java,
+        )
+        DefaultSnapshotQueryGateway::class.java.assertHasConstructor(
+            NamedAggregate::class.java,
+            SnapshotQueryBackend::class.java,
+            QueryModelSchemaProvider::class.java,
+            QuerySchemaValidationMode::class.java,
+            JavaType::class.java,
+            List::class.java,
+            ErrorHandler::class.java,
+        )
+        DefaultSnapshotQueryGateway::class.java.assertHasDefaultConstructor(
+            NamedAggregate::class.java,
+            SnapshotQueryBackend::class.java,
+            QueryModelSchemaProvider::class.java,
+            QuerySchemaValidationMode::class.java,
+            JavaType::class.java,
+            List::class.java,
+            ErrorHandler::class.java,
+        )
+        DefaultEventStreamQueryGateway::class.java.assertHasConstructor(
+            NamedAggregate::class.java,
+            EventStreamQueryBackend::class.java,
+            QueryModelSchemaProvider::class.java,
+            QuerySchemaValidationMode::class.java,
+            List::class.java,
+            ErrorHandler::class.java,
+        )
+        DefaultEventStreamQueryGateway::class.java.assertHasDefaultConstructor(
+            NamedAggregate::class.java,
+            EventStreamQueryBackend::class.java,
+            QueryModelSchemaProvider::class.java,
+            QuerySchemaValidationMode::class.java,
+            List::class.java,
+            ErrorHandler::class.java,
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `published raw request context methods should remain binary compatible`() {
+        Contexts::class.java.getMethod("writeRawRequest", Mono::class.java, Any::class.java)
+        Contexts::class.java.getMethod("writeRawRequest", Flux::class.java, Any::class.java)
+        Contexts::class.java.getMethod("getRawRequest", ContextView::class.java)
+    }
+
     @Test
     fun `resolved query should retain query and schema identities`() {
         val query = SingleQuery(MatchAllFilter)
@@ -99,5 +166,17 @@ class QueryGatewayApiTest {
             QueryGateway::class.java.getMethod("cursor", ICursorQuery::class.java),
             QueryGateway::class.java.getMethod("dynamicCursor", ICursorQuery::class.java),
         ).all { Modifier.isAbstract(it.modifiers) }.assert().isTrue()
+    }
+
+    private fun Class<*>.assertHasConstructor(vararg parameterTypes: Class<*>) {
+        declaredConstructors.any { it.parameterTypes.contentEquals(parameterTypes) }.assert().isTrue()
+    }
+
+    private fun Class<*>.assertHasDefaultConstructor(vararg parameterTypes: Class<*>) {
+        assertHasConstructor(
+            *parameterTypes,
+            checkNotNull(Int::class.javaPrimitiveType),
+            Class.forName("kotlin.jvm.internal.DefaultConstructorMarker"),
+        )
     }
 }

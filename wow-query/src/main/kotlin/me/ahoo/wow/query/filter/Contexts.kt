@@ -11,22 +11,21 @@
  * limitations under the License.
  */
 
-@file:Suppress("DEPRECATION")
+package me.ahoo.wow.query.filter
 
-package me.ahoo.wow.webflux.route
-
-import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.util.context.ContextView
-import me.ahoo.wow.query.filter.Contexts.getRawRequest as getLegacyRawRequest
-import me.ahoo.wow.query.filter.Contexts.writeRawRequest as writeLegacyRawRequest
 
-fun ContextView.getRawRequest(): ServerRequest? =
-    getLegacyRawRequest<Any>() as? ServerRequest
+@Deprecated("Scheduled for removal in 10.0.0. Use me.ahoo.wow.webflux.route raw-request extensions.")
+object Contexts {
+    private const val RAW_REQUEST_KEY = "__RAW_REQUEST___"
 
-fun <T : Any> Mono<T>.writeRawRequest(request: ServerRequest): Mono<T> =
-    writeLegacyRawRequest(request)
+    fun <T : Any> Mono<T>.writeRawRequest(request: Any): Mono<T> =
+        contextWrite { it.put(RAW_REQUEST_KEY, request) }
 
-fun <T : Any> Flux<T>.writeRawRequest(request: ServerRequest): Flux<T> =
-    writeLegacyRawRequest(request)
+    fun <T : Any> Flux<T>.writeRawRequest(request: Any): Flux<T> =
+        contextWrite { it.put(RAW_REQUEST_KEY, request) }
+
+    fun <R> ContextView.getRawRequest(): R? = getOrDefault(RAW_REQUEST_KEY, null)
+}
