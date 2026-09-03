@@ -14,16 +14,22 @@
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Sorts
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.converter.AbstractSortConverter
-import me.ahoo.wow.query.converter.FieldConverter
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.query.schema.QueryModelSchema
 import org.bson.conversions.Bson
 
-class MongoSortConverter(override val fieldConverter: FieldConverter) : AbstractSortConverter<Bson?>() {
+class MongoSortCompiler {
 
-    internal fun convertField(field: String): String = fieldConverter.convert(field)
+    fun compile(sort: List<Sort>, schema: QueryModelSchema): Bson? = compilePhysical(
+        sort.map { item -> item.copy(field = QueryField(physicalField(item.field, schema))) },
+    )
 
-    override fun internalConvert(sort: List<Sort>): Bson? {
+    internal fun physicalField(field: QueryField, schema: QueryModelSchema): String =
+        schema.resolvePhysicalField(field, QueryCapability.SORT).path
+
+    internal fun compilePhysical(sort: List<Sort>): Bson? {
         if (sort.isEmpty()) return null
         return sort.map {
             when (it.direction) {

@@ -39,7 +39,6 @@ import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.ResolvedQuery
-import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -64,16 +63,16 @@ class AbstractMongoQueryBackendTest {
         override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
         override val filterCompiler = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
-        override val projectionConverter = mockk<MongoProjectionConverter>()
-        override val sortConverter = mockk<MongoSortConverter>()
+        override val projectionCompiler = mockk<MongoProjectionCompiler>()
+        override val sortCompiler = mockk<MongoSortCompiler>()
         override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
     }
     private val cursorBackend = object : AbstractMongoQueryBackend() {
         override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
         override val filterCompiler = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
-        override val projectionConverter = MongoProjectionConverter(FieldConverter { it })
-        override val sortConverter = MongoSortConverter(FieldConverter { it })
+        override val projectionCompiler = MongoProjectionCompiler()
+        override val sortCompiler = MongoSortCompiler()
         fun find(queryable: Queryable<*>): FindPublisher<Document> = findDocument(queryable, schema)
         override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
     }
@@ -90,21 +89,21 @@ class AbstractMongoQueryBackendTest {
         collection.findDocument(
             compiler = cursorBackend.filterCompiler,
             queryable = query,
-            projectionConverter = cursorBackend.projectionConverter,
-            sortConverter = cursorBackend.sortConverter,
+            projectionCompiler = cursorBackend.projectionCompiler,
+            sortCompiler = cursorBackend.sortCompiler,
             schema = schema,
         ).assert().isSameAs(publisher)
     }
 
     @Test
-    fun `single should pass the resolved schema instance to projection conversion`() {
+    fun `single should pass the resolved schema instance to projection compilation`() {
         val bson = mockk<Bson>()
         val publisher = mockk<FindPublisher<Document>>()
         arrangePublisher(publisher, bson) { Flux.empty() }
 
         backend.single(ResolvedQuery(SingleQuery(MatchAllFilter), schema)).test().verifyComplete()
 
-        verify(exactly = 1) { backend.projectionConverter.convert(any(), match { it === schema }) }
+        verify(exactly = 1) { backend.projectionCompiler.compile(any(), match { it === schema }) }
     }
 
     @Test
@@ -270,8 +269,8 @@ class AbstractMongoQueryBackendTest {
             override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
             override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
             override val filterCompiler = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
-            override val projectionConverter = MongoProjectionConverter(FieldConverter { "physical_$it" })
-            override val sortConverter = MongoSortConverter(FieldConverter { "physical_$it" })
+            override val projectionCompiler = MongoProjectionCompiler()
+            override val sortCompiler = MongoSortCompiler()
             override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
         }
         val filter = slot<Bson>()
@@ -306,7 +305,7 @@ class AbstractMongoQueryBackendTest {
                     size = 1,
                     cursor = MongoCursorCodec.encode(listOf(1, "1")),
                 ),
-                schema,
+                physicalCursorSchema(),
             ),
         ).block()!!
 
@@ -321,13 +320,12 @@ class AbstractMongoQueryBackendTest {
     @Test
     fun `built-in cursor mappers should hide cursor-only logical ids`() {
         val builtIns = listOf(
-            MessageRecords.AGGREGATE_ID to builtInCursorBackend(
-                QueryModel.SNAPSHOT,
-            ),
-            MessageRecords.ID to builtInCursorBackend(QueryModel.EVENT_STREAM),
+            QueryModel.SNAPSHOT to MessageRecords.AGGREGATE_ID,
+            QueryModel.EVENT_STREAM to MessageRecords.ID,
         )
 
-        builtIns.forEach { (logicalId, builtIn) ->
+        builtIns.forEach { (model, logicalId) ->
+            val builtIn = builtInCursorBackend(model)
             listOf(
                 Projection(include = listOf(QueryField("name"))),
                 Projection(exclude = listOf(QueryField(logicalId))),
@@ -351,7 +349,7 @@ class AbstractMongoQueryBackendTest {
                             ),
                             size = 1,
                         ),
-                        schema,
+                        identitySchema(model, logicalId),
                     ),
                 ).block()!!
 
@@ -367,8 +365,8 @@ class AbstractMongoQueryBackendTest {
         bson: Bson,
         source: () -> Flux<Document>,
     ) {
-        every { backend.projectionConverter.convert(any(), schema) } returns bson
-        every { backend.sortConverter.convert(any()) } returns bson
+        every { backend.projectionCompiler.compile(any(), schema) } returns bson
+        every { backend.sortCompiler.compile(any(), schema) } returns bson
         every { collection.find(any<Bson>()) } returns publisher
         every { publisher.projection(bson) } returns publisher
         every { publisher.sort(bson) } returns publisher
@@ -411,26 +409,54 @@ class AbstractMongoQueryBackendTest {
             QueryModel.SNAPSHOT,
             emptySet(),
             mapOf(
-                logical to QueryFieldSchema(
-                    title = null,
-                    description = null,
-                    enumValues = null,
-                    valueTypes = setOf(QueryValueType.STRING),
-                    nullable = false,
-                    required = true,
-                    cardinality = QueryCardinality.SINGLE,
-                    semanticType = null,
-                    dynamicChildren = false,
-                    bindings = mapOf(
-                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
-                            logical,
-                            QueryField(physicalPath),
-                            QueryStorageType("test"),
-                        ),
-                    ),
-                    rewriteMode = QueryRewriteMode.NONE,
-                ),
+                logical to fieldSchema(logical, physicalPath, setOf(QueryCapability.EXACT_MATCH)),
             ),
+        )
+    }
+
+    private fun physicalCursorSchema() = QueryModelSchema(
+        QueryModel.SNAPSHOT,
+        emptySet(),
+        listOf("name", "rank", "id").associate { path ->
+            QueryField(path) to fieldSchema(
+                QueryField(path),
+                "physical_$path",
+                setOf(QueryCapability.PRESENCE, QueryCapability.SORT),
+            )
+        },
+    )
+
+    private fun identitySchema(model: QueryModel, logicalPath: String) = QueryModelSchema(
+        model,
+        emptySet(),
+        mapOf(
+            QueryField(logicalPath) to fieldSchema(
+                QueryField(logicalPath),
+                "_id",
+                setOf(QueryCapability.PRESENCE, QueryCapability.SORT),
+            ),
+        ),
+    )
+
+    private fun fieldSchema(
+        logical: QueryField,
+        physicalPath: String,
+        capabilities: Set<QueryCapability>,
+    ): QueryFieldSchema {
+        val binding = QueryFieldBinding(logical, QueryField(physicalPath), QueryStorageType("test"))
+        return QueryFieldSchema(
+            title = null,
+            description = null,
+            enumValues = null,
+            valueTypes = setOf(QueryValueType.STRING),
+            nullable = false,
+            required = true,
+            cardinality = QueryCardinality.SINGLE,
+            semanticType = null,
+            dynamicChildren = false,
+            bindings = capabilities.associateWith { binding },
+            projectionField = binding.physicalField.takeIf { QueryCapability.PRESENCE in capabilities },
+            rewriteMode = QueryRewriteMode.NONE,
         )
     }
 }

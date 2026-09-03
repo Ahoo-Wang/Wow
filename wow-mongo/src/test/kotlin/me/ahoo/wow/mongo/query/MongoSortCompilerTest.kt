@@ -17,9 +17,16 @@ import com.mongodb.client.model.Sorts
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.mongo.query.event.EventStreamFieldConverter
-import me.ahoo.wow.mongo.query.snapshot.SnapshotFieldConverter
+import me.ahoo.wow.query.schema.QueryFieldBinding
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.conversions.Bson
 import org.junit.jupiter.params.ParameterizedTest
@@ -27,25 +34,50 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 
-class MongoSortConverterTest {
-    private val snapshotSortConverter = MongoSortConverter(SnapshotFieldConverter)
-    private val eventStreamSortConverter = MongoSortConverter(EventStreamFieldConverter)
+class MongoSortCompilerTest {
+    private val compiler = MongoSortCompiler()
+    private val snapshotSchema = sortSchema(QueryModel.SNAPSHOT, MessageRecords.AGGREGATE_ID)
+    private val eventStreamSchema = sortSchema(QueryModel.EVENT_STREAM, MessageRecords.ID)
 
     @ParameterizedTest
     @MethodSource("toSnapshotMongoSortParameters")
     fun toSnapshotMongoSort(sort: List<Sort>, expected: Bson?) {
-        val actual = snapshotSortConverter.convert(sort)
+        val actual = compiler.compile(sort, snapshotSchema)
         actual.assert().isEqualTo(expected)
     }
 
     @ParameterizedTest
     @MethodSource("toEventStreamMongoSortParameters")
     fun toEventStreamMongoSort(sort: List<Sort>, expected: Bson?) {
-        val actual = eventStreamSortConverter.convert(sort)
+        val actual = compiler.compile(sort, eventStreamSchema)
         actual.assert().isEqualTo(expected)
     }
 
     companion object {
+        private fun sortSchema(model: QueryModel, idField: String): QueryModelSchema {
+            val logical = QueryField(idField)
+            val binding = QueryFieldBinding(logical, QueryField(Documents.ID_FIELD), QueryStorageType("test"))
+            return QueryModelSchema(
+                model = model,
+                capabilities = emptySet(),
+                fields = mapOf(
+                    logical to QueryFieldSchema(
+                        title = null,
+                        description = null,
+                        enumValues = null,
+                        valueTypes = setOf(QueryValueType.STRING),
+                        nullable = false,
+                        required = true,
+                        cardinality = QueryCardinality.SINGLE,
+                        semanticType = null,
+                        dynamicChildren = false,
+                        bindings = mapOf(QueryCapability.SORT to binding),
+                        rewriteMode = QueryRewriteMode.NONE,
+                    ),
+                ),
+            )
+        }
+
         @JvmStatic
         fun toSnapshotMongoSortParameters(): Stream<Arguments> {
             return Stream.of(

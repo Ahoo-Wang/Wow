@@ -18,8 +18,8 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
 import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 import me.ahoo.wow.mongo.query.AbstractMongoQueryBackend
-import me.ahoo.wow.mongo.query.MongoProjectionConverter
-import me.ahoo.wow.mongo.query.MongoSortConverter
+import me.ahoo.wow.mongo.query.MongoProjectionCompiler
+import me.ahoo.wow.mongo.query.MongoSortCompiler
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import org.bson.Document
@@ -31,8 +31,8 @@ class MongoEventStreamQueryBackend(
     override val filterCompiler: AbstractMongoFilterCompiler = EventStreamFilterCompiler,
 ) : AbstractMongoQueryBackend(),
     EventStreamQueryBackend {
-    override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(EventStreamFieldConverter)
-    override val sortConverter: MongoSortConverter = MongoSortConverter(EventStreamFieldConverter)
+    override val projectionCompiler = MongoProjectionCompiler()
+    override val sortCompiler = MongoSortCompiler()
     override fun toObjectNode(document: Document): ObjectNode =
         document.replacePrimaryKeyToId().toObjectNode()
 }

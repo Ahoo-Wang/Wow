@@ -22,13 +22,13 @@ import org.bson.Document
 fun MongoCollection<Document>.findDocument(
     compiler: AbstractMongoFilterCompiler,
     queryable: Queryable<*>,
-    projectionConverter: MongoProjectionConverter,
-    sortConverter: MongoSortConverter,
+    projectionCompiler: MongoProjectionCompiler,
+    sortCompiler: MongoSortCompiler,
     schema: QueryModelSchema,
 ): FindPublisher<Document> {
-    val projectionBson = projectionConverter.convert(queryable.projection, schema)
+    val projectionBson = projectionCompiler.compile(queryable.projection, schema)
     val filter = compiler.compile(queryable.filter, schema)
-    val sort = sortConverter.convert(queryable.sort)
+    val sort = sortCompiler.compile(queryable.sort, schema)
     return find(filter)
         .projection(projectionBson)
         .sort(sort)

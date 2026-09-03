@@ -19,8 +19,8 @@ import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 import me.ahoo.wow.mongo.query.AbstractMongoQueryBackend
-import me.ahoo.wow.mongo.query.MongoProjectionConverter
-import me.ahoo.wow.mongo.query.MongoSortConverter
+import me.ahoo.wow.mongo.query.MongoProjectionCompiler
+import me.ahoo.wow.mongo.query.MongoSortCompiler
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import org.bson.Document
@@ -34,8 +34,8 @@ class MongoSnapshotQueryBackend(
     SnapshotQueryBackend {
     override val name: String
         get() = MongoSnapshotStore.NAME
-    override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
-    override val sortConverter: MongoSortConverter = MongoSortConverter(SnapshotFieldConverter)
+    override val projectionCompiler = MongoProjectionCompiler()
+    override val sortCompiler = MongoSortCompiler()
     override fun toObjectNode(document: Document): ObjectNode =
         document.replacePrimaryKeyToAggregateId().toObjectNode()
 }

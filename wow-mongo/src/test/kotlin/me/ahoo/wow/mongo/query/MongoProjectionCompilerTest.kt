@@ -17,14 +17,15 @@ import com.mongodb.client.model.Projections
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.mongo.query.event.EventStreamFieldConverter
-import me.ahoo.wow.mongo.query.snapshot.SnapshotFieldConverter
+import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
@@ -33,18 +34,18 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 
-class MongoProjectionConverterTest {
+class MongoProjectionCompilerTest {
 
-    private val snapshotProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
-    private val eventStreamProjectionConverter = MongoProjectionConverter(EventStreamFieldConverter)
-    private val schema = projectionSchema()
+    private val compiler = MongoProjectionCompiler()
+    private val snapshotSchema = projectionSchema(QueryModel.SNAPSHOT, MessageRecords.AGGREGATE_ID)
+    private val eventStreamSchema = projectionSchema(QueryModel.EVENT_STREAM, MessageRecords.ID)
 
     @Test
     fun `should compile included logical nodes to schema projection fields`() {
         val include = listOf(QueryField("state"), QueryField("state.name"))
         val projection = Projection(include = include)
 
-        snapshotProjectionConverter.convert(projection, schema).assert().isEqualTo(
+        compiler.compile(projection, snapshotSchema).assert().isEqualTo(
             Projections.include("document", "document.name"),
         )
         projection.include.assert().isSameAs(include)
@@ -52,9 +53,9 @@ class MongoProjectionConverterTest {
 
     @Test
     fun `should compile excluded logical nodes to schema projection fields`() {
-        snapshotProjectionConverter.convert(
+        compiler.compile(
             Projection(exclude = listOf(QueryField("state"), QueryField("state.name"))),
-            schema,
+            snapshotSchema,
         ).assert().isEqualTo(
             Projections.exclude("document", "document.name"),
         )
@@ -63,41 +64,46 @@ class MongoProjectionConverterTest {
     @ParameterizedTest
     @MethodSource("toSnapshotMongoProjectionParameters")
     fun toSnapshotMongoProjection(projection: Projection, expected: Bson?) {
-        val actual = snapshotProjectionConverter.convert(projection, schema)
+        val actual = compiler.compile(projection, snapshotSchema)
         actual.assert().isEqualTo(expected)
     }
 
     @ParameterizedTest
     @MethodSource("toEventStreamMongoProjectionParameters")
     fun toEventStreamMongoProjection(projection: Projection, expected: Bson?) {
-        val actual = eventStreamProjectionConverter.convert(projection, schema)
+        val actual = compiler.compile(projection, eventStreamSchema)
         actual.assert().isEqualTo(expected)
     }
 
     companion object {
-        private fun projectionSchema() = QueryModelSchema(
-            model = QueryModel.SNAPSHOT,
+        private fun projectionSchema(model: QueryModel, idField: String) = QueryModelSchema(
+            model = model,
             capabilities = emptySet(),
             fields = mapOf(
-                QueryField("state") to projectionFieldSchema(QueryField("document")),
-                QueryField("state.name") to projectionFieldSchema(QueryField("document.name")),
+                projectionFieldSchema("state", "document"),
+                projectionFieldSchema("state.name", "document.name"),
+                projectionFieldSchema(idField, Documents.ID_FIELD),
             ),
         )
 
-        private fun projectionFieldSchema(projectionField: QueryField) = QueryFieldSchema(
-            title = null,
-            description = null,
-            enumValues = null,
-            valueTypes = emptySet(),
-            nullable = true,
-            required = false,
-            cardinality = QueryCardinality.SINGLE,
-            semanticType = null,
-            dynamicChildren = false,
-            bindings = emptyMap(),
-            projectionField = projectionField,
-            rewriteMode = QueryRewriteMode.NONE,
-        )
+        private fun projectionFieldSchema(logicalPath: String, physicalPath: String): Pair<QueryField, QueryFieldSchema> {
+            val logical = QueryField(logicalPath)
+            val binding = QueryFieldBinding(logical, QueryField(physicalPath), QueryStorageType("test"))
+            return logical to QueryFieldSchema(
+                title = null,
+                description = null,
+                enumValues = null,
+                valueTypes = emptySet(),
+                nullable = true,
+                required = false,
+                cardinality = QueryCardinality.SINGLE,
+                semanticType = null,
+                dynamicChildren = false,
+                bindings = mapOf(QueryCapability.PRESENCE to binding),
+                projectionField = binding.physicalField,
+                rewriteMode = QueryRewriteMode.NONE,
+            )
+        }
 
         @JvmStatic
         fun toSnapshotMongoProjectionParameters(): Stream<Arguments> {
