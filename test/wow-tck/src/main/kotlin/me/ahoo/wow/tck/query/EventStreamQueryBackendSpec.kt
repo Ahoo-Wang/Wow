@@ -65,16 +65,12 @@ abstract class EventStreamQueryBackendSpec {
     lateinit var eventStore: EventStore
     lateinit var eventStreamQueryBackendFactory: EventStreamQueryBackendFactory
     lateinit var queryBackendBinding: QueryBackendBinding<EventStreamQueryBackend>
-    lateinit var eventStreamQueryBackend: EventStreamQueryBackend
-    lateinit var queryModelSchemaProvider: QueryModelSchemaProvider
 
     @BeforeEach
     open fun setup() {
         eventStore = createEventStore().meteredForTck()
         eventStreamQueryBackendFactory = createEventStreamQueryBackendFactory()
         queryBackendBinding = eventStreamQueryBackendFactory.create(namedAggregate)
-        eventStreamQueryBackend = queryBackendBinding.backend
-        queryModelSchemaProvider = queryBackendBinding.schemaProvider
     }
 
     protected abstract fun createEventStore(): EventStore
@@ -86,9 +82,9 @@ abstract class EventStreamQueryBackendSpec {
 
     @Test
     fun createFromCache() {
-        val backend1 = eventStreamQueryBackendFactory.create(namedAggregate)
-        val backend2 = eventStreamQueryBackendFactory.create(namedAggregate)
-        backend1.assert().isSameAs(backend2)
+        val binding1 = eventStreamQueryBackendFactory.create(namedAggregate)
+        val binding2 = eventStreamQueryBackendFactory.create(namedAggregate)
+        binding1.assert().isSameAs(binding2)
     }
 
     @Test
@@ -465,39 +461,81 @@ abstract class EventStreamQueryBackendSpec {
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.single(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+        backend.single(
+            ResolvedQuery(
+                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
+                schema,
+            ),
+        )
     }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.list(query: IListQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
-        backend.list(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+        backend.list(
+            ResolvedQuery(
+                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
+                schema,
+            ),
+        )
     }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.paged(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+        backend.paged(
+            ResolvedQuery(
+                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
+                schema,
+            ),
+        )
     }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.cursor(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+        backend.cursor(
+            ResolvedQuery(
+                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
+                schema,
+            ),
+        )
     }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.count(filter: FilterExpression): Mono<Long> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.count(ResolvedQuery(schema.resolve(filter).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+        backend.count(
+            ResolvedQuery(
+                schema.resolve(filter).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
+                schema,
+            ),
+        )
     }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
-        backend.aggregate(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+        backend.aggregate(
+            ResolvedQuery(
+                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
+                schema,
+            ),
+        )
     }
 
-private fun ISingleQuery.query(binding: QueryBackendBinding<EventStreamQueryBackend>): Mono<ObjectNode> = binding.single(this)
-private fun ISingleQuery.dynamicQuery(binding: QueryBackendBinding<EventStreamQueryBackend>): Mono<ObjectNode> = binding.single(this)
-private fun IListQuery.query(binding: QueryBackendBinding<EventStreamQueryBackend>): Flux<ObjectNode> = binding.list(this)
-private fun IListQuery.dynamicQuery(binding: QueryBackendBinding<EventStreamQueryBackend>): Flux<ObjectNode> = binding.list(this)
+private fun ISingleQuery.query(
+    binding: QueryBackendBinding<EventStreamQueryBackend>,
+): Mono<ObjectNode> = binding.single(this)
+private fun ISingleQuery.dynamicQuery(
+    binding: QueryBackendBinding<EventStreamQueryBackend>,
+): Mono<ObjectNode> = binding.single(this)
+private fun IListQuery.query(
+    binding: QueryBackendBinding<EventStreamQueryBackend>,
+): Flux<ObjectNode> = binding.list(this)
+private fun IListQuery.dynamicQuery(
+    binding: QueryBackendBinding<EventStreamQueryBackend>,
+): Flux<ObjectNode> = binding.list(this)
 private fun IPagedQuery.query(binding: QueryBackendBinding<EventStreamQueryBackend>) = binding.paged(this)
 private fun IPagedQuery.dynamicQuery(binding: QueryBackendBinding<EventStreamQueryBackend>) = binding.paged(this)
-private fun FilterExpression.count(binding: QueryBackendBinding<EventStreamQueryBackend>): Mono<Long> = binding.count(this)
-private fun AggregationQuery.query(binding: QueryBackendBinding<EventStreamQueryBackend>): Flux<ObjectNode> = binding.aggregate(this)
+private fun FilterExpression.count(
+    binding: QueryBackendBinding<EventStreamQueryBackend>,
+): Mono<Long> = binding.count(this)
+private fun AggregationQuery.query(
+    binding: QueryBackendBinding<EventStreamQueryBackend>,
+): Flux<ObjectNode> = binding.aggregate(this)
