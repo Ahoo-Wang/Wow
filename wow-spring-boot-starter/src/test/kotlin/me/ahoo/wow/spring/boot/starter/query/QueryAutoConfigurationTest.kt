@@ -229,7 +229,9 @@ class QueryAutoConfigurationTest {
             QueryBackendBinding(backend, schemaProvider)
     }
 
-    internal class RecordingSnapshotQueryBackend : SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA) {
+    internal class RecordingSnapshotQueryBackend : SnapshotQueryBackend by NoOpSnapshotQueryBackend(
+        MOCK_AGGREGATE_METADATA,
+    ) {
         override val name: String = "raw"
         var lastQuery: ResolvedQuery<me.ahoo.wow.api.query.ISingleQuery>? = null
 
