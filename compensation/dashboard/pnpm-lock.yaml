@@ -151,8 +151,8 @@ importers:
         specifier: 3.9.6
         version: 3.9.6
       shadcn:
-        specifier: ^4.19.1
-        version: 4.19.1(supports-color@7.2.0)(typescript@6.0.3)
+        specifier: ^4.20.1
+        version: 4.20.1(supports-color@7.2.0)(typescript@6.0.3)
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
@@ -2709,8 +2709,8 @@ packages:
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
 
-  shadcn@4.19.1:
-    resolution: {integrity: sha512-QZ++YvYniZCEZHxBenWUsZnzKCDSUKwRqi0io7ovS9Him02zrg1U8AJCRTL0PWOaEM46NpTlw8PwewWk+9rCng==}
+  shadcn@4.20.1:
+    resolution: {integrity: sha512-gq3Z2MNeGpiPvMkiy0bTc24KIUcl3gVHS/aoWCmlkoychQHL38KSx3CkD7+7DHcFjyPvy8fzmynfmUFf7fejeg==}
     engines: {node: '>=20.18.1'}
     hasBin: true
 
@@ -5573,7 +5573,7 @@ snapshots:
 
   setprototypeof@1.2.0: {}
 
-  shadcn@4.19.1(supports-color@7.2.0)(typescript@6.0.3):
+  shadcn@4.20.1(supports-color@7.2.0)(typescript@6.0.3):
     dependencies:
       '@babel/core': 7.29.7(supports-color@7.2.0)
       '@babel/parser': 7.29.8
