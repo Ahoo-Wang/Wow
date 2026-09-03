@@ -20,10 +20,31 @@ import {
   TimeUnit,
   type ElementFilterExpression,
   type MetadataFilter,
+  type QueryField,
 } from '../../src';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 describe('filter', () => {
+  it('exposes QueryField as the field-path type', () => {
+    expectTypeOf<QueryField<'state.status'>>().toEqualTypeOf<'state.status'>();
+  });
+
+  it('types equality filters with scalar values only', () => {
+    const assertCanonicalEqualityValues = () => {
+      // @ts-expect-error Canonical Wow equality filters do not accept arrays.
+      filter.eq('status', ['PAID']);
+      // @ts-expect-error Canonical Wow equality filters do not accept arrays.
+      filter.ne('status', ['PAID']);
+    };
+    expectTypeOf(assertCanonicalEqualityValues).toBeFunction();
+  });
+
+  it('uses QueryField terminology in validation errors', () => {
+    expect(() => filter.eq('bad field', 'value')).toThrow(
+      'Query field is invalid: [bad field].',
+    );
+  });
+
   it('builds the Wow FilterExpression wire shape', () => {
     expect(
       filter.and([
@@ -230,22 +251,31 @@ describe('filter', () => {
     expect(create).toThrow(message);
   });
 
-  it('supports Kotlin equality values and logical fields', () => {
-    expect(filter.eq('@metadata.tags', ['wow', null, 1, true])).toEqual({
+  it('supports scalar equality values and query fields', () => {
+    expect(filter.eq('@metadata.tags', 'wow')).toEqual({
       op: FilterOperator.EQ,
       field: '@metadata.tags',
-      value: ['wow', null, 1, true],
+      value: 'wow',
     });
     expect(filter.eq('state.@metadata.tags', 'wow')).toEqual({
       op: FilterOperator.EQ,
       field: 'state.@metadata.tags',
       value: 'wow',
     });
-    expect(filter.ne('state.status', ['CANCELLED', null])).toEqual({
+    expect(filter.ne('state.status', 'CANCELLED')).toEqual({
       op: FilterOperator.NE,
       field: 'state.status',
-      value: ['CANCELLED', null],
+      value: 'CANCELLED',
     });
+  });
+
+  it('rejects array equality values unsupported by canonical Wow REST', () => {
+    expect(() => Reflect.apply(filter.eq, null, ['status', ['PAID']])).toThrow(
+      'Filter value must be a JSON scalar.',
+    );
+    expect(() => Reflect.apply(filter.ne, null, ['status', ['PAID']])).toThrow(
+      'Filter value must be a JSON scalar.',
+    );
   });
 
   it.each<{
@@ -709,9 +739,9 @@ describe('filter', () => {
       'non-string aggregate IDs value',
       () => Reflect.apply(filter.aggregateIds, null, [['order-1', 2]]),
     ],
-    ['invalid logical field', () => filter.eq('bad field', 'value')],
+    ['invalid query field', () => filter.eq('bad field', 'value')],
     [
-      'non-string logical field',
+      'non-string query field',
       () => Reflect.apply(filter.eq, null, [1, 'value']),
     ],
     [

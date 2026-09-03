@@ -13,9 +13,11 @@
 
 import { DeletionState } from './condition';
 
-export type LogicalField<FIELDS extends string = string> = FIELDS;
+export type QueryField<FIELDS extends string = string> = FIELDS;
+/** @deprecated Use QueryField instead. */
+export type LogicalField<FIELDS extends string = string> = QueryField<FIELDS>;
 export type FilterLiteral = null | string | number | boolean;
-export type EqualityFilterValue = FilterLiteral | FilterLiteral[];
+export type EqualityFilterValue = FilterLiteral;
 export type ComparableFilterLiteral = Exclude<FilterLiteral, null>;
 
 export enum FilterOperator {
@@ -93,7 +95,7 @@ export enum TimeUnit {
 
 const LOCAL_TIME_PATTERN =
   /^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\.[0-9]{1,9})?)?$/;
-const LOGICAL_FIELD_PATTERN =
+const QUERY_FIELD_PATTERN =
   /^@?[A-Za-z_][A-Za-z0-9_-]*(\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$/;
 const OFFSET_ZONE_PATTERN =
   /^(?:UTC|GMT|UT)?[+-](\d{1,2}|\d{4}|\d{6}|\d{2}:\d{2}|\d{2}:\d{2}:\d{2})$/;
@@ -139,9 +141,9 @@ const DATE_PATTERN_COUNTS: Readonly<
   g: 19,
 };
 
-function logicalField<FIELDS extends string>(field: FIELDS): FIELDS {
-  if (typeof field !== 'string' || !LOGICAL_FIELD_PATTERN.test(field)) {
-    throw new TypeError(`Logical field is invalid: [${String(field)}].`);
+function queryField<FIELDS extends string>(field: FIELDS): FIELDS {
+  if (typeof field !== 'string' || !QUERY_FIELD_PATTERN.test(field)) {
+    throw new TypeError(`Query field is invalid: [${String(field)}].`);
   }
   return field;
 }
@@ -160,14 +162,6 @@ function filterLiteral<T extends FilterLiteral>(
     throw new TypeError('Filter value must be a JSON scalar.');
   }
   return value;
-}
-
-function equalityFilterValue(value: EqualityFilterValue): EqualityFilterValue {
-  if (Array.isArray(value)) {
-    value.forEach(item => filterLiteral(item, true));
-    return value;
-  }
-  return filterLiteral(value, true);
 }
 
 function requiredString(name: string, value: string): string {
@@ -370,7 +364,7 @@ export type ElementLogicalFilter<FIELDS extends string = string> = {
 
 export type EqualityFilter<FIELDS extends string = string> = {
   op: FilterOperator.EQ | FilterOperator.NE;
-  field: LogicalField<FIELDS>;
+  field: QueryField<FIELDS>;
   value: EqualityFilterValue;
 };
 
@@ -380,7 +374,7 @@ export type ComparisonFilter<FIELDS extends string = string> = {
     | FilterOperator.GTE
     | FilterOperator.LT
     | FilterOperator.LTE;
-  field: LogicalField<FIELDS>;
+  field: QueryField<FIELDS>;
   value: ComparableFilterLiteral;
 };
 
@@ -389,20 +383,20 @@ export type StringFilter<FIELDS extends string = string> = {
     | FilterOperator.CONTAINS
     | FilterOperator.STARTS_WITH
     | FilterOperator.ENDS_WITH;
-  field: LogicalField<FIELDS>;
+  field: QueryField<FIELDS>;
   value: string;
   stringComparison?: StringComparison;
 };
 
 export type CollectionFilter<FIELDS extends string = string> = {
   op: FilterOperator.IN | FilterOperator.NOT_IN | FilterOperator.CONTAINS_ALL;
-  field: LogicalField<FIELDS>;
+  field: QueryField<FIELDS>;
   values: ComparableFilterLiteral[];
 };
 
 export type BetweenFilter<FIELDS extends string = string> = {
   op: FilterOperator.BETWEEN;
-  field: LogicalField<FIELDS>;
+  field: QueryField<FIELDS>;
   lowerBound: ComparableFilterLiteral;
   upperBound: ComparableFilterLiteral;
 };
@@ -416,7 +410,7 @@ export type FieldPresenceFilter<FIELDS extends string = string> = {
     | FilterOperator.IS_NOT_NULL
     | FilterOperator.EXISTS
     | FilterOperator.NOT_EXISTS;
-  field: LogicalField<FIELDS>;
+  field: QueryField<FIELDS>;
 };
 
 export type DeletionFilter = {
@@ -429,19 +423,19 @@ export type ElementMatchFilter<
   ELEMENT_FIELDS extends string = string,
 > = {
   op: FilterOperator.ELEMENT_MATCH;
-  field: LogicalField<FIELDS>;
+  field: QueryField<FIELDS>;
   predicate: ElementFilterExpression<ELEMENT_FIELDS>;
 };
 
 export type SearchFilter<FIELDS extends string = string> = {
   op: FilterOperator.SEARCH;
   query: string;
-  fields?: LogicalField<FIELDS>[];
+  fields?: QueryField<FIELDS>[];
   mode?: SearchMode;
 };
 
 export interface SearchFilterOptions<FIELDS extends string = string> {
-  fields?: readonly LogicalField<FIELDS>[];
+  fields?: readonly QueryField<FIELDS>[];
   mode?: SearchMode;
 }
 
@@ -466,20 +460,20 @@ export type CalendarFilter<FIELDS extends string = string> =
       | FilterOperator.LAST_YEAR
       | FilterOperator.THIS_YEAR
       | FilterOperator.NEXT_YEAR;
-    field: LogicalField<FIELDS>;
+    field: QueryField<FIELDS>;
   };
 
 export type BeforeTodayFilter<FIELDS extends string = string> =
   RelativeTimeFilterOptions & {
     op: FilterOperator.BEFORE_TODAY;
-    field: LogicalField<FIELDS>;
+    field: QueryField<FIELDS>;
     time: string;
   };
 
 export type DaysFilter<FIELDS extends string = string> =
   RelativeTimeFilterOptions & {
     op: FilterOperator.RECENT_DAYS | FilterOperator.EARLIER_DAYS;
-    field: LogicalField<FIELDS>;
+    field: QueryField<FIELDS>;
     days: number;
   };
 
@@ -636,8 +630,8 @@ export const filter = {
   ): EqualityFilter<FIELDS> {
     return {
       op: FilterOperator.EQ,
-      field: logicalField(field),
-      value: equalityFilterValue(value),
+      field: queryField(field),
+      value: filterLiteral(value, true),
     };
   },
   ne<FIELDS extends string>(
@@ -646,8 +640,8 @@ export const filter = {
   ): EqualityFilter<FIELDS> {
     return {
       op: FilterOperator.NE,
-      field: logicalField(field),
-      value: equalityFilterValue(value),
+      field: queryField(field),
+      value: filterLiteral(value, true),
     };
   },
   gt<FIELDS extends string>(
@@ -656,7 +650,7 @@ export const filter = {
   ): ComparisonFilter<FIELDS> {
     return {
       op: FilterOperator.GT,
-      field: logicalField(field),
+      field: queryField(field),
       value: filterLiteral(value, false),
     };
   },
@@ -666,7 +660,7 @@ export const filter = {
   ): ComparisonFilter<FIELDS> {
     return {
       op: FilterOperator.GTE,
-      field: logicalField(field),
+      field: queryField(field),
       value: filterLiteral(value, false),
     };
   },
@@ -676,7 +670,7 @@ export const filter = {
   ): ComparisonFilter<FIELDS> {
     return {
       op: FilterOperator.LT,
-      field: logicalField(field),
+      field: queryField(field),
       value: filterLiteral(value, false),
     };
   },
@@ -686,7 +680,7 @@ export const filter = {
   ): ComparisonFilter<FIELDS> {
     return {
       op: FilterOperator.LTE,
-      field: logicalField(field),
+      field: queryField(field),
       value: filterLiteral(value, false),
     };
   },
@@ -698,7 +692,7 @@ export const filter = {
     validateStringComparison(stringComparison);
     return {
       op: FilterOperator.CONTAINS,
-      field: logicalField(field),
+      field: queryField(field),
       value: requiredString('CONTAINS value', value),
       stringComparison,
     };
@@ -711,7 +705,7 @@ export const filter = {
     validateStringComparison(stringComparison);
     return {
       op: FilterOperator.STARTS_WITH,
-      field: logicalField(field),
+      field: queryField(field),
       value: requiredString('STARTS_WITH value', value),
       stringComparison,
     };
@@ -724,7 +718,7 @@ export const filter = {
     validateStringComparison(stringComparison);
     return {
       op: FilterOperator.ENDS_WITH,
-      field: logicalField(field),
+      field: queryField(field),
       value: requiredString('ENDS_WITH value', value),
       stringComparison,
     };
@@ -737,7 +731,7 @@ export const filter = {
     values.forEach(value => filterLiteral(value, false));
     return {
       op: FilterOperator.IN,
-      field: logicalField(field),
+      field: queryField(field),
       values: [...values],
     };
   },
@@ -749,7 +743,7 @@ export const filter = {
     values.forEach(value => filterLiteral(value, false));
     return {
       op: FilterOperator.NOT_IN,
-      field: logicalField(field),
+      field: queryField(field),
       values: [...values],
     };
   },
@@ -761,7 +755,7 @@ export const filter = {
     values.forEach(value => filterLiteral(value, false));
     return {
       op: FilterOperator.CONTAINS_ALL,
-      field: logicalField(field),
+      field: queryField(field),
       values: [...values],
     };
   },
@@ -772,38 +766,38 @@ export const filter = {
   ): BetweenFilter<FIELDS> {
     return {
       op: FilterOperator.BETWEEN,
-      field: logicalField(field),
+      field: queryField(field),
       lowerBound: filterLiteral(lowerBound, false),
       upperBound: filterLiteral(upperBound, false),
     };
   },
   isEmpty<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
-    return { op: FilterOperator.IS_EMPTY, field: logicalField(field) };
+    return { op: FilterOperator.IS_EMPTY, field: queryField(field) };
   },
   isEmptyString<FIELDS extends string>(
     field: FIELDS,
   ): FieldPresenceFilter<FIELDS> {
-    return { op: FilterOperator.IS_EMPTY_STRING, field: logicalField(field) };
+    return { op: FilterOperator.IS_EMPTY_STRING, field: queryField(field) };
   },
   isNotEmptyString<FIELDS extends string>(
     field: FIELDS,
   ): FieldPresenceFilter<FIELDS> {
     return {
       op: FilterOperator.IS_NOT_EMPTY_STRING,
-      field: logicalField(field),
+      field: queryField(field),
     };
   },
   isNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
-    return { op: FilterOperator.IS_NULL, field: logicalField(field) };
+    return { op: FilterOperator.IS_NULL, field: queryField(field) };
   },
   isNotNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
-    return { op: FilterOperator.IS_NOT_NULL, field: logicalField(field) };
+    return { op: FilterOperator.IS_NOT_NULL, field: queryField(field) };
   },
   exists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
-    return { op: FilterOperator.EXISTS, field: logicalField(field) };
+    return { op: FilterOperator.EXISTS, field: queryField(field) };
   },
   notExists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
-    return { op: FilterOperator.NOT_EXISTS, field: logicalField(field) };
+    return { op: FilterOperator.NOT_EXISTS, field: queryField(field) };
   },
   deletion(state: DeletionState): DeletionFilter {
     if (
@@ -822,7 +816,7 @@ export const filter = {
     validateElementPredicate(predicate);
     return {
       op: FilterOperator.ELEMENT_MATCH,
-      field: logicalField(field),
+      field: queryField(field),
       predicate,
     };
   },
@@ -849,7 +843,7 @@ export const filter = {
       op: FilterOperator.SEARCH,
       query,
       mode,
-      fields: fields.map(logicalField),
+      fields: fields.map(queryField),
     };
   },
   today<FIELDS extends string>(
@@ -859,7 +853,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.TODAY,
-      field: logicalField(field),
+      field: queryField(field),
     };
   },
   beforeToday<FIELDS extends string>(
@@ -873,7 +867,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.BEFORE_TODAY,
-      field: logicalField(field),
+      field: queryField(field),
       time,
     };
   },
@@ -884,7 +878,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.TOMORROW,
-      field: logicalField(field),
+      field: queryField(field),
     };
   },
   thisWeek<FIELDS extends string>(
@@ -894,7 +888,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.THIS_WEEK,
-      field: logicalField(field),
+      field: queryField(field),
     };
   },
   nextWeek<FIELDS extends string>(
@@ -904,7 +898,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.NEXT_WEEK,
-      field: logicalField(field),
+      field: queryField(field),
     };
   },
   lastWeek<FIELDS extends string>(
@@ -914,7 +908,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.LAST_WEEK,
-      field: logicalField(field),
+      field: queryField(field),
     };
   },
   thisMonth<FIELDS extends string>(
@@ -924,7 +918,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.THIS_MONTH,
-      field: logicalField(field),
+      field: queryField(field),
     };
   },
   lastMonth<FIELDS extends string>(
@@ -934,7 +928,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.LAST_MONTH,
-      field: logicalField(field),
+      field: queryField(field),
     };
   },
   yesterday<FIELDS extends string>(
@@ -944,7 +938,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.YESTERDAY,
-      field: logicalField(field),
+      field: queryField(field),
     };
   },
   nextMonth<FIELDS extends string>(
@@ -954,7 +948,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.NEXT_MONTH,
-      field: logicalField(field),
+      field: queryField(field),
     };
   },
   lastYear<FIELDS extends string>(
@@ -964,7 +958,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.LAST_YEAR,
-      field: logicalField(field),
+      field: queryField(field),
     };
   },
   thisYear<FIELDS extends string>(
@@ -974,7 +968,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.THIS_YEAR,
-      field: logicalField(field),
+      field: queryField(field),
     };
   },
   nextYear<FIELDS extends string>(
@@ -984,7 +978,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.NEXT_YEAR,
-      field: logicalField(field),
+      field: queryField(field),
     };
   },
   recentDays<FIELDS extends string>(
@@ -996,7 +990,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.RECENT_DAYS,
-      field: logicalField(field),
+      field: queryField(field),
       days,
     };
   },
@@ -1009,7 +1003,7 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.EARLIER_DAYS,
-      field: logicalField(field),
+      field: queryField(field),
       days,
     };
   },

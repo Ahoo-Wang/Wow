@@ -15,7 +15,7 @@ import {
   filter,
   type ElementFilterExpression,
   type FilterExpression,
-  type LogicalField,
+  type QueryField,
 } from './filter';
 import type { FieldSort } from './sort';
 
@@ -63,12 +63,12 @@ export enum AggregationFunction {
 }
 
 export interface AggregationElement {
-  path: LogicalField;
+  path: QueryField;
   filter?: ElementFilterExpression;
 }
 
 interface AggregationGroupBase<FIELDS extends string = string> {
-  field: LogicalField<FIELDS>;
+  field: QueryField<FIELDS>;
   alias: string;
 }
 
@@ -100,7 +100,7 @@ export type AggregationGroup<FIELDS extends string = string> =
 
 export interface FieldAggregationExpression<FIELDS extends string = string> {
   type: AggregationExpressionType.FIELD;
-  field: LogicalField<FIELDS>;
+  field: QueryField<FIELDS>;
 }
 
 export interface ConstantAggregationExpression {
@@ -134,7 +134,7 @@ export interface NumericAggregationMetric<FIELDS extends string = string> {
 
 export interface AnyAggregationMetric<FIELDS extends string = string> {
   type: AggregationMetricType.ANY;
-  field: LogicalField<FIELDS>;
+  field: QueryField<FIELDS>;
   alias: string;
 }
 
