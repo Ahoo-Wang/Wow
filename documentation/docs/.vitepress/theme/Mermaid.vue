@@ -49,6 +49,11 @@ const initializePanZoom = async () => {
     await nextTick()
     const svgElement = getSvg()
     if (!svgElement) return
+    const viewBox = svgElement.getAttribute('viewBox')?.trim().split(/[\s,]+/).map(Number)
+    if (viewBox?.length === 4 && viewBox.every(Number.isFinite)) {
+        const [, , width, height] = viewBox
+        if (width > 0 && height > 0) svgElement.style.aspectRatio = `${width} / ${height}`
+    }
 
     const {default: createPanZoom} = await import('svg-pan-zoom')
     panZoom = createPanZoom(svgElement, {
