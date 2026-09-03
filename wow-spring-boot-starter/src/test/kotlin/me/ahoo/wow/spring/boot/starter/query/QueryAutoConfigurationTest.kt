@@ -18,8 +18,10 @@ import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.messaging.handler.RetryableFilter
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
@@ -63,7 +65,11 @@ class QueryAutoConfigurationTest {
         contextRunner.enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
             .withBean(RecordingSnapshotQueryBackendFactory::class.java, { RecordingSnapshotQueryBackendFactory() })
-            .withBean(EventStreamQueryBackendFactory::class.java, { EventStreamQueryBackendFactory(::EventBackend) })
+            .withBean(EventStreamQueryBackendFactory::class.java, {
+                EventStreamQueryBackendFactory { namedAggregate ->
+                    EventBackend(namedAggregate).let { QueryBackendBinding(it, it) }
+                }
+            })
             .withBean(RetryableFilter::class.java, { RetryableFilter<DomainEventExchange<Any>>() })
             .withBean(RecordingQueryFilter::class.java, { RecordingQueryFilter(genericCalls) })
             .withBean(RecordingSnapshotQueryFilter::class.java, { RecordingSnapshotQueryFilter(snapshotCalls) })
@@ -131,6 +137,50 @@ class QueryAutoConfigurationTest {
     }
 
     @Test
+    fun `unavailable factories cache bindings with separate backend and schema failures`() {
+        val snapshotBinding = UnavailableSnapshotQueryBackendFactory.create(MOCK_AGGREGATE_METADATA)
+        val eventBinding = UnavailableEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA)
+
+        snapshotBinding.assert().isSameAs(UnavailableSnapshotQueryBackendFactory.create(MOCK_AGGREGATE_METADATA))
+        eventBinding.assert().isSameAs(UnavailableEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA))
+        snapshotBinding.backend
+            .single(
+                ResolvedQuery(
+                    query = singleQuery { },
+                    schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap()),
+                ),
+            )
+            .test()
+            .expectErrorSatisfies {
+                assertBackendUnavailable(
+                    it,
+                    MOCK_AGGREGATE,
+                )
+            }
+            .verify()
+        snapshotBinding.schemaProvider
+            .schema()
+            .test()
+            .expectErrorSatisfies {
+                assertUnavailable(
+                    it,
+                    MOCK_AGGREGATE,
+                )
+            }
+            .verify()
+        eventBinding.schemaProvider
+            .schema()
+            .test()
+            .expectErrorSatisfies {
+                assertUnavailable(
+                    it,
+                    MOCK_AGGREGATE,
+                )
+            }
+            .verify()
+    }
+
+    @Test
     fun `aggregate gateway should apply policies while backend remains raw`() {
         contextRunner.enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
@@ -147,7 +197,7 @@ class QueryAutoConfigurationTest {
                 factory.backend.lastQuery!!.query.filter.operator.assert()
                     .isNotEqualTo(me.ahoo.wow.api.query.FilterOperator.MATCH_ALL)
 
-                val rawBackend = factory.create<Any>(MOCK_AGGREGATE_METADATA)
+                val rawBackend = factory.create(MOCK_AGGREGATE_METADATA).backend
                 rawBackend.assert().isSameAs(factory.backend)
                 rawBackend.single(ResolvedQuery(query, factory.backend.schema)).test()
                     .consumeNextWith { it["state"][SECRET].stringValue().assert().isEqualTo(RAW_SECRET) }
@@ -157,16 +207,25 @@ class QueryAutoConfigurationTest {
     }
 
     private fun assertUnavailable(error: Throwable) {
+        assertUnavailable(error, EXAMPLE_ORDER_AGGREGATE)
+    }
+
+    private fun assertUnavailable(error: Throwable, aggregate: String) {
         error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
         error.message.assert().isEqualTo(
-            "No query backend is configured for aggregate[MaterializedNamedAggregate(" +
-                "contextName=example-service, aggregateName=order)]."
+            "No query backend is configured for aggregate[$aggregate]."
         )
+    }
+
+    private fun assertBackendUnavailable(error: Throwable, aggregate: String) {
+        error.assert().isInstanceOf(WowException::class.java)
+        error.message.assert().isEqualTo("No query backend is configured for aggregate[$aggregate].")
     }
 
     internal class RecordingSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
         val backend = RecordingSnapshotQueryBackend()
-        override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryBackend = backend
+        override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
+            QueryBackendBinding(backend, backend)
     }
 
     internal class RecordingSnapshotQueryBackend :
@@ -238,6 +297,8 @@ class QueryAutoConfigurationTest {
     private companion object {
         const val SNAPSHOT_GATEWAY_BEAN_NAME = "example.order.SnapshotQueryGateway"
         const val EVENT_STREAM_GATEWAY_BEAN_NAME = "example.order.EventStreamQueryGateway"
+        const val EXAMPLE_ORDER_AGGREGATE = "MaterializedNamedAggregate(contextName=example-service, aggregateName=order)"
+        const val MOCK_AGGREGATE = "MaterializedNamedAggregate(contextName=wow-tck, aggregateName=mock_aggregate)"
         const val SECRET = "secret"
         const val RAW_SECRET = "raw-secret"
     }

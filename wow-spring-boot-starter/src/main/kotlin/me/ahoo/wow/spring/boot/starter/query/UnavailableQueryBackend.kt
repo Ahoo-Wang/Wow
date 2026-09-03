@@ -24,28 +24,34 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.WowException
-import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.ResolvedQuery
+import me.ahoo.wow.query.event.AbstractEventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryBackend
-import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
-import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 
-internal object UnavailableSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
-    override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryBackend =
-        UnavailableSnapshotQueryBackend(namedAggregate.materialize())
+internal object UnavailableSnapshotQueryBackendFactory : AbstractSnapshotQueryBackendFactory() {
+    override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
+        QueryBackendBinding(
+            backend = UnavailableSnapshotQueryBackend(namedAggregate),
+            schemaProvider = UnavailableQueryModelSchemaProvider(namedAggregate),
+        )
 }
 
-internal object UnavailableEventStreamQueryBackendFactory : EventStreamQueryBackendFactory {
-    override fun create(namedAggregate: NamedAggregate): EventStreamQueryBackend =
-        UnavailableEventStreamQueryBackend(namedAggregate.materialize())
+internal object UnavailableEventStreamQueryBackendFactory : AbstractEventStreamQueryBackendFactory() {
+    override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> =
+        QueryBackendBinding(
+            backend = UnavailableEventStreamQueryBackend(namedAggregate),
+            schemaProvider = UnavailableQueryModelSchemaProvider(namedAggregate),
+        )
 }
 
 private class UnavailableSnapshotQueryBackend(namedAggregate: NamedAggregate) :
@@ -60,9 +66,7 @@ private class UnavailableEventStreamQueryBackend(namedAggregate: NamedAggregate)
 
 private abstract class UnavailableQueryBackend(
     final override val namedAggregate: NamedAggregate,
-) : QueryBackend, QueryModelSchemaProvider {
-    override fun schema(): Mono<QueryModelSchema> = Mono.error(schemaUnavailable())
-    override fun refresh(): Mono<QueryModelSchema> = Mono.error(schemaUnavailable())
+) : QueryBackend {
     override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> = unavailableMono()
     override fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode> = unavailableFlux()
     override fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = unavailableMono()
@@ -76,6 +80,13 @@ private abstract class UnavailableQueryBackend(
         ErrorCodes.INTERNAL_SERVER_ERROR,
         "No query backend is configured for aggregate[$namedAggregate].",
     )
+}
+
+private class UnavailableQueryModelSchemaProvider(
+    private val namedAggregate: NamedAggregate,
+) : QueryModelSchemaProvider {
+    override fun schema(): Mono<QueryModelSchema> = Mono.error(schemaUnavailable())
+    override fun refresh(): Mono<QueryModelSchema> = Mono.error(schemaUnavailable())
 
     private fun schemaUnavailable(): QuerySchemaUnavailableException = QuerySchemaUnavailableException(
         "No query backend is configured for aggregate[$namedAggregate].",

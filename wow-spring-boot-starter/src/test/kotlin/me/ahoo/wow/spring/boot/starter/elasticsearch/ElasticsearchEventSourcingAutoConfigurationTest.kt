@@ -33,7 +33,6 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryBackendFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackendFactory
 import me.ahoo.wow.metrics.WowMetrics
-import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
@@ -190,7 +189,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             sources = listOf(failingQuerySchemaSource(expected)),
         )
 
-        (factory.create<Any>(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
+        factory.create(MOCK_AGGREGATE_METADATA).schemaProvider
             .schema()
             .test()
             .expectErrorSatisfies { it.assert().isSameAs(expected) }
@@ -211,7 +210,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             sources = listOf(failingQuerySchemaSource(expected)),
         )
 
-        (factory.create(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
+        factory.create(MOCK_AGGREGATE_METADATA).schemaProvider
             .schema()
             .test()
             .expectErrorSatisfies { it.assert().isSameAs(expected) }

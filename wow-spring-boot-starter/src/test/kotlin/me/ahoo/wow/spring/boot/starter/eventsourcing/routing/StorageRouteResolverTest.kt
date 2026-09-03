@@ -20,11 +20,9 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackendFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import org.junit.jupiter.api.Test
@@ -520,13 +518,9 @@ private class NoOpSnapshotStore(
 }
 
 private class RecordingEventStreamQueryBackendFactory : EventStreamQueryBackendFactory {
-    override fun create(namedAggregate: NamedAggregate): EventStreamQueryBackend {
-        throw UnsupportedOperationException("Not needed for route resolution tests.")
-    }
+    override fun create(namedAggregate: NamedAggregate) = NoOpEventStreamQueryBackendFactory.create(namedAggregate)
 }
 
 private class RecordingSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
-    override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryBackend {
-        throw UnsupportedOperationException("Not needed for route resolution tests.")
-    }
+    override fun create(namedAggregate: NamedAggregate) = NoOpSnapshotQueryBackendFactory.create(namedAggregate)
 }

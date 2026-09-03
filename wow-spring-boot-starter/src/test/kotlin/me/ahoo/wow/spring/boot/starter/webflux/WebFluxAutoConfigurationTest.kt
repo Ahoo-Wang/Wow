@@ -61,6 +61,7 @@ import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
@@ -1241,8 +1242,8 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     private object TestSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
-        override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryBackend =
-            TestSnapshotQueryBackend(namedAggregate)
+        override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
+            TestSnapshotQueryBackend(namedAggregate).let { QueryBackendBinding(it, it) }
     }
 
     private class TestSnapshotQueryBackend(namedAggregate: NamedAggregate) :
@@ -1253,8 +1254,8 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     private object TestEventStreamQueryBackendFactory : EventStreamQueryBackendFactory {
-        override fun create(namedAggregate: NamedAggregate): EventStreamQueryBackend =
-            TestEventStreamQueryBackend(namedAggregate)
+        override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> =
+            TestEventStreamQueryBackend(namedAggregate).let { QueryBackendBinding(it, it) }
     }
 
     private class TestEventStreamQueryBackend(namedAggregate: NamedAggregate) :
