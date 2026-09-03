@@ -112,10 +112,10 @@ class DefaultEventStreamQueryGatewayTest {
         val raw = eventStream.toJsonNode<ObjectNode>()
         val bodyType = raw.path("body").path(0).path("bodyType").stringValue()
         val backend = SchemaEventBackend(eventStream::toJsonNode, eventSchema(bodyType))
-        val gateway = DefaultEventStreamQueryGateway(
-            MOCK_AGGREGATE_METADATA,
-            backend,
-            backend,
+            val gateway = DefaultEventStreamQueryGateway(
+                MOCK_AGGREGATE_METADATA,
+                backend,
+                backend.schemaProvider,
             QuerySchemaValidationMode.COMPATIBLE,
             errorHandler = ErrorHandler { _, error -> Mono.error(error) },
         )
@@ -153,7 +153,7 @@ class DefaultEventStreamQueryGatewayTest {
             val gateway = DefaultEventStreamQueryGateway(
                 MOCK_AGGREGATE_METADATA,
                 backend,
-                backend,
+                backend.schemaProvider,
                 QuerySchemaValidationMode.COMPATIBLE,
                 errorHandler = ErrorHandler { _, error -> Mono.error(error) },
             )
@@ -180,7 +180,7 @@ class DefaultEventStreamQueryGatewayTest {
             val gateway = DefaultEventStreamQueryGateway(
                 MOCK_AGGREGATE_METADATA,
                 backend,
-                backend,
+                backend.schemaProvider,
                 QuerySchemaValidationMode.COMPATIBLE,
                 errorHandler = ErrorHandler { _, error -> Mono.error(error) },
             )
@@ -209,7 +209,7 @@ class DefaultEventStreamQueryGatewayTest {
         val gateway = DefaultEventStreamQueryGateway(
             MOCK_AGGREGATE_METADATA,
             backend,
-            backend,
+            backend.schemaProvider,
             QuerySchemaValidationMode.COMPATIBLE,
             errorHandler = ErrorHandler { _, error -> Mono.error(error) },
         )
@@ -264,13 +264,12 @@ class DefaultEventStreamQueryGatewayTest {
 
     private class SchemaEventBackend(
         private val nodeSupplier: () -> ObjectNode,
-        private val modelSchema: () -> QueryModelSchema,
-    ) : EventStreamQueryBackend, QueryModelSchemaProvider {
+        modelSchema: () -> QueryModelSchema,
+    ) : EventStreamQueryBackend {
         constructor(nodeSupplier: () -> ObjectNode, modelSchema: QueryModelSchema) : this(nodeSupplier, { modelSchema })
 
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
-        override fun schema(): Mono<QueryModelSchema> = Mono.fromSupplier(modelSchema)
-        override fun refresh(): Mono<QueryModelSchema> = schema()
+        val schemaProvider = SchemaEventProvider(modelSchema)
         override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.fromSupplier(nodeSupplier)
         override fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
         override fun paged(
@@ -280,6 +279,13 @@ class DefaultEventStreamQueryGatewayTest {
             Mono.fromSupplier { CursorPage(listOf(nodeSupplier()), "next") }
         override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
         override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
+    }
+
+    private class SchemaEventProvider(
+        private val modelSchema: () -> QueryModelSchema,
+    ) : QueryModelSchemaProvider {
+        override fun schema(): Mono<QueryModelSchema> = Mono.fromSupplier(modelSchema)
+        override fun refresh(): Mono<QueryModelSchema> = schema()
     }
 
     private companion object {
