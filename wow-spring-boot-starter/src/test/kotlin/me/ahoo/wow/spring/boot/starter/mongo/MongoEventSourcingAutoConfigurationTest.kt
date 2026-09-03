@@ -33,7 +33,6 @@ import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.MongoSnapshotStoreBatchOptions
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
-import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
@@ -120,7 +119,7 @@ class MongoEventSourcingAutoConfigurationTest {
             sources = listOf(source),
         )
 
-        (factory.create<Any>(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
+        factory.create(MOCK_AGGREGATE_METADATA).schemaProvider
             .schema()
             .test()
             .expectErrorSatisfies { it.assert().isSameAs(expected) }
@@ -143,7 +142,7 @@ class MongoEventSourcingAutoConfigurationTest {
             sources = listOf(failingQuerySchemaSource(expected)),
         )
 
-        (factory.create(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
+        factory.create(MOCK_AGGREGATE_METADATA).schemaProvider
             .schema()
             .test()
             .expectErrorSatisfies { it.assert().isSameAs(expected) }

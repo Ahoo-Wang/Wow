@@ -25,9 +25,12 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
-import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackendFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
@@ -245,10 +248,10 @@ class StorageRoutingAutoConfigurationTest {
                 val stores = context.getBean(RecordingStores::class.java)
                 val queryBackendFactory = context.getBean(EventStreamQueryBackendFactory::class.java)
 
-                queryBackendFactory.create(ORDER)
+                queryBackendFactory.create(ORDER).backend
                 stores.redisEventStreamQueryBackendFactory.lastNamedAggregate.assert().isEqualTo(ORDER)
 
-                queryBackendFactory.create(CART)
+                queryBackendFactory.create(CART).backend
                 stores.mongoEventStreamQueryBackendFactory.lastNamedAggregate.assert().isEqualTo(CART)
             }
     }
@@ -307,10 +310,10 @@ class StorageRoutingAutoConfigurationTest {
                 val stores = context.getBean(RecordingStores::class.java)
                 val queryBackendFactory = context.getBean(SnapshotQueryBackendFactory::class.java)
 
-                queryBackendFactory.create<Any>(CART)
+                queryBackendFactory.create(CART).backend
                 stores.redisSnapshotQueryBackendFactory.lastNamedAggregate.assert().isEqualTo(CART)
 
-                queryBackendFactory.create<Any>(ORDER)
+                queryBackendFactory.create(ORDER).backend
                 stores.mongoSnapshotQueryBackendFactory.lastNamedAggregate.assert().isEqualTo(ORDER)
             }
     }
@@ -619,18 +622,18 @@ class StorageRoutingAutoConfigurationTest {
     internal class RecordingEventStreamQueryBackendFactory : EventStreamQueryBackendFactory {
         var lastNamedAggregate: NamedAggregate? = null
 
-        override fun create(namedAggregate: NamedAggregate): NoOpEventStreamQueryBackend {
+        override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> {
             lastNamedAggregate = namedAggregate
-            return NoOpEventStreamQueryBackend(namedAggregate)
+            return NoOpEventStreamQueryBackendFactory.create(namedAggregate)
         }
     }
 
     internal class RecordingSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
         var lastNamedAggregate: NamedAggregate? = null
 
-        override fun <S : Any> create(namedAggregate: NamedAggregate): NoOpSnapshotQueryBackend {
+        override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> {
             lastNamedAggregate = namedAggregate
-            return NoOpSnapshotQueryBackend(namedAggregate)
+            return NoOpSnapshotQueryBackendFactory.create(namedAggregate)
         }
     }
 
