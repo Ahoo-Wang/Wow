@@ -579,7 +579,9 @@ cd documentation && pnpm docs:build
 cd ..
 python3 /Users/ahoo/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/wow-develop
 python3 /Users/ahoo/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/wow-migrate
-while IFS= read -r line; do printf '%s\n' "$line" | jq -e empty >/dev/null; done \
+while IFS= read -r line; do
+  printf '%s\n' "$line" | jq -e 'true' >/dev/null || exit 1
+done \
   < skills/wow-migrate/evals/behavior.jsonl
 ```
 

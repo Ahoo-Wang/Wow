@@ -58,15 +58,14 @@ import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.query.schema.QueryStorageType
+import me.ahoo.wow.query.schema.requireAccepted
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.tck.query.SnapshotQueryBackendSpec
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -144,32 +143,36 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                                 .properties("orders") { orders ->
                                     orders.nested { ordersNested ->
                                         ordersNested.properties("status") { it.keyword { keyword -> keyword } }
-                                        .properties("lines") { lines ->
-                                            lines.nested { linesNested ->
-                                                linesNested
-                                                    .properties("productId") { it.keyword { keyword -> keyword } }
-                                                    .properties("quantity") { it.integer { number -> number } }
-                                                    .properties("amount") { it.double_ { number -> number } }
-                                                    .properties("samples") { it.double_ { number -> number } }
-                                                    .properties("createdAt") { it.date { date -> date } }
-                                                    .properties("epochSeconds") { it.long_ { number -> number } }
-                                                    .properties("productName") { productName ->
-                                                        productName.text { text ->
-                                                            text.fields("keyword") { keyword -> keyword.keyword { it } }
-                                                        }
-                                                    }
-                                                    .properties("discounts") { discounts ->
-                                                        discounts.nested { discountsNested ->
-                                                            discountsNested
-                                                                .properties("type") {
-                                                                    it.keyword { keyword -> keyword }
-                                                                }.properties("amount") {
-                                                                    it.double_ { number -> number }
+                                            .properties("lines") { lines ->
+                                                lines.nested { linesNested ->
+                                                    linesNested
+                                                        .properties("productId") { it.keyword { keyword -> keyword } }
+                                                        .properties("quantity") { it.integer { number -> number } }
+                                                        .properties("amount") { it.double_ { number -> number } }
+                                                        .properties("samples") { it.double_ { number -> number } }
+                                                        .properties("createdAt") { it.date { date -> date } }
+                                                        .properties("epochSeconds") { it.long_ { number -> number } }
+                                                        .properties("productName") { productName ->
+                                                            productName.text { text ->
+                                                                text.fields(
+                                                                    "keyword",
+                                                                ) { keyword ->
+                                                                    keyword.keyword { it }
                                                                 }
+                                                            }
                                                         }
-                                                    }
+                                                        .properties("discounts") { discounts ->
+                                                            discounts.nested { discountsNested ->
+                                                                discountsNested
+                                                                    .properties("type") {
+                                                                        it.keyword { keyword -> keyword }
+                                                                    }.properties("amount") {
+                                                                        it.double_ { number -> number }
+                                                                    }
+                                                            }
+                                                        }
+                                                }
                                             }
-                                        }
                                     }
                                 }
                         }
@@ -296,10 +299,10 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val binding = QueryBackendBinding(
             NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
             object : QueryModelSchemaProvider {
-            override fun schema(): Mono<QueryModelSchema> {
-                schemaCalls.incrementAndGet()
-                return Mono.just(querySchema)
-            }
+                override fun schema(): Mono<QueryModelSchema> {
+                    schemaCalls.incrementAndGet()
+                    return Mono.just(querySchema)
+                }
 
                 override fun refresh(): Mono<QueryModelSchema> = schema()
             },
@@ -405,8 +408,8 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         updateDocument(mapOf("document" to mapOf("name" to "visible", "secret" to "hidden")))
         val binding = QueryBackendBinding(
             ElasticsearchSnapshotQueryBackend(
-            namedAggregate = MOCK_AGGREGATE_METADATA,
-            elasticsearchClient = elasticsearchClient,
+                namedAggregate = MOCK_AGGREGATE_METADATA,
+                elasticsearchClient = elasticsearchClient,
             ),
             projectionSchemaProvider(),
         )

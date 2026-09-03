@@ -33,8 +33,8 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
@@ -125,10 +125,10 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val binding = QueryBackendBinding(
             NoOpEventStreamQueryBackend(namedAggregate),
             object : QueryModelSchemaProvider {
-            override fun schema(): Mono<QueryModelSchema> {
-                schemaCalls.incrementAndGet()
-                return Mono.just(querySchema)
-            }
+                override fun schema(): Mono<QueryModelSchema> {
+                    schemaCalls.incrementAndGet()
+                    return Mono.just(querySchema)
+                }
 
                 override fun refresh(): Mono<QueryModelSchema> = schema()
             },

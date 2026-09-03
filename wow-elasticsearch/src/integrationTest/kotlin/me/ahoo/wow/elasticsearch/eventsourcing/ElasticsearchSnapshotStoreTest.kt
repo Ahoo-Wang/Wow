@@ -14,12 +14,12 @@
 package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.Refresh
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.IndexNameConverter.SNAPSHOT_SUFFIX
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
-import me.ahoo.test.asserts.assert
-import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
