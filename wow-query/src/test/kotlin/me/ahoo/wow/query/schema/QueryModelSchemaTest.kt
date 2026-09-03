@@ -46,6 +46,71 @@ class QueryModelSchemaTest {
     private val jsonMapper = jsonMapper()
 
     @Test
+    fun `physical field resolution should return a binding physical field`() {
+        val field = QueryField("state.name")
+        val physicalField = QueryField("document.name.keyword")
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            setOf(QueryCapability.SORT),
+            mapOf(
+                field to fieldSchema(
+                    bindings = mapOf(
+                        QueryCapability.SORT to QueryFieldBinding(
+                            QueryField("document.name"),
+                            physicalField,
+                            null,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        schema.resolvePhysicalField(field, QueryCapability.SORT).assert().isEqualTo(physicalField)
+    }
+
+    @Test
+    fun `physical field resolution should return the absolute logical field when it is missing`() {
+        val field = QueryField("name")
+        val logicalParent = QueryField("state")
+        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+
+        schema.resolvePhysicalField(field, QueryCapability.SORT, logicalParent).assert()
+            .isEqualTo(QueryField("state.name"))
+    }
+
+    @Test
+    fun `physical field resolution should return the relative physical child`() {
+        val field = QueryField("price")
+        val logicalParent = QueryField("state.orders")
+        val resolvedParent = QueryField("document.orders")
+        val physicalParent = QueryField("storage.orders")
+        val physicalField = QueryField("storage.orders.price.keyword")
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            setOf(QueryCapability.EXACT_MATCH),
+            mapOf(
+                QueryField("state.orders.price") to fieldSchema(
+                    bindings = mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                            QueryField("document.orders.price.keyword"),
+                            physicalField,
+                            null,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        schema.resolvePhysicalField(
+            field,
+            QueryCapability.EXACT_MATCH,
+            logicalParent,
+            resolvedParent,
+            physicalParent,
+        ).assert().isEqualTo(QueryField("price.keyword"))
+    }
+
+    @Test
     fun `cursor resolution should append the model unique field`() {
         listOf(
             QueryModel.SNAPSHOT to QueryField(MessageRecords.AGGREGATE_ID),

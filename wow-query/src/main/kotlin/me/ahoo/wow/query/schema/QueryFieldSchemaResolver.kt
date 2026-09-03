@@ -48,9 +48,9 @@ internal class QueryFieldSchemaResolver(
     fun resolve(
         field: QueryField,
         capability: QueryCapability,
-        logicalParent: QueryField?,
-        resolvedParent: QueryField?,
-        physicalParent: QueryField?,
+        logicalParent: QueryField? = null,
+        resolvedParent: QueryField? = null,
+        physicalParent: QueryField? = null,
         enforceElementScope: Boolean = true,
     ): QueryFieldResolution {
         val logical = field.absoluteTo(logicalParent)

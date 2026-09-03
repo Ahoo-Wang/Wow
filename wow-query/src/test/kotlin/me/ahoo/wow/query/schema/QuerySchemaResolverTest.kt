@@ -105,6 +105,30 @@ import kotlin.reflect.jvm.javaField
 @Suppress("LargeClass")
 class QuerySchemaResolverTest {
     @Test
+    fun `field resolver should retain an absolute physical field for nested bindings`() {
+        val field = QueryField("price")
+        val physicalField = QueryField("storage.orders.price.keyword")
+        val resolver = QueryFieldSchemaResolver(
+            schema(
+                mapOf(
+                    QueryField("state.orders.price") to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.orders.price.keyword",
+                        physicalPath = physicalField.path,
+                    ),
+                ),
+            ),
+        )
+
+        resolver.resolve(
+            field,
+            QueryCapability.EXACT_MATCH,
+            QueryField("state.orders"),
+            QueryField("document.orders"),
+            QueryField("storage.orders"),
+        ).physicalField.assert().isEqualTo(physicalField)
+    }
+
+    @Test
     fun `filter capability matrix should rewrite exact literal range and presence fields`() {
         val field = QueryField("state.value")
         val exact = QueryField("document.value.keyword")

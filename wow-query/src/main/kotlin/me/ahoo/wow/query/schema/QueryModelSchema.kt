@@ -104,6 +104,8 @@ data class QueryModelSchema(
         }
     }
 
+    @get:JsonIgnore
+    internal val fieldResolver = QueryFieldSchemaResolver(this)
     private val resolver = QuerySchemaResolver(this)
 
     fun supports(capability: QueryCapability): Boolean = capability in capabilities
@@ -125,6 +127,31 @@ data class QueryModelSchema(
             separator = ancestorField.path.lastIndexOf('.')
         }
         return null
+    }
+
+    fun resolvePhysicalField(
+        field: QueryField,
+        capability: QueryCapability,
+        logicalParent: QueryField? = null,
+        resolvedParent: QueryField? = null,
+        physicalParent: QueryField? = null,
+    ): QueryField = fieldResolver.resolve(
+        field,
+        capability,
+        logicalParent,
+        resolvedParent,
+        physicalParent,
+    ).let { resolved ->
+        resolved.physicalField?.let { physicalField ->
+            if (physicalParent == null) {
+                physicalField
+            } else {
+                physicalField.relativeTo(physicalParent)
+                    ?: throw QuerySchemaValidationException(
+                        "Physical field [$physicalField] is not relative to parent [$physicalParent].",
+                    )
+            }
+        } ?: resolved.logical
     }
 
     internal fun matchesValueTypes(field: QueryField, values: Iterable<JsonNode>): Boolean =
