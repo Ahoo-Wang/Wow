@@ -42,7 +42,6 @@ class MongoEventStreamQueryBackendFactory(
                 collection,
                 database,
                 QueryModel.EVENT_STREAM,
-                EventStreamFieldConverter,
             ),
         )
         return QueryBackendBinding(
