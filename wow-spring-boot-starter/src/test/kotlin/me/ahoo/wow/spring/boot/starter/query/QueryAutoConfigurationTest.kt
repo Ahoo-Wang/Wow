@@ -67,7 +67,7 @@ class QueryAutoConfigurationTest {
             .withBean(RecordingSnapshotQueryBackendFactory::class.java, { RecordingSnapshotQueryBackendFactory() })
             .withBean(EventStreamQueryBackendFactory::class.java, {
                 EventStreamQueryBackendFactory { namedAggregate ->
-                    EventBackend(namedAggregate).let { QueryBackendBinding(it, it) }
+                    QueryBackendBinding(EventBackend(namedAggregate), EventSchemaProvider)
                 }
             })
             .withBean(RetryableFilter::class.java, { RetryableFilter<DomainEventExchange<Any>>() })
@@ -199,7 +199,7 @@ class QueryAutoConfigurationTest {
 
                 val rawBackend = factory.create(MOCK_AGGREGATE_METADATA).backend
                 rawBackend.assert().isSameAs(factory.backend)
-                rawBackend.single(ResolvedQuery(query, factory.backend.schema)).test()
+                rawBackend.single(ResolvedQuery(query, factory.schemaProvider.schema)).test()
                     .consumeNextWith { it["state"][SECRET].stringValue().assert().isEqualTo(RAW_SECRET) }
                     .verifyComplete()
                 factory.backend.lastQuery!!.query.assert().isSameAs(query)
@@ -224,20 +224,14 @@ class QueryAutoConfigurationTest {
 
     internal class RecordingSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
         val backend = RecordingSnapshotQueryBackend()
+        val schemaProvider = RecordingSnapshotSchemaProvider()
         override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-            QueryBackendBinding(backend, backend)
+            QueryBackendBinding(backend, schemaProvider)
     }
 
-    internal class RecordingSnapshotQueryBackend :
-        SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
-        QueryModelSchemaProvider {
+    internal class RecordingSnapshotQueryBackend : SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA) {
         override val name: String = "raw"
-        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
         var lastQuery: ResolvedQuery<me.ahoo.wow.api.query.ISingleQuery>? = null
-
-        override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
-
-        override fun refresh(): Mono<QueryModelSchema> = schema()
 
         override fun single(query: ResolvedQuery<me.ahoo.wow.api.query.ISingleQuery>): Mono<ObjectNode> {
             lastQuery = query
@@ -250,9 +244,18 @@ class QueryAutoConfigurationTest {
         }
     }
 
+    internal class RecordingSnapshotSchemaProvider : QueryModelSchemaProvider {
+        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+
+        override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
+
+        override fun refresh(): Mono<QueryModelSchema> = schema()
+    }
+
     internal class EventBackend(namedAggregate: NamedAggregate) :
-        EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate),
-        QueryModelSchemaProvider {
+        EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate)
+
+    internal object EventSchemaProvider : QueryModelSchemaProvider {
         private val schema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
 
         override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)

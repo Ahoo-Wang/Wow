@@ -29,19 +29,19 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
-import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackend
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackendFactory
 import me.ahoo.wow.infrastructure.elasticsearch.ElasticsearchBenchmarkFixture
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.Documents.replaceAggregateIdToPrimaryKey
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
-import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
+import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toLinkedHashMap
 import org.bson.Document
@@ -110,12 +110,12 @@ open class QueryGatewayBackendBenchmark {
             "Unsupported operation: $operation"
         }
         require(result == "dynamic" || result == "typed") { "Unsupported result: $result" }
-        val backend = when (storage) {
+        val binding = when (storage) {
             "mongo" -> setupMongo()
             "elasticsearch" -> setupElasticsearch()
             else -> error("Unsupported storage: $storage")
         }
-        gateway = createGateway(backend)
+        gateway = createGateway(binding)
         singleQuery = SingleQuery(IdFilter(aggregateId(0)))
         list100Query = ListQuery(MatchAllFilter, limit = 100)
         list1000Query = ListQuery(MatchAllFilter, limit = 1_000)
@@ -146,22 +146,22 @@ open class QueryGatewayBackendBenchmark {
         blackhole.consume(executeConfiguredQuery())
     }
 
-    private fun createGateway(backend: SnapshotQueryBackend): SnapshotQueryGateway<QueryBenchmarkState> {
+    private fun createGateway(binding: QueryBackendBinding<SnapshotQueryBackend>): SnapshotQueryGateway<QueryBenchmarkState> {
         val targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
             QueryBenchmarkState::class.java,
         )
         return DefaultSnapshotQueryGateway(
             namedAggregate = namedAggregate,
-            backend = backend,
-            schemaProvider = backend.requiredQueryModelSchemaProvider(),
+            backend = binding.backend,
+            schemaProvider = binding.schemaProvider,
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
             targetType = targetType,
             filters = emptyList(),
         )
     }
 
-    private fun setupMongo(): SnapshotQueryBackend {
+    private fun setupMongo(): QueryBackendBinding<SnapshotQueryBackend> {
         val fixture = MongoBenchmarkFixture().also { mongoFixture = it }
         SnapshotSchemaInitializer(fixture.database).initSchema(namedAggregate)
         val collection = fixture.database.getCollection(namedAggregate.toSnapshotCollectionName())
@@ -170,10 +170,10 @@ open class QueryGatewayBackendBenchmark {
         }
         val insert = checkNotNull(collection.insertMany(documents).toMono().block(QUERY_TIMEOUT))
         check(insert.wasAcknowledged())
-        return MongoSnapshotQueryBackend(namedAggregate, collection)
+        return MongoSnapshotQueryBackendFactory(fixture.database).create(namedAggregate)
     }
 
-    private fun setupElasticsearch(): SnapshotQueryBackend {
+    private fun setupElasticsearch(): QueryBackendBinding<SnapshotQueryBackend> {
         val fixture = ElasticsearchBenchmarkFixture().also { elasticsearchFixture = it }
         val indexName = namedAggregate.toSnapshotIndexName()
         fixture.client.indices().delete { it.index(indexName).ignoreUnavailable(true) }.block(QUERY_TIMEOUT)
@@ -192,11 +192,10 @@ open class QueryGatewayBackendBenchmark {
         }
         val response = checkNotNull(fixture.client.bulk(request).block(QUERY_TIMEOUT))
         check(!response.errors()) { "Elasticsearch seed failed: ${response.items().filter { it.error() != null }}" }
-        return ElasticsearchSnapshotQueryBackend(
-            namedAggregate = namedAggregate,
+        return ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = fixture.client,
             queryBatchSize = ELASTICSEARCH_BATCH_SIZE,
-        )
+        ).create(namedAggregate)
     }
 
     private fun snapshots(): List<MaterializedSnapshot<QueryBenchmarkState>> {
