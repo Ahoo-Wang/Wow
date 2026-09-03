@@ -951,42 +951,82 @@ abstract class SnapshotQueryBackendSpec {
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.single(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+        backend.single(
+            ResolvedQuery(
+                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
+                schema,
+            ),
+        )
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.list(query: IListQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
-        backend.list(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+        backend.list(
+            ResolvedQuery(
+                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
+                schema,
+            ),
+        )
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.paged(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+        backend.paged(
+            ResolvedQuery(
+                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
+                schema,
+            ),
+        )
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.cursor(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+        backend.cursor(
+            ResolvedQuery(
+                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
+                schema,
+            ),
+        )
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.count(filter: FilterExpression): Mono<Long> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.count(ResolvedQuery(schema.resolve(filter).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+        backend.count(
+            ResolvedQuery(
+                schema.resolve(filter).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
+                schema,
+            ),
+        )
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
-        backend.aggregate(ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema))
+        backend.aggregate(
+            ResolvedQuery(
+                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
+                schema,
+            ),
+        )
     }
 
-private fun ISingleQuery.query(binding: QueryBackendBinding<SnapshotQueryBackend>): Mono<ObjectNode> = binding.single(this)
-private fun ISingleQuery.dynamicQuery(binding: QueryBackendBinding<SnapshotQueryBackend>): Mono<ObjectNode> = binding.single(this)
+private fun ISingleQuery.query(
+    binding: QueryBackendBinding<SnapshotQueryBackend>,
+): Mono<ObjectNode> = binding.single(this)
+private fun ISingleQuery.dynamicQuery(
+    binding: QueryBackendBinding<SnapshotQueryBackend>,
+): Mono<ObjectNode> = binding.single(this)
 private fun IListQuery.query(binding: QueryBackendBinding<SnapshotQueryBackend>): Flux<ObjectNode> = binding.list(this)
-private fun IListQuery.dynamicQuery(binding: QueryBackendBinding<SnapshotQueryBackend>): Flux<ObjectNode> = binding.list(this)
+private fun IListQuery.dynamicQuery(
+    binding: QueryBackendBinding<SnapshotQueryBackend>,
+): Flux<ObjectNode> = binding.list(this)
 private fun IPagedQuery.query(binding: QueryBackendBinding<SnapshotQueryBackend>) = binding.paged(this)
 private fun IPagedQuery.dynamicQuery(binding: QueryBackendBinding<SnapshotQueryBackend>) = binding.paged(this)
-private fun FilterExpression.count(binding: QueryBackendBinding<SnapshotQueryBackend>): Mono<Long> = binding.count(this)
-private fun AggregationQuery.query(binding: QueryBackendBinding<SnapshotQueryBackend>): Flux<ObjectNode> = binding.aggregate(this)
+private fun FilterExpression.count(
+    binding: QueryBackendBinding<SnapshotQueryBackend>,
+): Mono<Long> = binding.count(this)
+private fun AggregationQuery.query(
+    binding: QueryBackendBinding<SnapshotQueryBackend>,
+): Flux<ObjectNode> = binding.aggregate(this)
 private fun Any.toWireJsonNode(): JsonNode = JsonSerializer.readTree(JsonSerializer.writeValueAsBytes(this))
 private fun ObjectNode.assertWireEquals(expected: Any) {
     toWireJsonNode().assert().isEqualTo(expected.toWireJsonNode())
