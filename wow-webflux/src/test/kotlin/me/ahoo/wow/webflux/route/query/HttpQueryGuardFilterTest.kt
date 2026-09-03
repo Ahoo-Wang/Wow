@@ -54,6 +54,7 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryGateway
@@ -701,7 +702,10 @@ class HttpQueryGuardFilterTest {
             ).doOnCancel { cancelled.set(true) }
         }
         val factory = mockk<SnapshotQueryBackendFactory> {
-            io.mockk.every { create<Any>(any()) } returns backend
+            io.mockk.every { create(any()) } returns QueryBackendBinding(
+                backend,
+                RouteTestFixtures.SNAPSHOT_QUERY_SCHEMA_PROVIDER,
+            )
         }
         val response = listHandler(
             snapshotQueryGateway(
@@ -755,7 +759,10 @@ class HttpQueryGuardFilterTest {
             io.mockk.every { single(any()) } returns Mono.never()
         }
         val factory = mockk<SnapshotQueryBackendFactory> {
-            io.mockk.every { create<Any>(any()) } returns backend
+            io.mockk.every { create(any()) } returns QueryBackendBinding(
+                backend,
+                RouteTestFixtures.SNAPSHOT_QUERY_SCHEMA_PROVIDER,
+            )
         }
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, generateGlobalId())
@@ -842,7 +849,7 @@ class HttpQueryGuardFilterTest {
         }
         return DefaultSnapshotQueryGateway(
             namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
-            backend = queryBackendFactory.create<Any>(MOCK_AGGREGATE_METADATA.namedAggregate),
+            backend = queryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate).backend,
             schemaProvider = RouteTestFixtures.SNAPSHOT_QUERY_SCHEMA_PROVIDER,
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
             targetType = JsonSerializer.typeFactory.constructParametricType(
@@ -856,7 +863,7 @@ class HttpQueryGuardFilterTest {
     private fun eventStreamQueryGateway(guard: HttpQueryGuardFilter = guard()): EventStreamQueryGateway {
         return DefaultEventStreamQueryGateway(
             namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
-            backend = NoOpEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate),
+            backend = NoOpEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate).backend,
             schemaProvider = RouteTestFixtures.EVENT_STREAM_QUERY_SCHEMA_PROVIDER,
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
             filters = listOf(guard),

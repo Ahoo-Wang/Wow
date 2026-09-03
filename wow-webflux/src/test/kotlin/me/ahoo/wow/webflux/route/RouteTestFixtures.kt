@@ -37,7 +37,7 @@ internal object RouteTestFixtures {
 
     val snapshotQueryGateway = DefaultSnapshotQueryGateway<Any>(
         namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
-        backend = NoOpSnapshotQueryBackendFactory.create<Any>(MOCK_AGGREGATE_METADATA.namedAggregate),
+        backend = NoOpSnapshotQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate).backend,
         schemaProvider = SNAPSHOT_QUERY_SCHEMA_PROVIDER,
         validationMode = QuerySchemaValidationMode.COMPATIBLE,
         targetType = JsonSerializer.typeFactory.constructParametricType(
@@ -48,7 +48,7 @@ internal object RouteTestFixtures {
 
     val eventStreamQueryGateway = DefaultEventStreamQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
-        backend = NoOpEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate),
+        backend = NoOpEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate).backend,
         schemaProvider = EVENT_STREAM_QUERY_SCHEMA_PROVIDER,
         validationMode = QuerySchemaValidationMode.COMPATIBLE,
     )
