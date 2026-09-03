@@ -58,7 +58,6 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.requireAccepted
-import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -322,11 +321,11 @@ class AbstractElasticsearchQueryBackendTest {
             queryBatchSize = 3,
             queryKeepAlive = Duration.ofMinutes(5),
         )
-            .create<Any>(MOCK_AGGREGATE_METADATA)
-            .let { backend ->
+            .create(MOCK_AGGREGATE_METADATA)
+            .let { binding ->
                 val query = ListQuery(MatchAllFilter, limit = 4)
-                val schema = backend.requiredQueryModelSchemaProvider().schema().block()!!
-                backend.list(
+                val schema = binding.schemaProvider.schema().block()!!
+                binding.backend.list(
                     ResolvedQuery(
                         schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
                         schema,

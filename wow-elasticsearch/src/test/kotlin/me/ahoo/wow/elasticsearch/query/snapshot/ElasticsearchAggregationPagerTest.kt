@@ -46,6 +46,7 @@ import me.ahoo.wow.elasticsearch.query.toObjectNode
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
@@ -550,7 +551,17 @@ class ElasticsearchAggregationPagerTest {
         val gateway = DefaultSnapshotQueryGateway<Any>(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             backend = service,
-            schemaProvider = service,
+            schemaProvider = object : QueryModelSchemaProvider {
+                override fun schema(): Mono<QueryModelSchema> = unavailable()
+
+                override fun refresh(): Mono<QueryModelSchema> = unavailable()
+
+                private fun unavailable(): Mono<QueryModelSchema> = Mono.error(
+                    QuerySchemaUnavailableException(
+                        "Elasticsearch query schema is unavailable for custom filter converters.",
+                    ),
+                )
+            },
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
             targetType = JsonSerializer.typeFactory.constructParametricType(
                 MaterializedSnapshot::class.java,

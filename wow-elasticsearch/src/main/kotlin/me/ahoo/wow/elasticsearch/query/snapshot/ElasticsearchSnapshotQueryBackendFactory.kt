@@ -21,11 +21,11 @@ import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import java.time.Duration
 
@@ -37,7 +37,7 @@ class ElasticsearchSnapshotQueryBackendFactory(
         ElasticsearchIndexMappingResolver(elasticsearchClient),
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
 ) : AbstractSnapshotQueryBackendFactory() {
-    override fun createBackend(namedAggregate: NamedAggregate): SnapshotQueryBackend {
+    override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<ElasticsearchSnapshotQueryBackend> {
         val materialized = namedAggregate.materialize()
         val indexName = materialized.toSnapshotIndexName()
         val provider = DefaultQueryModelSchemaProvider(
@@ -45,12 +45,14 @@ class ElasticsearchSnapshotQueryBackendFactory(
             sources = schemaSources,
             adapter = ElasticsearchQuerySchemaAdapter(indexName, indexMappingResolver),
         )
-        return ElasticsearchSnapshotQueryBackend(
-            namedAggregate = materialized,
-            elasticsearchClient = elasticsearchClient,
-            queryBatchSize = queryBatchSize,
-            queryKeepAlive = queryKeepAlive,
-            schemaProvider = provider,
+        return QueryBackendBinding(
+            ElasticsearchSnapshotQueryBackend(
+                namedAggregate = materialized,
+                elasticsearchClient = elasticsearchClient,
+                queryBatchSize = queryBatchSize,
+                queryKeepAlive = queryKeepAlive,
+            ),
+            provider,
         )
     }
 }

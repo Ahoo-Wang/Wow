@@ -21,8 +21,8 @@ import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.AbstractEventStreamQueryBackendFactory
-import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
@@ -37,7 +37,7 @@ class ElasticsearchEventStreamQueryBackendFactory(
         ElasticsearchIndexMappingResolver(elasticsearchClient),
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
 ) : AbstractEventStreamQueryBackendFactory() {
-    override fun createBackend(namedAggregate: NamedAggregate): EventStreamQueryBackend {
+    override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<ElasticsearchEventStreamQueryBackend> {
         val materialized = namedAggregate.materialize()
         val provider = DefaultQueryModelSchemaProvider(
             context = QuerySchemaContext(materialized, QueryModel.EVENT_STREAM),
@@ -48,12 +48,14 @@ class ElasticsearchEventStreamQueryBackendFactory(
                 QueryModel.EVENT_STREAM,
             ),
         )
-        return ElasticsearchEventStreamQueryBackend(
-            namedAggregate = materialized,
-            elasticsearchClient = elasticsearchClient,
-            queryBatchSize = queryBatchSize,
-            queryKeepAlive = queryKeepAlive,
-            schemaProvider = provider,
+        return QueryBackendBinding(
+            ElasticsearchEventStreamQueryBackend(
+                namedAggregate = materialized,
+                elasticsearchClient = elasticsearchClient,
+                queryBatchSize = queryBatchSize,
+                queryKeepAlive = queryKeepAlive,
+            ),
+            provider,
         )
     }
 }
