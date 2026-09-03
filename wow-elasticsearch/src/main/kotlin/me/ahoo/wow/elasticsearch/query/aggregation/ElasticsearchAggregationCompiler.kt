@@ -35,8 +35,8 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.Temporal
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
-import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOrder
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
+import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOrder
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import java.util.concurrent.TimeUnit
@@ -78,10 +78,10 @@ internal sealed interface ElasticsearchAggregationMetric {
 }
 
 internal class ElasticsearchAggregationCompiler(
-    private val filterConverter: AbstractElasticsearchFilterConverter,
+    private val filterCompiler: AbstractElasticsearchFilterCompiler,
 ) {
     fun compile(query: AggregationQuery, schema: QueryModelSchema): ElasticsearchAggregationPlan {
-        val rootQuery = filterConverter.convert(query.filter)
+        val rootQuery = filterCompiler.compile(query.filter)
         val elements = mutableListOf<ElasticsearchAggregationElement>()
         var logicalParent: QueryField? = null
         query.elements.forEach { element ->
@@ -93,7 +93,7 @@ internal class ElasticsearchAggregationCompiler(
             )
             elements += ElasticsearchAggregationElement(
                 path = nestedPath,
-                filter = filterConverter.convert(unscopedFilter, nestedPath),
+                filter = filterCompiler.compile(unscopedFilter, nestedPath),
             )
         }
 

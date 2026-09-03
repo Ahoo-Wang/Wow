@@ -11,11 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.converter
+package me.ahoo.wow.elasticsearch.query.snapshot
 
-import me.ahoo.wow.api.query.Projection
-import me.ahoo.wow.query.schema.QueryModelSchema
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 
-interface ProjectionConverter<T> {
-    fun convert(projection: Projection, schema: QueryModelSchema): T
+object SnapshotFilterCompiler : AbstractElasticsearchFilterCompiler() {
+    override fun aggregateIdEqual(value: String): Query = ids { it.values(value) }
+
+    override fun aggregateIdIn(values: List<String>): Query = ids { it.values(values) }
 }

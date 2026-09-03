@@ -16,7 +16,7 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryBackend
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
@@ -27,7 +27,7 @@ import java.time.Duration
 class ElasticsearchSnapshotQueryBackend(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
-    override val filterConverter: AbstractElasticsearchFilterConverter = SnapshotFilterConverter,
+    override val filterCompiler: AbstractElasticsearchFilterCompiler = SnapshotFilterCompiler,
     override val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
     override val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
 ) : AbstractElasticsearchQueryBackend(),

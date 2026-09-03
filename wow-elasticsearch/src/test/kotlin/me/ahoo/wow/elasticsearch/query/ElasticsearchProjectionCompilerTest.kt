@@ -18,13 +18,13 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
+import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionCompiler.toSourceFilter
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
 import org.junit.jupiter.api.Test
 
-class ElasticsearchProjectionConverterTest {
+class ElasticsearchProjectionCompilerTest {
     private val schema = QueryModelSchema(
         model = QueryModel.SNAPSHOT,
         capabilities = emptySet(),
@@ -47,7 +47,7 @@ class ElasticsearchProjectionConverterTest {
         val include = listOf(QueryField("state"), QueryField("state.name"))
         val projection = Projection(include = include)
 
-        ElasticsearchProjectionConverter.convert(projection, schema).includes().assert().containsExactly(
+        ElasticsearchProjectionCompiler.compile(projection, schema).includes().assert().containsExactly(
             "document",
             "document.*",
             "document.name",
@@ -58,7 +58,7 @@ class ElasticsearchProjectionConverterTest {
 
     @Test
     fun `should compile excluded logical subtrees to source filters`() {
-        ElasticsearchProjectionConverter.convert(
+        ElasticsearchProjectionCompiler.compile(
             Projection(exclude = listOf(QueryField("state"), QueryField("state.name"))),
             schema,
         ).excludes().assert().containsExactly(

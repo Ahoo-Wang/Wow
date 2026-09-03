@@ -24,8 +24,8 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
-import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
-import me.ahoo.wow.elasticsearch.query.event.EventStreamFilterConverter
+import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOptions
+import me.ahoo.wow.elasticsearch.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.metrics.WowMetrics
@@ -154,7 +154,7 @@ class ElasticsearchEventStore(
         searchAfter: List<FieldValue> = emptyList(),
         descending: Boolean = false,
     ): Mono<List<Hit<DomainEventStream>>> {
-        val query = EventStreamFilterConverter.convert(filter)
+        val query = EventStreamFilterCompiler.compile(filter)
         val sort = sort {
             if (descending) {
                 MessageRecords.VERSION.desc()
@@ -216,7 +216,7 @@ class ElasticsearchEventStore(
             .search({
                 it
                     .index(namedAggregate.toEventStreamIndexName())
-                    .query(EventStreamFilterConverter.convert(filter))
+                    .query(EventStreamFilterCompiler.compile(filter))
                     .source { sourceBuilder -> sourceBuilder.fetch(false) }
                     .docvalueFields { field -> field.field(MessageRecords.AGGREGATE_ID) }
                     .docvalueFields { field -> field.field(MessageRecords.TENANT_ID) }

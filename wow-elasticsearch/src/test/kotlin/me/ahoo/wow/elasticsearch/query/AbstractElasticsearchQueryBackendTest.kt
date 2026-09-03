@@ -72,10 +72,10 @@ import java.time.Duration
 
 class AbstractElasticsearchQueryBackendTest {
     private val elasticsearchClient = mockk<ReactiveElasticsearchClient>()
-    private val filterConverter = mockk<AbstractElasticsearchFilterConverter> {
-        every { convert(any<me.ahoo.wow.api.query.FilterExpression>()) } returns matchAll { it }
+    private val filterCompiler = mockk<AbstractElasticsearchFilterCompiler> {
+        every { compile(any<me.ahoo.wow.api.query.FilterExpression>()) } returns matchAll { it }
     }
-    private val queryBackend = TestElasticsearchQueryBackend(elasticsearchClient, filterConverter)
+    private val queryBackend = TestElasticsearchQueryBackend(elasticsearchClient, filterCompiler)
     private val schema = QueryModelSchema(
         model = QueryModel.SNAPSHOT,
         capabilities = emptySet(),
@@ -344,7 +344,7 @@ class AbstractElasticsearchQueryBackendTest {
     fun `resolved list should preserve fields`() {
         val request = slot<SearchRequest>()
         val convertedFilter = slot<FilterExpression>()
-        every { filterConverter.convert(capture(convertedFilter)) } returns matchAll { it }
+        every { filterCompiler.compile(capture(convertedFilter)) } returns matchAll { it }
         every { elasticsearchClient.search(capture(request), ObjectNode::class.java) } returns Mono.just(
             searchResponse(total = null),
         )
@@ -610,7 +610,7 @@ class AbstractElasticsearchQueryBackendTest {
 
     private open class TestElasticsearchQueryBackend(
         override val elasticsearchClient: ReactiveElasticsearchClient,
-        override val filterConverter: AbstractElasticsearchFilterConverter,
+        override val filterCompiler: AbstractElasticsearchFilterCompiler,
     ) : AbstractElasticsearchQueryBackend() {
         override val namedAggregate: NamedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val indexName: String = "test-index"

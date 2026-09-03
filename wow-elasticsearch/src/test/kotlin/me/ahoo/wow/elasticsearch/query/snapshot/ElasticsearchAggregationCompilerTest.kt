@@ -52,7 +52,7 @@ class ElasticsearchAggregationCompilerTest {
             ),
         )
 
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation {
                 dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
                 count("count")
@@ -74,7 +74,7 @@ class ElasticsearchAggregationCompilerTest {
             .contains("%")
             .contains("Long.MAX_VALUE")
             .doesNotContain("physical.created_at")
-        ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+        ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation { count("count") },
             schema,
         ).runtimeMappings.assert().isEmpty()
@@ -82,7 +82,7 @@ class ElasticsearchAggregationCompilerTest {
 
     @Test
     fun `maximum expression should fit the default script source limit`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation { sum(maximumExpression(), "total") },
             schema(),
         )
@@ -93,7 +93,7 @@ class ElasticsearchAggregationCompilerTest {
 
     @Test
     fun `computed metric should compile a parameterized double runtime field`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation {
                 expand("state.items")
                 sum(field("price") * field("quantity") - constant(10.0), "total")
@@ -123,7 +123,7 @@ class ElasticsearchAggregationCompilerTest {
             field("state.unreadable", QueryCapability.AGGREGATE_NUMERIC, "physical.unreadable", "double"),
             field("state.amount", QueryCapability.AGGREGATE_NUMERIC, "physical.amount", "double"),
         )
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation {
                 sum(field("state.unreadable") / constant(0.0), "computed")
                 sum("state.amount", "plain")
@@ -144,7 +144,7 @@ class ElasticsearchAggregationCompilerTest {
 
     @Test
     fun `plain field metric should not create a runtime field`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation { sum("state.amount", "total") },
             schema(),
         )
@@ -164,7 +164,7 @@ class ElasticsearchAggregationCompilerTest {
                 resolvedPath = "resolved.productName.keyword",
             ),
         )
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation { any("state.productName", "productName") },
             schema,
         )
@@ -212,7 +212,7 @@ class ElasticsearchAggregationCompilerTest {
                 sum("amount", "total")
             },
         ).value
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
             query,
             schema,
         )
@@ -233,7 +233,7 @@ class ElasticsearchAggregationCompilerTest {
             field("body.body.data", QueryCapability.AGGREGATE_TERMS, "events.payload.data.keyword", "keyword"),
         )
 
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation {
                 expand("body")
                 terms("body.data", "data")
@@ -247,7 +247,7 @@ class ElasticsearchAggregationCompilerTest {
 
     @Test
     fun `compiler should order composite sources by effective group sort`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation {
                 terms("state.productId", "product")
                 histogram("state.amount", 10.0, "amountRange")
@@ -292,7 +292,7 @@ class ElasticsearchAggregationCompilerTest {
 
     @Test
     fun `second date histogram should use a fixed interval`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation {
                 dateHistogram("state.createdAt", AggregationDateUnit.SECOND, "second")
                 count("count")
@@ -307,15 +307,15 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
-    fun `custom converter should receive caller paths without mapping resolution`() {
+    fun `custom compiler should receive caller paths without mapping resolution`() {
         val convertedParents = mutableListOf<String?>()
-        val converter = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter> {
-            every { convert(any(), captureNullable(convertedParents)) } answers {
+        val compiler = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler> {
+            every { compile(any(), captureNullable(convertedParents)) } answers {
                 co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll { it }
             }
         }
 
-        val plan = ElasticsearchAggregationCompiler(converter).compile(
+        val plan = ElasticsearchAggregationCompiler(compiler).compile(
             aggregation {
                 filter { "physical.root" eq "ACTIVE" }
                 expand("physical.items") { "physical.quantity" gt 0 }

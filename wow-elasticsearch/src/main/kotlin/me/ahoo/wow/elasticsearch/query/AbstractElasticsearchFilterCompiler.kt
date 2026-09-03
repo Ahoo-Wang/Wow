@@ -37,17 +37,17 @@ import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 
-abstract class AbstractElasticsearchFilterConverter(
+abstract class AbstractElasticsearchFilterCompiler(
     defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
     private val documentIdField: String? = null,
 ) {
     private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
 
-    fun convert(filter: FilterExpression, parent: String? = null): Query =
-        compile(filterNormalizer.normalize(filter), parent)
+    fun compile(filter: FilterExpression, parent: String? = null): Query =
+        compileNormalized(filterNormalizer.normalize(filter), parent)
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
-    private fun compile(filter: FilterExpression, parent: String?): Query = when (filter) {
+    private fun compileNormalized(filter: FilterExpression, parent: String?): Query = when (filter) {
         MatchAllFilter -> matchAll { it }
         MatchNoneFilter -> matchNone { it }
         is IdFilter -> documentIdEqual(filter.value)
@@ -57,18 +57,18 @@ abstract class AbstractElasticsearchFilterConverter(
         is TenantIdFilter -> term { it.field(MessageRecords.TENANT_ID).value(filter.value) }
         is OwnerIdFilter -> term { it.field(MessageRecords.OWNER_ID).value(filter.value) }
         is SpaceIdFilter -> term { it.field(MessageRecords.SPACE_ID).value(filter.value) }
-        is AndFilter -> bool { it.filter(filter.operands.map { operand -> compile(operand, parent) }) }
+        is AndFilter -> bool { it.filter(filter.operands.map { operand -> compileNormalized(operand, parent) }) }
         is OrFilter -> bool {
-            it.should(filter.operands.map { operand -> compile(operand, parent) }).minimumShouldMatch("1")
+            it.should(filter.operands.map { operand -> compileNormalized(operand, parent) }).minimumShouldMatch("1")
         }
-        is NorFilter -> bool { it.mustNot(filter.operands.map { operand -> compile(operand, parent) }) }
+        is NorFilter -> bool { it.mustNot(filter.operands.map { operand -> compileNormalized(operand, parent) }) }
         is EqualFilter -> if (parent == null && filter.field.isDocumentId) {
             documentIdEqual(filter.value.requiredNativeValue().toString())
         } else {
             term { it.field(filter.field.path(parent)).value(filter.value.fieldValue()) }
         }
         is NotEqualFilter -> bool {
-            it.mustNot(compile(EqualFilter(filter.field, filter.value), parent))
+            it.mustNot(compileNormalized(EqualFilter(filter.field, filter.value), parent))
         }
         is GreaterThanFilter -> range {
             it.untyped { range ->
@@ -111,7 +111,7 @@ abstract class AbstractElasticsearchFilterConverter(
             }
         }
         is NotInFilter -> bool {
-            it.mustNot(compile(InFilter(filter.field, filter.values), parent))
+            it.mustNot(compileNormalized(InFilter(filter.field, filter.values), parent))
         }
         is BetweenFilter -> range {
             it.untyped { range ->
@@ -136,7 +136,7 @@ abstract class AbstractElasticsearchFilterConverter(
         }
         is ElementMatchFilter -> nested {
             val nestedPath = filter.field.path(parent)
-            it.path(nestedPath).query(compile(filter.predicate, nestedPath))
+            it.path(nestedPath).query(compileNormalized(filter.predicate, nestedPath))
         }
         is SearchFilter -> multiMatch {
             it.query(filter.query)

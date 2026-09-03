@@ -33,8 +33,8 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.isEmpty
-import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
-import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
+import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionCompiler.toSourceFilter
+import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOptions
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
 import me.ahoo.wow.query.QueryBackend
@@ -52,7 +52,7 @@ import java.time.Duration
 
 abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     abstract val elasticsearchClient: ReactiveElasticsearchClient
-    abstract val filterConverter: AbstractElasticsearchFilterConverter
+    abstract val filterCompiler: AbstractElasticsearchFilterCompiler
     abstract val indexName: String
     protected open val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     protected open val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
@@ -230,7 +230,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     internal fun executeCount(filter: FilterExpression): Mono<Long> = Mono.fromSupplier {
         CountRequest.of {
             it.index(indexName)
-                .query(filterConverter.convert(filter))
+                .query(filterCompiler.compile(filter))
         }
     }.flatMap(elasticsearchClient::count).map { it.count() }
 
@@ -243,7 +243,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             queryBatchSize,
             queryKeepAlive,
         ).execute(
-            ElasticsearchAggregationCompiler(filterConverter).compile(query, schema),
+            ElasticsearchAggregationCompiler(filterCompiler).compile(query, schema),
         )
 
     override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> =
@@ -251,7 +251,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
 
     private fun compile(filter: FilterExpression, sort: List<Sort>): CompiledQuery =
         CompiledQuery(
-            query = filterConverter.convert(filter),
+            query = filterCompiler.compile(filter),
             sortOptions = sort.toSortOptions(),
         )
 

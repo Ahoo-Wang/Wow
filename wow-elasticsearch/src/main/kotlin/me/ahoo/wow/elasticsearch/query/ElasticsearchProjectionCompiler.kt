@@ -16,11 +16,10 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch.core.search.SourceFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.query.converter.ProjectionConverter
 import me.ahoo.wow.query.schema.QueryModelSchema
 
-object ElasticsearchProjectionConverter : ProjectionConverter<SourceFilter> {
-    override fun convert(projection: Projection, schema: QueryModelSchema): SourceFilter {
+object ElasticsearchProjectionCompiler {
+    fun compile(projection: Projection, schema: QueryModelSchema): SourceFilter {
         return SourceFilter.of {
             it.includes(projection.include.toSourceFields(schema))
             it.excludes(projection.exclude.toSourceFields(schema))
@@ -28,7 +27,7 @@ object ElasticsearchProjectionConverter : ProjectionConverter<SourceFilter> {
     }
 
     internal fun Projection.toSourceFilter(schema: QueryModelSchema): SourceFilter {
-        return convert(this, schema)
+        return compile(this, schema)
     }
 
     private fun List<QueryField>.toSourceFields(schema: QueryModelSchema): List<String> =

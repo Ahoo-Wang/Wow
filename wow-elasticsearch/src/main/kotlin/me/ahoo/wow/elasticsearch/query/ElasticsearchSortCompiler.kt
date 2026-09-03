@@ -16,11 +16,10 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.converter.SortConverter
 import me.ahoo.wow.serialization.MessageRecords
 
-object ElasticsearchSortConverter : SortConverter<List<SortOptions>> {
-    override fun convert(sort: List<Sort>): List<SortOptions> {
+object ElasticsearchSortCompiler {
+    fun compile(sort: List<Sort>): List<SortOptions> {
         return sort.map {
             SortOptions.of { sortBuilder ->
                 sortBuilder.field { fieldBuilder ->
@@ -42,6 +41,6 @@ object ElasticsearchSortConverter : SortConverter<List<SortOptions>> {
     }
 
     fun List<Sort>.toSortOptions(): List<SortOptions> {
-        return convert(sort = this)
+        return compile(sort = this)
     }
 }

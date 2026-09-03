@@ -460,16 +460,16 @@ class ElasticsearchSnapshotMappingQueryTest {
     }
 
     @Test
-    fun `custom filter converter should keep physical field ownership`() {
+    fun `custom filter compiler should keep physical field ownership`() {
         val convertedFilter = slot<FilterExpression>()
-        val customConverter = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter> {
-            every { convert(capture(convertedFilter)) } returns matchAll { it }
+        val customCompiler = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler> {
+            every { compile(capture(convertedFilter)) } returns matchAll { it }
         }
         val filter = equal("custom.physical", "value")
         val service = ElasticsearchSnapshotQueryBackend(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             elasticsearchClient = client,
-            filterConverter = customConverter,
+            filterCompiler = customCompiler,
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
         )

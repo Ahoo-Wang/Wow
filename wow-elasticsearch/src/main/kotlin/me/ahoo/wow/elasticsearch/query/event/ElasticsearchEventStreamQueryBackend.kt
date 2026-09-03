@@ -15,7 +15,7 @@ package me.ahoo.wow.elasticsearch.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryBackend
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
@@ -26,7 +26,7 @@ import java.time.Duration
 class ElasticsearchEventStreamQueryBackend(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
-    override val filterConverter: AbstractElasticsearchFilterConverter = EventStreamFilterConverter,
+    override val filterCompiler: AbstractElasticsearchFilterCompiler = EventStreamFilterCompiler,
     override val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
     override val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
 ) : AbstractElasticsearchQueryBackend(),
