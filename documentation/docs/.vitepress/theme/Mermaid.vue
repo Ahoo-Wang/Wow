@@ -140,7 +140,7 @@ watch(isExpanded, async (expanded) => {
     } else {
         await nextTick()
         panZoom?.disablePan()
-        panZoom?.reset()
+        fitPanZoom()
         document.body.style.overflow = previousBodyOverflow
         expandButton.value?.focus()
     }
