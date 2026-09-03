@@ -31,7 +31,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.Temporal
-import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
+import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import org.bson.Document
@@ -39,10 +39,10 @@ import org.bson.conversions.Bson
 import java.util.concurrent.TimeUnit
 
 internal class MongoAggregationCompiler(
-    private val converter: AbstractMongoFilterConverter,
+    private val filterCompiler: AbstractMongoFilterCompiler,
 ) {
     fun compile(query: AggregationQuery, schema: QueryModelSchema): List<Bson> = buildList {
-        add(Aggregates.match(converter.convert(query.filter)))
+        add(Aggregates.match(filterCompiler.compile(query.filter, schema)))
 
         var logicalParent: QueryField? = null
         var physicalParent: String? = null
@@ -56,7 +56,16 @@ internal class MongoAggregationCompiler(
             )
             add(Aggregates.unwind("\$$physicalParent"))
             if (element.filter !== MatchAllFilter) {
-                add(Aggregates.match(converter.convertWithoutDefaultDeletion(element.filter, physicalParent)))
+                add(
+                    Aggregates.match(
+                        filterCompiler.compileWithoutDefaultDeletion(
+                            element.filter,
+                            schema,
+                            logicalParent,
+                            QueryField(physicalParent),
+                        ),
+                    ),
+                )
             }
         }
 
@@ -295,7 +304,10 @@ internal class MongoAggregationCompiler(
         val logicalField = parent?.append(field) ?: field
         val fieldSchema = schema.field(logicalField)
         if (fieldSchema == null) {
-            return Document("\$toDate", "\$${converter.convertField(logicalField.path)}")
+            return Document(
+                "\$toDate",
+                "\$${schema.resolvePhysicalField(logicalField, QueryCapability.AGGREGATE_TEMPORAL).path}"
+            )
         }
         val physicalPath = fieldSchema.binding(QueryCapability.AGGREGATE_TEMPORAL)?.physicalField?.path
             ?: throw QuerySchemaValidationException(
@@ -391,10 +403,10 @@ internal class MongoAggregationCompiler(
     ): String {
         val logicalField = parent?.append(this) ?: this
         schema.field(logicalField)?.binding(capability)?.physicalField?.path?.let { return it }
-        if (logicalField !in schema.fields) {
-            return converter.convertField(logicalField.path)
+        if (logicalField in schema.fields) {
+            throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
         }
-        throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
+        return schema.resolvePhysicalField(logicalField, capability).path
     }
 
     private val AggregationGroup.capability: QueryCapability

@@ -50,6 +50,7 @@ import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SearchMode
@@ -61,101 +62,150 @@ import me.ahoo.wow.api.query.ThisMonthFilter
 import me.ahoo.wow.api.query.ThisWeekFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
-import me.ahoo.wow.mongo.Documents
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.FilterNormalizer
-import me.ahoo.wow.query.converter.FieldConverter
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
 
-abstract class AbstractMongoFilterConverter(
+abstract class AbstractMongoFilterCompiler(
     defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
 ) {
     companion object {
         private val ESCAPE_CHARS = setOf('\\', '^', '$', '.', '|', '?', '*', '+', '(', ')', '[', ']', '{', '}')
     }
 
-    protected abstract val fieldConverter: FieldConverter
-
     private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
     private val filterNormalizerWithoutDefaultDeletion = FilterNormalizer(defaultDeletionState = null)
 
-    fun convert(filter: FilterExpression, parent: String? = null): Bson =
-        compile(filterNormalizer.normalize(filter), parent, mapField = true)
+    fun compile(filter: FilterExpression, schema: QueryModelSchema): Bson =
+        compile(filterNormalizer.normalize(filter), schema, FilterScope())
 
-    internal fun convertWithoutDefaultDeletion(filter: FilterExpression, parent: String? = null): Bson =
-        compile(filterNormalizerWithoutDefaultDeletion.normalize(filter), parent, mapField = true)
+    internal fun compileWithoutDefaultDeletion(
+        filter: FilterExpression,
+        schema: QueryModelSchema,
+        logicalParent: QueryField? = null,
+        physicalParent: QueryField? = null,
+    ): Bson = compile(
+        filterNormalizerWithoutDefaultDeletion.normalize(filter),
+        schema,
+        FilterScope(logicalParent, physicalParent),
+    )
 
-    internal fun convertField(field: String): String = fieldConverter.convert(field)
+    private data class FilterScope(
+        val logicalParent: QueryField? = null,
+        val physicalParent: QueryField? = null,
+        val relativeToParent: Boolean = false,
+    )
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
-    private fun compile(filter: FilterExpression, parent: String?, mapField: Boolean): Bson = when (filter) {
+    private fun compile(filter: FilterExpression, schema: QueryModelSchema, scope: FilterScope): Bson = when (filter) {
         MatchAllFilter -> Filters.empty()
         MatchNoneFilter -> org.bson.Document("\$expr", false)
-        is IdFilter -> Filters.eq(Documents.ID_FIELD, filter.value)
-        is IdsFilter -> Filters.`in`(Documents.ID_FIELD, filter.values)
-        is AggregateIdFilter -> Filters.eq(fieldConverter.convert(MessageRecords.AGGREGATE_ID), filter.value)
+        is IdFilter -> Filters.eq(schema.identityField().path, filter.value)
+        is IdsFilter -> Filters.`in`(schema.identityField().path, filter.values)
+        is AggregateIdFilter -> Filters.eq(schema.field(MessageRecords.AGGREGATE_ID).path, filter.value)
         is AggregateIdsFilter -> Filters.`in`(
-            fieldConverter.convert(MessageRecords.AGGREGATE_ID),
+            schema.field(MessageRecords.AGGREGATE_ID).path,
             filter.values,
         )
-        is TenantIdFilter -> Filters.eq(MessageRecords.TENANT_ID, filter.value)
-        is OwnerIdFilter -> Filters.eq(MessageRecords.OWNER_ID, filter.value)
-        is SpaceIdFilter -> Filters.eq(MessageRecords.SPACE_ID, filter.value)
-        is AndFilter -> Filters.and(filter.operands.map { compile(it, parent, mapField) })
-        is OrFilter -> Filters.or(filter.operands.map { compile(it, parent, mapField) })
-        is NorFilter -> Filters.nor(filter.operands.map { compile(it, parent, mapField) })
-        is EqualFilter -> Filters.eq(filter.field.convert(parent, mapField), filter.value.nativeValue())
-        is NotEqualFilter -> Filters.ne(filter.field.convert(parent, mapField), filter.value.nativeValue())
-        is GreaterThanFilter -> Filters.gt(filter.field.convert(parent, mapField), filter.value.requiredNativeValue())
-        is GreaterThanOrEqualFilter -> Filters.gte(
-            filter.field.convert(parent, mapField),
+        is TenantIdFilter -> Filters.eq(schema.field(MessageRecords.TENANT_ID).path, filter.value)
+        is OwnerIdFilter -> Filters.eq(schema.field(MessageRecords.OWNER_ID).path, filter.value)
+        is SpaceIdFilter -> Filters.eq(schema.field(MessageRecords.SPACE_ID).path, filter.value)
+        is AndFilter -> Filters.and(filter.operands.map { compile(it, schema, scope) })
+        is OrFilter -> Filters.or(filter.operands.map { compile(it, schema, scope) })
+        is NorFilter -> Filters.nor(filter.operands.map { compile(it, schema, scope) })
+        is EqualFilter -> Filters.eq(
+            filter.field.resolve(schema, QueryCapability.EXACT_MATCH, scope),
+            filter.value.nativeValue()
+        )
+        is NotEqualFilter -> Filters.ne(
+            filter.field.resolve(schema, QueryCapability.EXACT_MATCH, scope),
+            filter.value.nativeValue()
+        )
+        is GreaterThanFilter -> Filters.gt(
+            filter.field.resolve(schema, QueryCapability.RANGE, scope),
             filter.value.requiredNativeValue()
         )
-        is LessThanFilter -> Filters.lt(filter.field.convert(parent, mapField), filter.value.requiredNativeValue())
+        is GreaterThanOrEqualFilter -> Filters.gte(
+            filter.field.resolve(schema, QueryCapability.RANGE, scope),
+            filter.value.requiredNativeValue()
+        )
+        is LessThanFilter -> Filters.lt(
+            filter.field.resolve(schema, QueryCapability.RANGE, scope),
+            filter.value.requiredNativeValue()
+        )
         is LessThanOrEqualFilter -> Filters.lte(
-            filter.field.convert(parent, mapField),
+            filter.field.resolve(schema, QueryCapability.RANGE, scope),
             filter.value.requiredNativeValue()
         )
         is ContainsFilter -> regex(
-            filter.field.convert(parent, mapField),
+            filter.field.resolve(schema, QueryCapability.LITERAL_MATCH, scope),
             filter.value.escapeRegex(),
             filter.stringComparison.ignoreCase
         )
         is StartsWithFilter -> regex(
-            filter.field.convert(parent, mapField),
+            filter.field.resolve(schema, QueryCapability.LITERAL_MATCH, scope),
             "^${filter.value.escapeRegex()}",
             filter.stringComparison.ignoreCase
         )
         is EndsWithFilter -> regex(
-            filter.field.convert(parent, mapField),
+            filter.field.resolve(schema, QueryCapability.LITERAL_MATCH, scope),
             "${filter.value.escapeRegex()}$",
             filter.stringComparison.ignoreCase
         )
-        is InFilter -> Filters.`in`(filter.field.convert(parent, mapField), filter.values.map { it.nativeValue() })
-        is NotInFilter -> Filters.nin(filter.field.convert(parent, mapField), filter.values.map { it.nativeValue() })
+        is InFilter -> Filters.`in`(
+            filter.field.resolve(schema, QueryCapability.EXACT_MATCH, scope),
+            filter.values.map { it.nativeValue() },
+        )
+        is NotInFilter -> Filters.nin(
+            filter.field.resolve(schema, QueryCapability.EXACT_MATCH, scope),
+            filter.values.map { it.nativeValue() },
+        )
         is BetweenFilter -> Filters.and(
-            Filters.gte(filter.field.convert(parent, mapField), filter.lowerBound.requiredNativeValue()),
-            Filters.lte(filter.field.convert(parent, mapField), filter.upperBound.requiredNativeValue()),
+            Filters.gte(
+                filter.field.resolve(schema, QueryCapability.RANGE, scope),
+                filter.lowerBound.requiredNativeValue()
+            ),
+            Filters.lte(
+                filter.field.resolve(schema, QueryCapability.RANGE, scope),
+                filter.upperBound.requiredNativeValue()
+            ),
         )
         is ContainsAllFilter -> Filters.all(
-            filter.field.convert(parent, mapField),
+            filter.field.resolve(schema, QueryCapability.EXACT_MATCH, scope),
             filter.values.map { it.nativeValue() }
         )
-        is IsEmptyFilter -> Filters.size(filter.field.convert(parent, mapField), 0)
-        is IsNullFilter -> Filters.eq(filter.field.convert(parent, mapField), null)
-        is IsNotNullFilter -> Filters.ne(filter.field.convert(parent, mapField), null)
-        is ExistsFilter -> Filters.exists(filter.field.convert(parent, mapField))
-        is NotExistsFilter -> Filters.exists(filter.field.convert(parent, mapField), false)
+        is IsEmptyFilter -> Filters.size(filter.field.resolve(schema, QueryCapability.PRESENCE, scope), 0)
+        is IsNullFilter -> Filters.eq(filter.field.resolve(schema, QueryCapability.PRESENCE, scope), null)
+        is IsNotNullFilter -> Filters.ne(filter.field.resolve(schema, QueryCapability.PRESENCE, scope), null)
+        is ExistsFilter -> Filters.exists(filter.field.resolve(schema, QueryCapability.PRESENCE, scope))
+        is NotExistsFilter -> Filters.exists(filter.field.resolve(schema, QueryCapability.PRESENCE, scope), false)
         is DeletionFilter -> when (filter.deletionState) {
             DeletionState.ACTIVE -> Filters.eq(StateAggregateRecords.DELETED, false)
             DeletionState.DELETED -> Filters.eq(StateAggregateRecords.DELETED, true)
             DeletionState.ALL -> Filters.empty()
         }
-        is ElementMatchFilter -> Filters.elemMatch(
-            filter.field.convert(parent, mapField),
-            compile(filter.predicate, parent = null, mapField = false),
-        )
+        is ElementMatchFilter -> filter.field.resolvePhysical(
+            schema,
+            QueryCapability.ELEMENT_SCOPE,
+            scope,
+        ).let { physicalField ->
+            Filters.elemMatch(
+                physicalField.path,
+                compile(
+                    filter.predicate,
+                    schema,
+                    FilterScope(
+                        filter.field.absoluteTo(scope.logicalParent),
+                        physicalField.absoluteTo(scope.physicalParent),
+                        relativeToParent = true,
+                    ),
+                ),
+            )
+        }
         is SearchFilter -> Filters.text(
             if (filter.mode == SearchMode.PHRASE) {
                 require('"' !in filter.query) { "MongoDB PHRASE search query cannot contain double quotes." }
@@ -178,11 +228,34 @@ abstract class AbstractMongoFilterConverter(
         else -> error("Unsupported filter expression: ${filter::class.java.name}.")
     }
 
-    private fun me.ahoo.wow.api.query.QueryField.convert(parent: String?, mapField: Boolean): String =
-        path(parent).let { if (mapField) fieldConverter.convert(it) else it }
+    private fun QueryModelSchema.identityField(): QueryField = field(
+        if (model == QueryModel.EVENT_STREAM) MessageRecords.ID else MessageRecords.AGGREGATE_ID,
+    )
 
-    private fun me.ahoo.wow.api.query.QueryField.path(parent: String?): String =
-        if (parent == null || path == parent || path.startsWith("$parent.")) path else "$parent.$path"
+    private fun QueryModelSchema.field(field: String): QueryField =
+        resolvePhysicalField(QueryField(field), QueryCapability.EXACT_MATCH)
+
+    private fun QueryField.resolve(
+        schema: QueryModelSchema,
+        capability: QueryCapability,
+        scope: FilterScope,
+    ): String = resolvePhysical(schema, capability, scope).path
+
+    private fun QueryField.resolvePhysical(
+        schema: QueryModelSchema,
+        capability: QueryCapability,
+        scope: FilterScope,
+    ): QueryField {
+        val logicalField = absoluteTo(scope.logicalParent)
+        if (!scope.relativeToParent) {
+            return schema.field(logicalField)?.binding(capability)?.physicalField
+                ?: schema.resolvePhysicalField(logicalField, capability)
+        }
+        if (scope.logicalParent != null && schema.field(logicalField)?.binding(capability) == null) {
+            return this
+        }
+        return schema.resolvePhysicalField(this, capability, scope.logicalParent, physicalParent = scope.physicalParent)
+    }
 
     private val StringComparison.ignoreCase: Boolean
         get() = this == StringComparison.CASE_INSENSITIVE

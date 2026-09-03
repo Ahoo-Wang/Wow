@@ -17,7 +17,7 @@ import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.mongo.MongoSnapshotStore
-import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
+import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 import me.ahoo.wow.mongo.query.AbstractMongoQueryBackend
 import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
@@ -29,7 +29,7 @@ import tools.jackson.databind.node.ObjectNode
 class MongoSnapshotQueryBackend(
     override val namedAggregate: NamedAggregate,
     override val collection: MongoCollection<Document>,
-    override val converter: AbstractMongoFilterConverter = SnapshotFilterConverter,
+    override val filterCompiler: AbstractMongoFilterCompiler = SnapshotFilterCompiler,
 ) : AbstractMongoQueryBackend(),
     SnapshotQueryBackend {
     override val name: String

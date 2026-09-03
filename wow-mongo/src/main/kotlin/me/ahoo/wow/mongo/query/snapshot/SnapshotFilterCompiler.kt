@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.mongo.query.snapshot
 
-import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
-import me.ahoo.wow.query.converter.FieldConverter
+import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 
-object SnapshotFilterConverter : AbstractMongoFilterConverter() {
-    override val fieldConverter: FieldConverter = SnapshotFieldConverter
-}
+object SnapshotFilterCompiler : AbstractMongoFilterCompiler()

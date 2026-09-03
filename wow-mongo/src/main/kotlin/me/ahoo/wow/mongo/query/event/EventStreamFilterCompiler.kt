@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.mongo.query.event
 
-import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
-import me.ahoo.wow.query.converter.FieldConverter
+import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 
-object EventStreamFilterConverter : AbstractMongoFilterConverter(defaultDeletionState = null) {
-    override val fieldConverter: FieldConverter = EventStreamFieldConverter
-}
+object EventStreamFilterCompiler : AbstractMongoFilterCompiler(defaultDeletionState = null)

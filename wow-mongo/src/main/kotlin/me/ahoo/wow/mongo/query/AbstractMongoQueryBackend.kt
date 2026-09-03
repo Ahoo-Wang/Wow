@@ -43,13 +43,13 @@ import tools.jackson.databind.node.ObjectNode
 
 abstract class AbstractMongoQueryBackend : QueryBackend {
     abstract val collection: MongoCollection<Document>
-    abstract val converter: AbstractMongoFilterConverter
+    abstract val filterCompiler: AbstractMongoFilterCompiler
     abstract val projectionConverter: MongoProjectionConverter
     abstract val sortConverter: MongoSortConverter
     protected abstract fun toObjectNode(document: Document): ObjectNode
 
     internal fun findDocument(queryable: Queryable<*>, schema: QueryModelSchema): FindPublisher<Document> {
-        return collection.findDocument(converter, queryable, projectionConverter, sortConverter, schema)
+        return collection.findDocument(filterCompiler, queryable, projectionConverter, sortConverter, schema)
     }
 
     internal fun executeSingle(singleQuery: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> =
@@ -76,7 +76,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
 
     internal fun executePaged(pagedQuery: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> {
         val projectionBson = projectionConverter.convert(pagedQuery.projection, schema)
-        val filter = converter.convert(pagedQuery.filter)
+        val filter = filterCompiler.compile(pagedQuery.filter, schema)
         val sort = sortConverter.convert(pagedQuery.sort)
 
         val totalPublisher = collection.countDocuments(filter).toMono()
@@ -102,8 +102,8 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
         val physicalSort = query.sort.map { it.copy(field = QueryField(sortConverter.convertField(it.field.path))) }
         val filter = query.cursor?.let {
             MongoCursorFilterCompiler.compile(physicalSort, MongoCursorCodec.decode(it, query.sort.size))
-        }?.let { Filters.and(converter.convert(query.filter), it) }
-            ?: converter.convert(query.filter)
+        }?.let { Filters.and(filterCompiler.compile(query.filter, schema), it) }
+            ?: filterCompiler.compile(query.filter, schema)
         val projection = projectionConverter.cursorProjection(
             query.projection,
             physicalSort.map { it.field.path },
@@ -137,14 +137,14 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     override fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
         executeCursor(query.query, query.schema)
 
-    internal fun executeCount(filter: FilterExpression): Mono<Long> =
-        collection.countDocuments(converter.convert(filter)).toMono()
+    internal fun executeCount(filter: FilterExpression, schema: QueryModelSchema): Mono<Long> =
+        collection.countDocuments(filterCompiler.compile(filter, schema)).toMono()
 
-    override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = executeCount(query.query)
+    override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = executeCount(query.query, query.schema)
 
     internal fun executeAggregation(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> {
         val result = collection.aggregate(
-            MongoAggregationCompiler(converter).compile(query, schema),
+            MongoAggregationCompiler(filterCompiler).compile(query, schema),
         ).toFlux().map { it.toAggregationResult(query).toObjectNode() }
         return if (query.groupBy.isEmpty()) {
             result.switchIfEmpty(Flux.defer { Flux.just(query.emptySummary().toObjectNode()) })

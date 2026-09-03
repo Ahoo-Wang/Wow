@@ -29,7 +29,10 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackend
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
@@ -37,7 +40,11 @@ import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.converter.FieldConverter
+import me.ahoo.wow.query.schema.QueryFieldBinding
+import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -56,7 +63,7 @@ class AbstractMongoQueryBackendTest {
     private val backend = object : AbstractMongoQueryBackend() {
         override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
-        override val converter = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
+        override val filterCompiler = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
         override val projectionConverter = mockk<MongoProjectionConverter>()
         override val sortConverter = mockk<MongoSortConverter>()
         override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
@@ -64,7 +71,7 @@ class AbstractMongoQueryBackendTest {
     private val cursorBackend = object : AbstractMongoQueryBackend() {
         override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
-        override val converter = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
+        override val filterCompiler = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
         override val projectionConverter = MongoProjectionConverter(FieldConverter { it })
         override val sortConverter = MongoSortConverter(FieldConverter { it })
         fun find(queryable: Queryable<*>): FindPublisher<Document> = findDocument(queryable, schema)
@@ -81,7 +88,7 @@ class AbstractMongoQueryBackendTest {
 
         cursorBackend.find(query).assert().isSameAs(publisher)
         collection.findDocument(
-            converter = cursorBackend.converter,
+            compiler = cursorBackend.filterCompiler,
             queryable = query,
             projectionConverter = cursorBackend.projectionConverter,
             sortConverter = cursorBackend.sortConverter,
@@ -121,15 +128,12 @@ class AbstractMongoQueryBackendTest {
     }
 
     @Test
-    fun `custom filter converter should retain path ownership`() {
-        val converter = object : AbstractMongoFilterConverter() {
-            override val fieldConverter = FieldConverter { "custom.$it" }
-        }
+    fun `filter compiler should use schema physical bindings`() {
         val customBackend = MongoSnapshotQueryBackend(
             namedAggregate = MaterializedNamedAggregate("test", "aggregate"),
             collection = collection,
-            converter = converter,
         )
+        val customSchema = schema("aggregateId", "custom.aggregateId")
         val filter = slot<Bson>()
         val publisher = mockk<FindPublisher<Document>>()
         every { collection.find(capture(filter)) } returns publisher
@@ -146,7 +150,7 @@ class AbstractMongoQueryBackendTest {
                     EqualFilter(QueryField("aggregateId"), StringNode.valueOf("id")),
                     limit = 1,
                 ),
-                schema,
+                customSchema,
             ),
         ).test().verifyComplete()
 
@@ -265,7 +269,7 @@ class AbstractMongoQueryBackendTest {
         val mappedBackend = object : AbstractMongoQueryBackend() {
             override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
             override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
-            override val converter = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
+            override val filterCompiler = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
             override val projectionConverter = MongoProjectionConverter(FieldConverter { "physical_$it" })
             override val sortConverter = MongoSortConverter(FieldConverter { "physical_$it" })
             override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
@@ -399,5 +403,34 @@ class AbstractMongoQueryBackendTest {
                 collection = collection,
             )
         }
+    }
+
+    private fun schema(logicalPath: String, physicalPath: String): QueryModelSchema {
+        val logical = QueryField(logicalPath)
+        return QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(
+                logical to QueryFieldSchema(
+                    title = null,
+                    description = null,
+                    enumValues = null,
+                    valueTypes = setOf(QueryValueType.STRING),
+                    nullable = false,
+                    required = true,
+                    cardinality = QueryCardinality.SINGLE,
+                    semanticType = null,
+                    dynamicChildren = false,
+                    bindings = mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                            logical,
+                            QueryField(physicalPath),
+                            QueryStorageType("test"),
+                        ),
+                    ),
+                    rewriteMode = QueryRewriteMode.NONE,
+                ),
+            ),
+        )
     }
 }

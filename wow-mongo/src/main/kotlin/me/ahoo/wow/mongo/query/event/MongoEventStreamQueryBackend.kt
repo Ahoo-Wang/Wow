@@ -16,7 +16,7 @@ package me.ahoo.wow.mongo.query.event
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
-import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
+import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 import me.ahoo.wow.mongo.query.AbstractMongoQueryBackend
 import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
@@ -28,7 +28,7 @@ import tools.jackson.databind.node.ObjectNode
 class MongoEventStreamQueryBackend(
     override val namedAggregate: NamedAggregate,
     override val collection: MongoCollection<Document>,
-    override val converter: AbstractMongoFilterConverter = EventStreamFilterConverter,
+    override val filterCompiler: AbstractMongoFilterCompiler = EventStreamFilterCompiler,
 ) : AbstractMongoQueryBackend(),
     EventStreamQueryBackend {
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(EventStreamFieldConverter)

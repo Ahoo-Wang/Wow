@@ -5,9 +5,18 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
+import me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.query.dsl.filter
+import me.ahoo.wow.query.schema.QueryFieldBinding
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -22,7 +31,20 @@ import tools.jackson.databind.JsonNode
 import java.util.Date
 import java.util.stream.Stream
 
-class SnapshotFilterConverterTest {
+class SnapshotFilterCompilerTest {
+    private val schema = QueryModelSchema(
+        model = QueryModel.SNAPSHOT,
+        capabilities = emptySet(),
+        fields = mapOf(
+            binding(MessageRecords.AGGREGATE_ID, Documents.ID_FIELD, QueryCapability.EXACT_MATCH),
+            binding("state.paymentStatus", "document.paymentStatus", QueryCapability.EXACT_MATCH),
+            binding("state.orders", "document.orders", QueryCapability.ELEMENT_SCOPE),
+            binding("state.orders.lines", "document.orders.lines", QueryCapability.ELEMENT_SCOPE),
+            binding("state.orders.lines.sku", "document.orders.lines.code", QueryCapability.EXACT_MATCH),
+        ),
+    )
+
+    private fun compile(filter: FilterExpression): Bson = SnapshotFilterCompiler.compile(filter, schema)
 
     private fun assertConvert(actual: Bson, expected: Bson) {
         val deletionBson = Filters.and(
@@ -34,13 +56,13 @@ class SnapshotFilterConverterTest {
 
     @Test
     fun `snapshot metadata filters should target document and metadata fields`() {
-        assertConvert(SnapshotFilterConverter.convert(IdFilter("id-1")), Filters.eq(Documents.ID_FIELD, "id-1"))
+        assertConvert(compile(IdFilter("id-1")), Filters.eq(Documents.ID_FIELD, "id-1"))
         assertConvert(
-            SnapshotFilterConverter.convert(AggregateIdFilter("aggregate-1")),
+            compile(AggregateIdFilter("aggregate-1")),
             Filters.eq(Documents.ID_FIELD, "aggregate-1"),
         )
         assertConvert(
-            SnapshotFilterConverter.convert(TenantIdFilter("tenant-1")),
+            compile(TenantIdFilter("tenant-1")),
             Filters.eq(MessageRecords.TENANT_ID, "tenant-1"),
         )
     }
@@ -48,7 +70,7 @@ class SnapshotFilterConverterTest {
     @Suppress("DEPRECATION")
     @Test
     fun `direct converter execution should accept a converted legacy condition`() {
-        SnapshotFilterConverter.convert(Condition.id("id-1").toFilterExpression()).toBsonDocument().assert()
+        compile(Condition.id("id-1").toFilterExpression()).toBsonDocument().assert()
             .isEqualTo(
                 Filters.and(
                     Filters.eq(StateAggregateRecords.DELETED, false),
@@ -62,17 +84,17 @@ class SnapshotFilterConverterTest {
     fun `equality filters should preserve scalar arrays and legacy ObjectId values`() {
         val objectId = ObjectId()
         assertConvert(
-            SnapshotFilterConverter.convert(EqualFilter(QueryField("state.tags"), json(listOf("a", "b")))),
+            compile(EqualFilter(QueryField("state.tags"), json(listOf("a", "b")))),
             Filters.eq("state.tags", listOf("a", "b")),
         )
         assertConvert(
-            SnapshotFilterConverter.convert(
+            compile(
                 NotEqualFilter(QueryField("state.tags"), json(listOf("a", "b"))),
             ),
             Filters.ne("state.tags", listOf("a", "b")),
         )
         assertConvert(
-            SnapshotFilterConverter.convert(
+            compile(
                 Condition.eq("timestamp", objectId).toFilterExpression(),
             ),
             Filters.eq("timestamp", objectId),
@@ -85,15 +107,15 @@ class SnapshotFilterConverterTest {
         val objectId = ObjectId()
 
         assertConvert(
-            SnapshotFilterConverter.convert(Condition.isIn("timestamp", listOf(objectId)).toFilterExpression()),
+            compile(Condition.isIn("timestamp", listOf(objectId)).toFilterExpression()),
             Filters.`in`("timestamp", objectId),
         )
         assertConvert(
-            SnapshotFilterConverter.convert(Condition.notIn("timestamp", listOf(objectId)).toFilterExpression()),
+            compile(Condition.notIn("timestamp", listOf(objectId)).toFilterExpression()),
             Filters.nin("timestamp", objectId),
         )
         assertConvert(
-            SnapshotFilterConverter.convert(Condition.all("timestamp", listOf(objectId)).toFilterExpression()),
+            compile(Condition.all("timestamp", listOf(objectId)).toFilterExpression()),
             Filters.all("timestamp", objectId),
         )
     }
@@ -105,23 +127,23 @@ class SnapshotFilterConverterTest {
         val upper = Date(2_000)
 
         assertConvert(
-            SnapshotFilterConverter.convert(Condition.gt("createdAt", lower).toFilterExpression()),
+            compile(Condition.gt("createdAt", lower).toFilterExpression()),
             Filters.gt("createdAt", lower),
         )
         assertConvert(
-            SnapshotFilterConverter.convert(Condition.gte("createdAt", lower).toFilterExpression()),
+            compile(Condition.gte("createdAt", lower).toFilterExpression()),
             Filters.gte("createdAt", lower),
         )
         assertConvert(
-            SnapshotFilterConverter.convert(Condition.lt("createdAt", upper).toFilterExpression()),
+            compile(Condition.lt("createdAt", upper).toFilterExpression()),
             Filters.lt("createdAt", upper),
         )
         assertConvert(
-            SnapshotFilterConverter.convert(Condition.lte("createdAt", upper).toFilterExpression()),
+            compile(Condition.lte("createdAt", upper).toFilterExpression()),
             Filters.lte("createdAt", upper),
         )
         assertConvert(
-            SnapshotFilterConverter.convert(Condition.between("createdAt", lower, upper).toFilterExpression()),
+            compile(Condition.between("createdAt", lower, upper).toFilterExpression()),
             Filters.and(Filters.gte("createdAt", lower), Filters.lte("createdAt", upper)),
         )
     }
@@ -129,7 +151,7 @@ class SnapshotFilterConverterTest {
     @Test
     fun `element predicate fields should remain relative`() {
         assertConvert(
-            SnapshotFilterConverter.convert(
+            compile(
                 ElementMatchFilter(
                     QueryField("state.items"),
                     EqualFilter(QueryField(MessageRecords.AGGREGATE_ID), json("nested-aggregate-id")),
@@ -144,37 +166,54 @@ class SnapshotFilterConverterTest {
 
     @Test
     fun `scoped filter fields should be prefixed with parent`() {
-        val bson = SnapshotFilterConverter.convert(filter { "quantity" gt 1 }, "state.orders.lines")
+        val parent = QueryField("state.orders.lines")
+        val bson = SnapshotFilterCompiler.compileWithoutDefaultDeletion(
+            filter { "quantity" gt 1 },
+            schema,
+            parent,
+            parent
+        )
 
         bson.toBsonDocument().toJson().assert().contains("state.orders.lines.quantity")
-        SnapshotFilterConverter.convert(filter { "state.orders.lines.quantity" gt 1 }, "state.orders.lines")
+        SnapshotFilterCompiler.compileWithoutDefaultDeletion(
+            filter { "state.orders.lines.quantity" gt 1 },
+            schema,
+            parent,
+            parent,
+        )
             .toBsonDocument().toJson().assert()
             .contains("state.orders.lines.quantity")
             .doesNotContain("state.orders.lines.state.orders.lines.quantity")
-        SnapshotFilterConverter.convert(filter { "state.orders.lines".exists() }, "state.orders.lines")
+        SnapshotFilterCompiler.compileWithoutDefaultDeletion(
+            filter { "state.orders.lines".exists() },
+            schema,
+            parent,
+            parent
+        )
             .toBsonDocument().toJson().assert().contains("state.orders.lines")
     }
 
     @Test
     fun `element filter conversion should not add a default deletion scope`() {
-        SnapshotFilterConverter.convertWithoutDefaultDeletion(MatchAllFilter)
+        SnapshotFilterCompiler.compileWithoutDefaultDeletion(MatchAllFilter, schema)
             .toBsonDocument().assert().isEqualTo(Filters.empty().toBsonDocument())
     }
 
     @Test
     fun `scoped element predicate fields should remain relative`() {
-        assertConvert(
-            SnapshotFilterConverter.convert(
-                ElementMatchFilter(QueryField("items"), EqualFilter(QueryField("quantity"), json(1))),
-                "state.orders.lines",
-            ),
-            Filters.elemMatch("state.orders.lines.items", Filters.eq("quantity", 1)),
+        SnapshotFilterCompiler.compileWithoutDefaultDeletion(
+            ElementMatchFilter(QueryField("items"), EqualFilter(QueryField("quantity"), json(1))),
+            schema,
+            QueryField("state.orders.lines"),
+            QueryField("state.orders.lines"),
+        ).toBsonDocument().assert().isEqualTo(
+            Filters.elemMatch("state.orders.lines.items", Filters.eq("quantity", 1)).toBsonDocument(),
         )
     }
 
     @Test
     fun `explicit deletion filters should replace the default deletion scope`() {
-        SnapshotFilterConverter.convert(
+        compile(
             AndFilter(
                 listOf(
                     DeletionFilter(DeletionState.DELETED),
@@ -191,25 +230,76 @@ class SnapshotFilterConverterTest {
 
     @Test
     fun `match none should absorb the default deletion scope`() {
-        SnapshotFilterConverter.convert(MatchNoneFilter).toBsonDocument().assert()
+        compile(MatchNoneFilter).toBsonDocument().assert()
             .isEqualTo(org.bson.Document("\$expr", false).toBsonDocument())
     }
 
     @Test
     fun `mongo phrase search should reject embedded quotes`() {
         assertThrows<IllegalArgumentException> {
-            SnapshotFilterConverter.convert(SearchFilter("event \"sourcing\"", mode = SearchMode.PHRASE))
+            compile(SearchFilter("event \"sourcing\"", mode = SearchMode.PHRASE))
         }
     }
 
     @ParameterizedTest
     @MethodSource("mongoFilterParameters")
     fun `should compile typed filter`(filter: FilterExpression, expected: Bson) {
-        assertConvert(SnapshotFilterConverter.convert(filter), expected)
+        assertConvert(compile(filter), expected)
+    }
+
+    @Test
+    fun `exact binding and compatible fields should use physical and original paths`() {
+        assertConvert(
+            compile(EqualFilter(QueryField("state.paymentStatus"), json("PAID"))),
+            Filters.eq("document.paymentStatus", "PAID"),
+        )
+        assertConvert(
+            compile(EqualFilter(QueryField("state.dynamic"), json("value"))),
+            Filters.eq("state.dynamic", "value")
+        )
+    }
+
+    @Test
+    fun `nested element predicates should use relative physical paths once`() {
+        assertConvert(
+            compile(
+                ElementMatchFilter(
+                    QueryField("state.orders"),
+                    ElementMatchFilter(QueryField("lines"), EqualFilter(QueryField("sku"), json("sku-1"))),
+                ),
+            ),
+            Filters.elemMatch(
+                "document.orders",
+                Filters.elemMatch("lines", Filters.eq("code", "sku-1")),
+            ),
+        )
     }
 
     companion object {
         private fun json(value: Any?): JsonNode = JsonSerializer.valueToTree(value)
+
+        private fun binding(
+            logicalPath: String,
+            physicalPath: String,
+            capability: QueryCapability,
+        ): Pair<QueryField, QueryFieldSchema> {
+            val logical = QueryField(logicalPath)
+            return logical to QueryFieldSchema(
+                title = null,
+                description = null,
+                enumValues = null,
+                valueTypes = setOf(QueryValueType.STRING),
+                nullable = false,
+                required = true,
+                cardinality = QueryCardinality.SINGLE,
+                semanticType = null,
+                dynamicChildren = false,
+                bindings = mapOf(
+                    capability to QueryFieldBinding(logical, QueryField(physicalPath), QueryStorageType("test")),
+                ),
+                rewriteMode = QueryRewriteMode.NONE,
+            )
+        }
 
         @JvmStatic
         fun mongoFilterParameters(): Stream<Arguments> {
