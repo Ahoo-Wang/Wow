@@ -177,6 +177,13 @@ git commit -m "refactor(mongo): materialize physical query bindings"
 - Modify: `wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/AbstractMongoFilterCompiler.kt`
 - Modify: `wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/snapshot/SnapshotFilterCompiler.kt`
 - Modify: `wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/event/EventStreamFilterCompiler.kt`
+- Modify: `wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/MongoCollections.kt`
+- Modify: `wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/AbstractMongoQueryBackend.kt`
+- Modify: `wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/aggregation/MongoAggregationCompiler.kt`
+- Modify: `wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/snapshot/MongoSnapshotQueryBackend.kt`
+- Modify: `wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/event/MongoEventStreamQueryBackend.kt`
+- Test: `wow-mongo/src/test/kotlin/me/ahoo/wow/mongo/query/AbstractMongoQueryBackendTest.kt`
+- Test: `wow-mongo/src/test/kotlin/me/ahoo/wow/mongo/query/snapshot/MongoAggregationCompilerTest.kt`
 - Test: `wow-mongo/src/test/kotlin/me/ahoo/wow/mongo/query/SnapshotFilterCompilerTest.kt`
 - Test: `wow-mongo/src/test/kotlin/me/ahoo/wow/mongo/query/event/EventStreamFilterCompilerTest.kt`
 
@@ -195,6 +202,7 @@ internal fun compileWithoutDefaultDeletion(
 
 - Remove `fieldConverter`, `convertField`, and all string path conversion.
 - Keep normalizer defaults and all Mongo operator/value behavior unchanged.
+- Because no compatibility `convert` method is retained, update every production and test call site named above from the old converter type and signature to the new compiler and Schema-aware signature in this task. Tasks 4 and 5 may extend those shared files but must preserve this filter wiring.
 
 - [ ] **Step 1: Rename tests and change their expected entry point**
 
