@@ -1184,8 +1184,7 @@ internal class WebFluxAutoConfigurationTest {
                         val backend = TestSnapshotQueryBackend(namedAggregate)
                         DefaultSnapshotQueryGateway<Any>(
                             namedAggregate = namedAggregate,
-                            backend = backend,
-                            schemaProvider = TestSnapshotQuerySchemaProvider,
+                            binding = QueryBackendBinding(backend, TestSnapshotQuerySchemaProvider),
                             validationMode = QuerySchemaValidationMode.COMPATIBLE,
                             targetType = JsonSerializer.typeFactory.constructParametricType(
                                 MaterializedSnapshot::class.java,
@@ -1201,8 +1200,7 @@ internal class WebFluxAutoConfigurationTest {
                         val backend = TestEventStreamQueryBackend(namedAggregate)
                         DefaultEventStreamQueryGateway(
                             namedAggregate = namedAggregate,
-                            backend = backend,
-                            schemaProvider = TestEventStreamQuerySchemaProvider,
+                            binding = QueryBackendBinding(backend, TestEventStreamQuerySchemaProvider),
                             validationMode = QuerySchemaValidationMode.COMPATIBLE,
                         )
                     },

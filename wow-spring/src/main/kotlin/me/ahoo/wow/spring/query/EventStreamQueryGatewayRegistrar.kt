@@ -61,8 +61,7 @@ class EventStreamQueryGatewayRegistrar : QueryGatewayRegistrar() {
                 as ErrorHandler<QueryContext<*, *>>
             DefaultEventStreamQueryGateway(
                 namedAggregate = namedAggregate,
-                backend = binding.backend,
-                schemaProvider = binding.schemaProvider,
+                binding = binding,
                 validationMode = validationMode,
                 filters = filters,
                 errorHandler = errorHandler,

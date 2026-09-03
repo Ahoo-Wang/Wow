@@ -24,12 +24,12 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.route.acceptsEventStream
+import me.ahoo.wow.webflux.route.getRawRequest
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -62,7 +62,7 @@ class HttpQueryGuardFilter(
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>,
     ): Mono<Void> = Mono.deferContextual { contextView ->
-        val request = contextView.getRawRequest<Any>() as? ServerRequest
+        val request = contextView.getRawRequest()
         if (request == null) {
             return@deferContextual next.filter(context)
         }

@@ -39,6 +39,7 @@ import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
@@ -90,8 +91,7 @@ class DefaultEventStreamQueryGatewayTest {
         val backend = backend { Mono.fromSupplier { eventStream.toJsonNode<ObjectNode>() } }
         val gateway = DefaultEventStreamQueryGateway(
             MOCK_AGGREGATE_METADATA,
-            backend,
-            defaultSchemaProvider,
+            QueryBackendBinding(backend, defaultSchemaProvider),
             QuerySchemaValidationMode.COMPATIBLE,
             listOf(generic(calls), event(calls), snapshot(calls)),
             ErrorHandler { _, error -> Mono.error(error) },
@@ -114,8 +114,7 @@ class DefaultEventStreamQueryGatewayTest {
         val backend = SchemaEventBackend(eventStream::toJsonNode, eventSchema(bodyType))
         val gateway = DefaultEventStreamQueryGateway(
             MOCK_AGGREGATE_METADATA,
-            backend,
-            backend.schemaProvider,
+            QueryBackendBinding(backend, backend.schemaProvider),
             QuerySchemaValidationMode.COMPATIBLE,
             errorHandler = ErrorHandler { _, error -> Mono.error(error) },
         )
@@ -152,8 +151,7 @@ class DefaultEventStreamQueryGatewayTest {
             )
             val gateway = DefaultEventStreamQueryGateway(
                 MOCK_AGGREGATE_METADATA,
-                backend,
-                backend.schemaProvider,
+                QueryBackendBinding(backend, backend.schemaProvider),
                 QuerySchemaValidationMode.COMPATIBLE,
                 errorHandler = ErrorHandler { _, error -> Mono.error(error) },
             )
@@ -179,8 +177,7 @@ class DefaultEventStreamQueryGatewayTest {
             )
             val gateway = DefaultEventStreamQueryGateway(
                 MOCK_AGGREGATE_METADATA,
-                backend,
-                backend.schemaProvider,
+                QueryBackendBinding(backend, backend.schemaProvider),
                 QuerySchemaValidationMode.COMPATIBLE,
                 errorHandler = ErrorHandler { _, error -> Mono.error(error) },
             )
@@ -208,8 +205,7 @@ class DefaultEventStreamQueryGatewayTest {
         )
         val gateway = DefaultEventStreamQueryGateway(
             MOCK_AGGREGATE_METADATA,
-            backend,
-            backend.schemaProvider,
+            QueryBackendBinding(backend, backend.schemaProvider),
             QuerySchemaValidationMode.COMPATIBLE,
             errorHandler = ErrorHandler { _, error -> Mono.error(error) },
         )

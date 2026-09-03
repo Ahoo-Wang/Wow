@@ -11,24 +11,24 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.context
+package me.ahoo.wow.webflux.route
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.query.filter.Contexts.getRawRequest
-import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import org.junit.jupiter.api.Test
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
-class ContextsTest {
+class RawRequestContextTest {
+    private val request = MockServerRequest.builder().build()
 
     @Test
-    fun `should write and read raw request from context`() {
+    fun `should write and read raw request from mono context`() {
         Mono.deferContextual {
-            it.getRawRequest<ContextsTest>().assert().isEqualTo(this)
+            it.getRawRequest().assert().isSameAs(request)
             Mono.empty<Void>()
-        }.writeRawRequest(this)
+        }.writeRawRequest(request)
             .test()
             .verifyComplete()
     }
@@ -36,19 +36,18 @@ class ContextsTest {
     @Test
     fun `should write and read raw request from flux context`() {
         Flux.deferContextual {
-            it.getRawRequest<ContextsTest>().assert().isEqualTo(this)
-            Flux.just(this)
-        }.writeRawRequest(this)
+            it.getRawRequest().assert().isSameAs(request)
+            Flux.just(request)
+        }.writeRawRequest(request)
             .test()
-            .expectNext(this)
+            .expectNext(request)
             .verifyComplete()
     }
 
     @Test
-    fun `should return null when no raw request in context`() {
+    fun `should return null when raw request is absent`() {
         Mono.deferContextual {
-            val request: ContextsTest? = it.getRawRequest()
-            request.assert().isNull()
+            it.getRawRequest().assert().isNull()
             Mono.empty<Void>()
         }.test()
             .verifyComplete()

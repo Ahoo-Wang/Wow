@@ -196,7 +196,7 @@ fun interface EventStreamQueryBackendFactory {
 - Binding 只保存 Backend 与 Provider，不代理两者行为；
 - Factory 以物化后的 `NamedAggregate` 为键缓存完整 Binding，不分别缓存 Backend 与 Provider；
 - Routing Factory 把 Binding 作为整体路由，不能独立选择或重新组合 Backend 与 Provider；
-- Spring Registrar 从同一个 Binding 向 Gateway 传入 Backend 与 Provider；
+- Spring Registrar 把同一个 Binding 整体传给 Gateway；
 - Schema HTTP 路由只读取同一个 Binding 的 Provider；
 - MongoDB、Elasticsearch 的具体 Backend 构造器只接收查询执行依赖；Provider 由对应 Factory 构造；
 - NoOp 与 Unavailable Factory 均显式配对 Backend 与 unavailable Provider，使受管 Gateway 在 Backend 执行前失败关闭；直接获得有效 `ResolvedQuery` 的受信调用方仍可单独使用 NoOp Backend；
@@ -241,7 +241,7 @@ sequenceDiagram
 
 受管 Gateway 不再使用“Schema unavailable 时保留原查询”的回退：Context 的 Schema 非空是执行前置条件，Schema 不可用时全部查询形态失败关闭且不订阅 Backend。
 
-`AbstractQueryGateway` 显式接收 `QueryModelSchemaProvider` 与 `QuerySchemaValidationMode`。Spring Boot 继续使用现有 `wow.query.schema.validation-mode` 配置；`QuerySchemaAutoConfiguration` 发布对应的 `QuerySchemaValidationMode` Bean，Snapshot 与 EventStream Registrar 从 routed Binding 取得 Backend 与 Provider，并把 Provider 与 Mode 作为独立参数传给 Gateway。MongoDB、Elasticsearch Backend 及其 Factory 不保存 Mode。
+`AbstractQueryGateway` 显式接收 `QueryBackendBinding` 与 `QuerySchemaValidationMode`。Spring Boot 继续使用现有 `wow.query.schema.validation-mode` 配置；`QuerySchemaAutoConfiguration` 发布对应的 `QuerySchemaValidationMode` Bean，Snapshot 与 EventStream Registrar 把 routed Binding 整体传给 Gateway。MongoDB、Elasticsearch Backend 及其 Factory 不保存 Mode。
 
 `QueryModelSchemaProvider` 只负责 Schema 生命周期。旧的 Provider 解析扩展与 unavailable 兼容回退已经删除；查询解析和准入统一由持有具体 Schema 实例的调用方完成。
 
@@ -264,8 +264,7 @@ typed 物化仍在 Mask 之后执行，Backend 的 `ObjectNode` 所有权与标�
 val binding = queryBackendFactory.create(namedAggregate)
 DefaultSnapshotQueryGateway(
     namedAggregate = namedAggregate,
-    backend = binding.backend,
-    schemaProvider = binding.schemaProvider,
+    binding = binding,
     validationMode = validationMode,
     filters = filters,
     errorHandler = errorHandler,

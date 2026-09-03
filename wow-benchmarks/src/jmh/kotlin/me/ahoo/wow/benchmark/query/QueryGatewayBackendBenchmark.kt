@@ -153,8 +153,7 @@ open class QueryGatewayBackendBenchmark {
         )
         return DefaultSnapshotQueryGateway(
             namedAggregate = namedAggregate,
-            backend = binding.backend,
-            schemaProvider = binding.schemaProvider,
+            binding = binding,
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
             targetType = targetType,
             filters = emptyList(),

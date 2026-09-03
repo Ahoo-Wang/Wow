@@ -61,7 +61,7 @@ class OrderReader(
 
 ## Gateway 如何绑定 Backend
 
-Registrar 创建 Gateway 时，以该 `NamedAggregate` 调用一次 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory`。Factory 返回一个 `QueryBackendBinding`，Registrar 将其 `backend` 与 `schemaProvider` 一起传给 Gateway。Routing Factory 此时选择聚合专属路由或默认路由，Gateway 随后始终使用这对绑定对象，不在每次请求中重复选择。
+Registrar 创建 Gateway 时，以该 `NamedAggregate` 调用一次 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory`。Factory 返回一个 `QueryBackendBinding`，Registrar 将完整 binding 传给 Gateway。Routing Factory 此时选择聚合专属路由或默认路由，Gateway 随后始终使用这对绑定对象，不在每次请求中重复选择。
 
 ## Factory、缓存与存储路由
 

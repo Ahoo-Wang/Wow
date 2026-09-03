@@ -23,10 +23,10 @@ import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.getRawRequest
 import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestFilter
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
@@ -49,7 +49,7 @@ class EventStreamAggregationHandlerFunctionTest {
         val subscribed = AtomicBoolean()
         val gateway = mockk<EventStreamQueryGateway> {
             every { aggregate(capture(capturedQuery)) } returns Flux.deferContextual {
-                it.getRawRequest<MockServerRequest>().assert().isNotNull()
+                it.getRawRequest().assert().isNotNull()
                 subscribed.set(true)
                 Flux.just(JsonNodeFactory.instance.objectNode().put("count", 1L))
             }

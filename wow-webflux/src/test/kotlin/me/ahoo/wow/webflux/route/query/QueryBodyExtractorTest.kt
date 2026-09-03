@@ -32,10 +32,10 @@ import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.getRawRequest
 import me.ahoo.wow.webflux.route.snapshot.CursorQuerySnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
@@ -50,7 +50,6 @@ import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.RequestPredicates.POST
 import org.springframework.web.reactive.function.server.RouterFunctions.route
-import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -370,7 +369,7 @@ class QueryBodyExtractorTest {
             every {
                 dynamicList(any())
             } returns Flux.deferContextual {
-                it.getRawRequest<ServerRequest>().assert().isNotNull()
+                it.getRawRequest().assert().isNotNull()
                 Flux.just(JsonNodeFactory.instance.objectNode().put("context", "ok"))
             }
         }
