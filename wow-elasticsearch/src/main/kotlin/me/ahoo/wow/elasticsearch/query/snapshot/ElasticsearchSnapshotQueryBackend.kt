@@ -14,23 +14,14 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryBackend
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
-import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
-import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
-import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
-import reactor.core.publisher.Mono
 import java.time.Duration
 
 class ElasticsearchSnapshotQueryBackend(
@@ -39,42 +30,9 @@ class ElasticsearchSnapshotQueryBackend(
     override val filterConverter: AbstractElasticsearchFilterConverter = SnapshotFilterConverter,
     override val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
     override val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
-    private val schemaProvider: QueryModelSchemaProvider =
-        defaultSchemaProvider(namedAggregate, elasticsearchClient, filterConverter),
 ) : AbstractElasticsearchQueryBackend(),
-    SnapshotQueryBackend,
-    QueryModelSchemaProvider by schemaProvider {
+    SnapshotQueryBackend {
     override val name: String
         get() = ElasticsearchSnapshotStore.NAME
     override val indexName: String = namedAggregate.toSnapshotIndexName()
-
-    companion object {
-        private fun defaultSchemaProvider(
-            namedAggregate: NamedAggregate,
-            elasticsearchClient: ReactiveElasticsearchClient,
-            filterConverter: AbstractElasticsearchFilterConverter,
-            mappingResolver: ElasticsearchIndexMappingResolver = ElasticsearchIndexMappingResolver(elasticsearchClient),
-        ): QueryModelSchemaProvider {
-            if (filterConverter !== SnapshotFilterConverter) {
-                return object : QueryModelSchemaProvider {
-                    override fun schema(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> = unavailable()
-
-                    override fun refresh(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> = unavailable()
-
-                    private fun unavailable(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> = Mono.error(
-                        QuerySchemaUnavailableException(
-                            "Elasticsearch query schema is unavailable for custom filter converters.",
-                        ),
-                    )
-                }
-            }
-            val materialized = namedAggregate.materialize()
-            val indexName = materialized.toSnapshotIndexName()
-            return DefaultQueryModelSchemaProvider(
-                context = QuerySchemaContext(materialized, QueryModel.SNAPSHOT),
-                sources = emptyList(),
-                adapter = ElasticsearchQuerySchemaAdapter(indexName, mappingResolver),
-            )
-        }
-    }
 }

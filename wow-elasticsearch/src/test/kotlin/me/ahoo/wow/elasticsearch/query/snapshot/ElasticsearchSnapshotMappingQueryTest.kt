@@ -45,6 +45,7 @@ import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
@@ -60,7 +61,7 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -85,13 +86,13 @@ class ElasticsearchSnapshotMappingQueryTest {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             mappingResponse(queryMapping()),
         )
-        val backend = ElasticsearchSnapshotQueryBackendFactory(
+        val binding = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = client,
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = emptyList(),
-        ).create<Any>(MOCK_AGGREGATE_METADATA)
-        val service = queryGateway(backend as ElasticsearchSnapshotQueryBackend, QuerySchemaValidationMode.STRICT)
+        ).create(MOCK_AGGREGATE_METADATA)
+        val service = queryGateway(binding, QuerySchemaValidationMode.STRICT)
 
         service.list(ListQuery(filter = equal("state.unknown", "value"), limit = 10)).test()
             .expectError(QuerySchemaValidationException::class.java)
@@ -398,14 +399,14 @@ class ElasticsearchSnapshotMappingQueryTest {
             Mono.just(mappingResponse(queryMapping())),
             Mono.just(mappingResponse(queryMapping(includeNewField = true))),
         )
-        val backend = queryBackend()
-        val service = queryGateway(backend, QuerySchemaValidationMode.COMPATIBLE)
+        val binding = queryBackend()
+        val service = queryGateway(binding, QuerySchemaValidationMode.COMPATIBLE)
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
         service.list(query).test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
-        backend.refresh().block()
+        binding.schemaProvider.refresh().block()
         service.list(query).collectList().block()
 
         searchRequest.captured.query()!!.bool().filter()[1].term().field().assert().isEqualTo("state.newField")
@@ -424,14 +425,14 @@ class ElasticsearchSnapshotMappingQueryTest {
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = schemaSources(),
         )
-        val backend = factory.create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryBackend
-        val service = queryGateway(backend, QuerySchemaValidationMode.COMPATIBLE)
+        val binding = factory.create(MOCK_AGGREGATE_METADATA)
+        val service = queryGateway(binding, QuerySchemaValidationMode.COMPATIBLE)
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
         service.list(query).test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
-        backend.refresh().block()
+        binding.schemaProvider.refresh().block()
         service.list(query).collectList().block()
 
         verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
@@ -443,15 +444,15 @@ class ElasticsearchSnapshotMappingQueryTest {
         val resolver = mockk<ElasticsearchIndexMappingResolver> {
             every { currentOrLoad(any()) } returns Mono.error(failure)
         }
-        val service = ElasticsearchSnapshotQueryBackendFactory(
+        val binding = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = client,
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
             indexMappingResolver = resolver,
             schemaSources = schemaSources(),
-        ).create<Any>(MOCK_AGGREGATE_METADATA)
+        ).create(MOCK_AGGREGATE_METADATA)
 
-        service.requiredQueryModelSchemaProvider().schema().test()
+        binding.schemaProvider.schema().test()
             .expectErrorSatisfies { it.cause.assert().isSameAs(failure) }
             .verify()
 
@@ -488,13 +489,13 @@ class ElasticsearchSnapshotMappingQueryTest {
 
     private fun queryBackend(
         sources: List<QuerySchemaSource> = schemaSources(),
-    ): ElasticsearchSnapshotQueryBackend =
+    ): QueryBackendBinding<SnapshotQueryBackend> =
         ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = client,
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = sources,
-        ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryBackend
+        ).create(MOCK_AGGREGATE_METADATA)
 
     private fun queryGateway(): DefaultSnapshotQueryGateway<Any> =
         queryGateway(queryBackend(), QuerySchemaValidationMode.COMPATIBLE)
@@ -505,12 +506,12 @@ class ElasticsearchSnapshotMappingQueryTest {
         queryGateway(queryBackend(sources), QuerySchemaValidationMode.STRICT)
 
     private fun queryGateway(
-        backend: ElasticsearchSnapshotQueryBackend,
+        binding: QueryBackendBinding<SnapshotQueryBackend>,
         validationMode: QuerySchemaValidationMode,
     ): DefaultSnapshotQueryGateway<Any> = DefaultSnapshotQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA,
-        backend = backend,
-        schemaProvider = backend,
+        backend = binding.backend,
+        schemaProvider = binding.schemaProvider,
         validationMode = validationMode,
         targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
