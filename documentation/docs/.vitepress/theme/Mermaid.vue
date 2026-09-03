@@ -14,7 +14,10 @@
 <script setup lang="ts">
 import {nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useData} from 'vitepress'
-import {clampZoom, cycleFocus, stepZoom} from './mermaid-zoom.mjs'
+import type svgPanZoom from 'svg-pan-zoom'
+import {cycleFocus} from './mermaid-zoom.mjs'
+
+type PanZoomInstance = ReturnType<typeof svgPanZoom>
 
 const props = withDefaults(defineProps<{
     graph: string
@@ -27,11 +30,43 @@ const {isDark} = useData()
 const svg = ref('')
 const viewer = ref<HTMLElement>()
 const expandButton = ref<HTMLButtonElement>()
-const zoom = ref(1)
 const isExpanded = ref(false)
+let panZoom: PanZoomInstance | undefined
 let previousBodyOverflow = ''
 
+const getSvg = () => viewer.value?.querySelector<SVGSVGElement>('.mermaid-content > svg')
+
+const destroyPanZoom = () => {
+    panZoom?.destroy()
+    panZoom = undefined
+}
+
+const fitPanZoom = () => {
+    panZoom?.resize().fit().center()
+}
+
+const initializePanZoom = async () => {
+    await nextTick()
+    const svgElement = getSvg()
+    if (!svgElement) return
+
+    const {default: createPanZoom} = await import('svg-pan-zoom')
+    panZoom = createPanZoom(svgElement, {
+        controlIconsEnabled: false,
+        dblClickZoomEnabled: false,
+        fit: true,
+        maxZoom: 10,
+        minZoom: 0.1,
+        mouseWheelZoomEnabled: false,
+        panEnabled: isExpanded.value,
+        preventMouseEventsDefault: false,
+        zoomEnabled: true,
+    })
+    if (isExpanded.value) fitPanZoom()
+}
+
 const renderChart = async () => {
+    destroyPanZoom()
     const {default: mermaid} = await import('mermaid')
     mermaid.initialize({
         securityLevel: 'loose',
@@ -39,21 +74,19 @@ const renderChart = async () => {
         theme: isDark.value ? 'dark' : 'default',
     })
     svg.value = (await mermaid.render(props.id, decodeURIComponent(props.graph))).svg
-    zoom.value = 1
+    await initializePanZoom()
 }
 
-const setZoom = (value: number) => {
-    zoom.value = clampZoom(value)
+const resetZoom = () => {
+    if (isExpanded.value) fitPanZoom()
+    else panZoom?.reset()
 }
-
-const resetZoom = () => setZoom(1)
-
-const changeZoom = (direction: number) => setZoom(stepZoom(zoom.value, direction))
 
 const handleWheel = (event: WheelEvent) => {
-    if ((!event.ctrlKey && !event.metaKey) || event.deltaY === 0) return
+    if (!panZoom || (!event.ctrlKey && !event.metaKey) || event.deltaY === 0) return
     event.preventDefault()
-    changeZoom(event.deltaY < 0 ? 1 : -1)
+    if (event.deltaY < 0) panZoom.zoomIn()
+    else panZoom.zoomOut()
 }
 
 const openExpanded = () => {
@@ -72,6 +105,7 @@ const focusableControls = () => Array.from(
 
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {
+        event.preventDefault()
         closeExpanded()
         return
     }
@@ -87,25 +121,30 @@ const handleKeydown = (event: KeyboardEvent) => {
     }
 }
 
-watch(isExpanded, (expanded) => {
+watch(isExpanded, async (expanded) => {
     if (typeof document === 'undefined') return
     if (expanded) {
         previousBodyOverflow = document.body.style.overflow
         document.body.style.overflow = 'hidden'
-        void nextTick(() => {
-            const firstControl = focusableControls()[0]
-            if (firstControl) firstControl.focus()
-            else viewer.value?.focus()
-        })
+        await nextTick()
+        panZoom?.enablePan()
+        fitPanZoom()
+        const firstControl = focusableControls()[0]
+        if (firstControl) firstControl.focus()
+        else viewer.value?.focus()
     } else {
+        await nextTick()
+        panZoom?.disablePan()
+        panZoom?.reset()
         document.body.style.overflow = previousBodyOverflow
-        void nextTick(() => expandButton.value?.focus())
+        expandButton.value?.focus()
     }
 })
 
 onMounted(() => void renderChart())
 watch(isDark, () => void renderChart())
 onBeforeUnmount(() => {
+    destroyPanZoom()
     if (isExpanded.value && typeof document !== 'undefined') {
         document.body.style.overflow = previousBodyOverflow
     }
@@ -125,11 +164,11 @@ onBeforeUnmount(() => {
         @click.self="closeExpanded"
     >
         <div class="mermaid-viewport" @click.self="closeExpanded">
-            <div class="mermaid-content" :style="{zoom, width: `${zoom * 100}%`}" v-html="svg"></div>
+            <div class="mermaid-content" v-html="svg"></div>
         </div>
         <div class="mermaid-toolbar" role="toolbar" aria-label="Mermaid diagram controls">
-            <button type="button" aria-label="Zoom in" title="Zoom in" @click="changeZoom(1)">+</button>
-            <button type="button" aria-label="Zoom out" title="Zoom out" @click="changeZoom(-1)">−</button>
+            <button type="button" aria-label="Zoom in" title="Zoom in" @click="panZoom?.zoomIn()">+</button>
+            <button type="button" aria-label="Zoom out" title="Zoom out" @click="panZoom?.zoomOut()">−</button>
             <button type="button" aria-label="Reset zoom" title="Reset zoom" @click="resetZoom">↺</button>
             <button
                 v-if="!isExpanded"
@@ -171,7 +210,9 @@ onBeforeUnmount(() => {
 
 .mermaid-content > svg {
     display: block;
-    max-width: none !important;
+    width: 100%;
+    height: auto;
+    max-width: 100%;
     flex: 0 0 auto;
 }
 
@@ -237,8 +278,16 @@ onBeforeUnmount(() => {
 }
 
 .mermaid-viewer--expanded .mermaid-content {
-    min-width: max-content;
-    min-height: max-content;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+.mermaid-viewer--expanded .mermaid-content > svg {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
