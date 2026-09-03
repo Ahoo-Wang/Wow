@@ -14,10 +14,9 @@
 <script setup lang="ts">
 import {nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useData} from 'vitepress'
-import type svgPanZoom from 'svg-pan-zoom'
 import {cycleFocus} from './mermaid-zoom.mjs'
 
-type PanZoomInstance = ReturnType<typeof svgPanZoom>
+type PanZoomInstance = ReturnType<typeof import('svg-pan-zoom')>
 
 const props = withDefaults(defineProps<{
     graph: string
@@ -63,7 +62,7 @@ const initializePanZoom = async () => {
         maxZoom: 10,
         minZoom: 0.1,
         mouseWheelZoomEnabled: false,
-        panEnabled: isExpanded.value,
+        panEnabled: true,
         preventMouseEventsDefault: false,
         zoomEnabled: true,
     })
@@ -109,12 +108,23 @@ const focusableControls = () => Array.from(
 )
 
 const handleKeydown = (event: KeyboardEvent) => {
+    if (!isExpanded.value) return
     if (event.key === 'Escape') {
         event.preventDefault()
         closeExpanded()
         return
     }
-    if (event.key !== 'Tab' || !isExpanded.value) return
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        return
+    }
+    if (event.key === '/') {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        return
+    }
+    if (event.key !== 'Tab') return
     const controls = focusableControls()
     if (controls.length === 0) return
     const currentIndex = controls.indexOf(document.activeElement as HTMLElement)
@@ -129,17 +139,19 @@ const handleKeydown = (event: KeyboardEvent) => {
 watch(isExpanded, async (expanded) => {
     if (typeof document === 'undefined') return
     if (expanded) {
+        window.addEventListener('keydown', handleKeydown, true)
+        window.addEventListener('resize', fitPanZoom)
         previousBodyOverflow = document.body.style.overflow
         document.body.style.overflow = 'hidden'
         await nextTick()
-        panZoom?.enablePan()
         fitPanZoom()
         const firstControl = focusableControls()[0]
         if (firstControl) firstControl.focus()
         else viewer.value?.focus()
     } else {
+        window.removeEventListener('keydown', handleKeydown, true)
+        window.removeEventListener('resize', fitPanZoom)
         await nextTick()
-        panZoom?.disablePan()
         fitPanZoom()
         document.body.style.overflow = previousBodyOverflow
         expandButton.value?.focus()
@@ -150,6 +162,10 @@ onMounted(() => void renderChart())
 watch(isDark, () => void renderChart())
 onBeforeUnmount(() => {
     destroyPanZoom()
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('keydown', handleKeydown, true)
+        window.removeEventListener('resize', fitPanZoom)
+    }
     if (isExpanded.value && typeof document !== 'undefined') {
         document.body.style.overflow = previousBodyOverflow
     }
@@ -165,7 +181,6 @@ onBeforeUnmount(() => {
         :aria-modal="isExpanded ? 'true' : undefined"
         aria-label="Mermaid diagram"
         @wheel="handleWheel"
-        @keydown="handleKeydown"
         @click.self="closeExpanded"
     >
         <div class="mermaid-viewport" @click.self="closeExpanded">
@@ -234,6 +249,7 @@ onBeforeUnmount(() => {
     background: var(--vp-c-bg-soft);
     box-shadow: var(--vp-shadow-2);
     opacity: 0;
+    pointer-events: none;
     transition: opacity 0.2s ease;
 }
 
@@ -241,6 +257,7 @@ onBeforeUnmount(() => {
 .mermaid-viewer:focus-within .mermaid-toolbar,
 .mermaid-viewer--expanded .mermaid-toolbar {
     opacity: 1;
+    pointer-events: auto;
 }
 
 .mermaid-toolbar button {
@@ -280,6 +297,8 @@ onBeforeUnmount(() => {
 .mermaid-viewer--expanded .mermaid-viewport {
     flex: 1;
     min-height: 0;
+    overflow: hidden;
+    touch-action: none;
 }
 
 .mermaid-viewer--expanded .mermaid-content {
@@ -304,6 +323,7 @@ onBeforeUnmount(() => {
 @media (any-hover: none) {
     .mermaid-toolbar {
         opacity: 1;
+        pointer-events: auto;
     }
 }
 </style>
