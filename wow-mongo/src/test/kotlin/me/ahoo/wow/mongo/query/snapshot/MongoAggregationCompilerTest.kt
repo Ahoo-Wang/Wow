@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
+import me.ahoo.wow.mongo.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
@@ -365,6 +366,56 @@ class MongoAggregationCompilerTest {
             .contains("\"_id\"")
             .doesNotContain(MessageRecords.AGGREGATE_ID)
         pipeline[2].toBsonDocument().toJson().assert().contains("\"\$_id\"")
+    }
+
+    @Test
+    fun `snapshot identity aggregation should use its schema physical path`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms(MessageRecords.AGGREGATE_ID, "aggregate")
+                count("count")
+            },
+            QueryModelSchema(
+                QueryModel.SNAPSHOT,
+                emptySet(),
+                mapOf(
+                    QueryField(MessageRecords.AGGREGATE_ID) to field(
+                        MessageRecords.AGGREGATE_ID,
+                        QueryCapability.AGGREGATE_TERMS,
+                        "snapshot.aggregate_id",
+                    ).second,
+                ),
+            ),
+        )
+
+        pipeline.single { it.toBsonDocument().containsKey("\$group") }.toBsonDocument().toJson().assert()
+            .contains("\$snapshot.aggregate_id")
+            .doesNotContain("\$_id")
+    }
+
+    @Test
+    fun `event stream identity aggregation should use its schema physical path`() {
+        val pipeline = MongoAggregationCompiler(EventStreamFilterCompiler).compile(
+            aggregation {
+                terms(MessageRecords.ID, "event")
+                count("count")
+            },
+            QueryModelSchema(
+                QueryModel.EVENT_STREAM,
+                emptySet(),
+                mapOf(
+                    QueryField(MessageRecords.ID) to field(
+                        MessageRecords.ID,
+                        QueryCapability.AGGREGATE_TERMS,
+                        "event.stream_id",
+                    ).second,
+                ),
+            ),
+        )
+
+        pipeline.single { it.toBsonDocument().containsKey("\$group") }.toBsonDocument().toJson().assert()
+            .contains("\$event.stream_id")
+            .doesNotContain("\$_id")
     }
 
     @Test
