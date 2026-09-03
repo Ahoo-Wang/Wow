@@ -12,8 +12,9 @@
 -->
 
 <script setup lang="ts">
-import {onMounted, ref, watch} from 'vue'
+import {nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useData} from 'vitepress'
+import {clampZoom, cycleFocus, stepZoom} from './mermaid-zoom.mjs'
 
 const props = withDefaults(defineProps<{
     graph: string
@@ -24,6 +25,11 @@ const props = withDefaults(defineProps<{
 })
 const {isDark} = useData()
 const svg = ref('')
+const viewer = ref<HTMLElement>()
+const expandButton = ref<HTMLButtonElement>()
+const zoom = ref(1)
+const isExpanded = ref(false)
+let previousBodyOverflow = ''
 
 const renderChart = async () => {
     const {default: mermaid} = await import('mermaid')
@@ -33,12 +39,217 @@ const renderChart = async () => {
         theme: isDark.value ? 'dark' : 'default',
     })
     svg.value = (await mermaid.render(props.id, decodeURIComponent(props.graph))).svg
+    zoom.value = 1
 }
+
+const setZoom = (value: number) => {
+    zoom.value = clampZoom(value)
+}
+
+const resetZoom = () => setZoom(1)
+
+const changeZoom = (direction: number) => setZoom(stepZoom(zoom.value, direction))
+
+const handleWheel = (event: WheelEvent) => {
+    if ((!event.ctrlKey && !event.metaKey) || event.deltaY === 0) return
+    event.preventDefault()
+    changeZoom(event.deltaY < 0 ? 1 : -1)
+}
+
+const openExpanded = () => {
+    isExpanded.value = true
+}
+
+const closeExpanded = () => {
+    isExpanded.value = false
+}
+
+const focusableControls = () => Array.from(
+    viewer.value?.querySelectorAll<HTMLElement>(
+        'button, a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ) ?? []
+)
+
+const handleKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+        closeExpanded()
+        return
+    }
+    if (event.key !== 'Tab' || !isExpanded.value) return
+    const controls = focusableControls()
+    if (controls.length === 0) return
+    const currentIndex = controls.indexOf(document.activeElement as HTMLElement)
+    const atStart = currentIndex <= 0
+    const atEnd = currentIndex === controls.length - 1
+    if ((event.shiftKey && atStart) || (!event.shiftKey && (atEnd || currentIndex < 0))) {
+        event.preventDefault()
+        controls[cycleFocus(currentIndex, controls.length, event.shiftKey)]?.focus()
+    }
+}
+
+watch(isExpanded, (expanded) => {
+    if (typeof document === 'undefined') return
+    if (expanded) {
+        previousBodyOverflow = document.body.style.overflow
+        document.body.style.overflow = 'hidden'
+        void nextTick(() => {
+            const firstControl = focusableControls()[0]
+            if (firstControl) firstControl.focus()
+            else viewer.value?.focus()
+        })
+    } else {
+        document.body.style.overflow = previousBodyOverflow
+        void nextTick(() => expandButton.value?.focus())
+    }
+})
 
 onMounted(() => void renderChart())
 watch(isDark, () => void renderChart())
+onBeforeUnmount(() => {
+    if (isExpanded.value && typeof document !== 'undefined') {
+        document.body.style.overflow = previousBodyOverflow
+    }
+})
 </script>
 
 <template>
-    <div v-html="svg" :class="props.class"></div>
+    <div
+        ref="viewer"
+        :class="['mermaid-viewer', props.class, {'mermaid-viewer--expanded': isExpanded}]"
+        :tabindex="isExpanded ? 0 : undefined"
+        :role="isExpanded ? 'dialog' : undefined"
+        :aria-modal="isExpanded ? 'true' : undefined"
+        aria-label="Mermaid diagram"
+        @wheel="handleWheel"
+        @keydown="handleKeydown"
+        @click.self="closeExpanded"
+    >
+        <div class="mermaid-viewport" @click.self="closeExpanded">
+            <div class="mermaid-content" :style="{zoom, width: `${zoom * 100}%`}" v-html="svg"></div>
+        </div>
+        <div class="mermaid-toolbar" role="toolbar" aria-label="Mermaid diagram controls">
+            <button type="button" aria-label="Zoom in" title="Zoom in" @click="changeZoom(1)">+</button>
+            <button type="button" aria-label="Zoom out" title="Zoom out" @click="changeZoom(-1)">−</button>
+            <button type="button" aria-label="Reset zoom" title="Reset zoom" @click="resetZoom">↺</button>
+            <button
+                v-if="!isExpanded"
+                ref="expandButton"
+                type="button"
+                aria-label="Expand diagram"
+                title="Expand diagram"
+                @click="openExpanded"
+            >
+                ⛶
+            </button>
+            <button
+                v-else
+                type="button"
+                aria-label="Close expanded diagram"
+                title="Close expanded diagram"
+                @click="closeExpanded"
+            >
+                ×
+            </button>
+        </div>
+    </div>
 </template>
+
+<style>
+.mermaid-viewer {
+    position: relative;
+}
+
+.mermaid-viewport {
+    overflow: auto;
+}
+
+.mermaid-content {
+    display: flex;
+    justify-content: center;
+    min-width: 100%;
+}
+
+.mermaid-content > svg {
+    display: block;
+    max-width: none !important;
+    flex: 0 0 auto;
+}
+
+.mermaid-toolbar {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 1;
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border: 1px solid var(--vp-c-divider);
+    border-radius: 0.5rem;
+    background: var(--vp-c-bg-soft);
+    box-shadow: var(--vp-shadow-2);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.mermaid-viewer:hover .mermaid-toolbar,
+.mermaid-viewer:focus-within .mermaid-toolbar,
+.mermaid-viewer--expanded .mermaid-toolbar {
+    opacity: 1;
+}
+
+.mermaid-toolbar button {
+    display: inline-flex;
+    width: 2rem;
+    height: 2rem;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 0.35rem;
+    background: transparent;
+    color: var(--vp-c-text-1);
+    cursor: pointer;
+    font-size: 1.1rem;
+}
+
+.mermaid-toolbar button:hover,
+.mermaid-toolbar button:focus-visible {
+    background: var(--vp-c-default-soft);
+}
+
+.mermaid-toolbar button:focus-visible {
+    outline: 2px solid var(--vp-c-brand-1);
+    outline-offset: 2px;
+}
+
+.mermaid-viewer--expanded {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    padding: 4rem 1rem 1rem;
+    background: var(--vp-c-bg);
+}
+
+.mermaid-viewer--expanded .mermaid-viewport {
+    flex: 1;
+    min-height: 0;
+}
+
+.mermaid-viewer--expanded .mermaid-content {
+    min-width: max-content;
+    min-height: max-content;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mermaid-toolbar {
+        transition: none;
+    }
+}
+
+@media (any-hover: none) {
+    .mermaid-toolbar {
+        opacity: 1;
+    }
+}
+</style>
