@@ -104,6 +104,50 @@ class DefaultSnapshotQueryGatewayTest {
     }
 
     @Test
+    fun `schema mask filter should return downstream publisher when result masking is unnecessary`() {
+        val downstreamResult = Mono.never<Void>()
+        val downstream = FilterChain<QueryContext<*, *>> { downstreamResult }
+        val contexts = listOf(
+            DefaultQueryContext<Any, Any>(QueryType.SINGLE, MOCK_AGGREGATE_METADATA, unmaskedSchema()),
+            DefaultQueryContext<Any, Any>(QueryType.COUNT, MOCK_AGGREGATE_METADATA, maskedSchema()),
+            DefaultQueryContext<Any, Any>(QueryType.AGGREGATION, MOCK_AGGREGATE_METADATA, maskedSchema()),
+        )
+
+        contexts.forEach { context ->
+            SchemaMaskQueryFilter().filter(context, downstream).assert().isSameAs(downstreamResult)
+        }
+    }
+
+    @Test
+    fun `schema mask filter should mask page entries without replacing containers`() {
+        val filter = SchemaMaskQueryFilter()
+        val downstream = FilterChain<QueryContext<*, *>> { Mono.empty() }
+        val schema = maskedSchema()
+        val paged = PagedList(1, listOf(snapshotNode()))
+        val pagedContext = DefaultQueryContext<IPagedQuery, Mono<PagedList<ObjectNode>>>(
+            QueryType.PAGED,
+            MOCK_AGGREGATE_METADATA,
+            schema,
+        ).setResult(Mono.just(paged))
+        val cursor = CursorPage(listOf(snapshotNode()), "next")
+        val cursorContext = DefaultQueryContext<ICursorQuery, Mono<CursorPage<ObjectNode>>>(
+            QueryType.CURSOR,
+            MOCK_AGGREGATE_METADATA,
+            schema,
+        ).setResult(Mono.just(cursor))
+
+        filter.filter(pagedContext, downstream).block()
+        val maskedPaged = pagedContext.getRequiredResult().block()!!
+        filter.filter(cursorContext, downstream).block()
+        val maskedCursor = cursorContext.getRequiredResult().block()!!
+
+        maskedPaged.assert().isSameAs(paged)
+        maskedPaged.list.single().stateValue().assert().isEqualTo("***********")
+        maskedCursor.assert().isSameAs(cursor)
+        maskedCursor.list.single().stateValue().assert().isEqualTo("***********")
+    }
+
+    @Test
     fun `snapshot masking should not remove event body type fields`() {
         val node = snapshotNode().also {
             it.putArray("body").addObject().put("bodyType", "keep")
