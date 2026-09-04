@@ -77,20 +77,10 @@ internal class QueryFieldSchemaResolver(
         val logical = field.absoluteTo(logicalParent)
         val declaredFieldSchema = schema.fields[logical]
         val fieldSchema = declaredFieldSchema ?: schema.field(logical)
-        if (fieldSchema != null) {
+        fieldSchema?.binding(capability)?.let { binding ->
             if (enforceElementScope && !logical.isInElementScope(logicalParent)) {
                 return incompatibleElementScope(logical, field)
             }
-            val binding = fieldSchema.binding(capability)
-                ?: return QueryFieldResolution(
-                    logical,
-                    field.relativeTo(logicalParent, resolvedParent),
-                    if (declaredFieldSchema == null && fieldSchema.dynamicChildren) {
-                        QueryCompatibilityLevel.COMPATIBLE
-                    } else {
-                        QueryCompatibilityLevel.INCOMPATIBLE
-                    },
-                )
             return resolveBinding(field, logical, fieldSchema, binding, resolvedParent, physicalParent)
         }
 
@@ -111,17 +101,21 @@ internal class QueryFieldSchemaResolver(
         if (enforceElementScope && !logical.isInElementScope(logicalParent)) {
             return incompatibleElementScope(logical, field)
         }
+        val compatibility = when {
+            fieldSchema != null -> if (declaredFieldSchema == null && fieldSchema.dynamicChildren) {
+                QueryCompatibilityLevel.COMPATIBLE
+            } else {
+                QueryCompatibilityLevel.INCOMPATIBLE
+            }
+            logical.path.startsWith("${StateAggregateRecords.TAGS}.") &&
+                schema.fields[QueryField(StateAggregateRecords.TAGS)]?.dynamicChildren == false ->
+                QueryCompatibilityLevel.INCOMPATIBLE
+            else -> QueryCompatibilityLevel.COMPATIBLE
+        }
         return QueryFieldResolution(
             logical,
             field.relativeTo(logicalParent, resolvedParent),
-            if (
-                logical.path.startsWith("${StateAggregateRecords.TAGS}.") &&
-                schema.fields[QueryField(StateAggregateRecords.TAGS)]?.dynamicChildren == false
-            ) {
-                QueryCompatibilityLevel.INCOMPATIBLE
-            } else {
-                QueryCompatibilityLevel.COMPATIBLE
-            },
+            compatibility,
         )
     }
 

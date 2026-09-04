@@ -82,6 +82,11 @@ class QueryModelSchemaTest {
                         QueryCapability.SORT to QueryFieldBinding(resolvedField, physicalField, null),
                     ),
                 ),
+                resolvedField to fieldSchema(
+                    bindings = mapOf(
+                        QueryCapability.PRESENCE to QueryFieldBinding(resolvedField, resolvedField, null),
+                    ),
+                ),
             ),
         )
 
