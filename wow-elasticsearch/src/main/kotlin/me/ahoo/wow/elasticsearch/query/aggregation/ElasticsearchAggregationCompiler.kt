@@ -81,19 +81,34 @@ internal class ElasticsearchAggregationCompiler(
     private val filterCompiler: AbstractElasticsearchFilterCompiler,
 ) {
     fun compile(query: AggregationQuery, schema: QueryModelSchema): ElasticsearchAggregationPlan {
-        val rootQuery = filterCompiler.compile(query.filter)
+        val rootQuery = filterCompiler.compile(query.filter, schema)
         val elements = mutableListOf<ElasticsearchAggregationElement>()
         var logicalParent: QueryField? = null
+        var resolvedParent: QueryField? = null
         query.elements.forEach { element ->
             val previousLogicalParent = logicalParent
+            val previousResolvedParent = resolvedParent
             logicalParent = previousLogicalParent?.append(element.path) ?: element.path
+            val currentResolvedParent = schema.field(logicalParent)
+                ?.binding(QueryCapability.ELEMENT_SCOPE)
+                ?.resolvedField
+                ?: previousResolvedParent?.append(element.path)
+                ?: logicalParent
+            resolvedParent = currentResolvedParent
             val nestedPath = element.path.resolve(previousLogicalParent, schema, QueryCapability.ELEMENT_SCOPE)
+            val physicalParent = QueryField(nestedPath)
             val unscopedFilter = AndFilter(
                 listOf(element.filter, DeletionFilter(DeletionState.ALL)),
             )
             elements += ElasticsearchAggregationElement(
                 path = nestedPath,
-                filter = filterCompiler.compile(unscopedFilter, nestedPath),
+                filter = filterCompiler.compileScoped(
+                    unscopedFilter,
+                    schema,
+                    logicalParent,
+                    currentResolvedParent,
+                    physicalParent,
+                ),
             )
         }
 

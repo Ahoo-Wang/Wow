@@ -46,8 +46,8 @@ import java.util.UUID
 class ElasticsearchFilterCompilerTest {
     @Test
     fun `model level search should be lenient while explicit fields keep strict parsing`() {
-        RawFilterCompiler.compile(SearchFilter("value")).multiMatch().lenient().assert().isTrue()
-        RawFilterCompiler.compile(
+        RawFilterCompiler.compilePhysical(SearchFilter("value")).multiMatch().lenient().assert().isTrue()
+        RawFilterCompiler.compilePhysical(
             SearchFilter("value", setOf(QueryField("state.value"))),
         ).multiMatch().lenient().assert().isNull()
     }
@@ -70,17 +70,17 @@ class ElasticsearchFilterCompilerTest {
 
     @Test
     fun `snapshot metadata filters should use document ids`() {
-        assertCompiled(SnapshotFilterCompiler.compile(IdFilter("id-1")), ids { it.values("id-1") })
+        assertCompiled(SnapshotFilterCompiler.compilePhysical(IdFilter("id-1")), ids { it.values("id-1") })
         assertCompiled(
-            SnapshotFilterCompiler.compile(AggregateIdFilter("aggregate-1")),
+            SnapshotFilterCompiler.compilePhysical(AggregateIdFilter("aggregate-1")),
             ids { it.values("aggregate-1") },
         )
         assertCompiled(
-            SnapshotFilterCompiler.compile(IdsFilter(listOf("id-1", "id-2"))),
+            SnapshotFilterCompiler.compilePhysical(IdsFilter(listOf("id-1", "id-2"))),
             ids { it.values("id-1", "id-2") },
         )
         assertCompiled(
-            SnapshotFilterCompiler.compile(AggregateIdsFilter(listOf("aggregate-1", "aggregate-2"))),
+            SnapshotFilterCompiler.compilePhysical(AggregateIdsFilter(listOf("aggregate-1", "aggregate-2"))),
             ids { it.values("aggregate-1", "aggregate-2") },
         )
     }
@@ -88,15 +88,15 @@ class ElasticsearchFilterCompilerTest {
     @Test
     fun `metadata scope filters should use source metadata fields`() {
         assertCompiled(
-            SnapshotFilterCompiler.compile(TenantIdFilter("tenant-1")),
+            SnapshotFilterCompiler.compilePhysical(TenantIdFilter("tenant-1")),
             term { it.field(MessageRecords.TENANT_ID).value("tenant-1") },
         )
         assertCompiled(
-            SnapshotFilterCompiler.compile(OwnerIdFilter("owner-1")),
+            SnapshotFilterCompiler.compilePhysical(OwnerIdFilter("owner-1")),
             term { it.field(MessageRecords.OWNER_ID).value("owner-1") },
         )
         assertCompiled(
-            SnapshotFilterCompiler.compile(SpaceIdFilter("space-1")),
+            SnapshotFilterCompiler.compilePhysical(SpaceIdFilter("space-1")),
             term { it.field(MessageRecords.SPACE_ID).value("space-1") },
         )
     }
@@ -104,11 +104,11 @@ class ElasticsearchFilterCompilerTest {
     @Test
     fun `generic document id predicates should preserve exact id queries`() {
         assertCompiled(
-            SnapshotFilterCompiler.compile(EqualFilter(QueryField("_id"), json("id-1"))),
+            SnapshotFilterCompiler.compilePhysical(EqualFilter(QueryField("_id"), json("id-1"))),
             ids { it.values("id-1") },
         )
         assertCompiled(
-            SnapshotFilterCompiler.compile(InFilter(QueryField("_id"), listOf(json("id-1"), json("id-2")))),
+            SnapshotFilterCompiler.compilePhysical(InFilter(QueryField("_id"), listOf(json("id-1"), json("id-2")))),
             ids { it.values("id-1", "id-2") },
         )
     }
@@ -119,11 +119,11 @@ class ElasticsearchFilterCompilerTest {
         val arrayValue = listOf("a", "b")
 
         assertCompiled(
-            SnapshotFilterCompiler.compile(EqualFilter(QueryField("state.tags"), json(arrayValue))),
+            SnapshotFilterCompiler.compilePhysical(EqualFilter(QueryField("state.tags"), json(arrayValue))),
             term { it.field("state.tags").value(FieldValue.of(arrayValue)) },
         )
 
-        val pojoQuery = SnapshotFilterCompiler.compile(
+        val pojoQuery = SnapshotFilterCompiler.compilePhysical(
             EqualFilter(QueryField("state.native"), JsonNodeFactory.instance.pojoNode(nativeValue)),
         ).bool().filter().last().term()
         pojoQuery.value().isAny.assert().isTrue()
@@ -207,21 +207,21 @@ class ElasticsearchFilterCompilerTest {
                 multiMatch { it.query("event sourcing").fields("state.value").type(TextQueryType.Phrase) },
         )
 
-        cases.forEach { (filter, expected) -> assertQuery(RawFilterCompiler.compile(filter), expected) }
+        cases.forEach { (filter, expected) -> assertQuery(RawFilterCompiler.compilePhysical(filter), expected) }
     }
 
     @Test
     fun `deletion normalization should preserve explicit and default scopes`() {
         assertQuery(
-            SnapshotFilterCompiler.compile(MatchAllFilter),
+            SnapshotFilterCompiler.compilePhysical(MatchAllFilter),
             term { it.field(StateAggregateRecords.DELETED).value(false) },
         )
-        SnapshotFilterCompiler.compile(MatchNoneFilter)._kind().assert().isEqualTo(Query.Kind.MatchNone)
-        SnapshotFilterCompiler.compile(DeletionFilter(DeletionState.ALL))._kind().assert().isEqualTo(
+        SnapshotFilterCompiler.compilePhysical(MatchNoneFilter)._kind().assert().isEqualTo(Query.Kind.MatchNone)
+        SnapshotFilterCompiler.compilePhysical(DeletionFilter(DeletionState.ALL))._kind().assert().isEqualTo(
             Query.Kind.MatchAll,
         )
         assertQuery(
-            SnapshotFilterCompiler.compile(
+            SnapshotFilterCompiler.compilePhysical(
                 AndFilter(
                     listOf(
                         DeletionFilter(DeletionState.DELETED),
@@ -238,13 +238,13 @@ class ElasticsearchFilterCompilerTest {
 
     @Test
     fun `relative time filter should normalize before compilation`() {
-        SnapshotFilterCompiler.compile(TodayFilter(QueryField("state.time")))._kind().assert()
+        SnapshotFilterCompiler.compilePhysical(TodayFilter(QueryField("state.time")))._kind().assert()
             .isEqualTo(Query.Kind.Bool)
     }
 
     @Test
     fun `scoped filter fields should be prefixed with parent`() {
-        val query = SnapshotFilterCompiler.compile(filter { "quantity" gt 1 }, "state.orders.lines")
+        val query = SnapshotFilterCompiler.compilePhysical(filter { "quantity" gt 1 }, "state.orders.lines")
 
         query.bool().filter().last().range().untyped().field().assert().isEqualTo("state.orders.lines.quantity")
     }

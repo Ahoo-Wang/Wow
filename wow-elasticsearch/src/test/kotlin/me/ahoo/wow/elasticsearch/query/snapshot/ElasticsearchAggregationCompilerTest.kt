@@ -17,6 +17,7 @@ import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
@@ -176,30 +177,58 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
+    @Suppress("LongMethod")
     fun `compiler should consume resolved filters and resolve logical aggregation fields`() {
         val schema = schema(
-            field("state.orders", QueryCapability.ELEMENT_SCOPE, "document.orders", "nested"),
-            field("state.orders.status", QueryCapability.EXACT_MATCH, "document.orders.status.keyword", "keyword"),
-            field("state.orders.lines", QueryCapability.ELEMENT_SCOPE, "document.orders.lines", "nested"),
-            field("state.orders.lines.quantity", QueryCapability.RANGE, "document.orders.lines.quantity", "integer"),
+            field(
+                "state.orders",
+                QueryCapability.ELEMENT_SCOPE,
+                "storage.orders",
+                "nested",
+                resolvedPath = "document.orders",
+            ),
+            field(
+                "state.orders.status",
+                QueryCapability.EXACT_MATCH,
+                "storage.orders.status.keyword",
+                "keyword",
+                resolvedPath = "document.orders.status.keyword",
+            ),
+            field(
+                "state.orders.lines",
+                QueryCapability.ELEMENT_SCOPE,
+                "storage.orders.lines",
+                "nested",
+                resolvedPath = "document.orders.lines",
+            ),
+            field(
+                "state.orders.lines.quantity",
+                QueryCapability.RANGE,
+                "storage.orders.lines.quantity",
+                "integer",
+                resolvedPath = "document.orders.lines.quantity",
+            ),
             field(
                 "state.orders.lines.productId",
                 QueryCapability.AGGREGATE_TERMS,
-                "document.orders.lines.productId.keyword",
+                "storage.orders.lines.productId.keyword",
                 "keyword",
+                resolvedPath = "document.orders.lines.productId.keyword",
             ),
             field(
                 "state.orders.lines.amount",
                 QueryCapability.AGGREGATE_NUMERIC,
-                "document.orders.lines.amount",
+                "storage.orders.lines.amount",
                 "double",
+                resolvedPath = "document.orders.lines.amount",
             ),
             field(
                 "state.orders.lines.createdAt",
                 QueryCapability.AGGREGATE_TEMPORAL,
-                "document.orders.lines.createdAt",
+                "storage.orders.lines.createdAt",
                 "date",
                 Temporal.Date,
+                resolvedPath = "document.orders.lines.createdAt",
             ),
         )
         val query = schema.resolve(
@@ -217,13 +246,17 @@ class ElasticsearchAggregationCompilerTest {
             schema,
         )
 
-        plan.elements.map { it.path }.assert().containsExactly("document.orders", "document.orders.lines")
+        plan.elements.map { it.path }.assert().containsExactly("storage.orders", "storage.orders.lines")
+        plan.elements[0].filter.bool().filter().first().term().field().assert()
+            .isEqualTo("storage.orders.status.keyword")
+        plan.elements[1].filter.bool().filter().first().range().untyped().field().assert()
+            .isEqualTo("storage.orders.lines.quantity")
         plan.groupSources[0].value().terms().field().assert()
-            .isEqualTo("document.orders.lines.productId.keyword")
-        plan.groupSources[1].value().histogram().field().assert().isEqualTo("document.orders.lines.amount")
-        plan.groupSources[2].value().dateHistogram().field().assert().isEqualTo("document.orders.lines.createdAt")
+            .isEqualTo("storage.orders.lines.productId.keyword")
+        plan.groupSources[1].value().histogram().field().assert().isEqualTo("storage.orders.lines.amount")
+        plan.groupSources[2].value().dateHistogram().field().assert().isEqualTo("storage.orders.lines.createdAt")
         (plan.metrics.single() as ElasticsearchAggregationMetric.Numeric).field.assert()
-            .isEqualTo("document.orders.lines.amount")
+            .isEqualTo("storage.orders.lines.amount")
     }
 
     @Test
@@ -307,12 +340,12 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
-    fun `custom compiler should receive caller paths without mapping resolution`() {
-        val convertedParents = mutableListOf<String?>()
+    fun `filter compiler should receive resolved and physical element scopes`() {
         val compiler = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler> {
-            every { compile(any(), captureNullable(convertedParents)) } answers {
+            every { compile(any(), any()) } returns
                 co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll { it }
-            }
+            every { compileScoped(any(), any(), any(), any(), any()) } returns
+                co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll { it }
         }
 
         val plan = ElasticsearchAggregationCompiler(compiler).compile(
@@ -327,7 +360,16 @@ class ElasticsearchAggregationCompilerTest {
 
         plan.elements.single().path.assert().isEqualTo("physical.items")
         plan.groupSources.single().value().terms().field().assert().isEqualTo("physical.items.physical.product")
-        convertedParents.assert().containsExactly(null, "physical.items")
+        verify(exactly = 1) { compiler.compile(any(), any()) }
+        verify(exactly = 1) {
+            compiler.compileScoped(
+                any(),
+                any(),
+                QueryField("physical.items"),
+                QueryField("physical.items"),
+                QueryField("physical.items"),
+            )
+        }
     }
 
     private fun maximumExpression(depth: Int = 8): AggregationExpression =

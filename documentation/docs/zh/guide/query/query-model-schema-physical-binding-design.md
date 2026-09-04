@@ -5,7 +5,7 @@ description: 以 QueryFieldBinding 统一查询逻辑字段到后端物理字段
 
 # QueryModelSchema 物理字段绑定统一设计
 
-> 状态：已在 9.0.8 实施。Schema-aware Backend Compiler 以 `QueryFieldBinding.physicalField` 为唯一物理路径来源；`projectionField` 是物理投影路径；已接受而缺少 binding 的 `COMPATIBLE` 字段原样透传。`ResolvedQuery(query, schema)`、Query JSON、Schema HTTP JSON、存储布局和 Cursor wire format 保持不变。
+> 状态：已在 9.0.8 实施。Schema-aware Backend Compiler 以 `QueryFieldBinding.physicalField` 为唯一物理路径来源；`projectionField` 是物理投影路径，`responseField` 是内部返回值脱敏路径；已接受而缺少 binding 的 `COMPATIBLE` 字段原样透传。`ResolvedQuery(query, schema)`、Query JSON、Schema HTTP JSON、存储布局和 Cursor wire format 保持不变。
 
 ## 背景
 
@@ -135,6 +135,8 @@ MongoDB adapter 在构造 `QueryModelSchema` 时直接创建模型相关的 bind
 - 没有 projection binding 的未知字段使用原始路径并保持 `COMPATIBLE`。
 
 `projectionField` 不参与过滤或排序的 capability 绑定。过滤、排序和聚合分别使用对应 capability 的 `physicalField`，从而保留 Elasticsearch multi-field 选择与 MongoDB 普通字段投影的差异。
+
+`responseField` 不参与后端编译，只标识 Backend 返回 JSON 中的节点，供 Masker 定位脱敏值；它与 `projectionField` 分离，并通过 `JsonIgnore` 保持 Schema HTTP JSON 不变。
 
 ## Cursor 与聚合
 

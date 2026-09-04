@@ -273,9 +273,11 @@ data class QueryFieldSchema(
     val dynamicChildren: Boolean,
     val bindings: Map<QueryCapability, QueryFieldBinding>,
     val projectionField: QueryField? =
-        bindings[QueryCapability.PRESENCE]?.resolvedField,
+        bindings[QueryCapability.PRESENCE]?.physicalField,
     val rewriteMode: QueryRewriteMode,
     @get:JsonIgnore internal val maskRule: MaskRule? = null,
+    @get:JsonIgnore val responseField: QueryField? =
+        bindings[QueryCapability.PRESENCE]?.resolvedField ?: projectionField,
 ) {
     val capabilities: Set<QueryCapability>
         get() = bindings.keys
@@ -298,7 +300,7 @@ data class QueryFieldSchema(
 职责：
 
 - 根据 capability 返回 Binding；
-- 派生 dynamic child 的 resolved field、physical field 与 projection field；
+- 派生 dynamic child 的 resolved field、physical field、projection field 与 response field；
 - dynamic child 不继承 `ELEMENT_SCOPE`；
 - 比较值是否匹配自身声明的内建值类型；
 - 暴露 Mask 状态；
@@ -306,7 +308,7 @@ data class QueryFieldSchema(
 
 `matchesValueTypes` 不判断当前 Schema 来自精确声明还是 dynamic 派生，也不宣称执行完整字段验证：它不新增 enum、nullable、required 或 cardinality 规则。精确声明身份由 `QueryModelSchema` 判断。`supports()` 不存在，调用方使用 `binding(capability) != null`。
 
-Dynamic 派生必须完整重算 Binding、projectionField 与 rewriteMode：projectionField 供 Backend 编译；rewriteMode 根据派生后的 source、Binding 与 semantic 状态计算，不能盲目继承父字段 Mode。Dynamic 只是 Schema 派生机制，不天然意味着公共 Query 需要改写。
+Dynamic 派生必须完整重算 Binding、projectionField、responseField 与 rewriteMode：projectionField 供 Backend 编译，responseField 供返回结果脱敏；rewriteMode 根据派生后的 source、Binding 与 semantic 状态计算，不能盲目继承父字段 Mode。Dynamic 只是 Schema 派生机制，不天然意味着公共 Query 需要改写。
 
 Field Mode 使用统一判定合同：
 
@@ -318,7 +320,7 @@ Field Mode 使用统一判定合同：
 
 Projection 不参与 rewriteMode：Runtime 不使用 projectionField 重建公共 Query，projectionField 的存储映射由 Backend Projection Compiler 消费。
 
-`resolveDynamic` 不使用只替换 `bindings` 的 data class `copy()`。Kotlin `copy(bindings = ...)` 会保留旧的 `projectionField` 与 `rewriteMode`；派生 child 必须显式构造完整的 bindings、projectionField 与 rewriteMode。
+`resolveDynamic` 不使用只替换 `bindings` 的 data class `copy()`。Kotlin `copy(bindings = ...)` 会保留旧的 `projectionField`、`responseField` 与 `rewriteMode`；派生 child 必须显式构造完整的 bindings、projectionField、responseField 与 rewriteMode。
 
 Metadata 投影仍由 `QueryModelSchema` 负责，因为逻辑字段身份来自 Model 的字段索引，不属于独立字段值。
 

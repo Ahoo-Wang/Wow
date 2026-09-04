@@ -26,23 +26,23 @@ import org.junit.jupiter.api.Test
 class EventStreamFilterCompilerTest {
     @Test
     fun `match all filter should include deleted event streams`() {
-        EventStreamFilterCompiler.compile(MatchAllFilter)._kind().assert().isEqualTo(
+        EventStreamFilterCompiler.compilePhysical(MatchAllFilter)._kind().assert().isEqualTo(
             co.elastic.clients.elasticsearch._types.query_dsl.Query.Kind.MatchAll,
         )
     }
 
     @Test
     fun `event metadata filters should use source metadata fields`() {
-        EventStreamFilterCompiler.compile(IdFilter("id-1")).term().field().assert()
+        EventStreamFilterCompiler.compilePhysical(IdFilter("id-1")).term().field().assert()
             .isEqualTo(MessageRecords.ID)
-        EventStreamFilterCompiler.compile(AggregateIdFilter("aggregate-1")).term().field().assert()
+        EventStreamFilterCompiler.compilePhysical(AggregateIdFilter("aggregate-1")).term().field().assert()
             .isEqualTo(MessageRecords.AGGREGATE_ID)
 
-        EventStreamFilterCompiler.compile(IdsFilter(listOf("id-1", "id-2"))).terms().apply {
+        EventStreamFilterCompiler.compilePhysical(IdsFilter(listOf("id-1", "id-2"))).terms().apply {
             field().assert().isEqualTo(MessageRecords.ID)
             terms().value().map { it.stringValue() }.assert().containsExactly("id-1", "id-2")
         }
-        EventStreamFilterCompiler.compile(
+        EventStreamFilterCompiler.compilePhysical(
             AggregateIdsFilter(listOf("aggregate-1", "aggregate-2")),
         ).terms().apply {
             field().assert().isEqualTo(MessageRecords.AGGREGATE_ID)
@@ -52,7 +52,7 @@ class EventStreamFilterCompilerTest {
 
     @Test
     fun `generic document id predicates should use event id field`() {
-        val actual = EventStreamFilterCompiler.compile(filter { "_id" eq "stream-id" })
+        val actual = EventStreamFilterCompiler.compilePhysical(filter { "_id" eq "stream-id" })
 
         actual.term().field().assert().isEqualTo(MessageRecords.ID)
         actual.term().value().stringValue().assert().isEqualTo("stream-id")
@@ -60,7 +60,7 @@ class EventStreamFilterCompilerTest {
 
     @Test
     fun `should qualify relative element predicate fields`() {
-        val actual = EventStreamFilterCompiler.compile(
+        val actual = EventStreamFilterCompiler.compilePhysical(
             filter {
                 "body".elementMatch {
                     "name" eq "value"

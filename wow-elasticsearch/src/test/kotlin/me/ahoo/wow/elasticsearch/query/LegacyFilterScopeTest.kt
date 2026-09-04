@@ -27,7 +27,7 @@ class LegacyFilterScopeTest {
     @Suppress("DEPRECATION")
     @Test
     fun `should not reapply active deletion scope to converted legacy filter`() {
-        val query = SnapshotFilterCompiler.compile(
+        val query = SnapshotFilterCompiler.compilePhysical(
             AndFilter(
                 listOf(
                     Condition.eq("state.name", "Wow").toFilterExpression(),

@@ -29,7 +29,7 @@ class ElasticsearchSortCompilerTest {
             "field2".desc()
         }
 
-        val actual = ElasticsearchSortCompiler.compile(sort)
+        val actual = ElasticsearchSortCompiler.compilePhysical(sort)
 
         actual.first().let {
             it.field().field().assert().isEqualTo("field1")
@@ -45,14 +45,14 @@ class ElasticsearchSortCompilerTest {
     fun `should compile empty Sort to empty SortOptions`() {
         val sort = emptyList<Sort>()
 
-        val actual = ElasticsearchSortCompiler.compile(sort)
+        val actual = ElasticsearchSortCompiler.compilePhysical(sort)
 
         actual.isEmpty().assert().isTrue()
     }
 
     @Test
     fun `should add nested context to event body sort`() {
-        val actual = ElasticsearchSortCompiler.compile(
+        val actual = ElasticsearchSortCompiler.compilePhysical(
             sort { "${MessageRecords.BODY}.name".asc() },
         ).single().field()
 

@@ -79,7 +79,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     }
 
     private fun listResolved(listQuery: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> {
-        val compiled = compile(listQuery.filter, listQuery.sort)
+        val compiled = compile(listQuery.filter, listQuery.sort, schema)
         if (listQuery.limit == 0 || listQuery.limit > queryBatchSize) {
             return ElasticsearchQueryPager(elasticsearchClient, indexName, queryBatchSize, queryKeepAlive).search(
                 limit = listQuery.limit,
@@ -105,7 +105,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         Mono.fromSupplier {
             createSearchRequest(
                 query = query,
-                compiled = compile(query.filter, query.sort),
+                compiled = compile(query.filter, query.sort, schema),
                 from = query.pagination.offset(),
                 size = query.pagination.size,
                 trackTotalHits = true,
@@ -117,7 +117,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         executePaged(query.query, query.schema)
 
     internal fun executeCursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> {
-        val compiled = compile(query.filter, query.sort)
+        val compiled = compile(query.filter, query.sort, schema)
         return elasticsearchClient.search(cursorSearchRequest(query, compiled, schema), ObjectNode::class.java)
             .map { response -> response.toCursorPage(query) }
     }
@@ -225,14 +225,14 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             }
     }
 
-    internal fun executeCount(filter: FilterExpression): Mono<Long> = Mono.fromSupplier {
+    internal fun executeCount(filter: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.fromSupplier {
         CountRequest.of {
             it.index(indexName)
-                .query(filterCompiler.compile(filter))
+                .query(filterCompiler.compile(filter, schema))
         }
     }.flatMap(elasticsearchClient::count).map { it.count() }
 
-    override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = executeCount(query.query)
+    override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = executeCount(query.query, query.schema)
 
     protected fun executeAggregation(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> =
         ElasticsearchAggregationPager(
@@ -247,10 +247,14 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> =
         executeAggregation(query.query, query.schema)
 
-    private fun compile(filter: FilterExpression, sort: List<Sort>): CompiledQuery =
+    private fun compile(
+        filter: FilterExpression,
+        sort: List<Sort>,
+        schema: QueryModelSchema,
+    ): CompiledQuery =
         CompiledQuery(
-            query = filterCompiler.compile(filter),
-            sortOptions = ElasticsearchSortCompiler.compile(sort),
+            query = filterCompiler.compile(filter, schema),
+            sortOptions = ElasticsearchSortCompiler.compile(sort, schema),
         )
 
     private data class CompiledQuery(

@@ -16,10 +16,16 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.serialization.MessageRecords
 
 object ElasticsearchSortCompiler {
-    fun compile(sort: List<Sort>): List<SortOptions> {
+    fun compile(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> = compilePhysical(
+        sort.map { it.copy(field = schema.resolvePhysicalField(it.field, QueryCapability.SORT)) },
+    )
+
+    internal fun compilePhysical(sort: List<Sort>): List<SortOptions> {
         return sort.map {
             SortOptions.of { sortBuilder ->
                 sortBuilder.field { fieldBuilder ->

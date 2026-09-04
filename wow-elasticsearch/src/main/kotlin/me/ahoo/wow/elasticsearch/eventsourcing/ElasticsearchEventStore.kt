@@ -154,8 +154,8 @@ class ElasticsearchEventStore(
         searchAfter: List<FieldValue> = emptyList(),
         descending: Boolean = false,
     ): Mono<List<Hit<DomainEventStream>>> {
-        val query = EventStreamFilterCompiler.compile(filter)
-        val sort = ElasticsearchSortCompiler.compile(
+        val query = EventStreamFilterCompiler.compilePhysical(filter)
+        val sort = ElasticsearchSortCompiler.compilePhysical(
             sort {
                 if (descending) {
                     MessageRecords.VERSION.desc()
@@ -213,12 +213,12 @@ class ElasticsearchEventStore(
             MessageRecords.AGGREGATE_ID gt afterId
             MessageRecords.VERSION eq Version.INITIAL_VERSION
         }
-        val sort = ElasticsearchSortCompiler.compile(sort { MessageRecords.AGGREGATE_ID.asc() })
+        val sort = ElasticsearchSortCompiler.compilePhysical(sort { MessageRecords.AGGREGATE_ID.asc() })
         return elasticsearchClient
             .search({
                 it
                     .index(namedAggregate.toEventStreamIndexName())
-                    .query(EventStreamFilterCompiler.compile(filter))
+                    .query(EventStreamFilterCompiler.compilePhysical(filter))
                     .source { sourceBuilder -> sourceBuilder.fetch(false) }
                     .docvalueFields { field -> field.field(MessageRecords.AGGREGATE_ID) }
                     .docvalueFields { field -> field.field(MessageRecords.TENANT_ID) }

@@ -218,6 +218,8 @@ data class QueryFieldSchema(
     val projectionField: QueryField? = bindings[QueryCapability.PRESENCE]?.physicalField,
     val rewriteMode: QueryRewriteMode,
     @get:JsonIgnore internal val maskRule: MaskRule? = null,
+    @get:JsonIgnore
+    val responseField: QueryField? = bindings[QueryCapability.PRESENCE]?.resolvedField ?: projectionField,
 ) {
     val capabilities: Set<QueryCapability>
         get() = bindings.keys
@@ -269,6 +271,7 @@ data class QueryFieldSchema(
             dynamicChildren = dynamicChildren,
             bindings = resolvedBindings,
             projectionField = projectionField?.append(relative),
+            responseField = responseField?.append(relative),
             rewriteMode = resolvedRewriteMode,
             maskRule = maskRule,
         )

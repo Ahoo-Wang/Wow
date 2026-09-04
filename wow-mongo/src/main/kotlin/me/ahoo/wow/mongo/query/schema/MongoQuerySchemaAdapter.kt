@@ -278,6 +278,7 @@ class MongoQuerySchemaAdapter(
                 dynamicChildren = dynamicChildren && bindings.keys.any { it != QueryCapability.ELEMENT_SCOPE },
                 bindings = bindings,
                 projectionField = projectionField,
+                responseField = source,
                 rewriteMode = rewriteMode,
                 maskRule = maskRule,
             )

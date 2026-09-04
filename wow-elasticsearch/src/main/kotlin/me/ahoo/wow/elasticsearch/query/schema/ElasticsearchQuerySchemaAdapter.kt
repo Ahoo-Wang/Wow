@@ -212,6 +212,7 @@ class ElasticsearchQuerySchemaAdapter(
                 dynamicChildren = false,
                 bindings = bindings,
                 projectionField = projectionField,
+                responseField = projectionField ?: source,
                 rewriteMode = rewriteMode,
                 maskRule = maskRule,
             )

@@ -462,8 +462,9 @@ class ElasticsearchSnapshotMappingQueryTest {
     @Test
     fun `custom filter compiler should keep physical field ownership`() {
         val convertedFilter = slot<FilterExpression>()
+        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
         val customCompiler = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler> {
-            every { compile(capture(convertedFilter)) } returns matchAll { it }
+            every { compile(capture(convertedFilter), schema) } returns matchAll { it }
         }
         val filter = equal("custom.physical", "value")
         val service = ElasticsearchSnapshotQueryBackend(
@@ -474,7 +475,6 @@ class ElasticsearchSnapshotMappingQueryTest {
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
         )
 
-        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
         val query = ListQuery(filter = filter, limit = 10)
         service.list(
             ResolvedQuery(
