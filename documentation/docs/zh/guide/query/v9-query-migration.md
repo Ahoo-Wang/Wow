@@ -186,7 +186,7 @@ Filter 不再通过 `QueryType.isDynamic` 判断最终返回 typed 对象还是�
 | 全部六个 `QueryModelSchemaProvider.resolve(query, mode)` 扩展及 Provider 级 `COMPATIBLE` unavailable fallback | 自行调用 `QueryModelSchema.resolve(...)` 并 `requireAccepted(mode)`；所有路径在 Schema 不可用时统一以 `QuerySchemaUnavailableException` 失败关闭。 |
 | `ProjectionConverter.convert(projection, schema: QueryModelSchema?)` | `schema` 参数改为非空；自定义 converter 始终基于非空 Schema 编译。 |
 | `QueryContext` / `DefaultQueryContext` | `QueryContext` 新增无默认值的 `schema: QueryModelSchema` 成员；`DefaultQueryContext` 第三个构造参数必填。 |
-| `me.ahoo.wow.query.filter.Contexts.getRawRequest/writeRawRequest` | V9.x 为源码兼容保留并标记弃用。新的 WebFlux 代码改用 `me.ahoo.wow.webflux.route.getRawRequest/writeRawRequest`，类型收窄为 `ServerRequest`；两套 API 共用同一 Reactor Context 条目。旧 API 计划在 10.0.0 删除。 |
+| `me.ahoo.wow.query.filter.Contexts.getRawRequest/writeRawRequest` | 已删除。WebFlux 代码改用 `me.ahoo.wow.webflux.route.getRawRequest/writeRawRequest`，类型收窄为 `ServerRequest`；删除任意值与调用方强转。 |
 | MongoDB 与 Elasticsearch Backend 构造函数的 `schemaProvider` 参数，以及 Backend 实现或委托 `QueryModelSchemaProvider` | 改为在 Factory 的 `QueryBackendBinding` 中配对 Provider；Backend 不再承载 Provider 能力。 |
 | `requiredQueryModelSchemaProvider()` 扩展 | 从 binding 读取 `factory.create(namedAggregate).schemaProvider`。 |
 | `MongoCollections.findDocument` 四参数公有重载 | 仅存重载要求非空 `QueryModelSchema`。 |

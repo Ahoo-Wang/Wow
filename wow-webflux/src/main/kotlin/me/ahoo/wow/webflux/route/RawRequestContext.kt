@@ -11,22 +11,21 @@
  * limitations under the License.
  */
 
-@file:Suppress("DEPRECATION")
-
 package me.ahoo.wow.webflux.route
 
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.util.context.ContextView
-import me.ahoo.wow.query.filter.Contexts.getRawRequest as getLegacyRawRequest
-import me.ahoo.wow.query.filter.Contexts.writeRawRequest as writeLegacyRawRequest
+import kotlin.jvm.optionals.getOrNull
+
+private object RawRequestContextKey
 
 fun ContextView.getRawRequest(): ServerRequest? =
-    getLegacyRawRequest<Any>() as? ServerRequest
+    getOrEmpty<ServerRequest>(RawRequestContextKey).getOrNull()
 
 fun <T : Any> Mono<T>.writeRawRequest(request: ServerRequest): Mono<T> =
-    writeLegacyRawRequest(request)
+    contextWrite { it.put(RawRequestContextKey, request) }
 
 fun <T : Any> Flux<T>.writeRawRequest(request: ServerRequest): Flux<T> =
-    writeLegacyRawRequest(request)
+    contextWrite { it.put(RawRequestContextKey, request) }

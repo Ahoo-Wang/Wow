@@ -11,8 +11,6 @@
  * limitations under the License.
  */
 
-@file:Suppress("DEPRECATION")
-
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.test.asserts.assert
@@ -21,8 +19,6 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
-import me.ahoo.wow.query.filter.Contexts.getRawRequest as getLegacyRawRequest
-import me.ahoo.wow.query.filter.Contexts.writeRawRequest as writeLegacyRawRequest
 
 class RawRequestContextTest {
     private val request = MockServerRequest.builder().build()
@@ -58,21 +54,11 @@ class RawRequestContextTest {
     }
 
     @Test
-    fun `legacy writer should interoperate with webflux reader`() {
+    fun `should ignore legacy raw request context key`() {
         Mono.deferContextual {
-            it.getRawRequest().assert().isSameAs(request)
+            it.getRawRequest().assert().isNull()
             Mono.empty<Void>()
-        }.writeLegacyRawRequest(request)
-            .test()
-            .verifyComplete()
-    }
-
-    @Test
-    fun `webflux writer should interoperate with legacy reader`() {
-        Mono.deferContextual {
-            it.getLegacyRawRequest<MockServerRequest>().assert().isSameAs(request)
-            Mono.empty<Void>()
-        }.writeRawRequest(request)
+        }.contextWrite { it.put("__RAW_REQUEST___", request) }
             .test()
             .verifyComplete()
     }
