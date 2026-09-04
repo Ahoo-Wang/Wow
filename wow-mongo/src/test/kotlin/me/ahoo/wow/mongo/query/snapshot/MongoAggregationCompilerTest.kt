@@ -97,6 +97,29 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `compatible element aggregation fields should retain the physical parent`() {
+        val schema = schema(
+            field("state.orders", QueryCapability.ELEMENT_SCOPE, "storage.orders", QueryValueType.OBJECT),
+        )
+        val resolved = schema.resolve(
+            aggregation {
+                expand("state.orders")
+                terms("extra", "extra")
+                sum("amount", "total")
+                count("count")
+            },
+        ).requireAccepted(QuerySchemaValidationMode.COMPATIBLE)
+
+        MongoAggregationCompiler(SnapshotFilterCompiler).compile(resolved, schema)
+            .first { it.toBsonDocument().containsKey("\$group") }
+            .toBsonDocument().toJson().assert()
+            .contains("\$storage.orders.extra")
+            .contains("\$storage.orders.amount")
+            .doesNotContain("\$state.orders.extra")
+            .doesNotContain("\$state.orders.amount")
+    }
+
+    @Test
     fun `relative field sharing its parent prefix should still resolve inside the element`() {
         val schema = schema(
             field("body", QueryCapability.ELEMENT_SCOPE, "events", QueryValueType.OBJECT),

@@ -251,15 +251,13 @@ abstract class AbstractMongoFilterCompiler(
             return schema.field(logicalField)?.binding(capability)?.physicalField
                 ?: schema.resolvePhysicalField(logicalField, capability)
         }
-        val physicalField = schema.resolvePhysicalField(
+        return schema.resolvePhysicalField(
             this,
             capability,
             logicalParent = scope.logicalParent,
             resolvedParent = scope.logicalParent,
             physicalParent = scope.physicalParent,
         )
-        if (physicalField != logicalField) return physicalField
-        return scope.logicalParent?.let(::relativeTo) ?: this
     }
 
     private val StringComparison.ignoreCase: Boolean

@@ -152,7 +152,11 @@ data class QueryModelSchema(
                         "Physical field [$physicalField] is not relative to parent [$physicalParent].",
                     )
             }
-        } ?: resolved.logical
+        } ?: if (physicalParent == null) {
+            resolved.logical
+        } else {
+            logicalParent?.let(field::relativeTo) ?: resolvedParent?.let(field::relativeTo) ?: field
+        }
     }
 
     internal fun matchesValueTypes(field: QueryField, values: Iterable<JsonNode>): Boolean =

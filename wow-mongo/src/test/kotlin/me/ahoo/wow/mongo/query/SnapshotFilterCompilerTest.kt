@@ -339,6 +339,40 @@ class SnapshotFilterCompilerTest {
     }
 
     @Test
+    fun `element binding should be preserved when its physical path equals the absolute logical path`() {
+        val mappedSchema = QueryModelSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = mapOf(
+                binding(
+                    logicalPath = "orders",
+                    physicalPath = "storage",
+                    capability = QueryCapability.ELEMENT_SCOPE,
+                    cardinality = QueryCardinality.MANY,
+                    valueTypes = setOf(QueryValueType.OBJECT),
+                ),
+                binding(
+                    logicalPath = "orders.price",
+                    physicalPath = "storage.orders.price",
+                    capability = QueryCapability.EXACT_MATCH,
+                    valueTypes = setOf(QueryValueType.INTEGER),
+                ),
+            ),
+        )
+        val resolved = mappedSchema.resolve(
+            ElementMatchFilter(
+                QueryField("orders"),
+                EqualFilter(QueryField("orders.price"), json(10)),
+            ),
+        ).requireAccepted(QuerySchemaValidationMode.STRICT)
+
+        assertConvert(
+            SnapshotFilterCompiler.compile(resolved, mappedSchema),
+            Filters.elemMatch("storage", Filters.eq("orders.price", 10)),
+        )
+    }
+
+    @Test
     fun `compatible absolute element predicate fields should remain relative`() {
         val mappedSchema = QueryModelSchema(
             model = QueryModel.SNAPSHOT,
@@ -379,16 +413,18 @@ class SnapshotFilterCompilerTest {
             resolvedPath: String = logicalPath,
             rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
             dynamicChildren: Boolean = false,
+            cardinality: QueryCardinality = QueryCardinality.SINGLE,
+            valueTypes: Set<QueryValueType> = setOf(QueryValueType.STRING),
         ): Pair<QueryField, QueryFieldSchema> {
             val logical = QueryField(logicalPath)
             return logical to QueryFieldSchema(
                 title = null,
                 description = null,
                 enumValues = null,
-                valueTypes = setOf(QueryValueType.STRING),
+                valueTypes = valueTypes,
                 nullable = false,
                 required = true,
-                cardinality = QueryCardinality.SINGLE,
+                cardinality = cardinality,
                 semanticType = null,
                 dynamicChildren = dynamicChildren,
                 bindings = mapOf(
