@@ -155,7 +155,7 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 
 typed 与节点返回共享 `SINGLE`、`LIST`、`PAGED`、`CURSOR` 操作类型。Backend 始终返回 `ObjectNode`，Gateway 在通用结果 Filter 完成后按需使用 Jackson 物化 typed 结果。
 
-原 `QueryService<R>` 没有一对一替代类型：存储查询迁移到返回 `ObjectNode` 的 `QueryBackend`，受管入口、过滤链与 typed 物化留在聚合级 `QueryGateway<R>`。原 `QueryGateway` 每次调用接收 `NamedAggregate`；V9 在构造 Gateway 时绑定 `NamedAggregate` 与 routed `QueryBackendBinding`，因此 `single`、`list`、`paged`、`cursor`、`count` 和 `aggregate` 调用不再传聚合参数。新的自定义 `AbstractQueryGateway` 子类应按首选构造合同提供 `namedAggregate`、`binding`、`validationMode`、`targetType`、`filters`、`filterType` 与 `errorHandler`；原先拆分 Backend/Provider 的构造器在 V9.x 仅为源码兼容保留并标记弃用，计划在 10.0.0 删除。没有自定义入口策略时直接使用 Snapshot/EventStream 默认 Gateway。
+原 `QueryService<R>` 没有一对一替代类型：存储查询迁移到返回 `ObjectNode` 的 `QueryBackend`，受管入口、过滤链与 typed 物化留在聚合级 `QueryGateway<R>`。原 `QueryGateway` 每次调用接收 `NamedAggregate`；V9 在构造 Gateway 时绑定 `NamedAggregate` 与 routed `QueryBackendBinding`，因此 `single`、`list`、`paged`、`cursor`、`count` 和 `aggregate` 调用不再传聚合参数。自定义 `AbstractQueryGateway` 子类按新构造合同提供 `namedAggregate`、`binding`、`validationMode`、`targetType`、`filters`、`filterType` 与 `errorHandler`；实现类构造器不属于兼容合同。没有自定义入口策略时直接使用 Snapshot/EventStream 默认 Gateway。
 
 ### 自定义 QueryBackend 迁移
 

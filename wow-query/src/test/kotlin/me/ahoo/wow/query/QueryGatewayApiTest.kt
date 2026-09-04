@@ -26,55 +26,13 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.filter.Handler
-import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
-import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode.COMPATIBLE
-import me.ahoo.wow.query.schema.UnavailableQueryModelSchemaProvider
-import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
-import me.ahoo.wow.serialization.JsonSerializer
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.lang.reflect.Modifier
 
 class QueryGatewayApiTest {
-    @Suppress("DEPRECATION")
-    @Test
-    fun `published gateway constructors should remain source compatible`() {
-        val schemaProvider = UnavailableQueryModelSchemaProvider("test")
-        val targetType = JsonSerializer.typeFactory.constructType(Any::class.java)
-        val snapshotBackend = NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA)
-
-        listOf(
-            object : AbstractQueryGateway<Any>(
-                MOCK_AGGREGATE_METADATA,
-                snapshotBackend,
-                schemaProvider,
-                COMPATIBLE,
-                targetType,
-                emptyList(),
-                QueryGateway::class,
-                QueryLogErrorHandler(),
-            ) {},
-            DefaultSnapshotQueryGateway<Any>(
-                MOCK_AGGREGATE_METADATA,
-                snapshotBackend,
-                schemaProvider,
-                COMPATIBLE,
-                targetType,
-            ),
-            DefaultEventStreamQueryGateway(
-                MOCK_AGGREGATE_METADATA,
-                NoOpEventStreamQueryBackend(MOCK_AGGREGATE_METADATA),
-                schemaProvider,
-                COMPATIBLE,
-            ),
-        ).assert().hasSize(3)
-    }
-
     @Test
     fun `resolved query should retain query and schema identities`() {
         val query = SingleQuery(MatchAllFilter)
