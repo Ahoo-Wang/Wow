@@ -70,8 +70,8 @@ internal class MongoAggregationCompiler(
                             element.filter,
                             schema,
                             logicalParent = logicalParent,
-                            physicalParent = QueryField(physicalParent),
                             resolvedParent = resolvedParent,
+                            physicalParent = QueryField(physicalParent),
                         ),
                     ),
                 )

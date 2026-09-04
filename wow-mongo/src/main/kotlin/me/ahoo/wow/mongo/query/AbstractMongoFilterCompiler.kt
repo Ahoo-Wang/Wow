@@ -87,8 +87,8 @@ abstract class AbstractMongoFilterCompiler(
         filter: FilterExpression,
         schema: QueryModelSchema,
         logicalParent: QueryField? = null,
-        physicalParent: QueryField? = null,
         resolvedParent: QueryField? = logicalParent,
+        physicalParent: QueryField? = null,
     ): Bson = compile(
         filterNormalizerWithoutDefaultDeletion.normalize(filter),
         schema,

@@ -89,6 +89,41 @@ class QueryModelSchemaTest {
     }
 
     @Test
+    fun `schema should reject only ambiguous resolved field bindings`() {
+        val resolvedField = QueryField("document.shared")
+        fun schema(firstPhysicalField: String, secondPhysicalField: String): QueryModelSchema =
+            QueryModelSchema(
+                QueryModel.SNAPSHOT,
+                setOf(QueryCapability.SORT),
+                mapOf(
+                    QueryField("state.first") to fieldSchema(
+                        bindings = mapOf(
+                            QueryCapability.SORT to QueryFieldBinding(
+                                resolvedField,
+                                QueryField(firstPhysicalField),
+                                null,
+                            ),
+                        ),
+                    ),
+                    QueryField("state.second") to fieldSchema(
+                        bindings = mapOf(
+                            QueryCapability.SORT to QueryFieldBinding(
+                                resolvedField,
+                                QueryField(secondPhysicalField),
+                                null,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+
+        assertThrows<QuerySchemaConflictException> {
+            schema("storage.first", "storage.second")
+        }
+        schema("storage.shared", "storage.shared")
+    }
+
+    @Test
     fun `resolved field aliases should retain logical field validation`() {
         val logicalField = QueryField("state.age")
         val resolvedField = QueryField("document.age")

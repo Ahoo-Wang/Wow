@@ -172,16 +172,18 @@ class SnapshotFilterCompilerTest {
         val bson = SnapshotFilterCompiler.compileWithoutDefaultDeletion(
             filter { "quantity" gt 1 },
             schema,
-            parent,
-            parent
+            logicalParent = parent,
+            resolvedParent = parent,
+            physicalParent = parent,
         )
 
         bson.toBsonDocument().toJson().assert().contains("state.orders.lines.quantity")
         SnapshotFilterCompiler.compileWithoutDefaultDeletion(
             filter { "state.orders.lines.quantity" gt 1 },
             schema,
-            parent,
-            parent,
+            logicalParent = parent,
+            resolvedParent = parent,
+            physicalParent = parent,
         )
             .toBsonDocument().toJson().assert()
             .contains("state.orders.lines.quantity")
@@ -189,8 +191,9 @@ class SnapshotFilterCompilerTest {
         SnapshotFilterCompiler.compileWithoutDefaultDeletion(
             filter { "state.orders.lines".exists() },
             schema,
-            parent,
-            parent
+            logicalParent = parent,
+            resolvedParent = parent,
+            physicalParent = parent,
         )
             .toBsonDocument().toJson().assert().contains("state.orders.lines")
     }
@@ -206,8 +209,9 @@ class SnapshotFilterCompilerTest {
         SnapshotFilterCompiler.compileWithoutDefaultDeletion(
             ElementMatchFilter(QueryField("items"), EqualFilter(QueryField("quantity"), json(1))),
             schema,
-            QueryField("state.orders.lines"),
-            QueryField("state.orders.lines"),
+            logicalParent = QueryField("state.orders.lines"),
+            resolvedParent = QueryField("state.orders.lines"),
+            physicalParent = QueryField("state.orders.lines"),
         ).toBsonDocument().assert().isEqualTo(
             Filters.elemMatch("state.orders.lines.items", Filters.eq("quantity", 1)).toBsonDocument(),
         )

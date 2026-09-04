@@ -64,6 +64,24 @@ data class QueryModelSchema(
     val capabilities: Set<QueryCapability>,
     val fields: Map<QueryField, QueryFieldSchema>,
 ) {
+    init {
+        fields.values
+            .flatMap { it.bindings.entries }
+            .groupBy(
+                keySelector = { it.key to it.value.resolvedField },
+                valueTransform = { it.value.physicalField },
+            ).forEach { (resolvedBinding, physicalFields) ->
+                val distinctPhysicalFields = physicalFields.toSet()
+                if (distinctPhysicalFields.size > 1) {
+                    val (capability, resolvedField) = resolvedBinding
+                    throw QuerySchemaConflictException(
+                        "Capability [$capability] maps resolved field [$resolvedField] to conflicting physical fields " +
+                            "[${distinctPhysicalFields.joinToString()}].",
+                    )
+                }
+            }
+    }
+
     @get:JsonIgnore
     internal val maskedFields: Map<QueryField, QueryFieldSchema> = fields.filterValues(QueryFieldSchema::masked)
 
