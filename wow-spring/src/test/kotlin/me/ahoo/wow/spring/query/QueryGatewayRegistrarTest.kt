@@ -133,8 +133,7 @@ class QueryGatewayRegistrarTest {
         val customSnapshotSchemaProvider = RecordingSchemaProvider(QueryModel.SNAPSHOT)
         val customSnapshotGateway = DefaultSnapshotQueryGateway<QueryRegistrarOrderState>(
             namedAggregate = NAMED_AGGREGATE,
-            backend = customSnapshotBackend,
-            schemaProvider = customSnapshotSchemaProvider,
+            binding = QueryBackendBinding(customSnapshotBackend, customSnapshotSchemaProvider),
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
             targetType = JsonSerializer.typeFactory.constructParametricType(
                 MaterializedSnapshot::class.java,
@@ -145,8 +144,7 @@ class QueryGatewayRegistrarTest {
         val customEventSchemaProvider = RecordingSchemaProvider(QueryModel.EVENT_STREAM)
         val customEventGateway = DefaultEventStreamQueryGateway(
             namedAggregate = NAMED_AGGREGATE,
-            backend = customEventBackend,
-            schemaProvider = customEventSchemaProvider,
+            binding = QueryBackendBinding(customEventBackend, customEventSchemaProvider),
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
         )
         context.registerBean(

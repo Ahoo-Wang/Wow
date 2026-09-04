@@ -19,10 +19,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.getRawRequest
 import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestFilter
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
@@ -43,7 +43,7 @@ class SnapshotAggregationHandlerFunctionTest {
         val subscribed = AtomicBoolean()
         val gateway = mockk<SnapshotQueryGateway<Any>> {
             every { aggregate(any()) } returns Flux.deferContextual {
-                it.getRawRequest<MockServerRequest>().assert().isNotNull()
+                it.getRawRequest().assert().isNotNull()
                 subscribed.set(true)
                 Flux.just(JsonNodeFactory.instance.objectNode().put("count", 1L))
             }

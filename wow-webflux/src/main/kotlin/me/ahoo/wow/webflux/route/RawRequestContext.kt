@@ -11,29 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.filter
+package me.ahoo.wow.webflux.route
 
+import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.util.context.ContextView
+import kotlin.jvm.optionals.getOrNull
 
-object Contexts {
-    private const val RAW_REQUEST_KEY = "__RAW_REQUEST___"
+private object RawRequestContextKey
 
-    fun <T : Any> Mono<T>.writeRawRequest(request: Any): Mono<T> {
-        return this.contextWrite {
-            it.put(RAW_REQUEST_KEY, request)
-        }
-    }
+fun ContextView.getRawRequest(): ServerRequest? =
+    getOrEmpty<ServerRequest>(RawRequestContextKey).getOrNull()
 
-    fun <T : Any> Flux<T>.writeRawRequest(request: Any): Flux<T> {
-        return this.contextWrite {
-            it.put(RAW_REQUEST_KEY, request)
-        }
-    }
+fun <T : Any> Mono<T>.writeRawRequest(request: ServerRequest): Mono<T> =
+    contextWrite { it.put(RawRequestContextKey, request) }
 
-    fun <R> ContextView.getRawRequest(): R? {
-        @Suppress("IMPLICIT_NOTHING_TYPE_ARGUMENT_IN_RETURN_POSITION")
-        return this.getOrDefault(RAW_REQUEST_KEY, null)
-    }
-}
+fun <T : Any> Flux<T>.writeRawRequest(request: ServerRequest): Flux<T> =
+    contextWrite { it.put(RawRequestContextKey, request) }

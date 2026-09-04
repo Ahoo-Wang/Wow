@@ -510,8 +510,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         validationMode: QuerySchemaValidationMode,
     ): DefaultSnapshotQueryGateway<Any> = DefaultSnapshotQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA,
-        backend = binding.backend,
-        schemaProvider = binding.schemaProvider,
+        binding = binding,
         validationMode = validationMode,
         targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
