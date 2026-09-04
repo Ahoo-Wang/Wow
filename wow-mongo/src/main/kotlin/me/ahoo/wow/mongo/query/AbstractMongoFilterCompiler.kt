@@ -252,7 +252,7 @@ abstract class AbstractMongoFilterCompiler(
                 ?: schema.resolvePhysicalField(logicalField, capability)
         }
         if (scope.logicalParent != null && schema.field(logicalField)?.binding(capability) == null) {
-            return this
+            return relativeTo(scope.logicalParent) ?: this
         }
         return schema.resolvePhysicalField(this, capability, scope.logicalParent, physicalParent = scope.physicalParent)
     }

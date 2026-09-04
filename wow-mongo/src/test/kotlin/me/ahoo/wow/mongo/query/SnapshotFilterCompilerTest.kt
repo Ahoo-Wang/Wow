@@ -275,6 +275,22 @@ class SnapshotFilterCompilerTest {
         )
     }
 
+    @Test
+    fun `compatible absolute element predicate fields should remain relative`() {
+        assertConvert(
+            compile(
+                ElementMatchFilter(
+                    QueryField("state.orders"),
+                    EqualFilter(QueryField("state.orders.unknown"), json("value")),
+                ),
+            ),
+            Filters.elemMatch(
+                "document.orders",
+                Filters.eq("unknown", "value"),
+            ),
+        )
+    }
+
     companion object {
         private fun json(value: Any?): JsonNode = JsonSerializer.valueToTree(value)
 
