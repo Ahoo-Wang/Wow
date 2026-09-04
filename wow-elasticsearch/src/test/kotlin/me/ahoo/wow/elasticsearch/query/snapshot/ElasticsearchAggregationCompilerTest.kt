@@ -36,6 +36,8 @@ import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.requireAccepted
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
@@ -277,6 +279,37 @@ class ElasticsearchAggregationCompilerTest {
         )
 
         plan.groupSources.single().value().terms().field().assert().isEqualTo("events.payload.data.keyword")
+    }
+
+    @Test
+    fun `compatible aggregation fields should retain the physical element parent`() {
+        val schema = schema(
+            field(
+                "state.orders",
+                QueryCapability.ELEMENT_SCOPE,
+                "storage.orders",
+                "nested",
+                resolvedPath = "document.orders",
+            ),
+        )
+        val query = schema.resolve(
+            aggregation {
+                expand("state.orders")
+                terms("category", "category")
+                dateHistogram("createdAt", AggregationDateUnit.DAY, "day")
+                sum("amount", "amount")
+                sum(field("price") * constant(2.0), "total")
+            },
+        ).requireAccepted(QuerySchemaValidationMode.COMPATIBLE)
+
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
+
+        plan.groupSources[0].value().terms().field().assert().isEqualTo("storage.orders.category")
+        plan.groupSources[1].value().dateHistogram().field().assert().isEqualTo("storage.orders.createdAt")
+        (plan.metrics[0] as ElasticsearchAggregationMetric.Numeric).field.assert()
+            .isEqualTo("storage.orders.amount")
+        plan.runtimeMappings.values.single().script()!!.params().values.map { it.to(Any::class.java) }.assert()
+            .contains("storage.orders.price")
     }
 
     @Test

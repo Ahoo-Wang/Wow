@@ -45,6 +45,28 @@ import java.util.concurrent.TimeUnit
 class MongoAggregationCompilerTest {
 
     @Test
+    fun `resolved alias should win over a declared aggregation capability miss`() {
+        val schema = schema(
+            field(
+                "state.total",
+                QueryCapability.AGGREGATE_NUMERIC,
+                "storage.total",
+                QueryValueType.DECIMAL,
+                resolvedPath = "document.total",
+            ),
+            field("document.total", QueryCapability.PRESENCE, "document.total"),
+        )
+        val query = schema.resolve(
+            aggregation { sum("document.total", "total") },
+        ).requireAccepted(QuerySchemaValidationMode.STRICT)
+
+        MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)[1]
+            .toBsonDocument().toJson().assert()
+            .contains("storage.total")
+            .doesNotContain("document.total")
+    }
+
+    @Test
     fun `any metric should compile a resolved max accumulator and projection`() {
         val schema = schema(
             field(

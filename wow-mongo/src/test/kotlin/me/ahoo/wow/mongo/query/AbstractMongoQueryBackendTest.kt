@@ -282,6 +282,7 @@ class AbstractMongoQueryBackendTest {
 
         builtIns.forEach { (model, logicalId) ->
             val builtIn = builtInCursorBackend(model)
+            val resolvedId = "document.$logicalId"
             listOf(
                 Projection(include = listOf(QueryField("name"))),
                 Projection(exclude = listOf(QueryField(logicalId))),
@@ -300,12 +301,12 @@ class AbstractMongoQueryBackendTest {
                             MatchAllFilter,
                             projection = projection,
                             sort = listOf(
-                                Sort(QueryField(logicalId), Sort.Direction.ASC),
+                                Sort(QueryField(resolvedId), Sort.Direction.ASC),
                                 Sort(QueryField("rank"), Sort.Direction.ASC),
                             ),
                             size = 1,
                         ),
-                        identitySchema(model, logicalId),
+                        identitySchema(model, logicalId, resolvedId),
                     ),
                 ).block()!!
 
@@ -379,7 +380,7 @@ class AbstractMongoQueryBackendTest {
         },
     )
 
-    private fun identitySchema(model: QueryModel, logicalPath: String) = QueryModelSchema(
+    private fun identitySchema(model: QueryModel, logicalPath: String, resolvedPath: String) = QueryModelSchema(
         model,
         emptySet(),
         mapOf(
@@ -387,6 +388,7 @@ class AbstractMongoQueryBackendTest {
                 QueryField(logicalPath),
                 "_id",
                 setOf(QueryCapability.PRESENCE, QueryCapability.SORT),
+                QueryField(resolvedPath),
             ),
         ),
     )
@@ -395,8 +397,9 @@ class AbstractMongoQueryBackendTest {
         logical: QueryField,
         physicalPath: String,
         capabilities: Set<QueryCapability>,
+        resolved: QueryField = logical,
     ): QueryFieldSchema {
-        val binding = QueryFieldBinding(logical, QueryField(physicalPath), QueryStorageType("test"))
+        val binding = QueryFieldBinding(resolved, QueryField(physicalPath), QueryStorageType("test"))
         return QueryFieldSchema(
             title = null,
             description = null,
@@ -409,7 +412,8 @@ class AbstractMongoQueryBackendTest {
             dynamicChildren = false,
             bindings = capabilities.associateWith { binding },
             projectionField = binding.physicalField.takeIf { QueryCapability.PRESENCE in capabilities },
-            rewriteMode = QueryRewriteMode.NONE,
+            rewriteMode = if (resolved == logical) QueryRewriteMode.NONE else QueryRewriteMode.REQUIRED,
+            responseField = logical,
         )
     }
 }

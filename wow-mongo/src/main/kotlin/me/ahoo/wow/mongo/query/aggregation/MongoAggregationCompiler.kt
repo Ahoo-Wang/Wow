@@ -442,7 +442,9 @@ internal class MongoAggregationCompiler(
         capability: QueryCapability,
     ): String {
         val logicalField = parent?.append(this) ?: this
-        schema.field(logicalField)?.binding(capability)?.physicalField?.path?.let { return it }
+        schema.resolveFieldSchema(logicalField, capability)?.binding(capability)?.physicalField?.path?.let {
+            return it
+        }
         if (logicalField in schema.fields) {
             throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
         }
