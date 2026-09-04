@@ -120,6 +120,41 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `resolved element filters should retain logical resolved and physical parents`() {
+        val schema = schema(
+            field(
+                "state.orders",
+                QueryCapability.ELEMENT_SCOPE,
+                "storage.orders",
+                QueryValueType.OBJECT,
+                rewriteMode = QueryRewriteMode.REQUIRED,
+                resolvedPath = "document.orders",
+            ),
+            field(
+                "state.orders.status",
+                QueryCapability.EXACT_MATCH,
+                "storage.orders.status",
+                rewriteMode = QueryRewriteMode.REQUIRED,
+                resolvedPath = "document.orders.status.keyword",
+                additionalCapabilities = setOf(QueryCapability.AGGREGATE_TERMS),
+            ),
+        )
+        val resolved = schema.resolve(
+            aggregation {
+                expand("state.orders") { "status" eq "PAID" }
+                terms("status", "status")
+                count("count")
+            },
+        ).requireAccepted(QuerySchemaValidationMode.STRICT)
+
+        MongoAggregationCompiler(SnapshotFilterCompiler).compile(resolved, schema)
+            .joinToString { it.toBsonDocument().toJson() }.assert()
+            .contains("storage.orders.status")
+            .doesNotContain("state.orders.status.keyword")
+            .doesNotContain("document.orders.status.keyword")
+    }
+
+    @Test
     fun `relative field sharing its parent prefix should still resolve inside the element`() {
         val schema = schema(
             field("body", QueryCapability.ELEMENT_SCOPE, "events", QueryValueType.OBJECT),
@@ -565,6 +600,8 @@ class MongoAggregationCompilerTest {
         semanticType: Temporal? = null,
         dynamicChildren: Boolean = false,
         rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
+        resolvedPath: String = logicalPath,
+        additionalCapabilities: Set<QueryCapability> = emptySet(),
     ): Pair<QueryField, QueryFieldSchema> {
         val source = QueryField(logicalPath)
         val physical = QueryField(
@@ -580,9 +617,9 @@ class MongoAggregationCompilerTest {
             cardinality = QueryCardinality.SINGLE,
             semanticType = semanticType,
             dynamicChildren = dynamicChildren,
-            bindings = mapOf(
-                capability to QueryFieldBinding(source, physical, QueryStorageType("test")),
-            ),
+            bindings = (additionalCapabilities + capability).associateWith {
+                QueryFieldBinding(QueryField(resolvedPath), physical, QueryStorageType("test"))
+            },
             rewriteMode = rewriteMode,
         )
     }

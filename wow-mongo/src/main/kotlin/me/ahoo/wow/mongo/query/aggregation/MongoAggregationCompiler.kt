@@ -45,10 +45,17 @@ internal class MongoAggregationCompiler(
         add(Aggregates.match(filterCompiler.compile(query.filter, schema)))
 
         var logicalParent: QueryField? = null
+        var resolvedParent: QueryField? = null
         var physicalParent: String? = null
         query.elements.forEach { element ->
             val previousLogicalParent = logicalParent
+            val previousResolvedParent = resolvedParent
             logicalParent = previousLogicalParent?.append(element.path) ?: element.path
+            resolvedParent = schema.field(logicalParent)
+                ?.binding(QueryCapability.ELEMENT_SCOPE)
+                ?.resolvedField
+                ?: previousResolvedParent?.append(element.path)
+                ?: logicalParent
             physicalParent = element.path.resolve(
                 parent = previousLogicalParent,
                 physicalParent = physicalParent,
@@ -62,8 +69,9 @@ internal class MongoAggregationCompiler(
                         filterCompiler.compileWithoutDefaultDeletion(
                             element.filter,
                             schema,
-                            logicalParent,
-                            QueryField(physicalParent),
+                            logicalParent = logicalParent,
+                            physicalParent = QueryField(physicalParent),
+                            resolvedParent = resolvedParent,
                         ),
                     ),
                 )

@@ -88,14 +88,16 @@ abstract class AbstractMongoFilterCompiler(
         schema: QueryModelSchema,
         logicalParent: QueryField? = null,
         physicalParent: QueryField? = null,
+        resolvedParent: QueryField? = logicalParent,
     ): Bson = compile(
         filterNormalizerWithoutDefaultDeletion.normalize(filter),
         schema,
-        FilterScope(logicalParent, physicalParent),
+        FilterScope(logicalParent, resolvedParent, physicalParent),
     )
 
     private data class FilterScope(
         val logicalParent: QueryField? = null,
+        val resolvedParent: QueryField? = null,
         val physicalParent: QueryField? = null,
         val relativeToParent: Boolean = false,
     )
@@ -199,8 +201,9 @@ abstract class AbstractMongoFilterCompiler(
                     filter.predicate,
                     schema,
                     FilterScope(
-                        filter.field.absoluteTo(scope.logicalParent),
-                        physicalField.absoluteTo(scope.physicalParent),
+                        logicalParent = filter.field.absoluteTo(scope.logicalParent),
+                        resolvedParent = filter.field.absoluteTo(scope.resolvedParent),
+                        physicalParent = physicalField.absoluteTo(scope.physicalParent),
                         relativeToParent = true,
                     ),
                 ),
@@ -246,18 +249,15 @@ abstract class AbstractMongoFilterCompiler(
         capability: QueryCapability,
         scope: FilterScope,
     ): QueryField {
-        val logicalField = absoluteTo(scope.logicalParent)
-        if (!scope.relativeToParent) {
-            return schema.field(logicalField)?.binding(capability)?.physicalField
-                ?: schema.resolvePhysicalField(logicalField, capability)
-        }
-        return schema.resolvePhysicalField(
+        val physicalField = schema.resolvePhysicalField(
             this,
             capability,
             logicalParent = scope.logicalParent,
-            resolvedParent = scope.logicalParent,
+            resolvedParent = scope.resolvedParent,
             physicalParent = scope.physicalParent,
         )
+        if (scope.relativeToParent || scope.physicalParent == null) return physicalField
+        return physicalField.absoluteTo(scope.physicalParent)
     }
 
     private val StringComparison.ignoreCase: Boolean
