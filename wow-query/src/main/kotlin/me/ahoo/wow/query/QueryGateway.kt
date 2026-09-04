@@ -32,7 +32,6 @@ import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.withSchemaMaskFilter
-import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.serialization.toObject
@@ -57,14 +56,15 @@ interface QueryGateway<R : Any> : NamedAggregateDecorator {
 
 abstract class AbstractQueryGateway<R : Any>(
     override val namedAggregate: NamedAggregate,
-    private val backend: QueryBackend,
-    private val schemaProvider: QueryModelSchemaProvider,
+    binding: QueryBackendBinding<QueryBackend>,
     private val validationMode: QuerySchemaValidationMode,
     private val targetType: JavaType,
     filters: List<QueryFilter<QueryContext<*, *>>>,
     filterType: KClass<*>,
     private val errorHandler: ErrorHandler<QueryContext<*, *>>,
 ) : QueryGateway<R> {
+    private val backend = binding.backend
+    private val schemaProvider = binding.schemaProvider
     private val chain = FilterChainBuilder<QueryContext<*, *>>()
         .addFilters(filters)
         .filterCondition(filterType)

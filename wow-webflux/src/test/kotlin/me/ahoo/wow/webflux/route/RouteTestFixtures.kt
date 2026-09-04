@@ -16,6 +16,7 @@ package me.ahoo.wow.webflux.route
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -37,8 +38,10 @@ internal object RouteTestFixtures {
 
     val snapshotQueryGateway = DefaultSnapshotQueryGateway<Any>(
         namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
-        backend = NoOpSnapshotQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate).backend,
-        schemaProvider = SNAPSHOT_QUERY_SCHEMA_PROVIDER,
+        binding = QueryBackendBinding(
+            NoOpSnapshotQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate).backend,
+            SNAPSHOT_QUERY_SCHEMA_PROVIDER,
+        ),
         validationMode = QuerySchemaValidationMode.COMPATIBLE,
         targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
@@ -48,8 +51,10 @@ internal object RouteTestFixtures {
 
     val eventStreamQueryGateway = DefaultEventStreamQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
-        backend = NoOpEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate).backend,
-        schemaProvider = EVENT_STREAM_QUERY_SCHEMA_PROVIDER,
+        binding = QueryBackendBinding(
+            NoOpEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate).backend,
+            EVENT_STREAM_QUERY_SCHEMA_PROVIDER,
+        ),
         validationMode = QuerySchemaValidationMode.COMPATIBLE,
     )
 }

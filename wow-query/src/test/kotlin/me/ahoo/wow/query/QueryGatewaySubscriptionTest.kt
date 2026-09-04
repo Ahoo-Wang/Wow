@@ -307,8 +307,7 @@ class QueryGatewaySubscriptionTest {
         errorHandler: ErrorHandler<QueryContext<*, *>> = ErrorHandler { _, error -> Mono.error(error) },
     ) = DefaultSnapshotQueryGateway<TestState>(
         MOCK_AGGREGATE_METADATA,
-        backend,
-        provider,
+        QueryBackendBinding(backend, provider),
         QuerySchemaValidationMode.COMPATIBLE,
         JsonSerializer.typeFactory.constructParametricType(MaterializedSnapshot::class.java, TestState::class.java),
         filters,

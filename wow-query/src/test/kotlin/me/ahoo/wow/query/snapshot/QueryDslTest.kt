@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
@@ -41,8 +42,7 @@ class QueryDslTest {
     }
     private val gateway = DefaultSnapshotQueryGateway<Any>(
         MOCK_AGGREGATE_METADATA,
-        NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
-        schemaProvider,
+        QueryBackendBinding(NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA), schemaProvider),
         QuerySchemaValidationMode.COMPATIBLE,
         JsonSerializer.typeFactory.constructParametricType(MaterializedSnapshot::class.java, Any::class.java),
     )

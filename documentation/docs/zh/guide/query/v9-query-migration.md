@@ -155,7 +155,7 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 
 typed 与节点返回共享 `SINGLE`、`LIST`、`PAGED`、`CURSOR` 操作类型。Backend 始终返回 `ObjectNode`，Gateway 在通用结果 Filter 完成后按需使用 Jackson 物化 typed 结果。
 
-原 `QueryService<R>` 没有一对一替代类型：存储查询迁移到返回 `ObjectNode` 的 `QueryBackend`，受管入口、过滤链与 typed 物化留在聚合级 `QueryGateway<R>`。原 `QueryGateway` 每次调用接收 `NamedAggregate`；V9 在构造 Gateway 时绑定 `NamedAggregate` 与 routed `QueryBackendBinding`，因此 `single`、`list`、`paged`、`cursor`、`count` 和 `aggregate` 调用不再传聚合参数。自定义 `AbstractQueryGateway` 子类必须按新构造合同提供 `namedAggregate`、`backend`、`schemaProvider`、`validationMode`、`targetType`、`filters`、`filterType` 与 `errorHandler`；没有自定义入口策略时直接使用 Snapshot/EventStream 默认 Gateway。
+原 `QueryService<R>` 没有一对一替代类型：存储查询迁移到返回 `ObjectNode` 的 `QueryBackend`，受管入口、过滤链与 typed 物化留在聚合级 `QueryGateway<R>`。原 `QueryGateway` 每次调用接收 `NamedAggregate`；V9 在构造 Gateway 时绑定 `NamedAggregate` 与 routed `QueryBackendBinding`，因此 `single`、`list`、`paged`、`cursor`、`count` 和 `aggregate` 调用不再传聚合参数。自定义 `AbstractQueryGateway` 子类按新构造合同提供 `namedAggregate`、`binding`、`validationMode`、`targetType`、`filters`、`filterType` 与 `errorHandler`；实现类构造器不属于兼容合同。没有自定义入口策略时直接使用 Snapshot/EventStream 默认 Gateway。
 
 ### 自定义 QueryBackend 迁移
 
@@ -186,6 +186,7 @@ Filter 不再通过 `QueryType.isDynamic` 判断最终返回 typed 对象还是�
 | 全部六个 `QueryModelSchemaProvider.resolve(query, mode)` 扩展及 Provider 级 `COMPATIBLE` unavailable fallback | 自行调用 `QueryModelSchema.resolve(...)` 并 `requireAccepted(mode)`；所有路径在 Schema 不可用时统一以 `QuerySchemaUnavailableException` 失败关闭。 |
 | `FieldConverter`、`ProjectionConverter` 与 `SortConverter` | 均已删除。使用具体 Backend 的 `*Compiler` 编译，物理路径由 Schema binding 提供；不要调用已删除的 converter API。 |
 | `QueryContext` / `DefaultQueryContext` | `QueryContext` 新增无默认值的 `schema: QueryModelSchema` 成员；`DefaultQueryContext` 第三个构造参数必填。 |
+| `me.ahoo.wow.query.filter.Contexts.getRawRequest/writeRawRequest` | 已删除。WebFlux 代码改用 `me.ahoo.wow.webflux.route.getRawRequest/writeRawRequest`，类型收窄为 `ServerRequest`；删除任意值与调用方强转。 |
 | MongoDB 与 Elasticsearch Backend 构造函数的 `schemaProvider` 参数，以及 Backend 实现或委托 `QueryModelSchemaProvider` | 改为在 Factory 的 `QueryBackendBinding` 中配对 Provider；Backend 不再承载 Provider 能力。 |
 | `requiredQueryModelSchemaProvider()` 扩展 | 从 binding 读取 `factory.create(namedAggregate).schemaProvider`。 |
 | `MongoCollections.findDocument` 四参数公有重载 | 仅存重载要求非空 `QueryModelSchema`。 |

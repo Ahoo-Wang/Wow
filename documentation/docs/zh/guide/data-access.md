@@ -225,7 +225,7 @@ class MemberAbacQueryFilter(
 
 ### 查询入口与策略执行
 
-Spring 注册的聚合 `SnapshotQueryGateway` 与 `EventStreamQueryGateway` 执行已配置的 ABAC 与通用查询过滤器。Registrar 创建一个经路由的 `QueryBackendBinding`，并将该 binding 的 `backend` 和 `schemaProvider` 传给 Gateway。进程内调用不会执行 WebFlux `RewriteRequestFilter`；调用方必须在查询中显式提供 tenant、owner、space 作用域，或通过过滤器支持的受信上下文提供。受管 Gateway 会按 Query Model Schema 自动脱敏查询与 aggregate-state load 结果。完整边界见[字段脱敏](./query/masking.md)。
+Spring 注册的聚合 `SnapshotQueryGateway` 与 `EventStreamQueryGateway` 执行已配置的 ABAC 与通用查询过滤器。Registrar 创建一个经路由的 `QueryBackendBinding`，并将完整 binding 传给 Gateway。进程内调用不会执行 WebFlux `RewriteRequestFilter`；调用方必须在查询中显式提供 tenant、owner、space 作用域，或通过过滤器支持的受信上下文提供。受管 Gateway 会按 Query Model Schema 自动脱敏查询与 aggregate-state load 结果。完整边界见[字段脱敏](./query/masking.md)。
 
 `SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 返回 `QueryBackendBinding`；受信原始执行明确解包 `factory.create(namedAggregate).backend`。它绕过 `QueryGateway` 策略链，属于必须保护的基础设施访问。自定义 Backend 从不实现 Provider；其 Factory 必须在 binding 中显式配对 Backend 与 `QueryModelSchemaProvider`。Schema 不可用时，所有受管查询都会在订阅 Backend 前失败关闭。
 

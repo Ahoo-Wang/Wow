@@ -59,7 +59,6 @@ import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
-import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
@@ -78,6 +77,7 @@ import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
+import me.ahoo.wow.webflux.route.writeRawRequest
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -353,15 +353,6 @@ class HttpQueryGuardFilterTest {
         ).test().verifyComplete()
 
         context.getRequiredResult().test().verifyComplete()
-
-        val propagatedContext = listContext(ListQuery(MatchAllFilter))
-        guard().filter(
-            propagatedContext,
-            FilterChain {
-                it.asListQuery().setResult(Flux.empty())
-                Mono.empty()
-            },
-        ).writeRawRequest(Any()).test().verifyComplete()
     }
 
     @Test
@@ -849,8 +840,10 @@ class HttpQueryGuardFilterTest {
         }
         return DefaultSnapshotQueryGateway(
             namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
-            backend = queryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate).backend,
-            schemaProvider = RouteTestFixtures.SNAPSHOT_QUERY_SCHEMA_PROVIDER,
+            binding = QueryBackendBinding(
+                queryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate).backend,
+                RouteTestFixtures.SNAPSHOT_QUERY_SCHEMA_PROVIDER,
+            ),
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
             targetType = JsonSerializer.typeFactory.constructParametricType(
                 MaterializedSnapshot::class.java,
@@ -863,8 +856,10 @@ class HttpQueryGuardFilterTest {
     private fun eventStreamQueryGateway(guard: HttpQueryGuardFilter = guard()): EventStreamQueryGateway {
         return DefaultEventStreamQueryGateway(
             namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
-            backend = NoOpEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate).backend,
-            schemaProvider = RouteTestFixtures.EVENT_STREAM_QUERY_SCHEMA_PROVIDER,
+            binding = QueryBackendBinding(
+                NoOpEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate).backend,
+                RouteTestFixtures.EVENT_STREAM_QUERY_SCHEMA_PROVIDER,
+            ),
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
             filters = listOf(guard),
         )

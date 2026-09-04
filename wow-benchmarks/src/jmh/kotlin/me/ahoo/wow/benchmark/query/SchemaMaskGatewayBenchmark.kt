@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldSchema
@@ -98,8 +99,7 @@ open class SchemaMaskGatewayBenchmark {
         }
         gateway = DefaultSnapshotQueryGateway(
             namedAggregate = namedAggregate,
-            backend = backend,
-            schemaProvider = schemaProvider,
+            binding = QueryBackendBinding(backend, schemaProvider),
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
             targetType = JsonSerializer.typeFactory.constructType(ObjectNode::class.java),
         )

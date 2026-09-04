@@ -61,7 +61,7 @@ When a same-name Gateway Bean exists, the Registrar retains it. A custom Bean ow
 
 ## How a Gateway binds its Backend
 
-When it creates a Gateway, the registrar calls `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` once with the current `NamedAggregate`. The Factory returns one `QueryBackendBinding`, and the registrar passes its `backend` and `schemaProvider` together to the Gateway. The routing Factory selects an aggregate-specific route or its default at that point. The Gateway then keeps the bound pair instead of selecting again for every request.
+When it creates a Gateway, the registrar calls `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` once with the current `NamedAggregate`. The Factory returns one `QueryBackendBinding`, and the registrar passes that complete binding to the Gateway. The routing Factory selects an aggregate-specific route or its default at that point. The Gateway then keeps the bound pair instead of selecting again for every request.
 
 ## Factories, caching, and storage routing
 

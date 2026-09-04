@@ -531,8 +531,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         )
         val gateway = DefaultSnapshotQueryGateway<Any>(
             namedAggregate = MOCK_AGGREGATE_METADATA,
-            backend = backend,
-            schemaProvider = schemaProvider,
+            binding = QueryBackendBinding(backend, schemaProvider),
             validationMode = QuerySchemaValidationMode.STRICT,
             targetType = JsonSerializer.typeFactory.constructType(Any::class.java),
         )

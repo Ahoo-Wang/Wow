@@ -46,6 +46,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
@@ -308,8 +309,7 @@ class DefaultSnapshotQueryGatewayTest {
         val errors = captureErrors {
             DefaultSnapshotQueryGateway<TestState>(
                 namedAggregate = MOCK_AGGREGATE_METADATA,
-                backend = backend,
-                schemaProvider = backend.schemaProvider,
+                binding = QueryBackendBinding(backend, backend.schemaProvider),
                 validationMode = QuerySchemaValidationMode.COMPATIBLE,
                 targetType = JsonSerializer.typeFactory.constructParametricType(
                     MaterializedSnapshot::class.java,
@@ -458,8 +458,7 @@ class DefaultSnapshotQueryGatewayTest {
         errorHandler: ErrorHandler<QueryContext<*, *>> = ErrorHandler { _, error -> Mono.error(error) },
     ): DefaultSnapshotQueryGateway<TestState> = DefaultSnapshotQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA,
-        backend = backend,
-        schemaProvider = defaultSchemaProvider,
+        binding = QueryBackendBinding(backend, defaultSchemaProvider),
         validationMode = QuerySchemaValidationMode.COMPATIBLE,
         targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
@@ -475,8 +474,7 @@ class DefaultSnapshotQueryGatewayTest {
         errorHandler: ErrorHandler<QueryContext<*, *>> = ErrorHandler { _, error -> Mono.error(error) },
     ): DefaultSnapshotQueryGateway<TestState> = DefaultSnapshotQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA,
-        backend = backend,
-        schemaProvider = backend.schemaProvider,
+        binding = QueryBackendBinding(backend, backend.schemaProvider),
         validationMode = QuerySchemaValidationMode.COMPATIBLE,
         targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
@@ -489,8 +487,7 @@ class DefaultSnapshotQueryGatewayTest {
     private fun gateway(backend: SwitchingSchemaSnapshotBackend): DefaultSnapshotQueryGateway<TestState> =
         DefaultSnapshotQueryGateway(
             namedAggregate = MOCK_AGGREGATE_METADATA,
-            backend = backend,
-            schemaProvider = backend.schemaProvider,
+            binding = QueryBackendBinding(backend, backend.schemaProvider),
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
             targetType = JsonSerializer.typeFactory.constructParametricType(
                 MaterializedSnapshot::class.java,

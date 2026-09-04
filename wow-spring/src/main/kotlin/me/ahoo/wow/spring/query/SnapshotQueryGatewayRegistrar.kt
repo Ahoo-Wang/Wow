@@ -67,8 +67,7 @@ class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
                 as ErrorHandler<QueryContext<*, *>>
             DefaultSnapshotQueryGateway<Any>(
                 namedAggregate = namedAggregate,
-                backend = binding.backend,
-                schemaProvider = binding.schemaProvider,
+                binding = binding,
                 validationMode = validationMode,
                 targetType = JsonSerializer.typeFactory.constructParametricType(
                     MaterializedSnapshot::class.java,
