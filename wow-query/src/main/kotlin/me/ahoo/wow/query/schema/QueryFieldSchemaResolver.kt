@@ -37,6 +37,21 @@ internal class QueryFieldSchemaResolver(
         val binding: QueryFieldBinding,
     )
 
+    private val resolvedFieldIndex = buildMap {
+        schema.fields.forEach { (logical, fieldSchema) ->
+            fieldSchema.bindings.forEach { (capability, binding) ->
+                val resolvedField = ResolvedField(logical, fieldSchema, binding)
+                val existing = putIfAbsent(capability to binding.resolvedField, resolvedField)
+                if (existing != null && existing.binding.physicalField != binding.physicalField) {
+                    throw QuerySchemaConflictException(
+                        "Capability [$capability] maps resolved field [${binding.resolvedField}] to conflicting " +
+                            "physical fields [${existing.binding.physicalField}, ${binding.physicalField}].",
+                    )
+                }
+            }
+        }
+    }
+
     private val elementScopePaths = schema.elementScopePaths
 
     fun resolveProjection(field: QueryField): QuerySchemaResolution<QueryField> = QuerySchemaResolution(
@@ -156,30 +171,23 @@ internal class QueryFieldSchemaResolver(
     }
 
     private fun resolvedField(field: QueryField, capability: QueryCapability): ResolvedField? =
-        schema.fields.asSequence()
+        resolvedFieldIndex[capability to field] ?: schema.fields.asSequence()
+            .filter { (_, fieldSchema) -> fieldSchema.dynamicChildren }
             .mapNotNull { (logical, fieldSchema) ->
                 val binding = fieldSchema.binding(capability) ?: return@mapNotNull null
-                when {
-                    binding.resolvedField == field -> {
-                        binding.resolvedField.path.length to ResolvedField(logical, fieldSchema, binding)
-                    }
-
-                    fieldSchema.dynamicChildren -> field.relativeTo(binding.resolvedField)?.let { relative ->
-                        val dynamicSchema = fieldSchema.resolveDynamic(
-                            source = logical,
-                            relative = relative,
-                            elementAncestor = logical in schema.elementDescendantDynamicFields,
+                field.relativeTo(binding.resolvedField)?.let { relative ->
+                    val dynamicSchema = fieldSchema.resolveDynamic(
+                        source = logical,
+                        relative = relative,
+                        elementAncestor = logical in schema.elementDescendantDynamicFields,
+                    )
+                    dynamicSchema.binding(capability)?.let { dynamicBinding ->
+                        binding.resolvedField.path.length to ResolvedField(
+                            logical.append(relative),
+                            dynamicSchema,
+                            dynamicBinding,
                         )
-                        dynamicSchema.binding(capability)?.let { dynamicBinding ->
-                            binding.resolvedField.path.length to ResolvedField(
-                                logical.append(relative),
-                                dynamicSchema,
-                                dynamicBinding,
-                            )
-                        }
                     }
-
-                    else -> null
                 }
             }
             .maxByOrNull { (prefixLength) -> prefixLength }
