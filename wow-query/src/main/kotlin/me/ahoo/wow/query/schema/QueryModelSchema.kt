@@ -141,6 +141,7 @@ data class QueryModelSchema(
         logicalParent,
         resolvedParent,
         physicalParent,
+        enforceElementScope = false,
     ).let { resolved ->
         resolved.physicalField?.let { physicalField ->
             if (physicalParent == null) {

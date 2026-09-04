@@ -16,7 +16,9 @@ import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.QueryStorageType
+import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -260,6 +262,31 @@ class SnapshotFilterCompilerTest {
     }
 
     @Test
+    fun `resolved filter field should compile to its physical binding`() {
+        val mappedSchema = QueryModelSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = mapOf(
+                binding(
+                    logicalPath = "state.name",
+                    physicalPath = "storage.name",
+                    capability = QueryCapability.EXACT_MATCH,
+                    resolvedPath = "document.name",
+                    rewriteMode = QueryRewriteMode.REQUIRED,
+                ),
+            ),
+        )
+        val resolved = mappedSchema.resolve(
+            EqualFilter(QueryField("state.name"), json("Wow")),
+        ).requireAccepted(QuerySchemaValidationMode.STRICT)
+
+        assertConvert(
+            SnapshotFilterCompiler.compile(resolved, mappedSchema),
+            Filters.eq("storage.name", "Wow"),
+        )
+    }
+
+    @Test
     fun `nested element predicates should use relative physical paths once`() {
         assertConvert(
             compile(
@@ -276,16 +303,67 @@ class SnapshotFilterCompilerTest {
     }
 
     @Test
-    fun `compatible absolute element predicate fields should remain relative`() {
-        assertConvert(
-            compile(
-                ElementMatchFilter(
-                    QueryField("state.orders"),
-                    EqualFilter(QueryField("state.orders.unknown"), json("value")),
+    fun `resolved dynamic element child should compile to its relative physical binding`() {
+        val mappedSchema = QueryModelSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = mapOf(
+                binding(
+                    logicalPath = "state.orders",
+                    physicalPath = "storage.orders",
+                    capability = QueryCapability.ELEMENT_SCOPE,
+                    resolvedPath = "document.orders",
+                    rewriteMode = QueryRewriteMode.REQUIRED,
+                ),
+                binding(
+                    logicalPath = "state.orders.attributes",
+                    physicalPath = "storage.orders.values",
+                    capability = QueryCapability.EXACT_MATCH,
+                    resolvedPath = "document.orders.properties",
+                    rewriteMode = QueryRewriteMode.REQUIRED,
+                    dynamicChildren = true,
                 ),
             ),
+        )
+        val resolved = mappedSchema.resolve(
+            ElementMatchFilter(
+                QueryField("state.orders"),
+                EqualFilter(QueryField("state.orders.attributes.color"), json("blue")),
+            ),
+        ).requireAccepted(QuerySchemaValidationMode.STRICT)
+
+        assertConvert(
+            SnapshotFilterCompiler.compile(resolved, mappedSchema),
+            Filters.elemMatch("storage.orders", Filters.eq("values.color", "blue")),
+        )
+    }
+
+    @Test
+    fun `compatible absolute element predicate fields should remain relative`() {
+        val mappedSchema = QueryModelSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = mapOf(
+                binding(
+                    logicalPath = "state.orders",
+                    physicalPath = "storage.orders",
+                    capability = QueryCapability.ELEMENT_SCOPE,
+                    resolvedPath = "document.orders",
+                    rewriteMode = QueryRewriteMode.REQUIRED,
+                ),
+            ),
+        )
+        val resolved = mappedSchema.resolve(
+            ElementMatchFilter(
+                QueryField("state.orders"),
+                EqualFilter(QueryField("state.orders.unknown"), json("value")),
+            ),
+        ).requireAccepted(QuerySchemaValidationMode.COMPATIBLE)
+
+        assertConvert(
+            SnapshotFilterCompiler.compile(resolved, mappedSchema),
             Filters.elemMatch(
-                "document.orders",
+                "storage.orders",
                 Filters.eq("unknown", "value"),
             ),
         )
@@ -298,6 +376,9 @@ class SnapshotFilterCompilerTest {
             logicalPath: String,
             physicalPath: String,
             capability: QueryCapability,
+            resolvedPath: String = logicalPath,
+            rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
+            dynamicChildren: Boolean = false,
         ): Pair<QueryField, QueryFieldSchema> {
             val logical = QueryField(logicalPath)
             return logical to QueryFieldSchema(
@@ -309,11 +390,15 @@ class SnapshotFilterCompilerTest {
                 required = true,
                 cardinality = QueryCardinality.SINGLE,
                 semanticType = null,
-                dynamicChildren = false,
+                dynamicChildren = dynamicChildren,
                 bindings = mapOf(
-                    capability to QueryFieldBinding(logical, QueryField(physicalPath), QueryStorageType("test")),
+                    capability to QueryFieldBinding(
+                        QueryField(resolvedPath),
+                        QueryField(physicalPath),
+                        QueryStorageType("test"),
+                    ),
                 ),
-                rewriteMode = QueryRewriteMode.NONE,
+                rewriteMode = rewriteMode,
             )
         }
 

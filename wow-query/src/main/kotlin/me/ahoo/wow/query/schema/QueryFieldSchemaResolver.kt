@@ -31,6 +31,12 @@ internal data class QueryFieldResolution(
 internal class QueryFieldSchemaResolver(
     private val schema: QueryModelSchema,
 ) {
+    private data class ResolvedField(
+        val logical: QueryField,
+        val fieldSchema: QueryFieldSchema,
+        val binding: QueryFieldBinding,
+    )
+
     private val elementScopePaths = schema.elementScopePaths
 
     fun resolveProjection(field: QueryField): QuerySchemaResolution<QueryField> = QuerySchemaResolution(
@@ -54,38 +60,64 @@ internal class QueryFieldSchemaResolver(
         enforceElementScope: Boolean = true,
     ): QueryFieldResolution {
         val logical = field.absoluteTo(logicalParent)
-        if (enforceElementScope && !logical.isInElementScope(logicalParent)) {
-            return QueryFieldResolution(
-                logical,
-                field,
-                QueryCompatibilityLevel.INCOMPATIBLE,
-                elementScopeAccepted = false,
-            )
-        }
         val declaredFieldSchema = schema.fields[logical]
         val fieldSchema = declaredFieldSchema ?: schema.field(logical)
-            ?: return QueryFieldResolution(
-                logical,
+        if (fieldSchema != null) {
+            if (enforceElementScope && !logical.isInElementScope(logicalParent)) {
+                return incompatibleElementScope(logical, field)
+            }
+            val binding = fieldSchema.binding(capability)
+                ?: return QueryFieldResolution(
+                    logical,
+                    field.relativeTo(logicalParent, resolvedParent),
+                    if (declaredFieldSchema == null && fieldSchema.dynamicChildren) {
+                        QueryCompatibilityLevel.COMPATIBLE
+                    } else {
+                        QueryCompatibilityLevel.INCOMPATIBLE
+                    },
+                )
+            return resolveBinding(field, logical, fieldSchema, binding, resolvedParent, physicalParent)
+        }
+
+        resolvedField(field.absoluteTo(resolvedParent ?: logicalParent), capability)?.let { resolved ->
+            if (enforceElementScope && !resolved.logical.isInElementScope(logicalParent)) {
+                return incompatibleElementScope(resolved.logical, field)
+            }
+            return resolveBinding(
                 field,
-                if (
-                    logical.path.startsWith("${StateAggregateRecords.TAGS}.") &&
-                    schema.fields[QueryField(StateAggregateRecords.TAGS)]?.dynamicChildren == false
-                ) {
-                    QueryCompatibilityLevel.INCOMPATIBLE
-                } else {
-                    QueryCompatibilityLevel.COMPATIBLE
-                },
+                resolved.logical,
+                resolved.fieldSchema,
+                resolved.binding,
+                resolvedParent,
+                physicalParent,
             )
-        val binding = fieldSchema.binding(capability)
-            ?: return QueryFieldResolution(
-                logical,
-                field,
-                if (declaredFieldSchema == null && fieldSchema.dynamicChildren) {
-                    QueryCompatibilityLevel.COMPATIBLE
-                } else {
-                    QueryCompatibilityLevel.INCOMPATIBLE
-                },
-            )
+        }
+
+        if (enforceElementScope && !logical.isInElementScope(logicalParent)) {
+            return incompatibleElementScope(logical, field)
+        }
+        return QueryFieldResolution(
+            logical,
+            field.relativeTo(logicalParent, resolvedParent),
+            if (
+                logical.path.startsWith("${StateAggregateRecords.TAGS}.") &&
+                schema.fields[QueryField(StateAggregateRecords.TAGS)]?.dynamicChildren == false
+            ) {
+                QueryCompatibilityLevel.INCOMPATIBLE
+            } else {
+                QueryCompatibilityLevel.COMPATIBLE
+            },
+        )
+    }
+
+    private fun resolveBinding(
+        field: QueryField,
+        logical: QueryField,
+        fieldSchema: QueryFieldSchema,
+        binding: QueryFieldBinding,
+        resolvedParent: QueryField?,
+        physicalParent: QueryField?,
+    ): QueryFieldResolution {
         val resolved = if (resolvedParent == null) {
             binding.resolvedField
         } else {
@@ -122,6 +154,47 @@ internal class QueryFieldSchemaResolver(
             physicalField = binding.physicalField,
         )
     }
+
+    private fun resolvedField(field: QueryField, capability: QueryCapability): ResolvedField? =
+        schema.fields.asSequence()
+            .mapNotNull { (logical, fieldSchema) ->
+                val binding = fieldSchema.binding(capability) ?: return@mapNotNull null
+                when {
+                    binding.resolvedField == field -> {
+                        binding.resolvedField.path.length to ResolvedField(logical, fieldSchema, binding)
+                    }
+
+                    fieldSchema.dynamicChildren -> field.relativeTo(binding.resolvedField)?.let { relative ->
+                        val dynamicSchema = fieldSchema.resolveDynamic(
+                            source = logical,
+                            relative = relative,
+                            elementAncestor = logical in schema.elementDescendantDynamicFields,
+                        )
+                        dynamicSchema.binding(capability)?.let { dynamicBinding ->
+                            binding.resolvedField.path.length to ResolvedField(
+                                logical.append(relative),
+                                dynamicSchema,
+                                dynamicBinding,
+                            )
+                        }
+                    }
+
+                    else -> null
+                }
+            }
+            .maxByOrNull { (prefixLength) -> prefixLength }
+            ?.second
+
+    private fun incompatibleElementScope(logical: QueryField, value: QueryField): QueryFieldResolution =
+        QueryFieldResolution(
+            logical,
+            value,
+            QueryCompatibilityLevel.INCOMPATIBLE,
+            elementScopeAccepted = false,
+        )
+
+    private fun QueryField.relativeTo(logicalParent: QueryField?, resolvedParent: QueryField?): QueryField =
+        logicalParent?.let(::relativeTo) ?: resolvedParent?.let(::relativeTo) ?: this
 
     private fun QueryField.isInElementScope(parent: QueryField?): Boolean {
         if (elementScopePaths.isEmpty()) return true

@@ -69,6 +69,52 @@ class QueryModelSchemaTest {
     }
 
     @Test
+    fun `physical field resolution should map an already resolved field`() {
+        val logicalField = QueryField("state.name")
+        val resolvedField = QueryField("document.name")
+        val physicalField = QueryField("storage.name")
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            setOf(QueryCapability.SORT),
+            mapOf(
+                logicalField to fieldSchema(
+                    bindings = mapOf(
+                        QueryCapability.SORT to QueryFieldBinding(resolvedField, physicalField, null),
+                    ),
+                ),
+            ),
+        )
+
+        schema.resolvePhysicalField(resolvedField, QueryCapability.SORT).assert().isEqualTo(physicalField)
+    }
+
+    @Test
+    fun `resolved field aliases should retain logical field validation`() {
+        val logicalField = QueryField("state.age")
+        val resolvedField = QueryField("document.age")
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(
+                logicalField to fieldSchema(
+                    bindings = mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                            resolvedField,
+                            QueryField("storage.age"),
+                            null,
+                        ),
+                    ),
+                    rewriteMode = QueryRewriteMode.REQUIRED,
+                    valueTypes = setOf(QueryValueType.INTEGER),
+                ),
+            ),
+        )
+
+        schema.resolve(EqualFilter(resolvedField, JsonNodeFactory.instance.stringNode("invalid")))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
     fun `projection field should default to presence physical field`() {
         val resolvedField = QueryField("document.name")
         val physicalField = QueryField("storage.name")
@@ -130,6 +176,41 @@ class QueryModelSchemaTest {
             resolvedParent,
             physicalParent,
         ).assert().isEqualTo(QueryField("price.keyword"))
+    }
+
+    @Test
+    fun `physical field resolution should map a resolved dynamic child within an element parent`() {
+        val logicalParent = QueryField("state.orders")
+        val resolvedParent = QueryField("document.orders")
+        val physicalParent = QueryField("storage.orders")
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            setOf(QueryCapability.EXACT_MATCH),
+            mapOf(
+                logicalParent to fieldSchema(
+                    bindings = mapOf(
+                        QueryCapability.ELEMENT_SCOPE to QueryFieldBinding(resolvedParent, physicalParent, null),
+                    ),
+                ),
+                QueryField("state.orders.attributes") to fieldSchema(
+                    dynamicChildren = true,
+                    bindings = mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                            QueryField("document.orders.properties"),
+                            QueryField("storage.orders.values"),
+                            null,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        schema.resolvePhysicalField(
+            QueryField("properties.color"),
+            QueryCapability.EXACT_MATCH,
+            logicalParent = resolvedParent,
+            physicalParent = physicalParent,
+        ).assert().isEqualTo(QueryField("values.color"))
     }
 
     @Test
