@@ -52,7 +52,7 @@ class ElasticsearchFilterCompilerTest {
         ).multiMatch().lenient().assert().isNull()
     }
 
-    private fun assertConvert(actual: Query, expected: Query) {
+    private fun assertCompiled(actual: Query, expected: Query) {
         actual._kind().assert().isEqualTo(Query.Kind.Bool)
         val filters = actual.bool().filter()
         filters.first().term().field().assert().isEqualTo(StateAggregateRecords.DELETED)
@@ -70,16 +70,16 @@ class ElasticsearchFilterCompilerTest {
 
     @Test
     fun `snapshot metadata filters should use document ids`() {
-        assertConvert(SnapshotFilterCompiler.compile(IdFilter("id-1")), ids { it.values("id-1") })
-        assertConvert(
+        assertCompiled(SnapshotFilterCompiler.compile(IdFilter("id-1")), ids { it.values("id-1") })
+        assertCompiled(
             SnapshotFilterCompiler.compile(AggregateIdFilter("aggregate-1")),
             ids { it.values("aggregate-1") },
         )
-        assertConvert(
+        assertCompiled(
             SnapshotFilterCompiler.compile(IdsFilter(listOf("id-1", "id-2"))),
             ids { it.values("id-1", "id-2") },
         )
-        assertConvert(
+        assertCompiled(
             SnapshotFilterCompiler.compile(AggregateIdsFilter(listOf("aggregate-1", "aggregate-2"))),
             ids { it.values("aggregate-1", "aggregate-2") },
         )
@@ -87,15 +87,15 @@ class ElasticsearchFilterCompilerTest {
 
     @Test
     fun `metadata scope filters should use source metadata fields`() {
-        assertConvert(
+        assertCompiled(
             SnapshotFilterCompiler.compile(TenantIdFilter("tenant-1")),
             term { it.field(MessageRecords.TENANT_ID).value("tenant-1") },
         )
-        assertConvert(
+        assertCompiled(
             SnapshotFilterCompiler.compile(OwnerIdFilter("owner-1")),
             term { it.field(MessageRecords.OWNER_ID).value("owner-1") },
         )
-        assertConvert(
+        assertCompiled(
             SnapshotFilterCompiler.compile(SpaceIdFilter("space-1")),
             term { it.field(MessageRecords.SPACE_ID).value("space-1") },
         )
@@ -103,11 +103,11 @@ class ElasticsearchFilterCompilerTest {
 
     @Test
     fun `generic document id predicates should preserve exact id queries`() {
-        assertConvert(
+        assertCompiled(
             SnapshotFilterCompiler.compile(EqualFilter(QueryField("_id"), json("id-1"))),
             ids { it.values("id-1") },
         )
-        assertConvert(
+        assertCompiled(
             SnapshotFilterCompiler.compile(InFilter(QueryField("_id"), listOf(json("id-1"), json("id-2")))),
             ids { it.values("id-1", "id-2") },
         )
@@ -118,7 +118,7 @@ class ElasticsearchFilterCompilerTest {
         val nativeValue = UUID.fromString("f0191fbe-b181-4531-84be-4e8609e32966")
         val arrayValue = listOf("a", "b")
 
-        assertConvert(
+        assertCompiled(
             SnapshotFilterCompiler.compile(EqualFilter(QueryField("state.tags"), json(arrayValue))),
             term { it.field("state.tags").value(FieldValue.of(arrayValue)) },
         )

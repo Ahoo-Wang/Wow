@@ -26,10 +26,6 @@ object ElasticsearchProjectionCompiler {
         }
     }
 
-    internal fun Projection.toSourceFilter(schema: QueryModelSchema): SourceFilter {
-        return compile(this, schema)
-    }
-
     private fun List<QueryField>.toSourceFields(schema: QueryModelSchema): List<String> =
         flatMap { field ->
             val path = schema.field(field)?.projectionField?.path ?: field.path

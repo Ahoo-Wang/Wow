@@ -48,7 +48,7 @@ class SnapshotFilterCompilerTest {
 
     private fun compile(filter: FilterExpression): Bson = SnapshotFilterCompiler.compile(filter, schema)
 
-    private fun assertConvert(actual: Bson, expected: Bson) {
+    private fun assertCompiled(actual: Bson, expected: Bson) {
         val deletionBson = Filters.and(
             Filters.eq(StateAggregateRecords.DELETED, false),
             expected
@@ -58,12 +58,12 @@ class SnapshotFilterCompilerTest {
 
     @Test
     fun `snapshot metadata filters should target document and metadata fields`() {
-        assertConvert(compile(IdFilter("id-1")), Filters.eq(Documents.ID_FIELD, "id-1"))
-        assertConvert(
+        assertCompiled(compile(IdFilter("id-1")), Filters.eq(Documents.ID_FIELD, "id-1"))
+        assertCompiled(
             compile(AggregateIdFilter("aggregate-1")),
             Filters.eq(Documents.ID_FIELD, "aggregate-1"),
         )
-        assertConvert(
+        assertCompiled(
             compile(TenantIdFilter("tenant-1")),
             Filters.eq(MessageRecords.TENANT_ID, "tenant-1"),
         )
@@ -71,7 +71,7 @@ class SnapshotFilterCompilerTest {
 
     @Suppress("DEPRECATION")
     @Test
-    fun `direct converter execution should accept a converted legacy condition`() {
+    fun `compiler should accept a legacy condition as a filter expression`() {
         compile(Condition.id("id-1").toFilterExpression()).toBsonDocument().assert()
             .isEqualTo(
                 Filters.and(
@@ -85,17 +85,17 @@ class SnapshotFilterCompilerTest {
     @Test
     fun `equality filters should preserve scalar arrays and legacy ObjectId values`() {
         val objectId = ObjectId()
-        assertConvert(
+        assertCompiled(
             compile(EqualFilter(QueryField("state.tags"), json(listOf("a", "b")))),
             Filters.eq("state.tags", listOf("a", "b")),
         )
-        assertConvert(
+        assertCompiled(
             compile(
                 NotEqualFilter(QueryField("state.tags"), json(listOf("a", "b"))),
             ),
             Filters.ne("state.tags", listOf("a", "b")),
         )
-        assertConvert(
+        assertCompiled(
             compile(
                 Condition.eq("timestamp", objectId).toFilterExpression(),
             ),
@@ -108,15 +108,15 @@ class SnapshotFilterCompilerTest {
     fun `legacy collection predicates should preserve ObjectId values`() {
         val objectId = ObjectId()
 
-        assertConvert(
+        assertCompiled(
             compile(Condition.isIn("timestamp", listOf(objectId)).toFilterExpression()),
             Filters.`in`("timestamp", objectId),
         )
-        assertConvert(
+        assertCompiled(
             compile(Condition.notIn("timestamp", listOf(objectId)).toFilterExpression()),
             Filters.nin("timestamp", objectId),
         )
-        assertConvert(
+        assertCompiled(
             compile(Condition.all("timestamp", listOf(objectId)).toFilterExpression()),
             Filters.all("timestamp", objectId),
         )
@@ -128,23 +128,23 @@ class SnapshotFilterCompilerTest {
         val lower = Date(1_000)
         val upper = Date(2_000)
 
-        assertConvert(
+        assertCompiled(
             compile(Condition.gt("createdAt", lower).toFilterExpression()),
             Filters.gt("createdAt", lower),
         )
-        assertConvert(
+        assertCompiled(
             compile(Condition.gte("createdAt", lower).toFilterExpression()),
             Filters.gte("createdAt", lower),
         )
-        assertConvert(
+        assertCompiled(
             compile(Condition.lt("createdAt", upper).toFilterExpression()),
             Filters.lt("createdAt", upper),
         )
-        assertConvert(
+        assertCompiled(
             compile(Condition.lte("createdAt", upper).toFilterExpression()),
             Filters.lte("createdAt", upper),
         )
-        assertConvert(
+        assertCompiled(
             compile(Condition.between("createdAt", lower, upper).toFilterExpression()),
             Filters.and(Filters.gte("createdAt", lower), Filters.lte("createdAt", upper)),
         )
@@ -152,7 +152,7 @@ class SnapshotFilterCompilerTest {
 
     @Test
     fun `element predicate fields should remain relative`() {
-        assertConvert(
+        assertCompiled(
             compile(
                 ElementMatchFilter(
                     QueryField("state.items"),
@@ -250,16 +250,16 @@ class SnapshotFilterCompilerTest {
     @ParameterizedTest
     @MethodSource("mongoFilterParameters")
     fun `should compile typed filter`(filter: FilterExpression, expected: Bson) {
-        assertConvert(compile(filter), expected)
+        assertCompiled(compile(filter), expected)
     }
 
     @Test
     fun `exact binding and compatible fields should use physical and original paths`() {
-        assertConvert(
+        assertCompiled(
             compile(EqualFilter(QueryField("state.paymentStatus"), json("PAID"))),
             Filters.eq("document.paymentStatus", "PAID"),
         )
-        assertConvert(
+        assertCompiled(
             compile(EqualFilter(QueryField("state.dynamic"), json("value"))),
             Filters.eq("state.dynamic", "value")
         )
@@ -284,7 +284,7 @@ class SnapshotFilterCompilerTest {
             EqualFilter(QueryField("state.name"), json("Wow")),
         ).requireAccepted(QuerySchemaValidationMode.STRICT)
 
-        assertConvert(
+        assertCompiled(
             SnapshotFilterCompiler.compile(resolved, mappedSchema),
             Filters.eq("storage.name", "Wow"),
         )
@@ -292,7 +292,7 @@ class SnapshotFilterCompilerTest {
 
     @Test
     fun `nested element predicates should use relative physical paths once`() {
-        assertConvert(
+        assertCompiled(
             compile(
                 ElementMatchFilter(
                     QueryField("state.orders"),
@@ -336,7 +336,7 @@ class SnapshotFilterCompilerTest {
             ),
         ).requireAccepted(QuerySchemaValidationMode.STRICT)
 
-        assertConvert(
+        assertCompiled(
             SnapshotFilterCompiler.compile(resolved, mappedSchema),
             Filters.elemMatch("storage.orders", Filters.eq("values.color", "blue")),
         )
@@ -370,7 +370,7 @@ class SnapshotFilterCompilerTest {
             ),
         ).requireAccepted(QuerySchemaValidationMode.STRICT)
 
-        assertConvert(
+        assertCompiled(
             SnapshotFilterCompiler.compile(resolved, mappedSchema),
             Filters.elemMatch("storage", Filters.eq("orders.price", 10)),
         )
@@ -398,7 +398,7 @@ class SnapshotFilterCompilerTest {
             ),
         ).requireAccepted(QuerySchemaValidationMode.COMPATIBLE)
 
-        assertConvert(
+        assertCompiled(
             SnapshotFilterCompiler.compile(resolved, mappedSchema),
             Filters.elemMatch(
                 "storage.orders",

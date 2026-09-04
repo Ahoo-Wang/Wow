@@ -20,24 +20,24 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
 import org.bson.conversions.Bson
 
-class MongoSortCompiler {
+internal object MongoSortCompiler {
 
     fun compile(sort: List<Sort>, schema: QueryModelSchema): Bson? = compilePhysical(
-        sort.map { item -> item.copy(field = QueryField(physicalField(item.field, schema))) },
+        sort.map { item -> item.copy(field = physicalField(item.field, schema)) },
     )
 
-    internal fun physicalField(field: QueryField, schema: QueryModelSchema): String =
-        schema.resolvePhysicalField(field, QueryCapability.SORT).path
+    internal fun physicalField(field: QueryField, schema: QueryModelSchema): QueryField =
+        schema.resolvePhysicalField(field, QueryCapability.SORT)
 
     internal fun compilePhysical(sort: List<Sort>): Bson? {
         if (sort.isEmpty()) return null
-        return sort.map {
-            when (it.direction) {
-                Sort.Direction.ASC -> Sorts.ascending(it.field.path)
-                Sort.Direction.DESC -> Sorts.descending(it.field.path)
-            }
-        }.toList().let {
-            Sorts.orderBy(it)
-        }
+        return Sorts.orderBy(
+            sort.map {
+                when (it.direction) {
+                    Sort.Direction.ASC -> Sorts.ascending(it.field.path)
+                    Sort.Direction.DESC -> Sorts.descending(it.field.path)
+                }
+            },
+        )
     }
 }

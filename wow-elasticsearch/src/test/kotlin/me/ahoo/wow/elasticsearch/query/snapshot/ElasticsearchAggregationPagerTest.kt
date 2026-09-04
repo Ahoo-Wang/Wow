@@ -560,7 +560,7 @@ class ElasticsearchAggregationPagerTest {
 
                     private fun unavailable(): Mono<QueryModelSchema> = Mono.error(
                         QuerySchemaUnavailableException(
-                            "Elasticsearch query schema is unavailable for custom filter converters.",
+                            "Elasticsearch query schema is unavailable for custom filter compilers.",
                         ),
                     )
                 },
@@ -582,7 +582,7 @@ class ElasticsearchAggregationPagerTest {
             .expectErrorSatisfies { error ->
                 error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
                 error.message.assert().isEqualTo(
-                    "Elasticsearch query schema is unavailable for custom filter converters.",
+                    "Elasticsearch query schema is unavailable for custom filter compilers.",
                 )
             }
             .verify()

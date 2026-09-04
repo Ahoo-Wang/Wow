@@ -24,7 +24,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
-import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOptions
+import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler
 import me.ahoo.wow.elasticsearch.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
@@ -155,15 +155,17 @@ class ElasticsearchEventStore(
         descending: Boolean = false,
     ): Mono<List<Hit<DomainEventStream>>> {
         val query = EventStreamFilterCompiler.compile(filter)
-        val sort = sort {
-            if (descending) {
-                MessageRecords.VERSION.desc()
-                MessageRecords.ID.desc()
-            } else {
-                MessageRecords.VERSION.asc()
-                MessageRecords.ID.asc()
-            }
-        }.toSortOptions()
+        val sort = ElasticsearchSortCompiler.compile(
+            sort {
+                if (descending) {
+                    MessageRecords.VERSION.desc()
+                    MessageRecords.ID.desc()
+                } else {
+                    MessageRecords.VERSION.asc()
+                    MessageRecords.ID.asc()
+                }
+            },
+        )
         return elasticsearchClient
             .search({ request ->
                 request
@@ -211,7 +213,7 @@ class ElasticsearchEventStore(
             MessageRecords.AGGREGATE_ID gt afterId
             MessageRecords.VERSION eq Version.INITIAL_VERSION
         }
-        val sort = sort { MessageRecords.AGGREGATE_ID.asc() }.toSortOptions()
+        val sort = ElasticsearchSortCompiler.compile(sort { MessageRecords.AGGREGATE_ID.asc() })
         return elasticsearchClient
             .search({
                 it

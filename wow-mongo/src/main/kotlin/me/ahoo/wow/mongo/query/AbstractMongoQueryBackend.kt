@@ -25,7 +25,6 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
@@ -44,12 +43,10 @@ import tools.jackson.databind.node.ObjectNode
 abstract class AbstractMongoQueryBackend : QueryBackend {
     abstract val collection: MongoCollection<Document>
     abstract val filterCompiler: AbstractMongoFilterCompiler
-    abstract val projectionCompiler: MongoProjectionCompiler
-    abstract val sortCompiler: MongoSortCompiler
     protected abstract fun toObjectNode(document: Document): ObjectNode
 
     internal fun findDocument(queryable: Queryable<*>, schema: QueryModelSchema): FindPublisher<Document> {
-        return collection.findDocument(filterCompiler, queryable, projectionCompiler, sortCompiler, schema)
+        return collection.findDocument(filterCompiler, queryable, schema)
     }
 
     internal fun executeSingle(singleQuery: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> =
@@ -75,9 +72,9 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     }
 
     internal fun executePaged(pagedQuery: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> {
-        val projectionBson = projectionCompiler.compile(pagedQuery.projection, schema)
+        val projectionBson = MongoProjectionCompiler.compile(pagedQuery.projection, schema)
         val filter = filterCompiler.compile(pagedQuery.filter, schema)
-        val sort = sortCompiler.compile(pagedQuery.sort, schema)
+        val sort = MongoSortCompiler.compile(pagedQuery.sort, schema)
 
         val totalPublisher = collection.countDocuments(filter).toMono()
         val listPublisher = collection.find(filter)
@@ -99,12 +96,12 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
         executePaged(query.query, query.schema)
 
     internal fun executeCursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> {
-        val physicalSort = query.sort.map { it.copy(field = QueryField(sortCompiler.physicalField(it.field, schema))) }
+        val physicalSort = query.sort.map { it.copy(field = MongoSortCompiler.physicalField(it.field, schema)) }
         val filter = query.cursor?.let {
             MongoCursorFilterCompiler.compile(physicalSort, MongoCursorCodec.decode(it, query.sort.size))
         }?.let { Filters.and(filterCompiler.compile(query.filter, schema), it) }
             ?: filterCompiler.compile(query.filter, schema)
-        val projection = projectionCompiler.cursorProjection(
+        val projection = MongoProjectionCompiler.cursorProjection(
             query.projection,
             physicalSort.map { it.field.path },
             schema,
@@ -114,8 +111,8 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
             .filter { (physical) -> physical.field.path in deferredInternalFields }
             .map { (_, logical) -> logical.field.path }
         return collection.find(filter)
-            .projection(projectionCompiler.compile(projection))
-            .sort(sortCompiler.compilePhysical(physicalSort))
+            .projection(MongoProjectionCompiler.compile(projection))
+            .sort(MongoSortCompiler.compilePhysical(physicalSort))
             .limit(query.size + 1)
             .toFlux()
             .collectList()

@@ -169,7 +169,7 @@ filterExpression {
 
 #### 后端实现
 
-- **MongoDB**：转换为 MongoDB 的 `$text` 查询。`TERMS` 直接使用查询文本；`PHRASE` 会将查询文本包装为双引号短语，查询文本本身不能包含双引号。collection 必须存在 text index，可搜索字段由该 text index 决定。当前 MongoDB 转换器不会把 `fields` 编译成逐字段限制；显式字段通常会在 Schema 层以 `COMPATIBLE` 方式降级为不带字段的 `$text` 查询，严格校验模式会拒绝它。
+- **MongoDB**：转换为 MongoDB 的 `$text` 查询。`TERMS` 直接使用查询文本；`PHRASE` 会将查询文本包装为双引号短语，查询文本本身不能包含双引号。collection 必须存在 text index，可搜索字段由该 text index 决定。当前 MongoDB Compiler 不会把 `fields` 编译成逐字段限制；显式字段通常会在 Schema 层以 `COMPATIBLE` 方式降级为不带字段的 `$text` 查询，严格校验模式会拒绝它。
 - **Elasticsearch**：转换为 `multi_match` 查询。指定 `fields` 且精确解析时，字段会映射为 Elasticsearch 的物理字段路径；不指定时由 `index.query.default_field` 决定，并设置 `lenient`。如果显式字段没有精确解析，兼容校验模式同样可能先将其清空，再执行默认字段范围的搜索。`TERMS` 使用 `multi_match` 默认的 `best_fields` 语义，即各字段分别执行 `match`，使用最佳字段的相关性得分；`PHRASE` 设置 `type: phrase`，相当于对各字段执行 `match_phrase`。字段是否支持全文或短语搜索由 Elasticsearch mapping 和 Query Schema 决定。
 
 `SEARCH` 是 root-only 过滤器，不能放入 `ELEMENT_MATCH` 的元素谓词中。需要字面量的包含、前缀或后缀匹配时，应使用 `CONTAINS`、`STARTS_WITH` 或 `ENDS_WITH`。

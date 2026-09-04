@@ -18,7 +18,6 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionCompiler.toSourceFilter
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
@@ -33,14 +32,6 @@ class ElasticsearchProjectionCompilerTest {
             QueryField("state.name") to projectionFieldSchema(QueryField("document.name")),
         ),
     )
-
-    @Test
-    fun `should require schema when converting projection`() {
-        val projection = Projection(include = listOf(QueryField("state")))
-
-        projection.toSourceFilter(schema).includes().assert()
-            .containsExactly("document", "document.*")
-    }
 
     @Test
     fun `should compile included logical subtrees to source filters`() {

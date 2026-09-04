@@ -36,7 +36,7 @@ import java.util.stream.Stream
 
 class MongoProjectionCompilerTest {
 
-    private val compiler = MongoProjectionCompiler()
+    private val compiler = MongoProjectionCompiler
     private val snapshotSchema = projectionSchema(QueryModel.SNAPSHOT, MessageRecords.AGGREGATE_ID)
     private val eventStreamSchema = projectionSchema(QueryModel.EVENT_STREAM, MessageRecords.ID)
 

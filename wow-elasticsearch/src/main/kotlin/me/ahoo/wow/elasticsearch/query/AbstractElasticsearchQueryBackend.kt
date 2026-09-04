@@ -33,8 +33,6 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.isEmpty
-import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionCompiler.toSourceFilter
-import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOptions
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
 import me.ahoo.wow.query.QueryBackend
@@ -140,7 +138,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         query.cursor?.let { cursor -> ElasticsearchCursorCodec.decode(cursor, query.sort.size) }
             ?.let(it::searchAfter)
         if (!query.projection.isEmpty()) {
-            it.source { source -> source.filter(query.projection.toSourceFilter(schema)) }
+            it.source { source -> source.filter(ElasticsearchProjectionCompiler.compile(query.projection, schema)) }
         }
         it
     }
@@ -165,7 +163,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             }
             if (!query.projection.isEmpty()) {
                 it.source { source ->
-                    source.filter(query.projection.toSourceFilter(schema))
+                    source.filter(ElasticsearchProjectionCompiler.compile(query.projection, schema))
                 }
             }
             it
@@ -174,7 +172,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     }
 
     private fun IListQuery.sourceFilter(schema: QueryModelSchema): SourceFilter? {
-        return if (projection.isEmpty()) null else projection.toSourceFilter(schema)
+        return if (projection.isEmpty()) null else ElasticsearchProjectionCompiler.compile(projection, schema)
     }
 
     private fun List<SortOptions>.searchAfterSort(): List<SortOptions> {
@@ -252,7 +250,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     private fun compile(filter: FilterExpression, sort: List<Sort>): CompiledQuery =
         CompiledQuery(
             query = filterCompiler.compile(filter),
-            sortOptions = sort.toSortOptions(),
+            sortOptions = ElasticsearchSortCompiler.compile(sort),
         )
 
     private data class CompiledQuery(

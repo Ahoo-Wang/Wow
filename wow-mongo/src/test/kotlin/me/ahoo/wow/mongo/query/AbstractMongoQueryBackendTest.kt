@@ -26,8 +26,6 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.Queryable
-import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -63,47 +61,7 @@ class AbstractMongoQueryBackendTest {
         override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
         override val filterCompiler = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
-        override val projectionCompiler = mockk<MongoProjectionCompiler>()
-        override val sortCompiler = mockk<MongoSortCompiler>()
         override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
-    }
-    private val cursorBackend = object : AbstractMongoQueryBackend() {
-        override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
-        override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
-        override val filterCompiler = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
-        override val projectionCompiler = MongoProjectionCompiler()
-        override val sortCompiler = MongoSortCompiler()
-        fun find(queryable: Queryable<*>): FindPublisher<Document> = findDocument(queryable, schema)
-        override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
-    }
-
-    @Test
-    fun `Mongo find document API should require schema`() {
-        val publisher = mockk<FindPublisher<Document>>()
-        every { collection.find(any<Bson>()) } returns publisher
-        every { publisher.projection(null) } returns publisher
-        every { publisher.sort(null) } returns publisher
-        val query = ListQuery(MatchAllFilter, limit = 1)
-
-        cursorBackend.find(query).assert().isSameAs(publisher)
-        collection.findDocument(
-            compiler = cursorBackend.filterCompiler,
-            queryable = query,
-            projectionCompiler = cursorBackend.projectionCompiler,
-            sortCompiler = cursorBackend.sortCompiler,
-            schema = schema,
-        ).assert().isSameAs(publisher)
-    }
-
-    @Test
-    fun `single should pass the resolved schema instance to projection compilation`() {
-        val bson = mockk<Bson>()
-        val publisher = mockk<FindPublisher<Document>>()
-        arrangePublisher(publisher, bson) { Flux.empty() }
-
-        backend.single(ResolvedQuery(SingleQuery(MatchAllFilter), schema)).test().verifyComplete()
-
-        verify(exactly = 1) { backend.projectionCompiler.compile(any(), match { it === schema }) }
     }
 
     @Test
@@ -117,9 +75,8 @@ class AbstractMongoQueryBackendTest {
 
     @Test
     fun `non-negative list limit should reach MongoDB`() {
-        val bson = mockk<Bson>()
         val publisher = mockk<FindPublisher<Document>>()
-        arrangePublisher(publisher, bson) { Flux.empty() }
+        arrangePublisher(publisher) { Flux.empty() }
 
         backend.list(ResolvedQuery(ListQuery(MatchAllFilter, limit = 1), schema)).test().verifyComplete()
 
@@ -160,10 +117,9 @@ class AbstractMongoQueryBackendTest {
 
     @Test
     fun `each list subscription should receive an exclusive mutable object node`() {
-        val bson = mockk<Bson>()
         val publisher = mockk<FindPublisher<Document>>()
         val document = Document("value", 1)
-        arrangePublisher(publisher, bson) { Flux.just(document) }
+        arrangePublisher(publisher) { Flux.just(document) }
         val result = backend.list(ResolvedQuery(ListQuery(MatchAllFilter, limit = 1), schema))
 
         val first = result.blockFirst()!!
@@ -177,7 +133,7 @@ class AbstractMongoQueryBackendTest {
     @Test
     fun `list should release cursor on completion`() {
         val signals = mutableListOf<SignalType>()
-        arrangePublisher(mockk(), mockk()) {
+        arrangePublisher(mockk()) {
             Flux.just(Document("value", 1)).doFinally(signals::add)
         }
 
@@ -189,7 +145,7 @@ class AbstractMongoQueryBackendTest {
     @Test
     fun `list should propagate a partial cursor failure and release it with error`() {
         val signals = mutableListOf<SignalType>()
-        arrangePublisher(mockk(), mockk()) {
+        arrangePublisher(mockk()) {
             Flux.just(Document("value", 1))
                 .concatWith(Flux.error(IllegalStateException("cursor-failed")))
                 .doFinally(signals::add)
@@ -206,7 +162,7 @@ class AbstractMongoQueryBackendTest {
     @Test
     fun `list should release cursor on cancellation`() {
         val signals = mutableListOf<SignalType>()
-        arrangePublisher(mockk(), mockk()) {
+        arrangePublisher(mockk()) {
             Flux.just(Document("value", 1))
                 .concatWith(Flux.never())
                 .doFinally(signals::add)
@@ -226,7 +182,7 @@ class AbstractMongoQueryBackendTest {
             limit = 2,
         )
 
-        val page = cursorBackend.cursor(
+        val page = backend.cursor(
             ResolvedQuery(
                 CursorQuery(
                     MatchAllFilter,
@@ -253,7 +209,7 @@ class AbstractMongoQueryBackendTest {
         val publisher = cursorPublisher(emptyList(), limit = 2)
         every { publisher.sort(capture(sort)) } returns publisher
 
-        cursorBackend.cursor(
+        backend.cursor(
             ResolvedQuery(
                 CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("rank"), Sort.Direction.DESC)), size = 1),
                 schema,
@@ -269,8 +225,6 @@ class AbstractMongoQueryBackendTest {
             override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
             override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
             override val filterCompiler = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
-            override val projectionCompiler = MongoProjectionCompiler()
-            override val sortCompiler = MongoSortCompiler()
             override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
         }
         val filter = slot<Bson>()
@@ -364,14 +318,11 @@ class AbstractMongoQueryBackendTest {
 
     private fun arrangePublisher(
         publisher: FindPublisher<Document>,
-        bson: Bson,
         source: () -> Flux<Document>,
     ) {
-        every { backend.projectionCompiler.compile(any(), schema) } returns bson
-        every { backend.sortCompiler.compile(any(), schema) } returns bson
         every { collection.find(any<Bson>()) } returns publisher
-        every { publisher.projection(bson) } returns publisher
-        every { publisher.sort(bson) } returns publisher
+        every { publisher.projection(null) } returns publisher
+        every { publisher.sort(null) } returns publisher
         every { publisher.limit(1) } returns publisher
         every { publisher.first() } returns publisher
         every { publisher.subscribe(any()) } answers {

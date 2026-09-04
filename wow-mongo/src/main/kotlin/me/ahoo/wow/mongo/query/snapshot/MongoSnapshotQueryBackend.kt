@@ -18,8 +18,6 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.query.AbstractMongoQueryBackend
-import me.ahoo.wow.mongo.query.MongoProjectionCompiler
-import me.ahoo.wow.mongo.query.MongoSortCompiler
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import org.bson.Document
@@ -33,8 +31,6 @@ class MongoSnapshotQueryBackend(
     override val name: String
         get() = MongoSnapshotStore.NAME
     override val filterCompiler = SnapshotFilterCompiler
-    override val projectionCompiler = MongoProjectionCompiler()
-    override val sortCompiler = MongoSortCompiler()
     override fun toObjectNode(document: Document): ObjectNode =
         document.replacePrimaryKeyToAggregateId().toObjectNode()
 }

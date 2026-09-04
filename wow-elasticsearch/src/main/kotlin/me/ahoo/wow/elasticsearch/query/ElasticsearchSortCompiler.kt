@@ -39,8 +39,4 @@ object ElasticsearchSortCompiler {
             Sort.Direction.DESC -> SortOrder.Desc
         }
     }
-
-    fun List<Sort>.toSortOptions(): List<SortOptions> {
-        return compile(sort = this)
-    }
 }

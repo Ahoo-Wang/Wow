@@ -40,7 +40,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 
 class MongoSortCompilerTest {
-    private val compiler = MongoSortCompiler()
+    private val compiler = MongoSortCompiler
     private val snapshotSchema = sortSchema(QueryModel.SNAPSHOT, MessageRecords.AGGREGATE_ID)
     private val eventStreamSchema = sortSchema(QueryModel.EVENT_STREAM, MessageRecords.ID)
 

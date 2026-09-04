@@ -20,7 +20,7 @@ import me.ahoo.wow.api.query.isEmpty
 import me.ahoo.wow.query.schema.QueryModelSchema
 import org.bson.conversions.Bson
 
-class MongoProjectionCompiler {
+internal object MongoProjectionCompiler {
 
     fun compile(projection: Projection, schema: QueryModelSchema): Bson? =
         compile(physicalProjection(projection, schema))

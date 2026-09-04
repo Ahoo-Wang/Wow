@@ -16,7 +16,6 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch._types.SortOrder
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOptions
 import me.ahoo.wow.query.dsl.sort
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
@@ -30,7 +29,7 @@ class ElasticsearchSortCompilerTest {
             "field2".desc()
         }
 
-        val actual = sort.toSortOptions()
+        val actual = ElasticsearchSortCompiler.compile(sort)
 
         actual.first().let {
             it.field().field().assert().isEqualTo("field1")
@@ -46,16 +45,16 @@ class ElasticsearchSortCompilerTest {
     fun `should compile empty Sort to empty SortOptions`() {
         val sort = emptyList<Sort>()
 
-        val actual = sort.toSortOptions()
+        val actual = ElasticsearchSortCompiler.compile(sort)
 
         actual.isEmpty().assert().isTrue()
     }
 
     @Test
     fun `should add nested context to event body sort`() {
-        val actual = sort {
-            "${MessageRecords.BODY}.name".asc()
-        }.toSortOptions().single().field()
+        val actual = ElasticsearchSortCompiler.compile(
+            sort { "${MessageRecords.BODY}.name".asc() },
+        ).single().field()
 
         requireNotNull(actual.nested()).path().assert().isEqualTo(MessageRecords.BODY)
     }

@@ -19,16 +19,14 @@ import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.query.schema.QueryModelSchema
 import org.bson.Document
 
-fun MongoCollection<Document>.findDocument(
-    compiler: AbstractMongoFilterCompiler,
+internal fun MongoCollection<Document>.findDocument(
+    filterCompiler: AbstractMongoFilterCompiler,
     queryable: Queryable<*>,
-    projectionCompiler: MongoProjectionCompiler,
-    sortCompiler: MongoSortCompiler,
     schema: QueryModelSchema,
 ): FindPublisher<Document> {
-    val projectionBson = projectionCompiler.compile(queryable.projection, schema)
-    val filter = compiler.compile(queryable.filter, schema)
-    val sort = sortCompiler.compile(queryable.sort, schema)
+    val projectionBson = MongoProjectionCompiler.compile(queryable.projection, schema)
+    val filter = filterCompiler.compile(queryable.filter, schema)
+    val sort = MongoSortCompiler.compile(queryable.sort, schema)
     return find(filter)
         .projection(projectionBson)
         .sort(sort)

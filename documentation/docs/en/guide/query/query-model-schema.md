@@ -131,4 +131,4 @@ These four model-level routes have no tenant, owner, or aggregate-ID variants. T
 3. Inspect actual backend facts: MongoDB indexes and validators, or Elasticsearch mappings, multi-fields, nested mappings, doc values, and runtime fields. Do not extrapolate from the other backend.
 4. Distinguish `INCOMPATIBLE`, Schema conflict, Schema unavailable, and request-DTO errors, and verify whether the current mode is `COMPATIBLE` or `STRICT`.
 5. After changing declarations or mappings, refresh the current-process view. Refresh cannot repair a mapping or historical document that still violates the required capability.
-6. With a custom converter, verify that the routed `QueryBackendBinding.schemaProvider` adapter and `binding.backend` converter use consistent mapping rules.
+6. With a custom Backend Compiler, verify that the routed `QueryBackendBinding.schemaProvider` adapter and `binding.backend` Compiler use consistent mapping rules.
