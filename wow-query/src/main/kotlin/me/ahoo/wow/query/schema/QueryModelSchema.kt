@@ -159,6 +159,9 @@ data class QueryModelSchema(
         }
     }
 
+    fun resolveFieldSchema(field: QueryField, capability: QueryCapability): QueryFieldSchema? =
+        fieldResolver.resolve(field, capability, enforceElementScope = false).fieldSchema
+
     internal fun matchesValueTypes(field: QueryField, values: Iterable<JsonNode>): Boolean =
         fields[field]?.matchesValueTypes(values) ?: true
 

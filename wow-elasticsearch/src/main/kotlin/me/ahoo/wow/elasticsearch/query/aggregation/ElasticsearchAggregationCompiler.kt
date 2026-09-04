@@ -181,11 +181,14 @@ internal class ElasticsearchAggregationCompiler(
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): String {
         val logicalField = parent?.append(field) ?: field
-        val fieldSchema = schema.field(logicalField) ?: return logicalField.path
-        val physicalPath = fieldSchema.binding(QueryCapability.AGGREGATE_TEMPORAL)?.physicalField?.path
-            ?: throw QuerySchemaValidationException(
-                "Query field [$logicalField] does not support [${QueryCapability.AGGREGATE_TEMPORAL}].",
-            )
+        val physicalPath = field.resolve(parent, schema, QueryCapability.AGGREGATE_TEMPORAL)
+        val fieldSchema = schema.resolveFieldSchema(logicalField, QueryCapability.AGGREGATE_TEMPORAL)
+            ?: schema.field(logicalField)?.let {
+                throw QuerySchemaValidationException(
+                    "Query field [$logicalField] does not support [${QueryCapability.AGGREGATE_TEMPORAL}].",
+                )
+            }
+            ?: return physicalPath
         return when (val semanticType = fieldSchema.semanticType) {
             Temporal.Date -> physicalPath
             is Temporal.Epoch -> "__wow_date_histogram_$index".also { runtimeFieldName ->
@@ -373,12 +376,7 @@ internal class ElasticsearchAggregationCompiler(
         parent: QueryField?,
         schema: QueryModelSchema,
         capability: QueryCapability,
-    ): String {
-        val logicalField = parent?.append(this) ?: this
-        val fieldSchema = schema.field(logicalField) ?: return logicalField.path
-        return fieldSchema.binding(capability)?.physicalField?.path
-            ?: throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
-    }
+    ): String = schema.resolvePhysicalField(parent?.append(this) ?: this, capability).path
 
     private val TimeUnit.epochFactors: Pair<Long, Long>
         get() = when (this) {

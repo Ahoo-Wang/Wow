@@ -50,12 +50,13 @@ class ElasticsearchAggregationCompilerTest {
                 "physical.created_at",
                 "long",
                 Temporal.Epoch(TimeUnit.MICROSECONDS),
+                resolvedPath = "document.createdAt",
             ),
         )
 
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation {
-                dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+                dateHistogram("document.createdAt", AggregationDateUnit.DAY, "day")
                 count("count")
             },
             schema,
@@ -155,7 +156,7 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
-    fun `any metric should resolve a terms-capable field without a runtime mapping`() {
+    fun `any metric should compile an already resolved field to its physical path`() {
         val schema = schema(
             field(
                 "state.productName",
@@ -166,7 +167,7 @@ class ElasticsearchAggregationCompilerTest {
             ),
         )
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
-            aggregation { any("state.productName", "productName") },
+            aggregation { any("resolved.productName.keyword", "productName") },
             schema,
         )
 
