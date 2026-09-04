@@ -19,7 +19,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.toFilterExpression
-import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterConverter
+import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.junit.jupiter.api.Test
 
@@ -27,7 +27,7 @@ class LegacyFilterScopeTest {
     @Suppress("DEPRECATION")
     @Test
     fun `should not reapply active deletion scope to converted legacy filter`() {
-        val query = SnapshotFilterConverter.convert(
+        val query = SnapshotFilterCompiler.compilePhysical(
             AndFilter(
                 listOf(
                     Condition.eq("state.name", "Wow").toFilterExpression(),

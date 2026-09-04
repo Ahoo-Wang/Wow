@@ -11,11 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo.query.snapshot
+package me.ahoo.wow.elasticsearch.query.event
 
-import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
-import me.ahoo.wow.query.converter.FieldConverter
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
+import me.ahoo.wow.serialization.MessageRecords
 
-object SnapshotFilterConverter : AbstractMongoFilterConverter() {
-    override val fieldConverter: FieldConverter = SnapshotFieldConverter
-}
+object EventStreamFilterCompiler : AbstractElasticsearchFilterCompiler(
+    defaultDeletionState = null,
+    documentIdField = MessageRecords.ID,
+)

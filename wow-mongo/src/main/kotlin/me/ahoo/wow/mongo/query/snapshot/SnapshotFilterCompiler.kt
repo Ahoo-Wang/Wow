@@ -11,12 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.elasticsearch.query.event
+package me.ahoo.wow.mongo.query.snapshot
 
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
-import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 
-object EventStreamFilterConverter : AbstractElasticsearchFilterConverter(
-    defaultDeletionState = null,
-    documentIdField = MessageRecords.ID,
-)
+object SnapshotFilterCompiler : AbstractMongoFilterCompiler()

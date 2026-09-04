@@ -18,7 +18,7 @@ fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
 fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
 ```
 
-There are no compatibility overloads accepting raw queries. A Backend neither obtains nor resolves Schema and never chooses `QuerySchemaValidationMode`; it only compiles and executes `ResolvedQuery.query` with the non-null `ResolvedQuery.schema`. Projection and Aggregation compilers both receive that Schema instance. Single, list, paged, cursor, and aggregate use `tools.jackson.databind.node.ObjectNode`; count returns `Long`, while cursor wraps nodes in `CursorPage<ObjectNode>`. `SnapshotQueryBackend` and `EventStreamQueryBackend` distinguish the data model. Typed materialization belongs to the Gateway, not the Backend; a custom Backend never implements or delegates `QueryModelSchemaProvider`.
+There are no compatibility overloads accepting raw queries. A Backend neither obtains nor resolves Schema and never chooses `QuerySchemaValidationMode`; it only compiles and executes `ResolvedQuery.query` with the non-null `ResolvedQuery.schema`. Schema-aware Projection, Sort, Filter, and Aggregation Compilers use `QueryFieldBinding.physicalField` as their only physical-path source; `projectionField` is already physical, and an accepted `COMPATIBLE` field without a binding retains its original path. Single, list, paged, cursor, and aggregate use `tools.jackson.databind.node.ObjectNode`; count returns `Long`, while cursor wraps nodes in `CursorPage<ObjectNode>`. `SnapshotQueryBackend` and `EventStreamQueryBackend` distinguish the data model. Typed materialization belongs to the Gateway, not the Backend; a custom Backend never implements or delegates `QueryModelSchemaProvider`.
 
 ## Node ownership constraints
 

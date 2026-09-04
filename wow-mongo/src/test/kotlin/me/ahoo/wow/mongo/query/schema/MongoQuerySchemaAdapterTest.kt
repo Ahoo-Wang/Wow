@@ -37,9 +37,7 @@ import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
-import me.ahoo.wow.mongo.query.event.EventStreamFieldConverter
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
-import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.MaskRule
@@ -78,12 +76,14 @@ class MongoQuerySchemaAdapterTest {
     @Test
     fun `event stream schema should bind logical id to MongoDB document id`() {
         val id = QueryField("id")
+        val aggregateId = QueryField("aggregateId")
         val schema = MongoQuerySchemaAdapter.bind(
-            logicalSchema = LogicalQuerySchema(mapOf(id to field(QueryValueType.STRING))),
+            logicalSchema = LogicalQuerySchema(
+                mapOf(id to field(QueryValueType.STRING), aggregateId to field(QueryValueType.STRING)),
+            ),
             indexes = emptyList(),
             validatorSchema = null,
             model = QueryModel.EVENT_STREAM,
-            fieldConverter = EventStreamFieldConverter,
         )
 
         schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
@@ -93,7 +93,21 @@ class MongoQuerySchemaAdapterTest {
                 binding.physicalField.assert().isEqualTo(QueryField("_id"))
             }
             fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.NONE)
+            fieldSchema.projectionField.assert().isEqualTo(QueryField("_id"))
         }
+        schema.fields.getValue(aggregateId).binding(QueryCapability.EXACT_MATCH)!!.physicalField.assert()
+            .isEqualTo(aggregateId)
+    }
+
+    @Test
+    fun `unknown compatible fields should retain their logical path`() {
+        val field = QueryField("state.unknown")
+        val filter = EqualFilter(field, StringNode.valueOf("value"))
+
+        val resolution = MongoQuerySchemaAdapter.bind(logicalSchema(), emptyList(), null).resolve(filter)
+
+        resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+        (resolution.value as EqualFilter).field.assert().isEqualTo(field)
     }
 
     @Test
@@ -112,7 +126,6 @@ class MongoQuerySchemaAdapterTest {
             indexes = emptyList(),
             validatorSchema = null,
             model = QueryModel.SNAPSHOT,
-            fieldConverter = FieldConverter { "document.$it" },
         )
         val relative = ElementMatchFilter(
             orders,
@@ -127,7 +140,7 @@ class MongoQuerySchemaAdapterTest {
             fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
             fieldSchema.binding(QueryCapability.EXACT_MATCH)!!.let { binding ->
                 binding.resolvedField.assert().isEqualTo(price)
-                binding.physicalField.assert().isEqualTo(QueryField("document.state.orders.lines.price"))
+                binding.physicalField.assert().isEqualTo(price)
             }
         }
         schema.resolve(relative).value.assert().isSameAs(relative)
@@ -152,7 +165,6 @@ class MongoQuerySchemaAdapterTest {
             indexes = emptyList(),
             validatorSchema = null,
             model = QueryModel.SNAPSHOT,
-            fieldConverter = FieldConverter { it },
         )
         val relative = ElementMatchFilter(
             orders,
@@ -193,7 +205,6 @@ class MongoQuerySchemaAdapterTest {
             indexes = emptyList(),
             validatorSchema = null,
             model = QueryModel.SNAPSHOT,
-            fieldConverter = FieldConverter { it },
         )
         val relative = ElementMatchFilter(items, ExistsFilter(QueryField("code")))
         val absolute = ElementMatchFilter(items, ExistsFilter(code))
@@ -477,6 +488,7 @@ class MongoQuerySchemaAdapterTest {
                 binding.physicalField.assert().isEqualTo(QueryField("_id"))
                 binding.storageType?.value.assert().isEqualTo("string")
             }
+        schema.fields.getValue(QueryField("aggregateId")).projectionField.assert().isEqualTo(QueryField("_id"))
         schema.fields.getValue(QueryField("state.name"))
             .bindings.getValue(QueryCapability.LITERAL_MATCH).let { binding ->
                 binding.resolvedField.assert().isEqualTo(QueryField("state.name"))

@@ -22,8 +22,6 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
-import me.ahoo.wow.mongo.query.snapshot.SnapshotFieldConverter
-import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBinding
@@ -42,7 +40,6 @@ class MongoQuerySchemaAdapter(
     private val collection: MongoCollection<Document>,
     private val database: MongoDatabase? = null,
     private val model: QueryModel = QueryModel.SNAPSHOT,
-    private val fieldConverter: FieldConverter = SnapshotFieldConverter,
 ) : QuerySchemaBackendAdapter {
     override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = loadFacts(logicalSchema)
 
@@ -56,7 +53,7 @@ class MongoQuerySchemaAdapter(
             ?.defaultIfEmpty(Optional.empty())
             ?: Mono.just(Optional.empty())
         Mono.zip(indexes, validator).map { facts ->
-            bind(logicalSchema, facts.t1, facts.t2.orElse(null), model, fieldConverter)
+            bind(logicalSchema, facts.t1, facts.t2.orElse(null), model)
         }
     }.onErrorMap { error ->
         if (error is QuerySchemaUnavailableException) {
@@ -76,7 +73,6 @@ class MongoQuerySchemaAdapter(
             indexes,
             validatorSchema,
             QueryModel.SNAPSHOT,
-            SnapshotFieldConverter,
         )
 
         internal fun bind(
@@ -84,7 +80,6 @@ class MongoQuerySchemaAdapter(
             indexes: List<Document>,
             validatorSchema: Document?,
             model: QueryModel,
-            fieldConverter: FieldConverter,
         ): QueryModelSchema {
             val storageSchemas = validatorSchema.storageSchemas()
             val capabilities = if (indexes.hasTextIndex()) {
@@ -93,14 +88,14 @@ class MongoQuerySchemaAdapter(
                 emptySet()
             }
             val invalidContainers = logicalSchema.fields.mapNotNullTo(linkedSetOf()) { (logicalField, fieldSchema) ->
-                val storageSchema = storageSchemas[fieldConverter.convert(logicalField.path)]
+                val storageSchema = storageSchemas[logicalField.physicalPath(model)]
                 logicalField.path.takeIf { fieldSchema.invalidContainer(storageSchema) }
             }
             val elementFields = logicalSchema.fields.mapNotNullTo(linkedSetOf()) { (logicalField, fieldSchema) ->
                 if (invalidContainers.any { logicalField.path == it || logicalField.path.startsWith("$it.") }) {
                     return@mapNotNullTo null
                 }
-                val storageSchema = storageSchemas[fieldConverter.convert(logicalField.path)]
+                val storageSchema = storageSchemas[logicalField.physicalPath(model)]
                 logicalField.takeIf {
                     fieldSchema.cardinality == QueryCardinality.MANY &&
                         QueryValueType.OBJECT in fieldSchema.valueTypes &&
@@ -111,7 +106,7 @@ class MongoQuerySchemaAdapter(
                 model = model,
                 capabilities = capabilities,
                 fields = logicalSchema.fields.mapValues { (logicalField, logicalSchema) ->
-                    val physicalPath = fieldConverter.convert(logicalField.path)
+                    val physicalPath = logicalField.physicalPath(model)
                     val physicalField = QueryField(physicalPath)
                     val storageSchema = storageSchemas[physicalPath]
                     val binding = QueryFieldBinding(logicalField, physicalField, storageSchema?.types?.singleOrNull())
@@ -124,7 +119,7 @@ class MongoQuerySchemaAdapter(
                     }
                     logicalSchema.toFieldSchema(
                         source = logicalField,
-                        projectionField = logicalField,
+                        projectionField = physicalField,
                         bindings = logicalSchema.capabilities()
                             .filter { logicalSchema.supports(it, storageSchema) }
                             .associateWith { binding },
@@ -132,6 +127,12 @@ class MongoQuerySchemaAdapter(
                     )
                 },
             )
+        }
+
+        private fun QueryField.physicalPath(model: QueryModel): String = when {
+            model == QueryModel.SNAPSHOT && path == "aggregateId" -> "_id"
+            model == QueryModel.EVENT_STREAM && path == "id" -> "_id"
+            else -> path
         }
 
         private fun LogicalQueryFieldSchema.invalidContainer(storageSchema: MongoStorageSchema?): Boolean {
@@ -277,6 +278,7 @@ class MongoQuerySchemaAdapter(
                 dynamicChildren = dynamicChildren && bindings.keys.any { it != QueryCapability.ELEMENT_SCOPE },
                 bindings = bindings,
                 projectionField = projectionField,
+                responseField = source,
                 rewriteMode = rewriteMode,
                 maskRule = maskRule,
             )

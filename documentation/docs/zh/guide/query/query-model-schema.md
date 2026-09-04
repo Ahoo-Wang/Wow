@@ -38,11 +38,11 @@ flowchart LR
 
 ## 后端适配
 
-[MongoDB](../extensions/mongo.md) adapter 把逻辑字段经 `FieldConverter` 映射到文档路径，读取集合索引和可选的 `$jsonSchema` validator 来证明存储类型。Element scope 候选先来自逻辑声明中的 `MANY` + `OBJECT`；validator 为该字段提供物理类型约束时，adapter 再用 array/object 类型确认或否决该候选。未配置 validator 或该字段没有类型约束时会保留逻辑候选，但不具备物理类型证明。adapter 只在存在合适 text index 时发布模型级全文能力。
+[MongoDB](../extensions/mongo.md) adapter 把每个存储路径写入 `QueryFieldBinding.physicalField`，读取集合索引和可选的 `$jsonSchema` validator 来证明存储类型。`physicalField` 是 MongoDB 物理路径的唯一来源；`QueryFieldSchema.projectionField` 同样是物理投影路径，`responseField` 则只标识返回 JSON 中用于脱敏的路径。Element scope 候选先来自逻辑声明中的 `MANY` + `OBJECT`；validator 为该字段提供物理类型约束时，adapter 再用 array/object 类型确认或否决该候选。未配置 validator 或该字段没有类型约束时会保留逻辑候选，但不具备物理类型证明。adapter 只在存在合适 text index 时发布模型级全文能力。
 
 [Elasticsearch](../extensions/elasticsearch.md) adapter 读取目标 mapping，并分别考虑字段类型、multi-field、nested、doc values、alias 与 runtime field。全文字段可以绑定到 text 路径，精确匹配、排序或 TERMS 聚合可能绑定到 keyword multi-field；对象数组只有在对应 nested mapping 成立时才获得 Element scope。
 
-两种 adapter 共享公共 capability 名称，但不会产生相同的物理路径、全文语义、数组作用域或时间能力。自定义 filter converter 会使内置 Query Model Schema 不可用；只有调用方同时提供与该 converter 一致的 Provider/adapter 实现，才能重新建立能力合同。
+两种 adapter 共享公共 capability 名称，但不会产生相同的物理路径、全文语义、数组作用域或时间能力。自定义 Backend Compiler 会使内置 Query Model Schema 不可用；只有调用方同时提供与该 Compiler 一致的 Provider/adapter 实现，才能重新建立能力合同。
 
 ## QueryField 与 Projection
 
@@ -91,7 +91,7 @@ Cursor 解析也属于 Schema 行为。`QueryModelSchema.resolve(ICursorQuery)` 
 - `COMPATIBLE`：无法精确绑定，但兼容模式允许保留原路径，例如未声明字段或可接受的动态子字段；
 - `INCOMPATIBLE`：字段已知但缺少所需 capability，或值类型、基数、Element scope 不符合合同。
 
-`QuerySchemaValidationMode.COMPATIBLE` 接受 `EXACT` 与 `COMPATIBLE`，拒绝 `INCOMPATIBLE`；`QuerySchemaValidationMode.STRICT` 只接受 `EXACT`。模式控制解析结果是否被接受，不会为后端补建索引或 mapping。
+`QuerySchemaValidationMode.COMPATIBLE` 接受 `EXACT` 与 `COMPATIBLE`，拒绝 `INCOMPATIBLE`；`QuerySchemaValidationMode.STRICT` 只接受 `EXACT`。模式控制解析结果是否被接受，不会为后端补建索引或 mapping。已接受的 `COMPATIBLE` 字段没有 binding 时，Schema-aware Backend Compiler 使用原始路径作为物理路径。
 
 受管 Gateway 在每次订阅中先调用 Provider 一次，取得一个 Schema 后才构造 `QueryContext`。Context 从 Filter 链开始暴露非空 Schema，Filter、Resolver、`ResolvedQuery`、Backend Compiler 与 Mask 使用同一实例。验证模式只由 Gateway 应用，Backend 不读取 Provider 或再次解析查询。
 
@@ -131,4 +131,4 @@ Snapshot 与 EventStream 都发布无作用域变体的 Schema 与 refresh HTTP 
 3. 检查实际后端事实：MongoDB 的索引与 validator，或 Elasticsearch 的 mapping、multi-field、nested、doc values 与 runtime field。不要从另一种后端的结果类推。
 4. 区分 `INCOMPATIBLE`、Schema conflict、Schema unavailable 与请求 DTO 错误，并核对当前使用 `COMPATIBLE` 还是 `STRICT`。
 5. 若刚修改声明或 mapping，可调用 refresh 重新读取当前进程视图；若 mapping 或历史文档本身不满足条件，refresh 不会修复数据。
-6. 若使用自定义 converter，确认 routed `QueryBackendBinding.schemaProvider` adapter 与 `binding.backend` converter 使用一致的 mapping 规则。
+6. 若使用自定义 Backend Compiler，确认 routed `QueryBackendBinding.schemaProvider` adapter 与 `binding.backend` Compiler 使用一致的 mapping 规则。

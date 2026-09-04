@@ -17,22 +17,29 @@ import com.mongodb.client.model.Projections
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.isEmpty
-import me.ahoo.wow.query.converter.AbstractProjectionConverter
-import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.query.schema.QueryModelSchema
 import org.bson.conversions.Bson
 
-class MongoProjectionConverter(override val fieldConverter: FieldConverter) : AbstractProjectionConverter<Bson?>() {
+internal object MongoProjectionCompiler {
+
+    fun compile(projection: Projection, schema: QueryModelSchema): Bson? =
+        compile(physicalProjection(projection, schema))
 
     internal fun cursorProjection(
         projection: Projection,
         sortFields: List<String>,
         schema: QueryModelSchema,
-    ): MongoCursorProjection = convertProjection(projection, schema).withCursorFields(sortFields)
+    ): MongoCursorProjection = physicalProjection(projection, schema).withCursorFields(sortFields)
 
-    internal fun convertCursor(projection: MongoCursorProjection): Bson? = internalConvert(projection.queryProjection)
+    internal fun compile(projection: MongoCursorProjection): Bson? = compile(projection.queryProjection)
 
-    override fun internalConvert(projection: Projection): Bson? {
+    private fun physicalProjection(projection: Projection, schema: QueryModelSchema): Projection =
+        Projection(
+            include = projection.include.map { field -> schema.field(field)?.projectionField ?: field },
+            exclude = projection.exclude.map { field -> schema.field(field)?.projectionField ?: field },
+        )
+
+    private fun compile(projection: Projection): Bson? {
         if (projection.isEmpty()) return null
         if (projection.include.isNotEmpty() && projection.exclude.isNotEmpty()) {
             return Projections.fields(

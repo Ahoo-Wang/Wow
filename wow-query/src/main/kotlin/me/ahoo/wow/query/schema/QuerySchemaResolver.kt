@@ -71,7 +71,7 @@ fun <T> QuerySchemaResolution<T>.requireAccepted(mode: QuerySchemaValidationMode
 }
 
 internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
-    private val fieldResolver = QueryFieldSchemaResolver(schema)
+    private val fieldResolver = schema.fieldResolver
     private val filterResolver = QueryFilterSchemaResolver(schema, fieldResolver)
     private val maskedAggregationPaths = schema.maskedFields.flatMapTo(linkedSetOf()) { (logical, field) ->
         listOfNotNull(logical.path, field.projectionField?.path) + field.bindings.values.flatMap {

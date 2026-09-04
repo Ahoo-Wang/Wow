@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.converter
+package me.ahoo.wow.mongo.query.event
 
-fun interface FieldConverter {
-    fun convert(field: String): String
-}
+import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
+
+object EventStreamFilterCompiler : AbstractMongoFilterCompiler(defaultDeletionState = null)

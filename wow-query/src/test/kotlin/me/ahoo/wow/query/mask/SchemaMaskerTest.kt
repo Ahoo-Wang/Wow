@@ -20,10 +20,12 @@ import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.KeepMask
 import me.ahoo.wow.api.query.mask.KeepMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.MaskRule
+import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
@@ -112,14 +114,14 @@ class SchemaMaskerTest {
     }
 
     @Test
-    fun `snapshot should mask the projection path returned by the backend`() {
+    fun `snapshot should mask the response path returned by the backend`() {
         val masker = SchemaMasker.create(
             QueryModelSchema(
                 model = QueryModel.SNAPSHOT,
                 capabilities = emptySet(),
                 fields = mapOf(
                     QueryField("state.emailAlias") to fieldSchema(
-                        projectionPath = "state.email",
+                        responsePath = "state.email",
                         maskRule = fullMaskRule(),
                     ),
                 ),
@@ -133,7 +135,40 @@ class SchemaMaskerTest {
     }
 
     @Test
-    fun `aliases with the same projection path and mask rule should mask once`() {
+    fun `snapshot should mask the response path when the physical projection differs`() {
+        val responseField = QueryField("state.ssn")
+        val binding = QueryFieldBinding(responseField, QueryField("storage.ssn"), null)
+        val masker = SchemaMasker.create(
+            QueryModelSchema(
+                model = QueryModel.SNAPSHOT,
+                capabilities = emptySet(),
+                fields = mapOf(
+                    responseField to QueryFieldSchema(
+                        title = null,
+                        description = null,
+                        enumValues = null,
+                        valueTypes = setOf(QueryValueType.STRING),
+                        nullable = true,
+                        required = false,
+                        cardinality = QueryCardinality.SINGLE,
+                        semanticType = null,
+                        dynamicChildren = false,
+                        bindings = mapOf(QueryCapability.PRESENCE to binding),
+                        rewriteMode = QueryRewriteMode.NONE,
+                        maskRule = fullMaskRule(),
+                    ),
+                ),
+            ),
+        )!!
+        val node = """{"state":{"ssn":"secret"}}""".toJsonNode<ObjectNode>()
+
+        masker.mask(node)
+
+        node.path("state").path("ssn").stringValue().assert().isEqualTo("******")
+    }
+
+    @Test
+    fun `aliases with the same response path and mask rule should mask once`() {
         val rule = fullMaskRule().copyWith(CompiledMask { "[$it]" })
         val masker = SchemaMasker.create(
             QueryModelSchema(
@@ -141,11 +176,11 @@ class SchemaMaskerTest {
                 capabilities = emptySet(),
                 fields = mapOf(
                     QueryField("state.primaryEmail") to fieldSchema(
-                        projectionPath = "state.email",
+                        responsePath = "state.email",
                         maskRule = rule,
                     ),
                     QueryField("state.secondaryEmail") to fieldSchema(
-                        projectionPath = "state.email",
+                        responsePath = "state.email",
                         maskRule = rule,
                     ),
                 ),
@@ -159,7 +194,7 @@ class SchemaMaskerTest {
     }
 
     @Test
-    fun `aliases with the same projection path and different mask rules should conflict`() {
+    fun `aliases with the same response path and different mask rules should conflict`() {
         assertThrows<QuerySchemaConflictException> {
             SchemaMasker.create(
                 QueryModelSchema(
@@ -167,11 +202,11 @@ class SchemaMaskerTest {
                     capabilities = emptySet(),
                     fields = mapOf(
                         QueryField("state.primaryEmail") to fieldSchema(
-                            projectionPath = "state.email",
+                            responsePath = "state.email",
                             maskRule = fullMaskRule(),
                         ),
                         QueryField("state.secondaryEmail") to fieldSchema(
-                            projectionPath = "state.email",
+                            responsePath = "state.email",
                             maskRule = keepMaskRule(),
                         ),
                     ),
@@ -188,7 +223,7 @@ class SchemaMaskerTest {
     }
 
     @Test
-    fun `snapshot should reject projection paths outside state`() {
+    fun `snapshot should reject response paths outside state`() {
         assertThrows<QuerySchemaConflictException> {
             SchemaMasker.create(
                 QueryModelSchema(
@@ -196,7 +231,7 @@ class SchemaMaskerTest {
                     capabilities = emptySet(),
                     fields = mapOf(
                         QueryField("state.secret") to fieldSchema(
-                            projectionPath = "secret",
+                            responsePath = "secret",
                             maskRule = fullMaskRule(),
                         ),
                     ),
@@ -355,7 +390,7 @@ class SchemaMaskerTest {
 
     private fun fieldSchema(
         enumValues: List<tools.jackson.databind.JsonNode>? = null,
-        projectionPath: String? = null,
+        responsePath: String? = null,
         maskRule: MaskRule? = null,
         rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
     ) = QueryFieldSchema(
@@ -369,9 +404,9 @@ class SchemaMaskerTest {
         semanticType = null,
         dynamicChildren = false,
         bindings = emptyMap(),
-        projectionField = projectionPath?.let(::QueryField),
         rewriteMode = rewriteMode,
         maskRule = maskRule,
+        responseField = responsePath?.let(::QueryField),
     )
 
     private fun fullMaskRule(): MaskRule {

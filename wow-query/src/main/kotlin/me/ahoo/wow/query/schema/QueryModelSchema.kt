@@ -104,6 +104,8 @@ data class QueryModelSchema(
         }
     }
 
+    @get:JsonIgnore
+    internal val fieldResolver = QueryFieldSchemaResolver(this)
     private val resolver = QuerySchemaResolver(this)
 
     fun supports(capability: QueryCapability): Boolean = capability in capabilities
@@ -126,6 +128,39 @@ data class QueryModelSchema(
         }
         return null
     }
+
+    fun resolvePhysicalField(
+        field: QueryField,
+        capability: QueryCapability,
+        logicalParent: QueryField? = null,
+        resolvedParent: QueryField? = null,
+        physicalParent: QueryField? = null,
+    ): QueryField = fieldResolver.resolve(
+        field,
+        capability,
+        logicalParent,
+        resolvedParent,
+        physicalParent,
+        enforceElementScope = false,
+    ).let { resolved ->
+        resolved.physicalField?.let { physicalField ->
+            if (physicalParent == null) {
+                physicalField
+            } else {
+                physicalField.relativeTo(physicalParent)
+                    ?: throw QuerySchemaValidationException(
+                        "Physical field [$physicalField] is not relative to parent [$physicalParent].",
+                    )
+            }
+        } ?: if (physicalParent == null) {
+            resolved.logical
+        } else {
+            logicalParent?.let(field::relativeTo) ?: resolvedParent?.let(field::relativeTo) ?: field
+        }
+    }
+
+    fun resolveFieldSchema(field: QueryField, capability: QueryCapability): QueryFieldSchema? =
+        fieldResolver.resolve(field, capability, enforceElementScope = false).fieldSchema
 
     internal fun matchesValueTypes(field: QueryField, values: Iterable<JsonNode>): Boolean =
         fields[field]?.matchesValueTypes(values) ?: true
@@ -183,9 +218,11 @@ data class QueryFieldSchema(
     val semanticType: QuerySemanticType?,
     val dynamicChildren: Boolean,
     val bindings: Map<QueryCapability, QueryFieldBinding>,
-    val projectionField: QueryField? = bindings[QueryCapability.PRESENCE]?.resolvedField,
+    val projectionField: QueryField? = bindings[QueryCapability.PRESENCE]?.physicalField,
     val rewriteMode: QueryRewriteMode,
     @get:JsonIgnore internal val maskRule: MaskRule? = null,
+    @get:JsonIgnore
+    val responseField: QueryField? = bindings[QueryCapability.PRESENCE]?.resolvedField ?: projectionField,
 ) {
     val capabilities: Set<QueryCapability>
         get() = bindings.keys
@@ -237,6 +274,7 @@ data class QueryFieldSchema(
             dynamicChildren = dynamicChildren,
             bindings = resolvedBindings,
             projectionField = projectionField?.append(relative),
+            responseField = responseField?.append(relative),
             rewriteMode = resolvedRewriteMode,
             maskRule = maskRule,
         )

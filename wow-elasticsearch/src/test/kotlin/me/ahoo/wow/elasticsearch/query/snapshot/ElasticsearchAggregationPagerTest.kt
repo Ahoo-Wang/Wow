@@ -37,7 +37,7 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
@@ -63,7 +63,7 @@ import java.time.Duration
 private val AGGREGATION_SCHEMA = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
 
 private fun compileAggregation(query: AggregationQuery) =
-    ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(query, AGGREGATION_SCHEMA)
+    ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(query, AGGREGATION_SCHEMA)
 
 class ElasticsearchAggregationPagerTest {
     private val client = mockk<ReactiveElasticsearchClient>()
@@ -538,15 +538,15 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
-    fun `snapshot service with custom converter should fail aggregation before Elasticsearch access`() {
-        val converter = mockk<AbstractElasticsearchFilterConverter> {
-            every { convert(any(), any()) } returns
+    fun `snapshot service with custom compiler should fail aggregation before Elasticsearch access`() {
+        val compiler = mockk<AbstractElasticsearchFilterCompiler> {
+            every { compile(any(), any()) } returns
                 co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll { it }
         }
         val service = ElasticsearchSnapshotQueryBackend(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             elasticsearchClient = client,
-            filterConverter = converter,
+            filterCompiler = compiler,
         )
 
         val gateway = DefaultSnapshotQueryGateway<Any>(
@@ -560,7 +560,7 @@ class ElasticsearchAggregationPagerTest {
 
                     private fun unavailable(): Mono<QueryModelSchema> = Mono.error(
                         QuerySchemaUnavailableException(
-                            "Elasticsearch query schema is unavailable for custom filter converters.",
+                            "Elasticsearch query schema is unavailable for custom filter compilers.",
                         ),
                     )
                 },
@@ -582,7 +582,7 @@ class ElasticsearchAggregationPagerTest {
             .expectErrorSatisfies { error ->
                 error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
                 error.message.assert().isEqualTo(
-                    "Elasticsearch query schema is unavailable for custom filter converters.",
+                    "Elasticsearch query schema is unavailable for custom filter compilers.",
                 )
             }
             .verify()

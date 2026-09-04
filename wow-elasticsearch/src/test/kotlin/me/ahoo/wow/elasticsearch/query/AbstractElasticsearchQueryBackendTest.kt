@@ -35,6 +35,7 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
@@ -49,9 +50,9 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackendFactory
+import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.ResolvedQuery
-import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -72,10 +73,10 @@ import java.time.Duration
 
 class AbstractElasticsearchQueryBackendTest {
     private val elasticsearchClient = mockk<ReactiveElasticsearchClient>()
-    private val filterConverter = mockk<AbstractElasticsearchFilterConverter> {
-        every { convert(any<me.ahoo.wow.api.query.FilterExpression>()) } returns matchAll { it }
+    private val filterCompiler = mockk<AbstractElasticsearchFilterCompiler> {
+        every { compile(any<me.ahoo.wow.api.query.FilterExpression>(), any()) } returns matchAll { it }
     }
-    private val queryBackend = TestElasticsearchQueryBackend(elasticsearchClient, filterConverter)
+    private val queryBackend = TestElasticsearchQueryBackend(elasticsearchClient, filterCompiler)
     private val schema = QueryModelSchema(
         model = QueryModel.SNAPSHOT,
         capabilities = emptySet(),
@@ -341,27 +342,29 @@ class AbstractElasticsearchQueryBackendTest {
     }
 
     @Test
-    fun `resolved list should preserve fields`() {
+    fun `resolved list should compile physical filter and sort fields`() {
         val request = slot<SearchRequest>()
-        val convertedFilter = slot<FilterExpression>()
-        every { filterConverter.convert(capture(convertedFilter)) } returns matchAll { it }
         every { elasticsearchClient.search(capture(request), ObjectNode::class.java) } returns Mono.just(
             searchResponse(total = null),
         )
-        val filter = filterExpression { "logicalField" eq "value" }
+        val physicalSchema = physicalSchema()
+        val backend = TestElasticsearchQueryBackend(elasticsearchClient, SnapshotFilterCompiler)
+        val query = ListQuery(
+            filter = EqualFilter(QueryField("state.name"), JsonNodeFactory.instance.stringNode("value")),
+            sort = listOf(Sort(QueryField("state.rank"), Sort.Direction.ASC)),
+            limit = 1,
+        )
 
-        queryBackend.list(
-            resolved(
-                ListQuery(
-                    filter = filter,
-                    sort = listOf(Sort(QueryField("logicalField"), Sort.Direction.ASC)),
-                    limit = 1,
-                ),
+        backend.list(
+            ResolvedQuery(
+                physicalSchema.resolve(query).requireAccepted(QuerySchemaValidationMode.STRICT),
+                physicalSchema,
             ),
         ).collectList().block()
 
-        convertedFilter.captured.assert().isEqualTo(filter)
-        request.captured.sort().single().field().field().assert().isEqualTo("logicalField")
+        requireNotNull(request.captured.query()).bool().filter().last().term().field().assert()
+            .isEqualTo("storage.name")
+        request.captured.sort().single().field().field().assert().isEqualTo("storage.rank")
     }
 
     @Test
@@ -480,9 +483,19 @@ class AbstractElasticsearchQueryBackendTest {
             }
         )
 
-        val result = queryBackend.count(resolved(MatchAllFilter)).block()!!
+        val physicalSchema = physicalSchema()
+        val backend = TestElasticsearchQueryBackend(elasticsearchClient, SnapshotFilterCompiler)
+        val filter = EqualFilter(QueryField("state.name"), JsonNodeFactory.instance.stringNode("value"))
+        val result = backend.count(
+            ResolvedQuery(
+                physicalSchema.resolve(filter).requireAccepted(QuerySchemaValidationMode.STRICT),
+                physicalSchema,
+            ),
+        ).block()!!
 
         request.captured.index().assert().containsExactly("test-index")
+        requireNotNull(request.captured.query()).bool().filter().last().term().field().assert()
+            .isEqualTo("storage.name")
         result.assert().isEqualTo(42)
         verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
@@ -589,6 +602,35 @@ class AbstractElasticsearchQueryBackendTest {
         bindings = mapOf(QueryCapability.SORT to QueryFieldBinding(field, field, null)),
     )
 
+    private fun physicalSchema(): QueryModelSchema = QueryModelSchema(
+        model = QueryModel.SNAPSHOT,
+        capabilities = emptySet(),
+        fields = mapOf(
+            QueryField("state.name") to projectionFieldSchema(QueryField("storage.name")).copy(
+                bindings = mapOf(
+                    QueryCapability.EXACT_MATCH to QueryFieldBinding(
+                        QueryField("document.name"),
+                        QueryField("storage.name"),
+                        null,
+                    ),
+                ),
+                rewriteMode = QueryRewriteMode.REQUIRED,
+                responseField = QueryField("state.name"),
+            ),
+            QueryField("state.rank") to projectionFieldSchema(QueryField("storage.rank")).copy(
+                bindings = mapOf(
+                    QueryCapability.SORT to QueryFieldBinding(
+                        QueryField("document.rank"),
+                        QueryField("storage.rank"),
+                        null,
+                    ),
+                ),
+                rewriteMode = QueryRewriteMode.REQUIRED,
+                responseField = QueryField("state.rank"),
+            ),
+        ),
+    )
+
     private fun openPointInTimeResponse(): OpenPointInTimeResponse {
         return OpenPointInTimeResponse.of {
             it.id("pit-1")
@@ -610,7 +652,7 @@ class AbstractElasticsearchQueryBackendTest {
 
     private open class TestElasticsearchQueryBackend(
         override val elasticsearchClient: ReactiveElasticsearchClient,
-        override val filterConverter: AbstractElasticsearchFilterConverter,
+        override val filterCompiler: AbstractElasticsearchFilterCompiler,
     ) : AbstractElasticsearchQueryBackend() {
         override val namedAggregate: NamedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val indexName: String = "test-index"

@@ -134,10 +134,10 @@ internal class SchemaMasker private constructor(
             }
             val pathRules = linkedMapOf<String, MaskRule>()
             schema.maskedFields.forEach { (field, fieldSchema) ->
-                val responsePath = fieldSchema.projectionField?.path ?: field.path
+                val responsePath = fieldSchema.responseField?.path ?: field.path
                 val invalidPath = when {
                     !field.path.startsWith(prefix) -> "field" to field.path
-                    !responsePath.startsWith(prefix) -> "projection path" to responsePath
+                    !responsePath.startsWith(prefix) -> "response path" to responsePath
                     else -> null
                 }
                 if (invalidPath != null) {
@@ -160,7 +160,7 @@ internal class SchemaMasker private constructor(
         private fun MutableMap<String, MaskRule>.add(path: String, rule: MaskRule) {
             val existing = putIfAbsent(path, rule)
             if (existing != null && existing != rule) {
-                throw QuerySchemaConflictException("Conflicting mask rules for projection path: [$path].")
+                throw QuerySchemaConflictException("Conflicting mask rules for response path: [$path].")
             }
         }
 

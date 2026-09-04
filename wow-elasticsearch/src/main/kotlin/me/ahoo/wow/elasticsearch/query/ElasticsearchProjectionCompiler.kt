@@ -11,11 +11,24 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.converter
+package me.ahoo.wow.elasticsearch.query
 
+import co.elastic.clients.elasticsearch.core.search.SourceFilter
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.schema.QueryModelSchema
 
-interface ProjectionConverter<T> {
-    fun convert(projection: Projection, schema: QueryModelSchema): T
+object ElasticsearchProjectionCompiler {
+    fun compile(projection: Projection, schema: QueryModelSchema): SourceFilter {
+        return SourceFilter.of {
+            it.includes(projection.include.toSourceFields(schema))
+            it.excludes(projection.exclude.toSourceFields(schema))
+        }
+    }
+
+    private fun List<QueryField>.toSourceFields(schema: QueryModelSchema): List<String> =
+        flatMap { field ->
+            val path = schema.field(field)?.projectionField?.path ?: field.path
+            listOf(path, "$path.*")
+        }.distinct()
 }

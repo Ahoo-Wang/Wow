@@ -75,6 +75,7 @@ class QuerySchemaJavaTest {
             bindings,
             null,
             QueryRewriteMode.NONE,
+            null,
             null
         );
 
@@ -90,8 +91,9 @@ class QuerySchemaJavaTest {
         assertEquals(bindings, schema.getBindings());
         assertNull(schema.getProjectionField());
         assertEquals(QueryRewriteMode.NONE, schema.getRewriteMode());
+        assertNull(schema.getResponseField());
         assertEquals(false, schema.getMasked());
-        assertEquals(Set.of(13), constructorArities(QueryFieldSchema.class));
+        assertEquals(Set.of(14), constructorArities(QueryFieldSchema.class));
     }
 
     @Test

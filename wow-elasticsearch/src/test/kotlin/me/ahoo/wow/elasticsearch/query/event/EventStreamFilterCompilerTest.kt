@@ -23,26 +23,26 @@ import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 
-class EventStreamFilterConverterTest {
+class EventStreamFilterCompilerTest {
     @Test
     fun `match all filter should include deleted event streams`() {
-        EventStreamFilterConverter.convert(MatchAllFilter)._kind().assert().isEqualTo(
+        EventStreamFilterCompiler.compilePhysical(MatchAllFilter)._kind().assert().isEqualTo(
             co.elastic.clients.elasticsearch._types.query_dsl.Query.Kind.MatchAll,
         )
     }
 
     @Test
     fun `event metadata filters should use source metadata fields`() {
-        EventStreamFilterConverter.convert(IdFilter("id-1")).term().field().assert()
+        EventStreamFilterCompiler.compilePhysical(IdFilter("id-1")).term().field().assert()
             .isEqualTo(MessageRecords.ID)
-        EventStreamFilterConverter.convert(AggregateIdFilter("aggregate-1")).term().field().assert()
+        EventStreamFilterCompiler.compilePhysical(AggregateIdFilter("aggregate-1")).term().field().assert()
             .isEqualTo(MessageRecords.AGGREGATE_ID)
 
-        EventStreamFilterConverter.convert(IdsFilter(listOf("id-1", "id-2"))).terms().apply {
+        EventStreamFilterCompiler.compilePhysical(IdsFilter(listOf("id-1", "id-2"))).terms().apply {
             field().assert().isEqualTo(MessageRecords.ID)
             terms().value().map { it.stringValue() }.assert().containsExactly("id-1", "id-2")
         }
-        EventStreamFilterConverter.convert(
+        EventStreamFilterCompiler.compilePhysical(
             AggregateIdsFilter(listOf("aggregate-1", "aggregate-2")),
         ).terms().apply {
             field().assert().isEqualTo(MessageRecords.AGGREGATE_ID)
@@ -52,7 +52,7 @@ class EventStreamFilterConverterTest {
 
     @Test
     fun `generic document id predicates should use event id field`() {
-        val actual = EventStreamFilterConverter.convert(filter { "_id" eq "stream-id" })
+        val actual = EventStreamFilterCompiler.compilePhysical(filter { "_id" eq "stream-id" })
 
         actual.term().field().assert().isEqualTo(MessageRecords.ID)
         actual.term().value().stringValue().assert().isEqualTo("stream-id")
@@ -60,7 +60,7 @@ class EventStreamFilterConverterTest {
 
     @Test
     fun `should qualify relative element predicate fields`() {
-        val actual = EventStreamFilterConverter.convert(
+        val actual = EventStreamFilterCompiler.compilePhysical(
             filter {
                 "body".elementMatch {
                     "name" eq "value"

@@ -1,0 +1,163 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.mongo.query
+
+import com.mongodb.client.model.Sorts
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.mongo.Documents
+import me.ahoo.wow.query.schema.QueryFieldBinding
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.QueryStorageType
+import me.ahoo.wow.query.schema.requireAccepted
+import me.ahoo.wow.serialization.MessageRecords
+import org.bson.conversions.Bson
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
+import java.util.stream.Stream
+
+class MongoSortCompilerTest {
+    private val compiler = MongoSortCompiler
+    private val snapshotSchema = sortSchema(QueryModel.SNAPSHOT, MessageRecords.AGGREGATE_ID)
+    private val eventStreamSchema = sortSchema(QueryModel.EVENT_STREAM, MessageRecords.ID)
+
+    @ParameterizedTest
+    @MethodSource("toSnapshotMongoSortParameters")
+    fun toSnapshotMongoSort(sort: List<Sort>, expected: Bson?) {
+        val actual = compiler.compile(sort, snapshotSchema)
+        actual.assert().isEqualTo(expected)
+    }
+
+    @ParameterizedTest
+    @MethodSource("toEventStreamMongoSortParameters")
+    fun toEventStreamMongoSort(sort: List<Sort>, expected: Bson?) {
+        val actual = compiler.compile(sort, eventStreamSchema)
+        actual.assert().isEqualTo(expected)
+    }
+
+    @Test
+    fun `compatible unknown sort field should retain its logical path`() {
+        compiler.compile(
+            listOf(Sort(QueryField("unknown"), Sort.Direction.ASC)),
+            QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap()),
+        ).assert().isEqualTo(
+            Sorts.orderBy(Sorts.ascending("unknown")),
+        )
+    }
+
+    @Test
+    fun `resolved sort field should compile to its physical binding`() {
+        val schema = sortSchema(
+            model = QueryModel.SNAPSHOT,
+            logicalPath = "state.name",
+            resolvedPath = "document.name",
+            physicalPath = "storage.name",
+            rewriteMode = QueryRewriteMode.REQUIRED,
+        )
+        val resolved = schema.resolve(
+            ListQuery(
+                filter = MatchAllFilter,
+                sort = listOf(Sort(QueryField("state.name"), Sort.Direction.ASC)),
+            ),
+        ).requireAccepted(QuerySchemaValidationMode.STRICT)
+
+        compiler.compile(resolved.sort, schema).assert().isEqualTo(
+            Sorts.orderBy(Sorts.ascending("storage.name")),
+        )
+    }
+
+    companion object {
+        private fun sortSchema(
+            model: QueryModel,
+            logicalPath: String,
+            resolvedPath: String = logicalPath,
+            physicalPath: String = Documents.ID_FIELD,
+            rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
+        ): QueryModelSchema {
+            val logical = QueryField(logicalPath)
+            val binding = QueryFieldBinding(
+                QueryField(resolvedPath),
+                QueryField(physicalPath),
+                QueryStorageType("test"),
+            )
+            return QueryModelSchema(
+                model = model,
+                capabilities = emptySet(),
+                fields = mapOf(
+                    logical to QueryFieldSchema(
+                        title = null,
+                        description = null,
+                        enumValues = null,
+                        valueTypes = setOf(QueryValueType.STRING),
+                        nullable = false,
+                        required = true,
+                        cardinality = QueryCardinality.SINGLE,
+                        semanticType = null,
+                        dynamicChildren = false,
+                        bindings = mapOf(QueryCapability.SORT to binding),
+                        rewriteMode = rewriteMode,
+                    ),
+                ),
+            )
+        }
+
+        @JvmStatic
+        fun toSnapshotMongoSortParameters(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of(emptyList<Sort>(), null),
+                Arguments.of(
+                    listOf(Sort(QueryField(MessageRecords.AGGREGATE_ID), Sort.Direction.ASC)),
+                    Sorts.orderBy(Sorts.ascending(Documents.ID_FIELD))
+                ),
+                Arguments.of(
+                    listOf(
+                        Sort(QueryField(MessageRecords.AGGREGATE_ID), Sort.Direction.ASC),
+                        Sort(QueryField(MessageRecords.AGGREGATE_ID), Sort.Direction.DESC)
+                    ),
+                    Sorts.orderBy(Sorts.ascending(Documents.ID_FIELD), Sorts.descending(Documents.ID_FIELD))
+                ),
+            )
+        }
+
+        @JvmStatic
+        fun toEventStreamMongoSortParameters(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of(emptyList<Sort>(), null),
+                Arguments.of(
+                    listOf(Sort(QueryField(MessageRecords.ID), Sort.Direction.ASC)),
+                    Sorts.orderBy(Sorts.ascending(Documents.ID_FIELD))
+                ),
+                Arguments.of(
+                    listOf(
+                        Sort(QueryField(MessageRecords.ID), Sort.Direction.ASC),
+                        Sort(QueryField(MessageRecords.ID), Sort.Direction.DESC)
+                    ),
+                    Sorts.orderBy(Sorts.ascending(Documents.ID_FIELD), Sorts.descending(Documents.ID_FIELD))
+                ),
+            )
+        }
+    }
+}

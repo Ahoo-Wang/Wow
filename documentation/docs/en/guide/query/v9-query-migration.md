@@ -184,7 +184,7 @@ Beyond the six execution signatures and the Gateway constructor contract, the sa
 | --- | --- |
 | `ResolvedAggregationQuery` | Use `ResolvedQuery<AggregationQuery>`. |
 | All six `QueryModelSchemaProvider.resolve(query, mode)` extensions and the Provider-level `COMPATIBLE` unavailable fallback | Call `QueryModelSchema.resolve(...)` plus `requireAccepted(mode)` yourself; every path now fails closed with `QuerySchemaUnavailableException` on unavailable Schema. |
-| `ProjectionConverter.convert(projection, schema: QueryModelSchema?)` | The `schema` parameter is non-null; custom converters always compile from a non-null Schema. |
+| `FieldConverter`, `ProjectionConverter`, and `SortConverter` | Removed. Compile with the concrete Backend `*Compiler`; physical paths come from Schema bindings. Do not call the removed converter APIs. |
 | `QueryContext` / `DefaultQueryContext` | `QueryContext` declares a non-default `schema: QueryModelSchema` member; `DefaultQueryContext` takes it as the third constructor parameter. |
 | `me.ahoo.wow.query.filter.Contexts.getRawRequest/writeRawRequest` | Removed. WebFlux code imports `me.ahoo.wow.webflux.route.getRawRequest/writeRawRequest`, typed to `ServerRequest`; remove arbitrary values and caller casts. |
 | `schemaProvider` constructor parameter on the MongoDB and Elasticsearch Backends, and any Backend implementing or delegating `QueryModelSchemaProvider` | Pair the Provider in the Factory's `QueryBackendBinding` instead; Backends carry no Provider capability. |

@@ -38,11 +38,11 @@ flowchart LR
 
 ## Backend Adaptation
 
-The [MongoDB](../extensions/mongo.md) adapter maps logical fields through a `FieldConverter` and reads collection indexes plus an optional `$jsonSchema` validator to prove storage types. An Element-scope candidate first comes from a logical declaration with `MANY` + `OBJECT`. When the validator supplies physical type constraints for that field, the adapter uses array/object types to confirm or reject the candidate. Without a validator or a field type constraint, it retains the logical candidate without physical-type proof. The adapter publishes model-level full-text capabilities only when a suitable text index exists.
+The [MongoDB](../extensions/mongo.md) adapter writes every storage path into `QueryFieldBinding.physicalField` and reads collection indexes plus an optional `$jsonSchema` validator to prove storage types. `physicalField` is the only source of a MongoDB physical path; `QueryFieldSchema.projectionField` is likewise a physical projection path, while `responseField` identifies the returned JSON path used only for masking. An Element-scope candidate first comes from a logical declaration with `MANY` + `OBJECT`. When the validator supplies physical type constraints for that field, the adapter uses array/object types to confirm or reject the candidate. Without a validator or a field type constraint, it retains the logical candidate without physical-type proof. The adapter publishes model-level full-text capabilities only when a suitable text index exists.
 
 The [Elasticsearch](../extensions/elasticsearch.md) adapter reads the target mapping and separately accounts for field types, multi-fields, nested mappings, doc values, aliases, and runtime fields. Full text may bind to a text path, while exact matching, sorting, or TERMS aggregation may bind to a keyword multi-field. An object array receives Element scope only when the corresponding nested mapping supports it.
 
-The adapters share public capability names but do not produce identical physical paths, full-text behavior, array scopes, or temporal capabilities. A custom filter converter makes the built-in Query Model Schema unavailable. The capability contract exists again only if the caller also supplies a Provider/adapter implementation consistent with that converter.
+The adapters share public capability names but do not produce identical physical paths, full-text behavior, array scopes, or temporal capabilities. A custom Backend Compiler makes the built-in Query Model Schema unavailable. The capability contract exists again only if the caller also supplies a Provider/adapter implementation consistent with that Compiler.
 
 ## QueryField and Projection
 
@@ -91,7 +91,7 @@ Every resolution has one compatibility level:
 - `COMPATIBLE`: no exact binding was found, but compatible mode may preserve the original path, for example for an undeclared field or an accepted dynamic child;
 - `INCOMPATIBLE`: the field is known but lacks the required capability, or its value type, cardinality, or Element scope violates the contract.
 
-`QuerySchemaValidationMode.COMPATIBLE` accepts both `EXACT` and `COMPATIBLE` and rejects `INCOMPATIBLE`. `QuerySchemaValidationMode.STRICT` accepts only `EXACT`. The mode controls whether a resolution is accepted; it never creates an index or mapping for the backend.
+`QuerySchemaValidationMode.COMPATIBLE` accepts both `EXACT` and `COMPATIBLE` and rejects `INCOMPATIBLE`. `QuerySchemaValidationMode.STRICT` accepts only `EXACT`. The mode controls whether a resolution is accepted; it never creates an index or mapping for the backend. When an accepted `COMPATIBLE` field has no binding, the Schema-aware Backend Compiler uses its original path as the physical path.
 
 On every subscription, a managed Gateway calls the Provider once and obtains one Schema before constructing `QueryContext`. The Context exposes non-null Schema from the beginning of the Filter chain, and Filter, Resolver, `ResolvedQuery`, Backend compiler, and Mask share that instance. Only the Gateway applies the validation mode; the Backend neither reads the Provider nor resolves the query again.
 
@@ -131,4 +131,4 @@ These four model-level routes have no tenant, owner, or aggregate-ID variants. T
 3. Inspect actual backend facts: MongoDB indexes and validators, or Elasticsearch mappings, multi-fields, nested mappings, doc values, and runtime fields. Do not extrapolate from the other backend.
 4. Distinguish `INCOMPATIBLE`, Schema conflict, Schema unavailable, and request-DTO errors, and verify whether the current mode is `COMPATIBLE` or `STRICT`.
 5. After changing declarations or mappings, refresh the current-process view. Refresh cannot repair a mapping or historical document that still violates the required capability.
-6. With a custom converter, verify that the routed `QueryBackendBinding.schemaProvider` adapter and `binding.backend` converter use consistent mapping rules.
+6. With a custom Backend Compiler, verify that the routed `QueryBackendBinding.schemaProvider` adapter and `binding.backend` Compiler use consistent mapping rules.
