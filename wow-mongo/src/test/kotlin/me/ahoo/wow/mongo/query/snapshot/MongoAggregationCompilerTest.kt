@@ -215,12 +215,13 @@ class MongoAggregationCompilerTest {
             field(
                 "state.createdAt",
                 QueryCapability.AGGREGATE_TEMPORAL,
-                "document.created_at",
-                semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
+                "storage.created_at",
+                semanticType = Temporal.Epoch(TimeUnit.SECONDS),
+                resolvedPath = "document.createdAt",
             ),
         )
         val query = aggregation {
-            dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+            dateHistogram("document.createdAt", AggregationDateUnit.DAY, "day")
             count("count")
         }
 
@@ -229,7 +230,7 @@ class MongoAggregationCompilerTest {
             .toBsonDocument().toJson()
 
         group.assert()
-            .contains("document.created_at")
+            .contains("storage.created_at")
             .contains("\$isArray")
             .contains("\$size")
             .contains("\$isNumber")
@@ -238,8 +239,9 @@ class MongoAggregationCompilerTest {
             .contains("\"to\": \"date\"")
             .contains("\"onError\": null")
             .contains("\"onNull\": null")
+            .contains("1000")
             .contains("\$dateTrunc")
-            .doesNotContain("state.createdAt")
+            .doesNotContain("document.createdAt")
     }
 
     @Test

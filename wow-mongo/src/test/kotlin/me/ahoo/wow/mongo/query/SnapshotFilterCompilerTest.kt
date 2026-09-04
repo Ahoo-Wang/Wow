@@ -235,6 +235,20 @@ class SnapshotFilterCompilerTest {
     }
 
     @Test
+    fun `default deletion filter should use its physical binding`() {
+        val mappedSchema = QueryModelSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = mapOf(
+                binding(StateAggregateRecords.DELETED, "metadata.deleted", QueryCapability.EXACT_MATCH),
+            ),
+        )
+
+        SnapshotFilterCompiler.compile(MatchAllFilter, mappedSchema).toBsonDocument().assert()
+            .isEqualTo(Filters.eq("metadata.deleted", false).toBsonDocument())
+    }
+
+    @Test
     fun `match none should absorb the default deletion scope`() {
         compile(MatchNoneFilter).toBsonDocument().assert()
             .isEqualTo(org.bson.Document("\$expr", false).toBsonDocument())

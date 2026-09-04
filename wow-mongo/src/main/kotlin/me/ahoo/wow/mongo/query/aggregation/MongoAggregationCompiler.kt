@@ -338,7 +338,8 @@ internal class MongoAggregationCompiler(
         schema: QueryModelSchema,
     ): Any {
         val logicalField = parent?.append(field) ?: field
-        val fieldSchema = schema.field(logicalField)
+        val fieldSchema = schema.resolveFieldSchema(logicalField, QueryCapability.AGGREGATE_TEMPORAL)
+            ?: schema.field(logicalField)
         val temporalBinding = fieldSchema?.binding(QueryCapability.AGGREGATE_TEMPORAL)
         val dynamicTemporal = fieldSchema?.let { logicalField !in schema.fields && it.dynamicChildren } == true
         if (temporalBinding == null && (fieldSchema == null || dynamicTemporal)) {

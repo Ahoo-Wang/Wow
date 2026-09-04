@@ -186,8 +186,8 @@ abstract class AbstractMongoFilterCompiler(
         is ExistsFilter -> Filters.exists(filter.field.resolve(schema, QueryCapability.PRESENCE, scope))
         is NotExistsFilter -> Filters.exists(filter.field.resolve(schema, QueryCapability.PRESENCE, scope), false)
         is DeletionFilter -> when (filter.deletionState) {
-            DeletionState.ACTIVE -> Filters.eq(StateAggregateRecords.DELETED, false)
-            DeletionState.DELETED -> Filters.eq(StateAggregateRecords.DELETED, true)
+            DeletionState.ACTIVE -> Filters.eq(schema.field(StateAggregateRecords.DELETED).path, false)
+            DeletionState.DELETED -> Filters.eq(schema.field(StateAggregateRecords.DELETED).path, true)
             DeletionState.ALL -> Filters.empty()
         }
         is ElementMatchFilter -> filter.field.resolvePhysical(
