@@ -17,6 +17,10 @@ import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -27,7 +31,10 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackendFactory
 import me.ahoo.wow.infrastructure.elasticsearch.ElasticsearchBenchmarkFixture
@@ -38,10 +45,12 @@ import me.ahoo.wow.mongo.Documents.replaceAggregateIdToPrimaryKey
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.schema.query.JsonQuerySchemaSource
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toLinkedHashMap
 import org.bson.Document
@@ -61,6 +70,7 @@ import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
 import org.openjdk.jmh.infra.Blackhole
 import reactor.kotlin.core.publisher.toMono
+import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import java.util.Random
 import java.util.concurrent.TimeUnit
@@ -88,6 +98,7 @@ open class QueryGatewayBackendBenchmark {
     @Param("mongo", "elasticsearch")
     lateinit var storage: String
 
+    // Opt in with -p operation=cursor100,summary -p result=dynamic; keep the default matrix unchanged.
     @Param("single", "list100", "list1000", "paged100")
     lateinit var operation: String
 
@@ -95,21 +106,27 @@ open class QueryGatewayBackendBenchmark {
     lateinit var result: String
 
     private val namedAggregate: NamedAggregate = MaterializedNamedAggregate("benchmark-query", "query_benchmark")
+    private val schemaSources = listOf(JsonQuerySchemaSource(typeResolver = { QueryBenchmarkState::class.java }))
     private lateinit var gateway: SnapshotQueryGateway<QueryBenchmarkState>
     private lateinit var singleQuery: ISingleQuery
     private lateinit var list100Query: IListQuery
     private lateinit var list1000Query: IListQuery
     private lateinit var paged100Query: IPagedQuery
+    private lateinit var cursor100Query: ICursorQuery
+    private lateinit var summaryQuery: AggregationQuery
     private var mongoFixture: MongoBenchmarkFixture? = null
     private var elasticsearchFixture: ElasticsearchBenchmarkFixture? = null
 
     @Setup(Level.Trial)
     fun setup() {
         require(storage == "mongo" || storage == "elasticsearch") { "Unsupported storage: $storage" }
-        require(operation in setOf("single", "list100", "list1000", "paged100")) {
+        require(operation in setOf("single", "list100", "list1000", "paged100", "cursor100", "summary")) {
             "Unsupported operation: $operation"
         }
         require(result == "dynamic" || result == "typed") { "Unsupported result: $result" }
+        require(operation !in setOf("cursor100", "summary") || result == "dynamic") {
+            "$operation requires result=dynamic"
+        }
         val binding = when (storage) {
             "mongo" -> setupMongo()
             "elasticsearch" -> setupElasticsearch()
@@ -120,10 +137,48 @@ open class QueryGatewayBackendBenchmark {
         list100Query = ListQuery(MatchAllFilter, limit = 100)
         list1000Query = ListQuery(MatchAllFilter, limit = 1_000)
         paged100Query = PagedQuery(MatchAllFilter, pagination = Pagination(size = 100))
+        cursor100Query = CursorQuery(
+            MatchAllFilter,
+            projection = Projection(include = listOf(QueryField("state.payload"))),
+            sort = listOf(Sort(QueryField("state.group"), Sort.Direction.ASC)),
+            size = 100,
+        )
+        summaryQuery = aggregation {
+            count("count")
+            sum("state.group", "total")
+        }
 
         val probe = executeConfiguredQuery()
         check(recordCount(probe) == expectedRecordCount()) {
             "Unexpected result count for $storage/$operation/$result: ${recordCount(probe)}"
+        }
+        when (operation) {
+            "cursor100" -> {
+                val page = probe as CursorPage<*>
+                check(!page.nextCursor.isNullOrEmpty()) { "Expected another cursor page for $storage" }
+                val payloads = page.list.map {
+                    val row = it as ObjectNode
+                    val state = row.path("state")
+                    check(row.size() == 1 && state.size() == 1 && state.has("payload")) {
+                        "Cursor projection exposed unrequested fields for $storage: $row"
+                    }
+                    state.path("payload").stringValue()
+                }
+                val expected = snapshots()
+                    .sortedWith(compareBy({ it.state.group }, { it.aggregateId }))
+                    .take(cursor100Query.size)
+                    .map { it.state.payload }
+                check(payloads == expected) { "Unexpected cursor ordering or payload for $storage" }
+            }
+            "summary" -> {
+                check(summaryQuery.groupBy.isEmpty())
+                val row = (probe as List<*>).single() as ObjectNode
+                check(row.size() == 2 && row.has("count") && row.has("total")) {
+                    "Unexpected summary aliases for $storage: $row"
+                }
+                check(row.path("count").isNumber && row.path("count").doubleValue() == DATASET_SIZE.toDouble())
+                check(row.path("total").isNumber && row.path("total").doubleValue() == 7_468.0)
+            }
         }
     }
 
@@ -169,7 +224,7 @@ open class QueryGatewayBackendBenchmark {
         }
         val insert = checkNotNull(collection.insertMany(documents).toMono().block(QUERY_TIMEOUT))
         check(insert.wasAcknowledged())
-        return MongoSnapshotQueryBackendFactory(fixture.database).create(namedAggregate)
+        return MongoSnapshotQueryBackendFactory(fixture.database, schemaSources).create(namedAggregate)
     }
 
     private fun setupElasticsearch(): QueryBackendBinding<SnapshotQueryBackend> {
@@ -194,6 +249,7 @@ open class QueryGatewayBackendBenchmark {
         return ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = fixture.client,
             queryBatchSize = ELASTICSEARCH_BATCH_SIZE,
+            schemaSources = schemaSources,
         ).create(namedAggregate)
     }
 
@@ -240,6 +296,9 @@ open class QueryGatewayBackendBenchmark {
             checkNotNull(gateway.paged(paged100Query).block(QUERY_TIMEOUT))
         }
 
+        "cursor100" -> checkNotNull(gateway.dynamicCursor(cursor100Query).block(QUERY_TIMEOUT))
+        "summary" -> checkNotNull(gateway.aggregate(summaryQuery).collectList().block(QUERY_TIMEOUT))
+
         else -> error("Unsupported operation: $operation")
     }
 
@@ -250,8 +309,8 @@ open class QueryGatewayBackendBenchmark {
     }
 
     private fun expectedRecordCount(): Int = when (operation) {
-        "single" -> 1
-        "list100", "paged100" -> 100
+        "single", "summary" -> 1
+        "list100", "paged100", "cursor100" -> 100
         "list1000" -> 1_000
         else -> error("Unsupported operation: $operation")
     }
@@ -259,6 +318,7 @@ open class QueryGatewayBackendBenchmark {
     private fun recordCount(queryResult: Any): Int = when (queryResult) {
         is List<*> -> queryResult.size
         is PagedList<*> -> queryResult.list.size
+        is CursorPage<*> -> queryResult.list.size
         else -> 1
     }
 
