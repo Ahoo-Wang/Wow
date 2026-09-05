@@ -147,16 +147,19 @@ class MongoCursorDocumentsTest {
                     .append("empty", Document()),
             )
         }
-        val query = CursorQuery(MatchAllFilter, sort = sortFields.map { Sort(QueryField(it), Sort.Direction.ASC) }, size = 2)
+        val query =
+            CursorQuery(MatchAllFilter, sort = sortFields.map { Sort(QueryField(it), Sort.Direction.ASC) }, size = 2)
 
         val page = documents.toCursorPage(query, projection) { it }
 
         page.list.assert().containsExactly(
             Document("name", "row-1").append(
-                "state", Document("a", Document("payload", "keep-1")).append("empty", Document()),
+                "state",
+                Document("a", Document("payload", "keep-1")).append("empty", Document()),
             ),
             Document("name", "row-2").append(
-                "state", Document("a", Document("payload", "keep-2")).append("empty", Document()),
+                "state",
+                Document("a", Document("payload", "keep-2")).append("empty", Document()),
             ),
         )
         MongoCursorCodec.decode(page.nextCursor!!, 3).assert().isEqualTo(listOf(2, 12, 22))
@@ -177,7 +180,8 @@ class MongoCursorDocumentsTest {
         val documents = (1..3).map { rank ->
             Document("_id", 100L + rank).append("name", "row-$rank").append("state", Document("rank", rank))
         }
-        val query = CursorQuery(MatchAllFilter, sort = sortFields.map { Sort(QueryField(it), Sort.Direction.ASC) }, size = 2)
+        val query =
+            CursorQuery(MatchAllFilter, sort = sortFields.map { Sort(QueryField(it), Sort.Direction.ASC) }, size = 2)
         val mappedIds = mutableListOf<Long>()
 
         val page = documents.toCursorPage(query, projection, deferredInternalFields = setOf("_id")) { document ->
