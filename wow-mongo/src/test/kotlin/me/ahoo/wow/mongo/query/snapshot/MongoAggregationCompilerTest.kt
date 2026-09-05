@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.mongo.query.snapshot
 
+import io.mockk.spyk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.DeletionFilter
@@ -41,6 +43,255 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
+
+class MongoAggregationCompilerInputTest {
+
+    @Test
+    fun `group should resolve its terms input once for match and group stages`() {
+        val observed = spyk(schema(field("state.status", QueryCapability.AGGREGATE_TERMS, "storage.status")))
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status")
+                count("count")
+            },
+            observed,
+        ).map { it.toBsonDocument() }
+
+        pipeline[1].toJson().assert().contains("storage.status")
+        pipeline[2].getDocument("\$group").getDocument("_id").getString("status").value.assert()
+            .isEqualTo("\$storage.status")
+        verify(exactly = 1) {
+            observed.resolveFieldSchema(QueryField("state.status"), QueryCapability.AGGREGATE_TERMS)
+        }
+    }
+
+    @Test
+    fun `group should reuse its numeric input for histogram match and group stages`() {
+        val observed = spyk(
+            schema(
+                field(
+                    "state.amount",
+                    QueryCapability.AGGREGATE_NUMERIC,
+                    "storage.amount",
+                    QueryValueType.DECIMAL,
+                ),
+            ),
+        )
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                histogram("state.amount", 10.0, "range")
+                count("count")
+            },
+            observed,
+        ).map { it.toBsonDocument() }
+
+        val matchInput = pipeline[1].getDocument("\$match").getArray("\$and")[0].asDocument()
+            .getDocument("\$expr").getDocument("\$isNumber")
+        val groupInput = pipeline[2].getDocument("\$group").getDocument("_id").getDocument("range")
+            .getArray("\$multiply")[0].asDocument().getDocument("\$floor")
+            .getArray("\$divide")[0].asDocument()
+        matchInput.assert().isEqualTo(groupInput)
+        verify(exactly = 1) {
+            observed.resolveFieldSchema(QueryField("state.amount"), QueryCapability.AGGREGATE_NUMERIC)
+        }
+    }
+
+    @Test
+    fun `group should reuse its epoch date input for match and group stages`() {
+        val observed = spyk(
+            schema(
+                field(
+                    "state.createdAt",
+                    QueryCapability.AGGREGATE_TEMPORAL,
+                    "storage.createdAt",
+                    semanticType = Temporal.Epoch(TimeUnit.MICROSECONDS),
+                ),
+            ),
+        )
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
+            observed,
+        ).map { it.toBsonDocument() }
+
+        val matchInput = pipeline[1].getDocument("\$match").getArray("\$and")[0].asDocument()
+            .getDocument("\$expr").getArray("\$ne")[0].asDocument()
+        val groupInput = pipeline[2].getDocument("\$group").getDocument("_id").getDocument("day")
+            .getDocument("\$toLong").getDocument("\$dateTrunc").getDocument("date")
+        matchInput.assert().isEqualTo(groupInput)
+        verify(exactly = 1) {
+            observed.resolveFieldSchema(QueryField("state.createdAt"), QueryCapability.AGGREGATE_TEMPORAL)
+        }
+    }
+
+    @Test
+    fun `unknown date group should reuse native fallback without physical resolution`() {
+        val observed = spyk(schema())
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
+            observed,
+        ).map { it.toBsonDocument() }
+        val expected = BsonDocument("\$toDate", BsonString("\$state.createdAt"))
+
+        pipeline[1].getDocument("\$match").getArray("\$and")[0].asDocument()
+            .getDocument("\$expr").getArray("\$ne")[0].assert().isEqualTo(expected)
+        pipeline[2].getDocument("\$group").getDocument("_id").getDocument("day")
+            .getDocument("\$toLong").getDocument("\$dateTrunc").get("date").assert().isEqualTo(expected)
+        verify(exactly = 1) {
+            observed.resolveFieldSchema(QueryField("state.createdAt"), QueryCapability.AGGREGATE_TEMPORAL)
+        }
+        verify(exactly = 0) {
+            observed.resolvePhysicalField(
+                QueryField("state.createdAt"),
+                QueryCapability.AGGREGATE_TEMPORAL,
+                any(),
+                any(),
+                any(),
+            )
+        }
+    }
+
+    @Test
+    fun `date group should prefer a temporal alias over a declared capability miss`() {
+        val temporal = field(
+            "state.createdAt",
+            QueryCapability.AGGREGATE_TEMPORAL,
+            "storage.createdAt",
+            semanticType = Temporal.Date,
+            resolvedPath = "document.createdAt",
+        )
+        val aliasSchema = schema(
+            temporal,
+            field("document.createdAt", QueryCapability.PRESENCE, "document.createdAt"),
+        )
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                dateHistogram("document.createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
+            aliasSchema,
+        ).map { it.toBsonDocument() }
+
+        pipeline[1].toJson().assert().contains("storage.createdAt").doesNotContain("document.createdAt")
+        pipeline[2].toJson().assert().contains("storage.createdAt").doesNotContain("document.createdAt")
+    }
+
+    @Test
+    fun `group compilation should preserve the first semantic failure`() {
+        val input = schema(
+            field("state.first", QueryCapability.AGGREGATE_TEMPORAL, "storage.first"),
+            field("state.second", QueryCapability.PRESENCE, "storage.second"),
+        )
+
+        assertThrows<QuerySchemaValidationException> {
+            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+                aggregation {
+                    dateHistogram("state.first", AggregationDateUnit.DAY, "first")
+                    terms("state.second", "second")
+                    count("count")
+                },
+                input,
+            )
+        }.message.assert().isEqualTo("Query field [state.first] does not have a supported temporal semantic type.")
+    }
+
+    @Test
+    fun `unknown date group should preserve the full mapped element parent and relative field`() {
+        val input = schema(
+            field("state.orders", QueryCapability.ELEMENT_SCOPE, "storage.orders", QueryValueType.OBJECT),
+        )
+
+        listOf(
+            "createdAt" to "\$storage.orders.createdAt",
+            "orders.createdAt" to "\$storage.orders.orders.createdAt",
+        ).forEach { (field, physicalPath) ->
+            val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+                aggregation {
+                    expand("state.orders")
+                    dateHistogram(field, AggregationDateUnit.DAY, "day")
+                    count("count")
+                },
+                input,
+            ).map { it.toBsonDocument() }
+            val expected = BsonDocument("\$toDate", BsonString(physicalPath))
+
+            pipeline[2].getDocument("\$match").getArray("\$and")[0].asDocument()
+                .getDocument("\$expr").getArray("\$ne")[0].assert().isEqualTo(expected)
+            pipeline[3].getDocument("\$group").getDocument("_id").getDocument("day")
+                .getDocument("\$toLong").getDocument("\$dateTrunc").get("date").assert().isEqualTo(expected)
+        }
+    }
+
+    @Test
+    fun `dynamic resolved alias with a numeric suffix should retain its validation failure`() {
+        val input = schema(
+            field(
+                "state.extra",
+                QueryCapability.AGGREGATE_TEMPORAL,
+                "storage.extra",
+                semanticType = Temporal.Date,
+                dynamicChildren = true,
+                resolvedPath = "document.extra",
+            ),
+        )
+
+        assertThrows<IllegalArgumentException> {
+            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+                aggregation {
+                    dateHistogram("document.extra.123", AggregationDateUnit.DAY, "day")
+                    count("count")
+                },
+                input,
+            )
+        }
+    }
+
+    @Test
+    fun `summary group should use a null id`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation { count("count") },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        requireNotNull(pipeline[1].getDocument("\$group").get("_id")).isNull.assert().isTrue()
+    }
+
+    @Test
+    fun `consecutive compilations should produce the same native pipeline`() {
+        val compiler = MongoAggregationCompiler(SnapshotFilterCompiler)
+        val query = aggregation {
+            terms("state.status", "status")
+            histogram("state.amount", 10.0, "range")
+            dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+            count("count")
+        }
+        val input = schema(
+            field("state.status", QueryCapability.AGGREGATE_TERMS, "storage.status"),
+            field(
+                "state.amount",
+                QueryCapability.AGGREGATE_NUMERIC,
+                "storage.amount",
+                QueryValueType.DECIMAL,
+            ),
+            field(
+                "state.createdAt",
+                QueryCapability.AGGREGATE_TEMPORAL,
+                "storage.createdAt",
+                semanticType = Temporal.Date,
+            ),
+        )
+
+        val first = compiler.compile(query, input).map { it.toBsonDocument() }
+        val second = compiler.compile(query, input).map { it.toBsonDocument() }
+
+        first.assert().isEqualTo(second)
+    }
+}
 
 class MongoAggregationCompilerTest {
 
@@ -605,46 +856,46 @@ class MongoAggregationCompilerTest {
         MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())[2].toBsonDocument().toJson().assert()
             .contains("\$state.status")
     }
+}
 
-    private fun schema(vararg fields: Pair<QueryField, QueryFieldSchema>) = QueryModelSchema(
-        model = QueryModel.SNAPSHOT,
-        capabilities = emptySet(),
-        fields = fields.toMap() + field(
-            MessageRecords.AGGREGATE_ID,
-            QueryCapability.AGGREGATE_TERMS,
-            "_id",
-        ),
+private fun schema(vararg fields: Pair<QueryField, QueryFieldSchema>) = QueryModelSchema(
+    model = QueryModel.SNAPSHOT,
+    capabilities = emptySet(),
+    fields = fields.toMap() + field(
+        MessageRecords.AGGREGATE_ID,
+        QueryCapability.AGGREGATE_TERMS,
+        "_id",
+    ),
+)
+
+private fun field(
+    logicalPath: String,
+    capability: QueryCapability,
+    physicalPath: String,
+    valueType: QueryValueType = QueryValueType.STRING,
+    semanticType: Temporal? = null,
+    dynamicChildren: Boolean = false,
+    rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
+    resolvedPath: String = logicalPath,
+    additionalCapabilities: Set<QueryCapability> = emptySet(),
+): Pair<QueryField, QueryFieldSchema> {
+    val source = QueryField(logicalPath)
+    val physical = QueryField(
+        if (logicalPath == MessageRecords.AGGREGATE_ID && physicalPath == logicalPath) "_id" else physicalPath,
     )
-
-    private fun field(
-        logicalPath: String,
-        capability: QueryCapability,
-        physicalPath: String,
-        valueType: QueryValueType = QueryValueType.STRING,
-        semanticType: Temporal? = null,
-        dynamicChildren: Boolean = false,
-        rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
-        resolvedPath: String = logicalPath,
-        additionalCapabilities: Set<QueryCapability> = emptySet(),
-    ): Pair<QueryField, QueryFieldSchema> {
-        val source = QueryField(logicalPath)
-        val physical = QueryField(
-            if (logicalPath == MessageRecords.AGGREGATE_ID && physicalPath == logicalPath) "_id" else physicalPath,
-        )
-        return source to QueryFieldSchema(
-            title = null,
-            description = null,
-            enumValues = null,
-            valueTypes = setOf(valueType),
-            nullable = false,
-            required = true,
-            cardinality = QueryCardinality.SINGLE,
-            semanticType = semanticType,
-            dynamicChildren = dynamicChildren,
-            bindings = (additionalCapabilities + capability).associateWith {
-                QueryFieldBinding(QueryField(resolvedPath), physical, QueryStorageType("test"))
-            },
-            rewriteMode = rewriteMode,
-        )
-    }
+    return source to QueryFieldSchema(
+        title = null,
+        description = null,
+        enumValues = null,
+        valueTypes = setOf(valueType),
+        nullable = false,
+        required = true,
+        cardinality = QueryCardinality.SINGLE,
+        semanticType = semanticType,
+        dynamicChildren = dynamicChildren,
+        bindings = (additionalCapabilities + capability).associateWith {
+            QueryFieldBinding(QueryField(resolvedPath), physical, QueryStorageType("test"))
+        },
+        rewriteMode = rewriteMode,
+    )
 }

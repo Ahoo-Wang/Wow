@@ -17,6 +17,7 @@ import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.spyk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
@@ -36,23 +37,27 @@ import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.requireAccepted
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
 class ElasticsearchAggregationCompilerTest {
     @Test
     fun `numeric epoch date histogram should use a request local parameterized date runtime field`() {
-        val schema = schema(
-            field(
-                "state.createdAt",
-                QueryCapability.AGGREGATE_TEMPORAL,
-                "physical.created_at",
-                "long",
-                Temporal.Epoch(TimeUnit.MICROSECONDS),
-                resolvedPath = "document.createdAt",
+        val schema = spyk(
+            schema(
+                field(
+                    "state.createdAt",
+                    QueryCapability.AGGREGATE_TEMPORAL,
+                    "physical.created_at",
+                    "long",
+                    Temporal.Epoch(TimeUnit.MICROSECONDS),
+                    resolvedPath = "document.createdAt",
+                ),
             ),
         )
 
@@ -82,6 +87,115 @@ class ElasticsearchAggregationCompilerTest {
             aggregation { count("count") },
             schema,
         ).runtimeMappings.assert().isEmpty()
+        verify(exactly = 1) {
+            schema.resolveFieldSchema(QueryField("document.createdAt"), QueryCapability.AGGREGATE_TEMPORAL)
+        }
+        verify(exactly = 0) {
+            schema.resolvePhysicalField(
+                QueryField("document.createdAt"),
+                QueryCapability.AGGREGATE_TEMPORAL,
+                any(),
+                any(),
+                any(),
+            )
+        }
+    }
+
+    @Test
+    fun `terms should reuse its resolved binding`() {
+        val schema = spyk(
+            schema(field("state.status", QueryCapability.AGGREGATE_TERMS, "storage.status", "keyword")),
+        )
+
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status")
+                count("count")
+            },
+            schema,
+        )
+
+        plan.groupSources.single().value().terms().field().assert().isEqualTo("storage.status")
+        verify(exactly = 1) {
+            schema.resolveFieldSchema(QueryField("state.status"), QueryCapability.AGGREGATE_TERMS)
+        }
+        verify(exactly = 0) {
+            schema.resolvePhysicalField(
+                QueryField("state.status"),
+                QueryCapability.AGGREGATE_TERMS,
+                any(),
+                any(),
+                any(),
+            )
+        }
+    }
+
+    @Test
+    fun `date histogram should reject declared fields without temporal capability`() {
+        val root = QueryField("state.extra")
+        val declared = schema(field(root.path, QueryCapability.PRESENCE, "storage.extra", "object"))
+        val dynamic = declared.copy(
+            fields = declared.fields.mapValues { (_, value) -> value.copy(dynamicChildren = true) },
+        )
+
+        listOf(declared to root.path, dynamic to "state.extra.createdAt").forEach { (inputSchema, path) ->
+            assertThrows<QuerySchemaValidationException> {
+                ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
+                    aggregation {
+                        dateHistogram(path, AggregationDateUnit.DAY, "day")
+                        count("count")
+                    },
+                    inputSchema,
+                )
+            }.message.assert().contains("AGGREGATE_TEMPORAL")
+        }
+
+        val fallback = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                dateHistogram("state.extra.createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
+            schema(),
+        )
+        fallback.groupSources.single().value().dateHistogram().field().assert()
+            .isEqualTo("state.extra.createdAt")
+    }
+
+    @Test
+    fun `date histogram should prefer temporal aliases and require temporal semantics`() {
+        val temporal = field(
+            "state.createdAt",
+            QueryCapability.AGGREGATE_TEMPORAL,
+            "storage.createdAt",
+            "date",
+            Temporal.Date,
+            resolvedPath = "document.createdAt",
+        )
+        val aliasSchema = schema(
+            temporal,
+            field("document.createdAt", QueryCapability.PRESENCE, "document.createdAt", "date"),
+        )
+        val query = aggregation {
+            dateHistogram("document.createdAt", AggregationDateUnit.DAY, "day")
+            count("count")
+        }
+
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(query, aliasSchema)
+
+        plan.groupSources.single().value().dateHistogram().field().assert().isEqualTo("storage.createdAt")
+
+        val unsupported = schema(
+            field(
+                "state.createdAt",
+                QueryCapability.AGGREGATE_TEMPORAL,
+                "storage.createdAt",
+                "date",
+                resolvedPath = "document.createdAt",
+            ),
+        )
+        assertThrows<QuerySchemaValidationException> {
+            ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(query, unsupported)
+        }.message.assert().contains("does not have a supported temporal semantic type")
     }
 
     @Test

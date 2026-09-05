@@ -2,7 +2,7 @@
 
 日期：2026-09-05
 
-状态：书面设计已于 2026-09-05 确认；第一阶段进入实施计划。
+状态：第一阶段已实施并通过验证；第二阶段另行设计。
 
 基线：`4a64789b6`，Wow `9.0.8`。
 
@@ -190,8 +190,8 @@ JMH 原始结果保留在忽略的构建输出目录；交付中提供结果位�
 
 查询热路径与静态/identity 对照没有可复现退化；`identityDynamicFilter` 的分配疑似信号经成对复测为 3032.002 → 3032.002 B/op，耗时区间重叠。构造场景的 B/op 是每次 Schema 构造期间的分配量，不是动态索引的保留内存；本阶段没有测量 retained heap。针对性成对复测确认 `dynamic128` 构造为 25730.255 ± 188.109 → 32455.041 ± 222.367 ns/op、72176.070 → 109144.087 B/op；包含 256/2048 个命名静态字段和 1 个动态根的 `static256/2048` 构造约为 1.082x/1.090x，属于把查询期扫描换到构造期的权衡。只有 `none32/none2048` 是无动态根对照。
 
-最终 `:wow-query:check` 执行 394 项测试并通过 Detekt；MongoDB、Elasticsearch、Spring 与 WebFlux 的指定单元/集成测试共 564 项，全部 0 failure、0 error、0 skip。原始结果位于 `build/query-resolution/{baseline,final-candidate}.{json,log}`、`build/query-resolution/{baseline,final-candidate}-environment.txt`、`build/query-resolution/rerun-{baseline,final}-construct-selected.{json,log}`；详细命令和完整 36 行对照见 `.superpowers/sdd/2026-09-05-query-resolution-refactoring/task-4-report.md`。
+最终 `:wow-query:check` 执行 394 项测试并通过 Detekt；MongoDB、Elasticsearch、Spring 与 WebFlux 的指定单元/集成测试共 564 项，全部 0 failure、0 error、0 skip。原始结果位于 `build/query-resolution/{baseline,final-candidate}.{json,log}`、`build/query-resolution/{baseline,final-candidate}-environment.txt`、`build/query-resolution/rerun-{baseline,final}-construct-selected.{json,log}`；详细命令和完整 36 行对照已归档至 `build/query-resolution/reviews-27fe81b40/task-4-report.md`。
 
-第二阶段没有查询热路径修正的证据需求。若实际 Schema 高频重建或堆分析证明构造成本显著，再单独设计动态索引的延迟构造、容量估算及 retained heap 测量；本阶段不提前引入这些机制。
+本阶段结果只覆盖共享解析内核，不能据此推断后端编译没有重复工作。第二阶段按既定方向评估[聚合编译结果复用](2026-09-05-aggregation-compiler-refactoring-design.md)。动态索引的延迟构造、容量估算及 retained heap 测量仍需 Schema 高频重建或堆占用方面的实际证据，不提前纳入下一阶段。
 
-本设计审阅通过后，使用 `writing-plans` 制定第一阶段实施计划。第二阶段根据本阶段结果单独明确目标和验收条件。
+第一阶段已完成；后续阶段分别明确设计、范围和验收条件。

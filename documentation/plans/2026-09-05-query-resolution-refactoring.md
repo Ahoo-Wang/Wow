@@ -464,4 +464,4 @@ git status --short
 
 原始产物位于 `build/query-resolution/baseline.{json,log}`、`baseline-environment.txt`、`final-candidate.{json,log}`、`final-candidate-environment.txt`、`rerun-{baseline,final}-construct-selected.{json,log}`；验证日志为 `final-wow-query-check.log`、`final-backend-unit.log`、`final-spring-webflux.log`、`final-backend-integration.log`。生成输出均保持忽略且不提交。
 
-第一阶段无需继续修改查询热路径。第二阶段仅保留一个有数据依据的候选：若生产剖析证明 Schema 高频重建或堆占用显著，再单独设计动态索引延迟构造、容量估算与 retained heap 测量；当前不提前实施。
+第一阶段的测量结论限定于共享解析内核。第二阶段按既定方向单独设计[聚合编译结果复用](../designs/2026-09-05-aggregation-compiler-refactoring-design.md)；动态索引延迟构造、容量估算与 retained heap 测量仍需生产剖析提供证据，不因本阶段构造成本变化而提前实施。
