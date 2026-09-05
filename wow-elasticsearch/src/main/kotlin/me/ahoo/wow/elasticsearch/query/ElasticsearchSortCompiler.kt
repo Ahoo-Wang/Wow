@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import co.elastic.clients.elasticsearch._types.FieldSort
 import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
 import me.ahoo.wow.api.query.Sort
@@ -25,11 +26,23 @@ object ElasticsearchSortCompiler {
         sort.map { it.copy(field = schema.resolvePhysicalField(it.field, QueryCapability.SORT)) },
     )
 
-    internal fun compilePhysical(sort: List<Sort>): List<SortOptions> {
+    internal fun compileCursor(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> = compilePhysical(
+        sort.map { it.copy(field = schema.resolvePhysicalField(it.field, QueryCapability.SORT)) },
+    ) { logicalSort ->
+        missing(if (logicalSort.direction == Sort.Direction.ASC) "_first" else "_last")
+    }
+
+    internal fun compilePhysical(sort: List<Sort>): List<SortOptions> = compilePhysical(sort) { }
+
+    private inline fun compilePhysical(
+        sort: List<Sort>,
+        crossinline configure: FieldSort.Builder.(Sort) -> Unit,
+    ): List<SortOptions> {
         return sort.map {
             SortOptions.of { sortBuilder ->
                 sortBuilder.field { fieldBuilder ->
                     fieldBuilder.field(it.field.path).order(it.direction.toSortOrder())
+                    fieldBuilder.configure(it)
                     if (it.field.path.startsWith("${MessageRecords.BODY}.")) {
                         fieldBuilder.nested { nested -> nested.path(MessageRecords.BODY) }
                     }
