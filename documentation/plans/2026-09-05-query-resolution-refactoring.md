@@ -458,7 +458,7 @@ git status --short
 | `constructSchema(dynamic128)` | 25720.877 ± 179.044 | 31022.219 ± 325.109 | 72176.070 | 109144.083 | 构造耗时 1.206x，约 +36,968 B/次 |
 | `constructSchema(static2048)` | 343087.049 ± 6031.577 | 414368.329 ± 6095.390 | 1076293.067 | 1076665.102 | 构造耗时 1.208x；复测 1.090x |
 
-构造 B/op 只表示一次 Schema 构造期间的分配量，不表示索引 retained heap；本阶段未测 retained heap。针对性构造复测确认 `dynamic128` 为 25730.255 ± 188.109 → 32455.041 ± 222.367 ns/op、72176.070 → 109144.087 B/op，纯静态 `static256/2048` 为 1.082x/1.090x。查询热路径及静态/identity 对照均无可复现退化；`identityDynamicFilter` 的分配疑似信号经成对复测为 3032.002 → 3032.002 B/op，耗时区间重叠。
+构造 B/op 只表示一次 Schema 构造期间的分配量，不表示索引 retained heap；本阶段未测 retained heap。针对性构造复测确认 `dynamic128` 为 25730.255 ± 188.109 → 32455.041 ± 222.367 ns/op、72176.070 → 109144.087 B/op，包含 256/2048 个命名静态字段和 1 个动态根的 `static256/2048` 为 1.082x/1.090x；只有 `none32/none2048` 是无动态根对照。查询热路径及静态/identity 对照均无可复现退化；`identityDynamicFilter` 的分配疑似信号经成对复测为 3032.002 → 3032.002 B/op，耗时区间重叠。
 
 最终验证：`:wow-query:check` 394 项并通过 Detekt；Mongo query 单测 155 项、Elasticsearch query 单测 142 项、Spring query 单测 2 项、WebFlux query/snapshot/event route 单测 87 项、Mongo query 集成测试 85 项、Elasticsearch query 集成测试 93 项。合计 958 项测试，全部 0 failure、0 error、0 skip；Testcontainers 环境无失败。
 
