@@ -202,3 +202,12 @@ describe('getPropertyValue', () => {
     });
   });
 });
+
+it('rejects array index strings with non-numeric suffixes', () => {
+  expect(getPropertyValue(['first', 'second'], ['1oops'], 'missing')).toBe(
+    'missing',
+  );
+  expect(getPropertyValue(['first', 'second'], ['1.5'], 'missing')).toBe(
+    'missing',
+  );
+});

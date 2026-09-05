@@ -63,7 +63,7 @@ export function getPropertyValue<T = any>(
   let current: any = object;
   for (const segment of pathSegments) {
     if (Array.isArray(current)) {
-      const index = parseInt(segment, 10);
+      const index = /^\d+$/.test(segment) ? Number(segment) : NaN;
       if (isNaN(index) || index < 0 || !Number.isInteger(index)) {
         return defaultValue;
       }

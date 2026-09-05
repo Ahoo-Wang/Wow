@@ -204,3 +204,15 @@ describe('queryClients', () => {
     });
   });
 });
+
+it('preserves an explicitly configured basePath', () => {
+  expect(
+    createQueryApiMetadata({
+      basePath: '/custom/pets',
+      aggregateName: 'ignored',
+    }).basePath,
+  ).toBe('/custom/pets');
+  expect(
+    createQueryApiMetadata({ basePath: '', aggregateName: 'ignored' }).basePath,
+  ).toBe('');
+});
