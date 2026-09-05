@@ -48,7 +48,7 @@
 - Consumes: `MongoAggregationCompiler(SnapshotFilterCompiler.INSTANCE).compile(AggregationQuery, QueryModelSchema): List<Bson>` 与 ES 对应构造器及 `ElasticsearchAggregationPlan`。
 - Produces: JMH `AggregationCompilerBenchmark.compile()`；参数 `backend=mongo|elasticsearch`、`shape=known_terms|unknown_terms|known_histogram|known_epoch|unknown_date|known_metric|count_only`、`width=1|16`。
 
-- [ ] **Step 1: 用现有 Java JMH 源集创建基准。** 复用仓库版权头。使用显式 imports；Kotlin companion 常量通过 `Companion.get...()` 访问，不修改生产可见性或加反射。主体如下：
+- [x] **Step 1: 用现有 Java JMH 源集创建基准。** 复用仓库版权头。使用显式 imports；Kotlin companion 常量通过 `Companion.get...()` 访问，不修改生产可见性或加反射。主体如下：
 
 ```java
 @State(Scope.Benchmark)
@@ -120,7 +120,7 @@ public class AggregationCompilerBenchmark {
 }
 ```
 
-- [ ] **Step 2: 添加 Setup 原生输出检查。** 本检查替代基准专用测试框架。Mongo 检查完整物理路径与 null summary 分组键；ES 检查各原生 source/runtime/metric 路径及数量。方法如下（补齐该类所需 imports）：
+- [x] **Step 2: 添加 Setup 原生输出检查。** 本检查替代基准专用测试框架。Mongo 检查完整物理路径与 null summary 分组键；ES 检查各原生 source/runtime/metric 路径及数量。方法如下（补齐该类所需 imports）：
 
 ```java
 private void verifyPlan(Object result) {
@@ -162,7 +162,7 @@ private void verifyPlan(Object result) {
 }
 ```
 
-- [ ] **Step 3: 构建与发现检查，然后提交基准源码。**
+- [x] **Step 3: 构建与发现检查，然后提交基准源码。**
 
 ```bash
 ./gradlew :wow-benchmarks:jmhJar --console=plain
@@ -171,7 +171,7 @@ rg --files wow-benchmarks/build/libs | rg 'jmh.*\.jar$'
 
 用返回的唯一 jar 执行 `java -jar <实际 jar 路径> -l '.*AggregationCompilerBenchmark.*'`，预期发现 `compile`。若 JVM 签名细节需要调整，仅修改基准侧调用。执行 `git diff --check`，只提交新增基准，提交信息 `test(query): add aggregation compiler benchmarks`。
 
-- [ ] **Step 4: 冻结 baseline 并运行完整矩阵。** 以下 runner 存为忽略目录下的 `run-benchmark.py`；这是构建产物辅助脚本，不提交。首次使用 `baseline`，后续使用 `candidate`。两次共用该脚本及同一基准源码。基准运行失败应先修复 fixture，再重新冻结 baseline；冻结后生产改动才可开始。
+- [x] **Step 4: 冻结 baseline 并运行完整矩阵。** 以下 runner 存为忽略目录下的 `run-benchmark.py`；这是构建产物辅助脚本，不提交。首次使用 `baseline`，后续使用 `candidate`。两次共用该脚本及同一基准源码。基准运行失败应先修复 fixture，再重新冻结 baseline；冻结后生产改动才可开始。
 
 ```python
 from pathlib import Path
@@ -217,7 +217,7 @@ Run: `python3 build/aggregation-compiler/run-benchmark.py baseline`。报告源�
 - Consumes: 现有 `resolveFieldSchema(QueryField, QueryCapability): QueryFieldSchema?` 与 `QueryFieldSchema.binding(capability): QueryFieldBinding?`。
 - Produces: 同签名、同原生计划的 `compile`；一次字段出现位置只执行一次 Schema 解析。新增 helper 仅为本文件 private。
 
-- [ ] **Step 1: 添加能在原实现失败的实际编译合同。** 引入 `spyk`，监控真实 Schema；不 stub Schema 返回值。以 Terms 为最小 RED：
+- [x] **Step 1: 添加能在原实现失败的实际编译合同。** 引入 `spyk`，监控真实 Schema；不 stub Schema 返回值。以 Terms 为最小 RED：
 
 ```kotlin
 @Test
@@ -238,7 +238,7 @@ fun `terms should reuse its resolved binding`() {
 
 Run: `./gradlew :wow-elasticsearch:test --tests 'me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchAggregationCompilerTest' --console=plain`。预期原实现仅新增工作量断言失败；记录失败行与命令。
 
-- [ ] **Step 2: 替换私有解析与 dateField 前段。** 使用一个纯回退 helper 保持明确声明缺能力的检查顺序，具体代码：
+- [x] **Step 2: 替换私有解析与 dateField 前段。** 使用一个纯回退 helper 保持明确声明缺能力的检查顺序，具体代码：
 
 ```kotlin
 private fun QueryField.resolve(
@@ -275,7 +275,7 @@ if (fieldSchema == null) {
 }
 ```
 
-- [ ] **Step 3: 锁住本次改动的日期回退边界。** 用现有 fixture 构造 Schema，必要时对生成的 `QueryFieldSchema.copy(dynamicChildren = true)` 构造新 Schema，避免扩大 TestField 设计。补充以下真实输入输出；可组合在一个表驱动测试中，但每项都有独立断言：
+- [x] **Step 3: 锁住本次改动的日期回退边界。** 用现有 fixture 构造 Schema，必要时对生成的 `QueryFieldSchema.copy(dynamicChildren = true)` 构造新 Schema，避免扩大 TestField 设计。补充以下真实输入输出；可组合在一个表驱动测试中，但每项都有独立断言：
 
 ```kotlin
 // 明确 metadata 和动态后代缺少 temporal 能力，都应拒绝。
@@ -312,7 +312,7 @@ assertThrows<QuerySchemaValidationException> {
 }.message.assert().contains("does not have a supported temporal semantic type")
 ```
 
-- [ ] **Step 4: 聚焦测试 GREEN、自审并提交。** 执行 Step 1 的同一命令及 `git diff --check`。检查没有改动日期脚本、runtime 名称、element 遍历或公共接口。提交两个文件，信息 `refactor(elasticsearch): reuse aggregation field bindings`；报告 RED/GREEN 与测试数。
+- [x] **Step 4: 聚焦测试 GREEN、自审并提交。** 执行 Step 1 的同一命令及 `git diff --check`。检查没有改动日期脚本、runtime 名称、element 遍历或公共接口。提交两个文件，信息 `refactor(elasticsearch): reuse aggregation field bindings`；报告 RED/GREEN 与测试数。
 
 ### Task 3: MongoDB 分组一次编译并复用原生输入
 
@@ -324,7 +324,7 @@ assertThrows<QuerySchemaValidationException> {
 - Consumes: 现有 Schema Binding 与 `scalarOrSingleton`、`epochDate`、原生 MongoDB builders。
 - Produces: 私有 `AggregationGroup.compile(parent, physicalParent, schema): Pair<Bson, Any>`；公开 JVM `compile` 签名和最终管道不变；私有 `group` 增加 `id: Document?` 参数并移除自己的 groupBy 解析。
 
-- [ ] **Step 1: 添加每组一次解析的 RED 合同。** 在真实 Schema 上使用 `spyk`，以下结构覆盖 Terms、Histogram、DateHistogram 与未知 root 回退；groupBy 构造用 DSL，每种输入只含一个分组和一个 Count。Terms 最小可运行测试如下：
+- [x] **Step 1: 添加每组一次解析的 RED 合同。** 在真实 Schema 上使用 `spyk`，以下结构覆盖 Terms、Histogram、DateHistogram 与未知 root 回退；groupBy 构造用 DSL，每种输入只含一个分组和一个 Count。Terms 最小可运行测试如下：
 
 ```kotlin
 @Test
@@ -344,7 +344,7 @@ fun `group should resolve its input once for match and group stages`() {
 
 Run: `./gradlew :wow-mongo:test --tests 'me.ahoo.wow.mongo.query.snapshot.MongoAggregationCompilerTest' --console=plain`。预期新增次数断言失败，现有原生结构断言通过；记录 RED。
 
-- [ ] **Step 2: 在分组循环生成过滤列表与 id。** 将原两轮 groupBy 编译替换为：
+- [x] **Step 2: 在分组循环生成过滤列表与 id。** 将原两轮 groupBy 编译替换为：
 
 ```kotlin
 val groupId = query.groupBy.takeIf { it.isNotEmpty() }?.let { groups ->
@@ -390,7 +390,7 @@ private fun AggregationGroup.compile(
 
 删除不再使用的 `AggregationGroup.capability` 属性。不得重排 Metrics、排序、limit 或修改 epochDate/scalarOrSingleton 算法。
 
-- [ ] **Step 3: 删除未知字段重复解析。** 普通 `QueryField.resolve` 的最后一行改为 `return logicalField.path`。`dateInput` 的前段如下，后面的 physicalPath 异常与 semantic `when` 保持原样：
+- [x] **Step 3: 删除未知字段重复解析。** 普通 `QueryField.resolve` 的最后一行改为 `return logicalField.path`。`dateInput` 的前段如下，后面的 physicalPath 异常与 semantic `when` 保持原样：
 
 ```kotlin
 val logicalField = parent?.append(field) ?: field
@@ -403,7 +403,7 @@ if (fieldSchema == null) {
 }
 ```
 
-- [ ] **Step 4: 补足会受本次合并影响的语义合同。** 复用已有动态 temporal fallback、周起点、UTC、epoch 精度、alias、相对前缀和能力缺失测试。补充 summary id 与连续编译的相同结构；日期 alias 优先级使用下列输入，保留先解析 Binding 的顺序：
+- [x] **Step 4: 补足会受本次合并影响的语义合同。** 复用已有动态 temporal fallback、周起点、UTC、epoch 精度、alias、相对前缀和能力缺失测试。补充 summary id 与连续编译的相同结构；日期 alias 优先级使用下列输入，保留先解析 Binding 的顺序：
 
 ```kotlin
 val temporal = field("state.createdAt", QueryCapability.AGGREGATE_TEMPORAL, "storage.createdAt",
@@ -439,7 +439,7 @@ fun `group compilation should preserve the first semantic failure`() {
 
 针对缺少 metadata 的日期分组，在已有已映射 element parent 下断言 `$toDate` 保留完整物理 parent 和原相对字段；参数带重名前缀时不得消除该前缀。对动态 resolved alias 下数值后缀（如 `document.extra.123`）保留 `IllegalArgumentException`。原生节点在方法局部创建，检查没有把 `Document` 放入编译器成员；跨 compile 隔离由连续编译测试与该所有权检查共同证明。
 
-- [ ] **Step 5: 聚焦测试 GREEN、自审并提交。** 执行 Step 1 同一测试命令及 `git diff --check`；无分组场景不得新增空 `Document`。提交两个文件，信息 `refactor(mongo): compile aggregation group inputs once`；报告 RED/GREEN、测试数及最终 BSON 保持的证据。
+- [x] **Step 5: 聚焦测试 GREEN、自审并提交。** 执行 Step 1 同一测试命令及 `git diff --check`；无分组场景不得新增空 `Document`。提交两个文件，信息 `refactor(mongo): compile aggregation group inputs once`；报告 RED/GREEN、测试数及最终 BSON 保持的证据。
 
 ### Task 4: 对照性能、完整查询回归及交付记录
 
@@ -452,7 +452,7 @@ fun `group compilation should preserve the first semantic failure`() {
 - Consumes: Task 1 冻结 baseline、同一份 Java 基准、Task 2/3 已审查生产实现与测试。
 - Produces: 28 行 `backend,shape,width,baseline ns/op,candidate ns/op,error,B/op` 对照、明确范围的验证结果及最终文档。
 
-- [ ] **Step 1: 重建候选，运行同参数 JMH。**
+- [x] **Step 1: 重建候选，运行同参数 JMH。**
 
 ```bash
 ./gradlew :wow-benchmarks:jmhJar --console=plain
@@ -461,18 +461,48 @@ python3 build/aggregation-compiler/run-benchmark.py candidate
 
 保存完整日志，按三项参数 join 两个 JSON。检查无遗漏、失败或非有限的主要分数；同时比较 mean/error 与 `gc.alloc.rate.norm`。宽度 1 与 16 分别报告，不能只选择最大改善行。初次完整矩阵结束前不并发其他验证。
 
-- [ ] **Step 2: 处理真实测量疑点。** 如果 Count 对照、Mongo known_metric 对照或其他场景存在误差不重叠的变慢，使用冻结的 baseline/candidate jar 对该 backend/shape/width 成对复测，保留相同迭代与 GC 参数并分别存日志。无疑点不额外复测。若改善不足或确认回退，向控制器报告测量与最小修正方向；由实现任务子代理修复并审查后再覆盖相关验证，不自行扩大生产改动范围。
+- [x] **Step 2: 处理真实测量疑点。** 如果 Count 对照、Mongo known_metric 对照或其他场景存在误差不重叠的变慢，使用冻结的 baseline/candidate jar 对该 backend/shape/width 成对复测，保留相同迭代与 GC 参数并分别存日志。无疑点不额外复测。若改善不足或确认回退，向控制器报告测量与最小修正方向；由实现任务子代理修复并审查后再覆盖相关验证，不自行扩大生产改动范围。
 
-- [ ] **Step 3: 运行与两编译器边界匹配的 Gradle 验证。** 不重复仅仅已通过且没有新改动的聚焦测试；这里扩大到相关查询合同、Detekt 与真实查询集成。每条命令记录输出和 XML 的 tests/failures/errors/skipped：
+- [x] **Step 3: 运行与两编译器边界匹配的 Gradle 验证。** 不重复仅仅已通过且没有新改动的聚焦测试；这里扩大到相关查询合同、Detekt 与真实查询集成。每条命令记录输出和 XML 的 tests/failures/errors/skipped：
 
 ```bash
 ./gradlew :wow-query:check :wow-mongo:detekt :wow-elasticsearch:detekt --console=plain
-./gradlew :wow-mongo:test --tests 'me.ahoo.wow.mongo.query.*' :wow-elasticsearch:test --tests 'me.ahoo.wow.elasticsearch.query.*' --console=plain
+./gradlew :wow-elasticsearch:test --tests 'me.ahoo.wow.elasticsearch.query.*' --console=plain
 ./gradlew :wow-mongo:integrationTest --tests 'me.ahoo.wow.mongo.query.*' :wow-elasticsearch:integrationTest --tests 'me.ahoo.wow.elasticsearch.query.*' --console=plain
 ```
 
 现有 Testcontainers 环境可用，实际服务状态仍由命令确认。区分实现失败与环境失败；不静默跳过。Spring/WebFlux 未改动，第一阶段已有对应验证，本阶段不重复执行无新增风险的 HTTP 检查。
 
-- [ ] **Step 4: 写入实测结果并提交。** 在本计划追加执行结果，在关联设计更新状态与结果。写出代表性宽度的收益、全部 28 行产物位置、对照场景结果、误差与限制、测试实际数量、复测原因。记录生产源码与冻结 jar 的提交/校验值，声明微基准只覆盖编译。标记完成的步骤；未实现项目不勾选。执行 `git diff --check` 和本地 Markdown 链接/代码围栏检查后，提交两份文档，信息 `docs(query): record aggregation compiler validation`。
+- [x] **Step 4: 写入实测结果并提交。** 在本计划追加执行结果，在关联设计更新状态与结果。写出代表性宽度的收益、全部 28 行产物位置、对照场景结果、误差与限制、测试实际数量、复测原因。记录生产源码与冻结 jar 的提交/校验值，声明微基准只覆盖编译。标记完成的步骤；未实现项目不勾选。执行 `git diff --check` 和本地 Markdown 链接/代码围栏检查后，提交两份文档，信息 `docs(query): record aggregation compiler validation`。
 
 全部任务完成后由控制器进行一次覆盖本阶段 `f3be596f0..HEAD` 的最终审查。把结果留在当前工作区，不自行合并、推送或发布。
+
+## 执行结果（2026-09-05）
+
+Task 1—3 已分别由 `8ae1c4ddc`、`00c67137f`、`0f215fbef` 完成并通过独立审查。验证时发现新增测试不符合 Detekt 格式和类大小限制；`a083ac9cb` 只整理两份测试文件，将 Mongo 新增的 10 个测试移入同文件第二个顶层测试类，并通过独立复审。生产代码和基准源码均未随该修正变化。
+
+候选由生产提交 `0f215fbef` 构建。基准源码自 `8ae1c4ddc` 未改动；SHA-256 为 `9448776016ee1d039cf674e4b5ba2ca4b39f217ed9f911e4ab0c3097c8465dd7`。冻结 baseline jar SHA-256 为 `5d60fe4f55b1f23f31645d63e1d0bccb41cf47ca31d4204674ce1890d0ee63bc`，candidate jar 为 `7120a25510a6fae7086905341265e3815d67f83a3fa4f6d6c4099a9bfe240631`。两者都使用 JDK 17、单线程、256 MiB 堆、3 forks、5 次 200ms 预热、10 次 200ms 测量和 GC profiler。28 个参数键全部存在，主要分数和误差均为有限值，每行都有 `gc.alloc.rate.norm`。完整对照在忽略产物 `build/aggregation-compiler/comparison.csv`，原始结果为 `baseline.json`、`candidate.json` 及同名日志。
+
+目标字段场景的代表性结果如下；耗时列为 baseline → candidate，括号内为候选相对变化，负值表示减少。误差不重叠时才把耗时变化视为本次矩阵的明确信号。
+
+| Backend / shape | Width 1 ns/op | Width 1 B/op | Width 16 ns/op | Width 16 B/op |
+|---|---:|---:|---:|---:|
+| ES known_terms | 343.942 → 323.841 (-5.8%) | 2448.001 → 2381.334 (-2.7%) | 2086.829 → 2366.635（误差重叠） | 13992.006 → 13314.673 (-4.8%) |
+| ES known_histogram | 335.784 → 314.506 (-6.3%) | 2456.001 → 2389.334 (-2.7%) | 2144.815 → 1890.418 (-11.9%) | 14514.672 → 13858.672 (-4.5%) |
+| ES known_epoch | 472.288 → 442.373 (-6.3%) | 3576.001 → 3448.001 (-3.6%) | 4646.347 → 3951.916 (-15.0%) | 31014.423 → 28944.011 (-6.7%) |
+| Mongo known_terms | 420.778 → 389.687 (-7.4%) | 3472.001 → 3413.334 (-1.7%) | 2900.139 → 2740.651（误差重叠） | 20640.008 → 20362.674 (-1.3%) |
+| Mongo known_histogram | 686.616 → 528.264 (-23.1%) | 7069.335 → 5552.001 (-21.5%) | 7170.779 → 5164.806 (-28.0%) | 78256.019 → 55280.014 (-29.4%) |
+| Mongo known_epoch | 1544.990 → 1004.128 (-35.0%) | 17408.004 → 10786.669 (-38.0%) | 21361.054 → 12542.363 (-41.3%) | 243152.058 → 138010.701 (-43.2%) |
+
+对照场景中，known_metric 未出现误差不重叠的变慢。`count_only` width 1 的误差重叠；首轮 width 16 在 ES 和 Mongo 均显示候选较慢，因此保留冻结 jar 做了两轮原参数成对复测。ES 第一轮复测为 `257.217 ± 4.122 → 258.420 ± 1.092 ns/op`，耗时与分配误差均重叠，原信号未重现。Mongo 两轮分别为 `571.518 ± 23.754 → 569.872 ± 19.133` 和 `538.478 ± 3.336 → 588.850 ± 22.009 ns/op`，方向不一致，且两版本都出现 `6456/6840 B/op` 的 fork 模式。
+
+由于 Mongo 信号仍有疑点，另做五对诊断：每对使用独立 fork、交替 baseline/candidate 顺序、10 次 500ms 预热和 10 次 500ms 测量，其参数与原 28 行矩阵不同，不覆盖原结果。五个候选/baseline 比值为 `1.0513`、`0.9707`、`1.0314`、`0.9515`、`1.0920`，均值 `1.0194`，正负方向都有；分配模式在版本间重叠。该诊断未证实稳定变慢或改善，小幅影响仍不确定，因此不声称零开销、所有场景加速或完全排除退化。脚本、十份 JSON/日志和汇总保存在忽略的 `build/aggregation-compiler/diagnostic-count16-*`。
+
+实际回归命令与结果：
+
+- `./gradlew :wow-query:check :wow-mongo:detekt :wow-elasticsearch:detekt --console=plain` 首次运行时，Query 合同 394 项通过，两个 Detekt 任务发现新增测试格式问题；问题由 `a083ac9cb` 修正。
+- `./gradlew :wow-elasticsearch:test --tests 'me.ahoo.wow.elasticsearch.query.*' --console=plain`：145 项，0 failure/error/skip。
+- `./gradlew :wow-mongo:integrationTest --tests 'me.ahoo.wow.mongo.query.*' :wow-elasticsearch:integrationTest --tests 'me.ahoo.wow.elasticsearch.query.*' --console=plain`：Mongo 85 项、ES 93 项，均为 0 failure/error/skip。
+- `./gradlew :wow-mongo:detekt :wow-elasticsearch:detekt :wow-mongo:test --console=plain`：修正后的两个 Detekt 任务通过，Mongo 完整模块 275 项，0 failure/error/skip；它刷新了原先复用 Task 3 的 275 项证据，其中查询测试 165 项，不重复计数。
+
+最终回归共 992 项测试，0 failure/error/skip；早期聚焦测试和 Mongo 查询子集未重复计入。Spring/WebFlux 和 HTTP 未改动，按计划复用第一阶段验证。JMH 构建仍报告既有 kapt originating-source 警告和 Gradle deprecated-feature 警告，没有归因于本阶段基准或生产改动的新警告。微基准只覆盖 `compile(query, schema)` 的编译耗时与编译期分配；B/op 不表示 retained heap，结果不能外推为数据库查询的端到端加速比例。
