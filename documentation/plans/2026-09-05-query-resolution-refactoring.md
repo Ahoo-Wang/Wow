@@ -38,7 +38,7 @@
 
 **Interfaces:** 只使用现有 `QueryModelSchema.resolvePhysicalField(QueryField, QueryCapability)`、`resolve(ISingleQuery)`、`resolve(AggregationQuery)` 以及公开 Schema 构造器，不改生产接口。
 
-- [ ] **Step 1: 添加文件内共用的基准字段构造函数。** 使用明确的逻辑、已解析、物理路径，避免只测到逻辑字段的快速路径。
+- [x] **Step 1: 添加文件内共用的基准字段构造函数。** 使用明确的逻辑、已解析、物理路径，避免只测到逻辑字段的快速路径。
 
 ```kotlin
 private fun benchmarkField(
@@ -66,7 +66,7 @@ private fun benchmarkField(
 )
 ```
 
-- [ ] **Step 2: 添加 `QueryFieldResolutionScaleBenchmark`。** 使用现有基准的 `@State(Scope.Benchmark)`、AverageTime、NANOSECONDS、3 forks、5 次 200ms 预热、10 次 200ms 测量、1 thread 注解。声明以下参数和字段；在 `@Setup` 中准备数据。
+- [x] **Step 2: 添加 `QueryFieldResolutionScaleBenchmark`。** 使用现有基准的 `@State(Scope.Benchmark)`、AverageTime、NANOSECONDS、3 forks、5 次 200ms 预热、10 次 200ms 测量、1 thread 注解。声明以下参数和字段；在 `@Setup` 中准备数据。
 
 ```kotlin
 @Param("static32", "static256", "static2048", "dynamic1", "dynamic16", "dynamic128", "none32", "none2048")
@@ -116,7 +116,7 @@ fun constructSchema(): QueryModelSchema = QueryModelSchema(QueryModel.SNAPSHOT, 
 
 `none` 用例同时提供精确命中对照和无动态根的构造成本。所有输入在 Setup 构造，只有 constructSchema 把 Schema 构造放在计时区内。
 
-- [ ] **Step 3: 添加 `QueryComponentResolutionBenchmark`，复用同一组 JMH 注解。** 参数 `@Param("1", "16", "64") var width = 1`，准备以下 Schema、Projection 与混合指标查询；指标别名唯一且不超过现有 64 项上限。
+- [x] **Step 3: 添加 `QueryComponentResolutionBenchmark`，复用同一组 JMH 注解。** 参数 `@Param("1", "16", "64") var width = 1`，准备以下 Schema、Projection 与混合指标查询；指标别名唯一且不超过现有 64 项上限。
 
 ```kotlin
 private lateinit var schema: QueryModelSchema
@@ -157,7 +157,7 @@ fun projection(): QuerySchemaResolution<ISingleQuery> = schema.resolve(projectio
 fun aggregation(): QuerySchemaResolution<AggregationQuery> = schema.resolve(aggregationQuery)
 ```
 
-- [ ] **Step 4: 构建基准并列举实际生成的 JMH jar。**
+- [x] **Step 4: 构建基准并列举实际生成的 JMH jar。**
 
 ```bash
 ./gradlew :wow-benchmarks:jmhJar --console=plain
@@ -166,7 +166,7 @@ rg --files wow-benchmarks/build/libs | rg 'jmh.*\.jar$'
 
 用唯一返回的 jar 运行 `java -jar <实际路径> -l`，确认三个查询 Resolver/Scale/Component 类均被发现。实际路径在执行记录中固定，不猜测版本化文件名。
 
-- [ ] **Step 5: 保存可复现的 baseline。** 使用任务输出确定的 jar 路径执行以下实际 Python runner；它仅运行已存在的 JMH CLI，不增加构建工具或项目依赖。
+- [x] **Step 5: 保存可复现的 baseline。** 使用任务输出确定的 jar 路径执行以下实际 Python runner；它仅运行已存在的 JMH CLI，不增加构建工具或项目依赖。
 
 ```python
 from pathlib import Path
@@ -190,7 +190,7 @@ with (output / 'baseline-environment.txt').open('w') as log:
 
 仅在完整运行成功、结果 JSON 包含全部预期场景时继续。生产基线必须仍为原始解析器。基准执行期间不要同时运行其他构建或性能测试。
 
-- [ ] **Step 6: 提交基准代码。**
+- [x] **Step 6: 提交基准代码。**
 
 ```bash
 git add wow-benchmarks/src/jmh/kotlin/me/ahoo/wow/benchmark/query/QuerySchemaScaleBenchmark.kt
@@ -203,7 +203,7 @@ git commit -m "test(query): benchmark resolver scaling and allocation"
 
 **Interfaces:** 保持 `resolve(...) : QueryFieldResolution`；新增索引及 helper 均 private，后端继续调用现有 QueryModelSchema 方法。
 
-- [ ] **Step 1: 用现有 `schema`、`fieldSchema` helper 添加最长祖先与同前缀优先级测试。** 核心测试如下：
+- [x] **Step 1: 用现有 `schema`、`fieldSchema` helper 添加最长祖先与同前缀优先级测试。** 核心测试如下：
 
 ```kotlin
 @Test
@@ -227,7 +227,7 @@ fun `resolved dynamic lookup should choose the longest ancestor`() {
 
 同前缀用例按顺序加入静态 `state.static`、动态 `state.first`、动态 `state.second`，三者均为同 capability、`document.shared` → `storage.shared`；子字段必须来自 `state.first.code`，精确 `document.shared` 仍来自静态声明。另验证 `document.sharedOther.code` 不匹配、不同 capability 不借用 binding、动态子字段无 ELEMENT_SCOPE。复用已有冲突、物理 parent、精确字段优先、EventStream 和 mask 用例。
 
-- [ ] **Step 2: 增加与性能目标直接对应的全字段扫描回归。** 用 Map 委托计数 entries 访问，Schema 构造完成后清零；反向解析一个动态子字段不应枚举全部字段。
+- [x] **Step 2: 增加与性能目标直接对应的全字段扫描回归。** 用 Map 委托计数 entries 访问，Schema 构造完成后清零；反向解析一个动态子字段不应枚举全部字段。
 
 ```kotlin
 val declared = mapOf(QueryField("state.labels") to fieldSchema(
@@ -249,52 +249,59 @@ enumerations.assert().isEqualTo(0)
 
 运行 `./gradlew :wow-query:test --tests 'me.ahoo.wow.query.schema.QuerySchemaResolverTest' --console=plain`。语义合同应在旧实现通过；扫描回归应因旧实现访问 entries 失败，确认失败原因后再实现。
 
-- [ ] **Step 3: 构造动态反向索引。** 在当前精确索引构建循环中复用同一个 ResolvedField 实例，动态索引在精确索引前初始化；只存符合条件的绑定。
+- [x] **Step 3: 构造动态反向索引。** 在当前精确索引构建循环中复用同一个 ResolvedField 实例，动态索引在精确索引前初始化；只存符合条件的绑定。
 
 ```kotlin
-private val dynamicResolvedFieldIndex = HashMap<Pair<QueryCapability, QueryField>, ResolvedField>()
+private val dynamicResolvedFieldIndex = HashMap<Pair<QueryCapability, String>, ResolvedField>()
 ```
 
 在既有冲突检查之后加入：
 
 ```kotlin
-if (fieldSchema.dynamicChildren && capability != QueryCapability.ELEMENT_SCOPE) {
-    dynamicResolvedFieldIndex.putIfAbsent(capability to binding.resolvedField, resolvedField)
+if (fieldSchema.dynamicChildren) {
+    dynamicResolvedFieldIndex.putIfAbsent(capability to binding.resolvedField.path, resolvedField)
 }
 ```
 
-构造结束后不再修改该私有 Map；保持现有精确索引冲突异常，不额外添加验证。
+构造结束后不再修改该私有 Map；保持现有精确索引冲突异常。ELEMENT_SCOPE 项用于保留既有数值相对路径校验，不能产生动态子字段解析结果。
 
-- [ ] **Step 4: 替换 `resolvedField` 的扫描实现。**
+- [x] **Step 4: 替换 `resolvedField` 的扫描实现。**
 
 ```kotlin
 private fun resolvedField(field: QueryField, capability: QueryCapability): ResolvedField? {
     resolvedFieldIndex[capability to field]?.let { return it }
     if (dynamicResolvedFieldIndex.isEmpty()) return null
+    var source: ResolvedField? = null
+    var relative: QueryField? = null
     var separator = field.path.lastIndexOf('.')
     while (separator > 0) {
-        val ancestor = QueryField(field.path.substring(0, separator))
-        val source = dynamicResolvedFieldIndex[capability to ancestor]
-        if (source != null) {
-            val relative = checkNotNull(field.relativeTo(ancestor))
-            val dynamicSchema = source.fieldSchema.resolveDynamic(
-                source = source.logical,
-                relative = relative,
-                elementAncestor = source.logical in schema.elementDescendantDynamicFields,
-            )
-            return ResolvedField(
-                source.logical.append(relative),
-                dynamicSchema,
-                checkNotNull(dynamicSchema.binding(capability)),
-            )
+        val ancestorPath = field.path.substring(0, separator)
+        dynamicResolvedFieldIndex[capability to ancestorPath]?.let {
+            val candidateRelative = checkNotNull(field.relativeTo(it.binding.resolvedField))
+            if (source == null) {
+                source = it
+                relative = candidateRelative
+            }
         }
         separator = field.path.lastIndexOf('.', separator - 1)
     }
-    return null
+    val finalSource = source ?: return null
+    if (capability == QueryCapability.ELEMENT_SCOPE) return null
+    val finalRelative = checkNotNull(relative)
+    val dynamicSchema = finalSource.fieldSchema.resolveDynamic(
+        source = finalSource.logical,
+        relative = finalRelative,
+        elementAncestor = finalSource.logical in schema.elementDescendantDynamicFields,
+    )
+    return ResolvedField(
+        finalSource.logical.append(finalRelative),
+        dynamicSchema,
+        checkNotNull(dynamicSchema.binding(capability)),
+    )
 }
 ```
 
-- [ ] **Step 5: 重跑 Resolver 与 QueryModelSchema 测试并提交。**
+- [x] **Step 5: 重跑 Resolver 与 QueryModelSchema 测试并提交。**
 
 ```bash
 ./gradlew :wow-query:test --tests 'me.ahoo.wow.query.schema.QuerySchemaResolverTest' --tests 'me.ahoo.wow.query.schema.QueryModelSchemaTest' --console=plain
@@ -304,11 +311,11 @@ git commit -m "perf(query): index resolved dynamic field ancestors"
 
 ## Task 3: 删除投影与聚合兼容级别集合
 
-**Files:** Modify `wow-query/src/main/kotlin/me/ahoo/wow/query/schema/QuerySchemaResolver.kt`；Test `wow-query/src/test/kotlin/me/ahoo/wow/query/schema/QuerySchemaResolverTest.kt`。
+**Files:** Modify `wow-query/src/main/kotlin/me/ahoo/wow/query/schema/QuerySchemaResolver.kt` 和 `wow-query/src/main/kotlin/me/ahoo/wow/query/schema/QueryFieldSchemaResolver.kt` 的失去调用方的兼容级别扩展；Test `wow-query/src/test/kotlin/me/ahoo/wow/query/schema/QuerySchemaResolverTest.kt`。
 
 **Interfaces:** 保持所有 resolve 返回类型；将私有 `collectExpressionLevels(..., levels)` 改为 `resolveExpression(...): QueryCompatibilityLevel`。
 
-- [ ] **Step 1: 添加混合兼容级别与引用复用测试，先在现有实现运行。** 复用 helper，避免为保持行为的重构编造应失败的语义断言。
+- [x] **Step 1: 添加混合兼容级别与引用复用测试，先在现有实现运行。** 复用 helper，避免为保持行为的重构编造应失败的语义断言。
 
 ```kotlin
 @Test
@@ -331,7 +338,7 @@ fun `projection should combine include and exclude levels without replacing it`(
 
 运行 `./gradlew :wow-query:test --tests 'me.ahoo.wow.query.schema.QuerySchemaResolverTest' --console=plain`，本任务语义用例在优化前应通过；优化收益由 Task 1/4 的同基准对照验证。
 
-- [ ] **Step 2: 替换 projection 中的三组临时列表。**
+- [x] **Step 2: 替换 projection 中的三组临时列表。**
 
 ```kotlin
 var compatibility = QueryCompatibilityLevel.EXACT
@@ -345,7 +352,7 @@ projection.exclude.forEach { field ->
 
 返回分支把 `compatibility.combined()` 改为 `compatibility`，保留空投影与 EventStream 检查的原结构。
 
-- [ ] **Step 3: 聚合直接累積兼容级别。** `levels` 替换为初始化到 `rootFilter.compatibility` 的局部变量；container、element filter、group 的每个 `levels += value` 改为 `compatibility = maxOf(compatibility, value)`。保留元素按需复制逻辑。两轮 metrics 分别使用 `if (metric is AggregationMetric.Any)`、`if (metric is AggregationMetric.Numeric)`，不构造类型过滤列表。Any 的 MANY 分支直接把兼容级别设为 INCOMPATIBLE。
+- [x] **Step 3: 聚合直接累積兼容级别。** `levels` 替换为初始化到 `rootFilter.compatibility` 的局部变量；container、element filter、group 的每个 `levels += value` 改为 `compatibility = maxOf(compatibility, value)`。保留元素按需复制逻辑。两轮 metrics 分别使用 `if (metric is AggregationMetric.Any)`、`if (metric is AggregationMetric.Numeric)`，不构造类型过滤列表。Any 的 MANY 分支直接把兼容级别设为 INCOMPATIBLE。
 
 表达式 helper 完整替换为：
 
@@ -371,11 +378,13 @@ private fun resolveExpression(
 
 Numeric 分支以 `maxOf(compatibility, resolveExpression(...))` 累积；最终 QuerySchemaResolution 使用局部 compatibility，不改查询构造分支。
 
-- [ ] **Step 4: 完整查询模块检查并提交。**
+确认 `rg -n '\.combined\(|fun.*combined\(' wow-query/src` 不再显示 Iterable 扩展的调用方后，删除 `QueryFieldSchemaResolver.kt` 文件末尾不再使用的 `internal fun Iterable<QueryCompatibilityLevel>.combined()`，保留三参数的 private combined 函数。
+
+- [x] **Step 4: 完整查询模块检查并提交。**
 
 ```bash
 ./gradlew :wow-query:check --console=plain
-git add wow-query/src/main/kotlin/me/ahoo/wow/query/schema/QuerySchemaResolver.kt wow-query/src/test/kotlin/me/ahoo/wow/query/schema/QuerySchemaResolverTest.kt
+git add wow-query/src/main/kotlin/me/ahoo/wow/query/schema/QuerySchemaResolver.kt wow-query/src/main/kotlin/me/ahoo/wow/query/schema/QueryFieldSchemaResolver.kt wow-query/src/test/kotlin/me/ahoo/wow/query/schema/QuerySchemaResolverTest.kt
 git commit -m "perf(query): reduce projection and aggregation allocations"
 ```
 
@@ -385,9 +394,11 @@ git commit -m "perf(query): reduce projection and aggregation allocations"
 
 **Interfaces:** 验证公开 QueryModelSchema、Gateway、Backend 合同与 Task 1 相同的 JMH 场景。
 
-- [ ] **Step 1: 重建候选基准。** 运行 `./gradlew :wow-benchmarks:jmhJar --console=plain`。复用 Task 1 的同一 runner，仅把输出名改为 `candidate.json`、`candidate.log`、`candidate-environment.txt`。保持其他所有参数、基准源码及 JDK 不变；运行期间不并发构建。
+- [x] **Step 1: 重建候选基准。** 运行 `./gradlew :wow-benchmarks:jmhJar --console=plain`。复用 Task 1 的同一 runner，仅把输出名改为 `candidate.json`、`candidate.log`、`candidate-environment.txt`。保持其他所有参数、基准源码及 JDK 不变；运行期间不并发构建。
 
-- [ ] **Step 2: 比较完整结果矩阵。** 按 benchmark 名称与 params 键值匹配 baseline/candidate。核对不存在失败、缺行或参数变化；逐项比较 primaryMetric 的 score/scoreError 与 secondaryMetrics 的 `gc.alloc.rate.norm`，报告查询热路径、静态对照、Schema 构造成本。对误差重叠不宣称耗时提升，对疑似退化仅复测相关场景，不无条件重复全量。
+  修正前候选保留为 `candidate.*`；最终提交 `d281e1cce` 的候选使用 `final-candidate.json`、`final-candidate.log`、`final-candidate-environment.txt`，避免覆盖诊断数据。最终基准源码相对 `a4185d2b6` 无差异，JDK 仍为 Zulu 17.0.7。
+
+- [x] **Step 2: 比较完整结果矩阵。** 按 benchmark 名称与 params 键值匹配 baseline/candidate。核对不存在失败、缺行或参数变化；逐项比较 primaryMetric 的 score/scoreError 与 secondaryMetrics 的 `gc.alloc.rate.norm`，报告查询热路径、静态对照、Schema 构造成本。对误差重叠不宣称耗时提升，对疑似退化仅复测相关场景，不无条件重复全量。
 
 ```python
 import json
@@ -407,7 +418,7 @@ for key in sorted(before):
           'B/op', old_bytes, '->', new_bytes)
 ```
 
-- [ ] **Step 3: 运行后端与接入回归。**
+- [x] **Step 3: 运行后端与接入回归。**
 
 ```bash
 ./gradlew :wow-mongo:test --tests 'me.ahoo.wow.mongo.query.*' :wow-elasticsearch:test --tests 'me.ahoo.wow.elasticsearch.query.*' --console=plain
@@ -417,7 +428,7 @@ for key in sorted(before):
 
 集成测试沿用现有 MongoTestFixture/ElasticsearchTestFixture 和容器环境；先检查其本地服务策略。环境失败与查询行为失败分开记录。只修复本阶段引入的失败，不为测试调整生产语义。
 
-- [ ] **Step 4: 审查最小差异与验收合同。**
+- [x] **Step 4: 审查最小差异与验收合同。**
 
 ```bash
 git diff 91af473b8 --check
@@ -428,4 +439,29 @@ git status --short
 
 核对新增动态索引大小受声明数量约束、查找无全字段扫描、两种父路径转换未变、metrics 和 expression 的顺序未变。核对没有公开 API、生成合同、依赖或模块改动。按实际验证结果更新设计与本计划，并提交文档。
 
-- [ ] **Step 5: 交付第一阶段结果。** 提供变更文件、功能测试实际数量、性能对照与构造成本、原始结果路径，以及未运行的验证项（若有）。依据结果指出第二阶段的具体候选，不提前实施未设计的后端重构。
+- [x] **Step 5: 交付第一阶段结果。** 提供变更文件、功能测试实际数量、性能对照与构造成本、原始结果路径，以及未运行的验证项（若有）。依据结果指出第二阶段的具体候选，不提前实施未设计的后端重构。
+
+### Task 4 实际结果
+
+最终完整矩阵成功，基线与候选各 36 行，benchmark/params 键集合完全一致，无失败、缺行或参数变化。代表性最终数据如下；完整逐行结果见 `.superpowers/sdd/2026-09-05-query-resolution-refactoring/task-4-report.md`。
+
+| 场景 | 基线 ns/op | 最终候选 ns/op | 基线 B/op | 最终候选 B/op | 判定 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `physicalMiss(dynamic1)` | 422.672 ± 1.939 | 306.290 ± 7.786 | 2160.001 | 1248.001 | 改善 |
+| `physicalMiss(static32)` | 421.151 ± 1.862 | 308.630 ± 4.834 | 2160.001 | 1248.001 | 改善 |
+| `physicalMiss(static2048)` | 8582.174 ± 58.680 | 278.208 ± 9.647 | 50512.023 | 1248.001 | 改善 |
+| `physicalHit(dynamic128)` | 12864.006 ± 124.245 | 3900.580 ± 23.172 | 26712.035 | 9896.010 | 改善 |
+| `projection(width=64)` | 1759.904 ± 43.060 | 1160.950 ± 23.998 | 9032.005 | 6293.336 | 改善 |
+| `aggregation(width=64)` | 1432.937 ± 31.777 | 922.421 ± 8.779 | 4864.004 | 2608.002 | 改善 |
+| `physicalHit(none32)` | 7.517 ± 0.068 | 7.597 ± 0.158 | 40.000 | 40.000 | 误差重叠，无可复现退化 |
+| `fieldInferMappedSort` | 24.953 ± 0.142 | 24.914 ± 0.243 | 312.000 | 312.000 | 误差重叠，无可复现退化 |
+| `constructSchema(dynamic128)` | 25720.877 ± 179.044 | 31022.219 ± 325.109 | 72176.070 | 109144.083 | 构造耗时 1.206x，约 +36,968 B/次 |
+| `constructSchema(static2048)` | 343087.049 ± 6031.577 | 414368.329 ± 6095.390 | 1076293.067 | 1076665.102 | 构造耗时 1.208x；复测 1.090x |
+
+构造 B/op 只表示一次 Schema 构造期间的分配量，不表示索引 retained heap；本阶段未测 retained heap。针对性构造复测确认 `dynamic128` 为 25730.255 ± 188.109 → 32455.041 ± 222.367 ns/op、72176.070 → 109144.087 B/op，纯静态 `static256/2048` 为 1.082x/1.090x。查询热路径及静态/identity 对照均无可复现退化；`identityDynamicFilter` 的分配疑似信号经成对复测为 3032.002 → 3032.002 B/op，耗时区间重叠。
+
+最终验证：`:wow-query:check` 394 项并通过 Detekt；Mongo query 单测 155 项、Elasticsearch query 单测 142 项、Spring query 单测 2 项、WebFlux query/snapshot/event route 单测 87 项、Mongo query 集成测试 85 项、Elasticsearch query 集成测试 93 项。合计 958 项测试，全部 0 failure、0 error、0 skip；Testcontainers 环境无失败。
+
+原始产物位于 `build/query-resolution/baseline.{json,log}`、`baseline-environment.txt`、`final-candidate.{json,log}`、`final-candidate-environment.txt`、`rerun-{baseline,final}-construct-selected.{json,log}`；验证日志为 `final-wow-query-check.log`、`final-backend-unit.log`、`final-spring-webflux.log`、`final-backend-integration.log`。生成输出均保持忽略且不提交。
+
+第一阶段无需继续修改查询热路径。第二阶段仅保留一个有数据依据的候选：若生产剖析证明 Schema 高频重建或堆占用显著，再单独设计动态索引延迟构造、容量估算与 retained heap 测量；当前不提前实施。

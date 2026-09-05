@@ -71,22 +71,22 @@
 
 ### 索引与候选规则
 
-在 Resolver 构造时建立私有动态反向索引，以 `(capability, binding.resolvedField)` 为键，保存声明逻辑字段、原字段 Schema 与 Binding。复用现有 `ResolvedField` 数据结构和标准 Map。
+在 Resolver 构造时建立私有动态反向索引，以 `(capability, binding.resolvedField.path)` 的 String 路径为键，保存声明逻辑字段、原字段 Schema 与 Binding。复用现有 `ResolvedField` 数据结构和标准 Map。
 
-动态索引仅纳入 `dynamicChildren=true` 的声明。`ELEMENT_SCOPE` 不进入动态子字段索引，因为现有 `resolveDynamic` 会移除该能力；精确声明的 Element binding 仍由精确索引处理。
+动态索引仅纳入 `dynamicChildren=true` 的声明。`ELEMENT_SCOPE` 绑定保留相对路径校验所需的信息，但不参与派生子字段的能力继承；精确声明的 Element binding 仍由精确索引处理。原扫描器在移除该能力前会校验相对路径，因此完全不索引它会改变数值路径的既有拒绝行为。
 
 精确索引保留当前冲突检查：同 capability、同 resolved path 映射不同 physical path 时，构造 Schema 失败。同一路径与相同物理绑定的动态候选使用 `putIfAbsent` 保留声明迭代顺序中的第一项，等价于原有最长前缀扫描的并列选择。精确索引中的非动态声明不能遮蔽同路径的动态祖先候选，因此动态候选单独索引。
 
-查询时从输入路径的最后一个点号开始，逐级向外查找严格祖先：
+查询时从输入路径的最后一个点号开始，以原始 String 子串逐级向外查找严格祖先；只有索引命中时才使用已校验的 Binding 路径构造相对 `QueryField`：
 
-- 首个命中是最长有效前缀；只在点号边界匹配，`document.a` 不匹配 `document.ab.code`。
-- 选择最终祖先后，才调用一次已有 `resolveDynamic`，生成派生 Schema 与 Binding。
+- 首个有效命中是最长前缀；只在点号边界匹配，`document.a` 不匹配 `document.ab.code`。
+- 记住最长有效祖先，并继续有限的外层祖先探测以保留数值相对路径的拒绝行为；完成校验后，才调用一次已有 `resolveDynamic`，生成最终候选的派生 Schema 与 Binding。`ELEMENT_SCOPE` 只有校验，没有动态候选结果。
 - 无命中直接进入既有兜底，不保存未命中记录。
 - 保持 logical/resolved/physical 三种 parent、相对路径、`elementDescendantDynamicFields` 与重写模式的现有处理。
 
 例如，逻辑动态根 `state.labels` 绑定到 `document.labels` 和 `storage.labels`。查询经逻辑重写为 `document.labels.color` 后，后端物理查找命中 `document.labels`，得到 `storage.labels.color`；逻辑、已解析与物理路径保持区分。
 
-该查找的 Map 探测次数由路径深度决定，不再遍历全部声明字段。子串构造和哈希仍有成本，因此不宣称总运行时间严格为常数或只取决于路径段数。索引构造时间和空间随动态绑定数增长，并纳入基准比较。
+该查找的 Map 探测次数由路径深度决定，不再遍历全部声明字段。String 子串构造和哈希仍有成本，因此不宣称总运行时间严格为常数或只取决于路径段数。索引构造时间和空间随动态绑定数增长，并纳入基准比较。
 
 ## 投影与聚合解析
 
@@ -170,5 +170,28 @@ JMH 原始结果保留在忽略的构建输出目录；交付中提供结果位�
 3. 本设计列出的合同通过对应测试验证；后端与接入验证的实际运行范围明确记录。
 4. 提供同基准前后性能数据及索引构造成本；未测得的收益不作完成声明。
 5. 第一阶段无公开协议、依赖、模块、发布流程或存储变更，可通过回退本阶段代码恢复原实现，无需数据迁移。
+
+## 实施与验证结果
+
+最终实现提交 `d281e1cce` 保留上述边界。JMH 基准源码相对基线提交 `a4185d2b6` 无差异；Zulu OpenJDK 17.0.7 下使用 3 forks、5 次 200ms 预热、10 次 200ms 测量、单线程、256 MiB 固定堆和 GC profiler 对照。基线与最终候选各有 36 行，benchmark/params 键集合完全一致，无失败、缺行或参数变化。
+
+| 场景 | 基线 ns/op | 最终候选 ns/op | 基线 B/op | 最终候选 B/op | 结论 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `physicalMiss(dynamic1)` | 422.672 ± 1.939 | 306.290 ± 7.786 | 2160.001 | 1248.001 | 小动态 Schema 热路径改善 |
+| `physicalMiss(static32)` | 421.151 ± 1.862 | 308.630 ± 4.834 | 2160.001 | 1248.001 | 小静态 Schema 热路径改善 |
+| `physicalMiss(static2048)` | 8582.174 ± 58.680 | 278.208 ± 9.647 | 50512.023 | 1248.001 | 消除字段数量线性扫描 |
+| `physicalHit(dynamic128)` | 12864.006 ± 124.245 | 3900.580 ± 23.172 | 26712.035 | 9896.010 | 大动态 Schema 热路径改善 |
+| `projection(width=64)` | 1759.904 ± 43.060 | 1160.950 ± 23.998 | 9032.005 | 6293.336 | 直接累积减少临时集合 |
+| `aggregation(width=64)` | 1432.937 ± 31.777 | 922.421 ± 8.779 | 4864.004 | 2608.002 | 直接累积减少临时集合 |
+| `physicalHit(none32)` | 7.517 ± 0.068 | 7.597 ± 0.158 | 40.000 | 40.000 | 耗时误差重叠，静态精确对照无可复现退化 |
+| `fieldInferMappedSort` | 24.953 ± 0.142 | 24.914 ± 0.243 | 312.000 | 312.000 | 耗时误差重叠，对照不变 |
+| `constructSchema(dynamic128)` | 25720.877 ± 179.044 | 31022.219 ± 325.109 | 72176.070 | 109144.083 | 构造耗时 1.206x，分配增加约 36,968 B/次 |
+| `constructSchema(static2048)` | 343087.049 ± 6031.577 | 414368.329 ± 6095.390 | 1076293.067 | 1076665.102 | 构造耗时 1.208x；针对性复测为 1.090x |
+
+查询热路径与静态/identity 对照没有可复现退化；`identityDynamicFilter` 的分配疑似信号经成对复测为 3032.002 → 3032.002 B/op，耗时区间重叠。构造场景的 B/op 是每次 Schema 构造期间的分配量，不是动态索引的保留内存；本阶段没有测量 retained heap。针对性成对复测确认 `dynamic128` 构造为 25730.255 ± 188.109 → 32455.041 ± 222.367 ns/op、72176.070 → 109144.087 B/op；纯静态 `static256/2048` 构造约为 1.082x/1.090x，属于把查询期扫描换到构造期的权衡。
+
+最终 `:wow-query:check` 执行 394 项测试并通过 Detekt；MongoDB、Elasticsearch、Spring 与 WebFlux 的指定单元/集成测试共 564 项，全部 0 failure、0 error、0 skip。原始结果位于 `build/query-resolution/{baseline,final-candidate}.{json,log}`、`build/query-resolution/{baseline,final-candidate}-environment.txt`、`build/query-resolution/rerun-{baseline,final}-construct-selected.{json,log}`；详细命令和完整 36 行对照见 `.superpowers/sdd/2026-09-05-query-resolution-refactoring/task-4-report.md`。
+
+第二阶段没有查询热路径修正的证据需求。若实际 Schema 高频重建或堆分析证明构造成本显著，再单独设计动态索引的延迟构造、容量估算及 retained heap 测量；本阶段不提前引入这些机制。
 
 本设计审阅通过后，使用 `writing-plans` 制定第一阶段实施计划。第二阶段根据本阶段结果单独明确目标和验收条件。
