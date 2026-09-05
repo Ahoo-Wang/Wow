@@ -39,7 +39,7 @@ private const val GROUP_AGGREGATION = "__wow_groups"
 
 internal class ElasticsearchAggregationPager(
     private val client: ReactiveElasticsearchClient,
-    indexName: String,
+    private val indexName: String,
     private val batchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
     keepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
 ) {
@@ -52,13 +52,13 @@ internal class ElasticsearchAggregationPager(
         require(keepAlive.toMillis() > 0) { "keepAlive must be greater than or equal to 1ms." }
     }
 
-    fun execute(plan: ElasticsearchAggregationPlan): Flux<ObjectNode> = pointInTime.use { pit ->
+    fun execute(plan: ElasticsearchAggregationPlan): Flux<ObjectNode> {
         if (plan.groupSources.isEmpty()) {
-            search(plan, pit, afterKey = emptyMap(), pageSize = 0)
+            return search(plan, null, afterKey = emptyMap(), pageSize = 0)
                 .map { response -> response.summary(plan) }
-        } else {
-            grouped(plan, pit)
+                .flux()
         }
+        return pointInTime.use { pit -> grouped(plan, pit) }
     }
 
     private fun grouped(
@@ -100,7 +100,7 @@ internal class ElasticsearchAggregationPager(
 
     private fun search(
         plan: ElasticsearchAggregationPlan,
-        pit: ElasticsearchPointInTime.Session,
+        pit: ElasticsearchPointInTime.Session?,
         afterKey: Map<String, FieldValue>,
         pageSize: Int,
     ): Mono<ResponseBody<Map<*, *>>> = Mono.defer {
@@ -108,14 +108,25 @@ internal class ElasticsearchAggregationPager(
             it.query(plan.rootQuery)
                 .size(0)
                 .trackTotalHits { track -> track.enabled(false) }
-                .pit { pointInTime ->
-                    pointInTime.id(pit.id).keepAlive { keepAlive -> keepAlive.time(this.pointInTime.keepAliveValue) }
-                }
                 .runtimeMappings(plan.runtimeMappings)
                 .aggregations(ROOT_AGGREGATION, plan.aggregation(afterKey, pageSize))
+                .apply {
+                    if (pit == null) {
+                        index(indexName).allowPartialSearchResults(false)
+                    } else {
+                        pit { pointInTime ->
+                            pointInTime.id(pit.id)
+                                .keepAlive { keepAlive ->
+                                    keepAlive.time(
+                                        this@ElasticsearchAggregationPager.pointInTime.keepAliveValue,
+                                    )
+                                }
+                        }
+                    }
+                }
         }
         client.search(request, Map::class.java)
-    }.doOnNext { pit.update(it.pitId()) }
+    }.doOnNext { pit?.update(it.pitId()) }
 
     private fun ElasticsearchAggregationPlan.aggregation(
         afterKey: Map<String, FieldValue>,
