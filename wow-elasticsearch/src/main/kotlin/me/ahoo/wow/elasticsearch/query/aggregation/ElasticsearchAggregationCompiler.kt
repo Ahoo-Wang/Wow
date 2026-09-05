@@ -186,14 +186,16 @@ internal class ElasticsearchAggregationCompiler(
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): String {
         val logicalField = parent?.append(field) ?: field
-        val physicalPath = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TEMPORAL)
-        val fieldSchema = schema.resolveFieldSchema(logicalField, QueryCapability.AGGREGATE_TEMPORAL)
-            ?: schema.field(logicalField)?.let {
-                throw QuerySchemaValidationException(
-                    "Query field [$logicalField] does not support [${QueryCapability.AGGREGATE_TEMPORAL}].",
-                )
+        val capability = QueryCapability.AGGREGATE_TEMPORAL
+        val fieldSchema = schema.resolveFieldSchema(logicalField, capability)
+        val physicalPath = fieldSchema?.binding(capability)?.physicalField?.path
+            ?: field.compatiblePath(logicalField, physicalParent, schema, capability)
+        if (fieldSchema == null) {
+            if (schema.field(logicalField) != null) {
+                throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
             }
-            ?: return physicalPath
+            return physicalPath
+        }
         return when (val semanticType = fieldSchema.semanticType) {
             Temporal.Date -> physicalPath
             is Temporal.Epoch -> "__wow_date_histogram_$index".also { runtimeFieldName ->
@@ -391,9 +393,16 @@ internal class ElasticsearchAggregationCompiler(
         capability: QueryCapability,
     ): String {
         val logicalField = parent?.append(this) ?: this
-        if (schema.resolveFieldSchema(logicalField, capability) != null) {
-            return schema.resolvePhysicalField(logicalField, capability).path
-        }
+        return schema.resolveFieldSchema(logicalField, capability)?.binding(capability)?.physicalField?.path
+            ?: compatiblePath(logicalField, physicalParent, schema, capability)
+    }
+
+    private fun QueryField.compatiblePath(
+        logicalField: QueryField,
+        physicalParent: QueryField?,
+        schema: QueryModelSchema,
+        capability: QueryCapability,
+    ): String {
         if (logicalField in schema.fields) {
             throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
         }
