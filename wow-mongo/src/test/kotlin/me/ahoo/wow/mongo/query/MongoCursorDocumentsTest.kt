@@ -130,6 +130,79 @@ class MongoCursorDocumentsTest {
         page.list.single().get("state", Document::class.java).isEmpty().assert().isTrue()
     }
 
+    @Test
+    fun `included projection should clean each returned row and preserve shared payload and lookahead`() {
+        val sortFields = listOf("state.a.hidden.rank", "state.a.hidden.weight", "state.b.hidden.rank")
+        val projection = Projection(
+            include = listOf(QueryField("name"), QueryField("state.a.payload"), QueryField("state.empty")),
+        ).withCursorFields(sortFields)
+        val documents = (1..3).map { rank ->
+            Document("name", "row-$rank").append(
+                "state",
+                Document(
+                    "a",
+                    Document("hidden", Document("rank", rank).append("weight", rank + 10))
+                        .append("payload", "keep-$rank"),
+                ).append("b", Document("hidden", Document("rank", rank + 20)))
+                    .append("empty", Document()),
+            )
+        }
+        val query = CursorQuery(MatchAllFilter, sort = sortFields.map { Sort(QueryField(it), Sort.Direction.ASC) }, size = 2)
+
+        val page = documents.toCursorPage(query, projection) { it }
+
+        page.list.assert().containsExactly(
+            Document("name", "row-1").append(
+                "state", Document("a", Document("payload", "keep-1")).append("empty", Document()),
+            ),
+            Document("name", "row-2").append(
+                "state", Document("a", Document("payload", "keep-2")).append("empty", Document()),
+            ),
+        )
+        MongoCursorCodec.decode(page.nextCursor!!, 3).assert().isEqualTo(listOf(2, 12, 22))
+        documents.last().assert().isEqualTo(
+            Document("name", "row-3").append(
+                "state",
+                Document("a", Document("hidden", Document("rank", 3).append("weight", 13)).append("payload", "keep-3"))
+                    .append("b", Document("hidden", Document("rank", 23)))
+                    .append("empty", Document()),
+            ),
+        )
+    }
+
+    @Test
+    fun `deferred identity should remain native for cursor and reach mapper once in row order`() {
+        val sortFields = listOf("_id", "state.rank")
+        val projection = Projection(include = listOf(QueryField("name"))).withCursorFields(sortFields)
+        val documents = (1..3).map { rank ->
+            Document("_id", 100L + rank).append("name", "row-$rank").append("state", Document("rank", rank))
+        }
+        val query = CursorQuery(MatchAllFilter, sort = sortFields.map { Sort(QueryField(it), Sort.Direction.ASC) }, size = 2)
+        val mappedIds = mutableListOf<Long>()
+
+        val page = documents.toCursorPage(query, projection, deferredInternalFields = setOf("_id")) { document ->
+            document.containsKey("state").assert().isFalse()
+            mappedIds += document.remove("_id") as Long
+            document.getString("name")
+        }
+
+        mappedIds.assert().containsExactly(101L, 102L)
+        page.list.assert().containsExactly("row-1", "row-2")
+        MongoCursorCodec.decode(page.nextCursor!!, 2).assert().isEqualTo(listOf<Any>(102L, 2))
+    }
+
+    @Test
+    fun `empty terminal page should not invoke mapper or return a token`() {
+        val projection = Projection(include = listOf(QueryField("name"))).withCursorFields(listOf("rank"))
+
+        val page = emptyList<Document>().toCursorPage(cursorQuery(), projection) {
+            error("Mapper must not run for an empty page.")
+        }
+
+        page.list.assert().isEmpty()
+        page.nextCursor.assert().isNull()
+    }
+
     private fun cursorQuery(sortField: String = "rank") = CursorQuery(
         MatchAllFilter,
         sort = listOf(Sort(QueryField(sortField), Sort.Direction.ASC)),
