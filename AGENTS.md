@@ -13,7 +13,17 @@
 
 Use Gradle module paths from `settings.gradle.kts`, for example `:wow-api`, `:wow-core`, `:wow-spring-boot-starter`, `:wow-compensation-domain`, `:example-domain`, and `:wow-test`.
 
-For runnable sample services:
+Before running a sample, prepare its module directory from the repository root. Set `service_dir` to `example/example-server`, `example/transfer/example-transfer-server`, or `compensation/wow-compensation-server`:
+
+```bash
+service_dir=example/example-server
+mkdir -p "$service_dir/logs" "$service_dir/data" "$service_dir/config"
+test -e "$service_dir/config/application.yaml" || cp "$service_dir/src/dist/config/application.yaml" "$service_dir/config/application.yaml"
+```
+
+The `run` task resolves `logs/`, `data/`, and `config/` relative to that module directory. Review the copied configuration and start any backends it enables. The example and transfer distribution configs use in-memory Wow stores and buses; the compensation config needs MongoDB, Redis/CosId, and Kafka connection settings appropriate to your environment. Keep local configuration, logs, and heap dumps out of commits.
+
+Choose the matching service command:
 
 ```bash
 ./gradlew :example-server:run
@@ -47,11 +57,23 @@ pnpm docs:preview
 
 The JVM code uses JUnit Jupiter through JUnit 6, MockK, Reactor test support, and `me.ahoo.test:fluent-assert-core`. Prefer the FluentAssert `.assert()` extension in Kotlin tests instead of AssertJ `assertThat()`.
 
+Choose the test layer that covers the affected behavior:
+
+| Source set | Module task | Repository task | Runtime requirements |
+| --- | --- | --- | --- |
+| `src/test` | `<module>:test` | `allLocalTest` | No containers |
+| `src/contractTest` | `<module>:contractTest` | `allContractTest` | No containers; shared TCK contracts |
+| `src/integrationTest` | `<module>:integrationTest` | `allIntegrationTest` | Docker/Testcontainers |
+
+`check` includes `test` and registered `contractTest` tasks, but does not run `integrationTest`. For storage or broker changes, run the affected module's integration tests explicitly. Use only layers registered for that module in `build.gradle.kts`; see [test runtime guidance](documentation/docs/zh/guide/test-runtime.md) for module coverage and setup.
+
 ```bash
 ./gradlew :wow-core:test
 ./gradlew :wow-core:test --tests "me.ahoo.wow.command.DefaultCommandGatewayTest"
+./gradlew :wow-core:contractTest
 ./gradlew :example-domain:test --tests "me.ahoo.wow.example.domain.order.OrderSpec"
 ./gradlew :wow-compensation-domain:check
+./gradlew :wow-mongo:integrationTest --stacktrace
 ./gradlew :wow-it:integrationTest --stacktrace
 ```
 
@@ -78,7 +100,7 @@ CI sets `CI=GITHUB_ACTIONS`; Gradle test retry is enabled only in CI with up to 
 ```text
 wow-api/                    Pure API contracts: commands, events, naming, queries, modeling
 wow-core/                   Core CQRS, event sourcing, messaging, projection, saga runtime
-wow-compiler/               KSP processor for command/event metadata and OpenAPI generation
+wow-compiler/               KSP processors for metadata and query helper code
 wow-spring/                 Spring integration primitives
 wow-spring-boot-starter/    Auto-configuration plus optional feature capabilities
 wow-query/                  Query model support
@@ -91,7 +113,7 @@ wow-opentelemetry/          Tracing and metrics integration
 wow-cosec/                  CoSec authorization integration
 wow-cocache/                CoCache projection caching
 wow-apiclient/              REST API client using CoApi
-wow-openapi/                OpenAPI support
+wow-openapi/                Route contracts and runtime OpenAPI generation
 wow-schema/                 JSON Schema generation
 wow-bi/                     BI sync script generation
 wow-models/                 Shared model helpers
@@ -117,8 +139,8 @@ wow-api -> wow-core -> wow-spring -> wow-spring-boot-starter
 
 ## Code Style
 
-- Kotlin 2.4.10, JVM toolchain 17, `kotlin.code.style=official`, and KSP 2.3.10 are configured in Gradle.
-- Spring Boot dependency management is centralized through `wow-dependencies`; current Spring Boot is 4.1.0.
+- Kotlin and KSP versions come from `gradle/libs.versions.toml`; JVM toolchain 17 is configured in `build.gradle.kts`, and `kotlin.code.style=official` in `gradle.properties`.
+- Spring Boot dependency management is centralized through `wow-dependencies`, which imports the BOM version from `gradle/libs.versions.toml`.
 - All JVM packages live under `me.ahoo.wow`; examples use `me.ahoo.wow.example`.
 - Source files use the Apache 2.0 copyright header already present in the repository.
 - Keep command/event paths reactive with Reactor `Mono`/`Flux`; do not introduce blocking calls into core dispatch, event store, projection, saga, or transport flows.
@@ -139,17 +161,19 @@ interface CommandBus :
 }
 ```
 
-Dashboard code uses React 19, TypeScript 6, Vite 8, Ant Design 6, React Router 7, Vitest, ESLint, and generated Fetcher clients under `compensation/dashboard/src/generated/`. Do not hand-edit generated client files unless the generator input is unavailable and the user accepts that tradeoff.
+Dashboard code uses React, TypeScript, Vite, shadcn/Base UI, Tailwind CSS, React Router, Vitest, and ESLint. Reuse components under `compensation/dashboard/src/components/ui/`; use `compensation/dashboard/package.json` for dependency versions and `compensation/dashboard/components.json` for shadcn configuration. Fetcher clients are generated under `compensation/dashboard/src/generated/`. Do not hand-edit generated client files unless the generator input is unavailable and the user accepts that tradeoff.
 
 ## Version Management
 
-The project version is the `version` property in `gradle.properties` and is currently `9.0.8`. Keep dependent documentation, examples, package metadata, and release notes in sync when bumping it. Third-party versions are centralized in `gradle/libs.versions.toml` and the `wow-dependencies` module.
+The project version is the `version` property in `gradle.properties`. Keep dependent documentation, examples, package metadata, and release notes in sync when bumping it. Third-party versions are centralized in `gradle/libs.versions.toml` and the `wow-dependencies` module.
 
 ## CI And Release Workflows
 
 GitHub Actions run module-level checks from `.github/workflows/`:
 
-- `integration-test.yml` runs Gradle checks for core modules.
+- `local-test.yml` runs `allLocalTest` and local coverage.
+- `contract-test.yml` runs `allContractTest` and contract coverage.
+- `integration-test.yml` runs `allIntegrationTest` and integration coverage.
 - `compensation-test.yml` checks compensation core and domain modules.
 - `example-java-test.yml` builds the Java transfer example modules.
 - `codecov.yml` publishes coverage.
