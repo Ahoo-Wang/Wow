@@ -65,6 +65,29 @@ private val AGGREGATION_SCHEMA = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(
 private fun compileAggregation(query: AggregationQuery) =
     ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(query, AGGREGATION_SCHEMA)
 
+private fun List<SearchRequest>.assertGroupedPointInTimeRequests() {
+    forEach { request ->
+        request.index().assert().isEmpty()
+        request.allowPartialSearchResults().assert().isNull()
+        request.pit().assert().isNotNull()
+    }
+    first().pit()!!.id().assert().isEqualTo("pit-1")
+}
+
+private fun SearchRequest.assertSummaryRequest(plan: me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPlan) {
+    index().assert().containsExactly("test-index")
+    pit().assert().isNull()
+    allowPartialSearchResults().assert().isEqualTo(false)
+    size().assert().isEqualTo(0)
+    trackTotalHits()!!.enabled().assert().isFalse()
+    query().assert().isEqualTo(plan.rootQuery)
+}
+
+private fun ReactiveElasticsearchClient.verifyNoPointInTimeCalls() {
+    verify(exactly = 0) { openPointInTime(any<OpenPointInTimeRequest>()) }
+    verify(exactly = 0) { closePointInTime(any<ClosePointInTimeRequest>()) }
+}
+
 class ElasticsearchAggregationPagerTest {
     private val client = mockk<ReactiveElasticsearchClient>()
 
@@ -105,6 +128,7 @@ class ElasticsearchAggregationPagerTest {
             .verifyComplete()
 
         requests.assert().hasSize(2)
+        requests.assertGroupedPointInTimeRequests()
         requests[0].size().assert().isEqualTo(0)
         requests[0].aggregations().values.single().composite().after().assert().isEmpty()
         requests[1].aggregations().values.single().composite().after().getValue("product").stringValue()
@@ -278,7 +302,8 @@ class ElasticsearchAggregationPagerTest {
     @Test
     fun `summary should request once and normalize empty values`() {
         stubPointInTime()
-        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(summaryResponse())
+        val request = slot<SearchRequest>()
+        every { client.search(capture(request), Map::class.java) } returns Mono.just(summaryResponse())
         val plan = compileAggregation(
             aggregation {
                 count("count")
@@ -286,7 +311,10 @@ class ElasticsearchAggregationPagerTest {
             },
         )
 
-        pager().execute(plan).test()
+        val result = pager().execute(plan)
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        client.verifyNoPointInTimeCalls()
+        result.test()
             .assertNext {
                 it.path("count").longValue().assert().isEqualTo(0L)
                 it.has("total").assert().isTrue()
@@ -294,7 +322,9 @@ class ElasticsearchAggregationPagerTest {
             }
             .verifyComplete()
 
+        request.captured.assertSummaryRequest(plan)
         verify(exactly = 1) { client.search(any<SearchRequest>(), Map::class.java) }
+        client.verifyNoPointInTimeCalls()
     }
 
     @Test
