@@ -44,13 +44,16 @@ import org.junit.jupiter.api.assertThrows
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
-class MongoAggregationCompilerTest {
+class MongoAggregationCompilerInputTest {
 
     @Test
     fun `group should resolve its terms input once for match and group stages`() {
         val observed = spyk(schema(field("state.status", QueryCapability.AGGREGATE_TERMS, "storage.status")))
         val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
-            aggregation { terms("state.status", "status"); count("count") },
+            aggregation {
+                terms("state.status", "status")
+                count("count")
+            },
             observed,
         ).map { it.toBsonDocument() }
 
@@ -75,7 +78,10 @@ class MongoAggregationCompilerTest {
             ),
         )
         val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
-            aggregation { histogram("state.amount", 10.0, "range"); count("count") },
+            aggregation {
+                histogram("state.amount", 10.0, "range")
+                count("count")
+            },
             observed,
         ).map { it.toBsonDocument() }
 
@@ -103,7 +109,10 @@ class MongoAggregationCompilerTest {
             ),
         )
         val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
-            aggregation { dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day"); count("count") },
+            aggregation {
+                dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
             observed,
         ).map { it.toBsonDocument() }
 
@@ -121,7 +130,10 @@ class MongoAggregationCompilerTest {
     fun `unknown date group should reuse native fallback without physical resolution`() {
         val observed = spyk(schema())
         val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
-            aggregation { dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day"); count("count") },
+            aggregation {
+                dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
             observed,
         ).map { it.toBsonDocument() }
         val expected = BsonDocument("\$toDate", BsonString("\$state.createdAt"))
@@ -158,7 +170,10 @@ class MongoAggregationCompilerTest {
             field("document.createdAt", QueryCapability.PRESENCE, "document.createdAt"),
         )
         val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
-            aggregation { dateHistogram("document.createdAt", AggregationDateUnit.DAY, "day"); count("count") },
+            aggregation {
+                dateHistogram("document.createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
             aliasSchema,
         ).map { it.toBsonDocument() }
 
@@ -276,6 +291,9 @@ class MongoAggregationCompilerTest {
 
         first.assert().isEqualTo(second)
     }
+}
+
+class MongoAggregationCompilerTest {
 
     @Test
     fun `resolved alias should win over a declared aggregation capability miss`() {
@@ -838,46 +856,46 @@ class MongoAggregationCompilerTest {
         MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())[2].toBsonDocument().toJson().assert()
             .contains("\$state.status")
     }
+}
 
-    private fun schema(vararg fields: Pair<QueryField, QueryFieldSchema>) = QueryModelSchema(
-        model = QueryModel.SNAPSHOT,
-        capabilities = emptySet(),
-        fields = fields.toMap() + field(
-            MessageRecords.AGGREGATE_ID,
-            QueryCapability.AGGREGATE_TERMS,
-            "_id",
-        ),
+private fun schema(vararg fields: Pair<QueryField, QueryFieldSchema>) = QueryModelSchema(
+    model = QueryModel.SNAPSHOT,
+    capabilities = emptySet(),
+    fields = fields.toMap() + field(
+        MessageRecords.AGGREGATE_ID,
+        QueryCapability.AGGREGATE_TERMS,
+        "_id",
+    ),
+)
+
+private fun field(
+    logicalPath: String,
+    capability: QueryCapability,
+    physicalPath: String,
+    valueType: QueryValueType = QueryValueType.STRING,
+    semanticType: Temporal? = null,
+    dynamicChildren: Boolean = false,
+    rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
+    resolvedPath: String = logicalPath,
+    additionalCapabilities: Set<QueryCapability> = emptySet(),
+): Pair<QueryField, QueryFieldSchema> {
+    val source = QueryField(logicalPath)
+    val physical = QueryField(
+        if (logicalPath == MessageRecords.AGGREGATE_ID && physicalPath == logicalPath) "_id" else physicalPath,
     )
-
-    private fun field(
-        logicalPath: String,
-        capability: QueryCapability,
-        physicalPath: String,
-        valueType: QueryValueType = QueryValueType.STRING,
-        semanticType: Temporal? = null,
-        dynamicChildren: Boolean = false,
-        rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
-        resolvedPath: String = logicalPath,
-        additionalCapabilities: Set<QueryCapability> = emptySet(),
-    ): Pair<QueryField, QueryFieldSchema> {
-        val source = QueryField(logicalPath)
-        val physical = QueryField(
-            if (logicalPath == MessageRecords.AGGREGATE_ID && physicalPath == logicalPath) "_id" else physicalPath,
-        )
-        return source to QueryFieldSchema(
-            title = null,
-            description = null,
-            enumValues = null,
-            valueTypes = setOf(valueType),
-            nullable = false,
-            required = true,
-            cardinality = QueryCardinality.SINGLE,
-            semanticType = semanticType,
-            dynamicChildren = dynamicChildren,
-            bindings = (additionalCapabilities + capability).associateWith {
-                QueryFieldBinding(QueryField(resolvedPath), physical, QueryStorageType("test"))
-            },
-            rewriteMode = rewriteMode,
-        )
-    }
+    return source to QueryFieldSchema(
+        title = null,
+        description = null,
+        enumValues = null,
+        valueTypes = setOf(valueType),
+        nullable = false,
+        required = true,
+        cardinality = QueryCardinality.SINGLE,
+        semanticType = semanticType,
+        dynamicChildren = dynamicChildren,
+        bindings = (additionalCapabilities + capability).associateWith {
+            QueryFieldBinding(QueryField(resolvedPath), physical, QueryStorageType("test"))
+        },
+        rewriteMode = rewriteMode,
+    )
 }
