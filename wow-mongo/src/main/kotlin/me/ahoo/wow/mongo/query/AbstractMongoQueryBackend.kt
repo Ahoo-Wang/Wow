@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.mongo.Documents
+import me.ahoo.wow.mongo.Documents.replacePrimaryKeyTo
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.QueryBackend
@@ -40,6 +41,13 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 import tools.jackson.databind.node.ObjectNode
+
+internal fun Document.toQueryObjectNode(idField: String): ObjectNode {
+    if (containsKey(Documents.ID_FIELD)) {
+        replacePrimaryKeyTo(idField)
+    }
+    return toObjectNode()
+}
 
 abstract class AbstractMongoQueryBackend : QueryBackend {
     abstract val collection: MongoCollection<Document>
