@@ -14,13 +14,42 @@
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.SortOrder
+import co.elastic.clients.elasticsearch.core.SearchRequest
+import co.elastic.clients.elasticsearch.core.SearchResponse
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.slot
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryBackend
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.sort
+import me.ahoo.wow.query.schema.QueryFieldBinding
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 
 class ElasticsearchSortCompilerTest {
+    private val schema = QueryModelSchema(
+        model = QueryModel.EVENT_STREAM,
+        capabilities = emptySet(),
+        fields = mapOf(
+            QueryField("name") to sortFieldSchema(QueryField("document.name"), QueryField("body.name")),
+            QueryField("identity") to sortFieldSchema(QueryField("document.identity"), QueryField("id")),
+        ),
+    )
 
     @Test
     fun `should compile Sort to SortOptions`() {
@@ -34,10 +63,12 @@ class ElasticsearchSortCompilerTest {
         actual.first().let {
             it.field().field().assert().isEqualTo("field1")
             it.field().order().assert().isEqualTo(SortOrder.Asc)
+            it.field().missing().assert().isNull()
         }
         actual.last().let {
             it.field().field().assert().isEqualTo("field2")
             it.field().order().assert().isEqualTo(SortOrder.Desc)
+            it.field().missing().assert().isNull()
         }
     }
 
@@ -48,6 +79,61 @@ class ElasticsearchSortCompilerTest {
         val actual = ElasticsearchSortCompiler.compilePhysical(sort)
 
         actual.isEmpty().assert().isTrue()
+        ElasticsearchSortCompiler.compile(sort, schema).assert().isEmpty()
+    }
+
+    @Test
+    fun `should resolve logical sort fields without setting ordinary missing order`() {
+        val actual = ElasticsearchSortCompiler.compile(
+            sort {
+                "name".asc()
+                "name".desc()
+            },
+            schema,
+        ).map { it.field() }
+
+        actual.map { it.field() }.assert().containsExactly("body.name", "body.name")
+        actual.map { it.order() }.assert().containsExactly(SortOrder.Asc, SortOrder.Desc)
+        actual.forEach {
+            requireNotNull(it.nested()).path().assert().isEqualTo("body")
+            it.missing().assert().isNull()
+        }
+    }
+
+    @Test
+    fun `event cursor should preserve physical sorts nested context and missing order`() {
+        val client = mockk<ReactiveElasticsearchClient>()
+        val backend = ElasticsearchEventStreamQueryBackend(MaterializedNamedAggregate("test", "cursor"), client)
+        val request = slot<SearchRequest>()
+        every { client.search(capture(request), ObjectNode::class.java) } returns Mono.just(
+            SearchResponse.of<ObjectNode> {
+                it.took(1).timedOut(false)
+                    .shards { shards -> shards.failed(0).successful(1).total(1) }
+                    .hits { hits -> hits.hits(emptyList()) }
+            },
+        )
+
+        backend.cursor(
+            ResolvedQuery(
+                CursorQuery(
+                    MatchAllFilter,
+                    sort = sort {
+                        "name".asc()
+                        "identity".desc()
+                    },
+                    size = 1,
+                ),
+                schema,
+            ),
+        ).block()
+
+        request.captured.index().assert().containsExactly("wow.test.cursor.es")
+        val actual = request.captured.sort().map { it.field() }
+        actual.map { it.field() }.assert().containsExactly("body.name", "id")
+        actual.map { it.order() }.assert().containsExactly(SortOrder.Asc, SortOrder.Desc)
+        actual.map { requireNotNull(it.missing()).stringValue() }.assert().containsExactly("_first", "_last")
+        requireNotNull(actual.first().nested()).path().assert().isEqualTo("body")
+        actual.last().nested().assert().isNull()
     }
 
     @Test
@@ -57,5 +143,20 @@ class ElasticsearchSortCompilerTest {
         ).single().field()
 
         requireNotNull(actual.nested()).path().assert().isEqualTo(MessageRecords.BODY)
+        actual.missing().assert().isNull()
     }
+
+    private fun sortFieldSchema(resolved: QueryField, physical: QueryField) = QueryFieldSchema(
+        title = null,
+        description = null,
+        enumValues = null,
+        valueTypes = emptySet(),
+        nullable = true,
+        required = false,
+        cardinality = QueryCardinality.SINGLE,
+        semanticType = null,
+        dynamicChildren = false,
+        bindings = mapOf(QueryCapability.SORT to QueryFieldBinding(resolved, physical, null)),
+        rewriteMode = QueryRewriteMode.REQUIRED,
+    )
 }
