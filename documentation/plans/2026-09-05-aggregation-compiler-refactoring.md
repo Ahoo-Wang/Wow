@@ -496,6 +496,8 @@ Task 1—3 已分别由 `8ae1c4ddc`、`00c67137f`、`0f215fbef` 完成并通过�
 
 对照场景中，known_metric 未出现误差不重叠的变慢。`count_only` width 1 的误差重叠；首轮 width 16 在 ES 和 Mongo 均显示候选较慢，因此保留冻结 jar 做了两轮原参数成对复测。ES 第一轮复测为 `257.217 ± 4.122 → 258.420 ± 1.092 ns/op`，耗时与分配误差均重叠，原信号未重现。Mongo 两轮分别为 `571.518 ± 23.754 → 569.872 ± 19.133` 和 `538.478 ± 3.336 → 588.850 ± 22.009 ns/op`，方向不一致，且两版本都出现 `6456/6840 B/op` 的 fork 模式。
 
+审查补充识别出原矩阵的两处 ES 分配疑点。`count_only/1` 的 `1256.000 ± 0.000003 → 1277.335 ± 10.250 B/op` 与 `unknown_terms/16` 的 `13333.338 ± 6.780 → 13349.338 ± 5.125 B/op` 都是误差不重叠的增加。冻结 jar 按原矩阵参数分别成对复测后，前者为 `1256.000376 ± 0.000007 → 1256.000378 ± 0.000005 B/op`，时间 `143.584790 ± 1.924600 → 143.568048 ± 0.739173 ns/op`；后者为 `13333.337927 ± 6.780181 → 13325.338000 ± 5.125368 B/op`，时间 `1743.472758 ± 37.734851 → 1779.636502 ± 4.940482 ns/op`。两处复测的时间和分配区间都重叠，原分配增加没有重现；完整 fork 数据在 `baseline/candidate-retest-es-count_only-width1.*` 与 `baseline/candidate-retest-es-unknown_terms-width16.*`。
+
 由于 Mongo 信号仍有疑点，另做五对诊断：每对使用独立 fork、交替 baseline/candidate 顺序、10 次 500ms 预热和 10 次 500ms 测量，其参数与原 28 行矩阵不同，不覆盖原结果。五个候选/baseline 比值为 `1.0513`、`0.9707`、`1.0314`、`0.9515`、`1.0920`，均值 `1.0194`，正负方向都有；分配模式在版本间重叠。该诊断未证实稳定变慢或改善，小幅影响仍不确定，因此不声称零开销、所有场景加速或完全排除退化。脚本、十份 JSON/日志和汇总保存在忽略的 `build/aggregation-compiler/diagnostic-count16-*`。
 
 实际回归命令与结果：
@@ -505,4 +507,4 @@ Task 1—3 已分别由 `8ae1c4ddc`、`00c67137f`、`0f215fbef` 完成并通过�
 - `./gradlew :wow-mongo:integrationTest --tests 'me.ahoo.wow.mongo.query.*' :wow-elasticsearch:integrationTest --tests 'me.ahoo.wow.elasticsearch.query.*' --console=plain`：Mongo 85 项、ES 93 项，均为 0 failure/error/skip。
 - `./gradlew :wow-mongo:detekt :wow-elasticsearch:detekt :wow-mongo:test --console=plain`：修正后的两个 Detekt 任务通过，Mongo 完整模块 275 项，0 failure/error/skip；它刷新了原先复用 Task 3 的 275 项证据，其中查询测试 165 项，不重复计数。
 
-最终回归共 992 项测试，0 failure/error/skip；早期聚焦测试和 Mongo 查询子集未重复计入。Spring/WebFlux 和 HTTP 未改动，按计划复用第一阶段验证。JMH 构建仍报告既有 kapt originating-source 警告和 Gradle deprecated-feature 警告，没有归因于本阶段基准或生产改动的新警告。微基准只覆盖 `compile(query, schema)` 的编译耗时与编译期分配；B/op 不表示 retained heap，结果不能外推为数据库查询的端到端加速比例。
+最终回归共 992 项测试，0 failure/error/skip；早期聚焦测试和 Mongo 查询子集未重复计入。Spring/WebFlux 和 HTTP 未改动，按计划复用第一阶段验证。JMH 构建报告既有 kapt originating-source 和 Gradle deprecated-feature 警告；Gradle 验证也报告 Gradle 10 弃用提示，ES/Mongo 单元测试 JVM 报告 CDS 只支持 boot loader class sharing 的提示。它们都是非失败提示，没有归因于本阶段基准或生产改动的新警告。微基准只覆盖 `compile(query, schema)` 的编译耗时与编译期分配；B/op 不表示 retained heap，结果不能外推为数据库查询的端到端加速比例。
