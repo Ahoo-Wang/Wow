@@ -90,20 +90,17 @@ internal fun Projection.withCursorFields(sortFields: List<String>): MongoCursorP
 private fun Document.valueAt(path: String): Any? =
     path.split('.').fold(this as Any?) { current, part -> (current as? Document)?.get(part) }
 
-private fun Document.removeAt(path: String, removeEmptyParents: Boolean) {
-    fun Document.removePath(parts: List<String>) {
-        if (parts.size == 1) {
-            remove(parts.single())
-            return
-        }
-        val child = get(parts.first()) as? Document ?: return
-        child.removePath(parts.drop(1))
-        if (removeEmptyParents && child.isEmpty()) {
-            remove(parts.first())
-        }
+private fun Document.removeAt(parts: List<String>, index: Int, removeEmptyParents: Boolean) {
+    val field = parts[index]
+    if (index == parts.lastIndex) {
+        remove(field)
+        return
     }
-
-    removePath(path.split('.'))
+    val child = get(field) as? Document ?: return
+    child.removeAt(parts, index + 1, removeEmptyParents)
+    if (removeEmptyParents && child.isEmpty()) {
+        remove(field)
+    }
 }
 
 internal fun <T : Any> List<Document>.toCursorPage(
@@ -119,10 +116,16 @@ internal fun <T : Any> List<Document>.toCursorPage(
     } else {
         null
     }
+    val removablePaths = if (returned.isEmpty() || projection.internalFields.isEmpty()) {
+        emptyList()
+    } else {
+        projection.internalFields.filterNot(deferredInternalFields::contains).map { it.split('.') }
+    }
+    val removeEmptyParents = projection.queryProjection.include.isNotEmpty()
     return CursorPage(
         list = returned.map { document ->
-            projection.internalFields.filterNot(deferredInternalFields::contains).forEach { field ->
-                document.removeAt(field, removeEmptyParents = projection.queryProjection.include.isNotEmpty())
+            removablePaths.forEach { parts ->
+                document.removeAt(parts, 0, removeEmptyParents)
             }
             mapper(document)
         },
