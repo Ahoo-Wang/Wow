@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import co.elastic.clients.elasticsearch._types.FieldSort
 import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
 import me.ahoo.wow.api.query.Sort
@@ -27,19 +28,21 @@ object ElasticsearchSortCompiler {
 
     internal fun compileCursor(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> = compilePhysical(
         sort.map { it.copy(field = schema.resolvePhysicalField(it.field, QueryCapability.SORT)) },
-        cursor = true,
-    )
+    ) { logicalSort ->
+        missing(if (logicalSort.direction == Sort.Direction.ASC) "_first" else "_last")
+    }
 
-    internal fun compilePhysical(sort: List<Sort>): List<SortOptions> = compilePhysical(sort, cursor = false)
+    internal fun compilePhysical(sort: List<Sort>): List<SortOptions> = compilePhysical(sort) { }
 
-    private fun compilePhysical(sort: List<Sort>, cursor: Boolean): List<SortOptions> {
+    private inline fun compilePhysical(
+        sort: List<Sort>,
+        crossinline configure: FieldSort.Builder.(Sort) -> Unit,
+    ): List<SortOptions> {
         return sort.map {
             SortOptions.of { sortBuilder ->
                 sortBuilder.field { fieldBuilder ->
                     fieldBuilder.field(it.field.path).order(it.direction.toSortOrder())
-                    if (cursor) {
-                        fieldBuilder.missing(if (it.direction == Sort.Direction.ASC) "_first" else "_last")
-                    }
+                    fieldBuilder.configure(it)
                     if (it.field.path.startsWith("${MessageRecords.BODY}.")) {
                         fieldBuilder.nested { nested -> nested.path(MessageRecords.BODY) }
                     }
