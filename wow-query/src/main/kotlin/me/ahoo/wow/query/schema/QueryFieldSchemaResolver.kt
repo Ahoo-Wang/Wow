@@ -50,7 +50,7 @@ internal class QueryFieldSchemaResolver(
                             "physical fields [${existing.binding.physicalField}, ${binding.physicalField}].",
                     )
                 }
-                if (fieldSchema.dynamicChildren && capability != QueryCapability.ELEMENT_SCOPE) {
+                if (fieldSchema.dynamicChildren) {
                     dynamicResolvedFieldIndex.putIfAbsent(capability to binding.resolvedField, resolvedField)
                 }
             }
@@ -187,6 +187,7 @@ internal class QueryFieldSchemaResolver(
             separator = field.path.lastIndexOf('.', separator - 1)
         }
         val finalSource = source ?: return null
+        if (capability == QueryCapability.ELEMENT_SCOPE) return null
         val finalRelative = checkNotNull(relative)
         val dynamicSchema = finalSource.fieldSchema.resolveDynamic(
             source = finalSource.logical,

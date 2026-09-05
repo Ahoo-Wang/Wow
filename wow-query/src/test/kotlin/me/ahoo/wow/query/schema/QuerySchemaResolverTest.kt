@@ -233,6 +233,22 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `resolved dynamic lookup should preserve numeric element scope errors`() {
+        val model = schema(
+            mapOf(
+                QueryField("state.labels") to fieldSchema(
+                    QueryCapability.ELEMENT_SCOPE to "document.labels",
+                    dynamicChildren = true,
+                ),
+            ),
+        )
+
+        assertThrows<IllegalArgumentException> {
+            model.resolvePhysicalField(QueryField("document.labels.0.code"), QueryCapability.ELEMENT_SCOPE)
+        }
+    }
+
+    @Test
     fun `field resolver should retain an absolute physical field for nested bindings`() {
         val field = QueryField("price")
         val physicalField = QueryField("storage.orders.price.keyword")
