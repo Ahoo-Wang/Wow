@@ -14,9 +14,9 @@
 import type { ModelInfo } from './modelInfo';
 import { resolveModelInfo, resolveReferenceModelInfo } from './modelInfo';
 import type { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
+import { CodeBlockWriter, VariableDeclarationKind } from 'ts-morph';
 import type { Components, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import type {
-  AllOfSchema,
   ArraySchema,
   CompositionSchema,
   EnumSchema,
@@ -28,9 +28,9 @@ import {
   addImportModelInfo,
   addMainSchemaJSDoc,
   addSchemaJSDoc,
+  extractSchema,
   getEnumText,
   getMapKeySchema,
-  isAllOf,
   isArray,
   isComposition,
   isEnum,
@@ -71,14 +71,21 @@ export class TypeGenerator implements Generator {
     if (isEnum(schema)) {
       return this.processEnum(schema);
     }
+    if (schema.const !== undefined) {
+      return this.processTypeAlias(schema);
+    }
+    if (
+      (schema.nullable && schema.type) ||
+      (isComposition(schema) &&
+        (schema.type || schema.properties || schema.required))
+    ) {
+      return this.processTypeAlias(schema);
+    }
     if (isObject(schema)) {
       return this.processInterface(schema);
     }
     if (isArray(schema)) {
       return this.processArray(schema);
-    }
-    if (isAllOf(schema)) {
-      return this.processIntersection(schema);
     }
     if (isComposition(schema)) {
       return this.processComposition(schema);
@@ -124,25 +131,58 @@ export class TypeGenerator implements Generator {
 
   private resolveAdditionalProperties(schema: Schema): string {
     if (
-      schema.additionalProperties === undefined ||
-      schema.additionalProperties === false
+      schema.additionalProperties === false ||
+      (schema.additionalProperties === undefined &&
+        !schema.required?.some(
+          name => !Object.hasOwn(schema.properties ?? {}, name),
+        ))
     ) {
       return '';
     }
 
-    if (schema.additionalProperties === true) {
+    if (
+      schema.additionalProperties === true ||
+      schema.additionalProperties === undefined
+    ) {
       return '[key: string]: any';
     }
 
-    const valueType = this.resolveType(schema.additionalProperties);
-    return `[key: string]: ${valueType}`;
+    return `[key: string]: ${this.resolveAdditionalPropertyType(schema)}`;
+  }
+
+  private resolveAdditionalPropertyType(schema: Schema): string {
+    return this.resolveType(
+      typeof schema.additionalProperties === 'object'
+        ? schema.additionalProperties
+        : {},
+    );
+  }
+
+  private requiresAdditionalPropertiesIntersection(schema: Schema): boolean {
+    return (
+      typeof schema.additionalProperties === 'object' &&
+      Object.keys(schema.properties ?? {}).some(
+        name => !schema.required?.includes(name),
+      )
+    );
+  }
+
+  private resolveRequiredAdditionalPropertyType(schema: Schema): string {
+    if (schema.additionalProperties === false) return 'never';
+    if (typeof schema.additionalProperties === 'object') {
+      return this.resolveType(schema.additionalProperties);
+    }
+    return 'null | string | number | boolean | globalThis.Record<string, unknown> | readonly unknown[]';
   }
 
   private resolvePropertyDefinitions(schema: ObjectSchema): string[] {
     const { properties } = schema;
     return Object.entries(properties).map(([propName, propSchema]) => {
       const type = this.resolveType(propSchema);
-      const resolvedPropName = resolvePropertyName(propName);
+      const resolvedPropName =
+        (isReadOnly(propSchema) ? 'readonly ' : '') +
+        resolvePropertyName(propName) +
+        (schema.required?.includes(propName) ? '' : '?');
       if (!isReference(propSchema)) {
         const jsDocDescriptions = schemaJSDoc(propSchema);
         const doc = jsDoc(jsDocDescriptions, '\n * ');
@@ -166,16 +206,32 @@ export class TypeGenerator implements Generator {
       parts.push(...propertyDefs);
     }
 
-    const additionalProps = this.resolveAdditionalProperties(schema);
+    for (const name of schema.required ?? []) {
+      if (!Object.hasOwn(schema.properties ?? {}, name)) {
+        parts.push(
+          `${resolvePropertyName(name)}: ${this.resolveRequiredAdditionalPropertyType(schema)}`,
+        );
+      }
+    }
+    const mapType =
+      isMap(schema) && getMapKeySchema(schema)
+        ? this.resolveMapType(schema)
+        : this.requiresAdditionalPropertiesIntersection(schema)
+          ? `globalThis.Record<string, ${this.resolveAdditionalPropertyType(schema)}>`
+          : undefined;
+    const additionalProps = mapType
+      ? ''
+      : this.resolveAdditionalProperties(schema);
     if (additionalProps) {
       parts.push(additionalProps);
     }
 
     if (parts.length === 0) {
-      return 'Record<string, any>';
+      return 'globalThis.Record<string, any>';
     }
 
-    return `{\n  ${parts.join(';\n  ')}; \n}`;
+    const objectType = `{\n  ${parts.join(';\n  ')}; \n}`;
+    return mapType ? `(${objectType} & ${mapType})` : objectType;
   }
 
   private resolveMapValueType(schema: MapSchema): string {
@@ -200,41 +256,193 @@ export class TypeGenerator implements Generator {
   private resolveMapType(schema: MapSchema): string {
     const keyType = this.resolveMapKeyType(schema);
     const valueType = this.resolveMapValueType(schema);
-    return `Record<${keyType},${valueType}>`;
+    return `globalThis.Record<${keyType},${valueType}>`;
+  }
+
+  private resolveCompositionConstraints(schema: Schema | Reference): {
+    objectConstrained: boolean;
+  } {
+    const resolve = (member: Schema | Reference): Schema | undefined =>
+      isReference(member)
+        ? this.components && extractSchema(member, this.components)
+        : member;
+    const root = resolve(schema);
+    const nodes = new Map<Schema, (Schema | undefined)[][]>();
+    const constrained = new Set<Schema>();
+    const pending = root ? [root] : [];
+    for (const current of pending) {
+      if (nodes.has(current)) continue;
+      const groups = [current.allOf, current.oneOf, current.anyOf].map(
+        members => members?.map(resolve) ?? [],
+      );
+      nodes.set(current, groups);
+      for (const members of groups) {
+        for (const member of members) {
+          if (member && !nodes.has(member)) pending.push(member);
+        }
+      }
+      if (
+        current.type === 'object' ||
+        current.type === 'null' ||
+        (Array.isArray(current.type) &&
+          current.type.length > 0 &&
+          current.type.every(type => type === 'object' || type === 'null'))
+      )
+        constrained.add(current);
+    }
+
+    // ponytail: O(V * (V + E)); use a dependency worklist for very large graphs.
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const [current, [allOf, oneOf, anyOf]] of nodes) {
+        if (constrained.has(current)) continue;
+        const isConstrained = (member: Schema | undefined) =>
+          member !== undefined && constrained.has(member);
+        if (
+          allOf.some(isConstrained) ||
+          [oneOf, anyOf].some(
+            members => members.length > 0 && members.every(isConstrained),
+          )
+        ) {
+          constrained.add(current);
+          changed = true;
+        }
+      }
+    }
+    return { objectConstrained: root !== undefined && constrained.has(root) };
   }
 
   resolveType(schema: Schema | Reference): string {
     if (isReference(schema)) {
       return this.resolveReference(schema).name;
     }
-    if (isMap(schema)) {
-      return this.resolveMapType(schema);
+    if (Array.isArray(schema.type)) {
+      return schema.type
+        .map(type => {
+          const resolved = this.resolveType({ ...schema, type });
+          return /[|&]/.test(resolved) ? `(${resolved})` : resolved;
+        })
+        .join(' | ');
     }
-    if (schema.const) {
-      return `'${schema.const}'`;
+    if (isComposition(schema)) {
+      const compositions = (['allOf', 'oneOf', 'anyOf'] as const).flatMap(
+        keyword => {
+          const schemas = schema[keyword];
+          if (!schemas?.length) return [];
+          const types = schemas.map(member => {
+            const type = this.resolveType(member);
+            return type === 'any'
+              ? 'unknown'
+              : /[|&]/.test(type)
+                ? `(${type})`
+                : type;
+          });
+          return [`(${types.join(keyword === 'allOf' ? ' & ' : ' | ')})`];
+        },
+      );
+      const composed =
+        compositions.length === 1
+          ? compositions[0]
+          : `(${compositions.join(' & ')})`;
+      const base = {
+        ...schema,
+        oneOf: undefined,
+        anyOf: undefined,
+        allOf: undefined,
+      };
+      const baseType = this.resolveType(base);
+      const type =
+        baseType === 'any' ? composed : `(${composed} & (${baseType}))`;
+      const constraints = this.resolveCompositionConstraints(schema);
+      // Weak object types can otherwise admit non-object branches through intersections.
+      return constraints.objectConstrained
+        ? `globalThis.Exclude<${type}, string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null)`
+        : type;
+    }
+    if (schema.const !== undefined) {
+      if (!this.matchesLiteralType(schema.const, schema)) return 'never';
+      const literal = this.resolveLiteral(schema.const);
+      const baseType = this.resolveType({ ...schema, const: undefined });
+      return baseType === 'any' ? literal : `(${literal}) & (${baseType})`;
+    }
+    if (schema.nullable && schema.type && !isEnum(schema)) {
+      return `(${this.resolveType({ ...schema, nullable: false })}) | null`;
     }
     if (isEnum(schema)) {
-      return schema.enum.map(val => `\`${val}\``).join(' | ');
+      const literal =
+        schema.enum
+          .filter(value => this.matchesLiteralType(value, schema))
+          .map(value => this.resolveLiteral(value))
+          .join(' | ') || 'never';
+      const baseType = this.resolveType({ ...schema, enum: undefined });
+      return baseType === 'any' ? literal : `(${literal}) & (${baseType})`;
+    }
+    if (isMap(schema) && !schema.required?.length) {
+      return this.resolveMapType(schema);
     }
 
-    if (isComposition(schema)) {
-      const schemas = schema.oneOf || schema.anyOf || schema.allOf || [];
-      const types = schemas.map(s => this.resolveType(s));
-      const separator = isAllOf(schema) ? ' & ' : ' | ';
-      return `(${types.join(separator)})`;
-    }
-
-    if (isArray(schema)) {
-      const itemType = this.resolveType(schema.items);
+    if (schema.type === 'array') {
+      const itemType = this.resolveType(schema.items ?? {});
       return toArrayType(itemType);
     }
     if (schema.type === 'object') {
       return this.resolveObjectType(schema);
     }
     if (!schema.type) {
+      if (
+        schema.required?.length ||
+        Object.keys(schema.properties ?? {}).length > 0
+      ) {
+        // Object keywords constrain object instances without rejecting other JSON types.
+        const objectType = this.resolveObjectType({
+          ...schema,
+          type: 'object',
+          additionalProperties: schema.additionalProperties ?? true,
+        });
+        return `(${objectType} | null | string | number | boolean | readonly unknown[])`;
+      }
       return 'any';
     }
     return resolvePrimitiveType(schema.type);
+  }
+
+  private matchesLiteralType(value: unknown, schema: Schema): boolean {
+    if (schema.type === undefined) return true;
+    if (value === null && schema.nullable) return true;
+    return [schema.type].flat().some(type => {
+      if (type === 'null') return value === null;
+      if (type === 'array') return Array.isArray(value);
+      if (type === 'object') {
+        return (
+          value !== null && typeof value === 'object' && !Array.isArray(value)
+        );
+      }
+      if (type === 'integer')
+        return typeof value === 'number' && Number.isInteger(value);
+      return typeof value === type;
+    });
+  }
+
+  private resolveLiteral(value: unknown): string {
+    if (typeof value === 'string') {
+      return new CodeBlockWriter({ useSingleQuote: true })
+        .quote(value)
+        .toString();
+    }
+    if (Array.isArray(value)) {
+      return `[${value.map(item => this.resolveLiteral(item)).join(', ')}]`;
+    }
+    if (value !== null && typeof value === 'object') {
+      const properties = Object.entries(value).map(
+        ([name, item]) =>
+          `${resolvePropertyName(name)}: ${this.resolveLiteral(item)}`,
+      );
+      return properties.length
+        ? `{ ${properties.join('; ')}; readonly [globalThis.Symbol.iterator]?: never }`
+        : 'globalThis.Record<string, never>';
+    }
+    return JSON.stringify(value) ?? 'never';
   }
 
   private processEnum(schema: EnumSchema): JSDocableNode | undefined {
@@ -246,19 +454,53 @@ export class TypeGenerator implements Generator {
         members: Object.entries(enumText).map(([name, text]) => {
           return {
             name: resolveEnumMemberName(name),
-            initializer: `\`${text}\``,
+            initializer: this.resolveLiteral(text),
           };
         }),
       });
+    }
+    const stringValues = schema.enum.filter(
+      (value): value is string => typeof value === 'string',
+    );
+    if (
+      isComposition(schema) ||
+      schema.const !== undefined ||
+      (schema.type !== undefined && schema.type !== 'string') ||
+      stringValues.length !== schema.enum.length
+    ) {
+      if (stringValues.length) {
+        this.sourceFile.addVariableStatement({
+          declarationKind: VariableDeclarationKind.Const,
+          isExported: true,
+          declarations: [
+            {
+              name: this.modelInfo.name,
+              initializer: writer => {
+                writer.inlineBlock(() => {
+                  for (const value of stringValues) {
+                    writer
+                      .write(`${resolveEnumMemberName(value)}: `)
+                      .quote(value)
+                      .write(',')
+                      .newLine();
+                  }
+                });
+                writer.write(' as const');
+              },
+            },
+          ],
+        });
+      }
+      return this.processTypeAlias(schema);
     }
     return this.sourceFile.addEnum({
       name: this.modelInfo.name,
       isExported: true,
       members: schema.enum
-        .filter(value => typeof value === 'string' && value.length > 0)
+        .filter(value => typeof value === 'string')
         .map(value => ({
           name: resolveEnumMemberName(value),
-          initializer: `\`${value}\``,
+          initializer: this.resolveLiteral(value),
         })),
     });
   }
@@ -267,23 +509,29 @@ export class TypeGenerator implements Generator {
     interfaceDeclaration: InterfaceDeclaration,
     propName: string,
     propSchema: Schema | Reference,
+    required: boolean = true,
   ): void {
     const propType = this.resolveType(propSchema);
     const resolvedPropName = resolvePropertyName(propName);
     let propertySignature = interfaceDeclaration.getProperty(resolvedPropName);
     if (propertySignature) {
       propertySignature.setType(propType);
+      if (required) propertySignature.setHasQuestionToken(false);
     } else {
       propertySignature = interfaceDeclaration.addProperty({
         name: resolvedPropName,
         type: propType,
         isReadonly: isReadOnly(propSchema),
+        hasQuestionToken: !required,
       });
     }
     addSchemaJSDoc(propertySignature, propSchema);
   }
 
   private processInterface(schema: ObjectSchema): JSDocableNode | undefined {
+    if (this.requiresAdditionalPropertiesIntersection(schema)) {
+      return this.processTypeAlias(schema);
+    }
     const interfaceDeclaration = this.sourceFile.addInterface({
       name: this.modelInfo.name,
       isExported: true,
@@ -292,18 +540,28 @@ export class TypeGenerator implements Generator {
     const properties = schema.properties || {};
 
     Object.entries(properties).forEach(([propName, propSchema]) => {
-      this.addPropertyToInterface(interfaceDeclaration, propName, propSchema);
+      this.addPropertyToInterface(
+        interfaceDeclaration,
+        propName,
+        propSchema,
+        schema.required?.includes(propName) ?? false,
+      );
     });
 
-    if (schema.additionalProperties) {
+    for (const name of schema.required ?? []) {
+      if (!Object.hasOwn(properties, name)) {
+        interfaceDeclaration.addProperty({
+          name: resolvePropertyName(name),
+          type: this.resolveRequiredAdditionalPropertyType(schema),
+        });
+      }
+    }
+
+    if (this.resolveAdditionalProperties(schema)) {
       const indexSignature = interfaceDeclaration.addIndexSignature({
         keyName: 'key',
         keyType: 'string',
-        returnType: this.resolveType(
-          schema.additionalProperties === true
-            ? {}
-            : (schema.additionalProperties as Schema | Reference),
-        ),
+        returnType: this.resolveAdditionalPropertyType(schema),
       });
       indexSignature.addJsDoc('Additional properties');
     }
@@ -327,33 +585,6 @@ export class TypeGenerator implements Generator {
       type: this.resolveType(schema),
       isExported: true,
     });
-  }
-
-  private processIntersection(schema: AllOfSchema): JSDocableNode | undefined {
-    const interfaceDeclaration = this.sourceFile.addInterface({
-      name: this.modelInfo.name,
-      isExported: true,
-    });
-    schema.allOf.forEach(allOfSchema => {
-      if (isReference(allOfSchema)) {
-        const resolvedType = this.resolveType(allOfSchema);
-        interfaceDeclaration.addExtends(resolvedType);
-        return;
-      }
-      if (isObject(allOfSchema)) {
-        Object.entries(allOfSchema.properties).forEach(
-          ([propName, propSchema]) => {
-            this.addPropertyToInterface(
-              interfaceDeclaration,
-              propName,
-              propSchema,
-            );
-          },
-        );
-      }
-    });
-
-    return interfaceDeclaration;
   }
 
   private processTypeAlias(

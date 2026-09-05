@@ -12,8 +12,8 @@
  * ```
  */
 export enum ApiVersion {
-    V2 = `V2`,
-    V3 = `V3`
+    V2 = 'V2',
+    V3 = 'V3'
 }
 
 /**
@@ -34,8 +34,8 @@ export enum ApiVersion {
  * ```
  */
 export interface Link {
-    href: string;
-    templated: boolean;
+    href?: string;
+    templated?: boolean;
 }
 
 /**
@@ -47,7 +47,7 @@ export interface Link {
  * }
  * ```
  */
-export type SecurityContext = Record<string, any>;
+export type SecurityContext = globalThis.Record<string, any>;
 /**
  * - key: example.StringLinkMap
  * - schema: 
@@ -60,7 +60,7 @@ export type SecurityContext = Record<string, any>;
  * }
  * ```
  */
-export type StringLinkMap = Record<string, Link>;
+export type StringLinkMap = globalThis.Record<string, Link>;
 /**
  * - key: example.StringObjectMap
  * - schema: 
@@ -70,7 +70,7 @@ export type StringLinkMap = Record<string, Link>;
  * }
  * ```
  */
-export type StringObjectMap = Record<string, any>;
+export type StringObjectMap = globalThis.Record<string, any>;
 /**
  * - key: example.StringStringListMap
  * - schema: 
@@ -86,7 +86,7 @@ export type StringObjectMap = Record<string, any>;
  * }
  * ```
  */
-export type StringStringListMap = Record<string, string[]>;
+export type StringStringListMap = globalThis.Record<string, string[]>;
 
 /**
  * - key: example.WebServerNamespace
@@ -103,5 +103,5 @@ export type StringStringListMap = Record<string, string[]>;
  * ```
  */
 export interface WebServerNamespace {
-    value: string;
+    value?: string;
 }

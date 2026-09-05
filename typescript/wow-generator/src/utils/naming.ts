@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import { CodeBlockWriter } from 'ts-morph';
+
 const NAMING_SEPARATORS = /[-_'\s./?;:,()[\]{}|\\]+/;
 
 export function splitName(name: string) {
@@ -141,12 +143,12 @@ export function resolvePropertyName(name: string): string {
     return name;
   }
 
-  return `'${name}'`;
+  return new CodeBlockWriter({ useSingleQuote: true }).quote(name).toString();
 }
 
 export function resolveEnumMemberName(name: string): string {
   if (/^\d+$/.test(name)) {
     return `NUM_${name}`;
   }
-  return resolvePropertyName(upperSnakeCase(name));
+  return resolvePropertyName(upperSnakeCase(name) || name);
 }

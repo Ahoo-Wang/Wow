@@ -30,7 +30,7 @@ export interface CartData {
      * 购物车数量
      * - format: int32
      */
-    readonly size: number;
+    readonly size?: number;
 }
 
 /**
@@ -70,7 +70,7 @@ export interface AddCartItem {
      * - Numeric Constraints
      *   - exclusiveMinimum: 0
      */
-    quantity: number;
+    quantity?: number;
 }
 
 /**
@@ -104,24 +104,25 @@ export interface AddCartItem {
  * ```
  */
 export enum CartAggregatedFields {
-    AGGREGATE_ID = `aggregateId`,
-    TENANT_ID = `tenantId`,
-    OWNER_ID = `ownerId`,
-    SPACE_ID = `spaceId`,
-    VERSION = `version`,
-    EVENT_ID = `eventId`,
-    FIRST_OPERATOR = `firstOperator`,
-    OPERATOR = `operator`,
-    FIRST_EVENT_TIME = `firstEventTime`,
-    EVENT_TIME = `eventTime`,
-    TAGS = `tags`,
-    DELETED = `deleted`,
-    STATE = `state`,
-    STATE_ID = `state.id`,
-    STATE_ITEMS = `state.items`,
-    STATE_ITEMS_PRODUCT_ID = `state.items.productId`,
-    STATE_ITEMS_QUANTITY = `state.items.quantity`,
-    STATE_SIZE = `state.size`
+    '' = '',
+    AGGREGATE_ID = 'aggregateId',
+    TENANT_ID = 'tenantId',
+    OWNER_ID = 'ownerId',
+    SPACE_ID = 'spaceId',
+    VERSION = 'version',
+    EVENT_ID = 'eventId',
+    FIRST_OPERATOR = 'firstOperator',
+    OPERATOR = 'operator',
+    FIRST_EVENT_TIME = 'firstEventTime',
+    EVENT_TIME = 'eventTime',
+    TAGS = 'tags',
+    DELETED = 'deleted',
+    STATE = 'state',
+    STATE_ID = 'state.id',
+    STATE_ITEMS = 'state.items',
+    STATE_ITEMS_PRODUCT_ID = 'state.items.productId',
+    STATE_ITEMS_QUANTITY = 'state.items.quantity',
+    STATE_SIZE = 'state.size'
 }
 
 /**
@@ -148,7 +149,7 @@ export enum CartAggregatedFields {
 export interface CartItem {
     productId: string;
     /** - format: int32 */
-    quantity: number;
+    quantity?: number;
 }
 
 /**
@@ -254,12 +255,12 @@ export interface CartQuantityChanged {
  */
 export interface CartState {
     id: string;
-    items: CartItem[];
+    items?: CartItem[];
     /**
      * 购物车数量
      * - format: int32
      */
-    readonly size: number;
+    readonly size?: number;
 }
 
 /**
@@ -315,7 +316,7 @@ export interface ChangeQuantity {
  * }
  * ```
  */
-export type MockVariableCommand = Record<string, any>;
+export type MockVariableCommand = globalThis.Record<string, any>;
 
 /**
  * - key: example.cart.MockVariableCommand.MockEnum
@@ -332,9 +333,9 @@ export type MockVariableCommand = Record<string, any>;
  * ```
  */
 export enum MockVariableCommandMockEnum {
-    FIRST = `First`,
-    SECOND = `Second`,
-    THIRD = `Third`
+    FIRST = 'First',
+    SECOND = 'Second',
+    THIRD = 'Third'
 }
 
 /**
@@ -349,7 +350,7 @@ export enum MockVariableCommandMockEnum {
  * }
  * ```
  */
-export type MountedCommand = Record<string, any>;
+export type MountedCommand = globalThis.Record<string, any>;
 
 /**
  * 删除商品
@@ -395,4 +396,4 @@ export interface RemoveCartItem {
  * }
  * ```
  */
-export type ViewCart = Record<string, any>;
+export type ViewCart = globalThis.Record<string, any>;

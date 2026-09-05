@@ -41,13 +41,13 @@
  * ```
  */
 export interface WowExampleOrderState {
-    readonly address: ShippingAddress;
+    readonly address?: ShippingAddress;
     id: string;
-    readonly items: OrderItem[];
-    paidAmount: number;
-    status: OrderStatus;
-    totalAmount: number;
-    readonly payable: number;
+    readonly items?: OrderItem[];
+    paidAmount?: number;
+    status?: OrderStatus;
+    totalAmount?: number;
+    readonly payable?: number;
 }
 
 /**
@@ -230,36 +230,37 @@ export interface CreateOrderItem {
  * ```
  */
 export enum OrderAggregatedFields {
-    AGGREGATE_ID = `aggregateId`,
-    TENANT_ID = `tenantId`,
-    OWNER_ID = `ownerId`,
-    SPACE_ID = `spaceId`,
-    VERSION = `version`,
-    EVENT_ID = `eventId`,
-    FIRST_OPERATOR = `firstOperator`,
-    OPERATOR = `operator`,
-    FIRST_EVENT_TIME = `firstEventTime`,
-    EVENT_TIME = `eventTime`,
-    TAGS = `tags`,
-    DELETED = `deleted`,
-    STATE = `state`,
-    STATE_ADDRESS = `state.address`,
-    STATE_ADDRESS_CITY = `state.address.city`,
-    STATE_ADDRESS_COUNTRY = `state.address.country`,
-    STATE_ADDRESS_DETAIL = `state.address.detail`,
-    STATE_ADDRESS_DISTRICT = `state.address.district`,
-    STATE_ADDRESS_PROVINCE = `state.address.province`,
-    STATE_ID = `state.id`,
-    STATE_ITEMS = `state.items`,
-    STATE_ITEMS_ID = `state.items.id`,
-    STATE_ITEMS_PRICE = `state.items.price`,
-    STATE_ITEMS_PRODUCT_ID = `state.items.productId`,
-    STATE_ITEMS_QUANTITY = `state.items.quantity`,
-    STATE_ITEMS_TOTAL_PRICE = `state.items.totalPrice`,
-    STATE_PAID_AMOUNT = `state.paidAmount`,
-    STATE_PAYABLE = `state.payable`,
-    STATE_STATUS = `state.status`,
-    STATE_TOTAL_AMOUNT = `state.totalAmount`
+    '' = '',
+    AGGREGATE_ID = 'aggregateId',
+    TENANT_ID = 'tenantId',
+    OWNER_ID = 'ownerId',
+    SPACE_ID = 'spaceId',
+    VERSION = 'version',
+    EVENT_ID = 'eventId',
+    FIRST_OPERATOR = 'firstOperator',
+    OPERATOR = 'operator',
+    FIRST_EVENT_TIME = 'firstEventTime',
+    EVENT_TIME = 'eventTime',
+    TAGS = 'tags',
+    DELETED = 'deleted',
+    STATE = 'state',
+    STATE_ADDRESS = 'state.address',
+    STATE_ADDRESS_CITY = 'state.address.city',
+    STATE_ADDRESS_COUNTRY = 'state.address.country',
+    STATE_ADDRESS_DETAIL = 'state.address.detail',
+    STATE_ADDRESS_DISTRICT = 'state.address.district',
+    STATE_ADDRESS_PROVINCE = 'state.address.province',
+    STATE_ID = 'state.id',
+    STATE_ITEMS = 'state.items',
+    STATE_ITEMS_ID = 'state.items.id',
+    STATE_ITEMS_PRICE = 'state.items.price',
+    STATE_ITEMS_PRODUCT_ID = 'state.items.productId',
+    STATE_ITEMS_QUANTITY = 'state.items.quantity',
+    STATE_ITEMS_TOTAL_PRICE = 'state.items.totalPrice',
+    STATE_PAID_AMOUNT = 'state.paidAmount',
+    STATE_PAYABLE = 'state.payable',
+    STATE_STATUS = 'state.status',
+    STATE_TOTAL_AMOUNT = 'state.totalAmount'
 }
 
 /**
@@ -343,7 +344,7 @@ export interface OrderItem {
     productId: string;
     /** - format: int32 */
     quantity: number;
-    readonly totalPrice: number;
+    readonly totalPrice?: number;
 }
 
 /**
@@ -385,7 +386,7 @@ export interface OrderPaid {
  * }
  * ```
  */
-export type OrderReceived = Record<string, any>;
+export type OrderReceived = globalThis.Record<string, any>;
 /**
  * order_shipped
  * - key: example.order.OrderShipped
@@ -397,13 +398,13 @@ export type OrderReceived = Record<string, any>;
  * }
  * ```
  */
-export type OrderShipped = Record<string, any>;
+export type OrderShipped = globalThis.Record<string, any>;
 
 export enum OrderStatusEnumText {
-    CREATED = `已创建`,
-    PAID = `已支付`,
-    SHIPPED = `已发货`,
-    RECEIVED = `已收货`
+    CREATED = '已创建',
+    PAID = '已支付',
+    SHIPPED = '已发货',
+    RECEIVED = '已收货'
 }
 
 /**
@@ -428,10 +429,10 @@ export enum OrderStatusEnumText {
  * ```
  */
 export enum OrderStatus {
-    CREATED = `CREATED`,
-    PAID = `PAID`,
-    SHIPPED = `SHIPPED`,
-    RECEIVED = `RECEIVED`
+    CREATED = 'CREATED',
+    PAID = 'PAID',
+    SHIPPED = 'SHIPPED',
+    RECEIVED = 'RECEIVED'
 }
 
 /**
@@ -485,7 +486,7 @@ export interface PayOrder {
  * }
  * ```
  */
-export type ReceiptOrder = Record<string, any>;
+export type ReceiptOrder = globalThis.Record<string, any>;
 /**
  * 发货
  * - key: example.order.ShipOrder
@@ -498,7 +499,7 @@ export type ReceiptOrder = Record<string, any>;
  * }
  * ```
  */
-export type ShipOrder = Record<string, any>;
+export type ShipOrder = globalThis.Record<string, any>;
 
 /**
  * - key: example.order.ShippingAddress
