@@ -17,6 +17,7 @@ import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.ScriptLanguage
 import co.elastic.clients.elasticsearch.core.UpdateRequest
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -54,6 +55,7 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -169,6 +171,31 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
             .test()
             .expectNext(1L)
             .verifyComplete()
+    }
+
+    @Test
+    fun `cursor retry should create a clean event stream object node after a discarded mutation`() {
+        val stream = generateEventStream(namedAggregate.aggregateId(generateGlobalId()))
+        eventStore.append(stream).block()
+        val schema = queryBackendBinding.schemaProvider.schema().block()!!
+        val query = CursorQuery(filterExpression { id(stream.id) }, size = 1)
+        val publisher = queryBackendBinding.backend.cursor(
+            ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.STRICT), schema),
+        )
+        val seen = mutableListOf<ObjectNode>()
+
+        publisher.map { it.list.single() }.doOnNext { node ->
+            seen += node
+            if (seen.size == 1) {
+                node.put("mutated", true)
+                error("retry-once")
+            }
+        }.retry(1).test().assertNext { node ->
+            seen.assert().hasSize(2)
+            node.assert().isNotSameAs(seen.first())
+            node.has("mutated").assert().isFalse()
+            node.path("id").asString().assert().isEqualTo(stream.id)
+        }.verifyComplete()
     }
 
     @Test

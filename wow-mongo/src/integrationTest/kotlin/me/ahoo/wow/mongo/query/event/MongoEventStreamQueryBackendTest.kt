@@ -5,7 +5,12 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -19,6 +24,7 @@ import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
@@ -136,6 +142,49 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
             .test()
             .assertNext { node -> node.path("id").textValue().assert().isEqualTo(eventStream.id) }
             .verifyComplete()
+    }
+
+    @Test
+    fun `identity exclusion should preserve event payload across query result shapes`() {
+        val stream = generateEventStream(
+            namedAggregate.aggregateId(generateGlobalId()),
+            eventCount = 1,
+            createdEventSupplier = { MockAggregateCreated("projected-event") },
+        )
+        eventStore.append(stream).block()
+        val logicalId = "id"
+        val filter = filterExpression { id(stream.id) }
+        val payloadField = "body"
+        val schema = queryBackendBinding.schemaProvider.schema().block()!!
+        val projection = Projection(exclude = listOf(QueryField(logicalId)))
+        val backend = queryBackendBinding.backend
+        val single = SingleQuery(filter, projection)
+        val list = ListQuery(filter, projection, limit = 1)
+        val paged = PagedQuery(filter, projection, pagination = Pagination(size = 1))
+        val results = listOf(
+            backend.single(ResolvedQuery(schema.resolve(single).requireAccepted(QuerySchemaValidationMode.STRICT), schema))
+                .map(::listOf),
+            backend.list(ResolvedQuery(schema.resolve(list).requireAccepted(QuerySchemaValidationMode.STRICT), schema))
+                .collectList(),
+            backend.paged(ResolvedQuery(schema.resolve(paged).requireAccepted(QuerySchemaValidationMode.STRICT), schema))
+                .map { page ->
+                    page.total.assert().isEqualTo(1L)
+                    page.list
+                },
+        )
+
+        results.forEach { result ->
+            result.test().assertNext { nodes ->
+                val node = nodes.single()
+                node.has(logicalId).assert().isFalse()
+                node.has("_id").assert().isFalse()
+                node.has(payloadField).assert().isTrue()
+                node.path("body").isArray.assert().isTrue()
+                node.path("body").size().assert().isEqualTo(1)
+                node.path("body").path(0).path("body").path("data").asString().assert()
+                    .isEqualTo("projected-event")
+            }.verifyComplete()
+        }
     }
 
     @Test

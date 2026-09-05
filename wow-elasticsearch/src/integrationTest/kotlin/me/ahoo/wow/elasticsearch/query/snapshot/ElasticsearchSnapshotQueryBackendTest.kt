@@ -23,6 +23,7 @@ import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -280,6 +281,26 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         filter = filterExpression { "aggregateId" eq snapshot.aggregateId.id },
         limit = 1,
     )
+
+    @Test
+    fun `cursor repeat should create clean snapshot object nodes for every subscription`() {
+        val schema = queryBackendBinding.schemaProvider.schema().block()!!
+        val query = CursorQuery(filterExpression { "aggregateId" eq snapshot.aggregateId.id }, size = 1)
+        val publisher = snapshotQueryBackend.cursor(
+            ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.STRICT), schema),
+        )
+
+        publisher.map { it.list.single() }.repeat(1).index()
+            .doOnNext { indexed -> if (indexed.t1 == 0L) indexed.t2.put("mutated", true) }
+            .map { it.t2 }.collectList().test()
+            .assertNext { nodes ->
+                nodes.assert().hasSize(2)
+                nodes[1].assert().isNotSameAs(nodes[0])
+                nodes[1].has("mutated").assert().isFalse()
+                nodes.map { it.path("aggregateId").asString() }.assert()
+                    .containsExactly(snapshot.aggregateId.id, snapshot.aggregateId.id)
+            }.verifyComplete()
+    }
 
     @Test
     fun `model level search should execute against mixed text numeric and date mappings`() {
