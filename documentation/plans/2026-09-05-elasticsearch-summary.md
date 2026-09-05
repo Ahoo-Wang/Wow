@@ -48,7 +48,7 @@
 - Consumes: `ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(query: AggregationQuery, schema: QueryModelSchema): ElasticsearchAggregationPlan`；`ElasticsearchPointInTime.use((Session) -> Publisher<T>): Flux<T>`；现有 `summary(plan)` 转换。
 - Produces: 保持 `ElasticsearchAggregationPager(client, indexName, batchSize, keepAlive).execute(plan): Flux<ObjectNode>`。无分组无 PIT、严格搜索；分组原合同。Task 2 通过这一个生产入口验证原生行为。
 
-- [ ] **Step 1: 在现有空汇总测试中建立 RED。** 保留已有 `summaryResponse()` 与 PIT 桩以让旧实现完整执行，再捕获搜索请求，增加以下断言。把 Publisher 保存为变量，在订阅之前断言零客户端调用；现有 count/total 的输出断言继续保留。
+- [x] **Step 1: 在现有空汇总测试中建立 RED。** 保留已有 `summaryResponse()` 与 PIT 桩以让旧实现完整执行，再捕获搜索请求，增加以下断言。把 Publisher 保存为变量，在订阅之前断言零客户端调用；现有 count/total 的输出断言继续保留。
 
 ```kotlin
 val request = slot<SearchRequest>()
@@ -71,7 +71,7 @@ verify(exactly = 0) { client.openPointInTime(any<OpenPointInTimeRequest>()) }
 verify(exactly = 0) { client.closePointInTime(any<ClosePointInTimeRequest>()) }
 ```
 
-- [ ] **Step 2: 运行 RED，保存真实失败输出。**
+- [x] **Step 2: 运行 RED，保存真实失败输出。**
 
 ```bash
 ./gradlew :wow-elasticsearch:test --tests '*ElasticsearchAggregationPagerTest.summary should request once and normalize empty values' --console=plain
@@ -79,7 +79,7 @@ verify(exactly = 0) { client.closePointInTime(any<ClosePointInTimeRequest>()) }
 
 预期旧实现请求 index 为空、含 PIT，或 PIT 调用数断言失败；编译错误不算 RED。日志保存 `build/query-summary/task-1-red.log`。
 
-- [ ] **Step 3: 修改唯一生产文件。** 构造器改成 `private val indexName: String`，保持原校验及 `pointInTime` 初始化。替换执行分支：
+- [x] **Step 3: 修改唯一生产文件。** 构造器改成 `private val indexName: String`，保持原校验及 `pointInTime` 初始化。替换执行分支：
 
 ```kotlin
 fun execute(plan: ElasticsearchAggregationPlan): Flux<ObjectNode> {
@@ -115,7 +115,7 @@ val request = SearchRequest.of {
 
 请求和 `client.search(request, Map::class.java)` 仍全部位于原 `Mono.defer` 内，末尾改为 `.doOnNext { pit?.update(it.pitId()) }`。不改其他方法。
 
-- [ ] **Step 4: 添加聚焦执行测试，并加强原分组对照。** 新类使用实际编译器、空 `QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())`、MockK 客户端和最小响应构造；不要复制现有大分组 fixture。测试使用 `SearchResponse.of<Map<*, *>>`，必须设置 took、timedOut、shards、hits 与 `__wow_aggregation`，汇总响应不设置 PIT ID。
+- [x] **Step 4: 添加聚焦执行测试，并加强原分组对照。** 新类使用实际编译器、空 `QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())`、MockK 客户端和最小响应构造；不要复制现有大分组 fixture。测试使用 `SearchResponse.of<Map<*, *>>`，必须设置 took、timedOut、shards、hits 与 `__wow_aggregation`，汇总响应不设置 PIT ID。
 
 订阅/失败核心检查如下；`plan` 使用 `aggregation { count("count") }` 编译，`response(count)` 的根 filter 聚合设置相应 docCount。桩返回已创建的 Mono，不在桩内放 `Mono.defer` 掩盖生产问题。
 
@@ -148,7 +148,7 @@ requests[0].pit()!!.id().assert().isEqualTo("pit-1")
 
 保留既有第二页 afterKey、pit-2 和最终关闭 pit-3 断言；已有 PIT 错误/取消测试无需新增重复测试。
 
-- [ ] **Step 5: 运行聚焦检查后执行相关单测与 Detekt。**
+- [x] **Step 5: 运行聚焦检查后执行相关单测与 Detekt。**
 
 ```bash
 ./gradlew :wow-elasticsearch:test --tests '*ElasticsearchAggregationPagerTest' --tests '*ElasticsearchSummaryExecutionTest' --console=plain
@@ -158,7 +158,7 @@ git diff --check
 
 先迭代聚焦类，再只跑一次相关查询范围。Detekt 在当前仓库开启自动修正；如有改写，审查差异并补跑必要检查。保存 GREEN 日志和 XML 计数至 `build/query-summary/`，输出调用计数证据。
 
-- [ ] **Step 6: 自审并提交。** 提交上列三个文件，message `perf(elasticsearch): execute summaries with one strict search`。报告包括 RED/GREEN、命令、测试数、是否有格式化改动，以及源码只改一个 Pager 的验证。独立审查通过后进入 Task 2。
+- [x] **Step 6: 自审并提交。** 提交上列三个文件，message `perf(elasticsearch): execute summaries with one strict search`。报告包括 RED/GREEN、命令、测试数、是否有格式化改动，以及源码只改一个 Pager 的验证。独立审查通过后进入 Task 2。
 
 ### Task 2: 真实 ES 故障、别名合同与使用文档
 

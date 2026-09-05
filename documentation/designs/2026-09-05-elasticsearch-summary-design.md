@@ -2,7 +2,7 @@
 
 日期：2026-09-05
 
-状态：书面设计已确认，按[实施计划](../plans/2026-09-05-elasticsearch-summary.md)执行。
+状态：实现与两项任务审查已完成，253 项相关测试通过；等待阶段整体审查。执行记录见[实施计划](../plans/2026-09-05-elasticsearch-summary.md)。
 
 基线：`26fb4ac9c`，Wow `9.0.8`。前置工作见[第三阶段设计与结果](2026-09-05-query-execution-contracts-design.md)。
 
