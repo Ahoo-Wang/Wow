@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/fetcher-wow",
-  "version": "4.0.1",
+  "version": "5.0.0",
   "description": "Support for Wow(https://github.com/Ahoo-Wang/Wow) in Fetcher",
   "keywords": [
     "fetch",
@@ -27,24 +27,24 @@
   "engines": {
     "node": ">=18.20.8"
   },
-  "main": "./dist/index.cjs.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.es.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.es.js",
-      "require": "./dist/index.cjs.js"
+      "require": "./dist/index.cjs"
     },
     "./query/locale/zh_CN": {
       "types": "./dist/query/locale/zh_CN.d.ts",
       "import": "./dist/query/locale/zh_CN.es.js",
-      "require": "./dist/query/locale/zh_CN.cjs.js"
+      "require": "./dist/query/locale/zh_CN.cjs"
     },
     "./query/locale/en_US": {
       "types": "./dist/query/locale/en_US.d.ts",
       "import": "./dist/query/locale/en_US.es.js",
-      "require": "./dist/query/locale/en_US.cjs.js"
+      "require": "./dist/query/locale/en_US.cjs"
     }
   },
   "files": [
@@ -61,9 +61,9 @@
     "analyze": "npx vite-bundle-analyzer -p auto"
   },
   "peerDependencies": {
-    "@ahoo-wang/fetcher": "workspace:^4.0.0",
-    "@ahoo-wang/fetcher-eventstream": "workspace:^4.0.0",
-    "@ahoo-wang/fetcher-decorator": "workspace:^4.0.0"
+    "@ahoo-wang/fetcher": "workspace:^5.0.0",
+    "@ahoo-wang/fetcher-eventstream": "workspace:^5.0.0",
+    "@ahoo-wang/fetcher-decorator": "workspace:^5.0.0"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",

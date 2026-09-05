@@ -25,7 +25,9 @@ export default defineConfig({
       },
       name: 'FetcherWow',
       fileName: (format, entryName) => {
-        return `${entryName}.${format}.js`;
+        return format === 'es'
+          ? `${entryName}.es.js`
+          : `${entryName}.${format}`;
       },
     },
     rollupOptions: {

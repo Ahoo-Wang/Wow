@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/fetcher-generator",
-  "version": "4.0.1",
+  "version": "5.0.0",
   "description": "A powerful TypeScript code generation tool that automatically generates type-safe API client code based on OpenAPI specifications. It is designed for general use cases and is also deeply optimized for the [Wow](https://github.com/Ahoo-Wang/Wow) Domain-Driven Design framework, providing native support for the CQRS architectural pattern.",
   "keywords": [
     "fetch",
@@ -30,8 +30,8 @@
   "engines": {
     "node": ">=18.20.8"
   },
-  "main": "./dist/index.umd.js",
-  "module": "./dist/index.es.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
     "fetcher-generator": "./dist/cli.js"
@@ -39,8 +39,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.es.js",
-      "require": "./dist/index.umd.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     }
   },
   "files": [
@@ -59,11 +59,11 @@
     "generate": "node dist/cli.js generate -i test/demo.spec.json -o test-output -t tsconfig.json"
   },
   "peerDependencies": {
-    "@ahoo-wang/fetcher": "workspace:^4.0.0",
-    "@ahoo-wang/fetcher-eventstream": "workspace:^4.0.0",
-    "@ahoo-wang/fetcher-decorator": "workspace:^4.0.0",
-    "@ahoo-wang/fetcher-openapi": "workspace:^4.0.0",
-    "@ahoo-wang/fetcher-wow": "workspace:^4.0.0"
+    "@ahoo-wang/fetcher": "workspace:^5.0.0",
+    "@ahoo-wang/fetcher-eventstream": "workspace:^5.0.0",
+    "@ahoo-wang/fetcher-decorator": "workspace:^5.0.0",
+    "@ahoo-wang/fetcher-openapi": "workspace:^5.0.0",
+    "@ahoo-wang/fetcher-wow": "workspace:^5.0.0"
   },
   "dependencies": {
     "ts-morph": "catalog:",
