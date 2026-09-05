@@ -37,6 +37,8 @@ internal class QueryFieldSchemaResolver(
         val binding: QueryFieldBinding,
     )
 
+    private val dynamicResolvedFieldIndex = HashMap<Pair<QueryCapability, String>, ResolvedField>()
+
     private val resolvedFieldIndex = buildMap {
         schema.fields.forEach { (logical, fieldSchema) ->
             fieldSchema.bindings.forEach { (capability, binding) ->
@@ -47,6 +49,9 @@ internal class QueryFieldSchemaResolver(
                         "Capability [$capability] maps resolved field [${binding.resolvedField}] to conflicting " +
                             "physical fields [${existing.binding.physicalField}, ${binding.physicalField}].",
                     )
+                }
+                if (fieldSchema.dynamicChildren) {
+                    dynamicResolvedFieldIndex.putIfAbsent(capability to binding.resolvedField.path, resolvedField)
                 }
             }
         }
@@ -164,28 +169,37 @@ internal class QueryFieldSchemaResolver(
         )
     }
 
-    private fun resolvedField(field: QueryField, capability: QueryCapability): ResolvedField? =
-        resolvedFieldIndex[capability to field] ?: schema.fields.asSequence()
-            .filter { (_, fieldSchema) -> fieldSchema.dynamicChildren }
-            .mapNotNull { (logical, fieldSchema) ->
-                val binding = fieldSchema.binding(capability) ?: return@mapNotNull null
-                field.relativeTo(binding.resolvedField)?.let { relative ->
-                    val dynamicSchema = fieldSchema.resolveDynamic(
-                        source = logical,
-                        relative = relative,
-                        elementAncestor = logical in schema.elementDescendantDynamicFields,
-                    )
-                    dynamicSchema.binding(capability)?.let { dynamicBinding ->
-                        binding.resolvedField.path.length to ResolvedField(
-                            logical.append(relative),
-                            dynamicSchema,
-                            dynamicBinding,
-                        )
-                    }
+    private fun resolvedField(field: QueryField, capability: QueryCapability): ResolvedField? {
+        resolvedFieldIndex[capability to field]?.let { return it }
+        if (dynamicResolvedFieldIndex.isEmpty()) return null
+        var source: ResolvedField? = null
+        var relative: QueryField? = null
+        var separator = field.path.lastIndexOf('.')
+        while (separator > 0) {
+            val ancestorPath = field.path.substring(0, separator)
+            dynamicResolvedFieldIndex[capability to ancestorPath]?.let {
+                val candidateRelative = checkNotNull(field.relativeTo(it.binding.resolvedField))
+                if (source == null) {
+                    source = it
+                    relative = candidateRelative
                 }
             }
-            .maxByOrNull { (prefixLength) -> prefixLength }
-            ?.second
+            separator = field.path.lastIndexOf('.', separator - 1)
+        }
+        val finalSource = source ?: return null
+        if (capability == QueryCapability.ELEMENT_SCOPE) return null
+        val finalRelative = checkNotNull(relative)
+        val dynamicSchema = finalSource.fieldSchema.resolveDynamic(
+            source = finalSource.logical,
+            relative = finalRelative,
+            elementAncestor = finalSource.logical in schema.elementDescendantDynamicFields,
+        )
+        return ResolvedField(
+            finalSource.logical.append(finalRelative),
+            dynamicSchema,
+            checkNotNull(dynamicSchema.binding(capability)),
+        )
+    }
 
     private fun incompatibleElementScope(logical: QueryField, value: QueryField): QueryFieldResolution =
         QueryFieldResolution(
@@ -210,10 +224,4 @@ internal class QueryFieldSchemaResolver(
         }
         return true
     }
-}
-
-internal fun Iterable<QueryCompatibilityLevel>.combined(): QueryCompatibilityLevel = when {
-    QueryCompatibilityLevel.INCOMPATIBLE in this -> QueryCompatibilityLevel.INCOMPATIBLE
-    QueryCompatibilityLevel.COMPATIBLE in this -> QueryCompatibilityLevel.COMPATIBLE
-    else -> QueryCompatibilityLevel.EXACT
 }

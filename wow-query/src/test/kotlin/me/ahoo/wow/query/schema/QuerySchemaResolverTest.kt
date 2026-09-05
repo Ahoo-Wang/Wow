@@ -105,6 +105,150 @@ import kotlin.reflect.jvm.javaField
 @Suppress("LargeClass")
 class QuerySchemaResolverTest {
     @Test
+    fun `resolved dynamic lookup should choose the longest ancestor`() {
+        val resolver = QueryFieldSchemaResolver(
+            schema(
+                linkedMapOf(
+                    QueryField("state.outer") to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.labels",
+                        dynamicChildren = true,
+                        physicalPath = "storage.outer",
+                    ),
+                    QueryField("state.inner") to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.labels.inner",
+                        dynamicChildren = true,
+                        physicalPath = "storage.inner",
+                    ),
+                ),
+            ),
+        )
+
+        val result = resolver.resolve(QueryField("document.labels.inner.code"), QueryCapability.EXACT_MATCH)
+
+        result.logical.assert().isEqualTo(QueryField("state.inner.code"))
+        result.physicalField.assert().isEqualTo(QueryField("storage.inner.code"))
+        result.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+    }
+
+    @Test
+    fun `resolved dynamic lookup should retain the first dynamic declaration at a shared path`() {
+        val declarations = linkedMapOf(
+            QueryField("state.static") to fieldSchema(
+                QueryCapability.EXACT_MATCH to "document.shared",
+                physicalPath = "storage.shared",
+            ),
+            QueryField("state.first") to fieldSchema(
+                QueryCapability.EXACT_MATCH to "document.shared",
+                dynamicChildren = true,
+                physicalPath = "storage.shared",
+            ),
+            QueryField("state.second") to fieldSchema(
+                QueryCapability.EXACT_MATCH to "document.shared",
+                dynamicChildren = true,
+                physicalPath = "storage.shared",
+            ),
+        )
+        val resolver = QueryFieldSchemaResolver(schema(declarations))
+
+        resolver.resolve(QueryField("document.shared"), QueryCapability.EXACT_MATCH)
+            .logical.assert().isEqualTo(QueryField("state.static"))
+        val child = resolver.resolve(QueryField("document.shared.code"), QueryCapability.EXACT_MATCH)
+        child.logical.assert().isEqualTo(QueryField("state.first.code"))
+        child.physicalField.assert().isEqualTo(QueryField("storage.shared.code"))
+    }
+
+    @Test
+    fun `resolved dynamic lookup should respect path boundaries and capabilities`() {
+        val resolver = QueryFieldSchemaResolver(
+            schema(
+                mapOf(
+                    QueryField("state.labels") to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.labels",
+                        QueryCapability.ELEMENT_SCOPE to "document.labels",
+                        dynamicChildren = true,
+                        physicalPath = "storage.labels",
+                    ),
+                ),
+            ),
+        )
+        val cases = listOf(
+            "document.labelsOther.code" to QueryCapability.EXACT_MATCH,
+            "document.unknown.code" to QueryCapability.EXACT_MATCH,
+            "document.labels.code" to QueryCapability.SORT,
+            "document.labels.code" to QueryCapability.ELEMENT_SCOPE,
+        )
+
+        cases.forEach { (path, capability) ->
+            val result = resolver.resolve(QueryField(path), capability)
+            result.compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+            result.physicalField.assert().isNull()
+        }
+    }
+
+    @Test
+    fun `resolved dynamic lookup should not enumerate schema fields after construction`() {
+        val declared = mapOf(
+            QueryField("state.labels") to fieldSchema(
+                QueryCapability.EXACT_MATCH to "document.labels",
+                dynamicChildren = true,
+                physicalPath = "storage.labels",
+            ),
+        )
+        var enumerations = 0
+        val fields = object : Map<QueryField, QueryFieldSchema> by declared {
+            override val entries: Set<Map.Entry<QueryField, QueryFieldSchema>>
+                get() {
+                    enumerations++
+                    return declared.entries
+                }
+        }
+        val model = schema(fields)
+        enumerations = 0
+
+        model.resolvePhysicalField(QueryField("document.labels.code"), QueryCapability.EXACT_MATCH)
+            .assert().isEqualTo(QueryField("storage.labels.code"))
+        enumerations.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `resolved dynamic lookup should preserve invalid numeric relative path errors`() {
+        val model = schema(
+            linkedMapOf(
+                QueryField("state.labels") to fieldSchema(
+                    QueryCapability.EXACT_MATCH to "document.labels",
+                    dynamicChildren = true,
+                    physicalPath = "storage.labels",
+                ),
+                QueryField("state.indexed") to fieldSchema(
+                    QueryCapability.EXACT_MATCH to "document.labels.0",
+                    dynamicChildren = true,
+                    physicalPath = "storage.indexed",
+                ),
+            ),
+        )
+
+        assertThrows<IllegalArgumentException> {
+            model.resolvePhysicalField(QueryField("document.labels.0.code"), QueryCapability.EXACT_MATCH)
+        }
+    }
+
+    @Test
+    fun `resolved dynamic lookup should preserve numeric element scope errors`() {
+        val model = schema(
+            mapOf(
+                QueryField("state.labels") to fieldSchema(
+                    QueryCapability.ELEMENT_SCOPE to "document.labels",
+                    dynamicChildren = true,
+                ),
+            ),
+        )
+
+        assertThrows<IllegalArgumentException> {
+            model.resolvePhysicalField(QueryField("document.labels.0.code"), QueryCapability.ELEMENT_SCOPE)
+        }
+    }
+
+    @Test
     fun `field resolver should retain an absolute physical field for nested bindings`() {
         val field = QueryField("price")
         val physicalField = QueryField("storage.orders.price.keyword")
@@ -1231,6 +1375,27 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `projection should combine include and exclude levels without replacing it`() {
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    QueryField("state.known") to fieldSchema(QueryCapability.PRESENCE to "state.known"),
+                    QueryField("state.unavailable") to fieldSchema(),
+                ),
+            ),
+        )
+        val projection = Projection(
+            include = listOf(QueryField("state.known"), QueryField("state.unknown")),
+            exclude = listOf(QueryField("state.unavailable")),
+        )
+
+        val result = resolver.resolve(projection)
+
+        result.value.assert().isSameAs(projection)
+        result.compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
     fun `root sort should reject a field below an element scope`() {
         val field = QueryField("state.orders.price")
         val sort = listOf(Sort(QueryField(field.path), Sort.Direction.ASC))
@@ -1526,6 +1691,49 @@ class QuerySchemaResolverTest {
         QuerySchemaResolver(schema).resolve(query).assert().isEqualTo(
             QuerySchemaResolution(query, QueryCompatibilityLevel.EXACT),
         )
+    }
+
+    @Test
+    fun `aggregation should combine mixed metric compatibility without replacing it`() {
+        val termsField = QueryField("state.category")
+        val numericField = QueryField("state.amount")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    termsField to fieldSchema(QueryCapability.AGGREGATE_TERMS to "state.category"),
+                    numericField to fieldSchema(QueryCapability.AGGREGATE_NUMERIC to "state.amount"),
+                    QueryField("state.unavailable") to fieldSchema(QueryCapability.PRESENCE to "state.unavailable"),
+                ),
+            ),
+        )
+        val cases = mapOf(
+            numericField to QueryCompatibilityLevel.EXACT,
+            QueryField("state.unknown") to QueryCompatibilityLevel.COMPATIBLE,
+            QueryField("state.unavailable") to QueryCompatibilityLevel.INCOMPATIBLE,
+        )
+
+        cases.forEach { (field, expected) ->
+            val query = AggregationQuery(
+                metrics = listOf(
+                    AggregationMetric.Count("count"),
+                    AggregationMetric.Any(termsField, "category"),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Binary(
+                            AggregationExpressionOperator.ADD,
+                            AggregationExpression.Field(field),
+                            AggregationExpression.Constant(1.0),
+                        ),
+                        "total",
+                    ),
+                ),
+            )
+
+            val result = resolver.resolve(query)
+
+            result.value.assert().isSameAs(query)
+            result.compatibility.assert().isEqualTo(expected)
+        }
     }
 
     @Test
