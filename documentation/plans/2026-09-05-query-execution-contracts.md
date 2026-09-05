@@ -45,7 +45,7 @@
 - Consumes: `ElasticsearchSnapshotQueryBackend(namedAggregate, elasticsearchClient)`；`QueryModelSchema.resolve(ICursorQuery)`；`ReactiveElasticsearchClient.search(SearchRequest, Class<ObjectNode>): Mono<ResponseBody<ObjectNode>>`。
 - Produces: 同签名 `QueryBackend.cursor(ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>`；每次订阅独立客户端调用。Task 3 复用这一既有接口进行真实查询。
 
-- [ ] **Step 1: 创建聚焦单测及真实 Backend fixture。** 使用仓库版权头、显式 imports、FluentAssert；在新测试类中准备以下 fixture，避免扩大旧综合测试类或抽出测试框架：
+- [x] **Step 1: 创建聚焦单测及真实 Backend fixture。** 使用仓库版权头、显式 imports、FluentAssert；在新测试类中准备以下 fixture，避免扩大旧综合测试类或抽出测试框架：
 
 ```kotlin
 private val client = mockk<ReactiveElasticsearchClient>()
@@ -115,7 +115,7 @@ fun `cursor should defer search and create fresh results when repeated`() {
 }
 ```
 
-- [ ] **Step 2: 运行 RED。**
+- [x] **Step 2: 运行 RED。**
 
 ```bash
 ./gradlew :wow-elasticsearch:test --tests 'me.ahoo.wow.elasticsearch.query.ElasticsearchCursorSubscriptionTest' --console=plain
@@ -123,7 +123,7 @@ fun `cursor should defer search and create fresh results when repeated`() {
 
 预期因为创建 Publisher 已调用一次客户端而失败；记录命令、具体失败与实际请求次数。fixture 的编译错误不算 RED。
 
-- [ ] **Step 3: 最小生产修复。** `executeCursor` 采用以下结构，其余代码不动：
+- [x] **Step 3: 最小生产修复。** `executeCursor` 采用以下结构，其余代码不动：
 
 ```kotlin
 internal fun executeCursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> {
@@ -134,7 +134,7 @@ internal fun executeCursor(query: ICursorQuery, schema: QueryModelSchema): Mono<
 }
 ```
 
-- [ ] **Step 4: 补齐 retry、并发/取消及校验时机合同。** 使用 Step 1 fixture 写入以下具体用例，保持所有变化在同一新测试类：
+- [x] **Step 4: 补齐 retry、并发/取消及校验时机合同。** 使用 Step 1 fixture 写入以下具体用例，保持所有变化在同一新测试类：
 
 ```kotlin
 @Test
@@ -204,7 +204,7 @@ fun `invalid cursor should still fail while assembling the request`() {
 
 并发用例让两个订阅同时处于未完成状态，无 sleep、线程调度猜测或新资源管理器。保留现有 `AbstractElasticsearchQueryBackendTest` 对 size+1、source、sort、token 和响应 arity 的断言。
 
-- [ ] **Step 5: GREEN、相关回归和静态检查后提交。** 先用 Step 2 命令确认新测试通过，再执行：
+- [x] **Step 5: GREEN、相关回归和静态检查后提交。** 先用 Step 2 命令确认新测试通过，再执行：
 
 ```bash
 ./gradlew :wow-elasticsearch:detekt :wow-elasticsearch:test --tests 'me.ahoo.wow.elasticsearch.query.*' --console=plain
@@ -225,7 +225,7 @@ git diff --check
 - Consumes: `Documents.replacePrimaryKeyTo(String): Document` 与既有 `Document.toObjectNode(): ObjectNode`。
 - Produces: internal `Document.toQueryObjectNode(idField: String): ObjectNode`；两个内建 Backend 的既有 single/list/paged/cursor 返回接口不变。Task 3 使用这些接口验证真实投影。
 
-- [ ] **Step 1: 创建新测试类，覆盖两模型和三种查询。** 使用实际 `MongoSnapshotQueryBackend` / `MongoEventStreamQueryBackend` 和 MockK `MongoCollection<Document>`。以 `@CsvSource` 给出六组模型、逻辑主键与操作：
+- [x] **Step 1: 创建新测试类，覆盖两模型和三种查询。** 使用实际 `MongoSnapshotQueryBackend` / `MongoEventStreamQueryBackend` 和 MockK `MongoCollection<Document>`。以 `@CsvSource` 给出六组模型、逻辑主键与操作：
 
 ```kotlin
 @ParameterizedTest
@@ -317,7 +317,7 @@ private fun arrange(document: () -> Document) {
 
 用一个捕获的 projection BSON 断言真实排除字段为 `_id`，不要只依赖假定输入。Doc supplier 每次订阅创建独立可变 Document；不通过复用已被重命名的 Document 验证驱动行为。
 
-- [ ] **Step 2: 运行 RED。**
+- [x] **Step 2: 运行 RED。**
 
 ```bash
 ./gradlew :wow-mongo:test --tests 'me.ahoo.wow.mongo.query.MongoQueryProjectionResultTest' --console=plain
@@ -325,7 +325,7 @@ private fun arrange(document: () -> Document) {
 
 预期六种合法投影均在严格主键重命名处失败；记录具体异常与命令。修好 fixture/编译错误后才记录 RED。
 
-- [ ] **Step 3: 添加查询专用 helper 并接入两个内建 Backend。** 在 `AbstractMongoQueryBackend.kt` 的类外增加以下 internal 函数，导入现有 `Documents.replacePrimaryKeyTo`：
+- [x] **Step 3: 添加查询专用 helper 并接入两个内建 Backend。** 在 `AbstractMongoQueryBackend.kt` 的类外增加以下 internal 函数，导入现有 `Documents.replacePrimaryKeyTo`：
 
 ```kotlin
 internal fun Document.toQueryObjectNode(idField: String): ObjectNode {
@@ -350,7 +350,7 @@ override fun toObjectNode(document: Document): ObjectNode =
 
 更新各自 imports，不改通用 Documents、存储转换、聚合行映射、protected 扩展点、游标 token 提取或隐藏字段清理。
 
-- [ ] **Step 4: 锁住缺席、非法值与持久化边界。** 在同一新测试类中使用两个模型的实际 Backend 执行 single。复用 `arrange`、`schema`，将每组输入和断言落实为参数化测试或少量聚焦测试：
+- [x] **Step 4: 锁住缺席、非法值与持久化边界。** 在同一新测试类中使用两个模型的实际 Backend 执行 single。复用 `arrange`、`schema`，将每组输入和断言落实为参数化测试或少量聚焦测试：
 
 ```kotlin
 @ParameterizedTest
@@ -377,7 +377,7 @@ fun `query identity mapping should preserve strict values and existing fields`(m
 
 再复用同一实际 Backend.single Publisher，修改首次返回节点后重新订阅，断言第二次节点独立、值未改变；Doc supplier 每次产生新 Document。此处验证既有结果所有权，不增加生产复制逻辑。运行既有 `MongoCursorDocumentsTest`、`AbstractMongoQueryBackendTest` 及 `DocumentsKtTest`，覆盖隐藏主键、token 与规范 JSON。
 
-- [ ] **Step 5: GREEN、相关回归与 Detekt 后提交。** 先运行 Step 2 的聚焦命令，再执行：
+- [x] **Step 5: GREEN、相关回归与 Detekt 后提交。** 先运行 Step 2 的聚焦命令，再执行：
 
 ```bash
 ./gradlew :wow-mongo:detekt :wow-mongo:test --tests 'me.ahoo.wow.mongo.query.*' --tests 'me.ahoo.wow.mongo.DocumentsKtTest' --console=plain
@@ -399,7 +399,7 @@ git diff --check
 - Consumes: 既有 `queryBackendBinding.schemaProvider.schema()`、`schema.resolve(...)`、`QueryBackend.cursor/single/list/paged(ResolvedQuery)`；Task 1/2 只修正这些接口的内部行为。
 - Produces: 两模型的实际 ES 游标隔离、Mongo 主键排除投影结果证据及最终验证记录。
 
-- [ ] **Step 1: ES Snapshot 加入实际重复订阅合同。** 在既有 snapshot fixture 上执行下面的测试体，使用当前文件已有 `filterExpression`、`snapshotQueryBackend` 和 `snapshot`；不经过 Gateway：
+- [x] **Step 1: ES Snapshot 加入实际重复订阅合同。** 在既有 snapshot fixture 上执行下面的测试体，使用当前文件已有 `filterExpression`、`snapshotQueryBackend` 和 `snapshot`；不经过 Gateway：
 
 ```kotlin
 val schema = queryBackendBinding.schemaProvider.schema().block()!!
@@ -419,7 +419,7 @@ publisher.map { it.list.single() }.repeat(1).index()
     }.verifyComplete()
 ```
 
-- [ ] **Step 2: ES EventStream 加入实际修改后 retry 合同。** 复用该文件现有 store、factory 与 `generateEventStream`：
+- [x] **Step 2: ES EventStream 加入实际修改后 retry 合同。** 复用该文件现有 store、factory 与 `generateEventStream`：
 
 ```kotlin
 val stream = generateEventStream(namedAggregate.aggregateId(generateGlobalId()))
@@ -446,7 +446,7 @@ publisher.map { it.list.single() }.doOnNext { node ->
 
 测试调用一次 Backend.cursor 后复用 Publisher；不能把每次调用藏入额外 Mono.defer 来让旧实现也通过。
 
-- [ ] **Step 3: 在两个 Mongo 集成类覆盖三种投影查询。** Snapshot 测试首先初始化：
+- [x] **Step 3: 在两个 Mongo 集成类覆盖三种投影查询。** Snapshot 测试首先初始化：
 
 ```kotlin
 val logicalId = "aggregateId"
@@ -515,7 +515,7 @@ node.path("body").path(0).path("body").path("data").asString().assert().isEqualT
 
 两个模型都需验证三种接口，保留已有普通投影与游标用例。
 
-- [ ] **Step 4: 运行两后端查询集成回归。**
+- [x] **Step 4: 运行两后端查询集成回归。**
 
 ```bash
 ./gradlew :wow-elasticsearch:integrationTest --tests 'me.ahoo.wow.elasticsearch.query.*' :wow-mongo:integrationTest --tests 'me.ahoo.wow.mongo.query.*' --console=plain
@@ -524,8 +524,24 @@ git diff --check
 
 记录完整日志和两模块 XML 的 tests/failures/errors/skipped；测试应实际执行，环境问题与实现失败分开报告。新集成合同是 Task 1/2 修复的真实后端验证；其最初 RED 已由单元合同证明，不为重复制造 RED 临时切换生产实现。
 
-- [ ] **Step 5: 汇总已有验证证据并更新文档。** 引用 Task 1/2 对各自最终源码的单测、Detekt 和 RED/GREEN，避免重复执行未变化的测试；本任务只增加集成测试和文档。校验版本范围中生产文件只有设计允许的四个，`Documents.kt`、Gateway、Schema、PIT、聚合编译/执行器均未变。
+- [x] **Step 5: 汇总已有验证证据并更新文档。** 引用 Task 1/2 对各自最终源码的单测、Detekt 和 RED/GREEN，避免重复执行未变化的测试；本任务只增加集成测试和文档。校验版本范围中生产文件只有设计允许的四个，`Documents.kt`、Gateway、Schema、PIT、聚合编译/执行器均未变。
 
 在两份文档写明：已修复的具体触发方式、最终行为、实际验证命令和测试数、严格转换及公共合同保留范围；不宣称性能提升。更新已完成步骤，不将缓存检查计作本轮实际执行。日志保存在 `build/query-execution/`。用脚本检查 Markdown 本地链接、围栏与占位词，运行 `git diff --check`；提交六个任务文件，信息 `test(query): verify backend execution contracts`。报告精确提交和所有检查结果。
+
+## 实施结果
+
+Task 1 以 `184375bb7` 完成。原实现创建合法游标 Publisher 时就调用 ES 客户端，导致同一 Publisher 的 repeat、retry 和并发订阅共享 Future、响应与可变节点；修复后请求仍在既有编译、SearchRequest 构建和 token 校验之后确定，但客户端搜索在每次订阅时独立执行。聚焦测试 RED 时 5 项中 4 项按预期失败，GREEN 后 5/5 通过；最终 ES 查询单测与 Detekt 通过，XML 统计为 150 tests、0 failures、0 errors、0 skipped。
+
+Task 2 以 `150372b28` 完成。Mongo 原生投影把 Snapshot `aggregateId` 或 EventStream `id` 排除编译为 `{ "_id": 0 }`，旧查询映射随后因严格主键重命名失败；查询专用转换现在只在 `_id` 实际存在时调用原严格函数，缺席时保留缺席。聚焦测试 RED 为 10 项中 8 项按预期失败，GREEN 后 10/10 通过；最终 Mongo 查询与 `DocumentsKtTest`、Detekt 通过，XML 统计为 186 tests、0 failures、0 errors、0 skipped。`Documents.replacePrimaryKeyTo` 与全部存储转换仍保持缺失主键即失败。
+
+Task 3 在四个既有 Testcontainers fixture 中新增 4 个真实后端合同：ES Snapshot 对同一 Backend cursor Publisher 执行 repeat，ES EventStream 在修改首次节点后对同一 Publisher retry；Mongo Snapshot 与 EventStream 各自通过 strict Schema 对 single/list/paged 执行逻辑主键排除，并验证 payload，paged 同时验证 `total = 1`。本轮实际运行：
+
+```bash
+./gradlew :wow-elasticsearch:integrationTest --tests 'me.ahoo.wow.elasticsearch.query.*' :wow-mongo:integrationTest --tests 'me.ahoo.wow.mongo.query.*' --console=plain
+```
+
+结果为 BUILD SUCCESSFUL：ES 95 tests、Mongo 87 tests，合计 182 tests、0 failures、0 errors、0 skipped。Task 1/2 已通过且源码未再变化的单测和 Detekt 未重复执行，本轮不把 Gradle 的 UP-TO-DATE 任务计作实际验证。完整日志保存在忽略目录 `build/query-execution/task-3-integration.log`。
+
+阶段生产改动仅为设计列出的四个文件；公共 API 与 `protected toObjectNode(Document)` 扩展点保持不变。`Documents.kt`、Gateway、Schema、PIT、聚合编译/执行器、Query JSON、Cursor token、存储布局及生成合同均未修改。本阶段只证明执行合同修复，不作性能提升声明。
 
 任务结束后控制器进行一次覆盖 `beec77169..HEAD` 的最终审查。审查记录归档后保留当前工作区与提交，不执行合并、推送或发布。

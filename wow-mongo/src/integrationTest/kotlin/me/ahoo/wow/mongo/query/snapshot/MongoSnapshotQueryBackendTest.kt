@@ -24,6 +24,8 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
@@ -203,6 +205,41 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         filter = filterExpression { id(snapshot.aggregateId.id) },
         limit = 1,
     )
+
+    @Test
+    fun `identity exclusion should preserve snapshot payload across query result shapes`() {
+        val logicalId = "aggregateId"
+        val filter = filterExpression { id(snapshot.aggregateId.id) }
+        val payloadField = "state"
+        val schema = queryBackendBinding.schemaProvider.schema().block()!!
+        val projection = Projection(exclude = listOf(QueryField(logicalId)))
+        val backend = queryBackendBinding.backend
+        val single = SingleQuery(filter, projection)
+        val list = ListQuery(filter, projection, limit = 1)
+        val paged = PagedQuery(filter, projection, pagination = Pagination(size = 1))
+        val results = listOf(
+            backend.single(ResolvedQuery(schema.resolve(single).requireAccepted(QuerySchemaValidationMode.STRICT), schema))
+                .map(::listOf),
+            backend.list(ResolvedQuery(schema.resolve(list).requireAccepted(QuerySchemaValidationMode.STRICT), schema))
+                .collectList(),
+            backend.paged(ResolvedQuery(schema.resolve(paged).requireAccepted(QuerySchemaValidationMode.STRICT), schema))
+                .map { page ->
+                    page.total.assert().isEqualTo(1L)
+                    page.list
+                },
+        )
+
+        results.forEach { result ->
+            result.test().assertNext { nodes ->
+                val node = nodes.single()
+                node.has(logicalId).assert().isFalse()
+                node.has("_id").assert().isFalse()
+                node.has(payloadField).assert().isTrue()
+                node.path("state").isObject.assert().isTrue()
+                node.path("state").path("id").asString().assert().isEqualTo(snapshot.aggregateId.id)
+            }.verifyComplete()
+        }
+    }
 
     @Test
     fun `minimum and maximum should ignore non-numeric BSON values`() {

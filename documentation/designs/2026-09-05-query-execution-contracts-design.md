@@ -2,7 +2,7 @@
 
 日期：2026-09-05
 
-状态：书面设计已确认；按实施计划推进。
+状态：实施完成；等待最终阶段审查。
 
 基线：`ea89fadc3`，Wow `9.0.8`。前置工作见[第二阶段设计与结果](2026-09-05-aggregation-compiler-refactoring-design.md)。
 
@@ -129,6 +129,22 @@ JSON 归一化继续使用既有 Jackson/BSON 支持，不增加手写树转换�
 本阶段的收益是修复执行合同，不提出吞吐、延迟或分配量改善比例，也不重复前两阶段 JMH。请求次数验证用于证明订阅行为，不作为数据库性能结论。记录新测试数、实际执行命令、失败与通过输出，明确区分既有通过结果、缓存检查与本阶段实际执行。
 
 验证日志与必要的复现产物保存在忽略目录 `build/query-execution/`，不提交生成输出。
+
+## 实施与验证结果
+
+ES 缺陷由 `184375bb7` 修复：过滤与排序编译、SearchRequest 构建和 token 校验保持原时机，只有 `ReactiveElasticsearchClient.search` 被放入 `Mono.defer`，因此同一个 Backend cursor Publisher 的每次订阅都会取得独立请求、响应和可变结果节点。单元合同从 5 项中 4 项 RED 变为 5/5 GREEN；最终 ES 查询单测和 Detekt 通过，XML 统计为 150 tests、0 failures、0 errors、0 skipped。
+
+Mongo 缺陷由 `150372b28` 修复：当原生 `{ "_id": 0 }` 投影使 `_id` 缺席时，查询结果直接使用既有 BSON/Jackson 归一化并保留主键缺席；当 `_id` 存在时仍调用原严格重命名，因此 null、错误类型、覆盖和删除 `_id` 的行为不变。单元合同从 10 项中 8 项 RED 变为 10/10 GREEN；最终 Mongo 查询、`DocumentsKtTest` 和 Detekt 通过，XML 统计为 186 tests、0 failures、0 errors、0 skipped。通用 `Documents.replacePrimaryKeyTo` 及 Snapshot/EventStream 存储转换未改，缺失主键仍失败。
+
+真实后端验证在现有 Testcontainers fixture 中执行，不经过 Gateway。ES Snapshot 复用一个 Backend cursor Publisher 执行 repeat，ES EventStream 修改首次节点并对同一 Publisher retry；两次订阅都返回独立且干净的节点。Mongo Snapshot 与 EventStream 分别用 strict Schema 对 single/list/paged 执行逻辑主键排除，三种结果都不含逻辑主键和 `_id`，保留各自 payload，paged 的 `total` 均为 1。
+
+```bash
+./gradlew :wow-elasticsearch:integrationTest --tests 'me.ahoo.wow.elasticsearch.query.*' :wow-mongo:integrationTest --tests 'me.ahoo.wow.mongo.query.*' --console=plain
+```
+
+本轮实际结果为 BUILD SUCCESSFUL：ES 95 tests、Mongo 87 tests，合计 182 tests、0 failures、0 errors、0 skipped。完整日志位于忽略目录 `build/query-execution/task-3-integration.log`。此前已通过且生产源码未变化的单测与 Detekt 未重复执行，Gradle 的 UP-TO-DATE 任务不计为本轮实际验证。
+
+最终生产范围仍只有本设计列出的四个文件。公开方法、构造器、接口和 `protected toObjectNode(Document)` 扩展点保持不变；`Documents.kt`、Gateway、Schema、PIT、聚合编译/执行器、Query JSON、Cursor token、排序、分页、存储布局和生成合同均未修改。本阶段没有性能提升结论。
 
 ## 完成标准
 
