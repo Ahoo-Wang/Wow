@@ -117,7 +117,10 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         executePaged(query.query, query.schema)
 
     internal fun executeCursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> {
-        val compiled = compile(query.filter, query.sort, schema)
+        val compiled = CompiledQuery(
+            query = filterCompiler.compile(query.filter, schema),
+            sortOptions = ElasticsearchSortCompiler.compileCursor(query.sort, schema),
+        )
         val request = cursorSearchRequest(query, compiled, schema)
         return Mono.defer { elasticsearchClient.search(request, ObjectNode::class.java) }
             .map { response -> response.toCursorPage(query) }
@@ -134,7 +137,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         it.index(indexName)
             .query(compiled.query)
             .size(query.size + 1)
-            .sort(compiled.sortOptions.withCursorMissing(query.sort))
+            .sort(compiled.sortOptions)
             .trackTotalHits { trackHits -> trackHits.enabled(false) }
         query.cursor?.let { cursor -> ElasticsearchCursorCodec.decode(cursor, query.sort.size) }
             ?.let(it::searchAfter)
@@ -186,20 +189,6 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
                     it.field { field -> field.field("_shard_doc").order(SortOrder.Asc) }
                 }
             )
-        }
-    }
-
-    private fun List<SortOptions>.withCursorMissing(sort: List<Sort>): List<SortOptions> {
-        require(size == sort.size)
-        return zip(sort) { sortOption, logicalSort ->
-            SortOptions.of {
-                it.field(
-                    sortOption.field().rebuild()
-                        .field(sortOption.field().field())
-                        .missing(if (logicalSort.direction == Sort.Direction.ASC) "_first" else "_last")
-                        .build(),
-                )
-            }
         }
     }
 
