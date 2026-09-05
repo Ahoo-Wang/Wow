@@ -2,7 +2,7 @@
 
 日期：2026-09-05
 
-状态：实现与两项任务审查已完成，253 项相关测试通过；等待阶段整体审查。执行记录见[实施计划](../plans/2026-09-05-elasticsearch-summary.md)。
+状态：实现、两项任务审查与阶段整体审查均已完成，253 项相关测试通过。执行记录见[实施计划](../plans/2026-09-05-elasticsearch-summary.md)。
 
 基线：`26fb4ac9c`，Wow `9.0.8`。前置工作见[第三阶段设计与结果](2026-09-05-query-execution-contracts-design.md)。
 
@@ -130,7 +130,7 @@ HTTP 状态是本次实验观察值，不把它固定为跨版本的框架错误
 
 生产改动由 `fba01f856` 提交：Elasticsearch 无分组汇总的正常单次订阅由 `open PIT → search → close PIT` 三次客户端 API 调用改为一次严格 `search`，该口径不含 Schema、客户端重试、分片通信或调用方 retry。Task 1 的 155 项查询单测与 Detekt 已通过；本任务未改生产源码，因此没有重复该范围。
 
-本任务使用提交 `test(elasticsearch): verify strict summary search contracts` 增加三个 ES 9.2.6 真实集成合同。alias 测试通过原 alias 名搜索，在 filter=`visible=true` 与 search routing 同时生效时得到 `count=1`、`total=5.0`。不可用分片测试先确认两个 primary 分别为 `STARTED` 与 `UNASSIGNED`，再确认严格搜索以原生 `search_phase_execution_exception`、`Search rejected due to missing shards` 失败且没有汇总行；该响应在当前 Reactive Rest5 通道中直接表现为 `ResponseException`，没有把 HTTP 状态固化为合同。运行期故障测试确认两个 primary 均为 `STARTED`，并由测试专用 runtime field 在其中一个分片产生 `script_exception → illegal_argument_exception(summary-probe)`；Pager 传播 `ElasticsearchException(search_phase_execution_exception, Partial shards failure)`，同样没有部分汇总行。
+本任务由 `542d70323` 提交增加三个 ES 9.2.6 真实集成合同。alias 测试通过原 alias 名搜索，在 filter=`visible=true` 与 search routing 同时生效时得到 `count=1`、`total=5.0`。不可用分片测试先确认两个 primary 分别为 `STARTED` 与 `UNASSIGNED`，再确认严格搜索以原生 `search_phase_execution_exception`、`Search rejected due to missing shards` 失败且没有汇总行；该响应在当前 Reactive Rest5 通道中直接表现为 `ResponseException`，没有把 HTTP 状态固化为合同。运行期故障测试确认两个 primary 均为 `STARTED`，并由测试专用 runtime field 在其中一个分片产生 `script_exception → illegal_argument_exception(summary-probe)`；Pager 传播 `ElasticsearchException(search_phase_execution_exception, Partial shards failure)`，同样没有部分汇总行。
 
 ```bash
 ./gradlew :wow-elasticsearch:integrationTest --tests '*ElasticsearchSummaryExecutionIntegrationTest' --console=plain
@@ -138,7 +138,9 @@ HTTP 状态是本次实验观察值，不把它固定为跨版本的框架错误
 git diff --check
 ```
 
-聚焦类为 3 tests、0 failures、0 errors、0 skipped；完整查询集成范围为 98 tests、0 failures、0 errors、0 skipped，其中 Snapshot 66、EventStream 29、新增真实合同 3。Detekt 成功且未改写源码。Gradle 输出包含既有 Kotlin annotation 参数冗余与 Gradle 10 弃用提示，未出现测试或静态检查失败。
+聚焦类为 3 tests、0 failures、0 errors、0 skipped；完整查询集成范围为 98 tests、0 failures、0 errors、0 skipped，其中 Snapshot 66、EventStream 29、新增真实合同 3。Detekt 的已通过结果在本次组合命令中为 `UP-TO-DATE`，未改写源码。Gradle 输出包含既有 Kotlin annotation 参数冗余与 Gradle 10 弃用提示，未出现测试或静态检查失败。
+
+完整 98 项集成先执行通过，随后单独重跑新增的 3 项，期间未修改生产或测试源码。Gradle 因后一次聚焦运行覆盖了结果目录，所以当前集成 XML 只含 3 项；完整范围的证据保留在 `build/query-summary/task-2-query-integration-detekt.log` 与 `task-2-query-suite-counts.txt`。两次重叠运行不重复计数。
 
 三个测试均复用 fixture 管理的 reactive client 与 transport，原生 wrapper 不单独关闭。每个测试只创建独立的 `wow_it_*_summary` 索引；alias 测试先删除 alias，再删除索引，其他测试在 `finally` 删除索引，成功日志中的清理请求均完成。失败注入只使用新索引的 `routing.allocation.total_shards_per_node=1` 或测试专用 runtime script，没有修改集群级设置、已有索引、公共 fixture 或生产源码。分组查询、普通查询、MongoDB 与搜索超时的具体注入未增加新的真实测试；它们的策略边界保持本设计原定义。
 
@@ -150,4 +152,4 @@ git diff --check
 4. 分组查询仍沿用原 PIT 分页、afterKey、排序和完成/错误/取消释放逻辑。
 5. ES 相关单测、Detekt、真实集成与文档检查通过；生产改动只有一个现有 pager 文件。
 
-书面设计确认后使用 `writing-plans` 制定计划，沿用已选择的子代理实施与独立审查流程。其他后端或查询形态的部分结果策略仍需单独依据和授权。
+阶段整体审查覆盖 `26fb4ac9c..e6340567a`，未发现 Critical、Important 或新增代码 Minor 问题。两个计划示例的 API/异常类型修正均获复核，现有构建提示保留记录。实现与验证结果通过后保留当前 worktree 和本地提交。其他后端或查询形态的部分结果策略仍需单独依据和授权。
