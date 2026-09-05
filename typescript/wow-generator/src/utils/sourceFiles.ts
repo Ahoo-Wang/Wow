@@ -119,6 +119,7 @@ export function addImport(
     }
     declaration.addNamedImport(namedImport);
   });
+  return declaration;
 }
 
 /**
@@ -133,8 +134,7 @@ export function addImportRefModel(
   refModelInfo: ModelInfo,
 ) {
   if (refModelInfo.path.startsWith(IMPORT_ALIAS)) {
-    addImport(sourceFile, refModelInfo.path, [refModelInfo.name]);
-    return;
+    return addImport(sourceFile, refModelInfo.path, [refModelInfo.name]);
   }
   const sourceDir = sourceFile.getDirectoryPath();
   const targetFilePath = join(outputDir, refModelInfo.path, MODEL_FILE_NAME);
@@ -145,7 +145,7 @@ export function addImportRefModel(
   if (!relativePath.startsWith('.')) {
     relativePath = './' + relativePath;
   }
-  addImport(sourceFile, relativePath, [refModelInfo.name]);
+  return addImport(sourceFile, relativePath, [refModelInfo.name]);
 }
 
 /**
@@ -164,7 +164,7 @@ export function addImportModelInfo(
   if (currentModel.path === refModel.path) {
     return;
   }
-  addImportRefModel(sourceFile, outputDir, refModel);
+  return addImportRefModel(sourceFile, outputDir, refModel);
 }
 
 /**

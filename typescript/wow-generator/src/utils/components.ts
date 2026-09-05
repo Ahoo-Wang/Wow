@@ -19,6 +19,7 @@ import type {
   Response,
   Schema,
 } from '@ahoo-wang/fetcher-openapi';
+import { isReference } from './references';
 
 /** Prefix for OpenAPI components references */
 export const COMPONENTS_PREFIX = '#/components/';
@@ -36,11 +37,11 @@ export const COMPONENTS_SCHEMAS_REF = `${COMPONENTS_PREFIX}schemas/`;
 /**
  * Represents a schema with its key identifier.
  */
-export interface KeySchema {
+export interface KeySchema<T extends Schema | Reference = Schema> {
   /** The schema key */
   key: string;
   /** The schema definition */
-  schema: Schema;
+  schema: T;
 }
 
 /**
@@ -58,12 +59,34 @@ export function extractComponentKey(reference: Reference): string {
  * @param components - The OpenAPI components object
  * @returns The schema if found, undefined otherwise
  */
+function resolveComponent<T>(
+  reference: Reference,
+  components: Record<string, T | Reference> | undefined,
+  prefix: string,
+): T | undefined {
+  const visited = new Set<string>();
+  let current: T | Reference | undefined = reference;
+  while (isReference(current)) {
+    // ponytail: local components only; bundle external references before generation.
+    if (!current.$ref.startsWith(prefix)) return undefined;
+    if (visited.has(current.$ref)) {
+      throw new TypeError(`Cyclic component reference: ${current.$ref}`);
+    }
+    visited.add(current.$ref);
+    current = components?.[current.$ref.slice(prefix.length)];
+  }
+  return current;
+}
+
 export function extractSchema(
   reference: Reference,
   components: Components,
 ): Schema | undefined {
-  const componentKey = extractComponentKey(reference);
-  return components.schemas?.[componentKey];
+  return resolveComponent(
+    reference,
+    components.schemas,
+    COMPONENTS_SCHEMAS_REF,
+  );
 }
 
 /**
@@ -76,8 +99,11 @@ export function extractResponse(
   reference: Reference,
   components: Components,
 ): Response | undefined {
-  const componentKey = extractComponentKey(reference);
-  return components.responses?.[componentKey];
+  return resolveComponent(
+    reference,
+    components.responses,
+    COMPONENTS_RESPONSES_REF,
+  );
 }
 
 /**
@@ -90,8 +116,11 @@ export function extractRequestBody(
   reference: Reference,
   components: Components,
 ): RequestBody | undefined {
-  const componentKey = extractComponentKey(reference);
-  return components.requestBodies?.[componentKey];
+  return resolveComponent(
+    reference,
+    components.requestBodies,
+    COMPONENTS_REQUEST_BODIES_REF,
+  );
 }
 
 /**
@@ -104,8 +133,11 @@ export function extractParameter(
   reference: Reference,
   components: Components,
 ): Parameter | undefined {
-  const componentKey = extractComponentKey(reference);
-  return components.parameters?.[componentKey];
+  return resolveComponent(
+    reference,
+    components.parameters,
+    COMPONENTS_PARAMETERS_REF,
+  );
 }
 
 /**

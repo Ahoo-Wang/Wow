@@ -14,6 +14,7 @@
 import type { Components, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import type { Named } from '@ahoo-wang/fetcher-wow';
 import {
+  COMPONENTS_SCHEMAS_REF,
   extractComponentKey,
   extractSchema,
   pascalCase,
@@ -91,6 +92,11 @@ export function resolveReferenceModelInfo(
   reference: Reference,
   components?: Components,
 ): ModelInfo {
+  if (!reference.$ref.startsWith(COMPONENTS_SCHEMAS_REF)) {
+    throw new TypeError(
+      `Unsupported schema reference: ${reference.$ref}. Bundle or inline external schemas before generation.`,
+    );
+  }
   const componentKey = extractComponentKey(reference);
   const schema = components ? extractSchema(reference, components) : undefined;
   return resolveModelInfo(componentKey, schema);

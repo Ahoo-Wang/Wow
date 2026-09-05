@@ -13,6 +13,7 @@
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { AggregateResolver } from '../../src/aggregate';
+import { isReference as actualIsReference } from '../../src/utils/references';
 import { tagsToAggregates } from '../../src/aggregate';
 
 // Mock dependencies
@@ -27,7 +28,7 @@ vi.mock('../../src/utils', () => ({
   extractOperationOkResponseJsonSchema: vi.fn(),
   extractOperations: vi.fn(),
   extractOperationEndpoints: vi.fn(() => []),
-  extractParameter: vi.fn(),
+  extractPathParameters: vi.fn(() => []),
   extractRequestBody: vi.fn(),
   extractSchema: vi.fn(),
   isReference: vi.fn(),
@@ -39,7 +40,7 @@ import {
   extractOperationOkResponseJsonSchema,
   extractOperations,
   extractOperationEndpoints,
-  extractParameter,
+  extractPathParameters,
   extractRequestBody,
   extractSchema,
   isReference,
@@ -94,7 +95,10 @@ describe('AggregateResolver', () => {
 
       const aggregateResolver = new AggregateResolver(mockOpenAPI);
 
-      expect(extractOperationEndpoints).toHaveBeenCalledWith(mockOpenAPI.paths);
+      expect(extractOperationEndpoints).toHaveBeenCalledWith(
+        mockOpenAPI.paths,
+        mockOpenAPI.components,
+      );
       // Verify that commands, state, events, fields are called
       // Since they are private methods, we can't directly spy, but we can check side effects
     });
@@ -251,8 +255,10 @@ describe('AggregateResolver', () => {
       (extractOkResponse as any).mockReturnValue({
         $ref: '#/components/responses/wow.CommandOk',
       });
-      (isReference as any).mockReturnValue(true);
-      (extractParameter as any).mockReturnValue({ name: 'id', in: 'path' });
+      vi.mocked(isReference).mockImplementation(actualIsReference);
+      vi.mocked(extractPathParameters).mockReturnValue([
+        { name: 'id', in: 'path' },
+      ]);
       (keySchema as any).mockReturnValue({ schema: { title: 'Test' } });
 
       const methodOperation = {
@@ -283,8 +289,10 @@ describe('AggregateResolver', () => {
       (extractOkResponse as any).mockReturnValue({
         $ref: '#/components/responses/wow.CommandOk',
       });
-      (isReference as any).mockReturnValue(true);
-      (extractParameter as any).mockReturnValue({ name: 'id', in: 'path' });
+      vi.mocked(isReference).mockImplementation(actualIsReference);
+      vi.mocked(extractPathParameters).mockReturnValue([
+        { name: 'id', in: 'path' },
+      ]);
       (keySchema as any).mockReturnValue({ schema: { title: 'Test' } });
 
       const methodOperation = {

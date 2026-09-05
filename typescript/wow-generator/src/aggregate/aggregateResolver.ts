@@ -14,7 +14,6 @@
 import type {
   OpenAPI,
   Operation,
-  Parameter,
   Reference,
   RequestBody,
   Schema,
@@ -33,17 +32,17 @@ import {
   extractOkResponse,
   extractOperationEndpoints,
   extractOperationOkResponseJsonSchema,
-  extractParameter,
+  extractPathParameters,
   extractRequestBody,
   extractSchema,
   isReference,
   keySchema,
 } from '../utils';
+import { COMPONENTS_RESPONSES_REF } from '../utils/components';
 import type { EventStreamSchema } from './types';
 import { operationIdToCommandName, tagsToAggregates } from './utils';
 
 const CommandOkResponseRef = '#/components/responses/wow.CommandOk';
-const IdParameterRef = '#/components/parameters/wow.id';
 
 /**
  * Resolves aggregate definitions from OpenAPI specifications.
@@ -69,7 +68,10 @@ export class AggregateResolver {
    * @private
    */
   private build() {
-    const endpoints = extractOperationEndpoints(this.openAPI.paths);
+    const endpoints = extractOperationEndpoints(
+      this.openAPI.paths,
+      this.openAPI.components,
+    );
     for (const endpoint of endpoints) {
       this.commands(endpoint.path, endpoint);
       this.state(endpoint.operation);
@@ -116,42 +118,49 @@ export class AggregateResolver {
     if (!commandName) {
       return;
     }
-    const okResponse = extractOkResponse(operation);
-    if (!okResponse) {
-      return;
+    let okResponse = extractOkResponse(operation);
+    const visited = new Set<string>();
+    while (
+      okResponse &&
+      isReference(okResponse) &&
+      okResponse.$ref !== CommandOkResponseRef
+    ) {
+      if (!okResponse.$ref.startsWith(COMPONENTS_RESPONSES_REF)) return;
+      if (visited.has(okResponse.$ref)) {
+        throw new TypeError(`Cyclic component reference: ${okResponse.$ref}`);
+      }
+      visited.add(okResponse.$ref);
+      okResponse =
+        this.openAPI.components?.responses?.[
+          okResponse.$ref.slice(COMPONENTS_RESPONSES_REF.length)
+        ];
     }
-    if (!isReference(okResponse)) {
-      return;
-    }
-    if (okResponse.$ref !== CommandOkResponseRef) {
+    if (
+      !okResponse ||
+      !isReference(okResponse) ||
+      okResponse.$ref !== CommandOkResponseRef
+    ) {
       return;
     }
     if (!operation.requestBody) {
       return;
     }
 
-    const parameters = operation.parameters ?? [];
-    const idRefParameter = parameters
-      .filter(p => isReference(p) && p.$ref === IdParameterRef)
-      .at(0) as Reference | undefined;
-    const pathParameters = parameters.filter(
-      p => !isReference(p) && p.in === 'path',
-    ) as Parameter[];
-    if (idRefParameter) {
-      const idParameter = extractParameter(
-        idRefParameter,
-        this.openAPI.components!,
-      );
-      pathParameters.push(idParameter!);
-    }
-    const requestBody = operation.requestBody as RequestBody;
-    const commandRefSchema = requestBody.content[
-      ContentTypeValues.APPLICATION_JSON
-    ].schema as Reference;
+    const pathParameters = extractPathParameters(
+      operation,
+      this.openAPI.components ?? {},
+    );
+    const requestBody = isReference(operation.requestBody)
+      ? extractRequestBody(operation.requestBody, this.openAPI.components ?? {})
+      : operation.requestBody;
+    const commandRefSchema =
+      requestBody?.content?.[ContentTypeValues.APPLICATION_JSON]?.schema;
+    if (!isReference(commandRefSchema)) return;
     const commandKeyedSchema = keySchema(
       commandRefSchema,
-      this.openAPI.components!,
+      this.openAPI.components ?? {},
     );
+    if (!commandKeyedSchema.schema) return;
     commandKeyedSchema.schema.title =
       commandKeyedSchema.schema.title || operation.summary;
     commandKeyedSchema.schema.description =
@@ -183,7 +192,10 @@ export class AggregateResolver {
     if (!operation.operationId?.endsWith('.snapshot_state.single')) {
       return;
     }
-    const stateRefSchema = extractOperationOkResponseJsonSchema(operation);
+    const stateRefSchema = extractOperationOkResponseJsonSchema(
+      operation,
+      this.openAPI.components,
+    );
     if (!isReference(stateRefSchema)) {
       return;
     }
@@ -211,8 +223,10 @@ export class AggregateResolver {
     if (!operation.operationId?.endsWith('.event.list_query')) {
       return;
     }
-    const eventStreamArraySchema =
-      extractOperationOkResponseJsonSchema(operation);
+    const eventStreamArraySchema = extractOperationOkResponseJsonSchema(
+      operation,
+      this.openAPI.components,
+    );
     if (isReference(eventStreamArraySchema)) {
       return;
     }

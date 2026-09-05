@@ -474,7 +474,6 @@ describe('ApiClientGenerator', () => {
 
       expect(result).toEqual({
         type: 'Promise<string>',
-        metadata: '{resultExtractor: ResultExtractors.Text }',
       });
     });
 

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { Schema } from '@ahoo-wang/fetcher-openapi';
+import type { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import type { SourceFile } from 'ts-morph';
 
 import type { GenerateContext, Generator } from '../generateContext';
@@ -70,14 +70,11 @@ export class ModelGenerator implements Generator {
   }
 
   private filterSchemas(
-    schemas: Record<string, Schema>,
+    schemas: Record<string, Schema | Reference>,
     aggregatedTypeNames: Set<string>,
-  ): KeySchema[] {
+  ): KeySchema<Schema | Reference>[] {
     return Object.entries(schemas)
-      .map(([schemaKey, schema]) => ({
-        key: schemaKey,
-        schema,
-      }))
+      .map(([key, schema]) => ({ key, schema }))
       .filter(
         keySchema => !this.isWowSchema(keySchema.key, aggregatedTypeNames),
       );
@@ -157,7 +154,7 @@ export class ModelGenerator implements Generator {
    * 3. Union processing
    * 4. Type alias processing
    */
-  generateKeyedSchema(keySchema: KeySchema) {
+  generateKeyedSchema(keySchema: KeySchema<Schema | Reference>) {
     const modelInfo = resolveModelInfo(keySchema.key);
     const sourceFile = this.getOrCreateSourceFile(modelInfo);
     const typeGenerator = new TypeGenerator(

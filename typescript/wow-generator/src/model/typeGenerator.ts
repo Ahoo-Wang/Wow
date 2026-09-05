@@ -12,7 +12,7 @@
  */
 
 import type { ModelInfo } from './modelInfo';
-import { resolveReferenceModelInfo } from './modelInfo';
+import { resolveModelInfo, resolveReferenceModelInfo } from './modelInfo';
 import type { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
 import type { Components, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import type {
@@ -51,7 +51,7 @@ export class TypeGenerator implements Generator {
   constructor(
     private readonly modelInfo: ModelInfo,
     private readonly sourceFile: SourceFile,
-    private readonly keySchema: KeySchema,
+    private readonly keySchema: KeySchema<Schema | Reference>,
     private readonly outputDir: string,
     private readonly components?: Components,
   ) {}
@@ -65,6 +65,9 @@ export class TypeGenerator implements Generator {
 
   private process(): JSDocableNode | undefined {
     const { schema } = this.keySchema;
+    if (isReference(schema)) {
+      return this.processTypeAlias(schema);
+    }
     if (isEnum(schema)) {
       return this.processEnum(schema);
     }
@@ -85,12 +88,37 @@ export class TypeGenerator implements Generator {
 
   private resolveReference(schema: Reference) {
     const refModelInfo = resolveReferenceModelInfo(schema, this.components);
-    addImportModelInfo(
+    const declaration = addImportModelInfo(
       this.modelInfo,
       this.sourceFile,
       this.outputDir,
       refModelInfo,
     );
+    const namedImport = declaration
+      ?.getNamedImports()
+      .find(item => item.getName() === refModelInfo.name);
+    if (!namedImport) return refModelInfo;
+    const existingAlias = namedImport.getAliasNode()?.getText();
+    if (existingAlias) return { ...refModelInfo, name: existingAlias };
+
+    const reservedNames = new Set([
+      this.modelInfo.name,
+      ...Object.keys(this.components?.schemas ?? {})
+        .map(key => resolveModelInfo(key))
+        .filter(model => model.path === this.modelInfo.path)
+        .flatMap(model => [model.name, `${model.name}EnumText`]),
+      ...this.sourceFile
+        .getImportDeclarations()
+        .flatMap(item => item.getNamedImports())
+        .filter(item => item !== namedImport)
+        .map(item => item.getAliasNode()?.getText() ?? item.getName()),
+    ]);
+    if (reservedNames.has(refModelInfo.name)) {
+      let alias = `_${refModelInfo.name}`;
+      while (reservedNames.has(alias)) alias = `_${alias}`;
+      namedImport.setAlias(alias);
+      return { ...refModelInfo, name: alias };
+    }
     return refModelInfo;
   }
 
@@ -328,7 +356,9 @@ export class TypeGenerator implements Generator {
     return interfaceDeclaration;
   }
 
-  private processTypeAlias(schema: Schema): JSDocableNode | undefined {
+  private processTypeAlias(
+    schema: Schema | Reference,
+  ): JSDocableNode | undefined {
     return this.sourceFile.addTypeAlias({
       name: this.modelInfo.name,
       type: this.resolveType(schema),

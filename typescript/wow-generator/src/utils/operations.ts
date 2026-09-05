@@ -22,7 +22,7 @@ import type {
   Response,
   Schema,
 } from '@ahoo-wang/fetcher-openapi';
-import { extractParameter } from './components';
+import { extractParameter, extractResponse } from './components';
 import { isReference } from './references';
 import { extractResponseJsonSchema } from './responses';
 import { isPrimitive, resolvePrimitiveType } from './schemas';
@@ -59,15 +59,43 @@ export function operationEndpointComparator(
   return 0;
 }
 
+function mergeParameters(
+  inherited: (Parameter | Reference)[],
+  own: (Parameter | Reference)[],
+  components?: Components,
+): (Parameter | Reference)[] {
+  const parameters = new Map<string, Parameter | Reference>();
+  for (const parameter of [...inherited, ...own]) {
+    const resolved = isReference(parameter)
+      ? components && extractParameter(parameter, components)
+      : parameter;
+    const key = resolved
+      ? `${resolved.in}:${resolved.name}`
+      : (parameter as Reference).$ref;
+    parameters.set(key, parameter);
+  }
+  return [...parameters.values()];
+}
+
 export function extractOperationEndpoints(
   paths: Paths,
+  components?: Components,
 ): Array<OperationEndpoint> {
   const operationEndpoints: OperationEndpoint[] = [];
   for (const [path, pathItem] of Object.entries(paths)) {
     extractOperations(pathItem).forEach(methodOperation => {
       operationEndpoints.push({
         method: methodOperation.method,
-        operation: methodOperation.operation,
+        operation: pathItem.parameters?.length
+          ? {
+              ...methodOperation.operation,
+              parameters: mergeParameters(
+                pathItem.parameters,
+                methodOperation.operation.parameters ?? [],
+                components,
+              ),
+            }
+          : methodOperation.operation,
         path,
       });
     });
@@ -99,23 +127,30 @@ export function extractOperations(pathItem: PathItem): MethodOperation[] {
 /**
  * Extracts the OK (200) response from an operation.
  * @param operation - The OpenAPI operation
+ * @param components - Optional components used to resolve response references
  * @returns The 200 response or undefined if not found
  */
 export function extractOkResponse(
   operation: Operation,
+  components?: Components,
 ): Response | Reference | undefined {
-  return operation.responses['200'];
+  const response = operation.responses['200'];
+  return components && isReference(response)
+    ? extractResponse(response, components)
+    : response;
 }
 
 /**
  * Extracts the JSON schema from the OK response of an operation.
  * @param operation - The OpenAPI operation
+ * @param components - Optional components used to resolve response references
  * @returns The JSON schema from the OK response or undefined if not found
  */
 export function extractOperationOkResponseJsonSchema(
   operation: Operation,
+  components?: Components,
 ): Schema | Reference | undefined {
-  const okResponse = extractOkResponse(operation);
+  const okResponse = extractOkResponse(operation, components);
   return extractResponseJsonSchema(okResponse);
 }
 
@@ -135,11 +170,11 @@ export function extractPathParameters(
   return operation.parameters
     .map(parameter => {
       if (isReference(parameter)) {
-        return extractParameter(parameter, components)!;
+        return extractParameter(parameter, components);
       }
       return parameter;
     })
-    .filter(parameter => parameter.in === 'path');
+    .filter((parameter): parameter is Parameter => parameter?.in === 'path');
 }
 
 const DEFAULT_PATH_PARAMETER_TYPE = 'string';
