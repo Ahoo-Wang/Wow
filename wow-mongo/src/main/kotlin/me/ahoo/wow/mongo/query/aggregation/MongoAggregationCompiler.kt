@@ -78,26 +78,18 @@ internal class MongoAggregationCompiler(
             }
         }
 
-        if (query.groupBy.isNotEmpty()) {
-            val groupFilters = query.groupBy.map { group ->
-                when (group) {
-                    is AggregationGroup.Histogram -> {
-                        val field = group.field.resolve(logicalParent, physicalParent, schema, group.capability)
-                        Filters.expr(Document("\$isNumber", scalarOrSingleton("\$$field")))
-                    }
-                    is AggregationGroup.DateHistogram -> Filters.expr(
-                        Document("\$ne", listOf(group.dateInput(logicalParent, physicalParent, schema), null)),
-                    )
-                    else -> {
-                        val field = group.field.resolve(logicalParent, physicalParent, schema, group.capability)
-                        Filters.and(Filters.exists(field), Filters.ne(field, null))
-                    }
-                }
+        val groupId = query.groupBy.takeIf { it.isNotEmpty() }?.let { groups ->
+            val id = Document()
+            val filters = groups.map { group ->
+                val (filter, expression) = group.compile(logicalParent, physicalParent, schema)
+                id[group.alias] = expression
+                filter
             }
-            add(Aggregates.match(Filters.and(groupFilters)))
+            add(Aggregates.match(Filters.and(filters)))
+            id
         }
 
-        add(group(query, logicalParent, physicalParent, schema))
+        add(group(query, groupId, logicalParent, physicalParent, schema))
         add(project(query))
         query.effectiveSort().takeIf { it.isNotEmpty() }?.let { add(Aggregates.sort(it.toBson())) }
         add(Aggregates.limit(query.limit))
@@ -105,13 +97,11 @@ internal class MongoAggregationCompiler(
 
     private fun group(
         query: AggregationQuery,
+        id: Document?,
         parent: QueryField?,
         physicalParent: String?,
         schema: QueryModelSchema,
     ): Bson {
-        val id = query.groupBy
-            .takeIf { it.isNotEmpty() }
-            ?.associateTo(Document()) { it.alias to it.expression(parent, physicalParent, schema) }
         val accumulators = buildList {
             query.metrics.forEach { metric ->
                 when (metric) {
@@ -175,23 +165,26 @@ internal class MongoAggregationCompiler(
         AggregationFunction.MAX -> Accumulators.max(field, input)
     }
 
-    private fun AggregationGroup.expression(
+    private fun AggregationGroup.compile(
         parent: QueryField?,
         physicalParent: String?,
         schema: QueryModelSchema,
-    ): Any = when (this) {
-        is AggregationGroup.Terms ->
-            "\$${field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS)}"
+    ): Pair<Bson, Any> = when (this) {
+        is AggregationGroup.Terms -> {
+            val path = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS)
+            Filters.and(Filters.exists(path), Filters.ne(path, null)) to "\$$path"
+        }
         is AggregationGroup.Histogram -> {
-            val field = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC)
-            Document(
+            val path = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC)
+            val input = scalarOrSingleton("\$$path")
+            Filters.expr(Document("\$isNumber", input)) to Document(
                 "\$multiply",
                 listOf(
                     Document(
                         "\$floor",
                         Document(
                             "\$divide",
-                            listOf(scalarOrSingleton("\$$field"), interval),
+                            listOf(input, interval),
                         ),
                     ),
                     interval,
@@ -199,18 +192,15 @@ internal class MongoAggregationCompiler(
             )
         }
 
-        is AggregationGroup.DateHistogram -> Document(
-            "\$toLong",
-            Document(
-                "\$dateTrunc",
-                Document("date", dateInput(parent, physicalParent, schema))
-                    .append("unit", unit.name.lowercase())
-                    .append("timezone", if (timeZone == "Z") "UTC" else timeZone)
-                    .apply {
-                        if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday")
-                    },
-            ),
-        )
+        is AggregationGroup.DateHistogram -> {
+            val input = dateInput(parent, physicalParent, schema)
+            val truncation = Document("date", input)
+                .append("unit", unit.name.lowercase())
+                .append("timezone", if (timeZone == "Z") "UTC" else timeZone)
+                .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") }
+            Filters.expr(Document("\$ne", listOf(input, null))) to
+                Document("\$toLong", Document("\$dateTrunc", truncation))
+        }
     }
 
     private fun AggregationMetric.Numeric.toMongoInput(
@@ -339,14 +329,11 @@ internal class MongoAggregationCompiler(
     ): Any {
         val logicalField = parent?.append(field) ?: field
         val fieldSchema = schema.resolveFieldSchema(logicalField, QueryCapability.AGGREGATE_TEMPORAL)
-            ?: schema.field(logicalField)
+            ?: schema.fields[logicalField]
         val temporalBinding = fieldSchema?.binding(QueryCapability.AGGREGATE_TEMPORAL)
-        val dynamicTemporal = fieldSchema?.let { logicalField !in schema.fields && it.dynamicChildren } == true
-        if (temporalBinding == null && (fieldSchema == null || dynamicTemporal)) {
-            return Document(
-                "\$toDate",
-                "\$${field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TEMPORAL)}"
-            )
+        if (fieldSchema == null) {
+            val physicalPath = physicalParent?.let { "$it.${field.path}" } ?: logicalField.path
+            return Document("\$toDate", "\$$physicalPath")
         }
         val physicalPath = temporalBinding?.physicalField?.path
             ?: throw QuerySchemaValidationException(
@@ -451,15 +438,8 @@ internal class MongoAggregationCompiler(
         if (physicalParent != null) {
             return "$physicalParent.$path"
         }
-        return schema.resolvePhysicalField(logicalField, capability).path
+        return logicalField.path
     }
-
-    private val AggregationGroup.capability: QueryCapability
-        get() = when (this) {
-            is AggregationGroup.Terms -> QueryCapability.AGGREGATE_TERMS
-            is AggregationGroup.Histogram -> QueryCapability.AGGREGATE_NUMERIC
-            is AggregationGroup.DateHistogram -> QueryCapability.AGGREGATE_TEMPORAL
-        }
 
     private fun List<Sort>.toBson(): Bson = Sorts.orderBy(
         map {
