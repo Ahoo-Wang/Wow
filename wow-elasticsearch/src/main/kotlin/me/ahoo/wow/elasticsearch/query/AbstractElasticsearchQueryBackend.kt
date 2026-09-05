@@ -118,7 +118,8 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
 
     internal fun executeCursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> {
         val compiled = compile(query.filter, query.sort, schema)
-        return elasticsearchClient.search(cursorSearchRequest(query, compiled, schema), ObjectNode::class.java)
+        val request = cursorSearchRequest(query, compiled, schema)
+        return Mono.defer { elasticsearchClient.search(request, ObjectNode::class.java) }
             .map { response -> response.toCursorPage(query) }
     }
 
