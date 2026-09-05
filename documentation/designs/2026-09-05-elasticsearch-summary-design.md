@@ -126,6 +126,22 @@ HTTP 状态是本次实验观察值，不把它固定为跨版本的框架错误
 
 验证日志、请求计数与实验产物放在忽略目录 `build/query-summary/`。最终报告列明实际命令、测试数、参数和行为变化；不提交生成输出。
 
+## 实施与验证结果
+
+生产改动由 `fba01f856` 提交：Elasticsearch 无分组汇总的正常单次订阅由 `open PIT → search → close PIT` 三次客户端 API 调用改为一次严格 `search`，该口径不含 Schema、客户端重试、分片通信或调用方 retry。Task 1 的 155 项查询单测与 Detekt 已通过；本任务未改生产源码，因此没有重复该范围。
+
+本任务使用提交 `test(elasticsearch): verify strict summary search contracts` 增加三个 ES 9.2.6 真实集成合同。alias 测试通过原 alias 名搜索，在 filter=`visible=true` 与 search routing 同时生效时得到 `count=1`、`total=5.0`。不可用分片测试先确认两个 primary 分别为 `STARTED` 与 `UNASSIGNED`，再确认严格搜索以原生 `search_phase_execution_exception`、`Search rejected due to missing shards` 失败且没有汇总行；该响应在当前 Reactive Rest5 通道中直接表现为 `ResponseException`，没有把 HTTP 状态固化为合同。运行期故障测试确认两个 primary 均为 `STARTED`，并由测试专用 runtime field 在其中一个分片产生 `script_exception → illegal_argument_exception(summary-probe)`；Pager 传播 `ElasticsearchException(search_phase_execution_exception, Partial shards failure)`，同样没有部分汇总行。
+
+```bash
+./gradlew :wow-elasticsearch:integrationTest --tests '*ElasticsearchSummaryExecutionIntegrationTest' --console=plain
+./gradlew :wow-elasticsearch:integrationTest --tests 'me.ahoo.wow.elasticsearch.query.*' :wow-elasticsearch:detekt --console=plain
+git diff --check
+```
+
+聚焦类为 3 tests、0 failures、0 errors、0 skipped；完整查询集成范围为 98 tests、0 failures、0 errors、0 skipped，其中 Snapshot 66、EventStream 29、新增真实合同 3。Detekt 成功且未改写源码。Gradle 输出包含既有 Kotlin annotation 参数冗余与 Gradle 10 弃用提示，未出现测试或静态检查失败。
+
+三个测试均复用 fixture 管理的 reactive client 与 transport，原生 wrapper 不单独关闭。每个测试只创建独立的 `wow_it_*_summary` 索引；alias 测试先删除 alias，再删除索引，其他测试在 `finally` 删除索引，成功日志中的清理请求均完成。失败注入只使用新索引的 `routing.allocation.total_shards_per_node=1` 或测试专用 runtime script，没有修改集群级设置、已有索引、公共 fixture 或生产源码。分组查询、普通查询、MongoDB 与搜索超时的具体注入未增加新的真实测试；它们的策略边界保持本设计原定义。
+
 ## 完成标准
 
 1. ES 无分组汇总只发起一次独立搜索，零 PIT 创建/关闭，原生部分结果参数显式为 false。

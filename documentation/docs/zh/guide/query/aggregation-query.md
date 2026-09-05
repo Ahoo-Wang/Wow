@@ -124,7 +124,9 @@ val query = aggregation {
 ]
 ```
 
-没有 group 时始终返回一行汇总：空输入时 `COUNT = 0`、`ANY = null`，数值 metric = `null`。有 group 的空输入不产生结果行。自定义 `QueryBackend` 若偏离公共 TCK，必须由该实现独立声明和验证，不能将差异泛化为框架公共合同。
+查询成功且没有 group 时始终返回一行汇总：空输入时 `COUNT = 0`、`ANY = null`，数值 metric = `null`。有 group 的空输入不产生结果行。自定义 `QueryBackend` 若偏离公共 TCK，必须由该实现独立声明和验证，不能将差异泛化为框架公共合同。
+
+Elasticsearch 的无分组汇总使用一次搜索，并拒绝部分结果。分片不可用、分片执行失败或搜索超时时，查询报错，不返回部分汇总，也不转成空输入行。该策略仅适用于 Elasticsearch 的无分组汇总；MongoDB 和分组查询的失败策略仍由各自后端实现决定。
 
 ## 先确定统计单位
 

@@ -173,7 +173,7 @@ git diff --check
 - Consumes: Task 1 的 `ElasticsearchAggregationPager(...).execute(plan): Flux<ObjectNode>`；实际 `ElasticsearchAggregationCompiler.compile(query, schema)`；现有 `ElasticsearchTestFixture` 与 `ReactiveElasticsearchClients.createReactiveElasticsearchClient(fixture)`。
 - Produces: 三项真实环境合同、双语失败语义及可追溯验证记录；不新增生产接口。
 
-- [ ] **Step 1: 构造独立真实测试资源。** JUnit `@RegisterExtension` 注册 `ElasticsearchTestFixture`，通过现有 helper 获取受 fixture 管理的客户端。每个测试创建 `fixture.index("summary")` 唯一索引，两个 primary、零 replica、显式字段 `visible:boolean`、`fail:boolean`、`amount:double`。使用 `try/finally` 删除该索引及其 alias；fixture 关闭客户端。只在测试线程使用同步探测或 block。
+- [x] **Step 1: 构造独立真实测试资源。** JUnit `@RegisterExtension` 注册 `ElasticsearchTestFixture`，通过现有 helper 获取受 fixture 管理的客户端。每个测试创建 `fixture.index("summary")` 唯一索引，两个 primary、零 replica、显式字段 `visible:boolean`、`fail:boolean`、`amount:double`。使用 `try/finally` 删除该索引及其 alias；fixture 关闭客户端。只在测试线程使用同步探测或 block。
 
 原生路由/就绪探测可复用该客户端 transport，无需新 HTTP 层或连接：
 
@@ -185,7 +185,7 @@ val shard = nativeClient.searchShards { it.index(index).routing(route) }.shards(
 
 在测试中读取 shard 的 state/编号，选择落在不同 primary 的两个 route。使用索引范围 health 等待或 `Mono.defer { ... }.repeatWhen { it.delayElements(Duration.ofMillis(100)) }.filter { ready }.next().block(Duration.ofSeconds(15))`；条件检查先确认实际分片状态，不用固定 sleep。探测 wrapper 共用 transport，不单独关闭它；fixture 持有最终关闭权。可使用原生 client 进行 setup，实际被测搜索必须调用生产 Pager。
 
-- [ ] **Step 2: 验证 alias filter 与 search routing。** 等待两个主分片 STARTED，取 routeA、routeB 指向不同 shard。创建 alias，filter=`term(visible=true)` 且 searchRouting=routeA。写入三条并 refresh：routeA/visible=true/amount=5，routeA/visible=false/amount=100，routeB/visible=true/amount=1000。
+- [x] **Step 2: 验证 alias filter 与 search routing。** 等待两个主分片 STARTED，取 routeA、routeB 指向不同 shard。创建 alias，filter=`term(visible=true)` 且 searchRouting=routeA。写入三条并 refresh：routeA/visible=true/amount=5，routeA/visible=false/amount=100，routeB/visible=true/amount=1000。
 
 ```kotlin
 val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
@@ -201,22 +201,31 @@ ElasticsearchAggregationPager(client, alias).execute(plan).test()
 
 写入三条的 `_id` 必须不同；查询编译器默认根过滤需阅读确认，若要求 deleted 字段则在 fixture 文档显式写 `deleted=false`，不改变生产编译器。
 
-- [ ] **Step 3: 验证一个不可用分片时整体失败。** 只在新索引 settings 中设置 `routing.allocation.total_shards_per_node=1`，create 的 `wait_for_active_shards=0`。当前 fixture 是单节点；有界等待一个 STARTED、一个 UNASSIGNED，向可用 route 写 amount=1 并 refresh。调用无分组 count/sum 的生产 Pager，断言失败且不发出任何一行：
+- [x] **Step 3: 验证一个不可用分片时整体失败。** 只在新索引 settings 中设置 `routing.allocation.total_shards_per_node=1`，create 的 `wait_for_active_shards=0`。当前 fixture 是单节点；有界等待一个 STARTED、一个 UNASSIGNED，向可用 route 写 amount=1 并 refresh。调用无分组 count/sum 的生产 Pager，断言失败且不发出任何一行：
 
 ```kotlin
 ElasticsearchAggregationPager(client, index).execute(plan).test()
-    .expectErrorMatches { it is ElasticsearchException }
+    .expectErrorMatches {
+        it is ResponseException &&
+            it.message?.contains("search_phase_execution_exception") == true &&
+            it.message?.contains("Search rejected due to missing shards") == true
+    }
     .verify(Duration.ofSeconds(15))
 ```
 
-不把某一个 HTTP 状态固定为跨版本合同；异常应来自原生 ES 搜索。测试前置状态必须保证存在一成功一不可用分片，全部不可用不能证明严格部分结果策略。
+不把某一个 HTTP 状态固定为跨版本合同；当前 Reactive Rest5 通道在该响应上直接传播 `ResponseException`，断言同时检查原生 ES 搜索错误类型与缺失分片原因。测试前置状态必须保证存在一成功一不可用分片，全部不可用不能证明严格部分结果策略。
 
-- [ ] **Step 4: 验证运行期分片失败不返回部分汇总。** 新建正常的双分片索引，等待两个主分片 STARTED；向 routeA 写 fail=false，routeB 写 fail=true。通过真实编译器编译 `aggregation { count("count"); sum("probe_value", "total") }`，测试在计划的 runtimeMappings 中注入唯一专用字段：
+- [x] **Step 4: 验证运行期分片失败不返回部分汇总。** 新建正常的双分片索引，等待两个主分片 STARTED；向 routeA 写 fail=false，routeB 写 fail=true。通过真实编译器编译 `aggregation { count("count"); sum("probe_value", "total") }`，测试在计划的 runtimeMappings 中注入唯一专用字段：
 
 ```kotlin
 val runtime = RuntimeField.of {
     it.type(RuntimeFieldType.Double).script { script ->
-        script.source("if (doc['fail'].value) { throw new IllegalArgumentException('summary-probe'); } emit(1.0);")
+        script.source { source ->
+            source.scriptString(
+                "if (doc['fail'].value) { " +
+                    "throw new IllegalArgumentException('summary-probe'); } emit(1.0);"
+            )
+        }
     }
 }
 val failedPlan = plan.copy(runtimeMappings = plan.runtimeMappings + ("probe_value" to runtime))
@@ -227,7 +236,7 @@ ElasticsearchAggregationPager(client, index).execute(failedPlan).test()
 
 确认抛出的是注入的 script/分片执行异常，避免认证或无效请求也通过；在 report 留下根错误类型/原因。无需复制旧 PIT 查询作为对照，研究证据已经在 `build/query-summary/native-single-index-probe.json`。
 
-- [ ] **Step 5: 聚焦真实验证后执行现有查询集成范围。**
+- [x] **Step 5: 聚焦真实验证后执行现有查询集成范围。**
 
 ```bash
 ./gradlew :wow-elasticsearch:integrationTest --tests '*ElasticsearchSummaryExecutionIntegrationTest' --console=plain
@@ -236,7 +245,7 @@ ElasticsearchAggregationPager(client, index).execute(failedPlan).test()
 
 第二条覆盖 Snapshot/EventStream 已有根级、嵌套、全部指标和空结果合同。保存日志/XML 计数到 `build/query-summary/`。无源码变化时不重跑 Task 1 已通过单测。若 Detekt 改写源码，检查影响并运行覆盖该改写的最窄检查。
 
-- [ ] **Step 6: 修改双语文档与执行记录。** 将原“没有 group 时始终返回一行”/“always returns”限定为成功查询；紧邻它增加以下文案：
+- [x] **Step 6: 修改双语文档与执行记录。** 将原“没有 group 时始终返回一行”/“always returns”限定为成功查询；紧邻它增加以下文案：
 
 ```text
 Elasticsearch 的无分组汇总使用一次搜索，并拒绝部分结果。分片不可用、分片执行失败或搜索超时时，查询报错，不返回部分汇总，也不转成空输入行。该策略仅适用于 Elasticsearch 的无分组汇总；MongoDB 和分组查询的失败策略仍由各自后端实现决定。
@@ -246,4 +255,4 @@ Elasticsearch executes an ungrouped summary in one search and rejects partial re
 
 设计末尾补充实际提交、测试数量/失败/跳过、命令、ES 版本、调用数口径和已验证边界；本计划逐步标记已完成。链接检查与 `git diff --check` 即为这两处纯 Markdown 段落改动的窄验证，不需要重复构建整个 VitePress 站点。
 
-- [ ] **Step 7: 自审并提交。** 提交上述五个文件，message `test(elasticsearch): verify strict summary search contracts`。报告原生错误原因、资源清理、测试数量和日志路径。独立任务审查及阶段整体审查均通过后归档评审证据，保留当前 worktree。
+- [x] **Step 7: 自审并提交。** 提交上述五个文件，message `test(elasticsearch): verify strict summary search contracts`。报告原生错误原因、资源清理、测试数量和日志路径。独立任务审查及阶段整体审查均通过后归档评审证据，保留当前 worktree。
