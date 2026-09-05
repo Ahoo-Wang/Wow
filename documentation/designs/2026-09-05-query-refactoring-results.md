@@ -2,6 +2,26 @@
 
 范围从 `4a64789b6` 到生产代码 `90467dd0f`，覆盖共享查询解析、MongoDB/Elasticsearch 编译和执行。Spring、WebFlux 与公开查询契约经过兼容性验收，职责仍在原模块内。未增加依赖、模块或公开 API。
 
+## 原始修订来源
+
+本记录引用的原始本地验收与 JMH 修订由永久证据分支 [`evidence/query-refactoring-2026-09-05`](https://github.com/Ahoo-Wang/Wow/tree/evidence/query-refactoring-2026-09-05) 保留。原生 Stack rebase/squash 产生的 head 是后续版本，不能替代实际测量所用的以下修订：
+
+| 角色 | 原始完整 SHA |
+|---|---|
+| 基线 | `4a64789b627acc26f93fe3725df02d3a38a27ebd` |
+| 验收生产代码 | `90467dd0f1cdc02d8192c55e9585876bfe7b6208` |
+| 真实数据库 JMH 候选 | `f096ec5772ecf749f1c5cd470b50d4df07be09f3` |
+| 归档 tip（含后续可维护性修复） | `285587f542a08d924b0447e600cbdb6c6a673ab6` |
+
+单分支克隆可显式获取证据分支并核对预期归档 tip：
+
+```sh
+git fetch origin refs/heads/evidence/query-refactoring-2026-09-05:refs/remotes/origin/evidence/query-refactoring-2026-09-05
+git show -s --format=%H refs/remotes/origin/evidence/query-refactoring-2026-09-05
+```
+
+第二条命令预期输出 `285587f542a08d924b0447e600cbdb6c6a673ab6`。该分支保留可解析的公开源码修订；本记录提到的本地忽略 XML、JSON、日志、冻结 jar 等产物未随此次来源修正发布。
+
 ## 行为与实现
 
 | 改动 | 结果 |
