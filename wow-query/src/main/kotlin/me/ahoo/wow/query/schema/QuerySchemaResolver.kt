@@ -160,9 +160,13 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
         if (projection.isEmpty()) {
             return QuerySchemaResolution(projection, QueryCompatibilityLevel.EXACT)
         }
-        val include = projection.include.map(fieldResolver::resolveProjection)
-        val exclude = projection.exclude.map(fieldResolver::resolveProjection)
-        val compatibility = (include + exclude).map { it.compatibility }
+        var compatibility = QueryCompatibilityLevel.EXACT
+        projection.include.forEach { field ->
+            compatibility = maxOf(compatibility, fieldResolver.resolveProjection(field).compatibility)
+        }
+        projection.exclude.forEach { field ->
+            compatibility = maxOf(compatibility, fieldResolver.resolveProjection(field).compatibility)
+        }
         val payloadSelected = projection.include.isEmpty() ||
             projection.include.any { it.intersects(EVENT_BODY_PAYLOAD_FIELD) }
         val payloadExcluded = projection.exclude.any { it.selects(EVENT_BODY_PAYLOAD_FIELD) }
@@ -176,7 +180,7 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
             if (schema.model == QueryModel.EVENT_STREAM && !eventProjectionAccepted) {
                 QueryCompatibilityLevel.INCOMPATIBLE
             } else {
-                compatibility.combined()
+                compatibility
             },
         )
     }
@@ -242,10 +246,10 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
         return QuerySchemaResolution(values ?: sort, compatibility)
     }
 
-    @Suppress("LongMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun resolve(query: AggregationQuery): QuerySchemaResolution<AggregationQuery> {
         val rootFilter = resolve(query.filter)
-        val levels = mutableListOf(rootFilter.compatibility)
+        var compatibility = rootFilter.compatibility
         var logicalParent: QueryField? = null
         var resolvedParent: QueryField? = null
         var physicalParent: QueryField? = null
@@ -258,14 +262,14 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
                 resolvedParent,
                 physicalParent,
             )
-            levels += container.compatibility
+            compatibility = maxOf(compatibility, container.compatibility)
             val filter = filterResolver.resolve(
                 element.filter,
                 container.logical,
                 container.resolvedField,
                 container.physicalField,
             )
-            levels += filter.compatibility
+            compatibility = maxOf(compatibility, filter.compatibility)
             logicalParent = container.logical
             resolvedParent = container.resolvedField
             physicalParent = container.physicalField
@@ -280,29 +284,39 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
             }
         }
         query.groupBy.forEach { group ->
-            levels += resolveAggregationField(
-                group.field,
-                group.capability,
-                logicalParent,
-                resolvedParent,
-                physicalParent,
-            ).compatibility
-        }
-        query.metrics.filterIsInstance<AggregationMetric.Any>().forEach { metric ->
-            val resolved = resolveAggregationField(
-                metric.field,
-                QueryCapability.AGGREGATE_TERMS,
-                logicalParent,
-                resolvedParent,
-                physicalParent,
+            compatibility = maxOf(
+                compatibility,
+                resolveAggregationField(
+                    group.field,
+                    group.capability,
+                    logicalParent,
+                    resolvedParent,
+                    physicalParent,
+                ).compatibility,
             )
-            levels += resolved.compatibility
-            if (resolved.fieldSchema?.cardinality == QueryCardinality.MANY) {
-                levels += QueryCompatibilityLevel.INCOMPATIBLE
+        }
+        query.metrics.forEach { metric ->
+            if (metric is AggregationMetric.Any) {
+                val resolved = resolveAggregationField(
+                    metric.field,
+                    QueryCapability.AGGREGATE_TERMS,
+                    logicalParent,
+                    resolvedParent,
+                    physicalParent,
+                )
+                compatibility = maxOf(compatibility, resolved.compatibility)
+                if (resolved.fieldSchema?.cardinality == QueryCardinality.MANY) {
+                    compatibility = QueryCompatibilityLevel.INCOMPATIBLE
+                }
             }
         }
-        query.metrics.filterIsInstance<AggregationMetric.Numeric>().forEach { metric ->
-            collectExpressionLevels(metric.expression, logicalParent, resolvedParent, physicalParent, levels)
+        query.metrics.forEach { metric ->
+            if (metric is AggregationMetric.Numeric) {
+                compatibility = maxOf(
+                    compatibility,
+                    resolveExpression(metric.expression, logicalParent, resolvedParent, physicalParent),
+                )
+            }
         }
         val resolvedElements = elements ?: query.elements
         return QuerySchemaResolution(
@@ -314,32 +328,29 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
             } else {
                 query.copy(filter = rootFilter.value, elements = resolvedElements)
             },
-            levels.combined(),
+            compatibility,
         )
     }
 
-    private fun collectExpressionLevels(
+    private fun resolveExpression(
         expression: AggregationExpression,
         logicalParent: QueryField?,
         resolvedParent: QueryField?,
         physicalParent: QueryField?,
-        levels: MutableList<QueryCompatibilityLevel>,
-    ) {
-        when (expression) {
-            is AggregationExpression.Field -> levels += resolveAggregationField(
-                expression.field,
-                QueryCapability.AGGREGATE_NUMERIC,
-                logicalParent,
-                resolvedParent,
-                physicalParent,
-            ).compatibility
-            is AggregationExpression.Constant -> Unit
-            is AggregationExpression.Binary -> {
-                collectExpressionLevels(expression.left, logicalParent, resolvedParent, physicalParent, levels)
-                collectExpressionLevels(expression.right, logicalParent, resolvedParent, physicalParent, levels)
-            }
-            else -> levels += QueryCompatibilityLevel.INCOMPATIBLE
-        }
+    ): QueryCompatibilityLevel = when (expression) {
+        is AggregationExpression.Field -> resolveAggregationField(
+            expression.field,
+            QueryCapability.AGGREGATE_NUMERIC,
+            logicalParent,
+            resolvedParent,
+            physicalParent,
+        ).compatibility
+        is AggregationExpression.Constant -> QueryCompatibilityLevel.EXACT
+        is AggregationExpression.Binary -> maxOf(
+            resolveExpression(expression.left, logicalParent, resolvedParent, physicalParent),
+            resolveExpression(expression.right, logicalParent, resolvedParent, physicalParent),
+        )
+        else -> QueryCompatibilityLevel.INCOMPATIBLE
     }
 
     private fun resolveAggregationField(

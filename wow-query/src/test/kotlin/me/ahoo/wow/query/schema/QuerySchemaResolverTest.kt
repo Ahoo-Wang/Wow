@@ -1375,6 +1375,27 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `projection should combine include and exclude levels without replacing it`() {
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    QueryField("state.known") to fieldSchema(QueryCapability.PRESENCE to "state.known"),
+                    QueryField("state.unavailable") to fieldSchema(),
+                ),
+            ),
+        )
+        val projection = Projection(
+            include = listOf(QueryField("state.known"), QueryField("state.unknown")),
+            exclude = listOf(QueryField("state.unavailable")),
+        )
+
+        val result = resolver.resolve(projection)
+
+        result.value.assert().isSameAs(projection)
+        result.compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
     fun `root sort should reject a field below an element scope`() {
         val field = QueryField("state.orders.price")
         val sort = listOf(Sort(QueryField(field.path), Sort.Direction.ASC))
@@ -1670,6 +1691,49 @@ class QuerySchemaResolverTest {
         QuerySchemaResolver(schema).resolve(query).assert().isEqualTo(
             QuerySchemaResolution(query, QueryCompatibilityLevel.EXACT),
         )
+    }
+
+    @Test
+    fun `aggregation should combine mixed metric compatibility without replacing it`() {
+        val termsField = QueryField("state.category")
+        val numericField = QueryField("state.amount")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    termsField to fieldSchema(QueryCapability.AGGREGATE_TERMS to "state.category"),
+                    numericField to fieldSchema(QueryCapability.AGGREGATE_NUMERIC to "state.amount"),
+                    QueryField("state.unavailable") to fieldSchema(QueryCapability.PRESENCE to "state.unavailable"),
+                ),
+            ),
+        )
+        val cases = mapOf(
+            numericField to QueryCompatibilityLevel.EXACT,
+            QueryField("state.unknown") to QueryCompatibilityLevel.COMPATIBLE,
+            QueryField("state.unavailable") to QueryCompatibilityLevel.INCOMPATIBLE,
+        )
+
+        cases.forEach { (field, expected) ->
+            val query = AggregationQuery(
+                metrics = listOf(
+                    AggregationMetric.Count("count"),
+                    AggregationMetric.Any(termsField, "category"),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Binary(
+                            AggregationExpressionOperator.ADD,
+                            AggregationExpression.Field(field),
+                            AggregationExpression.Constant(1.0),
+                        ),
+                        "total",
+                    ),
+                ),
+            )
+
+            val result = resolver.resolve(query)
+
+            result.value.assert().isSameAs(query)
+            result.compatibility.assert().isEqualTo(expected)
+        }
     }
 
     @Test

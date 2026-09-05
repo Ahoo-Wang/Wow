@@ -225,9 +225,3 @@ internal class QueryFieldSchemaResolver(
         return true
     }
 }
-
-internal fun Iterable<QueryCompatibilityLevel>.combined(): QueryCompatibilityLevel = when {
-    QueryCompatibilityLevel.INCOMPATIBLE in this -> QueryCompatibilityLevel.INCOMPATIBLE
-    QueryCompatibilityLevel.COMPATIBLE in this -> QueryCompatibilityLevel.COMPATIBLE
-    else -> QueryCompatibilityLevel.EXACT
-}
