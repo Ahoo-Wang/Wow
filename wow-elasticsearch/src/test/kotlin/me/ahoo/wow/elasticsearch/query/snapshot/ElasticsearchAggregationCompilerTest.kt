@@ -108,7 +108,10 @@ class ElasticsearchAggregationCompilerTest {
         )
 
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
-            aggregation { terms("state.status", "status"); count("count") },
+            aggregation {
+                terms("state.status", "status")
+                count("count")
+            },
             schema,
         )
 
