@@ -175,6 +175,7 @@ internal class QueryFieldSchemaResolver(
         var source: ResolvedField? = null
         var relative: QueryField? = null
         var separator = field.path.lastIndexOf('.')
+        // Continue after the longest match so shorter ancestors still validate their relative paths.
         while (separator > 0) {
             val ancestorPath = field.path.substring(0, separator)
             dynamicResolvedFieldIndex[capability to ancestorPath]?.let {
