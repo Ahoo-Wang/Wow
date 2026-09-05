@@ -25,11 +25,21 @@ object ElasticsearchSortCompiler {
         sort.map { it.copy(field = schema.resolvePhysicalField(it.field, QueryCapability.SORT)) },
     )
 
-    internal fun compilePhysical(sort: List<Sort>): List<SortOptions> {
+    internal fun compileCursor(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> = compilePhysical(
+        sort.map { it.copy(field = schema.resolvePhysicalField(it.field, QueryCapability.SORT)) },
+        cursor = true,
+    )
+
+    internal fun compilePhysical(sort: List<Sort>): List<SortOptions> = compilePhysical(sort, cursor = false)
+
+    private fun compilePhysical(sort: List<Sort>, cursor: Boolean): List<SortOptions> {
         return sort.map {
             SortOptions.of { sortBuilder ->
                 sortBuilder.field { fieldBuilder ->
                     fieldBuilder.field(it.field.path).order(it.direction.toSortOrder())
+                    if (cursor) {
+                        fieldBuilder.missing(if (it.direction == Sort.Direction.ASC) "_first" else "_last")
+                    }
                     if (it.field.path.startsWith("${MessageRecords.BODY}.")) {
                         fieldBuilder.nested { nested -> nested.path(MessageRecords.BODY) }
                     }
