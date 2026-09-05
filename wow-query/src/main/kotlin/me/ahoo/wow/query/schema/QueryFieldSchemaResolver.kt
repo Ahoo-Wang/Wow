@@ -37,7 +37,7 @@ internal class QueryFieldSchemaResolver(
         val binding: QueryFieldBinding,
     )
 
-    private val dynamicResolvedFieldIndex = HashMap<Pair<QueryCapability, QueryField>, ResolvedField>()
+    private val dynamicResolvedFieldIndex = HashMap<Pair<QueryCapability, String>, ResolvedField>()
 
     private val resolvedFieldIndex = buildMap {
         schema.fields.forEach { (logical, fieldSchema) ->
@@ -51,7 +51,7 @@ internal class QueryFieldSchemaResolver(
                     )
                 }
                 if (fieldSchema.dynamicChildren) {
-                    dynamicResolvedFieldIndex.putIfAbsent(capability to binding.resolvedField, resolvedField)
+                    dynamicResolvedFieldIndex.putIfAbsent(capability to binding.resolvedField.path, resolvedField)
                 }
             }
         }
@@ -176,9 +176,9 @@ internal class QueryFieldSchemaResolver(
         var relative: QueryField? = null
         var separator = field.path.lastIndexOf('.')
         while (separator > 0) {
-            val ancestor = QueryField(field.path.substring(0, separator))
-            dynamicResolvedFieldIndex[capability to ancestor]?.let {
-                val candidateRelative = checkNotNull(field.relativeTo(ancestor))
+            val ancestorPath = field.path.substring(0, separator)
+            dynamicResolvedFieldIndex[capability to ancestorPath]?.let {
+                val candidateRelative = checkNotNull(field.relativeTo(it.binding.resolvedField))
                 if (source == null) {
                     source = it
                     relative = candidateRelative
