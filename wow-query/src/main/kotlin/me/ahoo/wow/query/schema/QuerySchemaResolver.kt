@@ -47,20 +47,6 @@ data class QuerySchemaResolution<T>(
     val compatibility: QueryCompatibilityLevel,
 )
 
-private fun combined(
-    first: QueryCompatibilityLevel,
-    second: QueryCompatibilityLevel,
-    third: QueryCompatibilityLevel,
-): QueryCompatibilityLevel = when {
-    first == QueryCompatibilityLevel.INCOMPATIBLE ||
-        second == QueryCompatibilityLevel.INCOMPATIBLE ||
-        third == QueryCompatibilityLevel.INCOMPATIBLE -> QueryCompatibilityLevel.INCOMPATIBLE
-    first == QueryCompatibilityLevel.COMPATIBLE ||
-        second == QueryCompatibilityLevel.COMPATIBLE ||
-        third == QueryCompatibilityLevel.COMPATIBLE -> QueryCompatibilityLevel.COMPATIBLE
-    else -> QueryCompatibilityLevel.EXACT
-}
-
 fun <T> QuerySchemaResolution<T>.requireAccepted(mode: QuerySchemaValidationMode): T {
     if (!mode.accepts(compatibility)) {
         throw QuerySchemaValidationException(
@@ -98,7 +84,7 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
             } else {
                 SingleQuery(filter.value, projection.value, sort.value)
             },
-            combined(filter.compatibility, projection.compatibility, sort.compatibility),
+            maxOf(filter.compatibility, projection.compatibility, sort.compatibility),
         )
     }
 
@@ -115,7 +101,7 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
             } else {
                 ListQuery(filter.value, projection.value, sort.value, query.limit)
             },
-            combined(filter.compatibility, projection.compatibility, sort.compatibility),
+            maxOf(filter.compatibility, projection.compatibility, sort.compatibility),
         )
     }
 
@@ -132,7 +118,7 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
             } else {
                 PagedQuery(filter.value, projection.value, sort.value, query.pagination)
             },
-            combined(filter.compatibility, projection.compatibility, sort.compatibility),
+            maxOf(filter.compatibility, projection.compatibility, sort.compatibility),
         )
     }
 
@@ -149,7 +135,7 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
             } else {
                 CursorQuery(filter.value, projection.value, sort.value, query.size, query.cursor)
             },
-            combined(filter.compatibility, projection.compatibility, sort.compatibility),
+            maxOf(filter.compatibility, projection.compatibility, sort.compatibility),
         )
     }
 

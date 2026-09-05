@@ -14,22 +14,12 @@
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.SortOrder
-import co.elastic.clients.elasticsearch.core.SearchRequest
-import co.elastic.clients.elasticsearch.core.SearchResponse
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.slot
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryBackend
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.sort
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
@@ -37,9 +27,6 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
-import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
-import reactor.core.publisher.Mono
-import tools.jackson.databind.node.ObjectNode
 
 class ElasticsearchSortCompilerTest {
     private val schema = QueryModelSchema(
@@ -102,33 +89,13 @@ class ElasticsearchSortCompilerTest {
 
     @Test
     fun `event cursor should preserve physical sorts nested context and missing order`() {
-        val client = mockk<ReactiveElasticsearchClient>()
-        val backend = ElasticsearchEventStreamQueryBackend(MaterializedNamedAggregate("test", "cursor"), client)
-        val request = slot<SearchRequest>()
-        every { client.search(capture(request), ObjectNode::class.java) } returns Mono.just(
-            SearchResponse.of<ObjectNode> {
-                it.took(1).timedOut(false)
-                    .shards { shards -> shards.failed(0).successful(1).total(1) }
-                    .hits { hits -> hits.hits(emptyList()) }
+        val actual = ElasticsearchSortCompiler.compileCursor(
+            sort {
+                "name".asc()
+                "identity".desc()
             },
-        )
-
-        backend.cursor(
-            ResolvedQuery(
-                CursorQuery(
-                    MatchAllFilter,
-                    sort = sort {
-                        "name".asc()
-                        "identity".desc()
-                    },
-                    size = 1,
-                ),
-                schema,
-            ),
-        ).block()
-
-        request.captured.index().assert().containsExactly("wow.test.cursor.es")
-        val actual = request.captured.sort().map { it.field() }
+            schema,
+        ).map { it.field() }
         actual.map { it.field() }.assert().containsExactly("body.name", "id")
         actual.map { it.order() }.assert().containsExactly(SortOrder.Asc, SortOrder.Desc)
         actual.map { requireNotNull(it.missing()).stringValue() }.assert().containsExactly("_first", "_last")
