@@ -124,7 +124,9 @@ The result columns use the group and metric aliases exactly:
 ]
 ```
 
-With no group, aggregation always returns one summary row: for empty input, `COUNT = 0`, `ANY = null`, and numeric metrics are `null`. With groups, empty input produces no rows. A custom `QueryBackend` that differs from the shared TCK must declare and verify that behavior independently; the difference is not the framework's shared contract.
+When a query succeeds and has no group, aggregation returns one summary row: for empty input, `COUNT = 0`, `ANY = null`, and numeric metrics are `null`. With groups, empty input produces no rows. A custom `QueryBackend` that differs from the shared TCK must declare and verify that behavior independently; the difference is not the framework's shared contract.
+
+Elasticsearch executes an ungrouped summary in one search and rejects partial results. Unavailable shards, shard execution failures, or search timeouts fail the query instead of returning a partial summary or an empty-input row. This policy applies only to ungrouped Elasticsearch summaries; MongoDB and grouped queries retain their own backend failure behavior.
 
 ## Decide the Counting Unit First
 
