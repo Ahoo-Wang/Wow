@@ -90,6 +90,7 @@ enum class QueryCardinality {
     MANY,
 }
 
+/** Ordered from least to most restrictive for compatibility merging. */
 enum class QueryCompatibilityLevel {
     EXACT,
     COMPATIBLE,
