@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "files": {
+    "example/CartApiClient.ts": "c445ce05fc5511dc74b9b6e442cc6562c30dffbe8e90192a56c127e86ae6fc5c",
+    "example/OrderApiClient.ts": "07c1917f4fa81f3f30420693d0695051a3debc604ff9bc11ac1668863b51480c",
+    "example/boundedContext.ts": "c0ee8a415fb0edfd13151bac02cdb821faa644b62bb8ecaf5f01777f23ca4fb9",
+    "example/cart/commandClient.ts": "45c5433243673b5621ec35918abff9463e3954a6687f5b5d06fc5e28adb21042",
+    "example/cart/index.ts": "bd180919586fd2d243b06ff644f6f51ed8919242c58f155e284a2833be3229c6",
+    "example/cart/queryClient.ts": "8cd084c1c9b0bf5dbc597a463900df49bd64103ee39eadc6d121ab141e9d13bd",
+    "example/cart/types.ts": "f6936fe373407c5909c7ef51cef28286d8ae8701069e7b825808a6ddc2886340",
+    "example/index.ts": "958816b9ed6d0ed9e6700f94bd414bdf17e60b4983c885ed6e87cca8f3085e5b",
+    "example/order/commandClient.ts": "b6509a0692d511df4711d8c1d938cd349391499f4499ac4544b3c8693c8c5946",
+    "example/order/index.ts": "bd180919586fd2d243b06ff644f6f51ed8919242c58f155e284a2833be3229c6",
+    "example/order/queryClient.ts": "3d8bd01008655b5c60dbf5f5e1f64d75a94c7e64344ab35c098e9ccf7ff28832",
+    "example/order/types.ts": "093cd06009ef13571062c9b81a13eb3dc302aaca05d2f13ccac76ce37bb32421",
+    "example/types.ts": "6c5251435bd5c66925d335b810899d77db182a31ee31bb066891296ff7ec4eab",
+    "index.ts": "15abd9254fef79efb01578428672cc77b7b8640c0cad2006411af396681e32a0"
+  }
+}

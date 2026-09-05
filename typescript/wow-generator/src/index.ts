@@ -18,7 +18,15 @@ import { ClientGenerator } from './client';
 import { GenerateContext } from './generateContext';
 import { ModelGenerator } from './model';
 import type { GeneratorConfiguration, GeneratorOptions } from './types';
-import { parseConfiguration, parseOpenAPI } from './utils';
+import {
+  beginGeneration,
+  forgetStaleGeneratedFiles,
+  getGeneratedFilePaths,
+  getOrCreateSourceFile,
+  parseConfiguration,
+  parseOpenAPI,
+  saveGeneration,
+} from './utils';
 
 /**
  * Default path to the generator configuration file.
@@ -105,6 +113,8 @@ export class CodeGenerator {
       this.options.logger.info(`Configuration file parsing failed: ${e}`);
     }
 
+    beginGeneration(this.project, this.options.outputDir);
+
     const context: GenerateContext = new GenerateContext({
       openAPI: openAPI,
       project: this.project,
@@ -123,9 +133,11 @@ export class CodeGenerator {
     const clientGenerator = new ClientGenerator(context);
     clientGenerator.generate();
     this.options.logger.info('Clients generated successfully');
+    forgetStaleGeneratedFiles(this.project, this.options.outputDir);
     const outputDir = this.project.getDirectory(this.options.outputDir);
     if (!outputDir) {
       this.options.logger.info('Output directory not found.');
+      await saveGeneration(this.project, this.options.outputDir);
       return;
     }
     this.options.logger.info('Generating index files');
@@ -137,7 +149,7 @@ export class CodeGenerator {
     this.options.logger.info('Source files optimized successfully');
 
     this.options.logger.info('Saving project to disk');
-    await this.project.save();
+    await saveGeneration(this.project, this.options.outputDir);
     this.options.logger.info('Code generation completed successfully');
   }
 
@@ -159,7 +171,6 @@ export class CodeGenerator {
       `Generating index files for output directory: ${this.options.outputDir}`,
     );
     this.processDirectory(outputDir);
-    this.generateIndexForDirectory(outputDir);
     this.options.logger.info('Index file generation completed');
   }
 
@@ -167,14 +178,12 @@ export class CodeGenerator {
    * Recursively processes all subdirectories to generate index files.
    * @param dir - The directory to process.
    */
-  private processDirectory(dir: Directory) {
-    const subDirs = dir.getDirectories();
+  private processDirectory(dir: Directory): boolean {
+    const subDirs = dir
+      .getDirectories()
+      .filter(subDir => this.processDirectory(subDir));
     this.options.logger.info(`Processing ${subDirs.length} subdirectories`);
-    for (const subDir of subDirs) {
-      this.options.logger.info(`Processing subdirectory: ${subDir.getPath()}`);
-      this.generateIndexForDirectory(subDir);
-      this.processDirectory(subDir);
-    }
+    return this.generateIndexForDirectory(dir, subDirs);
   }
 
   /**
@@ -184,7 +193,10 @@ export class CodeGenerator {
    *
    * @param dir - The directory to generate the index file for.
    */
-  private generateIndexForDirectory(dir: Directory) {
+  private generateIndexForDirectory(
+    dir: Directory,
+    subDirs = dir.getDirectories(),
+  ): boolean {
     const dirPath = dir.getPath();
     this.options.logger.info(`Generating index for directory: ${dirPath}`);
 
@@ -196,8 +208,6 @@ export class CodeGenerator {
           file.getBaseName() !== 'index.ts',
       );
 
-    const subDirs: Directory[] = dir.getDirectories();
-
     this.options.logger.info(
       `Found ${tsFiles.length} TypeScript files and ${subDirs.length} subdirectories in ${dirPath}`,
     );
@@ -206,13 +216,10 @@ export class CodeGenerator {
       this.options.logger.info(
         `No files or subdirectories to export in ${dirPath}, skipping index generation`,
       );
-      return;
+      return this.project.getSourceFile(`${dirPath}/index.ts`) !== undefined;
     }
 
-    const indexFilePath = `${dirPath}/index.ts`;
-    const indexFile =
-      this.project.getSourceFile(indexFilePath) ||
-      this.project.createSourceFile(indexFilePath, '', { overwrite: true });
+    const indexFile = getOrCreateSourceFile(this.project, dirPath, 'index.ts');
 
     indexFile.removeText();
 
@@ -237,6 +244,7 @@ export class CodeGenerator {
     this.options.logger.info(
       `Index file generated for ${dirPath} with ${tsFiles.length + subDirs.length} exports`,
     );
+    return true;
   }
 
   /**
@@ -246,7 +254,10 @@ export class CodeGenerator {
    * @param outputDir - The root output directory containing source files to optimize.
    */
   optimizeSourceFiles(outputDir: Directory) {
-    const sourceFiles = outputDir.getDescendantSourceFiles();
+    const written = getGeneratedFilePaths(this.project);
+    const sourceFiles = outputDir
+      .getDescendantSourceFiles()
+      .filter(file => !written || written.has(file.getFilePath()));
     this.options.logger.info(
       `Optimizing ${sourceFiles.length} source files in ${outputDir.getPath()}`,
     );

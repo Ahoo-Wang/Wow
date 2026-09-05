@@ -14,6 +14,7 @@
 import { combineURLs } from '@ahoo-wang/fetcher';
 import { isAbsolute, join, relative, resolve, sep } from 'path';
 import type { JSDocableNode, Project, SourceFile } from 'ts-morph';
+import { ts } from 'ts-morph';
 import type { ModelInfo } from '../model';
 import type { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 
@@ -21,6 +22,149 @@ import type { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 const MODEL_FILE_NAME = 'types.ts';
 /** Alias for import paths */
 const IMPORT_ALIAS = '@';
+
+const GENERATION_MANIFEST = '.fetcher-generator.json';
+const generatedFiles = new WeakMap<
+  Project,
+  { written: Set<string>; previous: Map<string, string>; stale: Set<string> }
+>();
+
+/** Load only explicitly recorded ownership; discard drafts from the last run. */
+export function beginGeneration(project: Project, outputDir: string): void {
+  const fs = project.getFileSystem();
+  outputDir = resolve(fs.getCurrentDirectory(), outputDir);
+  const manifestPath = join(outputDir, GENERATION_MANIFEST);
+  const previous = new Map<string, string>();
+  if (fs.fileExistsSync(manifestPath)) {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath));
+    if (
+      manifest?.version !== 1 ||
+      !manifest.files ||
+      typeof manifest.files !== 'object' ||
+      Array.isArray(manifest.files)
+    ) {
+      throw new Error(`Invalid generation manifest: ${manifestPath}`);
+    }
+    for (const [path, hash] of Object.entries(manifest.files)) {
+      const fileName = resolve(outputDir, path);
+      assertWithinOutputDir(outputDir, fileName);
+      if (
+        isAbsolute(path) ||
+        !path.endsWith('.ts') ||
+        typeof hash !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(hash)
+      ) {
+        throw new Error(`Invalid generated file entry: ${path}`);
+      }
+      previous.set(fileName, hash);
+    }
+  }
+  for (const path of generatedFiles.get(project)?.written ?? []) {
+    project.getSourceFile(path)?.forget();
+  }
+  for (const path of previous.keys()) {
+    project.getSourceFile(path)?.forget();
+  }
+  generatedFiles.set(project, {
+    written: new Set(),
+    previous,
+    stale: new Set(),
+  });
+}
+
+function fileHash(text: string): string {
+  if (!ts.sys.createSHA256Hash) {
+    throw new Error('SHA-256 hashing is unavailable in this environment.');
+  }
+  return ts.sys.createSHA256Hash(text);
+}
+
+function isUnchangedGeneratedFile(
+  project: Project,
+  outputDir: string,
+  path: string,
+  hash: string,
+): boolean {
+  const fs = project.getFileSystem();
+  if (!fs.fileExistsSync(path)) return false;
+  assertWithinOutputDir(fs.realpathSync(outputDir), fs.realpathSync(path));
+  return fileHash(fs.readFileSync(path)) === hash;
+}
+
+/** Exclude stale owned files from indexes without deleting anything on disk. */
+export function forgetStaleGeneratedFiles(
+  project: Project,
+  outputDir: string,
+): void {
+  const run = generatedFiles.get(project);
+  if (!run) return;
+  outputDir = resolve(project.getFileSystem().getCurrentDirectory(), outputDir);
+  for (const [path, hash] of run.previous) {
+    if (
+      !run.written.has(path) &&
+      isUnchangedGeneratedFile(project, outputDir, path, hash)
+    ) {
+      project.getSourceFile(path)?.forget();
+      run.stale.add(path);
+    }
+  }
+}
+
+export function getGeneratedFilePaths(
+  project: Project,
+): ReadonlySet<string> | undefined {
+  return generatedFiles.get(project)?.written;
+}
+
+/** Save current output before removing unchanged stale files and recording ownership. */
+export async function saveGeneration(
+  project: Project,
+  outputDir: string,
+): Promise<void> {
+  const run = generatedFiles.get(project);
+  if (!run) return;
+  outputDir = resolve(project.getFileSystem().getCurrentDirectory(), outputDir);
+  const files = [...run.written]
+    .sort()
+    .map(path => project.getSourceFileOrThrow(path));
+  const saved = await Promise.allSettled(files.map(file => file.save()));
+  for (const result of saved) {
+    if (result.status === 'rejected') throw result.reason;
+  }
+  const fs = project.getFileSystem();
+  for (const path of run.stale) {
+    if (
+      !run.written.has(path) &&
+      isUnchangedGeneratedFile(
+        project,
+        outputDir,
+        path,
+        run.previous.get(path)!,
+      )
+    ) {
+      await fs.delete(path);
+    }
+  }
+  fs.mkdirSync(outputDir);
+  await fs.writeFile(
+    join(outputDir, GENERATION_MANIFEST),
+    JSON.stringify(
+      {
+        version: 1,
+        files: Object.fromEntries(
+          files.map(file => [
+            relative(resolve(outputDir), file.getFilePath())
+              .split(sep)
+              .join('/'),
+            fileHash(fs.readFileSync(file.getFilePath())),
+          ]),
+        ),
+      },
+      null,
+      2,
+    ) + '\n',
+  );
+}
 
 /**
  * Generates the file path for a model file.
@@ -79,13 +223,20 @@ export function getOrCreateSourceFile(
 ): SourceFile {
   const fileName = combineURLs(outputDir, filePath);
   assertWithinOutputDir(outputDir, fileName);
-  const file = project.getSourceFile(fileName);
-  if (file) {
-    return file;
+  const file =
+    project.getSourceFile(fileName) ??
+    project.createSourceFile(fileName, '', {
+      overwrite: true,
+    });
+  const written = generatedFiles.get(project)?.written;
+  if (written) {
+    const path = file.getFilePath();
+    if (!written.has(path)) {
+      file.removeText();
+      written.add(path);
+    }
   }
-  return project.createSourceFile(fileName, '', {
-    overwrite: true,
-  });
+  return file;
 }
 
 /**

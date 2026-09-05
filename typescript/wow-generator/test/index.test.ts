@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CodeGenerator } from '../src';
-import { GeneratorOptions } from '../src/types';
+import type { GeneratorOptions } from '../src/types';
 
 // Mock dependencies
 vi.mock('ts-morph', () => ({
@@ -32,6 +32,14 @@ vi.mock('ts-morph', () => ({
 }));
 
 vi.mock('../src/utils', () => ({
+  beginGeneration: vi.fn(),
+  forgetStaleGeneratedFiles: vi.fn(),
+  getGeneratedFilePaths: vi.fn(),
+  getOrCreateSourceFile: vi.fn().mockReturnValue({
+    removeText: vi.fn(),
+    addExportDeclaration: vi.fn(),
+  }),
+  saveGeneration: vi.fn(),
   parseOpenAPI: vi.fn(),
   parseConfiguration: vi.fn(),
 }));
@@ -58,17 +66,12 @@ vi.mock('../src/client', () => ({
 }));
 
 // Import after mocking
-import { Project } from 'ts-morph';
 import { parseOpenAPI, parseConfiguration } from '../src/utils';
-import { AggregateResolver } from '../src/aggregate';
-import { ModelGenerator } from '../src/model';
-import { ClientGenerator } from '../src/client';
 
 describe('CodeGenerator', () => {
   let mockProject: any;
   let mockLogger: any;
   let mockOpenAPI: any;
-  let mockContextAggregates: any;
   let options: GeneratorOptions;
 
   beforeEach(() => {
@@ -93,10 +96,6 @@ describe('CodeGenerator', () => {
       openapi: '3.0.0',
       info: { title: 'Test API', version: '1.0.0' },
       paths: {},
-    };
-
-    mockContextAggregates = {
-      size: 2,
     };
 
     (parseOpenAPI as any).mockResolvedValue(mockOpenAPI);
