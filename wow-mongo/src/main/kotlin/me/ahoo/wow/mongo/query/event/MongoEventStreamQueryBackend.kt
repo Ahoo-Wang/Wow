@@ -15,10 +15,10 @@ package me.ahoo.wow.mongo.query.event
 
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
 import me.ahoo.wow.mongo.query.AbstractMongoQueryBackend
-import me.ahoo.wow.mongo.toObjectNode
+import me.ahoo.wow.mongo.query.toQueryObjectNode
 import me.ahoo.wow.query.event.EventStreamQueryBackend
+import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import tools.jackson.databind.node.ObjectNode
 
@@ -29,5 +29,5 @@ class MongoEventStreamQueryBackend(
     EventStreamQueryBackend {
     override val filterCompiler = EventStreamFilterCompiler
     override fun toObjectNode(document: Document): ObjectNode =
-        document.replacePrimaryKeyToId().toObjectNode()
+        document.toQueryObjectNode(MessageRecords.ID)
 }
