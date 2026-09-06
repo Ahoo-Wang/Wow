@@ -24,6 +24,7 @@ import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -539,6 +540,29 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                 count("count")
             },
         ).test().expectError(QuerySchemaValidationException::class.java).verify()
+    }
+
+    @Test
+    fun `configured locale date should reject generated formatted ranges`() {
+        val field = QueryField("state.localizedDate")
+        val pattern = "dd MMMM yyyy"
+        elasticsearchClient.indices().putMapping { request ->
+            request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                .properties(field.path) { property -> property.date { it.format(pattern).locale("fr") } }
+        }.block()
+        updateState(mapOf("localizedDate" to "06 septembre 2026"))
+        val service = strictService(querySchemaSources + source(formattedField(field.path, pattern)))
+        val exactQuery = ListQuery(
+            filter = EqualFilter(field, tools.jackson.databind.node.StringNode.valueOf("06 septembre 2026")),
+            sort = listOf(Sort(field, Sort.Direction.ASC)),
+            limit = 1,
+        )
+
+        service.backend.list(resolved(service, exactQuery, QuerySchemaValidationMode.STRICT))
+            .test().expectNextCount(1).verifyComplete()
+        assertThrows<QuerySchemaValidationException> {
+            resolved(service, ListQuery(TodayFilter(field, zoneId = "UTC")), QuerySchemaValidationMode.STRICT)
+        }
     }
 
     @Test

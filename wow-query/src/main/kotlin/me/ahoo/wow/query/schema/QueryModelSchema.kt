@@ -185,26 +185,29 @@ data class QueryModelSchema(
 
     fun resolve(query: AggregationQuery): QuerySchemaResolution<AggregationQuery> = resolver.resolve(query)
 
-    fun toMetadata(): QueryModelSchemaMetadata = QueryModelSchemaMetadata(
-        model = model,
-        capabilities = capabilities,
-        fields = fields.entries.sortedBy { it.key.path }.map { (field, schema) ->
-            QueryFieldSchemaMetadata(
-                field = field,
-                title = schema.title,
-                description = schema.description,
-                enumValues = schema.enumValues,
-                valueTypes = schema.valueTypes,
-                nullable = schema.nullable,
-                required = schema.required,
-                cardinality = schema.cardinality,
-                semanticType = schema.semanticType,
-                dynamicChildren = schema.dynamicChildren,
-                capabilities = schema.capabilities,
-                masked = schema.masked,
-            )
-        },
-    )
+    fun toMetadata(): QueryModelSchemaMetadata {
+        val maskedResponseFields = maskedFields.mapTo(hashSetOf()) { (field, schema) -> schema.responseField ?: field }
+        return QueryModelSchemaMetadata(
+            model = model,
+            capabilities = capabilities,
+            fields = fields.entries.sortedBy { it.key.path }.map { (field, schema) ->
+                QueryFieldSchemaMetadata(
+                    field = field,
+                    title = schema.title,
+                    description = schema.description,
+                    enumValues = schema.enumValues,
+                    valueTypes = schema.valueTypes,
+                    nullable = schema.nullable,
+                    required = schema.required,
+                    cardinality = schema.cardinality,
+                    semanticType = schema.semanticType,
+                    dynamicChildren = schema.dynamicChildren,
+                    capabilities = schema.capabilities,
+                    masked = schema.masked || (schema.responseField ?: field) in maskedResponseFields,
+                )
+            },
+        )
+    }
 }
 
 data class QueryFieldSchema(

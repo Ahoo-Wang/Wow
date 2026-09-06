@@ -326,12 +326,19 @@ private fun LogicalQueryFieldSchema.proves(capability: QueryCapability, mapped: 
     val temporal = semanticType
     if (temporal is Temporal.Formatted && mapped.kind in DATE_KINDS) {
         return valueTypes == setOf(QueryValueType.STRING) && mapped.dateFormat == temporal.pattern &&
-            capability in setOf(QueryCapability.EXACT_MATCH, QueryCapability.RANGE, QueryCapability.SORT)
+            capability in setOf(QueryCapability.EXACT_MATCH, QueryCapability.RANGE, QueryCapability.SORT) &&
+            (capability != QueryCapability.RANGE || temporal.pattern.isLocaleIndependentDatePattern)
     }
     return storageRequirements(capability).let { requirements ->
         requirements.isNotEmpty() && requirements.all { mapped.kind in it }
     }
 }
+
+private val LOCALE_SENSITIVE_DATE_PATTERN = Regex("[BEGOavzYwWec]|M{3,}|L{3,}|Q{3,}|q{3,}|Z{4}")
+
+// Quoted literals can be false negatives; avoiding a date-pattern parser keeps native range proof conservative.
+private val String.isLocaleIndependentDatePattern: Boolean
+    get() = !LOCALE_SENSITIVE_DATE_PATTERN.containsMatchIn(this)
 
 private fun LogicalQueryFieldSchema.storageRequirements(
     capability: QueryCapability,

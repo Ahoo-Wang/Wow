@@ -765,6 +765,29 @@ class QueryModelSchemaTest {
     }
 
     @Test
+    fun `metadata should expose aliases sharing a masked response field as masked`() {
+        val responseField = QueryField("state.secret")
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            linkedMapOf(
+                responseField to fieldSchema(maskRule = fullMaskRule()),
+                QueryField("state.secretAlias") to fieldSchema(responseField = responseField),
+                QueryField("secretAlias") to fieldSchema(responseField = responseField),
+                QueryField("state.publicAlias") to fieldSchema(responseField = QueryField("state.public")),
+            ),
+        )
+
+        val metadata = schema.toMetadata().fields.associateBy { it.field }
+
+        metadata.getValue(responseField).masked.assert().isTrue()
+        metadata.getValue(QueryField("state.secretAlias")).masked.assert().isTrue()
+        metadata.getValue(QueryField("secretAlias")).masked.assert().isTrue()
+        metadata.getValue(QueryField("state.publicAlias")).masked.assert().isFalse()
+        schema.maskedFields.keys.assert().containsExactly(responseField)
+    }
+
+    @Test
     fun `origin main constructor arities should remain unambiguous in Kotlin`() {
         val declaration = QueryFieldDeclaration(
             DeclarationValue.Unset,
@@ -918,6 +941,7 @@ class QueryModelSchemaTest {
         maskRule: MaskRule? = null,
         valueTypes: Set<QueryValueType> = setOf(QueryValueType.STRING),
         semanticType: Temporal? = null,
+        responseField: QueryField? = null,
     ): QueryFieldSchema = QueryFieldSchema(
         title = title,
         description = null,
@@ -932,6 +956,7 @@ class QueryModelSchemaTest {
         bindings = bindings,
         projectionField = projectionField,
         rewriteMode = rewriteMode,
+        responseField = responseField,
     )
 
     private fun fullMaskRule(): MaskRule {

@@ -180,7 +180,9 @@ class ElasticsearchQuerySchemaAdapterTest {
             ),
             mapping,
         )
+        val metadata = schema.toMetadata().fields.associateBy { it.field }
         listOf(secret, alias, siblingAlias, rootAlias).forEach { masked ->
+            metadata.getValue(masked).masked.assert().isTrue()
             listOf(
                 AggregationQuery(
                     groupBy = listOf(AggregationGroup.Terms(masked, "value")),
@@ -200,6 +202,8 @@ class ElasticsearchQuerySchemaAdapterTest {
                 schema.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
             }
         }
+        metadata.getValue(public).masked.assert().isFalse()
+        if (declared) metadata.getValue(publicAlias).masked.assert().isFalse()
         schema.fields.getValue(rootAlias).masked.assert().isFalse()
         schema.resolve(SearchFilter("secret")).compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
         schema.resolve(
@@ -337,6 +341,42 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = ["date", "date_nanos"])
+    fun `locale-sensitive native date format should not prove formatted ranges`(kind: String) {
+        val field = QueryField("state.birthDate")
+        val pattern = "dd MMMM yyyy"
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                mapOf(field to field(QueryValueType.STRING, semanticType = Temporal.Formatted(pattern))),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties(field.path) { property ->
+                        if (kind == "date") {
+                            property.date { it.format(pattern).locale("fr") }
+                        } else {
+                            property.dateNanos { it.format(pattern) }
+                        }
+                    }
+                },
+            ),
+        )
+
+        schema.fields.getValue(field).bindings.assert()
+            .containsKeys(QueryCapability.EXACT_MATCH, QueryCapability.SORT)
+            .doesNotContainKey(QueryCapability.RANGE)
+        schema.resolve(TodayFilter(field, zoneId = "UTC"))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        schema.resolve(
+            ListQuery(
+                EqualFilter(field, tools.jackson.databind.node.StringNode.valueOf("06 septembre 2026")),
+                sort = listOf(Sort(field, Sort.Direction.ASC)),
+            ),
+        ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+    }
+
+    @ParameterizedTest
     @NullSource
     @ValueSource(strings = ["yyyy-MM-dd", "dd/MM/yyyy||epoch_millis"])
     fun `unproven native formats should retain implicit native date alias queries`(mappingFormat: String?) {
@@ -405,6 +445,10 @@ class ElasticsearchQuerySchemaAdapterTest {
             .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
         schema.resolve(GreaterThanOrEqualFilter(alias, IntNode.valueOf(2)))
             .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        schema.toMetadata().fields.single { it.field == alias }.let { metadata ->
+            metadata.masked.assert().isTrue()
+            metadata.valueTypes.assert().isEqualTo(setOf(QueryValueType.INTEGER))
+        }
         listOf(
             AggregationQuery(
                 groupBy = listOf(AggregationGroup.Terms(alias, "value")),
