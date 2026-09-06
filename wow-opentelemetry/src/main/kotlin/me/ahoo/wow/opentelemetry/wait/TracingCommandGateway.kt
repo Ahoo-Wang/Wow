@@ -32,6 +32,8 @@ class TracingCommandGateway(override val delegate: CommandGateway) : Traced, Com
     override val enforcesCommandWaitTimeout: Boolean
         get() = delegate.enforcesCommandWaitTimeout
 
+    override fun close() = delegate.close()
+
     override fun <C : Any> sendAndWaitStream(
         command: CommandMessage<C>,
         waitPlan: WaitPlan

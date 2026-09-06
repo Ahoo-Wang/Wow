@@ -42,6 +42,7 @@ import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.opentelemetry.Tracing.tracing
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -53,6 +54,32 @@ class TracingCommandGatewayWaitTest {
     @AfterEach
     fun resetOpenTelemetry() {
         GlobalOpenTelemetry.resetForTest()
+    }
+
+    @Test
+    fun `closing traced gateway releases its command bus`() {
+        val bus = InMemoryCommandBus()
+        val subscription = MessageSubscription(MOCK_AGGREGATE_METADATA.namedAggregate)
+        val receiver = bus.receive(subscription).subscribe()
+        val coordinator = DefaultWaitCoordinator()
+        val gateway = DefaultCommandGateway(
+            commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
+            commandBus = bus,
+            validator = NoOpValidator,
+            requestIdChecker = DefaultRequestIdChecker(
+                AggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker },
+            ),
+            waitCoordinator = coordinator,
+            commandWaitNotifier = LocalCommandWaitNotifier(coordinator),
+        ).tracing()
+        try {
+            bus.subscriberCount(subscription.namedAggregates.single()).assert().isOne()
+            gateway.close()
+            bus.subscriberCount(subscription.namedAggregates.single()).assert().isZero()
+        } finally {
+            receiver.dispose()
+            bus.close()
+        }
     }
 
     @Test
@@ -104,17 +131,18 @@ class TracingCommandGatewayWaitTest {
         ).toCommandMessage()
         val waitPlan = CommandWait.sent(command.commandId)
 
-        commandGateway
-            .sendAndWait(command, waitPlan)
-            .test()
-            .expectNextCount(1)
-            .verifyComplete()
-        tracerProvider.forceFlush().join(10, java.util.concurrent.TimeUnit.SECONDS)
+        commandGateway.use { gateway ->
+            gateway.sendAndWait(command, waitPlan)
+                .test()
+                .expectNextCount(1)
+                .verifyComplete()
+            tracerProvider.forceFlush().join(10, java.util.concurrent.TimeUnit.SECONDS)
 
-        spanExporter.spans
-            .any { it.name.endsWith(".waiting") }
-            .assert()
-            .isTrue()
+            spanExporter.spans
+                .any { it.name.endsWith(".waiting") }
+                .assert()
+                .isTrue()
+        }
     }
 }
 
