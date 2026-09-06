@@ -42,22 +42,13 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
 
     override val processorName: String = RetryableAggregateProcessor::class.simpleName!!
 
-    private val retryStrategy: Retry = Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
-        .filter {
-            it.recoverable == RecoverableType.RECOVERABLE
-        }.doBeforeRetry {
-            log.warn(it.failure()) {
-                "[BeforeRetry] $aggregateId totalRetries[${it.totalRetries()}]."
-            }
-        }
-
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         val stateAggregateMono = if (exchange.message.isCreate) {
             aggregateFactory.createAsMono(aggregateMetadata.state, exchange.message.aggregateId)
         } else {
             stateAggregateRepository.load(aggregateId, aggregateMetadata.state)
         }
-        return stateAggregateMono.map {
+        val process = stateAggregateMono.map {
             commandAggregateFactory.create(aggregateMetadata, it)
         }
             .flatMap {
@@ -67,6 +58,26 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
                 exchange.clearError()
                 it.process(exchange)
             }
-            .retryWhen(retryStrategy)
+        return process.onErrorResume { failure ->
+            var firstFailure = true
+            Mono.defer {
+                if (firstFailure) {
+                    firstFailure = false
+                    // Replay the failure so Reactor preserves the first backoff and the full retry budget.
+                    Mono.error(failure)
+                } else {
+                    process
+                }
+            }.retryWhen(
+                Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
+                    .filter {
+                        it.recoverable == RecoverableType.RECOVERABLE
+                    }.doBeforeRetry {
+                        log.warn(it.failure()) {
+                            "[BeforeRetry] $aggregateId totalRetries[${it.totalRetries()}]."
+                        }
+                    }
+            )
+        }
     }
 }

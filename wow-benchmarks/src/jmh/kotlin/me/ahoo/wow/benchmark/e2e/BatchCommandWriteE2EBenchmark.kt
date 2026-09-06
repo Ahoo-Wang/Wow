@@ -44,9 +44,13 @@ open class BatchCommandWriteE2EBenchmark {
     )
     lateinit var scenario: String
 
+    @Param("4")
+    private var concurrency: Int = 4
+
     private lateinit var fixture: CommandWriteE2EFixture
     private lateinit var sequentialBatch: ConcurrentBatchWorkload
     private lateinit var concurrentBatch: ConcurrentBatchWorkload
+    private lateinit var largeConcurrentBatch: ConcurrentBatchWorkload
     private val failures = AtomicInteger()
 
     @Setup(Level.Iteration)
@@ -62,7 +66,11 @@ open class BatchCommandWriteE2EBenchmark {
         )
         concurrentBatch = ConcurrentBatchWorkload(
             size = COMMANDS_PER_INVOCATION,
-            concurrency = CONCURRENT_CONCURRENCY,
+            concurrency = concurrency,
+        )
+        largeConcurrentBatch = ConcurrentBatchWorkload(
+            size = LARGE_BATCH_COMMANDS,
+            concurrency = concurrency,
         )
     }
 
@@ -104,6 +112,12 @@ open class BatchCommandWriteE2EBenchmark {
         consumeBatch(concurrentBatch, blackhole)
     }
 
+    @Benchmark
+    @OperationsPerInvocation(LARGE_BATCH_COMMANDS)
+    fun sendLargeBatchConcurrentAndWaitProcessed(blackhole: Blackhole) {
+        consumeBatch(largeConcurrentBatch, blackhole)
+    }
+
     private fun consumeBatch(workload: ConcurrentBatchWorkload, blackhole: Blackhole) {
         blackhole.consumeWowResult(onError = { failures.incrementAndGet() }) {
             workload.execute {
@@ -114,7 +128,7 @@ open class BatchCommandWriteE2EBenchmark {
 
     companion object {
         const val COMMANDS_PER_INVOCATION = 32
+        private const val LARGE_BATCH_COMMANDS = 256
         private const val SEQUENTIAL_CONCURRENCY = 1
-        private const val CONCURRENT_CONCURRENCY = 4
     }
 }
