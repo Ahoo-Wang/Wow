@@ -116,6 +116,14 @@ class MongoEventStore(
             .hasElement()
     }
 
+    override fun loadByRequestIds(aggregateId: AggregateId, requestIds: Set<String>): Flux<DomainEventStream> {
+        if (requestIds.isEmpty()) return Flux.empty()
+        return findStream(
+            aggregateId,
+            Filters.and(aggregateIdentityFilter(aggregateId), Filters.`in`(MessageRecords.REQUEST_ID, requestIds)),
+        )
+    }
+
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
         val eventStreamCollectionName = aggregateId.toEventStreamCollectionName()
         return database.getCollection(eventStreamCollectionName)

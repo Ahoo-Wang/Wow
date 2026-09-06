@@ -80,14 +80,24 @@ class CartSaga {
 
 对命令体或 `CommandBuilder`，框架只补充缺失字段：
 
-- 默认 `requestId` 为 `${domainEvent.id}-${index}`，索引从 `0` 开始；
+- 默认 `requestId` 为 `saga:${domainEvent.id}:${contextName}:${processorName}:${functionSignature}:${index}`，函数身份各段使用 URL 编码，索引从 `0` 开始；
 - 保留显式 `requestId`；
 - 缺失的 `tenantId`、`spaceId` 从源事件传播；
 - 设置源事件为 upstream，并传播消息 header。
 
 预构造的 `CommandMessage` 保留自己的消息与 `requestId`，同时传播源事件 header。
 
-同一事件以相同顺序重投时，默认 request ID 保持稳定，可与[命令网关的幂等检查](../command/reliability.md)协作。它不保证外部副作用幂等，也不能保护不同事件生成的语义重复命令。
+`functionSignature` 由方法名和全部参数的完整类型名组成，例如 `onEvent(me.example.OrderCreated)`，用于区分重载方法。自定义 `MessageFunction` 没有方法元数据时，使用函数名和 `supportedType`。修改方法名或参数类型（包括注入参数）会改变默认 ID；需要跨这些重构保持稳定时，应显式设置 `requestId`。
+
+同一事件由同一函数以相同顺序重投时，默认 request ID 保持稳定，可与[命令网关的幂等检查](../command/reliability.md)协作。它不保证外部副作用幂等，也不能保护不同事件生成的语义重复命令。
+
+即时重试保留本次处理已生成的命令和发送进度，沿用原 `commandId`，继续发送尚未成功的命令。
+
+处理上下文的 `ServiceProvider` 提供可读取目标聚合的 `EventStore` 时，每条待发送命令通过一次 `loadByRequestIds` 查询同时检查当前请求 ID 和旧格式 `${domainEvent.id}-${index}`。此检查也覆盖服务重启后的普通消息重投，不依赖补偿标记或网关缓存。当前请求 ID 有已提交记录时，优先复用其 `commandId/requestId`；缺乏已提交记录的重复请求错误仍会上抛。
+
+只找到旧格式记录时，由于记录缺少函数身份，框架抛出 `DuplicateRequestIdException`，不会把它视为当前函数已成功执行。完成业务核对后，可显式指定已确认的旧 `requestId` 来恢复原命令身份。
+
+MongoDB 和 Elasticsearch 使用候选 ID 查询；Redis 使用已有请求索引批量检查，未命中时不读取事件历史，命中时读取一次历史。自定义 `EventStore` 的默认实现会扫描一次聚合历史，可覆盖此方法使用后端索引。
 
 ## 业务补偿
 
@@ -108,6 +118,8 @@ fun onEntryFailed(event: EntryFailed): UnlockAmount =
 Saga 函数完成并且生成命令的 `CommandGateway.send` 全部完成后，运行时产生 `SAGA_HANDLED`。该信号包含本次命令流的 `commandId`，但只证明命令发送边界完成，不证明目标聚合已经处理命令。
 
 调用方只关心 Saga 已发出命令时等待匹配的 `SAGA_HANDLED`。若还必须等待每条后续命令的某个阶段，使用 `CommandWait.chain(...)` 指定 Saga 函数与 tail stage/function。完整阶段、函数匹配和提前到达信号处理见[完成语义](../command/completion.md)。
+
+恢复已提交请求只能确认 `SENT`；`PROCESSED`、`PROJECTED` 等阶段仍使用原命令 ID 对应的真实通知。事件存储没有保存这些阶段的完成记录，重投不会伪造完成信号；缺少通知时仍受原等待超时约束。Saga 子命令的发送失败由父 Saga 在重试结束后报告，单次发送失败不会提前终止等待链。
 
 ## 测试与失败边界
 

@@ -125,6 +125,13 @@ class InMemoryEventStore : AbstractEventStore() {
         }
     }
 
+    override fun loadByRequestIds(aggregateId: AggregateId, requestIds: Set<String>): Flux<DomainEventStream> =
+        Flux.defer {
+            Flux.fromIterable(events[aggregateId].orEmpty())
+                .filter { it.requestId in requestIds }
+                .map { it.copy() }
+        }
+
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
         return Mono.fromSupplier {
             val eventsOfAgg = events[aggregateId] ?: return@fromSupplier null

@@ -44,6 +44,9 @@ class DelayEventStore(
         return delegate.last(aggregateId).delaySubscription(delaySupplier())
     }
 
+    override fun loadByRequestIds(aggregateId: AggregateId, requestIds: Set<String>): Flux<DomainEventStream> =
+        delegate.loadByRequestIds(aggregateId, requestIds).delaySubscription(delaySupplier())
+
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
         afterId: String,
