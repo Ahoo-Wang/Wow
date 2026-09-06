@@ -60,19 +60,22 @@ object FullMaskStrategy : MaskStrategy<Mask> {
 
 object KeepMaskStrategy : MaskStrategy<KeepMask> {
     override fun compile(annotation: KeepMask): CompiledMask {
-        require(annotation.prefix >= 0 && annotation.suffix >= 0)
-        return CompiledMask { value -> keepMask(value, annotation.prefix, annotation.suffix) }
+        val prefix = annotation.prefix
+        val suffix = annotation.suffix
+        require(prefix >= 0 && suffix >= 0)
+        return CompiledMask { value -> keepMask(value, prefix, suffix) }
     }
 }
 
 private fun keepMask(value: String, prefix: Int, suffix: Int): String {
-    val codePoints = value.codePoints().toArray()
-    val size = codePoints.size
+    val size = value.codePointCount(0, value.length)
     if (prefix >= size || suffix >= size - prefix) return "*".repeat(size)
 
-    return buildString {
-        codePoints.take(prefix).forEach(::appendCodePoint)
-        "*".repeat(size - prefix - suffix).forEach(::append)
-        codePoints.takeLast(suffix).forEach(::appendCodePoint)
+    val prefixEnd = value.offsetByCodePoints(0, prefix)
+    val suffixStart = value.offsetByCodePoints(value.length, -suffix)
+    return buildString(prefixEnd + value.length - suffixStart + size - prefix - suffix) {
+        append(value, 0, prefixEnd)
+        repeat(size - prefix - suffix) { append('*') }
+        append(value, suffixStart, value.length)
     }
 }

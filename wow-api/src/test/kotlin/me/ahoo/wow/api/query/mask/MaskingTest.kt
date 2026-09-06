@@ -36,6 +36,12 @@ class MaskingTest {
             .mask("short").assert().isEqualTo("*****")
         KeepMaskStrategy.compile(UnicodeKept::value.javaField!!.getAnnotation(KeepMask::class.java))
             .mask("A中😀BCD").assert().isEqualTo("A中**CD")
+        KeepMaskStrategy.compile(UnicodeEdges::value.javaField!!.getAnnotation(KeepMask::class.java))
+            .mask("😀A中B😎").assert().isEqualTo("😀***😎")
+        KeepMaskStrategy.compile(ZeroPrefix::value.javaField!!.getAnnotation(KeepMask::class.java))
+            .mask("A😀B").assert().isEqualTo("**B")
+        KeepMaskStrategy.compile(ZeroSuffix::value.javaField!!.getAnnotation(KeepMask::class.java))
+            .mask("A😀B").assert().isEqualTo("A**")
     }
 
     @Test
@@ -51,4 +57,7 @@ class MaskingTest {
     private data class InvalidKeep(@field:KeepMask(prefix = -1) val value: String)
     private data class HugeKeep(@field:KeepMask(prefix = Int.MAX_VALUE, suffix = 1) val value: String)
     private data class UnicodeKept(@field:KeepMask(prefix = 2, suffix = 2) val value: String)
+    private data class UnicodeEdges(@field:KeepMask(prefix = 1, suffix = 1) val value: String)
+    private data class ZeroPrefix(@field:KeepMask(suffix = 1) val value: String)
+    private data class ZeroSuffix(@field:KeepMask(prefix = 1) val value: String)
 }
