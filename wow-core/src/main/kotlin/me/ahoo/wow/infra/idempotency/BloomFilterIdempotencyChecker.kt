@@ -96,12 +96,7 @@ class BloomFilterIdempotencyChecker(
      */
     override fun check(element: String): Boolean {
         return elementLocks.get(element).withLock {
-            val currentBloomFilter = currentBloomFilter()
-            val contain = currentBloomFilter.mightContain(element)
-            if (!contain) {
-                currentBloomFilter.put(element)
-            }
-            !contain
+            currentBloomFilter().put(element)
         }
     }
 }

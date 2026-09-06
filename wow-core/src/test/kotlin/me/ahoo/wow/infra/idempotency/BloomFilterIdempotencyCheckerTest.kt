@@ -14,6 +14,7 @@
 package me.ahoo.wow.infra.idempotency
 
 import com.google.common.hash.BloomFilter
+import com.google.common.hash.Funnel
 import com.google.common.hash.Funnels
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
@@ -27,6 +28,25 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 class BloomFilterIdempotencyCheckerTest {
+
+    @Test
+    fun `should hash an element only once per check`() {
+        val hashCalls = AtomicInteger()
+        val checker = BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
+            BloomFilter.create(
+                Funnel<String> { element, sink ->
+                    hashCalls.incrementAndGet()
+                    sink.putString(element, Charsets.UTF_8)
+                },
+                100,
+            )
+        }
+
+        checker.check("request-1").assert().isTrue()
+        hashCalls.get().assert().isEqualTo(1)
+        checker.check("request-1").assert().isFalse()
+        hashCalls.get().assert().isEqualTo(2)
+    }
 
     @Test
     fun `should allow first element and reject duplicate element in cached filter`() {
