@@ -66,34 +66,6 @@ abstract class EventStoreSpec {
     }
 
     @Test
-    fun loadByRequestIds() {
-        val id = generateGlobalId()
-        val tenantA = namedAggregate.aggregateId(id, "tenant-a")
-        val tenantB = namedAggregate.aggregateId(generateGlobalId(), "tenant-b")
-        val first = MockAggregateCreated(
-            "first"
-        ).toDomainEventStream(GivenInitializationCommand(tenantA, requestId = "legacy"))
-        val second = MockAggregateCreated("second").toDomainEventStream(
-            GivenInitializationCommand(tenantA, requestId = "current"),
-            aggregateVersion = 1,
-        )
-        val foreign = MockAggregateCreated(
-            "foreign"
-        ).toDomainEventStream(GivenInitializationCommand(tenantB, requestId = "current"))
-        eventStore.append(
-            first
-        ).then(eventStore.append(second)).then(eventStore.append(foreign)).test().verifyComplete()
-        eventStore.loadByRequestIds(tenantA, setOf("legacy", "current", "missing"))
-            .map { it.id }.collectList().test()
-            .consumeNextWith { it.toSet().assert().isEqualTo(setOf(first.id, second.id)) }
-            .verifyComplete()
-        eventStore.loadByRequestIds(tenantA, setOf("missing")).test().verifyComplete()
-        eventStore.loadByRequestIds(tenantA, emptySet()).test().verifyComplete()
-        eventStore.loadByRequestIds(namedAggregate.aggregateId(id, "tenant-b"), setOf("legacy", "current"))
-            .test().verifyComplete()
-    }
-
-    @Test
     fun appendEventStream() {
         val eventStream = generateEventStream()
         eventStream.count().assert().isEqualTo(eventStream.size)

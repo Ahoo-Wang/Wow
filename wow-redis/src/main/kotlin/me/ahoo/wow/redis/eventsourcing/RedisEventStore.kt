@@ -111,20 +111,6 @@ class RedisEventStore(
         return redisTemplate.opsForSet().isMember(requestIdxKey, requestId)
     }
 
-    override fun loadByRequestIds(aggregateId: AggregateId, requestIds: Set<String>): Flux<DomainEventStream> {
-        if (requestIds.isEmpty()) return Flux.empty()
-        return redisTemplate.opsForSet()
-            .isMember(EventStreamKeyLayout.requestIndexKey(aggregateId), *requestIds.toTypedArray())
-            .flatMapMany { matches ->
-                if (matches.values.none { it }) {
-                    Flux.empty()
-                } else {
-                    // ponytail: the existing set has no record offsets; add an offset index if duplicate recovery becomes costly.
-                    load(aggregateId).filter { matches[it.requestId] == true }
-                }
-            }
-    }
-
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
         val key = EventStreamKeyLayout.key(aggregateId)
         val range = Range.closed<Long>(0, 0)

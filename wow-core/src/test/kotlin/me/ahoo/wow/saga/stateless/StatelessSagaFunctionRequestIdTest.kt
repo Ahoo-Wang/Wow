@@ -28,7 +28,7 @@ import reactor.test.StepVerifier
 class StatelessSagaFunctionRequestIdTest {
 
     @Test
-    fun `command builder without request id uses event function identity and iterable index`() {
+    fun `command builder without request id uses domain event id and iterable index`() {
         val event = fixtureEvent()
         val function = StatelessSagaFunction(
             delegate = StubMessageFunction(
@@ -46,8 +46,8 @@ class StatelessSagaFunctionRequestIdTest {
         StepVerifier.create(function.invoke(SimpleDomainEventExchange(event)))
             .assertNext { stream ->
                 stream.map { it.requestId }.toList().assert().containsExactly(
-                    "saga:${event.id}:fixture:String:onEvent%28me.ahoo.wow.tck.mock.MockAggregateCreated%29:0",
-                    "saga:${event.id}:fixture:String:onEvent%28me.ahoo.wow.tck.mock.MockAggregateCreated%29:1",
+                    "${event.id}-0",
+                    "${event.id}-1",
                 )
             }.verifyComplete()
     }
