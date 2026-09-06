@@ -58,7 +58,9 @@ class StatelessSagaFunctionCommandEmissionTest {
                 stream.domainEventId.assert().isEqualTo(event.id)
                 stream.size.assert().isEqualTo(1)
                 commands[0].body.assert().isInstanceOf(MockCreateAggregate::class.java)
-                commands[0].requestId.assert().isEqualTo("${event.id}-0")
+                commands[0].requestId.assert().isEqualTo(
+                    "saga:${event.id}:fixture:String:onEvent%28me.ahoo.wow.tck.mock.MockAggregateCreated%29:0"
+                )
                 commands[0].aggregateId.tenantId.assert().isEqualTo(event.aggregateId.tenantId)
                 commands[0].spaceId.assert().isEqualTo(event.spaceId)
                 commands[0].header.traceId.assert().isEqualTo(event.header.traceId)
@@ -96,8 +98,8 @@ class StatelessSagaFunctionCommandEmissionTest {
                     MockChangeAggregate::class.java,
                 )
                 commands.map { it.requestId }.assert().containsExactly(
-                    "${event.id}-0",
-                    "${event.id}-1",
+                    "saga:${event.id}:fixture:String:onEvent%28me.ahoo.wow.tck.mock.MockAggregateCreated%29:0",
+                    "saga:${event.id}:fixture:String:onEvent%28me.ahoo.wow.tck.mock.MockAggregateCreated%29:1",
                 )
             }.verifyComplete()
 

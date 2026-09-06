@@ -66,6 +66,14 @@ class TracingEventStore(override val delegate: EventStore) : Traced, EventStore,
         }
     }
 
+    override fun loadByRequestIds(aggregateId: AggregateId, requestIds: Set<String>): Flux<DomainEventStream> {
+        return Flux.deferContextual {
+            val parentContext = ReactorTraceContext.get(it)
+            val source = Flux.defer { delegate.loadByRequestIds(aggregateId, requestIds) }
+            TraceFlux(parentContext, EventStoreInstrumenter.LOAD_INSTRUMENTER, aggregateId, source)
+        }
+    }
+
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
         afterId: String,

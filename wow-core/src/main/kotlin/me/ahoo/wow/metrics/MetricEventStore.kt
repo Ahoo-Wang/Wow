@@ -67,6 +67,12 @@ internal class MetricEventStore(
             descriptor("last", aggregateId.contextName, aggregateId.aggregateName),
         )
 
+    override fun loadByRequestIds(aggregateId: AggregateId, requestIds: Set<String>): Flux<DomainEventStream> =
+        metrics.operation(
+            delegate.loadByRequestIds(aggregateId, requestIds),
+            descriptor("load_by_request_ids", aggregateId.contextName, aggregateId.aggregateName),
+        )
+
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
         afterId: String,

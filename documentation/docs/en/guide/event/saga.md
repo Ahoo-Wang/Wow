@@ -80,14 +80,24 @@ A function can synchronously, asynchronously, or reactively return these results
 
 For a command body or `CommandBuilder`, the framework fills only missing fields:
 
-- the default `requestId` is `${domainEvent.id}-${index}`, starting at index `0`;
+- the default `requestId` is `saga:${domainEvent.id}:${contextName}:${processorName}:${functionSignature}:${index}`, with URL-encoded function identity segments and index starting at `0`;
 - an explicit `requestId` is preserved;
 - missing `tenantId` and `spaceId` propagate from the source event;
 - the source event becomes upstream and its message header is propagated.
 
 A prebuilt `CommandMessage` keeps its message and `requestId` while receiving source-event header propagation.
 
-Replaying the same event with the same result order produces stable default request IDs that can cooperate with [command-gateway idempotency checks](../command/reliability.md). This does not make external side effects idempotent and does not deduplicate semantically repeated commands generated from different events.
+`functionSignature` contains the method name and every parameter's fully qualified type name, for example `onEvent(me.example.OrderCreated)`, to distinguish overloads. A custom `MessageFunction` without method metadata uses its name and `supportedType`. Changing the method name or parameter types, including injected parameters, changes the default ID. Set an explicit `requestId` when identity must remain stable across these refactors.
+
+Replaying the same event through the same function with the same result order produces stable default request IDs that can cooperate with [command-gateway idempotency checks](../command/reliability.md). This does not make external side effects idempotent and does not deduplicate semantically repeated commands generated from different events.
+
+Immediate retries retain the commands generated for the current exchange and their send progress. They reuse the original `commandId` values and continue with commands that have not been accepted.
+
+When the exchange's `ServiceProvider` supplies an `EventStore` that can read the target aggregate, each pending command checks the current request ID and the legacy `${domainEvent.id}-${index}` format through one `loadByRequestIds` call before sending. This also covers ordinary message redelivery after a restart without relying on compensation markers or gateway caches. A committed record for the current request ID takes priority and restores its `commandId/requestId`. Duplicate-request errors without committed evidence still propagate.
+
+If only a legacy record exists, the framework throws `DuplicateRequestIdException`: that record contains no function identity and cannot prove this function has completed. After business reconciliation, explicitly supplying the confirmed legacy `requestId` allows recovery of the original command identity.
+
+MongoDB and Elasticsearch query the candidate IDs. Redis checks its existing request index in bulk, reading no event history on a miss and reading history once on a hit. The default method for custom `EventStore` implementations scans aggregate history once; override it to use a backend index.
 
 ## Business Compensation
 
@@ -108,6 +118,8 @@ Do not conflate business compensation with processing-failure recovery. A Saga d
 The runtime produces `SAGA_HANDLED` after the Saga function completes and every generated `CommandGateway.send` completes. The signal carries the command-stream `commandId` values, but proves only the send boundary, not that the target aggregates processed those commands.
 
 Wait for the matching `SAGA_HANDLED` when the caller needs only to know that the Saga sent its commands. If every downstream command must reach another stage, use `CommandWait.chain(...)` with the Saga function and the tail stage/function. See [Completion Semantics](../command/completion.md) for stages, function matching, and early-arriving signals.
+
+Recovering a committed request confirms only `SENT`. `PROCESSED`, `PROJECTED`, and later stages still require actual notifications for the original command ID. The event store does not persist their completion records, so replay never fabricates them; missing notifications remain bounded by the original wait timeout. A parent Saga reports child send failures after its retries finish, so a failed individual send attempt does not prematurely terminate the chain.
 
 ## Testing and Failure Boundaries
 

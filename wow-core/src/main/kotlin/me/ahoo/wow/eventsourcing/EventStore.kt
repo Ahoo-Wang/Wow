@@ -67,6 +67,14 @@ interface EventStore :
         load(aggregateId).any { it.requestId == requestId }
 
     /**
+     * Loads records matching any candidate request ID for this aggregate.
+     * Result order is unspecified. Backends should use their request index; the
+     * default keeps existing implementations source-compatible with one scan.
+     */
+    fun loadByRequestIds(aggregateId: AggregateId, requestIds: Set<String>): Flux<DomainEventStream> =
+        if (requestIds.isEmpty()) Flux.empty() else load(aggregateId).filter { it.requestId in requestIds }
+
+    /**
      * Loads domain event streams for the specified aggregate within the given version range.
      * The range is inclusive: [headVersion, tailVersion].
      *

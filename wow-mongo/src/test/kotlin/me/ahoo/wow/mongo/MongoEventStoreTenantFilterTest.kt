@@ -33,6 +33,20 @@ import reactor.core.publisher.Mono
 
 class MongoEventStoreTenantFilterTest {
     @Test
+    fun `request candidate lookup uses tenant aggregate and indexed request filter`() {
+        val filterJson = captureFindFilter { eventStore, aggregateId ->
+            eventStore.loadByRequestIds(aggregateId, setOf("current", "legacy"))
+        }
+        filterJson.assert().contains("\$in")
+        filterJson.assert().contains(MessageRecords.REQUEST_ID)
+        filterJson.assert().contains(MessageRecords.TENANT_ID)
+        filterJson.assert().contains("tenant-1")
+        filterJson.assert().contains("order-1")
+        filterJson.assert().contains("current")
+        filterJson.assert().contains("legacy")
+    }
+
+    @Test
     fun `load stream by version should filter by tenant id`() {
         val filterJson = captureFindFilter { eventStore, aggregateId ->
             eventStore.load(aggregateId, headVersion = 1, tailVersion = 10)

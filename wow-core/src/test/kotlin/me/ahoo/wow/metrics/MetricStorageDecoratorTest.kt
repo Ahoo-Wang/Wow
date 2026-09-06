@@ -47,6 +47,7 @@ class MetricStorageDecoratorTest {
             every { load(aggregateId, 1, 10) } returns Flux.just(stream)
             every { load(aggregateId, 100L, 200L) } returns Flux.just(stream)
             every { existsRequestId(aggregateId, "request-1") } returns Mono.just(true)
+            every { loadByRequestIds(aggregateId, setOf("request-1")) } returns Flux.just(stream)
             every { last(aggregateId) } returns Mono.just(stream)
             every { scanAggregateId(aggregate, "after-id", 10) } returns Flux.just(aggregateId)
             every { close() } just Runs
@@ -57,6 +58,9 @@ class MetricStorageDecoratorTest {
         StepVerifier.create(eventStore.load(aggregateId, 1, 10)).expectNext(stream).verifyComplete()
         StepVerifier.create(eventStore.load(aggregateId, 100L, 200L)).expectNext(stream).verifyComplete()
         StepVerifier.create(eventStore.existsRequestId(aggregateId, "request-1")).expectNext(true).verifyComplete()
+        StepVerifier.create(
+            eventStore.loadByRequestIds(aggregateId, setOf("request-1"))
+        ).expectNext(stream).verifyComplete()
         StepVerifier.create(eventStore.last(aggregateId)).expectNext(stream).verifyComplete()
         StepVerifier.create(eventStore.scanAggregateId(aggregate, "after-id", 10))
             .expectNext(aggregateId)
@@ -70,6 +74,7 @@ class MetricStorageDecoratorTest {
                 "load_by_version",
                 "load_by_time",
                 "exists_request_id",
+                "load_by_request_ids",
                 "last",
                 "scan_aggregate_id",
             )
@@ -78,6 +83,7 @@ class MetricStorageDecoratorTest {
             delegate.load(aggregateId, 1, 10)
             delegate.load(aggregateId, 100L, 200L)
             delegate.existsRequestId(aggregateId, "request-1")
+            delegate.loadByRequestIds(aggregateId, setOf("request-1"))
             delegate.last(aggregateId)
             delegate.scanAggregateId(aggregate, "after-id", 10)
             delegate.close()

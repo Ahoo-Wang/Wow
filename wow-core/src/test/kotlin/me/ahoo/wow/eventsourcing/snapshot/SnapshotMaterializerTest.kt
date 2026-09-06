@@ -34,6 +34,7 @@ class SnapshotMaterializerTest {
         operator = "operator",
         firstEventTime = 100,
         eventTime = 200,
+        tags = mapOf("dept" to listOf("finance")),
         deleted = true,
     )
     private val snapshot = SimpleSnapshot(stateAggregate, snapshotTime = 300)
@@ -46,6 +47,8 @@ class SnapshotMaterializerTest {
         materialized.aggregateName.assert().isEqualTo(aggregateId.aggregateName)
         materialized.tenantId.assert().isEqualTo(aggregateId.tenantId)
         materialized.ownerId.assert().isEqualTo("owner-1")
+        materialized.spaceId.assert().isEqualTo("space-1")
+        materialized.tags.assert().isEqualTo(mapOf("dept" to listOf("finance")))
         materialized.aggregateId.assert().isEqualTo("snapshot-aggregate")
         materialized.version.assert().isEqualTo(7)
         materialized.eventId.assert().isEqualTo("event-1")
@@ -69,6 +72,7 @@ class SnapshotMaterializerTest {
         medium.tenantId.assert().isEqualTo(aggregateId.tenantId)
         medium.ownerId.assert().isEqualTo("owner-1")
         medium.spaceId.assert().isEqualTo(snapshot.spaceId)
+        medium.tags.assert().isEqualTo(mapOf("dept" to listOf("finance")))
         medium.version.assert().isEqualTo(7)
         medium.eventId.assert().isEqualTo("event-1")
         medium.firstOperator.assert().isEqualTo("first-operator")
