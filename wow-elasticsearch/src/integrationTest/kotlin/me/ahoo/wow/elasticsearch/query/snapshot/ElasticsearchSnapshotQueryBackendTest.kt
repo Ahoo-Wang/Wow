@@ -33,6 +33,8 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.ThisMonthFilter
+import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
@@ -485,6 +487,29 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                 ),
                 QuerySchemaValidationMode.STRICT,
             ),
+        ).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `formatted keyword should reject lossy today and execute aligned month and year ranges`() {
+        val field = QueryField("state.formattedDate")
+        val now = Instant.now().atZone(ZoneOffset.UTC)
+
+        updateState(mapOf("formattedDate" to now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"))))
+        val monthService = strictService(querySchemaSources + source(formattedField(field.path, "yyyy-MM")))
+        assertThrows<IllegalArgumentException> {
+            monthService.backend.list(
+                resolved(monthService, ListQuery(TodayFilter(field, zoneId = "UTC")), QuerySchemaValidationMode.STRICT),
+            )
+        }
+        monthService.backend.list(
+            resolved(monthService, ListQuery(ThisMonthFilter(field, zoneId = "UTC")), QuerySchemaValidationMode.STRICT),
+        ).test().expectNextCount(1).verifyComplete()
+
+        updateState(mapOf("formattedDate" to now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy"))))
+        val yearService = strictService(querySchemaSources + source(formattedField(field.path, "yyyy")))
+        yearService.backend.list(
+            resolved(yearService, ListQuery(ThisYearFilter(field, zoneId = "UTC")), QuerySchemaValidationMode.STRICT),
         ).test().expectNextCount(1).verifyComplete()
     }
 

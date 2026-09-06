@@ -192,6 +192,7 @@ Relative-time filters with a defined window are normalized before backend compil
 - `THIS_WEEK`, `NEXT_WEEK`, and `LAST_WEEK` use Monday as the start of the week; month and year filters use calendar months and years.
 - `RECENT_DAYS(7)` includes today and the six preceding calendar days; `EARLIER_DAYS(7)` means earlier than that seven-day window.
 - When `zoneId` is omitted, the process default time zone is used. `datePattern` applies only to fields declared by Schema as formatted temporal fields, and must equal the Schema pattern; numeric epoch fields and native date fields reject `datePattern`. Numeric fields use the Schema-declared `timeUnit`; with `datePattern`, the value is formatted as a string and `timeUnit` is ignored.
+- A formatted relative-time boundary must round-trip through its formatter without losing date, time, offset, or zone precision. For example, `TODAY` with `yyyy-MM` and `BEFORE_TODAY(12:00)` with `yyyy-MM-dd` are rejected because they would change the requested boundary. `THIS_MONTH` with `yyyy-MM`, `THIS_YEAR` with `yyyy`, and midnight day ranges with `yyyy-MM-dd` are valid because their generated boundaries align with the format's precision. Custom formatters must also parse their own formatted boundary unambiguously.
 
 ## JSON and Kotlin DSL Side by Side
 

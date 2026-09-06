@@ -280,6 +280,28 @@ class ElasticsearchQuerySchemaAdapterTest {
         ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
     }
 
+    @Test
+    fun `formatted keyword path should reject a lossy relative boundary after schema resolution`() {
+        val field = QueryField("state.month")
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                mapOf(field to field(QueryValueType.STRING, semanticType = Temporal.Formatted("yyyy-MM"))),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping -> mapping.properties(field.path) { it.keyword { keyword -> keyword } } },
+            ),
+        )
+        val resolved = schema.resolve(TodayFilter(field, zoneId = "UTC"))
+            .requireAccepted(QuerySchemaValidationMode.STRICT)
+
+        assertThrows<IllegalArgumentException> {
+            FilterNormalizer(
+                clock = Clock.fixed(Instant.parse("2026-09-06T12:00:00Z"), ZoneOffset.UTC),
+            ).normalize(resolved)
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(strings = ["date", "date_nanos"])
     fun `custom native date format should preserve canonical and masked alias temporal semantics`(kind: String) {

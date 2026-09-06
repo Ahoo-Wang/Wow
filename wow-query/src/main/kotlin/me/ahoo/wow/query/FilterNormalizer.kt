@@ -49,13 +49,18 @@ import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
 import tools.jackson.databind.node.JsonNodeFactory
 import java.time.Clock
+import java.time.DateTimeException
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.Year
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
+import java.time.temporal.TemporalQueries
 import java.util.concurrent.TimeUnit
 
 class FilterNormalizer(
@@ -205,12 +210,32 @@ class FilterNormalizer(
     )
 
     private fun instantNode(
-        dateTime: java.time.LocalDateTime,
+        dateTime: LocalDateTime,
         zoneId: ZoneId,
         dateFormatter: DateTimeFormatter?,
         timeUnit: TimeUnit,
     ) = dateFormatter?.let {
-        JsonNodeFactory.instance.stringNode(it.format(dateTime.atZone(zoneId)))
+        val boundary = dateTime.atZone(zoneId)
+        val formatted = it.format(boundary)
+        val parsedInstant = try {
+            val parsed = it.parse(formatted)
+            runCatching { Instant.from(parsed) }.getOrElse {
+                val date = parsed.query(TemporalQueries.localDate())
+                    ?: runCatching { YearMonth.from(parsed).atDay(1) }.getOrElse {
+                        Year.from(parsed).atDay(1)
+                    }
+                val time = parsed.query(TemporalQueries.localTime()) ?: LocalTime.MIDNIGHT
+                LocalDateTime.of(date, time)
+                    .atZone(parsed.query(TemporalQueries.zone()) ?: boundary.zone)
+                    .toInstant()
+            }
+        } catch (cause: DateTimeException) {
+            throw IllegalArgumentException("Date formatter cannot preserve relative-time boundary [$boundary].", cause)
+        }
+        require(parsedInstant == boundary.toInstant()) {
+            "Date formatter loses precision for relative-time boundary [$boundary]: [$formatted]."
+        }
+        JsonNodeFactory.instance.stringNode(formatted)
     } ?: dateTime.atZone(zoneId).toInstant().let {
         JsonNodeFactory.instance.numberNode(
             Math.addExact(

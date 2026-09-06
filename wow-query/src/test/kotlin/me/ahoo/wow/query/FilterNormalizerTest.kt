@@ -19,16 +19,19 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
 class FilterNormalizerTest {
+    private val normalizerClock = Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC)
     private val normalizer = FilterNormalizer(
-        Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),
+        normalizerClock,
         ZoneOffset.UTC,
     )
 
@@ -84,6 +87,68 @@ class FilterNormalizerTest {
 
         (normalized.operands[1] as GreaterThanOrEqualFilter).value.asText().assert()
             .isEqualTo("2026-08-22 00:00:00")
+    }
+
+    @Test
+    fun `should reject formatted relative boundaries that lose precision`() {
+        listOf(
+            Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),
+            Clock.fixed(Instant.parse("2026-08-31T12:00:00Z"), ZoneOffset.UTC),
+        ).forEach { clock ->
+            assertThrows<IllegalArgumentException> {
+                FilterNormalizer(clock, ZoneOffset.UTC, null).normalize(
+                    TodayFilter(QueryField("createdAt"), zoneId = "UTC", datePattern = "yyyy-MM"),
+                )
+            }
+        }
+        assertThrows<IllegalArgumentException> {
+            normalizer.normalize(
+                BeforeTodayFilter(
+                    QueryField("createdAt"),
+                    time = LocalTime.NOON.toString(),
+                    zoneId = "UTC",
+                    datePattern = "yyyy-MM-dd",
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `should preserve faithfully formatted relative boundaries`() {
+        val field = QueryField("createdAt")
+        val cases = listOf(
+            TodayFilter(field, zoneId = "UTC", datePattern = "yyyy-MM-dd"),
+            TodayFilter(field, zoneId = "UTC", datePattern = "yyyy-DDD"),
+            BeforeTodayFilter(field, time = "12:34:56", zoneId = "UTC", datePattern = "yyyy-MM-dd HH:mm:ss"),
+            ThisMonthFilter(field, zoneId = "UTC", datePattern = "yyyy-MM"),
+            ThisYearFilter(field, zoneId = "UTC", datePattern = "yyyy"),
+        )
+
+        cases.forEach { relative ->
+            FilterNormalizer(normalizerClock, ZoneOffset.UTC, null).normalize(relative)
+                .assert().isInstanceOf(FilterExpression::class.java)
+        }
+    }
+
+    @Test
+    fun `should preserve direct instant formatter and DST adjusted boundary`() {
+        val instantFormatter = DateTimeFormatter.ISO_INSTANT
+        val instantRange = FilterNormalizer(normalizerClock, ZoneOffset.UTC, null).normalize(
+            TodayFilter(QueryField("createdAt"), zoneId = "UTC", dateFormatter = instantFormatter),
+        ) as AndFilter
+        (instantRange.operands[0] as GreaterThanOrEqualFilter).value.asText().assert()
+            .isEqualTo("2026-08-22T00:00:00Z")
+
+        val gapClock = Clock.fixed(Instant.parse("2026-03-08T12:00:00Z"), ZoneOffset.UTC)
+        val gap = FilterNormalizer(gapClock, ZoneOffset.UTC, null).normalize(
+            BeforeTodayFilter(
+                QueryField("createdAt"),
+                time = "02:30",
+                zoneId = "America/New_York",
+                dateFormatter = DateTimeFormatter.ISO_ZONED_DATE_TIME,
+            ),
+        ) as LessThanFilter
+        gap.value.asText().assert().isEqualTo("2026-03-08T03:30:00-04:00[America/New_York]")
     }
 
     @Test

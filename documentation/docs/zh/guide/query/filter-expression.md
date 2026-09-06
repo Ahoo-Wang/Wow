@@ -192,6 +192,7 @@ filterExpression {
 - `THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK` 使用周一作为周起点；月和年过滤器使用对应日历月、日历年。
 - `RECENT_DAYS(7)` 包含今天和此前六个日历日；`EARLIER_DAYS(7)` 表示早于这七个日历日窗口的时间。
 - 未指定 `zoneId` 时使用进程默认时区。`datePattern` 只适用于 Schema 声明为格式化时间的字段，且必须与 Schema 中的 pattern 相同；数值 epoch 字段或原生日期字段不能配置 `datePattern`。数值字段的 `timeUnit` 以 Schema 声明为准，配置 `datePattern` 后则生成格式化字符串并忽略 `timeUnit`。
+- 格式化的相对时间边界必须能通过同一个 formatter 往返解析，且不能丢失日期、时间、offset 或时区精度。例如，`TODAY` 配合 `yyyy-MM`、`BEFORE_TODAY(12:00)` 配合 `yyyy-MM-dd` 会改变请求边界，因此会被拒绝；`THIS_MONTH` 配合 `yyyy-MM`、`THIS_YEAR` 配合 `yyyy`，以及从午夜开始的日范围配合 `yyyy-MM-dd`，其生成边界与格式精度对齐，因此有效。自定义 formatter 也必须能无歧义地解析自己格式化出的边界。
 
 ## JSON 与 Kotlin DSL 对照
 
