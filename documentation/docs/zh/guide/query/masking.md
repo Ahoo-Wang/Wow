@@ -101,7 +101,7 @@ Gateway 每次订阅在创建 `QueryContext` 前读取一次 Provider 当前 Sch
 | Mask 字段位于自定义 serializer/converter 的不透明子树（包括私有、Jackson 忽略的成员和声明的备选类型/子类型） | Schema 构建失败，无法确定可信 wire 路径 |
 | Mask 字段或父属性显式配置 `@JsonSerialize` 处理器（包括 `nullsUsing`）、`as`/`contentAs`/`keyAs` 或 `typing` | Schema 构建失败，未验证改变后的 wire 形状 |
 | `@JsonSerialize` 仅使用默认设置 | 与没有注解一致；Jackson 忽略成员仍被忽略，可见 Mask 规则继续生效 |
-| Mask 字段或父属性使用 `@JsonDeserialize` 的 `using`、`converter`、`contentUsing` 或 `contentConverter` | Schema 构建失败，避免反序列化恢复原值 |
+| Mask 字段或父属性使用 `@JsonDeserialize` 的 `using`、`converter`、`contentUsing` 或 `contentConverter` | Schema 构建失败，因为该显式处理器形状不在 Mask typed 物化支持范围内 |
 | 含 Mask 成员的枚举通过自定义 `toString()` 输出文本，且没有显式常量名固定该输出 | Schema 构建失败；普通枚举名称、显式常量名称和数字形状仍受支持 |
 | Map key 类型包含 Mask 声明 | Schema 构建失败；JSON 属性名无法承载字段 Mask 规则 |
 | Mask 字段或父属性只有计算型 getter，或 Jackson 不允许反序列化（如 `READ_ONLY`） | Schema 构建失败，避免 typed 物化恢复原值 |
@@ -115,7 +115,7 @@ Event projection 完全没有顶层 `body`，或把该事件数组投影为 `nul
 
 ## Typed 物化契约
 
-Typed 查询先对 JSON 脱敏，再交给 Jackson 物化。普通属性型 `@JsonCreator` 构造器和工厂仍受支持；模型的构造器、creator、setter 和 builder 必须保留传入的已脱敏字段值，不能从常量、其他字段或外部来源重建敏感值。Schema 校验检查可见性、可写属性映射及不支持的处理器声明，不证明应用代码保持这些字段值的行为。应通过真实 Jackson round-trip 测试验证自定义模型遵守此契约。
+Typed 查询先对 JSON 脱敏，再交给 Jackson 物化。普通属性型 `@JsonCreator` 构造器和工厂仍受支持；模型的构造器、creator、setter、builder，以及注册到 Jackson 的 deserializer 或 converter，都必须保留传入的已脱敏字段值，不能从常量、其他字段或外部来源重建敏感值。在受管 Gateway 路径中，SPI 注册的处理器收到的是已脱敏 JSON tree；但处理器仍能合成任意应用值，因此 Schema 校验只检查可见性、可写属性映射和受支持的声明形状，不证明处理器或应用代码的行为。应使用包含公开 Schema、实际 Mask 和 Jackson round-trip 的真实测试验证自定义模型与注册处理器遵守此契约。
 
 Dynamic 查询直接返回已脱敏的 `ObjectNode`，不执行 typed 模型物化。
 
