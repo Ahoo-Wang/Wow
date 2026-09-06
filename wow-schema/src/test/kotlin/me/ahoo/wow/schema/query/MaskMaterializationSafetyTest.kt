@@ -173,6 +173,34 @@ class MaskMaterializationSafetyTest {
     }
 
     @Test
+    fun `property creator constructor preserves compiled mask input`() {
+        val declaration = load(JavaCreatorMaskedState.ConstructorState::class.java)
+        val rule = (declaration.fields.getValue(QueryField("state.secret")).maskRule as DeclarationValue.Set).value
+        val masked = rule.compiled.mask("customer-secret")
+        masked.assert().isNotEqualTo("customer-secret")
+        val input = JsonSerializer.createObjectNode().put("secret", masked)
+        val materialized = JsonSerializer.treeToValue(input, JavaCreatorMaskedState.ConstructorState::class.java)
+        materialized.received.assert().isEqualTo(masked)
+        materialized.secret.assert().isEqualTo(masked)
+        JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(materialized)
+            .path("secret").stringValue().assert().isEqualTo(masked)
+    }
+
+    @Test
+    fun `property creator factory preserves compiled mask input`() {
+        val declaration = load(JavaCreatorMaskedState.FactoryState::class.java)
+        val rule = (declaration.fields.getValue(QueryField("state.secret")).maskRule as DeclarationValue.Set).value
+        val masked = rule.compiled.mask("customer-secret")
+        masked.assert().isNotEqualTo("customer-secret")
+        val input = JsonSerializer.createObjectNode().put("secret", masked)
+        val materialized = JsonSerializer.treeToValue(input, JavaCreatorMaskedState.FactoryState::class.java)
+        materialized.received.assert().isEqualTo(masked)
+        materialized.secret.assert().isEqualTo(masked)
+        JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(materialized)
+            .path("secret").stringValue().assert().isEqualTo(masked)
+    }
+
+    @Test
     fun `builder retains a compiled masked value during typed materialization`() {
         val declaration = load(BuilderValue::class.java)
         val rule = (declaration.fields.getValue(QueryField("state.secret")).maskRule as DeclarationValue.Set).value

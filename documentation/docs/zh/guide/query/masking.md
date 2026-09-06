@@ -112,6 +112,12 @@ Gateway 每次订阅在创建 `QueryContext` 前读取一次 Provider 当前 Sch
 
 Event projection 完全没有顶层 `body`，或把该事件数组投影为 `null` 时，Mask 安全跳过。顶层 `body` 存在时必须是数组，且每个 event item 都必须是 object。合法 event item 内的 payload 属性 `body` 缺失或为 null，表示 metadata-only 或 payload 已排除；此时没有敏感 payload 可泄漏，不要求 `bodyType`。非 null payload 仍必须携带已知的字符串 `bodyType`；缺失、非字符串或未知类型都会在 Mask 前失败关闭。
 
+## Typed 物化契约
+
+Typed 查询先对 JSON 脱敏，再交给 Jackson 物化。普通属性型 `@JsonCreator` 构造器和工厂仍受支持；模型的构造器、creator、setter 和 builder 必须保留传入的已脱敏字段值，不能从常量、其他字段或外部来源重建敏感值。Schema 校验检查可见性、可写属性映射及不支持的处理器声明，不会执行或证明这些应用代码的行为。应通过真实 Jackson round-trip 测试验证自定义模型遵守此契约。
+
+Dynamic 查询直接返回已脱敏的 `ObjectNode`，不执行 typed 模型物化。
+
 ## 受信原始值边界
 
 - 直接调用 Factory 返回 binding；受信原始访问为 `factory.create(namedAggregate).backend`，会绕过整个 Gateway，包括查询 Filter、错误观察和 Mask。
