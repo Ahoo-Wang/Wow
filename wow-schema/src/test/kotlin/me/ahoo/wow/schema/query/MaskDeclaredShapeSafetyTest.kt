@@ -16,6 +16,7 @@ package me.ahoo.wow.schema.query
 import com.fasterxml.jackson.annotation.JacksonAnnotationsInside
 import com.fasterxml.jackson.annotation.JsonIdentityInfo
 import com.fasterxml.jackson.annotation.JsonIdentityReference
+import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.fasterxml.jackson.annotation.ObjectIdGenerators
@@ -30,6 +31,7 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
@@ -96,6 +98,21 @@ class MaskDeclaredShapeSafetyTest {
         }
     }
 
+    @TestFactory
+    fun `writable only alternatives do not establish generated mask paths`() = listOf(
+        SetterOnlyAlternative(),
+        UnbackedSetterAlternative(),
+        CreatorOnlyAlternative(Sensitive()),
+        SetterOnlySubtypes(),
+    ).map { value ->
+        DynamicTest.dynamicTest(value.javaClass.simpleName) {
+            JsonSerializer.valueToTree<JsonNode>(value).at("/contact/secret").stringValue().assert().isEqualTo("raw")
+            SchemaGeneratorBuilder().build().generateSchema(value.javaClass).toString()
+                .contains("\"secret\"").assert().isFalse()
+            assertThrows<QuerySchemaConflictException> { load(value.javaClass) }
+        }
+    }
+
     @Test
     fun `safe property overrides retain member masks`() {
         listOf(
@@ -104,6 +121,8 @@ class MaskDeclaredShapeSafetyTest {
             ExistingShape(Contact()) to "state.contact.secret",
             SameConcrete(Sensitive()) to "state.contact.secret",
             RepresentedConcrete(Sensitive()) to "state.contact.secret",
+            GetterRepresentedConcrete(Sensitive()) to "state.contact.secret",
+            GetterRepresentedSubtypes(Sensitive()) to "state.contact.secret",
         ).forEach { (value, path) ->
             JsonSerializer.valueToTree<JsonNode>(value).at("/contact/secret").stringValue().assert().isEqualTo("raw")
             val rule = load(value.javaClass).fields.getValue(QueryField(path)).maskRule as DeclarationValue.Set
@@ -193,6 +212,42 @@ class MaskDeclaredShapeSafetyTest {
     data class RepresentedConcrete(
         @field:Schema(oneOf = [Sensitive::class]) @get:JsonDeserialize(`as` = Sensitive::class) val contact: Base,
     )
+    class SetterOnlyAlternative {
+        @get:JsonDeserialize(`as` = Sensitive::class)
+        @set:Schema(oneOf = [Sensitive::class])
+        var contact: Base = Sensitive()
+    }
+
+    class UnbackedSetterAlternative {
+        private var stored: Base = Sensitive()
+
+        @get:JsonDeserialize(`as` = Sensitive::class)
+        @set:Schema(oneOf = [Sensitive::class])
+        var contact: Base
+            get() = stored
+            set(value) { stored = value }
+    }
+
+    data class CreatorOnlyAlternative(
+        @get:JsonDeserialize(`as` = Sensitive::class)
+        @param:Schema(oneOf = [Sensitive::class]) val contact: Base,
+    )
+
+    class SetterOnlySubtypes {
+        @get:JsonDeserialize(`as` = Sensitive::class)
+        @set:JsonSubTypes(JsonSubTypes.Type(Sensitive::class))
+        var contact: Base = Sensitive()
+    }
+
+    data class GetterRepresentedConcrete(
+        @get:Schema(oneOf = [Sensitive::class]) @get:JsonDeserialize(`as` = Sensitive::class) val contact: Base,
+    )
+
+    data class GetterRepresentedSubtypes(
+        @get:JsonSubTypes(JsonSubTypes.Type(Sensitive::class))
+        @get:JsonDeserialize(`as` = Sensitive::class) val contact: Base,
+    )
+
     data class VisibleConcrete(@get:JsonDeserialize(`as` = Sensitive::class) val value: Base)
     data class HiddenConcrete(
         @field:Schema(

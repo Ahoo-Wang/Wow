@@ -530,7 +530,10 @@ private class MaskMaterializationValidator {
                 annotations,
                 unsupported,
                 opaqueProperty,
-                property.jacksonProperty()
+                property.jacksonProperty(),
+                // Swagger/Jackson schema alternatives use raw field/getter annotations, not Kotlin or Jackson merges.
+                listOfNotNull(property.field?.member, property.getter?.member)
+                    .filterIsInstance<AnnotatedElement>().flatMap { it.annotations.toList() },
             )
             validate(
                 property.primaryType,
@@ -556,15 +559,14 @@ private class MaskMaterializationValidator {
         unsupported: Boolean,
         opaque: Boolean,
         property: BeanProperty? = null,
+        schemaAnnotations: List<Annotation> = annotations,
     ) {
-        val alternatives = annotations.filterIsInstance<Schema>().flatMap {
-            it.allOf.toList() + it.oneOf.toList() + it.anyOf.toList()
-        } +
-            annotations.filterIsInstance<JsonSubTypes>().flatMap { subtypes -> subtypes.value.map { it.value } }
+        val alternatives = annotations.declaredAlternatives()
+        val represented = schemaAnnotations.declaredAlternatives()
         alternatives.forEach {
             validate(
                 JsonSerializer.typeFactory.constructType(it.java),
-                unsupported,
+                unsupported || it !in represented,
                 opaque,
                 property
             )
@@ -574,7 +576,7 @@ private class MaskMaterializationValidator {
                 annotation.`as` to type,
                 annotation.contentAs to type.contentType
             ).forEach overrideType@{ (override, declared) ->
-                if (override == Void::class || override in alternatives) {
+                if (override == Void::class || override in represented) {
                     return@overrideType
                 }
                 if (declared != null && override.java != declared.rawClass) {
@@ -594,6 +596,10 @@ private class MaskMaterializationValidator {
             }
         }
     }
+
+    private fun List<Annotation>.declaredAlternatives() = filterIsInstance<Schema>().flatMap {
+        it.allOf.toList() + it.oneOf.toList() + it.anyOf.toList()
+    } + filterIsInstance<JsonSubTypes>().flatMap { subtypes -> subtypes.value.map { it.value } }
 
     private fun writableProperties(type: JavaType): Map<String, BeanPropertyDefinition> = writable.getOrPut(type) {
         val config = JsonSerializer.deserializationConfig()
