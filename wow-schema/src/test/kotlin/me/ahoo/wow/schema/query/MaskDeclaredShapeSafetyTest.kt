@@ -82,6 +82,9 @@ class MaskDeclaredShapeSafetyTest {
 
     @TestFactory
     fun `concrete deserialization declarations cannot hide masks`() = listOf(
+        HiddenImplementation(Sensitive()) to "/value/secret",
+        HiddenClassImplementation(SensitiveImplementation()) to "/value/secret",
+        OpaqueImplementation(Sensitive()) to "/value/secret",
         HiddenConcrete(Sensitive()) to "/value/secret",
         VisibleConcrete(Sensitive()) to "/value/secret",
         OpaqueConcrete(Sensitive()) to "/value/secret",
@@ -100,6 +103,8 @@ class MaskDeclaredShapeSafetyTest {
 
     @TestFactory
     fun `writable only alternatives do not establish generated mask paths`() = listOf(
+        SetterOnlyImplementation(),
+        BundledImplementation(Sensitive()),
         SetterOnlyAlternative(),
         UnbackedSetterAlternative(),
         CreatorOnlyAlternative(Sensitive()),
@@ -122,12 +127,29 @@ class MaskDeclaredShapeSafetyTest {
             ExistingShape(Contact()) to "state.contact.secret",
             SameConcrete(Sensitive()) to "state.contact.secret",
             RepresentedConcrete(Sensitive()) to "state.contact.secret",
+            GetterImplementation(Sensitive()) to "state.contact.secret",
+            FieldImplementation(Sensitive()) to "state.contact.secret",
             GetterRepresentedConcrete(Sensitive()) to "state.contact.secret",
             GetterRepresentedSubtypes(Sensitive()) to "state.contact.secret",
         ).forEach { (value, path) ->
             JsonSerializer.valueToTree<JsonNode>(value).at("/contact/secret").stringValue().assert().isEqualTo("raw")
             val rule = load(value.javaClass).fields.getValue(QueryField(path)).maskRule as DeclarationValue.Set
             rule.value.compiled.mask("raw").assert().isEqualTo("***")
+        }
+    }
+
+    @Test
+    fun `visible implementations preserve masked values through typed materialization`() {
+        listOf(GetterImplementation::class.java, FieldImplementation::class.java).forEach { type ->
+            SchemaGeneratorBuilder().build().generateSchema(type).toString().contains("\"secret\"").assert().isTrue()
+            val rule = load(type).fields.getValue(QueryField("state.contact.secret")).maskRule as DeclarationValue.Set
+            val masked = rule.value.compiled.mask("raw")
+            val input = JsonSerializer.createObjectNode().set(
+                "contact",
+                JsonSerializer.createObjectNode().put("secret", masked)
+            )
+            val value = JsonSerializer.treeToValue(input, type)
+            JsonSerializer.valueToTree<JsonNode>(value).at("/contact/secret").stringValue().assert().isEqualTo(masked)
         }
     }
 
@@ -291,6 +313,39 @@ class MaskDeclaredShapeSafetyTest {
     )
 
     class InheritedGetter(contact: Base) : GetterParent(contact)
+
+    @Schema(implementation = SensitiveImplementation::class)
+    interface ImplementationBase
+    data class SensitiveImplementation(@field:Mask val secret: String = "raw") : ImplementationBase
+    data class HiddenClassImplementation(@field:Schema(hidden = true) val value: ImplementationBase)
+
+    @JacksonAnnotationsInside
+    @Schema(implementation = Sensitive::class)
+    @Target(AnnotationTarget.PROPERTY_GETTER)
+    @Retention(AnnotationRetention.RUNTIME)
+    annotation class SensitiveImplementationAnnotation
+    data class BundledImplementation(
+        @get:SensitiveImplementationAnnotation @get:JsonDeserialize(`as` = Sensitive::class) val contact: Base,
+    )
+    class SetterOnlyImplementation {
+        @set:Schema(implementation = Sensitive::class)
+        @get:JsonDeserialize(`as` = Sensitive::class)
+        var contact: Base = Sensitive()
+    }
+
+    data class HiddenImplementation(@field:Schema(hidden = true, implementation = Sensitive::class) val value: Base)
+    data class OpaqueImplementation(
+        @get:Schema(implementation = Sensitive::class)
+        @get:JsonSerialize(using = RawBaseSerializer::class) val value: Base,
+    )
+    data class GetterImplementation(
+        @get:Schema(implementation = Sensitive::class)
+        @get:JsonDeserialize(`as` = Sensitive::class) val contact: Base,
+    )
+    data class FieldImplementation(
+        @field:Schema(implementation = Sensitive::class)
+        @get:JsonDeserialize(`as` = Sensitive::class) val contact: Base,
+    )
 
     data class VisibleConcrete(@get:JsonDeserialize(`as` = Sensitive::class) val value: Base)
     data class HiddenConcrete(

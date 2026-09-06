@@ -498,7 +498,10 @@ private class MaskMaterializationValidator {
 
     private fun validateOpaqueMembers(type: JavaType, classInfo: AnnotatedClass) {
         // Opaque handlers can expose private/ignored members; Jackson retains their resolved generic types here.
-        (classInfo.fields() + classInfo.memberMethods().filter { it.parameterCount == 0 }).forEach { member ->
+        val creators = classInfo.constructors +
+            deserialization.introspectForDeserialization(type, classInfo).factoryMethods
+        val parameters = creators.flatMap { creator -> (0 until creator.parameterCount).map(creator::getParameter) }
+        (classInfo.fields() + classInfo.memberMethods().filter { it.parameterCount == 0 } + parameters).forEach { member ->
             val annotations = member.maskAnnotations().toMutableList()
             (member.member as? Method)?.let { method ->
                 method.declaringClass.kotlin.declaredMemberProperties.firstOrNull { it.javaGetter == method }
@@ -514,7 +517,10 @@ private class MaskMaterializationValidator {
         val (serialProperties, schemaIgnored) = serializationProperties(type)
         val writableProperties = writableProperties(type)
         serialProperties.forEach { property ->
-            val annotations = property.maskAnnotations() + writableProperties[property.name]?.maskAnnotations().orEmpty()
+            // Only the selected input route controls deserialization; a creator alias can shadow a setter.
+            val input = writableProperties[property.name]
+            val annotations = property.maskAnnotations().filterNot { input != null && it is JsonDeserialize } +
+                input?.maskAnnotations().orEmpty()
             // Jackson merges setters/creator parameters into readable members; the schema generator does not.
             val schemaMasks = listOfNotNull(property.field, property.getter)
                 .flatMap { it.maskAnnotations(includeJacksonAnnotations = false) }
@@ -606,7 +612,8 @@ private class MaskMaterializationValidator {
     }
 
     private fun List<Annotation>.declaredAlternatives() = filterIsInstance<Schema>().flatMap {
-        it.allOf.toList() + it.oneOf.toList() + it.anyOf.toList()
+        it.allOf.toList() + it.oneOf.toList() + it.anyOf.toList() +
+            listOfNotNull(it.implementation.takeUnless { implementation -> implementation == Void::class })
     } + filterIsInstance<JsonSubTypes>().flatMap { subtypes -> subtypes.value.map { it.value } }
 
     private fun writableProperties(type: JavaType): Map<String, BeanPropertyDefinition> = writable.getOrPut(type) {
@@ -626,8 +633,18 @@ private class MaskMaterializationValidator {
         }
         val ignored = config.annotationIntrospector
             .findPropertyIgnoralByName(config, description.classInfo).findIgnoredForDeserialization()
-        description.findProperties()
-            .filter { it.couldDeserialize() && it.name !in ignored }.associateBy { it.name }
+        val accepted = description.findProperties().filter { it.couldDeserialize() && it.name !in ignored }
+        val names = accepted.associateByTo(linkedMapOf()) { it.name }
+        accepted.forEach { property ->
+            property.findAliases().forEach { alias -> names.putIfAbsent(alias.simpleName, property) }
+        }
+        // PropertyBasedCreator resolves creator aliases before bean setters, with the last alias winning.
+        val creators = accepted.filter { it.hasConstructorParameter() }.sortedBy { it.constructorParameter.index }
+        val creatorNames = linkedMapOf<String, BeanPropertyDefinition>()
+        creators.forEach { property -> property.findAliases().forEach { creatorNames[it.simpleName] = property } }
+        creators.forEach { creatorNames[it.name] = it }
+        names.putAll(creatorNames)
+        names
     }
 
     private fun serializationProperties(type: JavaType): Pair<List<BeanPropertyDefinition>, Set<String>> = properties.getOrPut(

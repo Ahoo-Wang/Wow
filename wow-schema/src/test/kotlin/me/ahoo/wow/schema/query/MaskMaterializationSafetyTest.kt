@@ -93,6 +93,68 @@ class MaskMaterializationSafetyTest {
         }
     }
 
+    @TestFactory
+    fun `opaque creators cannot hide parameter masks`() = listOf(
+        JavaCreatorMaskedState.OpaqueConstructor("raw"),
+        JavaCreatorMaskedState.OpaqueFactory.create("raw"),
+        JavaCreatorMaskedState.OpaqueImplicitFactory.valueOf("raw"),
+    ).map { value ->
+        DynamicTest.dynamicTest(value.javaClass.simpleName) {
+            JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(value).stringValue().assert().isEqualTo("raw")
+            assertThrows<QuerySchemaConflictException> { load(value.javaClass) }
+        }
+    }
+
+    @TestFactory
+    fun `native writable aliases preserve compiled masks`() = listOf(
+        JavaCreatorMaskedState.AliasSetter::class.java,
+        JavaCreatorMaskedState.AliasCreator::class.java,
+        JavaCreatorMaskedState.AliasBuilder::class.java,
+        JavaCreatorMaskedState.CanonicalWins::class.java,
+        JavaCreatorMaskedState.AliasCollision::class.java,
+        JavaCreatorMaskedState.CreatorAliasCollision::class.java,
+        JavaCreatorMaskedState.CreatorBeforeSetter::class.java,
+    ).map { type ->
+        DynamicTest.dynamicTest(type.simpleName) {
+            val input = JsonSerializer.createObjectNode().put("wire_secret", "raw")
+            val original = JsonSerializer.treeToValue(input, type)
+            JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(original)
+                .path("wire_secret").stringValue().assert().isEqualTo("raw")
+            val declaration = load(type)
+            val rule = declaration.fields.getValue(QueryField("state.wire_secret")).maskRule as DeclarationValue.Set
+            val masked = rule.value.compiled.mask("raw")
+            val materialized = JsonSerializer.treeToValue(input.put("wire_secret", masked), type)
+            JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(materialized)
+                .path("wire_secret").stringValue().assert().isEqualTo(masked)
+        }
+    }
+
+    @Test
+    fun `ignored writable properties cannot provide alias routes`() {
+        val input = JsonSerializer.createObjectNode().put("wire_secret", "***")
+        val materialized = JsonSerializer.treeToValue(input, JavaCreatorMaskedState.IgnoredAlias::class.java)
+        materialized.secret().assert().isEqualTo("raw")
+        assertThrows<QuerySchemaConflictException> { load(JavaCreatorMaskedState.IgnoredAlias::class.java) }
+    }
+
+    @TestFactory
+    fun `opaque creator parameter generic types retain nested masks`() = listOf(
+        OpaqueGenericState(JavaCreatorMaskedState.OpaqueGenericConstructor(listOf(GenericSensitive()))),
+        OpaqueGenericFactoryState(JavaCreatorMaskedState.OpaqueGenericFactory.create(listOf(GenericSensitive()))),
+    ).map { value ->
+        DynamicTest.dynamicTest(value.javaClass.simpleName) {
+            JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(value)
+                .path("value").stringValue().assert().isEqualTo("[raw]")
+            assertThrows<QuerySchemaConflictException> { load(value.javaClass) }
+        }
+    }
+
+    data class GenericSensitive(@field:Mask val secret: String = "raw") {
+        override fun toString(): String = secret
+    }
+    data class OpaqueGenericState(val value: JavaCreatorMaskedState.OpaqueGenericConstructor<GenericSensitive>)
+    data class OpaqueGenericFactoryState(val value: JavaCreatorMaskedState.OpaqueGenericFactory<GenericSensitive>)
+
     @Test
     fun `default serializer annotations match ordinary ignored child serialization and schema`() {
         val child = SerializeValue("raw")
