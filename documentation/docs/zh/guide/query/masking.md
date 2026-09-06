@@ -96,10 +96,13 @@ Gateway 每次订阅在创建 `QueryContext` 前读取一次 Provider 当前 Sch
 |---|---|
 | 字段不是 JVM String，或 Schema alternative 不是 String wire shape | Schema 构建失败 |
 | 同一成员有多个有效 Mask 注解，或 Schema 分支规则冲突 | Schema conflict |
-| Mask 字段或包含它的父属性被 `@Schema(hidden = true)` 隐藏 | Schema 构建失败；文档隐藏不等于 Jackson 不输出 |
+| Mask 字段或包含它的父属性被 `@Schema(hidden = true)` 或 `@Schema(accessMode = WRITE_ONLY)` 排除 | Schema 构建失败；文档隐藏不等于 Jackson 不输出 |
 | `@JsonIgnoreProperties` 中列出的 Mask 字段或父属性通过 `allowGetters` 继续输出 | Schema 构建失败，即使同时开启 `allowSetters`；文档 Schema 仍会忽略它 |
-| Mask 字段位于自定义 serializer/converter 的不透明子树 | Schema 构建失败，无法确定可信 wire 路径 |
+| Mask 字段位于自定义 serializer/converter 的不透明子树（包括私有、Jackson 忽略的成员和声明的备选类型/子类型） | Schema 构建失败，无法确定可信 wire 路径 |
+| Mask 字段或父属性使用 `@JsonDeserialize` 的 `using`、`converter`、`contentUsing` 或 `contentConverter` | Schema 构建失败，避免反序列化恢复原值 |
+| Map key 类型包含 Mask 声明 | Schema 构建失败；JSON 属性名无法承载字段 Mask 规则 |
 | Mask 字段或父属性只有计算型 getter，或 Jackson 不允许反序列化（如 `READ_ONLY`） | Schema 构建失败，避免 typed 物化恢复原值 |
+| Jackson builder 接受对应 JSON 属性并保留 Mask 结果 | 支持；使用 builder 元数据判定可写属性 |
 | Strategy 无法构造，或 `compile` 抛错 | Schema 构建失败，错误保留 |
 | 响应值为非 String/非 String 数组，Strategy 执行抛错，或自定义 `CompiledMask` 返回 `null` | 当前结果 Publisher 失败，不返回原值 |
 | EventStream event item 含非 null payload，但 `bodyType` 缺失、不是字符串或未知 | 当前结果 Publisher 失败 |

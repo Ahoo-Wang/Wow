@@ -15,6 +15,7 @@ package me.ahoo.wow.schema.query
 
 import com.fasterxml.jackson.annotation.JsonGetter
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomPropertyDefinition
 import com.github.victools.jsonschema.generator.FieldScope
@@ -52,8 +53,12 @@ import me.ahoo.wow.serialization.MessageRecords
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import tools.jackson.databind.JavaType
+import tools.jackson.databind.ValueDeserializer
 import tools.jackson.databind.ValueSerializer
+import tools.jackson.databind.annotation.JsonDeserialize
 import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.introspect.AnnotatedClass
+import tools.jackson.databind.introspect.AnnotatedMember
 import tools.jackson.databind.introspect.BeanPropertyDefinition
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.databind.ser.bean.BeanSerializerBase
@@ -65,6 +70,8 @@ import java.lang.reflect.Field
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.full.declaredMemberProperties
+import kotlin.reflect.jvm.javaGetter
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.reflect.jvm.kotlinProperty
 
@@ -350,57 +357,113 @@ private fun Class<*>.hasOpaqueSerializer(): Boolean {
     }.not()
 }
 
-/** Validates Jackson-visible properties before documentation or opaque serializers can hide mask annotations. */
+private fun JsonDeserialize.definesWireShape(): Boolean =
+    listOf(using, contentUsing, converter, contentConverter).any {
+        it != ValueDeserializer.None::class && it != Converter.None::class
+    }
+
+/** Validates mask declarations before schema omissions or custom Jackson handlers hide them. */
 private class MaskMaterializationValidator {
     private val serialization = JsonSerializer._serializationContext()
     private val deserialization = JsonSerializer.deserializationConfig().let {
         it.classIntrospectorInstance().forOperation(it)
     }
-    private val visited = mutableSetOf<Pair<JavaType, Boolean>>()
+    private val visited = mutableSetOf<Triple<JavaType, Boolean, Boolean>>()
     private val properties = mutableMapOf<JavaType, Pair<List<BeanPropertyDefinition>, Set<String>>>()
-    private val writable = mutableMapOf<JavaType, Set<String>>()
+    private val writable = mutableMapOf<JavaType, Map<String, BeanPropertyDefinition>>()
 
-    fun validate(type: JavaType, unsupportedParent: Boolean = false) {
-        if (!visited.add(type to unsupportedParent)) {
+    fun validate(type: JavaType, unsupportedParent: Boolean = false, opaqueParent: Boolean = false) {
+        if (!visited.add(Triple(type, unsupportedParent, opaqueParent))) {
             return
         }
-        val unsupportedType = unsupportedParent || type.rawClass.hasOpaqueSerializer()
-        if (type.isContainerType || type.isReferenceType) {
-            type.contentType?.let { validate(it, unsupportedType) }
-            return
+        val opaque = opaqueParent || type.rawClass.hasOpaqueSerializer()
+        val classInfo = type.rawClass.takeUnless { it.isStdType() }?.let {
+            deserialization.introspectClassAnnotations(
+                type
+            )
         }
-        if (type.rawClass.isStdType()) {
-            return
-        }
-        val (serialProperties, schemaIgnored) = serializationProperties(type)
-        val writableNames = writableProperties(type)
-        serialProperties.forEach { property ->
-            val annotations = property.maskAnnotations()
-            val unsupported = unsupportedType || property.name !in writableNames ||
-                property.internalName in schemaIgnored ||
-                annotations.filterIsInstance<Schema>().any { it.hidden } ||
-                annotations.filterIsInstance<JsonSerialize>().any { it.definesWireShape() }
-            val masked = annotations.any { it.effectiveMaskAnnotations().isNotEmpty() }
-            if (masked && unsupported) {
-                throw QuerySchemaConflictException(
-                    "Masked query property [${type.rawClass.name}.${property.name}] requires a visible schema " +
-                        "and a writable Jackson property without opaque serialization.",
-                )
+        val unsupportedType = unsupportedParent || opaque ||
+            classInfo?.getAnnotation(JsonDeserialize::class.java)?.definesWireShape() == true
+        if (classInfo != null) {
+            validateAlternatives(classInfo.annotations().toList(), unsupportedType, opaque)
+            if (opaque) {
+                validateOpaqueMembers(type, classInfo)
             }
-            validate(property.primaryType, unsupported)
+        }
+        if (type.isContainerType || type.isReferenceType) {
+            // JSON object names cannot carry field mask rules, regardless of the key serializer.
+            type.keyType?.let { validate(it, unsupportedParent = true, opaqueParent = true) }
+            type.contentType?.let { validate(it, unsupportedType, opaque) }
+            return
+        }
+        classInfo ?: return
+        validateProperties(type, unsupportedType, opaque)
+    }
+
+    private fun validateOpaqueMembers(type: JavaType, classInfo: AnnotatedClass) {
+        // Opaque handlers can expose private/ignored members; Jackson retains their resolved generic types here.
+        (classInfo.fields() + classInfo.memberMethods().filter { it.parameterCount == 0 }).forEach { member ->
+            val annotations = member.maskAnnotations().toMutableList()
+            (member.member as? Method)?.let { method ->
+                method.declaringClass.kotlin.declaredMemberProperties.firstOrNull { it.javaGetter == method }
+                    ?.toMergedAnnotation()?.mergedAnnotations?.let(annotations::addAll)
+            }
+            rejectUnsupportedMask(type, member.name, annotations, true)
+            validateAlternatives(annotations, true, true)
+            validate(member.type, unsupportedParent = true, opaqueParent = true)
         }
     }
 
-    private fun writableProperties(type: JavaType): Set<String> = writable.getOrPut(type) {
-        val description = deserialization.introspectForDeserialization(
+    private fun validateProperties(type: JavaType, unsupportedType: Boolean, opaque: Boolean) {
+        val (serialProperties, schemaIgnored) = serializationProperties(type)
+        val writableProperties = writableProperties(type)
+        serialProperties.forEach { property ->
+            val annotations = property.maskAnnotations() + writableProperties[property.name]?.maskAnnotations().orEmpty()
+            val opaqueProperty = opaque || annotations.filterIsInstance<JsonSerialize>().any { it.definesWireShape() }
+            val unsupported = unsupportedType || opaqueProperty || property.name !in writableProperties ||
+                property.internalName in schemaIgnored || property.name in schemaIgnored ||
+                annotations.filterIsInstance<Schema>().any { it.hidden || it.accessMode == Schema.AccessMode.WRITE_ONLY } ||
+                annotations.filterIsInstance<JsonDeserialize>().any { it.definesWireShape() }
+            rejectUnsupportedMask(type, property.name, annotations, unsupported)
+            validateAlternatives(annotations, unsupported, opaqueProperty)
+            validate(property.primaryType, unsupported, opaqueProperty)
+        }
+    }
+
+    private fun rejectUnsupportedMask(type: JavaType, name: String, annotations: List<Annotation>, unsupported: Boolean) {
+        if (unsupported && annotations.any { it.effectiveMaskAnnotations().isNotEmpty() }) {
+            throw QuerySchemaConflictException(
+                "Masked query property [${type.rawClass.name}.$name] requires a visible schema " +
+                    "and a writable Jackson property without opaque serialization or deserialization.",
+            )
+        }
+    }
+
+    private fun validateAlternatives(annotations: List<Annotation>, unsupported: Boolean, opaque: Boolean) {
+        val alternatives = annotations.filterIsInstance<Schema>().flatMap { it.oneOf.toList() + it.anyOf.toList() } +
+            annotations.filterIsInstance<JsonSubTypes>().flatMap { subtypes -> subtypes.value.map { it.value } }
+        alternatives.forEach { validate(JsonSerializer.typeFactory.constructType(it.java), unsupported, opaque) }
+    }
+
+    private fun writableProperties(type: JavaType): Map<String, BeanPropertyDefinition> = writable.getOrPut(type) {
+        val config = JsonSerializer.deserializationConfig()
+        val target = deserialization.introspectForDeserialization(
             type,
             deserialization.introspectClassAnnotations(type)
         )
-        val config = JsonSerializer.deserializationConfig()
+        val builder = config.annotationIntrospector.findPOJOBuilder(config, target.classInfo)
+        val description = if (builder == null) {
+            target
+        } else {
+            deserialization.introspectForDeserializationWithBuilder(
+                JsonSerializer.typeFactory.constructType(builder),
+                target,
+            )
+        }
         val ignored = config.annotationIntrospector
             .findPropertyIgnoralByName(config, description.classInfo).findIgnoredForDeserialization()
         description.findProperties()
-            .filter { it.couldDeserialize() && it.name !in ignored }.map { it.name }.toSet()
+            .filter { it.couldDeserialize() && it.name !in ignored }.associateBy { it.name }
     }
 
     private fun serializationProperties(type: JavaType): Pair<List<BeanPropertyDefinition>, Set<String>> = properties.getOrPut(
@@ -420,14 +483,15 @@ private class MaskMaterializationValidator {
     }
 }
 
-private fun BeanPropertyDefinition.maskAnnotations(): List<Annotation> = buildSet {
-    listOfNotNull(field, getter).forEach { annotated ->
-        annotated.annotations().forEach { add(it) }
-        when (val member = annotated.member) {
-            is Field -> member.kotlinProperty?.toMergedAnnotation()?.mergedAnnotations?.let(::addAll)
-            is Method -> addAll(
-                member.kotlinFunction?.toMergedAnnotation()?.mergedAnnotations ?: member.inheritedAnnotations()
-            )
-        }
+private fun BeanPropertyDefinition.maskAnnotations(): List<Annotation> =
+    listOfNotNull(field, getter, setter, constructorParameter).flatMap { it.maskAnnotations() }
+
+private fun AnnotatedMember.maskAnnotations(): List<Annotation> = buildSet {
+    annotations().forEach { add(it) }
+    when (val reflected = member) {
+        is Field -> reflected.kotlinProperty?.toMergedAnnotation()?.mergedAnnotations?.let(::addAll)
+        is Method -> addAll(
+            reflected.kotlinFunction?.toMergedAnnotation()?.mergedAnnotations ?: reflected.inheritedAnnotations()
+        )
     }
 }.toList()
