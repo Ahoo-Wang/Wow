@@ -892,24 +892,85 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
-    fun `should inherit Kotlin property getter mask from Java getter`() {
-        val declaration = load(JavaGetterMaskedState::class.java)
-
-        listOf("state.inheritedToken", "state.explicitSecret").forEach { field ->
-            declaration.field(field)
-                .requiredMaskRule()
-                .strategyType.assert().isEqualTo(FullMaskStrategy::class)
+    fun `should reject masked computed getters that cannot retain typed masking`() {
+        listOf(JavaGetterMaskedState::class.java, NonPublicComputedGetterState::class.java).forEach { type ->
+            assertThrows<QuerySchemaConflictException> { load(type) }
         }
     }
 
     @Test
-    fun `should include masked non public computed getters visible to Jackson`() {
-        val declaration = load(NonPublicComputedGetterState::class.java)
+    fun `should reject masked fields hidden only from documentation`() {
+        assertThrows<QuerySchemaConflictException> { load(HiddenMaskedState::class.java) }
+    }
 
-        listOf("state.privateSecret", "state.protectedSecret").forEach { field ->
-            declaration.field(field).requiredMaskRule()
-                .strategyType.assert().isEqualTo(FullMaskStrategy::class)
-        }
+    @Test
+    fun `should reject masked descendants of documentation hidden properties`() {
+        assertThrows<QuerySchemaConflictException> { load(HiddenMaskedParentState::class.java) }
+    }
+
+    @Test
+    fun `should reject masked descendants of property serializers`() {
+        assertThrows<QuerySchemaConflictException> { load(OpaqueMaskedPropertyState::class.java) }
+    }
+
+    @Test
+    fun `should reject masked descendants of type serializers`() {
+        assertThrows<QuerySchemaConflictException> { load(OpaqueMaskedTypeState::class.java) }
+    }
+
+    @Test
+    fun `should reject read only masked properties`() {
+        assertThrows<QuerySchemaConflictException> { load(ReadOnlyMaskedState::class.java) }
+    }
+
+    @Test
+    fun `should omit Jackson ignored masked fields`() {
+        load(IgnoredMaskedState::class.java).fields.keys.assert().doesNotContain(QueryField("state.secret"))
+    }
+
+    @Test
+    fun `should allow class ignored masked computed properties`() {
+        load(ClassIgnoredMaskedState::class.java)
+    }
+
+    @Test
+    fun `should preserve nullable masked array descendants`() {
+        load(NullableMaskedArrayState::class.java).field("state.contacts.phone").assertMaskRule(keepMaskRule())
+    }
+
+    @Test
+    fun `should reject masked descendants in hidden generic containers`() {
+        assertThrows<QuerySchemaConflictException> { load(HiddenGenericMaskedState::class.java) }
+    }
+
+    @Test
+    fun `should omit Jackson ignored masked containers`() {
+        load(IgnoredMaskedContainerState::class.java).fields.keys.assert().doesNotContain(QueryField("state.nested"))
+    }
+
+    @Test
+    fun `should reject masked properties ignored for deserialization but allowed for serialization`() {
+        assertThrows<QuerySchemaConflictException> { load(SerializationOnlyMaskedState::class.java) }
+    }
+
+    @Test
+    fun `should allow masked properties ignored for serialization but allowed for deserialization`() {
+        load(DeserializationOnlyMaskedState::class.java)
+    }
+
+    @Test
+    fun `should reject masked properties omitted by schema even when Jackson allows getters and setters`() {
+        assertThrows<QuerySchemaConflictException> { load(BidirectionalIgnoredMaskedState::class.java) }
+    }
+
+    @Test
+    fun `should reject masked contents behind a container type serializer`() {
+        assertThrows<QuerySchemaConflictException> { load(OpaqueMaskedContainerState::class.java) }
+    }
+
+    @Test
+    fun `should preserve masked contents of a container subtype without custom serialization`() {
+        load(PlainMaskedContainerState::class.java).field("state.contacts.phone").assertMaskRule(keepMaskRule())
     }
 
     @Test

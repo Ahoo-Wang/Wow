@@ -588,3 +588,99 @@ internal data class KeptStringBranch(@field:KeepMask(prefix = 1) val shared: Str
 internal data class UnmaskedStringBranch(val shared: String)
 
 internal data class UnmaskedIntegerBranch(val shared: Int)
+
+internal data class HiddenMaskedState(@field:Schema(hidden = true) @field:Mask val secret: String)
+
+internal data class HiddenMaskedParentState(@field:Schema(hidden = true) val nested: MaskedContact)
+
+internal data class OpaqueMaskedPropertyState(
+    @get:JsonSerialize(using = MaskedContactSerializer::class) val nested: MaskedContact,
+)
+
+internal class MaskedContactSerializer : StdSerializer<MaskedContact>(MaskedContact::class.java) {
+    override fun serialize(value: MaskedContact, generator: JsonGenerator, provider: SerializationContext) {
+        generator.writeStartObject()
+        generator.writeStringProperty("phone", value.phone)
+        generator.writeEndObject()
+    }
+}
+
+internal data class OpaqueMaskedTypeState(val nested: OpaqueMaskedValue)
+
+@JsonSerialize(using = OpaqueMaskedValueSerializer::class)
+internal data class OpaqueMaskedValue(@field:Mask val secret: String)
+
+internal class OpaqueMaskedValueSerializer : StdSerializer<OpaqueMaskedValue>(OpaqueMaskedValue::class.java) {
+    override fun serialize(value: OpaqueMaskedValue, generator: JsonGenerator, provider: SerializationContext) {
+        generator.writeStartObject()
+        generator.writeStringProperty("secret", value.secret)
+        generator.writeEndObject()
+    }
+}
+
+internal data class ReadOnlyMaskedState(
+    @field:JsonProperty(access = JsonProperty.Access.READ_ONLY) @field:Mask val secret: String = "raw-secret",
+)
+
+internal data class IgnoredMaskedState(
+    @field:com.fasterxml.jackson.annotation.JsonIgnore @field:Mask val secret: String,
+    val visible: String,
+)
+
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties("secret")
+internal class ClassIgnoredMaskedState {
+    @get:Mask
+    val secret: String get() = "raw-secret"
+}
+
+internal data class NullableMaskedArrayState(val contacts: Array<MaskedContact?>?)
+
+internal data class GenericMaskedContainer<T>(val value: T)
+
+internal data class HiddenGenericMaskedState(
+    @field:Schema(hidden = true) val nested: GenericMaskedContainer<MaskedContact>,
+)
+
+internal data class IgnoredMaskedContainerState(
+    @field:com.fasterxml.jackson.annotation.JsonIgnore val nested: GenericMaskedContainer<MaskedContact>,
+    val visible: String,
+)
+
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties(value = ["secret"], allowGetters = true)
+internal class SerializationOnlyMaskedState {
+    @get:Mask
+    var secret: String = "raw-secret"
+}
+
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties(value = ["secret"], allowSetters = true)
+internal class DeserializationOnlyMaskedState {
+    @get:Mask
+    var secret: String = "raw-secret"
+}
+
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties(value = ["secret"], allowGetters = true, allowSetters = true)
+internal class BidirectionalIgnoredMaskedState {
+    @get:Mask
+    var secret: String = "raw-secret"
+}
+
+internal data class OpaqueMaskedContainerState(val contacts: OpaqueMaskedContacts)
+
+@JsonSerialize(using = OpaqueMaskedContactsSerializer::class)
+internal class OpaqueMaskedContacts : ArrayList<MaskedContact>()
+
+internal class OpaqueMaskedContactsSerializer : StdSerializer<OpaqueMaskedContacts>(OpaqueMaskedContacts::class.java) {
+    override fun serialize(value: OpaqueMaskedContacts, generator: JsonGenerator, provider: SerializationContext) {
+        generator.writeStartArray()
+        value.forEach {
+            generator.writeStartObject()
+            generator.writeStringProperty("phone", it.phone)
+            generator.writeEndObject()
+        }
+        generator.writeEndArray()
+    }
+}
+
+internal data class PlainMaskedContainerState(val contacts: PlainMaskedContacts)
+
+internal class PlainMaskedContacts : ArrayList<MaskedContact>()

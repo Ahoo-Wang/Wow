@@ -24,6 +24,7 @@ import com.github.victools.jsonschema.generator.MethodScope
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaGenerator
+import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.mask.MaskStrategy
 import me.ahoo.wow.api.query.mask.Masking
@@ -50,14 +51,17 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
+import tools.jackson.databind.JavaType
 import tools.jackson.databind.ValueSerializer
 import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.introspect.BeanPropertyDefinition
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.databind.ser.bean.BeanSerializerBase
 import tools.jackson.databind.ser.impl.UnknownSerializer
 import tools.jackson.databind.ser.std.ReferenceTypeSerializer
 import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
+import java.lang.reflect.Field
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
@@ -156,8 +160,9 @@ class JsonQuerySchemaSource(
             )
         }
 
-        fun schemaGenerator(maskRuleCatalog: MaskRuleCatalog): SchemaGenerator =
-            SchemaGeneratorBuilder().objectMapper(JsonSerializer).customizer { config ->
+        fun schemaGenerator(maskRuleCatalog: MaskRuleCatalog): SchemaGenerator {
+            val maskValidator = MaskMaterializationValidator()
+            return SchemaGeneratorBuilder().objectMapper(JsonSerializer).customizer { config ->
                 config.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
                 config.with(Option.NONSTATIC_NONVOID_NONGETTER_METHODS)
                 config.with(Option.FIELDS_DERIVED_FROM_ARGUMENTFREE_METHODS)
@@ -178,9 +183,11 @@ class JsonQuerySchemaSource(
                     .withInstanceAttributeOverride(TemporalAttributeOverride<MethodScope>())
                     .withInstanceAttributeOverride(MaskAttributeOverride(maskRuleCatalog))
                 config.forTypesInGeneral().withCustomDefinitionProvider { javaType, context ->
+                    maskValidator.validate(JsonSerializer.typeFactory.constructType(javaType.erasedType))
                     javaType.erasedType.registeredSerializerDefinition(context)
                 }
             }.build()
+        }
     }
 }
 
@@ -219,6 +226,11 @@ private class MaskRuleCatalog {
     fun get(id: String): MaskRule = rules[id.toInt()]
 }
 
+private fun Annotation.effectiveMaskAnnotations(): List<Pair<Annotation, Masking>> =
+    (listOf(this) + annotationClass.toMergedAnnotation().mergedAnnotations).mapNotNull { candidate ->
+        candidate.annotationClass.java.getAnnotation(Masking::class.java)?.let { candidate to it }
+    }
+
 private class MaskAttributeOverride<M : MemberScope<*, *>>(
     private val catalog: MaskRuleCatalog,
 ) : InstanceAttributeOverrideV2<M> {
@@ -227,12 +239,8 @@ private class MaskAttributeOverride<M : MemberScope<*, *>>(
         scope: M,
         context: SchemaGenerationContext,
     ) {
-        val effectiveAnnotations = scope.annotationsConsideringFieldAndGetter().flatMap { annotation ->
-            (listOf(annotation) + annotation.annotationClass.toMergedAnnotation().mergedAnnotations)
-                .mapNotNull { candidate ->
-                    candidate.annotationClass.java.getAnnotation(Masking::class.java)?.let { candidate to it }
-                }
-        }.distinct()
+        val effectiveAnnotations = scope.annotationsConsideringFieldAndGetter()
+            .flatMap(Annotation::effectiveMaskAnnotations).distinct()
         if (effectiveAnnotations.size > 1) {
             throw QuerySchemaConflictException("Multiple effective mask annotations are not allowed.")
         }
@@ -324,17 +332,102 @@ private fun JsonSerialize.definesWireShape(): Boolean =
         it != ValueSerializer.None::class.java && it != Converter.None::class.java
     }
 
-private fun Class<*>.registeredSerializerDefinition(context: SchemaGenerationContext): CustomDefinition? {
-    if (isStdType()) {
-        return null
+private fun Class<*>.registeredSerializerDefinition(context: SchemaGenerationContext): CustomDefinition? =
+    takeIf { hasOpaqueSerializer() }?.let {
+        CustomDefinition(context.generatorConfig.createObjectNode())
     }
-    val serializer = runCatching { JsonSerializer._serializationContext().findValueSerializer(this) }.getOrNull()
-    return serializer?.takeUnless {
+
+private fun Class<*>.hasOpaqueSerializer(): Boolean {
+    if (isStdType()) {
+        return false
+    }
+    val serializer = JsonSerializer._serializationContext().findValueSerializer(this)
+    return serializer.let {
         it is BeanSerializerBase ||
             it is UnknownSerializer ||
             it is StdContainerSerializer<*> ||
             it is ReferenceTypeSerializer<*>
-    }?.let {
-        CustomDefinition(context.generatorConfig.createObjectNode())
+    }.not()
+}
+
+/** Validates Jackson-visible properties before documentation or opaque serializers can hide mask annotations. */
+private class MaskMaterializationValidator {
+    private val serialization = JsonSerializer._serializationContext()
+    private val deserialization = JsonSerializer.deserializationConfig().let {
+        it.classIntrospectorInstance().forOperation(it)
+    }
+    private val visited = mutableSetOf<Pair<JavaType, Boolean>>()
+    private val properties = mutableMapOf<JavaType, Pair<List<BeanPropertyDefinition>, Set<String>>>()
+    private val writable = mutableMapOf<JavaType, Set<String>>()
+
+    fun validate(type: JavaType, unsupportedParent: Boolean = false) {
+        if (!visited.add(type to unsupportedParent)) {
+            return
+        }
+        val unsupportedType = unsupportedParent || type.rawClass.hasOpaqueSerializer()
+        if (type.isContainerType || type.isReferenceType) {
+            type.contentType?.let { validate(it, unsupportedType) }
+            return
+        }
+        if (type.rawClass.isStdType()) {
+            return
+        }
+        val (serialProperties, schemaIgnored) = serializationProperties(type)
+        val writableNames = writableProperties(type)
+        serialProperties.forEach { property ->
+            val annotations = property.maskAnnotations()
+            val unsupported = unsupportedType || property.name !in writableNames ||
+                property.internalName in schemaIgnored ||
+                annotations.filterIsInstance<Schema>().any { it.hidden } ||
+                annotations.filterIsInstance<JsonSerialize>().any { it.definesWireShape() }
+            val masked = annotations.any { it.effectiveMaskAnnotations().isNotEmpty() }
+            if (masked && unsupported) {
+                throw QuerySchemaConflictException(
+                    "Masked query property [${type.rawClass.name}.${property.name}] requires a visible schema " +
+                        "and a writable Jackson property without opaque serialization.",
+                )
+            }
+            validate(property.primaryType, unsupported)
+        }
+    }
+
+    private fun writableProperties(type: JavaType): Set<String> = writable.getOrPut(type) {
+        val description = deserialization.introspectForDeserialization(
+            type,
+            deserialization.introspectClassAnnotations(type)
+        )
+        val config = JsonSerializer.deserializationConfig()
+        val ignored = config.annotationIntrospector
+            .findPropertyIgnoralByName(config, description.classInfo).findIgnoredForDeserialization()
+        description.findProperties()
+            .filter { it.couldDeserialize() && it.name !in ignored }.map { it.name }.toSet()
+    }
+
+    private fun serializationProperties(type: JavaType): Pair<List<BeanPropertyDefinition>, Set<String>> = properties.getOrPut(
+        type
+    ) {
+        val description = serialization.introspectBeanDescription(
+            type,
+            deserialization.introspectClassAnnotations(type),
+        )
+        val ignorals = serialization.annotationIntrospector
+            .findPropertyIgnoralByName(serialization.config, description.classInfo)
+        val ignored = ignorals.findIgnoredForSerialization()
+        // WowJacksonModule excludes the original ignored names even when Jackson allows getters/setters.
+        description.findProperties().filter {
+            it.couldSerialize() && it.name !in ignored && it.findReferenceType()?.isBackReference != true
+        } to ignorals.ignored
     }
 }
+
+private fun BeanPropertyDefinition.maskAnnotations(): List<Annotation> = buildSet {
+    listOfNotNull(field, getter).forEach { annotated ->
+        annotated.annotations().forEach { add(it) }
+        when (val member = annotated.member) {
+            is Field -> member.kotlinProperty?.toMergedAnnotation()?.mergedAnnotations?.let(::addAll)
+            is Method -> addAll(
+                member.kotlinFunction?.toMergedAnnotation()?.mergedAnnotations ?: member.inheritedAnnotations()
+            )
+        }
+    }
+}.toList()
