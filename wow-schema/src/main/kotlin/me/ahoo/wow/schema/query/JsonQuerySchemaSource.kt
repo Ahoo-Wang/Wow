@@ -13,8 +13,14 @@
 
 package me.ahoo.wow.schema.query
 
+import com.fasterxml.jackson.annotation.JacksonAnnotationsInside
+import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonGetter
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeId
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.github.victools.jsonschema.generator.AnnotationHelper
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomPropertyDefinition
 import com.github.victools.jsonschema.generator.FieldScope
@@ -24,12 +30,14 @@ import com.github.victools.jsonschema.generator.MethodScope
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaGenerator
+import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.mask.MaskStrategy
 import me.ahoo.wow.api.query.mask.Masking
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryTemporal
 import me.ahoo.wow.configuration.requiredAggregateType
+import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.inheritedAnnotations
 import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.toMergedAnnotation
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -50,17 +58,57 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
+import tools.jackson.databind.BeanProperty
+import tools.jackson.databind.JavaType
+import tools.jackson.databind.ValueDeserializer
 import tools.jackson.databind.ValueSerializer
+import tools.jackson.databind.annotation.JsonDeserialize
 import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.cfg.EnumFeature
+import tools.jackson.databind.cfg.MapperConfig
+import tools.jackson.databind.ext.jdk8.Jdk8OptionalSerializer
+import tools.jackson.databind.introspect.AnnotatedClass
+import tools.jackson.databind.introspect.AnnotatedMember
+import tools.jackson.databind.introspect.BeanPropertyDefinition
+import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
+import tools.jackson.databind.jsonFormatVisitors.JsonIntegerFormatVisitor
+import tools.jackson.databind.jsontype.TypeSerializer
 import tools.jackson.databind.node.ObjectNode
+import tools.jackson.databind.ser.BeanPropertyWriter
+import tools.jackson.databind.ser.BeanSerializer
+import tools.jackson.databind.ser.UnrolledBeanSerializer
+import tools.jackson.databind.ser.bean.BeanAsArraySerializer
 import tools.jackson.databind.ser.bean.BeanSerializerBase
+import tools.jackson.databind.ser.bean.UnrolledBeanAsArraySerializer
+import tools.jackson.databind.ser.bean.UnwrappingBeanPropertyWriter
+import tools.jackson.databind.ser.bean.UnwrappingBeanSerializer
 import tools.jackson.databind.ser.impl.UnknownSerializer
+import tools.jackson.databind.ser.jackson.RawSerializer
+import tools.jackson.databind.ser.jdk.AtomicReferenceSerializer
+import tools.jackson.databind.ser.jdk.CollectionSerializer
+import tools.jackson.databind.ser.jdk.EnumSerializer
+import tools.jackson.databind.ser.jdk.EnumSetSerializer
+import tools.jackson.databind.ser.jdk.IndexedListSerializer
+import tools.jackson.databind.ser.jdk.IterableSerializer
+import tools.jackson.databind.ser.jdk.IteratorSerializer
+import tools.jackson.databind.ser.jdk.MapEntrySerializer
+import tools.jackson.databind.ser.jdk.MapSerializer
+import tools.jackson.databind.ser.jdk.ObjectArraySerializer
+import tools.jackson.databind.ser.jdk.StringArraySerializer
+import tools.jackson.databind.ser.std.AsArraySerializerBase
 import tools.jackson.databind.ser.std.ReferenceTypeSerializer
 import tools.jackson.databind.ser.std.StdContainerSerializer
+import tools.jackson.databind.ser.std.StdDynamicSerializer
 import tools.jackson.databind.util.Converter
+import tools.jackson.databind.util.EnumDefinition
+import tools.jackson.databind.util.NameTransformer
+import java.lang.reflect.AnnotatedElement
+import java.lang.reflect.Field
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.full.declaredMemberProperties
+import kotlin.reflect.jvm.javaGetter
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.reflect.jvm.kotlinProperty
 
@@ -106,10 +154,12 @@ class JsonQuerySchemaSource(
 
         fun inferDeclaration(model: QueryModel, type: Class<*>): QuerySchemaDeclaration {
             val maskRuleCatalog = MaskRuleCatalog()
-            val schemaGenerator = schemaGenerator(maskRuleCatalog)
+            val maskValidator = MaskMaterializationValidator()
+            val schemaGenerator = schemaGenerator(maskRuleCatalog, maskValidator)
             return if (model == QueryModel.EVENT_STREAM) {
-                inferEventStreamDeclaration(type, schemaGenerator, maskRuleCatalog)
+                inferEventStreamDeclaration(type, schemaGenerator, maskRuleCatalog, maskValidator)
             } else {
+                maskValidator.validate(JsonSerializer.typeFactory.constructType(type))
                 JsonSchemaWalker(
                     schemaGenerator.generateSchema(type),
                     maskRuleResolver = maskRuleCatalog::get,
@@ -121,6 +171,7 @@ class JsonQuerySchemaSource(
             aggregateType: Class<*>,
             schemaGenerator: SchemaGenerator,
             maskRuleCatalog: MaskRuleCatalog,
+            maskValidator: MaskMaterializationValidator,
         ): QuerySchemaDeclaration {
             val rootSchema = schemaGenerator.generateSchema(AggregatedDomainEventStream::class.java, aggregateType)
             val eventSchemas = rootSchema.path("properties").path(MessageRecords.BODY).path("items").path("anyOf")
@@ -131,7 +182,10 @@ class JsonQuerySchemaSource(
                 eventSchema.path("properties").path(MessageRecords.BODY_TYPE).path("const")
                     .takeIf { it.isString }
                     ?.stringValue()
-                    ?.let(bodyTypes::add)
+                    ?.let { bodyType ->
+                        maskValidator.validate(JsonSerializer.typeFactory.constructType(bodyType.toType<Any>()))
+                        bodyTypes.add(bodyType)
+                    }
                 eventSchema.path("properties").path(MessageRecords.BODY)
                     .takeUnless { it.isMissingNode }
                     ?.let(payloadAlternatives::add)
@@ -156,8 +210,8 @@ class JsonQuerySchemaSource(
             )
         }
 
-        fun schemaGenerator(maskRuleCatalog: MaskRuleCatalog): SchemaGenerator =
-            SchemaGeneratorBuilder().objectMapper(JsonSerializer).customizer { config ->
+        fun schemaGenerator(maskRuleCatalog: MaskRuleCatalog, maskValidator: MaskMaterializationValidator): SchemaGenerator {
+            return SchemaGeneratorBuilder().objectMapper(JsonSerializer).customizer { config ->
                 config.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
                 config.with(Option.NONSTATIC_NONVOID_NONGETTER_METHODS)
                 config.with(Option.FIELDS_DERIVED_FROM_ARGUMENTFREE_METHODS)
@@ -178,9 +232,11 @@ class JsonQuerySchemaSource(
                     .withInstanceAttributeOverride(TemporalAttributeOverride<MethodScope>())
                     .withInstanceAttributeOverride(MaskAttributeOverride(maskRuleCatalog))
                 config.forTypesInGeneral().withCustomDefinitionProvider { javaType, context ->
+                    maskValidator.validateGeneratedType(JsonSerializer.typeFactory.constructType(javaType.erasedType))
                     javaType.erasedType.registeredSerializerDefinition(context)
                 }
             }.build()
+        }
     }
 }
 
@@ -219,6 +275,11 @@ private class MaskRuleCatalog {
     fun get(id: String): MaskRule = rules[id.toInt()]
 }
 
+private fun Annotation.effectiveMaskAnnotations(): List<Pair<Annotation, Masking>> =
+    (listOf(this) + annotationClass.toMergedAnnotation().mergedAnnotations).mapNotNull { candidate ->
+        candidate.annotationClass.java.getAnnotation(Masking::class.java)?.let { candidate to it }
+    }
+
 private class MaskAttributeOverride<M : MemberScope<*, *>>(
     private val catalog: MaskRuleCatalog,
 ) : InstanceAttributeOverrideV2<M> {
@@ -227,12 +288,8 @@ private class MaskAttributeOverride<M : MemberScope<*, *>>(
         scope: M,
         context: SchemaGenerationContext,
     ) {
-        val effectiveAnnotations = scope.annotationsConsideringFieldAndGetter().flatMap { annotation ->
-            (listOf(annotation) + annotation.annotationClass.toMergedAnnotation().mergedAnnotations)
-                .mapNotNull { candidate ->
-                    candidate.annotationClass.java.getAnnotation(Masking::class.java)?.let { candidate to it }
-                }
-        }.distinct()
+        val effectiveAnnotations = scope.annotationsConsideringFieldAndGetter()
+            .flatMap(Annotation::effectiveMaskAnnotations).distinct()
         if (effectiveAnnotations.size > 1) {
             throw QuerySchemaConflictException("Multiple effective mask annotations are not allowed.")
         }
@@ -320,21 +377,493 @@ private fun MemberScope<*, *>.customSerializerDefinition(
 }
 
 private fun JsonSerialize.definesWireShape(): Boolean =
-    listOf(contentUsing, keyUsing, converter, contentConverter, using).any {
-        it != ValueSerializer.None::class.java && it != Converter.None::class.java
-    }
+    listOf(using, contentUsing, keyUsing, nullsUsing).any { it != ValueSerializer.None::class } ||
+        listOf(converter, contentConverter).any { it != Converter.None::class } ||
+        listOf(`as`, keyAs, contentAs).any { it != Void::class } ||
+        typing != JsonSerialize.Typing.DEFAULT_TYPING
 
-private fun Class<*>.registeredSerializerDefinition(context: SchemaGenerationContext): CustomDefinition? {
-    if (isStdType()) {
-        return null
-    }
-    val serializer = runCatching { JsonSerializer._serializationContext().findValueSerializer(this) }.getOrNull()
-    return serializer?.takeUnless {
-        it is BeanSerializerBase ||
-            it is UnknownSerializer ||
-            it is StdContainerSerializer<*> ||
-            it is ReferenceTypeSerializer<*>
-    }?.let {
+private fun Class<*>.registeredSerializerDefinition(context: SchemaGenerationContext): CustomDefinition? =
+    takeIf { hasOpaqueSerializer() }?.let {
         CustomDefinition(context.generatorConfig.createObjectNode())
     }
+
+private fun Class<*>.hasOpaqueSerializer(): Boolean {
+    if (isStdType() && !isEnum) {
+        return false
+    }
+    val serializer = JsonSerializer._serializationContext().findValueSerializer(this)
+    return serializer.hasOpaqueImplementation()
 }
+
+// These are the native layouts already supported above; inheriting one does not establish its wire shape.
+private val NATIVE_BEAN_SERIALIZERS = setOf<Class<*>>(
+    BeanSerializer::class.java,
+    UnrolledBeanSerializer::class.java,
+    UnwrappingBeanSerializer::class.java,
+)
+private val NATIVE_REFERENCE_SERIALIZERS = setOf<Class<*>>(
+    AtomicReferenceSerializer::class.java,
+    Jdk8OptionalSerializer::class.java
+)
+private val NATIVE_BEAN_WRITERS =
+    setOf<Class<*>>(BeanPropertyWriter::class.java, UnwrappingBeanPropertyWriter::class.java)
+private val NATIVE_CONTAINER_SERIALIZERS = setOf(
+    CollectionSerializer::class.java,
+    IndexedListSerializer::class.java,
+    EnumSetSerializer::class.java,
+    IterableSerializer::class.java,
+    IteratorSerializer::class.java,
+    MapSerializer::class.java,
+    MapEntrySerializer::class.java,
+    ObjectArraySerializer::class.java,
+    StringArraySerializer::class.java,
+)
+
+private fun ValueSerializer<*>.hasOpaqueImplementation(): Boolean = when (this) {
+    is BeanSerializerBase -> javaClass !in NATIVE_BEAN_SERIALIZERS
+    is StdContainerSerializer<*> -> javaClass !in NATIVE_CONTAINER_SERIALIZERS
+    is ReferenceTypeSerializer<*> -> javaClass !in NATIVE_REFERENCE_SERIALIZERS
+    is EnumSerializer -> javaClass != EnumSerializer::class.java
+    is UnknownSerializer -> javaClass != UnknownSerializer::class.java
+    else -> true
+}
+
+private fun JsonDeserialize.definesWireShape(): Boolean =
+    listOf(using, contentUsing, converter, contentConverter).any {
+        it != ValueDeserializer.None::class && it != Converter.None::class
+    }
+
+/** Validates mask declarations before schema omissions or custom Jackson handlers hide them. */
+private class MaskMaterializationValidator {
+    private val serialization = JsonSerializer._serializationContext()
+    private val deserialization = JsonSerializer.deserializationConfig().let {
+        it.classIntrospectorInstance().forOperation(it)
+    }
+    private val visited = mutableSetOf<Visit>()
+    private val properties = mutableMapOf<JavaType, Pair<List<BeanPropertyDefinition>, Set<String>>>()
+    private val writable = mutableMapOf<JavaType, Map<String, BeanPropertyDefinition>>()
+
+    fun validateGeneratedType(type: JavaType) {
+        // Types already traversed from model properties must retain their contextual wire shape.
+        if (visited.any { it.type == type }) {
+            return
+        }
+        validate(type)
+    }
+
+    @Suppress("CyclomaticComplexMethod")
+    fun validate(
+        type: JavaType,
+        unsupportedParent: Boolean = false,
+        opaqueParent: Boolean = false,
+        property: BeanProperty? = null,
+        resolvedSerializer: ValueSerializer<*>? = null,
+        resolvedTypeSerializer: TypeSerializer? = null,
+        nameTransformer: NameTransformer = NameTransformer.NOP,
+    ) {
+        val serializer = resolvedSerializer ?: serialization.findPrimaryPropertySerializer(type, property)
+        val expectedProperties = if (serializer is BeanSerializerBase) {
+            serializationProperties(type).first.associateBy { nameTransformer.transform(it.name) }
+        } else {
+            emptyMap()
+        }
+        val opaque = opaqueParent || hasOpaqueSerializer(type, serializer) ||
+            (serializer is BeanSerializerBase && !serializer.hasMatchingProperties(expectedProperties))
+        // The generator does not represent Iterator element mask paths as array items.
+        val unsupportedShape = opaque || type.isIterationType || serializer.hasUnsupportedMemberShape(type, property, resolvedTypeSerializer)
+        val visit = Visit(
+            type,
+            unsupportedParent,
+            opaque,
+            unsupportedShape,
+            property?.findFormatOverrides(serialization.config),
+            property?.member.takeIf { type.isAbstract },
+            resolvedSerializer,
+            resolvedTypeSerializer,
+            expectedProperties.keys,
+        )
+        if (!visited.add(visit)) {
+            return
+        }
+        val classInfo = classInfo(type, unsupportedShape)
+        val unsupportedType = unsupportedParent || unsupportedShape ||
+            classInfo?.getAnnotation(JsonDeserialize::class.java)?.definesWireShape() == true
+        if (classInfo != null) {
+            validateAlternatives(type, classInfo.annotations().toList(), unsupportedType, opaque, property)
+            if (opaque) {
+                validateOpaqueMembers(type, classInfo)
+            }
+        }
+        if (type.ownsContent()) {
+            // JSON object names cannot carry field mask rules, regardless of the key serializer.
+            type.keyType?.let { validate(it, unsupportedParent = true, opaqueParent = true) }
+            type.contentType?.let {
+                val bindings = if (opaque) Result.success(null to null) else serializer.boundContentSerializers()
+                val contentSerializer = bindings.getOrNull()?.first ?: serialization.findContentValueSerializer(it, property)
+                validate(
+                    it,
+                    unsupportedType || bindings.isFailure,
+                    opaque,
+                    property,
+                    contentSerializer,
+                    bindings.getOrNull()?.second,
+                    nameTransformer,
+                )
+            }
+            return
+        }
+        classInfo ?: return
+        validateProperties(type, unsupportedType, opaque, property, serializer, nameTransformer)
+    }
+
+    private fun ValueSerializer<*>.boundContentSerializers(): Result<Pair<ValueSerializer<*>?, TypeSerializer?>> = runCatching {
+        // Known native owners have no public accessor for these actual bindings.
+        val owner = when (this) {
+            is ReferenceTypeSerializer<*> -> StdDynamicSerializer::class.java
+            is AsArraySerializerBase<*> -> AsArraySerializerBase::class.java
+            is ObjectArraySerializer -> ObjectArraySerializer::class.java
+            is MapSerializer -> MapSerializer::class.java
+            is MapEntrySerializer -> MapEntrySerializer::class.java
+            else -> return@runCatching (this as? StdContainerSerializer<*>)?.contentSerializer to null
+        }
+        val typeBinding = owner.getDeclaredField("_valueTypeSerializer")
+        check(typeBinding.trySetAccessible()) { "Native content type binding is not accessible." }
+        val valueSerializer = if (this is ReferenceTypeSerializer<*>) {
+            val valueBinding = owner.getDeclaredField("_valueSerializer")
+            check(valueBinding.trySetAccessible()) { "Native reference value binding is not accessible." }
+            valueBinding.get(this) as ValueSerializer<*>?
+        } else {
+            (this as StdContainerSerializer<*>).contentSerializer
+        }
+        valueSerializer to typeBinding.get(this) as TypeSerializer?
+    }
+
+    private data class Visit(
+        val type: JavaType,
+        val unsupportedParent: Boolean,
+        val opaque: Boolean,
+        val unsupportedShape: Boolean,
+        val formatOverrides: JsonFormat.Value?,
+        val polymorphicProperty: AnnotatedMember?,
+        val resolvedSerializer: ValueSerializer<*>?,
+        val resolvedTypeSerializer: TypeSerializer?,
+        val expectedPropertyNames: Set<String>,
+    )
+
+    // Member mask paths cannot address wrappers, identity scalars, positional arrays or object-shaped enums.
+    private fun ValueSerializer<*>.hasUnsupportedMemberShape(
+        type: JavaType,
+        property: BeanProperty?,
+        resolvedTypeSerializer: TypeSerializer?,
+    ): Boolean {
+        val typeSerializer = resolvedTypeSerializer ?: if (property?.member == null) {
+            serialization.findTypeSerializer(type)
+        } else {
+            serialization.findPropertyTypeSerializer(type, property.member)
+        }
+        return this is BeanAsArraySerializer || this is UnrolledBeanAsArraySerializer ||
+            (type.isEnumType && this !is EnumSerializer) || usesObjectId() ||
+            typeSerializer?.typeInclusion == JsonTypeInfo.As.WRAPPER_OBJECT ||
+            typeSerializer?.typeInclusion == JsonTypeInfo.As.WRAPPER_ARRAY
+    }
+
+    private fun JavaType.ownsContent(): Boolean = isContainerType || isReferenceType || isIterationType
+
+    private fun hasOpaqueSerializer(type: JavaType, serializer: ValueSerializer<*>): Boolean {
+        val standardScalar = type.rawClass.isStdType() && !type.isEnumType && !type.ownsContent()
+        return (!standardScalar && serializer.hasOpaqueImplementation()) || usesCustomEnumToString(type, serializer) ||
+            serialization.introspectClassAnnotations(type).getAnnotation(JsonSerialize::class.java)
+                ?.definesWireShape() == true
+    }
+
+    private fun BeanSerializerBase.hasMatchingProperties(expected: Map<String, BeanPropertyDefinition>): Boolean {
+        val actual = properties().asSequence().toList()
+        return actual.size == expected.size && actual.map { it.name }.toSet().size == actual.size && actual.all { writer ->
+            writer.javaClass in NATIVE_BEAN_WRITERS && expected[writer.name]?.let { property ->
+                writer.member?.member in listOfNotNull(property.field?.member, property.getter?.member)
+            } == true
+        }
+    }
+
+    private fun usesCustomEnumToString(type: JavaType, serializer: ValueSerializer<*>?): Boolean {
+        if (serializer !is EnumSerializer || !serialization.isEnabled(EnumFeature.WRITE_ENUMS_USING_TO_STRING)) {
+            return false
+        }
+        var numeric = false
+        serializer.acceptJsonFormatVisitor(
+            object : JsonFormatVisitorWrapper.Base(serialization) {
+                override fun expectIntegerFormat(type: JavaType): JsonIntegerFormatVisitor? {
+                    numeric = true
+                    return null
+                }
+            },
+            type
+        )
+        if (numeric) {
+            return false
+        }
+        val definition = EnumDefinition.construct(serialization.config, serialization.introspectClassAnnotations(type))
+        val explicitNames = definition.explicitNames()
+        return definition.enumConstants().any {
+            explicitNames[it.ordinal] == null && it.javaClass.getMethod("toString").declaringClass != Enum::class.java
+        }
+    }
+
+    private fun classInfo(type: JavaType, inspectEnum: Boolean): AnnotatedClass? =
+        type.rawClass.takeUnless { it.isStdType() && !(inspectEnum && it.isEnum) }?.let {
+            deserialization.introspectClassAnnotations(type)
+        }
+
+    private fun validateOpaqueMembers(type: JavaType, classInfo: AnnotatedClass) {
+        // Opaque handlers can expose private/ignored members; Jackson retains their resolved generic types here.
+        val creators = classInfo.constructors +
+            deserialization.introspectForDeserialization(type, classInfo).factoryMethods
+        val parameters = creators.flatMap { creator -> (0 until creator.parameterCount).map(creator::getParameter) }
+        (classInfo.fields() + classInfo.memberMethods().filter { it.parameterCount == 0 } + parameters).forEach { member ->
+            val annotations = member.maskAnnotations().toMutableList()
+            (member.member as? Method)?.let { method ->
+                method.declaringClass.kotlin.declaredMemberProperties.firstOrNull { it.javaGetter == method }
+                    ?.toMergedAnnotation()?.mergedAnnotations?.let(annotations::addAll)
+            }
+            rejectUnsupportedMask(type, member.name, annotations, true)
+            validateAlternatives(member.type, annotations, true, true)
+            validate(member.type, unsupportedParent = true, opaqueParent = true)
+        }
+    }
+
+    @Suppress("CyclomaticComplexMethod")
+    private fun validateProperties(
+        type: JavaType,
+        unsupportedType: Boolean,
+        opaque: Boolean,
+        parentProperty: BeanProperty?,
+        serializer: ValueSerializer<*>,
+        nameTransformer: NameTransformer,
+    ) {
+        val (serialProperties, schemaIgnored) = serializationProperties(type)
+        val writableProperties = writableProperties(type)
+        val writers = (serializer as? BeanSerializerBase)?.properties()?.asSequence()
+            ?.filterIsInstance<BeanPropertyWriter>()?.associateBy { it.name }.orEmpty()
+        serialProperties.forEach { property ->
+            val writer = writers[nameTransformer.transform(property.name)]
+            val boundSerializer = writer?.boundSerializer() ?: Result.success(null)
+            val localTransform = property.primaryMember?.let {
+                serialization.annotationIntrospector.findUnwrappingNameTransformer(serialization.config, it)
+            }
+            val childTransform = localTransform?.let { NameTransformer.chainedTransformer(nameTransformer, it) }
+                ?: NameTransformer.NOP
+            // Only the selected input route controls deserialization; a creator alias can shadow a setter.
+            val input = writableProperties[property.name]
+            val annotations = property.maskAnnotations().filterNot { input != null && it is JsonDeserialize } +
+                input?.maskAnnotations().orEmpty()
+            // Jackson merges setters/creator parameters into readable members; the schema generator does not.
+            val schemaMasks = listOfNotNull(property.field, property.getter)
+                .flatMap { it.maskAnnotations(includeJacksonAnnotations = false) }
+                .flatMap(Annotation::effectiveMaskAnnotations).toSet()
+            val unrepresentedMask = annotations.flatMap(Annotation::effectiveMaskAnnotations).any { it !in schemaMasks }
+            val opaqueProperty = opaque || boundSerializer.getOrNull()?.javaClass == RawSerializer::class.java ||
+                annotations.any { it is JsonTypeId } ||
+                annotations.filterIsInstance<JsonSerialize>().any { it.definesWireShape() }
+            val writable = input != null || hasWritableSubtypeProperty(type, property.name, parentProperty)
+            val unsupported = unsupportedType || boundSerializer.isFailure || opaqueProperty || unrepresentedMask || !writable ||
+                property.internalName in schemaIgnored || property.name in schemaIgnored ||
+                annotations.filterIsInstance<Schema>().any { it.hidden || it.accessMode == Schema.AccessMode.WRITE_ONLY } ||
+                annotations.filterIsInstance<JsonDeserialize>().any { it.definesWireShape() }
+            rejectUnsupportedMask(type, property.name, annotations, unsupported)
+            validateAlternatives(
+                property.primaryType,
+                annotations,
+                unsupported,
+                opaqueProperty,
+                property.jacksonProperty(),
+                // Resolve only field/getter sources, with the same Jackson bundle lookup used by the schema generator.
+                listOfNotNull(property.field?.member, property.getter?.member)
+                    .filterIsInstance<AnnotatedElement>().flatMap { member ->
+                        member.annotations.toList() + listOfNotNull(
+                            AnnotationHelper.resolveAnnotation(member, JsonSubTypes::class.java) {
+                                it.annotationClass.java.isAnnotationPresent(JacksonAnnotationsInside::class.java)
+                            }.orElse(null),
+                        )
+                    },
+            )
+            validate(
+                property.primaryType,
+                unsupported,
+                opaqueProperty,
+                property.jacksonProperty(),
+                boundSerializer.getOrNull(),
+                writer?.typeSerializer,
+                childTransform,
+            )
+        }
+    }
+
+    private fun BeanPropertyWriter.boundSerializer(): Result<ValueSerializer<*>?> = runCatching {
+        serializer?.let { return@runCatching it }
+        if (javaClass != UnwrappingBeanPropertyWriter::class.java) return@runCatching null
+        // Dynamic unwrapping must use the writer's actual SPI-configured transform, not the expected declaration.
+        val binding = UnwrappingBeanPropertyWriter::class.java.getDeclaredField("_nameTransformer")
+        check(binding.trySetAccessible()) { "Native unwrapping binding is not accessible." }
+        val resolved = serialization.findPrimaryPropertySerializer(type, this)
+        check(!resolved.isUnwrappingSerializer) { "Dynamic unwrapping already has an unverified transform." }
+        resolved.unwrappingSerializer(binding.get(this) as NameTransformer)
+    }
+
+    private fun hasWritableSubtypeProperty(type: JavaType, name: String, property: BeanProperty?): Boolean {
+        if (!type.isAbstract) return false
+        val context = JsonSerializer._deserializationContext()
+        val introspector = context.config.annotationIntrospector
+        // Jackson only includes member subtype declarations when that member defines the type resolver.
+        val memberSubtypes = property?.member?.takeIf {
+            introspector.findPolymorphicTypeInfo(context.config, it)?.idType?.let { id -> id != JsonTypeInfo.Id.NONE } == true
+        }?.let { introspector.findSubtypes(context.config, it) }.orEmpty()
+        val subtypes = classInfo(type, false)?.getAnnotation(JsonSubTypes::class.java)?.value.orEmpty()
+            .map { it.value.java } + memberSubtypes.map { it.type }
+        if (subtypes.isEmpty()) return false
+        val typeDeserializer = when {
+            property?.member == null -> context.findTypeDeserializer(type)
+            property.type.ownsContent() -> context.findPropertyContentTypeDeserializer(property.type, property.member)
+            else -> context.findPropertyTypeDeserializer(type, property.member)
+        } ?: return false
+        val defaultImpl = typeDeserializer.defaultImpl
+        if (defaultImpl != null && subtypes.none { it == defaultImpl }) return false
+        // The existing alternative traversal validates each concrete wire shape and mask declaration.
+        return subtypes.all {
+            val subtype = JsonSerializer.typeFactory.constructSpecializedType(type, it)
+            !subtype.isAbstract && name in writableProperties(subtype)
+        }
+    }
+
+    private fun rejectUnsupportedMask(type: JavaType, name: String, annotations: List<Annotation>, unsupported: Boolean) {
+        if (unsupported && annotations.any { it.effectiveMaskAnnotations().isNotEmpty() }) {
+            throw QuerySchemaConflictException(
+                "Masked query property [${type.rawClass.name}.$name] requires a visible schema " +
+                    "and a writable Jackson property without opaque serialization or deserialization.",
+            )
+        }
+    }
+
+    private fun validateAlternatives(
+        type: JavaType,
+        annotations: List<Annotation>,
+        unsupported: Boolean,
+        opaque: Boolean,
+        property: BeanProperty? = null,
+        schemaAnnotations: List<Annotation> = annotations,
+    ) {
+        val alternatives = annotations.declaredAlternatives()
+        val represented = schemaAnnotations.declaredAlternatives()
+        alternatives.forEach {
+            validate(
+                JsonSerializer.typeFactory.constructType(it.java),
+                unsupported || it !in represented,
+                opaque,
+                property
+            )
+        }
+        annotations.filterIsInstance<JsonDeserialize>().forEach { annotation ->
+            listOf(
+                annotation.`as` to type,
+                annotation.contentAs to type.contentType
+            ).forEach overrideType@{ (override, declared) ->
+                if (override == Void::class || override in represented) {
+                    return@overrideType
+                }
+                if (declared != null && override.java != declared.rawClass) {
+                    // Deserialization-only subtypes are not represented by the generated serialization schema.
+                    validate(
+                        JsonSerializer.typeFactory.constructSpecializedType(declared, override.java),
+                        true,
+                        opaque,
+                        property
+                    )
+                }
+            }
+            annotation.keyAs.takeUnless { it == Void::class }?.let { key ->
+                type.keyType?.let {
+                    validate(JsonSerializer.typeFactory.constructSpecializedType(it, key.java), true, true)
+                }
+            }
+        }
+    }
+
+    private fun List<Annotation>.declaredAlternatives() = filterIsInstance<Schema>().flatMap {
+        it.allOf.toList() + it.oneOf.toList() + it.anyOf.toList() +
+            listOfNotNull(it.implementation.takeUnless { implementation -> implementation == Void::class })
+    } + filterIsInstance<JsonSubTypes>().flatMap { subtypes -> subtypes.value.map { it.value } }
+
+    private fun writableProperties(type: JavaType): Map<String, BeanPropertyDefinition> = writable.getOrPut(type) {
+        val config = JsonSerializer.deserializationConfig()
+        val target = deserialization.introspectForDeserialization(
+            type,
+            deserialization.introspectClassAnnotations(type)
+        )
+        val builder = config.annotationIntrospector.findPOJOBuilder(config, target.classInfo)
+        val description = if (builder == null) {
+            target
+        } else {
+            deserialization.introspectForDeserializationWithBuilder(
+                JsonSerializer.typeFactory.constructType(builder),
+                target,
+            )
+        }
+        val ignored = config.annotationIntrospector
+            .findPropertyIgnoralByName(config, description.classInfo).findIgnoredForDeserialization()
+        val accepted = description.findProperties().filter { it.couldDeserialize() && it.name !in ignored }
+        val names = accepted.associateByTo(linkedMapOf()) { it.name }
+        accepted.forEach { property ->
+            property.findAliases().forEach { alias -> names.putIfAbsent(alias.simpleName, property) }
+        }
+        // PropertyBasedCreator resolves creator aliases before bean setters, with the last alias winning.
+        val creators = accepted.filter { it.hasConstructorParameter() }.sortedBy { it.constructorParameter.index }
+        val creatorNames = linkedMapOf<String, BeanPropertyDefinition>()
+        creators.forEach { property -> property.findAliases().forEach { creatorNames[it.simpleName] = property } }
+        creators.forEach { creatorNames[it.name] = it }
+        names.putAll(creatorNames)
+        names
+    }
+
+    private fun serializationProperties(type: JavaType): Pair<List<BeanPropertyDefinition>, Set<String>> = properties.getOrPut(
+        type
+    ) {
+        val description = serialization.introspectBeanDescription(
+            type,
+            deserialization.introspectClassAnnotations(type),
+        )
+        val ignorals = serialization.annotationIntrospector
+            .findPropertyIgnoralByName(serialization.config, description.classInfo)
+        val ignored = ignorals.findIgnoredForSerialization()
+        // WowJacksonModule excludes the original ignored names even when Jackson allows getters/setters.
+        description.findProperties().filter {
+            it.couldSerialize() && it.name !in ignored && it.findReferenceType()?.isBackReference != true
+        } to ignorals.ignored
+    }
+}
+
+private fun BeanPropertyDefinition.jacksonProperty(): BeanProperty = object : BeanProperty.Std(
+    fullName,
+    primaryType,
+    wrapperName,
+    primaryMember,
+    metadata,
+) {
+    override fun findFormatOverrides(config: MapperConfig<*>): JsonFormat.Value? =
+        member?.let { config.annotationIntrospector.findFormat(config, it) }
+}
+
+private fun BeanPropertyDefinition.maskAnnotations(): List<Annotation> =
+    listOfNotNull(field, getter, setter, constructorParameter).flatMap { it.maskAnnotations() }
+
+private fun AnnotatedMember.maskAnnotations(includeJacksonAnnotations: Boolean = true): List<Annotation> = buildSet {
+    if (includeJacksonAnnotations) {
+        annotations().forEach { add(it) }
+    } else {
+        (member as? AnnotatedElement)?.annotations?.let(::addAll)
+    }
+    when (val reflected = member) {
+        is Field -> reflected.kotlinProperty?.toMergedAnnotation()?.mergedAnnotations?.let(::addAll)
+        is Method -> addAll(
+            reflected.kotlinFunction?.toMergedAnnotation()?.mergedAnnotations ?: reflected.inheritedAnnotations()
+        )
+    }
+}.toList()

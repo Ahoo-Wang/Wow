@@ -14,6 +14,45 @@
         },
         "mock_empty_agg": {
           "type": "me.ahoo.wow.schema.MockEmptyAgg"
+        },
+        "masked_enum_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskMaterializationSafetyTest$MaskedEnumAggregate"
+        },
+        "plain_enum_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskMaterializationSafetyTest$PlainEnumAggregate"
+        },
+        "all_of_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskWireShapeSafetyTest$AllOfAggregate"
+        },
+        "object_enum_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskWireShapeSafetyTest$ObjectEnumAggregate"
+        },
+        "type_id_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskWireShapeSafetyTest$TypeIdAggregate"
+        },
+        "raw_enum_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskEnumToStringSafetyTest$RawEnumAggregate"
+        },
+        "numeric_enum_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskEnumToStringSafetyTest$NumericEnumAggregate"
+        },
+        "contextual_container_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskContextualShapeSafetyTest$ContainerAggregate"
+        },
+        "contextual_array_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskContextualShapeSafetyTest$ArrayAggregate"
+        },
+        "contextual_setter_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskContextualShapeSafetyTest$SetterAggregate"
+        },
+        "declared_wrapper_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskDeclaredShapeSafetyTest$WrapperAggregate"
+        },
+        "declared_identity_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskDeclaredShapeSafetyTest$IdentityAggregate"
+        },
+        "declared_concrete_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskDeclaredShapeSafetyTest$ConcreteAggregate"
         }
       }
     }

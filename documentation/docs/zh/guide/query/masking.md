@@ -96,12 +96,29 @@ Gateway 每次订阅在创建 `QueryContext` 前读取一次 Provider 当前 Sch
 |---|---|
 | 字段不是 JVM String，或 Schema alternative 不是 String wire shape | Schema 构建失败 |
 | 同一成员有多个有效 Mask 注解，或 Schema 分支规则冲突 | Schema conflict |
+| Mask 字段或包含它的父属性被 `@Schema(hidden = true)` 或 `@Schema(accessMode = WRITE_ONLY)` 排除 | Schema 构建失败；文档隐藏不等于 Jackson 不输出 |
+| `@JsonIgnoreProperties` 中列出的 Mask 字段或父属性通过 `allowGetters` 继续输出 | Schema 构建失败，即使同时开启 `allowSetters`；文档 Schema 仍会忽略它 |
+| Mask 字段位于自定义 serializer/converter 的不透明子树（包括私有、Jackson 忽略的成员和声明的备选类型/子类型） | Schema 构建失败，无法确定可信 wire 路径 |
+| Mask 字段或父属性显式配置 `@JsonSerialize` 处理器（包括 `nullsUsing`）、`as`/`contentAs`/`keyAs` 或 `typing` | Schema 构建失败，未验证改变后的 wire 形状 |
+| `@JsonSerialize` 仅使用默认设置 | 与没有注解一致；Jackson 忽略成员仍被忽略，可见 Mask 规则继续生效 |
+| Mask 字段或父属性使用 `@JsonDeserialize` 的 `using`、`converter`、`contentUsing` 或 `contentConverter` | Schema 构建失败，因为该显式处理器形状不在 Mask typed 物化支持范围内 |
+| 含 Mask 成员的枚举通过自定义 `toString()` 输出文本，且没有显式常量名固定该输出 | Schema 构建失败；普通枚举名称、显式常量名称和数字形状仍受支持 |
+| Map key 类型包含 Mask 声明 | Schema 构建失败；JSON 属性名无法承载字段 Mask 规则 |
+| Iterator（`IterationType`）包含 Mask 元素 | Schema 构建失败，即使属性可见；生成器目前未提供受支持的元素 Mask 路径 |
+| Mask 字段或父属性只有计算型 getter，或 Jackson 不允许反序列化（如 `READ_ONLY`） | Schema 构建失败，避免 typed 物化恢复原值 |
+| Jackson builder 接受对应 JSON 属性并保留 Mask 结果 | 支持；使用 builder 元数据判定可写属性 |
 | Strategy 无法构造，或 `compile` 抛错 | Schema 构建失败，错误保留 |
 | 响应值为非 String/非 String 数组，Strategy 执行抛错，或自定义 `CompiledMask` 返回 `null` | 当前结果 Publisher 失败，不返回原值 |
 | EventStream event item 含非 null payload，但 `bodyType` 缺失、不是字符串或未知 | 当前结果 Publisher 失败 |
 | EventStream 顶层 `body` 不是数组，或数组包含非 object event item | 当前结果 Publisher 失败 |
 
 Event projection 完全没有顶层 `body`，或把该事件数组投影为 `null` 时，Mask 安全跳过。顶层 `body` 存在时必须是数组，且每个 event item 都必须是 object。合法 event item 内的 payload 属性 `body` 缺失或为 null，表示 metadata-only 或 payload 已排除；此时没有敏感 payload 可泄漏，不要求 `bodyType`。非 null payload 仍必须携带已知的字符串 `bodyType`；缺失、非字符串或未知类型都会在 Mask 前失败关闭。
+
+## Typed 物化契约
+
+Typed 查询先对 JSON 脱敏，再交给 Jackson 物化。普通属性型 `@JsonCreator` 构造器和工厂仍受支持；模型的构造器、creator、setter、builder，以及注册到 Jackson 的 deserializer 或 converter，都必须保留传入的已脱敏字段值，不能从常量、其他字段或外部来源重建敏感值。在受管 Gateway 路径中，SPI 注册的处理器收到的是已脱敏 JSON tree；但处理器仍能合成任意应用值，因此 Schema 校验只检查可见性、可写属性映射和受支持的声明形状，不证明处理器或应用代码的行为。应使用包含公开 Schema、实际 Mask 和 Jackson round-trip 的真实测试验证自定义模型与注册处理器遵守此契约。
+
+Dynamic 查询直接返回已脱敏的 `ObjectNode`，不执行 typed 模型物化。
 
 ## 受信原始值边界
 

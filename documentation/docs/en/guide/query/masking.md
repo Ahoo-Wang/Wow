@@ -96,12 +96,29 @@ Before creating `QueryContext`, the Gateway reads the Provider's current Schema 
 |---|---|
 | A field is not a JVM String, or a Schema alternative is not a String wire shape | Schema construction fails |
 | One member has multiple effective mask annotations, or Schema branches have conflicting rules | Schema conflict |
+| A masked property or its parent is excluded by `@Schema(hidden = true)` or `@Schema(accessMode = WRITE_ONLY)` | Schema construction fails; documentation hiding does not exclude Jackson output |
+| A masked property or parent listed in `@JsonIgnoreProperties` remains visible through `allowGetters` | Schema construction fails even with `allowSetters`; the documentation schema still omits it |
+| A masked property lies within an opaque custom serializer/converter subtree, including private or Jackson-ignored members and declared alternatives/subtypes | Schema construction fails because its wire path cannot be established |
+| A masked property or parent explicitly overrides `@JsonSerialize` handlers (including `nullsUsing`), `as`/`contentAs`/`keyAs`, or `typing` | Schema construction fails because the altered wire shape is not verified |
+| `@JsonSerialize` uses only default settings | Same as no annotation; Jackson-ignored members stay ignored and visible Mask rules remain effective |
+| A masked property or parent uses `@JsonDeserialize` with `using`, `converter`, `contentUsing`, or `contentConverter` | Schema construction fails because this explicit handler shape is outside the supported masked-materialization model |
+| An enum with masked members emits text through a custom `toString()` without an explicit constant name fixing that output | Schema construction fails; ordinary enum names, explicit constant names, and numeric shapes remain supported |
+| A Map key type contains a mask declaration | Schema construction fails; JSON property names cannot carry field mask rules |
+| An Iterator (`IterationType`) contains masked elements | Schema construction fails, even for visible properties; the generator does not currently provide supported element mask paths |
+| A masked property or its parent has only a computed getter, or Jackson disallows deserialization (such as `READ_ONLY`) | Schema construction fails to prevent typed materialization from restoring raw values |
+| A Jackson builder accepts the JSON property and preserves the masked value | Supported; builder metadata determines writable properties |
 | A Strategy cannot be constructed, or `compile` throws | Schema construction fails with the original error preserved |
 | A response value is not a String/String array, Strategy execution throws, or a custom `CompiledMask` returns `null` | The current result Publisher fails instead of returning the raw value |
 | An EventStream event item contains a non-null payload but its `bodyType` is missing, non-string, or unknown | The current result Publisher fails |
 | An EventStream `body` is not an array, or the array contains a non-object event item | The current result Publisher fails |
 
 Masking safely skips an Event projection with no top-level `body`, or with that event array projected as `null`. When present, the top-level `body` must be an array and every event item must be an object. Inside a valid event item, a missing or null payload property `body` means metadata-only or payload-excluded output: there is no sensitive payload to mask, so `bodyType` is not required. A non-null payload still requires a known string `bodyType`; missing, non-string, or unknown types fail closed before masking.
+
+## Typed Materialization Contract
+
+Typed queries mask JSON before Jackson materializes the model. Ordinary property-based `@JsonCreator` constructors and factories remain supported. Model constructors, creators, setters, builders, and registered Jackson deserializers or converters must preserve supplied masked field values rather than reconstruct sensitive values from constants, other fields, or external sources. SPI-registered handlers receive the already masked JSON tree on the managed Gateway path. They can still synthesize arbitrary application values, so Schema validation checks visibility, writable property mappings, and supported declaration shapes; it does not prove handler or application-code behavior. Verify custom models and registered handlers against this contract with an actual public-Schema, masking, and Jackson round-trip test.
+
+Dynamic queries return the already masked `ObjectNode` directly, without typed model materialization.
 
 ## Trusted Raw-Value Boundaries
 
