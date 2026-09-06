@@ -166,16 +166,20 @@ class ElasticsearchIndexMappingResolverTest {
     fun `runtime fields should not expose source projection paths`() {
         val mapping = TypeMapping.of { type ->
             type.runtime("runtimeCode") { it.type(RuntimeFieldType.Keyword) }
+                .runtime("runtimeDate") { it.type(RuntimeFieldType.Date).format("dd/MM/yyyy") }
                 .runtime("runtime") { runtime ->
                     runtime.type(RuntimeFieldType.Composite)
                         .fields("code") { it.type(RuntimeFieldType.Keyword) }
+                        .fields("date") { it.type(RuntimeFieldType.Date) }
                 }
         }
 
         val fields = ElasticsearchIndexMapping.from(INDEX, mapping).fields
 
         fields.getValue("runtimeCode").projectionPath.assert().isNull()
+        fields.getValue("runtimeDate").dateFormat.assert().isEqualTo("dd/MM/yyyy")
         fields.getValue("runtime.code").projectionPath.assert().isNull()
+        fields.getValue("runtime.date").dateFormat.assert().isNull()
     }
 
     private fun mappingResponse(field: String): GetMappingResponse = GetMappingResponse.of { response ->

@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.EarlierDaysFilter
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.IsEmptyStringFilter
 import me.ahoo.wow.api.query.IsNotEmptyStringFilter
@@ -30,6 +31,7 @@ import me.ahoo.wow.api.query.LastMonthFilter
 import me.ahoo.wow.api.query.LastWeekFilter
 import me.ahoo.wow.api.query.LastYearFilter
 import me.ahoo.wow.api.query.LessThanFilter
+import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.NextMonthFilter
@@ -47,15 +49,24 @@ import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
 import java.time.Clock
+import java.time.DateTimeException
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.Year
+import java.time.YearMonth
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoField
 import java.time.temporal.TemporalAdjusters
+import java.time.temporal.TemporalQueries
+import java.util.IdentityHashMap
 import java.util.concurrent.TimeUnit
 
 class FilterNormalizer(
@@ -65,16 +76,23 @@ class FilterNormalizer(
 ) {
     fun normalize(expression: FilterExpression): FilterExpression {
         val hasDeletionScope = defaultDeletionState == null || expression.hasExplicitDeletionScope()
-        val normalized = normalize(expression, clock.instant())
-        return if (hasDeletionScope) {
+        val pendingBoundaryChecks = IdentityHashMap<JsonNode, FormattedBoundary>()
+        val normalized = normalize(expression, clock.instant(), pendingBoundaryChecks)
+        val result = if (hasDeletionScope) {
             normalized
         } else {
             simplifyAnd(listOf(DeletionFilter(checkNotNull(defaultDeletionState)), normalized))
         }
+        result.validateFormattedBoundaries(pendingBoundaryChecks)
+        return result
     }
 
-    @Suppress("CyclomaticComplexMethod")
-    private fun normalize(expression: FilterExpression, now: Instant): FilterExpression = when (expression) {
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    private fun normalize(
+        expression: FilterExpression,
+        now: Instant,
+        pendingBoundaryChecks: MutableMap<JsonNode, FormattedBoundary>,
+    ): FilterExpression = when (expression) {
         is EqualFilter -> if (expression.value.isNull) IsNullFilter(expression.field) else expression
         is NotEqualFilter -> if (expression.value.isNull) IsNotNullFilter(expression.field) else expression
         is IsEmptyStringFilter -> EqualFilter(expression.field, JsonNodeFactory.instance.stringNode(""))
@@ -84,22 +102,25 @@ class FilterNormalizer(
                 NotEqualFilter(expression.field, JsonNodeFactory.instance.stringNode("")),
             ),
         )
-        is AndFilter -> simplifyAnd(expression.operands.map { normalize(it, now) })
-        is OrFilter -> simplifyOr(expression.operands.map { normalize(it, now) })
-        is NorFilter -> simplifyNor(expression.operands.map { normalize(it, now) })
-        is ElementMatchFilter -> ElementMatchFilter(expression.field, normalize(expression.predicate, now))
-        is YesterdayFilter -> expression.dayRange(now, -1)
-        is TodayFilter -> expression.dayRange(now, 0)
-        is TomorrowFilter -> expression.dayRange(now, 1)
-        is LastWeekFilter -> expression.weekRange(now, -1)
-        is ThisWeekFilter -> expression.weekRange(now, 0)
-        is NextWeekFilter -> expression.weekRange(now, 1)
-        is LastMonthFilter -> expression.monthRange(now, -1)
-        is ThisMonthFilter -> expression.monthRange(now, 0)
-        is NextMonthFilter -> expression.monthRange(now, 1)
-        is LastYearFilter -> expression.yearRange(now, -1)
-        is ThisYearFilter -> expression.yearRange(now, 0)
-        is NextYearFilter -> expression.yearRange(now, 1)
+        is AndFilter -> simplifyAnd(expression.operands.map { normalize(it, now, pendingBoundaryChecks) })
+        is OrFilter -> simplifyOr(expression.operands.map { normalize(it, now, pendingBoundaryChecks) })
+        is NorFilter -> simplifyNor(expression.operands.map { normalize(it, now, pendingBoundaryChecks) })
+        is ElementMatchFilter -> ElementMatchFilter(
+            expression.field,
+            normalize(expression.predicate, now, pendingBoundaryChecks),
+        )
+        is YesterdayFilter -> expression.dayRange(now, -1, pendingBoundaryChecks)
+        is TodayFilter -> expression.dayRange(now, 0, pendingBoundaryChecks)
+        is TomorrowFilter -> expression.dayRange(now, 1, pendingBoundaryChecks)
+        is LastWeekFilter -> expression.weekRange(now, -1, pendingBoundaryChecks)
+        is ThisWeekFilter -> expression.weekRange(now, 0, pendingBoundaryChecks)
+        is NextWeekFilter -> expression.weekRange(now, 1, pendingBoundaryChecks)
+        is LastMonthFilter -> expression.monthRange(now, -1, pendingBoundaryChecks)
+        is ThisMonthFilter -> expression.monthRange(now, 0, pendingBoundaryChecks)
+        is NextMonthFilter -> expression.monthRange(now, 1, pendingBoundaryChecks)
+        is LastYearFilter -> expression.yearRange(now, -1, pendingBoundaryChecks)
+        is ThisYearFilter -> expression.yearRange(now, 0, pendingBoundaryChecks)
+        is NextYearFilter -> expression.yearRange(now, 1, pendingBoundaryChecks)
         is BeforeTodayFilter -> LessThanFilter(
             expression.field,
             instantNode(
@@ -107,6 +128,7 @@ class FilterNormalizer(
                 zone(expression.zoneId),
                 expression.resolvedDateFormatter(),
                 expression.timeUnit,
+                pendingBoundaryChecks,
             ),
         )
         is RecentDaysFilter -> {
@@ -118,6 +140,7 @@ class FilterNormalizer(
                 zone(expression.zoneId),
                 expression.resolvedDateFormatter(),
                 expression.timeUnit,
+                pendingBoundaryChecks,
             )
         }
 
@@ -125,7 +148,13 @@ class FilterNormalizer(
             val end = today(now, expression.zoneId).minusDays(expression.days.toLong() - 1).atStartOfDay()
             LessThanFilter(
                 expression.field,
-                instantNode(end, zone(expression.zoneId), expression.resolvedDateFormatter(), expression.timeUnit),
+                instantNode(
+                    end,
+                    zone(expression.zoneId),
+                    expression.resolvedDateFormatter(),
+                    expression.timeUnit,
+                    pendingBoundaryChecks,
+                ),
             )
         }
 
@@ -138,7 +167,11 @@ class FilterNormalizer(
         else -> false
     }
 
-    private fun RelativeTimeFilter.dayRange(now: Instant, offset: Long): FilterExpression =
+    private fun RelativeTimeFilter.dayRange(
+        now: Instant,
+        offset: Long,
+        pendingBoundaryChecks: MutableMap<JsonNode, FormattedBoundary>,
+    ): FilterExpression =
         range(
             field,
             today(now, zoneId).plusDays(offset).atStartOfDay(),
@@ -146,15 +179,42 @@ class FilterNormalizer(
             zone(zoneId),
             resolvedDateFormatter(),
             timeUnit,
+            pendingBoundaryChecks,
         )
 
-    private fun RelativeTimeFilter.weekRange(now: Instant, offset: Long): FilterExpression =
-        weekRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter(), timeUnit)
+    private fun RelativeTimeFilter.weekRange(
+        now: Instant,
+        offset: Long,
+        pendingBoundaryChecks: MutableMap<JsonNode, FormattedBoundary>,
+    ): FilterExpression = weekRange(
+        field,
+        today(now, zoneId),
+        offset,
+        zone(zoneId),
+        resolvedDateFormatter(),
+        timeUnit,
+        pendingBoundaryChecks,
+    )
 
-    private fun RelativeTimeFilter.monthRange(now: Instant, offset: Long): FilterExpression =
-        monthRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter(), timeUnit)
+    private fun RelativeTimeFilter.monthRange(
+        now: Instant,
+        offset: Long,
+        pendingBoundaryChecks: MutableMap<JsonNode, FormattedBoundary>,
+    ): FilterExpression = monthRange(
+        field,
+        today(now, zoneId),
+        offset,
+        zone(zoneId),
+        resolvedDateFormatter(),
+        timeUnit,
+        pendingBoundaryChecks,
+    )
 
-    private fun RelativeTimeFilter.yearRange(now: Instant, offset: Long): FilterExpression {
+    private fun RelativeTimeFilter.yearRange(
+        now: Instant,
+        offset: Long,
+        pendingBoundaryChecks: MutableMap<JsonNode, FormattedBoundary>,
+    ): FilterExpression {
         val start = today(now, zoneId).withDayOfYear(1).plusYears(offset)
         return range(
             field,
@@ -163,6 +223,7 @@ class FilterNormalizer(
             zone(zoneId),
             resolvedDateFormatter(),
             timeUnit,
+            pendingBoundaryChecks,
         )
     }
 
@@ -173,9 +234,18 @@ class FilterNormalizer(
         zoneId: ZoneId,
         dateFormatter: DateTimeFormatter?,
         timeUnit: TimeUnit,
+        pendingBoundaryChecks: MutableMap<JsonNode, FormattedBoundary>,
     ): FilterExpression {
         val start = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).plusWeeks(offset)
-        return range(field, start.atStartOfDay(), start.plusWeeks(1).atStartOfDay(), zoneId, dateFormatter, timeUnit)
+        return range(
+            field,
+            start.atStartOfDay(),
+            start.plusWeeks(1).atStartOfDay(),
+            zoneId,
+            dateFormatter,
+            timeUnit,
+            pendingBoundaryChecks,
+        )
     }
 
     private fun monthRange(
@@ -185,9 +255,18 @@ class FilterNormalizer(
         zoneId: ZoneId,
         dateFormatter: DateTimeFormatter?,
         timeUnit: TimeUnit,
+        pendingBoundaryChecks: MutableMap<JsonNode, FormattedBoundary>,
     ): FilterExpression {
         val start = today.withDayOfMonth(1).plusMonths(offset)
-        return range(field, start.atStartOfDay(), start.plusMonths(1).atStartOfDay(), zoneId, dateFormatter, timeUnit)
+        return range(
+            field,
+            start.atStartOfDay(),
+            start.plusMonths(1).atStartOfDay(),
+            zoneId,
+            dateFormatter,
+            timeUnit,
+            pendingBoundaryChecks,
+        )
     }
 
     private fun range(
@@ -197,20 +276,29 @@ class FilterNormalizer(
         zoneId: ZoneId,
         dateFormatter: DateTimeFormatter?,
         timeUnit: TimeUnit,
+        pendingBoundaryChecks: MutableMap<JsonNode, FormattedBoundary>,
     ): FilterExpression = AndFilter(
         listOf(
-            GreaterThanOrEqualFilter(field, instantNode(start, zoneId, dateFormatter, timeUnit)),
-            LessThanFilter(field, instantNode(end, zoneId, dateFormatter, timeUnit)),
+            GreaterThanOrEqualFilter(
+                field,
+                instantNode(start, zoneId, dateFormatter, timeUnit, pendingBoundaryChecks),
+            ),
+            LessThanFilter(field, instantNode(end, zoneId, dateFormatter, timeUnit, pendingBoundaryChecks)),
         ),
     )
 
     private fun instantNode(
-        dateTime: java.time.LocalDateTime,
+        dateTime: LocalDateTime,
         zoneId: ZoneId,
         dateFormatter: DateTimeFormatter?,
         timeUnit: TimeUnit,
+        pendingBoundaryChecks: MutableMap<JsonNode, FormattedBoundary>,
     ) = dateFormatter?.let {
-        JsonNodeFactory.instance.stringNode(it.format(dateTime.atZone(zoneId)))
+        val boundary = dateTime.atZone(zoneId)
+        val formatted = it.format(boundary)
+        JsonNodeFactory.instance.stringNode(formatted).also { node ->
+            pendingBoundaryChecks[node] = FormattedBoundary(boundary, it, formatted)
+        }
     } ?: dateTime.atZone(zoneId).toInstant().let {
         JsonNodeFactory.instance.numberNode(
             Math.addExact(
@@ -218,6 +306,69 @@ class FilterNormalizer(
                 timeUnit.convert(it.nano.toLong(), TimeUnit.NANOSECONDS),
             ),
         )
+    }
+
+    private data class FormattedBoundary(
+        val boundary: ZonedDateTime,
+        val formatter: DateTimeFormatter,
+        val formatted: String,
+    ) {
+        @Suppress("CyclomaticComplexMethod", "ThrowsCount")
+        fun validate() {
+            val parsedInstant = try {
+                val parsed = formatter.parse(formatted)
+                runCatching { Instant.from(parsed) }.getOrElse {
+                    val date = parsed.query(TemporalQueries.localDate()) ?: run {
+                        val month = runCatching { YearMonth.from(parsed) }.getOrNull()
+                        val allowed = if (month != null) MONTH_FIELDS else YEAR_FIELDS
+                        if (DATE_FIELDS.any { field -> field !in allowed && parsed.isSupported(field) }) {
+                            throw DateTimeException("Unresolved date fields cannot be discarded.")
+                        }
+                        month?.atDay(1) ?: Year.from(parsed).atDay(1)
+                    }
+                    val time = parsed.query(TemporalQueries.localTime()) ?: run {
+                        if (TIME_FIELDS.any(parsed::isSupported)) {
+                            throw DateTimeException("Unresolved time fields cannot default to midnight.")
+                        }
+                        LocalTime.MIDNIGHT
+                    }
+                    LocalDateTime.of(date, time)
+                        .atZone(parsed.query(TemporalQueries.zone()) ?: boundary.zone)
+                        .toInstant()
+                }
+            } catch (cause: DateTimeException) {
+                throw IllegalArgumentException(
+                    "Date formatter cannot preserve relative-time boundary [$boundary].",
+                    cause,
+                )
+            }
+            require(parsedInstant == boundary.toInstant()) {
+                "Date formatter loses precision for relative-time boundary [$boundary]: [$formatted]."
+            }
+        }
+    }
+
+    private fun FilterExpression.validateFormattedBoundaries(
+        pendingBoundaryChecks: Map<JsonNode, FormattedBoundary>,
+    ) {
+        when (this) {
+            is AndFilter -> operands.forEach { it.validateFormattedBoundaries(pendingBoundaryChecks) }
+            is OrFilter -> operands.forEach { it.validateFormattedBoundaries(pendingBoundaryChecks) }
+            is NorFilter -> operands.forEach { it.validateFormattedBoundaries(pendingBoundaryChecks) }
+            is ElementMatchFilter -> predicate.validateFormattedBoundaries(pendingBoundaryChecks)
+            is GreaterThanFilter -> pendingBoundaryChecks[value]?.validate()
+            is GreaterThanOrEqualFilter -> pendingBoundaryChecks[value]?.validate()
+            is LessThanFilter -> pendingBoundaryChecks[value]?.validate()
+            is LessThanOrEqualFilter -> pendingBoundaryChecks[value]?.validate()
+            else -> Unit
+        }
+    }
+
+    private companion object {
+        val TIME_FIELDS = ChronoField.entries.filter { it.isTimeBased }
+        val DATE_FIELDS = ChronoField.entries.filter { it.isDateBased }
+        val YEAR_FIELDS = setOf(ChronoField.YEAR, ChronoField.YEAR_OF_ERA, ChronoField.ERA)
+        val MONTH_FIELDS = YEAR_FIELDS + setOf(ChronoField.MONTH_OF_YEAR, ChronoField.PROLEPTIC_MONTH)
     }
 
     private fun today(now: Instant, zoneId: String?): LocalDate = now.atZone(zone(zoneId)).toLocalDate()

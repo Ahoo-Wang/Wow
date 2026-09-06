@@ -1969,6 +1969,30 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `aggregation should reject a sibling alias sharing a masked projection target`() {
+        val alias = QueryField("state.otherAlias")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    QueryField("state.secret") to fieldSchema(
+                        projectionPath = "document.secret", maskRule = fullMaskRule(),
+                    ),
+                    alias to fieldSchema(
+                        QueryCapability.AGGREGATE_TERMS to alias.path,
+                        projectionPath = "document.secret",
+                    ),
+                )
+            )
+        )
+        resolver.resolve(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(alias, "value")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            )
+        ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
     fun `aggregation should keep an unrelated declared field exact beside a masked alias`() {
         val resolver = QuerySchemaResolver(
             schema(

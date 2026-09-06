@@ -23,11 +23,15 @@ import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -35,6 +39,7 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCapability
@@ -43,8 +48,11 @@ import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
+import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
+import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
@@ -57,18 +65,432 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.NullSource
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import tools.jackson.databind.node.IntNode
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.jvm.javaField
 
 @Suppress("LargeClass")
 class ElasticsearchQuerySchemaAdapterTest {
+    @Test
+    fun `masked native alias should not declare its backing storage field`() {
+        val secret = QueryField("state.secret")
+        val alias = QueryField("state.secretAlias")
+        val siblingAlias = QueryField("state.siblingAlias")
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                mapOf(
+                    alias to field(QueryValueType.STRING, maskRule = fullMaskRule()),
+                ),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties(secret.path) { it.keyword { keyword -> keyword } }
+                        .properties(alias.path) { it.alias { native -> native.path(secret.path) } }
+                        .properties(siblingAlias.path) { it.alias { native -> native.path(secret.path) } }
+                },
+            ),
+        )
+
+        schema.fields.assert().doesNotContainKey(secret)
+        listOf(
+            { schema.resolve(EqualFilter(secret, tools.jackson.databind.node.StringNode.valueOf("secret"))) },
+            { schema.resolve(ListQuery(MatchAllFilter, projection = Projection(include = listOf(secret)))) },
+            { schema.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(secret, Sort.Direction.ASC)))) },
+        ).forEach { resolve ->
+            val resolved = resolve()
+            resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+            assertThrows<QuerySchemaValidationException> {
+                resolved.requireAccepted(QuerySchemaValidationMode.STRICT)
+            }
+        }
+
+        listOf(alias, siblingAlias).forEach { masked ->
+            schema.resolve(
+                AggregationQuery(
+                    groupBy = listOf(AggregationGroup.Terms(masked, "value")),
+                    metrics = listOf(AggregationMetric.Count("count")),
+                ),
+            ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        }
+        listOf(alias, siblingAlias).forEach { nativeAlias ->
+            schema.resolve(
+                ListQuery(
+                    EqualFilter(nativeAlias, tools.jackson.databind.node.StringNode.valueOf("secret")),
+                    sort = listOf(Sort(nativeAlias, Sort.Direction.ASC)),
+                ),
+            ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        }
+    }
+
+    @Suppress("LongMethod")
+    @ParameterizedTest
+    @CsvSource("true, false", "false, false", "true, true")
+    fun `native aliases of masked fields should reject aggregation with or without logical declarations`(
+        declared: Boolean,
+        maskedViaAlias: Boolean,
+    ) {
+        val secret = QueryField("state.secret")
+        val alias = QueryField("state.secretAlias")
+        val siblingAlias = QueryField("state.siblingAlias")
+        val rootAlias = QueryField("secretAlias")
+        val public = QueryField("state.public")
+        val publicAlias = QueryField("state.publicAlias")
+        val mapping = ElasticsearchIndexMapping.from(
+            INDEX,
+            TypeMapping.of { mapping ->
+                mapping.properties(secret.path) { it.keyword { keyword -> keyword } }
+                    .properties(alias.path) { it.alias { native -> native.path(secret.path) } }
+                    .properties(siblingAlias.path) { it.alias { native -> native.path(secret.path) } }
+                    .properties(rootAlias.path) { it.alias { native -> native.path(secret.path) } }
+                    .properties(public.path) { it.keyword { keyword -> keyword } }
+                    .properties(publicAlias.path) { it.alias { native -> native.path(public.path) } }
+            },
+        )
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                buildMap {
+                    put(secret, field(QueryValueType.STRING, maskRule = if (maskedViaAlias) null else fullMaskRule()))
+                    put(public, field(QueryValueType.STRING))
+                    if (declared) {
+                        put(
+                            alias,
+                            field(QueryValueType.STRING, maskRule = if (maskedViaAlias) fullMaskRule() else null)
+                        )
+                        put(publicAlias, field(QueryValueType.STRING))
+                    }
+                }
+            ),
+            mapping,
+        )
+        val metadata = schema.toMetadata().fields.associateBy { it.field }
+        listOf(secret, alias, siblingAlias, rootAlias).forEach { masked ->
+            metadata.getValue(masked).masked.assert().isTrue()
+            listOf(
+                AggregationQuery(
+                    groupBy = listOf(AggregationGroup.Terms(masked, "value")),
+                    metrics = listOf(AggregationMetric.Count("count"))
+                ),
+                AggregationQuery(metrics = listOf(AggregationMetric.Any(masked, "value"))),
+                AggregationQuery(
+                    metrics = listOf(
+                        AggregationMetric.Numeric(
+                            AggregationFunction.SUM,
+                            AggregationExpression.Field(masked),
+                            "total",
+                        )
+                    )
+                ),
+            ).forEach { query ->
+                schema.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+            }
+        }
+        metadata.getValue(public).masked.assert().isFalse()
+        if (declared) metadata.getValue(publicAlias).masked.assert().isFalse()
+        schema.fields.getValue(rootAlias).masked.assert().isFalse()
+        schema.resolve(SearchFilter("secret")).compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        schema.resolve(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(QueryField("state.unknown"), "value")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            )
+        ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+        val expected = if (declared) QueryCompatibilityLevel.EXACT else QueryCompatibilityLevel.COMPATIBLE
+        schema.resolve(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(publicAlias, "value")),
+                metrics = listOf(AggregationMetric.Any(publicAlias, "first")),
+            )
+        ).compatibility.assert().isEqualTo(expected)
+        listOf(alias, siblingAlias, rootAlias).forEach { candidate ->
+            schema.resolve(
+                ListQuery(
+                    EqualFilter(candidate, tools.jackson.databind.node.StringNode.valueOf("secret")),
+                    sort = listOf(Sort(candidate, Sort.Direction.ASC))
+                )
+            )
+                .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+            schema.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(candidate, Sort.Direction.ASC))))
+                .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        }
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = ["yyyy-MM-dd"])
+    fun `masked formatted temporal alias should resolve and compile today while rejecting aggregation`(
+        datePattern: String?,
+    ) {
+        val source = QueryField("state.birthDate")
+        val alias = QueryField("birthDateAlias")
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                mapOf(
+                    source to field(
+                        QueryValueType.STRING,
+                        semanticType = Temporal.Formatted("yyyy-MM-dd"),
+                        maskRule = fullMaskRule(),
+                    ),
+                ),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties(source.path) { it.keyword { keyword -> keyword } }
+                        .properties(alias.path) { it.alias { native -> native.path(source.path) } }
+                },
+            ),
+        )
+
+        schema.resolve(TodayFilter(source, zoneId = "UTC", datePattern = datePattern))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        val resolved = schema.resolve(TodayFilter(alias, zoneId = "UTC", datePattern = datePattern))
+            .requireAccepted(QuerySchemaValidationMode.STRICT) as TodayFilter
+        resolved.datePattern.assert().isEqualTo("yyyy-MM-dd")
+        val normalized = FilterNormalizer(
+            clock = Clock.fixed(Instant.parse("2026-09-06T12:00:00Z"), ZoneOffset.UTC),
+        ).normalize(resolved)
+        val ranges = SnapshotFilterCompiler.compile(normalized, schema).bool().filter()
+            .filter { it.isRange }.map { it.range().untyped() }
+        ranges.map { it.field() }.assert().containsExactly(alias.path, alias.path)
+        ranges[0].gte()!!.toJson(WowJsonpMapper).toString().assert().isEqualTo("\"2026-09-06\"")
+        ranges[1].lt()!!.toJson(WowJsonpMapper).toString().assert().isEqualTo("\"2026-09-07\"")
+        schema.resolve(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(alias, "date")),
+                metrics = listOf(AggregationMetric.Any(alias, "first")),
+            ),
+        ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `formatted keyword path should reject a lossy relative boundary after schema resolution`() {
+        val field = QueryField("state.month")
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                mapOf(field to field(QueryValueType.STRING, semanticType = Temporal.Formatted("yyyy-MM"))),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping -> mapping.properties(field.path) { it.keyword { keyword -> keyword } } },
+            ),
+        )
+        val resolved = schema.resolve(TodayFilter(field, zoneId = "UTC"))
+            .requireAccepted(QuerySchemaValidationMode.STRICT)
+
+        assertThrows<IllegalArgumentException> {
+            FilterNormalizer(
+                clock = Clock.fixed(Instant.parse("2026-09-06T12:00:00Z"), ZoneOffset.UTC),
+            ).normalize(resolved)
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["date", "date_nanos"])
+    fun `custom native date format should preserve canonical and masked alias temporal semantics`(kind: String) {
+        val source = QueryField("state.birthDate")
+        val alias = QueryField("birthDateAlias")
+        val pattern = "dd/MM/yyyy"
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                mapOf(
+                    source to field(QueryValueType.STRING, semanticType = Temporal.Formatted(pattern), maskRule = fullMaskRule())
+                ),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties(source.path) { property ->
+                        if (kind == "date") {
+                            property.date { it.format(pattern) }
+                        } else {
+                            property.dateNanos { it.format(pattern) }
+                        }
+                    }.properties(alias.path) { it.alias { native -> native.path(source.path) } }
+                },
+            ),
+        )
+        listOf(source, alias).forEach { field ->
+            schema.fields.getValue(field).semanticType.assert().isEqualTo(Temporal.Formatted(pattern))
+            schema.resolve(
+                ListQuery(
+                    EqualFilter(field, tools.jackson.databind.node.StringNode.valueOf("06/09/2026")),
+                    sort = listOf(Sort(field, Sort.Direction.ASC))
+                )
+            )
+                .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+            listOf(null, pattern).forEach { datePattern ->
+                val resolved = schema.resolve(TodayFilter(field, zoneId = "UTC", datePattern = datePattern))
+                    .requireAccepted(QuerySchemaValidationMode.STRICT) as TodayFilter
+                resolved.datePattern.assert().isEqualTo(pattern)
+                val normalized = FilterNormalizer(
+                    clock = Clock.fixed(Instant.parse("2026-09-06T12:00:00Z"), ZoneOffset.UTC)
+                )
+                    .normalize(resolved)
+                val ranges = SnapshotFilterCompiler.compile(normalized, schema).bool().filter()
+                    .filter { it.isRange }.map { it.range().untyped() }
+                ranges.map { it.field() }.assert().containsExactly(field.path, field.path)
+                ranges[0].gte()!!.toJson(WowJsonpMapper).toString().assert().isEqualTo("\"06/09/2026\"")
+                ranges[1].lt()!!.toJson(WowJsonpMapper).toString().assert().isEqualTo("\"07/09/2026\"")
+            }
+            schema.resolve(TodayFilter(field, zoneId = "UTC", datePattern = "yyyy-MM-dd"))
+                .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+            schema.resolve(
+                AggregationQuery(
+                    groupBy = listOf(AggregationGroup.Terms(field, "date")),
+                    metrics = listOf(AggregationMetric.Any(field, "first"))
+                )
+            )
+                .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["date", "date_nanos"])
+    fun `locale-sensitive native date format should not prove formatted ranges`(kind: String) {
+        val field = QueryField("state.birthDate")
+        val pattern = "dd MMMM yyyy"
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                mapOf(field to field(QueryValueType.STRING, semanticType = Temporal.Formatted(pattern))),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties(field.path) { property ->
+                        if (kind == "date") {
+                            property.date { it.format(pattern).locale("fr") }
+                        } else {
+                            property.dateNanos { it.format(pattern) }
+                        }
+                    }
+                },
+            ),
+        )
+
+        schema.fields.getValue(field).bindings.assert()
+            .containsKeys(QueryCapability.EXACT_MATCH, QueryCapability.SORT)
+            .doesNotContainKey(QueryCapability.RANGE)
+        schema.resolve(TodayFilter(field, zoneId = "UTC"))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        schema.resolve(
+            ListQuery(
+                EqualFilter(field, tools.jackson.databind.node.StringNode.valueOf("06 septembre 2026")),
+                sort = listOf(Sort(field, Sort.Direction.ASC)),
+            ),
+        ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = ["yyyy-MM-dd", "dd/MM/yyyy||epoch_millis"])
+    fun `unproven native formats should retain implicit native date alias queries`(mappingFormat: String?) {
+        val source = QueryField("state.birthDate")
+        val alias = QueryField("birthDateAlias")
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                mapOf(
+                    source to field(QueryValueType.STRING, semanticType = Temporal.Formatted("dd/MM/yyyy"), maskRule = fullMaskRule())
+                ),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties(source.path) { it.date { date -> date.format(mappingFormat) } }
+                        .properties(alias.path) { it.alias { native -> native.path(source.path) } }
+                },
+            ),
+        )
+        schema.fields.getValue(source).bindings.assert().doesNotContainKey(QueryCapability.RANGE)
+        schema.fields.getValue(alias).semanticType.assert().isEqualTo(Temporal.Date)
+        val resolved = schema.resolve(TodayFilter(alias, zoneId = "UTC"))
+            .requireAccepted(QuerySchemaValidationMode.STRICT) as TodayFilter
+        val normalized = FilterNormalizer(clock = Clock.fixed(Instant.parse("2026-09-06T12:00:00Z"), ZoneOffset.UTC))
+            .normalize(resolved)
+        val ranges = SnapshotFilterCompiler.compile(normalized, schema).bool().filter()
+            .filter { it.isRange }.map { it.range().untyped() }
+        ranges[0].gte()!!.toJson(WowJsonpMapper).toString().assert()
+            .isEqualTo(Instant.parse("2026-09-06T00:00:00Z").toEpochMilli().toString())
+        schema.resolve(TodayFilter(alias, zoneId = "UTC", datePattern = "dd/MM/yyyy"))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = ["yyyy-MM-dd"])
+    fun `masked source token count alias should allow ordinary numeric queries but reject aggregation`(
+        datePattern: String?,
+    ) {
+        val secret = QueryField("state.secret")
+        val alias = QueryField("secretLength")
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                mapOf(
+                    secret to field(
+                        QueryValueType.STRING,
+                        semanticType = datePattern?.let(Temporal::Formatted),
+                        maskRule = fullMaskRule(),
+                    ),
+                ),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties(secret.path) { property ->
+                        property.text { text ->
+                            text.fields("length") { it.tokenCount { count -> count.analyzer("standard") } }
+                        }
+                    }.properties(alias.path) { it.alias { native -> native.path("${secret.path}.length") } }
+                },
+            ),
+        )
+        schema.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(alias, Sort.Direction.ASC))))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        schema.resolve(EqualFilter(alias, IntNode.valueOf(2)))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        schema.resolve(GreaterThanOrEqualFilter(alias, IntNode.valueOf(2)))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        schema.toMetadata().fields.single { it.field == alias }.let { metadata ->
+            metadata.masked.assert().isTrue()
+            metadata.valueTypes.assert().isEqualTo(setOf(QueryValueType.INTEGER))
+        }
+        listOf(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(alias, "value")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+            AggregationQuery(metrics = listOf(AggregationMetric.Any(alias, "value"))),
+            AggregationQuery(
+                metrics = listOf(
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Field(alias),
+                        "total",
+                    )
+                )
+            ),
+        ).forEach { query ->
+            schema.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        }
+    }
+
     @Test
     fun `binding should retain a logical mask rule and reject every physical multi-field`() {
         val secret = QueryField("state.secret")
@@ -233,6 +655,28 @@ class ElasticsearchQuerySchemaAdapterTest {
         schema.resolve(ListQuery(MatchAllFilter, projection = Projection(include = listOf(source))))
             .compatibility.assert()
             .isEqualTo(QueryCompatibilityLevel.EXACT)
+    }
+
+    @Test
+    fun `formatted runtime date should retain matching native capabilities`() {
+        val field = QueryField("state.runtimeDate")
+        val pattern = "dd/MM/yyyy"
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                mapOf(field to field(QueryValueType.STRING, semanticType = Temporal.Formatted(pattern))),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.runtime(field.path) { it.type(RuntimeFieldType.Date).format(pattern) }
+                },
+            ),
+        )
+
+        schema.fields.getValue(field).bindings.assert()
+            .containsKeys(QueryCapability.EXACT_MATCH, QueryCapability.RANGE, QueryCapability.SORT)
+        schema.resolve(TodayFilter(field, zoneId = "UTC"))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
     }
 
     @Test

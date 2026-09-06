@@ -415,6 +415,35 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     }
 
     @Test
+    fun `absorbed formatted precision should preserve constant query`() {
+        val field = QueryField("state.absorbedMonth")
+        setStateValidator(Document("absorbedMonth", Document("bsonType", "string")))
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(
+                Document("_id", snapshot.aggregateId.id),
+                Document("\$set", Document(field.path, "2026-08")),
+            ).toMono().test().expectNextCount(1).verifyComplete()
+        val service = MongoSnapshotQueryBackendFactory(
+            database = database,
+            schemaSources = querySchemaSources + formattedTemporalSource(field, "yyyy-MM"),
+        ).create(MOCK_AGGREGATE_METADATA)
+        val relative = TodayFilter(field, zoneId = "UTC")
+
+        service.backend.list(
+            resolved(
+                service,
+                ListQuery(me.ahoo.wow.api.query.AndFilter(listOf(me.ahoo.wow.api.query.MatchNoneFilter, relative))),
+                QuerySchemaValidationMode.STRICT,
+            ),
+        ).test().verifyComplete()
+        assertThrows<IllegalArgumentException> {
+            service.backend.list(
+                resolved(service, ListQuery(relative), QuerySchemaValidationMode.STRICT),
+            ).collectList().block()
+        }
+    }
+
+    @Test
     fun `strict should delegate numeric array ranges metrics and histograms`() {
         val fieldPath = "state.values"
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())

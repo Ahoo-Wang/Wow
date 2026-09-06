@@ -79,6 +79,17 @@ class ElasticsearchQuerySchemaAdapter(
             val elementFields = logicalSchema.fields.mapNotNullTo(linkedSetOf()) { (field, logical) ->
                 mapping.binding(field, logical, QueryCapability.ELEMENT_SCOPE, invalidNestedParents)?.let { field }
             }
+            val maskedSources = logicalSchema.fields.filterValues { it.maskRule != null }.mapKeys { (field, _) ->
+                mapping.fields[field.path]?.projectionPath ?: field.path
+            }
+            val boundFields = logicalSchema.fields.toMutableMap()
+            mapping.fields.forEach { (path, mapped) ->
+                val source = maskedSources[mapped.projectionPath]
+                if (source != null && path != mapped.projectionPath && !path.startsWith("${mapped.projectionPath}.")) {
+                    // Retain source relationships for mapping-only aliases without applying the mask twice.
+                    boundFields.putIfAbsent(QueryField(path), source.forMappedAlias(mapped))
+                }
+            }
             return QueryModelSchema(
                 model = model,
                 capabilities = buildSet {
@@ -90,7 +101,7 @@ class ElasticsearchQuerySchemaAdapter(
                     }
                 },
                 fields = buildMap {
-                    logicalSchema.fields.forEach { (field, logical) ->
+                    boundFields.forEach { (field, logical) ->
                         put(
                             field,
                             logical.toFieldSchema(
@@ -115,6 +126,25 @@ class ElasticsearchQuerySchemaAdapter(
                         putIfAbsent(QueryField(path), metadataField(path, valueType, QueryCapability.SORT))
                     }
                 },
+            )
+        }
+
+        private fun LogicalQueryFieldSchema.forMappedAlias(mapped: ElasticsearchMappedField): LogicalQueryFieldSchema {
+            val valueType = when (mapped.kind) {
+                in INTEGER_KINDS -> QueryValueType.INTEGER
+                in NUMERIC_KINDS -> QueryValueType.DECIMAL
+                in BOOLEAN_KINDS -> QueryValueType.BOOLEAN
+                else -> QueryValueType.STRING
+            }
+            return copy(
+                valueTypes = setOf(valueType),
+                enumValues = null,
+                semanticType = when {
+                    semanticType is Temporal && proves(QueryCapability.RANGE, mapped) -> semanticType
+                    mapped.kind in DATE_KINDS -> Temporal.Date
+                    else -> null
+                },
+                maskRule = null,
             )
         }
 
@@ -278,7 +308,7 @@ private fun ElasticsearchMappedField.supports(
     }
     return executable && (
         capability == QueryCapability.PRESENCE ||
-            logical.proves(capability, kind) ||
+            logical.proves(capability, this) ||
             flattenedDescendant && capability == QueryCapability.EXACT_MATCH &&
             logical.valueTypes == setOf(QueryValueType.STRING)
         )
@@ -292,10 +322,23 @@ private fun ElasticsearchIndexMapping.invalidNestedParents(logicalSchema: Logica
         logicalSchema.fields[QueryField(path)]?.isElementScope != true
     }
 
-private fun LogicalQueryFieldSchema.proves(capability: QueryCapability, kind: Property.Kind): Boolean =
-    storageRequirements(capability).let { requirements ->
-        requirements.isNotEmpty() && requirements.all { kind in it }
+private fun LogicalQueryFieldSchema.proves(capability: QueryCapability, mapped: ElasticsearchMappedField): Boolean {
+    val temporal = semanticType
+    if (temporal is Temporal.Formatted && mapped.kind in DATE_KINDS) {
+        return valueTypes == setOf(QueryValueType.STRING) && mapped.dateFormat == temporal.pattern &&
+            capability in setOf(QueryCapability.EXACT_MATCH, QueryCapability.RANGE, QueryCapability.SORT) &&
+            (capability != QueryCapability.RANGE || temporal.pattern.isLocaleIndependentDatePattern)
     }
+    return storageRequirements(capability).let { requirements ->
+        requirements.isNotEmpty() && requirements.all { mapped.kind in it }
+    }
+}
+
+private val LOCALE_SENSITIVE_DATE_PATTERN = Regex("[BEGOavzYwWec]|M{3,}|L{3,}|Q{3,}|q{3,}|Z{4}")
+
+// Quoted literals can be false negatives; avoiding a date-pattern parser keeps native range proof conservative.
+private val String.isLocaleIndependentDatePattern: Boolean
+    get() = !LOCALE_SENSITIVE_DATE_PATTERN.containsMatchIn(this)
 
 private fun LogicalQueryFieldSchema.storageRequirements(
     capability: QueryCapability,

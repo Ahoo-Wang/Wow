@@ -19,16 +19,21 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class FilterNormalizerTest {
+    private val normalizerClock = Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC)
     private val normalizer = FilterNormalizer(
-        Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),
+        normalizerClock,
         ZoneOffset.UTC,
     )
 
@@ -84,6 +89,202 @@ class FilterNormalizerTest {
 
         (normalized.operands[1] as GreaterThanOrEqualFilter).value.asText().assert()
             .isEqualTo("2026-08-22 00:00:00")
+    }
+
+    @Test
+    fun `should reject formatted relative boundaries that lose precision`() {
+        listOf(
+            Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),
+            Clock.fixed(Instant.parse("2026-08-31T12:00:00Z"), ZoneOffset.UTC),
+        ).forEach { clock ->
+            assertThrows<IllegalArgumentException> {
+                FilterNormalizer(clock, ZoneOffset.UTC, null).normalize(
+                    TodayFilter(QueryField("createdAt"), zoneId = "UTC", datePattern = "yyyy-MM"),
+                )
+            }
+        }
+        assertThrows<IllegalArgumentException> {
+            normalizer.normalize(
+                BeforeTodayFilter(
+                    QueryField("createdAt"),
+                    time = LocalTime.NOON.toString(),
+                    zoneId = "UTC",
+                    datePattern = "yyyy-MM-dd",
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `absorbed boolean branches should skip only formatted boundary checks`() {
+        val noScope = FilterNormalizer(normalizerClock, ZoneOffset.UTC, null)
+        val lossy = TodayFilter(QueryField("createdAt"), zoneId = "UTC", datePattern = "yyyy-MM")
+        listOf(
+            AndFilter(listOf(MatchNoneFilter, lossy)) to MatchNoneFilter,
+            AndFilter(listOf(lossy, MatchNoneFilter)) to MatchNoneFilter,
+            OrFilter(listOf(MatchAllFilter, lossy)) to MatchAllFilter,
+            OrFilter(listOf(lossy, MatchAllFilter)) to MatchAllFilter,
+            NorFilter(listOf(MatchAllFilter, lossy)) to MatchNoneFilter,
+            NorFilter(listOf(lossy, MatchAllFilter)) to MatchNoneFilter,
+            AndFilter(listOf(lossy, NorFilter(listOf(MatchAllFilter, lossy)))) to MatchNoneFilter,
+        ).forEach { (filter, expected) ->
+            noScope.normalize(filter).assert().isSameAs(expected)
+        }
+
+        val element = ElementMatchFilter(
+            QueryField("items"),
+            AndFilter(listOf(lossy, MatchNoneFilter)),
+        )
+        noScope.normalize(element).assert().isEqualTo(ElementMatchFilter(QueryField("items"), MatchNoneFilter))
+    }
+
+    @Test
+    fun `live and equal formatted boundaries should retain precision checks`() {
+        val noScope = FilterNormalizer(normalizerClock, ZoneOffset.UTC, null)
+        val lossy = TodayFilter(QueryField("createdAt"), zoneId = "UTC", datePattern = "yyyy-MM")
+        listOf(
+            AndFilter(listOf(MatchAllFilter, lossy)),
+            OrFilter(listOf(MatchNoneFilter, lossy)),
+            NorFilter(listOf(MatchNoneFilter, lossy)),
+            ElementMatchFilter(QueryField("items"), OrFilter(listOf(MatchNoneFilter, lossy))),
+            OrFilter(listOf(AndFilter(listOf(MatchNoneFilter, lossy)), lossy)),
+        ).forEach { filter ->
+            assertThrows<IllegalArgumentException> { noScope.normalize(filter) }
+        }
+        noScope.normalize(
+            AndFilter(
+                listOf(
+                    MatchNoneFilter,
+                    TodayFilter(QueryField("createdAt"), zoneId = "UTC", datePattern = "yyyy-MM-dd hh"),
+                ),
+            ),
+        ).assert().isSameAs(MatchNoneFilter)
+        assertThrows<IllegalArgumentException> {
+            noScope.normalize(
+                TodayFilter(QueryField("createdAt"), zoneId = "UTC", datePattern = "yyyy-MM-dd hh"),
+            )
+        }
+    }
+
+    @Test
+    fun `absorbed branches should retain eager input validation and per-call clocks`() {
+        val clockReads = AtomicInteger()
+        val countingClock = object : Clock() {
+            override fun getZone(): ZoneId = ZoneOffset.UTC
+
+            override fun withZone(zone: ZoneId): Clock = this
+
+            override fun instant(): Instant = normalizerClock.instant().also { clockReads.incrementAndGet() }
+        }
+        val noScope = FilterNormalizer(countingClock, ZoneOffset.UTC, null)
+        val field = QueryField("createdAt")
+        assertThrows<java.time.DateTimeException> {
+            noScope.normalize(
+                AndFilter(listOf(MatchNoneFilter, TodayFilter(field, "invalid-zone", datePattern = "yyyy-MM"))),
+            )
+        }
+        assertThrows<java.time.DateTimeException> {
+            noScope.normalize(
+                AndFilter(
+                    listOf(
+                        MatchNoneFilter,
+                        BeforeTodayFilter(field, time = "invalid-time", zoneId = "UTC", datePattern = "yyyy-MM"),
+                    ),
+                ),
+            )
+        }
+        assertThrows<IllegalArgumentException> {
+            noScope.normalize(
+                AndFilter(listOf(MatchNoneFilter, TodayFilter(field, "UTC", datePattern = "invalid["))),
+            )
+        }
+        noScope.normalize(
+            AndFilter(
+                listOf(
+                    MatchNoneFilter,
+                    TodayFilter(field, zoneId = "UTC", datePattern = "yyyy-MM"),
+                ),
+            ),
+        ).assert().isSameAs(MatchNoneFilter)
+        assertThrows<IllegalArgumentException> {
+            noScope.normalize(TodayFilter(field, zoneId = "UTC", datePattern = "yyyy-MM"))
+        }
+        noScope.normalize(TodayFilter(field, zoneId = "UTC", datePattern = "yyyy-MM-dd"))
+        clockReads.get().assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `should reject unresolved time and discarded calendar fields`() {
+        val january = FilterNormalizer(
+            Clock.fixed(Instant.parse("2026-01-01T12:00:00Z"), ZoneOffset.UTC),
+            ZoneOffset.UTC,
+            null,
+        )
+        listOf("yyyy-MM-dd hh", "yyyy-MM-dd mm", "yyyy-MM-dd a", "yyyy-dd").forEach { pattern ->
+            assertThrows<IllegalArgumentException> {
+                january.normalize(ThisYearFilter(QueryField("createdAt"), zoneId = "UTC", datePattern = pattern))
+            }
+        }
+        listOf("yyyy-MM-dd HH:mm", "yyyy-MM-dd hh a", "yyyy-MM-dd", "yyyy-DDD", "yyyy-MM", "yyyy").forEach { pattern ->
+            january.normalize(ThisYearFilter(QueryField("createdAt"), zoneId = "UTC", datePattern = pattern))
+                .assert().isInstanceOf(AndFilter::class.java)
+        }
+    }
+
+    @Test
+    fun `should preserve faithfully formatted relative boundaries`() {
+        val field = QueryField("createdAt")
+        val cases = listOf(
+            TodayFilter(field, zoneId = "UTC", datePattern = "yyyy-MM-dd"),
+            TodayFilter(field, zoneId = "UTC", datePattern = "yyyy-DDD"),
+            BeforeTodayFilter(field, time = "12:34:56", zoneId = "UTC", datePattern = "yyyy-MM-dd HH:mm:ss"),
+            ThisMonthFilter(field, zoneId = "UTC", datePattern = "yyyy-MM"),
+            ThisYearFilter(field, zoneId = "UTC", datePattern = "yyyy"),
+        )
+
+        cases.forEach { relative ->
+            FilterNormalizer(normalizerClock, ZoneOffset.UTC, null).normalize(relative)
+                .assert().isInstanceOf(FilterExpression::class.java)
+        }
+    }
+
+    @Test
+    fun `should preserve direct instant formatter and DST adjusted boundary`() {
+        val instantFormatter = DateTimeFormatter.ISO_INSTANT
+        val instantRange = FilterNormalizer(normalizerClock, ZoneOffset.UTC, null).normalize(
+            TodayFilter(QueryField("createdAt"), zoneId = "UTC", dateFormatter = instantFormatter),
+        ) as AndFilter
+        (instantRange.operands[0] as GreaterThanOrEqualFilter).value.stringValue().assert()
+            .isEqualTo("2026-08-22T00:00:00Z")
+
+        val overrideFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            .withZone(java.time.ZoneId.of("America/New_York"))
+        val overrideRange = FilterNormalizer(normalizerClock, ZoneOffset.UTC, null).normalize(
+            TodayFilter(QueryField("createdAt"), zoneId = "UTC", dateFormatter = overrideFormatter),
+        ) as AndFilter
+        (overrideRange.operands[0] as GreaterThanOrEqualFilter).value.stringValue().assert()
+            .isEqualTo("2026-08-21 20:00:00")
+        assertThrows<IllegalArgumentException> {
+            FilterNormalizer(normalizerClock, ZoneOffset.UTC, null).normalize(
+                TodayFilter(
+                    QueryField("createdAt"),
+                    zoneId = "UTC",
+                    dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                        .withZone(java.time.ZoneId.of("America/New_York")),
+                ),
+            )
+        }
+
+        val gapClock = Clock.fixed(Instant.parse("2026-03-08T12:00:00Z"), ZoneOffset.UTC)
+        val gap = FilterNormalizer(gapClock, ZoneOffset.UTC, null).normalize(
+            BeforeTodayFilter(
+                QueryField("createdAt"),
+                time = "02:30",
+                zoneId = "America/New_York",
+                dateFormatter = DateTimeFormatter.ISO_ZONED_DATE_TIME,
+            ),
+        ) as LessThanFilter
+        gap.value.stringValue().assert().isEqualTo("2026-03-08T03:30:00-04:00[America/New_York]")
     }
 
     @Test

@@ -108,6 +108,7 @@ data class ElasticsearchIndexMapping private constructor(
                     aggregatable = property.isAggregatable(),
                     multiFields = multiFields,
                     projectionPath = projectionPath,
+                    dateFormat = property.dateFormat(),
                 )
                 propertyBase?.fields().orEmpty().forEach { (name, field) ->
                     visit("$path.$name", field, projectionPath)
@@ -125,7 +126,7 @@ data class ElasticsearchIndexMapping private constructor(
                         field.type().toMappedField()?.let { fields[path] = it }
                     }
                 } else {
-                    runtimeField.type().toMappedField()?.let { fields[name] = it }
+                    runtimeField.type().toMappedField(runtimeField.format())?.let { fields[name] = it }
                 }
             }
             aliases.forEach { (name, target) ->
@@ -145,9 +146,10 @@ internal data class ElasticsearchMappedField(
     val aggregatable: Boolean,
     val multiFields: Set<String>,
     val projectionPath: String?,
+    val dateFormat: String? = null,
 )
 
-private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
+private fun RuntimeFieldType.toMappedField(dateFormat: String? = null): ElasticsearchMappedField? {
     val kind = when (this) {
         RuntimeFieldType.Boolean -> Property.Kind.Boolean
         RuntimeFieldType.Date -> Property.Kind.Date
@@ -164,7 +166,14 @@ private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
         aggregatable = true,
         multiFields = emptySet(),
         projectionPath = null,
+        dateFormat = dateFormat.takeIf { this == RuntimeFieldType.Date },
     )
+}
+
+private fun Property.dateFormat(): String? = when (_kind()) {
+    Property.Kind.Date -> date().format()
+    Property.Kind.DateNanos -> dateNanos().format()
+    else -> null
 }
 
 private fun Property.isAggregatable(): Boolean = when (_kind()) {
