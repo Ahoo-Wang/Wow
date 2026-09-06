@@ -35,6 +35,15 @@
         },
         "numeric_enum_aggregate": {
           "type": "me.ahoo.wow.schema.query.MaskEnumToStringSafetyTest$NumericEnumAggregate"
+        },
+        "contextual_container_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskContextualShapeSafetyTest$ContainerAggregate"
+        },
+        "contextual_array_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskContextualShapeSafetyTest$ArrayAggregate"
+        },
+        "contextual_setter_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskContextualShapeSafetyTest$SetterAggregate"
         }
       }
     }

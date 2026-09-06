@@ -69,13 +69,16 @@ import tools.jackson.databind.introspect.BeanPropertyDefinition
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
 import tools.jackson.databind.jsonFormatVisitors.JsonIntegerFormatVisitor
 import tools.jackson.databind.node.ObjectNode
+import tools.jackson.databind.ser.bean.BeanAsArraySerializer
 import tools.jackson.databind.ser.bean.BeanSerializerBase
+import tools.jackson.databind.ser.bean.UnrolledBeanAsArraySerializer
 import tools.jackson.databind.ser.impl.UnknownSerializer
 import tools.jackson.databind.ser.jdk.EnumSerializer
 import tools.jackson.databind.ser.std.ReferenceTypeSerializer
 import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
 import tools.jackson.databind.util.EnumDefinition
+import java.lang.reflect.AnnotatedElement
 import java.lang.reflect.Field
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
@@ -390,8 +393,8 @@ private class MaskMaterializationValidator {
     private val writable = mutableMapOf<JavaType, Map<String, BeanPropertyDefinition>>()
 
     fun validateGeneratedType(type: JavaType) {
-        // Enums already traversed from model properties must retain their contextual wire shape.
-        if (type.isEnumType && visited.any { it.type == type }) {
+        // Types already traversed from model properties must retain their contextual wire shape.
+        if (visited.any { it.type == type }) {
             return
         }
         validate(type)
@@ -403,10 +406,9 @@ private class MaskMaterializationValidator {
         opaqueParent: Boolean = false,
         property: BeanProperty? = null,
     ) {
-        val enumSerializer = enumSerializer(type, property)
-        val opaque = opaqueParent || hasOpaqueSerializer(type, enumSerializer)
-        // Enum schemas do not describe members emitted by object-shaped serializers.
-        val unsupportedShape = opaque || (enumSerializer != null && enumSerializer !is EnumSerializer)
+        val serializer = serialization.findPrimaryPropertySerializer(type, property)
+        val opaque = opaqueParent || hasOpaqueSerializer(type, serializer)
+        val unsupportedShape = opaque || serializer.hasUnsupportedMemberShape(type)
         val visit = Visit(
             type,
             unsupportedParent,
@@ -444,11 +446,15 @@ private class MaskMaterializationValidator {
         val formatOverrides: JsonFormat.Value?,
     )
 
-    private fun enumSerializer(type: JavaType, property: BeanProperty?): ValueSerializer<*>? =
-        if (type.isEnumType) serialization.findPrimaryPropertySerializer(type, property) else null
+    // Member mask paths cannot address positional arrays or object-shaped enum schemas.
+    private fun ValueSerializer<*>.hasUnsupportedMemberShape(type: JavaType): Boolean =
+        this is BeanAsArraySerializer || this is UnrolledBeanAsArraySerializer ||
+            (type.isEnumType && this !is EnumSerializer)
 
-    private fun hasOpaqueSerializer(type: JavaType, enumSerializer: ValueSerializer<*>?): Boolean =
-        type.rawClass.hasOpaqueSerializer() || usesCustomEnumToString(type, enumSerializer)
+    private fun hasOpaqueSerializer(type: JavaType, serializer: ValueSerializer<*>?): Boolean =
+        type.rawClass.hasOpaqueSerializer() || usesCustomEnumToString(type, serializer) ||
+            serialization.introspectClassAnnotations(type).getAnnotation(JsonSerialize::class.java)
+                ?.definesWireShape() == true
 
     private fun usesCustomEnumToString(type: JavaType, serializer: ValueSerializer<*>?): Boolean {
         if (serializer !is EnumSerializer || !serialization.isEnabled(EnumFeature.WRITE_ENUMS_USING_TO_STRING)) {
@@ -498,9 +504,14 @@ private class MaskMaterializationValidator {
         val writableProperties = writableProperties(type)
         serialProperties.forEach { property ->
             val annotations = property.maskAnnotations() + writableProperties[property.name]?.maskAnnotations().orEmpty()
+            // Jackson merges setters/creator parameters into readable members; the schema generator does not.
+            val schemaMasks = listOfNotNull(property.field, property.getter)
+                .flatMap { it.maskAnnotations(includeJacksonAnnotations = false) }
+                .flatMap(Annotation::effectiveMaskAnnotations).toSet()
+            val unrepresentedMask = annotations.flatMap(Annotation::effectiveMaskAnnotations).any { it !in schemaMasks }
             val opaqueProperty = opaque || annotations.any { it is JsonTypeId } ||
                 annotations.filterIsInstance<JsonSerialize>().any { it.definesWireShape() }
-            val unsupported = unsupportedType || opaqueProperty || property.name !in writableProperties ||
+            val unsupported = unsupportedType || opaqueProperty || unrepresentedMask || property.name !in writableProperties ||
                 property.internalName in schemaIgnored || property.name in schemaIgnored ||
                 annotations.filterIsInstance<Schema>().any { it.hidden || it.accessMode == Schema.AccessMode.WRITE_ONLY } ||
                 annotations.filterIsInstance<JsonDeserialize>().any { it.definesWireShape() }
@@ -584,8 +595,12 @@ private fun BeanPropertyDefinition.jacksonProperty(): BeanProperty = object : Be
 private fun BeanPropertyDefinition.maskAnnotations(): List<Annotation> =
     listOfNotNull(field, getter, setter, constructorParameter).flatMap { it.maskAnnotations() }
 
-private fun AnnotatedMember.maskAnnotations(): List<Annotation> = buildSet {
-    annotations().forEach { add(it) }
+private fun AnnotatedMember.maskAnnotations(includeJacksonAnnotations: Boolean = true): List<Annotation> = buildSet {
+    if (includeJacksonAnnotations) {
+        annotations().forEach { add(it) }
+    } else {
+        (member as? AnnotatedElement)?.annotations?.let(::addAll)
+    }
     when (val reflected = member) {
         is Field -> reflected.kotlinProperty?.toMergedAnnotation()?.mergedAnnotations?.let(::addAll)
         is Method -> addAll(
