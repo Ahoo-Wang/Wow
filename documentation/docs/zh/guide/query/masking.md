@@ -102,6 +102,7 @@ Gateway 每次订阅在创建 `QueryContext` 前读取一次 Provider 当前 Sch
 | Mask 字段或父属性显式配置 `@JsonSerialize` 处理器（包括 `nullsUsing`）、`as`/`contentAs`/`keyAs` 或 `typing` | Schema 构建失败，未验证改变后的 wire 形状 |
 | `@JsonSerialize` 仅使用默认设置 | 与没有注解一致；Jackson 忽略成员仍被忽略，可见 Mask 规则继续生效 |
 | Mask 字段或父属性使用 `@JsonDeserialize` 的 `using`、`converter`、`contentUsing` 或 `contentConverter` | Schema 构建失败，避免反序列化恢复原值 |
+| 含 Mask 成员的枚举通过自定义 `toString()` 输出文本，且没有显式常量名固定该输出 | Schema 构建失败；普通枚举名称、显式常量名称和数字形状仍受支持 |
 | Map key 类型包含 Mask 声明 | Schema 构建失败；JSON 属性名无法承载字段 Mask 规则 |
 | Mask 字段或父属性只有计算型 getter，或 Jackson 不允许反序列化（如 `READ_ONLY`） | Schema 构建失败，避免 typed 物化恢复原值 |
 | Jackson builder 接受对应 JSON 属性并保留 Mask 结果 | 支持；使用 builder 元数据判定可写属性 |

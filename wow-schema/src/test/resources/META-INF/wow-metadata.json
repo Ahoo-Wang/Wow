@@ -29,6 +29,12 @@
         },
         "type_id_aggregate": {
           "type": "me.ahoo.wow.schema.query.MaskWireShapeSafetyTest$TypeIdAggregate"
+        },
+        "raw_enum_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskEnumToStringSafetyTest$RawEnumAggregate"
+        },
+        "numeric_enum_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskEnumToStringSafetyTest$NumericEnumAggregate"
         }
       }
     }

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.schema.query
 
+import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonGetter
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
@@ -54,14 +55,19 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
+import tools.jackson.databind.BeanProperty
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.ValueDeserializer
 import tools.jackson.databind.ValueSerializer
 import tools.jackson.databind.annotation.JsonDeserialize
 import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.cfg.EnumFeature
+import tools.jackson.databind.cfg.MapperConfig
 import tools.jackson.databind.introspect.AnnotatedClass
 import tools.jackson.databind.introspect.AnnotatedMember
 import tools.jackson.databind.introspect.BeanPropertyDefinition
+import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
+import tools.jackson.databind.jsonFormatVisitors.JsonIntegerFormatVisitor
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.databind.ser.bean.BeanSerializerBase
 import tools.jackson.databind.ser.impl.UnknownSerializer
@@ -69,6 +75,7 @@ import tools.jackson.databind.ser.jdk.EnumSerializer
 import tools.jackson.databind.ser.std.ReferenceTypeSerializer
 import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
+import tools.jackson.databind.util.EnumDefinition
 import java.lang.reflect.Field
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
@@ -198,7 +205,7 @@ class JsonQuerySchemaSource(
                     .withInstanceAttributeOverride(TemporalAttributeOverride<MethodScope>())
                     .withInstanceAttributeOverride(MaskAttributeOverride(maskRuleCatalog))
                 config.forTypesInGeneral().withCustomDefinitionProvider { javaType, context ->
-                    maskValidator.validate(JsonSerializer.typeFactory.constructType(javaType.erasedType))
+                    maskValidator.validateGeneratedType(JsonSerializer.typeFactory.constructType(javaType.erasedType))
                     javaType.erasedType.registeredSerializerDefinition(context)
                 }
             }.build()
@@ -378,17 +385,38 @@ private class MaskMaterializationValidator {
     private val deserialization = JsonSerializer.deserializationConfig().let {
         it.classIntrospectorInstance().forOperation(it)
     }
-    private val visited = mutableSetOf<Triple<JavaType, Boolean, Boolean>>()
+    private val visited = mutableSetOf<Visit>()
     private val properties = mutableMapOf<JavaType, Pair<List<BeanPropertyDefinition>, Set<String>>>()
     private val writable = mutableMapOf<JavaType, Map<String, BeanPropertyDefinition>>()
 
-    fun validate(type: JavaType, unsupportedParent: Boolean = false, opaqueParent: Boolean = false) {
-        if (!visited.add(Triple(type, unsupportedParent, opaqueParent))) {
+    fun validateGeneratedType(type: JavaType) {
+        // Enums already traversed from model properties must retain their contextual wire shape.
+        if (type.isEnumType && visited.any { it.type == type }) {
             return
         }
-        val opaque = opaqueParent || type.rawClass.hasOpaqueSerializer()
+        validate(type)
+    }
+
+    fun validate(
+        type: JavaType,
+        unsupportedParent: Boolean = false,
+        opaqueParent: Boolean = false,
+        property: BeanProperty? = null,
+    ) {
+        val enumSerializer = enumSerializer(type, property)
+        val opaque = opaqueParent || hasOpaqueSerializer(type, enumSerializer)
         // Enum schemas do not describe members emitted by object-shaped serializers.
-        val unsupportedShape = opaque || (type.isEnumType && serialization.findValueSerializer(type) !is EnumSerializer)
+        val unsupportedShape = opaque || (enumSerializer != null && enumSerializer !is EnumSerializer)
+        val visit = Visit(
+            type,
+            unsupportedParent,
+            opaque,
+            unsupportedShape,
+            property?.findFormatOverrides(serialization.config),
+        )
+        if (!visited.add(visit)) {
+            return
+        }
         val classInfo = classInfo(type, unsupportedShape)
         val unsupportedType = unsupportedParent || unsupportedShape ||
             classInfo?.getAnnotation(JsonDeserialize::class.java)?.definesWireShape() == true
@@ -401,11 +429,49 @@ private class MaskMaterializationValidator {
         if (type.isContainerType || type.isReferenceType) {
             // JSON object names cannot carry field mask rules, regardless of the key serializer.
             type.keyType?.let { validate(it, unsupportedParent = true, opaqueParent = true) }
-            type.contentType?.let { validate(it, unsupportedType, opaque) }
+            type.contentType?.let { validate(it, unsupportedType, opaque, property) }
             return
         }
         classInfo ?: return
         validateProperties(type, unsupportedType, opaque)
+    }
+
+    private data class Visit(
+        val type: JavaType,
+        val unsupportedParent: Boolean,
+        val opaque: Boolean,
+        val unsupportedShape: Boolean,
+        val formatOverrides: JsonFormat.Value?,
+    )
+
+    private fun enumSerializer(type: JavaType, property: BeanProperty?): ValueSerializer<*>? =
+        if (type.isEnumType) serialization.findPrimaryPropertySerializer(type, property) else null
+
+    private fun hasOpaqueSerializer(type: JavaType, enumSerializer: ValueSerializer<*>?): Boolean =
+        type.rawClass.hasOpaqueSerializer() || usesCustomEnumToString(type, enumSerializer)
+
+    private fun usesCustomEnumToString(type: JavaType, serializer: ValueSerializer<*>?): Boolean {
+        if (serializer !is EnumSerializer || !serialization.isEnabled(EnumFeature.WRITE_ENUMS_USING_TO_STRING)) {
+            return false
+        }
+        var numeric = false
+        serializer.acceptJsonFormatVisitor(
+            object : JsonFormatVisitorWrapper.Base(serialization) {
+                override fun expectIntegerFormat(type: JavaType): JsonIntegerFormatVisitor? {
+                    numeric = true
+                    return null
+                }
+            },
+            type
+        )
+        if (numeric) {
+            return false
+        }
+        val definition = EnumDefinition.construct(serialization.config, serialization.introspectClassAnnotations(type))
+        val explicitNames = definition.explicitNames()
+        return definition.enumConstants().any {
+            explicitNames[it.ordinal] == null && it.javaClass.getMethod("toString").declaringClass != Enum::class.java
+        }
     }
 
     private fun classInfo(type: JavaType, inspectEnum: Boolean): AnnotatedClass? =
@@ -440,7 +506,12 @@ private class MaskMaterializationValidator {
                 annotations.filterIsInstance<JsonDeserialize>().any { it.definesWireShape() }
             rejectUnsupportedMask(type, property.name, annotations, unsupported)
             validateAlternatives(annotations, unsupported, opaqueProperty)
-            validate(property.primaryType, unsupported, opaqueProperty)
+            validate(
+                property.primaryType,
+                unsupported,
+                opaqueProperty,
+                property.jacksonProperty(),
+            )
         }
     }
 
@@ -497,6 +568,17 @@ private class MaskMaterializationValidator {
             it.couldSerialize() && it.name !in ignored && it.findReferenceType()?.isBackReference != true
         } to ignorals.ignored
     }
+}
+
+private fun BeanPropertyDefinition.jacksonProperty(): BeanProperty = object : BeanProperty.Std(
+    fullName,
+    primaryType,
+    wrapperName,
+    primaryMember,
+    metadata,
+) {
+    override fun findFormatOverrides(config: MapperConfig<*>): JsonFormat.Value? =
+        member?.let { config.annotationIntrospector.findFormat(config, it) }
 }
 
 private fun BeanPropertyDefinition.maskAnnotations(): List<Annotation> =

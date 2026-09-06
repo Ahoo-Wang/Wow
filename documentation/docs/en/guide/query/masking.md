@@ -102,6 +102,7 @@ Before creating `QueryContext`, the Gateway reads the Provider's current Schema 
 | A masked property or parent explicitly overrides `@JsonSerialize` handlers (including `nullsUsing`), `as`/`contentAs`/`keyAs`, or `typing` | Schema construction fails because the altered wire shape is not verified |
 | `@JsonSerialize` uses only default settings | Same as no annotation; Jackson-ignored members stay ignored and visible Mask rules remain effective |
 | A masked property or parent uses `@JsonDeserialize` with `using`, `converter`, `contentUsing`, or `contentConverter` | Schema construction fails to prevent deserialization from restoring raw values |
+| An enum with masked members emits text through a custom `toString()` without an explicit constant name fixing that output | Schema construction fails; ordinary enum names, explicit constant names, and numeric shapes remain supported |
 | A Map key type contains a mask declaration | Schema construction fails; JSON property names cannot carry field mask rules |
 | A masked property or its parent has only a computed getter, or Jackson disallows deserialization (such as `READ_ONLY`) | Schema construction fails to prevent typed materialization from restoring raw values |
 | A Jackson builder accepts the JSON property and preserves the masked value | Supported; builder metadata determines writable properties |
