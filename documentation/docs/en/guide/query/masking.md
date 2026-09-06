@@ -99,6 +99,8 @@ Before creating `QueryContext`, the Gateway reads the Provider's current Schema 
 | A masked property or its parent is excluded by `@Schema(hidden = true)` or `@Schema(accessMode = WRITE_ONLY)` | Schema construction fails; documentation hiding does not exclude Jackson output |
 | A masked property or parent listed in `@JsonIgnoreProperties` remains visible through `allowGetters` | Schema construction fails even with `allowSetters`; the documentation schema still omits it |
 | A masked property lies within an opaque custom serializer/converter subtree, including private or Jackson-ignored members and declared alternatives/subtypes | Schema construction fails because its wire path cannot be established |
+| A masked property or parent explicitly overrides `@JsonSerialize` handlers (including `nullsUsing`), `as`/`contentAs`/`keyAs`, or `typing` | Schema construction fails because the altered wire shape is not verified |
+| `@JsonSerialize` uses only default settings | Same as no annotation; Jackson-ignored members stay ignored and visible Mask rules remain effective |
 | A masked property or parent uses `@JsonDeserialize` with `using`, `converter`, `contentUsing`, or `contentConverter` | Schema construction fails to prevent deserialization from restoring raw values |
 | A Map key type contains a mask declaration | Schema construction fails; JSON property names cannot carry field mask rules |
 | A masked property or its parent has only a computed getter, or Jackson disallows deserialization (such as `READ_ONLY`) | Schema construction fails to prevent typed materialization from restoring raw values |

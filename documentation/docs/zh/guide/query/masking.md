@@ -99,6 +99,8 @@ Gateway 每次订阅在创建 `QueryContext` 前读取一次 Provider 当前 Sch
 | Mask 字段或包含它的父属性被 `@Schema(hidden = true)` 或 `@Schema(accessMode = WRITE_ONLY)` 排除 | Schema 构建失败；文档隐藏不等于 Jackson 不输出 |
 | `@JsonIgnoreProperties` 中列出的 Mask 字段或父属性通过 `allowGetters` 继续输出 | Schema 构建失败，即使同时开启 `allowSetters`；文档 Schema 仍会忽略它 |
 | Mask 字段位于自定义 serializer/converter 的不透明子树（包括私有、Jackson 忽略的成员和声明的备选类型/子类型） | Schema 构建失败，无法确定可信 wire 路径 |
+| Mask 字段或父属性显式配置 `@JsonSerialize` 处理器（包括 `nullsUsing`）、`as`/`contentAs`/`keyAs` 或 `typing` | Schema 构建失败，未验证改变后的 wire 形状 |
+| `@JsonSerialize` 仅使用默认设置 | 与没有注解一致；Jackson 忽略成员仍被忽略，可见 Mask 规则继续生效 |
 | Mask 字段或父属性使用 `@JsonDeserialize` 的 `using`、`converter`、`contentUsing` 或 `contentConverter` | Schema 构建失败，避免反序列化恢复原值 |
 | Map key 类型包含 Mask 声明 | Schema 构建失败；JSON 属性名无法承载字段 Mask 规则 |
 | Mask 字段或父属性只有计算型 getter，或 Jackson 不允许反序列化（如 `READ_ONLY`） | Schema 构建失败，避免 typed 物化恢复原值 |

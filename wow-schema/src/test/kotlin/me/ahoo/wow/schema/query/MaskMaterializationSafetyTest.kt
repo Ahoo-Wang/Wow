@@ -94,6 +94,46 @@ class MaskMaterializationSafetyTest {
     }
 
     @Test
+    fun `default serializer annotations match ordinary ignored child serialization and schema`() {
+        val child = SerializeValue("raw")
+        val plain = NoSerializeAnnotation(child)
+        val expected = JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(plain)
+        val expectedFields = load(NoSerializeAnnotation::class.java).fields.keys
+        listOf(DefaultFieldSerializeAnnotation(child), DefaultGetterSerializeAnnotation(child)).forEach { value ->
+            JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(value).assert().isEqualTo(expected)
+            load(value.javaClass).fields.keys.assert().isEqualTo(expectedFields)
+        }
+        expected.path("value").has("secret").assert().isFalse()
+        expected.path("value").path("visible").stringValue().assert().isEqualTo("ok")
+    }
+
+    @Test
+    fun `default serializer annotation retains a visible mask rule`() {
+        val declaration = load(DefaultVisibleMask::class.java)
+        val rule = declaration.fields.getValue(QueryField("state.secret")).maskRule as DeclarationValue.Set
+        rule.value.compiled.mask("raw").assert().isEqualTo("***")
+    }
+
+    @TestFactory
+    fun `explicit serializer shape overrides remain opaque`() = listOf(
+        SerializeUsing::class.java,
+        SerializeContentUsing::class.java,
+        SerializeKeyUsing::class.java,
+        SerializeNullsUsing::class.java,
+        SerializeConverter::class.java,
+        SerializeContentConverter::class.java,
+        SerializeAs::class.java,
+        SerializeContentAs::class.java,
+        SerializeKeyAs::class.java,
+        SerializeStaticTyping::class.java,
+        SerializeDynamicTyping::class.java,
+    ).map { type ->
+        DynamicTest.dynamicTest(type.simpleName) {
+            assertThrows<QuerySchemaConflictException> { load(type) }
+        }
+    }
+
+    @Test
     fun `event stream rejects masked JsonValue enum payload roots`() {
         assertThrows<QuerySchemaConflictException> { load(MaskedEnumAggregate::class.java, QueryModel.EVENT_STREAM) }
     }
@@ -154,6 +194,53 @@ class MaskMaterializationSafetyTest {
         load(PlainEnumKeys::class.java)
         load(PlainEnumValue::class.java)
         load(SensitiveEnumKey::class.java)
+    }
+
+    open class SerializeBase(val visible: String = "ok")
+    class SerializeValue(@field:JsonIgnore @field:Mask val secret: String) : SerializeBase()
+    data class NoSerializeAnnotation(val value: SerializeValue)
+    data class DefaultFieldSerializeAnnotation(@field:JsonSerialize val value: SerializeValue)
+    data class DefaultGetterSerializeAnnotation(@get:JsonSerialize val value: SerializeValue)
+    data class DefaultVisibleMask(@get:JsonSerialize @field:Mask val secret: String)
+    data class SerializeUsing(@field:JsonSerialize(using = OpaqueSerializer::class) val value: SerializeValue)
+    data class SerializeContentUsing(
+        @get:JsonSerialize(contentUsing = OpaqueSerializer::class) val value: List<SerializeValue>
+    )
+    data class SerializeKeyUsing(
+        @field:JsonSerialize(keyUsing = PlainStringKeySerializer::class) val value: Map<String, SerializeValue>
+    )
+    data class SerializeNullsUsing(
+        @field:JsonSerialize(nullsUsing = NullValueSerializer::class) val value: SerializeValue?
+    )
+    data class SerializeConverter(
+        @get:JsonSerialize(converter = SerializeValueConverter::class)
+        val value: SerializeValue
+    )
+    data class SerializeContentConverter(
+        @field:JsonSerialize(contentConverter = SerializeValueConverter::class) val value: List<SerializeValue>
+    )
+    data class SerializeAs(@field:JsonSerialize(`as` = SerializeBase::class) val value: SerializeValue)
+    data class SerializeContentAs(@get:JsonSerialize(contentAs = SerializeBase::class) val value: List<SerializeValue>)
+    data class SerializeKeyAs(
+        @field:JsonSerialize(keyAs = String::class)
+        val value: Map<CharSequence, SerializeValue>
+    )
+    data class SerializeStaticTyping(@get:JsonSerialize(typing = JsonSerialize.Typing.STATIC) val value: SerializeValue)
+    data class SerializeDynamicTyping(
+        @field:JsonSerialize(typing = JsonSerialize.Typing.DYNAMIC) val value: SerializeValue
+    )
+    class SerializeValueConverter : StdConverter<SerializeValue, String>() {
+        override fun convert(value: SerializeValue): String = value.secret
+    }
+    class PlainStringKeySerializer : StdSerializer<String>(String::class.java) {
+        override fun serialize(value: String, generator: JsonGenerator, provider: SerializationContext) {
+            generator.writeName(value)
+        }
+    }
+    class NullValueSerializer : StdSerializer<Any>(Any::class.java) {
+        override fun serialize(value: Any?, generator: JsonGenerator, provider: SerializationContext) {
+            generator.writeString("raw")
+        }
     }
 
     open class Base

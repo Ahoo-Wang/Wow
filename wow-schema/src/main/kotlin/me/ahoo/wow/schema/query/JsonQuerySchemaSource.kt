@@ -342,9 +342,10 @@ private fun MemberScope<*, *>.customSerializerDefinition(
 }
 
 private fun JsonSerialize.definesWireShape(): Boolean =
-    listOf(contentUsing, keyUsing, converter, contentConverter, using).any {
-        it != ValueSerializer.None::class.java && it != Converter.None::class.java
-    }
+    listOf(using, contentUsing, keyUsing, nullsUsing).any { it != ValueSerializer.None::class } ||
+        listOf(converter, contentConverter).any { it != Converter.None::class } ||
+        listOf(`as`, keyAs, contentAs).any { it != Void::class } ||
+        typing != JsonSerialize.Typing.DEFAULT_TYPING
 
 private fun Class<*>.registeredSerializerDefinition(context: SchemaGenerationContext): CustomDefinition? =
     takeIf { hasOpaqueSerializer() }?.let {
