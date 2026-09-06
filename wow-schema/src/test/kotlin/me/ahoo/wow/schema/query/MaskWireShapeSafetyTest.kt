@@ -14,6 +14,7 @@
 package me.ahoo.wow.schema.query
 
 import com.fasterxml.jackson.annotation.JsonFormat
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonTypeId
 import com.fasterxml.jackson.annotation.JsonTypeInfo
@@ -84,6 +85,30 @@ class MaskWireShapeSafetyTest {
     }
 
     @TestFactory
+    fun `type ids inspect members hidden by ordinary bean and enum serialization`() = listOf(
+        IgnoredTokenTypeId(IgnoredToken("customer-secret")),
+        EnumTokenTypeId(EnumToken.A),
+    ).map { value ->
+        DynamicTest.dynamicTest(value.javaClass.simpleName) {
+            val tree = JsonSerializer.valueToTree<JsonNode>(value)
+            tree.path("kind").stringValue().assert().isEqualTo("customer-secret")
+            tree.has("token").assert().isFalse()
+            assertThrows<QuerySchemaConflictException> { load(value.javaClass) }
+        }
+    }
+
+    @Test
+    fun `ordinary ignored members and unmasked type id values remain supported`() {
+        JsonSerializer.valueToTree<JsonNode>(IgnoredToken("customer-secret")).has("secret").assert().isFalse()
+        JsonSerializer.valueToTree<JsonNode>(EnumToken.A).stringValue().assert().isEqualTo("wire-a")
+        JsonSerializer.valueToTree<JsonNode>(UnmaskedEnumTypeId(UnmaskedObjectEnum.A))
+            .path("kind").stringValue().assert().isEqualTo("A")
+        load(IgnoredToken::class.java)
+        load(EnumToken::class.java)
+        load(UnmaskedEnumTypeId::class.java)
+    }
+
+    @TestFactory
     fun `event stream payload validation rejects unsafe wire shapes`() = listOf(
         AllOfAggregate::class.java,
         ObjectEnumAggregate::class.java,
@@ -139,6 +164,24 @@ class MaskWireShapeSafetyTest {
 
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "kind")
     data class UnmaskedTypeId(@field:JsonTypeId val secret: String)
+
+    class IgnoredToken(@field:Mask @field:JsonIgnore val secret: String) {
+        override fun toString(): String = secret
+    }
+    enum class EnumToken(@field:Mask val secret: String) {
+        @JsonProperty("wire-a")
+        A("customer-secret");
+        override fun toString(): String = secret
+    }
+
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "kind")
+    data class IgnoredTokenTypeId(@field:JsonTypeId val token: IgnoredToken)
+
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "kind")
+    data class EnumTokenTypeId(@field:JsonTypeId val token: EnumToken)
+
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "kind")
+    data class UnmaskedEnumTypeId(@field:JsonTypeId val token: UnmaskedObjectEnum)
 
     @AggregateRoot
     class AllOfAggregate(val id: String) {

@@ -432,9 +432,9 @@ private class MaskMaterializationValidator {
         val writableProperties = writableProperties(type)
         serialProperties.forEach { property ->
             val annotations = property.maskAnnotations() + writableProperties[property.name]?.maskAnnotations().orEmpty()
-            val opaqueProperty = opaque || annotations.filterIsInstance<JsonSerialize>().any { it.definesWireShape() }
+            val opaqueProperty = opaque || annotations.any { it is JsonTypeId } ||
+                annotations.filterIsInstance<JsonSerialize>().any { it.definesWireShape() }
             val unsupported = unsupportedType || opaqueProperty || property.name !in writableProperties ||
-                annotations.any { it is JsonTypeId } ||
                 property.internalName in schemaIgnored || property.name in schemaIgnored ||
                 annotations.filterIsInstance<Schema>().any { it.hidden || it.accessMode == Schema.AccessMode.WRITE_ONLY } ||
                 annotations.filterIsInstance<JsonDeserialize>().any { it.definesWireShape() }
