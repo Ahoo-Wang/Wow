@@ -24,7 +24,9 @@ import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
+import me.ahoo.wow.serialization.deepCopy
 import reactor.core.publisher.Mono
 
 /**
@@ -118,12 +120,10 @@ class StateEventCompensator(
                         return@concatMap Mono.empty<StateEvent<Any>>()
                     }
                     stateAggregate.onSourcing(eventStream)
-                    if (!stateAggregate.initialized) {
+                    if (!stateAggregate.initialized || eventStream.version !in headVersion..tailVersion) {
                         return@concatMap Mono.empty<StateEvent<Any>>()
                     }
-                    Mono.just(eventStream.toStateEvent(stateAggregate))
-                }.filter {
-                    it.version in headVersion..tailVersion
+                    Mono.just(eventStream.toStateEvent(stateAggregate.deepCopy(StateAggregate::class.java)))
                 }.concatMap {
                     compensate(it, target).thenReturn(it.aggregateId)
                 }.count()

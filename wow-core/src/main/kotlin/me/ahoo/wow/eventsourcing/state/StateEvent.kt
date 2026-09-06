@@ -15,6 +15,7 @@ package me.ahoo.wow.eventsourcing.state
 
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infra.Decorator
@@ -97,6 +98,8 @@ interface StateEvent<S : Any> :
                 firstEventTime = stateAggregate.firstEventTime,
                 tags = stateAggregate.tags,
                 deleted = stateAggregate.deleted,
+                ownerId = stateAggregate.ownerId,
+                spaceId = stateAggregate.spaceId,
             )
     }
 }
@@ -111,6 +114,8 @@ interface StateEvent<S : Any> :
  * @param firstEventTime the first event time (default: from delegate)
  * @param tags the ABAC tags associated with the aggregate
  * @param deleted whether the aggregate is deleted (default: false)
+ * @param ownerId the owner after sourcing the event stream
+ * @param spaceId the space after sourcing the event stream
  */
 data class StateEventData<S : Any>(
     override val delegate: DomainEventStream,
@@ -118,7 +123,9 @@ data class StateEventData<S : Any>(
     override val firstOperator: String = delegate.header.operator.orEmpty(),
     override val firstEventTime: Long = delegate.createTime,
     override val tags: AbacTags = EMPTY_ABAC_TAGS,
-    override val deleted: Boolean = false
+    override val deleted: Boolean = false,
+    override val ownerId: String = delegate.ownerId,
+    override val spaceId: SpaceId = delegate.spaceId,
 ) : StateEvent<S>,
     Decorator<DomainEventStream>,
     DomainEventStream by delegate {

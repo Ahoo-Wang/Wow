@@ -89,6 +89,8 @@ A prebuilt `CommandMessage` keeps its message and `requestId` while receiving so
 
 Replaying the same event with the same result order produces stable default request IDs that can cooperate with [command-gateway idempotency checks](../command/reliability.md). This does not make external side effects idempotent and does not deduplicate semantically repeated commands generated from different events.
 
+Immediate retries on the same exchange retain generated commands and send progress, skip commands already sent successfully, and reuse the failed command's `commandId/requestId`. Commands are still created and sent one at a time; a read-only header is copied before another send. The Saga function may run again, so its result and order must remain stable. This progress belongs only to the current exchange and does not restore historical command identities after a restart. The command gateway still handles duplicate-request errors. For a waiting chain, the parent Saga reports the final child-send failure after retries finish.
+
 ## Business Compensation
 
 Business compensation in a Saga is an explicit domain action. For example, `EntryFailed` can generate `UnlockAmount`:

@@ -37,6 +37,7 @@ fun <S : Any, D : Any> ReadOnlyStateAggregate<S>.toMedium(materialize: (S) -> D)
         operator = operator,
         firstEventTime = firstEventTime,
         eventTime = eventTime,
+        tags = tags,
         state = materialize(state)
     )
 }
@@ -47,6 +48,7 @@ fun <S : Any, D : Any> Snapshot<S>.materialize(materialize: (S) -> D): Materiali
         aggregateName = aggregateId.aggregateName,
         tenantId = aggregateId.tenantId,
         ownerId = ownerId,
+        spaceId = spaceId,
         aggregateId = aggregateId.id,
         version = version,
         eventId = eventId,
@@ -55,6 +57,7 @@ fun <S : Any, D : Any> Snapshot<S>.materialize(materialize: (S) -> D): Materiali
         firstEventTime = firstEventTime,
         eventTime = eventTime,
         state = materialize(state),
+        tags = tags,
         snapshotTime = snapshotTime,
         deleted = deleted
     )
