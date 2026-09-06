@@ -32,6 +32,7 @@ import me.ahoo.wow.api.query.mask.Masking
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryTemporal
 import me.ahoo.wow.configuration.requiredAggregateType
+import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.inheritedAnnotations
 import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.toMergedAnnotation
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -121,7 +122,7 @@ class JsonQuerySchemaSource(
             val maskValidator = MaskMaterializationValidator()
             val schemaGenerator = schemaGenerator(maskRuleCatalog, maskValidator)
             return if (model == QueryModel.EVENT_STREAM) {
-                inferEventStreamDeclaration(type, schemaGenerator, maskRuleCatalog)
+                inferEventStreamDeclaration(type, schemaGenerator, maskRuleCatalog, maskValidator)
             } else {
                 maskValidator.validate(JsonSerializer.typeFactory.constructType(type))
                 JsonSchemaWalker(
@@ -135,6 +136,7 @@ class JsonQuerySchemaSource(
             aggregateType: Class<*>,
             schemaGenerator: SchemaGenerator,
             maskRuleCatalog: MaskRuleCatalog,
+            maskValidator: MaskMaterializationValidator,
         ): QuerySchemaDeclaration {
             val rootSchema = schemaGenerator.generateSchema(AggregatedDomainEventStream::class.java, aggregateType)
             val eventSchemas = rootSchema.path("properties").path(MessageRecords.BODY).path("items").path("anyOf")
@@ -145,7 +147,10 @@ class JsonQuerySchemaSource(
                 eventSchema.path("properties").path(MessageRecords.BODY_TYPE).path("const")
                     .takeIf { it.isString }
                     ?.stringValue()
-                    ?.let(bodyTypes::add)
+                    ?.let { bodyType ->
+                        maskValidator.validate(JsonSerializer.typeFactory.constructType(bodyType.toType<Any>()))
+                        bodyTypes.add(bodyType)
+                    }
                 eventSchema.path("properties").path(MessageRecords.BODY)
                     .takeUnless { it.isMissingNode }
                     ?.let(payloadAlternatives::add)

@@ -19,6 +19,8 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -43,8 +45,11 @@ import tools.jackson.databind.ser.std.StdSerializer
 import tools.jackson.databind.util.StdConverter
 
 class MaskMaterializationSafetyTest {
-    private fun load(type: Class<*>) = JsonQuerySchemaSource(typeResolver = { type }).load(
-        QuerySchemaContext(MaterializedNamedAggregate("test", "mask-safety"), QueryModel.SNAPSHOT),
+    private fun load(
+        type: Class<*>,
+        model: QueryModel = QueryModel.SNAPSHOT
+    ) = JsonQuerySchemaSource(typeResolver = { type }).load(
+        QuerySchemaContext(MaterializedNamedAggregate("test", "mask-safety"), model),
     ).single().block()!!
 
     @TestFactory
@@ -86,6 +91,18 @@ class MaskMaterializationSafetyTest {
         DynamicTest.dynamicTest(type.simpleName) {
             assertThrows<QuerySchemaConflictException> { load(type) }
         }
+    }
+
+    @Test
+    fun `event stream rejects masked JsonValue enum payload roots`() {
+        assertThrows<QuerySchemaConflictException> { load(MaskedEnumAggregate::class.java, QueryModel.EVENT_STREAM) }
+    }
+
+    @Test
+    fun `event stream retains ordinary enum payload roots`() {
+        val declaration = load(PlainEnumAggregate::class.java, QueryModel.EVENT_STREAM)
+        val bodyTypes = declaration.fields.getValue(QueryField("body.bodyType")).enumValues as DeclarationValue.Set
+        bodyTypes.value!!.single().stringValue().assert().isEqualTo(PlainEnumKey::class.java.name)
     }
 
     @Test
@@ -255,6 +272,27 @@ class MaskMaterializationSafetyTest {
     )
     data class PlainEnumKeys(val values: Map<PlainEnumKey, String>)
     data class PlainEnumValue(val value: PlainEnumKey)
+
+    @AggregateRoot
+    class MaskedEnumAggregate(val id: String) {
+        var value: JsonValueEnum? = null
+
+        @OnSourcing
+        fun onEvent(event: JsonValueEnum) {
+            value = event
+        }
+    }
+
+    @AggregateRoot
+    class PlainEnumAggregate(val id: String) {
+        var value: PlainEnumKey? = null
+
+        @OnSourcing
+        fun onEvent(event: PlainEnumKey) {
+            value = event
+        }
+    }
+
     class EnumKeySerializer : StdSerializer<SensitiveEnumKey>(SensitiveEnumKey::class.java) {
         override fun serialize(value: SensitiveEnumKey, generator: JsonGenerator, provider: SerializationContext) {
             generator.writeName(value.secret)
