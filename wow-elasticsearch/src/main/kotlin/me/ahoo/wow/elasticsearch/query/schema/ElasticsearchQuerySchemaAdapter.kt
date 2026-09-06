@@ -140,7 +140,7 @@ class ElasticsearchQuerySchemaAdapter(
                 valueTypes = setOf(valueType),
                 enumValues = null,
                 semanticType = when {
-                    semanticType is Temporal && proves(QueryCapability.RANGE, mapped.kind) -> semanticType
+                    semanticType is Temporal && proves(QueryCapability.RANGE, mapped) -> semanticType
                     mapped.kind in DATE_KINDS -> Temporal.Date
                     else -> null
                 },
@@ -308,7 +308,7 @@ private fun ElasticsearchMappedField.supports(
     }
     return executable && (
         capability == QueryCapability.PRESENCE ||
-            logical.proves(capability, kind) ||
+            logical.proves(capability, this) ||
             flattenedDescendant && capability == QueryCapability.EXACT_MATCH &&
             logical.valueTypes == setOf(QueryValueType.STRING)
         )
@@ -322,10 +322,16 @@ private fun ElasticsearchIndexMapping.invalidNestedParents(logicalSchema: Logica
         logicalSchema.fields[QueryField(path)]?.isElementScope != true
     }
 
-private fun LogicalQueryFieldSchema.proves(capability: QueryCapability, kind: Property.Kind): Boolean =
-    storageRequirements(capability).let { requirements ->
-        requirements.isNotEmpty() && requirements.all { kind in it }
+private fun LogicalQueryFieldSchema.proves(capability: QueryCapability, mapped: ElasticsearchMappedField): Boolean {
+    val temporal = semanticType
+    if (temporal is Temporal.Formatted && mapped.kind in DATE_KINDS) {
+        return valueTypes == setOf(QueryValueType.STRING) && mapped.dateFormat == temporal.pattern &&
+            capability in setOf(QueryCapability.EXACT_MATCH, QueryCapability.RANGE, QueryCapability.SORT)
     }
+    return storageRequirements(capability).let { requirements ->
+        requirements.isNotEmpty() && requirements.all { mapped.kind in it }
+    }
+}
 
 private fun LogicalQueryFieldSchema.storageRequirements(
     capability: QueryCapability,

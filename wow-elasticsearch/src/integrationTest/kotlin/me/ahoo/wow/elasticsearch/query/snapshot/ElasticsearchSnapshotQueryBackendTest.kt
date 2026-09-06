@@ -76,6 +76,8 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.query.SnapshotQueryBackendSpec
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -485,18 +487,26 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         ).test().expectNextCount(1).verifyComplete()
     }
 
-    @Test
-    fun `gateway should filter and mask formatted dates through native alias`() {
-        val field = QueryField("state.formattedDate")
+    @ParameterizedTest
+    @CsvSource("keyword, yyyy-MM-dd", "date, dd/MM/yyyy", "date_nanos, dd/MM/yyyy")
+    fun `gateway should filter and mask formatted dates through native alias`(kind: String, dateFormat: String) {
+        val field = QueryField("state.maskedFormattedDate")
         val alias = QueryField("formattedDateAlias")
         elasticsearchClient.indices().putMapping { request ->
             request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                .properties(field.path) { property ->
+                    when (kind) {
+                        "date" -> property.date { it.format(dateFormat) }
+                        "date_nanos" -> property.dateNanos { it.format(dateFormat) }
+                        else -> property.keyword { it }
+                    }
+                }
                 .properties(alias.path) { it.alias { native -> native.path(field.path) } }
         }.block()
-        val today = Instant.now().atZone(ZoneOffset.UTC).toLocalDate().toString()
-        updateState(mapOf("formattedDate" to today))
+        val today = Instant.now().atZone(ZoneOffset.UTC).format(java.time.format.DateTimeFormatter.ofPattern(dateFormat))
+        updateState(mapOf("maskedFormattedDate" to today))
         val annotation = Mask()
-        val declaration = formattedField(field.path, "yyyy-MM-dd").second.copy(
+        val declaration = formattedField(field.path, dateFormat).second.copy(
             maskRule = DeclarationValue.Set(
                 MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation)),
             ),
@@ -511,15 +521,16 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             ),
         )
 
-        listOf(null, "yyyy-MM-dd").forEach { pattern ->
+        listOf(null, dateFormat).forEach { pattern ->
             gateway.dynamicList(
                 ListQuery(
                     filter = TodayFilter(alias, zoneId = "UTC", datePattern = pattern),
+                    sort = listOf(Sort(alias, Sort.Direction.ASC)),
                     projection = Projection(include = listOf(alias)),
                     limit = 1,
                 ),
             ).test().assertNext { result ->
-                result.path("state").path("formattedDate").asString().assert().isEqualTo("**********")
+                result.path("state").path("maskedFormattedDate").asString().assert().isEqualTo("**********")
             }.verifyComplete()
         }
         gateway.aggregate(

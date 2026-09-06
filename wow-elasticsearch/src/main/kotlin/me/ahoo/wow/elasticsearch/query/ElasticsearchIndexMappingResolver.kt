@@ -108,6 +108,7 @@ data class ElasticsearchIndexMapping private constructor(
                     aggregatable = property.isAggregatable(),
                     multiFields = multiFields,
                     projectionPath = projectionPath,
+                    dateFormat = property.dateFormat(),
                 )
                 propertyBase?.fields().orEmpty().forEach { (name, field) ->
                     visit("$path.$name", field, projectionPath)
@@ -145,6 +146,7 @@ internal data class ElasticsearchMappedField(
     val aggregatable: Boolean,
     val multiFields: Set<String>,
     val projectionPath: String?,
+    val dateFormat: String? = null,
 )
 
 private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
@@ -165,6 +167,12 @@ private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
         multiFields = emptySet(),
         projectionPath = null,
     )
+}
+
+private fun Property.dateFormat(): String? = when (_kind()) {
+    Property.Kind.Date -> date().format()
+    Property.Kind.DateNanos -> dateNanos().format()
+    else -> null
 }
 
 private fun Property.isAggregatable(): Boolean = when (_kind()) {

@@ -277,6 +277,100 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = ["date", "date_nanos"])
+    fun `custom native date format should preserve canonical and masked alias temporal semantics`(kind: String) {
+        val source = QueryField("state.birthDate")
+        val alias = QueryField("birthDateAlias")
+        val pattern = "dd/MM/yyyy"
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                mapOf(
+                    source to field(QueryValueType.STRING, semanticType = Temporal.Formatted(pattern), maskRule = fullMaskRule())
+                ),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties(source.path) { property ->
+                        if (kind == "date") {
+                            property.date { it.format(pattern) }
+                        } else {
+                            property.dateNanos { it.format(pattern) }
+                        }
+                    }.properties(alias.path) { it.alias { native -> native.path(source.path) } }
+                },
+            ),
+        )
+        listOf(source, alias).forEach { field ->
+            schema.fields.getValue(field).semanticType.assert().isEqualTo(Temporal.Formatted(pattern))
+            schema.resolve(
+                ListQuery(
+                    EqualFilter(field, tools.jackson.databind.node.StringNode.valueOf("06/09/2026")),
+                    sort = listOf(Sort(field, Sort.Direction.ASC))
+                )
+            )
+                .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+            listOf(null, pattern).forEach { datePattern ->
+                val resolved = schema.resolve(TodayFilter(field, zoneId = "UTC", datePattern = datePattern))
+                    .requireAccepted(QuerySchemaValidationMode.STRICT) as TodayFilter
+                resolved.datePattern.assert().isEqualTo(pattern)
+                val normalized = FilterNormalizer(
+                    clock = Clock.fixed(Instant.parse("2026-09-06T12:00:00Z"), ZoneOffset.UTC)
+                )
+                    .normalize(resolved)
+                val ranges = SnapshotFilterCompiler.compile(normalized, schema).bool().filter()
+                    .filter { it.isRange }.map { it.range().untyped() }
+                ranges.map { it.field() }.assert().containsExactly(field.path, field.path)
+                ranges[0].gte()!!.toJson(WowJsonpMapper).toString().assert().isEqualTo("\"06/09/2026\"")
+                ranges[1].lt()!!.toJson(WowJsonpMapper).toString().assert().isEqualTo("\"07/09/2026\"")
+            }
+            schema.resolve(TodayFilter(field, zoneId = "UTC", datePattern = "yyyy-MM-dd"))
+                .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+            schema.resolve(
+                AggregationQuery(
+                    groupBy = listOf(AggregationGroup.Terms(field, "date")),
+                    metrics = listOf(AggregationMetric.Any(field, "first"))
+                )
+            )
+                .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        }
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = ["yyyy-MM-dd", "dd/MM/yyyy||epoch_millis"])
+    fun `unproven native formats should retain implicit native date alias queries`(mappingFormat: String?) {
+        val source = QueryField("state.birthDate")
+        val alias = QueryField("birthDateAlias")
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                mapOf(
+                    source to field(QueryValueType.STRING, semanticType = Temporal.Formatted("dd/MM/yyyy"), maskRule = fullMaskRule())
+                ),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties(source.path) { it.date { date -> date.format(mappingFormat) } }
+                        .properties(alias.path) { it.alias { native -> native.path(source.path) } }
+                },
+            ),
+        )
+        schema.fields.getValue(source).bindings.assert().doesNotContainKey(QueryCapability.RANGE)
+        schema.fields.getValue(alias).semanticType.assert().isEqualTo(Temporal.Date)
+        val resolved = schema.resolve(TodayFilter(alias, zoneId = "UTC"))
+            .requireAccepted(QuerySchemaValidationMode.STRICT) as TodayFilter
+        val normalized = FilterNormalizer(clock = Clock.fixed(Instant.parse("2026-09-06T12:00:00Z"), ZoneOffset.UTC))
+            .normalize(resolved)
+        val ranges = SnapshotFilterCompiler.compile(normalized, schema).bool().filter()
+            .filter { it.isRange }.map { it.range().untyped() }
+        ranges[0].gte()!!.toJson(WowJsonpMapper).toString().assert()
+            .isEqualTo(Instant.parse("2026-09-06T00:00:00Z").toEpochMilli().toString())
+        schema.resolve(TodayFilter(alias, zoneId = "UTC", datePattern = "dd/MM/yyyy"))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @ParameterizedTest
     @NullSource
     @ValueSource(strings = ["yyyy-MM-dd"])
     fun `masked source token count alias should allow ordinary numeric queries but reject aggregation`(
