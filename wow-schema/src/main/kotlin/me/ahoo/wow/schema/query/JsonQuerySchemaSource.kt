@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonGetter
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeId
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomPropertyDefinition
 import com.github.victools.jsonschema.generator.FieldScope
@@ -408,7 +409,7 @@ private class MaskMaterializationValidator {
     ) {
         val serializer = serialization.findPrimaryPropertySerializer(type, property)
         val opaque = opaqueParent || hasOpaqueSerializer(type, serializer)
-        val unsupportedShape = opaque || serializer.hasUnsupportedMemberShape(type)
+        val unsupportedShape = opaque || serializer.hasUnsupportedMemberShape(type, property)
         val visit = Visit(
             type,
             unsupportedParent,
@@ -423,7 +424,7 @@ private class MaskMaterializationValidator {
         val unsupportedType = unsupportedParent || unsupportedShape ||
             classInfo?.getAnnotation(JsonDeserialize::class.java)?.definesWireShape() == true
         if (classInfo != null) {
-            validateAlternatives(classInfo.annotations().toList(), unsupportedType, opaque)
+            validateAlternatives(type, classInfo.annotations().toList(), unsupportedType, opaque, property)
             if (opaque) {
                 validateOpaqueMembers(type, classInfo)
             }
@@ -446,10 +447,18 @@ private class MaskMaterializationValidator {
         val formatOverrides: JsonFormat.Value?,
     )
 
-    // Member mask paths cannot address positional arrays or object-shaped enum schemas.
-    private fun ValueSerializer<*>.hasUnsupportedMemberShape(type: JavaType): Boolean =
-        this is BeanAsArraySerializer || this is UnrolledBeanAsArraySerializer ||
-            (type.isEnumType && this !is EnumSerializer)
+    // Member mask paths cannot address wrappers, identity scalars, positional arrays or object-shaped enums.
+    private fun ValueSerializer<*>.hasUnsupportedMemberShape(type: JavaType, property: BeanProperty?): Boolean {
+        val typeSerializer = if (property?.member == null) {
+            serialization.findTypeSerializer(type)
+        } else {
+            serialization.findPropertyTypeSerializer(type, property.member)
+        }
+        return this is BeanAsArraySerializer || this is UnrolledBeanAsArraySerializer ||
+            (type.isEnumType && this !is EnumSerializer) || usesObjectId() ||
+            typeSerializer?.typeInclusion == JsonTypeInfo.As.WRAPPER_OBJECT ||
+            typeSerializer?.typeInclusion == JsonTypeInfo.As.WRAPPER_ARRAY
+    }
 
     private fun hasOpaqueSerializer(type: JavaType, serializer: ValueSerializer<*>?): Boolean =
         type.rawClass.hasOpaqueSerializer() || usesCustomEnumToString(type, serializer) ||
@@ -494,7 +503,7 @@ private class MaskMaterializationValidator {
                     ?.toMergedAnnotation()?.mergedAnnotations?.let(annotations::addAll)
             }
             rejectUnsupportedMask(type, member.name, annotations, true)
-            validateAlternatives(annotations, true, true)
+            validateAlternatives(member.type, annotations, true, true)
             validate(member.type, unsupportedParent = true, opaqueParent = true)
         }
     }
@@ -516,7 +525,13 @@ private class MaskMaterializationValidator {
                 annotations.filterIsInstance<Schema>().any { it.hidden || it.accessMode == Schema.AccessMode.WRITE_ONLY } ||
                 annotations.filterIsInstance<JsonDeserialize>().any { it.definesWireShape() }
             rejectUnsupportedMask(type, property.name, annotations, unsupported)
-            validateAlternatives(annotations, unsupported, opaqueProperty)
+            validateAlternatives(
+                property.primaryType,
+                annotations,
+                unsupported,
+                opaqueProperty,
+                property.jacksonProperty()
+            )
             validate(
                 property.primaryType,
                 unsupported,
@@ -535,12 +550,49 @@ private class MaskMaterializationValidator {
         }
     }
 
-    private fun validateAlternatives(annotations: List<Annotation>, unsupported: Boolean, opaque: Boolean) {
+    private fun validateAlternatives(
+        type: JavaType,
+        annotations: List<Annotation>,
+        unsupported: Boolean,
+        opaque: Boolean,
+        property: BeanProperty? = null,
+    ) {
         val alternatives = annotations.filterIsInstance<Schema>().flatMap {
             it.allOf.toList() + it.oneOf.toList() + it.anyOf.toList()
         } +
             annotations.filterIsInstance<JsonSubTypes>().flatMap { subtypes -> subtypes.value.map { it.value } }
-        alternatives.forEach { validate(JsonSerializer.typeFactory.constructType(it.java), unsupported, opaque) }
+        alternatives.forEach {
+            validate(
+                JsonSerializer.typeFactory.constructType(it.java),
+                unsupported,
+                opaque,
+                property
+            )
+        }
+        annotations.filterIsInstance<JsonDeserialize>().forEach { annotation ->
+            listOf(
+                annotation.`as` to type,
+                annotation.contentAs to type.contentType
+            ).forEach overrideType@{ (override, declared) ->
+                if (override == Void::class || override in alternatives) {
+                    return@overrideType
+                }
+                if (declared != null && override.java != declared.rawClass) {
+                    // Deserialization-only subtypes are not represented by the generated serialization schema.
+                    validate(
+                        JsonSerializer.typeFactory.constructSpecializedType(declared, override.java),
+                        true,
+                        opaque,
+                        property
+                    )
+                }
+            }
+            annotation.keyAs.takeUnless { it == Void::class }?.let { key ->
+                type.keyType?.let {
+                    validate(JsonSerializer.typeFactory.constructSpecializedType(it, key.java), true, true)
+                }
+            }
+        }
     }
 
     private fun writableProperties(type: JavaType): Map<String, BeanPropertyDefinition> = writable.getOrPut(type) {
