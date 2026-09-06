@@ -20,6 +20,15 @@
         },
         "plain_enum_aggregate": {
           "type": "me.ahoo.wow.schema.query.MaskMaterializationSafetyTest$PlainEnumAggregate"
+        },
+        "all_of_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskWireShapeSafetyTest$AllOfAggregate"
+        },
+        "object_enum_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskWireShapeSafetyTest$ObjectEnumAggregate"
+        },
+        "type_id_aggregate": {
+          "type": "me.ahoo.wow.schema.query.MaskWireShapeSafetyTest$TypeIdAggregate"
         }
       }
     }

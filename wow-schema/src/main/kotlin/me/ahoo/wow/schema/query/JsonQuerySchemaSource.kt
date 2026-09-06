@@ -16,6 +16,7 @@ package me.ahoo.wow.schema.query
 import com.fasterxml.jackson.annotation.JsonGetter
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeId
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomPropertyDefinition
 import com.github.victools.jsonschema.generator.FieldScope
@@ -386,8 +387,10 @@ private class MaskMaterializationValidator {
             return
         }
         val opaque = opaqueParent || type.rawClass.hasOpaqueSerializer()
-        val classInfo = classInfo(type, opaque)
-        val unsupportedType = unsupportedParent || opaque ||
+        // Enum schemas do not describe members emitted by object-shaped serializers.
+        val unsupportedShape = opaque || (type.isEnumType && serialization.findValueSerializer(type) !is EnumSerializer)
+        val classInfo = classInfo(type, unsupportedShape)
+        val unsupportedType = unsupportedParent || unsupportedShape ||
             classInfo?.getAnnotation(JsonDeserialize::class.java)?.definesWireShape() == true
         if (classInfo != null) {
             validateAlternatives(classInfo.annotations().toList(), unsupportedType, opaque)
@@ -405,8 +408,8 @@ private class MaskMaterializationValidator {
         validateProperties(type, unsupportedType, opaque)
     }
 
-    private fun classInfo(type: JavaType, opaque: Boolean): AnnotatedClass? =
-        type.rawClass.takeUnless { it.isStdType() && !(opaque && it.isEnum) }?.let {
+    private fun classInfo(type: JavaType, inspectEnum: Boolean): AnnotatedClass? =
+        type.rawClass.takeUnless { it.isStdType() && !(inspectEnum && it.isEnum) }?.let {
             deserialization.introspectClassAnnotations(type)
         }
 
@@ -431,6 +434,7 @@ private class MaskMaterializationValidator {
             val annotations = property.maskAnnotations() + writableProperties[property.name]?.maskAnnotations().orEmpty()
             val opaqueProperty = opaque || annotations.filterIsInstance<JsonSerialize>().any { it.definesWireShape() }
             val unsupported = unsupportedType || opaqueProperty || property.name !in writableProperties ||
+                annotations.any { it is JsonTypeId } ||
                 property.internalName in schemaIgnored || property.name in schemaIgnored ||
                 annotations.filterIsInstance<Schema>().any { it.hidden || it.accessMode == Schema.AccessMode.WRITE_ONLY } ||
                 annotations.filterIsInstance<JsonDeserialize>().any { it.definesWireShape() }
@@ -450,7 +454,9 @@ private class MaskMaterializationValidator {
     }
 
     private fun validateAlternatives(annotations: List<Annotation>, unsupported: Boolean, opaque: Boolean) {
-        val alternatives = annotations.filterIsInstance<Schema>().flatMap { it.oneOf.toList() + it.anyOf.toList() } +
+        val alternatives = annotations.filterIsInstance<Schema>().flatMap {
+            it.allOf.toList() + it.oneOf.toList() + it.anyOf.toList()
+        } +
             annotations.filterIsInstance<JsonSubTypes>().flatMap { subtypes -> subtypes.value.map { it.value } }
         alternatives.forEach { validate(JsonSerializer.typeFactory.constructType(it.java), unsupported, opaque) }
     }
