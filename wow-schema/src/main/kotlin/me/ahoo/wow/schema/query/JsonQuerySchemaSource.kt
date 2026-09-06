@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.schema.query
 
+import com.fasterxml.jackson.annotation.JacksonAnnotationsInside
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonGetter
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeId
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.github.victools.jsonschema.generator.AnnotationHelper
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomPropertyDefinition
 import com.github.victools.jsonschema.generator.FieldScope
@@ -531,9 +533,15 @@ private class MaskMaterializationValidator {
                 unsupported,
                 opaqueProperty,
                 property.jacksonProperty(),
-                // Swagger/Jackson schema alternatives use raw field/getter annotations, not Kotlin or Jackson merges.
+                // Resolve only field/getter sources, with the same Jackson bundle lookup used by the schema generator.
                 listOfNotNull(property.field?.member, property.getter?.member)
-                    .filterIsInstance<AnnotatedElement>().flatMap { it.annotations.toList() },
+                    .filterIsInstance<AnnotatedElement>().flatMap { member ->
+                        member.annotations.toList() + listOfNotNull(
+                            AnnotationHelper.resolveAnnotation(member, JsonSubTypes::class.java) {
+                                it.annotationClass.java.isAnnotationPresent(JacksonAnnotationsInside::class.java)
+                            }.orElse(null),
+                        )
+                    },
             )
             validate(
                 property.primaryType,

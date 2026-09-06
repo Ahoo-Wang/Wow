@@ -104,6 +104,7 @@ class MaskDeclaredShapeSafetyTest {
         UnbackedSetterAlternative(),
         CreatorOnlyAlternative(Sensitive()),
         SetterOnlySubtypes(),
+        SetterOnlyBundledSubtypes(),
     ).map { value ->
         DynamicTest.dynamicTest(value.javaClass.simpleName) {
             JsonSerializer.valueToTree<JsonNode>(value).at("/contact/secret").stringValue().assert().isEqualTo("raw")
@@ -126,6 +127,23 @@ class MaskDeclaredShapeSafetyTest {
         ).forEach { (value, path) ->
             JsonSerializer.valueToTree<JsonNode>(value).at("/contact/secret").stringValue().assert().isEqualTo("raw")
             val rule = load(value.javaClass).fields.getValue(QueryField(path)).maskRule as DeclarationValue.Set
+            rule.value.compiled.mask("raw").assert().isEqualTo("***")
+        }
+    }
+
+    @TestFactory
+    fun `generator visible bundled and inherited alternatives retain masks`() = listOf(
+        BundledGetter(Sensitive()),
+        BundledField(Sensitive()),
+        InheritedGetter(Sensitive()),
+    ).map { value ->
+        DynamicTest.dynamicTest(value.javaClass.simpleName) {
+            JsonSerializer.valueToTree<JsonNode>(value).at("/contact/secret").stringValue().assert().isEqualTo("raw")
+            SchemaGeneratorBuilder().build().generateSchema(value.javaClass).toString()
+                .contains("\"secret\"").assert().isTrue()
+            val rule = load(
+                value.javaClass
+            ).fields.getValue(QueryField("state.contact.secret")).maskRule as DeclarationValue.Set
             rule.value.compiled.mask("raw").assert().isEqualTo("***")
         }
     }
@@ -247,6 +265,32 @@ class MaskDeclaredShapeSafetyTest {
         @get:JsonSubTypes(JsonSubTypes.Type(Sensitive::class))
         @get:JsonDeserialize(`as` = Sensitive::class) val contact: Base,
     )
+
+    @JacksonAnnotationsInside
+    @JsonSubTypes(JsonSubTypes.Type(Sensitive::class))
+    @Target(AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.FIELD)
+    @Retention(AnnotationRetention.RUNTIME)
+    annotation class SensitiveSubtypes
+
+    class SetterOnlyBundledSubtypes {
+        @set:SensitiveSubtypes
+        @get:JsonDeserialize(`as` = Sensitive::class)
+        var contact: Base = Sensitive()
+    }
+
+    data class BundledGetter(
+        @get:SensitiveSubtypes @get:JsonDeserialize(`as` = Sensitive::class) val contact: Base,
+    )
+
+    data class BundledField(
+        @field:SensitiveSubtypes @get:JsonDeserialize(`as` = Sensitive::class) val contact: Base,
+    )
+
+    open class GetterParent(
+        @get:SensitiveSubtypes @get:JsonDeserialize(`as` = Sensitive::class) val contact: Base,
+    )
+
+    class InheritedGetter(contact: Base) : GetterParent(contact)
 
     data class VisibleConcrete(@get:JsonDeserialize(`as` = Sensitive::class) val value: Base)
     data class HiddenConcrete(
