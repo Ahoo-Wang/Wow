@@ -491,6 +491,134 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     }
 
     @ParameterizedTest
+    @CsvSource("date, Asia/Shanghai", "date_nanos, Asia/Shanghai", "date, America/New_York", "date_nanos, America/New_York")
+    fun `native date only labels preserve local calendar selection`(kind: String, zone: String) {
+        val field = QueryField("state.calendarLabel")
+        val alias = QueryField("state.calendarLabelAlias")
+        val pattern = "yyyy-MM-dd"
+        addTemporalMapping(field, alias, kind, pattern)
+        val today = Instant.now().atZone(java.time.ZoneId.of(zone)).toLocalDate()
+        (-1L..1L).forEach { day -> indexTemporalRecord("calendar-$day", "calendarLabel", today.plusDays(day).toString()) }
+        val gateway = temporalGateway(field, pattern, formattedField(alias.path, pattern))
+        gateway.dynamicList(ListQuery(TodayFilter(alias, zoneId = zone), limit = 10)).test()
+            .assertNext { it.path("state").path("calendarLabel").stringValue().assert().isEqualTo(today.toString()) }
+            .verifyComplete()
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+        "date, UTC, false", "date_nanos, UTC, false",
+        "date, Asia/Shanghai, false", "date_nanos, America/New_York, false",
+        "date, Asia/Shanghai, true", "date_nanos, America/New_York, true",
+        "keyword, Asia/Shanghai, false",
+    )
+    fun `native datetime windows require encoded zones outside UTC`(kind: String, zone: String, encoded: Boolean) {
+        val field = QueryField("state.zoneTime")
+        val alias = QueryField("state.zoneTimeAlias")
+        val pattern = "yyyy-MM-dd HH:mm:ss" + if (encoded) "XXX" else ""
+        addTemporalMapping(field, alias, kind, pattern)
+        val formatter = java.time.format.DateTimeFormatter.ofPattern(pattern)
+        val start = Instant.now().atZone(java.time.ZoneId.of(zone)).toLocalDate().atStartOfDay(java.time.ZoneId.of(zone))
+        val end = start.plusDays(1)
+        listOf(start.minusSeconds(1), start, end.minusSeconds(1), end).forEachIndexed { index, time ->
+            indexTemporalRecord("window-$index", "zoneTime", formatter.format(time))
+        }
+        val gateway = temporalGateway(field, pattern, formattedField(alias.path, pattern))
+        val relative = gateway.dynamicList(ListQuery(TodayFilter(alias, zoneId = zone), limit = 10))
+        if (kind != "keyword" && !encoded && zone != "UTC") {
+            relative.test().expectErrorSatisfies {
+                it.assert().isInstanceOf(QuerySchemaValidationException::class.java)
+                it.message!!.assert().contains("requires an encoded zone")
+            }.verify()
+        } else {
+            relative.map { it.path("state").path("zoneTime").stringValue() }.collectList().test()
+                .assertNext { it.assert().containsExactlyInAnyOrder(formatter.format(start), formatter.format(end.minusSeconds(1))) }
+                .verifyComplete()
+        }
+        val raw = me.ahoo.wow.api.query.AndFilter(listOf(
+            me.ahoo.wow.api.query.GreaterThanOrEqualFilter(alias, JsonSerializer.valueToTree(formatter.format(start))),
+            me.ahoo.wow.api.query.LessThanFilter(alias, JsonSerializer.valueToTree(formatter.format(end))),
+        ))
+        gateway.dynamicList(ListQuery(raw, limit = 10)).test().expectNextCount(2).verifyComplete()
+    }
+
+    @ParameterizedTest
+    @CsvSource("date", "date_nanos")
+    fun `native offset windows preserve composed DST day and nested selection`(kind: String) {
+        val field = QueryField("state.zoneEvents.at")
+        val pattern = "yyyy-MM-dd HH:mm:ssXXX"
+        val formatter = java.time.format.DateTimeFormatter.ofPattern(pattern)
+        val zone = java.time.ZoneId.of("America/New_York")
+        elasticsearchClient.indices().putMapping { request ->
+            request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName()).properties("state.zoneEvents") { property ->
+                property.nested { nested -> nested.properties("at") { value ->
+                    if (kind == "date") value.date { it.format(pattern) } else value.dateNanos { it.format(pattern) }
+                }.properties("naive") { value ->
+                    if (kind == "date") value.date { it.format("yyyy-MM-dd HH:mm:ss") } else
+                        value.dateNanos { it.format("yyyy-MM-dd HH:mm:ss") }
+                } }
+            }
+        }.block()
+        listOf("2026-03-08T04:59:59Z", "2026-03-08T05:00:00Z", "2026-03-08T06:59:59Z",
+            "2026-03-08T07:00:00Z", "2026-03-09T03:59:59Z", "2026-03-09T04:00:00Z").forEachIndexed { index, instant ->
+            elasticsearchClient.index { request -> request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                .id("dst-$index").document(mapOf("deleted" to false, "state" to mapOf("zoneEvents" to listOf(
+                    mapOf("at" to formatter.format(Instant.parse(instant).atZone(zone))),
+                )))).refresh(Refresh.True) }.block()
+        }
+        val parent = QueryField("state.zoneEvents") to QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
+            cardinality = DeclarationValue.Set(QueryCardinality.MANY),
+        )
+        val fixed = me.ahoo.wow.query.FilterNormalizer(
+            java.time.Clock.fixed(Instant.parse("2026-03-08T12:00:00Z"), ZoneOffset.UTC), zone, null,
+        )
+        val window = fixed.normalize(TodayFilter(QueryField("at"), zone.id, datePattern = pattern)) as me.ahoo.wow.api.query.AndFilter
+        val start = (window.operands[0] as me.ahoo.wow.api.query.GreaterThanOrEqualFilter).value.stringValue()
+        val end = (window.operands[1] as me.ahoo.wow.api.query.LessThanFilter).value.stringValue()
+        java.time.Duration.between(java.time.OffsetDateTime.parse(start, formatter), java.time.OffsetDateTime.parse(end, formatter))
+            .toHours().assert().isEqualTo(23)
+        temporalGateway(field, pattern, parent).dynamicList(ListQuery(
+            me.ahoo.wow.api.query.ElementMatchFilter(QueryField("state.zoneEvents"), window), limit = 10,
+        )).test().expectNextCount(4).verifyComplete()
+        val naiveGateway = temporalGateway(QueryField("state.zoneEvents.naive"), "yyyy-MM-dd HH:mm:ss", parent)
+        naiveGateway.dynamicList(ListQuery(me.ahoo.wow.api.query.ElementMatchFilter(QueryField("state.zoneEvents"),
+            TodayFilter(QueryField("naive"), zone.id)), limit = 10))
+            .test().expectErrorSatisfies {
+                it.assert().isInstanceOf(QuerySchemaValidationException::class.java)
+                it.message!!.assert().contains("requires an encoded zone")
+            }.verify()
+    }
+
+    private fun addTemporalMapping(field: QueryField, alias: QueryField, kind: String, pattern: String) {
+        elasticsearchClient.indices().putMapping { request ->
+            request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName()).properties(field.path) { property ->
+                when (kind) {
+                    "date" -> property.date { it.format(pattern) }
+                    "date_nanos" -> property.dateNanos { it.format(pattern) }
+                    else -> property.keyword { it }
+                }
+            }.properties(alias.path) { it.alias { native -> native.path(field.path) } }
+        }.block()
+    }
+
+    private fun indexTemporalRecord(id: String, field: String, value: String) {
+        elasticsearchClient.index { request -> request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+            .id(id).document(mapOf("deleted" to false, "state" to mapOf(field to value))).refresh(Refresh.True) }.block()
+    }
+
+    private fun temporalGateway(
+        field: QueryField,
+        pattern: String,
+        vararg extra: Pair<QueryField, QueryFieldDeclaration>,
+    ) = DefaultSnapshotQueryGateway<ObjectNode>(
+        namedAggregate = MOCK_AGGREGATE_METADATA,
+        binding = strictService(querySchemaSources + source(formattedField(field.path, pattern), *extra)),
+        validationMode = QuerySchemaValidationMode.STRICT,
+        targetType = JsonSerializer.typeFactory.constructParametricType(MaterializedSnapshot::class.java, ObjectNode::class.java),
+    )
+
+    @ParameterizedTest
     @CsvSource(
         "keyword, yyyy-MM, month",
         "date, yyyy-MM, month",

@@ -34,19 +34,29 @@ import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
+import java.text.ParsePosition
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.time.temporal.ChronoField
+import java.time.temporal.TemporalQueries
 
 abstract class AbstractElasticsearchFilterCompiler(
     defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
     private val documentIdField: String? = null,
 ) {
-    private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
+    private val defaultZoneId = ZoneId.systemDefault()
+    private val filterNormalizer =
+        FilterNormalizer(defaultZoneId = defaultZoneId, defaultDeletionState = defaultDeletionState)
 
     fun compile(filter: FilterExpression, schema: QueryModelSchema): Query =
-        compileNormalized(filterNormalizer.normalize(filter), schema, FilterScope())
+        compile(filter, schema, FilterScope())
 
     internal fun compileScoped(
         filter: FilterExpression,
@@ -54,11 +64,12 @@ abstract class AbstractElasticsearchFilterCompiler(
         logicalParent: QueryField,
         resolvedParent: QueryField,
         physicalParent: QueryField,
-    ): Query = compileNormalized(
-        filterNormalizer.normalize(filter),
-        schema,
-        FilterScope(logicalParent, resolvedParent, physicalParent),
-    )
+    ): Query = compile(filter, schema, FilterScope(logicalParent, resolvedParent, physicalParent))
+
+    private fun compile(filter: FilterExpression, schema: QueryModelSchema, scope: FilterScope): Query {
+        validateRelativeTimeZones(filter, schema, scope)
+        return compileNormalized(filterNormalizer.normalize(filter), schema, scope)
+    }
 
     internal fun compilePhysical(filter: FilterExpression, parent: String? = null): Query =
         compileNormalized(
@@ -71,6 +82,52 @@ abstract class AbstractElasticsearchFilterCompiler(
         val logicalParent: QueryField? = null,
         val resolvedParent: QueryField? = null,
         val physicalParent: QueryField? = null,
+    )
+
+    private fun validateRelativeTimeZones(filter: FilterExpression, schema: QueryModelSchema, scope: FilterScope) {
+        when (filter) {
+            is AndFilter -> filter.operands.forEach { validateRelativeTimeZones(it, schema, scope) }
+            is OrFilter -> filter.operands.forEach { validateRelativeTimeZones(it, schema, scope) }
+            is NorFilter -> filter.operands.forEach { validateRelativeTimeZones(it, schema, scope) }
+            is ElementMatchFilter -> validateRelativeTimeZones(
+                filter.predicate,
+                schema,
+                filter.nestedScope(schema, scope)
+            )
+            is RelativeTimeFilter -> filter.validateRelativeTimeZone(schema, scope)
+            else -> Unit
+        }
+    }
+
+    private fun RelativeTimeFilter.validateRelativeTimeZone(schema: QueryModelSchema, scope: FilterScope) {
+        val fieldSchema = schema.resolveFieldSchema(field.absoluteTo(scope.logicalParent), QueryCapability.RANGE)
+            ?: schema.resolveFieldSchema(field.absoluteTo(scope.resolvedParent), QueryCapability.RANGE)
+        if (fieldSchema?.semanticType !is Temporal.Formatted ||
+            fieldSchema.binding(QueryCapability.RANGE)?.storageType?.value !in NATIVE_DATE_TYPES
+        ) {
+            return
+        }
+        val formatter = resolvedDateFormatter() ?: return
+        val zone = formatter.zone ?: zoneId?.let(ZoneId::of) ?: defaultZoneId
+        if (zone.normalized() == ZoneOffset.UTC) return
+        // Clear the override and vary only the offset: parser defaults must not pretend to encode a zone.
+        val wireFormatter = formatter.withZone(null)
+        val parsed = wireFormatter.parseUnresolved(formatter.format(FORMAT_PROBE), ParsePosition(0)) ?: return
+        if (parsed.isSupported(ChronoField.INSTANT_SECONDS) || TIME_FIELDS.none(parsed::isSupported)) return
+        val encodedZone = parsed.query(TemporalQueries.zone()) != null &&
+            wireFormatter.format(FORMAT_PROBE) != wireFormatter.format(FORMAT_PROBE.withZoneSameLocal(ZoneOffset.ofHours(-5)))
+        if (!encodedZone) {
+            throw QuerySchemaValidationException(
+                "Native date field [$field] requires an encoded zone for datetime format " +
+                    "[${datePattern ?: formatter}] in zone [$zone].",
+            )
+        }
+    }
+
+    private fun ElementMatchFilter.nestedScope(schema: QueryModelSchema?, scope: FilterScope) = FilterScope(
+        logicalParent = field.absoluteTo(scope.logicalParent),
+        resolvedParent = field.absoluteTo(scope.resolvedParent),
+        physicalParent = QueryField(field.path(schema, QueryCapability.ELEMENT_SCOPE, scope)),
     )
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -202,13 +259,8 @@ abstract class AbstractElasticsearchFilterCompiler(
             }
         }
         is ElementMatchFilter -> nested {
-            val nestedPath = filter.field.path(schema, QueryCapability.ELEMENT_SCOPE, scope)
-            val nestedScope = FilterScope(
-                logicalParent = filter.field.absoluteTo(scope.logicalParent),
-                resolvedParent = filter.field.absoluteTo(scope.resolvedParent),
-                physicalParent = QueryField(nestedPath),
-            )
-            it.path(nestedPath).query(compileNormalized(filter.predicate, schema, nestedScope))
+            val nestedScope = filter.nestedScope(schema, scope)
+            it.path(nestedScope.physicalParent!!.path).query(compileNormalized(filter.predicate, schema, nestedScope))
         }
         is SearchFilter -> multiMatch {
             it.query(filter.query)
@@ -267,6 +319,9 @@ abstract class AbstractElasticsearchFilterCompiler(
 
     private companion object {
         const val DOCUMENT_ID_FIELD = "_id"
+        val NATIVE_DATE_TYPES = setOf("date", "date_nanos")
+        val TIME_FIELDS = ChronoField.entries.filter { it.isTimeBased }
+        val FORMAT_PROBE = ZonedDateTime.of(2000, 6, 15, 12, 34, 56, 0, ZoneOffset.ofHours(8))
     }
 
     private fun documentIdEqual(value: String): Query = documentIdField?.let { field ->

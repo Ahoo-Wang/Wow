@@ -114,6 +114,24 @@ class FilterNormalizerTest {
     }
 
     @Test
+    fun `should reject unresolved time and discarded calendar fields`() {
+        val january = FilterNormalizer(
+            Clock.fixed(Instant.parse("2026-01-01T12:00:00Z"), ZoneOffset.UTC),
+            ZoneOffset.UTC,
+            null,
+        )
+        listOf("yyyy-MM-dd hh", "yyyy-MM-dd mm", "yyyy-MM-dd a", "yyyy-dd").forEach { pattern ->
+            assertThrows<IllegalArgumentException> {
+                january.normalize(ThisYearFilter(QueryField("createdAt"), zoneId = "UTC", datePattern = pattern))
+            }
+        }
+        listOf("yyyy-MM-dd HH:mm", "yyyy-MM-dd hh a", "yyyy-MM-dd", "yyyy-DDD", "yyyy-MM", "yyyy").forEach { pattern ->
+            january.normalize(ThisYearFilter(QueryField("createdAt"), zoneId = "UTC", datePattern = pattern))
+                .assert().isInstanceOf(AndFilter::class.java)
+        }
+    }
+
+    @Test
     fun `should preserve faithfully formatted relative boundaries`() {
         val field = QueryField("createdAt")
         val cases = listOf(

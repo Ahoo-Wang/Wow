@@ -59,6 +59,7 @@ import java.time.Year
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoField
 import java.time.temporal.TemporalAdjusters
 import java.time.temporal.TemporalQueries
 import java.util.concurrent.TimeUnit
@@ -209,6 +210,7 @@ class FilterNormalizer(
         ),
     )
 
+    @Suppress("CyclomaticComplexMethod")
     private fun instantNode(
         dateTime: LocalDateTime,
         zoneId: ZoneId,
@@ -220,11 +222,20 @@ class FilterNormalizer(
         val parsedInstant = try {
             val parsed = it.parse(formatted)
             runCatching { Instant.from(parsed) }.getOrElse {
-                val date = parsed.query(TemporalQueries.localDate())
-                    ?: runCatching { YearMonth.from(parsed).atDay(1) }.getOrElse {
-                        Year.from(parsed).atDay(1)
+                val date = parsed.query(TemporalQueries.localDate()) ?: run {
+                    val month = runCatching { YearMonth.from(parsed) }.getOrNull()
+                    val allowed = if (month != null) MONTH_FIELDS else YEAR_FIELDS
+                    if (DATE_FIELDS.any { field -> field !in allowed && parsed.isSupported(field) }) {
+                        throw DateTimeException("Unresolved date fields cannot be discarded.")
                     }
-                val time = parsed.query(TemporalQueries.localTime()) ?: LocalTime.MIDNIGHT
+                    month?.atDay(1) ?: Year.from(parsed).atDay(1)
+                }
+                val time = parsed.query(TemporalQueries.localTime()) ?: run {
+                    if (TIME_FIELDS.any(parsed::isSupported)) {
+                        throw DateTimeException("Unresolved time fields cannot default to midnight.")
+                    }
+                    LocalTime.MIDNIGHT
+                }
                 LocalDateTime.of(date, time)
                     .atZone(parsed.query(TemporalQueries.zone()) ?: boundary.zone)
                     .toInstant()
@@ -243,6 +254,13 @@ class FilterNormalizer(
                 timeUnit.convert(it.nano.toLong(), TimeUnit.NANOSECONDS),
             ),
         )
+    }
+
+    private companion object {
+        val TIME_FIELDS = ChronoField.entries.filter { it.isTimeBased }
+        val DATE_FIELDS = ChronoField.entries.filter { it.isDateBased }
+        val YEAR_FIELDS = setOf(ChronoField.YEAR, ChronoField.YEAR_OF_ERA, ChronoField.ERA)
+        val MONTH_FIELDS = YEAR_FIELDS + setOf(ChronoField.MONTH_OF_YEAR, ChronoField.PROLEPTIC_MONTH)
     }
 
     private fun today(now: Instant, zoneId: String?): LocalDate = now.atZone(zone(zoneId)).toLocalDate()
