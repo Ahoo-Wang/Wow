@@ -13,34 +13,16 @@
 
 package me.ahoo.wow.eventsourcing.mock
 
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
 import me.ahoo.wow.tck.metrics.meteredForTck
 import org.junit.jupiter.api.Test
-import reactor.core.publisher.Flux
-import reactor.kotlin.test.test
 
 class DelayEventStoreTest : EventStoreSpec() {
     override fun createEventStore(): EventStore {
         return DelayEventStore().meteredForTck()
-    }
-
-    @Test
-    fun `delay decorator preserves native request lookup`() {
-        val stream = generateEventStream()
-        val candidates = setOf(stream.requestId)
-        val delegate = mockk<EventStore>()
-        every { delegate.loadByRequestIds(stream.aggregateId, candidates) } returns Flux.just(stream)
-
-        DelayEventStore(delegate = delegate).loadByRequestIds(stream.aggregateId, candidates)
-            .test().expectNext(stream).verifyComplete()
-        verify(exactly = 1) { delegate.loadByRequestIds(stream.aggregateId, candidates) }
-        verify(exactly = 0) { delegate.load(any(), any<Int>(), any<Int>()) }
     }
 
     @Test

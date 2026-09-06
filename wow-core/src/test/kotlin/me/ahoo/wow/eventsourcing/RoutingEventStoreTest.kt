@@ -105,17 +105,6 @@ class RoutingEventStoreTest {
     }
 
     @Test
-    fun `request candidate lookup uses the routed native operation`() {
-        val defaultStore = RecordingEventStore()
-        val orderStore = RecordingEventStore()
-        val aggregateId = order.aggregateId("order-1")
-        val routingStore = routingEventStore(defaultStore, orderStore)
-        StepVerifier.create(routingStore.loadByRequestIds(aggregateId, setOf("request-1"))).verifyComplete()
-        orderStore.lastOperation.assert().isEqualTo("loadByRequestIds")
-        defaultStore.lastOperation.assert().isNull()
-    }
-
-    @Test
     fun `exists request id chooses configured store`() {
         val defaultStore = RecordingEventStore()
         val orderStore = RecordingEventStore()
@@ -296,11 +285,6 @@ class RoutingEventStoreTest {
         override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
             record("last", aggregateId)
             return failure?.let { Mono.error(it) } ?: Mono.empty()
-        }
-
-        override fun loadByRequestIds(aggregateId: AggregateId, requestIds: Set<String>): Flux<DomainEventStream> {
-            record("loadByRequestIds", aggregateId)
-            return failure?.let { Flux.error(it) } ?: Flux.empty()
         }
 
         override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> {

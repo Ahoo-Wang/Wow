@@ -14,10 +14,6 @@
 package me.ahoo.wow.opentelemetry.eventsourcing
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
-import io.opentelemetry.api.GlobalOpenTelemetry
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
@@ -26,33 +22,12 @@ import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.metrics.metered
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.opentelemetry.snapshot.TracingSnapshotStore
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.test.test
 
 class TracingEventStoreTest {
-
-    @Test
-    fun `tracing and metrics preserve native request lookup`() {
-        val aggregateId = MaterializedNamedAggregate("test", "aggregate").aggregateId("id", "tenant")
-        val candidates = setOf("current", "legacy")
-        val stream = mockk<DomainEventStream>()
-        val delegate = mockk<EventStore>()
-        every { delegate.loadByRequestIds(aggregateId, candidates) } returns Flux.just(stream)
-        val store = TracingEventStore(delegate.metered(WowMetrics(SimpleMeterRegistry()), "eventStore"))
-
-        try {
-            store.loadByRequestIds(aggregateId, candidates).test().expectNext(stream).verifyComplete()
-            verify(exactly = 1) { delegate.loadByRequestIds(aggregateId, candidates) }
-            verify(exactly = 0) { delegate.load(any(), any<Int>(), any<Int>()) }
-        } finally {
-            GlobalOpenTelemetry.resetForTest()
-        }
-    }
 
     @Test
     fun `decorator chain should close the original EventStore exactly once`() {

@@ -48,23 +48,6 @@ class EventStoreTest {
     }
 
     @Test
-    fun `default request lookup filters candidates in one scan and skips empty candidates`() {
-        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1")
-        val first = eventStream(aggregateId, "request-1")
-        val second = eventStream(aggregateId, "request-2")
-        val eventStore = ScanningEventStore(listOf(first, second, eventStream(aggregateId, "request-3")))
-
-        StepVerifier.create(eventStore.loadByRequestIds(aggregateId, setOf("request-1", "request-2")))
-            .expectNext(first, second)
-            .verifyComplete()
-        eventStore.loadCount.assert().isEqualTo(1)
-
-        StepVerifier.create(eventStore.loadByRequestIds(aggregateId, emptySet()))
-            .verifyComplete()
-        eventStore.loadCount.assert().isEqualTo(1)
-    }
-
-    @Test
     fun `default load uses full version range`() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1")
         val scanningEventStore = ScanningEventStore(emptyList())
@@ -134,7 +117,6 @@ class EventStoreTest {
     ) : EventStore {
         var lastHeadVersion: Int? = null
         var lastTailVersion: Int? = null
-        var loadCount: Int = 0
 
         override fun append(eventStream: DomainEventStream): Mono<Void> = Mono.empty()
 
@@ -143,7 +125,6 @@ class EventStoreTest {
             headVersion: Int,
             tailVersion: Int
         ): Flux<DomainEventStream> {
-            loadCount++
             lastHeadVersion = headVersion
             lastTailVersion = tailVersion
             return Flux.fromIterable(eventStreams)

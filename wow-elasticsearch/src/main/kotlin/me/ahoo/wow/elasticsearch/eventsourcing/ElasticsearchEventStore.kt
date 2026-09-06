@@ -111,16 +111,6 @@ class ElasticsearchEventStore(
         return searchEventStreams(aggregateId, filter)
     }
 
-    override fun loadByRequestIds(aggregateId: AggregateId, requestIds: Set<String>): Flux<DomainEventStream> {
-        if (requestIds.isEmpty()) return Flux.empty()
-        val filter = filter {
-            tenantId(aggregateId.tenantId)
-            aggregateId(aggregateId.id)
-            MessageRecords.REQUEST_ID isIn requestIds
-        }
-        return searchEventStreams(aggregateId, filter)
-    }
-
     private fun searchEventStreams(
         aggregateId: AggregateId,
         filter: FilterExpression,

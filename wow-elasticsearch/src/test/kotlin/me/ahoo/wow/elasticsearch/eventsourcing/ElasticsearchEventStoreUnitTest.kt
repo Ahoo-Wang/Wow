@@ -29,7 +29,6 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -40,32 +39,6 @@ import java.util.function.Function
 class ElasticsearchEventStoreUnitTest {
     private val client = mockk<ReactiveElasticsearchClient>()
     private val aggregateId: AggregateId = MaterializedNamedAggregate("test", "aggregate").aggregateId("id")
-
-    @Test
-    fun `request lookup restricts the native query to candidate ids and tenant`() {
-        val target = aggregateId.namedAggregate.aggregateId("id", "tenant")
-        val stream = generateEventStream(target)
-        val search = slot<Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>>>()
-        every { client.search(capture(search), DomainEventStream::class.java) } returns
-            Mono.just(searchResponse(stream, emptyList()))
-
-        ElasticsearchEventStore(client).loadByRequestIds(target, setOf(stream.requestId, "legacy"))
-            .test().expectNext(stream).verifyComplete()
-
-        val request = search.captured.apply(SearchRequest.Builder()).build()
-        request.routing().assert().containsExactly(target.id)
-        val query = request.query().toString()
-        listOf(
-            "terms",
-            MessageRecords.REQUEST_ID,
-            stream.requestId,
-            "legacy",
-            MessageRecords.TENANT_ID,
-            "tenant"
-        ).forEach {
-            query.assert().contains(it)
-        }
-    }
 
     @Test
     fun `batch size must be positive`() {
