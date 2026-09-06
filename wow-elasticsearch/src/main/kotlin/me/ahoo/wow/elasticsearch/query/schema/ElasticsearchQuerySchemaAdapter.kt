@@ -85,7 +85,7 @@ class ElasticsearchQuerySchemaAdapter(
             val boundFields = logicalSchema.fields.toMutableMap()
             mapping.fields.forEach { (path, mapped) ->
                 val source = maskedSources[mapped.projectionPath]
-                if (source != null && !path.startsWith("${mapped.projectionPath}.")) {
+                if (source != null && path != mapped.projectionPath && !path.startsWith("${mapped.projectionPath}.")) {
                     // Retain source relationships for mapping-only aliases without applying the mask twice.
                     boundFields.putIfAbsent(QueryField(path), source.forMappedAlias(mapped))
                 }

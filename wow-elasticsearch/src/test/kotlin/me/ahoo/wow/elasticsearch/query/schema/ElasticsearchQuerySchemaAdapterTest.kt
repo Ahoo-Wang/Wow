@@ -65,10 +65,12 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.NullSource
@@ -86,6 +88,58 @@ import kotlin.reflect.jvm.javaField
 
 @Suppress("LargeClass")
 class ElasticsearchQuerySchemaAdapterTest {
+    @Test
+    fun `masked native alias should not declare its backing storage field`() {
+        val secret = QueryField("state.secret")
+        val alias = QueryField("state.secretAlias")
+        val siblingAlias = QueryField("state.siblingAlias")
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                mapOf(
+                    alias to field(QueryValueType.STRING, maskRule = fullMaskRule()),
+                ),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties(secret.path) { it.keyword { keyword -> keyword } }
+                        .properties(alias.path) { it.alias { native -> native.path(secret.path) } }
+                        .properties(siblingAlias.path) { it.alias { native -> native.path(secret.path) } }
+                },
+            ),
+        )
+
+        schema.fields.assert().doesNotContainKey(secret)
+        listOf(
+            { schema.resolve(EqualFilter(secret, tools.jackson.databind.node.StringNode.valueOf("secret"))) },
+            { schema.resolve(ListQuery(MatchAllFilter, projection = Projection(include = listOf(secret)))) },
+            { schema.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(secret, Sort.Direction.ASC)))) },
+        ).forEach { resolve ->
+            val resolved = resolve()
+            resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+            assertThrows<QuerySchemaValidationException> {
+                resolved.requireAccepted(QuerySchemaValidationMode.STRICT)
+            }
+        }
+
+        listOf(alias, siblingAlias).forEach { masked ->
+            schema.resolve(
+                AggregationQuery(
+                    groupBy = listOf(AggregationGroup.Terms(masked, "value")),
+                    metrics = listOf(AggregationMetric.Count("count")),
+                ),
+            ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        }
+        listOf(alias, siblingAlias).forEach { nativeAlias ->
+            schema.resolve(
+                ListQuery(
+                    EqualFilter(nativeAlias, tools.jackson.databind.node.StringNode.valueOf("secret")),
+                    sort = listOf(Sort(nativeAlias, Sort.Direction.ASC)),
+                ),
+            ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        }
+    }
+
     @Suppress("LongMethod")
     @ParameterizedTest
     @CsvSource("true, false", "false, false", "true, true")
