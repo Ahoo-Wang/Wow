@@ -490,27 +490,61 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         ).test().expectNextCount(1).verifyComplete()
     }
 
-    @Test
-    fun `formatted keyword should reject lossy today and execute aligned month and year ranges`() {
-        val field = QueryField("state.formattedDate")
+    @ParameterizedTest
+    @CsvSource(
+        "keyword, yyyy-MM, month",
+        "date, yyyy-MM, month",
+        "date_nanos, yyyy-MM, month",
+        "keyword, yyyy, year",
+        "date, yyyy, year",
+        "date_nanos, yyyy, year",
+    )
+    fun `formatted backend should reject lossy today and execute masked aligned range`(
+        kind: String,
+        dateFormat: String,
+        period: String,
+    ) {
+        val field = QueryField("state.maskedCoarseDate")
+        val alias = QueryField("coarseDateAlias")
         val now = Instant.now().atZone(ZoneOffset.UTC)
+        elasticsearchClient.indices().putMapping { request ->
+            request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                .properties(field.path) { property ->
+                    when (kind) {
+                        "date" -> property.date { it.format(dateFormat) }
+                        "date_nanos" -> property.dateNanos { it.format(dateFormat) }
+                        else -> property.keyword { it }
+                    }
+                }
+                .properties(alias.path) { it.alias { native -> native.path(field.path) } }
+        }.block()
+        val formattedValue = now.format(java.time.format.DateTimeFormatter.ofPattern(dateFormat))
+        updateState(mapOf("maskedCoarseDate" to formattedValue))
+        val annotation = Mask()
+        val declaration = formattedField(field.path, dateFormat).second.copy(
+            maskRule = DeclarationValue.Set(
+                MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation)),
+            ),
+        )
+        val gateway = DefaultSnapshotQueryGateway<ObjectNode>(
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            binding = strictService(querySchemaSources + source(field to declaration)),
+            validationMode = QuerySchemaValidationMode.STRICT,
+            targetType = JsonSerializer.typeFactory.constructParametricType(
+                MaterializedSnapshot::class.java,
+                ObjectNode::class.java,
+            ),
+        )
 
-        updateState(mapOf("formattedDate" to now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"))))
-        val monthService = strictService(querySchemaSources + source(formattedField(field.path, "yyyy-MM")))
-        assertThrows<IllegalArgumentException> {
-            monthService.backend.list(
-                resolved(monthService, ListQuery(TodayFilter(field, zoneId = "UTC")), QuerySchemaValidationMode.STRICT),
-            )
-        }
-        monthService.backend.list(
-            resolved(monthService, ListQuery(ThisMonthFilter(field, zoneId = "UTC")), QuerySchemaValidationMode.STRICT),
-        ).test().expectNextCount(1).verifyComplete()
-
-        updateState(mapOf("formattedDate" to now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy"))))
-        val yearService = strictService(querySchemaSources + source(formattedField(field.path, "yyyy")))
-        yearService.backend.list(
-            resolved(yearService, ListQuery(ThisYearFilter(field, zoneId = "UTC")), QuerySchemaValidationMode.STRICT),
-        ).test().expectNextCount(1).verifyComplete()
+        gateway.dynamicList(ListQuery(TodayFilter(alias, zoneId = "UTC")))
+            .test().expectError(IllegalArgumentException::class.java).verify()
+        val aligned = if (period == "month") ThisMonthFilter(alias, zoneId = "UTC") else
+            ThisYearFilter(alias, zoneId = "UTC")
+        gateway.dynamicList(ListQuery(aligned, projection = Projection(include = listOf(alias)), limit = 1))
+            .test().assertNext { result ->
+                result.path("state").path("maskedCoarseDate").asString().assert()
+                    .isEqualTo("*".repeat(formattedValue.length))
+            }.verifyComplete()
     }
 
     @ParameterizedTest

@@ -136,8 +136,26 @@ class FilterNormalizerTest {
         val instantRange = FilterNormalizer(normalizerClock, ZoneOffset.UTC, null).normalize(
             TodayFilter(QueryField("createdAt"), zoneId = "UTC", dateFormatter = instantFormatter),
         ) as AndFilter
-        (instantRange.operands[0] as GreaterThanOrEqualFilter).value.asText().assert()
+        (instantRange.operands[0] as GreaterThanOrEqualFilter).value.stringValue().assert()
             .isEqualTo("2026-08-22T00:00:00Z")
+
+        val overrideFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            .withZone(java.time.ZoneId.of("America/New_York"))
+        val overrideRange = FilterNormalizer(normalizerClock, ZoneOffset.UTC, null).normalize(
+            TodayFilter(QueryField("createdAt"), zoneId = "UTC", dateFormatter = overrideFormatter),
+        ) as AndFilter
+        (overrideRange.operands[0] as GreaterThanOrEqualFilter).value.stringValue().assert()
+            .isEqualTo("2026-08-21 20:00:00")
+        assertThrows<IllegalArgumentException> {
+            FilterNormalizer(normalizerClock, ZoneOffset.UTC, null).normalize(
+                TodayFilter(
+                    QueryField("createdAt"),
+                    zoneId = "UTC",
+                    dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                        .withZone(java.time.ZoneId.of("America/New_York")),
+                ),
+            )
+        }
 
         val gapClock = Clock.fixed(Instant.parse("2026-03-08T12:00:00Z"), ZoneOffset.UTC)
         val gap = FilterNormalizer(gapClock, ZoneOffset.UTC, null).normalize(
@@ -148,7 +166,7 @@ class FilterNormalizerTest {
                 dateFormatter = DateTimeFormatter.ISO_ZONED_DATE_TIME,
             ),
         ) as LessThanFilter
-        gap.value.asText().assert().isEqualTo("2026-03-08T03:30:00-04:00[America/New_York]")
+        gap.value.stringValue().assert().isEqualTo("2026-03-08T03:30:00-04:00[America/New_York]")
     }
 
     @Test
