@@ -71,6 +71,12 @@ class MaskMaterializationSafetyTest {
         SetterDecoder::class.java,
         MaskedKeys::class.java,
         CustomMaskedKeys::class.java,
+        MaskedEnumKeys::class.java,
+        OpaqueEnumValue::class.java,
+        TypeOpaqueEnum::class.java,
+        JsonValueEnum::class.java,
+        JsonValueEnumState::class.java,
+        MaskedPlainEnumKeys::class.java,
         PrivateOpaque::class.java,
         PrivateOpaqueContainer::class.java,
         IgnoredOpaque::class.java,
@@ -90,6 +96,17 @@ class MaskMaterializationSafetyTest {
         JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(
             DocumentationWriteOnly("raw")
         ).path("secret").stringValue().assert().isEqualTo("raw")
+    }
+
+    @Test
+    fun `enum key serializer can emit a masked member as a raw JSON property name`() {
+        val value = MaskedEnumKeys(mapOf(SensitiveEnumKey.A to "value"))
+        JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(value)
+            .path("values").path("raw").stringValue().assert().isEqualTo("value")
+        JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(SensitiveEnumKey.A)
+            .stringValue().assert().isEqualTo("A")
+        JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(JsonValueEnum.A)
+            .stringValue().assert().isEqualTo("raw")
     }
 
     @Test
@@ -117,6 +134,9 @@ class MaskMaterializationSafetyTest {
         load(PrivateValue::class.java)
         load(IgnoredValue::class.java)
         load(PlainKeys::class.java)
+        load(PlainEnumKeys::class.java)
+        load(PlainEnumValue::class.java)
+        load(SensitiveEnumKey::class.java)
     }
 
     open class Base
@@ -217,6 +237,30 @@ class MaskMaterializationSafetyTest {
     data class CustomMaskedKeys(
         @field:JsonSerialize(keyUsing = KeySerializer::class) val values: Map<SensitiveKey, String>
     )
+    enum class SensitiveEnumKey(@field:Mask val secret: String) { A("raw") }
+
+    @JsonSerialize(using = OpaqueSerializer::class)
+    enum class TypeOpaqueEnum(@field:Mask val secret: String) { A("raw") }
+    enum class JsonValueEnum(@field:Mask @get:com.fasterxml.jackson.annotation.JsonValue val secret: String) { A(
+        "raw"
+    ) }
+    data class JsonValueEnumState(val value: JsonValueEnum)
+    enum class PlainEnumKey { A }
+    data class MaskedPlainEnumKeys(val values: Map<SensitiveEnumKey, String>)
+    data class MaskedEnumKeys(
+        @field:JsonSerialize(keyUsing = EnumKeySerializer::class) val values: Map<SensitiveEnumKey, String>
+    )
+    data class OpaqueEnumValue(
+        @field:JsonSerialize(using = OpaqueSerializer::class) val value: SensitiveEnumKey
+    )
+    data class PlainEnumKeys(val values: Map<PlainEnumKey, String>)
+    data class PlainEnumValue(val value: PlainEnumKey)
+    class EnumKeySerializer : StdSerializer<SensitiveEnumKey>(SensitiveEnumKey::class.java) {
+        override fun serialize(value: SensitiveEnumKey, generator: JsonGenerator, provider: SerializationContext) {
+            generator.writeName(value.secret)
+        }
+    }
+
     data class PlainKeys(val values: Map<String, String>)
     class KeySerializer : StdSerializer<SensitiveKey>(SensitiveKey::class.java) {
         override fun serialize(value: SensitiveKey, generator: JsonGenerator, provider: SerializationContext) {

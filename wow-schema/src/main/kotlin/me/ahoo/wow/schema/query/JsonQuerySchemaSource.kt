@@ -63,6 +63,7 @@ import tools.jackson.databind.introspect.BeanPropertyDefinition
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.databind.ser.bean.BeanSerializerBase
 import tools.jackson.databind.ser.impl.UnknownSerializer
+import tools.jackson.databind.ser.jdk.EnumSerializer
 import tools.jackson.databind.ser.std.ReferenceTypeSerializer
 import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
@@ -117,10 +118,12 @@ class JsonQuerySchemaSource(
 
         fun inferDeclaration(model: QueryModel, type: Class<*>): QuerySchemaDeclaration {
             val maskRuleCatalog = MaskRuleCatalog()
-            val schemaGenerator = schemaGenerator(maskRuleCatalog)
+            val maskValidator = MaskMaterializationValidator()
+            val schemaGenerator = schemaGenerator(maskRuleCatalog, maskValidator)
             return if (model == QueryModel.EVENT_STREAM) {
                 inferEventStreamDeclaration(type, schemaGenerator, maskRuleCatalog)
             } else {
+                maskValidator.validate(JsonSerializer.typeFactory.constructType(type))
                 JsonSchemaWalker(
                     schemaGenerator.generateSchema(type),
                     maskRuleResolver = maskRuleCatalog::get,
@@ -167,8 +170,7 @@ class JsonQuerySchemaSource(
             )
         }
 
-        fun schemaGenerator(maskRuleCatalog: MaskRuleCatalog): SchemaGenerator {
-            val maskValidator = MaskMaterializationValidator()
+        fun schemaGenerator(maskRuleCatalog: MaskRuleCatalog, maskValidator: MaskMaterializationValidator): SchemaGenerator {
             return SchemaGeneratorBuilder().objectMapper(JsonSerializer).customizer { config ->
                 config.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
                 config.with(Option.NONSTATIC_NONVOID_NONGETTER_METHODS)
@@ -345,12 +347,13 @@ private fun Class<*>.registeredSerializerDefinition(context: SchemaGenerationCon
     }
 
 private fun Class<*>.hasOpaqueSerializer(): Boolean {
-    if (isStdType()) {
+    if (isStdType() && !isEnum) {
         return false
     }
     val serializer = JsonSerializer._serializationContext().findValueSerializer(this)
     return serializer.let {
         it is BeanSerializerBase ||
+            it is EnumSerializer ||
             it is UnknownSerializer ||
             it is StdContainerSerializer<*> ||
             it is ReferenceTypeSerializer<*>
@@ -377,11 +380,7 @@ private class MaskMaterializationValidator {
             return
         }
         val opaque = opaqueParent || type.rawClass.hasOpaqueSerializer()
-        val classInfo = type.rawClass.takeUnless { it.isStdType() }?.let {
-            deserialization.introspectClassAnnotations(
-                type
-            )
-        }
+        val classInfo = classInfo(type, opaque)
         val unsupportedType = unsupportedParent || opaque ||
             classInfo?.getAnnotation(JsonDeserialize::class.java)?.definesWireShape() == true
         if (classInfo != null) {
@@ -399,6 +398,11 @@ private class MaskMaterializationValidator {
         classInfo ?: return
         validateProperties(type, unsupportedType, opaque)
     }
+
+    private fun classInfo(type: JavaType, opaque: Boolean): AnnotatedClass? =
+        type.rawClass.takeUnless { it.isStdType() && !(opaque && it.isEnum) }?.let {
+            deserialization.introspectClassAnnotations(type)
+        }
 
     private fun validateOpaqueMembers(type: JavaType, classInfo: AnnotatedClass) {
         // Opaque handlers can expose private/ignored members; Jackson retains their resolved generic types here.
