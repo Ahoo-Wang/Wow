@@ -114,7 +114,7 @@ Masking safely skips an Event projection with no top-level `body`, or with that 
 
 ## Typed Materialization Contract
 
-Typed queries mask JSON before Jackson materializes the model. Ordinary property-based `@JsonCreator` constructors and factories remain supported. Model constructors, creators, setters, and builders must preserve supplied masked field values rather than reconstruct sensitive values from constants, other fields, or external sources. Schema validation checks visibility, writable property mappings, and unsupported handler declarations; it does not execute or prove the behavior of application code. Verify custom models against this contract with actual Jackson round-trip tests.
+Typed queries mask JSON before Jackson materializes the model. Ordinary property-based `@JsonCreator` constructors and factories remain supported. Model constructors, creators, setters, and builders must preserve supplied masked field values rather than reconstruct sensitive values from constants, other fields, or external sources. Schema validation checks visibility, writable property mappings, and unsupported handler declarations; it does not prove that application code preserves these field values. Verify custom models against this contract with actual Jackson round-trip tests.
 
 Dynamic queries return the already masked `ObjectNode` directly, without typed model materialization.
 

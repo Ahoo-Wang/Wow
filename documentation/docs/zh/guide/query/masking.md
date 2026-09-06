@@ -114,7 +114,7 @@ Event projection 完全没有顶层 `body`，或把该事件数组投影为 `nul
 
 ## Typed 物化契约
 
-Typed 查询先对 JSON 脱敏，再交给 Jackson 物化。普通属性型 `@JsonCreator` 构造器和工厂仍受支持；模型的构造器、creator、setter 和 builder 必须保留传入的已脱敏字段值，不能从常量、其他字段或外部来源重建敏感值。Schema 校验检查可见性、可写属性映射及不支持的处理器声明，不会执行或证明这些应用代码的行为。应通过真实 Jackson round-trip 测试验证自定义模型遵守此契约。
+Typed 查询先对 JSON 脱敏，再交给 Jackson 物化。普通属性型 `@JsonCreator` 构造器和工厂仍受支持；模型的构造器、creator、setter 和 builder 必须保留传入的已脱敏字段值，不能从常量、其他字段或外部来源重建敏感值。Schema 校验检查可见性、可写属性映射及不支持的处理器声明，不证明应用代码保持这些字段值的行为。应通过真实 Jackson round-trip 测试验证自定义模型遵守此契约。
 
 Dynamic 查询直接返回已脱敏的 `ObjectNode`，不执行 typed 模型物化。
 
