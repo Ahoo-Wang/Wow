@@ -27,11 +27,14 @@ import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TodayFilter
+import me.ahoo.wow.api.query.mask.FullMaskStrategy
+import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -47,6 +50,7 @@ import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QueryFieldSchema
@@ -61,10 +65,12 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.requireAccepted
+import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.query.SnapshotQueryBackendSpec
@@ -477,6 +483,51 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                 QuerySchemaValidationMode.STRICT,
             ),
         ).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `gateway should filter and mask formatted dates through native alias`() {
+        val field = QueryField("state.formattedDate")
+        val alias = QueryField("formattedDateAlias")
+        elasticsearchClient.indices().putMapping { request ->
+            request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                .properties(alias.path) { it.alias { native -> native.path(field.path) } }
+        }.block()
+        val today = Instant.now().atZone(ZoneOffset.UTC).toLocalDate().toString()
+        updateState(mapOf("formattedDate" to today))
+        val annotation = Mask()
+        val declaration = formattedField(field.path, "yyyy-MM-dd").second.copy(
+            maskRule = DeclarationValue.Set(
+                MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation)),
+            ),
+        )
+        val gateway = DefaultSnapshotQueryGateway<ObjectNode>(
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            binding = strictService(querySchemaSources + source(field to declaration)),
+            validationMode = QuerySchemaValidationMode.STRICT,
+            targetType = JsonSerializer.typeFactory.constructParametricType(
+                MaterializedSnapshot::class.java,
+                ObjectNode::class.java,
+            ),
+        )
+
+        listOf(null, "yyyy-MM-dd").forEach { pattern ->
+            gateway.dynamicList(
+                ListQuery(
+                    filter = TodayFilter(alias, zoneId = "UTC", datePattern = pattern),
+                    projection = Projection(include = listOf(alias)),
+                    limit = 1,
+                ),
+            ).test().assertNext { result ->
+                result.path("state").path("formattedDate").asString().assert().isEqualTo("**********")
+            }.verifyComplete()
+        }
+        gateway.aggregate(
+            aggregation {
+                terms(alias.path, "date")
+                count("count")
+            },
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
     }
 
     @Test

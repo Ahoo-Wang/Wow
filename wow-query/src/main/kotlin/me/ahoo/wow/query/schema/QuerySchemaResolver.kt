@@ -355,7 +355,9 @@ internal class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val logicalCandidate = resolved.logical.path
         val resolvedCandidate = resolved.resolvedField?.path ?: logicalCandidate
         val physicalCandidate = resolved.physicalField?.path
+        val projectionCandidate = resolved.fieldSchema?.projectionField?.path
         val matchesMaskedCandidate = isMaskedAggregationCandidate(logicalCandidate) ||
+            projectionCandidate != null && isMaskedAggregationCandidate(projectionCandidate) ||
             resolvedCandidate != logicalCandidate && isMaskedAggregationCandidate(resolvedCandidate) ||
             physicalCandidate != null && physicalCandidate != resolvedCandidate &&
             isMaskedAggregationCandidate(physicalCandidate)

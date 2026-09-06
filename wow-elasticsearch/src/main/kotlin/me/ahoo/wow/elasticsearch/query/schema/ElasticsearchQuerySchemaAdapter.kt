@@ -79,6 +79,17 @@ class ElasticsearchQuerySchemaAdapter(
             val elementFields = logicalSchema.fields.mapNotNullTo(linkedSetOf()) { (field, logical) ->
                 mapping.binding(field, logical, QueryCapability.ELEMENT_SCOPE, invalidNestedParents)?.let { field }
             }
+            val maskedSources = logicalSchema.fields.filterValues { it.maskRule != null }.mapKeys { (field, _) ->
+                mapping.fields[field.path]?.projectionPath ?: field.path
+            }
+            val boundFields = logicalSchema.fields.toMutableMap()
+            mapping.fields.forEach { (path, mapped) ->
+                val source = maskedSources[mapped.projectionPath]
+                if (source != null && !path.startsWith("${mapped.projectionPath}.")) {
+                    // Retain source relationships for mapping-only aliases without applying the mask twice.
+                    boundFields.putIfAbsent(QueryField(path), source.forMappedAlias(mapped))
+                }
+            }
             return QueryModelSchema(
                 model = model,
                 capabilities = buildSet {
@@ -90,7 +101,7 @@ class ElasticsearchQuerySchemaAdapter(
                     }
                 },
                 fields = buildMap {
-                    logicalSchema.fields.forEach { (field, logical) ->
+                    boundFields.forEach { (field, logical) ->
                         put(
                             field,
                             logical.toFieldSchema(
@@ -115,6 +126,25 @@ class ElasticsearchQuerySchemaAdapter(
                         putIfAbsent(QueryField(path), metadataField(path, valueType, QueryCapability.SORT))
                     }
                 },
+            )
+        }
+
+        private fun LogicalQueryFieldSchema.forMappedAlias(mapped: ElasticsearchMappedField): LogicalQueryFieldSchema {
+            val valueType = when (mapped.kind) {
+                in INTEGER_KINDS -> QueryValueType.INTEGER
+                in NUMERIC_KINDS -> QueryValueType.DECIMAL
+                in BOOLEAN_KINDS -> QueryValueType.BOOLEAN
+                else -> QueryValueType.STRING
+            }
+            return copy(
+                valueTypes = setOf(valueType),
+                enumValues = null,
+                semanticType = when {
+                    semanticType is Temporal && proves(QueryCapability.RANGE, mapped.kind) -> semanticType
+                    mapped.kind in DATE_KINDS -> Temporal.Date
+                    else -> null
+                },
+                maskRule = null,
             )
         }
 
