@@ -74,7 +74,7 @@ A function can synchronously, asynchronously, or reactively return these results
 | `CommandMessage<*>` | Preserve the existing message and send 1 command |
 | `Iterable<*>`, `Flux`, `Publisher`, or `Flow` | Collect and send N commands in result order |
 
-`StatelessSagaFunction` uses `concatMap` for multiple commands: the next [`CommandGateway.send`](../command/sending.md) starts only after the previous one completes. Keep result order stable. Reordering changes both the business flow and the default request IDs.
+`StatelessSagaFunction` uses `concatMap` to create and send commands one at a time: the next command is created only after the previous [`CommandGateway.send`](../command/sending.md) completes. Keep result order stable. Reordering changes both the business flow and the default request IDs.
 
 ## requestId and Context Propagation
 
@@ -89,7 +89,7 @@ A prebuilt `CommandMessage` keeps its message and `requestId` while receiving so
 
 Replaying the same event with the same result order produces stable default request IDs that can cooperate with [command-gateway idempotency checks](../command/reliability.md). This does not make external side effects idempotent and does not deduplicate semantically repeated commands generated from different events.
 
-Immediate retries on the same exchange retain generated commands and send progress, skip commands already sent successfully, and reuse the failed command's `commandId/requestId`. Commands are still created and sent one at a time; a read-only header is copied before another send. The Saga function may run again, so its result and order must remain stable. This progress belongs only to the current exchange and does not restore historical command identities after a restart. The command gateway still handles duplicate-request errors. For a waiting chain, the parent Saga reports the final child-send failure after retries finish.
+Immediate retries run the Saga function again and resend its returned commands. Duplicate requests are handled by the command gateway and the target aggregate's idempotency mechanisms. For a waiting chain, the parent Saga reports the final child-send failure after retries finish.
 
 ## Business Compensation
 

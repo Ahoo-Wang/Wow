@@ -74,7 +74,7 @@ class CartSaga {
 | `CommandMessage<*>` | 保留现有消息并发送 1 条 |
 | `Iterable<*>`、`Flux`、`Publisher` 或 `Flow` | 收集并按结果顺序发送 N 条 |
 
-`StatelessSagaFunction` 对多条命令使用 `concatMap`：前一条 [`CommandGateway.send`](../command/sending.md) 完成后才发送下一条。保持返回顺序稳定；顺序变化不仅改变业务流程，也会改变默认 request ID。
+`StatelessSagaFunction` 使用 `concatMap` 逐条创建并发送命令：前一条 [`CommandGateway.send`](../command/sending.md) 完成后，才开始创建下一条。保持返回顺序稳定；顺序变化不仅改变业务流程，也会改变默认 request ID。
 
 ## requestId 与上下文传播
 
@@ -89,7 +89,7 @@ class CartSaga {
 
 同一事件以相同顺序重投时，默认 request ID 保持稳定，可与[命令网关的幂等检查](../command/reliability.md)协作。它不保证外部副作用幂等，也不能保护不同事件生成的语义重复命令。
 
-同一 exchange 内的即时重试保留已经生成的命令及发送进度，跳过已成功发送的命令，沿用失败命令的 `commandId/requestId`。命令仍逐条创建并按顺序发送；只读 header 在再次发送前复制为可写副本。Saga 函数可能重新执行，因此返回结果及顺序需要保持稳定。该进度只存在于当前 exchange，不提供重启后的历史命令身份恢复；重复请求错误仍由命令网关处理。等待链中的子命令发送失败由父 Saga 在重试结束后报告最终结果。
+即时重试会重新执行 Saga 函数并重新发送返回的命令，重复请求由命令网关及目标聚合的幂等机制处理。等待链中的子命令发送失败由父 Saga 在重试结束后报告最终结果。
 
 ## 业务补偿
 

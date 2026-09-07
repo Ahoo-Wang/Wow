@@ -25,11 +25,8 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
-import org.reactivestreams.Publisher
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
-import java.util.concurrent.atomic.AtomicLong
 
 /**
  * A stateless saga function that processes domain events and generates command streams.
@@ -55,53 +52,17 @@ class StatelessSagaFunction(
 
     override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = delegate.getAnnotation(annotationClass)
 
-    private val commandsKey = "__SAGA_COMMANDS__${functionSequence.incrementAndGet()}"
-
-    override fun invoke(exchange: DomainEventExchange<*>): Mono<CommandStream> = Mono.defer {
-        val progress = exchange.getAttribute<CommandProgress>(commandsKey)
-            ?: CommandProgress().also { exchange.setAttribute(commandsKey, it) }
+    @Suppress("UNCHECKED_CAST")
+    override fun invoke(exchange: DomainEventExchange<*>): Mono<CommandStream> =
         delegate.invoke(exchange)
-            .flatMapMany { sendCommandFlux(exchange.message, it, progress) }
+            .flatMapIterable { it as? Iterable<Any> ?: listOf(it) }
+            .index()
+            .concatMap { indexed ->
+                toCommand(exchange.message, indexed.t2, indexed.t1.toInt())
+                    .delayUntil(commandGateway::send)
+            }
             .collectList()
             .map { DefaultCommandStream(exchange.message.id, it).also(exchange::setCommandStream) }
-    }
-
-    private fun sendCommand(
-        domainEvent: DomainEvent<*>,
-        result: Any,
-        progress: CommandProgress,
-        index: Int = 0,
-    ): Mono<CommandMessage<*>> {
-        if (index < progress.sent) {
-            return Mono.justOrEmpty(progress.commands[index])
-        }
-        val command = if (index < progress.commands.size) {
-            Mono.justOrEmpty(progress.commands[index])
-        } else {
-            toCommand(domainEvent, result, index).doOnSuccess { progress.commands.add(it) }
-        }
-        return command.flatMap { original ->
-            val writable = if (original.header.isReadOnly) original.copy() else original
-            progress.commands[index] = writable
-            commandGateway.send(writable).thenReturn(writable)
-        }.doOnSuccess { progress.sent = index + 1 }
-    }
-
-    private fun sendCommandFlux(
-        domainEvent: DomainEvent<*>,
-        handleResult: Any,
-        progress: CommandProgress,
-    ): Publisher<CommandMessage<*>> {
-        if (handleResult !is Iterable<*>) {
-            return sendCommand(domainEvent, handleResult, progress)
-        }
-        return Flux
-            .fromIterable(handleResult as Iterable<Any>)
-            .index()
-            .concatMap {
-                sendCommand(domainEvent, it.t2, progress, it.t1.toInt())
-            }
-    }
 
     private fun toCommand(
         domainEvent: DomainEvent<*>,
@@ -124,15 +85,6 @@ class StatelessSagaFunction(
             }
         @Suppress("UNCHECKED_CAST")
         return commandMessageFactory.create<Any>(commandBuilder) as Mono<CommandMessage<*>>
-    }
-
-    private class CommandProgress {
-        val commands = mutableListOf<CommandMessage<*>?>()
-        var sent: Int = 0
-    }
-
-    private companion object {
-        val functionSequence = AtomicLong()
     }
 
     override fun toString(): String = "StatelessSagaFunction(actual=$delegate)"
