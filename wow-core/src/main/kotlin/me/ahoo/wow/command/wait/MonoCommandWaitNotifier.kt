@@ -14,8 +14,6 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.command.CommandId
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.command.RequestId
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.Message
@@ -122,12 +120,12 @@ class CommandWaitNotifierSubscriber<E, M>(
         actual.onError(exception)
     }
 
-    private fun getCommands(): List<CommandMessage<*>> {
+    private fun getCommands(): List<String> {
         if (processingStage != CommandStage.SAGA_HANDLED) {
             return emptyList()
         }
         val domainEventExchange = messageExchange as DomainEventExchange<*>
-        return domainEventExchange.getCommandStream()?.toList().orEmpty()
+        return domainEventExchange.getCommandStream()?.map { it.commandId }.orEmpty()
     }
 
     private fun notifySignal(errorInfo: ErrorInfo? = null) {
@@ -138,7 +136,6 @@ class CommandWaitNotifierSubscriber<E, M>(
                 contextName = messageExchange.message.contextName
             )
 
-        val commands = getCommands()
         val waitSignal = functionInfo.toWaitSignal(
             id = messageExchange.message.id,
             waitCommandId = waitPlan.waitCommandId,
@@ -151,9 +148,7 @@ class CommandWaitNotifierSubscriber<E, M>(
             errorMsg = error.errorMsg,
             bindingErrors = error.bindingErrors,
             result = messageExchange.getCommandResult(),
-            commands = commands.map { it.commandId },
-            requestId = (message as? RequestId)?.requestId ?: message.header[COMMAND_WAIT_REQUEST_ID],
-            commandRequests = commands.associate { it.commandId to CommandRequestId(it.aggregateId, it.requestId) },
+            commands = getCommands()
         )
         commandWaitNotifier.notifyAndForget(waitPlan, waitSignal)
     }

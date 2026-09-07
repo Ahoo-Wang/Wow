@@ -14,7 +14,6 @@
 package me.ahoo.wow.command.wait.chain
 
 import me.ahoo.wow.command.wait.ChainWaitTarget
-import me.ahoo.wow.command.wait.CommandRequestId
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.StageWaitTarget
@@ -35,7 +34,6 @@ internal class ChainWaitState(
     private val result = mutableMapOf<String, Any>()
     private val resultSequences = mutableMapOf<String, Long>()
     private val tailStates = mutableMapOf<String, StageWaitState>()
-    private val commandIdsByRequest = mutableMapOf<CommandRequestId, String>()
     private val pendingTailSignals = mutableListOf<PendingTailSignal>()
     private val tailFinalSignals = mutableListOf<WaitSignal>()
     private var processed: Boolean = false
@@ -54,9 +52,12 @@ internal class ChainWaitState(
     }
 
     private fun reduceActiveChain(signal: WaitSignal): WaitTransition {
+        val tailState = tailStates[signal.commandId]
+        if (tailState != null) {
+            return reduceMaterializedTail(signal, tailState)
+        }
         if (signal.commandId != plan.waitCommandId) {
-            val tailState = tailStates[signal.tailCommandId()]
-            return if (tailState == null) reducePendingTail(signal) else reduceMaterializedTail(signal, tailState)
+            return reducePendingTail(signal)
         }
         if (!target.shouldNotify(signal)) {
             return WaitTransition.Ignored
@@ -139,34 +140,32 @@ internal class ChainWaitState(
     }
 
     private fun reduceConfirmedMainChainSignal(signal: WaitSignal): WaitTransition {
-        materializeTailStates(signal)
-        replayPendingTailSignals()
+        materializeTailStates(signal.commands)
+        replayPendingTailSignals(signal.commands)
         activateNextSignalResult(signal)
         mainChainSignal = signal.copyResult(resultSnapshot())
 
         return completeChainIfReady(acceptedSignal = signal)
     }
 
-    private fun materializeTailStates(signal: WaitSignal) {
-        signal.commands.forEach { emittedCommandId ->
-            val request = signal.commandRequests[emittedCommandId]
-            // Multiple command attempts for one request share the same confirmed tail state.
-            val commandId = request?.let { commandIdsByRequest.getOrPut(it) { emittedCommandId } } ?: emittedCommandId
+    private fun materializeTailStates(commandIds: List<String>) {
+        commandIds.forEach { commandId ->
             tailStates.computeIfAbsent(commandId) {
                 initialTailState(commandId)
             }
         }
     }
 
-    private fun replayPendingTailSignals() {
-        if (tailStates.isEmpty() || pendingTailSignals.isEmpty()) {
+    private fun replayPendingTailSignals(commandIds: List<String>) {
+        if (commandIds.isEmpty() || pendingTailSignals.isEmpty()) {
             return
         }
+        val confirmedCommandIds = commandIds.toSet()
         val replaySignals = mutableListOf<PendingTailSignal>()
         val iterator = pendingTailSignals.iterator()
         while (iterator.hasNext()) {
             val pendingTailSignal = iterator.next()
-            if (pendingTailSignal.signal.tailCommandId() in tailStates) {
+            if (pendingTailSignal.signal.commandId in confirmedCommandIds) {
                 replaySignals.add(pendingTailSignal)
                 iterator.remove()
             }
@@ -175,7 +174,7 @@ internal class ChainWaitState(
             return
         }
         for ((sequence, pendingSignal) in replaySignals) {
-            val currentTailState = tailStates.getValue(requireNotNull(pendingSignal.tailCommandId()))
+            val currentTailState = tailStates.getValue(pendingSignal.commandId)
             reduceTail(
                 signal = pendingSignal,
                 tailState = currentTailState,
@@ -268,7 +267,7 @@ internal class ChainWaitState(
         if (currentFinalSignal == null) {
             return
         }
-        val currentIndex = tailFinalSignals.indexOfFirst { it.tailCommandId() == currentFinalSignal.tailCommandId() }
+        val currentIndex = tailFinalSignals.indexOfFirst { it.commandId == currentFinalSignal.commandId }
         if (currentIndex == -1) {
             tailFinalSignals.add(currentFinalSignal)
             return
@@ -283,17 +282,7 @@ internal class ChainWaitState(
         signal.stage == target.stage && target.function.matchesWaitFunction(signal.function)
 
     private fun isCompletedTailFinalSignal(signal: WaitSignal): Boolean =
-        tailStates[signal.tailCommandId()]?.completed == true
-
-    private fun WaitSignal.tailCommandId(): String? {
-        val requestId = requestId
-        if (requestId == null || commandIdsByRequest.isEmpty()) {
-            return commandId
-        }
-        commandIdsByRequest[CommandRequestId(aggregateId, requestId)]?.let { return it }
-        // ponytail: unmatched signals scan confirmed IDs; index them if large legacy chains make this costly.
-        return commandId.takeUnless { it in commandIdsByRequest.values }
-    }
+        tailStates[signal.commandId]?.completed == true
 
     private fun initialTailState(commandId: String): StageWaitState =
         StageWaitState(

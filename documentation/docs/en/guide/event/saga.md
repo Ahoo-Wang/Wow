@@ -89,7 +89,7 @@ A prebuilt `CommandMessage` keeps its message and `requestId` while receiving so
 
 Replaying the same event with the same result order produces stable default request IDs that can cooperate with [command-gateway idempotency checks](../command/reliability.md). This does not make external side effects idempotent and does not deduplicate semantically repeated commands generated from different events.
 
-Immediate retries run the Saga function again and resend its returned commands. When an individual send returns `DuplicateRequestIdException`, the Saga retains that command's request identity and continues with subsequent commands; other send errors still propagate. The Saga does not cache send progress. For a waiting chain, the parent Saga reports the final child-send failure after retries finish.
+Immediate retries run the Saga function again and resend its returned commands. Newly created command messages keep the existing globally unique `commandId` generation rules, while default request IDs remain stable for idempotency checks. When an individual send returns `DuplicateRequestIdException`, the Saga skips that duplicate send and continues with subsequent commands; other errors still propagate. The Saga does not cache send progress.
 
 ## Business Compensation
 
@@ -107,9 +107,9 @@ Do not conflate business compensation with processing-failure recovery. A Saga d
 
 ## Wait Integration
 
-The runtime produces `SAGA_HANDLED` after the Saga function completes and every generated `CommandGateway.send` completes. The signal carries the command-stream `commandId` values and their `(aggregateId, requestId)` identities. Within the same wait, `chain` correlates child outcomes by the complete aggregate identity and request ID, so an original command's notification still matches after a retry generates a new `commandId`. `SAGA_HANDLED` confirms that dispatch finished, including skipped duplicate requests; it does not confirm successful aggregate or projection processing.
+The runtime produces `SAGA_HANDLED` after the Saga function completes and every generated `CommandGateway.send` completes. The signal carries the command-stream `commandId` values and confirms that dispatch finished, including skipped duplicate requests. It does not confirm successful processing by the target aggregates.
 
-Wait for the matching `SAGA_HANDLED` when the caller needs only to know that the Saga sent its commands. If every downstream command must reach another stage, use `CommandWait.chain(...)` with the Saga function and the tail stage/function. See [Completion Semantics](../command/completion.md) for stages, function matching, and early-arriving signals.
+Wait for the matching `SAGA_HANDLED` when the caller needs only to know that the Saga sent its commands. If every downstream command must reach another stage, use `CommandWait.chain(...)` with the Saga function and the tail stage/function. Wait state is process-local and subject to caller timeouts and cancellation; Saga retries do not guarantee that an earlier wait remains active or can be resumed. See [Completion Semantics](../command/completion.md) for stages, function matching, and early-arriving signals.
 
 ## Testing and Failure Boundaries
 
