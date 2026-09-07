@@ -18,6 +18,7 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.command.factory.CommandMessageFactory
@@ -59,7 +60,9 @@ class StatelessSagaFunction(
             .index()
             .concatMap { indexed ->
                 toCommand(exchange.message, indexed.t2, indexed.t1.toInt())
-                    .delayUntil(commandGateway::send)
+                    .delayUntil { command ->
+                        commandGateway.send(command).onErrorComplete(DuplicateRequestIdException::class.java)
+                    }
             }
             .collectList()
             .map { DefaultCommandStream(exchange.message.id, it).also(exchange::setCommandStream) }

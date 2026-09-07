@@ -41,13 +41,18 @@ interface NullableAggregateVersionCapable {
 }
 
 /**
+ * A logical command request, scoped to the complete aggregate identity.
+ */
+data class CommandRequestId(val aggregateId: AggregateId, val requestId: String)
+
+/**
  * Signal representing a command processing stage completion.
  *
  * WaitSignal contains all information about a specific stage in command processing,
  * including success/failure status, aggregate state, and any generated commands.
  *
  * [stage] identifies the command-processing stage, [isLastProjection] marks the final projection,
- * and [commands] contains command IDs sent by a saga as a result of this processing.
+ * [commands] contains command IDs sent by a saga, and [commandRequests] identifies their logical requests.
  * @see CommandStage
  * @see SimpleWaitSignal
  */
@@ -68,6 +73,18 @@ interface WaitSignal :
      * List of command IDs sent by Saga
      */
     val commands: List<String>
+
+    /**
+     * Request identity of the command that produced this signal, when available.
+     */
+    val requestId: String?
+        get() = null
+
+    /**
+     * Request identities of Saga commands, indexed by their command IDs.
+     */
+    val commandRequests: Map<String, CommandRequestId>
+        get() = emptyMap()
 
     /**
      * Creates a copy of this signal with updated result data.
@@ -98,9 +115,11 @@ interface WaitSignal :
  * @param result additional result data
  * @param commands command IDs sent by Saga
  * @param signalTime timestamp when this signal was generated
+ * @param requestId request ID of the command that generated this signal
+ * @param commandRequests request identities of generated Saga commands
  * @see WaitSignal
  */
-data class SimpleWaitSignal(
+data class SimpleWaitSignal @JvmOverloads constructor(
     override val id: String,
     override val waitCommandId: String,
     override val commandId: String,
@@ -114,9 +133,49 @@ data class SimpleWaitSignal(
     override val bindingErrors: List<BindingError> = emptyList(),
     override val result: Map<String, Any> = emptyMap(),
     override val commands: List<String> = listOf(),
-    override val signalTime: Long = System.currentTimeMillis()
+    override val signalTime: Long = System.currentTimeMillis(),
+    override val requestId: String? = null,
+    override val commandRequests: Map<String, CommandRequestId> = emptyMap(),
 ) : WaitSignal {
+    /**
+     * Preserves the original Java copy signature and retains request metadata.
+     */
+    fun copy(
+        id: String,
+        waitCommandId: String,
+        commandId: String,
+        aggregateId: AggregateId,
+        stage: CommandStage,
+        function: FunctionInfoData,
+        aggregateVersion: Int?,
+        isLastProjection: Boolean,
+        errorCode: String,
+        errorMsg: String,
+        bindingErrors: List<BindingError>,
+        result: Map<String, Any>,
+        commands: List<String>,
+        signalTime: Long,
+    ): SimpleWaitSignal = copy(
+        id = id,
+        waitCommandId = waitCommandId,
+        commandId = commandId,
+        aggregateId = aggregateId,
+        stage = stage,
+        function = function,
+        aggregateVersion = aggregateVersion,
+        isLastProjection = isLastProjection,
+        errorCode = errorCode,
+        errorMsg = errorMsg,
+        bindingErrors = bindingErrors,
+        result = result,
+        commands = commands,
+        signalTime = signalTime,
+        requestId = requestId,
+        commandRequests = commandRequests,
+    )
+
     companion object {
+        @JvmOverloads
         fun FunctionInfo.toWaitSignal(
             id: String,
             waitCommandId: String,
@@ -130,7 +189,9 @@ data class SimpleWaitSignal(
             bindingErrors: List<BindingError> = emptyList(),
             result: Map<String, Any> = emptyMap(),
             commands: List<String> = listOf(),
-            signalTime: Long = System.currentTimeMillis()
+            signalTime: Long = System.currentTimeMillis(),
+            requestId: String? = null,
+            commandRequests: Map<String, CommandRequestId> = emptyMap(),
         ): WaitSignal =
             SimpleWaitSignal(
                 id = id,
@@ -147,6 +208,8 @@ data class SimpleWaitSignal(
                 result = result,
                 commands = commands,
                 signalTime = signalTime,
+                requestId = requestId,
+                commandRequests = commandRequests,
             )
     }
 

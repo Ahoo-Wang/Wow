@@ -89,7 +89,7 @@ class CartSaga {
 
 同一事件以相同顺序重投时，默认 request ID 保持稳定，可与[命令网关的幂等检查](../command/reliability.md)协作。它不保证外部副作用幂等，也不能保护不同事件生成的语义重复命令。
 
-即时重试会重新执行 Saga 函数并重新发送返回的命令，重复请求由命令网关及目标聚合的幂等机制处理。等待链中的子命令发送失败由父 Saga 在重试结束后报告最终结果。
+即时重试会重新执行 Saga 函数并重新发送返回的命令。单条发送返回 `DuplicateRequestIdException` 时，Saga 保留该命令的请求身份并继续发送后续命令；其他发送错误仍向上传播。Saga 不缓存发送进度。等待链中的子命令发送失败由父 Saga 在重试结束后报告最终结果。
 
 ## 业务补偿
 
@@ -107,7 +107,7 @@ fun onEntryFailed(event: EntryFailed): UnlockAmount =
 
 ## 等待集成
 
-Saga 函数完成并且生成命令的 `CommandGateway.send` 全部完成后，运行时产生 `SAGA_HANDLED`。该信号包含本次命令流的 `commandId`，但只证明命令发送边界完成，不证明目标聚合已经处理命令。
+Saga 函数完成并且生成命令的 `CommandGateway.send` 全部完成后，运行时产生 `SAGA_HANDLED`。该信号包含本次命令流的 `commandId` 和对应的 `(aggregateId, requestId)`。`chain` 根据完整聚合标识与请求 ID 关联子命令结果，因此同一次等待中，重试生成新的 `commandId` 后仍能匹配原命令的通知。`SAGA_HANDLED` 只证明发送流程已完成（包括跳过重复请求），不证明目标聚合或投影已经成功处理命令。
 
 调用方只关心 Saga 已发出命令时等待匹配的 `SAGA_HANDLED`。若还必须等待每条后续命令的某个阶段，使用 `CommandWait.chain(...)` 指定 Saga 函数与 tail stage/function。完整阶段、函数匹配和提前到达信号处理见[完成语义](../command/completion.md)。
 
@@ -136,6 +136,6 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 
 至少覆盖正常命令、0 命令分支和每条业务补偿分支。依赖默认 request ID、上下文传播、多命令顺序或预构造消息时，增加针对完整 `CommandMessage` 的断言；依赖真实发送、链式等待或失败恢复时，再增加集成测试。
 
-Saga 函数错误或任一 `CommandGateway.send` 错误都会沿响应式链传播，随后才由即时重试或已启用的持久 Compensation 处理。即使失败发生在部分命令已被总线接受之后，源事件和已接受命令也不会自动撤销；因此命令处理与业务补偿都必须可安全重投。
+Saga 函数错误或 `DuplicateRequestIdException` 以外的 `CommandGateway.send` 错误都会沿响应式链传播，随后才由即时重试或已启用的持久 Compensation 处理。即使失败发生在部分命令已被总线接受之后，源事件和已接受命令也不会自动撤销；因此命令处理与业务补偿都必须可安全重投。
 
 **完成标志：** 0..N 映射、命令顺序、request ID/上下文传播和业务补偿分支均有测试；等待合同没有把 `SAGA_HANDLED` 误写成后续命令完成。

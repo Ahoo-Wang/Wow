@@ -34,6 +34,9 @@ data class ExtractedWaitPlan(
         if (!target.shouldPropagate(upstream)) {
             return
         }
+        if (upstream is CommandMessage<*>) {
+            header.with(COMMAND_WAIT_REQUEST_ID, upstream.requestId)
+        }
         if (target is ChainWaitTarget && upstream !is CommandMessage<*>) {
             header
                 .propagateWaitCommandId(waitCommandId)

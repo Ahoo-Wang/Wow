@@ -19,6 +19,9 @@ import me.ahoo.wow.infra.ifNotBlank
 
 const val COMMAND_WAIT_PREFIX = "command_wait_"
 const val WAIT_COMMAND_ID = "${COMMAND_WAIT_PREFIX}id"
+
+// Carries the producing command's request ID to event notifications.
+const val COMMAND_WAIT_REQUEST_ID = "${COMMAND_WAIT_PREFIX}request_id"
 const val COMMAND_WAIT_ENDPOINT = "${COMMAND_WAIT_PREFIX}endpoint"
 const val COMMAND_WAIT_STAGE = "${COMMAND_WAIT_PREFIX}stage"
 const val COMMAND_WAIT_CONTEXT = "${COMMAND_WAIT_PREFIX}context"

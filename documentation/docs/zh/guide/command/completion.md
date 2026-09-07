@@ -64,9 +64,9 @@ val waitPlan = CommandWait.projected(
 
 ## 链式等待
 
-`CommandWait.chain` 先等待匹配的 `SAGA_HANDLED` 主函数，从其信号取得 Saga 发出的后续 `commandId`，再对每条后续命令等待指定的尾阶段和函数。它表达的是“这次 Saga 以及它实际发出的命令”，不是等待系统中所有同类命令。
+`CommandWait.chain` 先等待匹配的 `SAGA_HANDLED` 主函数，从其信号取得后续命令及其请求身份，再等待每个请求到达指定的尾阶段和函数。子命令按完整的 `(aggregateId, requestId)` 关联；`aggregateId` 包含上下文、聚合名称、租户和聚合实例 ID。同一次等待中的重试即使重新生成 `commandId`，也能匹配原请求的结果。`waitCommandId` 仍用于定位本次等待。
 
-后续命令的信号可能早于主 Saga 信号到达。链式等待会先暂存这些信号；主信号确认实际的后续 `commandId` 后，再创建尾部状态并按原观察顺序重放。未被主信号确认的暂存信号不能完成链。
+后续命令的信号可能早于主 Saga 信号到达。链式等待会先暂存这些信号；主信号确认后续请求身份后，再创建尾部状态并按原观察顺序重放。缺少请求身份信息的旧通知仍按 `commandId` 匹配。按请求关联重试结果要求 Saga 声明与子命令通知都携带请求身份，等待方和通知产生方需使用支持此元数据的版本。未被主信号确认的暂存信号不能完成链。
 
 ![WaitingForChain](/images/wait/WaitingForChain.svg)
 

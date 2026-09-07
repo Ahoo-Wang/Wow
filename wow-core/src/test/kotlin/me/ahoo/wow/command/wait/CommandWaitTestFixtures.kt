@@ -142,12 +142,15 @@ internal fun testSignal(
     errorCode: String = "Ok",
     errorMsg: String = "",
     commands: List<String> = emptyList(),
+    requestId: String? = null,
+    aggregateId: AggregateId = testAggregateId(),
+    commandRequests: Map<String, CommandRequestId> = emptyMap(),
 ): WaitSignal =
     SimpleWaitSignal(
         id = generateGlobalId(),
         waitCommandId = waitCommandId,
         commandId = commandId,
-        aggregateId = testAggregateId(),
+        aggregateId = aggregateId,
         stage = stage,
         function = function,
         isLastProjection = isLastProjection,
@@ -156,6 +159,8 @@ internal fun testSignal(
         result = result,
         signalTime = signalTime,
         commands = commands,
+        requestId = requestId,
+        commandRequests = commandRequests,
     )
 
 internal class RecordingCommandWaitNotifier : CommandWaitNotifier {

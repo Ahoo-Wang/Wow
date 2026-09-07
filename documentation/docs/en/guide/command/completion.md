@@ -64,9 +64,9 @@ An empty matching field is a wildcard; every non-empty field must match. Use the
 
 ## Chained Waiting
 
-`CommandWait.chain` first waits for a matching main `SAGA_HANDLED` function, reads the downstream `commandId` values that the Saga emitted from its signal, and then waits for the configured tail stage and function on every downstream command. It means “this Saga invocation and the commands it actually emitted,” not every command of the same type in the system.
+`CommandWait.chain` first waits for a matching main `SAGA_HANDLED` function, reads the downstream commands and their request identities, and then waits for each request to reach the configured tail stage and function. Child commands are correlated by the complete `(aggregateId, requestId)`: the aggregate identity includes context, aggregate name, tenant, and instance ID. A retry within the same wait can therefore match the original request's outcome even when it generates a new `commandId`. `waitCommandId` still identifies the wait itself.
 
-A downstream command signal can arrive before the main Saga signal. The chain wait stores such signals temporarily. After the main signal confirms the actual downstream `commandId` values, it creates the tail states and replays matching signals in their original observed order. An unconfirmed pending signal cannot complete the chain.
+A downstream command signal can arrive before the main Saga signal. The chain wait stores such signals temporarily. After the main signal confirms the downstream request identities, it creates the tail states and replays matching signals in their original observed order. Older notifications without request identity metadata still match by `commandId`. Correlating retries by request requires metadata on both the Saga declaration and child notifications, with support on the wait consumer and notification producers. An unconfirmed pending signal cannot complete the chain.
 
 ![WaitingForChain](/images/wait/WaitingForChain.svg)
 

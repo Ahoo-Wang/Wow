@@ -47,6 +47,7 @@ fun CommandMessage<*>.commandSentSignal(
         id = generateGlobalId(),
         waitCommandId = waitCommandId,
         commandId = commandId,
+        requestId = requestId,
         aggregateId = aggregateId,
         stage = CommandStage.SENT,
         function = COMMAND_GATEWAY_FUNCTION,
