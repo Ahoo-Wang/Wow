@@ -61,7 +61,8 @@ class StatelessSagaFunction(
             .concatMap { indexed ->
                 toCommand(exchange.message, indexed.t2, indexed.t1.toInt())
                     .delayUntil { command ->
-                        commandGateway.send(command).onErrorComplete(DuplicateRequestIdException::class.java)
+                        Mono.defer { commandGateway.send(command) }
+                            .onErrorComplete(DuplicateRequestIdException::class.java)
                     }
             }
             .collectList()

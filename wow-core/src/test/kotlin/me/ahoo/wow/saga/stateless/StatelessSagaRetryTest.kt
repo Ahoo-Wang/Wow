@@ -22,6 +22,7 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.DefaultRequestIdChecker
+import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.command.RequestIdChecker
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.validation.NoOpValidator
@@ -56,6 +57,39 @@ import java.time.Duration
 import java.util.concurrent.TimeoutException
 
 class StatelessSagaRetryTest {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `duplicate send failures do not stop following commands`(synchronousFailure: Boolean) {
+        val attempts = mutableListOf<String>()
+        val gateway = mockk<CommandGateway> {
+            every { send(any<CommandMessage<*>>()) } answers {
+                val command = firstArg<CommandMessage<*>>()
+                attempts += command.aggregateId.id
+                if (command.aggregateId.id == "first") {
+                    val failure = DuplicateRequestIdException(command.aggregateId, command.requestId)
+                    if (synchronousFailure) {
+                        throw failure
+                    }
+                    Mono.error<Void>(failure)
+                } else {
+                    Mono.empty()
+                }
+            }
+        }
+        val saga = StatelessSagaFunction(
+            StubMessageFunction(
+                Mono.just(listOf(MockChangeAggregate("first", "one"), MockChangeAggregate("second", "two")))
+            ),
+            gateway,
+            commandMessageFactory(),
+        )
+
+        StepVerifier.create(saga.invoke(SimpleDomainEventExchange(fixtureEvent())))
+            .assertNext { it.size.assert().isEqualTo(2) }
+            .expectComplete().verify(Duration.ofSeconds(5))
+        attempts.assert().containsExactly("first", "second")
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
     fun `retry reinvokes delegate after invocation failure`(synchronousFailure: Boolean) {
