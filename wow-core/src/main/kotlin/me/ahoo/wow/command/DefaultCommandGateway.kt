@@ -63,6 +63,17 @@ class DefaultCommandGateway(
     CommandBus by commandBus {
     override val enforcesCommandWaitTimeout: Boolean = true
 
+    private val waitTimer by lazy { Schedulers.newSingle("wow-command-wait", true) }
+
+    override fun close() {
+        try {
+            commandBus.close()
+        } finally {
+            // Keep registered deadlines alive without retaining a shutdown-waiting thread.
+            waitTimer.disposeGracefully().subscribe().dispose()
+        }
+    }
+
     override fun receiver(
         subscription: MessageSubscription,
     ): MessageReceiver<ServerCommandExchange<*>> =
@@ -184,7 +195,7 @@ class DefaultCommandGateway(
                     ),
                     it,
                 )
-            }.withDeadline(DEFAULT_WAIT_TIMEOUT)
+            }.withDeadline(DEFAULT_WAIT_TIMEOUT, waitTimer)
 
     /**
      * Sends a command and returns a stream of command results as they become available.
@@ -263,7 +274,7 @@ class DefaultCommandGateway(
                         { handle -> handle.cancel() },
                     )
                 )
-        }.withDeadline(waitPlan.timeout)
+        }.withDeadline(waitPlan.timeout, waitTimer)
 
     /**
      * Sends a command with a specific wait plan.
@@ -329,8 +340,8 @@ class DefaultCommandGateway(
         }
 }
 
-private fun <T : Any> Mono<T>.withDeadline(timeout: Duration): Mono<T> =
-    timeout(timeout)
+private fun <T : Any> Mono<T>.withDeadline(timeout: Duration, timer: Scheduler): Mono<T> =
+    timeout(deadlineSignal(timeout, timer))
 
 private fun <T : Any> Flux<T>.withDeadline(timeout: Duration): Flux<T> =
     Flux.defer {
@@ -353,3 +364,8 @@ private fun deadlineSignal(
             .coerceAtLeast(Duration.ZERO),
         scheduler,
     )
+
+private fun deadlineSignal(timeout: Duration, timer: Scheduler): Mono<Long> =
+    Mono.delay(timeout, timer)
+        // Cancellation and user error callbacks must not run on the timer thread.
+        .publishOn(Schedulers.parallel())

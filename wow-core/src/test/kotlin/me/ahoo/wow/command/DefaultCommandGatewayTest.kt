@@ -45,6 +45,7 @@ import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.messaging.MessageSubscription
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -52,6 +53,12 @@ import reactor.test.StepVerifier
 import java.util.concurrent.atomic.AtomicInteger
 
 class DefaultCommandGatewayTest {
+    private val gateways = mutableListOf<DefaultCommandGateway>()
+
+    @AfterEach
+    fun closeGateways() {
+        gateways.forEach(DefaultCommandGateway::close)
+    }
 
     @Test
     fun `send rejects duplicate request before delegating to command bus`() {
@@ -719,7 +726,7 @@ class DefaultCommandGatewayTest {
             requestIdChecker = requestIdChecker,
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = notifier,
-        )
+        ).also { gateways += it }
 }
 
 private class RecordingCommandBus : CommandBus {

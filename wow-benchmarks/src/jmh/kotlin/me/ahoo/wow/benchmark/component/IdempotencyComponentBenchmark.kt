@@ -28,17 +28,24 @@ open class IdempotencyComponentBenchmark {
         const val KNOWN_REQUEST_ID = "known-request-id"
     }
 
-    private lateinit var knownRequestChecker: BloomFilterIdempotencyChecker
+    private lateinit var requestChecker: BloomFilterIdempotencyChecker
+    private var requestSequence = 0L
 
     @Setup(Level.Iteration)
     fun setup() {
-        knownRequestChecker = BenchmarkIdempotency.bloomFilterChecker()
-        check(knownRequestChecker.check(KNOWN_REQUEST_ID))
+        requestChecker = BenchmarkIdempotency.bloomFilterChecker()
+        requestSequence = 0
+        check(requestChecker.check(KNOWN_REQUEST_ID))
     }
 
     @Benchmark
     fun checkKnownRequestId(blackhole: Blackhole) {
-        val result = knownRequestChecker.check(KNOWN_REQUEST_ID)
+        val result = requestChecker.check(KNOWN_REQUEST_ID)
         blackhole.consume(result)
+    }
+
+    @Benchmark
+    fun checkNewRequestId(blackhole: Blackhole) {
+        blackhole.consume(requestChecker.check("request-${requestSequence++}"))
     }
 }
