@@ -60,8 +60,8 @@ importers:
         specifier: 19.2.8
         version: 19.2.8
       react-resizable-panels:
-        specifier: ^4.12.3
-        version: 4.12.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^4.12.4
+        version: 4.12.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-router:
         specifier: ^8.3.1
         version: 8.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -2612,8 +2612,8 @@ packages:
       redux:
         optional: true
 
-  react-resizable-panels@4.12.3:
-    resolution: {integrity: sha512-GHMJWnDXui/3RX4bT+cgBP+N3N2nkwcoZATr/2xLFpqQQe7TlBrE0cGM0dUa9ceT7A90tUrSRsiqgRG+g0/2AA==}
+  react-resizable-panels@4.12.4:
+    resolution: {integrity: sha512-SOsSj4e9U7vxL15MbgTfl35IO4vxSW4Xb0b1gtJVbRPWv7FOezcgOA00Mi0jP8XqC3y7jOQxpsGs/9zLKHPitA==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -5473,7 +5473,7 @@ snapshots:
       '@types/react': 19.2.18
       redux: 5.0.1
 
-  react-resizable-panels@4.12.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  react-resizable-panels@4.12.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
