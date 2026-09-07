@@ -55,7 +55,7 @@ class StatelessSagaFunction(
 
     @Suppress("UNCHECKED_CAST")
     override fun invoke(exchange: DomainEventExchange<*>): Mono<CommandStream> =
-        delegate.invoke(exchange)
+        Mono.defer { delegate.invoke(exchange) }
             .flatMapIterable { it as? Iterable<Any> ?: listOf(it) }
             .index()
             .concatMap { indexed ->

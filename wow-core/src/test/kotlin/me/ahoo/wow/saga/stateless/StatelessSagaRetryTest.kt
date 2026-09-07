@@ -36,12 +36,14 @@ import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.toWaitingChainT
 import me.ahoo.wow.command.wait.testFunction
 import me.ahoo.wow.command.wait.testSignal
 import me.ahoo.wow.command.wait.thenNotifyAndForget
+import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockChangeAggregate
 import org.junit.jupiter.api.Test
@@ -54,6 +56,35 @@ import java.time.Duration
 import java.util.concurrent.TimeoutException
 
 class StatelessSagaRetryTest {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `retry reinvokes delegate after invocation failure`(synchronousFailure: Boolean) {
+        var invocations = 0
+        val delegate = object : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> by StubMessageFunction(
+            Mono.empty<Any>()
+        ) {
+            override fun invoke(exchange: DomainEventExchange<*>): Mono<*> {
+                if (++invocations == 1) {
+                    val failure = TimeoutException("temporary invocation failure")
+                    if (synchronousFailure) {
+                        throw failure
+                    }
+                    return Mono.error<Any>(failure)
+                }
+                return Mono.just(MockChangeAggregate("target", "change"))
+            }
+        }
+        val gateway = mockk<CommandGateway> {
+            every { send(any<CommandMessage<*>>()) } returns Mono.empty()
+        }
+        val saga = StatelessSagaFunction(delegate, gateway, commandMessageFactory())
+
+        StepVerifier.create(saga.invoke(SimpleDomainEventExchange(fixtureEvent())).retry(1))
+            .assertNext { it.single().aggregateId.id.assert().isEqualTo("target") }
+            .expectComplete().verify(Duration.ofSeconds(5))
+        invocations.assert().isEqualTo(2)
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
     fun `retry skips persisted requests and sends remaining commands`(persistBeforeFailure: Boolean) {
