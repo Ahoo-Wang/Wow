@@ -74,7 +74,7 @@ A function can synchronously, asynchronously, or reactively return these results
 | `CommandMessage<*>` | Preserve the existing message and send 1 command |
 | `Iterable<*>`, `Flux`, `Publisher`, or `Flow` | Collect and send N commands in result order |
 
-`StatelessSagaFunction` uses `concatMap` for multiple commands: the next [`CommandGateway.send`](../command/sending.md) starts only after the previous one completes. Keep result order stable. Reordering changes both the business flow and the default request IDs.
+`StatelessSagaFunction` uses `concatMap` to create and send commands one at a time: the next command is created only after the previous [`CommandGateway.send`](../command/sending.md) completes. Keep result order stable. Reordering changes both the business flow and the default request IDs.
 
 ## requestId and Context Propagation
 
@@ -89,7 +89,7 @@ A prebuilt `CommandMessage` keeps its message and `requestId` while receiving so
 
 Replaying the same event with the same result order produces stable default request IDs that can cooperate with [command-gateway idempotency checks](../command/reliability.md). This does not make external side effects idempotent and does not deduplicate semantically repeated commands generated from different events.
 
-Immediate retries on the same exchange retain generated commands and send progress, skip commands already sent successfully, and reuse the failed command's `commandId/requestId`. Commands are still created and sent one at a time; a read-only header is copied before another send. The Saga function may run again, so its result and order must remain stable. This progress belongs only to the current exchange and does not restore historical command identities after a restart. The command gateway still handles duplicate-request errors. For a waiting chain, the parent Saga reports the final child-send failure after retries finish.
+Immediate retries run the Saga function again and resend its returned commands. Newly created command messages keep the existing globally unique `commandId` generation rules, while default request IDs remain stable for idempotency checks. When an individual send returns `DuplicateRequestIdException`, the Saga skips that duplicate send and continues with subsequent commands; other errors still propagate. The Saga does not cache send progress.
 
 ## Business Compensation
 
@@ -107,9 +107,9 @@ Do not conflate business compensation with processing-failure recovery. A Saga d
 
 ## Wait Integration
 
-The runtime produces `SAGA_HANDLED` after the Saga function completes and every generated `CommandGateway.send` completes. The signal carries the command-stream `commandId` values, but proves only the send boundary, not that the target aggregates processed those commands.
+The runtime produces `SAGA_HANDLED` after the Saga function completes and every generated `CommandGateway.send` completes. The signal carries the command-stream `commandId` values and confirms that dispatch finished, including skipped duplicate requests. It does not confirm successful processing by the target aggregates.
 
-Wait for the matching `SAGA_HANDLED` when the caller needs only to know that the Saga sent its commands. If every downstream command must reach another stage, use `CommandWait.chain(...)` with the Saga function and the tail stage/function. See [Completion Semantics](../command/completion.md) for stages, function matching, and early-arriving signals.
+Wait for the matching `SAGA_HANDLED` when the caller needs only to know that the Saga sent its commands. If every downstream command must reach another stage, use `CommandWait.chain(...)` with the Saga function and the tail stage/function. Wait state is process-local and subject to caller timeouts and cancellation; Saga retries do not guarantee that an earlier wait remains active or can be resumed. See [Completion Semantics](../command/completion.md) for stages, function matching, and early-arriving signals.
 
 ## Testing and Failure Boundaries
 
@@ -136,6 +136,6 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 
 Cover the normal command, zero-command path, and every business-compensation branch. Add assertions on the full `CommandMessage` when relying on default request IDs, context propagation, multi-command order, or prebuilt messages. Add integration coverage only when relying on real sends, chained waits, or failure recovery.
 
-An error from the Saga function or any `CommandGateway.send` propagates through the reactive chain before immediate retry or enabled durable Compensation handles it. Even when failure follows partial command acceptance, neither the source event nor accepted commands are automatically undone. Command handling and business compensation must therefore remain safe under replay.
+An error from the Saga function or a `CommandGateway.send` error other than `DuplicateRequestIdException` propagates through the reactive chain before immediate retry or enabled durable Compensation handles it. Even when failure follows partial command acceptance, neither the source event nor accepted commands are automatically undone. Command handling and business compensation must therefore remain safe under replay.
 
 **Completion signal:** tests cover the 0..N mapping, command order, request ID/context propagation, and business-compensation branches, and the wait contract does not misstate `SAGA_HANDLED` as downstream command completion.

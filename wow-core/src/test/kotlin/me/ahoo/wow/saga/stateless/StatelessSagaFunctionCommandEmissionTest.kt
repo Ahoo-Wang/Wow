@@ -22,8 +22,13 @@ import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandBuilder
+import me.ahoo.wow.command.factory.CommandBuilderRewriter
 import me.ahoo.wow.command.factory.CommandMessageFactory
+import me.ahoo.wow.command.factory.RewriteNoCommandException
+import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
+import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.toDomainEventStream
@@ -37,6 +42,7 @@ import me.ahoo.wow.tck.mock.MockChangeAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
 import java.time.Duration
 
@@ -105,6 +111,44 @@ class StatelessSagaFunctionCommandEmissionTest {
             MockCreateAggregate::class.java,
             MockChangeAggregate::class.java,
         )
+    }
+
+    @Test
+    fun `waits for current send before rewriting next command`() {
+        val rewritten = mutableListOf<String>()
+        val rewriters = SimpleCommandBuilderRewriterRegistry().apply {
+            register(object : CommandBuilderRewriter {
+                override val supportedCommandType: Class<*> = MockChangeAggregate::class.java
+
+                override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
+                    val id = commandBuilder.bodyAs<MockChangeAggregate>().id
+                    rewritten += id
+                    return if (id == "second") Mono.empty() else Mono.just(commandBuilder)
+                }
+            })
+        }
+        val firstSend = Sinks.empty<Void>()
+        var firstSendCancelled = false
+        val gateway = mockk<CommandGateway> {
+            every { send(any<CommandMessage<*>>()) } returns firstSend.asMono()
+                .doOnCancel { firstSendCancelled = true }
+        }
+        val function = StatelessSagaFunction(
+            StubMessageFunction(
+                Mono.just(listOf(MockChangeAggregate("first", "one"), MockChangeAggregate("second", "two")))
+            ),
+            gateway,
+            SimpleCommandMessageFactory(NoOpValidator, rewriters),
+        )
+
+        StepVerifier.create(function.invoke(SimpleDomainEventExchange(fixtureEvent())))
+            .then { rewritten.assert().containsExactly("first") }
+            .then { firstSend.tryEmitEmpty().assert().isEqualTo(Sinks.EmitResult.OK) }
+            .expectError(RewriteNoCommandException::class.java)
+            .verify(Duration.ofSeconds(5))
+
+        rewritten.assert().containsExactly("first", "second")
+        firstSendCancelled.assert().isFalse()
     }
 
     @Test
