@@ -29,6 +29,7 @@ import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * A stateless saga function that processes domain events and generates command streams.
@@ -54,32 +55,51 @@ class StatelessSagaFunction(
 
     override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = delegate.getAnnotation(annotationClass)
 
-    override fun invoke(exchange: DomainEventExchange<*>): Mono<CommandStream> =
-        delegate
-            .invoke(exchange)
-            .flatMapMany {
-                toCommandFlux(exchange.message, it)
-            }.concatMap {
-                commandGateway.send(it).thenReturn(it)
-            }.collectList()
-            .map {
-                val commandStream = DefaultCommandStream(exchange.message.id, it)
-                exchange.setCommandStream(commandStream)
-                commandStream
-            }
+    private val commandsKey = "__SAGA_COMMANDS__${functionSequence.incrementAndGet()}"
 
-    private fun toCommandFlux(
+    override fun invoke(exchange: DomainEventExchange<*>): Mono<CommandStream> = Mono.defer {
+        val progress = exchange.getAttribute<CommandProgress>(commandsKey)
+            ?: CommandProgress().also { exchange.setAttribute(commandsKey, it) }
+        delegate.invoke(exchange)
+            .flatMapMany { sendCommandFlux(exchange.message, it, progress) }
+            .collectList()
+            .map { DefaultCommandStream(exchange.message.id, it).also(exchange::setCommandStream) }
+    }
+
+    private fun sendCommand(
         domainEvent: DomainEvent<*>,
-        handleResult: Any
+        result: Any,
+        progress: CommandProgress,
+        index: Int = 0,
+    ): Mono<CommandMessage<*>> {
+        if (index < progress.sent) {
+            return Mono.justOrEmpty(progress.commands[index])
+        }
+        val command = if (index < progress.commands.size) {
+            Mono.justOrEmpty(progress.commands[index])
+        } else {
+            toCommand(domainEvent, result, index).doOnSuccess { progress.commands.add(it) }
+        }
+        return command.flatMap { original ->
+            val writable = if (original.header.isReadOnly) original.copy() else original
+            progress.commands[index] = writable
+            commandGateway.send(writable).thenReturn(writable)
+        }.doOnSuccess { progress.sent = index + 1 }
+    }
+
+    private fun sendCommandFlux(
+        domainEvent: DomainEvent<*>,
+        handleResult: Any,
+        progress: CommandProgress,
     ): Publisher<CommandMessage<*>> {
         if (handleResult !is Iterable<*>) {
-            return toCommand(domainEvent = domainEvent, singleResult = handleResult)
+            return sendCommand(domainEvent, handleResult, progress)
         }
         return Flux
             .fromIterable(handleResult as Iterable<Any>)
             .index()
             .concatMap {
-                toCommand(domainEvent = domainEvent, singleResult = it.t2, index = it.t1.toInt())
+                sendCommand(domainEvent, it.t2, progress, it.t1.toInt())
             }
     }
 
@@ -89,8 +109,9 @@ class StatelessSagaFunction(
         index: Int = 0
     ): Mono<CommandMessage<*>> {
         if (singleResult is CommandMessage<*>) {
-            singleResult.header.propagate(domainEvent)
-            return singleResult.toMono()
+            val command = if (singleResult.header.isReadOnly) singleResult.copy() else singleResult
+            command.header.propagate(domainEvent)
+            return command.toMono()
         }
         val commandBuilder = singleResult as? CommandBuilder ?: singleResult.commandBuilder()
         commandBuilder
@@ -103,6 +124,15 @@ class StatelessSagaFunction(
             }
         @Suppress("UNCHECKED_CAST")
         return commandMessageFactory.create<Any>(commandBuilder) as Mono<CommandMessage<*>>
+    }
+
+    private class CommandProgress {
+        val commands = mutableListOf<CommandMessage<*>?>()
+        var sent: Int = 0
+    }
+
+    private companion object {
+        val functionSequence = AtomicLong()
     }
 
     override fun toString(): String = "StatelessSagaFunction(actual=$delegate)"

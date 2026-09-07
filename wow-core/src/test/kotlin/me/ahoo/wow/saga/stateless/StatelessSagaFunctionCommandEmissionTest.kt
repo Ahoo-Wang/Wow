@@ -130,6 +130,26 @@ class StatelessSagaFunctionCommandEmissionTest {
         sentCommands.single().assert().isSameAs(prebuilt)
     }
 
+    @Test
+    fun `read-only prebuilt command preserves identity and accepts event context`() {
+        val event = fixtureEvent()
+        val prebuilt = MockCreateAggregate("next-id", "create")
+            .toCommandMessage(requestId = "prebuilt-request")
+            .withReadOnly()
+        val originalHeader = prebuilt.header.toMap()
+        val sent = mutableListOf<CommandMessage<*>>()
+        val function = statelessSagaFunction(Mono.just(prebuilt), sent)
+        StepVerifier.create(function.invoke(SimpleDomainEventExchange(event)))
+            .assertNext { stream ->
+                val command = stream.single()
+                command.commandId.assert().isEqualTo(prebuilt.commandId)
+                command.requestId.assert().isEqualTo("prebuilt-request")
+                command.header.upstreamId.assert().isEqualTo(event.id)
+                prebuilt.header.toMap().assert().isEqualTo(originalHeader)
+            }.verifyComplete()
+        sent.assert().hasSize(1)
+    }
+
     private fun statelessSagaFunction(
         result: Mono<*>,
         sentCommands: MutableList<CommandMessage<*>>,

@@ -25,6 +25,7 @@ import me.ahoo.wow.command.wait.SkipsSuccessfulSentSignal
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.command.wait.WaitHandle
 import me.ahoo.wow.command.wait.WaitPlan
+import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.COMMAND_WAIT_TAIL_STAGE
 import me.ahoo.wow.command.wait.extractWaitPlan
 import me.ahoo.wow.command.wait.notifyAndForget
 import me.ahoo.wow.command.wait.timeout
@@ -148,6 +149,10 @@ class DefaultCommandGateway(
                 commandWaitNotifier.notifyAndForget(waitPlan, waitSignal)
             }.doOnError {
                 val waitPlan = message.header.extractWaitPlan() ?: return@doOnError
+                // The parent saga reports a terminal send failure after its retries finish.
+                if (waitPlan.waitCommandId != message.commandId && message.header.containsKey(COMMAND_WAIT_TAIL_STAGE)) {
+                    return@doOnError
+                }
                 val waitSignal = message.commandSentSignal(waitPlan.waitCommandId, it)
                 commandWaitNotifier.notifyAndForget(waitPlan, waitSignal)
             }
