@@ -13,7 +13,7 @@ Wow 在写链路和读链路中携带四类数据访问上下文：
 3. **Space** — 通过请求头提供的可选命名空间元数据；
 4. **ABAC tags** — 资源标签与应用提供的 Principal 过滤器。
 
-在 WebFlux 查询路由中，Handler 用 `QueryRequestScope` 解析 tenant、owner、space scope 并放入 Reactor Context，由 Gateway 在 prepare 完成后合并。随后，Snapshot Gateway 在请求 prepare 与 scope 之后调用独立的 `AbacQueryPolicy` 追加资源标签条件。
+在 WebFlux 查询路由中，Handler 用 `QueryRequestScope` 解析 tenant、owner、space scope 并放入 Reactor Context，由 Gateway 在 prepare 完成后合并。随后，Snapshot Gateway 在请求 prepare 与 scope 之后调用 `QueryPolicy` 追加访问条件，`AbacQueryPolicy` 负责其中的资源标签条件。
 
 ::: danger 作用域不是身份认证
 tenant/owner 路径、`Wow-Space-Id` 请求头或 ABAC 标签都是路由与过滤数据，不能证明谁发送了请求，也不能证明该 Principal 有权选择这些值。应用必须先认证身份，在服务端绑定允许的作用域，授权命令和查询路由，并避免让不受信请求访问原始查询 Factory。
@@ -144,7 +144,7 @@ data class OrderArchived(
 
 ## ABAC（基于属性的访问控制）
 
-Wow 保存资源标签，并以 `AbacQueryPolicy` 提供扩展点。应用从已认证上下文提供 Principal 标签，并决定缺少上下文时公开还是拒绝。
+Wow 保存资源标签。Snapshot Gateway 通过 `QueryPolicy` 接口组合访问条件，`AbacQueryPolicy` 是标签授权实现。应用从已认证上下文提供 Principal 标签，并决定缺少上下文时公开还是拒绝。
 
 ### 核心概念
 

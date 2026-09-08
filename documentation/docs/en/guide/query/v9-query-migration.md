@@ -99,7 +99,7 @@ The left column lists removed historical APIs, not current callable contracts:
 | ResolvedQuery | Explicit `(query, schema)` arguments on every Backend operation |
 | QueryFilterChain / around filter | `QueryFilter.prepare(QueryContext<Q>): Mono<Q>` for request preparation only |
 | RewriteRequestFilter / HttpQueryGuardFilter | Handler-level QueryRequestScope / HttpQueryGuard |
-| AbacQueryFilter | Independent Snapshot AbacQueryPolicy |
+| AbacQueryFilter | AbacQueryPolicy implementing QueryPolicy |
 | SchemaMaskQueryFilter / custom result Mask Filter | Fixed Gateway Mask stage and static domain declarations |
 | validation-mode / QuerySchemaValidationMode | Removed; strict validation of final logical requests |
 | Flat fields metadata / dynamicChildren | Recursive `QueryModelSchemaMetadata.root` with properties/items/additionalProperties/alternatives |
@@ -123,7 +123,7 @@ The Backend consumes native bindings, checks native parameters and physical scop
 
 ## Request extensions and entry points
 
-`QueryContext<Q>` contains only query, namedAggregate, and schema. Move request processing into prepare; put trusted identity scope in Reactor `withQueryScope` or a Snapshot `AbacQueryPolicy`. Observers only observe termination. The Gateway fixes the sequence: prepare, scope/policy, defaults, public validation, Backend, Mask, and typed materialization.
+`QueryContext<Q>` contains only query, namedAggregate, and schema. Move request processing into prepare; put trusted identity scope in Reactor `withQueryScope` or a Snapshot `QueryPolicy` (including `AbacQueryPolicy`). Observers only observe termination. The Gateway fixes the sequence: prepare, scope/policy, defaults, public validation, Backend, Mask, and typed materialization.
 
 Applications keep using typed, dynamic, paged, cursor, count, and aggregate methods on SnapshotQueryGateway / EventStreamQueryGateway. Direct Backend access is a trusted low-level boundary; callers supply the Schema and own all governance responsibilities. The Gateway appends the cursor's unique sort field; the Backend does not.
 
@@ -139,3 +139,5 @@ Move rules to `@Mask`, `@KeepMask`, or custom `@Masking` annotations instead of 
 4. Verify queries, collection/element scopes, cursors, aggregation, metadata, and Mask failures, then validate actual storage behavior.
 
 See [Query Gateway](./query-gateway.md), [Query Backend](./query-backend.md), and [Query Model Schema](./query-model-schema.md) for current extension contracts.
+
+The `policies` parameter of `DefaultSnapshotQueryGateway` and the Spring registrar now use `QueryPolicy`. Existing `AbacQueryPolicy` classes implement it; other access policies implement `resolveFilter(ContextView, QueryContext<*>): Mono<FilterExpression>` directly. The fixed authorization stage, captured identity, AND composition and empty-publisher rejection remain unchanged.

@@ -14,7 +14,6 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
@@ -45,7 +44,6 @@ import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
-import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -57,7 +55,6 @@ import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import reactor.test.StepVerifier
 import reactor.util.context.Context
-import reactor.util.context.ContextView
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
@@ -108,12 +105,7 @@ class QueryGatewaySubscriptionTest {
                     Mono.just(context.query.withFilter(MatchAllFilter))
                 }.contextWrite { Context.of("principal", "intruder") }
         }
-        val policy = object : AbacQueryPolicy() {
-            override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*>): Mono<AbacTags> =
-                Mono.just(emptyMap())
-            override fun resolveFilter(contextView: ContextView, context: QueryContext<*>): Mono<FilterExpression> =
-                Mono.just(OwnerIdFilter(contextView.get("principal")))
-        }
+        val policy = QueryPolicy { identity, _ -> Mono.just(OwnerIdFilter(identity.get("principal"))) }
         val gateway = gateway(
             backend(onQuery = { received += it }) { Mono.empty() },
             filters = listOf(filter),
@@ -133,14 +125,9 @@ class QueryGatewaySubscriptionTest {
         val received = mutableListOf<FilterExpression>()
         val contexts = mutableListOf<QueryContext<*>>()
         val policies = listOf(OwnerIdFilter("owner"), TenantIdFilter("authorized-tenant")).map { access ->
-            object : AbacQueryPolicy() {
-                override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*>): Mono<AbacTags> =
-                    Mono.just(emptyMap())
-
-                override fun resolveFilter(contextView: ContextView, context: QueryContext<*>): Mono<FilterExpression> {
-                    contexts += context
-                    return Mono.just(access)
-                }
+            QueryPolicy { _, context ->
+                contexts += context
+                Mono.just(access)
             }
         }
         val query = SingleQuery(TenantIdFilter("user-input"))
@@ -162,20 +149,14 @@ class QueryGatewaySubscriptionTest {
     @Test
     fun `empty snapshot policy is rejected before backend invocation`() {
         val calls = AtomicInteger()
-        val policy = object : AbacQueryPolicy() {
-            override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*>): Mono<AbacTags> =
-                Mono.just(emptyMap())
-
-            override fun resolveFilter(contextView: ContextView, context: QueryContext<*>): Mono<FilterExpression> =
-                Mono.empty()
-        }
+        val policy = QueryPolicy { _, _ -> Mono.empty() }
         val backend = backend {
             calls.incrementAndGet()
             Mono.empty()
         }
         gateway(backend, policies = listOf(policy))
             .dynamicSingle(SingleQuery(MatchAllFilter)).test()
-            .expectErrorMatches { it is IllegalStateException && it.message!!.contains("AbacQueryPolicy") }.verify()
+            .expectErrorMatches { it is IllegalStateException && it.message!!.contains("QueryPolicy") }.verify()
         calls.get().assert().isZero()
     }
 
@@ -276,13 +257,10 @@ class QueryGatewaySubscriptionTest {
 
     @Test
     fun `policy list is captured when gateway is assembled`() {
-        val policies = mutableListOf<AbacQueryPolicy>()
+        val policies = mutableListOf<QueryPolicy>()
         val received = mutableListOf<FilterExpression>()
         val gateway = gateway(backend(onQuery = { received += it }) { Mono.empty() }, policies = policies)
-        policies += object : AbacQueryPolicy() {
-            override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*>): Mono<AbacTags> =
-                Mono.error(IllegalStateException("added after assembly"))
-        }
+        policies += QueryPolicy { _, _ -> Mono.error(IllegalStateException("added after assembly")) }
         gateway.dynamicSingle(SingleQuery(MatchAllFilter)).test().verifyComplete()
         received.single().assert().isEqualTo(DeletionFilter(DeletionState.ACTIVE))
     }
@@ -543,7 +521,7 @@ class QueryGatewaySubscriptionTest {
         backend: SnapshotQueryBackend,
         provider: QueryModelSchemaProvider = schemaProvider,
         filters: List<QueryFilter> = emptyList(),
-        policies: List<AbacQueryPolicy> = emptyList(),
+        policies: List<QueryPolicy> = emptyList(),
         observer: QueryObserver = object : QueryObserver {},
     ) = DefaultSnapshotQueryGateway<TestState>(
         MOCK_AGGREGATE_METADATA,

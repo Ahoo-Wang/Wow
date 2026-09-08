@@ -81,10 +81,10 @@ The current source tree declares:
 
 | Component | Baseline |
 | --- | --- |
-| Wow | `9.0.10` |
+| Wow | `9.0.11` |
 | Java | 17+ |
 | Spring Boot | `4.1.1` |
-| Kotlin | `2.4.10` |
+| Kotlin | `2.4.20` |
 | KSP | `2.3.11` |
 
 The project template evolves independently. The tutorial records the exact template commit and its pinned Wow version; inspect its [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml) before starting. For another framework line, pin the exact [release](https://github.com/Ahoo-Wang/Wow/releases) and inspect that tag: for example, [`v6.20.16`](https://github.com/Ahoo-Wang/Wow/blob/v6.20.16/gradle/libs.versions.toml) declares Wow `6.20.16` and Spring Boot `3.5.11`.

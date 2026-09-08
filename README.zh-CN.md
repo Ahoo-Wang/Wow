@@ -81,10 +81,10 @@ HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
 
 | 组件 | 基线 |
 | --- | --- |
-| Wow | `9.0.10` |
+| Wow | `9.0.11` |
 | Java | 17+ |
 | Spring Boot | `4.1.1` |
-| Kotlin | `2.4.10` |
+| Kotlin | `2.4.20` |
 | KSP | `2.3.11` |
 
 项目模板独立演进。教程会记录实际验证的模板提交与其固定的 Wow 版本；开始前仍应检查模板的 [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml)。使用其他框架版本时，先固定精确 [Release](https://github.com/Ahoo-Wang/Wow/releases) 再查看对应 tag：例如 [`v6.20.16`](https://github.com/Ahoo-Wang/Wow/blob/v6.20.16/gradle/libs.versions.toml) 声明 Wow `6.20.16` 与 Spring Boot `3.5.11`。

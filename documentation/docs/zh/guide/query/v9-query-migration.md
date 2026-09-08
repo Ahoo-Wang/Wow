@@ -99,7 +99,7 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 | ResolvedQuery | Backend 每个方法显式接收 `(query, schema)` |
 | QueryFilterChain / around filter | `QueryFilter.prepare(QueryContext<Q>): Mono<Q>`，只准备请求 |
 | RewriteRequestFilter / HttpQueryGuardFilter | Handler 的 QueryRequestScope / HttpQueryGuard |
-| AbacQueryFilter | Snapshot Gateway 的独立 AbacQueryPolicy |
+| AbacQueryFilter | 实现 QueryPolicy 的独立 AbacQueryPolicy |
 | SchemaMaskQueryFilter / 自定义结果 Mask Filter | Gateway 固定 Mask 步骤；领域静态 Mask 声明 |
 | validation-mode / QuerySchemaValidationMode | 已移除；最终逻辑请求严格校验 |
 | flat fields metadata / dynamicChildren | `QueryModelSchemaMetadata.root` 递归 properties/items/additionalProperties/alternatives |
@@ -123,7 +123,7 @@ Backend 从传入 Schema 取 native binding，检查原生参数和物理作用�
 
 ## 请求扩展与调用入口
 
-`QueryContext<Q>` 只含 query、namedAggregate、schema。把旧请求处理搬到 prepare；把身份约束放到 Reactor `withQueryScope` 或 Snapshot `AbacQueryPolicy`；Observer 只观察终止，不修改结果。Gateway 固定在 prepare 后合并 scope/policy，然后默认条件、公共校验、Backend、Mask、typed 物化。
+`QueryContext<Q>` 只含 query、namedAggregate、schema。把旧请求处理搬到 prepare；把身份约束放到 Reactor `withQueryScope` 或 Snapshot `QueryPolicy`（包括 `AbacQueryPolicy`）；Observer 只观察终止，不修改结果。Gateway 固定在 prepare 后合并 scope/policy，然后默认条件、公共校验、Backend、Mask、typed 物化。
 
 业务继续使用 SnapshotQueryGateway / EventStreamQueryGateway 的 typed、dynamic、分页、游标、count 和 aggregate 方法。直接 Backend 是受信低层边界，调用者显式提供 Schema 和所有治理责任。游标唯一排序由 Gateway 追加，Backend 不追加。
 
@@ -139,3 +139,5 @@ Backend 从传入 Schema 取 native binding，检查原生参数和物理作用�
 4. 验证普通查询、集合/元素作用域、cursor、聚合、metadata与Mask失败场景，再验证实际存储行为。
 
 当前扩展合同见[查询网关](./query-gateway.md)、[查询后端](./query-backend.md)和[查询模型 Schema](./query-model-schema.md)。
+
+`DefaultSnapshotQueryGateway` 的 `policies` 参数与 Spring 注册器现在使用 `QueryPolicy`。现有 `AbacQueryPolicy` 已实现该接口；Owner、Tenant 等其他访问策略直接实现 `resolveFilter(ContextView, QueryContext<*>): Mono<FilterExpression>`。固定授权时机、捕获身份、AND 合并与空 Publisher 拒绝规则保持。

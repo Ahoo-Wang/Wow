@@ -13,7 +13,7 @@ Wow carries four kinds of data-access context through the write and read paths:
 3. **Space** — optional namespace metadata supplied by a request header;
 4. **ABAC tags** — resource tags plus an application-supplied principal filter.
 
-On WebFlux query routes, the Handler uses `QueryRequestScope` to capture tenant, owner, and space scope in Reactor Context; the Gateway merges it after preparation. The Snapshot Gateway applies independent `AbacQueryPolicy` access filters after request preparation and scope merging.
+On WebFlux query routes, the Handler uses `QueryRequestScope` to capture tenant, owner, and space scope in Reactor Context; the Gateway merges it after preparation. The Snapshot Gateway applies `QueryPolicy` access filters after request preparation and scope merging; `AbacQueryPolicy` supplies resource-tag conditions.
 
 ::: danger Scope is not authentication
 A tenant or owner path, `Wow-Space-Id` header, or ABAC tag is data used by routing and filtering. It does not prove who sent the request or whether that principal may choose the value. Authenticate first, bind allowed scopes on the server, authorize command and query routes, and keep raw query factories out of untrusted request paths.
@@ -144,7 +144,7 @@ As with ownership transfer, the event applies a state transition; the command-si
 
 ## ABAC (Attribute-Based Access Control)
 
-Wow stores resource tags and provides `AbacQueryPolicy` as an extension point. The application supplies principal tags from authenticated context and decides whether missing context is public or denied.
+Wow stores resource tags. The Snapshot Gateway combines access conditions through `QueryPolicy`; `AbacQueryPolicy` implements it for resource tags. Non-ABAC policies can return conditions directly without principal-tag lookup. The application supplies principal tags from authenticated context and decides whether missing context is public or denied.
 
 ### Core Concepts
 

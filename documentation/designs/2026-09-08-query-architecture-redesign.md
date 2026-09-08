@@ -152,9 +152,9 @@ fun ContextView.queryScope(): FilterExpression
 
 读取缺省返回 MatchAllFilter；写入以已有 scope.appendFilter(scope) 合并，重复调用只追加 AND、不替换。Handler 在返回的 Gateway Publisher 上 contextWrite 写入提取的范围；Gateway 最外层 deferContextual 捕获它和完整身份 ContextView。普通 prepare 的内部 contextWrite 只作用于自己的准备 Publisher，终端授权显式使用已捕获 ContextView，不从修改后的局部链重新读取身份。
 
-`AbacQueryPolicy.resolveFilter(contextView: ContextView, context: QueryContext<*>): Mono<FilterExpression>` 是终端合同；getPrincipalTags 接收同样两个参数，返回 `Mono<AbacTags>`。无注册策略保持既有未启用授权行为；默认策略对没有 tags 的 Publisher 或空 tags 集合使用 MatchAll。覆写 resolveFilter 则必须发出一个 FilterExpression，返回 Mono.empty 是协议错误，不能变成放行。策略失败传播错误，不走普通 Filter 恢复。这里的 Context 是 Reactor Context，不引入 HTTP 类型到 wow-query。
+`QueryPolicy.resolveFilter(contextView: ContextView, context: QueryContext<*>): Mono<FilterExpression>` 是终端合同。`AbacQueryPolicy` 实现该接口，其 getPrincipalTags 接收同样两个参数，返回 `Mono<AbacTags>`；其他访问策略不依赖标签接口。无注册策略保持既有未启用授权行为；ABAC 策略对没有 tags 的 Publisher 或空 tags 集合使用 MatchAll。覆写 resolveFilter 则必须发出一个 FilterExpression，返回 Mono.empty 是协议错误，不能变成放行。策略失败传播错误，不走普通 Filter 恢复。这里的 Context 是 Reactor Context，不引入 HTTP 类型到 wow-query。
 
-通用 AbstractQueryGateway 不依赖 snapshot 包的 ABAC 实现。Snapshot Gateway 持有具体策略并组合授权 FilterExpression；通用管道的受保护 authorizationFilter 钩子只返回条件，随后由固定流程 AND 合并，不能返回替代 Query 或结果。EventStream 默认没有 Snapshot 的 tags 策略，也不提供无用途的 Snapshot policy 构造参数。不为此新增通用策略接口或执行层。
+通用 AbstractQueryGateway 不依赖 snapshot 包的 ABAC 实现。Snapshot Gateway 与 Spring Registrar 依赖 `QueryPolicy`，Gateway 组合授权 FilterExpression；通用管道的受保护 authorizationFilter 钩子只返回条件，随后由固定流程 AND 合并，不能返回替代 Query 或结果。EventStream 默认没有 Snapshot 的 tags 策略，也不提供无用途的 Snapshot policy 构造参数。`QueryPolicy` 只表达访问条件供给，不新增执行层、可排序中间件或策略注册中心。
 
 不能移动整个 FilterNormalizer 而破坏相对时间语义：时间单位/格式先根据同一 Schema 确定，每次订阅固定一次时间基准，然后按已知编码编译；count/list 的同一次 paged 操作复用同一原生 filter。
 

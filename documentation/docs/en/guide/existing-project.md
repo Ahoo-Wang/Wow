@@ -17,17 +17,17 @@ Do not migrate every write path or add production infrastructure in the same cha
 
 ## Version Baseline
 
-The current Wow `9.0.10` source declares:
+The current Wow `9.0.11` source declares:
 
 | Component | Version |
 | --- | --- |
 | JDK | 17+ |
-| Wow | `9.0.10` |
+| Wow | `9.0.11` |
 | Spring Boot | `4.1.1` |
-| Kotlin | `2.4.10` |
+| Kotlin | `2.4.20` |
 | KSP | `2.3.11` |
 | CosId | `3.2.1` |
-| Springdoc | `3.1.0` |
+| Springdoc | `3.1.1` |
 
 Treat these as a compatibility train, not independent suggestions. For another Wow release, inspect that tag's `gradle/libs.versions.toml`, release notes, and persisted-event requirements before changing the application.
 
@@ -57,8 +57,8 @@ Align the platform and compiler in the annotated modules:
 
 ```kotlin
 dependencies {
-    implementation(platform("me.ahoo.wow:wow-bom:9.0.10"))
-    ksp(platform("me.ahoo.wow:wow-bom:9.0.10"))
+    implementation(platform("me.ahoo.wow:wow-bom:9.0.11"))
+    ksp(platform("me.ahoo.wow:wow-bom:9.0.11"))
 
     implementation("me.ahoo.wow:wow-api") // api module
     ksp("me.ahoo.wow:wow-compiler")
@@ -72,7 +72,7 @@ Request the base Starter and the `webflux-support` feature in the server module:
 ```kotlin
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:4.1.1"))
-    implementation(platform("me.ahoo.wow:wow-bom:9.0.10"))
+    implementation(platform("me.ahoo.wow:wow-bom:9.0.11"))
 
     implementation("me.ahoo.wow:wow-spring-boot-starter")
     implementation("me.ahoo.wow:wow-spring-boot-starter") {

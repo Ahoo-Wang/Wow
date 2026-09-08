@@ -14,7 +14,7 @@ description: 聚合级请求准备、作用域、授权、校验和响应处理�
 1. 从 Provider 取得一个 Schema。
 2. 按顺序执行 `QueryFilter.prepare`，每个 Filter 只返回一个准备后的逻辑 Query。
 3. 追加 Reactor Context 中的请求 scope。
-4. Snapshot Gateway 追加已配置 `AbacQueryPolicy` 的访问过滤；普通 Filter 不能把它提前删除。
+4. Snapshot Gateway 追加已配置 `QueryPolicy` 的访问过滤；普通 Filter 不能把它提前删除。
 5. Gateway 唯一负责模型默认条件：Snapshot 未明确覆盖时补充 `DELETION = ACTIVE`，EventStream 不补充删除条件；游标追加模型唯一排序字段。
 6. 公共校验最终 Query，再调用 `backend.operation(query, schema)`。
 7. 对查询节点按同一 Schema 脱敏，然后按需进行 typed 物化。
@@ -61,7 +61,7 @@ queryGateway.dynamicList(query)
     }
 ```
 
-`withQueryScope` 组合已有 scope。身份认证仍由应用承担；不要把未验证的请求字段当作身份。Snapshot 的 ABAC 使用独立 `AbacQueryPolicy`，EventStream 不自动运行 Snapshot ABAC。完整权限合同见[数据权限](../data-access.md)。
+`withQueryScope` 组合已有 scope。身份认证仍由应用承担；不要把未验证的请求字段当作身份。Snapshot Gateway 与 Spring 注册器依赖 `QueryPolicy`；`AbacQueryPolicy` 实现该接口，负责标签条件。其他授权策略可直接实现 `QueryPolicy`，无需提供 Principal 标签。策略只能返回访问过滤条件，由 Gateway 在固定阶段以 AND 合并；不能替换 Query、调用 Backend 或变换结果。返回 `Mono.empty()` 是协议错误。EventStream 不自动运行 Snapshot 策略。完整权限合同见[数据权限](../data-access.md)。
 
 ## 结果与观察
 

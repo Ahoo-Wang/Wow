@@ -17,12 +17,14 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
@@ -181,6 +183,7 @@ class QueryAutoConfigurationTest {
     @Test
     fun `snapshot gateway should apply policies while event gateway and backend remain raw`() {
         TestAbacQueryPolicy.calls.set(0)
+        val policyCalls = AtomicInteger()
         contextRunner.enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
             .withBean(RecordingSnapshotQueryBackendFactory::class.java, { RecordingSnapshotQueryBackendFactory() })
@@ -190,6 +193,12 @@ class QueryAutoConfigurationTest {
                 }
             })
             .withBean(AbacQueryPolicy::class.java, { TestAbacQueryPolicy })
+            .withBean(QueryPolicy::class.java, {
+                QueryPolicy { _, _ ->
+                    policyCalls.incrementAndGet()
+                    Mono.just(OwnerIdFilter("policy-owner"))
+                }
+            })
             .run { context: AssertableApplicationContext ->
                 val factory = context.getBean(RecordingSnapshotQueryBackendFactory::class.java)
 
@@ -202,10 +211,12 @@ class QueryAutoConfigurationTest {
                     .isNotEqualTo(me.ahoo.wow.api.query.FilterOperator.MATCH_ALL)
                 factory.backend.lastSchema.assert().isSameAs(factory.schemaProvider.schema)
                 TestAbacQueryPolicy.calls.get().assert().isOne()
+                policyCalls.get().assert().isOne()
 
                 val event = context.getBean(EVENT_STREAM_GATEWAY_BEAN_NAME) as EventStreamQueryGateway
                 event.dynamicSingle(query).test().verifyComplete()
                 TestAbacQueryPolicy.calls.get().assert().isOne()
+                policyCalls.get().assert().isOne()
 
                 val rawBackend = factory.create(MOCK_AGGREGATE_METADATA).backend
                 rawBackend.assert().isSameAs(factory.backend)

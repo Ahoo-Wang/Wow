@@ -19,6 +19,7 @@ import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.wildcard
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.serialization.state.StateAggregateRecords.TAGS
 import reactor.core.publisher.Mono
@@ -41,7 +42,7 @@ import reactor.util.context.ContextView
  * | any | key absent | match (public resource) |
  *
  */
-abstract class AbacQueryPolicy {
+abstract class AbacQueryPolicy : QueryPolicy {
     companion object {
         /**
          * Converts one principal tag into a nested query condition.
@@ -102,7 +103,7 @@ abstract class AbacQueryPolicy {
      * @param context the query context
      * @return an unrestricted condition when no tags exist, otherwise the combined tag condition
      */
-    open fun resolveFilter(
+    override fun resolveFilter(
         contextView: ContextView,
         context: QueryContext<*>
     ): Mono<FilterExpression> = getPrincipalTags(contextView, context)

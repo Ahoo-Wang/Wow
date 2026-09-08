@@ -14,7 +14,7 @@ Each subscription independently:
 1. Obtains one Schema from the Provider.
 2. Runs ordered `QueryFilter.prepare` stages; each emits one prepared logical Query.
 3. Appends the request scope from Reactor Context.
-4. Appends configured `AbacQueryPolicy` access filters for Snapshot queries, after ordinary preparation.
+4. Appends configured `QueryPolicy` access filters for Snapshot queries, after ordinary preparation.
 5. Only the Gateway applies model defaults: Snapshot adds `DELETION = ACTIVE` unless explicitly overridden; EventStream adds no deletion predicate. It also appends the model's unique cursor sort field.
 6. Validates the final public Query, then calls `backend.operation(query, schema)`.
 7. Masks returned query nodes with the captured Schema, then optionally materializes typed results.
@@ -61,7 +61,7 @@ queryGateway.dynamicList(query)
     }
 ```
 
-`withQueryScope` combines an existing scope. Authentication remains the application's responsibility; unverified request fields are not identity. Snapshot ABAC uses independent `AbacQueryPolicy` objects. EventStream does not automatically run Snapshot ABAC. See [Data Access Control](../data-access.md).
+`withQueryScope` combines an existing scope. Authentication remains the application's responsibility; unverified request fields are not identity. Snapshot Gateway and its Spring registrar depend on `QueryPolicy`. `AbacQueryPolicy` implements this interface for tag-based access; other policies implement `QueryPolicy` directly. A policy only returns an access filter, which the gateway combines with AND at the fixed authorization stage. It cannot replace the query, execute the backend, or transform results. An empty publisher is a protocol error. EventStream does not automatically run Snapshot policies. See [Data Access Control](../data-access.md).
 
 ## Results and observation
 
