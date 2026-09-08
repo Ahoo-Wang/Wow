@@ -24,8 +24,8 @@ import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.KeepMask
 import me.ahoo.wow.api.query.mask.KeepMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.example.api.cart.CartItemAdded
@@ -40,6 +40,8 @@ import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryPathSegment
+import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaBackendAdapter
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaContext
@@ -84,7 +86,7 @@ class JsonQuerySchemaSourceTest {
         )
         val declaration = JsonQuerySchemaSource().load(eventStreamContext).single().block()!!
 
-        declaration.fields.keys.assert()
+        declaration.propertyPaths().assert()
             .contains(QueryField("body.body.added.productId"))
             .contains(QueryField("body.body.added.quantity"))
             .contains(QueryField("body.body.productIds"))
@@ -92,12 +94,12 @@ class JsonQuerySchemaSourceTest {
             .contains(QueryField("body.body.changed.quantity"))
         declaration.field("body.body.added.productId").valueTypes.assert()
             .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
-        declaration.field("body.body.productIds").cardinality.assert()
-            .isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+        declaration.field("body.body.productIds").kind.assert()
+            .isEqualTo(DeclarationValue.Set(QueryValueKind.ARRAY))
         declaration.field("body.body.changed.quantity").valueTypes.assert()
             .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
-        declaration.field("body.body.added").required.assert()
-            .isEqualTo(DeclarationValue.Set(false))
+        declaration.field("body.body").kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.UNION))
+        declaration.nodes("body.body.added").single().required.assert().isEqualTo(DeclarationValue.Set(true))
         checkNotNull((declaration.field("body.bodyType").enumValues as DeclarationValue.Set).value)
             .map { it.stringValue() }
             .assert()
@@ -121,14 +123,18 @@ class JsonQuerySchemaSourceTest {
             object : QuerySchemaBackendAdapter {
                 override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> {
                     resolved.set(logicalSchema)
-                    return Mono.just(QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap()))
+                    return Mono.just(QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), logicalSchema, emptyMap()))
                 }
             },
         )
 
         provider.schema().block()!!
 
-        checkNotNull(resolved.get().fields.getValue(QueryField("body.bodyType")).enumValues)
+        checkNotNull(
+            resolved.get().value(
+                QueryPathTemplate(listOf(QueryPathSegment.Property("body"), QueryPathSegment.Property("bodyType")))
+            )!!.enumValues
+        )
             .map { it.stringValue() }
             .assert()
             .containsExactly(
@@ -146,7 +152,7 @@ class JsonQuerySchemaSourceTest {
         )
 
         JsonQuerySchemaSource().load(snapshotContext).single().block()!!
-            .fields.keys.assert().contains(QueryField("state.items.productId"))
+            .propertyPaths().assert().contains(QueryField("state.items.productId"))
     }
 
     @Test
@@ -156,7 +162,7 @@ class JsonQuerySchemaSourceTest {
         source.load(context).single().block()!!
         val eventStream = source.load(context.copy(model = QueryModel.EVENT_STREAM)).single().block()!!
 
-        eventStream.fields.keys.assert().contains(QueryField("body.body.added.productId"))
+        eventStream.propertyPaths().assert().contains(QueryField("body.body.added.productId"))
     }
 
     @Test
@@ -321,14 +327,9 @@ class JsonQuerySchemaSourceTest {
     fun `should infer structural and descriptive declarations`() {
         val declaration = load(StructuralState::class.java)
 
-        declaration.field("state").assert().isEqualTo(
-            QueryFieldDeclaration(
-                title = DeclarationValue.Set("State title"),
-                description = DeclarationValue.Set("State description"),
-                enumValues = DeclarationValue.Set(null),
-                dynamicChildren = DeclarationValue.Set(false),
-            ),
-        )
+        declaration.field("state").title.assert().isEqualTo(DeclarationValue.Set("State title"))
+        declaration.field("state").description.assert().isEqualTo(DeclarationValue.Set("State description"))
+        declaration.field("state").kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.OBJECT))
         declaration.field("state.count").assert().isEqualTo(
             declaration(
                 title = "Count title",
@@ -341,13 +342,15 @@ class JsonQuerySchemaSourceTest {
             .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.DECIMAL)))
         declaration.field("state.active").valueTypes.assert()
             .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.BOOLEAN)))
-        declaration.field("state.optional").assert().isEqualTo(
-            declaration(
-                valueTypes = setOf(QueryValueType.STRING),
-                nullable = true,
-                required = false,
-            ),
-        )
+        declaration.field("state.optional").let { value ->
+            value.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.UNION))
+            value.nullable.assert().isEqualTo(DeclarationValue.Set(true))
+            value.required.assert().isEqualTo(DeclarationValue.Set(false))
+            value.alternatives.or(emptyList()).map { it.kind.or(QueryValueKind.UNKNOWN) }
+                .assert().containsExactly(QueryValueKind.NULL, QueryValueKind.SCALAR)
+            value.alternatives.or(emptyList()).last().valueTypes.assert()
+                .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
+        }
         declaration.field("state.status").let { status ->
             status.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
             checkNotNull((status.enumValues as DeclarationValue.Set).value).map { it.stringValue() }.assert()
@@ -358,14 +361,14 @@ class JsonQuerySchemaSourceTest {
         declaration.field("state.address.city").valueTypes.assert()
             .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
         declaration.field("state.items").let { items ->
-            items.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
-            items.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+            items.items.or(null)!!.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
+            items.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.ARRAY))
         }
         declaration.field("state.items.quantity").valueTypes.assert()
             .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
         declaration.field("state.tags").let { tags ->
-            tags.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
-            tags.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+            tags.items.or(null)!!.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
+            tags.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.ARRAY))
         }
     }
 
@@ -373,14 +376,14 @@ class JsonQuerySchemaSourceTest {
     fun `should follow Jackson property shape and reject illegal logical segments`() {
         val declaration = load(JacksonState::class.java)
 
-        declaration.fields.keys.assert()
+        declaration.propertyPaths().assert()
             .contains(QueryField("state.display_name"))
             .contains(QueryField("state.detail_nested_value"))
             .contains(QueryField("state.visible"))
             .doesNotContain(QueryField("state.secret"))
-        declaration.fields.keys.any { it.path in setOf("state.display.name", "state.display name", "state.0") }
+        declaration.propertyPaths().any { it.path in setOf("state.display.name", "state.display name", "state.0") }
             .assert().isFalse()
-        declaration.fields.keys.any { it.path.startsWith("state.details") }.assert().isFalse()
+        declaration.propertyPaths().any { it.path.startsWith("state.details") }.assert().isFalse()
     }
 
     @Test
@@ -610,14 +613,14 @@ class JsonQuerySchemaSourceTest {
             .isEqualTo(DeclarationValue.Set(emptySet<QueryValueType>()))
         declaration.field("state.propertyValue").valueTypes.assert()
             .isEqualTo(DeclarationValue.Set(emptySet<QueryValueType>()))
-        declaration.fields.keys.any { it.path.endsWith(".hidden") }.assert().isFalse()
+        declaration.propertyPaths().any { it.path.endsWith(".hidden") }.assert().isFalse()
     }
 
     @Test
     fun `should traverse ref and all schema composition branches`() {
         val declaration = load(CompositionState::class.java)
 
-        declaration.fields.keys.assert()
+        declaration.propertyPaths().assert()
             .contains(QueryField("state.allOf.inherited"))
             .contains(QueryField("state.allOf.own"))
             .contains(QueryField("state.anyOf.left"))
@@ -636,35 +639,81 @@ class JsonQuerySchemaSourceTest {
             "state.oneOf.first",
             "state.oneOf.second",
         ).forEach { field ->
-            declaration.field(field).required.assert().isEqualTo(DeclarationValue.Set(false))
+            declaration.nodes(field).single().required.assert().isEqualTo(DeclarationValue.Set(true))
         }
     }
 
     @Test
     fun `should merge repeated composition fields independent of branch order`() {
         val declaration = load(RepeatedCompositionState::class.java)
-        val expectedTypes = DeclarationValue.Set(setOf(QueryValueType.STRING, QueryValueType.INTEGER))
-        val forward = declaration.field("state.forward.value")
-        val reverse = declaration.field("state.reverse.value")
-
-        forward.valueTypes.assert().isEqualTo(expectedTypes)
-        reverse.valueTypes.assert().isEqualTo(expectedTypes)
-        forward.required.assert().isEqualTo(DeclarationValue.Set(true))
-        reverse.required.assert().isEqualTo(DeclarationValue.Set(true))
-        reverse.assert().isEqualTo(forward)
+        val forward = declaration.nodes("state.forward.value")
+        val reverse = declaration.nodes("state.reverse.value")
+        val expectedTypes =
+            setOf(
+                DeclarationValue.Set(setOf(QueryValueType.STRING)),
+                DeclarationValue.Set(setOf(QueryValueType.INTEGER))
+            )
+        forward.map { it.valueTypes }.toSet().assert().isEqualTo(expectedTypes)
+        reverse.map { it.valueTypes }.toSet().assert().isEqualTo(expectedTypes)
+        forward.forEach { it.required.assert().isEqualTo(DeclarationValue.Set(true)) }
     }
 
     @Test
     fun `should mark a shared alternative field optional when only some branches require it`() {
         load(PartiallyRequiredCompositionState::class.java)
-            .field("state.value.shared")
-            .required.assert().isEqualTo(DeclarationValue.Set(false))
+            .nodes("state.value.shared").map { it.required }.toSet().assert()
+            .isEqualTo(setOf(DeclarationValue.Set(false), DeclarationValue.Set(true)))
     }
 
     @Test
     fun `should reject disjoint value types for the same allOf field`() {
         assertThrows<QuerySchemaConflictException> {
             load(ConflictingAllOfValueTypesState::class.java)
+        }
+    }
+
+    @Test
+    fun `should retain the common null domain in allOf intersections`() {
+        listOf(
+            """{"type":["string","null"],"allOf":[{"type":"null"}]}""",
+            """{"type":"null","allOf":[{"type":["string","null"]}]}""",
+            """{"allOf":[{"type":["string","null"]},{"type":["integer","null"]}]}""",
+            """{"allOf":[{"type":["integer","null"]},{"type":["string","null"]}]}""",
+            """{"type":["object","null"],"allOf":[{"type":["array","null"],"items":{"type":"string"}}]}""",
+            """{"type":["string","null"],"allOf":[{"anyOf":[{"type":"null"},{"type":"integer"}]}]}""",
+        ).forEach { value ->
+            val result = loadSchema("""{"properties":{"value":$value},"required":["value"]}""").field("state.value")
+            result.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.NULL))
+            result.nullable.assert().isEqualTo(DeclarationValue.Set(true))
+            result.required.assert().isEqualTo(DeclarationValue.Set(true))
+            result.valueTypes.or(emptySet()).assert().isEmpty()
+            result.properties.or(emptyMap()).assert().isEmpty()
+            result.items.or(null).assert().isNull()
+        }
+    }
+
+    @Test
+    fun `null only intersections retain metadata and intersect enums`() {
+        val value = loadSchema(
+            """{"properties":{"value":{"title":"Null value","description":"Only null survives","type":["string","null"],"enum":[null,"A"],"allOf":[{"type":"null","enum":[null]}]}}}"""
+        ).field("state.value")
+        value.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.NULL))
+        value.title.assert().isEqualTo(DeclarationValue.Set("Null value"))
+        value.description.assert().isEqualTo(DeclarationValue.Set("Only null survives"))
+        value.enumValues.or(null).assert().isEqualTo(listOf(JsonSerializer.readTree("null")))
+    }
+
+    @Test
+    fun `nullable intersections still reject empty domains and lost mask constraints`() {
+        listOf(
+            """{"allOf":[{"type":"string"},{"type":["integer","null"]}]}""",
+            """{"allOf":[{"type":["string","null"],"enum":["A"]},{"type":"null"}]}""",
+            """{"type":["string","null"],"allOf":[{"type":"null"}],"enum":["A"]}""",
+            """{"allOf":[{"type":["string","null"],"$MASK_RULE_ATTRIBUTE":"0"},{"type":"null"}]}""",
+        ).forEach { value ->
+            assertThrows<QuerySchemaConflictException> {
+                loadSchema("""{"properties":{"value":$value}}""")
+            }
         }
     }
 
@@ -728,9 +777,11 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
-    fun `should reject conflicting container enums independent of branch order`() {
+    fun `should retain distinct enum constraints in union branches`() {
         listOf(ForwardEnumState::class.java, ReverseEnumState::class.java).forEach { type ->
-            assertThrows<QuerySchemaConflictException> { load(type) }
+            val value = load(type).field("state.value")
+            value.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.UNION))
+            value.alternatives.or(emptyList()).map { it.enumValues }.distinct().assert().hasSize(2)
         }
     }
 
@@ -742,7 +793,9 @@ class JsonQuerySchemaSourceTest {
             metadata.title.assert().isEqualTo(DeclarationValue.Set("Shared title"))
             metadata.description.assert().isEqualTo(DeclarationValue.Set("Shared description"))
         }
-        declaration.field("state.temporal").semanticType.assert().isEqualTo(DeclarationValue.Set(Temporal.Date))
+        declaration.field("state.temporal").alternatives.or(emptyList()).forEach {
+            it.semanticType.assert().isEqualTo(DeclarationValue.Set(Temporal.Date))
+        }
     }
 
     @Test
@@ -758,14 +811,14 @@ class JsonQuerySchemaSourceTest {
     fun `should retain recursive fields without repeating descendants`() {
         val declaration = load(RecursiveState::class.java)
 
-        declaration.fields.keys.assert()
+        declaration.propertyPaths().assert()
             .contains(QueryField("state.child"))
             .contains(QueryField("state.children"))
-        declaration.field("state.child").valueTypes.assert()
-            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
-        declaration.field("state.children").cardinality.assert()
-            .isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
-        declaration.fields.keys.any {
+        declaration.field("state.child").alternatives.or(emptyList()).map { it.kind.or(QueryValueKind.UNKNOWN) }
+            .assert().containsExactly(QueryValueKind.NULL, QueryValueKind.UNKNOWN)
+        declaration.field("state.children").kind.assert()
+            .isEqualTo(DeclarationValue.Set(QueryValueKind.ARRAY))
+        declaration.propertyPaths().any {
             it.path.startsWith("state.child.") || it.path.startsWith("state.children.")
         }.assert().isFalse()
     }
@@ -786,7 +839,7 @@ class JsonQuerySchemaSourceTest {
 
     @Test
     fun `should not truncate deep acyclic state paths`() {
-        load(DeepLevelOne::class.java).fields.keys.assert()
+        load(DeepLevelOne::class.java).propertyPaths().assert()
             .contains(QueryField("state.two.three.four.five.six.value"))
     }
 
@@ -796,21 +849,28 @@ class JsonQuerySchemaSourceTest {
 
         declaration.field("state.attributes").let { attributes ->
             attributes.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
-            attributes.dynamicChildren.assert().isEqualTo(DeclarationValue.Set(true))
+            attributes.additionalProperties.or(
+                null
+            )!!.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
         }
         declaration.field("state.attributeGroups").let { attributeGroups ->
-            attributeGroups.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
-            attributeGroups.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
-            attributeGroups.dynamicChildren.assert().isEqualTo(DeclarationValue.Set(true))
+            attributeGroups.items.or(
+                null
+            )!!.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
+            attributeGroups.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.ARRAY))
+            attributeGroups.items.or(
+                null
+            )!!.additionalProperties.or(
+                null
+            )!!.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
         }
-        declaration.field("state.closed").dynamicChildren.assert().isEqualTo(DeclarationValue.Set(false))
+        declaration.field("state.closed").additionalProperties.or(null).assert().isNull()
     }
 
     @Test
-    fun `should reject masked dynamic map values`() {
-        assertThrows<QuerySchemaConflictException> {
-            load(MaskedDynamicState::class.java)
-        }
+    fun `should retain masked descendants in dynamic map values`() {
+        load(MaskedDynamicState::class.java).field("state.contacts").additionalProperties.or(null)!!
+            .properties.or(emptyMap()).getValue("phone").assertMaskRule(keepMaskRule())
     }
 
     @Test
@@ -820,7 +880,7 @@ class JsonQuerySchemaSourceTest {
             """{"additionalProperties":true}""" to true,
             """{"additionalProperties":false}""" to false,
         ).forEach { (schema, expected) ->
-            JsonSerializer.readTree(schema).hasAdditionalProperties().assert().isEqualTo(expected)
+            (loadSchema(schema).field("state").additionalProperties.or(null) != null).assert().isEqualTo(expected)
         }
     }
 
@@ -828,11 +888,14 @@ class JsonQuerySchemaSourceTest {
     fun `should infer native date formats`() {
         val declaration = load(NativeTemporalState::class.java)
 
-        listOf("state.date", "state.instant", "state.instants").forEach { field ->
+        listOf("state.date", "state.instant").forEach { field ->
             declaration.field(field).semanticType.assert().isEqualTo(DeclarationValue.Set(Temporal.Date))
         }
-        declaration.field("state.instants").cardinality.assert()
-            .isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+        declaration.field(
+            "state.instants"
+        ).items.or(null)!!.semanticType.assert().isEqualTo(DeclarationValue.Set(Temporal.Date))
+        declaration.field("state.instants").kind.assert()
+            .isEqualTo(DeclarationValue.Set(QueryValueKind.ARRAY))
     }
 
     @Test
@@ -846,9 +909,11 @@ class JsonQuerySchemaSourceTest {
             )
         }
         declaration.field("state.timestamps").let { timestamps ->
-            timestamps.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
-            timestamps.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
-            timestamps.semanticType.assert().isEqualTo(
+            timestamps.items.or(
+                null
+            )!!.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
+            timestamps.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.ARRAY))
+            timestamps.items.or(null)!!.semanticType.assert().isEqualTo(
                 DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)),
             )
         }
@@ -1022,7 +1087,7 @@ class JsonQuerySchemaSourceTest {
     @Test
     fun `should retain a partial alternative branch mask rule`() {
         load(PartiallyMaskedAlternativeState::class.java)
-            .field("state.value.shared")
+            .nodes("state.value.shared").single { it.maskRule is DeclarationValue.Set }
             .assertMaskRule(fullMaskRule(MaskedStringBranch::class.java))
     }
 
@@ -1035,18 +1100,113 @@ class JsonQuerySchemaSourceTest {
 
     @Test
     fun `should reject invalid masked targets`() {
-        listOf(InvalidMaskedAlternativeState::class.java, InvalidMaskedJvmTypeState::class.java).forEach { type ->
+        listOf(InvalidMaskedJvmTypeState::class.java).forEach { type ->
             assertThrownBy<QuerySchemaConflictException> {
                 load(type)
             }
         }
     }
 
+    @Test
+    fun `scalar array and null alternatives retain full branch facts`() {
+        val value = loadSchema(
+            """{"properties":{"value":{"anyOf":[{"type":"string"},{"type":"array","items":{"type":["integer","null"]}},{"type":"null"}]}}}"""
+        )
+            .field("state.value")
+        val alternatives = value.alternatives.or(emptyList())
+        alternatives.map { it.kind }.assert().isEqualTo(
+            listOf(
+                DeclarationValue.Set(QueryValueKind.SCALAR),
+                DeclarationValue.Set(QueryValueKind.ARRAY),
+                DeclarationValue.Set(QueryValueKind.NULL),
+            )
+        )
+        val array = alternatives[1]
+        array.nullable.assert().isEqualTo(DeclarationValue.Set(false))
+        array.items.or(null)!!.nullable.assert().isEqualTo(DeclarationValue.Set(true))
+        array.valueTypes.assert().isEqualTo(DeclarationValue.Set(emptySet<QueryValueType>()))
+    }
+
+    @Test
+    fun `map array object mask tree preserves every nullable boundary`() {
+        val value = loadSchema(
+            """{"properties":{"addresses":{"type":"object","additionalProperties":{"type":["array","null"],"items":{"type":["object","null"],"properties":{"email":{"type":"string","$MASK_RULE_ATTRIBUTE":"0"}}}}}}}"""
+        )
+            .field("state.addresses")
+        value.nullable.assert().isEqualTo(DeclarationValue.Set(false))
+        val array = value.additionalProperties.or(null)!!
+        array.nullable.assert().isEqualTo(DeclarationValue.Set(true))
+        val item = array.items.or(null)!!
+        item.nullable.assert().isEqualTo(DeclarationValue.Set(true))
+        item.properties.or(emptyMap()).getValue("email").assertMaskRule(fullMaskRule())
+    }
+
+    @Test
+    fun `a protected string union branch coexists with an unprotected integer branch`() {
+        val values = load(InvalidMaskedAlternativeState::class.java).nodes("state.value.shared")
+        values.single {
+            it.valueTypes == DeclarationValue.Set(setOf(QueryValueType.STRING))
+        }.assertMaskRule(fullMaskRule(MaskedStringBranch::class.java))
+        values.single {
+            it.valueTypes == DeclarationValue.Set(setOf(QueryValueType.INTEGER))
+        }.maskRule.assert().isEqualTo(DeclarationValue.Unset)
+    }
+
+    @Test
+    fun `allOf narrows a union without flattening the surviving shape`() {
+        val value = loadSchema(
+            """{"properties":{"value":{"allOf":[{"anyOf":[{"type":"string"},{"type":"array","items":{"type":"integer"}}]},{"type":"array"}]}}}"""
+        )
+            .field("state.value")
+        value.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.ARRAY))
+        value.items.or(null)!!.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
+    }
+
     private fun load(type: Class<*>): QuerySchemaDeclaration = loadPublisher(type).single().block()!!
+
+    @Test
+    fun `local enum intersects allOf enum instead of overriding it`() {
+        val value = loadSchema(
+            """{"properties":{"value":{"type":"string","enum":["a","b"],"allOf":[{"enum":["b","c"]}]}}}"""
+        ).field("state.value")
+
+        value.enumValues.or(null)!!.map { it.stringValue() }.assert().containsExactly("b")
+    }
+
+    @Test
+    fun `allOf enum branches retain their nonempty intersection`() {
+        val value = loadSchema(
+            """{"properties":{"value":{"allOf":[{"type":"string","enum":["a","b"]},{"type":"string","enum":["b","c"]}]}}}"""
+        ).field("state.value")
+
+        value.enumValues.or(null)!!.map { it.stringValue() }.assert().containsExactly("b")
+    }
+
+    @Test
+    fun `disjoint local and allOf enums reject the declaration`() {
+        assertThrows<QuerySchemaConflictException> {
+            loadSchema(
+                """{"properties":{"value":{"type":"string","enum":["a"],"allOf":[{"enum":["b"]}]}}}"""
+            )
+        }
+    }
+
+    @Test
+    fun `enum intersection removes impossible union branches`() {
+        listOf(
+            """{"allOf":[{"anyOf":[{"type":"string","enum":["a"]},{"type":"string","enum":["b","c"]}]},{"type":"string","enum":["b","d"]}]}""",
+            """{"anyOf":[{"type":"string","enum":["a"]},{"type":"string","enum":["b","c"]}],"enum":["b","d"]}""",
+            """{"allOf":[{"anyOf":[{"type":"string","enum":["a"]},{"type":"string","enum":["b"]}]},{"anyOf":[{"type":"string","enum":["b"]},{"type":"string","enum":["c"]}]}]}""",
+        ).forEach { definition ->
+            val value = loadSchema("""{"properties":{"value":$definition}}""").field("state.value")
+            value.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.SCALAR))
+            value.enumValues.or(null)!!.map { it.stringValue() }.assert().containsExactly("b")
+        }
+    }
 
     private fun loadSchema(schema: String): QuerySchemaDeclaration = JsonSchemaWalker(
         schema = JsonSerializer.readTree(schema),
-        maskRuleResolver = { fullMaskRule() },
+        maskRuleResolver = { if (it == "1") keepMaskRule() else fullMaskRule() },
     ).declaration()
 
     private fun assertTitleResolution(
@@ -1089,7 +1249,36 @@ class JsonQuerySchemaSourceTest {
     private fun loadPublisher(type: Class<*>): Flux<QuerySchemaDeclaration> =
         JsonQuerySchemaSource(typeResolver = { type }).load(context)
 
-    private fun QuerySchemaDeclaration.field(name: String): QueryFieldDeclaration = fields.getValue(QueryField(name))
+    private fun QuerySchemaDeclaration.nodes(name: String): List<QueryFieldDeclaration> {
+        val root = fields.entries.filter {
+            name == it.key.path || name.startsWith("${it.key.path}.")
+        }.maxBy { it.key.path.length }
+        val suffix = name.removePrefix(root.key.path).removePrefix(".").takeIf { it.isNotEmpty() }?.split('.').orEmpty()
+        fun visit(value: QueryFieldDeclaration, path: List<String>): List<QueryFieldDeclaration> {
+            if (path.isEmpty()) return listOf(value)
+            if (value.kind.or(QueryValueKind.UNKNOWN) == QueryValueKind.UNION) {
+                return value.alternatives.or(emptyList()).flatMap {
+                    visit(it, path)
+                }
+            }
+            value.items.or(null)?.let { return visit(it, path) }
+            val child = value.properties.or(emptyMap())[path.first()] ?: value.additionalProperties.or(null) ?: return emptyList()
+            return visit(child, path.drop(1))
+        }
+        return visit(root.value, suffix)
+    }
+
+    private fun QuerySchemaDeclaration.field(name: String): QueryFieldDeclaration = nodes(name).distinct().single()
+
+    private fun QuerySchemaDeclaration.propertyPaths(): Set<QueryField> = buildSet {
+        fun visit(value: QueryFieldDeclaration, field: QueryField) {
+            add(field)
+            value.properties.or(emptyMap()).forEach { (name, child) -> visit(child, QueryField("${field.path}.$name")) }
+            value.items.or(null)?.let { visit(it, field) }
+            value.alternatives.or(emptyList()).forEach { visit(it, field) }
+        }
+        fields.forEach { (field, value) -> visit(value, field) }
+    }
 
     private fun QueryFieldDeclaration.assertMaskRule(rule: MaskRule) {
         valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
@@ -1127,7 +1316,6 @@ class JsonQuerySchemaSourceTest {
         valueTypes: Set<QueryValueType>,
         nullable: Boolean = false,
         required: Boolean = true,
-        cardinality: QueryCardinality = QueryCardinality.SINGLE,
     ) = QueryFieldDeclaration(
         title = DeclarationValue.Set(title),
         description = DeclarationValue.Set(description),
@@ -1135,8 +1323,9 @@ class JsonQuerySchemaSourceTest {
         valueTypes = DeclarationValue.Set(valueTypes),
         nullable = DeclarationValue.Set(nullable),
         required = DeclarationValue.Set(required),
-        cardinality = DeclarationValue.Set(cardinality),
+        kind = DeclarationValue.Set(
+            if (valueTypes == setOf(QueryValueType.OBJECT)) QueryValueKind.OBJECT else QueryValueKind.SCALAR
+        ),
         semanticType = DeclarationValue.Set(null),
-        dynamicChildren = DeclarationValue.Set(false),
     )
 }

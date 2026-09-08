@@ -18,15 +18,18 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.CountQueryHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
+import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.QueryRequestScope
 
 class CountEventStreamHandlerFunctionFactory(
     eventStreamQueryGateway: (AggregateMetadata<*, *>) -> EventStreamQueryGateway,
-    rewriteRequestFilter: RewriteRequestFilter,
-    exceptionHandler: RequestExceptionHandler
+    queryRequestScope: QueryRequestScope,
+    exceptionHandler: RequestExceptionHandler,
+    guard: HttpQueryGuard = HttpQueryGuard(),
 ) : CountQueryHandlerFunctionFactory(
     handlerKey = BuiltInHttpRouteHandlerKeys.Event.COUNT,
     queryGateway = eventStreamQueryGateway,
-    rewriteRequestFilter = rewriteRequestFilter,
-    exceptionHandler = exceptionHandler
+    queryRequestScope = queryRequestScope,
+    exceptionHandler = exceptionHandler,
+    guard = guard,
 )

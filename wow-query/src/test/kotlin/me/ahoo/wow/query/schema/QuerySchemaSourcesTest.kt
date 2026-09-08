@@ -15,8 +15,8 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -129,9 +129,9 @@ class QuerySchemaSourcesTest {
         createdAt.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
         createdAt.nullable.assert().isEqualTo(DeclarationValue.Set(false))
         createdAt.required.assert().isEqualTo(DeclarationValue.Set(true))
-        createdAt.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.SINGLE))
+        createdAt.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.SCALAR))
         createdAt.semanticType.assert().isEqualTo(DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)))
-        createdAt.dynamicChildren.assert().isEqualTo(DeclarationValue.Set(false))
+        createdAt.additionalProperties.assert().isEqualTo(DeclarationValue.Unset)
 
         val note = declaration.fields.getValue(QueryField("state.note"))
         note.title.assert().isEqualTo(DeclarationValue.Set("Note"))
@@ -201,7 +201,7 @@ class QuerySchemaSourcesTest {
             QuerySchemaMerger().merge(
                 SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT),
                 declarations.map { PrioritizedQuerySchemaDeclaration(source.priority, it) },
-            ).fields.getValue(QueryField("state.name")).title.assert().isEqualTo("Same")
+            ).value(QueryField("state.name").toPathTemplate())!!.title.assert().isEqualTo("Same")
         }
     }
 
@@ -295,6 +295,48 @@ class QuerySchemaSourcesTest {
         }
 
         readThread.get().assert().isNotEqualTo(CALLER_THREAD)
+    }
+
+    @Test
+    fun `convention declaration preserves nested values and explicit structural null`() {
+        writeWorkingFile(
+            """{"fields":{"state.values":{"kind":"OBJECT","nullable":false,
+              "additionalProperties":{"items":{"kind":"SCALAR","valueTypes":["STRING"],"nullable":false},"nullable":true},
+              "properties":{"closed":{"additionalProperties":null},
+              "choice":{"alternatives":[{"valueTypes":["INTEGER"]},{"kind":"NULL"}]}}}}}"""
+        )
+        val declaration = WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT).single().block()!!
+        val value = declaration.fields.getValue(QueryField("state.values"))
+        value.nullable.assert().isEqualTo(DeclarationValue.Set(false))
+        value.additionalProperties.valueOr(
+            null
+        )!!.items.valueOr(null)!!.nullable.assert().isEqualTo(DeclarationValue.Set(false))
+        value.properties.valueOr(
+            emptyMap()
+        ).getValue("closed").additionalProperties.assert().isEqualTo(DeclarationValue.Set(null))
+        value.properties.valueOr(emptyMap()).getValue("choice").alternatives.valueOr(emptyList()).assert().hasSize(2)
+    }
+
+    @Test
+    fun `Kotlin DSL expresses named array and dynamic value structure`() {
+        val declaration = QuerySchemaDeclarationBuilder().apply {
+            field("state.addresses") {
+                property("home") {
+                    items {
+                        valueTypes(QueryValueType.STRING)
+                        nullable(false)
+                    }
+                }
+                additionalProperties { items { valueTypes(QueryValueType.STRING) } }
+            }
+        }.build()
+        val value = declaration.fields.getValue(QueryField("state.addresses"))
+        value.properties.valueOr(
+            emptyMap()
+        ).getValue("home").items.valueOr(null)!!.nullable.assert().isEqualTo(DeclarationValue.Set(false))
+        value.additionalProperties.valueOr(
+            null
+        )!!.items.valueOr(null)!!.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
     }
 
     private fun writeWorkingFile(json: String): Path {

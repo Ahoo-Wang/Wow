@@ -30,32 +30,33 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.operationValues
+import me.ahoo.wow.query.schema.physicalField
 import org.bson.Document
 import org.bson.conversions.Bson
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 
 internal class MongoAggregationCompiler(
     private val filterCompiler: AbstractMongoFilterCompiler,
 ) {
-    fun compile(query: AggregationQuery, schema: QueryModelSchema): List<Bson> = buildList {
-        add(Aggregates.match(filterCompiler.compile(query.filter, schema)))
+    fun compile(query: AggregationQuery, schema: QueryModelSchema): List<Bson> = compile(query, schema, Instant.now())
+
+    internal fun compile(query: AggregationQuery, schema: QueryModelSchema, now: Instant): List<Bson> = buildList {
+        add(Aggregates.match(filterCompiler.compile(query.filter, schema, now)))
 
         var logicalParent: QueryField? = null
-        var resolvedParent: QueryField? = null
         var physicalParent: String? = null
         query.elements.forEach { element ->
             val previousLogicalParent = logicalParent
-            val previousResolvedParent = resolvedParent
             logicalParent = previousLogicalParent?.append(element.path) ?: element.path
-            resolvedParent = schema.field(logicalParent)
-                ?.binding(QueryCapability.ELEMENT_SCOPE)
-                ?.resolvedField
-                ?: previousResolvedParent?.append(element.path)
-                ?: logicalParent
             physicalParent = element.path.resolve(
                 parent = previousLogicalParent,
                 physicalParent = physicalParent,
@@ -66,12 +67,12 @@ internal class MongoAggregationCompiler(
             if (element.filter !== MatchAllFilter) {
                 add(
                     Aggregates.match(
-                        filterCompiler.compileWithoutDefaultDeletion(
+                        filterCompiler.compileScoped(
                             element.filter,
                             schema,
                             logicalParent = logicalParent,
-                            resolvedParent = resolvedParent,
                             physicalParent = QueryField(physicalParent),
+                            now = now,
                         ),
                     ),
                 )
@@ -196,7 +197,7 @@ internal class MongoAggregationCompiler(
             val input = dateInput(parent, physicalParent, schema)
             val truncation = Document("date", input)
                 .append("unit", unit.name.lowercase())
-                .append("timezone", if (timeZone == "Z") "UTC" else timeZone)
+                .append("timezone", mongoTimeZone(timeZone))
                 .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") }
             Filters.expr(Document("\$ne", listOf(input, null))) to
                 Document("\$toLong", Document("\$dateTrunc", truncation))
@@ -216,7 +217,7 @@ internal class MongoAggregationCompiler(
                 schema,
                 QueryCapability.AGGREGATE_NUMERIC,
             )
-            val value = scalarOrSingleton("\$$field")
+            val value = numericInput("\$$field")
             val isNumber = Document("\$isNumber", value)
             val input = when (function) {
                 AggregationFunction.MIN,
@@ -239,7 +240,7 @@ internal class MongoAggregationCompiler(
         is AggregationExpression.Field -> {
             val field = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC)
             val fieldReference = "\$$field"
-            val value = scalarOrSingleton(fieldReference)
+            val value = numericInput(fieldReference)
             finiteDouble(
                 Document(
                     "\$cond",
@@ -328,24 +329,28 @@ internal class MongoAggregationCompiler(
         schema: QueryModelSchema,
     ): Any {
         val logicalField = parent?.append(field) ?: field
-        val fieldSchema = schema.resolveFieldSchema(logicalField, QueryCapability.AGGREGATE_TEMPORAL)
-            ?: schema.fields[logicalField]
-        val temporalBinding = fieldSchema?.binding(QueryCapability.AGGREGATE_TEMPORAL)
-        if (fieldSchema == null) {
-            val physicalPath = physicalParent?.let { "$it.${field.path}" } ?: logicalField.path
-            return Document("\$toDate", "\$$physicalPath")
-        }
-        val physicalPath = temporalBinding?.physicalField?.path
-            ?: throw QuerySchemaValidationException(
-                "Query field [$logicalField] does not support [${QueryCapability.AGGREGATE_TEMPORAL}].",
-            )
-        return when (val semanticType = fieldSchema.semanticType) {
+        val fieldSchema = schema.field(logicalField)
+            ?: throw QuerySchemaValidationException("Unknown query field [$logicalField].")
+        val physicalPath = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TEMPORAL)
+        val values = fieldSchema.value.operationValues().filter { it.kind != QueryValueKind.NULL }
+        val temporal = values.takeIf { domains -> domains.all { it.kind == QueryValueKind.SCALAR } }
+            ?.map { it.semanticType }?.distinct()?.singleOrNull()
+        return when (val semanticType = temporal) {
             Temporal.Date -> convert(scalarOrSingleton("\$$physicalPath"), "date")
             is Temporal.Epoch -> epochDate(physicalPath, semanticType.timeUnit)
             else -> throw QuerySchemaValidationException(
                 "Query field [$logicalField] does not have a supported temporal semantic type.",
             )
         }
+    }
+
+    private fun mongoTimeZone(timeZone: String): String {
+        val zone = ZoneId.of(timeZone).normalized()
+        if (zone !is ZoneOffset) return timeZone
+        if (zone.totalSeconds % 60 != 0) {
+            throw QuerySchemaValidationException("MongoDB time zone offsets must use whole minutes.")
+        }
+        return if (zone == ZoneOffset.UTC) "UTC" else zone.id
     }
 
     private fun epochDate(physicalPath: String, timeUnit: TimeUnit): Document {
@@ -405,6 +410,28 @@ internal class MongoAggregationCompiler(
         "long",
     )
 
+    private fun numericInput(fieldReference: String): Document = Document(
+        "\$cond",
+        listOf(
+            Document("\$isArray", fieldReference),
+            Document(
+                "\$let",
+                Document(
+                    "vars",
+                    Document(
+                        "values",
+                        Document(
+                            "\$filter",
+                            Document("input", fieldReference)
+                                .append("cond", Document("\$ne", listOf("\$\$this", null)))
+                        )
+                    ),
+                ).append("in", scalarOrSingleton("\$\$values")),
+            ),
+            fieldReference,
+        ),
+    )
+
     private fun scalarOrSingleton(fieldReference: String): Document {
         val isSingleton = Document("\$eq", listOf(Document("\$size", fieldReference), 1))
         val singleton = Document(
@@ -428,17 +455,13 @@ internal class MongoAggregationCompiler(
         schema: QueryModelSchema,
         capability: QueryCapability,
     ): String {
-        val logicalField = parent?.append(this) ?: this
-        schema.resolveFieldSchema(logicalField, capability)?.binding(capability)?.physicalField?.path?.let {
-            return it
+        val physical = schema.physicalField(this, capability, parent)
+        if (physicalParent != null && physical.relativeTo(QueryField(physicalParent)) == null) {
+            throw QuerySchemaValidationException(
+                "Physical field [$physical] is outside element scope [$physicalParent]."
+            )
         }
-        if (logicalField in schema.fields) {
-            throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
-        }
-        if (physicalParent != null) {
-            return "$physicalParent.$path"
-        }
-        return logicalField.path
+        return physical.path
     }
 
     private fun List<Sort>.toBson(): Bson = Sorts.orderBy(

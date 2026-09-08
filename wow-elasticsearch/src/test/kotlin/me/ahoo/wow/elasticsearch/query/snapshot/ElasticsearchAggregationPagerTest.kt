@@ -36,20 +36,17 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
 import me.ahoo.wow.elasticsearch.query.aggregation.selectTopRows
 import me.ahoo.wow.elasticsearch.query.toObjectNode
-import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -60,7 +57,7 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
 
-private val AGGREGATION_SCHEMA = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+private val AGGREGATION_SCHEMA = me.ahoo.wow.elasticsearch.query.aggregationTestSchema()
 
 private fun compileAggregation(query: AggregationQuery) =
     ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(query, AGGREGATION_SCHEMA)
@@ -68,7 +65,7 @@ private fun compileAggregation(query: AggregationQuery) =
 private fun List<SearchRequest>.assertGroupedPointInTimeRequests() {
     forEach { request ->
         request.index().assert().isEmpty()
-        request.allowPartialSearchResults().assert().isNull()
+        request.allowPartialSearchResults().assert().isEqualTo(false)
         request.pit().assert().isNotNull()
     }
     first().pit()!!.id().assert().isEqualTo("pit-1")
@@ -595,12 +592,11 @@ class ElasticsearchAggregationPagerTest {
                     )
                 },
             ),
-            validationMode = QuerySchemaValidationMode.COMPATIBLE,
+
             targetType = JsonSerializer.typeFactory.constructParametricType(
                 MaterializedSnapshot::class.java,
                 Any::class.java,
             ),
-            errorHandler = ErrorHandler { _, error -> Mono.error(error) },
         )
 
         gateway.aggregate(

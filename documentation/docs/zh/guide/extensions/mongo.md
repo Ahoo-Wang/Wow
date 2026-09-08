@@ -110,7 +110,7 @@ Mongo 查询 Backend 把 Wow 的 filter、projection、sort、分页与 aggregat
 
 ### 过滤器编译管道
 
-公共字段先经逻辑 schema 验证和字段转换，再生成 Mongo filter。后端不支持或映射冲突的字段按 `wow.query.schema.validation-mode` 处理；应用无需增加一套猜测 Mongo 类型的预校验。
+公共查询保持逻辑路径，Gateway 使用本次 Schema 严格校验；Mongo compiler 从该 Schema 取得原生 binding。未知字段、缺失能力和已知存储冲突均拒绝，不再按验证模式回退原始字段名。
 
 ### 快照查询
 

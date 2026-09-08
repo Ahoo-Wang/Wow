@@ -1,92 +1,59 @@
 ---
 title: 查询后端
-description: 了解 ObjectNode 查询后端、聚合级 Gateway、Factory 路由与存储实现之间的关系。
+description: 查询后端的逻辑 Query、Schema、原生编译与节点所有权合同。
 ---
 
 # 查询后端
 
 ## QueryBackend 契约
 
-`QueryBackend` 是聚合绑定的低层合同。六个执行方法只接受由 Gateway 准备的 `ResolvedQuery`：
+`QueryBackend` 是聚合绑定的原生查询执行边界。Gateway 传入最终逻辑 Query 与本次订阅取得的同一个 Schema：
 
 ```kotlin
-fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode>
-fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode>
-fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
-fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
-fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
-fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
+fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode>
+fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode>
+fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>>
+fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>>
+fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long>
+fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode>
 ```
 
-不存在接收原始 Query 的兼容重载。Backend 不获取或解析 Schema，也不决定 `QuerySchemaValidationMode`；它只用 `ResolvedQuery.query` 和非空的 `ResolvedQuery.schema` 编译并执行查询。Schema-aware 的 Projection、Sort、Filter 与 Aggregation Compiler 都以 `QueryFieldBinding.physicalField` 作为唯一物理路径来源；`projectionField` 已是物理路径，已接受但没有 binding 的 `COMPATIBLE` 字段保留原始路径。single、list、paged、cursor 与 aggregate 返回 `tools.jackson.databind.node.ObjectNode`，count 返回 `Long`；cursor 把节点包装在 `CursorPage<ObjectNode>` 中。`SnapshotQueryBackend` 和 `EventStreamQueryBackend` 区分数据模型；typed 物化属于 Gateway，不属于 Backend。自定义 Backend 从不实现或委托 `QueryModelSchemaProvider`。
+Backend 不读取 Provider，不执行请求策略、公共查询校验或响应脱敏。它按 Schema 的原生 binding 编译 Filter、Projection、Sort 与 Aggregation，检查原生参数及物理作用域，再访问存储；未知字段不能直接当成物理路径使用。typed 物化由 Gateway 完成。
 
-## 节点所有权约束
+`QueryFieldSchema.value` 是该逻辑值的定义；`binding(capability).physicalField` 是绝对物理路径。MongoDB 在元素谓词内显式计算相对路径，Elasticsearch 使用绝对路径和 nested 作用域。Projection 使用独立的投影 binding，可以选择节点及其后代；后端本地生成的通配表达式不进入公共 Query。
 
-Backend 返回的 Publisher 每次订阅都必须创建由该订阅独占的可变 `ObjectNode`；`retry`、`repeat` 和并发订阅也分别拥有新节点。Backend 不得跨订阅缓存或共享节点，不得发布缓存节点，也不得在节点发出后异步继续修改。
+## Factory 与路由
 
-Backend 边界只允许标准 JSON tree。MongoDB `Document`、Elasticsearch source `Map`、BSON 值、`POJONode` 和任意 POJO 必须在 Backend 内规范化或被拒绝，不能泄漏到 Gateway。
+`SnapshotQueryBackendFactory.create(namedAggregate)` 与 `EventStreamQueryBackendFactory.create(namedAggregate)` 返回 `QueryBackendBinding`，显式配对 Backend 和 `QueryModelSchemaProvider`。抽象 Factory 缓存完整 binding；Routing Factory 原子转发它。Spring Registrar 在创建聚合 Gateway 时选择一次路由，此后查询与 Schema HTTP 端点使用同一对对象。
 
-```mermaid
-flowchart TB
-    Route["Routing BackendFactory"] -->|"NamedAggregate，装配一次"| Backend["绑定的 ObjectNode Backend"]
-    Registrar["Gateway Registrar"] --> Gateway["聚合级 Gateway Bean"]
-    Backend --> Gateway
-    Gateway --> Chain["一条 around chain"]
-    Chain --> Backend
-    Backend --> Store["MongoDB / Elasticsearch"]
-    Infra["受信基础设施"] -. "直接调用，绕过治理" .-> Route
-```
+应用通常注入 `SnapshotQueryGateway<OrderState>` 或按 Bean 名限定 `EventStreamQueryGateway`。直接 Factory 调用适合受信诊断、合同测试和存储扩展，会绕过 Gateway 的请求准备、scope、ABAC、Mask 与 Observer。
 
-## 注入类型化的 SnapshotQueryGateway Bean
-
-Spring 可按状态类型注入快照 Gateway：
+低层调用者必须明确承担这些责任。例如，只做公共字段校验并执行原始列表查询：
 
 ```kotlin
-@Component
-class OrderReader(
-    private val queryGateway: SnapshotQueryGateway<OrderState>,
-) {
-    fun find(query: PagedQuery): Mono<PagedList<MaterializedSnapshot<OrderState>>> =
-        queryGateway.paged(query)
+val binding = factory.create(namedAggregate)
+val query = ListQuery(MatchAllFilter, limit = 10)
+val rows = binding.schemaProvider.schema().flatMapMany { schema ->
+    binding.backend.list(validateQuery(query, schema), schema)
 }
 ```
 
-这是应用内 JVM 入口；请求与结果都经过[查询网关](query-gateway.md)的同一条策略链。
+这段代码的 `MatchAllFilter` 不限定删除状态；Backend、`FilterNormalizer` 与 Compiler 不会替它追加 `ACTIVE`。Snapshot 低层调用者如只需未删除数据，应显式传入 `DeletionFilter(DeletionState.ACTIVE)`。这段代码没有授权或脱敏，不能替代业务 Gateway。
 
-## Bean 注册与命名
+## 数值原生语义
 
-`SnapshotQueryGatewayRegistrar` 使用 `ResolvableType` 注册 `SnapshotQueryGateway<STATE>`，Bean 名为 `{contextAlias.}{aggregateName}.SnapshotQueryGateway`。`EventStreamQueryGatewayRegistrar` 注册 `EventStreamQueryGateway`，Bean 名为 `{contextAlias.}{aggregateName}.EventStreamQueryGateway`。
+数值比较使用 binding 对应的存储精度，不能以 source 任意精度相等解释 `EXACT_MATCH`。标量字段指标保留原生聚合；数组/联合字段和算术字段叶子遵循[每记录一个数值贡献](./aggregation-query.md#numeric-contributions)的合同。Backend 不通过扫描 source 重建数组配对，runtime 输出也须符合逻辑数值模型。
 
-存在同名 Gateway Bean 时，Registrar 保留该 Bean。自定义 Bean 自己负责完整治理合同；它不是 Backend Factory 的替代别名。
+## 节点所有权
 
-## Gateway 如何绑定 Backend
+每次订阅必须获得独占的可变 `ObjectNode`，包括 retry、repeat 与并发订阅。不得跨订阅共享缓存节点，也不得在发布后异步修改。MongoDB Document、Elasticsearch source Map、BSON 与 POJO 在后端规范化为标准 JSON tree；不可用的 JSON 值必须被拒绝。
 
-Registrar 创建 Gateway 时，以该 `NamedAggregate` 调用一次 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory`。Factory 返回一个 `QueryBackendBinding`，Registrar 将完整 binding 传给 Gateway。Routing Factory 此时选择聚合专属路由或默认路由，Gateway 随后始终使用这对绑定对象，不在每次请求中重复选择。
+## 游标执行
 
-## Factory、缓存与存储路由
+Gateway 在校验前补充唯一排序：Snapshot 为 `aggregateId`，EventStream 为 `id`。Backend 不再追加。原始调用者自行提供完整有效排序。
 
-`SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 返回 `QueryBackendBinding<Backend>`；其抽象基类按 materialized aggregate 缓存完整 binding。自定义 Factory 显式配对 Backend 与 `QueryModelSchemaProvider`，Routing Factory 原子转发这对对象。MongoDB、Elasticsearch 或其他配置实现最终把已准入的 `ResolvedQuery` 编译为物理查询，并规范化为 `ObjectNode`。
+MongoDB 使用 keyset，Elasticsearch 使用无 PIT 的 search_after；均读取 size+1，不执行 count 或 offset，不返回 total。`CURSOR_SORT` 独立于 `SORT`，只接受已绑定的单值字段，不能穿过数组祖先或引用受 Mask 保护的源。后端检查原生排序字段重复与 token 结构。
 
-直接 Factory 调用不经过 Gateway。应用代码应使用 Spring 注册的聚合级 Gateway；只有低层诊断、合同测试与存储扩展直接使用 Factory。
+token 是无签名、无加密的 Base64URL continuation，不承载授权。调用者原样传回即可。游标没有跨请求快照；并发写入可能改变后续页面。
 
-## EventStreamQueryGateway Bean
-
-事件流 Gateway 没有 `STATE` 泛型；存在多个候选时，应按精确 Bean 名限定，而不是依赖泛型消歧。
-
-## 原始后端访问
-
-直接使用 Factory 适合受信基础设施扩展或明确要求原始后端语义的场景：`factory.create(namedAggregate).backend`。它绕过 Gateway 的请求过滤、ABAC、结果 Filter、脱敏与错误观察，调用方必须自行承担这些责任。
-
-## 游标执行与 token
-
-`QueryModelSchema.resolve(ICursorQuery)` 在验证前追加模型专属唯一 tie-breaker：Snapshot 使用 `aggregateId`，EventStream 使用流记录 `id`。Backend 接收的 `ResolvedQuery<ICursorQuery>` 已包含该排序，不再追加或二次解析。MongoDB 用 keyset filter，Elasticsearch 用不带 PIT 的 `search_after`；两者都请求 `size + 1` 判断是否还有下一页，不执行 count、offset，也不返回 total。游标只向后移动，没有跨请求快照；并发写入可能改变后续页看到的数据。
-
-后端把有效排序值编码为无 padding 的 Base64URL continuation。token 不加密、不签名、不承载授权，也不应记录到日志；框架没有游标加密密钥配置。调用方只应原样传回 token，不应解析或构造它。
-
-有效 sort 必须由 Query Schema 精确解析、是单值字段、不能携带任何 Mask rule，也不能通过 projection 或物理 binding alias 指向 masked 字段。请求字段及解析后的物理 sort 都不能是 `_score`、`_doc` 或 `_shard_doc`。Mask rule 包括 `@Mask`、`@KeepMask` 与自定义 `@Masking` meta-annotation 编译出的规则；Schema 不可用时失败关闭。非法 token 以 `Invalid cursor.` 拒绝，不回显其内容。
-
-## Schema 使用同一路由
-
-Snapshot 与 EventStream Schema HTTP handler 都解包 `factory.create(namedAggregate).schemaProvider`。因为它们与 Registrar 使用同一个 routed binding，Schema 与查询执行使用同一条存储路由和同一个 Provider；Provider 不可用时明确失败，不会回退到另一后端。
-
-WebFlux 已分别发布 `snapshot/schema`、`snapshot/schema/refresh`、`event/schema` 与 `event/schema/refresh` 路由。运行时路由以 [WebFlux](../extensions/webflux.md) 为准，已发布 HTTP/OpenAPI 合同以 [OpenAPI](../open-api.md) 为准，客户端边界以 [API Client](./query-api-client.md) 为准。`wow-apiclient.query` 仍只提供 Snapshot 查询接口，没有 EventStream 查询接口。
+Schema 端点与错误语义见[查询模型 Schema](./query-model-schema.md)、[WebFlux](../extensions/webflux.md)和[OpenAPI](../open-api.md)。

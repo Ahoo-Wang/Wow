@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.query.filter
 
-import me.ahoo.wow.filter.Filter
+import me.ahoo.wow.api.query.RewritableFilter
+import reactor.core.publisher.Mono
 
-interface QueryFilter<CONTEXT : QueryContext<*, *>> : Filter<CONTEXT>
+/** Prepares one request. Empty completion is a protocol error; backend execution is outside this publisher. */
+interface QueryFilter {
+    fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> = Mono.just(context.query)
+}

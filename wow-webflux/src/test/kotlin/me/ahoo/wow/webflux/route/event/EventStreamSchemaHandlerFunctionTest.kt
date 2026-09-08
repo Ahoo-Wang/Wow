@@ -16,14 +16,17 @@ package me.ahoo.wow.webflux.route.event
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
+import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
@@ -142,6 +145,12 @@ class EventStreamSchemaHandlerFunctionTest {
     }
 
     private companion object {
-        val SCHEMA = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        val SCHEMA =
+            QueryModelSchema(
+                QueryModel.EVENT_STREAM,
+                emptySet(),
+                LogicalQuerySchema(QueryValueSchema(QueryValueKind.OBJECT)),
+                emptyMap()
+            )
     }
 }

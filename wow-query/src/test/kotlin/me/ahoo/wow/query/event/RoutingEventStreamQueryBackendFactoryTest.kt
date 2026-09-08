@@ -59,6 +59,6 @@ class RoutingEventStreamQueryBackendFactoryTest {
     companion object {
         private val ORDER = MaterializedNamedAggregate("order-service", "order")
         private val CART = MaterializedNamedAggregate("order-service", "cart")
-        private val SCHEMA = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        private val SCHEMA = me.ahoo.wow.query.gatewaySchema(QueryModel.EVENT_STREAM)
     }
 }

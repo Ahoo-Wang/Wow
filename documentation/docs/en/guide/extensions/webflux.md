@@ -63,7 +63,7 @@ wow:
 
 Batch concurrency applies per request and is shared by snapshot rebuild and StateEvent resend. Concurrent requests multiply downstream load; lower it to match application and storage capacity.
 
-`0` disables each numeric HTTP guard; `idle-timeout=0s` disables idle timeout. Do not duplicate backend field-type, mapping, or uniqueness checks. `HttpQueryGuardFilter` protects HTTP queries with WebFlux request context; programmatic `QueryGateway` calls retain their public behavior.
+`0` disables each numeric HTTP guard; `idle-timeout=0s` disables idle timeout. Do not duplicate backend field-type, mapping, or uniqueness checks. `HttpQueryGuard` protects HTTP queries at the WebFlux Handler boundary; programmatic `QueryGateway` calls retain their public behavior.
 
 ## Aggregation Query Routes
 

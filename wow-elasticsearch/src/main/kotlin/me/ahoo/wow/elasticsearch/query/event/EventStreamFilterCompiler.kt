@@ -17,6 +17,5 @@ import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.serialization.MessageRecords
 
 object EventStreamFilterCompiler : AbstractElasticsearchFilterCompiler(
-    defaultDeletionState = null,
     documentIdField = MessageRecords.ID,
 )

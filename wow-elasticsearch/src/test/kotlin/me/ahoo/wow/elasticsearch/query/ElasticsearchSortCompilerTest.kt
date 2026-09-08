@@ -18,23 +18,20 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.dsl.sort
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class ElasticsearchSortCompilerTest {
-    private val schema = QueryModelSchema(
+    private val schema = nativeSchema(
         model = QueryModel.EVENT_STREAM,
         capabilities = emptySet(),
         fields = mapOf(
-            QueryField("name") to sortFieldSchema(QueryField("document.name"), QueryField("body.name")),
-            QueryField("identity") to sortFieldSchema(QueryField("document.identity"), QueryField("id")),
+            QueryField("name") to sortFieldSchema(QueryField("body.name")),
+            QueryField("identity") to sortFieldSchema(QueryField("id")),
         ),
     )
 
@@ -113,17 +110,62 @@ class ElasticsearchSortCompilerTest {
         actual.missing().assert().isNull()
     }
 
-    private fun sortFieldSchema(resolved: QueryField, physical: QueryField) = QueryFieldSchema(
-        title = null,
-        description = null,
-        enumValues = null,
-        valueTypes = emptySet(),
-        nullable = true,
-        required = false,
-        cardinality = QueryCardinality.SINGLE,
-        semanticType = null,
-        dynamicChildren = false,
-        bindings = mapOf(QueryCapability.SORT to QueryFieldBinding(resolved, physical, null)),
-        rewriteMode = QueryRewriteMode.REQUIRED,
+    @Test
+    fun `cursor sort should use its own physical binding`() {
+        val logical = QueryField("rank")
+        val schema = nativeSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = mapOf(
+                logical to fieldSchema(
+                    QueryCapability.SORT to QueryField("ordinary.rank"),
+                    QueryCapability.CURSOR_SORT to QueryField("cursor.rank"),
+                ),
+            ),
+        )
+
+        ElasticsearchSortCompiler.compileCursor(listOf(Sort(logical, Sort.Direction.ASC)), schema)
+            .single().field().field().assert().isEqualTo("cursor.rank")
+    }
+
+    @Test
+    fun `cursor sort should reject missing capability special metadata and duplicate physical fields`() {
+        val unsupported = QueryField("unsupported")
+        val special = QueryField("special")
+        val first = QueryField("first")
+        val second = QueryField("second")
+        val schema = nativeSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = mapOf(
+                unsupported to fieldSchema(QueryCapability.SORT to QueryField("ordinary")),
+                special to fieldSchema(QueryCapability.CURSOR_SORT to QueryField("_score")),
+                first to fieldSchema(QueryCapability.CURSOR_SORT to QueryField("shared")),
+                second to fieldSchema(QueryCapability.CURSOR_SORT to QueryField("shared")),
+            ),
+        )
+
+        listOf(
+            listOf(Sort(unsupported, Sort.Direction.ASC)),
+            listOf(Sort(special, Sort.Direction.ASC)),
+            listOf(Sort(first, Sort.Direction.ASC), Sort(second, Sort.Direction.DESC)),
+        ).forEach { sort ->
+            assertThrows<QuerySchemaValidationException> {
+                ElasticsearchSortCompiler.compileCursor(sort, schema)
+            }
+        }
+    }
+
+    private fun sortFieldSchema(physical: QueryField) = nativeBindings(
+        physical,
+        QueryCapability.SORT,
+        QueryCapability.CURSOR_SORT,
     )
+
+    private fun fieldSchema(vararg bindings: Pair<QueryCapability, QueryField>) =
+        me.ahoo.wow.query.schema.QueryValueBindings(
+            bindings.associate { (capability, physical) ->
+                capability to me.ahoo.wow.query.schema.QueryFieldBindingTemplate(physical.path.testPath(), null)
+            }
+        )
 }

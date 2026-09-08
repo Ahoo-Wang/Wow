@@ -14,7 +14,7 @@
 package me.ahoo.wow.mongo.query.schema
 
 import com.mongodb.MongoNamespace
-import com.mongodb.reactivestreams.client.FindPublisher
+import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.ListCollectionsPublisher
 import com.mongodb.reactivestreams.client.ListIndexesPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
@@ -25,811 +25,426 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
-import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.SearchFilter
-import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
-import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
-import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
-import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
-import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
+import me.ahoo.wow.mongo.query.mongoLogicalSchema
 import me.ahoo.wow.query.schema.MaskRule
-import me.ahoo.wow.query.schema.QueryRewriteMode
-import me.ahoo.wow.query.schema.QuerySchemaResolution
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.physicalField
+import me.ahoo.wow.query.schema.validateQuery
+import me.ahoo.wow.serialization.JsonSerializer
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.reactivestreams.Subscriber
 import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
-import tools.jackson.databind.node.IntNode
 import tools.jackson.databind.node.StringNode
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.jvm.javaField
 
-@Suppress("LargeClass")
 class MongoQuerySchemaAdapterTest {
+    private val compiler = object : AbstractMongoFilterCompiler() {}
+
     @Test
-    fun `binding should retain a logical mask rule`() {
-        val secret = QueryField("state.secret")
+    fun `bindings reuse the logical definition and retain masked raw capabilities`() {
         val rule = fullMaskRule()
+        val value = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING), maskRule = rule)
+        val definition = logical("state.secret" to value)
+        val schema = MongoQuerySchemaAdapter.bind(definition, emptyList(), null)
+        schema.definition.assert().isSameAs(definition)
+        schema.field(QueryField("state.secret"))!!.let {
+            it.value.assert().isSameAs(value)
+            it.bindings.keys.assert().contains(QueryCapability.CURSOR_SORT, QueryCapability.EXACT_MATCH)
+            it.value.maskRule.assert().isSameAs(rule)
+        }
+    }
 
-        val schema = MongoQuerySchemaAdapter.bind(
-            LogicalQuerySchema(mapOf(secret to field(QueryValueType.STRING, maskRule = rule))),
+    @Test
+    fun `model identity bindings are native while response paths stay logical`() {
+        listOf(QueryModel.SNAPSHOT to "aggregateId", QueryModel.EVENT_STREAM to "id").forEach { (model, id) ->
+            val schema = MongoQuerySchemaAdapter.bind(logical(id to scalar()), emptyList(), null, model)
+            schema.field(QueryField(id))!!.let {
+                it.binding(QueryCapability.EXACT_MATCH)!!.physicalField.assert().isEqualTo(QueryField("_id"))
+                it.projectionField.assert().isEqualTo(QueryField("_id"))
+                it.responseField.assert().isEqualTo(QueryField(id))
+            }
+        }
+    }
+
+    @Test
+    fun `numeric unions retain all native storage types and comparable cursor capability`() {
+        val numeric = QueryValueSchema(
+            QueryValueKind.UNION,
+            alternatives = listOf(scalar(QueryValueType.INTEGER), scalar(QueryValueType.DECIMAL))
+        )
+        val types = listOf("int", "long", "double", "decimal")
+        val schema = bind("amount", numeric, Document("bsonType", types))
+        schema.field(QueryField("amount"))!!.let {
+            it.bindings.keys.assert().contains(
+                QueryCapability.EXACT_MATCH,
+                QueryCapability.RANGE,
+                QueryCapability.CURSOR_SORT
+            )
+            it.binding(QueryCapability.CURSOR_SORT)!!.storageTypes!!.map { type -> type.value }.assert()
+                .containsExactlyInAnyOrder(*types.toTypedArray())
+        }
+    }
+
+    @Test
+    fun `scalar and primitive array unions prove each native operand domain`() {
+        val value = QueryValueSchema(
+            QueryValueKind.UNION,
+            alternatives = listOf(scalar(), array(scalar(QueryValueType.INTEGER)))
+        )
+        val validator = Document(
+            "anyOf",
+            listOf(
+                Document("bsonType", "string"),
+                Document("bsonType", "array").append("items", Document("bsonType", "long"))
+            )
+        )
+        val schema = bind("value", value, validator)
+        schema.field(QueryField("value"))!!.bindings.keys.assert()
+            .contains(QueryCapability.EXACT_MATCH, QueryCapability.RANGE)
+            .doesNotContain(QueryCapability.CURSOR_SORT, QueryCapability.ELEMENT_SCOPE)
+        val arrays = QueryValueSchema(
+            QueryValueKind.UNION,
+            alternatives = listOf(array(scalar(QueryValueType.INTEGER)), array(scalar(QueryValueType.DECIMAL)))
+        )
+        bind(
+            "values",
+            arrays,
+            Document("bsonType", "array").append("items", Document("bsonType", listOf("int", "double")))
+        )
+            .field(
+                QueryField("values")
+            )!!.bindings.keys.assert().contains(QueryCapability.EXACT_MATCH, QueryCapability.RANGE)
+    }
+
+    @Test
+    fun `cursor sorting rejects mixed BSON families independently of ordinary sort`() {
+        val value = QueryValueSchema(
+            QueryValueKind.UNION,
+            alternatives = listOf(scalar(), scalar(QueryValueType.INTEGER))
+        )
+        val schema = bind("mixed", value, Document("bsonType", listOf("string", "int")))
+        schema.field(QueryField("mixed"))!!.bindings.keys.assert()
+            .contains(QueryCapability.SORT).doesNotContain(QueryCapability.CURSOR_SORT)
+    }
+
+    @Test
+    fun `unknown union branch cannot gain operand capabilities`() {
+        val value = QueryValueSchema(
+            QueryValueKind.UNION,
+            alternatives = listOf(scalar(), QueryValueSchema(QueryValueKind.UNKNOWN))
+        )
+        bind("value", value).field(QueryField("value"))!!.bindings.keys.assert()
+            .containsExactly(QueryCapability.PRESENCE)
+    }
+
+    @Test
+    fun `primitive array operations consume direct items and preserve container storage`() {
+        val schema = bind(
+            "scores",
+            array(scalar(QueryValueType.INTEGER)),
+            Document("bsonType", "array").append("items", Document("bsonType", "long"))
+        )
+        schema.field(QueryField("scores"))!!.let {
+            it.value.valueTypes.assert().isEmpty()
+            it.bindings.keys.assert().contains(QueryCapability.EXACT_MATCH, QueryCapability.RANGE)
+                .doesNotContain(QueryCapability.ELEMENT_SCOPE, QueryCapability.CURSOR_SORT)
+            it.binding(QueryCapability.RANGE)!!.storageTypes!!.single().value.assert().isEqualTo("array")
+        }
+        val nested = bind("scores", array(array(scalar(QueryValueType.INTEGER))))
+        nested.field(QueryField("scores"))!!.bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+    }
+
+    @Test
+    fun `array operands are validated against direct items before native compilation`() {
+        val schema = bind(
+            "scores",
+            array(scalar(QueryValueType.INTEGER)),
+            Document("bsonType", "array").append("items", Document("bsonType", "long"))
+        )
+        val accepted = EqualFilter(QueryField("scores"), JsonSerializer.valueToTree(listOf(1, 2)))
+        compiler.compile(validateQuery(accepted, schema), schema).toBsonDocument().assert()
+            .isEqualTo(Filters.eq("scores", listOf(1, 2)).toBsonDocument())
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(EqualFilter(QueryField("scores"), JsonSerializer.valueToTree(listOf(1, "bad"))), schema)
+        }
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(EqualFilter(QueryField("scores"), JsonSerializer.valueToTree(1.5)), schema)
+        }
+    }
+
+    @Test
+    fun `all logical and native array ancestors prevent cursor sorting`() {
+        val address = obj("city" to scalar())
+        val schema = bind("addresses", array(address))
+        schema.field(QueryField("addresses.city"))!!.let {
+            it.elementAncestors.assert().isEqualTo(listOf(QueryField("addresses")))
+            it.bindings.keys.assert().doesNotContain(QueryCapability.CURSOR_SORT)
+        }
+        val sparse = MongoQuerySchemaAdapter.bind(
+            logical("addresses.city" to scalar()),
             emptyList(),
-            null,
-        )
-
-        schema.fields.getValue(secret).masked.assert().isTrue()
-    }
-
-    @Test
-    fun `event stream schema should bind logical id to MongoDB document id`() {
-        val id = QueryField("id")
-        val aggregateId = QueryField("aggregateId")
-        val schema = MongoQuerySchemaAdapter.bind(
-            logicalSchema = LogicalQuerySchema(
-                mapOf(id to field(QueryValueType.STRING), aggregateId to field(QueryValueType.STRING)),
-            ),
-            indexes = emptyList(),
-            validatorSchema = null,
-            model = QueryModel.EVENT_STREAM,
-        )
-
-        schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
-        schema.fields.getValue(id).let { fieldSchema ->
-            fieldSchema.binding(QueryCapability.EXACT_MATCH)!!.let { binding ->
-                binding.resolvedField.assert().isEqualTo(id)
-                binding.physicalField.assert().isEqualTo(QueryField("_id"))
-            }
-            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.NONE)
-            fieldSchema.projectionField.assert().isEqualTo(QueryField("_id"))
-        }
-        schema.fields.getValue(aggregateId).binding(QueryCapability.EXACT_MATCH)!!.physicalField.assert()
-            .isEqualTo(aggregateId)
-    }
-
-    @Test
-    fun `unknown compatible fields should retain their logical path`() {
-        val field = QueryField("state.unknown")
-        val filter = EqualFilter(field, StringNode.valueOf("value"))
-
-        val resolution = MongoQuerySchemaAdapter.bind(logicalSchema(), emptyList(), null).resolve(filter)
-
-        resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
-        (resolution.value as EqualFilter).field.assert().isEqualTo(field)
-    }
-
-    @Test
-    fun `element descendants should infer relative rewrites from absolute predicates`() {
-        val orders = QueryField("state.orders")
-        val lines = QueryField("state.orders.lines")
-        val price = QueryField("state.orders.lines.price")
-        val schema = MongoQuerySchemaAdapter.bind(
-            logicalSchema = LogicalQuerySchema(
-                linkedMapOf(
-                    orders to field(QueryValueType.OBJECT, QueryCardinality.MANY),
-                    lines to field(QueryValueType.OBJECT, QueryCardinality.MANY),
-                    price to field(QueryValueType.INTEGER),
-                ),
-            ),
-            indexes = emptyList(),
-            validatorSchema = null,
-            model = QueryModel.SNAPSHOT,
-        )
-        val relative = ElementMatchFilter(
-            orders,
-            ElementMatchFilter(QueryField("lines"), EqualFilter(QueryField("price"), IntNode.valueOf(10))),
-        )
-        val absolute = ElementMatchFilter(
-            orders,
-            ElementMatchFilter(lines, EqualFilter(price, IntNode.valueOf(10))),
-        )
-
-        schema.fields.getValue(price).let { fieldSchema ->
-            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
-            fieldSchema.binding(QueryCapability.EXACT_MATCH)!!.let { binding ->
-                binding.resolvedField.assert().isEqualTo(price)
-                binding.physicalField.assert().isEqualTo(price)
-            }
-        }
-        schema.resolve(relative).value.assert().isSameAs(relative)
-        val resolved = schema.resolve(absolute).value as ElementMatchFilter
-        val resolvedLines = resolved.predicate as ElementMatchFilter
-        resolvedLines.field.assert().isEqualTo(QueryField("lines"))
-        (resolvedLines.predicate as EqualFilter).field.assert().isEqualTo(QueryField("price"))
-    }
-
-    @Test
-    fun `element dynamic descendants should retain relative rewrite context`() {
-        val orders = QueryField("state.orders")
-        val attributes = QueryField("state.orders.attributes")
-        val color = QueryField("state.orders.attributes.color")
-        val schema = MongoQuerySchemaAdapter.bind(
-            logicalSchema = LogicalQuerySchema(
-                linkedMapOf(
-                    orders to field(QueryValueType.OBJECT, QueryCardinality.MANY),
-                    attributes to field(QueryValueType.OBJECT, dynamicChildren = true),
-                ),
-            ),
-            indexes = emptyList(),
-            validatorSchema = null,
-            model = QueryModel.SNAPSHOT,
-        )
-        val relative = ElementMatchFilter(
-            orders,
-            EqualFilter(QueryField("attributes.color"), StringNode.valueOf("red")),
-        )
-        val absolute = ElementMatchFilter(orders, EqualFilter(color, StringNode.valueOf("red")))
-
-        schema.fields.getValue(attributes).let { fieldSchema ->
-            fieldSchema.dynamicChildren.assert().isTrue()
-            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
-            fieldSchema.binding(QueryCapability.EXACT_MATCH)!!.let { binding ->
-                binding.resolvedField.assert().isEqualTo(attributes)
-                binding.physicalField.assert().isEqualTo(attributes)
-            }
-        }
-        schema.field(color)!!.let { fieldSchema ->
-            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
-            fieldSchema.binding(QueryCapability.EXACT_MATCH)!!.let { binding ->
-                binding.resolvedField.assert().isEqualTo(color)
-                binding.physicalField.assert().isEqualTo(color)
-            }
-        }
-        schema.resolve(relative).value.assert().isSameAs(relative)
-        val resolution = schema.resolve(absolute)
-        resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
-        val resolved = resolution.value as ElementMatchFilter
-        (resolved.predicate as EqualFilter).field.assert().isEqualTo(QueryField("attributes.color"))
-    }
-
-    @Test
-    fun `self dynamic element should relativize absolute presence predicates`() {
-        val items = QueryField("state.items")
-        val code = QueryField("state.items.code")
-        val schema = MongoQuerySchemaAdapter.bind(
-            logicalSchema = LogicalQuerySchema(
-                mapOf(items to field(QueryValueType.OBJECT, QueryCardinality.MANY, dynamicChildren = true)),
-            ),
-            indexes = emptyList(),
-            validatorSchema = null,
-            model = QueryModel.SNAPSHOT,
-        )
-        val relative = ElementMatchFilter(items, ExistsFilter(QueryField("code")))
-        val absolute = ElementMatchFilter(items, ExistsFilter(code))
-
-        schema.field(code)!!.rewriteMode.assert().isEqualTo(QueryRewriteMode.NONE)
-        schema.resolve(relative).value.assert().isSameAs(relative)
-        schema.resolve(absolute).assert().isEqualTo(
-            QuerySchemaResolution(
-                ElementMatchFilter(items, ExistsFilter(QueryField("code"))),
-                QueryCompatibilityLevel.EXACT,
-            ),
-        )
-    }
-
-    @Test
-    fun `numeric arrays should retain backend-supported range and aggregation bindings`() {
-        val amount = QueryField("state.amounts")
-        val logical = LogicalQuerySchema(
-            mapOf(
-                amount to field(QueryValueType.DECIMAL, cardinality = QueryCardinality.MANY),
-            ),
-        )
-        val schema = MongoQuerySchemaAdapter.bind(logical, emptyList(), null)
-
-        schema.fields.getValue(amount).bindings.keys.assert()
-            .contains(QueryCapability.RANGE, QueryCapability.AGGREGATE_NUMERIC)
-    }
-
-    @Test
-    fun `composed array validators should prove item storage types`() {
-        val field = QueryField("state.values")
-        val logical = LogicalQuerySchema(
-            mapOf(field to field(QueryValueType.INTEGER, cardinality = QueryCardinality.MANY)),
-        )
-        val array = Document("bsonType", "array")
-            .append("items", Document("bsonType", "string"))
-        val validators = listOf(
-            Document("anyOf", listOf(array, Document("bsonType", "null"))),
-            Document("oneOf", listOf(array, Document("bsonType", "null"))),
             Document(
-                "allOf",
-                listOf(
-                    Document("bsonType", listOf("array", "null")),
-                    Document("items", Document("bsonType", "string")),
-                ),
-            ),
-        )
-
-        validators.forEach { validator ->
-            MongoQuerySchemaAdapter.bind(
-                logical,
-                emptyList(),
-                Document(
-                    "properties",
-                    Document("state", Document("properties", Document("values", validator))),
-                ),
-            ).fields.getValue(field).bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
-        }
-    }
-
-    @Test
-    fun `composed validator branches should expose nested property storage types`() {
-        listOf("allOf", "anyOf", "oneOf").forEach { composition ->
-            val objectSchema = Document("bsonType", "object").append(
                 "properties",
-                Document("createdAt", Document("bsonType", "string")),
-            )
-            val branches = if (composition == "allOf") {
-                listOf(objectSchema, Document("description", "state"))
-            } else {
-                listOf(objectSchema, Document("bsonType", "null"))
-            }
-            val stateSchema = if (composition == "allOf") {
-                Document("bsonType", "object").append(composition, branches)
-            } else {
-                Document(composition, branches)
-            }
-
-            MongoQuerySchemaAdapter.bind(
-                LogicalQuerySchema(
-                    linkedMapOf(
-                        QueryField("state") to field(QueryValueType.OBJECT),
-                        QueryField("state.createdAt") to field(
-                            QueryValueType.INTEGER,
-                            semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
-                        ),
-                    ),
-                ),
-                emptyList(),
-                Document("properties", Document("state", stateSchema)),
-            ).let { schema ->
-                schema.fields.getValue(QueryField("state")).bindings.keys.assert().contains(
-                    QueryCapability.PRESENCE,
-                )
-                schema.fields.getValue(QueryField("state.createdAt"))
-                    .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
-            }
-        }
-    }
-
-    @Test
-    fun `composed array item branches should expose nested property storage types`() {
-        listOf("allOf", "anyOf", "oneOf").forEach { composition ->
-            val objectSchema = Document("bsonType", "object").append(
-                "properties",
-                Document("name", Document("bsonType", "int")),
-            )
-            val branches = if (composition == "allOf") {
-                listOf(objectSchema, Document("description", "item"))
-            } else {
-                listOf(objectSchema, Document("bsonType", "null"))
-            }
-            val itemSchema = if (composition == "allOf") {
-                Document("bsonType", "object").append(composition, branches)
-            } else {
-                Document(composition, branches)
-            }
-
-            MongoQuerySchemaAdapter.bind(
-                LogicalQuerySchema(
-                    linkedMapOf(
-                        QueryField("state.items") to field(
-                            QueryValueType.OBJECT,
-                            cardinality = QueryCardinality.MANY,
-                        ),
-                        QueryField("state.items.name") to field(QueryValueType.STRING),
-                    ),
-                ),
-                emptyList(),
                 Document(
-                    "properties",
+                    "addresses",
                     Document(
-                        "state",
-                        Document(
-                            "properties",
-                            Document(
-                                "items",
-                                Document("bsonType", "array").append("items", itemSchema),
-                            ),
-                        ),
-                    ),
-                ),
-            ).fields.getValue(QueryField("state.items.name"))
-                .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
-        }
-    }
-
-    @Test
-    fun `alternative object branch without a property should leave its storage type unknown`() {
-        listOf("anyOf", "oneOf").forEach { composition ->
-            val stateSchema = Document(
-                composition,
-                listOf(
-                    Document("bsonType", "object").append(
-                        "properties",
-                        Document("amount", Document("bsonType", "string")),
-                    ),
-                    Document("bsonType", "object").append(
-                        "properties",
-                        Document("other", Document("bsonType", "string")),
-                    ),
-                ),
-            )
-
-            MongoQuerySchemaAdapter.bind(
-                LogicalQuerySchema(
-                    mapOf(QueryField("state.amount") to field(QueryValueType.INTEGER)),
-                ),
-                emptyList(),
-                Document("properties", Document("state", stateSchema)),
-            ).fields.getValue(QueryField("state.amount")).bindings.keys.assert().contains(
-                QueryCapability.RANGE,
-                QueryCapability.AGGREGATE_NUMERIC,
-            )
-        }
-    }
-
-    @Test
-    fun `typeless field alternative should leave its storage type unknown`() {
-        listOf("anyOf", "oneOf").forEach { composition ->
-            val validator = Document(
-                composition,
-                listOf(Document("bsonType", "int"), Document()),
-            )
-
-            bindState(Document("amount", validator))
-                .fields.getValue(QueryField("state.amount")).bindings.keys.assert().contains(
-                    QueryCapability.RANGE,
-                    QueryCapability.AGGREGATE_NUMERIC,
+                        "bsonType",
+                        "array"
+                    ).append("items", Document("properties", Document("city", Document("bsonType", "string"))))
                 )
+            ),
+        )
+        sparse.field(QueryField("addresses.city"))!!.bindings.keys.assert().doesNotContain(QueryCapability.CURSOR_SORT)
+    }
+
+    @Test
+    fun `map of object lists compiles exact relative element paths and rejects unknown suffixes`() {
+        val homes = QueryValueSchema(QueryValueKind.OBJECT, additionalProperties = array(obj("city" to scalar())))
+        val schema = bind("homes", homes)
+        val filter = ElementMatchFilter(
+            QueryField("homes.home"),
+            EqualFilter(QueryField("city"), StringNode.valueOf("Paris"))
+        )
+        compiler.compile(filter, schema).toBsonDocument().assert().isEqualTo(
+            Filters.elemMatch("homes.home", Filters.eq("city", "Paris")).toBsonDocument(),
+        )
+        schema.field(QueryField("homes.home.city.extra")).assert().isNull()
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(
+                ElementMatchFilter(
+                    QueryField("homes.home"),
+                    EqualFilter(QueryField("city.extra"), StringNode.valueOf("Paris"))
+                ),
+                schema
+            )
+        }
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(EqualFilter(QueryField("homes.home.city"), StringNode.valueOf("Paris")), schema)
         }
     }
 
     @Test
-    fun `opaque logical shapes should expose only presence without a validator`() {
-        val field = QueryField("state.opaque")
-        val logical = LogicalQuerySchema(
-            mapOf(field to field(QueryValueType.STRING).copy(valueTypes = emptySet())),
+    fun `typed additional properties retain native facts and named overrides cannot fall back`() {
+        val homes = QueryValueSchema(QueryValueKind.OBJECT, additionalProperties = array(obj("city" to scalar())))
+        val list = Document(
+            "bsonType",
+            "array"
+        ).append(
+            "items",
+            Document("bsonType", "object").append("properties", Document("city", Document("bsonType", "string")))
         )
-
-        MongoQuerySchemaAdapter.bind(logical, emptyList(), null)
-            .fields.getValue(field).bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
-    }
-
-    @Test
-    fun `formatted temporal strings should support relative ranges but not temporal aggregation`() {
-        val field = QueryField("state.formatted")
-        val logical = LogicalQuerySchema(
-            mapOf(
-                field to field(
-                    QueryValueType.STRING,
-                    semanticType = Temporal.Formatted("yyyy-MM-dd"),
-                ),
-            ),
+        val overridden = Document(
+            "bsonType",
+            "array"
+        ).append(
+            "items",
+            Document("bsonType", "object").append("properties", Document("city", Document("bsonType", "int")))
         )
-        val schema = MongoQuerySchemaAdapter.bind(
-            logical,
-            emptyList(),
+        val schema = bind(
+            "homes",
+            homes,
             Document(
-                "properties",
-                Document(
-                    "state",
-                    Document("bsonType", "object").append(
-                        "properties",
-                        Document("formatted", Document("bsonType", "string")),
-                    ),
-                ),
-            ),
+                "bsonType",
+                "object"
+            ).append("additionalProperties", list).append("properties", Document("home", overridden))
         )
-
-        schema.fields.getValue(field).bindings.keys.assert()
-            .contains(QueryCapability.RANGE)
-            .doesNotContain(QueryCapability.AGGREGATE_TEMPORAL)
-        schema.resolve(TodayFilter(field)).let { resolved ->
-            resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
-            (resolved.value as TodayFilter).datePattern.assert().isEqualTo("yyyy-MM-dd")
+        schema.field(
+            QueryField("homes.work.city")
+        )!!.binding(QueryCapability.EXACT_MATCH)!!.storageTypes!!.single().value.assert().isEqualTo("string")
+        schema.field(QueryField("homes.home.city"))!!.bindings.keys.assert().doesNotContain(QueryCapability.EXACT_MATCH)
+        assertThrows<QuerySchemaValidationException> {
+            schema.physicalField(QueryField("city"), QueryCapability.EXACT_MATCH, QueryField("homes.home"))
         }
     }
 
     @Test
-    fun `ordinary strings should support native ranges`() {
-        bindState(Document("name", Document("bsonType", "string")))
-            .fields.getValue(QueryField("state.name"))
-            .bindings.keys.assert().contains(QueryCapability.RANGE)
+    fun `explicit native map key does not inherit default validator constraints for missing descendants`() {
+        val value = QueryValueSchema(QueryValueKind.OBJECT, additionalProperties = obj("city" to scalar()))
+        val fallback = Document(
+            "bsonType",
+            "object"
+        ).append("properties", Document("city", Document("bsonType", "string")))
+        val schema = bind(
+            "homes",
+            value,
+            Document("bsonType", "object").append("additionalProperties", fallback)
+                .append("properties", Document("home", Document("bsonType", "object")))
+        )
+        schema.field(
+            QueryField("homes.work.city")
+        )!!.binding(QueryCapability.EXACT_MATCH)!!.storageTypes!!.single().value.assert().isEqualTo("string")
+        schema.field(
+            QueryField("homes.home.city")
+        )!!.binding(QueryCapability.EXACT_MATCH)!!.storageTypes.assert().isNull()
     }
 
     @Test
-    fun `bind should use conventions validator types and model capabilities`() {
-        val validator = Document("bsonType", "object").append(
-            "properties",
-            Document("_id", Document("bsonType", "string"))
-                .append(
-                    "state",
-                    Document("bsonType", "object").append(
-                        "properties",
-                        Document("name", Document("bsonType", "string"))
-                            .append(
-                                "items",
-                                Document("bsonType", "array").append(
-                                    "items",
-                                    Document("bsonType", "object"),
-                                ),
-                            ),
-                    ),
-                ),
-        )
+    fun `map container never grants map values its own object type or capabilities`() {
+        val map = QueryValueSchema(QueryValueKind.OBJECT, additionalProperties = scalar(QueryValueType.INTEGER))
+        val schema = bind("counts", map)
+        schema.field(QueryField("counts"))!!.bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+        schema.field(QueryField("counts.home"))!!.value.valueTypes.assert().containsExactly(QueryValueType.INTEGER)
+        schema.field(QueryField("counts.home"))!!.bindings.keys.assert().contains(QueryCapability.RANGE)
+        schema.field(QueryField("counts.home.extra")).assert().isNull()
+    }
 
+    @Test
+    fun `named nested arrays preserve both scopes while unnamed arrays are not element scopes`() {
+        val schema = bind("orders", array(obj("lines" to array(obj("sku" to scalar())))))
+        val filter = ElementMatchFilter(
+            QueryField("orders"),
+            ElementMatchFilter(QueryField("lines"), EqualFilter(QueryField("sku"), StringNode.valueOf("one")))
+        )
+        compiler.compile(filter, schema).toBsonDocument().assert().isEqualTo(
+            Filters.elemMatch("orders", Filters.elemMatch("lines", Filters.eq("sku", "one"))).toBsonDocument(),
+        )
+        bind("orders", array(array(obj("sku" to scalar())))).field(QueryField("orders"))!!.bindings.keys.assert()
+            .doesNotContain(QueryCapability.ELEMENT_SCOPE)
+    }
+
+    @Test
+    fun `native date operands stay unsupported while date aggregation and cursor families remain available`() {
+        listOf("date", "timestamp").forEach { native ->
+            val schema = bind("created", scalar(semantic = Temporal.Date), Document("bsonType", listOf(native, "null")))
+            schema.field(QueryField("created"))!!.bindings.keys.assert()
+                .contains(QueryCapability.AGGREGATE_TEMPORAL, QueryCapability.CURSOR_SORT)
+                .doesNotContain(QueryCapability.EXACT_MATCH, QueryCapability.RANGE)
+        }
+        bind("created", scalar(semantic = Temporal.Date)).field(QueryField("created"))!!.bindings.keys.assert()
+            .doesNotContain(QueryCapability.EXACT_MATCH, QueryCapability.RANGE, QueryCapability.AGGREGATE_TEMPORAL)
+        bind("created", scalar(semantic = Temporal.Date), Document("bsonType", listOf("date", "timestamp")))
+            .field(QueryField("created"))!!.bindings.keys.assert().doesNotContain(QueryCapability.CURSOR_SORT)
+    }
+
+    @Test
+    fun `epoch and formatted semantics live on array items`() {
+        val epoch = Temporal.Epoch(TimeUnit.SECONDS)
+        val schema = bind(
+            "times",
+            array(scalar(QueryValueType.INTEGER, epoch)),
+            Document("bsonType", "array").append("items", Document("bsonType", "long"))
+        )
+        schema.field(QueryField("times"))!!.let {
+            it.value.items!!.semanticType.assert().isEqualTo(epoch)
+            it.bindings.keys.assert().contains(QueryCapability.RANGE, QueryCapability.AGGREGATE_TEMPORAL)
+        }
+    }
+
+    @Test
+    fun `composed validator constraints retain nullable and unknown alternatives`() {
+        val nullable = Document("anyOf", listOf(Document("bsonType", "string"), Document("bsonType", "null")))
+        bind("name", scalar(), nullable).field(QueryField("name"))!!.binding(QueryCapability.EXACT_MATCH)!!
+            .storageTypes!!.single().value.assert().isEqualTo("string")
+        val uncertain = Document("anyOf", listOf(Document("bsonType", "string"), Document()))
+        bind(
+            "name",
+            scalar(),
+            uncertain
+        ).field(QueryField("name"))!!.bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+        val itemUnion = Document(
+            "bsonType",
+            "array"
+        ).append("items", Document("anyOf", listOf(Document("bsonType", "int"), Document("bsonType", "long"))))
+        bind(
+            "values",
+            array(scalar(QueryValueType.INTEGER)),
+            itemUnion
+        ).field(QueryField("values"))!!.bindings.keys.assert().contains(QueryCapability.RANGE)
+    }
+
+    @Test
+    fun `numeric family alias intersects concrete BSON types before capability proof`() {
+        listOf("int", "long").forEach { type ->
+            val constraints = listOf(Document("bsonType", "number"), Document("bsonType", type))
+            listOf(constraints, constraints.reversed()).forEach { branches ->
+                val field = bind("value", scalar(QueryValueType.INTEGER), Document("allOf", branches))
+                    .field(QueryField("value"))!!
+                field.bindings.keys.assert().contains(QueryCapability.EXACT_MATCH)
+                field.binding(
+                    QueryCapability.EXACT_MATCH
+                )!!.storageTypes!!.map { it.value }.assert().isEqualTo(listOf(type))
+            }
+        }
+        val disjoint = Document("allOf", listOf(Document("bsonType", "number"), Document("bsonType", "string")))
+        bind(
+            "value",
+            scalar(),
+            disjoint
+        ).field(QueryField("value"))!!.bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+    }
+
+    @Test
+    fun `conflicting containers suppress descendants without suppressing similarly named siblings`() {
+        val definition = logical("items" to array(obj("name" to scalar())), "itemsExtra" to obj("name" to scalar()))
         val schema = MongoQuerySchemaAdapter.bind(
-            logicalSchema(),
-            listOf(Document("key", Document("all", "text"))),
-            validator,
+            definition,
+            emptyList(),
+            Document("properties", Document("items", Document("bsonType", "string")))
         )
-
-        schema.capabilities.assert().containsExactlyInAnyOrder(
-            QueryCapability.FULL_TEXT_TERMS,
-            QueryCapability.FULL_TEXT_PHRASE,
-        )
-        schema.fields.getValue(QueryField("aggregateId"))
-            .bindings.getValue(QueryCapability.EXACT_MATCH).let { binding ->
-                binding.resolvedField.assert().isEqualTo(QueryField("aggregateId"))
-                binding.physicalField.assert().isEqualTo(QueryField("_id"))
-                binding.storageType?.value.assert().isEqualTo("string")
-            }
-        schema.fields.getValue(QueryField("aggregateId")).projectionField.assert().isEqualTo(QueryField("_id"))
-        schema.fields.getValue(QueryField("state.name"))
-            .bindings.getValue(QueryCapability.LITERAL_MATCH).let { binding ->
-                binding.resolvedField.assert().isEqualTo(QueryField("state.name"))
-                binding.physicalField.assert().isEqualTo(QueryField("state.name"))
-                binding.storageType?.value.assert().isEqualTo("string")
-            }
-        schema.fields.getValue(QueryField("state.items")).let { fieldSchema ->
-            fieldSchema.bindings.getValue(QueryCapability.ELEMENT_SCOPE).let { binding ->
-                binding.resolvedField.assert().isEqualTo(QueryField("state.items"))
-                binding.physicalField.assert().isEqualTo(QueryField("state.items"))
-                binding.storageType?.value.assert().isEqualTo("array")
-            }
-            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
-        }
-        schema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
-        schema.fields.values.flatMap { it.bindings.keys }.assert()
-            .doesNotContain(QueryCapability.FULL_TEXT_TERMS)
-            .doesNotContain(QueryCapability.FULL_TEXT_PHRASE)
+        schema.field(QueryField("items.name"))!!.bindings.assert().isEmpty()
+        schema.field(QueryField("itemsExtra.name"))!!.bindings.keys.assert().contains(QueryCapability.EXACT_MATCH)
     }
 
     @Test
-    fun `model search should ignore partial and hidden text indexes`() {
+    fun `text search requires a visible complete index`() {
+        val text = Document("key", Document("all", "text"))
+        MongoQuerySchemaAdapter.bind(
+            logicalSchema(),
+            listOf(text),
+            null
+        ).capabilities.assert().contains(QueryCapability.FULL_TEXT_TERMS)
         listOf(
-            Document("key", Document("all", "text"))
-                .append("partialFilterExpression", Document("active", true)),
-            Document("key", Document("all", "text")).append("hidden", true),
-        ).forEach { index ->
-            MongoQuerySchemaAdapter.bind(logicalSchema(), listOf(index), null)
-                .capabilities.assert().isEmpty()
+            Document(text).append("hidden", true),
+            Document(text).append("partialFilterExpression", Document("active", true))
+        ).forEach {
+            MongoQuerySchemaAdapter.bind(logicalSchema(), listOf(it), null).capabilities.assert().isEmpty()
         }
     }
 
     @Test
-    fun `bind should leave storage type unknown without a validator`() {
-        val schema = MongoQuerySchemaAdapter.bind(logicalSchema(), emptyList(), null)
-
-        schema.fields.values.flatMap { field -> field.bindings.values }
-            .forEach { binding -> binding.storageType.assert().isNull() }
-        schema.fields.getValue(QueryField("state.amount")).bindings.keys.assert().contains(
-            QueryCapability.RANGE,
-            QueryCapability.AGGREGATE_NUMERIC,
-        )
-        schema.field(QueryField("tags.department"))?.bindings?.keys.assert().contains(
-            QueryCapability.PRESENCE,
-            QueryCapability.EXACT_MATCH,
-        )
-        schema.fields.getValue(QueryField("state.nativeDate")).bindings.keys.assert()
-            .contains(QueryCapability.PRESENCE, QueryCapability.SORT, QueryCapability.AGGREGATE_TERMS)
-            .doesNotContain(QueryCapability.RANGE, QueryCapability.AGGREGATE_TEMPORAL)
+    fun `each metadata subscription rereads native index facts`() {
+        val collection = mockk<MongoCollection<Document>>()
+        every { collection.listIndexes() } returnsMany listOf(indexes(), indexes(Document("key", Document("all", "text"))))
+        val schema = MongoQuerySchemaAdapter(collection).resolve(logicalSchema())
+        schema.test().assertNext { it.capabilities.assert().isEmpty() }.verifyComplete()
+        schema.test().assertNext { it.capabilities.assert().contains(QueryCapability.FULL_TEXT_TERMS) }.verifyComplete()
+        verify(exactly = 2) { collection.listIndexes() }
+        verify(exactly = 0) { collection.find(any<Bson>()) }
     }
 
-    @Test
-    fun `bind should keep the only non-null validator union type`() {
-        storageType("null", "string")?.value.assert().isEqualTo("string")
-    }
-
-    @Test
-    fun `bind should leave a real multi-type validator union unknown regardless of order`() {
-        storageType("string", "int").assert().isNull()
-        storageType("int", "string").assert().isNull()
-    }
-
-    @Test
-    fun `composed validators should prove nullable native date storage`() {
-        val compositions = listOf(
-            Document(
-                "anyOf",
-                listOf(Document("bsonType", "date"), Document("bsonType", "null")),
-            ),
-            Document(
-                "oneOf",
-                listOf(Document("bsonType", "date"), Document("bsonType", "null")),
-            ),
-            Document(
-                "allOf",
-                listOf(
-                    Document("bsonType", listOf("date", "null")),
-                    Document("description", "native date"),
-                ),
-            ),
-        )
-
-        compositions.forEach { validator ->
-            val bindings = bindState(Document("nativeDate", validator))
-                .fields.getValue(QueryField("state.nativeDate"))
-                .bindings.keys
-            bindings.assert().contains(
-                QueryCapability.PRESENCE,
-                QueryCapability.SORT,
-                QueryCapability.AGGREGATE_TERMS,
-                QueryCapability.AGGREGATE_TEMPORAL,
-            ).doesNotContain(
-                QueryCapability.EXACT_MATCH,
-                QueryCapability.LITERAL_MATCH,
-                QueryCapability.RANGE,
-            )
+    private fun logical(vararg fields: Pair<String, QueryValueSchema>) = mongoLogicalSchema(
+        fields.associate {
+            QueryField(it.first) to it.second
         }
-    }
-
-    @Test
-    fun `known nullable numeric unions should retain numeric capabilities while native dates fail closed`() {
-        val schema = bindState(
-            Document("amount", Document("bsonType", listOf("null", "int", "long", "double", "decimal")))
-                .append("createdAt", Document("bsonType", listOf("null", "int", "long")))
-                .append("nativeDate", Document("bsonType", listOf("null", "date", "timestamp"))),
-        )
-
-        schema.fields.getValue(QueryField("state.amount")).bindings.keys.assert().contains(
-            QueryCapability.RANGE,
-            QueryCapability.AGGREGATE_NUMERIC,
-        )
-        schema.fields.getValue(QueryField("state.createdAt")).bindings.keys.assert().contains(
-            QueryCapability.RANGE,
-            QueryCapability.AGGREGATE_NUMERIC,
-            QueryCapability.AGGREGATE_TEMPORAL,
-        )
-        schema.fields.getValue(QueryField("state.nativeDate")).bindings.keys.assert().contains(
-            QueryCapability.PRESENCE,
-            QueryCapability.SORT,
-            QueryCapability.AGGREGATE_TERMS,
-            QueryCapability.AGGREGATE_TEMPORAL,
-        )
-        schema.fields.getValue(QueryField("state.nativeDate")).bindings.keys.assert().doesNotContain(
-            QueryCapability.EXACT_MATCH,
-            QueryCapability.LITERAL_MATCH,
-            QueryCapability.RANGE,
-        )
-    }
-
-    @Test
-    fun `native BSON date and timestamp should expose only operand-free temporal capabilities`() {
-        listOf("date", "timestamp").forEach { bsonType ->
-            val bindings = bindState(Document("nativeDate", Document("bsonType", bsonType)))
-                .fields.getValue(QueryField("state.nativeDate"))
-                .bindings.keys
-
-            bindings.assert().contains(
-                QueryCapability.PRESENCE,
-                QueryCapability.SORT,
-                QueryCapability.AGGREGATE_TERMS,
-                QueryCapability.AGGREGATE_TEMPORAL,
-            )
-            bindings.assert().doesNotContain(
-                QueryCapability.EXACT_MATCH,
-                QueryCapability.LITERAL_MATCH,
-                QueryCapability.RANGE,
-            )
-        }
-    }
-
-    @Test
-    fun `mixed logical union on string storage should expose only string capabilities`() {
-        val bindings = bindValueTypes(
-            setOf(QueryValueType.STRING, QueryValueType.INTEGER),
-            listOf("string"),
-        ).bindings.keys
-
-        bindings.assert().contains(QueryCapability.PRESENCE, QueryCapability.LITERAL_MATCH)
-        bindings.assert().doesNotContain(
-            QueryCapability.EXACT_MATCH,
-            QueryCapability.SORT,
-            QueryCapability.AGGREGATE_TERMS,
-            QueryCapability.RANGE,
-            QueryCapability.AGGREGATE_NUMERIC,
-        )
-    }
-
-    @Test
-    fun `mixed logical union on integral storage should expose only numeric capabilities`() {
-        val bindings = bindValueTypes(
-            setOf(QueryValueType.STRING, QueryValueType.INTEGER),
-            listOf("long"),
-        ).bindings.keys
-
-        bindings.assert().contains(
-            QueryCapability.PRESENCE,
-            QueryCapability.RANGE,
-            QueryCapability.AGGREGATE_NUMERIC,
-        )
-        bindings.assert().doesNotContain(
-            QueryCapability.EXACT_MATCH,
-            QueryCapability.LITERAL_MATCH,
-            QueryCapability.SORT,
-            QueryCapability.AGGREGATE_TERMS,
-        )
-    }
-
-    @Test
-    fun `numeric logical and physical unions should retain numeric capabilities`() {
-        bindValueTypes(
-            setOf(QueryValueType.INTEGER, QueryValueType.DECIMAL),
-            listOf("long", "double"),
-        ).bindings.keys.assert().contains(
-            QueryCapability.RANGE,
-            QueryCapability.AGGREGATE_NUMERIC,
-        )
-    }
-
-    @Test
-    fun `known string storage should reject integer and native date semantics`() {
-        val schema = bindState(
-            Document("createdAt", Document("bsonType", "string"))
-                .append("nativeDate", Document("bsonType", "string")),
-        )
-
-        schema.fields.getValue(QueryField("state.createdAt"))
-            .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
-        schema.fields.getValue(QueryField("state.nativeDate"))
-            .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
-    }
-
-    @Test
-    fun `known numeric storage should reject logical string capabilities`() {
-        val schema = bindState(Document("name", Document("bsonType", listOf("int", "long"))))
-
-        schema.fields.getValue(QueryField("state.name"))
-            .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
-        schema.resolve(
-            EqualFilter(QueryField("state.name"), StringNode.valueOf("value")),
-        ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
-    }
-
-    @Test
-    fun `known array item conflict should reject element scope`() {
-        bindState(
-            Document(
-                "items",
-                Document("bsonType", "array").append("items", Document("bsonType", "string")),
-            ),
-        ).fields.getValue(QueryField("state.items"))
-            .bindings.assert().isEmpty()
-    }
-
-    @Test
-    @Suppress("LongMethod")
-    fun `known invalid containers should suppress descendants at segment boundaries`() {
-        val logical = LogicalQuerySchema(
-            linkedMapOf(
-                QueryField("state.items") to field(
-                    QueryValueType.OBJECT,
-                    cardinality = QueryCardinality.MANY,
-                ),
-                QueryField("state.items.name") to field(QueryValueType.STRING),
-                QueryField("state.itemsExtra") to field(QueryValueType.OBJECT),
-                QueryField("state.itemsExtra.name") to field(QueryValueType.STRING),
-            ),
-        )
-        val invalid = MongoQuerySchemaAdapter.bind(
-            logical,
-            emptyList(),
-            Document(
-                "properties",
-                Document(
-                    "state",
-                    Document("bsonType", "object").append(
-                        "properties",
-                        Document(
-                            "items",
-                            Document("bsonType", "array").append("items", Document("bsonType", "string")),
-                        ).append(
-                            "itemsExtra",
-                            Document("bsonType", "object").append(
-                                "properties",
-                                Document("name", Document("bsonType", "string")),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        )
-
-        invalid.fields.getValue(QueryField("state.items.name")).bindings.assert().isEmpty()
-        invalid.fields.getValue(QueryField("state.itemsExtra.name")).bindings.keys.assert().contains(
-            QueryCapability.EXACT_MATCH,
-        )
-
-        listOf(
-            Document("properties", Document("name", Document("bsonType", "string"))),
-            Document("bsonType", "object").append(
-                "properties",
-                Document("name", Document("bsonType", "string")),
-            ),
-        ).forEach { itemSchema ->
-            val schema = MongoQuerySchemaAdapter.bind(
-                logical,
-                emptyList(),
-                Document(
-                    "properties",
-                    Document(
-                        "state",
-                        Document("bsonType", "object").append(
-                            "properties",
-                            Document(
-                                "items",
-                                Document("bsonType", "array").append("items", itemSchema),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-
-            schema.fields.getValue(QueryField("state.items.name")).bindings.keys.assert().contains(
-                QueryCapability.EXACT_MATCH,
-            )
-        }
-    }
-
-    @Test
-    fun `dynamic object root should expose exact and presence bindings to descendants`() {
-        val schema = MongoQuerySchemaAdapter.bind(
-            logicalSchema(),
-            emptyList(),
-            Document("properties", Document("tags", Document("bsonType", "object"))),
-        )
-
-        schema.fields.getValue(QueryField("tags")).bindings.keys.assert().containsExactlyInAnyOrder(
-            QueryCapability.PRESENCE,
-            QueryCapability.EXACT_MATCH,
-        )
-        schema.fields.getValue(QueryField("tags")).dynamicChildren.assert().isTrue()
-        schema.field(QueryField("tags.department"))?.let { fieldSchema ->
-            fieldSchema.binding(QueryCapability.EXACT_MATCH)!!.let { binding ->
-                binding.resolvedField.assert().isEqualTo(QueryField("tags.department"))
-                binding.physicalField.assert().isEqualTo(QueryField("tags.department"))
-            }
-            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.NONE)
-        }
-    }
-
-    @Test
-    fun `known scalar dynamic root should expose no inheritable bindings`() {
-        val schema = MongoQuerySchemaAdapter.bind(
-            logicalSchema(),
-            emptyList(),
-            Document("properties", Document("tags", Document("bsonType", "string"))),
-        )
-
-        schema.fields.getValue(QueryField("tags")).bindings.assert().isEmpty()
-        schema.fields.getValue(QueryField("tags")).dynamicChildren.assert().isFalse()
-        schema.field(QueryField("tags.department")).assert().isNull()
-    }
+    )
+    private fun obj(
+        vararg fields: Pair<String, QueryValueSchema>
+    ) = QueryValueSchema(QueryValueKind.OBJECT, properties = fields.toMap())
+    private fun array(items: QueryValueSchema) = QueryValueSchema(QueryValueKind.ARRAY, items = items)
+    private fun scalar(type: QueryValueType = QueryValueType.STRING, semantic: Temporal? = null) =
+        QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(type), semanticType = semantic)
+    private fun bind(path: String, value: QueryValueSchema, validator: Document? = null) = MongoQuerySchemaAdapter.bind(
+        logical(path to value),
+        emptyList(),
+        validator?.let { Document("properties", Document(path, it)) },
+    )
+    private fun logicalSchema() = logical("aggregateId" to scalar())
 
     @Test
     fun `resolve should read indexes and validator without reading documents`() {
@@ -857,9 +472,9 @@ class MongoQuerySchemaAdapterTest {
         MongoQuerySchemaAdapter(collection, database).resolve(logicalSchema())
             .test()
             .assertNext { schema ->
-                schema.fields.getValue(QueryField("aggregateId"))
+                schema.field(QueryField("aggregateId"))!!
                     .bindings.getValue(QueryCapability.PRESENCE)
-                    .storageType?.value.assert().isEqualTo("objectId")
+                    .storageTypes?.singleOrNull()?.value.assert().isEqualTo("objectId")
             }
             .verifyComplete()
 
@@ -886,167 +501,6 @@ class MongoQuerySchemaAdapterTest {
             }
             .verify()
     }
-
-    @Test
-    fun `Mongo model text index should make a field limited search compatible`() {
-        val schema = MongoQuerySchemaAdapter.bind(
-            logicalSchema(),
-            listOf(Document("key", Document("all", "text"))),
-            null,
-        )
-
-        val resolution = schema.resolve(
-            SearchFilter("hello", setOf(QueryField("state.name"))),
-        )
-
-        resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
-        (resolution.value as SearchFilter).fields.assert().isEmpty()
-    }
-
-    @Test
-    fun `service refresh should reread Mongo indexes`() {
-        val reads = AtomicInteger()
-        val fixture = serviceFixture(
-            indexes = {
-                if (reads.getAndIncrement() == 0) indexes() else indexes(Document("key", Document("all", "text")))
-            },
-        )
-        val provider = MongoSnapshotQueryBackendFactory(database = fixture.database)
-            .create(MOCK_AGGREGATE_METADATA)
-            .schemaProvider
-
-        provider.schema().test()
-            .assertNext { schema -> schema.capabilities.assert().isEmpty() }
-            .verifyComplete()
-        provider.refresh().test()
-            .assertNext { schema ->
-                schema.capabilities.assert().contains(QueryCapability.FULL_TEXT_TERMS)
-            }
-            .verifyComplete()
-        reads.get().assert().isEqualTo(2)
-    }
-
-    private fun serviceFixture(indexes: ListIndexesPublisher<Document>): ServiceFixture = serviceFixture { indexes }
-
-    private fun serviceFixture(indexes: () -> ListIndexesPublisher<Document>): ServiceFixture {
-        val collection = mockk<MongoCollection<Document>>()
-        val database = mockk<MongoDatabase>()
-        val findPublisher = mockk<FindPublisher<Document>>()
-        val filters = mutableListOf<Bson>()
-        val projections = mutableListOf<Bson>()
-        val sorts = mutableListOf<Bson>()
-        every { database.getCollection(any<String>()) } returns collection
-        every { database.listCollections() } returns collections()
-        every { collection.namespace } returns MongoNamespace("wow", "snapshots")
-        every { collection.listIndexes() } answers { indexes() }
-        every { collection.find(capture(filters)) } returns findPublisher
-        every { findPublisher.projection(capture(projections)) } returns findPublisher
-        every { findPublisher.sort(capture(sorts)) } returns findPublisher
-        every { findPublisher.limit(any()) } returns findPublisher
-        every { findPublisher.subscribe(any()) } answers {
-            Flux.empty<Document>().subscribe(firstArg<Subscriber<in Document>>())
-        }
-        return ServiceFixture(database, collection, filters, projections, sorts)
-    }
-
-    private data class ServiceFixture(
-        val database: MongoDatabase,
-        val collection: MongoCollection<Document>,
-        val filter: List<Bson>,
-        val projection: List<Bson>,
-        val sort: List<Bson>,
-    )
-
-    private fun logicalSchema() = LogicalQuerySchema(
-        linkedMapOf(
-            QueryField("aggregateId") to field(QueryValueType.STRING),
-            QueryField("state.name") to field(QueryValueType.STRING),
-            QueryField("state.amount") to field(QueryValueType.DECIMAL),
-            QueryField("state.createdAt") to field(
-                QueryValueType.INTEGER,
-                semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
-            ),
-            QueryField("state.nativeDate") to field(
-                QueryValueType.STRING,
-                semanticType = Temporal.Date,
-            ),
-            QueryField("state.items") to field(
-                QueryValueType.OBJECT,
-                cardinality = QueryCardinality.MANY,
-            ),
-            QueryField("tags") to field(
-                QueryValueType.OBJECT,
-                dynamicChildren = true,
-            ),
-        ),
-    )
-
-    private fun bindState(properties: Document) = MongoQuerySchemaAdapter.bind(
-        logicalSchema(),
-        emptyList(),
-        Document(
-            "properties",
-            Document("state", Document("bsonType", "object").append("properties", properties)),
-        ),
-    )
-
-    private fun bindValueTypes(
-        valueTypes: Set<QueryValueType>,
-        bsonTypes: List<String>,
-    ) = MongoQuerySchemaAdapter.bind(
-        LogicalQuerySchema(
-            mapOf(
-                QueryField("state.value") to field(QueryValueType.STRING).copy(valueTypes = valueTypes),
-            ),
-        ),
-        emptyList(),
-        Document(
-            "properties",
-            Document(
-                "state",
-                Document(
-                    "bsonType",
-                    "object",
-                ).append(
-                    "properties",
-                    Document("value", Document("bsonType", bsonTypes)),
-                ),
-            ),
-        ),
-    ).fields.getValue(QueryField("state.value"))
-
-    private fun storageType(vararg bsonTypes: String) = MongoQuerySchemaAdapter.bind(
-        logicalSchema(),
-        emptyList(),
-        Document(
-            "properties",
-            Document(
-                "state",
-                Document("properties", Document("name", Document("bsonType", bsonTypes.toList()))),
-            ),
-        ),
-    ).fields.getValue(QueryField("state.name"))
-        .bindings.getValue(QueryCapability.PRESENCE)
-        .storageType
-
-    private fun field(
-        valueType: QueryValueType,
-        cardinality: QueryCardinality = QueryCardinality.SINGLE,
-        semanticType: Temporal? = null,
-        dynamicChildren: Boolean = false,
-        maskRule: MaskRule? = null,
-    ) = LogicalQueryFieldSchema(
-        title = null,
-        description = null,
-        enumValues = null,
-        valueTypes = setOf(valueType),
-        nullable = false,
-        required = true,
-        cardinality = cardinality,
-        semanticType = semanticType,
-        dynamicChildren = dynamicChildren,
-        maskRule = maskRule,
-    )
 
     private fun fullMaskRule(): MaskRule {
         val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)

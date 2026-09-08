@@ -35,7 +35,6 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
@@ -43,8 +42,6 @@ import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.query.EventStreamQueryBackendSpec
@@ -96,6 +93,11 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
             },
             Map::class.java as Class<Map<String, Any?>>,
         ).block()
+        removeOwnerId(missingStream)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun removeOwnerId(missingStream: DomainEventStream) {
         elasticsearchClient.update(
             UpdateRequest.of<Map<String, Any?>, Map<String, Any?>> { request ->
                 request.index(missingStream.aggregateId.toEventStreamIndexName())
@@ -115,14 +117,14 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val schema = queryBackendBinding.schemaProvider.schema().block()!!
 
         schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
-        schema.fields.assert().containsKey(QueryField("body.name"))
-        schema.fields.getValue(QueryField("body")).bindings.assert()
+        schema.field(QueryField("body.name")).assert().isNotNull()
+        checkNotNull(schema.field(QueryField("body"))).bindings.assert()
             .containsKey(QueryCapability.ELEMENT_SCOPE)
     }
 
     @Test
     fun `query helpers should prepare only on subscription`() {
-        val querySchema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        val querySchema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), me.ahoo.wow.query.schema.LogicalQuerySchema(me.ahoo.wow.query.schema.QueryValueSchema(me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT)), emptyMap())
         val schemaCalls = AtomicInteger()
         val binding = QueryBackendBinding(
             NoOpEventStreamQueryBackend(namedAggregate),
@@ -180,7 +182,8 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val schema = queryBackendBinding.schemaProvider.schema().block()!!
         val query = CursorQuery(filterExpression { id(stream.id) }, size = 1)
         val publisher = queryBackendBinding.backend.cursor(
-            ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.STRICT), schema),
+            query,
+            schema,
         )
         val seen = mutableListOf<ObjectNode>()
 
@@ -222,10 +225,11 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
             namedAggregate.aggregateId(id = generateGlobalId(), tenantId = generateGlobalId())
         )
         eventStore.append(eventStream).block()
+        removeOwnerId(eventStream)
 
         filterExpression {
             tenantId(eventStream.aggregateId.tenantId)
-            "missingField".isNull()
+            "ownerId".isNull()
         }
             .count(queryBackendBinding)
             .test()
@@ -233,7 +237,7 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
             .verifyComplete()
         filterExpression {
             tenantId(eventStream.aggregateId.tenantId)
-            "missingField".isNotNull()
+            "ownerId".isNotNull()
         }
             .count(queryBackendBinding)
             .test()
@@ -272,13 +276,15 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 private fun FilterExpression.count(binding: QueryBackendBinding<EventStreamQueryBackend>) =
     Mono.defer { binding.schemaProvider.schema() }.flatMap { schema ->
         binding.backend.count(
-            ResolvedQuery(schema.resolve(this).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema),
+            me.ahoo.wow.query.schema.validateQuery(this, schema),
+            schema,
         )
     }
 
 private fun IListQuery.query(binding: QueryBackendBinding<EventStreamQueryBackend>) =
     Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
         binding.backend.list(
-            ResolvedQuery(schema.resolve(this).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema),
+            me.ahoo.wow.query.schema.validateQuery(this, schema),
+            schema,
         )
     }

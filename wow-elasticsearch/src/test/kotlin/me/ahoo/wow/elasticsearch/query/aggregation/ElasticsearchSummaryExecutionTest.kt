@@ -14,8 +14,12 @@
 package me.ahoo.wow.elasticsearch.query.aggregation
 
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
+import co.elastic.clients.elasticsearch._types.aggregations.Buckets
+import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
+import co.elastic.clients.elasticsearch.core.ClosePointInTimeResponse
 import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
+import co.elastic.clients.elasticsearch.core.OpenPointInTimeResponse
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.SearchResponse
 import co.elastic.clients.elasticsearch.core.search.ResponseBody
@@ -24,19 +28,43 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.query.dsl.aggregation
-import me.ahoo.wow.query.schema.QueryModelSchema
 import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.util.concurrent.CompletableFuture
 
 class ElasticsearchSummaryExecutionTest {
     private val client = mockk<ReactiveElasticsearchClient>()
-    private val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+    private val schema = me.ahoo.wow.elasticsearch.query.aggregationTestSchema()
+
+    @Test
+    fun `static aggregation construction failure must precede pit acquisition`() {
+        val staticFailure = IllegalArgumentException("invalid static metric")
+        val metric = mockk<ElasticsearchAggregationMetric.Numeric> {
+            every { alias } returns "total"
+            every { function } throws staticFailure
+        }
+        val plan = compile(
+            aggregation {
+                terms("state.product", "product")
+                count("count")
+            }
+        )
+            .copy(metrics = listOf(metric))
+        every { client.openPointInTime(any<OpenPointInTimeRequest>()) } returns
+            Mono.error(IllegalStateException("PIT opened before static construction"))
+
+        Flux.defer { ElasticsearchAggregationPager(client, "summary-alias").execute(plan) }.test()
+            .expectErrorMatches { it === staticFailure }
+            .verify()
+
+        verifyNoPointInTime()
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
 
     @Test
     fun `summary should defer each repeated search and create fresh rows`() {
@@ -67,6 +95,45 @@ class ElasticsearchSummaryExecutionTest {
 
         verify(exactly = 1) { client.search(any<SearchRequest>(), Map::class.java) }
         verifyNoPointInTime()
+    }
+
+    @Test
+    fun `summary should reject a timed out response`() {
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            response(1, timedOut = true),
+        )
+
+        ElasticsearchAggregationPager(client, "summary-alias").execute(plan()).test()
+            .expectErrorMessage("Elasticsearch search timed out.")
+            .verify()
+
+        verifyNoPointInTime()
+    }
+
+    @Test
+    fun `group aggregation should reject failed shards and close the latest pit`() {
+        val closeRequest = slot<ClosePointInTimeRequest>()
+        every { client.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
+            OpenPointInTimeResponse.of {
+                it.id("pit-1").shards { shards -> shards.failed(0).successful(1).total(1) }
+            },
+        )
+        every { client.closePointInTime(capture(closeRequest)) } returns Mono.just(
+            ClosePointInTimeResponse.of { it.succeeded(true).numFreed(1) },
+        )
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(failedGroupResponse())
+        val plan = compile(
+            aggregation {
+                terms("state.product", "product")
+                count("count")
+            },
+        )
+
+        ElasticsearchAggregationPager(client, "summary-alias").execute(plan).test()
+            .expectErrorMessage("Elasticsearch search failed on [1] shard(s).")
+            .verify()
+
+        closeRequest.captured.id().assert().isEqualTo("pit-2")
     }
 
     @Test
@@ -144,8 +211,9 @@ class ElasticsearchSummaryExecutionTest {
     private fun compile(query: me.ahoo.wow.api.query.AggregationQuery) =
         ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
 
-    private fun response(count: Long): SearchResponse<Map<*, *>> = response(
+    private fun response(count: Long, timedOut: Boolean = false): SearchResponse<Map<*, *>> = response(
         Aggregate.of { aggregate -> aggregate.filter { filter -> filter.docCount(count) } },
+        timedOut,
     )
 
     private fun nestedResponse(): SearchResponse<Map<*, *>> = response(
@@ -169,13 +237,30 @@ class ElasticsearchSummaryExecutionTest {
         },
     )
 
-    private fun response(root: Aggregate): SearchResponse<Map<*, *>> = SearchResponse.of<Map<*, *>> {
+    private fun failedGroupResponse(): SearchResponse<Map<*, *>> = SearchResponse.of<Map<*, *>> {
         it.took(1)
             .timedOut(false)
-            .shards { shards -> shards.failed(0).successful(1).total(1) }
+            .pitId("pit-2")
+            .shards { shards -> shards.failed(1).successful(1).total(2) }
             .hits { hits -> hits.hits(emptyList()) }
-            .aggregations("__wow_aggregation", root)
+            .aggregations(
+                "__wow_aggregation",
+                Aggregate.of { aggregate ->
+                    aggregate.composite { composite ->
+                        composite.buckets(Buckets.of<CompositeBucket> { buckets -> buckets.array(emptyList()) })
+                    }
+                },
+            )
     }
+
+    private fun response(root: Aggregate, timedOut: Boolean = false): SearchResponse<Map<*, *>> =
+        SearchResponse.of<Map<*, *>> {
+            it.took(1)
+                .timedOut(timedOut)
+                .shards { shards -> shards.failed(0).successful(1).total(1) }
+                .hits { hits -> hits.hits(emptyList()) }
+                .aggregations("__wow_aggregation", root)
+        }
 
     private fun verifyNoPointInTime() {
         verify(exactly = 0) { client.openPointInTime(any<OpenPointInTimeRequest>()) }

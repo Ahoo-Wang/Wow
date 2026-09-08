@@ -13,7 +13,7 @@ description: 在 Wow WebFlux 命令与查询中提取并传播 CoSec 上下文�
 
 ## 工作原理
 
-四个行为构成完整集成：`CoSecCommandRequestHeaderAppender` 提取 app/device，`CoSecCommandBuilderExtractor` 补充 request/space，service-loaded `CoSecMessagePropagator` 传播 app/device，`CoSecRewriteRequestFilter` 为查询解析 space。Wow 只拥有上下文搬运；安全框架拥有可信身份与策略决定。
+四个行为构成完整集成：`CoSecCommandRequestHeaderAppender` 提取 app/device，`CoSecCommandBuilderExtractor` 补充 request/space，service-loaded `CoSecMessagePropagator` 传播 app/device，`CoSecQueryRequestScope` 为查询解析 space。Wow 只拥有上下文搬运；安全框架拥有可信身份与策略决定。
 
 ## 安装
 

@@ -15,25 +15,16 @@ package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Sorts
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.QueryStorageType
-import me.ahoo.wow.query.schema.requireAccepted
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -59,70 +50,27 @@ class MongoSortCompilerTest {
     }
 
     @Test
-    fun `compatible unknown sort field should retain its logical path`() {
-        compiler.compile(
-            listOf(Sort(QueryField("unknown"), Sort.Direction.ASC)),
-            QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap()),
-        ).assert().isEqualTo(
-            Sorts.orderBy(Sorts.ascending("unknown")),
-        )
+    fun `unknown sort fields cannot become physical field names`() {
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(listOf(Sort(QueryField("unknown"), Sort.Direction.ASC)), snapshotSchema)
+        }
     }
 
     @Test
-    fun `resolved sort field should compile to its physical binding`() {
-        val schema = sortSchema(
-            model = QueryModel.SNAPSHOT,
-            logicalPath = "state.name",
-            resolvedPath = "document.name",
-            physicalPath = "storage.name",
-            rewriteMode = QueryRewriteMode.REQUIRED,
-        )
-        val resolved = schema.resolve(
-            ListQuery(
-                filter = MatchAllFilter,
-                sort = listOf(Sort(QueryField("state.name"), Sort.Direction.ASC)),
-            ),
-        ).requireAccepted(QuerySchemaValidationMode.STRICT)
-
-        compiler.compile(resolved.sort, schema).assert().isEqualTo(
-            Sorts.orderBy(Sorts.ascending("storage.name")),
-        )
+    fun `logical sort compiles to its native binding`() {
+        val schema = sortSchema(QueryModel.SNAPSHOT, "state.name", "storage.name")
+        compiler.compile(listOf(Sort(QueryField("state.name"), Sort.Direction.ASC)), schema).assert()
+            .isEqualTo(Sorts.orderBy(Sorts.ascending("storage.name")))
     }
 
     companion object {
-        private fun sortSchema(
-            model: QueryModel,
-            logicalPath: String,
-            resolvedPath: String = logicalPath,
-            physicalPath: String = Documents.ID_FIELD,
-            rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
-        ): QueryModelSchema {
-            val logical = QueryField(logicalPath)
-            val binding = QueryFieldBinding(
-                QueryField(resolvedPath),
-                QueryField(physicalPath),
-                QueryStorageType("test"),
-            )
-            return QueryModelSchema(
-                model = model,
-                capabilities = emptySet(),
+        private fun sortSchema(model: QueryModel, logicalPath: String, physicalPath: String = Documents.ID_FIELD) =
+            mongoTestSchema(
+                model,
                 fields = mapOf(
-                    logical to QueryFieldSchema(
-                        title = null,
-                        description = null,
-                        enumValues = null,
-                        valueTypes = setOf(QueryValueType.STRING),
-                        nullable = false,
-                        required = true,
-                        cardinality = QueryCardinality.SINGLE,
-                        semanticType = null,
-                        dynamicChildren = false,
-                        bindings = mapOf(QueryCapability.SORT to binding),
-                        rewriteMode = rewriteMode,
-                    ),
-                ),
+                    QueryField(logicalPath) to MongoTestField(mongoScalar(), setOf(QueryCapability.SORT), physicalPath)
+                )
             )
-        }
 
         @JvmStatic
         fun toSnapshotMongoSortParameters(): Stream<Arguments> {
@@ -131,13 +79,6 @@ class MongoSortCompilerTest {
                 Arguments.of(
                     listOf(Sort(QueryField(MessageRecords.AGGREGATE_ID), Sort.Direction.ASC)),
                     Sorts.orderBy(Sorts.ascending(Documents.ID_FIELD))
-                ),
-                Arguments.of(
-                    listOf(
-                        Sort(QueryField(MessageRecords.AGGREGATE_ID), Sort.Direction.ASC),
-                        Sort(QueryField(MessageRecords.AGGREGATE_ID), Sort.Direction.DESC)
-                    ),
-                    Sorts.orderBy(Sorts.ascending(Documents.ID_FIELD), Sorts.descending(Documents.ID_FIELD))
                 ),
             )
         }
@@ -149,13 +90,6 @@ class MongoSortCompilerTest {
                 Arguments.of(
                     listOf(Sort(QueryField(MessageRecords.ID), Sort.Direction.ASC)),
                     Sorts.orderBy(Sorts.ascending(Documents.ID_FIELD))
-                ),
-                Arguments.of(
-                    listOf(
-                        Sort(QueryField(MessageRecords.ID), Sort.Direction.ASC),
-                        Sort(QueryField(MessageRecords.ID), Sort.Direction.DESC)
-                    ),
-                    Sorts.orderBy(Sorts.ascending(Documents.ID_FIELD), Sorts.descending(Documents.ID_FIELD))
                 ),
             )
         }

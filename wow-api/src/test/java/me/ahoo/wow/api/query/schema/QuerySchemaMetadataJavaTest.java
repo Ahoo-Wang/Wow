@@ -13,58 +13,28 @@
 
 package me.ahoo.wow.api.query.schema;
 
-import me.ahoo.wow.api.query.QueryField;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Constructor;
-import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 class QuerySchemaMetadataJavaTest {
     @Test
-    void shouldExposeV9QueryFieldSchemaMetadataConstructor() {
-        QueryField field = new QueryField("state.name");
-        Set<QueryValueType> valueTypes = Set.of(new QueryValueType("STRING"));
-        Set<QueryCapability> capabilities = Set.of(new QueryCapability("PRESENCE"));
-        QueryFieldSchemaMetadata metadata = new QueryFieldSchemaMetadata(
-            field,
-            "Name",
-            "Description",
-            null,
-            valueTypes,
-            true,
-            true,
-            QueryCardinality.SINGLE,
-            null,
-            false,
-            capabilities,
-            true
+    void shouldExposeRecursiveValueMetadataToJava() {
+        QueryValueSchemaMetadata root = new QueryValueSchemaMetadata(
+            QueryValueKind.OBJECT, "Root", null, null, Set.of(new QueryValueType("OBJECT")),
+            true, true, null, Map.of(), null, null, List.of(), Set.of(), false
+        );
+        QueryModelSchemaMetadata metadata = new QueryModelSchemaMetadata(
+            new QueryModel("SNAPSHOT"), Set.of(), root
         );
 
-        assertEquals(field, metadata.getField());
-        assertEquals("Name", metadata.getTitle());
-        assertEquals("Description", metadata.getDescription());
-        assertNull(metadata.getEnumValues());
-        assertEquals(valueTypes, metadata.getValueTypes());
-        assertTrue(metadata.getNullable());
-        assertTrue(metadata.getRequired());
-        assertEquals(QueryCardinality.SINGLE, metadata.getCardinality());
-        assertNull(metadata.getSemanticType());
-        assertEquals(false, metadata.getDynamicChildren());
-        assertEquals(capabilities, metadata.getCapabilities());
-        assertTrue(metadata.getMasked());
-        assertEquals(Set.of(12), constructorArities(QueryFieldSchemaMetadata.class));
-    }
-
-    private static Set<Integer> constructorArities(Class<?> type) {
-        return Arrays.stream(type.getDeclaredConstructors())
-            .filter(constructor -> !constructor.isSynthetic())
-            .map(Constructor::getParameterCount)
-            .collect(Collectors.toSet());
+        assertSame(root, metadata.getRoot());
+        assertEquals(QueryValueKind.OBJECT, root.getKind());
+        assertEquals(Map.of(), root.getProperties());
     }
 }

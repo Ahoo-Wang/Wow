@@ -14,16 +14,8 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCardinality
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.CARDINALITY
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DYNAMIC_CHILDREN
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUES
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.NULLABLE
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.REQUIRED
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC_TYPE
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TITLE
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.VALUE_TYPES
+import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 
@@ -35,48 +27,43 @@ internal class QuerySchemaMerger {
         val extensionRoot = if (QueryField(StateAggregateRecords.STATE) in system.fields) {
             StateAggregateRecords.STATE
         } else {
-            "${MessageRecords.BODY}.${MessageRecords.BODY}"
+            EVENT_PAYLOAD_ROOT
         }
         extensions.forEach { extension ->
             extension.declaration.fields.forEach { (field, declaration) ->
-                if (isEventBodyTypeEnumEnrichment(field, system, extensionRoot, declaration)) {
-                    return@forEach
-                }
-                validateExtensionPath(field, extensionRoot)
-                system.fields[field]?.rejectSystemOverwrite(field, declaration)
-            }
-        }
-
-        val merged = system.fields.toMutableMap()
-        extensions.groupBy(PrioritizedQuerySchemaDeclaration::priority)
-            .toSortedMap()
-            .forEach { (_, declarations) ->
-                val priorityFields = mutableMapOf<QueryField, QueryFieldDeclaration>()
-                declarations.forEach { prioritized ->
-                    prioritized.declaration.fields.forEach { (field, declaration) ->
-                        priorityFields[field] = priorityFields[field]
-                            ?.merge(declaration, field, rejectDifferent = true)
-                            ?: declaration
+                if (!isEventBodyTypeEnumEnrichment(field, system, extensionRoot, declaration)) {
+                    if (field.path != extensionRoot && !field.path.startsWith("$extensionRoot.")) {
+                        throw QuerySchemaConflictException(
+                            "Query schema extension must be under [$extensionRoot]: [$field]."
+                        )
                     }
-                }
-                priorityFields.forEach { (field, declaration) ->
-                    merged[field] = merged[field]
-                        ?.merge(declaration, field, rejectDifferent = false)
-                        ?: declaration
+                    system.fields[field]?.rejectSystemOverwrite(field, declaration)
                 }
             }
-
-        return LogicalQuerySchema(
-            merged.toSortedMap(compareBy(QueryField::path)).mapValues { (_, declaration) ->
-                declaration.materialize()
-            },
-        )
-    }
-
-    private fun validateExtensionPath(field: QueryField, extensionRoot: String) {
-        if (field.path != extensionRoot && !field.path.startsWith("$extensionRoot.")) {
-            throw QuerySchemaConflictException("Query schema extension must be under [$extensionRoot]: [$field].")
         }
+        var root = QueryFieldDeclaration()
+        system.fields.toSortedMap(
+            compareBy<QueryField> { it.path.length }.thenBy { it.path }
+        ).forEach { (field, declaration) ->
+            root = root.patchAt(field.path.split('.'), declaration, field, false)
+        }
+        extensions.groupBy(PrioritizedQuerySchemaDeclaration::priority).toSortedMap().forEach { (_, sources) ->
+            val fields = linkedMapOf<QueryField, QueryFieldDeclaration>()
+            sources.forEach { source ->
+                source.declaration.fields.forEach { (field, declaration) ->
+                    fields[field] = fields[field]?.merge(declaration, field, true) ?: declaration
+                }
+            }
+            // Validate overlaps between nested declarations and path patches in the same priority.
+            var priorityRoot = QueryFieldDeclaration()
+            fields.toSortedMap(
+                compareBy<QueryField> { it.path.length }.thenBy { it.path }
+            ).forEach { (field, declaration) ->
+                priorityRoot = priorityRoot.patchAt(field.path.split('.'), declaration, field, true)
+                root = root.patchAt(field.path.split('.'), declaration, field, false)
+            }
+        }
+        return LogicalQuerySchema(root.materialize())
     }
 
     private fun isEventBodyTypeEnumEnrichment(
@@ -84,11 +71,8 @@ internal class QuerySchemaMerger {
         system: QuerySchemaDeclaration,
         extensionRoot: String,
         extension: QueryFieldDeclaration,
-    ): Boolean =
-        extensionRoot == EVENT_PAYLOAD_ROOT &&
-            field == EVENT_BODY_TYPE_FIELD &&
-            system.fields[field]?.enumValues === DeclarationValue.Unset &&
-            extension.hasOnlyEnumValues()
+    ): Boolean = extensionRoot == EVENT_PAYLOAD_ROOT && field == EVENT_BODY_TYPE_FIELD &&
+        system.fields[field]?.enumValues === DeclarationValue.Unset && extension.hasOnlyEnumValues()
 
     private fun QueryFieldDeclaration.hasOnlyEnumValues(): Boolean {
         val values = (enumValues as? DeclarationValue.Set)?.value ?: return false
@@ -96,57 +80,101 @@ internal class QuerySchemaMerger {
             values.isNotEmpty() && values.all { it.isString } && values.distinct().size == values.size
     }
 
-    private fun QueryFieldDeclaration.rejectSystemOverwrite(
-        field: QueryField,
-        extension: QueryFieldDeclaration,
-    ) {
-        rejectSystemLeaf(field, TITLE, title, extension.title)
-        rejectSystemLeaf(field, DESCRIPTION, description, extension.description)
-        rejectSystemLeaf(field, ENUM_VALUES, enumValues, extension.enumValues)
-        rejectSystemLeaf(field, VALUE_TYPES, valueTypes, extension.valueTypes)
-        rejectSystemLeaf(field, NULLABLE, nullable, extension.nullable)
-        rejectSystemLeaf(field, REQUIRED, required, extension.required)
-        rejectSystemLeaf(field, CARDINALITY, cardinality, extension.cardinality)
-        rejectSystemLeaf(field, SEMANTIC_TYPE, semanticType, extension.semanticType)
-        rejectSystemLeaf(field, DYNAMIC_CHILDREN, dynamicChildren, extension.dynamicChildren)
-    }
-
-    private fun rejectSystemLeaf(
-        field: QueryField,
-        leaf: String,
-        system: DeclarationValue<*>,
-        extension: DeclarationValue<*>,
-    ) {
-        if (system is DeclarationValue.Set && extension is DeclarationValue.Set) {
-            throw QuerySchemaConflictException("System query schema leaf cannot be overwritten: [$field.$leaf].")
+    private fun QueryFieldDeclaration.rejectSystemOverwrite(field: QueryField, extension: QueryFieldDeclaration) {
+        val systemLeaves = listOf(
+            title, description, enumValues, valueTypes, nullable, required, kind,
+            items, additionalProperties, alternatives, semanticType, maskRule
+        )
+        val extensionLeaves = listOf(
+            extension.title, extension.description, extension.enumValues, extension.valueTypes,
+            extension.nullable, extension.required, extension.kind, extension.items, extension.additionalProperties,
+            extension.alternatives, extension.semanticType, extension.maskRule
+        )
+        if (systemLeaves.zip(
+                extensionLeaves
+            ).any { (left, right) -> left is DeclarationValue.Set && right is DeclarationValue.Set }
+        ) {
+            throw QuerySchemaConflictException("System query schema leaf cannot be overwritten: [$field].")
         }
     }
-
-    private fun QueryFieldDeclaration.materialize() = LogicalQueryFieldSchema(
-        title = title.valueOr(null),
-        description = description.valueOr(null),
-        enumValues = enumValues.valueOr(null),
-        valueTypes = valueTypes.valueOr(emptySet()).also { valueTypes ->
-            if (maskRule is DeclarationValue.Set && valueTypes != setOf(me.ahoo.wow.api.query.schema.QueryValueType.STRING)) {
-                throw QuerySchemaConflictException("Masked query schema field must have STRING value type.")
-            }
-        },
-        nullable = nullable.valueOr(true),
-        required = required.valueOr(false),
-        cardinality = cardinality.valueOr(QueryCardinality.SINGLE),
-        semanticType = semanticType.valueOr(null),
-        dynamicChildren = dynamicChildren.valueOr(false),
-        maskRule = (maskRule as? DeclarationValue.Set)?.value,
-    )
-
-    private fun <T> DeclarationValue<T>.valueOr(default: T): T =
-        when (this) {
-            is DeclarationValue.Set -> value
-            DeclarationValue.Unset -> default
-        }
 
     private companion object {
         const val EVENT_PAYLOAD_ROOT = "${MessageRecords.BODY}.${MessageRecords.BODY}"
         val EVENT_BODY_TYPE_FIELD = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}")
+    }
+}
+
+private fun QueryFieldDeclaration.patchAt(
+    path: List<String>,
+    patch: QueryFieldDeclaration,
+    field: QueryField,
+    rejectDifferent: Boolean,
+): QueryFieldDeclaration {
+    if (path.isEmpty()) return merge(patch, field, rejectDifferent)
+    if (inferredKind() == QueryValueKind.ARRAY) {
+        return copy(
+            items = DeclarationValue.Set(checkNotNull(items.valueOr(null)).patchAt(path, patch, field, rejectDifferent))
+        )
+    }
+    if (inferredKind() == QueryValueKind.UNION) {
+        return copy(
+            alternatives = DeclarationValue.Set(
+                alternatives.valueOr(emptyList()).map { branch ->
+                    if (branch.inferredKind() == QueryValueKind.NULL) {
+                        branch
+                    } else {
+                        branch.patchAt(
+                            path,
+                            patch,
+                            field,
+                            rejectDifferent
+                        )
+                    }
+                }
+            )
+        )
+    }
+    if (inferredKind() !in setOf(QueryValueKind.OBJECT, QueryValueKind.UNKNOWN)) {
+        throw QuerySchemaConflictException("Query schema path crosses a non-object value: [$field].")
+    }
+    val children = properties.valueOr(emptyMap()).toMutableMap()
+    val name = path.first()
+    val child = children[name] ?: additionalProperties.valueOr(null) ?: QueryFieldDeclaration()
+    children[name] = child.patchAt(path.drop(1), patch, field, rejectDifferent)
+    return copy(properties = DeclarationValue.Set(children))
+}
+
+@Suppress("ThrowsCount") // Publication reports distinct declaration conflicts without changing their exception type.
+private fun QueryFieldDeclaration.materialize(): QueryValueSchema {
+    val valueKind = inferredKind()
+    if (maskRule is DeclarationValue.Set && !isMaskStringDomain()) {
+        throw QuerySchemaConflictException("Masked query schema field must have STRING value type.")
+    }
+    val branches = alternatives.valueOr(emptyList()).map { it.materialize() }
+    if (valueKind == QueryValueKind.UNION && nullable == DeclarationValue.Set(false) && branches.any { it.nullable }) {
+        throw QuerySchemaConflictException("Union alternatives conflict with non-null query schema value.")
+    }
+    return try {
+        QueryValueSchema(
+            kind = valueKind,
+            title = title.valueOr(null),
+            description = description.valueOr(null),
+            enumValues = enumValues.valueOr(null),
+            valueTypes = valueTypes.valueOr(
+                if (valueKind == QueryValueKind.OBJECT) setOf(QueryValueType.OBJECT) else emptySet()
+            ),
+            nullable = if (valueKind == QueryValueKind.UNION) branches.any { it.nullable } else nullable.valueOr(true),
+            required = required.valueOr(false),
+            semanticType = semanticType.valueOr(null),
+            maskRule = maskRule.valueOr(null),
+            properties = properties.valueOr(emptyMap()).mapValues { (_, child) -> child.materialize() },
+            items = items.valueOr(null)?.copy(required = DeclarationValue.Set(false))?.materialize(),
+            additionalProperties = additionalProperties.valueOr(
+                null
+            )?.copy(required = DeclarationValue.Set(false))?.materialize(),
+            alternatives = branches,
+        )
+    } catch (error: IllegalArgumentException) {
+        throw QuerySchemaConflictException("Invalid query schema value structure: ${error.message}", error)
     }
 }

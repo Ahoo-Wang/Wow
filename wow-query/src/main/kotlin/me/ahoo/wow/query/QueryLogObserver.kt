@@ -11,24 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot.starter.query
+package me.ahoo.wow.query
 
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.bind.ConstructorBinding
-import org.springframework.boot.context.properties.bind.DefaultValue
+import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 
-@ConfigurationProperties(prefix = QueryProperties.PREFIX)
-class QueryProperties @ConstructorBinding constructor(
-    @DefaultValue
-    var schema: Schema,
-) {
-    data class Schema @ConstructorBinding constructor(
-        @DefaultValue("COMPATIBLE")
-        var validationMode: QuerySchemaValidationMode,
-    )
-
+class QueryLogObserver : QueryObserver {
     companion object {
-        const val PREFIX = "wow.query"
+        private val log = KotlinLogging.logger { }
+    }
+
+    override fun onError(namedAggregate: NamedAggregate, queryType: QueryType, error: Throwable) {
+        if (error is QuerySchemaValidationException) {
+            log.error { error.message }
+        } else {
+            log.error(error) { error.message }
+        }
     }
 }

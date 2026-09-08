@@ -28,11 +28,6 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 
-data class ResolvedQuery<out Q : Any>(
-    val query: Q,
-    val schema: QueryModelSchema,
-)
-
 data class QueryBackendBinding<out B : QueryBackend>(
     val backend: B,
     val schemaProvider: QueryModelSchemaProvider,
@@ -40,6 +35,9 @@ data class QueryBackendBinding<out B : QueryBackend>(
 
 /**
  * Aggregate-bound SPI for raw query results.
+ *
+ * Inputs carry their explicit scope. Model defaults such as Snapshot ACTIVE are applied by QueryGateway;
+ * direct SPI callers must supply any required deletion or access predicates themselves.
  *
  * Every subscription to a returned publisher, including subscriptions created by `retry`, `repeat`, or concurrent
  * callers, must own fresh mutable [ObjectNode] instances. Implementations must not cache or share nodes across
@@ -49,10 +47,10 @@ data class QueryBackendBinding<out B : QueryBackend>(
  * `POJONode`, and arbitrary POJOs must be normalized inside the Backend or rejected before crossing this boundary.
  */
 interface QueryBackend : NamedAggregateDecorator {
-    fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode>
-    fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode>
-    fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
-    fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
-    fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
-    fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
+    fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode>
+    fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode>
+    fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>>
+    fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>>
+    fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long>
+    fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode>
 }

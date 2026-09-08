@@ -16,8 +16,7 @@ package me.ahoo.wow.schema.query
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import com.github.victools.jsonschema.generator.SchemaVersion
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCardinality
-import me.ahoo.wow.api.query.schema.QuerySemanticType
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.query.schema.DeclarationValue
@@ -26,8 +25,6 @@ import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUES
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC_TYPE
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TITLE
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.slf4j.LoggerFactory
@@ -129,7 +126,6 @@ internal class JsonSchemaWalker(
     private val rootSchema: JsonNode = schema,
     private val maskRuleResolver: (String) -> MaskRule,
 ) {
-    private val fields = linkedMapOf<QueryField, QueryFieldDeclaration>()
     private val descriptiveMetadataCandidates =
         mutableMapOf<Pair<QueryField, String>, MutableList<DescriptiveMetadataCandidate>>()
 
@@ -137,151 +133,237 @@ internal class JsonSchemaWalker(
         rootField: QueryField = QueryField(StateAggregateRecords.STATE),
         includeRoot: Boolean = true,
     ): QuerySchemaDeclaration {
-        if (includeRoot) {
-            val rootNodes = schema.effectiveNodes()
-            schema.collectDescriptiveMetadataCandidates(rootField, MEMBER_METADATA_SOURCE)
-            fields[rootField] = QueryFieldDeclaration(
-                enumValues = DeclarationValue.Set(
-                    rootNodes.consistentValue(rootField, ENUM_VALUES, JsonNode::enumValuesOrNull),
-                ),
-                dynamicChildren = DeclarationValue.Set(rootNodes.any(JsonNode::hasAdditionalProperties)),
-            )
-        }
-        fields.putAll(
-            schema.collectProperties(
-                parentName = rootField.path,
-                resolvingReferences = setOf(ROOT_REFERENCE),
-                source = MEMBER_METADATA_SOURCE,
-            ),
-        )
+        val tree = schema.toTree(rootField, setOf(ROOT_REFERENCE), MEMBER_METADATA_SOURCE)
+        val value = tree.withDescriptiveMetadata(rootField, mutableMapOf())
         return QuerySchemaDeclaration(
-            fields.mapValuesTo(linkedMapOf()) { (field, declaration) ->
-                declaration.copy(
-                    title = DeclarationValue.Set(resolveDescriptiveMetadata(field, TITLE)),
-                    description = DeclarationValue.Set(resolveDescriptiveMetadata(field, DESCRIPTION)),
+            mapOf(
+                rootField to value.copy(
+                    title = if (includeRoot) value.title else DeclarationValue.Unset,
+                    description = if (includeRoot) value.description else DeclarationValue.Unset,
+                    nullable = DeclarationValue.Unset,
+                    required = DeclarationValue.Unset,
+                )
+            )
+        )
+    }
+
+    private fun JsonNode.toTree(
+        field: QueryField,
+        resolvingReferences: Set<String>,
+        source: DescriptiveMetadataSource,
+        collectMetadata: Boolean = true,
+    ): QueryFieldDeclaration {
+        if (collectMetadata) collectDescriptiveMetadataCandidates(field, source)
+        val types = get(JsonSchemaProperty.TYPE)?.schemaTypeNames().orEmpty()
+        val shapes = (types - JsonSchemaType.NULL).ifEmpty {
+            if (JsonSchemaType.NULL in types) setOf(JsonSchemaType.NULL) else emptySet()
+        }.map { valueShape(it, types, field, resolvingReferences, source) }
+        var result = if (shapes.isEmpty()) {
+            valueShape(null, types, field, resolvingReferences, source)
+        } else {
+            shapes.unionDeclaration(field)
+        }
+        reference()?.let { reference ->
+            val target = rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
+            val referenced = if (reference in resolvingReferences || target.isMissingNode) {
+                target.requireNoMaskRule("Recursive query schema field cannot contain masked descendants: [$field].")
+                QueryFieldDeclaration(kind = DeclarationValue.Set(QueryValueKind.UNKNOWN))
+            } else {
+                target.toTree(field, resolvingReferences + reference, source.referenced(), collectMetadata = false)
+            }
+            result = result.intersectDeclaration(referenced, field)
+        }
+        get(JsonSchemaProperty.ALL_OF)?.forEach { branch ->
+            result = result.intersectDeclaration(branch.toTree(field, resolvingReferences, source.composed(JsonSchemaProperty.ALL_OF), collectMetadata = false), field)
+        }
+        ALTERNATIVE_COMPOSITIONS.forEach { composition ->
+            get(
+                composition
+            )?.toList()?.map { branch ->
+                branch.toTree(
+                    field,
+                    resolvingReferences,
+                    source.composed(composition),
+                    collectMetadata = false
+                )
+            }
+                ?.takeIf { it.isNotEmpty() }?.let { alternatives ->
+                    result = result.intersectDeclaration(alternatives.unionDeclaration(field), field)
+                }
+        }
+        return valueAttributes(result, field)
+    }
+
+    private fun JsonNode.valueAttributes(definition: QueryFieldDeclaration, field: QueryField): QueryFieldDeclaration {
+        var result = get(JsonSchemaProperty.ENUM)?.let { values ->
+            definition.intersectDeclaration(
+                QueryFieldDeclaration(enumValues = DeclarationValue.Set(values.toList())),
+                field,
+            )
+        } ?: definition
+        val rule = textValueOrNull(MASK_RULE_ATTRIBUTE)?.let(maskRuleResolver)
+        if (rule != null) {
+            if (!result.isStringDomain()) {
+                throw QuerySchemaConflictException(
+                    "Masked query schema field must have STRING value type."
+                )
+            }
+            val existing = (result.maskRule as? DeclarationValue.Set)?.value
+            if (existing != null && existing != rule) {
+                throw QuerySchemaConflictException(
+                    "Conflicting query schema declaration: [$field.maskRule]."
+                )
+            }
+            result = result.copy(maskRule = DeclarationValue.Set(rule))
+        }
+        textValueOrNull(TEMPORAL_UNIT)?.let { unit -> result = result.withEpoch(TimeUnit.valueOf(unit)) }
+        val temporal = get(JsonSchemaProperty.FORMAT)?.takeIf(JsonNode::isString)?.stringValue()
+        if (temporal in setOf(DATE_FORMAT, DATE_TIME_FORMAT)) result = result.copy(semanticType = DeclarationValue.Set(Temporal.Date))
+        return result
+    }
+
+    private fun JsonNode.valueShape(
+        type: String?,
+        types: Set<String>,
+        field: QueryField,
+        resolvingReferences: Set<String>,
+        source: DescriptiveMetadataSource,
+    ): QueryFieldDeclaration {
+        val kind = valueKind(type)
+        val basic = QueryFieldDeclaration(
+            kind = DeclarationValue.Set(kind),
+            valueTypes = DeclarationValue.Set(valueTypes(type, kind)),
+            nullable = if (types.isEmpty()) {
+                DeclarationValue.Unset
+            } else {
+                DeclarationValue.Set(
+                    JsonSchemaType.NULL in types
                 )
             },
         )
-    }
-
-    private fun JsonNode.collectProperties(
-        parentName: String,
-        resolvingReferences: Set<String>,
-        source: DescriptiveMetadataSource,
-    ): Map<QueryField, QueryFieldDeclaration> {
-        val collected = collectDirectProperties(parentName, resolvingReferences, source)
-        validateMaskedUnrepresentableDescendants(parentName, resolvingReferences)
-        reference()?.takeIf { it !in resolvingReferences }?.let { reference ->
-            rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
-                .takeUnless(JsonNode::isMissingNode)
-                ?.collectProperties(parentName, resolvingReferences + reference, source.referenced())
-                ?.let(collected::mergeConjunctive)
-        }
-        get(JsonSchemaProperty.ALL_OF)?.forEach { branch ->
-            collected.mergeConjunctive(
-                branch.collectProperties(
-                    parentName,
-                    resolvingReferences,
-                    source.composed(JsonSchemaProperty.ALL_OF),
-                ),
+        return when (kind) {
+            QueryValueKind.OBJECT -> basic.copy(
+                properties = DeclarationValue.Set(objectProperties(field, resolvingReferences, source)),
+                additionalProperties = if (has(JsonSchemaProperty.ADDITIONAL_PROPERTIES)) {
+                    DeclarationValue.Set(dynamicValue(field, resolvingReferences, source))
+                } else {
+                    DeclarationValue.Unset
+                },
             )
-        }
-        ALTERNATIVE_COMPOSITIONS.forEach { composition ->
-            get(composition)?.asSequence()?.map { alternative ->
-                alternative.collectProperties(
-                    parentName,
-                    resolvingReferences,
-                    source.composed(composition),
+            QueryValueKind.ARRAY -> basic.copy(
+                items = DeclarationValue.Set(
+                    get(JsonSchemaProperty.ITEMS)?.toTree(QueryField("${field.path}.__items"), resolvingReferences, source)
+                        ?: QueryFieldDeclaration(kind = DeclarationValue.Set(QueryValueKind.UNKNOWN)),
                 )
-            }?.toList()?.mergeAlternatives()?.let(collected::mergeConjunctive)
+            )
+            else -> basic
         }
-        get(JsonSchemaProperty.ITEMS)?.collectProperties(parentName, resolvingReferences, source)
-            ?.let(collected::mergeConjunctive)
-        return collected
     }
 
-    private fun JsonNode.collectDirectProperties(
-        parentName: String,
-        resolvingReferences: Set<String>,
-        source: DescriptiveMetadataSource,
-    ): MutableMap<QueryField, QueryFieldDeclaration> {
-        val collected = linkedMapOf<QueryField, QueryFieldDeclaration>()
-        val parentRequired = get(JsonSchemaProperty.REQUIRED)?.asSequence()
-            ?.filter(JsonNode::isString)
-            ?.map(JsonNode::stringValue)
-            ?.toSet()
-            .orEmpty()
-        get(JsonSchemaProperty.PROPERTIES)?.properties()?.forEach { (propertyName, propertySchema) ->
-            if (propertySchema.isWriteOnly()) {
-                return@forEach
-            }
-            val fullName = "$parentName.$propertyName"
-            if (!propertyName.isQueryFieldSegment()) {
-                propertySchema.requireNoMaskRule(
-                    "Masked query schema property is not a valid QueryField: [$parentName[\"$propertyName\"]].",
-                )
-                return@forEach
-            }
-            val field = QueryField(fullName)
-            propertySchema.collectDescriptiveMetadataCandidates(field, source)
-            collected.mergeConjunctive(
-                mapOf(field to propertySchema.toDeclaration(field, propertyName in parentRequired)),
-            )
-            collected.mergeConjunctive(
-                propertySchema.collectProperties(
-                    fullName,
-                    resolvingReferences,
-                    source,
-                ),
-            )
+    private fun JsonNode.valueKind(type: String?): QueryValueKind = when (type) {
+        JsonSchemaType.ARRAY -> QueryValueKind.ARRAY
+        JsonSchemaType.OBJECT -> QueryValueKind.OBJECT
+        JsonSchemaType.NULL -> QueryValueKind.NULL
+        null -> when {
+            has(JsonSchemaProperty.ITEMS) -> QueryValueKind.ARRAY
+            has(JsonSchemaProperty.PROPERTIES) || has(JsonSchemaProperty.ADDITIONAL_PROPERTIES) -> QueryValueKind.OBJECT
+            else -> QueryValueKind.UNKNOWN
         }
-        return collected
+        else -> QueryValueKind.SCALAR
     }
 
-    private fun JsonNode.toDeclaration(
+    private fun valueTypes(type: String?, kind: QueryValueKind): Set<QueryValueType> = setOfNotNull(
+        when (type) {
+            JsonSchemaType.STRING -> QueryValueType.STRING
+            JsonSchemaType.INTEGER -> QueryValueType.INTEGER
+            JsonSchemaType.NUMBER -> QueryValueType.DECIMAL
+            JsonSchemaType.BOOLEAN -> QueryValueType.BOOLEAN
+            else -> if (kind == QueryValueKind.OBJECT) QueryValueType.OBJECT else null
+        }
+    )
+
+    private fun JsonNode.objectProperties(
         field: QueryField,
-        required: Boolean,
-    ): QueryFieldDeclaration {
-        val nodes = effectiveNodes()
-        val arrayShape = nodes.any(JsonNode::isArrayShape)
-        val itemNodes = if (arrayShape) {
-            nodes.flatMap { it.arrayItems() }.flatMap { it.effectiveNodes() }
-        } else {
-            emptyList()
-        }
-        val shapeNodes = if (arrayShape) nodes + itemNodes else nodes
-        val valueTypes = shapeNodes.flatMap { it.nonNullValueTypes() }.toSet()
-        val maskRuleId = shapeNodes.consistentValue(field, "maskRule") {
-            it.textValueOrNull(MASK_RULE_ATTRIBUTE)
-        }
-        if (maskRuleId != null && valueTypes != setOf(QueryValueType.STRING)) {
-            throw QuerySchemaConflictException("Masked query schema field must have STRING value type.")
-        }
-        val temporalUnit = (nodes + itemNodes).consistentValue(field, SEMANTIC_TYPE) {
-            it.textValueOrNull(TEMPORAL_UNIT)
-        }
-        val inferredTemporal = inferredTemporal()
-        val semanticType = temporalUnit?.let { unit ->
-            if (valueTypes != setOf(QueryValueType.INTEGER)) {
-                throw QuerySchemaConflictException(
-                    "@QueryTemporal requires an integer JSON wire shape.",
-                )
+        resolvingReferences: Set<String>,
+        source: DescriptiveMetadataSource,
+    ): Map<String, QueryFieldDeclaration> = buildMap {
+        val requiredNames = this@objectProperties.get(JsonSchemaProperty.REQUIRED)?.mapNotNull {
+            it.takeIf(JsonNode::isString)?.stringValue()
+        }.orEmpty()
+        this@objectProperties.get(JsonSchemaProperty.PROPERTIES)?.properties()?.forEach { (name, child) ->
+            if (child.isWriteOnly()) return@forEach
+            if (!name.isQueryFieldSegment()) {
+                child.requireNoMaskRule("Masked query schema property is not a valid QueryField: [$field[\"$name\"]].")
+                return@forEach
             }
-            Temporal.Epoch(TimeUnit.valueOf(unit))
-        } ?: inferredTemporal
-        return QueryFieldDeclaration(
-            enumValues = DeclarationValue.Set(
-                nodes.consistentValue(field, ENUM_VALUES, JsonNode::enumValuesOrNull),
-            ),
-            valueTypes = DeclarationValue.Set(valueTypes),
-            nullable = DeclarationValue.Set(nodes.any(JsonNode::allowsNull)),
-            required = DeclarationValue.Set(required),
-            cardinality = DeclarationValue.Set(
-                if (arrayShape) QueryCardinality.MANY else QueryCardinality.SINGLE,
-            ),
-            semanticType = DeclarationValue.Set(semanticType),
-            dynamicChildren = DeclarationValue.Set(shapeNodes.any(JsonNode::hasAdditionalProperties)),
-            maskRule = maskRuleId?.let { DeclarationValue.Set(maskRuleResolver(it)) } ?: DeclarationValue.Unset,
+            put(
+                name,
+                child.toTree(QueryField("${field.path}.$name"), resolvingReferences, source)
+                    .copy(required = DeclarationValue.Set(name in requiredNames))
+            )
+        }
+    }
+
+    private fun JsonNode.dynamicValue(
+        field: QueryField,
+        resolvingReferences: Set<String>,
+        source: DescriptiveMetadataSource,
+    ): QueryFieldDeclaration? = get(JsonSchemaProperty.ADDITIONAL_PROPERTIES)?.let { node ->
+        when {
+            node.isObject -> node.toTree(QueryField("${field.path}.__key"), resolvingReferences, source)
+            node.isBoolean && node.booleanValue() -> QueryFieldDeclaration(
+                kind = DeclarationValue.Set(QueryValueKind.UNKNOWN)
+            )
+            else -> null
+        }
+    }
+
+    private fun QueryFieldDeclaration.withDescriptiveMetadata(
+        field: QueryField,
+        resolved: MutableMap<Pair<QueryField, String>, String?>,
+    ): QueryFieldDeclaration {
+        fun metadata(property: String): String? {
+            val key = field to property
+            if (!resolved.containsKey(key)) resolved[key] = resolveDescriptiveMetadata(field, property)
+            return resolved[key]
+        }
+        return copy(
+            title = DeclarationValue.Set(metadata(TITLE)),
+            description = DeclarationValue.Set(metadata(DESCRIPTION)),
+            enumValues = if (enumValues === DeclarationValue.Unset) DeclarationValue.Set(null) else enumValues,
+            semanticType = if (semanticType === DeclarationValue.Unset) DeclarationValue.Set(null) else semanticType,
+            properties = if (properties is DeclarationValue.Set) {
+                DeclarationValue.Set(
+                    properties.or(emptyMap()).mapValues { (name, child) ->
+                        child.withDescriptiveMetadata(QueryField("${field.path}.$name"), resolved)
+                    }
+                )
+            } else {
+                properties
+            },
+            items = if (items is DeclarationValue.Set) {
+                DeclarationValue.Set(
+                    items.or(null)?.withDescriptiveMetadata(QueryField("${field.path}.__items"), resolved)
+                )
+            } else {
+                items
+            },
+            additionalProperties = if (additionalProperties is DeclarationValue.Set) {
+                DeclarationValue.Set(
+                    additionalProperties.or(null)?.withDescriptiveMetadata(QueryField("${field.path}.__key"), resolved)
+                )
+            } else {
+                additionalProperties
+            },
+            alternatives = if (alternatives is DeclarationValue.Set) {
+                DeclarationValue.Set(
+                    alternatives.or(emptyList()).map {
+                        it.withDescriptiveMetadata(field, resolved)
+                    }
+                )
+            } else {
+                alternatives
+            },
         )
     }
 
@@ -384,41 +466,6 @@ internal class JsonSchemaWalker(
         }
     }
 
-    private fun JsonNode.inferredTemporal(
-        resolvingReferences: Set<String> = emptySet(),
-    ): QuerySemanticType? {
-        if (get(JsonSchemaProperty.FORMAT)?.takeIf(JsonNode::isString)?.stringValue() in
-            setOf(DATE_FORMAT, DATE_TIME_FORMAT)
-        ) {
-            return Temporal.Date
-        }
-        reference()?.takeIf { it !in resolvingReferences }?.let { reference ->
-            rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
-                .takeUnless(JsonNode::isMissingNode)
-                ?.inferredTemporal(resolvingReferences + reference)
-                ?.let { return it }
-        }
-        ALTERNATIVE_COMPOSITIONS.forEach { composition ->
-            val alternatives = get(composition)?.toList().orEmpty()
-            val valueBearing = alternatives.filter { alternative ->
-                alternative.effectiveNodes(resolvingReferences)
-                    .any { it.nonNullValueTypes().isNotEmpty() }
-            }
-            if (valueBearing.isNotEmpty()) {
-                return valueBearing.map { it.inferredTemporal(resolvingReferences) }
-                    .distinct().singleOrNull()
-            }
-        }
-        get(JsonSchemaProperty.ALL_OF)?.mapNotNull {
-            it.inferredTemporal(resolvingReferences)
-        }?.distinct()?.singleOrNull()?.let { return it }
-        return if (isArrayShape()) {
-            get(JsonSchemaProperty.ITEMS)?.inferredTemporal(resolvingReferences)
-        } else {
-            null
-        }
-    }
-
     private fun JsonNode.reference(): String? =
         get(JsonSchemaProperty.REF)?.takeIf(JsonNode::isString)?.stringValue()
             ?.takeIf { it == ROOT_REFERENCE || it.startsWith(LOCAL_REFERENCE_PREFIX) }
@@ -457,106 +504,15 @@ internal class JsonSchemaWalker(
             throw QuerySchemaConflictException(message)
         }
     }
-
-    private fun JsonNode.validateMaskedUnrepresentableDescendants(
-        parentName: String,
-        resolvingReferences: Set<String>,
-    ) {
-        get(JsonSchemaProperty.ADDITIONAL_PROPERTIES)?.takeIf(JsonNode::isObject)
-            ?.requireNoMaskRule(
-                "Dynamic query schema field cannot contain masked descendants: [$parentName].",
-            )
-        val reference = reference()?.takeIf { it in resolvingReferences } ?: return
-        rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
-            .takeUnless(JsonNode::isMissingNode)
-            ?.requireNoMaskRule(
-                "Recursive query schema field cannot contain masked descendants: [$parentName].",
-            )
-    }
 }
 
 private fun JsonNode.textValueOrNull(name: String): String? =
     get(name)?.takeIf(JsonNode::isString)?.stringValue()
 
-private fun JsonNode.enumValuesOrNull(): List<JsonNode>? =
-    get(JsonSchemaProperty.ENUM)?.takeIf(JsonNode::isArray)?.toList()
-
-private fun JsonNode.nonNullValueTypes(): Set<QueryValueType> = buildSet {
-    val typeNames = get(JsonSchemaProperty.TYPE)?.schemaTypeNames().orEmpty()
-    typeNames.mapNotNullTo(this) { type ->
-        when (type) {
-            JsonSchemaType.STRING -> QueryValueType.STRING
-            JsonSchemaType.INTEGER -> QueryValueType.INTEGER
-            JsonSchemaType.NUMBER -> QueryValueType.DECIMAL
-            JsonSchemaType.BOOLEAN -> QueryValueType.BOOLEAN
-            JsonSchemaType.OBJECT -> QueryValueType.OBJECT
-            else -> null
-        }
-    }
-    if (JsonSchemaType.ARRAY in typeNames) {
-        get(JsonSchemaProperty.ITEMS)?.nonNullValueTypes()?.let(::addAll)
-    }
-    COMPOSITIONS.forEach { composition ->
-        get(composition)?.forEach { alternative -> addAll(alternative.nonNullValueTypes()) }
-    }
-}
-
-private fun JsonNode.allowsNull(): Boolean {
-    if (get(JsonSchemaProperty.TYPE)?.schemaTypeNames()?.contains(JsonSchemaType.NULL) == true) {
-        return true
-    }
-    return COMPOSITIONS.any { composition ->
-        get(composition)?.any(JsonNode::allowsNull) == true
-    }
-}
-
-private fun JsonNode.isArrayShape(): Boolean {
-    if (get(JsonSchemaProperty.TYPE)?.schemaTypeNames()?.contains(JsonSchemaType.ARRAY) == true) {
-        return true
-    }
-    return COMPOSITIONS.any { composition ->
-        get(composition)?.any(JsonNode::isArrayShape) == true
-    }
-}
-
-internal fun JsonNode.hasAdditionalProperties(): Boolean {
-    get(JsonSchemaProperty.ADDITIONAL_PROPERTIES)?.let { additionalProperties ->
-        if (additionalProperties.isObject ||
-            additionalProperties.takeIf(JsonNode::isBoolean)?.booleanValue() == true
-        ) {
-            return true
-        }
-    }
-    return COMPOSITIONS.any { composition ->
-        get(composition)?.any(JsonNode::hasAdditionalProperties) == true
-    }
-}
-
 private fun JsonNode.schemaTypeNames(): Set<String> = when {
     isString -> setOf(stringValue())
     isArray -> asSequence().filter(JsonNode::isString).map(JsonNode::stringValue).toSet()
     else -> emptySet()
-}
-
-private fun JsonNode.arrayItems(): List<JsonNode> = buildList {
-    if (get(JsonSchemaProperty.TYPE)?.schemaTypeNames()?.contains(JsonSchemaType.ARRAY) == true) {
-        get(JsonSchemaProperty.ITEMS)?.let(::add)
-    }
-    COMPOSITIONS.forEach { composition ->
-        get(composition)?.forEach { alternative -> addAll(alternative.arrayItems()) }
-    }
-}
-
-private inline fun <T : Any> List<JsonNode>.consistentValue(
-    field: QueryField,
-    leaf: String,
-    value: (JsonNode) -> T?,
-): T? {
-    val values = mapNotNull(value).distinct()
-    if (values.size > 1) {
-        throw QuerySchemaConflictException("Conflicting query schema declaration: [$field.$leaf].")
-    }
-    return values.singleOrNull()
 }
 
 private fun String.isQueryFieldSegment(): Boolean =

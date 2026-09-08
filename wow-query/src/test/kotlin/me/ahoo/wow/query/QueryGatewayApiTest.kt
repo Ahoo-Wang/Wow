@@ -22,28 +22,13 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.filter.Handler
-import me.ahoo.wow.query.schema.QueryModelSchema
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.lang.reflect.Modifier
 
 class QueryGatewayApiTest {
-    @Test
-    fun `resolved query should retain query and schema identities`() {
-        val query = SingleQuery(MatchAllFilter)
-        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
-
-        val resolved = ResolvedQuery(query, schema)
-
-        resolved.query.assert().isSameAs(query)
-        resolved.schema.assert().isSameAs(schema)
-    }
-
     @Test
     fun `gateway should be aggregate bound without exposing handler contract`() {
         NamedAggregateDecorator::class.java.isAssignableFrom(QueryGateway::class.java).assert().isTrue()
@@ -85,17 +70,8 @@ class QueryGatewayApiTest {
     }
 
     @Test
-    fun `backend should accept only resolved queries`() {
-        listOf("single", "list", "paged", "cursor", "count", "aggregate").forEach { method ->
-            QueryBackend::class.java.getMethod(method, ResolvedQuery::class.java)
-                .parameterTypes.assert().containsExactly(ResolvedQuery::class.java)
-        }
-    }
-
-    @Test
-    fun `cursor should be a required backend and gateway contract`() {
+    fun `cursor should be a required gateway contract`() {
         listOf(
-            QueryBackend::class.java.getMethod("cursor", ResolvedQuery::class.java),
             QueryGateway::class.java.getMethod("cursor", ICursorQuery::class.java),
             QueryGateway::class.java.getMethod("dynamicCursor", ICursorQuery::class.java),
         ).all { Modifier.isAbstract(it.modifiers) }.assert().isTrue()

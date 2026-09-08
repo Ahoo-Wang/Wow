@@ -26,18 +26,9 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackend
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.query.ResolvedQuery
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.requireAccepted
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -51,23 +42,12 @@ class ElasticsearchCursorSubscriptionTest {
     private val client = mockk<ReactiveElasticsearchClient>()
     private val backend = ElasticsearchSnapshotQueryBackend(MaterializedNamedAggregate("test", "cursor"), client)
     private val id = QueryField("aggregateId")
-    private val schema = QueryModelSchema(
+    private val schema = nativeSchema(
         QueryModel.SNAPSHOT,
         emptySet(),
         mapOf(
-            id to QueryFieldSchema(
-                title = null,
-                description = null,
-                enumValues = null,
-                valueTypes = setOf(QueryValueType.STRING),
-                nullable = false,
-                required = true,
-                cardinality = QueryCardinality.SINGLE,
-                semanticType = null,
-                dynamicChildren = false,
-                bindings = mapOf(QueryCapability.SORT to QueryFieldBinding(id, id, null)),
-                rewriteMode = QueryRewriteMode.NONE,
-            ),
+            id to nativeBindings(id, QueryCapability.SORT, QueryCapability.CURSOR_SORT),
+            QueryField("deleted") to nativeBindings(QueryField("deleted"), QueryCapability.EXACT_MATCH),
         ),
     )
 
@@ -76,7 +56,7 @@ class ElasticsearchCursorSubscriptionTest {
         every { client.search(any<SearchRequest>(), ObjectNode::class.java) } answers {
             Mono.fromFuture(CompletableFuture.completedFuture(response()))
         }
-        val publisher = backend.cursor(resolved())
+        val publisher = backend.cursor(resolved(), schema)
         verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
 
         val nodes = publisher.map { it.list.single() }
@@ -101,7 +81,7 @@ class ElasticsearchCursorSubscriptionTest {
             if (calls++ == 0) future.completeExceptionally(failure) else future.complete(response())
             Mono.fromFuture(future)
         }
-        backend.cursor(resolved()).retry(1).test()
+        backend.cursor(resolved(), schema).retry(1).test()
             .assertNext { it.list.single().path("aggregateId").asString().assert().isEqualTo("id-1") }
             .verifyComplete()
         calls.assert().isEqualTo(2)
@@ -113,7 +93,7 @@ class ElasticsearchCursorSubscriptionTest {
             Mono.fromFuture(CompletableFuture.completedFuture(response()))
         }
         val seen = mutableListOf<ObjectNode>()
-        backend.cursor(resolved()).map { it.list.single() }
+        backend.cursor(resolved(), schema).map { it.list.single() }
             .doOnNext { node ->
                 seen += node
                 if (seen.size == 1) {
@@ -135,7 +115,7 @@ class ElasticsearchCursorSubscriptionTest {
             val future = CompletableFuture<ResponseBody<ObjectNode>>().also(futures::add)
             Mono.fromFuture(future)
         }
-        val publisher = backend.cursor(resolved())
+        val publisher = backend.cursor(resolved(), schema)
         val first = publisher.subscribe()
         val nodes = mutableListOf<ObjectNode>()
         val failures = mutableListOf<Throwable>()
@@ -151,16 +131,18 @@ class ElasticsearchCursorSubscriptionTest {
 
     @Test
     fun `invalid cursor should still fail while assembling the request`() {
-        assertThrows<IllegalArgumentException> { backend.cursor(resolved("invalid!")) }
+        assertThrows<IllegalArgumentException> { backend.cursor(resolved("invalid!"), schema) }
             .message.assert().isEqualTo("Invalid cursor.")
         verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
-    private fun resolved(cursor: String? = null): ResolvedQuery<ICursorQuery> = ResolvedQuery(
-        schema.resolve(CursorQuery(MatchAllFilter, size = 1, cursor = cursor))
-            .requireAccepted(QuerySchemaValidationMode.STRICT),
-        schema,
-    )
+    private fun resolved(cursor: String? = null): ICursorQuery =
+        CursorQuery(
+            MatchAllFilter,
+            sort = listOf(me.ahoo.wow.api.query.Sort(id, me.ahoo.wow.api.query.Sort.Direction.ASC)),
+            size = 1,
+            cursor = cursor
+        )
 
     private fun response(): ResponseBody<ObjectNode> = SearchResponse.of<ObjectNode> { response ->
         response.took(1).timedOut(false)

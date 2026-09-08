@@ -1,79 +1,70 @@
 ---
 title: Query Gateway
-description: Understand how a query reaches its backend through context, filter chains, authorization, and result handling.
+description: Fixed aggregate-bound preparation, scope, authorization, validation, and response stages.
 ---
 
 # Query Gateway
 
-## Why queries go through the Gateway first
+`SnapshotQueryGateway<S>` and `EventStreamQueryGateway` are application query entries. Spring resolves a `QueryBackendBinding` during aggregate Gateway registration and retains its Backend and Provider instead of routing each request again.
 
-`SnapshotQueryGateway<S>` and `EventStreamQueryGateway` are the application query entries and the policy boundary. Spring registers a bound Gateway per aggregate so request rewriting, HTTP guards, authorization, and generic result handling execute in one around chain.
+## Fixed execution order
 
-Business code should not normally bypass the Gateway. Use a Factory directly only for infrastructure extensions or when raw backend semantics are explicitly required; that call does not run the Gateway policy chain.
+Each subscription independently:
 
-## Execution chain
-
-The complete chain is:
+1. Obtains one Schema from the Provider.
+2. Runs ordered `QueryFilter.prepare` stages; each emits one prepared logical Query.
+3. Appends the request scope from Reactor Context.
+4. Appends configured `AbacQueryPolicy` access filters for Snapshot queries, after ordinary preparation.
+5. Only the Gateway applies model defaults: Snapshot adds `DELETION = ACTIVE` unless explicitly overridden; EventStream adds no deletion predicate. It also appends the model's unique cursor sort field.
+6. Validates the final public Query, then calls `backend.operation(query, schema)`.
+7. Masks returned query nodes with the captured Schema, then optionally materializes typed results.
+8. Notifies `QueryObserver` of completion, error, or cancellation.
 
 ```mermaid
-sequenceDiagram
-    participant Caller as Caller
-    participant Entry as WebFlux Handler / JVM
-    participant Gateway as Aggregate-bound Gateway
-    participant Provider as QueryModelSchemaProvider
-    participant Filters as One around chain
-    participant Backend as Bound QueryBackend
-    participant Mask as SchemaMaskQueryFilter
-    participant Jackson as Optional typed conversion
-    Caller->>Entry: Query DTO / DSL
-    Entry->>Gateway: Query after scope rewriting
-    Gateway->>Provider: Obtain Schema once per subscription
-    Provider-->>Gateway: Non-null QueryModelSchema
-    Gateway->>Gateway: Create QueryContext(query, schema)
-    Gateway->>Filters: Run request filters
-    Filters-->>Gateway: Final logical query
-    Gateway->>Gateway: Resolve and validate with context.schema
-    Gateway->>Backend: ResolvedQuery(query, context.schema)
-    Backend-->>Filters: ObjectNode / PagedList / CursorPage / count
-    Filters-->>Mask: Complete all result filters (single/list/paged/cursor)
-    Mask-->>Jackson: Masked ObjectNode
-    Jackson-->>Caller: ObjectNode or typed result
+flowchart LR
+    Provider --> Prepare["QueryFilter.prepare"]
+    Prepare --> Scope["Request scope"]
+    Scope --> Policy["Snapshot ABAC policy"]
+    Policy --> Validate["Defaults + public validation"]
+    Validate --> Backend["Backend query + schema"]
+    Backend --> Mask["Mask"]
+    Mask --> Result["ObjectNode / typed result"]
+    Result --> Observer["Terminal observer"]
 ```
 
-At Gateway assembly, the registrar calls the routing Factory once for the `NamedAggregate`, receives a `QueryBackendBinding`, and binds its Backend and Provider together. Requests are not routed again. On each subscription, the Gateway obtains one Schema from the Provider, creates the Context, runs Filters, resolves the final query under the configured validation mode, and passes only a `ResolvedQuery` to the Backend. The Backend produces `ObjectNode`; it neither obtains Schema nor chooses a validation mode. The framework-owned outermost `SchemaMaskQueryFilter` reads `QueryContext.schema` after all generic result filters and masks the final node. Filter, Resolver, Backend, and Mask therefore share one Schema instance. Jackson finally materializes typed results. Unavailable Schema fails every managed Gateway call closed before Context or Backend subscription. Count remains `Long` and performs no result masking. Aggregation remains a stream of `ObjectNode` rows, with Schema rejecting groups, metrics, and expressions that reference masked fields.
+Preparation, validation, Backend compilation, and Mask share that captured Schema. Schema failure or empty prepare completion fails before Backend execution. Retry/repeat starts a fresh subscription and obtains its Schema again. Count returns Long without result masking. Aggregation rejects protected grouping/metric/expression inputs before execution rather than attempting to conceal them in returned aggregate rows.
 
-## QueryContext and QueryType
+## Request preparation extension
 
-For every subscription, the Gateway obtains one currently published Schema and creates an independent `QueryContext`, so separate subscriptions to the same reactive Publisher do not share the query, result, or attributes. From the beginning of the Filter chain, the context exposes a non-null immutable `schema` reference alongside the aggregate identity, query object, result, and `QueryType`.
+`QueryContext<Q>` contains only `query`, `namedAggregate`, and `schema`. A Filter has no continuation, result object, or result-processing authority. It prepares a request and cannot wrap or re-execute the Backend:
 
-`QueryType` contains only `SINGLE`, `LIST`, `PAGED`, `CURSOR`, `COUNT`, and `AGGREGATION`; typed and `ObjectNode` results share the same operation type. Concrete query models, entries, and protocol exposure can still differ.
+```kotlin
+@Component
+class VisibleQueryFilter : SnapshotQueryFilter {
+    override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> =
+        Mono.just(context.query.appendFilter(filter { "state.visible" eq true }))
+}
+```
 
-## Snapshot and event-stream filter chains
+`SnapshotQueryFilter` and `EventStreamQueryFilter` restrict the applicable model; a plain `QueryFilter` can apply to both. `@Order` controls preparation order. Conditions use logical fields and still undergo final Schema validation.
 
-`SnapshotQueryGateway` and `EventStreamQueryGateway` share the `QueryFilter<QueryContext<*, *>>` contract. A generic `QueryFilter` needs no `@FilterType` and enters both Gateways; only model-specific filters use `@FilterType(SnapshotQueryGateway::class)` or `@FilterType(EventStreamQueryGateway::class)`.
+## Request scope and authorization
 
-## The WebFlux request boundary
+A WebFlux Handler uses `QueryRequestScope` to obtain tenant/owner/space scope, places it in Reactor Context, and invokes the Gateway. `HttpQueryGuard` applies HTTP cost and response limits outside the Gateway Filter stages.
 
-`RewriteRequestFilter` adds tenant, owner, and space conditions before the Gateway; both snapshot and event-stream WebFlux requests take this step. In-process calls do not automatically receive this HTTP request scope.
+A JVM caller can supply trusted scope explicitly:
 
-`HttpQueryGuardFilter` belongs to both Gateways, but applies only when a `ServerRequest` exists in the Reactor Context; it does not change ordinary in-process query constraints.
+```kotlin
+queryGateway.dynamicList(query)
+    .contextWrite { context ->
+        context.withQueryScope(TenantIdFilter("tenant-1"))
+    }
+```
 
-A cursor is not a policy snapshot. Every later HTTP request reapplies tenant, owner, and space conditions, then reruns authorization, the original filter, HTTP guards, result filters, and `SchemaMasker`; the token neither carries nor restores authorization state. Every in-process subscription likewise reruns the Gateway chain.
+`withQueryScope` combines an existing scope. Authentication remains the application's responsibility; unverified request fields are not identity. Snapshot ABAC uses independent `AbacQueryPolicy` objects. EventStream does not automatically run Snapshot ABAC. See [Data Access Control](../data-access.md).
 
-## ABAC and Field Masking
+## Results and observation
 
-The built-in `AbacQueryFilter` belongs to the snapshot Gateway. `QueryGateway` receives the Backend and `QueryModelSchemaProvider` from the same routed `QueryBackendBinding`; a Backend never implements the Provider. The framework-owned `SchemaMaskQueryFilter` applies Schema-driven field masking after all generic result filters and before typed materialization. If the paired Provider is unavailable, the query fails closed before Filter or Backend subscription; masking is never merely skipped. Snapshot and EventStream typed, dynamic, cursor, and aggregate-state load entries share this managed path. See [Field Masking](./masking.md) for annotations, caching, the behavior matrix, and fail-closed rules.
+The Backend returns independently owned ObjectNodes for each subscription. Framework masking runs before typed materialization, with no general result Filter stage. `QueryObserver` exposes terminal callbacks only and cannot replace a result or error. Ordinary observer failures are logged; they cannot retry the query or invoke the Backend again. The default implementation is `QueryLogObserver`.
 
-For authentication, Principal binding, and the complete fail-closed policy, see [Data Access Control](../data-access.md).
-
-## Raw Factory Boundary
-
-Calling `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` directly returns a binding; trusted raw execution explicitly uses `factory.create(namedAggregate).backend`. It bypasses the entire Gateway governance chain, including Schema acquisition and admission, ABAC, result filters, and field masking; the caller must construct an accepted `ResolvedQuery` itself. This trusted raw-value boundary is only for storage extensions, focused diagnostics, and backend contract tests. Ordinary application code should inject the aggregate-bound Gateway.
-
-## Bean Names
-
-Aggregate Bean names are exactly `{contextAlias.}{aggregateName}.SnapshotQueryGateway` and `{contextAlias.}{aggregateName}.EventStreamQueryGateway`; omit the prefix when there is no context alias. Snapshot Gateways are also registered by their state generic. Event-stream Gateways have no state generic, so qualify by Bean name when there are multiple candidates.
-
-## Validation strategy boundaries
-
-The Gateway owns the policy chain and Schema admission; it does not replace backend field capability or application validation. Spring's `wow.query.schema.validation-mode` controls only Gateway admission; the Backend never chooses the mode. Before Cursor field admission, `QueryModelSchema` appends the model-specific unique sort: Snapshot uses `aggregateId`, while EventStream uses the stream-record `id`. The final effective sort must resolve exactly in Query Schema, be single-valued, carry no Mask rule, and not alias a masked projection or physical binding. Mask rules include those compiled from `@Mask`, `@KeepMask`, or a custom `@Masking` meta-annotation; unavailable Schema fails closed rather than falling back in compatible mode. If a JSON-array or SSE stream fails after emitting rows, those rows are not rolled back. SSE attempts to emit an `ErrorInfo` error event. A `RequestExceptionHandler` failure or a failure while generating, rendering, or serializing that error event is attached to the original as a suppressed error only when distinct and not already recorded. The original terminal error is always propagated; partial failure never completes successfully.
+Direct Backend access bypasses these stages; see [Query Backend](./query-backend.md), [Field Masking](./masking.md), and [Query Model Schema](./query-model-schema.md).

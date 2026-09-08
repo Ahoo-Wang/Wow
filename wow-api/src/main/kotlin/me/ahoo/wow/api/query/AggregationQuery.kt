@@ -151,6 +151,12 @@ enum class AggregationDateUnit {
     SECOND,
 }
 
+/**
+ * One numeric contribution per current root or expanded record, for data conforming to its numeric schema.
+ * FIELD selects the sole non-null numeric value;
+ * missing, empty and multi-valued fields do not contribute. Repeated numeric values remain separate values.
+ * BINARY computes finite doubles; it does not pair arrays or preserve arbitrary native numeric precision.
+ */
 @MissingTypeImpl(AggregationExpression.Field::class)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = QueryProtocol.Polymorphic.TYPE)
 @JsonSubTypes(

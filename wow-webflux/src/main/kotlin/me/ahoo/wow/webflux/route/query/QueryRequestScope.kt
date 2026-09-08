@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.webflux.route.query
 
-import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.webflux.route.command.getOwnerId
@@ -22,23 +22,11 @@ import me.ahoo.wow.webflux.route.command.getSpaceId
 import me.ahoo.wow.webflux.route.command.getTenantId
 import org.springframework.web.reactive.function.server.ServerRequest
 
-interface RewriteRequestFilter {
-    fun rewrite(
-        aggregateMetadata: AggregateMetadata<*, *>,
-        request: ServerRequest,
-        filter: FilterExpression,
-    ): FilterExpression
-
-    fun <Q : FilterCapable<Q>> rewrite(
-        aggregateMetadata: AggregateMetadata<*, *>,
-        request: ServerRequest,
-        query: Q,
-    ): Q = query.withFilter(
-        rewrite(aggregateMetadata, request, query.filter),
-    )
+fun interface QueryRequestScope {
+    fun resolve(aggregateMetadata: AggregateMetadata<*, *>, request: ServerRequest): FilterExpression
 }
 
-abstract class AbstractRewriteRequestFilter : RewriteRequestFilter {
+abstract class AbstractQueryRequestScope : QueryRequestScope {
     protected open fun ServerRequest.resolveTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? {
         return getTenantId(aggregateMetadata)
     }
@@ -51,19 +39,15 @@ abstract class AbstractRewriteRequestFilter : RewriteRequestFilter {
         return getSpaceId()
     }
 
-    override fun rewrite(
+    override fun resolve(
         aggregateMetadata: AggregateMetadata<*, *>,
         request: ServerRequest,
-        filter: FilterExpression,
     ): FilterExpression {
         val tenantId = request.resolveTenantId(aggregateMetadata)
         val ownerId = request.resolveOwnerId(aggregateMetadata)
         val spaceId = request.resolveSpaceId(aggregateMetadata)
-        if (tenantId.isNullOrBlank() && ownerId.isNullOrBlank() && spaceId.isNullOrBlank()) {
-            return filter
-        }
-        val appendFilter = requestScopeFilter(tenantId, ownerId, spaceId)
-        return filter.appendFilter(appendFilter)
+        if (tenantId.isNullOrBlank() && ownerId.isNullOrBlank() && spaceId.isNullOrBlank()) return MatchAllFilter
+        return requestScopeFilter(tenantId, ownerId, spaceId)
     }
 
     private fun requestScopeFilter(tenantId: String?, ownerId: String?, spaceId: String?): FilterExpression = filter {

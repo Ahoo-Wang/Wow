@@ -11,6 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.query
+package me.ahoo.wow.query
 
-object DefaultRewriteRequestFilter : AbstractRewriteRequestFilter()
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.MatchAllFilter
+import reactor.util.context.Context
+import reactor.util.context.ContextView
+
+private object QueryScopeKey
+
+fun Context.withQueryScope(scope: FilterExpression): Context = put(QueryScopeKey, queryScope().appendFilter(scope))
+
+fun ContextView.queryScope(): FilterExpression = getOrDefault(QueryScopeKey, MatchAllFilter)!!

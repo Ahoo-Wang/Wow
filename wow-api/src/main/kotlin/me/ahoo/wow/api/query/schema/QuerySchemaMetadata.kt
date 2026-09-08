@@ -13,26 +13,28 @@
 
 package me.ahoo.wow.api.query.schema
 
-import me.ahoo.wow.api.query.QueryField
 import tools.jackson.databind.JsonNode
 
+/** Public logical value metadata; native names and storage facts are never published. */
 data class QueryModelSchemaMetadata(
     val model: QueryModel,
     val capabilities: Set<QueryCapability>,
-    val fields: List<QueryFieldSchemaMetadata>,
+    val root: QueryValueSchemaMetadata,
 )
 
-data class QueryFieldSchemaMetadata(
-    val field: QueryField,
-    val title: String?,
-    val description: String?,
-    val enumValues: List<JsonNode>?,
-    val valueTypes: Set<QueryValueType>,
-    val nullable: Boolean,
-    val required: Boolean,
-    val cardinality: QueryCardinality,
-    val semanticType: QuerySemanticType?,
-    val dynamicChildren: Boolean,
-    val capabilities: Set<QueryCapability>,
+data class QueryValueSchemaMetadata(
+    val kind: QueryValueKind,
+    val title: String? = null,
+    val description: String? = null,
+    val enumValues: List<JsonNode>? = null,
+    val valueTypes: Set<QueryValueType> = emptySet(),
+    val nullable: Boolean = true,
+    val required: Boolean = false,
+    val semanticType: QuerySemanticType? = null,
+    val properties: Map<String, QueryValueSchemaMetadata> = emptyMap(),
+    val items: QueryValueSchemaMetadata? = null,
+    val additionalProperties: QueryValueSchemaMetadata? = null,
+    val alternatives: List<QueryValueSchemaMetadata> = emptyList(),
+    val capabilities: Set<QueryCapability> = emptySet(),
     val masked: Boolean = false,
 )

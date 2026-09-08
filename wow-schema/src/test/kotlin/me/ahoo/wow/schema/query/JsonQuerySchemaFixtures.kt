@@ -264,12 +264,12 @@ internal class SecondMetadataBranch
 
 internal data class ForwardEnumState(
     @field:Schema(oneOf = [FirstChoice::class, SecondChoice::class])
-    val value: RepeatedValue,
+    val value: Any,
 )
 
 internal data class ReverseEnumState(
     @field:Schema(oneOf = [SecondChoice::class, FirstChoice::class])
-    val value: RepeatedValue,
+    val value: Any,
 )
 
 internal enum class FirstChoice { FIRST, SHARED }
@@ -278,16 +278,16 @@ internal enum class SecondChoice { SECOND, SHARED }
 
 internal data class EqualContainerMetadataState(
     @field:Schema(oneOf = [SharedMetadataFirst::class, SharedMetadataSecond::class])
-    val metadata: RepeatedValue,
+    val metadata: Any,
     @field:Schema(oneOf = [LocalDate::class, Instant::class])
-    val temporal: RepeatedValue,
+    val temporal: Any,
 )
 
 internal data class MixedTemporalAlternativeState(
     @field:Schema(anyOf = [LocalDate::class, String::class])
-    val anyOf: RepeatedValue,
+    val anyOf: Any,
     @field:Schema(oneOf = [LocalDate::class, String::class])
-    val oneOf: RepeatedValue,
+    val oneOf: Any,
 )
 
 @Schema(title = "Shared title", description = "Shared description")

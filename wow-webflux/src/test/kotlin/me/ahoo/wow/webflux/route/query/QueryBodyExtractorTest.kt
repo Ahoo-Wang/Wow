@@ -17,7 +17,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.EqualFilter
@@ -32,6 +31,7 @@ import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.queryScope
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
@@ -66,7 +66,7 @@ class QueryBodyExtractorTest {
         }
         val handler = SnapshotAggregationHandlerFunctionFactory(
             snapshotQueryGateway = { queryGateway },
-            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
             testAggregateRouteContract(
@@ -109,7 +109,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
             queryGateway = { RouteTestFixtures.snapshotQueryGateway },
-            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -133,7 +133,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
             queryGateway = { RouteTestFixtures.snapshotQueryGateway },
-            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -165,8 +165,12 @@ class QueryBodyExtractorTest {
     @Test
     fun `empty count body should use request scope`() {
         val captured = slot<FilterExpression>()
+        lateinit var capturedScope: FilterExpression
         val queryGateway = mockk<QueryGateway<Any>> {
-            every { count(capture(captured)) } returns Mono.just(0)
+            every { count(capture(captured)) } returns Mono.deferContextual {
+                capturedScope = it.queryScope()
+                Mono.just(0)
+            }
         }
 
         countClient(queryGateway).post().uri("/sku/snapshot/count")
@@ -176,7 +180,8 @@ class QueryBodyExtractorTest {
             .exchange()
             .expectStatus().isOk
 
-        captured.captured.assert().isEqualTo(TenantIdFilter("tenant-1"))
+        captured.captured.assert().isSameAs(me.ahoo.wow.api.query.MatchAllFilter)
+        capturedScope.assert().isEqualTo(TenantIdFilter("tenant-1"))
     }
 
     @Test
@@ -193,7 +198,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
             queryGateway = { RouteTestFixtures.snapshotQueryGateway },
-            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -214,8 +219,12 @@ class QueryBodyExtractorTest {
     @Test
     fun `legacy count body should invoke typed overload with request scope`() {
         val captured = slot<FilterExpression>()
+        lateinit var capturedScope: FilterExpression
         val queryGateway = mockk<QueryGateway<Any>> {
-            every { count(capture(captured)) } returns Mono.just(0)
+            every { count(capture(captured)) } returns Mono.deferContextual {
+                capturedScope = it.queryScope()
+                Mono.just(0)
+            }
         }
         countClient(queryGateway).post().uri("/sku/snapshot/count")
             .header(CommandComponent.Header.TENANT_ID, "tenant-1")
@@ -224,9 +233,8 @@ class QueryBodyExtractorTest {
             .exchange()
             .expectStatus().isOk
 
-        val rewritten = captured.captured as AndFilter
-        rewritten.operands.any { it is EqualFilter }.assert().isTrue()
-        rewritten.operands.any { it == TenantIdFilter("tenant-1") }.assert().isTrue()
+        (captured.captured is EqualFilter).assert().isTrue()
+        capturedScope.assert().isEqualTo(TenantIdFilter("tenant-1"))
     }
 
     @Test
@@ -317,7 +325,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
             queryGateway = { RouteTestFixtures.snapshotQueryGateway },
-            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -344,7 +352,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
             queryGateway = { RouteTestFixtures.snapshotQueryGateway },
-            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -376,7 +384,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = ListQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
             queryGateway = { queryGateway },
-            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -386,7 +394,7 @@ class QueryBodyExtractorTest {
         )
 
         val request = MockServerRequest.builder()
-            .body(ListQuery(condition = Condition.ALL).toMono())
+            .body(ListQuery(condition = Condition.ALL, limit = 1).toMono())
 
         handlerFunction.handle(request)
             .test()
@@ -404,7 +412,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = ListQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
             queryGateway = { RouteTestFixtures.snapshotQueryGateway },
-            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -414,7 +422,7 @@ class QueryBodyExtractorTest {
         )
 
         val request = MockServerRequest.builder()
-            .body(ListQuery(condition = Condition.ALL).toMono())
+            .body(ListQuery(condition = Condition.ALL, limit = 1).toMono())
 
         handlerFunction.handle(request)
             .test()
@@ -428,7 +436,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = PagedQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
             queryGateway = { RouteTestFixtures.snapshotQueryGateway },
-            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -504,7 +512,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = SingleQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE,
             queryGateway = { RouteTestFixtures.snapshotQueryGateway },
-            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -529,7 +537,7 @@ class QueryBodyExtractorTest {
             val handler = CountQueryHandlerFunctionFactory(
                 BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
                 { queryGateway },
-                DefaultRewriteRequestFilter,
+                DefaultQueryRequestScope,
                 WebFluxRequestExceptionHandler(),
             ).create(
                 testAggregateRouteContract(
@@ -545,7 +553,7 @@ class QueryBodyExtractorTest {
         ): WebTestClient {
             val handler = CursorQuerySnapshotHandlerFunctionFactory(
                 { queryGateway },
-                DefaultRewriteRequestFilter,
+                DefaultQueryRequestScope,
                 WebFluxRequestExceptionHandler(),
             ).create(
                 testAggregateRouteContract(
@@ -566,19 +574,20 @@ class QueryBodyExtractorTest {
             val single = SingleQueryHandlerFunctionFactory(
                 BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE,
                 { queryGateway },
-                DefaultRewriteRequestFilter,
+                DefaultQueryRequestScope,
                 exceptionHandler,
             ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE, metadata))
             val list = ListQueryHandlerFunctionFactory(
                 BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
                 { queryGateway },
-                DefaultRewriteRequestFilter,
+                DefaultQueryRequestScope,
                 exceptionHandler,
+                guard = HttpQueryGuard(maxListSize = 0),
             ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY, metadata))
             val paged = PagedQueryHandlerFunctionFactory(
                 BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
                 { queryGateway },
-                DefaultRewriteRequestFilter,
+                DefaultQueryRequestScope,
                 exceptionHandler,
             ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY, metadata))
 

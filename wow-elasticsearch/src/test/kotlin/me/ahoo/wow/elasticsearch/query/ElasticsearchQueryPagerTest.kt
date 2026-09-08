@@ -97,6 +97,7 @@ class ElasticsearchQueryPagerTest {
         openRequest.captured.keepAlive().time().assert().isEqualTo("5m")
         searchRequests.assert().hasSize(2)
         searchRequests[0].index().assert().isEmpty()
+        searchRequests[0].allowPartialSearchResults().assert().isEqualTo(false)
         searchRequests[0].size().assert().isEqualTo(2)
         searchRequests[0].searchAfter().assert().isEmpty()
         searchRequests[0].pit()!!.keepAlive()!!.time().assert().isEqualTo("5m")
@@ -147,6 +148,25 @@ class ElasticsearchQueryPagerTest {
     }
 
     @Test
+    fun `timed out later page should fail after delivered rows and close its pit`() {
+        val closeRequest = slot<ClosePointInTimeRequest>()
+        stubPointInTime(closeRequest = closeRequest)
+        every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returnsMany listOf(
+            Mono.just(searchResponse("pit-2", hit("1", 1), hit("2", 2))),
+            Mono.just(searchResponse("pit-3", timedOut = true)),
+        )
+
+        ElasticsearchQueryPager(elasticsearchClient, "test-index", batchSize = 2)
+            .search(0, query, null, sort)
+            .test()
+            .expectNextCount(2)
+            .expectErrorMessage("Elasticsearch search timed out.")
+            .verify()
+
+        closeRequest.captured.id().assert().isEqualTo("pit-3")
+    }
+
+    @Test
     fun `should close latest pit when cancelled`() {
         val closeRequest = slot<ClosePointInTimeRequest>()
         stubPointInTime(closeRequest = closeRequest)
@@ -186,7 +206,7 @@ class ElasticsearchQueryPagerTest {
     }
 
     @Test
-    fun `close failure should not fail a completed query`() {
+    fun `close failure should terminate after delivered rows`() {
         every { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
             openPointInTimeResponse()
         )
@@ -201,11 +221,12 @@ class ElasticsearchQueryPagerTest {
             .search(0, query, null, sort)
             .test()
             .expectNextCount(1)
-            .verifyComplete()
+            .expectErrorSatisfies { it.cause?.message.assert().isEqualTo("close failed") }
+            .verify()
     }
 
     @Test
-    fun `should retain pit id when responses omit it and tolerate unsuccessful close`() {
+    fun `should retain pit id when responses omit it and reject unsuccessful close`() {
         val searchRequests = mutableListOf<SearchRequest>()
         val closeRequest = slot<ClosePointInTimeRequest>()
         every { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
@@ -227,7 +248,10 @@ class ElasticsearchQueryPagerTest {
         ).search(0, query, null, sort)
             .test()
             .expectNextCount(3)
-            .verifyComplete()
+            .expectErrorSatisfies {
+                it.cause?.message.assert().isEqualTo("Failed to close Elasticsearch PIT [pit-1].")
+            }
+            .verify()
 
         searchRequests.map { it.pit()!!.id() }.assert().containsExactly("pit-1", "pit-1")
         searchRequests.map { it.pit()!!.keepAlive()!!.time() }.assert().containsExactly("1500ms", "1500ms")
@@ -308,12 +332,14 @@ class ElasticsearchQueryPagerTest {
     private fun searchResponse(
         pitId: String?,
         vararg hits: Pair<String, List<FieldValue>>,
+        timedOut: Boolean = false,
     ): SearchResponse<ObjectNode> {
         return SearchResponse.of<ObjectNode> {
             it.took(1)
-                .timedOut(false)
+                .timedOut(timedOut)
                 .shards { shards -> shards.failed(0).successful(1).total(1) }
                 .hits { metadata ->
+                    metadata.hits(emptyList())
                     hits.forEach { (id, sort) ->
                         metadata.hits { hit ->
                             hit.index("test-index")

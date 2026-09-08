@@ -17,16 +17,19 @@ import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.query.HttpQueryGuard
 import me.ahoo.wow.webflux.route.query.PagedQueryHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
+import me.ahoo.wow.webflux.route.query.QueryRequestScope
 
 class PagedQuerySnapshotHandlerFunctionFactory(
     snapshotQueryGateway: (AggregateMetadata<*, *>) -> SnapshotQueryGateway<Any>,
-    rewriteRequestFilter: RewriteRequestFilter,
-    exceptionHandler: RequestExceptionHandler
+    queryRequestScope: QueryRequestScope,
+    exceptionHandler: RequestExceptionHandler,
+    guard: HttpQueryGuard = HttpQueryGuard(),
 ) : PagedQueryHandlerFunctionFactory(
     handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
     queryGateway = snapshotQueryGateway,
-    rewriteRequestFilter = rewriteRequestFilter,
-    exceptionHandler = exceptionHandler
+    queryRequestScope = queryRequestScope,
+    exceptionHandler = exceptionHandler,
+    guard = guard,
 )

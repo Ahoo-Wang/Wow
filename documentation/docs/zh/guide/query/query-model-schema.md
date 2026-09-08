@@ -1,15 +1,41 @@
 ---
 title: 查询模型 Schema
-description: 了解运行时查询字段的来源、后端能力、校验模式以及 Snapshot 与 EventStream Schema HTTP 合同。
+description: 用递归逻辑值树和独立原生绑定描述运行时查询能力。
 ---
 
 # 查询模型 Schema
 
 ## Schema 解决什么问题
 
-Query Model Schema 是运行时查询能力合同，分别描述 `QueryModel.SNAPSHOT` 与 `QueryModel.EVENT_STREAM`。它把请求中的逻辑字段解析为后端物理路径，并记录值类型、基数、时间语义、动态子字段、投影路径以及每种操作的 capability。公共入口是 `QueryModelSchema.resolve(...)`；它据此重写并校验过滤、投影、排序和[聚合查询](./aggregation-query.md)，而不是仅凭 DTO 中存在某个属性就假定后端可以查询。`QuerySchemaResolver` 只是内部算法实现，不是外部业务入口。
+`QueryModelSchema` 发布一个查询模型的不可变事实：共享 `LogicalQuerySchema` 值树，以及按 `QueryPathTemplate` 索引的后端 binding。Schema 自身不执行 Query、不决定权限、不重写请求。Gateway 校验逻辑输入；Backend 读取 binding 后编译原生表达式。
 
-它与[通用 JSON Schema](../advanced/schema.md)不同：JSON Schema 描述序列化形状并可参与 OpenAPI 生成；Query Model Schema 还必须由所选 MongoDB 或 Elasticsearch adapter 结合实际存储事实解析，才能证明某个操作可用。
+## 递归值树
+
+`QueryValueSchema.kind` 区分 `SCALAR`、`OBJECT`、`ARRAY`、`NULL`、`UNION` 和 `UNKNOWN`：
+
+- OBJECT 的固定属性在 `properties`，动态 Map 值在 `additionalProperties`；明确属性优先于 Map 默认值。
+- ARRAY 的成员定义在 `items`，容器不复制成员的 valueTypes 或时间语义。
+- UNION 保留 `alternatives`；UNKNOWN 保留类型不确定性，不能据此开放带值操作。
+- 值可带 title、description、enumValues、nullable、required 和 semanticType。脱敏规则留在内存，公开 metadata 只提供 `masked` 标记。
+
+例如 `Map<String, List<Address>>` 的声明：
+
+```kotlin
+querySchemaRegistration(Order::class, QueryModel.SNAPSHOT) {
+    field("state.addresses") {
+        kind(QueryValueKind.OBJECT)
+        additionalProperties {
+            kind(QueryValueKind.ARRAY)
+            items {
+                kind(QueryValueKind.OBJECT)
+                property("city") { valueTypes(QueryValueType.STRING) }
+            }
+        }
+    }
+}
+```
+
+`state.addresses.home` 是对象数组；在 `elementMatch` 中使用相对字段 `city`。`state.addresses.home.city.extra` 不存在，不能回退到物理字段。字符串或数值数组的 eq/in/range 使用一层直接 items 值域；不会穿透匿名的第二层数组。普通字段、数组和 Map 值各自保留定义。
 
 ## 来源优先级与合并
 
@@ -24,8 +50,7 @@ flowchart LR
     Working["Working Directory 400"] --> Merger
     Merger --> Adapter["MongoDB / Elasticsearch Adapter"]
     Adapter --> Schema["QueryModelSchema"]
-    Schema --> Resolve["QueryModelSchema.resolve"]
-    Resolve --> Query["Filter / Projection / Sort / Aggregation"]
+    Schema --> Gateway["Gateway validation / native compilation"]
     Schema --> HTTP["Schema / refresh HTTP"]
 ```
 
@@ -36,99 +61,34 @@ flowchart LR
 
 `QuerySchemaMerger` 按数字从小到大合并，后来的高优先级来源只覆盖其显式设置的叶，未设置的叶沿用低优先级值。同一优先级的多个声明若对同一叶给出不同值会抛出 Schema conflict，而不是依赖加载顺序。刷新只重新加载当前进程中的来源与后端事实并替换缓存；它不会修改索引、mapping、validator 或历史数据。
 
-## 后端适配
 
-[MongoDB](../extensions/mongo.md) adapter 把每个存储路径写入 `QueryFieldBinding.physicalField`，读取集合索引和可选的 `$jsonSchema` validator 来证明存储类型。`physicalField` 是 MongoDB 物理路径的唯一来源；`QueryFieldSchema.projectionField` 同样是物理投影路径，`responseField` 则只标识返回 JSON 中用于脱敏的路径。Element scope 候选先来自逻辑声明中的 `MANY` + `OBJECT`；validator 为该字段提供物理类型约束时，adapter 再用 array/object 类型确认或否决该候选。未配置 validator 或该字段没有类型约束时会保留逻辑候选，但不具备物理类型证明。adapter 只在存在合适 text index 时发布模型级全文能力。
+## 原生绑定与能力
 
-[Elasticsearch](../extensions/elasticsearch.md) adapter 读取目标 mapping，并分别考虑字段类型、multi-field、nested、doc values、alias 与 runtime field。全文字段可以绑定到 text 路径，精确匹配、排序或 TERMS 聚合可能绑定到 keyword multi-field；对象数组只有在对应 nested mapping 成立时才获得 Element scope。
+`QueryPathTemplate` 明确区分 Property、Item 和 Key。`QueryValueBindings` 按 capability 存储 `QueryFieldBindingTemplate(physicalPath, storageTypes)`，另有 projectionPath 与 responsePath。具体 `schema.field(QueryField(...))` 返回逻辑值、完整元素祖先和具体 binding；固定 key 的原生约束不能被 Map 默认 binding 绕过。
 
-两种 adapter 共享公共 capability 名称，但不会产生相同的物理路径、全文语义、数组作用域或时间能力。自定义 Backend Compiler 会使内置 Query Model Schema 不可用；只有调用方同时提供与该 Compiler 一致的 Provider/adapter 实现，才能重新建立能力合同。
+MongoDB adapter 读取索引与可选 validator；数组/items/additionalProperties 与组合类型证据分别保留。缺少原生类型事实时只能使用已知声明和 codec；已知冲突拒绝。Temporal.Date 不开放 EQ/RANGE，时间聚合还要求原生时间类型证据。Elasticsearch adapter 使用 mapping、nested、multi-field、doc values、alias/runtime facts；不会从调用者字段名猜测物理路径。
 
-## QueryField 与 Projection
+| 能力 | 用途 |
+| --- | --- |
+| PRESENCE | 存在、缺失、null、空集合 |
+| EXACT_MATCH / LITERAL_MATCH / RANGE | 精确值、字面字符串和范围比较 |
+| FULL_TEXT_TERMS / FULL_TEXT_PHRASE | 模型或字段支持的全文搜索 |
+| SORT / CURSOR_SORT | 普通排序 / 独立的游标排序能力 |
+| ELEMENT_SCOPE | 进入已证明的对象数组元素作用域 |
+| AGGREGATE_TERMS / AGGREGATE_NUMERIC / AGGREGATE_TEMPORAL | 分组、数值和时间聚合 |
 
-Filter、Projection、Sort、Aggregation 与 Schema metadata 统一使用 `QueryField` 表示合法的逻辑字段路径。JVM 构造示例如下；JSON 中的合法字段仍序列化为普通字符串：
+数值 `EXACT_MATCH`/`RANGE` 表示按原生存储精度比较，不表示 source 任意精度相等，见[数值比较](./filter-expression.md)。`AGGREGATE_NUMERIC` 不等于自动展开数组；直接字段与算术叶子按[数值参与值合同](./aggregation-query.md#numeric-contributions)读取。逻辑声明及 runtime 输出必须符合该数值模型。精度来自 Backend 的原生事实，本次不新增公共 precision 或 scalingFactor 字段。
 
-```kotlin
-val projection = Projection(
-    include = listOf(QueryField("state.customer")),
-)
-val sort = Sort(QueryField("state.createdAt"), Sort.Direction.DESC)
-```
+原生能力不因 Mask 被删除。公共游标和聚合准入另行拒绝受保护的字段及其原生别名；公开 metadata 应用于发现可用操作，不能替代最终请求校验。
 
-Projection 的每个 QueryField 表示该节点及其全部后代。Runtime 使用 Query Model Schema 完成准入后保留原 Projection；Backend 再用同一个 Schema 编译存储侧投影。MongoDB 直接投影节点，Elasticsearch 可在本地 source filter 中生成 `path` 与 `path.*`，但这个通配形式不会进入公共 Query、Schema metadata 或解析结果。
+## 严格准入与刷新
 
-Cursor 解析也属于 Schema 行为。`QueryModelSchema.resolve(ICursorQuery)` 会先按模型追加唯一排序字段，再统一解析和验证全部 sort：Snapshot 追加 `aggregateId`，EventStream 追加流记录 `id`。因此 Backend 收到的 `ResolvedQuery` 已包含稳定排序，不再补充唯一字段。
+未知字段、未知后缀、缺失 capability、错误值类型或不完整元素作用域都会拒绝。没有可配置的宽松字段回退。公共 Query 保持逻辑路径；`validateQuery(query, schema)` 返回同一个逻辑输入，不产生物理 Query。
 
-## 字段能力
-
-当前内置 capability 共十一种：
-
-| Capability | 用途 |
-|---|---|
-| `PRESENCE` | 判断存在、缺失、null 或空值，并作为默认投影物理路径的依据 |
-| `EXACT_MATCH` | `EQ`、`NE`、`IN`、`NOT_IN` 和集合全包含等精确值匹配 |
-| `LITERAL_MATCH` | `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` 等字面字符串匹配 |
-| `RANGE` | 大小比较、`BETWEEN` 与相对时间范围 |
-| `FULL_TEXT_TERMS` | 全文 terms 搜索 |
-| `FULL_TEXT_PHRASE` | 全文 phrase 搜索 |
-| `SORT` | 按字段排序 |
-| `ELEMENT_SCOPE` | 在数组/嵌套对象中建立独立元素作用域，供 `elementMatch` 与聚合 Elements 使用 |
-| `AGGREGATE_TERMS` | TERMS 分组与 `ANY` 展示值 |
-| `AGGREGATE_NUMERIC` | 数值直方图、数值 metric 与数值表达式 |
-| `AGGREGATE_TEMPORAL` | 日期直方图与时间分桶 |
-
-字段还携带 `valueTypes`、`cardinality`、`semanticType`、`dynamicChildren` 和 `masked`。即使 capability 存在，值类型、集合基数或当前 Element scope 不匹配，解析仍可能得到 `INCOMPATIBLE`。
-
-## 字段脱敏元数据
-
-`JsonQuerySchemaSource` 在运行时把领域字段注解编译为内存规则，并随 Schema 合并与后端 adapter 传递；公开 Schema 只暴露 `masked: Boolean`，不序列化策略、参数或可执行规则。内建注解、自定义 `@Masking(strategy)`、成员继承、结果行为与失败关闭合同统一见[字段脱敏](./masking.md)。
-
-## COMPATIBLE 与 STRICT
-
-一次解析的兼容级别为：
-
-- `EXACT`：字段和所需 capability 都有已证明的物理绑定；
-- `COMPATIBLE`：无法精确绑定，但兼容模式允许保留原路径，例如未声明字段或可接受的动态子字段；
-- `INCOMPATIBLE`：字段已知但缺少所需 capability，或值类型、基数、Element scope 不符合合同。
-
-`QuerySchemaValidationMode.COMPATIBLE` 接受 `EXACT` 与 `COMPATIBLE`，拒绝 `INCOMPATIBLE`；`QuerySchemaValidationMode.STRICT` 只接受 `EXACT`。模式控制解析结果是否被接受，不会为后端补建索引或 mapping。已接受的 `COMPATIBLE` 字段没有 binding 时，Schema-aware Backend Compiler 使用原始路径作为物理路径。
-
-受管 Gateway 在每次订阅中先调用 Provider 一次，取得一个 Schema 后才构造 `QueryContext`。Context 从 Filter 链开始暴露非空 Schema，Filter、Resolver、`ResolvedQuery`、Backend Compiler 与 Mask 使用同一实例。验证模式只由 Gateway 应用，Backend 不读取 Provider 或再次解析查询。
-
-## 0 阶段破坏性变化
-
-- **源码与二进制：** `LogicalField` 已由 `QueryField` 取代，`Projection.include/exclude` 改为 `List<QueryField>`，`Sort.field` 改为 `QueryField`。不提供 typealias、兼容类或旧构造器；下游需修改源码并重新编译。
-- **Wire：** 合法 QueryField 仍保持字符串 JSON 形态，但公共 Projection 与 Sort 不再接受 `state.*` 等后端 pattern。EventStream 选择 `body.body` 或其子节点时，还必须包含且不得排除 `body.bodyType`。
-- **OpenAPI：** component identity 从 `wow.api.query.LogicalField` 变为 `wow.api.query.QueryField`；Projection 的 items 与 Sort.field 都引用新 component，不保留旧 component/ref。
-
-## Schema 不可用
-
-`QueryModelSchemaProvider` 只负责加载和刷新 Schema，不提供查询解析或 unavailable 回退。受管 Gateway 从与 Backend 相同的 `QueryBackendBinding` 取得它，并且必须先取得 Schema 才会创建 Context，因此 Schema 不可用时 single、list、paged、cursor、count 与 aggregate 全部失败关闭，Filter 与 Backend 均不会订阅。count 不执行结果脱敏，但仍需要 Schema 完成受管请求准入。
-
-直接调用 Backend 是受信低层边界：`factory.create(namedAggregate).backend`。调用方必须显式取得 Schema，调用 `schema.resolve(query).requireAccepted(validationMode)`，再构造 `ResolvedQuery`。系统标签的授权语义见[数据权限](../data-access.md)。
+每次 Gateway 订阅取得一次 Schema，准备、公共校验、Backend 和响应 Mask 使用同一实例。Provider 失败不缓存为成功结果，也不会绕过校验执行；refresh 发布新实例，已开始的订阅继续使用原实例。直接 Backend 调用必须显式传入 Schema，边界见[查询后端](./query-backend.md)。
 
 ## HTTP 与 OpenAPI 扩展
 
-Snapshot 与 EventStream 都发布无作用域变体的 Schema 与 refresh HTTP 路由：
+`GET snapshot/schema`、`POST snapshot/schema/refresh`、`GET event/schema`、`POST event/schema/refresh` 返回 `QueryModelSchemaMetadata(model, capabilities, root)`。root 是递归 `QueryValueSchemaMetadata`，保留 properties/items/additionalProperties/alternatives，不暴露 native path、storageTypes、Mask strategy 或可执行规则。
 
-| 模型 | 读取当前 Schema | 刷新当前进程缓存 |
-|---|---|---|
-| Snapshot | `GET /{aggregate}/snapshot/schema` | `POST /{aggregate}/snapshot/schema/refresh` |
-| EventStream | `GET /{aggregate}/event/schema` | `POST /{aggregate}/event/schema/refresh` |
-
-这四条模型级路由没有 tenant、owner 或 aggregate-ID 变体。响应是公开的 `QueryModelSchemaMetadata`，包含模型、模型级 capability 和字段 capability；实际路径及 operationId 以生成的 [OpenAPI](../open-api.md) 为准。
-
-`x-wow-query-fields` 是 aggregate-specific Snapshot query request-body component 上的静态 OpenAPI 扩展。它由 Snapshot 系统字段与 `JsonQuerySchemaSource` 推断字段组成，用于生成器发现候选逻辑字段；它不是请求 JSON 属性，不含后端物理绑定，也不证明运行时 capability。EventStream 请求没有对应扩展，当前也没有 EventStream API Client 或客户端字段发现；Snapshot API Client 同样不会读取运行时 Schema 代替服务端校验。客户端边界见 [API Client](./query-api-client.md)。
-
-## Provider 与存储路由
-
-`SnapshotSchemaHandlerFunction` 解包 `SnapshotQueryBackendFactory.create(namedAggregate).schemaProvider`，EventStream handler 同样解包自己的 Factory binding。因此 Schema 读取、refresh 与实际查询按同一个 `NamedAggregate` 选择同一 Backend 路由和 Provider；不能绕过 routing Factory 从另一存储拼接 Schema。Provider 不可用时明确抛出 `QuerySchemaUnavailableException`。Factory 与 Gateway 的职责见[查询后端](./query-backend.md)。
-
-## 排查字段不可查询
-
-1. 调用对应模型的 `GET .../schema`，确认字段存在且包含当前操作所需 capability；Snapshot 的 `state.*` 与 EventStream 的 `body.body.*` 不可混用。
-2. 检查 `100/200/300/400` 来源链。确认扩展根正确、同优先级没有冲突、高优先级声明没有意外覆盖较低优先级叶。
-3. 检查实际后端事实：MongoDB 的索引与 validator，或 Elasticsearch 的 mapping、multi-field、nested、doc values 与 runtime field。不要从另一种后端的结果类推。
-4. 区分 `INCOMPATIBLE`、Schema conflict、Schema unavailable 与请求 DTO 错误，并核对当前使用 `COMPATIBLE` 还是 `STRICT`。
-5. 若刚修改声明或 mapping，可调用 refresh 重新读取当前进程视图；若 mapping 或历史文档本身不满足条件，refresh 不会修复数据。
-6. 若使用自定义 Backend Compiler，确认 routed `QueryBackendBinding.schemaProvider` adapter 与 `binding.backend` Compiler 使用一致的 mapping 规则。
+`x-wow-query-fields` 仍是 Snapshot request-body component 的静态候选逻辑字段扩展，不是请求字段，也不证明运行时能力。[API Client](./query-api-client.md)不会代替服务器读取和验证运行时 Schema。

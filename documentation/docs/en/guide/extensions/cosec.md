@@ -13,7 +13,7 @@ The module does not authenticate a request, verify header authenticity, authoriz
 
 ## How It Works
 
-Four behaviors form the integration: `CoSecCommandRequestHeaderAppender` extracts app/device, `CoSecCommandBuilderExtractor` supplements request/space, service-loaded `CoSecMessagePropagator` propagates app/device, and `CoSecRewriteRequestFilter` resolves query space. Wow owns context transport only; the security stack owns trusted identity and policy decisions.
+Four behaviors form the integration: `CoSecCommandRequestHeaderAppender` extracts app/device, `CoSecCommandBuilderExtractor` supplements request/space, service-loaded `CoSecMessagePropagator` propagates app/device, and `CoSecQueryRequestScope` resolves query space. Wow owns context transport only; the security stack owns trusted identity and policy decisions.
 
 ## Installation
 

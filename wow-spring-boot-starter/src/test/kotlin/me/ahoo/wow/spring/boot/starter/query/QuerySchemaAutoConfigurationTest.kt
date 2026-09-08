@@ -22,7 +22,6 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.WorkingDirectoryQuerySchemaSource
 import me.ahoo.wow.schema.query.JsonQuerySchemaSource
 import me.ahoo.wow.serialization.JsonSerializer
@@ -33,46 +32,6 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
 class QuerySchemaAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
-
-    @Test
-    fun `should use compatible validation by default`() {
-        contextRunner
-            .enableWow()
-            .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
-            .run { context ->
-                context.getBean(QueryProperties::class.java)
-                    .schema.validationMode.assert().isEqualTo(QuerySchemaValidationMode.COMPATIBLE)
-            }
-    }
-
-    @Test
-    fun `should bind strict schema validation mode`() {
-        contextRunner
-            .enableWow()
-            .withPropertyValues("wow.query.schema.validation-mode=STRICT")
-            .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
-            .run { context ->
-                context.getBean(QueryProperties::class.java)
-                    .schema.validationMode.assert().isEqualTo(QuerySchemaValidationMode.STRICT)
-                context.getBean(QuerySchemaValidationMode::class.java)
-                    .assert().isEqualTo(QuerySchemaValidationMode.STRICT)
-            }
-    }
-
-    @Test
-    fun `should expose mutable enum query schema properties`() {
-        val properties = QueryProperties(
-            schema = QueryProperties.Schema(
-                validationMode = QuerySchemaValidationMode.COMPATIBLE,
-            ),
-        )
-        properties.schema = QueryProperties.Schema(
-            validationMode = QuerySchemaValidationMode.COMPATIBLE,
-        )
-        properties.schema.validationMode = QuerySchemaValidationMode.STRICT
-
-        properties.schema.validationMode.assert().isEqualTo(QuerySchemaValidationMode.STRICT)
-    }
 
     @Test
     fun `should expose built in schema sources`() {
@@ -116,19 +75,28 @@ class QuerySchemaAutoConfigurationTest {
     }
 
     @Test
-    fun `should publish one compatible validation default in canonical metadata`() {
-        val propertyName = "wow.query.schema.validation-mode"
-        val canonical = metadataProperties("META-INF/spring-configuration-metadata.json")
-            .filter { it.path("name").stringValue() == propertyName }
-        canonical.assert().hasSize(1)
-        canonical.single().path("type").stringValue()
-            .assert().isEqualTo("me.ahoo.wow.query.schema.QuerySchemaValidationMode")
-        canonical.single().path("defaultValue").stringValue().assert().isEqualTo("COMPATIBLE")
+    fun `retired validation mode is absent from configuration metadata`() {
+        metadataProperties("META-INF/spring-configuration-metadata.json")
+            .filter { it.path("name").stringValue() == "wow.query.schema.validation-mode" }
+            .assert().isEmpty()
+    }
 
-        metadataProperties("META-INF/additional-spring-configuration-metadata.json")
-            .filter { it.path("name").stringValue() == propertyName }
-            .assert()
-            .isEmpty()
+    @Test
+    fun `retired validation mode fails startup with migration instruction`() {
+        listOf(
+            "wow.query.schema.validation-mode=compatible",
+            "wow.query.schema.validationMode=strict"
+        ).forEach { property ->
+            contextRunner.enableWow()
+                .withPropertyValues(property)
+                .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
+                .run { context ->
+                    context.assert().hasFailed()
+                    context.startupFailure!!.assert().hasRootCauseMessage(
+                        "Remove wow.query.schema.validation-mode: query validation is always strict.",
+                    )
+                }
+        }
     }
 
     private fun metadataProperties(resourceName: String) = JsonSerializer.readTree(

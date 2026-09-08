@@ -34,6 +34,8 @@ import me.ahoo.wow.openapi.QueryComponent.Schema.listQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.pagedQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.singleQuerySchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.SystemQuerySchemaSource
 import me.ahoo.wow.schema.query.JsonQuerySchemaSource
@@ -50,8 +52,18 @@ internal fun OpenAPIComponentContext.aggregatedFieldsSchema(
     )
     val inferred = checkNotNull(staticQuerySchemaSource.load(context).blockFirst())
     val fields = buildSet {
-        addAll(SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT).fields.keys)
-        addAll(inferred.fields.keys)
+        fun addFields(field: QueryField, declaration: QueryFieldDeclaration) {
+            add(field)
+            (declaration.properties as? DeclarationValue.Set)?.value.orEmpty().forEach { (name, child) ->
+                addFields(field.append(QueryField(name)), child)
+            }
+            (declaration.items as? DeclarationValue.Set)?.value?.let { addFields(field, it) }
+            (declaration.alternatives as? DeclarationValue.Set)?.value.orEmpty().forEach { addFields(field, it) }
+        }
+        SystemQuerySchemaSource.declaration(
+            QueryModel.SNAPSHOT
+        ).fields.forEach { (field, declaration) -> addFields(field, declaration) }
+        inferred.fields.forEach { (field, declaration) -> addFields(field, declaration) }
     }.map(QueryField::path).sorted()
     val key = "${aggregateMetadata.toStringWithAlias()}." +
         "${aggregateMetadata.command.aggregateType.simpleName}${QueryComponent.AGGREGATED_FIELDS_SUFFIX}"

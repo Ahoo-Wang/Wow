@@ -14,9 +14,9 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.serialization.MessageRecords
@@ -54,8 +54,22 @@ object SystemQuerySchemaSource : QuerySchemaSource {
                 StateAggregateRecords.OPERATOR.stringField(),
                 StateAggregateRecords.FIRST_EVENT_TIME.epochField(),
                 StateAggregateRecords.EVENT_TIME.epochField(),
-                StateAggregateRecords.STATE.objectField(),
-                StateAggregateRecords.TAGS.objectField(DeclarationValue.Set(true)),
+                StateAggregateRecords.STATE.payloadField(),
+                StateAggregateRecords.TAGS.objectField(dynamic = true).let { (field, declaration) ->
+                    field to declaration.copy(
+                        additionalProperties = DeclarationValue.Set(
+                            QueryFieldDeclaration(
+                                nullable = DeclarationValue.Set(false),
+                                items = DeclarationValue.Set(
+                                    QueryFieldDeclaration(
+                                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+                                        nullable = DeclarationValue.Set(false),
+                                    )
+                                ),
+                            )
+                        )
+                    )
+                },
                 StateAggregateRecords.DELETED.booleanField(),
                 SnapshotRecords.SNAPSHOT_TIME.epochField(),
             ),
@@ -68,7 +82,7 @@ object SystemQuerySchemaSource : QuerySchemaSource {
                 MessageRecords.ID.stringField(),
                 MessageRecords.CONTEXT_NAME.stringField(),
                 MessageRecords.AGGREGATE_NAME.stringField(),
-                MessageRecords.HEADER.objectField(DeclarationValue.Set(true)),
+                MessageRecords.HEADER.objectField(dynamic = true),
                 MessageRecords.AGGREGATE_ID.stringField(),
                 MessageRecords.TENANT_ID.stringField(),
                 MessageRecords.OWNER_ID.stringField(),
@@ -77,14 +91,24 @@ object SystemQuerySchemaSource : QuerySchemaSource {
                 MessageRecords.REQUEST_ID.stringField(),
                 MessageRecords.VERSION.integerField(),
                 MessageRecords.CREATE_TIME.epochField(),
-                MessageRecords.BODY.objectField(cardinality = QueryCardinality.MANY),
+                QueryField(MessageRecords.BODY) to QueryFieldDeclaration(
+                    kind = DeclarationValue.Set(QueryValueKind.ARRAY),
+                    nullable = DeclarationValue.Set(false),
+                    required = DeclarationValue.Set(true),
+                    items = DeclarationValue.Set(QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)))),
+                ),
                 "${MessageRecords.BODY}.${MessageRecords.ID}".stringField(),
                 "${MessageRecords.BODY}.${MessageRecords.NAME}".stringField(),
                 "${MessageRecords.BODY}.${DomainEventRecords.REVISION}".stringField(),
                 "${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}".stringField(),
-                "${MessageRecords.BODY}.${MessageRecords.BODY}".objectField(DeclarationValue.Set(false)),
+                "${MessageRecords.BODY}.${MessageRecords.BODY}".payloadField(),
             ),
         ),
+    )
+
+    private fun String.payloadField() = QueryField(this) to QueryFieldDeclaration(
+        nullable = DeclarationValue.Set(false),
+        required = DeclarationValue.Set(true),
     )
 
     private fun String.stringField() = field(QueryValueType.STRING)
@@ -93,10 +117,11 @@ object SystemQuerySchemaSource : QuerySchemaSource {
 
     private fun String.booleanField() = field(QueryValueType.BOOLEAN)
 
-    private fun String.objectField(
-        dynamicChildren: DeclarationValue<Boolean> = DeclarationValue.Unset,
-        cardinality: QueryCardinality = QueryCardinality.SINGLE,
-    ) = field(QueryValueType.OBJECT, dynamicChildren = dynamicChildren, cardinality = cardinality)
+    private fun String.objectField(dynamic: Boolean = false) = field(
+        QueryValueType.OBJECT
+    ).let { (field, declaration) ->
+        field to declaration.copy(additionalProperties = if (dynamic) DeclarationValue.Set(QueryFieldDeclaration()) else DeclarationValue.Unset)
+    }
 
     private fun String.epochField() = field(
         QueryValueType.INTEGER,
@@ -106,14 +131,10 @@ object SystemQuerySchemaSource : QuerySchemaSource {
     private fun String.field(
         valueType: QueryValueType,
         semanticType: DeclarationValue<QuerySemanticType?> = DeclarationValue.Unset,
-        dynamicChildren: DeclarationValue<Boolean> = DeclarationValue.Unset,
-        cardinality: QueryCardinality = QueryCardinality.SINGLE,
     ): Pair<QueryField, QueryFieldDeclaration> = QueryField(this) to QueryFieldDeclaration(
         valueTypes = DeclarationValue.Set(setOf(valueType)),
         nullable = DeclarationValue.Set(false),
         required = DeclarationValue.Set(true),
-        cardinality = DeclarationValue.Set(cardinality),
         semanticType = semanticType,
-        dynamicChildren = dynamicChildren,
     )
 }

@@ -17,9 +17,12 @@ import co.elastic.clients.elasticsearch.core.search.SourceFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.projectionField
+import me.ahoo.wow.query.schema.validateQuery
 
 object ElasticsearchProjectionCompiler {
     fun compile(projection: Projection, schema: QueryModelSchema): SourceFilter {
+        validateQuery(projection, schema)
         return SourceFilter.of {
             it.includes(projection.include.toSourceFields(schema))
             it.excludes(projection.exclude.toSourceFields(schema))
@@ -28,7 +31,7 @@ object ElasticsearchProjectionCompiler {
 
     private fun List<QueryField>.toSourceFields(schema: QueryModelSchema): List<String> =
         flatMap { field ->
-            val path = schema.field(field)?.projectionField?.path ?: field.path
+            val path = schema.projectionField(field).path
             listOf(path, "$path.*")
         }.distinct()
 }

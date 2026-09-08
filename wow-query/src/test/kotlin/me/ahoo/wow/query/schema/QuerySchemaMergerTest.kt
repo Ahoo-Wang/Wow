@@ -20,9 +20,9 @@ import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.KeepMask
 import me.ahoo.wow.api.query.mask.KeepMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import org.junit.jupiter.api.Test
@@ -35,6 +35,106 @@ class QuerySchemaMergerTest {
     private val merger = QuerySchemaMerger()
 
     @Test
+    fun `dotted metadata patch preserves nullable union branches`() {
+        val objectBranch = QueryFieldDeclaration(
+            properties = DeclarationValue.Set(
+                mapOf(
+                    "zip" to QueryFieldDeclaration(
+                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+                    )
+                )
+            ),
+        )
+        val nullable = QueryFieldDeclaration(
+            alternatives = DeclarationValue.Set(
+                listOf(objectBranch, QueryFieldDeclaration(kind = DeclarationValue.Set(QueryValueKind.NULL)))
+            ),
+        )
+        val result = merger.merge(
+            system(),
+            listOf(
+                PrioritizedQuerySchemaDeclaration(
+                    100,
+                    QuerySchemaDeclaration(mapOf(QueryField("state.address") to nullable))
+                ),
+                PrioritizedQuerySchemaDeclaration(
+                    300,
+                    QuerySchemaDeclaration(
+                        mapOf(
+                            QueryField("state.address.zip") to QueryFieldDeclaration(title = DeclarationValue.Set("ZIP label")),
+                        )
+                    )
+                ),
+            ),
+        )
+        val address = result.root.properties.getValue("state").properties.getValue("address")
+        address.kind.assert().isEqualTo(QueryValueKind.UNION)
+        address.alternatives.map { it.kind }.assert().isEqualTo(listOf(QueryValueKind.OBJECT, QueryValueKind.NULL))
+        val zip = address.alternatives.first().properties.getValue("zip")
+        zip.title.assert().isEqualTo("ZIP label")
+        zip.valueTypes.assert().isEqualTo(setOf(QueryValueType.STRING))
+        address.alternatives.last().properties.assert().isEmpty()
+    }
+
+    @Test
+    fun `dotted patch does not turn scalar union alternatives into objects`() {
+        assertThrows<QuerySchemaConflictException> {
+            merger.merge(
+                system(),
+                listOf(
+                    PrioritizedQuerySchemaDeclaration(
+                        100,
+                        QuerySchemaDeclaration(
+                            mapOf(
+                                QueryField("state.address") to QueryFieldDeclaration(
+                                    alternatives = DeclarationValue.Set(
+                                        listOf(
+                                            QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING))),
+                                            QueryFieldDeclaration(kind = DeclarationValue.Set(QueryValueKind.NULL)),
+                                        )
+                                    )
+                                ),
+                            )
+                        )
+                    ),
+                    PrioritizedQuerySchemaDeclaration(
+                        300,
+                        QuerySchemaDeclaration(
+                            mapOf(
+                                QueryField("state.address.zip") to QueryFieldDeclaration(title = DeclarationValue.Set("ZIP label")),
+                            )
+                        )
+                    ),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `equal length declaration paths retain distinct keys`() {
+        val result = merger.merge(
+            system(),
+            listOf(
+                PrioritizedQuerySchemaDeclaration(
+                    100,
+                    QuerySchemaDeclaration(
+                        mapOf(
+                            QueryField("state.first") to QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING))),
+                            QueryField("state.other") to QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER))),
+                        ),
+                    )
+                )
+            )
+        )
+        result.value(
+            QueryField("state.first").toPathTemplate()
+        )!!.valueTypes.assert().isEqualTo(setOf(QueryValueType.STRING))
+        result.value(
+            QueryField("state.other").toPathTemplate()
+        )!!.valueTypes.assert().isEqualTo(setOf(QueryValueType.INTEGER))
+    }
+
+    @Test
     fun `higher priority should merge by leaf without erasing lower values`() {
         val json = declaration("state.createdAt", valueTypes = setOf(QueryValueType.INTEGER))
         val bean = declaration("state.createdAt", semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS))
@@ -45,7 +145,7 @@ class QuerySchemaMergerTest {
                 PrioritizedQuerySchemaDeclaration(100, json),
                 PrioritizedQuerySchemaDeclaration(300, bean),
             ),
-        ).fields.getValue(QueryField("state.createdAt"))
+        ).value(QueryField("state.createdAt").toPathTemplate())!!
 
         field.valueTypes.assert().isEqualTo(setOf(QueryValueType.INTEGER))
         field.semanticType.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
@@ -61,7 +161,7 @@ class QuerySchemaMergerTest {
             ),
         )
 
-        result.fields.getValue(QueryField("state.name")).title.assert().isEqualTo("Bean")
+        result.value(QueryField("state.name").toPathTemplate())!!.title.assert().isEqualTo("Bean")
     }
 
     @Test
@@ -89,7 +189,7 @@ class QuerySchemaMergerTest {
                 PrioritizedQuerySchemaDeclaration(300, declaration),
                 PrioritizedQuerySchemaDeclaration(300, declaration),
             ),
-        ).fields.getValue(QueryField("state.name")).title.assert().isEqualTo("Name")
+        ).value(QueryField("state.name").toPathTemplate())!!.title.assert().isEqualTo("Name")
     }
 
     @Test
@@ -106,7 +206,7 @@ class QuerySchemaMergerTest {
                     )
                 )
             ),
-        ).fields.getValue(QueryField("state.name"))
+        ).value(QueryField("state.name").toPathTemplate())!!
 
         field.title.assert().isNull()
         field.description.assert().isNull()
@@ -114,9 +214,9 @@ class QuerySchemaMergerTest {
         field.valueTypes.assert().isEmpty()
         field.nullable.assert().isTrue()
         field.required.assert().isFalse()
-        field.cardinality.assert().isEqualTo(QueryCardinality.SINGLE)
+        field.cardinality.assert().isNull()
         field.semanticType.assert().isNull()
-        field.dynamicChildren.assert().isFalse()
+        field.additionalProperties.assert().isNull()
     }
 
     @Test
@@ -124,7 +224,7 @@ class QuerySchemaMergerTest {
         merger.merge(
             system(),
             listOf(PrioritizedQuerySchemaDeclaration(300, title("Name"))),
-        ).fields.assert().containsKey(QueryField("state.name"))
+        ).value(QueryField("state.name").toPathTemplate()).assert().isNotNull()
     }
 
     @Test
@@ -134,7 +234,7 @@ class QuerySchemaMergerTest {
         merger.merge(
             SystemQuerySchemaSource.declaration(QueryModel.EVENT_STREAM),
             listOf(PrioritizedQuerySchemaDeclaration(300, payload)),
-        ).fields.assert().containsKey(QueryField("body.body.data"))
+        ).value(QueryField("body.body.data").toPathTemplate()).assert().isNotNull()
     }
 
     @Test
@@ -147,7 +247,7 @@ class QuerySchemaMergerTest {
                     bodyType(QueryFieldDeclaration(enumValues = DeclarationValue.Set(enumValues("example.Event")))),
                 ),
             ),
-        ).fields.getValue(QueryField("body.bodyType"))
+        ).value(QueryField("body.bodyType").toPathTemplate())!!
 
         field.enumValues.assert().isEqualTo(listOf(JsonNodeFactory.instance.stringNode("example.Event")))
         field.valueTypes.assert().isEqualTo(setOf(QueryValueType.STRING))
@@ -162,9 +262,9 @@ class QuerySchemaMergerTest {
             QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER))),
             QueryFieldDeclaration(nullable = DeclarationValue.Set(true)),
             QueryFieldDeclaration(required = DeclarationValue.Set(false)),
-            QueryFieldDeclaration(cardinality = DeclarationValue.Set(QueryCardinality.MANY)),
+            QueryFieldDeclaration(kind = DeclarationValue.Set(QueryValueKind.ARRAY)),
             QueryFieldDeclaration(semanticType = DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS))),
-            QueryFieldDeclaration(dynamicChildren = DeclarationValue.Set(true)),
+            QueryFieldDeclaration(additionalProperties = DeclarationValue.Set(QueryFieldDeclaration())),
             QueryFieldDeclaration(maskRule = DeclarationValue.Set(fullMaskRule())),
         ).forEach { extension ->
             assertThrows<QuerySchemaConflictException> {
@@ -259,7 +359,7 @@ class QuerySchemaMergerTest {
                         QuerySchemaDeclaration(
                             mapOf(
                                 QueryField("state") to QueryFieldDeclaration(
-                                    cardinality = DeclarationValue.Set(QueryCardinality.MANY),
+                                    nullable = DeclarationValue.Set(true),
                                 ),
                             )
                         )
@@ -283,7 +383,7 @@ class QuerySchemaMergerTest {
                 PrioritizedQuerySchemaDeclaration(100, declaration("state.secret")),
                 PrioritizedQuerySchemaDeclaration(100, masked),
             ),
-        ).fields.getValue(QueryField("state.secret")).maskRule.assert().isEqualTo(rule)
+        ).value(QueryField("state.secret").toPathTemplate())!!.maskRule.assert().isEqualTo(rule)
 
         merger.merge(
             system(),
@@ -294,7 +394,7 @@ class QuerySchemaMergerTest {
                     declaration("state.secret", setOf(QueryValueType.STRING), maskRule = sameRule),
                 ),
             ),
-        ).fields.getValue(QueryField("state.secret")).maskRule.assert().isEqualTo(rule)
+        ).value(QueryField("state.secret").toPathTemplate())!!.maskRule.assert().isEqualTo(rule)
 
         assertThrows<QuerySchemaConflictException> {
             merger.merge(
@@ -324,6 +424,139 @@ class QuerySchemaMergerTest {
             )
         }
     }
+
+    @Test
+    fun `array and map nodes retain independent value nullability`() {
+        val schema = mergeTrees(
+            QueryFieldDeclaration(
+                additionalProperties = DeclarationValue.Set(
+                    QueryFieldDeclaration(
+                        nullable = DeclarationValue.Set(true),
+                        items = DeclarationValue.Set(
+                            QueryFieldDeclaration(
+                                nullable = DeclarationValue.Set(false),
+                                properties = DeclarationValue.Set(mapOf("secret" to stringMask())),
+                            )
+                        ),
+                    )
+                ),
+                nullable = DeclarationValue.Set(false),
+            )
+        )
+        val map = schema.root.properties.getValue("state").properties.getValue("values")
+        map.kind.assert().isEqualTo(QueryValueKind.OBJECT)
+        map.nullable.assert().isFalse()
+        val array = checkNotNull(map.additionalProperties)
+        array.kind.assert().isEqualTo(QueryValueKind.ARRAY)
+        array.nullable.assert().isTrue()
+        val item = checkNotNull(array.items)
+        item.nullable.assert().isFalse()
+        item.properties.getValue("secret").maskRule.assert().isEqualTo(fullMaskRule())
+    }
+
+    @Test
+    fun `structure replacement retains compatible masked descendants and replaces ordinary leaves`() {
+        val lower = QueryFieldDeclaration(
+            additionalProperties = DeclarationValue.Set(
+                QueryFieldDeclaration(
+                    properties = DeclarationValue.Set(
+                        mapOf("secret" to stringMask(), "old" to QueryFieldDeclaration())
+                    ),
+                )
+            )
+        )
+        val higher = QueryFieldDeclaration(
+            additionalProperties = DeclarationValue.Set(
+                QueryFieldDeclaration(
+                    properties = DeclarationValue.Set(
+                        mapOf(
+                            "secret" to QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)))
+                        )
+                    ),
+                )
+            )
+        )
+        val value = mergeTrees(
+            lower,
+            higher
+        ).root.properties.getValue("state").properties.getValue("values").additionalProperties!!
+        value.properties.keys.assert().isEqualTo(setOf("secret"))
+        value.properties.getValue("secret").maskRule.assert().isEqualTo(fullMaskRule())
+    }
+
+    @Test
+    fun `structure replacement rejects loss of a masked dynamic descendant`() {
+        val lower = QueryFieldDeclaration(
+            additionalProperties = DeclarationValue.Set(
+                QueryFieldDeclaration(
+                    properties = DeclarationValue.Set(mapOf("secret" to stringMask())),
+                )
+            )
+        )
+        listOf(
+            QueryFieldDeclaration(additionalProperties = DeclarationValue.Set(null)),
+            QueryFieldDeclaration(
+                additionalProperties = DeclarationValue.Set(
+                    QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
+                )
+            ),
+        ).forEach { higher -> assertThrows<QuerySchemaConflictException> { mergeTrees(lower, higher) } }
+    }
+
+    @Test
+    fun `union alternatives preserve distinct shapes and protected replacement must be unambiguous`() {
+        val string = stringMask()
+        val array =
+            QueryFieldDeclaration(
+                items = DeclarationValue.Set(
+                    QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)))
+                )
+            )
+        val lower = QueryFieldDeclaration(alternatives = DeclarationValue.Set(listOf(string, array)))
+        val schema = mergeTrees(lower)
+        val union = schema.root.properties.getValue("state").properties.getValue("values")
+        union.kind.assert().isEqualTo(QueryValueKind.UNION)
+        union.cardinality.assert().isNull()
+        union.alternatives.map { it.kind }.assert().isEqualTo(listOf(QueryValueKind.SCALAR, QueryValueKind.ARRAY))
+        assertThrows<QuerySchemaConflictException> {
+            mergeTrees(lower, QueryFieldDeclaration(alternatives = DeclarationValue.Set(listOf(array, array))))
+        }
+    }
+
+    @Test
+    fun `same priority nested property and dotted patch conflicts are detected`() {
+        assertThrows<QuerySchemaConflictException> {
+            merger.merge(
+                system(),
+                listOf(
+                    PrioritizedQuerySchemaDeclaration(
+                        100,
+                        QuerySchemaDeclaration(
+                            mapOf(
+                                QueryField("state.values") to QueryFieldDeclaration(properties = DeclarationValue.Set(mapOf("name" to QueryFieldDeclaration(title = DeclarationValue.Set("A"))))),
+                                QueryField("state.values.name") to QueryFieldDeclaration(title = DeclarationValue.Set("B")),
+                            )
+                        )
+                    )
+                )
+            )
+        }
+    }
+
+    private fun stringMask() = QueryFieldDeclaration(
+        valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+        maskRule = DeclarationValue.Set(fullMaskRule()),
+    )
+
+    private fun mergeTrees(vararg declarations: QueryFieldDeclaration): LogicalQuerySchema = merger.merge(
+        system(),
+        declarations.mapIndexed { index, declaration ->
+            PrioritizedQuerySchemaDeclaration(
+                index,
+                QuerySchemaDeclaration(mapOf(QueryField("state.values") to declaration))
+            )
+        }
+    )
 
     private fun system(): QuerySchemaDeclaration =
         SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)

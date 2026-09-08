@@ -33,14 +33,59 @@ class FilterNormalizerTest {
     )
 
     @Test
-    fun `should inject active deletion and expand today once`() {
+    fun `raw normalization must not inject a deletion predicate`() {
+        normalizer.normalize(MatchAllFilter).assert().isEqualTo(MatchAllFilter)
+        val predicate = EqualFilter(QueryField("field"), JsonSerializer.valueToTree<JsonNode>("value"))
+        normalizer.normalize(predicate).assert().isEqualTo(predicate)
+    }
+
+    @Test
+    fun `shared instant normalizes root and scoped temporal filters without nested deletion defaults`() {
+        val epoch = me.ahoo.wow.query.schema.QueryValueSchema(
+            me.ahoo.wow.api.query.schema.QueryValueKind.SCALAR,
+            valueTypes = setOf(me.ahoo.wow.api.query.schema.QueryValueType.INTEGER),
+            semanticType = me.ahoo.wow.api.query.schema.Temporal.Epoch(TimeUnit.SECONDS),
+        )
+        val item = me.ahoo.wow.query.schema.QueryValueSchema(
+            me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT,
+            properties = mapOf("createdAt" to epoch),
+        )
+        val definition = me.ahoo.wow.query.schema.LogicalQuerySchema(
+            me.ahoo.wow.query.schema.QueryValueSchema(
+                me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT,
+                properties = mapOf(
+                    "createdAt" to epoch,
+                    "orders" to me.ahoo.wow.query.schema.QueryValueSchema(
+                        me.ahoo.wow.api.query.schema.QueryValueKind.ARRAY, items = item,
+                    )
+                ),
+            )
+        )
+        val schema = me.ahoo.wow.query.schema.QueryModelSchema(
+            me.ahoo.wow.api.query.schema.QueryModel.SNAPSHOT,
+            emptySet(),
+            definition,
+            emptyMap(),
+        )
+        val instant = Instant.parse("2026-01-01T12:00:00Z")
+        val filter = TodayFilter(QueryField("createdAt"), "UTC")
+        val root = normalizer.normalize(filter, schema, now = instant) as AndFilter
+        val scoped = normalizer.normalize(filter, schema, QueryField("orders"), now = instant) as AndFilter
+        root.operands.assert().isEqualTo(scoped.operands)
+        (scoped.operands.first() as GreaterThanOrEqualFilter).value.longValue().assert()
+            .isEqualTo(Instant.parse("2026-01-01T00:00:00Z").epochSecond)
+        (scoped.operands.last() as LessThanFilter).value.longValue().assert()
+            .isEqualTo(Instant.parse("2026-01-02T00:00:00Z").epochSecond)
+    }
+
+    @Test
+    fun `should expand today without injecting deletion scope`() {
         val normalized = normalizer.normalize(TodayFilter(QueryField("createdAt"), "UTC")) as AndFilter
 
-        normalized.operands.assert().hasSize(3)
-        normalized.operands[0].assert().isEqualTo(DeletionFilter(DeletionState.ACTIVE))
-        (normalized.operands[1] as GreaterThanOrEqualFilter).value.asLong().assert()
+        normalized.operands.assert().hasSize(2)
+        (normalized.operands[0] as GreaterThanOrEqualFilter).value.asLong().assert()
             .isEqualTo(Instant.parse("2026-08-22T00:00:00Z").toEpochMilli())
-        (normalized.operands[2] as LessThanFilter).value.asLong().assert()
+        (normalized.operands[1] as LessThanFilter).value.asLong().assert()
             .isEqualTo(Instant.parse("2026-08-23T00:00:00Z").toEpochMilli())
     }
 
@@ -67,22 +112,13 @@ class FilterNormalizerTest {
     }
 
     @Test
-    fun `should allow event stream normalization without deletion scope`() {
-        FilterNormalizer(
-            clock = Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),
-            defaultZoneId = ZoneOffset.UTC,
-            defaultDeletionState = null,
-        ).normalize(MatchAllFilter).assert().isEqualTo(MatchAllFilter)
-    }
-
-    @Test
     fun `should preserve runtime date formatter`() {
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         val normalized = normalizer.normalize(
             TodayFilter(QueryField("createdAt"), dateFormatter = formatter),
         ) as AndFilter
 
-        (normalized.operands[1] as GreaterThanOrEqualFilter).value.asText().assert()
+        (normalized.operands[0] as GreaterThanOrEqualFilter).value.asText().assert()
             .isEqualTo("2026-08-22 00:00:00")
     }
 
@@ -91,7 +127,6 @@ class FilterNormalizerTest {
         val normalized = FilterNormalizer(
             clock = Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),
             defaultZoneId = ZoneOffset.UTC,
-            defaultDeletionState = null,
         ).normalize(
             BeforeTodayFilter(
                 field = QueryField("createdAt"),
@@ -111,7 +146,6 @@ class FilterNormalizerTest {
         val localNormalizer = FilterNormalizer(
             clock = Clock.fixed(Instant.parse("2024-02-29T12:00:00Z"), ZoneOffset.UTC),
             defaultZoneId = ZoneOffset.UTC,
-            defaultDeletionState = null,
         )
         val cases = listOf(
             YesterdayFilter(field, zoneId) to
@@ -152,11 +186,12 @@ class FilterNormalizerTest {
             LastYearFilter(field, "UTC"),
             ThisYearFilter(field, "UTC"),
             NextYearFilter(field, "UTC"),
-            BeforeTodayFilter(field, "12:00", "UTC"),
             RecentDaysFilter(field, 2, "UTC"),
-            EarlierDaysFilter(field, 2, "UTC"),
         ).forEach { relative ->
             normalizer.normalize(relative).assert().isInstanceOf(AndFilter::class.java)
+        }
+        listOf(BeforeTodayFilter(field, "12:00", "UTC"), EarlierDaysFilter(field, 2, "UTC")).forEach { relative ->
+            normalizer.normalize(relative).assert().isInstanceOf(LessThanFilter::class.java)
         }
     }
 
@@ -165,8 +200,7 @@ class FilterNormalizerTest {
         val field = QueryField("field")
         val value = JsonSerializer.valueToTree<JsonNode>("value")
         val nullValue = JsonSerializer.valueToTree<JsonNode>(null)
-        val noScope = FilterNormalizer(defaultDeletionState = null)
-        val normalized = noScope.normalize(
+        val normalized = normalizer.normalize(
             AndFilter(
                 listOf(
                     EqualFilter(field, nullValue),
@@ -180,21 +214,20 @@ class FilterNormalizerTest {
         ) as AndFilter
 
         normalized.operands.assert().hasSize(4)
-        noScope.normalize(AndFilter(listOf(MatchNoneFilter))).assert().isEqualTo(MatchNoneFilter)
-        noScope.normalize(AndFilter(listOf(MatchAllFilter))).assert().isEqualTo(MatchAllFilter)
-        noScope.normalize(AndFilter(listOf(EqualFilter(field, value)))).assert().isEqualTo(EqualFilter(field, value))
-        noScope.normalize(OrFilter(listOf(MatchAllFilter))).assert().isEqualTo(MatchAllFilter)
-        noScope.normalize(OrFilter(listOf(MatchNoneFilter))).assert().isEqualTo(MatchNoneFilter)
-        noScope.normalize(OrFilter(listOf(EqualFilter(field, value)))).assert().isEqualTo(EqualFilter(field, value))
-        noScope.normalize(NorFilter(listOf(MatchAllFilter))).assert().isEqualTo(MatchNoneFilter)
-        noScope.normalize(NorFilter(listOf(MatchNoneFilter))).assert().isEqualTo(MatchAllFilter)
+        normalizer.normalize(AndFilter(listOf(MatchNoneFilter))).assert().isEqualTo(MatchNoneFilter)
+        normalizer.normalize(AndFilter(listOf(MatchAllFilter))).assert().isEqualTo(MatchAllFilter)
+        normalizer.normalize(AndFilter(listOf(EqualFilter(field, value)))).assert().isEqualTo(EqualFilter(field, value))
+        normalizer.normalize(OrFilter(listOf(MatchAllFilter))).assert().isEqualTo(MatchAllFilter)
+        normalizer.normalize(OrFilter(listOf(MatchNoneFilter))).assert().isEqualTo(MatchNoneFilter)
+        normalizer.normalize(OrFilter(listOf(EqualFilter(field, value)))).assert().isEqualTo(EqualFilter(field, value))
+        normalizer.normalize(NorFilter(listOf(MatchAllFilter))).assert().isEqualTo(MatchNoneFilter)
+        normalizer.normalize(NorFilter(listOf(MatchNoneFilter))).assert().isEqualTo(MatchAllFilter)
     }
 
     @Test
     fun `should normalize operand free empty string filters`() {
         val field = QueryField("field")
         val emptyValue = JsonSerializer.valueToTree<JsonNode>("")
-        val noScope = FilterNormalizer(defaultDeletionState = null)
         val empty = JsonSerializer.readValue(
             """{"op":"IS_EMPTY_STRING","field":"field"}""",
             FilterExpression::class.java,
@@ -204,8 +237,8 @@ class FilterNormalizerTest {
             FilterExpression::class.java,
         )
 
-        noScope.normalize(empty).assert().isEqualTo(EqualFilter(field, emptyValue))
-        noScope.normalize(notEmpty).assert().isEqualTo(
+        normalizer.normalize(empty).assert().isEqualTo(EqualFilter(field, emptyValue))
+        normalizer.normalize(notEmpty).assert().isEqualTo(
             AndFilter(
                 listOf(
                     IsNotNullFilter(field),
@@ -216,7 +249,7 @@ class FilterNormalizerTest {
     }
 
     @Test
-    fun `should keep active scope around nested deletion filters`() {
+    fun `should preserve nested deletion predicates without adding a root scope`() {
         val predicate = EqualFilter(
             QueryField("field"),
             JsonSerializer.valueToTree<JsonNode>("value"),
@@ -225,8 +258,7 @@ class FilterNormalizerTest {
             OrFilter(listOf(DeletionFilter(DeletionState.DELETED), predicate)),
             NorFilter(listOf(DeletionFilter(DeletionState.DELETED), predicate)),
         ).forEach { expression ->
-            val normalized = normalizer.normalize(expression) as AndFilter
-            normalized.operands.first().assert().isEqualTo(DeletionFilter(DeletionState.ACTIVE))
+            normalizer.normalize(expression).assert().isEqualTo(expression)
         }
     }
 }

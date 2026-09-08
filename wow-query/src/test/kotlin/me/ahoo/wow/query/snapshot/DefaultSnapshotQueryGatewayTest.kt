@@ -18,54 +18,50 @@ import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.annotation.ORDER_FIRST
-import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.DeletionFilter
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.RewritableFilter
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.mask.CompiledMask
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.KeepMask
 import me.ahoo.wow.api.query.mask.KeepMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
-import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
-import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.ResolvedQuery
+import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
-import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.mask.SchemaMaskQueryFilter
+import me.ahoo.wow.query.gatewaySchema
 import me.ahoo.wow.query.schema.MaskRule
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -82,71 +78,6 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.reflect.jvm.javaField
 
 class DefaultSnapshotQueryGatewayTest {
-    @Test
-    fun `schema mask filter should wrap the downstream result`() {
-        val schema = maskedSchema()
-        val context = DefaultQueryContext<ISingleQuery, Mono<ObjectNode>>(
-            QueryType.SINGLE,
-            MOCK_AGGREGATE_METADATA,
-            schema,
-        ).setQuery(singleQuery { })
-        val downstream = FilterChain<QueryContext<*, *>> { downstreamContext ->
-            downstreamContext.asSingleQuery().setResult(Mono.fromSupplier(::snapshotNode))
-            Mono.empty()
-        }
-
-        val result = SchemaMaskQueryFilter().filter(context, downstream)
-            .then(Mono.defer { context.getRequiredResult() })
-
-        StepVerifier.create(result)
-            .assertNext { it.stateValue().assert().isEqualTo("***********") }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `schema mask filter should return downstream publisher when result masking is unnecessary`() {
-        val downstreamResult = Mono.never<Void>()
-        val downstream = FilterChain<QueryContext<*, *>> { downstreamResult }
-        val contexts = listOf(
-            DefaultQueryContext<Any, Any>(QueryType.SINGLE, MOCK_AGGREGATE_METADATA, unmaskedSchema()),
-            DefaultQueryContext<Any, Any>(QueryType.COUNT, MOCK_AGGREGATE_METADATA, maskedSchema()),
-            DefaultQueryContext<Any, Any>(QueryType.AGGREGATION, MOCK_AGGREGATE_METADATA, maskedSchema()),
-        )
-
-        contexts.forEach { context ->
-            SchemaMaskQueryFilter().filter(context, downstream).assert().isSameAs(downstreamResult)
-        }
-    }
-
-    @Test
-    fun `schema mask filter should mask page entries without replacing containers`() {
-        val filter = SchemaMaskQueryFilter()
-        val downstream = FilterChain<QueryContext<*, *>> { Mono.empty() }
-        val schema = maskedSchema()
-        val paged = PagedList(1, listOf(snapshotNode()))
-        val pagedContext = DefaultQueryContext<IPagedQuery, Mono<PagedList<ObjectNode>>>(
-            QueryType.PAGED,
-            MOCK_AGGREGATE_METADATA,
-            schema,
-        ).setResult(Mono.just(paged))
-        val cursor = CursorPage(listOf(snapshotNode()), "next")
-        val cursorContext = DefaultQueryContext<ICursorQuery, Mono<CursorPage<ObjectNode>>>(
-            QueryType.CURSOR,
-            MOCK_AGGREGATE_METADATA,
-            schema,
-        ).setResult(Mono.just(cursor))
-
-        filter.filter(pagedContext, downstream).block()
-        val maskedPaged = pagedContext.getRequiredResult().block()!!
-        filter.filter(cursorContext, downstream).block()
-        val maskedCursor = cursorContext.getRequiredResult().block()!!
-
-        maskedPaged.assert().isSameAs(paged)
-        maskedPaged.list.single().stateValue().assert().isEqualTo("***********")
-        maskedCursor.assert().isSameAs(cursor)
-        maskedCursor.list.single().stateValue().assert().isEqualTo("***********")
-    }
-
     @Test
     fun `snapshot masking should not remove event body type fields`() {
         val node = snapshotNode().also {
@@ -175,7 +106,7 @@ class DefaultSnapshotQueryGatewayTest {
         gateway.single(singleQuery { }).block()!!.state.value.assert().isEqualTo("state-value")
 
         backendCalls.assert().isEqualTo(listOf(QueryType.SINGLE, QueryType.SINGLE))
-        order.take(5).assert().isEqualTo(listOf("a-request", "b-request", "backend", "b-result", "a-result"))
+        order.assert().isEqualTo(listOf("a-request", "b-request", "backend", "a-request", "b-request", "backend"))
     }
 
     @Test
@@ -207,6 +138,54 @@ class DefaultSnapshotQueryGatewayTest {
                 QueryType.AGGREGATION
             ),
         )
+    }
+
+    @Test
+    fun `every backend operation receives the transformed query and bound schema`() {
+        val receivedQueries = linkedMapOf<QueryType, Any>()
+        val receivedSchemas = linkedMapOf<QueryType, QueryModelSchema>()
+        val preparedSchemas = mutableListOf<QueryModelSchema>()
+        val provider = SchemaSnapshotProvider { Mono.just(unmaskedSchema()) }
+        val backend = RecordingSnapshotBackend(MOCK_AGGREGATE_METADATA, mutableListOf()) { type, query, schema ->
+            receivedQueries[type] = query
+            receivedSchemas[type] = schema
+        }
+        val filter = object : QueryFilter {
+            override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> {
+                preparedSchemas += context.schema
+                return Mono.just(context.query.appendFilter(MatchNoneFilter))
+            }
+        }
+        val gateway = gateway(backend, filters = listOf(filter), schemaProvider = provider)
+        val sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.DESC))
+        val single = SingleQuery(MatchAllFilter, sort = sort)
+        val list = ListQuery(MatchAllFilter, sort = sort, limit = 7)
+        val paged = PagedQuery(MatchAllFilter, sort = sort, pagination = Pagination(index = 2, size = 7))
+        val cursor = CursorQuery(MatchAllFilter, sort = sort, size = 7, cursor = "opaque-cursor")
+        val aggregation = AggregationQuery(metrics = listOf(AggregationMetric.Count("total")), limit = 7)
+        gateway.dynamicSingle(single).block()
+        gateway.dynamicList(list).collectList().block()
+        gateway.dynamicPaged(paged).block()
+        gateway.dynamicCursor(cursor).block()
+        gateway.count(MatchAllFilter).block()
+        gateway.aggregate(aggregation).collectList().block()
+
+        receivedQueries.assert().isEqualTo(
+            mapOf(
+                QueryType.SINGLE to single.withFilter(MatchNoneFilter.appendFilter(DeletionFilter(DeletionState.ACTIVE))),
+                QueryType.LIST to list.withFilter(MatchNoneFilter.appendFilter(DeletionFilter(DeletionState.ACTIVE))),
+                QueryType.PAGED to paged.withFilter(MatchNoneFilter.appendFilter(DeletionFilter(DeletionState.ACTIVE))),
+                QueryType.CURSOR to cursor.withFilter(MatchNoneFilter.appendFilter(DeletionFilter(DeletionState.ACTIVE))),
+                QueryType.COUNT to MatchNoneFilter.appendFilter(DeletionFilter(DeletionState.ACTIVE)),
+                QueryType.AGGREGATION to aggregation.withFilter(MatchNoneFilter.appendFilter(DeletionFilter(DeletionState.ACTIVE))),
+            ),
+        )
+        receivedSchemas.assert().hasSize(6)
+        preparedSchemas.assert().hasSize(6)
+        provider.schemaCalls.get().assert().isEqualTo(6)
+        receivedSchemas.values.zip(
+            preparedSchemas
+        ).forEach { (backend, prepared) -> backend.assert().isSameAs(prepared) }
     }
 
     @Test
@@ -244,9 +223,13 @@ class DefaultSnapshotQueryGatewayTest {
     @Test
     fun `backend should return an empty terminal cursor page`() {
         val schema = unmaskedSchema()
-        val query = schema.resolve(CursorQuery(MatchAllFilter))
-            .requireAccepted(QuerySchemaValidationMode.COMPATIBLE)
-        NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA).cursor(ResolvedQuery(query, schema))
+        val query = CursorQuery(
+            MatchAllFilter,
+            sort = listOf(
+                me.ahoo.wow.api.query.Sort(QueryField("aggregateId"), me.ahoo.wow.api.query.Sort.Direction.ASC)
+            )
+        )
+        NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA).cursor(query, schema)
             .test()
             .assertNext { page ->
                 page.list.assert().isEmpty()
@@ -296,7 +279,7 @@ class DefaultSnapshotQueryGatewayTest {
         val annotation = Kept::value.javaField!!.getAnnotation(KeepMask::class.java)
         val rule = MaskRule(KeepMaskStrategy::class, annotation, KeepMaskStrategy.compile(annotation))
         current.set(
-            QueryModelSchema(
+            gatewaySchema(
                 QueryModel.SNAPSHOT,
                 emptySet(),
                 mapOf(QueryField("state.value") to fieldSchema(rule)),
@@ -310,7 +293,7 @@ class DefaultSnapshotQueryGatewayTest {
         val failure = IllegalStateException("mask failed")
         val observed = CopyOnWriteArrayList<Throwable>()
         val annotation = Masked::value.javaField!!.getAnnotation(Mask::class.java)
-        val schema = QueryModelSchema(
+        val schema = gatewaySchema(
             QueryModel.SNAPSHOT,
             emptySet(),
             mapOf(
@@ -323,10 +306,7 @@ class DefaultSnapshotQueryGatewayTest {
         StepVerifier.create(
             gateway(
                 SchemaSnapshotBackend(Mono.just(schema)),
-                errorHandler = ErrorHandler { _, error ->
-                    observed += error
-                    Mono.empty()
-                },
+                observer = errorObserver { observed += it },
             ).dynamicSingle(singleQuery { }),
         ).expectErrorSatisfies { error ->
             error.assert().isInstanceOf(QuerySchemaValidationException::class.java)
@@ -340,7 +320,7 @@ class DefaultSnapshotQueryGatewayTest {
     fun `default error handler should not log mask strategy cause`() {
         val failure = IllegalStateException("secret-value")
         val annotation = Masked::value.javaField!!.getAnnotation(Mask::class.java)
-        val schema = QueryModelSchema(
+        val schema = gatewaySchema(
             QueryModel.SNAPSHOT,
             emptySet(),
             mapOf(
@@ -354,7 +334,7 @@ class DefaultSnapshotQueryGatewayTest {
             DefaultSnapshotQueryGateway<TestState>(
                 namedAggregate = MOCK_AGGREGATE_METADATA,
                 binding = QueryBackendBinding(backend, backend.schemaProvider),
-                validationMode = QuerySchemaValidationMode.COMPATIBLE,
+
                 targetType = JsonSerializer.typeFactory.constructParametricType(
                     MaterializedSnapshot::class.java,
                     TestState::class.java,
@@ -424,7 +404,7 @@ class DefaultSnapshotQueryGatewayTest {
     }
 
     @Test
-    fun `aggregation schema failure should stop before the error handler boundary`() {
+    fun `aggregation schema failure should be observed outside schema loading`() {
         val failure = QuerySchemaUnavailableException("aggregation unavailable")
         val observed = CopyOnWriteArrayList<Throwable>()
         val backend = SchemaSnapshotBackend(Mono.error(failure))
@@ -432,29 +412,17 @@ class DefaultSnapshotQueryGatewayTest {
         StepVerifier.create(
             gateway(
                 backend,
-                errorHandler = ErrorHandler { _, error ->
-                    observed += error
-                    Mono.empty()
-                },
+                observer = errorObserver { observed += it },
             ).aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))),
         )
             .expectErrorSatisfies { error -> error.assert().isSameAs(failure) }
             .verify()
         backend.resultSubscriptions.get().assert().isZero()
-        observed.assert().isEmpty()
+        observed.single().assert().isSameAs(failure)
     }
 
     @Test
-    fun `schema mask filter should remain outermost after user filter sorting`() {
-        val backend = SchemaSnapshotBackend(Mono.just(maskedSchema()))
-        val gateway = gateway(backend, filters = listOf(RevealResultFilter()))
-
-        gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("********")
-        gateway.single(singleQuery { }).block()!!.state.value.assert().isEqualTo("********")
-    }
-
-    @Test
-    fun `schema errors should fail before the error handler boundary`() {
+    fun `schema errors should be observed without query context`() {
         val failure = QuerySchemaUnavailableException("observed")
         val observed = CopyOnWriteArrayList<Throwable>()
         val backend = SchemaSnapshotBackend(Mono.error(failure))
@@ -462,13 +430,10 @@ class DefaultSnapshotQueryGatewayTest {
         StepVerifier.create(
             gateway(
                 backend,
-                errorHandler = ErrorHandler { _, error ->
-                    observed += error
-                    Mono.empty()
-                }
+                observer = errorObserver { observed += it }
             ).dynamicSingle(singleQuery { }),
         ).expectErrorMatches { it === failure }.verify()
-        observed.assert().isEmpty()
+        observed.single().assert().isSameAs(failure)
     }
 
     @Test
@@ -484,10 +449,7 @@ class DefaultSnapshotQueryGatewayTest {
         StepVerifier.create(
             gateway(
                 backend,
-                errorHandler = ErrorHandler { _, error ->
-                    observed += error
-                    Mono.empty()
-                }
+                observer = errorObserver { observed += it }
             ).dynamicSingle(singleQuery { }),
         ).expectErrorMatches { error ->
             error is QuerySchemaValidationException && observed.singleOrNull() === error
@@ -498,47 +460,52 @@ class DefaultSnapshotQueryGatewayTest {
 
     private fun gateway(
         backend: SnapshotQueryBackend,
-        filters: List<QueryFilter<QueryContext<*, *>>> = emptyList(),
-        errorHandler: ErrorHandler<QueryContext<*, *>> = ErrorHandler { _, error -> Mono.error(error) },
+        filters: List<QueryFilter> = emptyList(),
+        observer: QueryObserver = object : QueryObserver {},
+        schemaProvider: QueryModelSchemaProvider = defaultSchemaProvider,
     ): DefaultSnapshotQueryGateway<TestState> = DefaultSnapshotQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA,
-        binding = QueryBackendBinding(backend, defaultSchemaProvider),
-        validationMode = QuerySchemaValidationMode.COMPATIBLE,
+        binding = QueryBackendBinding(backend, schemaProvider),
+
         targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
             TestState::class.java,
         ),
         filters = filters,
-        errorHandler = errorHandler,
+        observer = observer,
     )
 
     private fun gateway(
         backend: SchemaSnapshotBackend,
-        filters: List<QueryFilter<QueryContext<*, *>>> = emptyList(),
-        errorHandler: ErrorHandler<QueryContext<*, *>> = ErrorHandler { _, error -> Mono.error(error) },
+        filters: List<QueryFilter> = emptyList(),
+        observer: QueryObserver = object : QueryObserver {},
     ): DefaultSnapshotQueryGateway<TestState> = DefaultSnapshotQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA,
         binding = QueryBackendBinding(backend, backend.schemaProvider),
-        validationMode = QuerySchemaValidationMode.COMPATIBLE,
+
         targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
             TestState::class.java,
         ),
         filters = filters,
-        errorHandler = errorHandler,
+        observer = observer,
     )
 
     private fun gateway(backend: SwitchingSchemaSnapshotBackend): DefaultSnapshotQueryGateway<TestState> =
         DefaultSnapshotQueryGateway(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             binding = QueryBackendBinding(backend, backend.schemaProvider),
-            validationMode = QuerySchemaValidationMode.COMPATIBLE,
+
             targetType = JsonSerializer.typeFactory.constructParametricType(
                 MaterializedSnapshot::class.java,
                 TestState::class.java,
             ),
-            errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+            observer = object : QueryObserver {},
         )
+
+    private fun errorObserver(callback: (Throwable) -> Unit) = object : QueryObserver {
+        override fun onError(namedAggregate: NamedAggregate, queryType: QueryType, error: Throwable) = callback(error)
+    }
 
     private fun captureErrors(block: () -> Unit): List<ILoggingEvent> {
         val logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
@@ -553,10 +520,10 @@ class DefaultSnapshotQueryGatewayTest {
         }
     }
 
-    private fun around(name: String, order: MutableList<String>) = object : QueryFilter<QueryContext<*, *>> {
-        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+    private fun around(name: String, order: MutableList<String>) = object : QueryFilter {
+        override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> {
             order += "$name-request"
-            return next.filter(context).then(Mono.fromRunnable { order += "$name-result" })
+            return Mono.just(context.query)
         }
     }
 
@@ -564,33 +531,40 @@ class DefaultSnapshotQueryGatewayTest {
         override val namedAggregate: NamedAggregate,
         private val calls: MutableList<QueryType>,
         private val order: MutableList<String>? = null,
+        private val observe: (QueryType, Any, QueryModelSchema) -> Unit = { _, _, _ -> },
     ) : SnapshotQueryBackend {
         override val name: String = "recording"
 
-        override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> {
+        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> {
+            observe(QueryType.SINGLE, query, schema)
             calls += QueryType.SINGLE
             order?.add("backend")
             return Mono.fromSupplier(::snapshotNode)
         }
 
-        override fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode> = Flux.defer {
+        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.defer {
+            observe(QueryType.LIST, query, schema)
             Flux.just(record(QueryType.LIST, snapshotNode()))
         }
 
-        override fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = Mono.fromSupplier {
+        override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> = Mono.fromSupplier {
+            observe(QueryType.PAGED, query, schema)
             PagedList(1, listOf(record(QueryType.PAGED, snapshotNode())))
         }
 
-        override fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> = Mono.fromSupplier {
+        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> = Mono.fromSupplier {
+            observe(QueryType.CURSOR, query, schema)
             CursorPage(listOf(record(QueryType.CURSOR, snapshotNode())), "next")
         }
 
-        override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = Mono.fromSupplier {
+        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.fromSupplier {
+            observe(QueryType.COUNT, query, schema)
             calls += QueryType.COUNT
             1L
         }
 
-        override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.defer {
+        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.defer {
+            observe(QueryType.AGGREGATION, query, schema)
             calls += QueryType.AGGREGATION
             Flux.just("""{"count":1}""".toJsonNode())
         }
@@ -603,23 +577,6 @@ class DefaultSnapshotQueryGatewayTest {
     }
 
     private data class TestState(val value: String)
-
-    @Order(ORDER_FIRST, before = [SchemaMaskQueryFilter::class])
-    private class RevealResultFilter : QueryFilter<QueryContext<*, *>> {
-        override fun filter(
-            context: QueryContext<*, *>,
-            next: FilterChain<QueryContext<*, *>>,
-        ): Mono<Void> = next.filter(context).then(
-            Mono.fromRunnable {
-                context.asSingleQuery().rewriteResult { result ->
-                    result.map { node ->
-                        (node.path("state") as ObjectNode).put("value", "revealed")
-                        node
-                    }
-                }
-            },
-        )
-    }
 
     private class SchemaSnapshotBackend(
         private val schemaPublisher: () -> Mono<QueryModelSchema>,
@@ -634,29 +591,29 @@ class DefaultSnapshotQueryGatewayTest {
             get() = schemaProvider.schemaCalls
         val resultSubscriptions = AtomicInteger()
 
-        override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.fromSupplier {
+        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> = Mono.fromSupplier {
             resultSubscriptions.incrementAndGet()
             nodeSupplier()
         }
 
-        override fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode> = Flux.defer {
+        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.defer {
             resultSubscriptions.incrementAndGet()
             Flux.just(nodeSupplier())
         }
 
-        override fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = Mono.fromSupplier {
+        override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> = Mono.fromSupplier {
             resultSubscriptions.incrementAndGet()
             PagedList(1, listOf(nodeSupplier()))
         }
 
-        override fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> = Mono.fromSupplier {
+        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> = Mono.fromSupplier {
             resultSubscriptions.incrementAndGet()
             CursorPage(listOf(nodeSupplier()), "next")
         }
 
-        override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = Mono.just(1)
+        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.just(1)
 
-        override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.defer {
+        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.defer {
             resultSubscriptions.incrementAndGet()
             Flux.just("""{"count":1}""".toJsonNode())
         }
@@ -682,7 +639,7 @@ class DefaultSnapshotQueryGatewayTest {
         val schemaCalls: AtomicInteger
             get() = schemaProvider.schemaCalls
 
-        override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> =
+        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> =
             Mono.fromSupplier(::snapshotNode)
     }
 
@@ -713,51 +670,31 @@ class DefaultSnapshotQueryGatewayTest {
         fun maskedSchema(): QueryModelSchema {
             val annotation = Masked::value.javaField!!.getAnnotation(Mask::class.java)
             val rule = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
-            return QueryModelSchema(
+            return gatewaySchema(
                 model = QueryModel.SNAPSHOT,
                 capabilities = emptySet(),
                 fields = mapOf(
+                    QueryField("body.body.data") to stringValueSchema(),
                     QueryField("state.value") to fieldSchema(rule),
-                    QueryField("aggregateId") to cursorFieldSchema("aggregateId"),
+                    QueryField("aggregateId") to stringValueSchema(),
                 ),
             )
         }
 
-        fun unmaskedSchema(): QueryModelSchema = QueryModelSchema(
+        fun unmaskedSchema(): QueryModelSchema = gatewaySchema(
             model = QueryModel.SNAPSHOT,
             capabilities = emptySet(),
-            fields = mapOf(QueryField("aggregateId") to cursorFieldSchema("aggregateId")),
+            fields = mapOf(QueryField("aggregateId") to stringValueSchema()),
         )
 
-        fun cursorFieldSchema(path: String): QueryFieldSchema {
-            val field = QueryField(path)
-            return QueryFieldSchema(
-                title = null,
-                description = null,
-                enumValues = null,
-                valueTypes = setOf(QueryValueType.STRING),
-                nullable = false,
-                required = true,
-                cardinality = QueryCardinality.SINGLE,
-                semanticType = null,
-                dynamicChildren = false,
-                bindings = mapOf(QueryCapability.SORT to QueryFieldBinding(field, field, null)),
-                rewriteMode = QueryRewriteMode.NONE,
-            )
-        }
-
-        fun fieldSchema(maskRule: MaskRule) = QueryFieldSchema(
-            title = null,
-            description = null,
-            enumValues = null,
+        fun stringValueSchema() = me.ahoo.wow.query.schema.QueryValueSchema(
+            me.ahoo.wow.api.query.schema.QueryValueKind.SCALAR,
             valueTypes = setOf(QueryValueType.STRING),
-            nullable = false,
-            required = true,
-            cardinality = QueryCardinality.SINGLE,
-            semanticType = null,
-            dynamicChildren = false,
-            bindings = emptyMap(),
-            rewriteMode = QueryRewriteMode.NONE,
+        )
+
+        fun fieldSchema(maskRule: MaskRule) = me.ahoo.wow.query.schema.QueryValueSchema(
+            me.ahoo.wow.api.query.schema.QueryValueKind.SCALAR,
+            valueTypes = setOf(QueryValueType.STRING),
             maskRule = maskRule,
         )
 

@@ -24,24 +24,28 @@ import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackend
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.ResolvedQuery
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QueryPathSegment
+import me.ahoo.wow.query.schema.QueryPathTemplate
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryStorageType
+import me.ahoo.wow.query.schema.QueryValueBindings
+import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -49,6 +53,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.reactivestreams.Subscriber
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
@@ -56,7 +61,7 @@ import tools.jackson.databind.node.StringNode
 
 class AbstractMongoQueryBackendTest {
     private val collection = mockk<MongoCollection<Document>>()
-    private val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+    private val schema = testSchema(fields = emptyMap())
     private val backend = object : AbstractMongoQueryBackend() {
         override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
@@ -67,9 +72,53 @@ class AbstractMongoQueryBackendTest {
     @Test
     fun `negative list limit should fail before calling MongoDB`() {
         assertThrows<IllegalArgumentException> {
-            backend.list(ResolvedQuery(ListQuery(MatchAllFilter, limit = -1), schema))
+            backend.list(ListQuery(MatchAllFilter, limit = -1), schema)
         }
 
+        verify(exactly = 0) { collection.find(any<Bson>()) }
+    }
+
+    @Test
+    fun `paged mixed array sort fails before count or find`() {
+        val scalar = mongoScalar(QueryValueType.INTEGER)
+        val array = QueryValueSchema(QueryValueKind.ARRAY, items = scalar)
+        val mixed = QueryValueSchema(QueryValueKind.UNION, alternatives = listOf(scalar, array))
+        val arraySchema = mongoTestSchema(
+            fields = mapOf(
+                QueryField("a") to MongoTestField(mixed, setOf(QueryCapability.SORT), "a"),
+                QueryField("b") to MongoTestField(array, setOf(QueryCapability.SORT), "b"),
+            )
+        )
+        Mono.defer {
+            backend.paged(
+                PagedQuery(
+                    MatchAllFilter,
+                    sort = listOf(Sort(QueryField("a"), Sort.Direction.ASC), Sort(QueryField("b"), Sort.Direction.ASC))
+                ),
+                arraySchema,
+            )
+        }.test().expectError(QuerySchemaValidationException::class.java).verify()
+        verify(exactly = 0) { collection.countDocuments(any<Bson>()) }
+        verify(exactly = 0) { collection.find(any<Bson>()) }
+    }
+
+    @Test
+    fun `invalid paged projection should fail before count or find`() {
+        Mono.defer {
+            backend.paged(
+                PagedQuery(
+                    MatchAllFilter,
+                    projection = Projection(
+                        include = listOf(QueryField("name")),
+                        exclude = listOf(QueryField("secret")),
+                    ),
+                    pagination = Pagination(size = 1),
+                ),
+                schema,
+            )
+        }.test().expectError(IllegalArgumentException::class.java).verify()
+
+        verify(exactly = 0) { collection.countDocuments(any<Bson>()) }
         verify(exactly = 0) { collection.find(any<Bson>()) }
     }
 
@@ -78,7 +127,7 @@ class AbstractMongoQueryBackendTest {
         val publisher = mockk<FindPublisher<Document>>()
         arrangePublisher(publisher) { Flux.empty() }
 
-        backend.list(ResolvedQuery(ListQuery(MatchAllFilter, limit = 1), schema)).test().verifyComplete()
+        backend.list(ListQuery(MatchAllFilter, limit = 1), schema).test().verifyComplete()
 
         verify(exactly = 1) { publisher.limit(1) }
     }
@@ -101,13 +150,11 @@ class AbstractMongoQueryBackendTest {
         }
 
         customBackend.list(
-            ResolvedQuery(
-                ListQuery(
-                    EqualFilter(QueryField("aggregateId"), StringNode.valueOf("id")),
-                    limit = 1,
-                ),
-                customSchema,
+            ListQuery(
+                EqualFilter(QueryField("aggregateId"), StringNode.valueOf("id")),
+                limit = 1,
             ),
+            customSchema,
         ).test().verifyComplete()
 
         filter.captured.toBsonDocument().toJson().assert()
@@ -120,7 +167,7 @@ class AbstractMongoQueryBackendTest {
         val publisher = mockk<FindPublisher<Document>>()
         val document = Document("value", 1)
         arrangePublisher(publisher) { Flux.just(document) }
-        val result = backend.list(ResolvedQuery(ListQuery(MatchAllFilter, limit = 1), schema))
+        val result = backend.list(ListQuery(MatchAllFilter, limit = 1), schema)
 
         val first = result.blockFirst()!!
         first.put("mutated", true)
@@ -137,7 +184,7 @@ class AbstractMongoQueryBackendTest {
             Flux.just(Document("value", 1)).doFinally(signals::add)
         }
 
-        backend.list(ResolvedQuery(ListQuery(MatchAllFilter, limit = 1), schema)).then().test().verifyComplete()
+        backend.list(ListQuery(MatchAllFilter, limit = 1), schema).then().test().verifyComplete()
 
         signals.assert().containsExactly(SignalType.ON_COMPLETE)
     }
@@ -151,7 +198,7 @@ class AbstractMongoQueryBackendTest {
                 .doFinally(signals::add)
         }
 
-        backend.list(ResolvedQuery(ListQuery(MatchAllFilter, limit = 1), schema)).test()
+        backend.list(ListQuery(MatchAllFilter, limit = 1), schema).test()
             .expectNextCount(1)
             .expectErrorMessage("cursor-failed")
             .verify()
@@ -168,7 +215,7 @@ class AbstractMongoQueryBackendTest {
                 .doFinally(signals::add)
         }
 
-        backend.list(ResolvedQuery(ListQuery(MatchAllFilter, limit = 1), schema)).take(1).test()
+        backend.list(ListQuery(MatchAllFilter, limit = 1), schema).take(1).test()
             .expectNextCount(1)
             .verifyComplete()
 
@@ -183,17 +230,15 @@ class AbstractMongoQueryBackendTest {
         )
 
         val page = backend.cursor(
-            ResolvedQuery(
-                CursorQuery(
-                    MatchAllFilter,
-                    sort = listOf(
-                        Sort(QueryField("rank"), Sort.Direction.ASC),
-                        Sort(QueryField("id"), Sort.Direction.ASC),
-                    ),
-                    size = 1,
+            CursorQuery(
+                MatchAllFilter,
+                sort = listOf(
+                    Sort(QueryField("rank"), Sort.Direction.ASC),
+                    Sort(QueryField("id"), Sort.Direction.ASC),
                 ),
-                schema,
+                size = 1,
             ),
+            cursorSchema("rank", "id"),
         ).block()!!
 
         page.list.single().path("rank").asInt().assert().isEqualTo(1)
@@ -210,13 +255,59 @@ class AbstractMongoQueryBackendTest {
         every { publisher.sort(capture(sort)) } returns publisher
 
         backend.cursor(
-            ResolvedQuery(
-                CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("rank"), Sort.Direction.DESC)), size = 1),
-                schema,
-            ),
+            CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("rank"), Sort.Direction.DESC)), size = 1),
+            cursorSchema("rank"),
         ).block()
 
         sort.captured.toBsonDocument().toJson().assert().contains("rank").doesNotContain("id")
+    }
+
+    @Test
+    fun `raw cursor should reject sort without cursor capability before find`() {
+        val rank = QueryField("rank")
+        val sortOnlySchema = testSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(rank to fieldSchema("rank", setOf(QueryCapability.PRESENCE, QueryCapability.SORT))),
+        )
+
+        Mono.defer {
+            backend.cursor(
+                CursorQuery(MatchAllFilter, sort = listOf(Sort(rank, Sort.Direction.ASC))),
+                sortOnlySchema,
+            )
+        }.test().expectError(QuerySchemaValidationException::class.java).verify()
+
+        verify(exactly = 0) { collection.find(any<Bson>()) }
+    }
+
+    @Test
+    fun `raw cursor should reject duplicate physical sort fields before find`() {
+        val first = QueryField("first")
+        val second = QueryField("second")
+        val duplicateSchema = testSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(
+                first to fieldSchema("shared", setOf(QueryCapability.CURSOR_SORT)),
+                second to fieldSchema("shared", setOf(QueryCapability.CURSOR_SORT)),
+            ),
+        )
+
+        Mono.defer {
+            backend.cursor(
+                CursorQuery(
+                    MatchAllFilter,
+                    sort = listOf(
+                        Sort(first, Sort.Direction.ASC),
+                        Sort(second, Sort.Direction.ASC),
+                    ),
+                ),
+                duplicateSchema,
+            )
+        }.test().expectError(QuerySchemaValidationException::class.java).verify()
+
+        verify(exactly = 0) { collection.find(any<Bson>()) }
     }
 
     @Test
@@ -249,19 +340,17 @@ class AbstractMongoQueryBackendTest {
         }
 
         val page = mappedBackend.cursor(
-            ResolvedQuery(
-                CursorQuery(
-                    MatchAllFilter,
-                    projection = Projection(include = listOf(QueryField("name"))),
-                    sort = listOf(
-                        Sort(QueryField("rank"), Sort.Direction.ASC),
-                        Sort(QueryField("id"), Sort.Direction.ASC),
-                    ),
-                    size = 1,
-                    cursor = MongoCursorCodec.encode(listOf(1, "1")),
+            CursorQuery(
+                MatchAllFilter,
+                projection = Projection(include = listOf(QueryField("name"))),
+                sort = listOf(
+                    Sort(QueryField("rank"), Sort.Direction.ASC),
+                    Sort(QueryField("id"), Sort.Direction.ASC),
                 ),
-                physicalCursorSchema(),
+                size = 1,
+                cursor = MongoCursorCodec.encode(listOf(1, "1")),
             ),
+            physicalCursorSchema(),
         ).block()!!
 
         filter.captured.toBsonDocument().toJson().assert().contains("physical_rank", "physical_id")
@@ -282,7 +371,6 @@ class AbstractMongoQueryBackendTest {
 
         builtIns.forEach { (model, logicalId) ->
             val builtIn = builtInCursorBackend(model)
-            val resolvedId = "document.$logicalId"
             listOf(
                 Projection(include = listOf(QueryField("name"))),
                 Projection(exclude = listOf(QueryField(logicalId))),
@@ -296,18 +384,16 @@ class AbstractMongoQueryBackendTest {
                 )
 
                 val page = builtIn.cursor(
-                    ResolvedQuery(
-                        CursorQuery(
-                            MatchAllFilter,
-                            projection = projection,
-                            sort = listOf(
-                                Sort(QueryField(resolvedId), Sort.Direction.ASC),
-                                Sort(QueryField("rank"), Sort.Direction.ASC),
-                            ),
-                            size = 1,
+                    CursorQuery(
+                        MatchAllFilter,
+                        projection = projection,
+                        sort = listOf(
+                            Sort(QueryField(logicalId), Sort.Direction.ASC),
+                            Sort(QueryField("rank"), Sort.Direction.ASC),
                         ),
-                        identitySchema(model, logicalId, resolvedId),
+                        size = 1,
                     ),
+                    identitySchema(model, logicalId),
                 ).block()!!
 
                 page.list.single().path("name").asString().assert().isEqualTo("one")
@@ -359,61 +445,67 @@ class AbstractMongoQueryBackendTest {
 
     private fun schema(logicalPath: String, physicalPath: String): QueryModelSchema {
         val logical = QueryField(logicalPath)
-        return QueryModelSchema(
+        return testSchema(
             QueryModel.SNAPSHOT,
             emptySet(),
             mapOf(
-                logical to fieldSchema(logical, physicalPath, setOf(QueryCapability.EXACT_MATCH)),
+                logical to fieldSchema(physicalPath, setOf(QueryCapability.EXACT_MATCH)),
             ),
         )
     }
 
-    private fun physicalCursorSchema() = QueryModelSchema(
-        QueryModel.SNAPSHOT,
-        emptySet(),
-        listOf("name", "rank", "id").associate { path ->
-            QueryField(path) to fieldSchema(
-                QueryField(path),
-                "physical_$path",
-                setOf(QueryCapability.PRESENCE, QueryCapability.SORT),
-            )
-        },
+    private fun physicalCursorSchema(): QueryModelSchema {
+        val base = testSchema(
+            fields = listOf("name", "rank", "id").associate { path ->
+                QueryField(path) to fieldSchema("physical_$path", setOf(QueryCapability.PRESENCE, QueryCapability.CURSOR_SORT))
+            }
+        )
+        return QueryModelSchema(
+            base.model,
+            base.capabilities,
+            base.definition,
+            base.bindings.mapValues { (path, binding) ->
+                if (path.segments.size != 1 || path.field(emptyList()).path == "deleted") return@mapValues binding
+                val ordinary =
+                    QueryPathTemplate(listOf(QueryPathSegment.Property("ordinary_${path.field(emptyList()).path}")))
+                QueryValueBindings(
+                    binding.bindings + (QueryCapability.SORT to QueryFieldBindingTemplate(ordinary, setOf(QueryStorageType("string")))),
+                    binding.projectionPath,
+                    binding.responsePath
+                )
+            }
+        )
+    }
+
+    private fun cursorSchema(vararg paths: String) = testSchema(
+        fields = paths.associate { path ->
+            QueryField(path) to fieldSchema(path, setOf(QueryCapability.PRESENCE, QueryCapability.CURSOR_SORT))
+        }
     )
 
-    private fun identitySchema(model: QueryModel, logicalPath: String, resolvedPath: String) = QueryModelSchema(
+    private fun identitySchema(model: QueryModel, logicalPath: String) = testSchema(
         model,
-        emptySet(),
-        mapOf(
-            QueryField(logicalPath) to fieldSchema(
-                QueryField(logicalPath),
-                "_id",
-                setOf(QueryCapability.PRESENCE, QueryCapability.SORT),
-                QueryField(resolvedPath),
-            ),
+        fields = mapOf(
+            QueryField(logicalPath) to fieldSchema("_id", setOf(QueryCapability.PRESENCE, QueryCapability.CURSOR_SORT)),
+            QueryField("rank") to fieldSchema("rank", setOf(QueryCapability.PRESENCE, QueryCapability.CURSOR_SORT)),
+            QueryField("name") to fieldSchema("name", setOf(QueryCapability.PRESENCE)),
         ),
     )
 
-    private fun fieldSchema(
-        logical: QueryField,
-        physicalPath: String,
-        capabilities: Set<QueryCapability>,
-        resolved: QueryField = logical,
-    ): QueryFieldSchema {
-        val binding = QueryFieldBinding(resolved, QueryField(physicalPath), QueryStorageType("test"))
-        return QueryFieldSchema(
-            title = null,
-            description = null,
-            enumValues = null,
-            valueTypes = setOf(QueryValueType.STRING),
-            nullable = false,
-            required = true,
-            cardinality = QueryCardinality.SINGLE,
-            semanticType = null,
-            dynamicChildren = false,
-            bindings = capabilities.associateWith { binding },
-            projectionField = binding.physicalField.takeIf { QueryCapability.PRESENCE in capabilities },
-            rewriteMode = if (resolved == logical) QueryRewriteMode.NONE else QueryRewriteMode.REQUIRED,
-            responseField = logical,
-        )
-    }
+    private fun fieldSchema(physicalPath: String, capabilities: Set<QueryCapability>): MongoTestField =
+        MongoTestField(mongoScalar(), capabilities, physicalPath)
+
+    private fun testSchema(
+        model: QueryModel = QueryModel.SNAPSHOT,
+        capabilities: Set<QueryCapability> = emptySet(),
+        fields: Map<QueryField, MongoTestField>,
+    ) = mongoTestSchema(
+        model,
+        capabilities,
+        mapOf(
+            QueryField("deleted") to MongoTestField(mongoScalar(QueryValueType.BOOLEAN), setOf(QueryCapability.EXACT_MATCH), "deleted"),
+            QueryField("name") to MongoTestField(mongoScalar(), setOf(QueryCapability.PRESENCE), "name"),
+            QueryField("secret") to MongoTestField(mongoScalar(), setOf(QueryCapability.PRESENCE), "secret"),
+        ) + fields
+    )
 }

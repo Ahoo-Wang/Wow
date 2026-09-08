@@ -34,7 +34,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
-import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
@@ -46,29 +46,33 @@ import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.toMongoSnapshotWrite
 import me.ahoo.wow.mongo.versionGuardedSnapshotReplacement
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
-import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.QueryValueBindings
+import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
+import me.ahoo.wow.query.schema.QueryPathSegment
+import me.ahoo.wow.query.schema.QueryPathTemplate
+import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
-import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
+import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy.Companion.toFilterExpression
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.query.SnapshotQueryBackendSpec
@@ -116,7 +120,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     override fun createSnapshotQueryBackendFactory(): SnapshotQueryBackendFactory {
         return MongoSnapshotQueryBackendFactory(
             database = database,
-            schemaSources = querySchemaSources,
+            schemaSources = querySchemaSources + invalidNumericFixtureSource(),
         )
     }
 
@@ -141,7 +145,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val attempts = AtomicInteger()
         val seen = mutableListOf<ObjectNode>()
 
-        snapshotQueryBackend.list(resolved(queryBackendBinding, snapshotOwnershipQuery()))
+        queryBackendBinding.list(snapshotOwnershipQuery())
             .next()
             .doOnNext { node ->
                 seen += node
@@ -162,7 +166,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
     @Test
     fun `repeat should create clean snapshot object nodes for every subscription`() {
-        snapshotQueryBackend.list(resolved(queryBackendBinding, snapshotOwnershipQuery()))
+        queryBackendBinding.list(snapshotOwnershipQuery())
             .next()
             .repeat(1)
             .index()
@@ -186,7 +190,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
     @Test
     fun `concurrent subscriptions should receive isolated snapshot object nodes`() {
-        val publisher = snapshotQueryBackend.list(resolved(queryBackendBinding, snapshotOwnershipQuery())).next()
+        val publisher = queryBackendBinding.list(snapshotOwnershipQuery()).next()
 
         Mono.zip(
             publisher.subscribeOn(Schedulers.parallel()),
@@ -218,11 +222,11 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val list = ListQuery(filter, projection, limit = 1)
         val paged = PagedQuery(filter, projection, pagination = Pagination(size = 1))
         val results = listOf(
-            backend.single(ResolvedQuery(schema.resolve(single).requireAccepted(QuerySchemaValidationMode.STRICT), schema))
+            backend.single(single.also { validateQuery(it, schema) }, schema)
                 .map(::listOf),
-            backend.list(ResolvedQuery(schema.resolve(list).requireAccepted(QuerySchemaValidationMode.STRICT), schema))
+            backend.list(list.also { validateQuery(it, schema) }, schema)
                 .collectList(),
-            backend.paged(ResolvedQuery(schema.resolve(paged).requireAccepted(QuerySchemaValidationMode.STRICT), schema))
+            backend.paged(paged.also { validateQuery(it, schema) }, schema)
                 .map { page ->
                     page.total.assert().isEqualTo(1L)
                     page.list
@@ -267,7 +271,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
     @Test
     fun `aggregation helper should prepare only on subscription`() {
-        val querySchema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+        val querySchema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), LogicalQuerySchema(QueryValueSchema(QueryValueKind.OBJECT)), emptyMap())
         val schemaCalls = AtomicInteger()
         val backend = object : SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA) {}
         val schemaProvider = object : QueryModelSchemaProvider {
@@ -303,29 +307,21 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     }
 
     @Test
-    fun `empty search fields should be exact while explicit fields execute compatibly`() {
+    fun `model text search executes while unsupported field restricted search is rejected`() {
         updateStateData("searchable")
 
-        snapshotQueryBackend.list(
-            resolved(
-                queryBackendBinding,
-                ListQuery(
-                    filter = SearchFilter("searchable", setOf(QueryField("state.data"))),
-                    limit = 10,
-                ),
-            ),
-        ).test().expectNextCount(1).verifyComplete()
+        assertThrows<QuerySchemaValidationException> {
+            queryBackendBinding.list(
+                ListQuery(filter = SearchFilter("searchable", setOf(QueryField("state.data"))), limit = 10),
+            )
+        }
 
         val strictService = MongoSnapshotQueryBackendFactory(
             database = database,
             schemaSources = querySchemaSources,
         ).create(MOCK_AGGREGATE_METADATA)
-        strictService.backend.list(
-            resolved(
-                strictService,
-                ListQuery(filter = SearchFilter("searchable"), limit = 10),
-                QuerySchemaValidationMode.STRICT,
-            ),
+        strictService.list(
+            ListQuery(filter = SearchFilter("searchable"), limit = 10),
         )
             .test().expectNextCount(1).verifyComplete()
     }
@@ -338,53 +334,32 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             database = database,
             schemaSources = querySchemaSources,
         ).create(MOCK_AGGREGATE_METADATA)
-        service.backend.list(
-            resolved(
-                service,
-                ListQuery(filter = filterExpression { "state.data" gt "alpha" }, limit = 10),
-                QuerySchemaValidationMode.STRICT,
-            ),
+        service.list(
+            ListQuery(filter = filterExpression { "state.data" gt "alpha" }, limit = 10),
         ).test().expectNextCount(1).verifyComplete()
     }
 
     @Test
-    fun `strict should reject unknown fields while compatible executes fallback`() {
-        snapshotQueryBackend.list(
-            resolved(
-                queryBackendBinding,
-                ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
-            ),
-        ).test().verifyComplete()
-
-        val strictService = MongoSnapshotQueryBackendFactory(
-            database = database,
-            schemaSources = querySchemaSources,
-        ).create(MOCK_AGGREGATE_METADATA)
+    fun `unknown logical fields fail before MongoDB execution`() {
         assertThrows<QuerySchemaValidationException> {
-            resolved(
-                strictService,
-                ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
-                QuerySchemaValidationMode.STRICT,
-            )
+            queryBackendBinding.list(ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10))
         }
     }
 
     @Test
-    fun `all modes should reject invalid declared epoch literals before MongoDB`() {
-        QuerySchemaValidationMode.entries.forEach { mode ->
+    fun `invalid declared epoch literals fail before MongoDB`() {
+        run {
             val service = MongoSnapshotQueryBackendFactory(
                 database = database,
                 schemaSources = querySchemaSources,
             ).create(MOCK_AGGREGATE_METADATA)
 
             assertThrows<QuerySchemaValidationException> {
-                resolved(
-                    service,
+                service.list(
                     ListQuery(
                         filter = filterExpression { "firstEventTime" lte "not-a-timestamp" },
                         limit = 10,
                     ),
-                    mode,
                 )
             }
         }
@@ -405,12 +380,8 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             schemaSources = querySchemaSources + formattedTemporalSource(field, "yyyy-MM-dd"),
         ).create(MOCK_AGGREGATE_METADATA)
 
-        service.backend.list(
-            resolved(
-                service,
-                ListQuery(filter = TodayFilter(field, zoneId = "UTC"), limit = 10),
-                QuerySchemaValidationMode.STRICT,
-            ),
+        service.list(
+            ListQuery(filter = TodayFilter(field, zoneId = "UTC"), limit = 10),
         ).test().expectNextCount(1).verifyComplete()
     }
 
@@ -427,19 +398,15 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             schemaSources = querySchemaSources + numericArraySource(fieldPath),
         ).create(MOCK_AGGREGATE_METADATA)
 
-        service.backend.list(
-            resolved(
-                service,
-                ListQuery(filter = filterExpression { fieldPath.between(2, 8) }, limit = 10),
-                QuerySchemaValidationMode.STRICT,
-            ),
+        service.list(
+            ListQuery(filter = filterExpression { fieldPath.between(2, 8) }, limit = 10),
         ).test().expectNextCount(1).verifyComplete()
         aggregation { sum(field(fieldPath) * constant(1.0), "total") }
-            .query(service, QuerySchemaValidationMode.STRICT)
+            .query(service)
             .test()
             .assertNext { row -> row.assertWireEquals(mapOf("total" to 7.0)) }
             .verifyComplete()
-        aggregation { sum(fieldPath, "total") }.query(service, QuerySchemaValidationMode.STRICT)
+        aggregation { sum(fieldPath, "total") }.query(service)
             .test()
             .assertNext { row -> row.assertWireEquals(mapOf("total" to 7.0)) }
             .verifyComplete()
@@ -447,7 +414,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             histogram(fieldPath, 5.0, "bucket")
             count("count")
         }
-        histogram.query(service, QuerySchemaValidationMode.STRICT).test()
+        histogram.query(service).test()
             .assertNext { row -> row.assertWireEquals(mapOf("bucket" to 5.0, "count" to 1L)) }
             .verifyComplete()
 
@@ -456,7 +423,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                 Document("_id", snapshot.aggregateId.id),
                 Document("\$set", Document(fieldPath, listOf(1, 2, 3))),
             ).toMono().test().expectNextCount(1).verifyComplete()
-        histogram.query(service, QuerySchemaValidationMode.STRICT).test().verifyComplete()
+        histogram.query(service).test().verifyComplete()
     }
 
     @Test
@@ -479,12 +446,8 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             "department" to listOf("eng"),
         ).toFilterExpression()
 
-        strictService.backend.list(
-            resolved(
-                strictService,
-                ListQuery(filter = abacFilter, limit = 10),
-                QuerySchemaValidationMode.STRICT,
-            ),
+        strictService.list(
+            ListQuery(filter = abacFilter, limit = 10),
         )
             .test().expectNextCount(1).verifyComplete()
     }
@@ -506,12 +469,8 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             ),
             projectionSchemaProvider(),
         )
-        fun query(projection: Projection) = service.backend.list(
-            resolved(
-                service,
-                ListQuery(MatchAllFilter, projection = projection, limit = 1),
-                QuerySchemaValidationMode.STRICT,
-            ),
+        fun query(projection: Projection) = service.list(
+            ListQuery(MatchAllFilter, projection = projection, limit = 1),
         ).blockFirst()!!
 
         query(Projection(include = listOf(QueryField("view")))).path("document").let { document ->
@@ -527,6 +486,26 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             document.has("name").assert().isFalse()
             document.path("secret").asString().assert().isEqualTo("hidden")
         }
+        query(
+            Projection(
+                include = listOf(QueryField("view"), QueryField("view.name")),
+                exclude = listOf(QueryField(MessageRecords.AGGREGATE_ID)),
+            ),
+        ).let { result ->
+            result.has(MessageRecords.AGGREGATE_ID).assert().isFalse()
+            result.path("document").path("name").asString().assert().isEqualTo("visible")
+            result.path("document").path("secret").asString().assert().isEqualTo("hidden")
+        }
+        query(
+            Projection(
+                include = listOf(QueryField(MessageRecords.AGGREGATE_ID)),
+                exclude = listOf(QueryField("view.name")),
+            ),
+        ).let { result ->
+            result.has(MessageRecords.AGGREGATE_ID).assert().isTrue()
+            result.path("document").has("name").assert().isFalse()
+            result.path("document").path("secret").asString().assert().isEqualTo("hidden")
+        }
     }
 
     @Test
@@ -540,17 +519,24 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                 ),
             ).toMono().test().expectNextCount(1).verifyComplete()
         val maskRule = maskRule()
-        val first = QueryModelSchema(
+        val deleted = QueryField("deleted")
+        val deletionSchema = projectionFieldSchema(deleted).copy(
+            value = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.BOOLEAN)),
+            capabilities = setOf(QueryCapability.EXACT_MATCH),
+        )
+        val first = projectionSchema(
             model = QueryModel.SNAPSHOT,
             capabilities = emptySet(),
             fields = mapOf(
+                deleted to deletionSchema,
                 QueryField("state.alias") to projectionFieldSchema(QueryField("state.secret"), maskRule),
             ),
         )
-        val second = QueryModelSchema(
+        val second = projectionSchema(
             model = QueryModel.SNAPSHOT,
             capabilities = emptySet(),
             fields = mapOf(
+                deleted to deletionSchema,
                 QueryField("state.alias") to projectionFieldSchema(QueryField("state.safe"), maskRule),
             ),
         )
@@ -569,7 +555,6 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val gateway = DefaultSnapshotQueryGateway<Any>(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             binding = QueryBackendBinding(backend, schemaProvider),
-            validationMode = QuerySchemaValidationMode.STRICT,
             targetType = JsonSerializer.typeFactory.constructType(Any::class.java),
         )
 
@@ -586,33 +571,28 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     }
 
     @Test
-    fun `invalid dynamic tags should fail filters while projection respects mode then recover`() {
+    fun `invalid dynamic tags reject filters and projections then recover`() {
         setValidator(Document("tags", Document("bsonType", "string")))
         val abacFilter = mapOf(
             "visibility" to listOf("*"),
             "department" to listOf("eng"),
         ).toFilterExpression()
 
-        QuerySchemaValidationMode.entries.forEach { mode ->
+        run {
             val invalidService = MongoSnapshotQueryBackendFactory(
                 database = database,
                 schemaSources = querySchemaSources,
             ).create(MOCK_AGGREGATE_METADATA)
             assertThrows<QuerySchemaValidationException> {
-                resolved(invalidService, ListQuery(filter = abacFilter, limit = 10), mode)
+                invalidService.list(ListQuery(filter = abacFilter, limit = 10))
             }
             val rawProjectionQuery = ListQuery(
                 filter = MatchAllFilter,
                 projection = Projection(include = listOf(QueryField("tags.department"))),
                 limit = 10,
             )
-            if (mode == QuerySchemaValidationMode.COMPATIBLE) {
-                invalidService.backend.list(resolved(invalidService, rawProjectionQuery, mode))
-                    .test().expectNextCount(1).verifyComplete()
-            } else {
-                assertThrows<QuerySchemaValidationException> {
-                    resolved(invalidService, rawProjectionQuery, mode)
-                }
+            assertThrows<QuerySchemaValidationException> {
+                invalidService.list(rawProjectionQuery)
             }
         }
 
@@ -631,18 +611,14 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             schemaSources = querySchemaSources,
         ).create(MOCK_AGGREGATE_METADATA)
 
-        validService.backend.list(
-            resolved(
-                validService,
-                ListQuery(filter = abacFilter, limit = 10),
-                QuerySchemaValidationMode.STRICT,
-            ),
+        validService.list(
+            ListQuery(filter = abacFilter, limit = 10),
         )
             .test().expectNextCount(1).verifyComplete()
     }
 
     @Test
-    fun `native BSON date and timestamp value filters should fail closed in every validation mode`() {
+    fun `native BSON date and timestamp value filters should fail closed before MongoDB execution`() {
         val now = Instant.now()
         setStateValidator(
             Document("nativeDate", Document("bsonType", "date"))
@@ -665,14 +641,14 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             TodayFilter(QueryField("state.nativeDate"), zoneId = "UTC"),
         )
 
-        QuerySchemaValidationMode.entries.forEach { mode ->
+        run {
             val service = MongoSnapshotQueryBackendFactory(
                 database = database,
                 schemaSources = querySchemaSources + nativeTemporalSource(),
             ).create(MOCK_AGGREGATE_METADATA)
             filters.forEach { filter ->
                 assertThrows<QuerySchemaValidationException> {
-                    resolved(service, ListQuery(filter = filter, limit = 10), mode)
+                    service.list(ListQuery(filter = filter, limit = 10))
                 }
             }
         }
@@ -699,56 +675,50 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             schemaSources = querySchemaSources + nativeTemporalSource(),
         ).create(MOCK_AGGREGATE_METADATA)
 
-        service.backend.list(
-            resolved(
-                service,
-                ListQuery(
-                    filter = MatchAllFilter,
-                    sort = listOf(Sort(QueryField("state.nativeDate"), Sort.Direction.ASC)),
-                    limit = 10,
-                ),
-                QuerySchemaValidationMode.STRICT,
+        service.list(
+            ListQuery(
+                filter = MatchAllFilter,
+                sort = listOf(Sort(QueryField("state.nativeDate"), Sort.Direction.ASC)),
+                limit = 10,
             ),
         ).test().expectNextCount(1).verifyComplete()
         aggregation {
             terms("state.nativeDate", "date")
             count("count")
-        }.query(service, QuerySchemaValidationMode.STRICT).test().expectNextCount(1).verifyComplete()
+        }.query(service).test().expectNextCount(1).verifyComplete()
         aggregation {
             dateHistogram("state.nativeTimestamp", AggregationDateUnit.DAY, "day")
             count("count")
-        }.query(service, QuerySchemaValidationMode.STRICT).test().expectNextCount(1).verifyComplete()
+        }.query(service).test().expectNextCount(1).verifyComplete()
     }
 
     @Test
-    fun `date operations without a validator should fail closed in every validation mode`() {
+    fun `date operations without a validator should fail closed before MongoDB execution`() {
         clearValidator()
-        QuerySchemaValidationMode.entries.forEach { mode ->
+        run {
             val service = MongoSnapshotQueryBackendFactory(
                 database = database,
                 schemaSources = querySchemaSources + nativeTemporalSource(),
             ).create(MOCK_AGGREGATE_METADATA)
 
             assertThrows<QuerySchemaValidationException> {
-                resolved(
-                    service,
+                service.list(
                     ListQuery(
                         filter = TodayFilter(QueryField("state.nativeDate"), zoneId = "UTC"),
                         limit = 10,
                     ),
-                    mode,
                 )
             }
             val query = aggregation {
                 dateHistogram("state.nativeDate", AggregationDateUnit.DAY, "day")
                 count("count")
             }
-            assertThrows<QuerySchemaValidationException> { resolved(service, query, mode) }
+            assertThrows<QuerySchemaValidationException> { resolveAggregation(service, query) }
         }
     }
 
     @Test
-    fun `dynamic string map terms should execute compatibly and fail strict validation`() {
+    fun `declared dynamic string map terms execute using value node bindings`() {
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
             .updateOne(
                 Document("_id", snapshot.aggregateId.id),
@@ -765,11 +735,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         query.query(compatibleService).test()
             .assertNext { row -> row.assertWireEquals(mapOf("color" to "red", "count" to 1L)) }
             .verifyComplete()
-        val strictService = MongoSnapshotQueryBackendFactory(database = database, schemaSources = sources)
-            .create(MOCK_AGGREGATE_METADATA)
-        assertThrows<QuerySchemaValidationException> {
-            resolved(strictService, query, QuerySchemaValidationMode.STRICT)
-        }
+
     }
 
     @Test
@@ -786,24 +752,20 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         ).create(MOCK_AGGREGATE_METADATA)
 
         assertThrows<QuerySchemaValidationException> {
-            resolved(
-                invalidService,
+            invalidService.list(
                 ListQuery(
                     filter = filterExpression { "state.orders.status" eq "created" },
                     limit = 10,
                 ),
-                QuerySchemaValidationMode.STRICT,
             )
         }
         assertThrows<QuerySchemaValidationException> {
-            resolved(
-                invalidService,
+            invalidService.list(
                 ListQuery(
                     filter = MatchAllFilter,
                     sort = listOf(Sort(QueryField("state.orders.status"), Sort.Direction.ASC)),
                     limit = 10,
                 ),
-                QuerySchemaValidationMode.STRICT,
             )
         }
 
@@ -829,16 +791,12 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             schemaSources = querySchemaSources,
         ).create(MOCK_AGGREGATE_METADATA)
 
-        validService.backend.list(
-            resolved(
-                validService,
-                ListQuery(
-                    filter = filterExpression {
-                        "state.orders".elementMatch { "status" eq "created" }
-                    },
-                    limit = 10,
-                ),
-                QuerySchemaValidationMode.STRICT,
+        validService.list(
+            ListQuery(
+                filter = filterExpression {
+                    "state.orders".elementMatch { "status" eq "created" }
+                },
+                limit = 10,
             ),
         ).test().expectNextCount(1).verifyComplete()
     }
@@ -948,7 +906,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             filter(TodayFilter(QueryField("state.epochSeconds"), zoneId = timeZone.id))
             expand("state.events") { "occurredAt".today(timeZone) }
             count("count")
-        }.query(service, QuerySchemaValidationMode.STRICT)
+        }.query(service)
             .test()
             .assertNext { row -> row.assertWireEquals(mapOf("count" to 1L)) }
             .verifyComplete()
@@ -959,12 +917,18 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         .append("state", Document("epochMicros", value))
 
     private fun projectionSchemaProvider(): QueryModelSchemaProvider {
-        val schema = QueryModelSchema(
+        val schema = projectionSchema(
             model = QueryModel.SNAPSHOT,
             capabilities = emptySet(),
             fields = mapOf(
-                QueryField("view") to projectionFieldSchema(QueryField("document")),
+                QueryField("deleted") to ProjectionField(
+                    QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.BOOLEAN)),
+                    QueryField("deleted"),
+                    setOf(QueryCapability.EXACT_MATCH),
+                ),
+                QueryField("view") to projectionFieldSchema(QueryField("document"), kind = QueryValueKind.OBJECT),
                 QueryField("view.name") to projectionFieldSchema(QueryField("document.name")),
+                QueryField(MessageRecords.AGGREGATE_ID) to projectionFieldSchema(QueryField("_id")),
             ),
         )
         return object : QueryModelSchemaProvider {
@@ -973,24 +937,45 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         }
     }
 
+    private data class ProjectionField(
+        val value: QueryValueSchema,
+        val path: QueryField,
+        val capabilities: Set<QueryCapability> = emptySet(),
+    )
+
     private fun projectionFieldSchema(
         projectionField: QueryField,
         maskRule: MaskRule? = null,
-    ) = QueryFieldSchema(
-        title = null,
-        description = null,
-        enumValues = null,
-        valueTypes = emptySet(),
-        nullable = true,
-        required = false,
-        cardinality = QueryCardinality.SINGLE,
-        semanticType = null,
-        dynamicChildren = false,
-        bindings = emptyMap(),
-        projectionField = projectionField,
-        rewriteMode = QueryRewriteMode.NONE,
-        maskRule = maskRule,
+        kind: QueryValueKind = QueryValueKind.SCALAR,
+    ) = ProjectionField(
+        QueryValueSchema(kind, valueTypes = setOf(if (kind == QueryValueKind.OBJECT) QueryValueType.OBJECT else QueryValueType.STRING), maskRule = maskRule),
+        projectionField,
     )
+
+    private fun projectionSchema(
+        model: QueryModel,
+        capabilities: Set<QueryCapability>,
+        fields: Map<QueryField, ProjectionField>,
+    ): QueryModelSchema {
+        fun objectAt(prefix: String): QueryValueSchema {
+            val names = fields.keys.filter { it.path.startsWith(prefix) }
+                .map { it.path.removePrefix(prefix).substringBefore('.') }.distinct()
+            return QueryValueSchema(QueryValueKind.OBJECT, properties = names.associateWith { name ->
+                val path = prefix + name
+                val fixture = fields[QueryField(path)]
+                if (fixture == null || fixture.value.kind == QueryValueKind.OBJECT) objectAt("$path.") else fixture.value
+            })
+        }
+        val definition = LogicalQuerySchema(objectAt(""))
+        fun path(field: QueryField) = QueryPathTemplate(field.path.split('.').map(QueryPathSegment::Property))
+        val bindings = fields.map { (field, fixture) ->
+            val native = path(fixture.path)
+            path(field) to QueryValueBindings(
+                fixture.capabilities.associateWith { QueryFieldBindingTemplate(native, null) }, native, native,
+            )
+        }.toMap()
+        return QueryModelSchema(model, capabilities, definition, bindings)
+    }
 
     private fun maskRule(): MaskRule {
         val annotation = Masked::value.javaField!!.getAnnotation(Mask::class.java)
@@ -1066,7 +1051,6 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                         valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
                         nullable = DeclarationValue.Set(false),
                         required = DeclarationValue.Set(true),
-                        cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
                         semanticType = DeclarationValue.Set(Temporal.Date),
                     )
                 },
@@ -1097,8 +1081,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             QuerySchemaDeclaration(
                 mapOf(
                     QueryField(field) to QueryFieldDeclaration(
-                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER)),
-                        cardinality = DeclarationValue.Set(QueryCardinality.MANY),
+                        items = DeclarationValue.Set(QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER)))),
                     ),
                 ),
             ),
@@ -1115,8 +1098,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                         valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
                         nullable = DeclarationValue.Set(false),
                         required = DeclarationValue.Set(true),
-                        cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
-                        dynamicChildren = DeclarationValue.Set(true),
+                        additionalProperties = DeclarationValue.Set(QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)))),
                     ),
                 ),
             ),
@@ -1133,10 +1115,25 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                         valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER)),
                         nullable = DeclarationValue.Set(true),
                         required = DeclarationValue.Set(false),
-                        cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
                         semanticType = DeclarationValue.Set(Temporal.Epoch(timeUnit)),
                     ),
                 ),
+            ),
+        )
+    }
+
+    private fun invalidNumericFixtureSource(): QuerySchemaSource = object : QuerySchemaSource {
+        override val priority: Int = QuerySchemaSourcePriority.BEAN
+
+        override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.just(
+            QuerySchemaDeclaration(
+                listOf("state.mixedValue", "state.value", "state.orders.lines.missing").associate { name ->
+                    QueryField(name) to QueryFieldDeclaration(
+                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.DECIMAL)),
+                        nullable = DeclarationValue.Set(true),
+                        required = DeclarationValue.Set(false),
+                    )
+                },
             ),
         )
     }
@@ -1149,8 +1146,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                 mapOf(
                     QueryField("state.epochSeconds") to epochDeclaration(),
                     QueryField("state.events") to QueryFieldDeclaration(
-                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
-                        cardinality = DeclarationValue.Set(QueryCardinality.MANY),
+                        items = DeclarationValue.Set(QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)))),
                     ),
                     QueryField("state.events.occurredAt") to epochDeclaration(),
                 ),
@@ -1162,34 +1158,29 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER)),
         nullable = DeclarationValue.Set(false),
         required = DeclarationValue.Set(true),
-        cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
         semanticType = DeclarationValue.Set(Temporal.Epoch(TimeUnit.SECONDS)),
     )
 }
 
 private fun AggregationQuery.query(
     binding: QueryBackendBinding<SnapshotQueryBackend>,
-    mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
 ): Flux<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
-    binding.backend.aggregate(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
+    binding.backend.aggregate(this.also { validateQuery(it, schema) }, schema)
 }
 
-private fun resolved(
-    binding: QueryBackendBinding<SnapshotQueryBackend>,
+private fun QueryBackendBinding<SnapshotQueryBackend>.list(
     query: IListQuery,
-    mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-): ResolvedQuery<IListQuery> {
-    val schema = binding.schemaProvider.schema().block()!!
-    return ResolvedQuery(schema.resolve(query).requireAccepted(mode), schema)
+): Flux<ObjectNode> {
+    val schema = schemaProvider.schema().block()!!
+    return backend.list(query.also { validateQuery(it, schema) }, schema)
 }
 
-private fun resolved(
+private fun resolveAggregation(
     binding: QueryBackendBinding<SnapshotQueryBackend>,
     query: AggregationQuery,
-    mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-): ResolvedQuery<AggregationQuery> {
+): AggregationQuery {
     val schema = binding.schemaProvider.schema().block()!!
-    return ResolvedQuery(schema.resolve(query).requireAccepted(mode), schema)
+    return query.also { validateQuery(it, schema) }
 }
 private fun Any.toWireJsonNode(): JsonNode = JsonSerializer.readTree(JsonSerializer.writeValueAsBytes(this))
 private fun ObjectNode.assertWireEquals(expected: Any) {

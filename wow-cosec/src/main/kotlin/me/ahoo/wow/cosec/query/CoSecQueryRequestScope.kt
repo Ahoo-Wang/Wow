@@ -17,10 +17,10 @@ import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor.SPACE_ID_KEY
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.webflux.route.command.getSpaceId
-import me.ahoo.wow.webflux.route.query.AbstractRewriteRequestFilter
+import me.ahoo.wow.webflux.route.query.AbstractQueryRequestScope
 import org.springframework.web.reactive.function.server.ServerRequest
 
-object CoSecRewriteRequestFilter : AbstractRewriteRequestFilter() {
+object CoSecQueryRequestScope : AbstractQueryRequestScope() {
 
     override fun ServerRequest.resolveSpaceId(aggregateMetadata: AggregateMetadata<*, *>): String? {
         getSpaceId().ifNotBlank {

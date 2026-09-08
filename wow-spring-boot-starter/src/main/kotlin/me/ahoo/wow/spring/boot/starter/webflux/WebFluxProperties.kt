@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot.starter.webflux
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
-import me.ahoo.wow.webflux.route.query.HttpQueryGuardFilter.Companion.DEFAULT_MAX_FILTER_NODES
+import me.ahoo.wow.webflux.route.query.HttpQueryGuard.Companion.DEFAULT_MAX_FILTER_NODES
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue

@@ -26,24 +26,15 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryBackend
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QueryRewriteMode
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.serialization.JsonSerializer
@@ -75,15 +66,13 @@ class QueryGatewayContractTest {
     private val snapshotGateway = DefaultSnapshotQueryGateway<State>(
         MOCK_AGGREGATE_METADATA,
         QueryBackendBinding(SnapshotBackend, SnapshotSchemaProvider),
-        QuerySchemaValidationMode.COMPATIBLE,
+
         JsonSerializer.typeFactory.constructParametricType(MaterializedSnapshot::class.java, State::class.java),
-        errorHandler = ErrorHandler { _, error -> Mono.error(error) },
     )
     private val eventGateway = DefaultEventStreamQueryGateway(
         MOCK_AGGREGATE_METADATA,
         QueryBackendBinding(EventBackend, EventSchemaProvider),
-        QuerySchemaValidationMode.COMPATIBLE,
-        errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+
     )
 
     private data class State(val value: String)
@@ -91,66 +80,51 @@ class QueryGatewayContractTest {
     private object SnapshotBackend : SnapshotQueryBackend {
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
         override val name: String = "contract"
-        override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.just(snapshotNode())
-        override fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
-        override fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = Mono.just(
+        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> = Mono.just(snapshotNode())
+        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
+        override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> = Mono.just(
             PagedList.empty()
         )
-        override fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
+        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> =
             Mono.fromSupplier { CursorPage(listOf(snapshotNode()), "next") }
-        override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
-        override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.just(0)
+        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
     }
 
     private object EventBackend : EventStreamQueryBackend {
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
-        override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.just(eventNode())
-        override fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
-        override fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = Mono.just(
+        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> = Mono.just(eventNode())
+        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
+        override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> = Mono.just(
             PagedList.empty()
         )
-        override fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
-            Mono.fromSupplier { CursorPage(listOf(eventNode()), "next") }
-        override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
-        override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> =
+            Mono.fromSupplier {
+                query.sort.assert().containsExactly(
+                    me.ahoo.wow.api.query.Sort(
+                        me.ahoo.wow.api.query.QueryField("id"),
+                        me.ahoo.wow.api.query.Sort.Direction.ASC
+                    )
+                )
+                CursorPage(listOf(eventNode()), "next")
+            }
+        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.just(0)
+        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
     }
 
     private object SnapshotSchemaProvider : QueryModelSchemaProvider {
-        private val schema = schema(QueryModel.SNAPSHOT, "aggregateId")
+        private val schema = gatewaySchema(QueryModel.SNAPSHOT)
         override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
         override fun refresh(): Mono<QueryModelSchema> = schema()
     }
 
     private object EventSchemaProvider : QueryModelSchemaProvider {
-        private val schema = schema(QueryModel.EVENT_STREAM, "id")
+        private val schema = gatewaySchema(QueryModel.EVENT_STREAM)
         override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
         override fun refresh(): Mono<QueryModelSchema> = schema()
     }
 
     private companion object {
-        fun schema(model: QueryModel, cursorPath: String): QueryModelSchema {
-            val field = QueryField(cursorPath)
-            return QueryModelSchema(
-                model,
-                emptySet(),
-                mapOf(
-                    field to QueryFieldSchema(
-                        title = null,
-                        description = null,
-                        enumValues = null,
-                        valueTypes = setOf(QueryValueType.STRING),
-                        nullable = false,
-                        required = true,
-                        cardinality = QueryCardinality.SINGLE,
-                        semanticType = null,
-                        dynamicChildren = false,
-                        bindings = mapOf(QueryCapability.SORT to QueryFieldBinding(field, field, null)),
-                        rewriteMode = QueryRewriteMode.NONE,
-                    ),
-                ),
-            )
-        }
-
         fun snapshotNode(): ObjectNode = """
             {"contextName":"mock","aggregateName":"mock","tenantId":"tenant","ownerId":"_default_",
              "spaceId":"_default_","aggregateId":"aggregate","version":1,"eventId":"event",

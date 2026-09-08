@@ -118,6 +118,11 @@ enum class StringComparison {
     CASE_INSENSITIVE,
 }
 
+/**
+ * Numeric predicates compare the selected backend's stored or indexed representation, including its precision
+ * and quantization. Exact-match capability does not promise arbitrary-precision equality with a source value.
+ * Explicit string-comparison contracts remain independent of numeric representation.
+ */
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.EXISTING_PROPERTY,

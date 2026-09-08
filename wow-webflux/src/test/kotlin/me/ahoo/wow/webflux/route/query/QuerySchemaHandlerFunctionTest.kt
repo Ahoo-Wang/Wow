@@ -15,8 +15,11 @@ package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
@@ -87,6 +90,11 @@ class QuerySchemaHandlerFunctionTest {
     }
 
     private companion object {
-        val SCHEMA = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        val SCHEMA = QueryModelSchema(
+            QueryModel.EVENT_STREAM,
+            emptySet(),
+            LogicalQuerySchema(QueryValueSchema(QueryValueKind.OBJECT)),
+            emptyMap()
+        )
     }
 }

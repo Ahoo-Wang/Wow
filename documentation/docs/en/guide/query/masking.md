@@ -7,17 +7,16 @@ description: Configure Schema-driven masking for managed Snapshot and EventStrea
 
 ## Scope and Execution Order
 
-Field masking is implemented by the framework-owned `SchemaMaskQueryFilter` in the managed `QueryGateway` response chain and requires the Gateway to receive the `schemaProvider` paired with its Backend in `QueryBackendBinding`. The framework always installs this filter as the outermost filter; its result phase is fixed after every generic result filter and before Jackson materializes a typed result:
+The Gateway runs `SchemaMasker` after receiving Backend nodes and before typed materialization. Ordinary request Filters cannot replace or bypass this fixed stage:
 
 ```mermaid
 flowchart LR
-    Backend["QueryBackend<br/>ObjectNode"] --> Filters["All result filters"]
-    Filters --> Mask["SchemaMaskQueryFilter"]
+    Backend["QueryBackend ObjectNode"] --> Mask["Framework Mask"]
     Mask --> Dynamic["dynamic ObjectNode"]
-    Mask --> Jackson["Jackson typed materialization"]
+    Mask --> Jackson["typed materialization"]
 ```
 
-This chain covers Snapshot and EventStream typed/dynamic `single`, `list`, `paged`, and `cursor` results, plus state-only/aggregate-state results loaded through the Snapshot Gateway. Masking changes only the current response node. It does not rewrite stored documents, domain objects, or the application's general Jackson serialization contract. `count` and aggregation results also do not pass through result masking.
+Snapshot and EventStream typed/dynamic single, list, paged, and cursor results use this path, as do state-only/aggregate-state loads through the Snapshot Gateway. Masking only changes the current response, not storage, domain objects, or general Jackson serialization. Count and aggregate rows do not undergo result masking.
 
 ## Built-in Annotations
 
@@ -72,9 +71,9 @@ A Strategy can be a Kotlin `object` or a public no-argument class. The example d
 
 ## Query Schema Contract
 
-At runtime, `JsonQuerySchemaSource` discovers effective annotations on fields, Jackson-visible non-public getters, inherited parent Kotlin properties, and interface getters. Rules flow through Query Schema merging and backend adapters, but public `QueryModelSchemaMetadata` exposes only field-level `masked: Boolean`. Strategy types, annotation parameters, compiled rules, and executable functions remain in memory.
+At runtime, `JsonQuerySchemaSource` discovers effective annotations on fields, Jackson-visible non-public getters, inherited parent Kotlin properties, and interface getters. Rules flow through Query Schema merging and backend adapters, but the recursive value nodes in public `QueryModelSchemaMetadata` expose masking information only as `masked: Boolean`. Strategy types, annotation parameters, compiled rules, and executable functions remain in memory.
 
-Before creating `QueryContext`, the Gateway reads the Provider's current Schema once per subscription, and `SchemaMaskQueryFilter` uses `QueryContext.schema` directly. Filter, Resolver, Backend, and Mask therefore share the same instance. After refresh publishes a new instance, a new subscription obtains it and recompiles the Masker. A Schema-load failure is not cached, so a later subscription or `retry` can load again; the failed subscription creates no Context and executes neither Filters nor the Backend. When the root Schema has no `masked` field, result handling reuses an empty masking decision on an O(1) fast path: it creates no masker, does not walk JSON, and adds no per-result `map`.
+Each Gateway subscription captures one Schema shared by preparation, public validation, Backend compilation, and response masking. Mask traversal definitions are built when the Schema generation is published; subscriptions consume that immutable generation. Refresh does not change an in-flight subscription. Schema acquisition failure never skips masking to return raw data. No Mask declarations means no response JSON traversal.
 
 ## Behavior Matrix
 
@@ -85,23 +84,25 @@ Before creating `QueryContext`, the Gateway reads the Provider's current Schema 
 | Snapshot/EventStream typed/dynamic `cursor` | Masks `CursorPage.list` and preserves `nextCursor` unchanged |
 | Snapshot state-only / aggregate-state load | Reuses the Snapshot Gateway and is masked |
 | Ordinary filter, full-text search, sort | May reference a masked field; the backend matches or sorts raw values, while the response remains masked |
-| `CursorQuery` effective sort | Must resolve exactly, be single-valued, carry no masking rule, and not alias a masked projection or physical binding; otherwise it is rejected before Backend execution so raw sort values or multi-value arrays cannot enter `nextCursor` |
+| `CursorQuery` effective sort | Must have a proven CURSOR_SORT binding, be single-valued, carry no masking rule, and not alias a masked projection or physical binding; otherwise it is rejected before Backend execution so raw sort values or multi-value arrays cannot enter `nextCursor` |
 | Data-query `count` | Count is unchanged; the Gateway still loads Schema for admission, but the masking layer reads no field values |
-| Aggregation group, field metric, numeric expression | A masked-field reference resolves as `INCOMPATIBLE` and is rejected before Backend execution |
+| Aggregation group, field metric, numeric expression | Public validation rejects protected fields and source aliases before Backend execution |
 | Schema required by aggregation is unavailable | Fails closed; even a count-only aggregation does not fall back to execution |
 
 ## Fail-Closed Boundaries
 
 | Condition | Result |
 |---|---|
-| A field is not a JVM String, or a Schema alternative is not a String wire shape | Schema construction fails |
+| An annotated member is not JVM String, a covered domain is not a string/string array, or it contains UNKNOWN | Schema construction fails |
 | One member has multiple effective mask annotations, or Schema branches have conflicting rules | Schema conflict |
 | A Strategy cannot be constructed, or `compile` throws | Schema construction fails with the original error preserved |
-| A response value is not a String/String array, Strategy execution throws, or a custom `CompiledMask` returns `null` | The current result Publisher fails instead of returning the raw value |
+| A response value covered by a rule is not a String/String array, Strategy execution throws, or a custom `CompiledMask` returns `null` | The current result Publisher fails instead of returning the raw value |
 | An EventStream event item contains a non-null payload but its `bodyType` is missing, non-string, or unknown | The current result Publisher fails |
 | An EventStream `body` is not an array, or the array contains a non-object event item | The current result Publisher fails |
 
 Masking safely skips an Event projection with no top-level `body`, or with that event array projected as `null`. When present, the top-level `body` must be an array and every event item must be an object. Inside a valid event item, a missing or null payload property `body` means metadata-only or payload-excluded output: there is no sensitive payload to mask, so `bodyType` is not required. A non-null payload still requires a known string `bodyType`; missing, non-string, or unknown types fail closed before masking.
+
+An explicitly declared unmasked union branch, such as INTEGER, retains its value while the string branch is masked. Named Map properties override additionalProperties. Array Item layers and native aliases follow the shared Schema without widening protection to unrelated siblings.
 
 ## Trusted Raw-Value Boundaries
 

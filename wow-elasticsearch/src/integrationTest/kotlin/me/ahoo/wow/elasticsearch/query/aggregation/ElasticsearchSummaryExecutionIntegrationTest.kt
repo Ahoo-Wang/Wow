@@ -23,7 +23,6 @@ import co.elastic.clients.elasticsearch.cat.shards.ShardsRecord
 import co.elastic.clients.json.JsonData
 import co.elastic.clients.transport.rest5_client.low_level.ResponseException
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.query.dsl.aggregation
@@ -243,8 +242,24 @@ class ElasticsearchSummaryExecutionIntegrationTest {
                 count("count")
                 sum(field, "total")
             },
-            QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap()),
+            summarySchema(field),
         )
+
+    private fun summarySchema(field: String): QueryModelSchema {
+        val definition = me.ahoo.wow.query.schema.LogicalQuerySchema(me.ahoo.wow.query.schema.QueryValueSchema(
+            me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT,
+            properties = mapOf(
+                field to me.ahoo.wow.query.schema.QueryValueSchema(me.ahoo.wow.api.query.schema.QueryValueKind.SCALAR,
+                    valueTypes = setOf(me.ahoo.wow.api.query.schema.QueryValueType.DECIMAL)),
+                "deleted" to me.ahoo.wow.query.schema.QueryValueSchema(me.ahoo.wow.api.query.schema.QueryValueKind.SCALAR,
+                    valueTypes = setOf(me.ahoo.wow.api.query.schema.QueryValueType.BOOLEAN)),
+            ),
+        ))
+        return me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter.bind(definition,
+            me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping.from("summary", co.elastic.clients.elasticsearch._types.mapping.TypeMapping.of {
+                it.properties(field) { it.double_ { it } }.properties("deleted") { it.boolean_ { it } }
+            }))
+    }
 
     companion object {
         private val TIMEOUT = Duration.ofSeconds(15)

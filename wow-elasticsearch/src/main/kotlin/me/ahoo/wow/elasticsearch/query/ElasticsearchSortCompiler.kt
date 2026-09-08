@@ -16,20 +16,41 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch._types.FieldSort
 import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.physicalField
 import me.ahoo.wow.serialization.MessageRecords
 
 object ElasticsearchSortCompiler {
     fun compile(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> = compilePhysical(
-        sort.map { it.copy(field = schema.resolvePhysicalField(it.field, QueryCapability.SORT)) },
+        sort.map { it.copy(field = schema.physicalField(it.field, QueryCapability.SORT)) },
     )
 
-    internal fun compileCursor(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> = compilePhysical(
-        sort.map { it.copy(field = schema.resolvePhysicalField(it.field, QueryCapability.SORT)) },
-    ) { logicalSort ->
-        missing(if (logicalSort.direction == Sort.Direction.ASC) "_first" else "_last")
+    @Suppress("ThrowsCount")
+    internal fun compileCursor(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> {
+        val physicalFields = HashSet<QueryField>(sort.size)
+        val physicalSort = sort.map { item ->
+            val fieldSchema = schema.field(item.field)
+            if (fieldSchema?.binding(QueryCapability.CURSOR_SORT) == null) {
+                throw QuerySchemaValidationException(
+                    "Query field [${item.field}] does not support [${QueryCapability.CURSOR_SORT}].",
+                )
+            }
+            val physicalField = schema.physicalField(item.field, QueryCapability.CURSOR_SORT)
+            if (physicalField in UNSTABLE_CURSOR_SORT_FIELDS) {
+                throw QuerySchemaValidationException("Elasticsearch cursor sort field [$physicalField] is unstable.")
+            }
+            if (!physicalFields.add(physicalField)) {
+                throw QuerySchemaValidationException("Elasticsearch cursor sort fields must be physically unique.")
+            }
+            item.copy(field = physicalField)
+        }
+        return compilePhysical(physicalSort) { logicalSort ->
+            missing(if (logicalSort.direction == Sort.Direction.ASC) "_first" else "_last")
+        }
     }
 
     internal fun compilePhysical(sort: List<Sort>): List<SortOptions> = compilePhysical(sort) { }
@@ -59,3 +80,9 @@ object ElasticsearchSortCompiler {
         }
     }
 }
+
+private val UNSTABLE_CURSOR_SORT_FIELDS = setOf(
+    QueryField("_score"),
+    QueryField("_doc"),
+    QueryField("_shard_doc"),
+)

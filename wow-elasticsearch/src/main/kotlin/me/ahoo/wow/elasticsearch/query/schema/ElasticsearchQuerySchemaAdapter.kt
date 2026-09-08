@@ -14,24 +14,25 @@
 package me.ahoo.wow.elasticsearch.query.schema
 
 import co.elastic.clients.elasticsearch._types.mapping.Property
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.ElasticsearchMappedField
-import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
 import me.ahoo.wow.query.schema.LogicalQuerySchema
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QueryPathSegment
+import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaBackendAdapter
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
+import me.ahoo.wow.query.schema.QueryValueBindings
+import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.operationValues
 import reactor.core.publisher.Mono
 
 class ElasticsearchQuerySchemaAdapter(
@@ -71,16 +72,22 @@ class ElasticsearchQuerySchemaAdapter(
             mapping: ElasticsearchIndexMapping,
             model: QueryModel,
         ): QueryModelSchema {
-            val invalidNestedParents = mapping.invalidNestedParents(logicalSchema)
             val nestedPaths = mapping.fields.filterValues { it.kind == Property.Kind.Nested }.keys
+            val paths = mapping.logicalBindingPaths(logicalSchema)
+            val arrayPaths = paths.filter { path ->
+                logicalSchema.value(path)?.hasArrayBranch() == true &&
+                    path.segments.none { it is QueryPathSegment.Key }
+            }.mapTo(linkedSetOf()) { it.field(emptyList()).path }
+            val invalidNested = nestedPaths.filterTo(linkedSetOf()) { path ->
+                logicalSchema.value(path.template())?.isElementScope != true
+            }
             val rootSearchFields = mapping.fields.filterKeys { path ->
                 nestedPaths.none { path.startsWith("$it.") }
             }.values
-            val elementFields = logicalSchema.fields.mapNotNullTo(linkedSetOf()) { (field, logical) ->
-                mapping.binding(field, logical, QueryCapability.ELEMENT_SCOPE, invalidNestedParents)?.let { field }
-            }
             return QueryModelSchema(
                 model = model,
+                definition = logicalSchema,
+                fullProjectionAvailable = mapping.fullProjectionAvailable,
                 capabilities = buildSet {
                     if (rootSearchFields.any(ElasticsearchMappedField::supportsModelFullText)) {
                         add(QueryCapability.FULL_TEXT_TERMS)
@@ -89,42 +96,71 @@ class ElasticsearchQuerySchemaAdapter(
                         add(QueryCapability.FULL_TEXT_PHRASE)
                     }
                 },
-                fields = buildMap {
-                    logicalSchema.fields.forEach { (field, logical) ->
-                        put(
-                            field,
-                            logical.toFieldSchema(
-                                source = field,
-                                projectionField = (
-                                    mapping.fields[field.path]?.projectionPath
-                                        ?: field.path.takeIf { field.path !in mapping.fields }
-                                    )?.let(::QueryField),
-                                bindings = BUILT_IN_CAPABILITIES.mapNotNull { capability ->
-                                    mapping.binding(field, logical, capability, invalidNestedParents)
-                                        ?.let { capability to it }
-                                }.toMap(),
-                                elementChild = elementFields.any { field.relativeTo(it) != null },
-                            ),
-                        )
-                    }
-                    putIfAbsent(
-                        QueryField(DOCUMENT_ID_FIELD),
-                        metadataField(DOCUMENT_ID_FIELD, QueryValueType.STRING, QueryCapability.EXACT_MATCH),
+                bindings = paths.associateWith { path ->
+                    val value = checkNotNull(logicalSchema.value(path))
+                    val symbolic = path.segments.any { it is QueryPathSegment.Key }
+                    val source = if (symbolic) null else path.field(emptyList()).path
+                    val projection = when {
+                        source in setOf("_id", "_score", "_doc", "_shard_doc") -> null
+                        source != null && source in mapping.fields -> mapping.fields.getValue(
+                            source
+                        ).projectionPath?.let { target ->
+                            if (target == source) path else target.sourceTemplate(arrayPaths + nestedPaths)
+                        }
+                        else -> path
+                    }?.takeIf { mapping.sourceAvailable(it) }
+                    QueryValueBindings(
+                        bindings = if (source == null) {
+                            emptyMap()
+                        } else {
+                            BUILT_IN_CAPABILITIES.mapNotNull { capability ->
+                                mapping.binding(source, value, capability, invalidNested, nestedPaths, arrayPaths)
+                                    ?.let { capability to it }
+                            }.toMap()
+                        },
+                        projectionPath = projection,
+                        responsePath = projection,
                     )
-                    METADATA_SORT_FIELDS.forEach { (path, valueType) ->
-                        putIfAbsent(QueryField(path), metadataField(path, valueType, QueryCapability.SORT))
-                    }
                 },
             )
         }
 
-        private val METADATA_SORT_FIELDS = linkedMapOf(
-            "_score" to QueryValueType.DECIMAL,
-            "_doc" to QueryValueType.INTEGER,
-            "_shard_doc" to QueryValueType.INTEGER,
-        )
+        private fun ElasticsearchIndexMapping.sourceAvailable(path: QueryPathTemplate): Boolean =
+            if (path.segments.any { it is QueryPathSegment.Key }) {
+                fullProjectionAvailable
+            } else {
+                sourceAvailable(path.field(emptyList()).path)
+            }
 
-        private const val DOCUMENT_ID_FIELD = "_id"
+        /** Specialize only observed keys, preserving the declaration's named overrides. */
+        private fun ElasticsearchIndexMapping.logicalBindingPaths(
+            logicalSchema: LogicalQuerySchema
+        ): Set<QueryPathTemplate> =
+            buildSet {
+                addAll(logicalSchema.values.keys.filter { it.segments.isNotEmpty() })
+                logicalSchema.values.keys.filter { it.segments.any { part -> part is QueryPathSegment.Key } }
+                    .forEach { template ->
+                        fields.keys.mapNotNullTo(this) { template.withMappedKeys(it) }
+                    }
+            }
+
+        private fun QueryPathTemplate.withMappedKeys(mappedPath: String): QueryPathTemplate? {
+            val parts = mappedPath.split('.')
+            val named = segments.filter { it != QueryPathSegment.Item }
+            if (parts.size != named.size) return null
+            if (named.zip(parts).any { (segment, part) ->
+                    segment is QueryPathSegment.Property && segment.name != part
+                }
+            ) {
+                return null
+            }
+            var index = 0
+            return QueryPathTemplate(
+                segments.map { segment ->
+                    if (segment == QueryPathSegment.Item) segment else QueryPathSegment.Property(parts[index++])
+                }
+            )
+        }
 
         private val BUILT_IN_CAPABILITIES = listOf(
             QueryCapability.PRESENCE,
@@ -134,6 +170,7 @@ class ElasticsearchQuerySchemaAdapter(
             QueryCapability.FULL_TEXT_TERMS,
             QueryCapability.FULL_TEXT_PHRASE,
             QueryCapability.SORT,
+            QueryCapability.CURSOR_SORT,
             QueryCapability.ELEMENT_SCOPE,
             QueryCapability.AGGREGATE_TERMS,
             QueryCapability.AGGREGATE_NUMERIC,
@@ -141,33 +178,65 @@ class ElasticsearchQuerySchemaAdapter(
         )
 
         private fun ElasticsearchIndexMapping.binding(
-            source: QueryField,
-            logical: LogicalQueryFieldSchema,
+            source: String,
+            logical: QueryValueSchema,
             capability: QueryCapability,
             invalidNestedParents: Set<String>,
-        ): QueryFieldBinding? {
-            val physicalPath = source.path
-            if (invalidNestedParents.any { physicalPath.startsWith("$it.") }) return null
-            if (logical.dynamicChildren && capability != QueryCapability.ELEMENT_SCOPE) return null
-            val mapped = find(physicalPath) ?: return null
-            val flattenedDescendant = physicalPath !in fields && mapped.kind == Property.Kind.Flattened
-            val selected = if (mapped.supports(capability, logical, flattenedDescendant)) {
-                physicalPath to mapped
+            nestedPaths: Set<String>,
+            arrayPaths: Set<String>,
+        ): QueryFieldBindingTemplate? {
+            if (invalidNestedParents.any { source.startsWith("$it.") }) return null
+            metadataBinding(source, logical, capability)?.let { return it }
+            val mapped = find(source) ?: return null
+            val selected = if (mapped.supports(
+                    capability,
+                    logical,
+                    source !in fields && mapped.kind == Property.Kind.Flattened
+                )
+            ) {
+                (if (capability == QueryCapability.CURSOR_SORT) mapped.physicalPath else source) to mapped
             } else {
                 mapped.selectMultiField(this, capability, logical) ?: return null
             }
-            val selectedField = QueryField(selected.first)
-            return QueryFieldBinding(
-                resolvedField = selectedField,
-                physicalField = selectedField,
-                storageType = QueryStorageType(selected.second.kind.jsonValue()),
+            if (capability == QueryCapability.CURSOR_SORT && !logical.canCursorSort(source, selected.first, arrayPaths, nestedPaths)) {
+                return null
+            }
+            return QueryFieldBindingTemplate(
+                physicalPath = selected.first.template(),
+                storageTypes = setOf(QueryStorageType(selected.second.kind.jsonValue())),
             )
+        }
+
+        private fun metadataBinding(
+            source: String,
+            logical: QueryValueSchema,
+            capability: QueryCapability,
+        ): QueryFieldBindingTemplate? {
+            val expected = when (source) {
+                "_id" -> QueryValueType.STRING to QueryCapability.EXACT_MATCH
+                "_score" -> QueryValueType.DECIMAL to QueryCapability.SORT
+                "_doc", "_shard_doc" -> QueryValueType.INTEGER to QueryCapability.SORT
+                else -> return null
+            }
+            if (logical.valueTypes != setOf(expected.first) || capability != expected.second) return null
+            return QueryFieldBindingTemplate(source.template(), null)
+        }
+
+        private fun QueryValueSchema.canCursorSort(
+            source: String,
+            physical: String,
+            arrayPaths: Set<String>,
+            nestedPaths: Set<String>,
+        ): Boolean {
+            if (hasArrayBranch()) return false
+            if (arrayPaths.any { source.atOrBelow(it) || physical.atOrBelow(it) }) return false
+            return nestedPaths.none { physical.atOrBelow(it) }
         }
 
         private fun ElasticsearchMappedField.selectMultiField(
             mapping: ElasticsearchIndexMapping,
             capability: QueryCapability,
-            logical: LogicalQueryFieldSchema,
+            logical: QueryValueSchema,
         ): Pair<String, ElasticsearchMappedField>? {
             val supported = multiFields.mapNotNull { path ->
                 mapping.fields[path]?.takeIf { it.supports(capability, logical) }?.let { path to it }
@@ -184,120 +253,108 @@ class ElasticsearchQuerySchemaAdapter(
             -> listOf("text")
             else -> listOf("keyword", "exact")
         }
-
-        private fun LogicalQueryFieldSchema.toFieldSchema(
-            source: QueryField,
-            projectionField: QueryField?,
-            bindings: Map<QueryCapability, QueryFieldBinding>,
-            elementChild: Boolean,
-        ): QueryFieldSchema {
-            val rewrites = bindings.values.map { it.resolvedField != source }.distinct()
-            val rewriteMode = when {
-                (elementChild && bindings.isNotEmpty()) ||
-                    semanticType is Temporal || QueryCapability.ELEMENT_SCOPE in bindings ->
-                    QueryRewriteMode.INFER
-                bindings.isEmpty() || rewrites == listOf(false) -> QueryRewriteMode.NONE
-                rewrites == listOf(true) -> QueryRewriteMode.REQUIRED
-                else -> QueryRewriteMode.INFER
-            }
-            return QueryFieldSchema(
-                title = title,
-                description = description,
-                enumValues = enumValues,
-                valueTypes = valueTypes,
-                nullable = nullable,
-                required = required,
-                cardinality = cardinality,
-                semanticType = semanticType,
-                dynamicChildren = false,
-                bindings = bindings,
-                projectionField = projectionField,
-                responseField = projectionField ?: source,
-                rewriteMode = rewriteMode,
-                maskRule = maskRule,
-            )
-        }
-
-        private fun metadataField(
-            path: String,
-            valueType: QueryValueType,
-            capability: QueryCapability,
-        ): QueryFieldSchema {
-            val source = QueryField(path)
-            val bindings = mapOf(
-                capability to QueryFieldBinding(source, source, storageType = null),
-            )
-            val rewrites = bindings.values.map { it.resolvedField != source }.distinct()
-            val rewriteMode = when {
-                QueryCapability.ELEMENT_SCOPE in bindings -> QueryRewriteMode.INFER
-                bindings.isEmpty() || rewrites == listOf(false) -> QueryRewriteMode.NONE
-                rewrites == listOf(true) -> QueryRewriteMode.REQUIRED
-                else -> QueryRewriteMode.INFER
-            }
-            return QueryFieldSchema(
-                title = null,
-                description = null,
-                enumValues = null,
-                valueTypes = setOf(valueType),
-                nullable = false,
-                required = false,
-                cardinality = QueryCardinality.SINGLE,
-                semanticType = null,
-                dynamicChildren = false,
-                bindings = bindings,
-                projectionField = null,
-                rewriteMode = rewriteMode,
-            )
-        }
     }
 }
 
-@Suppress("CyclomaticComplexMethod")
+@Suppress("CyclomaticComplexMethod") // One exhaustive table of native capability requirements.
 private fun ElasticsearchMappedField.supports(
     capability: QueryCapability,
-    logical: LogicalQueryFieldSchema,
+    logical: QueryValueSchema,
     flattenedDescendant: Boolean = false,
 ): Boolean {
+    if (!enabled || nullValue != null || !logical.provesIndexedValues(ignoreAbove)) return false
+    if (normalizer != null && capability in NORMALIZED_VALUE_CAPABILITIES) return false
     val executable = when (capability) {
         QueryCapability.PRESENCE -> queryable
         QueryCapability.EXACT_MATCH -> queryable && kind in EXACT_KINDS
         QueryCapability.LITERAL_MATCH -> indexed && kind in LITERAL_KINDS
         QueryCapability.RANGE -> queryable && kind in RANGE_KINDS
         QueryCapability.FULL_TEXT_TERMS -> indexed && kind in SEARCH_KINDS
-        QueryCapability.FULL_TEXT_PHRASE -> indexed && kind in PHRASE_SEARCH_KINDS
+        QueryCapability.FULL_TEXT_PHRASE -> indexed && ignoreAbove == null && nullValue == null && kind in PHRASE_SEARCH_KINDS
         QueryCapability.SORT -> sortable && (kind in EXACT_KINDS || (indexed && kind == Property.Kind.Text))
+        QueryCapability.CURSOR_SORT -> {
+            sortable && (kind in CURSOR_SORT_KINDS || (indexed && kind == Property.Kind.Text))
+        }
         QueryCapability.ELEMENT_SCOPE -> kind == Property.Kind.Nested
         QueryCapability.AGGREGATE_TERMS -> aggregatable && (kind in EXACT_KINDS || kind == Property.Kind.Text)
         QueryCapability.AGGREGATE_NUMERIC -> aggregatable && kind in NUMERIC_KINDS
-        QueryCapability.AGGREGATE_TEMPORAL -> aggregatable && when (logical.semanticType) {
-            Temporal.Date -> kind == Property.Kind.Date || kind == Property.Kind.DateNanos
-            is Temporal.Epoch -> kind in NUMERIC_KINDS
-            else -> false
-        }
+        QueryCapability.AGGREGATE_TEMPORAL -> aggregatable && (kind in NUMERIC_KINDS || kind in DATE_KINDS)
+
         else -> false
     }
     return executable && (
         capability == QueryCapability.PRESENCE ||
             logical.proves(capability, kind) ||
-            flattenedDescendant && capability == QueryCapability.EXACT_MATCH &&
-            logical.valueTypes == setOf(QueryValueType.STRING)
+            flattenedDescendant && capability == QueryCapability.EXACT_MATCH && logical.branches().all {
+                it.kind == QueryValueKind.SCALAR && it.valueTypes == setOf(QueryValueType.STRING)
+            }
         )
 }
 
-private val LogicalQueryFieldSchema.isElementScope: Boolean
-    get() = cardinality == QueryCardinality.MANY && QueryValueType.OBJECT in valueTypes
+private fun String.atOrBelow(parent: String): Boolean = this == parent || startsWith("$parent.")
 
-private fun ElasticsearchIndexMapping.invalidNestedParents(logicalSchema: LogicalQuerySchema): Set<String> =
-    fields.filterValues { it.kind == Property.Kind.Nested }.keys.filterTo(linkedSetOf()) { path ->
-        logicalSchema.fields[QueryField(path)]?.isElementScope != true
+private fun String.template(): QueryPathTemplate =
+    QueryPathTemplate(split('.').map(QueryPathSegment::Property))
+
+private fun String.sourceTemplate(arrayPaths: Set<String>): QueryPathTemplate {
+    val parts = split('.')
+    return QueryPathTemplate(
+        buildList {
+            parts.forEachIndexed { index, part ->
+                add(QueryPathSegment.Property(part))
+                if (index < parts.lastIndex && parts.take(index + 1).joinToString(".") in arrayPaths) {
+                    add(QueryPathSegment.Item)
+                }
+            }
+        }
+    )
+}
+
+private fun QueryValueSchema.branches(): List<QueryValueSchema> =
+    if (kind == QueryValueKind.UNION) alternatives.flatMap { it.branches() } else listOf(this)
+
+private fun QueryValueSchema.hasArrayBranch(): Boolean = branches().any { it.kind == QueryValueKind.ARRAY }
+
+private val QueryValueSchema.isElementScope: Boolean
+    get() = branches().filter { it.kind != QueryValueKind.NULL }.let { branches ->
+        branches.isNotEmpty() && branches.all {
+            it.kind == QueryValueKind.ARRAY &&
+                checkNotNull(it.items).branches().filter { item -> item.kind != QueryValueKind.NULL }.let { items ->
+                    items.isNotEmpty() && items.all { item -> item.kind == QueryValueKind.OBJECT }
+                }
+        }
     }
 
-private fun LogicalQueryFieldSchema.proves(capability: QueryCapability, kind: Property.Kind): Boolean =
-    storageRequirements(capability).let { requirements ->
-        requirements.isNotEmpty() && requirements.all { kind in it }
+/** A length-limited index can represent a logical domain only when every declared value fits. */
+private fun QueryValueSchema.provesIndexedValues(ignoreAbove: Int?): Boolean {
+    if (ignoreAbove == null) return true
+    return operationValues().all { value ->
+        if (value.kind == QueryValueKind.NULL) return@all true
+        if (value.kind != QueryValueKind.SCALAR || value.valueTypes != setOf(QueryValueType.STRING)) return@all false
+        val values = value.enumValues ?: return@all false
+        values.isNotEmpty() && values.all { it.isNull || it.isString && it.asString().length <= ignoreAbove }
     }
+}
 
-private fun LogicalQueryFieldSchema.storageRequirements(
+private fun QueryValueSchema.proves(capability: QueryCapability, kind: Property.Kind): Boolean {
+    if (capability == QueryCapability.ELEMENT_SCOPE) return isElementScope && kind in NESTED_KINDS
+    val values = branches().filter { it.kind != QueryValueKind.NULL }.flatMap {
+        if (it.kind == QueryValueKind.ARRAY) checkNotNull(it.items).branches() else listOf(it)
+    }.filter { it.kind != QueryValueKind.NULL }
+    if (capability == QueryCapability.AGGREGATE_TEMPORAL && values.map {
+            it.semanticType
+        }.distinct().size != 1
+    ) {
+        return false
+    }
+    return values.isNotEmpty() && values.all { value ->
+        value.kind == QueryValueKind.SCALAR && value.storageRequirements(capability).let { requirements ->
+            requirements.isNotEmpty() && requirements.all { kind in it }
+        }
+    }
+}
+
+private fun QueryValueSchema.storageRequirements(
     capability: QueryCapability,
 ): List<Set<Property.Kind>> = when (capability) {
     QueryCapability.EXACT_MATCH -> valueRequirements()
@@ -307,6 +364,7 @@ private fun LogicalQueryFieldSchema.storageRequirements(
     -> stringRequirements()
     QueryCapability.RANGE -> rangeRequirements()
     QueryCapability.SORT,
+    QueryCapability.CURSOR_SORT,
     QueryCapability.AGGREGATE_TERMS,
     -> valueRequirements()
     QueryCapability.ELEMENT_SCOPE -> if (isElementScope) {
@@ -319,38 +377,36 @@ private fun LogicalQueryFieldSchema.storageRequirements(
     else -> emptyList()
 }
 
-private fun LogicalQueryFieldSchema.valueRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+private fun QueryValueSchema.valueRequirements(): List<Set<Property.Kind>> = when (semanticType) {
     Temporal.Date,
     is Temporal.Epoch,
     -> temporalRequirements()
     else -> valueTypes.map(QueryValueType::storageKinds)
 }
 
-private fun LogicalQueryFieldSchema.stringRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+private fun QueryValueSchema.stringRequirements(): List<Set<Property.Kind>> = when (semanticType) {
     Temporal.Date,
     is Temporal.Epoch,
     -> emptyList()
-    else -> valueTypes.filter { it == QueryValueType.STRING }.map { STRING_KINDS }
+    else -> if (valueTypes == setOf(QueryValueType.STRING)) listOf(STRING_KINDS) else emptyList()
 }
 
-private fun LogicalQueryFieldSchema.numericRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+private fun QueryValueSchema.numericRequirements(): List<Set<Property.Kind>> = when (semanticType) {
     Temporal.Date -> emptyList()
     is Temporal.Epoch -> temporalRequirements()
-    else -> valueTypes.mapNotNull {
-        when (it) {
-            QueryValueType.INTEGER -> INTEGER_KINDS
-            QueryValueType.DECIMAL -> NUMERIC_KINDS
-            else -> null
-        }
+    else -> if (valueTypes.all { it == QueryValueType.INTEGER || it == QueryValueType.DECIMAL }) {
+        valueTypes.map { if (it == QueryValueType.INTEGER) INTEGER_KINDS else NUMERIC_KINDS }
+    } else {
+        emptyList()
     }
 }
 
-private fun LogicalQueryFieldSchema.rangeRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+private fun QueryValueSchema.rangeRequirements(): List<Set<Property.Kind>> = when (semanticType) {
     is Temporal.Formatted -> if (valueTypes == setOf(QueryValueType.STRING)) listOf(KEYWORD_KINDS) else emptyList()
     else -> temporalRequirements().ifEmpty { numericRequirements().ifEmpty { stringRequirements() } }
 }
 
-private fun LogicalQueryFieldSchema.temporalRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+private fun QueryValueSchema.temporalRequirements(): List<Set<Property.Kind>> = when (semanticType) {
     Temporal.Date -> if (valueTypes == setOf(QueryValueType.STRING)) listOf(DATE_KINDS) else emptyList()
     is Temporal.Epoch -> if (
         valueTypes == setOf(QueryValueType.INTEGER)
@@ -373,9 +429,15 @@ private fun QueryValueType.storageKinds(): Set<Property.Kind> = when (this) {
 private val ElasticsearchMappedField.queryable: Boolean
     get() = indexed || (sortable && kind in DOC_VALUE_QUERY_KINDS)
 
-private fun ElasticsearchMappedField.supportsModelFullText(): Boolean = indexed && kind in MATCH_KINDS
+private fun ElasticsearchMappedField.supportsModelFullText(): Boolean {
+    if (ignoreAbove != null || nullValue != null) return false
+    return indexed && kind in MATCH_KINDS
+}
 
-private fun ElasticsearchMappedField.supportsModelPhraseSearch(): Boolean = indexed && kind in PHRASE_SEARCH_KINDS
+private fun ElasticsearchMappedField.supportsModelPhraseSearch(): Boolean {
+    if (ignoreAbove != null || nullValue != null) return false
+    return indexed && kind in PHRASE_SEARCH_KINDS
+}
 
 private val SIGNED_INTEGER_KINDS = setOf(
     Property.Kind.Byte,
@@ -437,6 +499,8 @@ private val EXACT_KINDS = NUMERIC_KINDS + TERM_KINDS + setOf(
     Property.Kind.Version,
 )
 
+private val CURSOR_SORT_KINDS = EXACT_KINDS - setOf(Property.Kind.UnsignedLong, Property.Kind.Flattened)
+
 private val LITERAL_KINDS = TERM_KINDS
 
 private val RANGE_KINDS = NUMERIC_KINDS + KEYWORD_KINDS + RANGE_FIELD_KINDS + setOf(
@@ -459,3 +523,12 @@ private val STRING_KINDS = TERM_KINDS + SEARCH_KINDS + setOf(
 
 private val PHRASE_SEARCH_KINDS = SEARCH_KINDS - Property.Kind.SemanticText
 private val MATCH_KINDS = SEARCH_KINDS + EXACT_KINDS
+
+private val NORMALIZED_VALUE_CAPABILITIES = setOf(
+    QueryCapability.EXACT_MATCH,
+    QueryCapability.LITERAL_MATCH,
+    QueryCapability.RANGE,
+    QueryCapability.SORT,
+    QueryCapability.CURSOR_SORT,
+    QueryCapability.AGGREGATE_TERMS,
+)

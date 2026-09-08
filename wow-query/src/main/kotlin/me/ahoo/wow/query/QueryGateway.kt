@@ -13,30 +13,42 @@
 
 package me.ahoo.wow.query
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.DeletionFilter
+import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.filter.ErrorAccessor
-import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.FilterChainBuilder
-import me.ahoo.wow.query.filter.DefaultQueryContext
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.RewritableFilter
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.filter.FilterType
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.mask.withSchemaMaskFilter
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.requireAccepted
+import me.ahoo.wow.query.mask.SchemaMasker
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.validateQuery
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toObject
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.SignalType
+import reactor.util.context.ContextView
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.node.ObjectNode
 import kotlin.reflect.KClass
@@ -57,142 +69,163 @@ interface QueryGateway<R : Any> : NamedAggregateDecorator {
 abstract class AbstractQueryGateway<R : Any>(
     override val namedAggregate: NamedAggregate,
     binding: QueryBackendBinding<QueryBackend>,
-    private val validationMode: QuerySchemaValidationMode,
     private val targetType: JavaType,
-    filters: List<QueryFilter<QueryContext<*, *>>>,
+    filters: List<QueryFilter>,
     filterType: KClass<*>,
-    private val errorHandler: ErrorHandler<QueryContext<*, *>>,
+    private val observer: QueryObserver,
 ) : QueryGateway<R> {
     private val backend = binding.backend
     private val schemaProvider = binding.schemaProvider
-    private val chain = FilterChainBuilder<QueryContext<*, *>>()
-        .addFilters(filters)
-        .filterCondition(filterType)
-        .build(FilterChain(::invokeBackend))
-        .withSchemaMaskFilter()
+    private val prepares = filters.filter {
+        it::class.scanAnnotation<FilterType>()?.value?.contains(filterType) ?: true
+    }.sortedByOrder()
 
-    private fun invokeBackend(context: QueryContext<*, *>): Mono<Void> {
-        when (context.queryType) {
-            QueryType.SINGLE -> context.asSingleQuery().run {
-                val accepted = schema.resolve(getQuery()).requireAccepted(validationMode)
-                setResult(backend.single(ResolvedQuery(accepted, schema)))
-            }
-            QueryType.LIST -> context.asListQuery().run {
-                val accepted = schema.resolve(getQuery()).requireAccepted(validationMode)
-                setResult(backend.list(ResolvedQuery(accepted, schema)))
-            }
-            QueryType.PAGED -> context.asPagedQuery().run {
-                val accepted = schema.resolve(getQuery()).requireAccepted(validationMode)
-                setResult(backend.paged(ResolvedQuery(accepted, schema)))
-            }
-            QueryType.CURSOR -> context.asCursorQuery().run {
-                val accepted = schema.resolve(getQuery()).requireAccepted(validationMode)
-                setResult(backend.cursor(ResolvedQuery(accepted, schema)))
-            }
-            QueryType.COUNT -> context.asCountQuery().run {
-                val accepted = schema.resolve(getQuery()).requireAccepted(validationMode)
-                setResult(backend.count(ResolvedQuery(accepted, schema)))
-            }
-            QueryType.AGGREGATION -> context.asAggregationQuery().run {
-                val accepted = schema.resolve(getQuery()).requireAccepted(validationMode)
-                setResult(backend.aggregate(ResolvedQuery(accepted, schema)))
+    private fun <Q : RewritableFilter<Q>> prepare(
+        query: Q,
+        schema: QueryModelSchema,
+        identity: ContextView,
+    ): Mono<Q> {
+        val scope = identity.queryScope()
+        val prepared = prepares.fold(Mono.just(query)) { pending, filter ->
+            pending.flatMap { current ->
+                Mono.defer { filter.prepare(QueryContext(current, namedAggregate, schema)) }
+                    .switchIfEmpty(
+                        Mono.error { IllegalStateException("QueryFilter.prepare must emit exactly one query.") }
+                    )
             }
         }
-        return Mono.empty()
+        return prepared.flatMap { current ->
+            val scoped = if (scope === MatchAllFilter) current else current.appendFilter(scope)
+            Mono.defer { authorizationFilter(identity, QueryContext(scoped, namedAggregate, schema)) }
+                .switchIfEmpty(Mono.error { IllegalStateException("Authorization must emit one access filter.") })
+                .map { if (it === MatchAllFilter) scoped else scoped.appendFilter(it) }
+        }.map { applyDefaults(it, schema) }
     }
 
-    private fun observeError(context: QueryContext<*, *>, original: Throwable): Mono<Void> {
-        if (context is ErrorAccessor) {
-            context.setError(original)
+    protected open fun authorizationFilter(
+        identity: ContextView,
+        context: QueryContext<*>,
+    ): Mono<FilterExpression> = Mono.just(MatchAllFilter)
+
+    private fun <Q : RewritableFilter<Q>> applyDefaults(query: Q, schema: QueryModelSchema): Q {
+        if (schema.model != QueryModel.SNAPSHOT) return query
+        val filter = when (query) {
+            is FilterExpression -> query
+            is FilterCapable<*> -> query.filter
+            else -> error("Unsupported query filter contract.")
         }
-        return Mono.defer { errorHandler.handle(context, original) }
-            .onErrorResume { handlerFailure ->
-                if (handlerFailure !== original) {
-                    original.addSuppressed(handlerFailure)
-                }
-                Mono.empty()
-            }
+        return if (filter.hasDeletionScope()) query else query.appendFilter(DeletionFilter(DeletionState.ACTIVE))
     }
 
-    private fun <Q : Any, RESULT : Any, T : Any> mono(
+    private fun FilterExpression.hasDeletionScope(): Boolean = when (this) {
+        is DeletionFilter -> true
+        is AndFilter -> operands.any { it.hasDeletionScope() }
+        else -> false
+    }
+
+    private fun <Q : RewritableFilter<Q>, T : Any> mono(
         queryType: QueryType,
         query: Q,
-        result: (QueryContext<Q, RESULT>) -> Mono<T>,
-    ): Mono<T> = Mono.defer {
-        schemaProvider.schema().flatMap { schema ->
-            val context = DefaultQueryContext<Q, RESULT>(queryType, namedAggregate, schema).setQuery(query)
-            Mono.defer { chain.filter(context) }
-                .then(Mono.defer { result(context) })
-                .onErrorResume { original -> observeError(context, original).then(Mono.error(original)) }
-        }
-    }
+        execute: (Q, QueryModelSchema) -> Mono<T>,
+    ): Mono<T> = Mono.deferContextual { identity ->
+        schemaProvider.schema()
+            .switchIfEmpty(Mono.error { IllegalStateException("QueryModelSchemaProvider must emit one schema.") })
+            .flatMap { schema ->
+                prepare(query, schema, identity).flatMap { execute(it, schema) }
+            }
+    }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }
+        .doFinally { observeTerminal(queryType, it) }
 
-    private fun <Q : Any, RESULT : Any, T : Any> flux(
+    private fun <Q : RewritableFilter<Q>, T : Any> flux(
         queryType: QueryType,
         query: Q,
-        result: (QueryContext<Q, RESULT>) -> Flux<T>,
-    ): Flux<T> = Flux.defer {
-        schemaProvider.schema().flatMapMany { schema ->
-            val context = DefaultQueryContext<Q, RESULT>(queryType, namedAggregate, schema).setQuery(query)
-            Mono.defer { chain.filter(context) }
-                .thenMany(Flux.defer { result(context) })
-                .onErrorResume { original -> observeError(context, original).thenMany(Flux.error(original)) }
+        execute: (Q, QueryModelSchema) -> Flux<T>,
+    ): Flux<T> = Flux.deferContextual { identity ->
+        schemaProvider.schema()
+            .switchIfEmpty(Mono.error { IllegalStateException("QueryModelSchemaProvider must emit one schema.") })
+            .flatMapMany { schema ->
+                prepare(query, schema, identity).flatMapMany { execute(it, schema) }
+            }
+    }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }
+        .doFinally { observeTerminal(queryType, it) }
+
+    private fun observeTerminal(queryType: QueryType, signal: SignalType) = observe {
+        when (signal) {
+            SignalType.ON_COMPLETE -> observer.onComplete(namedAggregate, queryType)
+            SignalType.CANCEL -> observer.onCancel(namedAggregate, queryType)
+            else -> Unit
         }
     }
 
-    protected open fun prepareDynamicResult(context: QueryContext<*, *>, result: ObjectNode): ObjectNode = result
+    @Suppress("TooGenericExceptionCaught")
+    private inline fun observe(callback: () -> Unit) {
+        try {
+            callback()
+        } catch (failure: Throwable) {
+            Exceptions.throwIfFatal(failure)
+            log.error(failure) { "Query observer failed." }
+        }
+    }
 
-    override fun single(query: ISingleQuery): Mono<R> =
-        mono<ISingleQuery, Mono<ObjectNode>, R>(QueryType.SINGLE, query) { context ->
-            context.getRequiredResult().map { it.toObject<R>(targetType) }
+    private fun <T : Any> single(query: ISingleQuery, materialize: (ObjectNode) -> T): Mono<T> =
+        mono(QueryType.SINGLE, query) { prepared, schema ->
+            val accepted = validateQuery(prepared, schema)
+            val mask = SchemaMasker.create(schema)
+            backend.single(accepted, schema).map { materialize(mask?.mask(it) ?: it) }
         }
 
-    override fun dynamicSingle(query: ISingleQuery): Mono<ObjectNode> =
-        mono<ISingleQuery, Mono<ObjectNode>, ObjectNode>(QueryType.SINGLE, query) { context ->
-            context.getRequiredResult().map { result -> prepareDynamicResult(context, result) }
+    private fun <T : Any> list(query: IListQuery, materialize: (ObjectNode) -> T): Flux<T> =
+        flux(QueryType.LIST, query) { prepared, schema ->
+            val accepted = validateQuery(prepared, schema)
+            val mask = SchemaMasker.create(schema)
+            backend.list(accepted, schema).map { materialize(mask?.mask(it) ?: it) }
         }
 
-    override fun list(query: IListQuery): Flux<R> =
-        flux<IListQuery, Flux<ObjectNode>, R>(QueryType.LIST, query) { context ->
-            context.getRequiredResult().map { it.toObject<R>(targetType) }
-        }
-
-    override fun dynamicList(query: IListQuery): Flux<ObjectNode> =
-        flux<IListQuery, Flux<ObjectNode>, ObjectNode>(QueryType.LIST, query) { context ->
-            context.getRequiredResult().map { result -> prepareDynamicResult(context, result) }
-        }
-
-    override fun paged(query: IPagedQuery): Mono<PagedList<R>> =
-        mono<IPagedQuery, Mono<PagedList<ObjectNode>>, PagedList<R>>(QueryType.PAGED, query) { context ->
-            context.getRequiredResult().map { page ->
-                PagedList(page.total, page.list.map { it.toObject<R>(targetType) })
+    private fun <T : Any> paged(query: IPagedQuery, materialize: (ObjectNode) -> T): Mono<PagedList<T>> =
+        mono(QueryType.PAGED, query) { prepared, schema ->
+            val accepted = validateQuery(prepared, schema)
+            val mask = SchemaMasker.create(schema)
+            backend.paged(accepted, schema).map { page ->
+                PagedList(page.total, page.list.map { materialize(mask?.mask(it) ?: it) })
             }
         }
 
-    override fun dynamicPaged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
-        mono<IPagedQuery, Mono<PagedList<ObjectNode>>, PagedList<ObjectNode>>(QueryType.PAGED, query) { context ->
-            context.getRequiredResult().map { page ->
-                page.copy(list = page.list.map { prepareDynamicResult(context, it) })
+    private fun <T : Any> cursor(query: ICursorQuery, materialize: (ObjectNode) -> T): Mono<CursorPage<T>> =
+        mono(QueryType.CURSOR, query) { prepared, schema ->
+            val uniqueField = when (schema.model) {
+                QueryModel.SNAPSHOT -> MessageRecords.AGGREGATE_ID
+                QueryModel.EVENT_STREAM -> MessageRecords.ID
+                else -> throw QuerySchemaValidationException(
+                    "Cursor identity is not defined for model [${schema.model.value}]."
+                )
+            }
+            val accepted = validateQuery(prepared.withUniqueSort(QueryField(uniqueField)), schema)
+            val mask = SchemaMasker.create(schema)
+            backend.cursor(accepted, schema).map { page ->
+                CursorPage(page.list.map { materialize(mask?.mask(it) ?: it) }, page.nextCursor)
             }
         }
 
-    override fun cursor(query: ICursorQuery): Mono<CursorPage<R>> =
-        mono<ICursorQuery, Mono<CursorPage<ObjectNode>>, CursorPage<R>>(QueryType.CURSOR, query) { context ->
-            context.getRequiredResult().map { page ->
-                CursorPage(page.list.map { it.toObject<R>(targetType) }, page.nextCursor)
-            }
-        }
+    override fun single(query: ISingleQuery): Mono<R> = single(query) { it.toObject<R>(targetType) }
+    override fun dynamicSingle(query: ISingleQuery): Mono<ObjectNode> = single(query) { it }
+    override fun list(query: IListQuery): Flux<R> = list(query) { it.toObject<R>(targetType) }
+    override fun dynamicList(query: IListQuery): Flux<ObjectNode> = list(query) { it }
+    override fun paged(query: IPagedQuery): Mono<PagedList<R>> = paged(query) { it.toObject<R>(targetType) }
+    override fun dynamicPaged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = paged(query) { it }
+    override fun cursor(query: ICursorQuery): Mono<CursorPage<R>> = cursor(query) { it.toObject<R>(targetType) }
+    override fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> = cursor(query) { it }
+    override fun count(filter: FilterExpression): Mono<Long> = mono(QueryType.COUNT, filter) { prepared, schema ->
+        backend.count(validateQuery(prepared, schema), schema)
+    }
 
-    override fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
-        mono<ICursorQuery, Mono<CursorPage<ObjectNode>>, CursorPage<ObjectNode>>(QueryType.CURSOR, query) { context ->
-            context.getRequiredResult().map { page ->
-                page.copy(list = page.list.map { prepareDynamicResult(context, it) })
-            }
-        }
+    override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = flux(
+        QueryType.AGGREGATION,
+        query
+    ) { prepared, schema ->
+        backend.aggregate(validateQuery(prepared, schema), schema)
+    }
 
-    override fun count(filter: FilterExpression): Mono<Long> =
-        mono<FilterExpression, Mono<Long>, Long>(QueryType.COUNT, filter) { it.getRequiredResult() }
-
-    override fun aggregate(query: AggregationQuery): Flux<ObjectNode> =
-        flux<AggregationQuery, Flux<ObjectNode>, ObjectNode>(QueryType.AGGREGATION, query) { it.getRequiredResult() }
+    private companion object {
+        val log = KotlinLogging.logger { }
+    }
 }

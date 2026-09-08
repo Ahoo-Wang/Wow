@@ -3,16 +3,20 @@
     "state.createdAt": {
       "title": null,
       "description": "Creation time",
-      "enumValues": [1, "two"],
-      "valueTypes": ["INTEGER"],
+      "enumValues": [
+        1,
+        "two"
+      ],
+      "valueTypes": [
+        "INTEGER"
+      ],
       "nullable": false,
       "required": true,
-      "cardinality": "SINGLE",
       "semanticType": {
         "type": "TEMPORAL_EPOCH",
         "timeUnit": "MILLISECONDS"
       },
-      "dynamicChildren": false
+      "kind": "SCALAR"
     },
     "state.note": {
       "title": "Note",

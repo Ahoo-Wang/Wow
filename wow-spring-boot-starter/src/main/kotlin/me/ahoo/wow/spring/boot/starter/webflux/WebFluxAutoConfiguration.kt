@@ -60,9 +60,9 @@ import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
-import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestFilter
-import me.ahoo.wow.webflux.route.query.HttpQueryGuardFilter
-import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
+import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
+import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -125,9 +125,9 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun httpQueryGuardFilter(webFluxProperties: WebFluxProperties): HttpQueryGuardFilter {
+    fun httpQueryGuard(webFluxProperties: WebFluxProperties): HttpQueryGuard {
         val query = webFluxProperties.query
-        return HttpQueryGuardFilter(
+        return HttpQueryGuard(
             maxListSize = query.maxListSize,
             maxPageSize = query.maxPageSize,
             maxPageWindow = query.maxPageWindow,
@@ -191,8 +191,8 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun rewriteRequestFilter(): RewriteRequestFilter {
-        return DefaultRewriteRequestFilter
+    fun queryRequestScope(): QueryRequestScope {
+        return DefaultQueryRequestScope
     }
 
     @Bean
@@ -240,15 +240,17 @@ class WebFluxAutoConfiguration {
         beanFactory: BeanFactory,
         snapshotQueryBackendFactory: SnapshotQueryBackendFactory,
         eventStreamQueryBackendFactory: EventStreamQueryBackendFactory,
-        rewriteRequestFilter: RewriteRequestFilter,
-        exceptionHandler: RequestExceptionHandler
+        queryRequestScope: QueryRequestScope,
+        exceptionHandler: RequestExceptionHandler,
+        httpQueryGuard: HttpQueryGuard,
     ): QueryRouteModule {
         return QueryRouteModule(
             beanFactory = beanFactory,
             snapshotQueryBackendFactory = snapshotQueryBackendFactory,
             eventStreamQueryBackendFactory = eventStreamQueryBackendFactory,
-            rewriteRequestFilter = rewriteRequestFilter,
-            exceptionHandler = exceptionHandler
+            queryRequestScope = queryRequestScope,
+            exceptionHandler = exceptionHandler,
+            guard = httpQueryGuard,
         )
     }
 

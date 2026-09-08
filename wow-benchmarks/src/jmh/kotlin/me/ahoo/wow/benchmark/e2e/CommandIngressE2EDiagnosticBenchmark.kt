@@ -17,7 +17,6 @@ import me.ahoo.wow.BenchmarkAggregateSchedulerSupplier
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
-import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
 import me.ahoo.wow.command.InMemoryCommandBus

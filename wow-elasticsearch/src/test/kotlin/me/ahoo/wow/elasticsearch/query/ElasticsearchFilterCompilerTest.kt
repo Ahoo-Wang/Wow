@@ -45,19 +45,17 @@ import java.util.UUID
 
 class ElasticsearchFilterCompilerTest {
     @Test
+    fun `raw snapshot compiler must not inject a deletion predicate`() {
+        SnapshotFilterCompiler.compilePhysical(MatchAllFilter)._kind().assert().isEqualTo(Query.Kind.MatchAll)
+        assertQuery(SnapshotFilterCompiler.compilePhysical(IdFilter("id-1")), ids { it.values("id-1") })
+    }
+
+    @Test
     fun `model level search should be lenient while explicit fields keep strict parsing`() {
         RawFilterCompiler.compilePhysical(SearchFilter("value")).multiMatch().lenient().assert().isTrue()
         RawFilterCompiler.compilePhysical(
             SearchFilter("value", setOf(QueryField("state.value"))),
         ).multiMatch().lenient().assert().isNull()
-    }
-
-    private fun assertCompiled(actual: Query, expected: Query) {
-        actual._kind().assert().isEqualTo(Query.Kind.Bool)
-        val filters = actual.bool().filter()
-        filters.first().term().field().assert().isEqualTo(StateAggregateRecords.DELETED)
-        filters.first().term().value().booleanValue().assert().isFalse()
-        assertQuery(filters.last(), expected)
     }
 
     private fun assertQuery(actual: Query, expected: Query) {
@@ -70,16 +68,16 @@ class ElasticsearchFilterCompilerTest {
 
     @Test
     fun `snapshot metadata filters should use document ids`() {
-        assertCompiled(SnapshotFilterCompiler.compilePhysical(IdFilter("id-1")), ids { it.values("id-1") })
-        assertCompiled(
+        assertQuery(SnapshotFilterCompiler.compilePhysical(IdFilter("id-1")), ids { it.values("id-1") })
+        assertQuery(
             SnapshotFilterCompiler.compilePhysical(AggregateIdFilter("aggregate-1")),
             ids { it.values("aggregate-1") },
         )
-        assertCompiled(
+        assertQuery(
             SnapshotFilterCompiler.compilePhysical(IdsFilter(listOf("id-1", "id-2"))),
             ids { it.values("id-1", "id-2") },
         )
-        assertCompiled(
+        assertQuery(
             SnapshotFilterCompiler.compilePhysical(AggregateIdsFilter(listOf("aggregate-1", "aggregate-2"))),
             ids { it.values("aggregate-1", "aggregate-2") },
         )
@@ -87,15 +85,15 @@ class ElasticsearchFilterCompilerTest {
 
     @Test
     fun `metadata scope filters should use source metadata fields`() {
-        assertCompiled(
+        assertQuery(
             SnapshotFilterCompiler.compilePhysical(TenantIdFilter("tenant-1")),
             term { it.field(MessageRecords.TENANT_ID).value("tenant-1") },
         )
-        assertCompiled(
+        assertQuery(
             SnapshotFilterCompiler.compilePhysical(OwnerIdFilter("owner-1")),
             term { it.field(MessageRecords.OWNER_ID).value("owner-1") },
         )
-        assertCompiled(
+        assertQuery(
             SnapshotFilterCompiler.compilePhysical(SpaceIdFilter("space-1")),
             term { it.field(MessageRecords.SPACE_ID).value("space-1") },
         )
@@ -103,32 +101,34 @@ class ElasticsearchFilterCompilerTest {
 
     @Test
     fun `generic document id predicates should preserve exact id queries`() {
-        assertCompiled(
+        assertQuery(
             SnapshotFilterCompiler.compilePhysical(EqualFilter(QueryField("_id"), json("id-1"))),
             ids { it.values("id-1") },
         )
-        assertCompiled(
+        assertQuery(
             SnapshotFilterCompiler.compilePhysical(InFilter(QueryField("_id"), listOf(json("id-1"), json("id-2")))),
             ids { it.values("id-1", "id-2") },
         )
     }
 
     @Test
-    fun `equality filters should preserve scalar arrays and runtime POJOs`() {
+    fun `equality rejects arrays and preserves scalar serialized runtime POJOs`() {
         val nativeValue = UUID.fromString("f0191fbe-b181-4531-84be-4e8609e32966")
         val arrayValue = listOf("a", "b")
 
-        assertCompiled(
-            SnapshotFilterCompiler.compilePhysical(EqualFilter(QueryField("state.tags"), json(arrayValue))),
-            term { it.field("state.tags").value(FieldValue.of(arrayValue)) },
-        )
+        org.junit.jupiter.api.assertThrows<me.ahoo.wow.query.schema.QuerySchemaValidationException> {
+            SnapshotFilterCompiler.compilePhysical(EqualFilter(QueryField("state.tags"), json(arrayValue)))
+        }
+        org.junit.jupiter.api.assertThrows<me.ahoo.wow.query.schema.QuerySchemaValidationException> {
+            SnapshotFilterCompiler.compilePhysical(
+                EqualFilter(QueryField("state.number"), JsonNodeFactory.instance.numberNode(Double.NaN))
+            )
+        }
 
         val pojoQuery = SnapshotFilterCompiler.compilePhysical(
             EqualFilter(QueryField("state.native"), JsonNodeFactory.instance.pojoNode(nativeValue)),
-        ).bool().filter().last().term()
-        pojoQuery.value().isAny.assert().isTrue()
-        pojoQuery.value().anyValue().toJson(WowJsonpMapper).toString().assert()
-            .isEqualTo("\"f0191fbe-b181-4531-84be-4e8609e32966\"")
+        ).term()
+        pojoQuery.value().stringValue().assert().isEqualTo(nativeValue.toString())
     }
 
     @Test
@@ -211,9 +211,9 @@ class ElasticsearchFilterCompilerTest {
     }
 
     @Test
-    fun `deletion normalization should preserve explicit and default scopes`() {
+    fun `deletion compilation should preserve explicitly requested scopes`() {
         assertQuery(
-            SnapshotFilterCompiler.compilePhysical(MatchAllFilter),
+            SnapshotFilterCompiler.compilePhysical(DeletionFilter(DeletionState.ACTIVE)),
             term { it.field(StateAggregateRecords.DELETED).value(false) },
         )
         SnapshotFilterCompiler.compilePhysical(MatchNoneFilter)._kind().assert().isEqualTo(Query.Kind.MatchNone)
@@ -246,12 +246,12 @@ class ElasticsearchFilterCompilerTest {
     fun `scoped filter fields should be prefixed with parent`() {
         val query = SnapshotFilterCompiler.compilePhysical(filter { "quantity" gt 1 }, "state.orders.lines")
 
-        query.bool().filter().last().range().untyped().field().assert().isEqualTo("state.orders.lines.quantity")
+        query.range().untyped().field().assert().isEqualTo("state.orders.lines.quantity")
     }
 
     companion object {
         private fun json(value: Any?): JsonNode = JsonSerializer.valueToTree(value)
     }
 
-    private object RawFilterCompiler : AbstractElasticsearchFilterCompiler(defaultDeletionState = null)
+    private object RawFilterCompiler : AbstractElasticsearchFilterCompiler()
 }

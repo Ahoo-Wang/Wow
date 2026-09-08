@@ -24,6 +24,13 @@ import org.junit.jupiter.api.assertThrows
 
 class CursorQueriesTest {
     @Test
+    fun `unique sort normalization must not interpret backend field names`() {
+        val field = QueryField("_score")
+        CursorQuery(MatchAllFilter, sort = listOf(Sort(field, Sort.Direction.ASC)))
+            .withUniqueSort(QueryField("aggregateId")).sort.first().field.assert().isEqualTo(field)
+    }
+
+    @Test
     fun `should append unique sort once`() {
         CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("version"), Sort.Direction.DESC)))
             .withUniqueSort(QueryField("aggregateId")).sort.assert().containsExactly(
@@ -33,18 +40,12 @@ class CursorQueriesTest {
     }
 
     @Test
-    fun `should reject duplicate unstable and overflowing sort`() {
+    fun `should reject duplicate and overflowing sort`() {
         assertThrows<IllegalArgumentException> {
             CursorQuery(
                 MatchAllFilter,
                 sort = listOf(Sort(QueryField("id"), Sort.Direction.ASC), Sort(QueryField("id"), Sort.Direction.DESC)),
             ).withUniqueSort(QueryField("aggregateId"))
-        }
-        listOf("_score", "_doc", "_shard_doc").forEach { field ->
-            assertThrows<IllegalArgumentException> {
-                CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField(field), Sort.Direction.ASC)))
-                    .withUniqueSort(QueryField("aggregateId"))
-            }
         }
         assertThrows<IllegalArgumentException> {
             CursorQuery(

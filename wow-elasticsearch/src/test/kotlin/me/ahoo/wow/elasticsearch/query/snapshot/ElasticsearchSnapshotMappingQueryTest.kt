@@ -37,16 +37,13 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
-import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.DeclarationValue
@@ -58,8 +55,6 @@ import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.serialization.JsonSerializer
@@ -92,7 +87,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = emptyList(),
         ).create(MOCK_AGGREGATE_METADATA)
-        val service = queryGateway(binding, QuerySchemaValidationMode.STRICT)
+        val service = queryGateway(binding)
 
         service.list(ListQuery(filter = equal("state.unknown", "value"), limit = 10)).test()
             .expectError(QuerySchemaValidationException::class.java)
@@ -171,7 +166,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             ),
         ).test().verifyComplete()
 
-        val nested = searchRequest.captured.query()!!.bool().filter()[1].nested()
+        val nested = userFilters().single().nested()
         nested.path().assert().isEqualTo("state.orders")
         nested.query().term().field().assert().isEqualTo("state.orders.status")
         verify(exactly = 1) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
@@ -325,11 +320,11 @@ class ElasticsearchSnapshotMappingQueryTest {
             ),
         ).collectList().block()
 
-        val filters = searchRequest.captured.query()!!.bool().filter()
-        filters[1].term().field().assert().isEqualTo("state.name.keyword")
-        filters[2].multiMatch().fields().single().assert().isEqualTo("state.name")
-        filters[3].wildcard().field().assert().isEqualTo("state.name.keyword")
-        filters[4].range().untyped().field().assert().isEqualTo("state.age")
+        val filters = userFilters()
+        filters[0].term().field().assert().isEqualTo("state.name.keyword")
+        filters[1].multiMatch().fields().single().assert().isEqualTo("state.name")
+        filters[2].wildcard().field().assert().isEqualTo("state.name.keyword")
+        filters[3].range().untyped().field().assert().isEqualTo("state.age")
         searchRequest.captured.sort().single().field().field().assert().isEqualTo("state.name.keyword")
         searchRequest.captured.source()!!.filter().includes().assert().containsExactly(
             "state.name",
@@ -348,7 +343,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             ListQuery(condition = Condition.eq("state.name", "Wow"), limit = 10),
         ).collectList().block()
 
-        searchRequest.captured.query()!!.bool().filter()[1].term().field().assert()
+        userFilters().single().term().field().assert()
             .isEqualTo("state.name.keyword")
     }
 
@@ -380,17 +375,17 @@ class ElasticsearchSnapshotMappingQueryTest {
         queryGateway().list(
             ListQuery(
                 filter = filter {
-                    "body".elementMatch {
-                        "name" eq "wow"
+                    "state.orders".elementMatch {
+                        "status" eq "PAID"
                     }
                 },
                 limit = 10,
             ),
         ).collectList().block()
 
-        val nested = searchRequest.captured.query()!!.bool().filter()[1].nested()
-        nested.path().assert().isEqualTo("body")
-        nested.query().term().field().assert().isEqualTo("body.name")
+        val nested = userFilters().single().nested()
+        nested.path().assert().isEqualTo("state.orders")
+        nested.query().term().field().assert().isEqualTo("state.orders.status")
     }
 
     @Test
@@ -400,7 +395,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             Mono.just(mappingResponse(queryMapping(includeNewField = true))),
         )
         val binding = queryBackend()
-        val service = queryGateway(binding, QuerySchemaValidationMode.COMPATIBLE)
+        val service = queryGateway(binding)
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
         service.list(query).test()
@@ -409,7 +404,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         binding.schemaProvider.refresh().block()
         service.list(query).collectList().block()
 
-        searchRequest.captured.query()!!.bool().filter()[1].term().field().assert().isEqualTo("state.newField")
+        userFilters().single().term().field().assert().isEqualTo("state.newField")
         verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
     }
 
@@ -426,7 +421,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             schemaSources = schemaSources(),
         )
         val binding = factory.create(MOCK_AGGREGATE_METADATA)
-        val service = queryGateway(binding, QuerySchemaValidationMode.COMPATIBLE)
+        val service = queryGateway(binding)
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
         service.list(query).test()
@@ -462,7 +457,14 @@ class ElasticsearchSnapshotMappingQueryTest {
     @Test
     fun `custom filter compiler should keep physical field ownership`() {
         val convertedFilter = slot<FilterExpression>()
-        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            me.ahoo.wow.query.schema.LogicalQuerySchema(
+                me.ahoo.wow.query.schema.QueryValueSchema(me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT)
+            ),
+            emptyMap()
+        )
         val customCompiler = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler> {
             every { compile(capture(convertedFilter), schema) } returns matchAll { it }
         }
@@ -477,10 +479,8 @@ class ElasticsearchSnapshotMappingQueryTest {
 
         val query = ListQuery(filter = filter, limit = 10)
         service.list(
-            ResolvedQuery(
-                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
-                schema,
-            ),
+            query,
+            schema,
         ).collectList().block()
 
         convertedFilter.captured.assert().isSameAs(filter)
@@ -498,25 +498,24 @@ class ElasticsearchSnapshotMappingQueryTest {
         ).create(MOCK_AGGREGATE_METADATA)
 
     private fun queryGateway(): DefaultSnapshotQueryGateway<Any> =
-        queryGateway(queryBackend(), QuerySchemaValidationMode.COMPATIBLE)
+        queryGateway(queryBackend())
 
     private fun strictQueryGateway(
         sources: List<QuerySchemaSource> = schemaSources(),
     ): DefaultSnapshotQueryGateway<Any> =
-        queryGateway(queryBackend(sources), QuerySchemaValidationMode.STRICT)
+        queryGateway(queryBackend(sources))
 
     private fun queryGateway(
         binding: QueryBackendBinding<SnapshotQueryBackend>,
-        validationMode: QuerySchemaValidationMode,
+
     ): DefaultSnapshotQueryGateway<Any> = DefaultSnapshotQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA,
         binding = binding,
-        validationMode = validationMode,
+
         targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
             Any::class.java,
         ),
-        errorHandler = ErrorHandler { _, error -> Mono.error(error) },
     )
 
     private fun schemaSources(): List<QuerySchemaSource> {
@@ -529,25 +528,25 @@ class ElasticsearchSnapshotMappingQueryTest {
             QueryField(field) to QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(type)))
         }.toMutableMap()
         fields[QueryField("state.orders")] = QueryFieldDeclaration(
-            valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
-            cardinality = DeclarationValue.Set(QueryCardinality.MANY),
+            kind = DeclarationValue.Set(me.ahoo.wow.api.query.schema.QueryValueKind.ARRAY),
+            items = DeclarationValue.Set(
+                QueryFieldDeclaration(
+                    kind = DeclarationValue.Set(me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT),
+                )
+            ),
         )
         fields[QueryField("state.orders.status")] = QueryFieldDeclaration(
             valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
         )
         fields[QueryField("state.singleOrders")] = QueryFieldDeclaration(
             valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
-            cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
         )
         fields[QueryField("state.singleOrders.status")] = QueryFieldDeclaration(
             valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
         )
         fields[QueryField("state.stringOrders")] = QueryFieldDeclaration(
-            valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
-            cardinality = DeclarationValue.Set(QueryCardinality.MANY),
-        )
-        fields[QueryField("state.stringOrders.status")] = QueryFieldDeclaration(
-            valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+            kind = DeclarationValue.Set(me.ahoo.wow.api.query.schema.QueryValueKind.ARRAY),
+            items = DeclarationValue.Set(QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)))),
         )
         return listOf(
             BeanQuerySchemaSource(
@@ -567,8 +566,13 @@ class ElasticsearchSnapshotMappingQueryTest {
             )
         }
 
+    private fun userFilters() = searchRequest.captured.query()!!.bool().filter().filterNot {
+        it.isTerm && it.term().field() == "deleted"
+    }
+
     private fun queryMapping(includeNewField: Boolean = false): TypeMapping =
         TypeMapping.of { mapping ->
+            mapping.properties("deleted") { it.boolean_ { boolean -> boolean } }
             mapping.properties("body") { body ->
                 body.nested { nested ->
                     nested.properties("name") { name -> name.keyword { it } }

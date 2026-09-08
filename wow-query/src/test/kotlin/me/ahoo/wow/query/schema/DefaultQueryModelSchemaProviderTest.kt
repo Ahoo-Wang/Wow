@@ -307,7 +307,8 @@ class DefaultQueryModelSchemaProviderTest {
         private fun newSchema() = QueryModelSchema(
             model = QueryModel.SNAPSHOT,
             capabilities = emptySet(),
-            fields = emptyMap(),
+            definition = LogicalQuerySchema(QueryValueSchema(me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT)),
+            bindings = emptyMap(),
         )
     }
 }

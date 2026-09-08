@@ -15,31 +15,19 @@
 
 package me.ahoo.wow.webflux.route.query
 
-import me.ahoo.wow.api.annotation.ORDER_FIRST
-import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.FilterType
-import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.route.acceptsEventStream
-import me.ahoo.wow.webflux.route.getRawRequest
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import java.util.ArrayDeque
 
-@Order(ORDER_FIRST)
-@FilterType(SnapshotQueryGateway::class, EventStreamQueryGateway::class)
-class HttpQueryGuardFilter(
+class HttpQueryGuard(
     private val maxListSize: Int = 1000,
     private val maxPageSize: Int = 100,
     private val maxPageWindow: Long = 10_000,
@@ -47,7 +35,7 @@ class HttpQueryGuardFilter(
     private val maxFilterValues: Int = 1000,
     private val allowExpensiveOperators: Boolean = true,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
-) : QueryFilter<QueryContext<*, *>> {
+) {
 
     init {
         require(maxListSize >= 0) { "maxListSize must be greater than or equal to 0." }
@@ -58,28 +46,66 @@ class HttpQueryGuardFilter(
         require(!idleTimeout.isNegative) { "idleTimeout must be greater than or equal to 0." }
     }
 
-    override fun filter(
-        context: QueryContext<*, *>,
-        next: FilterChain<QueryContext<*, *>>,
-    ): Mono<Void> = Mono.deferContextual { contextView ->
-        val request = contextView.getRawRequest()
-        if (request == null) {
-            return@deferContextual next.filter(context)
+    fun <T : Any> mono(
+        queryType: QueryType,
+        query: Any,
+        scope: FilterExpression = MatchAllFilter,
+        result: () -> Mono<T>,
+    ): Mono<T> {
+        val source = Mono.defer {
+            validate(queryType, query, scope)
+            result()
+        }.doOnNext { value ->
+            val size = when (value) {
+                is PagedList<*> -> value.list.size
+                is CursorPage<*> -> value.list.size
+                else -> return@doOnNext
+            }
+            require(maxPageSize == 0 || size <= maxPageSize) {
+                "HTTP query returned [$size] rows, exceeding page limit [$maxPageSize]."
+            }
         }
-        validate(context.queryType, context.getQuery())
-        val downstream = next.filter(context)
-        val guardedDownstream = if (idleTimeout.isZero) downstream else downstream.timeout(idleTimeout)
-        guardedDownstream.doOnSuccess {
-            applyIdleTimeout(context, request)
+        return if (idleTimeout.isZero) source else source.timeout(idleTimeout)
+    }
+
+    fun <T : Any> flux(
+        queryType: QueryType,
+        query: Any,
+        request: ServerRequest,
+        scope: FilterExpression = MatchAllFilter,
+        result: () -> Flux<T>,
+    ): Flux<T> {
+        val source = Flux.defer {
+            validate(queryType, query, scope)
+            result()
+        }
+        val timed = if (idleTimeout.isZero) source else source.timeout(idleTimeout)
+        val bounded = if (maxListSize == 0) {
+            timed
+        } else {
+            timed.index().map { indexed ->
+                require(indexed.t1 < maxListSize) { "HTTP query returned more than [$maxListSize] rows." }
+                indexed.t2
+            }
+        }
+        return if (request.acceptsEventStream()) {
+            bounded
+        } else {
+            bounded.collectList().flatMapMany {
+                Flux.fromIterable(
+                    it
+                )
+            }
         }
     }
 
-    private fun validate(queryType: QueryType, query: Any) {
+    private fun validate(queryType: QueryType, query: Any, scope: FilterExpression) {
+        val scopeFilters = if (scope === MatchAllFilter) emptyList() else listOf(scope)
         when (query) {
             is AggregationQuery -> {
                 validateResultSize(query.limit, "aggregation")
                 validateFilters(
-                    listOf(query.filter) + query.elements.map(AggregationElement::filter),
+                    listOf(query.filter) + query.elements.map(AggregationElement::filter) + scopeFilters,
                     rejectMatchAll = false,
                 )
                 require(allowExpensiveOperators || query.elements.isEmpty()) {
@@ -108,7 +134,7 @@ class HttpQueryGuardFilter(
             else -> return
         }
         validateFilters(
-            filters = listOf(filter),
+            filters = listOf(filter) + scopeFilters,
             rejectMatchAll = !allowExpensiveOperators && queryType in COUNTING_QUERY_TYPES,
         )
     }
@@ -165,7 +191,7 @@ class HttpQueryGuardFilter(
                 else -> Unit
             }
         }
-        require(!rejectMatchAll || filters.none { it.isMatchAll() }) {
+        require(!rejectMatchAll || !filters.all { it.isMatchAll() }) {
             "HTTP counting query must not match all documents."
         }
     }
@@ -203,40 +229,6 @@ class HttpQueryGuardFilter(
         is IdsFilter -> values.size
         is AggregateIdsFilter -> values.size
         else -> null
-    }
-
-    private fun applyIdleTimeout(context: QueryContext<*, *>, request: ServerRequest) {
-        if (idleTimeout.isZero) return
-        when (context.queryType) {
-            QueryType.SINGLE -> context.asSingleQuery().rewriteResult { it.timeout(idleTimeout) }
-
-            QueryType.LIST ->
-                context.asListQuery().rewriteResult {
-                    if (request.acceptsEventStream()) {
-                        it.timeout(idleTimeout)
-                    } else {
-                        it.timeout(idleTimeout)
-                            .collectList()
-                            .flatMapMany(Flux<ObjectNode>::fromIterable)
-                    }
-                }
-
-            QueryType.PAGED -> context.asPagedQuery().rewriteResult { it.timeout(idleTimeout) }
-
-            QueryType.CURSOR -> context.asCursorQuery().rewriteResult { it.timeout(idleTimeout) }
-
-            QueryType.COUNT -> context.asCountQuery().rewriteResult { it.timeout(idleTimeout) }
-
-            QueryType.AGGREGATION -> context.asAggregationQuery().rewriteResult {
-                if (request.acceptsEventStream()) {
-                    it.timeout(idleTimeout)
-                } else {
-                    it.timeout(idleTimeout)
-                        .collectList()
-                        .flatMapMany(Flux<ObjectNode>::fromIterable)
-                }
-            }
-        }
     }
 
     companion object {

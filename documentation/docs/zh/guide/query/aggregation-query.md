@@ -62,7 +62,23 @@ flowchart LR
 | `NUMERIC` | 对 Expression 使用 `SUM`、`AVG`、`MIN` 或 `MAX` |
 | `ANY` | 选择一个字段值 |
 
-`ANY` 不能替代确定性的 group key：所选的非 null 值不保证在不同执行或后端间稳定。数值 metric 的参与值、null 与有限数值的处理以实际入口为准。
+`ANY` 不能替代确定性的 group key：所选的非 null 值不保证在不同执行或后端间稳定。
+
+### 数值参与值与精度 {#numeric-contributions}
+
+`NUMERIC` 每条当前记录至多贡献一个值；当前记录由根文档或最内层 Elements 决定。直接 `FIELD` 与 `BINARY` 中的每个字段叶子使用相同口径：忽略 null/缺失后，恰好一个存储数值参与计算，零个或多个数值均贡献 `null`。重复数值分别计数；`[7,7]` 不是单值。
+
+| 当前记录的字段值 | `FIELD` 贡献值 | `FIELD + 0` 贡献值 |
+| --- | ---: | ---: |
+| `7`、`[7]`、`[null,7]` | `7` | `7` |
+| 缺失、`null`、`[]`、`[null]` | `null` | `null` |
+| `[1,2]`、`[7,7]` | `null` | `null` |
+
+`COUNT` 仍统计通过 filter 的记录数，不能把它当作数值参与值数量；一条记录即使没有数值贡献也会被 COUNT 计数。`AVG` 只对有效贡献求平均；无有效贡献时四种数值 metric 都是 `null`。需要逐项统计数组时，使用已支持的 Elements 展开；表达式不进行数组 zip 或笛卡尔积，也不扫描 source 来重建元素配对。
+
+已声明的标量 `FIELD` 保留原生聚合及其数值精度；数组或标量/数组联合 `FIELD` 先按上述口径规范化。`BINARY` 使用有限 Double 计算，字段无法参与、除零或非有限运算结果均不贡献值。不能据此承诺大整数、Decimal128 或舍入边界的 `SUM(x)` 与 `SUM(x+0)` 逐位相等。Elasticsearch 数值聚合使用 double，超过 `2^53` 的整数可能近似；MongoDB 原生 accumulator 保留其类型与提升规则。参见 [Elasticsearch 聚合精度](https://www.elastic.co/docs/explore-analyze/query-filter/aggregations)和 [MongoDB $sum](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sum/)。
+
+上述规则以存储值及 runtime 字段输出符合逻辑数值模型为前提，不承诺对任意脏数据逐行校验。Elasticsearch 数值 doc values 保留重复数值；它们不是源数组位置的副本，参见 [doc_values](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/doc-values)。`HISTOGRAM` 和 `DATE_HISTOGRAM` 仍使用各自的分桶合同，不套用本节 NUMERIC 指标的参与值规则。
 
 ## 算术与时间表达式
 

@@ -6315,15 +6315,14 @@
       "wow.api.query.QueryCapability" : {
         "type" : "string"
       },
-      "wow.api.query.QueryCardinality" : {
-        "enum" : [ "SINGLE", "MANY" ],
-        "type" : "string"
-      },
       "wow.api.query.QueryField" : {
         "pattern" : "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$",
         "type" : "string"
       },
-      "wow.api.query.QueryFieldSchemaMetadata" : {
+      "wow.api.query.QueryModel" : {
+        "type" : "string"
+      },
+      "wow.api.query.QueryModelSchemaMetadata" : {
         "properties" : {
           "capabilities" : {
             "items" : {
@@ -6331,8 +6330,57 @@
             },
             "type" : "array"
           },
-          "cardinality" : {
-            "$ref" : "#/components/schemas/wow.api.query.QueryCardinality"
+          "model" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryModel"
+          },
+          "root" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryValueSchemaMetadata"
+          }
+        },
+        "required" : [ "capabilities", "model", "root" ],
+        "type" : "object"
+      },
+      "wow.api.query.QuerySemanticType" : {
+        "discriminator" : {
+          "mapping" : {
+            "TEMPORAL_DATE" : "#/components/schemas/wow.api.query.Temporal.Date",
+            "TEMPORAL_EPOCH" : "#/components/schemas/wow.api.query.Temporal.Epoch",
+            "TEMPORAL_FORMATTED" : "#/components/schemas/wow.api.query.Temporal.Formatted"
+          },
+          "propertyName" : "type"
+        },
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/wow.api.query.Temporal.Date"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.Temporal.Epoch"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.Temporal.Formatted"
+        } ]
+      },
+      "wow.api.query.QueryValueKind" : {
+        "enum" : [ "UNKNOWN", "NULL", "SCALAR", "OBJECT", "ARRAY", "UNION" ],
+        "type" : "string"
+      },
+      "wow.api.query.QueryValueSchemaMetadata" : {
+        "properties" : {
+          "additionalProperties" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.QueryValueSchemaMetadata"
+            } ]
+          },
+          "alternatives" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.QueryValueSchemaMetadata"
+            },
+            "type" : "array"
+          },
+          "capabilities" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.QueryCapability"
+            },
+            "type" : "array"
           },
           "description" : {
             "anyOf" : [ {
@@ -6340,9 +6388,6 @@
             }, {
               "type" : "string"
             } ]
-          },
-          "dynamicChildren" : {
-            "type" : "boolean"
           },
           "enumValues" : {
             "anyOf" : [ {
@@ -6354,14 +6399,24 @@
               "type" : "array"
             } ]
           },
-          "field" : {
-            "$ref" : "#/components/schemas/wow.api.query.QueryField"
+          "items" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.QueryValueSchemaMetadata"
+            } ]
+          },
+          "kind" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryValueKind"
           },
           "masked" : {
             "type" : "boolean"
           },
           "nullable" : {
             "type" : "boolean"
+          },
+          "properties" : {
+            "$ref" : "#/components/schemas/wow.api.query.StringQueryValueSchemaMetadataMap"
           },
           "required" : {
             "type" : "boolean"
@@ -6387,49 +6442,8 @@
             "type" : "array"
           }
         },
-        "required" : [ "capabilities", "cardinality", "description", "dynamicChildren", "enumValues", "field", "nullable", "required", "semanticType", "title", "valueTypes" ],
+        "required" : [ "kind" ],
         "type" : "object"
-      },
-      "wow.api.query.QueryModel" : {
-        "type" : "string"
-      },
-      "wow.api.query.QueryModelSchemaMetadata" : {
-        "properties" : {
-          "capabilities" : {
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.QueryCapability"
-            },
-            "type" : "array"
-          },
-          "fields" : {
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.QueryFieldSchemaMetadata"
-            },
-            "type" : "array"
-          },
-          "model" : {
-            "$ref" : "#/components/schemas/wow.api.query.QueryModel"
-          }
-        },
-        "required" : [ "capabilities", "fields", "model" ],
-        "type" : "object"
-      },
-      "wow.api.query.QuerySemanticType" : {
-        "discriminator" : {
-          "mapping" : {
-            "TEMPORAL_DATE" : "#/components/schemas/wow.api.query.Temporal.Date",
-            "TEMPORAL_EPOCH" : "#/components/schemas/wow.api.query.Temporal.Epoch",
-            "TEMPORAL_FORMATTED" : "#/components/schemas/wow.api.query.Temporal.Formatted"
-          },
-          "propertyName" : "type"
-        },
-        "oneOf" : [ {
-          "$ref" : "#/components/schemas/wow.api.query.Temporal.Date"
-        }, {
-          "$ref" : "#/components/schemas/wow.api.query.Temporal.Epoch"
-        }, {
-          "$ref" : "#/components/schemas/wow.api.query.Temporal.Formatted"
-        } ]
       },
       "wow.api.query.QueryValueType" : {
         "type" : "string"
@@ -6469,6 +6483,12 @@
       "wow.api.query.Sort.Direction" : {
         "enum" : [ "ASC", "DESC" ],
         "type" : "string"
+      },
+      "wow.api.query.StringQueryValueSchemaMetadataMap" : {
+        "additionalProperties" : {
+          "$ref" : "#/components/schemas/wow.api.query.QueryValueSchemaMetadata"
+        },
+        "type" : "object"
       },
       "wow.api.query.Temporal.Date" : {
         "properties" : {

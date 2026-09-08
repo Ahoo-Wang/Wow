@@ -15,4 +15,4 @@ package me.ahoo.wow.mongo.query.event
 
 import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 
-object EventStreamFilterCompiler : AbstractMongoFilterCompiler(defaultDeletionState = null)
+object EventStreamFilterCompiler : AbstractMongoFilterCompiler()

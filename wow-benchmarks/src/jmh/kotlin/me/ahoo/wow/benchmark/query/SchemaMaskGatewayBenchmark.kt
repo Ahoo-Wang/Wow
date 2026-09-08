@@ -19,18 +19,13 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.schema.MaskRule
-import me.ahoo.wow.query.schema.QueryFieldSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
@@ -76,15 +71,13 @@ open class SchemaMaskGatewayBenchmark {
 
     @Setup
     fun setup() {
-        val schema = QueryModelSchema(
-            model = QueryModel.SNAPSHOT,
-            capabilities = emptySet(),
-            fields = (0 until maskedFieldCount).associate { index ->
-                QueryField("state.secret$index") to maskedFieldSchema()
-            },
+        val schema = BenchmarkQuerySchemas.create(
+            QueryModel.SNAPSHOT,
+            (0 until maskedFieldCount).associate { index -> QueryField("state.secret$index") to maskedFieldSchema() },
+            emptyMap(),
         )
         val backend = object : SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate) {
-            override fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode> = Flux.range(0, resultCount).map {
+            override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.range(0, resultCount).map {
                 JsonNodeFactory.instance.objectNode().also { node ->
                     node.putObject("state").put("visible", "value")
                 }
@@ -100,10 +93,14 @@ open class SchemaMaskGatewayBenchmark {
         gateway = DefaultSnapshotQueryGateway(
             namedAggregate = namedAggregate,
             binding = QueryBackendBinding(backend, schemaProvider),
-            validationMode = QuerySchemaValidationMode.COMPATIBLE,
+
             targetType = JsonSerializer.typeFactory.constructType(ObjectNode::class.java),
         )
         query = ListQuery(MatchAllFilter, limit = resultCount)
+        check(schema.definition.values.values.count { it.maskRule != null } == maskedFieldCount)
+        val probe = checkNotNull(gateway.dynamicList(query).collectList().block())
+        check(probe.size == resultCount)
+        check(probe.all { it.path("state").size() == 1 && it.path("state").path("visible").asString() == "value" })
     }
 
     @Benchmark
@@ -111,20 +108,17 @@ open class SchemaMaskGatewayBenchmark {
         blackhole.consume(gateway.dynamicList(query).collectList().block())
     }
 
-    private fun maskedFieldSchema(): QueryFieldSchema {
+    private fun maskedFieldSchema(): me.ahoo.wow.query.schema.QueryValueSchema {
         val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
-        return QueryFieldSchema(
+        return me.ahoo.wow.query.schema.QueryValueSchema(
+            kind = me.ahoo.wow.api.query.schema.QueryValueKind.SCALAR,
             title = null,
             description = null,
             enumValues = null,
             valueTypes = setOf(QueryValueType.STRING),
             nullable = true,
             required = false,
-            cardinality = QueryCardinality.SINGLE,
             semanticType = null,
-            dynamicChildren = false,
-            bindings = emptyMap(),
-            rewriteMode = QueryRewriteMode.NONE,
             maskRule = MaskRule(
                 FullMaskStrategy::class,
                 annotation,

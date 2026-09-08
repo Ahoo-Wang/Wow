@@ -37,9 +37,6 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
@@ -47,45 +44,104 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackendFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.query.ResolvedQuery
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.requireAccepted
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.time.Duration
 
+@Suppress("LargeClass")
 class AbstractElasticsearchQueryBackendTest {
     private val elasticsearchClient = mockk<ReactiveElasticsearchClient>()
     private val filterCompiler = mockk<AbstractElasticsearchFilterCompiler> {
         every { compile(any<me.ahoo.wow.api.query.FilterExpression>(), any()) } returns matchAll { it }
     }
     private val queryBackend = TestElasticsearchQueryBackend(elasticsearchClient, filterCompiler)
-    private val schema = QueryModelSchema(
+    private val schema = nativeSchema(
         model = QueryModel.SNAPSHOT,
         capabilities = emptySet(),
         fields = mapOf(
+            QueryField("deleted") to nativeBindings(QueryField("deleted"), QueryCapability.EXACT_MATCH),
+            QueryField("field") to nativeBindings(QueryField("field"), QueryCapability.SORT),
+            QueryField("_score") to nativeBindings(QueryField("_score"), QueryCapability.SORT),
             QueryField("state") to projectionFieldSchema(QueryField("document")),
             QueryField("version") to sortFieldSchema(QueryField("version")),
             QueryField("aggregateId") to sortFieldSchema(QueryField("aggregateId")),
         ),
     )
+
+    @Test
+    fun `missing source in cursor lookahead fails the page instead of publishing a cursor`() {
+        every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returns Mono.just(
+            SearchResponse.of<ObjectNode> { response ->
+                response.took(1).timedOut(false).shards { it.failed(0).successful(1).total(1) }
+                    .hits { hits ->
+                        hits.hits {
+                            it.index("test-index").id("1").sort(FieldValue.of("1"))
+                                .source(JsonNodeFactory.instance.objectNode().put("id", "1"))
+                        }
+                            .hits { it.index("test-index").id("2").sort(FieldValue.of("2")) }
+                    }
+            },
+        )
+        assertThrows<IllegalStateException> {
+            queryBackend.cursor(
+                CursorQuery(
+                    MatchAllFilter,
+                    sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)),
+                    size = 1
+                ),
+                schema
+            ).block()
+        }
+    }
+
+    @Test
+    fun `missing source hit fails single list paged cursor and pit reads`() {
+        val response = SearchResponse.of<ObjectNode> { response ->
+            response.took(1).timedOut(false).shards { it.failed(0).successful(1).total(1) }
+                .hits { hits ->
+                    hits.total { it.value(1).relation(TotalHitsRelation.Eq) }
+                        .hits { it.index("test-index").id("missing-source").sort(FieldValue.of("id")) }
+                }
+        }
+        every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returns Mono.just(response)
+        every {
+            elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>())
+        } returns Mono.just(openPointInTimeResponse())
+        every {
+            elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>())
+        } returns Mono.just(closePointInTimeResponse())
+        listOf<() -> Unit>(
+            { queryBackend.single(me.ahoo.wow.api.query.SingleQuery(MatchAllFilter), schema).block() },
+            { queryBackend.list(ListQuery(MatchAllFilter, limit = 1), schema).collectList().block() },
+            { queryBackend.paged(PagedQuery(MatchAllFilter), schema).block() },
+            {
+                queryBackend.cursor(
+                    CursorQuery(
+                        MatchAllFilter,
+                        sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC))
+                    ),
+                    schema
+                ).block()
+            },
+            { queryBackend.list(ListQuery(MatchAllFilter), schema).collectList().block() },
+        ).forEach { read -> assertThrows<IllegalStateException> { read() } }
+        verify(exactly = 1) { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) }
+    }
 
     @Test
     fun `nested standard json should become independent object node without losing large numbers`() {
@@ -189,7 +245,7 @@ class AbstractElasticsearchQueryBackendTest {
             emptyObjectNodeSearchResponse(),
         )
 
-        queryBackend.list(resolved(ListQuery(MatchAllFilter, limit = 1))).collectList().block()
+        queryBackend.list((ListQuery(MatchAllFilter, limit = 1)), schema).collectList().block()
 
         sourceType.captured.assert().isEqualTo(ObjectNode::class.java)
     }
@@ -202,14 +258,13 @@ class AbstractElasticsearchQueryBackendTest {
         )
 
         val result = queryBackend.list(
-            resolved(
-                ListQuery(
-                    filter = MatchAllFilter,
-                    projection = Projection(include = listOf(QueryField("field"))),
-                    sort = listOf(Sort(QueryField("field"), Sort.Direction.ASC)),
-                    limit = DEFAULT_SEARCH_BATCH_SIZE,
-                ),
+            ListQuery(
+                filter = MatchAllFilter,
+                projection = Projection(include = listOf(QueryField("field"))),
+                sort = listOf(Sort(QueryField("field"), Sort.Direction.ASC)),
+                limit = DEFAULT_SEARCH_BATCH_SIZE,
             ),
+            schema,
         ).collectList().block()!!
 
         request.captured.trackTotalHits()!!.enabled().assert().isFalse()
@@ -221,6 +276,77 @@ class AbstractElasticsearchQueryBackendTest {
     }
 
     @Test
+    fun `array term operand fails before search or point in time acquisition`() {
+        val backend =
+            TestElasticsearchQueryBackend(
+                elasticsearchClient,
+                me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
+            )
+        val schema = nativeSchema(
+            fields = mapOf(
+                QueryField("tags") to nativeBindings(QueryField("tags"), QueryCapability.EXACT_MATCH),
+                QueryField("deleted") to nativeBindings(QueryField("deleted"), QueryCapability.EXACT_MATCH),
+            )
+        )
+        assertThrows<QuerySchemaValidationException> {
+            backend.list(
+                ListQuery(
+                    filter = me.ahoo.wow.api.query.EqualFilter(
+                        QueryField("tags"),
+                        JsonNodeFactory.instance.arrayNode().add("a")
+                    ),
+                    limit = 0
+                ),
+                schema
+            )
+        }
+        verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
+        verify(exactly = 0) { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) }
+    }
+
+    @Test
+    fun `raw cursor backend should reject missing cursor capability before search`() {
+        val field = QueryField("rank")
+        val sortOnlySchema = nativeSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = mapOf(
+                field to nativeBindings(field, QueryCapability.SORT),
+            ),
+        )
+
+        assertThrows<QuerySchemaValidationException> {
+            queryBackend.cursor(
+                CursorQuery(MatchAllFilter, sort = listOf(Sort(field, Sort.Direction.ASC))),
+                sortOnlySchema,
+            )
+        }
+
+        verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
+    }
+
+    @Test
+    fun `raw cursor backend should reject unstable metadata binding before search`() {
+        val field = QueryField("rank")
+        val specialSchema = nativeSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = mapOf(
+                field to nativeBindings(QueryField("_score"), QueryCapability.CURSOR_SORT),
+            ),
+        )
+
+        assertThrows<QuerySchemaValidationException> {
+            queryBackend.cursor(
+                CursorQuery(MatchAllFilter, sort = listOf(Sort(field, Sort.Direction.ASC))),
+                specialSchema,
+            )
+        }
+
+        verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
+    }
+
+    @Test
     fun `list should compile projection with the resolved schema`() {
         val request = slot<SearchRequest>()
         every { elasticsearchClient.search(capture(request), ObjectNode::class.java) } returns Mono.just(
@@ -228,13 +354,12 @@ class AbstractElasticsearchQueryBackendTest {
         )
 
         queryBackend.list(
-            resolved(
-                ListQuery(
-                    MatchAllFilter,
-                    projection = Projection(include = listOf(QueryField("state"))),
-                    limit = 1,
-                ),
+            ListQuery(
+                MatchAllFilter,
+                projection = Projection(include = listOf(QueryField("state"))),
+                limit = 1,
             ),
+            schema,
         ).collectList().block()
 
         request.captured.source()!!.filter().includes().assert().containsExactly(
@@ -256,7 +381,7 @@ class AbstractElasticsearchQueryBackendTest {
             closePointInTimeResponse()
         )
 
-        val result = queryBackend.list(resolved(ListQuery(MatchAllFilter))).collectList().block()!!
+        val result = queryBackend.list((ListQuery(MatchAllFilter)), schema).collectList().block()!!
 
         result.assert().hasSize(1)
         openRequest.captured.index().assert().containsExactly("test-index")
@@ -283,17 +408,16 @@ class AbstractElasticsearchQueryBackendTest {
         )
 
         queryBackend.list(
-            resolved(
-                ListQuery(
-                    filter = MatchAllFilter,
-                    projection = Projection(include = listOf(QueryField("field"))),
-                    sort = listOf(
-                        Sort(QueryField("_score"), Sort.Direction.DESC),
-                        Sort(QueryField("field"), Sort.Direction.ASC),
-                    ),
-                    limit = DEFAULT_SEARCH_BATCH_SIZE + 1,
+            ListQuery(
+                filter = MatchAllFilter,
+                projection = Projection(include = listOf(QueryField("field"))),
+                sort = listOf(
+                    Sort(QueryField("_score"), Sort.Direction.DESC),
+                    Sort(QueryField("field"), Sort.Direction.ASC),
                 ),
+                limit = DEFAULT_SEARCH_BATCH_SIZE + 1,
             ),
+            schema,
         ).collectList().block()
 
         searchRequest.captured.size().assert().isEqualTo(DEFAULT_SEARCH_BATCH_SIZE)
@@ -327,10 +451,8 @@ class AbstractElasticsearchQueryBackendTest {
                 val query = ListQuery(MatchAllFilter, limit = 4)
                 val schema = binding.schemaProvider.schema().block()!!
                 binding.backend.list(
-                    ResolvedQuery(
-                        schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
-                        schema,
-                    ),
+                    query,
+                    schema,
                 )
             }
             .collectList()
@@ -356,21 +478,20 @@ class AbstractElasticsearchQueryBackendTest {
         )
 
         backend.list(
-            ResolvedQuery(
-                physicalSchema.resolve(query).requireAccepted(QuerySchemaValidationMode.STRICT),
-                physicalSchema,
-            ),
+            query,
+            physicalSchema,
         ).collectList().block()
 
-        requireNotNull(request.captured.query()).bool().filter().last().term().field().assert()
+        requireNotNull(request.captured.query()).term().field().assert()
             .isEqualTo("storage.name")
         request.captured.sort().single().field().field().assert().isEqualTo("storage.rank")
+        request.captured.allowPartialSearchResults().assert().isEqualTo(false)
     }
 
     @Test
     fun `dynamic list should reject negative limit before searching`() {
         assertThrows<IllegalArgumentException> {
-            queryBackend.list(resolved(ListQuery(MatchAllFilter, limit = -1)))
+            queryBackend.list((ListQuery(MatchAllFilter, limit = -1)), schema)
         }
 
         verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
@@ -384,14 +505,26 @@ class AbstractElasticsearchQueryBackendTest {
             searchResponse(total = 42)
         )
 
-        val result = queryBackend.paged(resolved(PagedQuery(MatchAllFilter))).block()!!
+        val result = queryBackend.paged((PagedQuery(MatchAllFilter)), schema).block()!!
 
         request.captured.trackTotalHits()!!.enabled().assert().isTrue()
+        request.captured.allowPartialSearchResults().assert().isEqualTo(false)
         request.captured.index().assert().containsExactly("test-index")
         request.captured.pit().assert().isNull()
         result.total.assert().isEqualTo(42)
         result.list.assert().hasSize(1)
         result.list.single().path("field").asString().assert().isEqualTo("value")
+    }
+
+    @Test
+    fun `paged should reject a timed out search response`() {
+        every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returns Mono.just(
+            searchResponse(total = 42, timedOut = true),
+        )
+
+        queryBackend.paged((PagedQuery(MatchAllFilter)), schema).test()
+            .expectErrorMessage("Elasticsearch search timed out.")
+            .verify()
     }
 
     @Test
@@ -402,18 +535,21 @@ class AbstractElasticsearchQueryBackendTest {
         )
 
         val page = queryBackend.cursor(
-            resolved(
-                CursorQuery(
-                    MatchAllFilter,
-                    sort = listOf(Sort(QueryField("version"), Sort.Direction.DESC)),
-                    size = 1,
+            CursorQuery(
+                MatchAllFilter,
+                sort = listOf(
+                    Sort(QueryField("version"), Sort.Direction.DESC),
+                    Sort(QueryField("aggregateId"), Sort.Direction.ASC)
                 ),
+                size = 1,
             ),
+            schema,
         ).block()!!
 
         request.captured.size().assert().isEqualTo(2)
         request.captured.from().assert().isNull()
         request.captured.trackTotalHits()!!.enabled().assert().isFalse()
+        request.captured.allowPartialSearchResults().assert().isEqualTo(false)
         request.captured.pit().assert().isNull()
         request.captured.searchAfter().assert().isEmpty()
         request.captured.sort().map { it.field().field() }.assert().containsExactly("version", "aggregateId")
@@ -428,6 +564,27 @@ class AbstractElasticsearchQueryBackendTest {
     }
 
     @Test
+    fun `cursor should reject a response with failed shards`() {
+        every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returns Mono.just(
+            cursorSearchResponse(failedShards = 1),
+        )
+
+        queryBackend.cursor(
+            CursorQuery(
+                MatchAllFilter,
+                sort = listOf(
+                    Sort(QueryField("version"), Sort.Direction.DESC),
+                    Sort(QueryField("aggregateId"), Sort.Direction.ASC)
+                ),
+                size = 1,
+            ),
+            schema,
+        ).test()
+            .expectErrorMessage("Elasticsearch search failed on [1] shard(s).")
+            .verify()
+    }
+
+    @Test
     fun `cursor continuation should search after last returned hit and omit terminal cursor`() {
         val request = slot<SearchRequest>()
         every { elasticsearchClient.search(capture(request), ObjectNode::class.java) } returns Mono.just(
@@ -436,14 +593,16 @@ class AbstractElasticsearchQueryBackendTest {
         val cursor = ElasticsearchCursorCodec.encode(listOf(FieldValue.of(1L), FieldValue.of("id-1")))
 
         val page = queryBackend.cursor(
-            resolved(
-                CursorQuery(
-                    MatchAllFilter,
-                    sort = listOf(Sort(QueryField("version"), Sort.Direction.ASC)),
-                    size = 1,
-                    cursor = cursor,
+            CursorQuery(
+                MatchAllFilter,
+                sort = listOf(
+                    Sort(QueryField("version"), Sort.Direction.ASC),
+                    Sort(QueryField("aggregateId"), Sort.Direction.ASC)
                 ),
+                size = 1,
+                cursor = cursor,
             ),
+            schema,
         ).block()!!
 
         request.captured.searchAfter()[0].longValue().assert().isEqualTo(1L)
@@ -487,23 +646,39 @@ class AbstractElasticsearchQueryBackendTest {
         val backend = TestElasticsearchQueryBackend(elasticsearchClient, SnapshotFilterCompiler)
         val filter = EqualFilter(QueryField("state.name"), JsonNodeFactory.instance.stringNode("value"))
         val result = backend.count(
-            ResolvedQuery(
-                physicalSchema.resolve(filter).requireAccepted(QuerySchemaValidationMode.STRICT),
-                physicalSchema,
-            ),
+            filter,
+            physicalSchema,
         ).block()!!
 
         request.captured.index().assert().containsExactly("test-index")
-        requireNotNull(request.captured.query()).bool().filter().last().term().field().assert()
+        requireNotNull(request.captured.query()).term().field().assert()
             .isEqualTo("storage.name")
         result.assert().isEqualTo(42)
         verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
-    private fun searchResponse(total: Long?, pitId: String? = null): SearchResponse<ObjectNode> {
+    @Test
+    fun `count should reject a response with failed shards`() {
+        every { elasticsearchClient.count(any<CountRequest>()) } returns Mono.just(
+            CountResponse.of {
+                it.count(42)
+                    .shards { shards -> shards.failed(1).successful(1).total(2) }
+            },
+        )
+
+        queryBackend.count((MatchAllFilter), schema).test()
+            .expectErrorMessage("Elasticsearch count failed on [1] shard(s).")
+            .verify()
+    }
+
+    private fun searchResponse(
+        total: Long?,
+        pitId: String? = null,
+        timedOut: Boolean = false,
+    ): SearchResponse<ObjectNode> {
         return SearchResponse.of<ObjectNode> {
             it.took(1)
-                .timedOut(false)
+                .timedOut(timedOut)
                 .shards { shards -> shards.failed(0).successful(1).total(1) }
                 .hits { hits ->
                     if (total != null) {
@@ -513,7 +688,7 @@ class AbstractElasticsearchQueryBackendTest {
                         hit.index("test-index")
                             .id("1")
                             .source(JsonNodeFactory.instance.objectNode().put("field", "value"))
-                    }.hits { hit -> hit.index("test-index").id("2") }
+                    }
                 }
             if (pitId != null) {
                 it.pitId(pitId)
@@ -532,13 +707,15 @@ class AbstractElasticsearchQueryBackendTest {
 
         val error = assertThrows<IllegalArgumentException> {
             queryBackend.cursor(
-                resolved(
-                    CursorQuery(
-                        MatchAllFilter,
-                        sort = listOf(Sort(QueryField("version"), Sort.Direction.ASC)),
-                        size = 1,
+                CursorQuery(
+                    MatchAllFilter,
+                    sort = listOf(
+                        Sort(QueryField("version"), Sort.Direction.ASC),
+                        Sort(QueryField("aggregateId"), Sort.Direction.ASC)
                     ),
+                    size = 1,
                 ),
+                schema,
             ).block()
         }
 
@@ -547,11 +724,13 @@ class AbstractElasticsearchQueryBackendTest {
 
     private fun cursorSearchResponse(
         vararg hits: Pair<String, List<FieldValue>>,
+        failedShards: Int = 0,
     ): SearchResponse<ObjectNode> = SearchResponse.of<ObjectNode> {
         it.took(1)
             .timedOut(false)
-            .shards { shards -> shards.failed(0).successful(1).total(1) }
+            .shards { shards -> shards.failed(failedShards).successful(1).total(1 + failedShards) }
             .hits { metadata ->
+                metadata.hits(emptyList())
                 hits.forEach { (id, sort) ->
                     metadata.hits { hit ->
                         hit.index("test-index")
@@ -564,18 +743,6 @@ class AbstractElasticsearchQueryBackendTest {
             }
     }
 
-    private fun resolved(query: IListQuery): ResolvedQuery<IListQuery> =
-        ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema)
-
-    private fun resolved(query: IPagedQuery): ResolvedQuery<IPagedQuery> =
-        ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema)
-
-    private fun resolved(query: ICursorQuery): ResolvedQuery<ICursorQuery> =
-        ResolvedQuery(schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema)
-
-    private fun resolved(filter: FilterExpression): ResolvedQuery<FilterExpression> =
-        ResolvedQuery(schema.resolve(filter).requireAccepted(QuerySchemaValidationMode.COMPATIBLE), schema)
-
     private fun emptyObjectNodeSearchResponse(): SearchResponse<ObjectNode> = SearchResponse.of<ObjectNode> {
         it.took(1)
             .timedOut(false)
@@ -583,52 +750,26 @@ class AbstractElasticsearchQueryBackendTest {
             .hits { hits -> hits.hits(emptyList()) }
     }
 
-    private fun projectionFieldSchema(projectionField: QueryField) = QueryFieldSchema(
-        title = null,
-        description = null,
-        enumValues = null,
-        valueTypes = emptySet(),
-        nullable = true,
-        required = false,
-        cardinality = QueryCardinality.SINGLE,
-        semanticType = null,
-        dynamicChildren = false,
-        bindings = emptyMap(),
-        projectionField = projectionField,
-        rewriteMode = QueryRewriteMode.NONE,
+    private fun projectionFieldSchema(field: QueryField) = nativeBindings(field)
+
+    private fun sortFieldSchema(field: QueryField) = nativeBindings(
+        field,
+        QueryCapability.SORT,
+        QueryCapability.CURSOR_SORT
     )
 
-    private fun sortFieldSchema(field: QueryField) = projectionFieldSchema(field).copy(
-        bindings = mapOf(QueryCapability.SORT to QueryFieldBinding(field, field, null)),
-    )
-
-    private fun physicalSchema(): QueryModelSchema = QueryModelSchema(
-        model = QueryModel.SNAPSHOT,
-        capabilities = emptySet(),
+    private fun physicalSchema(): QueryModelSchema = nativeSchema(
         fields = mapOf(
-            QueryField("state.name") to projectionFieldSchema(QueryField("storage.name")).copy(
-                bindings = mapOf(
-                    QueryCapability.EXACT_MATCH to QueryFieldBinding(
-                        QueryField("document.name"),
-                        QueryField("storage.name"),
-                        null,
-                    ),
-                ),
-                rewriteMode = QueryRewriteMode.REQUIRED,
-                responseField = QueryField("state.name"),
+            QueryField("state.name") to nativeBindings(
+                QueryField("storage.name"), QueryCapability.EXACT_MATCH,
+                response = QueryField("state.name")
             ),
-            QueryField("state.rank") to projectionFieldSchema(QueryField("storage.rank")).copy(
-                bindings = mapOf(
-                    QueryCapability.SORT to QueryFieldBinding(
-                        QueryField("document.rank"),
-                        QueryField("storage.rank"),
-                        null,
-                    ),
-                ),
-                rewriteMode = QueryRewriteMode.REQUIRED,
-                responseField = QueryField("state.rank"),
+            QueryField("state.rank") to nativeBindings(
+                QueryField("storage.rank"), QueryCapability.SORT,
+                response = QueryField("state.rank")
             ),
-        ),
+            QueryField("deleted") to nativeBindings(QueryField("deleted"), QueryCapability.EXACT_MATCH),
+        )
     )
 
     private fun openPointInTimeResponse(): OpenPointInTimeResponse {
@@ -646,7 +787,11 @@ class AbstractElasticsearchQueryBackendTest {
         GetMappingResponse.of { response ->
             response.mappings(
                 "wow.test.aggregate.snapshot",
-                IndexMappingRecord.of { record -> record.mappings(TypeMapping.of { it }) },
+                IndexMappingRecord.of { record ->
+                    record.mappings(
+                        TypeMapping.of { it.properties("deleted") { it.boolean_ { it } } }
+                    )
+                },
             )
         }
 

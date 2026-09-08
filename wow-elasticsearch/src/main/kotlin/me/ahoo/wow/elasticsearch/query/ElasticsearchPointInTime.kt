@@ -15,7 +15,6 @@ package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
 import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.reactivestreams.Publisher
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -63,17 +62,7 @@ internal class ElasticsearchPointInTime(
         return Mono.defer {
             client.closePointInTime(ClosePointInTimeRequest.of { it.id(session.id) })
         }.doOnNext {
-            if (!it.succeeded()) {
-                log.warn { "Failed to close Elasticsearch PIT [${session.id}]." }
-            }
+            check(it.succeeded()) { "Failed to close Elasticsearch PIT [${session.id}]." }
         }.then()
-            .onErrorResume {
-                log.warn(it) { "Failed to close Elasticsearch PIT [${session.id}]." }
-                Mono.empty()
-            }
-    }
-
-    private companion object {
-        val log = KotlinLogging.logger(ElasticsearchPointInTime::class.java.name)
     }
 }

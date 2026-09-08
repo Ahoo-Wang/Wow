@@ -13,7 +13,7 @@ Wow 在写链路和读链路中携带四类数据访问上下文：
 3. **Space** — 通过请求头提供的可选命名空间元数据；
 4. **ABAC tags** — 资源标签与应用提供的 Principal 过滤器。
 
-在 WebFlux 查询路由中，`RewriteRequestFilter` 会在调用 `QueryGateway` 前追加 tenant、owner、space 元数据过滤器。随后，已配置的 `AbacQueryFilter` 在 Gateway 过滤链内追加资源标签条件。
+在 WebFlux 查询路由中，Handler 用 `QueryRequestScope` 解析 tenant、owner、space scope 并放入 Reactor Context，由 Gateway 在 prepare 完成后合并。随后，Snapshot Gateway 在请求 prepare 与 scope 之后调用独立的 `AbacQueryPolicy` 追加资源标签条件。
 
 ::: danger 作用域不是身份认证
 tenant/owner 路径、`Wow-Space-Id` 请求头或 ABAC 标签都是路由与过滤数据，不能证明谁发送了请求，也不能证明该 Principal 有权选择这些值。应用必须先认证身份，在服务端绑定允许的作用域，授权命令和查询路由，并避免让不受信请求访问原始查询 Factory。
@@ -144,7 +144,7 @@ data class OrderArchived(
 
 ## ABAC（基于属性的访问控制）
 
-Wow 保存资源标签，并以 `AbacQueryFilter` 提供扩展点。应用从已认证上下文提供 Principal 标签，并决定缺少上下文时公开还是拒绝。
+Wow 保存资源标签，并以 `AbacQueryPolicy` 提供扩展点。应用从已认证上下文提供 Principal 标签，并决定缺少上下文时公开还是拒绝。
 
 ### 核心概念
 
@@ -203,18 +203,18 @@ class OrderState(
 
 Extractor 在状态物化期间计算资源元数据，不负责解析 Principal 身份。
 
-### ABAC 查询过滤器
+### ABAC 查询策略
 
-继承 `AbacQueryFilter`，并让受保护查询失败关闭：
+继承 `AbacQueryPolicy`，并让受保护查询失败关闭：
 
 ```kotlin
 @Component
-class MemberAbacQueryFilter(
+class MemberAbacQueryPolicy(
     private val memberships: MembershipRepository,
-) : AbacQueryFilter() {
+) : AbacQueryPolicy() {
     override fun getPrincipalTags(
         contextView: ContextView,
-        context: QueryContext<*, *>,
+        context: QueryContext<*>,
     ): Mono<AbacTags> = contextView.getOrEmpty<Principal>(Principal::class.java)
         .map { principal -> memberships.tags(principal.name, context) }
         .orElseGet { Mono.error(AccessDeniedException("Missing principal")) }
@@ -225,11 +225,11 @@ class MemberAbacQueryFilter(
 
 ### 查询入口与策略执行
 
-Spring 注册的聚合 `SnapshotQueryGateway` 与 `EventStreamQueryGateway` 执行已配置的 ABAC 与通用查询过滤器。Registrar 创建一个经路由的 `QueryBackendBinding`，并将完整 binding 传给 Gateway。进程内调用不会执行 WebFlux `RewriteRequestFilter`；调用方必须在查询中显式提供 tenant、owner、space 作用域，或通过过滤器支持的受信上下文提供。受管 Gateway 会按 Query Model Schema 自动脱敏查询与 aggregate-state load 结果。完整边界见[字段脱敏](./query/masking.md)。
+Spring 注册的聚合 Gateway 执行通用请求 prepare 和受信 scope；Snapshot Gateway 另外执行独立 ABAC policies，EventStream 不自动执行 Snapshot ABAC。Registrar 把 routed QueryBackendBinding 交给 Gateway。JVM 调用不执行 HTTP scope 解析；可用 `contextWrite { it.withQueryScope(scope) }` 提供受信作用域。公共校验在 prepare、scope、policy 与默认条件全部合并后进行。受管查询与 aggregate-state load 的 Mask 行为见[字段脱敏](./query/masking.md)。
 
 `SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 返回 `QueryBackendBinding`；受信原始执行明确解包 `factory.create(namedAggregate).backend`。它绕过 `QueryGateway` 策略链，属于必须保护的基础设施访问。自定义 Backend 从不实现 Provider；其 Factory 必须在 binding 中显式配对 Backend 与 `QueryModelSchemaProvider`。Schema 不可用时，所有受管查询都会在订阅 Backend 前失败关闭。
 
-聚合查询会复用快照过滤器链处理根 filter；Schema 允许普通 filter/search/sort 使用脱敏字段，但拒绝 group、字段 metric 或 expression 返回其原始值，count 不变。仍不能仅因普通快照查询受 ABAC 约束就开放敏感聚合接口。
+聚合查询复用 Gateway 请求 prepare、scope 与 Snapshot policies；公共校验允许普通 filter/search/sort 使用脱敏字段，但拒绝 group、字段 metric 或 expression 引用受保护值，count 不变。仍不能仅因普通快照查询受 ABAC 约束就开放敏感聚合接口。
 
 ## 必须完成的安全闭环
 
