@@ -70,11 +70,11 @@ function eventStreamResponse(
   );
 }
 
-function delayedResponse(signal: AbortSignal): Promise<Response> {
+function delayedResponse(signal: AbortSignal, delay = 80): Promise<Response> {
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(
       () => resolve(jsonResponse({ status: 'completed' })),
-      80,
+      delay,
     );
     signal.addEventListener(
       'abort',
@@ -118,7 +118,10 @@ function viewSnapshot(
   };
 }
 
-function installFixture(viewerScenario: ViewerFixtureScenario): () => void {
+function installFixture(
+  viewerScenario: ViewerFixtureScenario,
+  slowResponseDelay = 80,
+): () => void {
   const originalFetch = globalThis.fetch;
   let pagedRequestCount = 0;
   let commandCount = 0;
@@ -190,7 +193,9 @@ function installFixture(viewerScenario: ViewerFixtureScenario): () => void {
         : jsonResponse({ message: 'User not found' }, 404);
     }
 
-    if (pathname === '/slow') return delayedResponse(request.signal);
+    if (pathname === '/slow') {
+      return delayedResponse(request.signal, slowResponseDelay);
+    }
     if (pathname === '/error') {
       return jsonResponse({ message: 'Fixture server error' }, 500);
     }
@@ -322,6 +327,10 @@ function installFixture(viewerScenario: ViewerFixtureScenario): () => void {
 
 export function installFetchFixture(): () => void {
   return installFixture('success');
+}
+
+export function installDocumentationFetchFixture(): () => void {
+  return installFixture('success', 2000);
 }
 
 export function installViewerFetchFixture(
