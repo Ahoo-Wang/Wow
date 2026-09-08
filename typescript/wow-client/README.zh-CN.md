@@ -49,7 +49,7 @@ const carts = await snapshots.listState(
 
 ## 文档
 
-- [Wow CQRS 实战](https://fetcher.ahoo.me/zh/recipes/wow-cqrs)
+- [Wow CQRS 实战](https://fetcher.ahoo.me/zh/guides/integrations/wow)
 - [Wow 参考](https://fetcher.ahoo.me/zh/reference/wow)
 - [交互式查询 Story](https://fetcher.ahoo.me/storybook/)
 

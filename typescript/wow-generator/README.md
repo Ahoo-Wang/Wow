@@ -43,7 +43,7 @@ Regenerate after every contract change and compile the result before publishing.
 
 ## Documentation
 
-- [OpenAPI generation recipe](https://fetcher.ahoo.me/recipes/openapi-client)
+- [OpenAPI generation recipe](https://fetcher.ahoo.me/guides/services/generated-client)
 - [Generator reference](https://fetcher.ahoo.me/reference/generator)
 
 [中文](./README.zh-CN.md) · [License](../../LICENSE)

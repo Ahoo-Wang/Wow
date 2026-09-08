@@ -49,7 +49,7 @@ const carts = await snapshots.listState(
 
 ## Documentation
 
-- [Wow CQRS recipe](https://fetcher.ahoo.me/recipes/wow-cqrs)
+- [Wow CQRS recipe](https://fetcher.ahoo.me/guides/integrations/wow)
 - [Wow reference](https://fetcher.ahoo.me/reference/wow)
 - [Interactive query stories](https://fetcher.ahoo.me/storybook/)
 

@@ -42,7 +42,7 @@ pnpm exec fetcher-generator generate \
 
 ## 文档
 
-- [OpenAPI 生成实战](https://fetcher.ahoo.me/zh/recipes/openapi-client)
+- [OpenAPI 生成实战](https://fetcher.ahoo.me/zh/guides/services/generated-client)
 - [Generator 参考](https://fetcher.ahoo.me/zh/reference/generator)
 
 [English](./README.md) · [许可证](../../LICENSE)
