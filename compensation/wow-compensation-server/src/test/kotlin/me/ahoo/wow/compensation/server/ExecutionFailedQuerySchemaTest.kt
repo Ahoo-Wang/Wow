@@ -38,7 +38,9 @@ class ExecutionFailedQuerySchemaTest {
 
         val declaration = JsonQuerySchemaSource().load(context).single().block()!!
 
-        declaration.fields.getValue(QueryField("state.executeAt")).semanticType.assert()
+        val state = declaration.fields.getValue(QueryField("state"))
+        val properties = (state.properties as DeclarationValue.Set).value
+        properties.getValue("executeAt").semanticType.assert()
             .isEqualTo(DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)))
     }
 
