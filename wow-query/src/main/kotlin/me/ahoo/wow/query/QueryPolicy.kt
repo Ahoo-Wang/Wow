@@ -19,13 +19,14 @@ import reactor.core.publisher.Mono
 import reactor.util.context.ContextView
 
 /**
- * Supplies mandatory access conditions after request preparation.
+ * Evaluates mandatory query constraints after request preparation.
  *
- * Each configured policy reads the same prepared query and captured identity and emits
- * one filter or an error. MatchAllFilter adds no restriction; an empty publisher is a
- * protocol error. The gateway combines access filters with AND before validation and execution.
+ * Each configured policy reads the same prepared query and captured Reactor context and emits
+ * one additional logical filter or an error. MatchAllFilter adds no restriction; an empty publisher is a
+ * protocol error. The gateway combines policy filters with AND before defaults, validation and execution.
+ * Prepared queries may be replaced by QueryFilter; policy filters are appended afterward.
  * Policies do not replace queries, execute backends, or transform results.
  */
 fun interface QueryPolicy {
-    fun resolveFilter(contextView: ContextView, context: QueryContext<*>): Mono<FilterExpression>
+    fun evaluate(contextView: ContextView, context: QueryContext<*>): Mono<FilterExpression>
 }

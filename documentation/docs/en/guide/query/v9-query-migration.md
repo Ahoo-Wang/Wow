@@ -140,4 +140,4 @@ Move rules to `@Mask`, `@KeepMask`, or custom `@Masking` annotations instead of 
 
 See [Query Gateway](./query-gateway.md), [Query Backend](./query-backend.md), and [Query Model Schema](./query-model-schema.md) for current extension contracts.
 
-The `policies` parameter of `DefaultSnapshotQueryGateway` and the Spring registrar now use `QueryPolicy`. Existing `AbacQueryPolicy` classes implement it; other access policies implement `resolveFilter(ContextView, QueryContext<*>): Mono<FilterExpression>` directly. The fixed authorization stage, captured identity, AND composition and empty-publisher rejection remain unchanged.
+The `policies` parameter of `DefaultSnapshotQueryGateway` and the Spring registrar now use `QueryPolicy`. Existing `AbacQueryPolicy` classes implement it; other query policies implement `evaluate(ContextView, QueryContext<*>): Mono<FilterExpression>` directly. The fixed policy stage, captured identity, AND composition and empty-publisher rejection remain unchanged.

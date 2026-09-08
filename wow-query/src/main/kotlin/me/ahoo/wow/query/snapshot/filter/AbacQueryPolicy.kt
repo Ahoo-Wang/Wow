@@ -103,7 +103,7 @@ abstract class AbacQueryPolicy : QueryPolicy {
      * @param context the query context
      * @return an unrestricted condition when no tags exist, otherwise the combined tag condition
      */
-    override fun resolveFilter(
+    override fun evaluate(
         contextView: ContextView,
         context: QueryContext<*>
     ): Mono<FilterExpression> = getPrincipalTags(contextView, context)

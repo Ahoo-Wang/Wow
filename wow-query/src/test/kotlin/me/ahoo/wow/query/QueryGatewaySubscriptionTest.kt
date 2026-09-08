@@ -121,7 +121,7 @@ class QueryGatewaySubscriptionTest {
     }
 
     @Test
-    fun `snapshot policies share one prepared scoped context and only append access conditions`() {
+    fun `snapshot policies share one prepared scoped context and only append conditions`() {
         val received = mutableListOf<FilterExpression>()
         val contexts = mutableListOf<QueryContext<*>>()
         val policies = listOf(OwnerIdFilter("owner"), TenantIdFilter("authorized-tenant")).map { access ->
@@ -144,6 +144,15 @@ class QueryGatewaySubscriptionTest {
                 .appendFilter(OwnerIdFilter("owner").appendFilter(TenantIdFilter("authorized-tenant")))
                 .appendFilter(DeletionFilter(DeletionState.ACTIVE)),
         )
+    }
+
+    @Test
+    fun `query policy can constrain data lifecycle before model defaults`() {
+        val received = mutableListOf<FilterExpression>()
+        val policy = QueryPolicy { _, _ -> Mono.just(DeletionFilter(DeletionState.DELETED)) }
+        gateway(backend(onQuery = { received += it }) { Mono.empty() }, policies = listOf(policy))
+            .dynamicSingle(SingleQuery(MatchAllFilter)).test().verifyComplete()
+        received.single().assert().isEqualTo(DeletionFilter(DeletionState.DELETED))
     }
 
     @Test

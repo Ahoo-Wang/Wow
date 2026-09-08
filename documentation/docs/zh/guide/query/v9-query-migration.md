@@ -140,4 +140,4 @@ Backend 从传入 Schema 取 native binding，检查原生参数和物理作用�
 
 当前扩展合同见[查询网关](./query-gateway.md)、[查询后端](./query-backend.md)和[查询模型 Schema](./query-model-schema.md)。
 
-`DefaultSnapshotQueryGateway` 的 `policies` 参数与 Spring 注册器现在使用 `QueryPolicy`。现有 `AbacQueryPolicy` 已实现该接口；Owner、Tenant 等其他访问策略直接实现 `resolveFilter(ContextView, QueryContext<*>): Mono<FilterExpression>`。固定授权时机、捕获身份、AND 合并与空 Publisher 拒绝规则保持。
+`DefaultSnapshotQueryGateway` 的 `policies` 参数与 Spring 注册器现在使用 `QueryPolicy`。现有 `AbacQueryPolicy` 已实现该接口；数据生命周期、业务查询条件等其他策略直接实现 `evaluate(ContextView, QueryContext<*>): Mono<FilterExpression>`。固定策略阶段、捕获身份、AND 合并与空 Publisher 拒绝规则保持。

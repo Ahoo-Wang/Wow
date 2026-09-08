@@ -96,13 +96,13 @@ abstract class AbstractQueryGateway<R : Any>(
         }
         return prepared.flatMap { current ->
             val scoped = if (scope === MatchAllFilter) current else current.appendFilter(scope)
-            Mono.defer { authorizationFilter(identity, QueryContext(scoped, namedAggregate, schema)) }
-                .switchIfEmpty(Mono.error { IllegalStateException("Authorization must emit one access filter.") })
+            Mono.defer { policyFilter(identity, QueryContext(scoped, namedAggregate, schema)) }
+                .switchIfEmpty(Mono.error { IllegalStateException("QueryPolicy must emit one filter.") })
                 .map { if (it === MatchAllFilter) scoped else scoped.appendFilter(it) }
         }.map { applyDefaults(it, schema) }
     }
 
-    protected open fun authorizationFilter(
+    protected open fun policyFilter(
         identity: ContextView,
         context: QueryContext<*>,
     ): Mono<FilterExpression> = Mono.just(MatchAllFilter)

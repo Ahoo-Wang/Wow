@@ -85,7 +85,7 @@ class AbacQueryPolicyTest {
     fun `empty principal tags resolve to unrestricted scope`() {
         val context =
             QueryContext<me.ahoo.wow.api.query.FilterExpression>(MatchAllFilter, MOCK_AGGREGATE_METADATA, QUERY_SCHEMA)
-        EmptyAbacQueryPolicy.resolveFilter(Context.empty(), context).test()
+        EmptyAbacQueryPolicy.evaluate(Context.empty(), context).test()
             .expectNext(MatchAllFilter).verifyComplete()
     }
 
@@ -97,7 +97,7 @@ class AbacQueryPolicyTest {
             metrics = listOf(AggregationMetric.Count("count")),
         )
         val context = QueryContext(query, MOCK_AGGREGATE_METADATA, QUERY_SCHEMA)
-        MockAbacQueryPolicy.resolveFilter(Context.empty(), context).test()
+        MockAbacQueryPolicy.evaluate(Context.empty(), context).test()
             .assertNext { it.assert().isInstanceOf(AndFilter::class.java) }.verifyComplete()
         context.query.assert().isSameAs(query)
     }
@@ -112,7 +112,7 @@ class AbacQueryPolicyTest {
         }
         val context =
             QueryContext<me.ahoo.wow.api.query.FilterExpression>(MatchAllFilter, MOCK_AGGREGATE_METADATA, QUERY_SCHEMA)
-        policy.resolveFilter(Context.empty(), context).test().expectNext(MatchAllFilter).verifyComplete()
+        policy.evaluate(Context.empty(), context).test().expectNext(MatchAllFilter).verifyComplete()
     }
 
     object EmptyAbacQueryPolicy : AbacQueryPolicy() {

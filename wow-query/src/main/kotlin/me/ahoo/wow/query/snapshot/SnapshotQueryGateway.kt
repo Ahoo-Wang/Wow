@@ -49,14 +49,14 @@ class DefaultSnapshotQueryGateway<S : Any>(
     ) {
     private val policies = policies.toList()
 
-    override fun authorizationFilter(identity: ContextView, context: QueryContext<*>): Mono<FilterExpression> =
+    override fun policyFilter(identity: ContextView, context: QueryContext<*>): Mono<FilterExpression> =
         policies.fold(Mono.just<FilterExpression>(MatchAllFilter)) { pending, policy ->
-            pending.flatMap { access ->
-                Mono.defer { policy.resolveFilter(identity, context) }
+            pending.flatMap { combined ->
+                Mono.defer { policy.evaluate(identity, context) }
                     .switchIfEmpty(
-                        Mono.error { IllegalStateException("QueryPolicy must emit one access filter.") }
+                        Mono.error { IllegalStateException("QueryPolicy must emit one filter.") }
                     )
-                    .map { if (it === MatchAllFilter) access else access.appendFilter(it) }
+                    .map { if (it === MatchAllFilter) combined else combined.appendFilter(it) }
             }
         }
 }
