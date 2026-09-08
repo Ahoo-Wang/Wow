@@ -15,20 +15,22 @@ package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QueryRewriteMode
+import me.ahoo.wow.query.schema.QueryPathSegment
+import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
+import me.ahoo.wow.query.schema.QueryValueBindings
+import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -61,13 +63,19 @@ class SnapshotSchemaHandlerFunctionTest {
 
         json["model"].stringValue().assert().isEqualTo("SNAPSHOT")
         json["capabilities"][0].stringValue().assert().isEqualTo("EXACT_MATCH")
-        json["fields"][0]["field"].stringValue().assert().isEqualTo("state.a")
-        json["fields"][1]["field"].stringValue().assert().isEqualTo("state.z")
-        json["fields"][0]["capabilities"][0].stringValue().assert().isEqualTo("EXACT_MATCH")
-        json["fields"][0]["valueTypes"][0].stringValue().assert().isEqualTo("STRING")
-        json["fields"][0]["enumValues"][0].stringValue().assert().isEqualTo("OPEN")
-        json["fields"][0]["enumValues"][1].intValue().assert().isEqualTo(2)
-        json["fields"][0]["enumValues"][2].booleanValue().assert().isTrue()
+        json["root"]["properties"]["state"]["properties"].propertyNames().asSequence().toList().assert().containsExactly(
+            "a",
+            "z"
+        )
+        json["root"]["properties"]["state"]["properties"]["a"]["capabilities"][0].stringValue().assert().isEqualTo(
+            "EXACT_MATCH"
+        )
+        json["root"]["properties"]["state"]["properties"]["a"]["valueTypes"][0].stringValue().assert().isEqualTo(
+            "STRING"
+        )
+        json["root"]["properties"]["state"]["properties"]["a"]["enumValues"][0].stringValue().assert().isEqualTo("OPEN")
+        json["root"]["properties"]["state"]["properties"]["a"]["enumValues"][1].intValue().assert().isEqualTo(2)
+        json["root"]["properties"]["state"]["properties"]["a"]["enumValues"][2].booleanValue().assert().isTrue()
         body.assert().doesNotContain("resolvedField", "physicalField", "storageType", "projectionField", "rewriteMode")
 
         provider.schemaCalls.get().assert().isOne()
@@ -88,8 +96,8 @@ class SnapshotSchemaHandlerFunctionTest {
             .returnResult()
             .responseBody!!
 
-        body.toJsonNode<tools.jackson.databind.JsonNode>()["fields"][0]["field"]
-            .stringValue().assert().isEqualTo("state.a")
+        body.toJsonNode<tools.jackson.databind.JsonNode>()["root"]["properties"]["state"]["properties"]["a"]["kind"]
+            .stringValue().assert().isEqualTo("SCALAR")
 
         provider.schemaCalls.get().assert().isZero()
         provider.refreshCalls.get().assert().isOne()
@@ -157,9 +165,8 @@ class SnapshotSchemaHandlerFunctionTest {
     }
 
     private companion object {
-        val FIELD_SCHEMA = QueryFieldSchema(
-            title = null,
-            description = null,
+        val VALUE = QueryValueSchema(
+            kind = QueryValueKind.SCALAR,
             enumValues = listOf(
                 JsonNodeFactory.instance.stringNode("OPEN"),
                 JsonNodeFactory.instance.numberNode(2),
@@ -168,25 +175,31 @@ class SnapshotSchemaHandlerFunctionTest {
             valueTypes = setOf(QueryValueType.STRING),
             nullable = false,
             required = true,
-            cardinality = QueryCardinality.SINGLE,
-            semanticType = null,
-            dynamicChildren = false,
-            bindings = mapOf(
-                QueryCapability.EXACT_MATCH to QueryFieldBinding(
-                    resolvedField = QueryField("secret.path"),
-                    physicalField = QueryField("secret.path"),
-                    storageType = QueryStorageType("keyword"),
+        )
+        val ROOT = LogicalQuerySchema(
+            QueryValueSchema(
+                QueryValueKind.OBJECT,
+                properties = mapOf(
+                    "state" to QueryValueSchema(QueryValueKind.OBJECT, properties = linkedMapOf("z" to VALUE, "a" to VALUE)),
                 )
-            ),
-            rewriteMode = QueryRewriteMode.REQUIRED,
+            )
         )
         val SCHEMA = QueryModelSchema(
             model = QueryModel.SNAPSHOT,
             capabilities = setOf(QueryCapability.EXACT_MATCH),
-            fields = linkedMapOf(
-                QueryField("state.z") to FIELD_SCHEMA,
-                QueryField("state.a") to FIELD_SCHEMA,
-            ),
+            definition = ROOT,
+            bindings = ROOT.values.keys.filter { it.segments.size == 2 }.associateWith { path ->
+                val physical = QueryPathTemplate(
+                    listOf(QueryPathSegment.Property("secret"), QueryPathSegment.Property("path"))
+                )
+                QueryValueBindings(
+                    mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBindingTemplate(physical, setOf(QueryStorageType("keyword")))
+                    ),
+                    physical,
+                    path,
+                )
+            },
         )
     }
 }

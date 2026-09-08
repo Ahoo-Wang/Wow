@@ -62,7 +62,23 @@ Every Metric also has a unique alias, used as a result-column name.
 | `NUMERIC` | Applies `SUM`, `AVG`, `MIN`, or `MAX` to an Expression |
 | `ANY` | Selects one field value |
 
-`ANY` is not a substitute for a deterministic group key: its selected non-null value is not guaranteed to be stable across executions or backends. Contributing numeric values, nulls, and finite-value handling follow the actual entry point.
+`ANY` is not a substitute for a deterministic group key: its selected non-null value is not guaranteed to be stable across executions or backends.
+
+### Numeric Contributions and Precision {#numeric-contributions}
+
+`NUMERIC` contributes at most one value per current record, which is a root document or the innermost expanded Element. A direct `FIELD` and each field leaf in `BINARY` use the same rule: after ignoring null/missing entries, exactly one stored numeric value contributes; zero or multiple values contribute `null`. Duplicate numeric entries count separately; `[7,7]` is not a singleton.
+
+| Field value in the current record | `FIELD` contribution | `FIELD + 0` contribution |
+| --- | ---: | ---: |
+| `7`, `[7]`, `[null,7]` | `7` | `7` |
+| Missing, `null`, `[]`, `[null]` | `null` | `null` |
+| `[1,2]`, `[7,7]` | `null` | `null` |
+
+`COUNT` still counts records that pass the filter, including records with no numeric contribution. It is not the number of contributing numeric values. `AVG` averages valid contributions only; all four numeric metrics return `null` when none contribute. Use supported Elements expansion to count individual array elements. Expressions do not zip arrays, form Cartesian products, or scan source to reconstruct element pairing.
+
+A declared scalar `FIELD` retains native aggregation and its precision; array or scalar/array-union `FIELD` inputs are normalized with the rule above. `BINARY` uses finite Double arithmetic; an unavailable operand, division by zero, or non-finite result contributes no value. This does not promise bitwise equality between `SUM(x)` and `SUM(x+0)` for large integers, Decimal128, or rounding boundaries. Elasticsearch numeric aggregations use double, so integers above `2^53` may be approximate; MongoDB native accumulators retain their type and promotion rules. See [Elasticsearch aggregation precision](https://www.elastic.co/docs/explore-analyze/query-filter/aggregations) and [MongoDB $sum](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sum/).
+
+These rules assume that stored values and runtime-field output obey the logical numeric model; they do not promise per-row validation of arbitrary malformed data. Elasticsearch numeric doc values preserve duplicates but do not preserve source-array positions; see [doc_values](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/doc-values). `HISTOGRAM` and `DATE_HISTOGRAM` retain their separate bucket contracts and do not inherit these NUMERIC contribution rules.
 
 ## Arithmetic and Temporal Expressions
 

@@ -59,6 +59,6 @@ class RoutingSnapshotQueryBackendFactoryTest {
     companion object {
         private val ORDER = MaterializedNamedAggregate("order-service", "order")
         private val CART = MaterializedNamedAggregate("order-service", "cart")
-        private val SCHEMA = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+        private val SCHEMA = me.ahoo.wow.query.gatewaySchema(QueryModel.SNAPSHOT)
     }
 }

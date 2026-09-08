@@ -24,9 +24,9 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.gatewaySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -36,14 +36,14 @@ import reactor.kotlin.test.test
 @Suppress("DEPRECATION")
 class QueryDslTest {
     private val schemaProvider = object : QueryModelSchemaProvider {
-        private val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+        private val schema = gatewaySchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
         override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
         override fun refresh(): Mono<QueryModelSchema> = schema()
     }
     private val gateway = DefaultSnapshotQueryGateway<Any>(
         MOCK_AGGREGATE_METADATA,
         QueryBackendBinding(NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA), schemaProvider),
-        QuerySchemaValidationMode.COMPATIBLE,
+
         JsonSerializer.typeFactory.constructParametricType(MaterializedSnapshot::class.java, Any::class.java),
     )
 

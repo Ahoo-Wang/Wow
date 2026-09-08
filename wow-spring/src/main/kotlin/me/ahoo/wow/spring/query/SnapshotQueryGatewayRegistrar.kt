@@ -15,16 +15,15 @@ package me.ahoo.wow.spring.query
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.query.MaterializedSnapshot
-import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
-import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.filter.QueryFilter
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy
 import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
@@ -55,26 +54,20 @@ class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
         val gatewayType = ResolvableType.forClassWithGenerics(SnapshotQueryGateway::class.java, stateType)
         val beanDefinition = BeanDefinitionBuilder.rootBeanDefinition(gatewayType) {
             val binding = appContext.getBean(SnapshotQueryBackendFactory::class.java).create(namedAggregate)
-            val validationMode = appContext.getBeanProvider(QuerySchemaValidationMode::class.java)
-                .getIfAvailable { QuerySchemaValidationMode.COMPATIBLE }
 
-            @Suppress("UNCHECKED_CAST")
             val filters = appContext.getBeanProvider(QueryFilter::class.java).toList()
-                as List<QueryFilter<QueryContext<*, *>>>
-
-            @Suppress("UNCHECKED_CAST")
-            val errorHandler = appContext.getBean("snapshotQueryErrorHandler", ErrorHandler::class.java)
-                as ErrorHandler<QueryContext<*, *>>
+            val policies = appContext.getBeanProvider(AbacQueryPolicy::class.java).toList()
+            val observer = appContext.getBean("snapshotQueryObserver", QueryObserver::class.java)
             DefaultSnapshotQueryGateway<Any>(
                 namedAggregate = namedAggregate,
                 binding = binding,
-                validationMode = validationMode,
                 targetType = JsonSerializer.typeFactory.constructParametricType(
                     MaterializedSnapshot::class.java,
                     stateType,
                 ),
                 filters = filters,
-                errorHandler = errorHandler,
+                policies = policies,
+                observer = observer,
             )
         }.beanDefinition
 

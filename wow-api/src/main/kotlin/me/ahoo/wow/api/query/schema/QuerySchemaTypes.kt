@@ -54,6 +54,7 @@ data class QueryCapability(
         val FULL_TEXT_TERMS = QueryCapability("FULL_TEXT_TERMS")
         val FULL_TEXT_PHRASE = QueryCapability("FULL_TEXT_PHRASE")
         val SORT = QueryCapability("SORT")
+        val CURSOR_SORT = QueryCapability("CURSOR_SORT")
         val ELEMENT_SCOPE = QueryCapability("ELEMENT_SCOPE")
         val AGGREGATE_TERMS = QueryCapability("AGGREGATE_TERMS")
         val AGGREGATE_NUMERIC = QueryCapability("AGGREGATE_NUMERIC")
@@ -90,9 +91,5 @@ enum class QueryCardinality {
     MANY,
 }
 
-/** Ordered from least to most restrictive for compatibility merging. */
-enum class QueryCompatibilityLevel {
-    EXACT,
-    COMPATIBLE,
-    INCOMPATIBLE,
-}
+/** Structural value facts shared by schema declarations and metadata. */
+enum class QueryValueKind { UNKNOWN, NULL, SCALAR, OBJECT, ARRAY, UNION }

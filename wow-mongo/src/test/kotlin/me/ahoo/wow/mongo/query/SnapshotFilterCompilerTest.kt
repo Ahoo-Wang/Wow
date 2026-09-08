@@ -8,17 +8,13 @@ import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.query.dsl.filter
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.QueryStorageType
-import me.ahoo.wow.query.schema.requireAccepted
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -34,11 +30,25 @@ import java.util.Date
 import java.util.stream.Stream
 
 class SnapshotFilterCompilerTest {
-    private val schema = QueryModelSchema(
+    private val schema = schemaWithDeletion(
         model = QueryModel.SNAPSHOT,
         capabilities = emptySet(),
         fields = mapOf(
             binding(MessageRecords.AGGREGATE_ID, Documents.ID_FIELD, QueryCapability.EXACT_MATCH),
+            *listOf("deleted", "tenantId", "ownerId", "spaceId", "state.value", "state.tags", "timestamp", "createdAt", "state.name", "state.dynamic")
+                .map {
+                    QueryField(it) to MongoTestField(mongoScalar(), setOf(QueryCapability.PRESENCE, QueryCapability.EXACT_MATCH, QueryCapability.LITERAL_MATCH, QueryCapability.RANGE), it)
+                }.toTypedArray(),
+            binding("state.items", "state.items", QueryCapability.ELEMENT_SCOPE),
+            binding("state.items.name", "state.items.name", QueryCapability.EXACT_MATCH),
+            binding("state.items.aggregateId", "state.items.aggregateId", QueryCapability.EXACT_MATCH),
+            binding("state.orders.lines.quantity", "document.orders.lines.quantity", QueryCapability.RANGE),
+            binding("state.orders.lines.items", "document.orders.lines.items", QueryCapability.ELEMENT_SCOPE),
+            binding(
+                "state.orders.lines.items.quantity",
+                "document.orders.lines.items.quantity",
+                QueryCapability.EXACT_MATCH
+            ),
             binding("state.paymentStatus", "document.paymentStatus", QueryCapability.EXACT_MATCH),
             binding("state.orders", "document.orders", QueryCapability.ELEMENT_SCOPE),
             binding("state.orders.lines", "document.orders.lines", QueryCapability.ELEMENT_SCOPE),
@@ -46,14 +56,17 @@ class SnapshotFilterCompilerTest {
         ),
     )
 
+    @Test
+    fun `raw snapshot compiler must not inject a deletion predicate`() {
+        compile(MatchAllFilter).toBsonDocument().assert().isEqualTo(Filters.empty().toBsonDocument())
+        compile(IdFilter("id-1")).toBsonDocument().assert()
+            .isEqualTo(Filters.eq(Documents.ID_FIELD, "id-1").toBsonDocument())
+    }
+
     private fun compile(filter: FilterExpression): Bson = SnapshotFilterCompiler.compile(filter, schema)
 
     private fun assertCompiled(actual: Bson, expected: Bson) {
-        val deletionBson = Filters.and(
-            Filters.eq(StateAggregateRecords.DELETED, false),
-            expected
-        )
-        actual.toBsonDocument().assert().isEqualTo(deletionBson.toBsonDocument())
+        actual.toBsonDocument().assert().isEqualTo(expected.toBsonDocument())
     }
 
     @Test
@@ -74,10 +87,7 @@ class SnapshotFilterCompilerTest {
     fun `compiler should accept a legacy condition as a filter expression`() {
         compile(Condition.id("id-1").toFilterExpression()).toBsonDocument().assert()
             .isEqualTo(
-                Filters.and(
-                    Filters.eq(StateAggregateRecords.DELETED, false),
-                    Filters.eq(Documents.ID_FIELD, "id-1"),
-                ).toBsonDocument(),
+                Filters.eq(Documents.ID_FIELD, "id-1").toBsonDocument(),
             )
     }
 
@@ -167,58 +177,49 @@ class SnapshotFilterCompilerTest {
     }
 
     @Test
-    fun `scoped filter fields should be prefixed with parent`() {
+    fun `scoped filter fields compile to absolute native paths for unwind pipelines`() {
         val parent = QueryField("state.orders.lines")
-        val bson = SnapshotFilterCompiler.compileWithoutDefaultDeletion(
+        SnapshotFilterCompiler.compileScoped(
             filter { "quantity" gt 1 },
             schema,
             logicalParent = parent,
-            resolvedParent = parent,
-            physicalParent = parent,
-        )
-
-        bson.toBsonDocument().toJson().assert().contains("state.orders.lines.quantity")
-        SnapshotFilterCompiler.compileWithoutDefaultDeletion(
-            filter { "state.orders.lines.quantity" gt 1 },
-            schema,
-            logicalParent = parent,
-            resolvedParent = parent,
-            physicalParent = parent,
-        )
-            .toBsonDocument().toJson().assert()
-            .contains("state.orders.lines.quantity")
-            .doesNotContain("state.orders.lines.state.orders.lines.quantity")
-        SnapshotFilterCompiler.compileWithoutDefaultDeletion(
-            filter { "state.orders.lines".exists() },
-            schema,
-            logicalParent = parent,
-            resolvedParent = parent,
-            physicalParent = parent,
-        )
-            .toBsonDocument().toJson().assert().contains("state.orders.lines")
+            physicalParent = QueryField("document.orders.lines"),
+        ).toBsonDocument().toJson().assert().contains("document.orders.lines.quantity")
+        assertThrows<QuerySchemaValidationException> {
+            SnapshotFilterCompiler.compileScoped(
+                filter { "state.orders.lines.quantity" gt 1 },
+                schema,
+                logicalParent = parent,
+                physicalParent = QueryField("document.orders.lines"),
+            )
+        }
     }
 
     @Test
     fun `element filter conversion should not add a default deletion scope`() {
-        SnapshotFilterCompiler.compileWithoutDefaultDeletion(MatchAllFilter, schema)
+        SnapshotFilterCompiler.compileScoped(
+            MatchAllFilter,
+            schema,
+            QueryField("state.orders.lines"),
+            QueryField("document.orders.lines")
+        )
             .toBsonDocument().assert().isEqualTo(Filters.empty().toBsonDocument())
     }
 
     @Test
     fun `scoped element predicate fields should remain relative`() {
-        SnapshotFilterCompiler.compileWithoutDefaultDeletion(
+        SnapshotFilterCompiler.compileScoped(
             ElementMatchFilter(QueryField("items"), EqualFilter(QueryField("quantity"), json(1))),
             schema,
             logicalParent = QueryField("state.orders.lines"),
-            resolvedParent = QueryField("state.orders.lines"),
-            physicalParent = QueryField("state.orders.lines"),
+            physicalParent = QueryField("document.orders.lines"),
         ).toBsonDocument().assert().isEqualTo(
-            Filters.elemMatch("state.orders.lines.items", Filters.eq("quantity", 1)).toBsonDocument(),
+            Filters.elemMatch("document.orders.lines.items", Filters.eq("quantity", 1)).toBsonDocument(),
         )
     }
 
     @Test
-    fun `explicit deletion filters should replace the default deletion scope`() {
+    fun `explicit deletion filters should compile with the requested scope`() {
         compile(
             AndFilter(
                 listOf(
@@ -235,8 +236,8 @@ class SnapshotFilterCompilerTest {
     }
 
     @Test
-    fun `default deletion filter should use its physical binding`() {
-        val mappedSchema = QueryModelSchema(
+    fun `explicit active deletion filter should use its physical binding`() {
+        val mappedSchema = schemaWithDeletion(
             model = QueryModel.SNAPSHOT,
             capabilities = emptySet(),
             fields = mapOf(
@@ -244,12 +245,12 @@ class SnapshotFilterCompilerTest {
             ),
         )
 
-        SnapshotFilterCompiler.compile(MatchAllFilter, mappedSchema).toBsonDocument().assert()
+        SnapshotFilterCompiler.compile(DeletionFilter(DeletionState.ACTIVE), mappedSchema).toBsonDocument().assert()
             .isEqualTo(Filters.eq("metadata.deleted", false).toBsonDocument())
     }
 
     @Test
-    fun `match none should absorb the default deletion scope`() {
+    fun `match none should remain impossible`() {
         compile(MatchNoneFilter).toBsonDocument().assert()
             .isEqualTo(org.bson.Document("\$expr", false).toBsonDocument())
     }
@@ -281,7 +282,7 @@ class SnapshotFilterCompilerTest {
 
     @Test
     fun `resolved filter field should compile to its physical binding`() {
-        val mappedSchema = QueryModelSchema(
+        val mappedSchema = schemaWithDeletion(
             model = QueryModel.SNAPSHOT,
             capabilities = emptySet(),
             fields = mapOf(
@@ -289,14 +290,10 @@ class SnapshotFilterCompilerTest {
                     logicalPath = "state.name",
                     physicalPath = "storage.name",
                     capability = QueryCapability.EXACT_MATCH,
-                    resolvedPath = "document.name",
-                    rewriteMode = QueryRewriteMode.REQUIRED,
                 ),
             ),
         )
-        val resolved = mappedSchema.resolve(
-            EqualFilter(QueryField("state.name"), json("Wow")),
-        ).requireAccepted(QuerySchemaValidationMode.STRICT)
+        val resolved = EqualFilter(QueryField("state.name"), json("Wow"))
 
         assertCompiled(
             SnapshotFilterCompiler.compile(resolved, mappedSchema),
@@ -322,7 +319,7 @@ class SnapshotFilterCompilerTest {
 
     @Test
     fun `resolved dynamic element child should compile to its relative physical binding`() {
-        val mappedSchema = QueryModelSchema(
+        val mappedSchema = schemaWithDeletion(
             model = QueryModel.SNAPSHOT,
             capabilities = emptySet(),
             fields = mapOf(
@@ -330,25 +327,19 @@ class SnapshotFilterCompilerTest {
                     logicalPath = "state.orders",
                     physicalPath = "storage.orders",
                     capability = QueryCapability.ELEMENT_SCOPE,
-                    resolvedPath = "document.orders",
-                    rewriteMode = QueryRewriteMode.REQUIRED,
                 ),
                 binding(
                     logicalPath = "state.orders.attributes",
                     physicalPath = "storage.orders.values",
                     capability = QueryCapability.EXACT_MATCH,
-                    resolvedPath = "document.orders.properties",
-                    rewriteMode = QueryRewriteMode.REQUIRED,
-                    dynamicChildren = true,
+                    additionalProperties = mongoScalar(),
                 ),
             ),
         )
-        val resolved = mappedSchema.resolve(
-            ElementMatchFilter(
-                QueryField("state.orders"),
-                EqualFilter(QueryField("state.orders.attributes.color"), json("blue")),
-            ),
-        ).requireAccepted(QuerySchemaValidationMode.STRICT)
+        val resolved = ElementMatchFilter(
+            QueryField("state.orders"),
+            EqualFilter(QueryField("attributes.color"), json("blue")),
+        )
 
         assertCompiled(
             SnapshotFilterCompiler.compile(resolved, mappedSchema),
@@ -358,7 +349,7 @@ class SnapshotFilterCompilerTest {
 
     @Test
     fun `element binding should be preserved when its physical path equals the absolute logical path`() {
-        val mappedSchema = QueryModelSchema(
+        val mappedSchema = schemaWithDeletion(
             model = QueryModel.SNAPSHOT,
             capabilities = emptySet(),
             fields = mapOf(
@@ -377,12 +368,10 @@ class SnapshotFilterCompilerTest {
                 ),
             ),
         )
-        val resolved = mappedSchema.resolve(
-            ElementMatchFilter(
-                QueryField("orders"),
-                EqualFilter(QueryField("orders.price"), json(10)),
-            ),
-        ).requireAccepted(QuerySchemaValidationMode.STRICT)
+        val resolved = ElementMatchFilter(
+            QueryField("orders"),
+            EqualFilter(QueryField("price"), json(10)),
+        )
 
         assertCompiled(
             SnapshotFilterCompiler.compile(resolved, mappedSchema),
@@ -391,69 +380,60 @@ class SnapshotFilterCompilerTest {
     }
 
     @Test
-    fun `compatible absolute element predicate fields should remain relative`() {
-        val mappedSchema = QueryModelSchema(
-            model = QueryModel.SNAPSHOT,
-            capabilities = emptySet(),
-            fields = mapOf(
-                binding(
-                    logicalPath = "state.orders",
-                    physicalPath = "storage.orders",
-                    capability = QueryCapability.ELEMENT_SCOPE,
-                    resolvedPath = "document.orders",
-                    rewriteMode = QueryRewriteMode.REQUIRED,
-                ),
-            ),
-        )
-        val resolved = mappedSchema.resolve(
-            ElementMatchFilter(
-                QueryField("state.orders"),
-                EqualFilter(QueryField("state.orders.unknown"), json("value")),
-            ),
-        ).requireAccepted(QuerySchemaValidationMode.COMPATIBLE)
+    fun `unknown element child is rejected before native execution`() {
+        assertThrows<QuerySchemaValidationException> {
+            compile(ElementMatchFilter(QueryField("state.orders"), EqualFilter(QueryField("unknown"), json("value"))))
+        }
+    }
 
-        assertCompiled(
-            SnapshotFilterCompiler.compile(resolved, mappedSchema),
-            Filters.elemMatch(
-                "storage.orders",
-                Filters.eq("unknown", "value"),
-            ),
+    @Test
+    fun `element child native binding outside its container is rejected`() {
+        val schema = schemaWithDeletion(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(
+                binding("orders", "storage.orders", QueryCapability.ELEMENT_SCOPE),
+                binding("orders.name", "elsewhere.name", QueryCapability.EXACT_MATCH),
+            )
         )
+        assertThrows<QuerySchemaValidationException> {
+            SnapshotFilterCompiler.compile(
+                ElementMatchFilter(QueryField("orders"), EqualFilter(QueryField("name"), json("one"))),
+                schema
+            )
+        }
     }
 
     companion object {
+        private fun schemaWithDeletion(
+            model: QueryModel,
+            capabilities: Set<QueryCapability>,
+            fields: Map<QueryField, MongoTestField>,
+        ) = mongoTestSchema(
+            model,
+            capabilities,
+            mapOf(binding("deleted", "deleted", QueryCapability.EXACT_MATCH)) + fields
+        )
+
         private fun json(value: Any?): JsonNode = JsonSerializer.valueToTree(value)
 
         private fun binding(
             logicalPath: String,
             physicalPath: String,
             capability: QueryCapability,
-            resolvedPath: String = logicalPath,
-            rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
-            dynamicChildren: Boolean = false,
+            additionalProperties: QueryValueSchema? = null,
             cardinality: QueryCardinality = QueryCardinality.SINGLE,
             valueTypes: Set<QueryValueType> = setOf(QueryValueType.STRING),
-        ): Pair<QueryField, QueryFieldSchema> {
-            val logical = QueryField(logicalPath)
-            return logical to QueryFieldSchema(
-                title = null,
-                description = null,
-                enumValues = null,
-                valueTypes = valueTypes,
-                nullable = false,
-                required = true,
-                cardinality = cardinality,
-                semanticType = null,
-                dynamicChildren = dynamicChildren,
-                bindings = mapOf(
-                    capability to QueryFieldBinding(
-                        QueryField(resolvedPath),
-                        QueryField(physicalPath),
-                        QueryStorageType("test"),
-                    ),
-                ),
-                rewriteMode = rewriteMode,
-            )
+        ): Pair<QueryField, MongoTestField> {
+            val element = capability == QueryCapability.ELEMENT_SCOPE || cardinality == QueryCardinality.MANY
+            val value = if (element) {
+                QueryValueSchema(QueryValueKind.ARRAY, items = QueryValueSchema(QueryValueKind.OBJECT))
+            } else if (additionalProperties != null) {
+                QueryValueSchema(QueryValueKind.OBJECT, additionalProperties = additionalProperties)
+            } else {
+                QueryValueSchema(QueryValueKind.SCALAR, valueTypes = valueTypes)
+            }
+            return QueryField(logicalPath) to MongoTestField(value, setOf(capability), physicalPath)
         }
 
         @JvmStatic
@@ -501,8 +481,8 @@ class SnapshotFilterCompilerTest {
                 Arguments.of(ExistsFilter(field), Filters.exists("state.value")),
                 Arguments.of(NotExistsFilter(field), Filters.exists("state.value", false)),
                 Arguments.of(
-                    ElementMatchFilter(field, EqualFilter(nestedField, text)),
-                    Filters.elemMatch("state.value", Filters.eq("name", "value")),
+                    ElementMatchFilter(QueryField("state.items"), EqualFilter(nestedField, text)),
+                    Filters.elemMatch("state.items", Filters.eq("name", "value")),
                 ),
                 Arguments.of(SearchFilter("value", linkedSetOf(field)), Filters.text("value")),
                 Arguments.of(

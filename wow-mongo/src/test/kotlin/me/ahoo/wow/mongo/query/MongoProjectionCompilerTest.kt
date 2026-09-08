@@ -18,17 +18,14 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
-import me.ahoo.wow.query.schema.QueryStorageType
+import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -41,24 +38,109 @@ class MongoProjectionCompilerTest {
     private val eventStreamSchema = projectionSchema(QueryModel.EVENT_STREAM, MessageRecords.ID)
 
     @Test
-    fun `should compile included logical nodes to schema projection fields`() {
+    fun `should remove redundant included descendants after physical mapping`() {
         val include = listOf(QueryField("state"), QueryField("state.name"))
         val projection = Projection(include = include)
 
         compiler.compile(projection, snapshotSchema).assert().isEqualTo(
-            Projections.include("document", "document.name"),
+            Projections.include("document"),
         )
         projection.include.assert().isSameAs(include)
     }
 
     @Test
-    fun `should compile excluded logical nodes to schema projection fields`() {
+    fun `should remove redundant excluded descendants after physical mapping`() {
         compiler.compile(
             Projection(exclude = listOf(QueryField("state"), QueryField("state.name"))),
             snapshotSchema,
         ).assert().isEqualTo(
-            Projections.exclude("document", "document.name"),
+            Projections.exclude("document"),
         )
+    }
+
+    @Test
+    fun `should reject mixed inclusion and exclusion`() {
+        assertThrows<IllegalArgumentException> {
+            compiler.compile(
+                Projection(
+                    include = listOf(QueryField("state.name")),
+                    exclude = listOf(QueryField("other")),
+                ),
+                snapshotSchema,
+            )
+        }
+    }
+
+    @Test
+    fun `cursor projection should reject mixed projection before restoring an excluded sort field`() {
+        assertThrows<IllegalArgumentException> {
+            compiler.cursorProjection(
+                Projection(
+                    include = listOf(QueryField("state.name")),
+                    exclude = listOf(QueryField("other")),
+                ),
+                sortFields = listOf("other"),
+                snapshotSchema,
+            )
+        }
+    }
+
+    @Test
+    fun `should reject excluding id when id is explicitly included`() {
+        assertThrows<IllegalArgumentException> {
+            compiler.compile(
+                Projection(
+                    include = listOf(QueryField(MessageRecords.AGGREGATE_ID)),
+                    exclude = listOf(QueryField(MessageRecords.AGGREGATE_ID)),
+                ),
+                snapshotSchema,
+            )
+        }
+    }
+
+    @Test
+    fun `should allow explicitly including id with an exclusion projection`() {
+        compiler.compile(
+            Projection(
+                include = listOf(QueryField(MessageRecords.AGGREGATE_ID)),
+                exclude = listOf(QueryField("state.name")),
+            ),
+            snapshotSchema,
+        ).assert().isEqualTo(
+            Projections.exclude("document.name"),
+        )
+    }
+
+    @Test
+    fun `cursor projection should retain exclusion semantics when id is explicitly included`() {
+        val projection = compiler.cursorProjection(
+            Projection(
+                include = listOf(QueryField(MessageRecords.AGGREGATE_ID)),
+                exclude = listOf(QueryField("state.name")),
+            ),
+            sortFields = listOf("rank"),
+            snapshotSchema,
+        )
+
+        compiler.compile(projection).assert().isEqualTo(Projections.exclude("document.name"))
+    }
+
+    @Test
+    fun `should reject mixed projections that select an id descendant`() {
+        listOf(
+            Projection(
+                include = listOf(QueryField(MessageRecords.AGGREGATE_ID)),
+                exclude = listOf(QueryField("_id.child")),
+            ),
+            Projection(
+                include = listOf(QueryField("_id.child")),
+                exclude = listOf(QueryField(MessageRecords.AGGREGATE_ID)),
+            ),
+        ).forEach { projection ->
+            assertThrows<IllegalArgumentException> {
+                compiler.compile(projection, snapshotSchema)
+            }
+        }
     }
 
     @ParameterizedTest
@@ -76,34 +158,24 @@ class MongoProjectionCompilerTest {
     }
 
     companion object {
-        private fun projectionSchema(model: QueryModel, idField: String) = QueryModelSchema(
+        private fun projectionSchema(model: QueryModel, idField: String) = mongoTestSchema(
             model = model,
             capabilities = emptySet(),
             fields = mapOf(
                 projectionFieldSchema("state", "document"),
+                projectionFieldSchema("other", "other"),
+                projectionFieldSchema("field1", "field1"),
+                projectionFieldSchema("_id.child", "_id.child"),
                 projectionFieldSchema("state.name", "document.name"),
                 projectionFieldSchema(idField, Documents.ID_FIELD),
             ),
         )
 
-        private fun projectionFieldSchema(logicalPath: String, physicalPath: String): Pair<QueryField, QueryFieldSchema> {
-            val logical = QueryField(logicalPath)
-            val binding = QueryFieldBinding(logical, QueryField(physicalPath), QueryStorageType("test"))
-            return logical to QueryFieldSchema(
-                title = null,
-                description = null,
-                enumValues = null,
-                valueTypes = emptySet(),
-                nullable = true,
-                required = false,
-                cardinality = QueryCardinality.SINGLE,
-                semanticType = null,
-                dynamicChildren = false,
-                bindings = mapOf(QueryCapability.PRESENCE to binding),
-                projectionField = binding.physicalField,
-                rewriteMode = QueryRewriteMode.NONE,
+        private fun projectionFieldSchema(logicalPath: String, physicalPath: String): Pair<QueryField, MongoTestField> =
+            QueryField(logicalPath) to MongoTestField(
+                if (logicalPath == "state") QueryValueSchema(QueryValueKind.OBJECT) else mongoScalar(),
+                setOf(QueryCapability.PRESENCE), physicalPath,
             )
-        }
 
         @JvmStatic
         fun toSnapshotMongoProjectionParameters(): Stream<Arguments> {
@@ -119,11 +191,11 @@ class MongoProjectionCompilerTest {
                 ),
                 Arguments.of(
                     Projection(
-                        include = listOf(QueryField(MessageRecords.AGGREGATE_ID)),
+                        include = listOf(QueryField("state.name")),
                         exclude = listOf(QueryField(MessageRecords.AGGREGATE_ID))
                     ),
                     Projections.fields(
-                        Projections.include(listOf(Documents.ID_FIELD)),
+                        Projections.include(listOf("document.name")),
                         Projections.exclude(listOf(Documents.ID_FIELD))
                     )
                 ),
@@ -144,11 +216,11 @@ class MongoProjectionCompilerTest {
                 ),
                 Arguments.of(
                     Projection(
-                        include = listOf(QueryField(MessageRecords.ID)),
+                        include = listOf(QueryField("state.name")),
                         exclude = listOf(QueryField(MessageRecords.ID))
                     ),
                     Projections.fields(
-                        Projections.include(listOf(Documents.ID_FIELD)),
+                        Projections.include(listOf("document.name")),
                         Projections.exclude(listOf(Documents.ID_FIELD))
                     )
                 ),

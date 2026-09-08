@@ -16,13 +16,13 @@ package me.ahoo.wow.spring.boot.starter.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.exception.WowException
-import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
@@ -38,7 +38,7 @@ import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter
+import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -100,8 +100,8 @@ class QueryAutoConfigurationTest {
                     .hasBean(EVENT_STREAM_GATEWAY_BEAN_NAME)
                     .hasBean("noOpSnapshotQueryBackendFactory")
                     .hasBean("noOpEventStreamQueryBackendFactory")
-                    .hasBean("snapshotQueryErrorHandler")
-                    .hasBean("eventStreamQueryErrorHandler")
+                    .hasBean("snapshotQueryObserver")
+                    .hasBean("eventStreamQueryObserver")
                     .doesNotHaveBean("stateObjectNodeMaskerRegistry")
                     .doesNotHaveBean("eventStreamObjectNodeMaskerRegistry")
                     .doesNotHaveBean("maskingSnapshotQueryFilter")
@@ -145,10 +145,8 @@ class QueryAutoConfigurationTest {
         eventBinding.assert().isSameAs(UnavailableEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA))
         snapshotBinding.backend
             .single(
-                ResolvedQuery(
-                    query = singleQuery { },
-                    schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap()),
-                ),
+                singleQuery { },
+                me.ahoo.wow.spring.boot.starter.query.testQuerySchema(QueryModel.SNAPSHOT),
             )
             .test()
             .expectErrorSatisfies {
@@ -181,11 +179,17 @@ class QueryAutoConfigurationTest {
     }
 
     @Test
-    fun `aggregate gateway should apply policies while backend remains raw`() {
+    fun `snapshot gateway should apply policies while event gateway and backend remain raw`() {
+        TestAbacQueryPolicy.calls.set(0)
         contextRunner.enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
             .withBean(RecordingSnapshotQueryBackendFactory::class.java, { RecordingSnapshotQueryBackendFactory() })
-            .withBean(AbacQueryFilter::class.java, { TestAbacQueryFilter })
+            .withBean(EventStreamQueryBackendFactory::class.java, {
+                EventStreamQueryBackendFactory { namedAggregate ->
+                    QueryBackendBinding(EventBackend(namedAggregate), EventSchemaProvider)
+                }
+            })
+            .withBean(AbacQueryPolicy::class.java, { TestAbacQueryPolicy })
             .run { context: AssertableApplicationContext ->
                 val factory = context.getBean(RecordingSnapshotQueryBackendFactory::class.java)
 
@@ -194,15 +198,21 @@ class QueryAutoConfigurationTest {
                 val query = singleQuery { }
 
                 gateway.dynamicSingle(query).test().expectNextCount(1).verifyComplete()
-                factory.backend.lastQuery!!.query.filter.operator.assert()
+                factory.backend.lastQuery!!.filter.operator.assert()
                     .isNotEqualTo(me.ahoo.wow.api.query.FilterOperator.MATCH_ALL)
+                factory.backend.lastSchema.assert().isSameAs(factory.schemaProvider.schema)
+                TestAbacQueryPolicy.calls.get().assert().isOne()
+
+                val event = context.getBean(EVENT_STREAM_GATEWAY_BEAN_NAME) as EventStreamQueryGateway
+                event.dynamicSingle(query).test().verifyComplete()
+                TestAbacQueryPolicy.calls.get().assert().isOne()
 
                 val rawBackend = factory.create(MOCK_AGGREGATE_METADATA).backend
                 rawBackend.assert().isSameAs(factory.backend)
-                rawBackend.single(ResolvedQuery(query, factory.schemaProvider.schema)).test()
+                rawBackend.single(query, factory.schemaProvider.schema).test()
                     .consumeNextWith { it["state"][SECRET].stringValue().assert().isEqualTo(RAW_SECRET) }
                     .verifyComplete()
-                factory.backend.lastQuery!!.query.assert().isSameAs(query)
+                factory.backend.lastQuery!!.assert().isSameAs(query)
             }
     }
 
@@ -233,10 +243,15 @@ class QueryAutoConfigurationTest {
         MOCK_AGGREGATE_METADATA,
     ) {
         override val name: String = "raw"
-        var lastQuery: ResolvedQuery<me.ahoo.wow.api.query.ISingleQuery>? = null
+        var lastQuery: ISingleQuery? = null
+        var lastSchema: QueryModelSchema? = null
 
-        override fun single(query: ResolvedQuery<me.ahoo.wow.api.query.ISingleQuery>): Mono<ObjectNode> {
+        override fun single(
+            query: ISingleQuery,
+            schema: QueryModelSchema,
+        ): Mono<ObjectNode> {
             lastQuery = query
+            lastSchema = schema
             return Mono.just(
                 JsonNodeFactory.instance.objectNode().set(
                     "state",
@@ -247,7 +262,7 @@ class QueryAutoConfigurationTest {
     }
 
     internal class RecordingSnapshotSchemaProvider : QueryModelSchemaProvider {
-        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+        val schema = me.ahoo.wow.spring.boot.starter.query.testQuerySchema(QueryModel.SNAPSHOT)
 
         override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
 
@@ -258,44 +273,49 @@ class QueryAutoConfigurationTest {
         EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate)
 
     internal object EventSchemaProvider : QueryModelSchemaProvider {
-        private val schema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        private val schema = me.ahoo.wow.spring.boot.starter.query.testQuerySchema(QueryModel.EVENT_STREAM)
 
         override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
 
         override fun refresh(): Mono<QueryModelSchema> = schema()
     }
 
-    internal object TestAbacQueryFilter : AbacQueryFilter() {
+    internal object TestAbacQueryPolicy : AbacQueryPolicy() {
+        val calls = AtomicInteger()
+
         override fun getPrincipalTags(
             contextView: ContextView,
-            context: me.ahoo.wow.query.filter.QueryContext<*, *>
-        ): Mono<AbacTags> = mapOf("role" to listOf("*")).toMono()
+            context: QueryContext<*>,
+        ): Mono<AbacTags> {
+            calls.incrementAndGet()
+            return mapOf("role" to listOf("*")).toMono()
+        }
     }
 
     internal class RecordingQueryFilter(
         private val calls: AtomicInteger,
-    ) : QueryFilter<QueryContext<*, *>> {
-        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+    ) : QueryFilter {
+        override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> {
             calls.incrementAndGet()
-            return next.filter(context)
+            return Mono.just(context.query)
         }
     }
 
     internal class RecordingSnapshotQueryFilter(
         private val calls: AtomicInteger,
     ) : SnapshotQueryFilter {
-        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+        override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> {
             calls.incrementAndGet()
-            return next.filter(context)
+            return Mono.just(context.query)
         }
     }
 
     internal class RecordingEventStreamQueryFilter(
         private val calls: AtomicInteger,
     ) : EventStreamQueryFilter {
-        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+        override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> {
             calls.incrementAndGet()
-            return next.filter(context)
+            return Mono.just(context.query)
         }
     }
 

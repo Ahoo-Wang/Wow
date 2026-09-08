@@ -46,7 +46,6 @@ import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.dsl.aggregation
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
@@ -209,7 +208,7 @@ open class QueryGatewayBackendBenchmark {
         return DefaultSnapshotQueryGateway(
             namedAggregate = namedAggregate,
             binding = binding,
-            validationMode = QuerySchemaValidationMode.COMPATIBLE,
+
             targetType = targetType,
             filters = emptyList(),
         )

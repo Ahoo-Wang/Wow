@@ -12,10 +12,9 @@
  */
 package me.ahoo.wow.spring.boot.starter.query
 
-import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.query.QueryLogErrorHandler
+import me.ahoo.wow.query.QueryLogObserver
+import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
-import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.query.EventStreamQueryGatewayRegistrar
@@ -34,13 +33,13 @@ import org.springframework.context.annotation.Import
 @Import(SnapshotQueryGatewayRegistrar::class, EventStreamQueryGatewayRegistrar::class)
 @ConditionalOnWowEnabled
 class QueryAutoConfiguration {
-    @Bean("snapshotQueryErrorHandler")
-    @ConditionalOnMissingBean(name = ["snapshotQueryErrorHandler"])
-    fun snapshotQueryErrorHandler(): ErrorHandler<QueryContext<*, *>> = QueryLogErrorHandler()
+    @Bean("snapshotQueryObserver")
+    @ConditionalOnMissingBean(name = ["snapshotQueryObserver"])
+    fun snapshotQueryObserver(): QueryObserver = QueryLogObserver()
 
-    @Bean("eventStreamQueryErrorHandler")
-    @ConditionalOnMissingBean(name = ["eventStreamQueryErrorHandler"])
-    fun eventStreamQueryErrorHandler(): ErrorHandler<QueryContext<*, *>> = QueryLogErrorHandler()
+    @Bean("eventStreamQueryObserver")
+    @ConditionalOnMissingBean(name = ["eventStreamQueryObserver"])
+    fun eventStreamQueryObserver(): QueryObserver = QueryLogObserver()
 
     @Bean("noOpSnapshotQueryBackendFactory")
     @ConditionalOnMissingBean(SnapshotQueryBackendFactory::class)

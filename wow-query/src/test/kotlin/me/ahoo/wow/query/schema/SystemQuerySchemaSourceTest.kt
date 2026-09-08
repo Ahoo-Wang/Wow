@@ -15,8 +15,8 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -99,15 +99,15 @@ class SystemQuerySchemaSourceTest {
     }
 
     @Test
-    fun `snapshot state should be a single object while display leaves remain unset`() {
+    fun `snapshot state shape remains unknown until model declarations arrive`() {
         val state = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
             .fields.getValue(QueryField("state"))
 
-        state.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
-        state.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.SINGLE))
+        state.valueTypes.assert().isEqualTo(DeclarationValue.Unset)
+        state.kind.assert().isEqualTo(DeclarationValue.Unset)
         state.title.assert().isEqualTo(DeclarationValue.Unset)
         state.description.assert().isEqualTo(DeclarationValue.Unset)
-        state.dynamicChildren.assert().isEqualTo(DeclarationValue.Unset)
+        state.additionalProperties.assert().isEqualTo(DeclarationValue.Unset)
     }
 
     @Test
@@ -116,10 +116,11 @@ class SystemQuerySchemaSourceTest {
             .fields.getValue(QueryField("tags"))
 
         tags.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
-        tags.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.SINGLE))
+        tags.items.assert().isEqualTo(DeclarationValue.Unset)
         tags.required.assert().isEqualTo(DeclarationValue.Set(true))
         tags.nullable.assert().isEqualTo(DeclarationValue.Set(false))
-        tags.dynamicChildren.assert().isEqualTo(DeclarationValue.Set(true))
+        tags.additionalProperties.valueOr(null)!!.items.valueOr(null)!!.valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
     }
 
     @Test
@@ -150,12 +151,12 @@ class SystemQuerySchemaSourceTest {
             field.required.assert().isEqualTo(DeclarationValue.Set(true))
             field.nullable.assert().isEqualTo(DeclarationValue.Set(false))
         }
-        fields.getValue(QueryField("body")).cardinality.assert()
-            .isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
-        fields.getValue(QueryField("body.body")).dynamicChildren.assert()
-            .isEqualTo(DeclarationValue.Set(false))
-        fields.getValue(QueryField("header")).dynamicChildren.assert()
-            .isEqualTo(DeclarationValue.Set(true))
+        fields.getValue(QueryField("body")).kind.assert()
+            .isEqualTo(DeclarationValue.Set(QueryValueKind.ARRAY))
+        fields.getValue(QueryField("body.body")).kind.assert()
+            .isEqualTo(DeclarationValue.Unset)
+        fields.getValue(QueryField("header")).additionalProperties.assert()
+            .isEqualTo(DeclarationValue.Set(QueryFieldDeclaration()))
         fields.getValue(QueryField("createTime")).semanticType.assert()
             .isEqualTo(DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)))
     }

@@ -14,64 +14,44 @@
 package me.ahoo.wow.api.query.schema
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.QueryField
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.module.kotlin.jsonMapper
 
 class QuerySchemaMetadataTest {
-    private val jsonMapper = jsonMapper()
+    private val mapper = jsonMapper()
 
     @Test
-    fun `field schema exposes logical metadata without storage details`() {
-        val field = QueryFieldSchemaMetadata(
-            field = QueryField("status"),
+    fun `metadata publishes recursive logical values without native details`() {
+        val scalar = QueryValueSchemaMetadata(
+            kind = QueryValueKind.SCALAR,
             title = "Status",
-            description = "Current order status.",
             enumValues = listOf(JsonNodeFactory.instance.stringNode("OPEN")),
             valueTypes = setOf(QueryValueType.STRING),
-            nullable = false,
-            required = true,
-            cardinality = QueryCardinality.SINGLE,
-            semanticType = null,
-            dynamicChildren = false,
             capabilities = setOf(QueryCapability.EXACT_MATCH),
             masked = true,
         )
-
-        val json = jsonMapper.readTree(jsonMapper.writeValueAsString(field))
-
-        json.get("field").asString().assert().isEqualTo("status")
-        json.get("enumValues")[0].asString().assert().isEqualTo("OPEN")
-        json.get("masked").booleanValue().assert().isTrue()
-        json.has("physicalPath").assert().isFalse()
-        json.has("storageType").assert().isFalse()
-    }
-
-    @Test
-    fun `model schema retains its capabilities and field list`() {
-        val field = QueryFieldSchemaMetadata(
-            field = QueryField("createdAt"),
-            title = null,
-            description = null,
-            enumValues = null,
-            valueTypes = setOf(QueryValueType.INTEGER),
-            nullable = false,
-            required = true,
-            cardinality = QueryCardinality.SINGLE,
-            semanticType = Temporal.Epoch(),
-            dynamicChildren = false,
-            capabilities = setOf(QueryCapability.RANGE),
-            masked = false,
+        val root = QueryValueSchemaMetadata(
+            kind = QueryValueKind.OBJECT,
+            properties = mapOf(
+                "statuses" to QueryValueSchemaMetadata(QueryValueKind.ARRAY, items = scalar),
+                "attributes" to QueryValueSchemaMetadata(QueryValueKind.OBJECT, additionalProperties = scalar),
+                "unknown" to QueryValueSchemaMetadata(QueryValueKind.UNKNOWN),
+                "choice" to QueryValueSchemaMetadata(QueryValueKind.UNION, alternatives = listOf(scalar, QueryValueSchemaMetadata(QueryValueKind.NULL))),
+            ),
         )
-        val metadata = QueryModelSchemaMetadata(
-            model = QueryModel.SNAPSHOT,
-            capabilities = setOf(QueryCapability.SORT),
-            fields = listOf(field),
+        val model = QueryModelSchemaMetadata(QueryModel.SNAPSHOT, setOf(QueryCapability.FULL_TEXT_TERMS), root)
+        val json = mapper.readTree(mapper.writeValueAsString(model))
+        json["root"]["properties"]["statuses"]["items"]["masked"].booleanValue().assert().isTrue()
+        json["root"]["properties"]["attributes"]["additionalProperties"]["enumValues"][0].asString().assert().isEqualTo(
+            "OPEN"
         )
-
-        metadata.model.assert().isEqualTo(QueryModel.SNAPSHOT)
-        metadata.capabilities.assert().containsExactly(QueryCapability.SORT)
-        metadata.fields.assert().containsExactly(field)
+        json["root"]["properties"]["unknown"]["kind"].asString().assert().isEqualTo("UNKNOWN")
+        json["root"]["properties"]["choice"]["alternatives"].size().assert().isEqualTo(2)
+        json.toString().assert().doesNotContain("physicalPath", "storageType", "dynamicChildren", "bindings")
+        mapper.readValue(
+            mapper.writeValueAsString(model),
+            QueryModelSchemaMetadata::class.java
+        ).assert().isEqualTo(model)
     }
 }

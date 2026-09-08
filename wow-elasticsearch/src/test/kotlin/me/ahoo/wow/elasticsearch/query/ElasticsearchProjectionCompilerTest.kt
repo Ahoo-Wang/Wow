@@ -16,15 +16,11 @@ package me.ahoo.wow.elasticsearch.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.query.schema.QueryFieldSchema
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
 import org.junit.jupiter.api.Test
 
 class ElasticsearchProjectionCompilerTest {
-    private val schema = QueryModelSchema(
+    private val schema = nativeSchema(
         model = QueryModel.SNAPSHOT,
         capabilities = emptySet(),
         fields = mapOf(
@@ -60,18 +56,5 @@ class ElasticsearchProjectionCompilerTest {
         )
     }
 
-    private fun projectionFieldSchema(projectionField: QueryField) = QueryFieldSchema(
-        title = null,
-        description = null,
-        enumValues = null,
-        valueTypes = emptySet(),
-        nullable = true,
-        required = false,
-        cardinality = QueryCardinality.SINGLE,
-        semanticType = null,
-        dynamicChildren = false,
-        bindings = emptyMap(),
-        projectionField = projectionField,
-        rewriteMode = QueryRewriteMode.NONE,
-    )
+    private fun projectionFieldSchema(field: QueryField) = nativeBindings(field)
 }

@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchPointInTime
+import me.ahoo.wow.elasticsearch.query.requireComplete
 import me.ahoo.wow.elasticsearch.query.toObjectNode
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -52,20 +53,21 @@ internal class ElasticsearchAggregationPager(
         require(keepAlive.toMillis() > 0) { "keepAlive must be greater than or equal to 1ms." }
     }
 
-    fun execute(plan: ElasticsearchAggregationPlan): Flux<ObjectNode> {
+    fun execute(plan: ElasticsearchAggregationPlan): Flux<ObjectNode> = Flux.defer {
+        val firstAggregation = plan.aggregation(emptyMap(), if (plan.groupSources.isEmpty()) 0 else plan.pageSize(0))
         if (plan.groupSources.isEmpty()) {
-            return search(plan, null, afterKey = emptyMap(), pageSize = 0)
-                .map { response -> response.summary(plan) }
-                .flux()
+            search(plan, null, firstAggregation).map { response -> response.summary(plan) }.flux()
+        } else {
+            pointInTime.use { pit -> grouped(plan, pit, firstAggregation) }
         }
-        return pointInTime.use { pit -> grouped(plan, pit) }
     }
 
     private fun grouped(
         plan: ElasticsearchAggregationPlan,
         pit: ElasticsearchPointInTime.Session,
+        firstAggregation: Aggregation,
     ): Flux<ObjectNode> {
-        val pages = searchPage(plan, pit)
+        val pages = searchPage(plan, pit, aggregation = firstAggregation)
             .expand { page ->
                 if (page.shouldStop(plan)) {
                     Mono.empty()
@@ -87,32 +89,36 @@ internal class ElasticsearchAggregationPager(
         pit: ElasticsearchPointInTime.Session,
         afterKey: Map<String, FieldValue> = emptyMap(),
         fetched: Int = 0,
+        aggregation: Aggregation = plan.aggregation(afterKey, plan.pageSize(fetched)),
     ): Mono<AggregationPage> {
-        val bucketWidth = 1 + plan.metrics.count { it is ElasticsearchAggregationMetric.Any }
-        val pageCapacity = (batchSize / bucketWidth).coerceAtLeast(1)
-        val pageSize = if (plan.metricSorted) pageCapacity else min(pageCapacity, plan.limit - fetched)
-        return search(plan, pit, afterKey, pageSize).map { response ->
+        return search(plan, pit, aggregation).map { response ->
             val composite = response.innermost(plan).getValue(GROUP_AGGREGATION).composite()
             val rows = composite.buckets().array().map { it.toRow(plan) }
             AggregationPage(rows, composite.afterKey(), fetched + rows.size)
         }
     }
 
+    private fun ElasticsearchAggregationPlan.pageSize(fetched: Int): Int {
+        val bucketWidth = 1 + metrics.count { it is ElasticsearchAggregationMetric.Any }
+        val pageCapacity = (batchSize / bucketWidth).coerceAtLeast(1)
+        return if (metricSorted) pageCapacity else min(pageCapacity, limit - fetched)
+    }
+
     private fun search(
         plan: ElasticsearchAggregationPlan,
         pit: ElasticsearchPointInTime.Session?,
-        afterKey: Map<String, FieldValue>,
-        pageSize: Int,
+        aggregation: Aggregation,
     ): Mono<ResponseBody<Map<*, *>>> = Mono.defer {
         val request = SearchRequest.of {
             it.query(plan.rootQuery)
                 .size(0)
+                .allowPartialSearchResults(false)
                 .trackTotalHits { track -> track.enabled(false) }
                 .runtimeMappings(plan.runtimeMappings)
-                .aggregations(ROOT_AGGREGATION, plan.aggregation(afterKey, pageSize))
+                .aggregations(ROOT_AGGREGATION, aggregation)
                 .apply {
                     if (pit == null) {
-                        index(indexName).allowPartialSearchResults(false)
+                        index(indexName)
                     } else {
                         pit { pointInTime ->
                             pointInTime.id(pit.id)
@@ -127,6 +133,7 @@ internal class ElasticsearchAggregationPager(
         }
         client.search(request, Map::class.java)
     }.doOnNext { pit?.update(it.pitId()) }
+        .map { it.requireComplete() }
 
     private fun ElasticsearchAggregationPlan.aggregation(
         afterKey: Map<String, FieldValue>,

@@ -23,9 +23,9 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.gatewaySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
@@ -34,14 +34,14 @@ import reactor.kotlin.test.test
 @Suppress("DEPRECATION")
 class QueryDslTest {
     private val schemaProvider = object : QueryModelSchemaProvider {
-        private val schema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        private val schema = gatewaySchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
         override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
         override fun refresh(): Mono<QueryModelSchema> = schema()
     }
     private val gateway = DefaultEventStreamQueryGateway(
         MOCK_AGGREGATE_METADATA,
         QueryBackendBinding(NoOpEventStreamQueryBackend(MOCK_AGGREGATE_METADATA), schemaProvider),
-        QuerySchemaValidationMode.COMPATIBLE,
+
     )
 
     @Test

@@ -25,25 +25,29 @@ import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
-import me.ahoo.wow.query.schema.QueryStorageType
+import me.ahoo.wow.mongo.query.MongoTestField
+import me.ahoo.wow.mongo.query.mongoScalar
+import me.ahoo.wow.mongo.query.mongoTestSchema
+import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 
 class EventStreamFilterCompilerTest {
-    private val schema = QueryModelSchema(
+    private val schema = mongoTestSchema(
         model = QueryModel.EVENT_STREAM,
         capabilities = emptySet(),
         fields = mapOf(
             binding(MessageRecords.ID, Documents.ID_FIELD),
+            binding("header.name", "header.name"),
+            binding("body.id", "body.id"),
+            QueryField("body") to MongoTestField(
+                QueryValueSchema(QueryValueKind.ARRAY, items = QueryValueSchema(QueryValueKind.OBJECT)),
+                setOf(QueryCapability.ELEMENT_SCOPE), "body",
+            ),
             binding(MessageRecords.AGGREGATE_ID, MessageRecords.AGGREGATE_ID),
         ),
     )
@@ -82,13 +86,13 @@ class EventStreamFilterCompilerTest {
             AndFilter(
                 listOf(
                     EqualFilter(QueryField(MessageRecords.ID), JsonSerializer.valueToTree("event-id")),
-                    EqualFilter(QueryField("body.name"), JsonSerializer.valueToTree("event-name")),
+                    EqualFilter(QueryField("header.name"), JsonSerializer.valueToTree("event-name")),
                 ),
             ),
         ).toBsonDocument().assert().isEqualTo(
             Filters.and(
                 Filters.eq(Documents.ID_FIELD, "event-id"),
-                Filters.eq("body.name", "event-name"),
+                Filters.eq("header.name", "event-name"),
             ).toBsonDocument(),
         )
     }
@@ -108,26 +112,6 @@ class EventStreamFilterCompilerTest {
         )
     }
 
-    private fun binding(logicalPath: String, physicalPath: String): Pair<QueryField, QueryFieldSchema> {
-        val logical = QueryField(logicalPath)
-        return logical to QueryFieldSchema(
-            title = null,
-            description = null,
-            enumValues = null,
-            valueTypes = setOf(QueryValueType.STRING),
-            nullable = false,
-            required = true,
-            cardinality = QueryCardinality.SINGLE,
-            semanticType = null,
-            dynamicChildren = false,
-            bindings = mapOf(
-                QueryCapability.EXACT_MATCH to QueryFieldBinding(
-                    logical,
-                    QueryField(physicalPath),
-                    QueryStorageType("test"),
-                ),
-            ),
-            rewriteMode = QueryRewriteMode.NONE,
-        )
-    }
+    private fun binding(logicalPath: String, physicalPath: String): Pair<QueryField, MongoTestField> =
+        QueryField(logicalPath) to MongoTestField(mongoScalar(), setOf(QueryCapability.EXACT_MATCH), physicalPath)
 }

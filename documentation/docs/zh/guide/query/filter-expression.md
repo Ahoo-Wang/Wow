@@ -56,6 +56,9 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 | `IS_EMPTY_STRING` / `IS_NOT_EMPTY_STRING` | `{ "op": "IS_EMPTY_STRING", "field": "state.note" }` | `"note".isEmptyString()` / `"note".isNotEmptyString()` |
 
 字符串比较默认 `CASE_SENSITIVE`。比较和字符串能力由后端及其发布的 Schema 决定。
+
+数值 `EQ`、`IN` 与范围比较遵循所选原生存储/索引类型的精度，`EXACT_MATCH` 不承诺与 source 中任意精度数值相等。例如 Elasticsearch `scaled_float` 的 `scaling_factor=10` 时，source 的 `1.04` 可以命中 `EQ(1.01)`，不会命中 `EQ(1.11)`；同值的 `double` 对照不命中 `EQ(1.01)`。量化后的命中决定返回行与 count，source 投影仍按原有返回合同交付，不能从投影值反推任意精度的匹配结果。范围边界按原生 range 规则处理，不能从这个 EQ 示例推导同一舍入公式。原生类型、量化与浮点精度见 [Elasticsearch Numeric field types](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/number)。
+
 无操作数的空字符串操作符仅适用于具备精确匹配能力的单值字符串字段。`IS_EMPTY_STRING` 只匹配 `""`；`IS_NOT_EMPTY_STRING` 要求字段存在、非 `null` 且不等于 `""`。仅含空白的字符串不视为空字符串。
 
 `CONTAINS`、`STARTS_WITH` 和 `ENDS_WITH` 是字面量匹配，不使用全文 analyzer：MongoDB 使用转义后的正则表达式，Elasticsearch 使用 wildcard/prefix 查询。`CASE_INSENSITIVE` 会改变后端查询选项，可能比大小写敏感查询更昂贵；HTTP 查询保护关闭 expensive operators 时，这些操作符的部分形式会被拒绝。
@@ -116,7 +119,7 @@ MongoDB 将 `ELEMENT_MATCH` 编译为 `$elemMatch`；Elasticsearch 将其编译�
 | `DELETION` | `{ "op": "DELETION", "state": "ACTIVE" }` | `deletion(DeletionState.ACTIVE)` |
 | `SEARCH` | `{ "op": "SEARCH", "query": "wireless", "fields": ["state.note"], "mode": "TERMS" }` | `search("wireless", "note")` |
 
-删除标记使用 `DELETION`，不要以字段路径模拟。快照查询默认追加 `DELETION = ACTIVE`；事件流查询保留完整历史，不追加该 guard。
+删除标记使用 `DELETION`，不要以字段路径模拟。Snapshot Gateway 默认追加 `DELETION = ACTIVE`；EventStream Gateway 保留完整历史，不追加该 guard。默认删除范围只由 Gateway 决定；`FilterNormalizer` 与原生 Backend/Compiler 不补充删除条件，直接调用 Backend 的调用者必须显式提供所需范围。
 
 对于 Snapshot 查询，`DELETION` 的 `state` 还可以是 `DELETED` 或 `ALL`，分别只查询已删除数据，或同时包含已删除和未删除数据。Snapshot 查询中的显式删除条件只有位于根表达式或根 `AND` 合取树中时，才会覆盖默认的 `ACTIVE` 范围；放在 `OR` 或 `NOR` 内部不会移除该默认条件。EventStream 不提供删除元数据，也没有默认删除范围；受 Query Schema 管理的 EventStream 查询使用 `DELETION` 会因缺少对应能力而被拒绝。
 
@@ -127,7 +130,7 @@ MongoDB 将 `ELEMENT_MATCH` 编译为 `$elemMatch`；Elasticsearch 将其编译�
 | 属性 | 说明 |
 | --- | --- |
 | `query` | 搜索文本，不能是空字符串或全空白字符串。 |
-| `fields` | 可选的逻辑字段集合。为空时使用后端默认的全文搜索字段；不为空时请求限定到这些字段，但最终是否保留字段范围取决于 Schema 校验结果。 |
+| `fields` | 可选的逻辑字段集合。为空时使用后端默认的全文搜索字段；不为空时仅查询这些已声明且具备对应能力的字段，否则拒绝请求。 |
 | `mode` | `TERMS` 或 `PHRASE`，默认是 `TERMS`。 |
 
 直接构造或使用 DSL：
@@ -165,12 +168,12 @@ filterExpression {
 
 `TERMS` 是分词后的普通全文搜索，不要求原始字符串完整连续出现；`event sourcing` 可能按两个 term 参与匹配。`PHRASE` 是短语搜索，要求分析后的词项按顺序和位置匹配，但仍受 analyzer 影响，并不等同于原始字符串相等。
 
-后端编译前，Query Schema 会先解析 `fields`。所有字段都能精确解析时，字段范围会保留（必要时改写为后端物理路径）；如果字段不能全部精确解析、但模型支持对应的全文能力，兼容校验模式会清空 `fields`，退化为后端默认范围，并将结果标记为 `COMPATIBLE`。这可能扩大搜索范围；严格校验模式只接受 `EXACT`，会拒绝这种请求。
+Gateway 校验请求的逻辑 `fields`；每个显式字段都必须具有相应全文 capability 和正确元素作用域。未知字段或能力缺失直接拒绝，不会清空 fields 扩大搜索范围。Backend 才根据同一个 Schema 将字段编译为物理路径。
 
 #### 后端实现
 
-- **MongoDB**：转换为 MongoDB 的 `$text` 查询。`TERMS` 直接使用查询文本；`PHRASE` 会将查询文本包装为双引号短语，查询文本本身不能包含双引号。collection 必须存在 text index，可搜索字段由该 text index 决定。当前 MongoDB Compiler 不会把 `fields` 编译成逐字段限制；显式字段通常会在 Schema 层以 `COMPATIBLE` 方式降级为不带字段的 `$text` 查询，严格校验模式会拒绝它。
-- **Elasticsearch**：转换为 `multi_match` 查询。指定 `fields` 且精确解析时，字段会映射为 Elasticsearch 的物理字段路径；不指定时由 `index.query.default_field` 决定，并设置 `lenient`。如果显式字段没有精确解析，兼容校验模式同样可能先将其清空，再执行默认字段范围的搜索。`TERMS` 使用 `multi_match` 默认的 `best_fields` 语义，即各字段分别执行 `match`，使用最佳字段的相关性得分；`PHRASE` 设置 `type: phrase`，相当于对各字段执行 `match_phrase`。字段是否支持全文或短语搜索由 Elasticsearch mapping 和 Query Schema 决定。
+- **MongoDB**：使用 `$text`。TERMS 使用原查询文本，PHRASE 包装为双引号短语，输入文本本身不能含双引号。可搜索字段由集合 text index 决定；当前不支持按请求 fields 限定全文范围，因此使用空 fields 的模型级搜索，显式 fields 请求会被拒绝。
+- **Elasticsearch**：使用 multi_match。显式字段必须有对应 mapping capability，并由 Backend 编译为物理字段；空 fields 使用 index.query.default_field，Wow设置lenient。TERMS使用best_fields，PHRASE使用phrase模式。未知显式字段不会退化为默认范围。
 
 `SEARCH` 是 root-only 过滤器，不能放入 `ELEMENT_MATCH` 的元素谓词中。需要字面量的包含、前缀或后缀匹配时，应使用 `CONTAINS`、`STARTS_WITH` 或 `ENDS_WITH`。
 
@@ -245,8 +248,8 @@ flowchart TB
 
 ## 安全与兼容边界
 
-查询模型 Schema 负责把逻辑字段解析为后端已证明的能力；请参阅[查询总览中的 Schema 说明](./query-model-schema.md)。MongoDB、Elasticsearch 或自定义后端可以支持不同的比较、存在性、全文搜索或时间语义，公共操作符列表不承诺跨后端一致性。
+Gateway 根据 Schema 保存的后端能力事实校验逻辑字段，Backend 负责原生编译；请参阅[查询总览中的 Schema 说明](./query-model-schema.md)。MongoDB、Elasticsearch 或自定义后端可以支持不同的比较、存在性、全文搜索或时间语义，公共操作符列表不承诺跨后端一致性。
 
-HTTP 请求在 WebFlux `ServerRequest` context 中会经过 `HttpQueryGuardFilter`。`wow.webflux.query.allow-expensive-operators=false` 时，会拒绝 `NE`、`NOT_IN`、`NOR`、`IS_NULL`、`IS_NOT_NULL`、`NOT_EXISTS`、`IS_EMPTY`、`IS_NOT_EMPTY_STRING`、`CONTAINS`、`ENDS_WITH`，以及空字符串或大小写不敏感的 `STARTS_WITH`；HTTP guard 还限制 filter 节点和值数量。该配置的兼容默认值不是容量证明，详见[基础设施配置](../../reference/config/infrastructure)。进程内查询不因这项 HTTP 专用保护而获得或失去后端能力。
+HTTP 请求在 WebFlux Handler 边界经过 `HttpQueryGuard`。`wow.webflux.query.allow-expensive-operators=false` 时，会拒绝 `NE`、`NOT_IN`、`NOR`、`IS_NULL`、`IS_NOT_NULL`、`NOT_EXISTS`、`IS_EMPTY`、`IS_NOT_EMPTY_STRING`、`CONTAINS`、`ENDS_WITH`，以及空字符串或大小写不敏感的 `STARTS_WITH`；HTTP guard 还限制 filter 节点和值数量。该配置的兼容默认值不是容量证明，详见[基础设施配置](../../reference/config/infrastructure)。进程内查询不因这项 HTTP 专用保护而获得或失去后端能力。
 
-V9 的规范 JVM API 是 `FilterExpression` 与 `FilterDsl`。V9.x 暂时保留已弃用的 `Condition`、`Operator`、`ConditionDsl`、旧查询构造器和 count 客户端重载，并在执行前统一转换为 `FilterExpression`；这些兼容 API 计划在 10.0.0 删除。WebFlux REST 边界同期接受 V8 list/paged/single 请求的 `condition` 字段，以及 count 请求的裸 `operator` 形状；规范 `filter`、OpenAPI 与出站 JSON 仍只使用 `op`。`filter` 与 `condition` 不能同时出现，`op` 与 `operator` 也不能混用。
+V9 的规范 JVM API 是 `FilterExpression` 与 `FilterDsl`。按既定兼容约定，V9.x 保留已弃用的 `Condition`、`Operator`、`ConditionDsl`、旧查询构造器和 count 客户端重载，并在执行前统一转换为 `FilterExpression`；这些兼容 API 计划在 10.0.0 删除。WebFlux REST 边界同期接受 V8 list/paged/single 请求的 `condition` 字段，以及 count 请求的裸 `operator` 形状；规范 `filter`、OpenAPI 与出站 JSON 仍只使用 `op`。`filter` 与 `condition` 不能同时出现，`op` 与 `operator` 也不能混用。

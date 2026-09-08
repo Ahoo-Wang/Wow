@@ -13,346 +13,193 @@
 
 package me.ahoo.wow.query.schema
 
-import com.fasterxml.jackson.annotation.JsonIgnore
-import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
-import me.ahoo.wow.api.query.schema.QueryFieldSchemaMetadata
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.api.query.schema.QueryModelSchemaMetadata
-import me.ahoo.wow.api.query.schema.QuerySemanticType
-import me.ahoo.wow.api.query.schema.QueryValueType
-import me.ahoo.wow.api.query.schema.Temporal
-import me.ahoo.wow.query.withUniqueSort
-import me.ahoo.wow.serialization.MessageRecords
-import tools.jackson.databind.JsonNode
-import tools.jackson.databind.node.JsonNodeFactory
-import tools.jackson.databind.node.POJONode
-import java.math.BigDecimal
-import java.math.BigInteger
+import me.ahoo.wow.api.query.schema.QueryValueKind
+import java.util.Collections
+
+private val EMPTY_VALUE_BINDINGS = QueryValueBindings()
 
 private val QUERY_STORAGE_TYPE_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*")
-private val SNAPSHOT_CURSOR_UNIQUE_FIELD = QueryField(MessageRecords.AGGREGATE_ID)
-private val EVENT_STREAM_CURSOR_UNIQUE_FIELD = QueryField(MessageRecords.ID)
 
 data class QueryStorageType(val value: String) {
+    init { require(QUERY_STORAGE_TYPE_PATTERN.matches(value)) }
+}
+
+class QueryFieldBinding(val physicalField: QueryField, storageTypes: Set<QueryStorageType>?) {
+    val storageTypes: Set<QueryStorageType>? = storageTypes?.let { Collections.unmodifiableSet(LinkedHashSet(it)) }
+
+    init { require(this.storageTypes == null || this.storageTypes.isNotEmpty()) }
+
+    override fun equals(other: Any?): Boolean = other is QueryFieldBinding &&
+        physicalField == other.physicalField && storageTypes == other.storageTypes
+    override fun hashCode(): Int = 31 * physicalField.hashCode() + (storageTypes?.hashCode() ?: 0)
+}
+
+/** A logical definition is shared unchanged with every native binding snapshot. */
+class LogicalQuerySchema(val root: QueryValueSchema) {
+    val values: Map<QueryPathTemplate, QueryValueSchema>
+    internal val maskedValues: List<Pair<QueryPathTemplate, QueryValueSchema>>
+    internal val staticMatches: Map<QueryField, List<QueryValueMatch>>
+
     init {
-        require(QUERY_STORAGE_TYPE_PATTERN.matches(value))
-    }
-}
-
-enum class QueryRewriteMode {
-    NONE,
-    INFER,
-    REQUIRED,
-}
-
-data class QueryFieldBinding(
-    val resolvedField: QueryField,
-    val physicalField: QueryField,
-    val storageType: QueryStorageType?,
-)
-
-data class QueryModelSchema(
-    val model: QueryModel,
-    val capabilities: Set<QueryCapability>,
-    val fields: Map<QueryField, QueryFieldSchema>,
-) {
-    @get:JsonIgnore
-    internal val maskedFields: Map<QueryField, QueryFieldSchema> = fields.filterValues(QueryFieldSchema::masked)
-
-    @get:JsonIgnore
-    internal val hasMaskedFields: Boolean = maskedFields.isNotEmpty()
-
-    @get:JsonIgnore
-    internal val elementScopePaths: Set<String> = buildSet {
-        fields.forEach { (field, fieldSchema) ->
-            if (QueryCapability.ELEMENT_SCOPE in fieldSchema.bindings) {
-                add(field.path)
-            }
-        }
-    }
-
-    val rewriteMode: QueryRewriteMode = when {
-        capabilities.any {
-            it == QueryCapability.FULL_TEXT_TERMS || it == QueryCapability.FULL_TEXT_PHRASE
-        } -> QueryRewriteMode.INFER
-        fields.values.any { it.rewriteMode != QueryRewriteMode.NONE } -> QueryRewriteMode.INFER
-        else -> QueryRewriteMode.NONE
-    }
-
-    private val dynamicFields = fields.filterValues(QueryFieldSchema::dynamicChildren)
-
-    @get:JsonIgnore
-    internal val elementDescendantDynamicFields: Set<QueryField> = buildSet {
-        dynamicFields.keys.forEach { dynamicField ->
-            if (
-                elementScopePaths.any { elementPath ->
-                    dynamicField.path.length > elementPath.length &&
-                        dynamicField.path.startsWith(elementPath) &&
-                        dynamicField.path[elementPath.length] == '.'
+        val paths = root.valuePaths()
+        val hasUnions = paths.any { it.second.kind == QueryValueKind.UNION }
+        values = Collections.unmodifiableMap(
+            linkedMapOf<QueryPathTemplate, QueryValueSchema>().apply {
+                paths.forEach { (path, value) -> putIfAbsent(path, value) }
+                if (hasUnions) replaceAll { path, _ -> checkNotNull(mergeQueryValues(root.lookup(path))) }
+            },
+        )
+        maskedValues = paths.filter { it.second.maskRule != null }
+        staticMatches = buildMap {
+            this@LogicalQuerySchema.values.forEach { (path, value) ->
+                if (path.keyCount != 0 || path.segments.none { it is QueryPathSegment.Property }) return@forEach
+                val field = path.field(emptyList())
+                if (containsKey(field)) return@forEach
+                val matches = if (hasUnions) {
+                    root.lookup(field.toPathTemplate())
+                } else {
+                    val ancestors = path.segments.mapIndexedNotNull { index, segment ->
+                        if (segment == QueryPathSegment.Item) QueryPathTemplate(path.segments.subList(0, index)) else null
+                    }
+                    listOf(QueryValueMatch(value, emptyList(), ancestors, true, path))
                 }
-            ) {
-                add(dynamicField)
+                put(field, matches)
             }
         }
     }
 
-    @get:JsonIgnore
-    internal val fieldResolver = QueryFieldSchemaResolver(this)
-    private val resolver = QuerySchemaResolver(this)
+    fun value(path: QueryPathTemplate): QueryValueSchema? = values[path] ?: mergeQueryValues(root.lookup(path))
+}
+
+/** Published facts only: model values and operation-specific native locations. */
+class QueryModelSchema(
+    val model: QueryModel,
+    capabilities: Set<QueryCapability>,
+    val definition: LogicalQuerySchema,
+    bindings: Map<QueryPathTemplate, QueryValueBindings>,
+    /** Whether native storage can deliver an unrestricted source projection. */
+    val fullProjectionAvailable: Boolean = true,
+) {
+    val capabilities: Set<QueryCapability> = Collections.unmodifiableSet(LinkedHashSet(capabilities))
+    val root: QueryValueSchema
+        get() = definition.root
+    val bindings: Map<QueryPathTemplate, QueryValueBindings> = Collections.unmodifiableMap(
+        LinkedHashMap<QueryPathTemplate, QueryValueBindings>().apply {
+            definition.values.keys.forEach { put(it, bindings[it] ?: EMPTY_VALUE_BINDINGS) }
+            putAll(bindings)
+        },
+    )
+    private val bindingIndex = QueryBindingIndex(this.bindings)
+    private val staticFields: Map<QueryField, QueryFieldSchema?> = definition.staticMatches.mapValues { (field, matches) ->
+        resolveField(field, matches)
+    }
+    internal val maskedValues = definition.maskedValues
+    internal val hasMaskedFields: Boolean = maskedValues.isNotEmpty()
+    internal val protectedSources = QueryProtectedSources(this)
+    internal val maskDefinition = me.ahoo.wow.query.mask.QueryMaskDefinition.create(this)
+
+    init {
+        bindings.forEach { (path, native) ->
+            require(definition.value(path) != null) { "Native binding has no logical value: [${path.segments}]." }
+            val keyCount = path.keyCount
+            native.bindings.values.forEach { requireNativeKeyCount(it.physicalPath, keyCount) }
+            native.projectionPath?.let { requireNativeKeyCount(it, keyCount) }
+            native.responsePath?.let { requireNativeKeyCount(it, keyCount) }
+        }
+    }
+
+    private fun requireNativeKeyCount(path: QueryPathTemplate, keyCount: Int) {
+        require(path.keyCount == keyCount) { "Native path must retain each logical map key." }
+    }
 
     fun supports(capability: QueryCapability): Boolean = capability in capabilities
 
-    fun field(field: QueryField): QueryFieldSchema? {
-        fields[field]?.let { return it }
-        if (dynamicFields.isEmpty()) return null
-        var separator = field.path.lastIndexOf('.')
-        while (separator > 0) {
-            val ancestorField = QueryField(field.path.substring(0, separator))
-            val ancestor = dynamicFields[ancestorField]
-            if (ancestor != null) {
-                return ancestor.resolveDynamic(
-                    source = ancestorField,
-                    relative = checkNotNull(field.relativeTo(ancestorField)),
-                    elementAncestor = ancestorField in elementDescendantDynamicFields,
-                )
-            }
-            separator = ancestorField.path.lastIndexOf('.')
-        }
-        return null
-    }
+    fun field(field: QueryField): QueryFieldSchema? =
+        if (staticFields.containsKey(field)) staticFields[field] else resolveField(field)
 
-    fun resolvePhysicalField(
-        field: QueryField,
-        capability: QueryCapability,
-        logicalParent: QueryField? = null,
-        resolvedParent: QueryField? = null,
-        physicalParent: QueryField? = null,
-    ): QueryField = fieldResolver.resolve(
+    private fun resolveField(field: QueryField): QueryFieldSchema? = resolveField(
         field,
-        capability,
-        logicalParent,
-        resolvedParent,
-        physicalParent,
-        enforceElementScope = false,
-    ).let { resolved ->
-        resolved.physicalField?.let { physicalField ->
-            if (physicalParent == null) {
-                physicalField
-            } else {
-                physicalField.relativeTo(physicalParent)
-                    ?: throw QuerySchemaValidationException(
-                        "Physical field [$physicalField] is not relative to parent [$physicalParent].",
-                    )
-            }
-        } ?: if (physicalParent == null) {
-            resolved.logical
-        } else {
-            logicalParent?.let(field::relativeTo) ?: resolvedParent?.let(field::relativeTo) ?: field
-        }
-    }
-
-    fun resolveFieldSchema(field: QueryField, capability: QueryCapability): QueryFieldSchema? =
-        fieldResolver.resolve(field, capability, enforceElementScope = false).fieldSchema
-
-    internal fun matchesValueTypes(field: QueryField, values: Iterable<JsonNode>): Boolean =
-        fields[field]?.matchesValueTypes(values) ?: true
-
-    fun resolve(query: ISingleQuery): QuerySchemaResolution<ISingleQuery> = resolver.resolve(query)
-
-    fun resolve(query: IListQuery): QuerySchemaResolution<IListQuery> = resolver.resolve(query)
-
-    fun resolve(query: IPagedQuery): QuerySchemaResolution<IPagedQuery> = resolver.resolve(query)
-
-    fun resolve(query: ICursorQuery): QuerySchemaResolution<ICursorQuery> = resolver.resolve(
-        query.withUniqueSort(
-            when (model) {
-                QueryModel.SNAPSHOT -> SNAPSHOT_CURSOR_UNIQUE_FIELD
-                QueryModel.EVENT_STREAM -> EVENT_STREAM_CURSOR_UNIQUE_FIELD
-                else -> throw QuerySchemaValidationException("Cursor query model [$model] is unsupported.")
-            },
-        ),
+        root.lookup(field.toPathTemplate())
     )
 
-    fun resolve(filter: FilterExpression): QuerySchemaResolution<FilterExpression> = resolver.resolve(filter)
-
-    fun resolve(query: AggregationQuery): QuerySchemaResolution<AggregationQuery> = resolver.resolve(query)
-
-    fun toMetadata(): QueryModelSchemaMetadata = QueryModelSchemaMetadata(
-        model = model,
-        capabilities = capabilities,
-        fields = fields.entries.sortedBy { it.key.path }.map { (field, schema) ->
-            QueryFieldSchemaMetadata(
-                field = field,
-                title = schema.title,
-                description = schema.description,
-                enumValues = schema.enumValues,
-                valueTypes = schema.valueTypes,
-                nullable = schema.nullable,
-                required = schema.required,
-                cardinality = schema.cardinality,
-                semanticType = schema.semanticType,
-                dynamicChildren = schema.dynamicChildren,
-                capabilities = schema.capabilities,
-                masked = schema.masked,
-            )
-        },
-    )
-}
-
-data class QueryFieldSchema(
-    val title: String?,
-    val description: String?,
-    val enumValues: List<JsonNode>?,
-    val valueTypes: Set<QueryValueType>,
-    val nullable: Boolean,
-    val required: Boolean,
-    val cardinality: QueryCardinality,
-    val semanticType: QuerySemanticType?,
-    val dynamicChildren: Boolean,
-    val bindings: Map<QueryCapability, QueryFieldBinding>,
-    val projectionField: QueryField? = bindings[QueryCapability.PRESENCE]?.physicalField,
-    val rewriteMode: QueryRewriteMode,
-    @get:JsonIgnore internal val maskRule: MaskRule? = null,
-    @get:JsonIgnore
-    val responseField: QueryField? = bindings[QueryCapability.PRESENCE]?.resolvedField ?: projectionField,
-) {
-    val capabilities: Set<QueryCapability>
-        get() = bindings.keys
-
-    val masked: Boolean
-        get() = maskRule != null
-
-    fun binding(capability: QueryCapability): QueryFieldBinding? = bindings[capability]
-
-    internal fun resolveDynamic(
-        source: QueryField,
-        relative: QueryField,
-        elementAncestor: Boolean,
-    ): QueryFieldSchema {
-        val resolvedSource = source.append(relative)
-        val resolvedBindings = LinkedHashMap<QueryCapability, QueryFieldBinding>(bindings.size)
-        var hasIdentity = false
-        var hasRewrite = false
-        bindings.forEach { (capability, binding) ->
-            if (capability == QueryCapability.ELEMENT_SCOPE) {
-                return@forEach
-            }
-            val resolvedBinding = binding.copy(
-                resolvedField = binding.resolvedField.append(relative),
-                physicalField = binding.physicalField.append(relative),
-            )
-            resolvedBindings[capability] = resolvedBinding
-            if (resolvedBinding.resolvedField == resolvedSource) {
-                hasIdentity = true
+    private fun resolveField(field: QueryField, matches: List<QueryValueMatch>): QueryFieldSchema? {
+        if (matches.size == 1) return resolveSingleField(field, matches.single())
+        val value = mergeQueryValues(matches) ?: return null
+        val locations = matches.map { match ->
+            if (!match.complete) return@map null
+            bindingIndex.locate(match.path)
+        }
+        val fields = locations.map { located ->
+            located?.let { (native, keys) ->
+                native.bindings.mapValues { (_, binding) ->
+                    QueryFieldBinding(binding.physicalPath.field(keys), binding.storageTypes)
+                }
+            }.orEmpty()
+        }
+        val common = fields.firstOrNull().orEmpty().mapNotNull { (capability, first) ->
+            val alternatives = fields.map { it[capability] ?: return@mapNotNull null }
+            if (alternatives.any { it.physicalField != first.physicalField }) return@mapNotNull null
+            val types = if (alternatives.any { it.storageTypes == null }) {
+                null
             } else {
-                hasRewrite = true
+                alternatives.flatMapTo(linkedSetOf()) { checkNotNull(it.storageTypes) }
             }
-        }
-        val resolvedRewriteMode = when {
-            (elementAncestor && resolvedBindings.isNotEmpty()) ||
-                semanticType is Temporal || hasIdentity && hasRewrite -> QueryRewriteMode.INFER
-            hasRewrite -> QueryRewriteMode.REQUIRED
-            else -> QueryRewriteMode.NONE
-        }
+            capability to QueryFieldBinding(first.physicalField, types)
+        }.toMap()
+        val scopes = matches.map { it.elementAncestors.map { ancestor -> ancestor.field(emptyList()) } }.distinct()
         return QueryFieldSchema(
-            title = title,
-            description = description,
-            enumValues = enumValues,
-            valueTypes = valueTypes,
-            nullable = nullable,
-            required = required,
-            cardinality = cardinality,
-            semanticType = semanticType,
-            dynamicChildren = dynamicChildren,
-            bindings = resolvedBindings,
-            projectionField = projectionField?.append(relative),
-            responseField = responseField?.append(relative),
-            rewriteMode = resolvedRewriteMode,
-            maskRule = maskRule,
+            logicalField = field,
+            value = value,
+            elementAncestors = scopes.singleOrNull(),
+            bindings = common,
+            projectionField = locations.map { it?.let { (native, keys) -> native.projectionPath?.field(keys) } }
+                .distinct().singleOrNull(),
+            responseField = locations.map { it?.let { (native, keys) -> native.responsePath?.field(keys) } }
+                .distinct().singleOrNull(),
         )
     }
 
-    internal fun matchesValueTypes(values: Iterable<JsonNode>): Boolean =
-        valueTypes.isEmpty() ||
-            valueTypes.any { it !in BUILT_IN_QUERY_VALUE_TYPES } ||
-            values.all { value -> value.isNull || valueTypes.any(value::matches) }
-}
-
-data class LogicalQuerySchema(
-    val fields: Map<QueryField, LogicalQueryFieldSchema>,
-)
-
-data class LogicalQueryFieldSchema(
-    val title: String?,
-    val description: String?,
-    val enumValues: List<JsonNode>?,
-    val valueTypes: Set<QueryValueType>,
-    val nullable: Boolean,
-    val required: Boolean,
-    val cardinality: QueryCardinality,
-    val semanticType: QuerySemanticType?,
-    val dynamicChildren: Boolean,
-    @get:JsonIgnore val maskRule: MaskRule? = null,
-)
-
-private val BUILT_IN_QUERY_VALUE_TYPES = setOf(
-    QueryValueType.STRING,
-    QueryValueType.INTEGER,
-    QueryValueType.DECIMAL,
-    QueryValueType.BOOLEAN,
-    QueryValueType.OBJECT,
-)
-
-private fun JsonNode.matches(type: QueryValueType): Boolean {
-    if (isPojo) return pojoValue.matches(type)
-    return when (type) {
-        QueryValueType.STRING -> isString
-        QueryValueType.INTEGER -> isNumber && canConvertToExactIntegral()
-        QueryValueType.DECIMAL -> isNumber
-        QueryValueType.BOOLEAN -> isBoolean
-        QueryValueType.OBJECT -> isObject
-        else -> true
+    private fun resolveSingleField(field: QueryField, match: QueryValueMatch): QueryFieldSchema? {
+        if (!match.complete) return null
+        val location = bindingIndex.locate(match.path)
+        val native = location?.first
+        val keys = location?.second.orEmpty()
+        val shared = HashMap<QueryFieldBindingTemplate, QueryFieldBinding>()
+        val bindings = native?.bindings?.mapValues { (_, template) ->
+            shared.getOrPut(template) { QueryFieldBinding(template.physicalPath.field(keys), template.storageTypes) }
+        }.orEmpty()
+        return QueryFieldSchema(
+            field,
+            match.value,
+            match.elementAncestors.map { it.field(emptyList()) },
+            bindings,
+            native?.projectionPath?.field(keys),
+            native?.responsePath?.field(keys),
+        )
     }
 }
 
-private val JsonNode.pojoValue: Any?
-    get() = (this as? POJONode)?.pojo
-
-private fun Any?.matches(type: QueryValueType): Boolean = when (this) {
-    is CharSequence,
-    is Char,
-    is Enum<*>,
-    -> type == QueryValueType.STRING
-    is Boolean -> type == QueryValueType.BOOLEAN
-    is Byte,
-    is Short,
-    is Int,
-    is Long,
-    is BigInteger,
-    -> type == QueryValueType.INTEGER || type == QueryValueType.DECIMAL
-    is Float,
-    is Double,
-    is BigDecimal,
-    -> type.matchesNumber(this as Number)
-    else -> true
+class QueryFieldSchema(
+    val logicalField: QueryField,
+    val value: QueryValueSchema,
+    elementAncestors: List<QueryField>?,
+    bindings: Map<QueryCapability, QueryFieldBinding>,
+    val projectionField: QueryField?,
+    val responseField: QueryField?,
+) {
+    val elementAncestors: List<QueryField>? = elementAncestors?.let { java.util.List.copyOf(it) }
+    val bindings: Map<QueryCapability, QueryFieldBinding> = Collections.unmodifiableMap(LinkedHashMap(bindings))
+    val capabilities: Set<QueryCapability>
+        get() = bindings.keys
+    fun binding(capability: QueryCapability): QueryFieldBinding? = bindings[capability]
 }
 
-private fun QueryValueType.matchesNumber(value: Number): Boolean {
-    if (this == QueryValueType.DECIMAL) return true
-    if (this != QueryValueType.INTEGER) return false
-    val node = when (value) {
-        is Float -> JsonNodeFactory.instance.numberNode(value)
-        is Double -> JsonNodeFactory.instance.numberNode(value)
-        is BigDecimal -> JsonNodeFactory.instance.numberNode(value)
-        else -> return true
-    }
-    return node.canConvertToExactIntegral()
+internal fun mergeQueryValues(matches: List<QueryValueMatch>): QueryValueSchema? {
+    if (matches.none { it.complete }) return null
+    val values = matches.map { it.value }.distinct()
+    if (values.size == 1) return values.single()
+    return QueryValueSchema(kind = QueryValueKind.UNION, alternatives = values)
 }

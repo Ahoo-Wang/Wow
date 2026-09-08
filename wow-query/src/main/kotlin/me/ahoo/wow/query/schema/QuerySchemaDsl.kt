@@ -14,16 +14,14 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.CARDINALITY
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DYNAMIC_CHILDREN
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUES
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.NULLABLE
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.REQUIRED
@@ -55,9 +53,12 @@ class QueryFieldDeclarationBuilder {
     private var valueTypes: DeclarationValue<Set<QueryValueType>> = DeclarationValue.Unset
     private var nullable: DeclarationValue<Boolean> = DeclarationValue.Unset
     private var required: DeclarationValue<Boolean> = DeclarationValue.Unset
-    private var cardinality: DeclarationValue<QueryCardinality> = DeclarationValue.Unset
+    private var kind: DeclarationValue<QueryValueKind> = DeclarationValue.Unset
+    private var properties: DeclarationValue<Map<String, QueryFieldDeclaration>> = DeclarationValue.Unset
+    private var items: DeclarationValue<QueryFieldDeclaration?> = DeclarationValue.Unset
+    private var additionalProperties: DeclarationValue<QueryFieldDeclaration?> = DeclarationValue.Unset
+    private var alternatives: DeclarationValue<List<QueryFieldDeclaration>> = DeclarationValue.Unset
     private var semanticType: DeclarationValue<QuerySemanticType?> = DeclarationValue.Unset
-    private var dynamicChildren: DeclarationValue<Boolean> = DeclarationValue.Unset
 
     fun title(value: String?) {
         title = title.set(value, TITLE)
@@ -83,8 +84,40 @@ class QueryFieldDeclarationBuilder {
         required = required.set(value, REQUIRED)
     }
 
-    fun cardinality(value: QueryCardinality) {
-        cardinality = cardinality.set(value, CARDINALITY)
+    fun kind(value: QueryValueKind) {
+        kind = kind.set(value, "kind")
+    }
+
+    fun property(name: String, block: QueryFieldDeclarationBuilder.() -> Unit) {
+        requireQueryPathSegment(name)
+        val declaration = QueryFieldDeclarationBuilder().apply(block).build()
+        val children = properties.valueOr(emptyMap()).toMutableMap()
+        children[name] = children[name]?.merge(declaration, QueryField(name), true) ?: declaration
+        properties = DeclarationValue.Set(children)
+    }
+
+    fun items(block: QueryFieldDeclarationBuilder.() -> Unit) {
+        items(QueryFieldDeclarationBuilder().apply(block).build())
+    }
+
+    fun items(value: QueryFieldDeclaration?) {
+        items = items.set(value, "items")
+    }
+
+    fun additionalProperties(block: QueryFieldDeclarationBuilder.() -> Unit) {
+        additionalProperties(QueryFieldDeclarationBuilder().apply(block).build())
+    }
+
+    fun additionalProperties(value: QueryFieldDeclaration?) {
+        additionalProperties = additionalProperties.set(value, "additionalProperties")
+    }
+
+    fun alternative(block: QueryFieldDeclarationBuilder.() -> Unit) {
+        alternatives = DeclarationValue.Set(alternatives.valueOr(emptyList()) + QueryFieldDeclarationBuilder().apply(block).build())
+    }
+
+    fun alternatives(value: List<QueryFieldDeclaration>) {
+        alternatives = alternatives.set(value, "alternatives")
     }
 
     fun semanticType(value: QuerySemanticType?) {
@@ -95,10 +128,6 @@ class QueryFieldDeclarationBuilder {
         semanticType(Temporal.Epoch(unit))
     }
 
-    fun dynamicChildren(value: Boolean = true) {
-        dynamicChildren = dynamicChildren.set(value, DYNAMIC_CHILDREN)
-    }
-
     fun build(): QueryFieldDeclaration = QueryFieldDeclaration(
         title = title,
         description = description,
@@ -106,9 +135,12 @@ class QueryFieldDeclarationBuilder {
         valueTypes = valueTypes,
         nullable = nullable,
         required = required,
-        cardinality = cardinality,
+        kind = kind,
+        properties = properties,
+        items = items,
+        additionalProperties = additionalProperties,
+        alternatives = alternatives,
         semanticType = semanticType,
-        dynamicChildren = dynamicChildren,
     )
 
     private fun <T> DeclarationValue<T>.set(value: T, leaf: String): DeclarationValue<T> {

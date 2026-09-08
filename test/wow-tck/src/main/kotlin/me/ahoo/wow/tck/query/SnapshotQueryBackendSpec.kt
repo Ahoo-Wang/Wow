@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
@@ -42,7 +43,6 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
@@ -51,11 +51,12 @@ import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.requireAccepted
+import me.ahoo.wow.query.schema.toMetadata
+import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
+import me.ahoo.wow.query.withUniqueSort
 import me.ahoo.wow.schema.query.JsonQuerySchemaSource
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -78,7 +79,24 @@ import java.util.concurrent.atomic.AtomicInteger
 
 @Suppress("LargeClass")
 abstract class SnapshotQueryBackendSpec {
-    protected val querySchemaSources: List<QuerySchemaSource> = listOf(JsonQuerySchemaSource())
+    protected val querySchemaSources: List<QuerySchemaSource> = listOf(
+        JsonQuerySchemaSource(),
+        object : QuerySchemaSource {
+            override val priority: Int = me.ahoo.wow.query.schema.QuerySchemaSourcePriority.BEAN
+            override fun load(
+                context: me.ahoo.wow.query.schema.QuerySchemaContext
+            ): Flux<me.ahoo.wow.query.schema.QuerySchemaDeclaration> =
+                Flux.just(
+                    me.ahoo.wow.query.schema.QuerySchemaDeclaration(
+                        mapOf(
+                            QueryField("state.orders.lines.missing") to me.ahoo.wow.query.schema.QueryFieldDeclaration(
+                                valueTypes = me.ahoo.wow.query.schema.DeclarationValue.Set(setOf(QueryValueType.DECIMAL)),
+                            ),
+                        )
+                    )
+                )
+        },
+    )
     lateinit var snapshotStore: SnapshotStore
     lateinit var snapshotQueryBackendFactory: SnapshotQueryBackendFactory
     lateinit var queryBackendBinding: QueryBackendBinding<SnapshotQueryBackend>
@@ -122,7 +140,18 @@ abstract class SnapshotQueryBackendSpec {
             object : QueryModelSchemaProvider {
                 override fun schema(): Mono<QueryModelSchema> {
                     schemaCalls.incrementAndGet()
-                    return Mono.just(QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap()))
+                    return Mono.just(
+                        QueryModelSchema(
+                            QueryModel.SNAPSHOT,
+                            emptySet(),
+                            me.ahoo.wow.query.schema.LogicalQuerySchema(
+                                me.ahoo.wow.query.schema.QueryValueSchema(
+                                    me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT
+                                )
+                            ),
+                            emptyMap()
+                        )
+                    )
                 }
 
                 override fun refresh(): Mono<QueryModelSchema> = schema()
@@ -403,7 +432,7 @@ abstract class SnapshotQueryBackendSpec {
             .test()
             .assertNext { schema ->
                 schema.model.assert().isEqualTo(QueryModel.SNAPSHOT)
-                schema.fields.keys.assert().contains(
+                listOf(
                     QueryField("aggregateId"),
                     QueryField("eventTime"),
                     QueryField("state"),
@@ -411,32 +440,34 @@ abstract class SnapshotQueryBackendSpec {
                     QueryField("state.createdAt"),
                     QueryField("state.orders"),
                     QueryField("state.decimalValue"),
-                )
-                schema.fields.getValue(QueryField("state.data")).bindings.keys.assert().contains(
+                ).forEach { schema.field(it).assert().isNotNull() }
+                checkNotNull(schema.field(QueryField("state.data"))).bindings.keys.assert().contains(
                     QueryCapability.EXACT_MATCH,
                     QueryCapability.SORT,
                 )
-                val createdAt = schema.fields.getValue(QueryField("state.createdAt"))
-                createdAt.valueTypes.assert().isEqualTo(setOf(QueryValueType.INTEGER))
-                createdAt.semanticType.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
+                val createdAt = checkNotNull(schema.field(QueryField("state.createdAt")))
+                createdAt.value.valueTypes.assert().isEqualTo(setOf(QueryValueType.INTEGER))
+                createdAt.value.semanticType.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
                 createdAt.bindings.keys.assert().contains(
                     QueryCapability.RANGE,
                     QueryCapability.SORT,
                     QueryCapability.AGGREGATE_TEMPORAL,
                 )
-                val orders = schema.fields.getValue(QueryField("state.orders"))
-                orders.cardinality.assert().isEqualTo(QueryCardinality.MANY)
-                orders.valueTypes.assert().isEqualTo(setOf(QueryValueType.OBJECT))
+                val orders = checkNotNull(schema.field(QueryField("state.orders")))
+                orders.value.cardinality.assert().isEqualTo(QueryCardinality.MANY)
+                orders.value.items!!.valueTypes.assert().isEqualTo(setOf(QueryValueType.OBJECT))
                 orders.bindings.keys.assert().contains(QueryCapability.ELEMENT_SCOPE)
-                schema.fields.getValue(QueryField("state.decimalValue")).bindings.keys.assert().contains(
+                checkNotNull(schema.field(QueryField("state.decimalValue"))).bindings.keys.assert().contains(
                     QueryCapability.AGGREGATE_TERMS,
                     QueryCapability.AGGREGATE_NUMERIC,
                 )
 
                 val metadata = schema.toMetadata()
-                metadata.fields.map { it.field.path }.assert().isEqualTo(
-                    metadata.fields.map { it.field.path }.sorted(),
+                metadata.root.properties.keys.toList().assert().isEqualTo(
+                    metadata.root.properties.keys.sorted(),
                 )
+                metadata.root.properties.getValue("state").properties.getValue("orders").items
+                    .assert().isNotNull()
                 JsonSerializer.writeValueAsString(metadata).assert()
                     .doesNotContain("physicalPath", "storageType")
             }.verifyComplete()
@@ -474,6 +505,7 @@ abstract class SnapshotQueryBackendSpec {
     @Test
     fun `schema should aggregate annotated epoch fields as time`() {
         aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
             dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
             count("count")
         }.query(queryBackendBinding)
@@ -488,7 +520,10 @@ abstract class SnapshotQueryBackendSpec {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
         aggregation {
-            filter { aggregateIds("aggregation-a", "aggregation-b") }
+            filter {
+                deletion(DeletionState.ACTIVE)
+                aggregateIds("aggregation-a", "aggregation-b")
+            }
             count("count")
             sum("version", "total")
             avg("version", "average")
@@ -514,6 +549,7 @@ abstract class SnapshotQueryBackendSpec {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
         aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders")
             expand("lines")
             count("count")
@@ -542,6 +578,7 @@ abstract class SnapshotQueryBackendSpec {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
         aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders")
             expand("lines") { "productId" isIn listOf("alpha", "beta") }
             sum(field("amount") / (field("quantity") - constant(2.0)), "safeDivision")
@@ -567,6 +604,7 @@ abstract class SnapshotQueryBackendSpec {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
         aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders")
             expand("lines")
             sum(field("samples") * constant(1.0), "total")
@@ -581,6 +619,7 @@ abstract class SnapshotQueryBackendSpec {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
         aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders") { "status" eq "PAID" }
             expand("lines") { "quantity" gte 2 }
             terms("productId", "product")
@@ -619,6 +658,7 @@ abstract class SnapshotQueryBackendSpec {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
         aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders")
             expand("lines") { "productId" isIn listOf("gamma", "delta") }
             dateHistogram("createdAt", AggregationDateUnit.WEEK, "week")
@@ -639,6 +679,7 @@ abstract class SnapshotQueryBackendSpec {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
         aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders")
             expand("lines") { "productId" eq "beta" }
             dateHistogram("createdAt", AggregationDateUnit.SECOND, "second")
@@ -664,7 +705,10 @@ abstract class SnapshotQueryBackendSpec {
         )
 
         aggregation {
-            filter { aggregateIds("decimal-a", "decimal-b") }
+            filter {
+                deletion(DeletionState.ACTIVE)
+                aggregateIds("decimal-a", "decimal-b")
+            }
             terms("state.decimalValue", "decimal")
             count("count")
         }.query(queryBackendBinding)
@@ -681,7 +725,10 @@ abstract class SnapshotQueryBackendSpec {
     @Test
     fun `aggregation should return one empty summary row`() {
         aggregation {
-            filter { aggregateId("missing") }
+            filter {
+                deletion(DeletionState.ACTIVE)
+                aggregateId("missing")
+            }
             any("state.data", "anyData")
             count("count")
             sum("version", "total")
@@ -697,6 +744,7 @@ abstract class SnapshotQueryBackendSpec {
         saveAggregationStates(*(aggregationStates() + aggregationAnyNullState()).toTypedArray())
 
         aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders")
             expand("lines") { "productId" eq "alpha" }
             terms("productId", "productId")
@@ -716,6 +764,7 @@ abstract class SnapshotQueryBackendSpec {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
         aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders")
             expand("lines") { "productId" eq "gamma" }
             any("productName", "productName")
@@ -734,6 +783,7 @@ abstract class SnapshotQueryBackendSpec {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
         aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders") { "status" eq "CANCELLED" }
             expand("lines") { "productId" eq "gamma" }
             count("count")
@@ -761,6 +811,7 @@ abstract class SnapshotQueryBackendSpec {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
         aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders") { "status" eq "PAID" }
             expand("lines")
             terms("productId", "product")
@@ -791,6 +842,7 @@ abstract class SnapshotQueryBackendSpec {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
         aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders") { "status" eq "PAID" }
             expand("lines") { "quantity" gte 2 }
             expand("discounts") { "amount" gt 0 }
@@ -810,6 +862,7 @@ abstract class SnapshotQueryBackendSpec {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
         aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders")
             expand("lines")
             terms("productId", "product")
@@ -952,60 +1005,48 @@ abstract class SnapshotQueryBackendSpec {
 private fun QueryBackendBinding<SnapshotQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
         backend.single(
-            ResolvedQuery(
-                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
-                schema,
-            ),
+            validateQuery(query, schema),
+            schema,
         )
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.list(query: IListQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
         backend.list(
-            ResolvedQuery(
-                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
-                schema,
-            ),
+            validateQuery(query, schema),
+            schema,
         )
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
         backend.paged(
-            ResolvedQuery(
-                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
-                schema,
-            ),
+            validateQuery(query, schema),
+            schema,
         )
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
         backend.cursor(
-            ResolvedQuery(
-                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
-                schema,
-            ),
+            validateQuery(query.withUniqueSort(QueryField("aggregateId")), schema),
+            schema,
         )
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.count(filter: FilterExpression): Mono<Long> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
         backend.count(
-            ResolvedQuery(
-                schema.resolve(filter).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
-                schema,
-            ),
+            validateQuery(filter, schema),
+            schema,
         )
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
         backend.aggregate(
-            ResolvedQuery(
-                schema.resolve(query).requireAccepted(QuerySchemaValidationMode.COMPATIBLE),
-                schema,
-            ),
+            validateQuery(query, schema),
+            schema,
         )
     }
 

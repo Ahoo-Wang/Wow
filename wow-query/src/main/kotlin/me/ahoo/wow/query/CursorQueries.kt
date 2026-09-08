@@ -19,8 +19,6 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 
-internal val FORBIDDEN_CURSOR_SORTS = setOf(QueryField("_score"), QueryField("_doc"), QueryField("_shard_doc"))
-
 fun ICursorQuery.withUniqueSort(uniqueField: QueryField): ICursorQuery {
     val effective = if (sort.any { it.field == uniqueField }) {
         sort
@@ -29,9 +27,6 @@ fun ICursorQuery.withUniqueSort(uniqueField: QueryField): ICursorQuery {
     }
     val fields = effective.map(Sort::field)
     require(fields.distinct().size == fields.size) { "Cursor sort fields must be unique." }
-    require(fields.none(FORBIDDEN_CURSOR_SORTS::contains)) {
-        "Cursor sort contains an unstable metadata field."
-    }
     require(effective.size <= AggregationQuery.MAX_SORT_FIELDS) {
         "Effective cursor sort must contain at most ${AggregationQuery.MAX_SORT_FIELDS} fields."
     }

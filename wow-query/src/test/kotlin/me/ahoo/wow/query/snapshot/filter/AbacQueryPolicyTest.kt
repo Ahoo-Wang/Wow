@@ -26,20 +26,17 @@ import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
+import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy.Companion.toFilterExpression
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
+import reactor.util.context.Context
 import reactor.util.context.ContextView
 
-class AbacQueryFilterTest {
+class AbacQueryPolicyTest {
     @Test
     fun `empty AbacTags should return match all filter`() {
         EMPTY_ABAC_TAGS.toFilterExpression().assert().isSameAs(MatchAllFilter)
@@ -85,63 +82,47 @@ class AbacQueryFilterTest {
     }
 
     @Test
-    fun `filter for EmptyAbacQueryFilter`() {
-        val context = DefaultQueryContext<me.ahoo.wow.api.query.FilterExpression, Any>(
-            queryType = QueryType.COUNT,
-            namedAggregate = MOCK_AGGREGATE_METADATA,
-            schema = QUERY_SCHEMA,
-        ).setQuery(MatchAllFilter)
-        val chain = FilterChain<QueryContext<*, *>> {
-            it.getQuery().assert().isSameAs(MatchAllFilter)
-            Mono.empty()
-        }
-        EmptyAbacQueryFilter.filter(context, chain).test().verifyComplete()
+    fun `empty principal tags resolve to unrestricted scope`() {
+        val context =
+            QueryContext<me.ahoo.wow.api.query.FilterExpression>(MatchAllFilter, MOCK_AGGREGATE_METADATA, QUERY_SCHEMA)
+        EmptyAbacQueryPolicy.resolveFilter(Context.empty(), context).test()
+            .expectNext(MatchAllFilter).verifyComplete()
     }
 
     @Test
-    fun `filter for MockAbacQueryFilter`() {
-        val context = DefaultQueryContext<me.ahoo.wow.api.query.FilterExpression, Any>(
-            queryType = QueryType.COUNT,
-            namedAggregate = MOCK_AGGREGATE_METADATA,
-            schema = QUERY_SCHEMA,
-        ).setQuery(MatchAllFilter)
-        val chain = FilterChain<QueryContext<*, *>> {
-            it.getQuery().assert().isInstanceOf(AndFilter::class.java)
-            Mono.empty()
-        }
-        MockAbacQueryFilter.filter(context, chain).test().verifyComplete()
-    }
-
-    @Test
-    fun `aggregation should append ABAC filter only to root filter`() {
+    fun `principal tags resolve independently from the caller query`() {
         val query = AggregationQuery(
             filter = ExistsFilter(QueryField("tenantId")),
             elements = listOf(AggregationElement(QueryField("state.items"), ExistsFilter(QueryField("sku")))),
             metrics = listOf(AggregationMetric.Count("count")),
         )
-        val context = DefaultQueryContext<AggregationQuery, Any>(
-            queryType = QueryType.AGGREGATION,
-            namedAggregate = MOCK_AGGREGATE_METADATA,
-            schema = QUERY_SCHEMA,
-        ).setQuery(query)
-        val chain = FilterChain<QueryContext<*, *>> {
-            val rewritten = it.getQuery() as AggregationQuery
-            rewritten.filter.assert().isInstanceOf(AndFilter::class.java)
-            rewritten.elements.assert().isEqualTo(query.elements)
-            Mono.empty()
-        }
-
-        MockAbacQueryFilter.filter(context, chain).test().verifyComplete()
+        val context = QueryContext(query, MOCK_AGGREGATE_METADATA, QUERY_SCHEMA)
+        MockAbacQueryPolicy.resolveFilter(Context.empty(), context).test()
+            .assertNext { it.assert().isInstanceOf(AndFilter::class.java) }.verifyComplete()
+        context.query.assert().isSameAs(query)
     }
 
-    object EmptyAbacQueryFilter : AbacQueryFilter() {
-        override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*, *>): Mono<AbacTags> {
+    @Test
+    fun `absent principal tags resolve to match all`() {
+        val policy = object : AbacQueryPolicy() {
+            override fun getPrincipalTags(
+                contextView: ContextView,
+                context: QueryContext<*>
+            ): Mono<AbacTags> = Mono.empty()
+        }
+        val context =
+            QueryContext<me.ahoo.wow.api.query.FilterExpression>(MatchAllFilter, MOCK_AGGREGATE_METADATA, QUERY_SCHEMA)
+        policy.resolveFilter(Context.empty(), context).test().expectNext(MatchAllFilter).verifyComplete()
+    }
+
+    object EmptyAbacQueryPolicy : AbacQueryPolicy() {
+        override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*>): Mono<AbacTags> {
             return EMPTY_ABAC_TAGS.toMono()
         }
     }
 
-    object MockAbacQueryFilter : AbacQueryFilter() {
-        override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*, *>): Mono<AbacTags> {
+    object MockAbacQueryPolicy : AbacQueryPolicy() {
+        override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*>): Mono<AbacTags> {
             return mapOf(
                 "dept" to listOf("eng"),
                 "role" to listOf("admin"),
@@ -150,4 +131,4 @@ class AbacQueryFilterTest {
     }
 }
 
-private val QUERY_SCHEMA = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+private val QUERY_SCHEMA = me.ahoo.wow.query.gatewaySchema(QueryModel.SNAPSHOT)

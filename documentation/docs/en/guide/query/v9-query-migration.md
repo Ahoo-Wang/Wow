@@ -1,17 +1,19 @@
 ---
 title: V9 Query Migration
-description: Migrate the V8 query JVM API to aggregate Gateways and ObjectNode Backends.
+description: Move historical query implementations to the current aggregate Gateway, recursive Schema, and native Backend.
 ---
 
 # V9 Query Migration
 
-## Migration Boundary
+## Migration boundary
 
-Except for the `Condition` migration window below, V9 removes old JVM types without bridges, type aliases, or deprecation windows. This breaks JVM source and binary users of those types, so recompile downstream code and migrate directly with the tables below. `QueryFieldSchemaMetadata.masked`, `QueryFieldDeclaration.maskRule`, `QueryFieldSchema.maskRule`, and `LogicalQueryFieldSchema.maskRule` are Schema constructor contracts with added masking fields and no V8 JVM constructor overload.
+This page retains the V8→V9 Condition/DSL migration notes while updating extension examples to the current implementation. Application `QueryGateway` method contracts remain; old Backend and Schema constructors, filter chains, and validation modes are not implementation compatibility contracts. Recompile downstream extensions after updating them.
 
-The query-field value object also has a breaking rename: replace `LogicalField` with `QueryField` and read its string from `path` instead of `value`; there is no compatibility class or type alias. `Projection.include/exclude` now take `List<QueryField>`, and `Sort.field` takes `QueryField`. Valid fields remain strings in JSON, but public Projection and Sort reject backend patterns such as `state.*`. An EventStream payload projection must also select `body.bodyType`.
+The legacy `Condition` compatibility stack remains until 10.0.0 under the agreed migration window. This internal architecture cleanup does not remove it early; deprecation is a migration notice, not unfinished cleanup for this round.
 
-V9.x provides an explicit query-condition migration window: deprecated `Condition`/`Operator` JVM types, `ConditionDsl`, legacy query constructors, count client overloads, and existing deserialization remain available and are normalized to `FilterExpression`. WebFlux list/paged/single requests may still submit `condition`, and count requests may still submit the bare `operator` shape. These compatibility APIs are scheduled for removal in 10.0.0; new code should use `FilterExpression`/`FilterDsl` immediately. Canonical `filter`, OpenAPI, and outbound JSON use only `op`.
+Use `QueryField.path`. Projection/Sort fields still serialize as strings, but public `state.*` wildcard paths are not allowed. Unknown logical fields do not pass through as native names.
+
+Numeric migration preserves singleton-array metrics: direct FIELD inputs and arithmetic leaves both accept exactly one numeric value after ignoring nulls, and duplicates count separately. Native scalar aggregation and finite Double arithmetic do not promise arbitrary-precision algebraic identity; numeric filtering follows native storage precision. See [Aggregation Queries](./aggregation-query.md#numeric-contributions) and [Filter Expressions](./filter-expression.md).
 
 ### ConditionDsl Migration
 
@@ -87,156 +89,53 @@ When V8 passes a `DateTimeFormatter` rather than a pattern string, use the match
 
 Data-query HTTP request and result envelopes, Backend wire trees, storage layouts, and existing data do not change because of this JVM refactor or static-annotation masking. Query Schema HTTP metadata and its generated OpenAPI component do change: each field adds `masked: Boolean`. No storage-data migration is required, and raw values in the Backend and storage are not rewritten. After old mask rules move to field annotations, the managed Gateway restores response confidentiality semantics.
 
-## JVM Type Mapping
+## Historical types and current replacements
 
-| V8 source | V9 source |
+The left column lists removed historical APIs, not current callable contracts:
+
+| Historical type or pattern | Current implementation |
 | --- | --- |
-| `QueryService<R>` | Removed; responsibilities split between `QueryBackend` and an aggregate-bound `QueryGateway<R>` |
-| `QueryGateway<R>` / `AbstractQueryGateway<R>` | Names retained, but the contract becomes aggregate-bound |
-| `SnapshotQueryService<S>` | `SnapshotQueryGateway<S>` |
-| `EventStreamQueryService` | `EventStreamQueryGateway` |
-| `QueryServiceCacheSource` | `QueryGatewayCacheSource` |
-| `SnapshotQueryServiceFactory` | `SnapshotQueryBackendFactory` |
-| `EventStreamQueryServiceFactory` | `EventStreamQueryBackendFactory` |
-| `AbstractSnapshotQueryServiceFactory` | `AbstractSnapshotQueryBackendFactory` |
-| `AbstractEventStreamQueryServiceFactory` | `AbstractEventStreamQueryBackendFactory` |
-| `RoutingSnapshotQueryServiceFactory` | `RoutingSnapshotQueryBackendFactory` |
-| `RoutingEventStreamQueryServiceFactory` | `RoutingEventStreamQueryBackendFactory` |
-| `AbstractMongoQueryService` | `AbstractMongoQueryBackend` |
-| `MongoSnapshotQueryService` | `MongoSnapshotQueryBackend` |
-| `MongoEventStreamQueryService` | `MongoEventStreamQueryBackend` |
-| `MongoSnapshotQueryServiceFactory` | `MongoSnapshotQueryBackendFactory` |
-| `MongoEventStreamQueryServiceFactory` | `MongoEventStreamQueryBackendFactory` |
-| `AbstractElasticsearchQueryService` | `AbstractElasticsearchQueryBackend` |
-| `ElasticsearchSnapshotQueryService` | `ElasticsearchSnapshotQueryBackend` |
-| `ElasticsearchEventStreamQueryService` | `ElasticsearchEventStreamQueryBackend` |
-| `ElasticsearchSnapshotQueryServiceFactory` | `ElasticsearchSnapshotQueryBackendFactory` |
-| `ElasticsearchEventStreamQueryServiceFactory` | `ElasticsearchEventStreamQueryBackendFactory` |
-| `SnapshotQueryServiceFactoryBinding` | `SnapshotQueryBackendFactoryBinding` |
-| `EventStreamQueryServiceFactoryBinding` | `EventStreamQueryBackendFactoryBinding` |
-| `NoOpSnapshotQueryService<S>` | `NoOpSnapshotQueryBackend` |
-| `NoOpEventStreamQueryService` | `NoOpEventStreamQueryBackend` |
-| `NoOpSnapshotQueryServiceFactory` | `NoOpSnapshotQueryBackendFactory` |
-| `NoOpEventStreamQueryServiceFactory` | `NoOpEventStreamQueryBackendFactory` |
-| `QueryServiceRegistrar` | `QueryGatewayRegistrar` |
-| `SnapshotQueryServiceRegistrar` | `SnapshotQueryGatewayRegistrar` |
-| `EventStreamQueryServiceRegistrar` | `EventStreamQueryGatewayRegistrar` |
-| `QueryServiceProxy` / `SnapshotQueryServiceProxy` / `EventStreamQueryServiceProxy` | Removed; inject the aggregate-bound Gateway directly |
-| `DynamicDocument` / `SimpleDynamicDocument` | `tools.jackson.databind.node.ObjectNode` |
-| `DynamicDocumentMasker` | Removed; use `@Mask`, `@KeepMask`, or a custom `@Masking` meta-annotation on domain fields |
-| `AggregateDynamicDocumentMasker` | Removed; built-in `SchemaMaskQueryFilter` masks Snapshot and EventStream results from Query Schema |
-| `StateDynamicDocumentMasker` | Removed; declare static mask annotations on state fields |
-| `EventStreamDynamicDocumentMasker` | Removed; declare static mask annotations on event-payload fields |
-| `AggregateDataMasker` / `DefaultAggregateDataMasker` | Removed; no runtime object-mask SPI is retained |
-| `DataMaskerRegistry` / `AbstractDataMaskerRegistry` | Removed; Query Schema discovers rules from field annotations |
-| `StateDataMaskerRegistry` / `EventStreamMaskerRegistry` | Removed; model maskers are no longer registered |
-| `DataMasker` / `DataMasking` / `tryMask` | Removed; migrate to static field annotations |
-| `MaskingDynamicDocumentQueryFilter` | Removed; replaced by the framework-owned outermost `SchemaMaskQueryFilter` |
-| `QueryType.DYNAMIC_SINGLE` | `QueryType.SINGLE` |
-| `QueryType.DYNAMIC_LIST` | `QueryType.LIST` |
-| `QueryType.DYNAMIC_PAGED` | `QueryType.PAGED` |
-| `QueryType.isDynamic` | Removed; typed and node paths share operation types |
-| `SnapshotRepository` | `SnapshotStore` |
-| `NoOpSnapshotRepository` | `NoOpSnapshotStore` |
-| `InMemorySnapshotRepository` | `InMemorySnapshotStore` |
-| `DelaySnapshotRepository` | `DelaySnapshotStore` |
-| `ElasticsearchSnapshotRepository` | `ElasticsearchSnapshotStore` |
-| `TracingSnapshotRepository` | `TracingSnapshotStore` |
-| `SnapshotRepositoryInstrumenter` | `SnapshotStoreInstrumenter` |
-| `SnapshotRepositorySaveSpanNameExtractor` | `SnapshotStoreSaveSpanNameExtractor` |
-| `SnapshotRepositoryLoadSpanNameExtractor` | `SnapshotStoreLoadSpanNameExtractor` |
-| `SnapshotRepositorySpec` | `SnapshotStoreSpec` |
-| `SnapshotStoreSpec.createSnapshotRepository()` / `CommandDispatcherSpec.createSnapshotRepository()` / `SnapshotQueryBackendSpec.createSnapshotRepository()` | `createSnapshotStore()` |
-| Mongo `createAggregateIdIndex()`, `createAggregateIdAndVersionUniqueIndex()`, `createRequestIdUniqueIndex()`, `createAggregateIdAndRequestIdUniqueIndex()`, `createTenantIdIndex()`, `createOwnerIdIndex()` | Removed; use `EventStreamSchemaInitializer` / `SnapshotSchemaInitializer` `initSchema()` or `initAll()` to reconcile the complete managed index set. For EventStream request id uniqueness, `enableRequestIdUniqueIndex = true` selects the request-id index; `false` (default) selects the aggregate-id/request-id compound index |
-| Elasticsearch `UNLIMITED_SIZE` / `Int.searchSize()` | Removed; pass `ListQuery.limit` directly (`0` remains unlimited) and let the Backend page with PIT / `search_after` |
-| `IndexTemplateInitializer.InitSubscriber` | Removed; compose and await `ensureAllTemplates()`, or call blocking `initAll()`; initialization failures propagate |
-| `EventStoreSpec.TIMES` | `EventStoreSpec.DEFAULT_CONCURRENCY_TEST_ITERATIONS` |
-| `EventStoreSpec.DEFAULT_PARALLELISM` | `EventStoreSpec.DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY` |
+| QueryService / SnapshotQueryService / EventStreamQueryService | Application aggregate QueryGateway; storage QueryBackend |
+| ResolvedQuery | Explicit `(query, schema)` arguments on every Backend operation |
+| QueryFilterChain / around filter | `QueryFilter.prepare(QueryContext<Q>): Mono<Q>` for request preparation only |
+| RewriteRequestFilter / HttpQueryGuardFilter | Handler-level QueryRequestScope / HttpQueryGuard |
+| AbacQueryFilter | Independent Snapshot AbacQueryPolicy |
+| SchemaMaskQueryFilter / custom result Mask Filter | Fixed Gateway Mask stage and static domain declarations |
+| validation-mode / QuerySchemaValidationMode | Removed; strict validation of final logical requests |
+| Flat fields metadata / dynamicChildren | Recursive `QueryModelSchemaMetadata.root` with properties/items/additionalProperties/alternatives |
 
-Typed and node results share the `SINGLE`, `LIST`, `PAGED`, and `CURSOR` operation types. A Backend always returns `ObjectNode`; the Gateway optionally uses Jackson to materialize typed results after generic result filters complete.
+Any value of the old `wow.query.schema.validation-mode` property, including `strict`, fails startup with an instruction to remove it. CamelCase spellings are rejected too; the setting is not silently ignored.
 
-There is no one-to-one replacement for `QueryService<R>`: move storage queries to an `ObjectNode`-returning `QueryBackend`, while the managed entry, filter chain, and typed materialization remain in the aggregate `QueryGateway<R>`. The old `QueryGateway` accepted a `NamedAggregate` on every call; V9 binds the `NamedAggregate` and routed `QueryBackendBinding` when constructing the Gateway, so `single`, `list`, `paged`, `cursor`, `count`, and `aggregate` calls no longer pass an aggregate argument. A custom `AbstractQueryGateway` subclass supplies `namedAggregate`, `binding`, `validationMode`, `targetType`, `filters`, `filterType`, and `errorHandler`; implementation constructors are not compatibility contracts. Use the default Snapshot/EventStream Gateway when no custom entry policy is required.
+## Custom QueryBackend migration
 
-### Custom QueryBackend Migration
-
-A custom Backend must migrate all six execution signatures together. V9 provides no compatibility overloads that accept raw queries:
+All six operations explicitly receive the logical Query and Schema:
 
 ```kotlin
-fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode>
-fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode>
-fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
-fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
-fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
-fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
+fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode>
+fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode>
+fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>>
+fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>>
+fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long>
+fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode>
 ```
 
-Compile the admitted query from `query.query`, and use the non-null `query.schema` for Projection and Aggregation compilation. Remove Provider reads, Schema resolution, validation-mode branches, and Cursor unique-field appending from execution paths; `QueryModelSchema` now appends and validates the unique sort for each model. On every subscription, a managed Gateway obtains one Schema before creating the Context, so the Filter chain exposes that same instance from its beginning. If Schema acquisition fails, neither Filters nor the Backend execute. A custom Factory explicitly pairs its Backend and `QueryModelSchemaProvider` in `QueryBackendBinding`; custom Backends never implement or delegate Provider capability.
+The Backend consumes native bindings, checks native parameters and physical scope, and executes. It does not fetch a Provider or perform whole-query public validation, authorization, Mask, or typed materialization. The Factory pairs Backend and Provider in `QueryBackendBinding`. Every subscription emits independently owned standard JSON ObjectNodes.
 
-Filters no longer use `QueryType.isDynamic` to distinguish a final typed result from a node result. Both paths traverse the same ObjectNode FilterChain and differ only by optional Jackson materialization after the chain. Remove branches used only for typed/dynamic dispatch; do not invent a replacement result-type discriminator.
+## Request extensions and entry points
 
-Delete old Mask types, implementations, Beans, registries, and custom filters without creating an ObjectNode Mask compatibility layer. Once old rules are declared on domain fields, Snapshot and EventStream typed, dynamic, and aggregate-state load entries mask automatically on the same managed Gateway path: the framework-owned `SchemaMaskQueryFilter` reads `QueryContext.schema`, the same instance reuses its Masker, and a new subscription after refresh reads the new instance and recompiles it. Unavailable Schema fails every managed Gateway call closed before Context, Filters, or Backend subscription. Count performs no result masking but still requires Schema for request admission. Trusted raw access is `factory.create(namedAggregate).backend`; its caller must explicitly obtain Schema, resolve and admit the query, and then construct `ResolvedQuery`. There is no Provider-level unavailable fallback.
+`QueryContext<Q>` contains only query, namedAggregate, and schema. Move request processing into prepare; put trusted identity scope in Reactor `withQueryScope` or a Snapshot `AbacQueryPolicy`. Observers only observe termination. The Gateway fixes the sequence: prepare, scope/policy, defaults, public validation, Backend, Mask, and typed materialization.
 
-#### Removed and narrowed public API
+Applications keep using typed, dynamic, paged, cursor, count, and aggregate methods on SnapshotQueryGateway / EventStreamQueryGateway. Direct Backend access is a trusted low-level boundary; callers supply the Schema and own all governance responsibilities. The Gateway appends the cursor's unique sort field; the Backend does not.
 
-Beyond the six execution signatures and the Gateway constructor contract, the same release train removed or narrowed the following public API; migrate every direct use:
+## Static Mask migration
 
-| Removed or narrowed API | Migration |
-| --- | --- |
-| `ResolvedAggregationQuery` | Use `ResolvedQuery<AggregationQuery>`. |
-| All six `QueryModelSchemaProvider.resolve(query, mode)` extensions and the Provider-level `COMPATIBLE` unavailable fallback | Call `QueryModelSchema.resolve(...)` plus `requireAccepted(mode)` yourself; every path now fails closed with `QuerySchemaUnavailableException` on unavailable Schema. |
-| `FieldConverter`, `ProjectionConverter`, and `SortConverter` | Removed. Compile with the concrete Backend `*Compiler`; physical paths come from Schema bindings. Do not call the removed converter APIs. |
-| `QueryContext` / `DefaultQueryContext` | `QueryContext` declares a non-default `schema: QueryModelSchema` member; `DefaultQueryContext` takes it as the third constructor parameter. |
-| `me.ahoo.wow.query.filter.Contexts.getRawRequest/writeRawRequest` | Removed. WebFlux code imports `me.ahoo.wow.webflux.route.getRawRequest/writeRawRequest`, typed to `ServerRequest`; remove arbitrary values and caller casts. |
-| `schemaProvider` constructor parameter on the MongoDB and Elasticsearch Backends, and any Backend implementing or delegating `QueryModelSchemaProvider` | Pair the Provider in the Factory's `QueryBackendBinding` instead; Backends carry no Provider capability. |
-| `requiredQueryModelSchemaProvider()` extensions | Read `factory.create(namedAggregate).schemaProvider` from the binding. |
-| `MongoCollections.findDocument` four-argument public overload | The remaining overload requires a non-null `QueryModelSchema`. |
-| `validationMode` constructor parameter on the MongoDB and Elasticsearch Backend Factories | Validation mode is Gateway-owned; the default bean comes from `wow.query.schema.validation-mode`. |
+Move rules to `@Mask`, `@KeepMask`, or custom `@Masking` annotations instead of restoring historical registries or result Filters. Current recursive value metadata exposes masked markers and public capabilities, not strategies or native paths. See [Field Masking](./masking.md) for value-domain, union, and alias boundaries.
 
-## Static Mask Migration
+## Minimal migration steps
 
-After removing the old Registry/filter, migrate full masking to `@Mask`, edge-preserving rules to `@KeepMask(prefix, suffix)`, and domain-specific rules to runtime field annotations carrying `@Masking(strategy)`. Do not add an ObjectNode compatibility layer or a new Registry. See [Field Masking](./masking.md) for the complete API, Unicode/empty-value semantics, behavior matrix, and fail-closed contract.
+1. Keep declared logical paths; remove reliance on unknown-field passthrough and native aliases.
+2. Update Backend signatures and Factory bindings; declare actual arrays, Maps, and union branches.
+3. Separate prepare, scope, Snapshot policy, and Observer handling, using the default Gateway's fixed sequence.
+4. Verify queries, collection/element scopes, cursors, aggregation, metadata, and Mask failures, then validate actual storage behavior.
 
-## Spring Bean Mapping
-
-| V8 Bean | V9 Bean |
-| --- | --- |
-| `*.SnapshotQueryService` | `*.SnapshotQueryGateway` |
-| `*.EventStreamQueryService` | `*.EventStreamQueryGateway` |
-| `noOpSnapshotRepository` | `noOpSnapshotStore` |
-| `inMemorySnapshotRepository` | `inMemorySnapshotStore` |
-| `delaySnapshotRepository` | `delaySnapshotStore` |
-| `mongoSnapshotRepository` | `mongoSnapshotStore` |
-| `elasticsearchSnapshotRepository` | `elasticsearchSnapshotStore` |
-
-The exact new Bean names are `{contextAlias.}{aggregateName}.SnapshotQueryGateway` and `{contextAlias.}{aggregateName}.EventStreamQueryGateway`; omit the prefix when there is no context alias. Old QueryService and SnapshotRepository bean aliases are not registered.
-
-## Binding Configuration Values
-
-Factories and public binding strings consistently use the Backend concept and the `*-query-backend-factory` suffix. `SnapshotQueryBackendFactory.create` and `EventStreamQueryBackendFactory.create` now return `QueryBackendBinding`, and the Snapshot Factory removes its unused generic; these are source and binary breaking changes. Migrate existing route values, for example `mongo-snapshot-query-backend-factory` and `elasticsearch-event-stream-query-backend-factory`; no old binding alias is retained. Query JSON, Schema HTTP paths and responses, and Gateway public methods have no wire change.
-
-## Call Entries
-
-Application code injects an aggregate Gateway so request filters, ABAC, generic result handling, and error observation run in one around chain. Only trusted low-level diagnostics, Backend contract tests, and storage extensions call a Backend Factory directly; that path bypasses Gateway governance.
-
-Schema handlers unwrap `factory.create(namedAggregate).schemaProvider` from the same routed binding, so Schema and queries select the same Backend and Provider for a `NamedAggregate`. A generic `QueryFilter` has no `@FilterType`; only a model-specific filter targets its Gateway type.
-
-## ObjectNode ownership
-
-Every subscription to a publisher returned by a custom Backend must create mutable `ObjectNode` values owned exclusively by that subscription. Subscriptions created by `retry`, `repeat`, and concurrent callers must also receive fresh nodes. Do not cache or share nodes across subscriptions, publish cached nodes, or continue mutating a node asynchronously after emission.
-
-Only standard JSON trees may cross the Backend boundary. Storage-driver `Map`/`Document` values, BSON values, `POJONode`, and arbitrary POJOs must be normalized or rejected inside the Backend.
-
-## Transport and Error Semantics
-
-JSON-array and SSE streaming behavior is unchanged. If a stream fails after emitting some elements, those elements are not rolled back. SSE attempts to emit an `ErrorInfo` error event. A `RequestExceptionHandler` failure or a failure while generating, rendering, or serializing that error event is attached to the original as a suppressed error only when distinct and not already recorded. The original terminal error is always propagated; migration must not rewrite that partial failure as an empty result or successful completion.
-
-When no Backend is configured, a managed Gateway call fails closed with `QuerySchemaUnavailableException` (error code `QuerySchemaUnavailable`, HTTP 503) before Filters run or the Backend is subscribed. The built-in providers and schema sources also surface `QuerySchemaUnavailableException` when a Schema is unavailable or unreadable. A custom `QueryModelSchemaProvider` or `QuerySchemaSource` that fails with a different exception propagates that error unchanged through the Gateway, so it maps to that error's own transport status instead of 503. Earlier releases surfaced the unconfigured case as a generic `INTERNAL_SERVER_ERROR` `WowException` (HTTP 500); clients that match on the error code or HTTP status must update. Direct low-level Backend calls keep surfacing each Backend's own error, for example the unavailable Backend's `INTERNAL_SERVER_ERROR` `WowException`.
-
-## Minimal Migration Steps
-
-1. Replace imports, constructor parameters, Bean qualifiers, and Factory implementations according to the tables and the removed-or-narrowed API list.
-2. Change all six custom Backend methods to accept `ResolvedQuery`; remove raw-query overloads, execution-time Schema resolution, validation-mode branches, and Cursor unique-field appending, and compile Projection and Aggregation with `query.schema`.
-3. Make every custom Backend subscription return fresh, exclusively owned `ObjectNode` values containing only standard JSON-tree data, leaving typed conversion to the Gateway.
-4. Remove every old Mask implementation, Bean, registry, and filter; use [Field Masking](./masking.md) to migrate each rule to `@Mask`, `@KeepMask`, or a custom `@Masking(strategy)` field annotation.
-5. Check Schema `masked` metadata; separately verify Snapshot/EventStream typed, dynamic, state-only/aggregate-state load results, and the direct-Backend raw-value boundary.
-6. Verify that ordinary filter/search/sort and count remain usable, that a group, field metric, or expression referencing a masked field fails closed, and then check actual MongoDB/Elasticsearch routing, HTTP/OpenAPI, and raw stored values.
+See [Query Gateway](./query-gateway.md), [Query Backend](./query-backend.md), and [Query Model Schema](./query-model-schema.md) for current extension contracts.

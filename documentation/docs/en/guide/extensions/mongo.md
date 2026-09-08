@@ -110,7 +110,7 @@ Mongo query Backends compile Wow filters, projections, sorting, paging, and aggr
 
 ### Filter Compilation Pipeline
 
-Public fields pass through logical schema validation and field conversion before a Mongo filter is emitted. Unsupported or conflicting backend mappings follow `wow.query.schema.validation-mode`. Applications do not need a second validator that guesses Mongo field types.
+Queries retain logical paths. The Gateway validates against the captured Schema; the Mongo compiler consumes its native bindings. Unknown fields, missing capabilities, and known storage conflicts are rejected without a validation-mode fallback to caller field names.
 
 ### Snapshot Queries
 

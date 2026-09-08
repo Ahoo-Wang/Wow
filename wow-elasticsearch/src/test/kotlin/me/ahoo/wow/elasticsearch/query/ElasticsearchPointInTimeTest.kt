@@ -32,6 +32,22 @@ class ElasticsearchPointInTimeTest {
     private val client = mockk<ReactiveElasticsearchClient>()
 
     @Test
+    fun `query and cleanup failures retain both original causes`() {
+        val queryFailure = IllegalStateException("search failed")
+        val cleanupFailure = IllegalStateException("close failed")
+        val openResponse = mockk<OpenPointInTimeResponse> { every { id() } returns "pit-1" }
+        every { client.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(openResponse)
+        every { client.closePointInTime(any<ClosePointInTimeRequest>()) } returns Mono.error(cleanupFailure)
+
+        ElasticsearchPointInTime(client, "index", Duration.ofMinutes(1)).use {
+            Flux.error<String>(queryFailure)
+        }.test().expectErrorSatisfies { failure ->
+            (failure.cause === cleanupFailure).assert().isTrue()
+            failure.suppressed.toList().assert().contains(queryFailure)
+        }.verify()
+    }
+
+    @Test
     fun `should close latest non-empty pit id on cancellation`() {
         val closeRequest = slot<ClosePointInTimeRequest>()
         val openResponse = mockk<OpenPointInTimeResponse> { every { id() } returns "pit-1" }

@@ -15,8 +15,7 @@ package me.ahoo.wow.query.event.filter
 
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 
 @FilterType(EventStreamQueryGateway::class)
-interface EventStreamQueryFilter : QueryFilter<QueryContext<*, *>>
+interface EventStreamQueryFilter : QueryFilter

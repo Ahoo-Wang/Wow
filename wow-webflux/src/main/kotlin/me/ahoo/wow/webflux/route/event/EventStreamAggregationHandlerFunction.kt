@@ -18,10 +18,13 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.event.EventStreamQueryGateway
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
+import me.ahoo.wow.webflux.route.query.HttpQueryGuard
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.AGGREGATION_QUERY_EXTRACTOR
-import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
+import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import me.ahoo.wow.webflux.route.toServerResponse
 import me.ahoo.wow.webflux.route.writeRawRequest
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -32,13 +35,16 @@ import reactor.core.publisher.Mono
 class EventStreamAggregationHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryGateway: EventStreamQueryGateway,
-    private val rewriteRequestFilter: RewriteRequestFilter,
+    private val queryRequestScope: QueryRequestScope,
     private val exceptionHandler: RequestExceptionHandler,
+    private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
         request.body(AGGREGATION_QUERY_EXTRACTOR)
             .flatMapMany { query ->
-                queryGateway.aggregate(rewriteRequestFilter.rewrite(aggregateMetadata, request, query))
+                val scope = queryRequestScope.resolve(aggregateMetadata, request)
+                guard.flux(QueryType.AGGREGATION, query, request, scope) { queryGateway.aggregate(query) }
+                    .contextWrite { it.withQueryScope(scope) }
             }
             .writeRawRequest(request)
             .toServerResponse(request, exceptionHandler)
@@ -46,8 +52,9 @@ class EventStreamAggregationHandlerFunction(
 
 class EventStreamAggregationHandlerFunctionFactory(
     private val eventStreamQueryGateway: (AggregateMetadata<*, *>) -> EventStreamQueryGateway,
-    private val rewriteRequestFilter: RewriteRequestFilter,
+    private val queryRequestScope: QueryRequestScope,
     private val exceptionHandler: RequestExceptionHandler,
+    private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.AGGREGATION) {
     override fun create(
         contract: HttpRouteContract,
@@ -57,8 +64,9 @@ class EventStreamAggregationHandlerFunctionFactory(
         return EventStreamAggregationHandlerFunction(
             aggregateMetadata = aggregateMetadata,
             queryGateway = eventStreamQueryGateway(aggregateMetadata),
-            rewriteRequestFilter = rewriteRequestFilter,
+            queryRequestScope = queryRequestScope,
             exceptionHandler = exceptionHandler,
+            guard = guard,
         )
     }
 }

@@ -18,17 +18,20 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.toStateDocument
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.query.HttpQueryGuard
 import me.ahoo.wow.webflux.route.query.ListQueryHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
+import me.ahoo.wow.webflux.route.query.QueryRequestScope
 
 class ListQuerySnapshotStateHandlerFunctionFactory(
     snapshotQueryGateway: (AggregateMetadata<*, *>) -> SnapshotQueryGateway<Any>,
-    rewriteRequestFilter: RewriteRequestFilter,
-    exceptionHandler: RequestExceptionHandler
+    queryRequestScope: QueryRequestScope,
+    exceptionHandler: RequestExceptionHandler,
+    guard: HttpQueryGuard = HttpQueryGuard(),
 ) : ListQueryHandlerFunctionFactory(
     handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY_STATE,
     queryGateway = snapshotQueryGateway,
-    rewriteRequestFilter = rewriteRequestFilter,
+    queryRequestScope = queryRequestScope,
     exceptionHandler = exceptionHandler,
+    guard = guard,
     rewriteResult = { it.toStateDocument() }
 )

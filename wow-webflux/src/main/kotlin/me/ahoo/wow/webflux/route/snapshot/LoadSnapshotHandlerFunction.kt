@@ -13,19 +13,26 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
-import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.dsl.filter
+import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getOwnerId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
+import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
+import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import me.ahoo.wow.webflux.route.toServerResponse
 import me.ahoo.wow.webflux.route.writeRawRequest
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -36,23 +43,25 @@ import reactor.core.publisher.Mono
 class LoadSnapshotHandlerFunction(
     private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     private val snapshotQueryGateway: SnapshotQueryGateway<Any>,
-    private val exceptionHandler: RequestExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler,
+    private val queryRequestScope: QueryRequestScope = DefaultQueryRequestScope,
+    private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
     private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
         val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.owner))
         val ownerId = request.getOwnerId()
-        val singleQuery = singleQuery {
-            filter {
-                tenantId(tenantId)
-                id(id)
-                if (!ownerId.isNullOrBlank()) {
-                    ownerId(ownerId)
-                }
+        val scope = filter {
+            tenantId(tenantId)
+            id(id)
+            if (!ownerId.isNullOrBlank()) {
+                ownerId(ownerId)
             }
-        }
-        return snapshotQueryGateway.dynamicSingle(singleQuery)
+        }.appendFilter(queryRequestScope.resolve(aggregateMetadata, request))
+        val singleQuery = SingleQuery(MatchAllFilter)
+        return guard.mono(QueryType.SINGLE, singleQuery, scope) { snapshotQueryGateway.dynamicSingle(singleQuery) }
+            .contextWrite { it.withQueryScope(scope) }
             .writeRawRequest(request)
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)
@@ -61,7 +70,9 @@ class LoadSnapshotHandlerFunction(
 
 class LoadSnapshotHandlerFunctionFactory(
     private val snapshotQueryGateway: (AggregateMetadata<*, *>) -> SnapshotQueryGateway<Any>,
-    private val exceptionHandler: RequestExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler,
+    private val queryRequestScope: QueryRequestScope = DefaultQueryRequestScope,
+    private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.LOAD) {
     override fun create(
         contract: HttpRouteContract,
@@ -75,6 +86,8 @@ class LoadSnapshotHandlerFunctionFactory(
             aggregateRouteMetadata,
             snapshotQueryGateway(aggregateRouteMetadata.aggregateMetadata),
             exceptionHandler,
+            queryRequestScope,
+            guard,
         )
     }
 }

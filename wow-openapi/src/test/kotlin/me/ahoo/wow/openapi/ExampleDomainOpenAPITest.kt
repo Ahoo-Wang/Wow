@@ -298,9 +298,26 @@ internal class ExampleDomainOpenAPITest {
         }
 
         @Test
+        fun `query metadata should expose recursive value definitions`() {
+            val rootRef = "#/components/schemas/wow.api.query.QueryValueSchemaMetadata"
+            openAPI.components.schemas.getValue("wow.api.query.QueryModelSchemaMetadata")
+                .properties.getValue("root").`$ref`.assert().isEqualTo(rootRef)
+            val value = openAPI.components.schemas.getValue("wow.api.query.QueryValueSchemaMetadata")
+            value.properties.keys.assert().contains(
+                "kind",
+                "properties",
+                "items",
+                "additionalProperties",
+                "alternatives"
+            )
+                .doesNotContain("dynamicChildren", "physicalPath", "storageTypes")
+            value.properties.getValue("alternatives").items.`$ref`.assert().isEqualTo(rootRef)
+        }
+
+        @Test
         fun `query schema enum values should accept any JSON value`() {
             val enumValues = openAPI.components.schemas
-                .getValue("wow.api.query.QueryFieldSchemaMetadata")
+                .getValue("wow.api.query.QueryValueSchemaMetadata")
                 .properties.getValue("enumValues")
             val arraySchema = enumValues.anyOf.single { it.types?.contains("array") == true }
             val itemRef = requireNotNull(arraySchema.items.`$ref`)
@@ -340,7 +357,7 @@ internal class ExampleDomainOpenAPITest {
 
             val baseRef = "#/components/schemas/wow.api.query.QuerySemanticType"
             val metadataSemanticType = openAPI.components.schemas
-                .getValue("wow.api.query.QueryFieldSchemaMetadata")
+                .getValue("wow.api.query.QueryValueSchemaMetadata")
                 .properties.getValue("semanticType")
             metadataSemanticType.anyOf.assert().hasSize(2)
             metadataSemanticType.anyOf.mapNotNull { it.`$ref` }.assert().containsExactly(baseRef)

@@ -26,7 +26,6 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.event.AbstractEventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -67,12 +66,12 @@ private class UnavailableEventStreamQueryBackend(namedAggregate: NamedAggregate)
 private abstract class UnavailableQueryBackend(
     final override val namedAggregate: NamedAggregate,
 ) : QueryBackend {
-    override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> = unavailableMono()
-    override fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode> = unavailableFlux()
-    override fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = unavailableMono()
-    override fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> = unavailableMono()
-    override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = unavailableMono()
-    override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> = unavailableFlux()
+    override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> = unavailableMono()
+    override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = unavailableFlux()
+    override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> = unavailableMono()
+    override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> = unavailableMono()
+    override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = unavailableMono()
+    override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = unavailableFlux()
 
     private fun <T : Any> unavailableMono(): Mono<T> = Mono.error(unavailable())
     private fun <T : Any> unavailableFlux(): Flux<T> = Flux.error(unavailable())

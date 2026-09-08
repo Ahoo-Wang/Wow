@@ -81,6 +81,7 @@ internal class ElasticsearchQueryPager(
             val request = SearchRequest.of {
                 it.query(query)
                     .size(pageSize)
+                    .allowPartialSearchResults(false)
                     .trackTotalHits { trackHits -> trackHits.enabled(false) }
                     .pit { pitBuilder ->
                         pitBuilder.id(pit.id)
@@ -98,6 +99,7 @@ internal class ElasticsearchQueryPager(
             elasticsearchClient.search(request, ObjectNode::class.java)
         }.map { response ->
             pit.update(response.pitId())
+            response.requireComplete()
             val hits = response.hits().hits()
             val totalFetched = fetched + hits.size
             val hasNextPage = hits.size == pageSize && (limit == 0 || totalFetched < limit.toLong())

@@ -7,6 +7,8 @@ description: 用六个业务场景说明事件流根文档与展开事件的 JVM
 
 事件流聚合同时支持 JVM `EventStreamQueryGateway` 与 WebFlux HTTP/OpenAPI。当前没有 EventStream API Client；HTTP 调用直接使用公共 `AggregationQuery` JSON 合同。
 
+数值 `FIELD` 与算术叶子按[数值参与值与精度](./aggregation-query.md#numeric-contributions)读取：每条当前记录忽略 null 后恰有一个存储数值才贡献值，重复项计为多个；COUNT 仍统计记录。该规则保留 singleton 数组支持，不改变直方图分桶合同。
+
 ## 能力与入口
 
 - **JVM Gateway**：`EventStreamQueryGateway.aggregate(namedAggregate, query)` 通过策略链执行聚合。
@@ -15,7 +17,7 @@ description: 用六个业务场景说明事件流根文档与展开事件的 JVM
 - **Schema HTTP**：`GET /sales-order/event/schema` 与 `POST /sales-order/event/schema/refresh` 是独立的模型级路由，没有 tenant/owner 变体。
 - **公共合同**：Elements、group、metric、alias、排序与限制见[聚合查询](./aggregation-query.md)，根过滤的 Kotlin DSL 见[过滤条件](./filter-expression.md)，字段能力以 [Query Model Schema（当前说明）](./query-model-schema.md)为准。
 
-HTTP handler 严格解码请求后，`RewriteRequestFilter` 会依据 aggregate metadata、路径变量以及 `Command-Tenant-Id`、`Command-Owner-Id`、`Wow-Space-Id` 请求头合并 tenant/owner/space scope，再进入 `EventStreamQueryGateway`；Gateway 策略链先执行 HTTP guard，再调用装配时绑定的 Backend，由 Schema resolver 校验并解析查询后聚合。响应可按 `Accept` 协商 JSON 数组或 SSE。JVM 聚合返回 `Flux<ObjectNode>`；下面的结果只是代表性节点行，不是固定业务数据。
+HTTP Handler 严格解码请求，用 `QueryRequestScope` 解析 tenant/owner/space 并写入 Reactor Context，由独立 `HttpQueryGuard` 执行 HTTP 成本与响应限制。EventStream Gateway 随后执行 prepare、scope 合并与最终公共校验，再把逻辑 Query 和同一 Schema 交给 Backend 聚合。它不自动应用 Snapshot ABAC policy。响应按 Accept 协商 JSON 数组或 SSE；JVM 返回 `Flux<ObjectNode>`。以下只是代表性节点行。
 
 ## 根文档、body 与统计单位
 

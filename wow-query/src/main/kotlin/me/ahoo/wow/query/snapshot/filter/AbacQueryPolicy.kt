@@ -17,21 +17,16 @@ import me.ahoo.wow.api.abac.AbacTagKey
 import me.ahoo.wow.api.abac.AbacTagValue
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.wildcard
-import me.ahoo.wow.api.annotation.ORDER_FIRST
-import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.serialization.state.StateAggregateRecords.TAGS
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.util.context.ContextView
 
 /**
- * Filters snapshot queries using attribute-based access control (ABAC).
+ * Resolves terminal snapshot access conditions using attribute-based access control (ABAC).
  *
  * Principal tags from the current context are converted into query conditions and
  * appended to snapshot queries.
@@ -45,11 +40,8 @@ import reactor.util.context.ContextView
  * | `["a", "b"]` | `["c"]` | no match |
  * | any | key absent | match (public resource) |
  *
- * @see SnapshotQueryFilter
  */
-@Order(ORDER_FIRST + 1)
-@FilterType(SnapshotQueryGateway::class)
-abstract class AbacQueryFilter : SnapshotQueryFilter {
+abstract class AbacQueryPolicy {
     companion object {
         /**
          * Converts one principal tag into a nested query condition.
@@ -101,7 +93,7 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
      * @param context the query context used to resolve tag sources
      * @return the principal tag map
      */
-    abstract fun getPrincipalTags(contextView: ContextView, context: QueryContext<*, *>): Mono<AbacTags>
+    abstract fun getPrincipalTags(contextView: ContextView, context: QueryContext<*>): Mono<AbacTags>
 
     /**
      * Resolves the ABAC condition for the current context.
@@ -112,23 +104,8 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
      */
     open fun resolveFilter(
         contextView: ContextView,
-        context: QueryContext<*, *>
+        context: QueryContext<*>
     ): Mono<FilterExpression> = getPrincipalTags(contextView, context)
         .map { it.toFilterExpression() }
         .switchIfEmpty(MatchAllFilter.toMono())
-
-    override fun filter(
-        context: QueryContext<*, *>,
-        next: FilterChain<QueryContext<*, *>>
-    ): Mono<Void> {
-        return Mono.deferContextual { contextView ->
-            resolveFilter(contextView, context).flatMap { abacFilter ->
-                if (abacFilter === MatchAllFilter) {
-                    return@flatMap next.filter(context)
-                }
-                context.appendFilter(abacFilter)
-                next.filter(context)
-            }
-        }
-    }
 }

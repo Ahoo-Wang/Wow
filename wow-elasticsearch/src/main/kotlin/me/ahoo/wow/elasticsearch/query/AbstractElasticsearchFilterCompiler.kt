@@ -36,28 +36,33 @@ import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.physicalField
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
+import java.time.Instant
 
 abstract class AbstractElasticsearchFilterCompiler(
-    defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
     private val documentIdField: String? = null,
 ) {
-    private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
+    private val filterNormalizer = FilterNormalizer()
 
-    fun compile(filter: FilterExpression, schema: QueryModelSchema): Query =
-        compileNormalized(filterNormalizer.normalize(filter), schema, FilterScope())
+    fun compile(filter: FilterExpression, schema: QueryModelSchema): Query = compile(filter, schema, Instant.now())
+
+    internal fun compile(filter: FilterExpression, schema: QueryModelSchema, now: Instant): Query =
+        compileNormalized(filterNormalizer.normalize(filter, schema, now = now), schema, FilterScope())
 
     internal fun compileScoped(
         filter: FilterExpression,
         schema: QueryModelSchema,
         logicalParent: QueryField,
-        resolvedParent: QueryField,
         physicalParent: QueryField,
+        now: Instant,
     ): Query = compileNormalized(
-        filterNormalizer.normalize(filter),
+        filterNormalizer.normalize(filter, schema, logicalParent, now),
         schema,
-        FilterScope(logicalParent, resolvedParent, physicalParent),
+        FilterScope(logicalParent, physicalParent),
     )
 
     internal fun compilePhysical(filter: FilterExpression, parent: String? = null): Query =
@@ -69,7 +74,6 @@ abstract class AbstractElasticsearchFilterCompiler(
 
     private data class FilterScope(
         val logicalParent: QueryField? = null,
-        val resolvedParent: QueryField? = null,
         val physicalParent: QueryField? = null,
     )
 
@@ -204,21 +208,23 @@ abstract class AbstractElasticsearchFilterCompiler(
         is ElementMatchFilter -> nested {
             val nestedPath = filter.field.path(schema, QueryCapability.ELEMENT_SCOPE, scope)
             val nestedScope = FilterScope(
-                logicalParent = filter.field.absoluteTo(scope.logicalParent),
-                resolvedParent = filter.field.absoluteTo(scope.resolvedParent),
+                logicalParent = scope.logicalParent?.append(filter.field) ?: filter.field,
                 physicalParent = QueryField(nestedPath),
             )
             it.path(nestedPath).query(compileNormalized(filter.predicate, schema, nestedScope))
         }
         is SearchFilter -> multiMatch {
             it.query(filter.query)
+            val capability = when (filter.mode) {
+                SearchMode.TERMS -> QueryCapability.FULL_TEXT_TERMS
+                SearchMode.PHRASE -> QueryCapability.FULL_TEXT_PHRASE
+            }
             if (filter.fields.isEmpty()) {
+                if (schema != null && !schema.supports(capability)) {
+                    throw QuerySchemaValidationException("Model does not support [$capability].")
+                }
                 it.lenient(true)
             } else {
-                val capability = when (filter.mode) {
-                    SearchMode.TERMS -> QueryCapability.FULL_TEXT_TERMS
-                    SearchMode.PHRASE -> QueryCapability.FULL_TEXT_PHRASE
-                }
                 it.fields(filter.fields.map { field -> field.path(schema, capability, scope) })
             }
             if (filter.mode == SearchMode.PHRASE) it.type(TextQueryType.Phrase)
@@ -249,14 +255,11 @@ abstract class AbstractElasticsearchFilterCompiler(
         scope: FilterScope,
     ): String {
         if (schema == null) return path(scope.physicalParent?.path)
-        val physicalField = schema.resolvePhysicalField(
-            this,
-            capability,
-            logicalParent = scope.logicalParent,
-            resolvedParent = scope.resolvedParent,
-            physicalParent = scope.physicalParent,
-        )
-        return scope.physicalParent?.append(physicalField)?.path ?: physicalField.path
+        val physicalField = schema.physicalField(this, capability, scope.logicalParent)
+        if (scope.physicalParent != null && physicalField.relativeTo(scope.physicalParent) == null) {
+            throw QuerySchemaValidationException("Physical field [$physicalField] is outside its nested scope.")
+        }
+        return physicalField.path
     }
 
     private fun QueryField.metadataPath(schema: QueryModelSchema?): String =
@@ -296,16 +299,35 @@ abstract class AbstractElasticsearchFilterCompiler(
         isBoolean -> booleanValue()
         isPojo -> (this as tools.jackson.databind.node.POJONode).pojo
         isArray -> asSequence().map { it.nativeValue() }.toList()
-        else -> error("Filter value must be a scalar, scalar array, or runtime POJO.")
+        else -> throw QuerySchemaValidationException("Elasticsearch filter operands must be scalar.")
     }
 
-    private fun tools.jackson.databind.JsonNode.requiredNativeValue(): Any =
-        requireNotNull(nativeValue()) { "Filter value must be non-null." }
+    private fun tools.jackson.databind.JsonNode.requiredNativeValue(): Any {
+        if (isPojo) {
+            return JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(nativeValue()).requiredNativeValue()
+        }
+        val value = requireNotNull(nativeValue()) { "Filter value must be non-null." }
+        val finite = when (value) {
+            is Double -> value.isFinite()
+            is Float -> value.isFinite()
+            else -> true
+        }
+        if (!finite) {
+            throw QuerySchemaValidationException("Elasticsearch numeric filter operands must be finite.")
+        }
+        if (value !is String && value !is Number && value !is Boolean) {
+            throw QuerySchemaValidationException("Elasticsearch filter operands must be scalar.")
+        }
+        return value
+    }
 
-    private fun tools.jackson.databind.JsonNode.fieldValue(): FieldValue = when {
-        isString -> FieldValue.of(asString())
-        isBoolean -> FieldValue.of(booleanValue())
-        else -> FieldValue.of(requiredNativeValue())
+    private fun tools.jackson.databind.JsonNode.fieldValue(): FieldValue {
+        val value = requiredNativeValue()
+        return when (value) {
+            is String -> FieldValue.of(value)
+            is Boolean -> FieldValue.of(value)
+            else -> FieldValue.of(value)
+        }
     }
 }
 

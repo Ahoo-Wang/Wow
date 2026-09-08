@@ -14,7 +14,6 @@
 package me.ahoo.wow.benchmark.query
 
 import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.QueryField
@@ -54,7 +53,6 @@ open class FilterNormalizerBenchmark {
     private val normalizer = FilterNormalizer(
         clock = Clock.fixed(Instant.parse("2026-08-31T00:00:00Z"), ZoneOffset.UTC),
         defaultZoneId = ZoneOffset.UTC,
-        defaultDeletionState = DeletionState.ACTIVE,
     )
     private lateinit var filter: FilterExpression
 

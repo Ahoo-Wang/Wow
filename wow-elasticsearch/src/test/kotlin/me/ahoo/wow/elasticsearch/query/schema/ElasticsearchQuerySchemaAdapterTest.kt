@@ -13,994 +13,613 @@
 
 package me.ahoo.wow.elasticsearch.query.schema
 
-import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping
-import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
-import co.elastic.clients.elasticsearch.indices.GetMappingRequest
-import co.elastic.clients.elasticsearch.indices.GetMappingResponse
-import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.AggregationGroup
-import me.ahoo.wow.api.query.AggregationMetric
-import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.ElementMatchFilter
-import me.ahoo.wow.api.query.EqualFilter
-import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.SearchFilter
-import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
-import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
-import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
-import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
-import me.ahoo.wow.query.schema.BeanQuerySchemaSource
-import me.ahoo.wow.query.schema.DeclarationValue
-import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
-import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
 import me.ahoo.wow.query.schema.LogicalQuerySchema
-import me.ahoo.wow.query.schema.MaskRule
-import me.ahoo.wow.query.schema.QueryFieldDeclaration
-import me.ahoo.wow.query.schema.QueryRewriteMode
-import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.query.schema.QuerySchemaDeclaration
-import me.ahoo.wow.query.schema.QuerySchemaRegistration
-import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.physicalField
+import me.ahoo.wow.query.schema.validateQuery
 import org.junit.jupiter.api.Test
-import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
-import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
-import reactor.core.publisher.Mono
-import reactor.kotlin.test.test
-import tools.jackson.databind.node.IntNode
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.TimeUnit
-import kotlin.reflect.jvm.javaField
 
-@Suppress("LargeClass")
 class ElasticsearchQuerySchemaAdapterTest {
     @Test
-    fun `binding should retain a logical mask rule and reject every physical multi-field`() {
-        val secret = QueryField("state.secret")
-        val rule = fullMaskRule()
+    fun `multifields are native bindings and never logical names`() {
+        val definition = logical("name" to scalar(QueryValueType.STRING))
+        val schema = bind(
+            definition,
+            TypeMapping.of { mapping ->
+                mapping.properties("name") { it.text { text -> text.fields("keyword") { it.keyword { it } } } }
+            }
+        )
+        schema.definition.assert().isSameAs(definition)
+        schema.root.assert().isSameAs(definition.root)
+        schema.path("name", QueryCapability.EXACT_MATCH).assert().isEqualTo("name.keyword")
+        schema.path("name", QueryCapability.FULL_TEXT_TERMS).assert().isEqualTo("name")
+        schema.path("name", QueryCapability.CURSOR_SORT).assert().isEqualTo("name.keyword")
+        schema.field(QueryField("name"))!!.projectionField.assert().isEqualTo(QueryField("name"))
+        schema.field(QueryField("name.keyword")).assert().isNull()
+    }
 
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            LogicalQuerySchema(mapOf(secret to field(QueryValueType.STRING, maskRule = rule))),
-            ElasticsearchIndexMapping.from(
-                INDEX,
-                TypeMapping.of { mapping ->
-                    mapping.properties(secret.path) { property ->
-                        property.text { text ->
-                            text.fields("keyword") { it.keyword { keyword -> keyword } }
-                                .fields("raw") { it.keyword { keyword -> keyword } }
+    @Test
+    fun `two map keys specialize only observed mappings without widening the declaration`() {
+        val text = scalar(QueryValueType.STRING)
+        val definition = logical("names" to objectValue(additional = objectValue(additional = text)))
+        val schema = bind(
+            definition,
+            TypeMapping.of { mapping ->
+                mapping.properties("names") {
+                    it.`object` { names ->
+                        names.properties("en") {
+                            it.`object` { en ->
+                                en.properties(
+                                    "primary"
+                                ) { it.text { text -> text.fields("keyword") { it.keyword { it } } } }
+                            }
                         }
                     }
-                },
-            ),
-        )
-
-        schema.fields.getValue(secret).masked.assert().isTrue()
-        val query = AggregationQuery(
-            groupBy = listOf(AggregationGroup.Terms(QueryField("${secret.path}.raw"), "secret")),
-            metrics = listOf(AggregationMetric.Count("count")),
-        )
-        schema.resolve(query).compatibility.assert()
-            .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
-    }
-
-    @Test
-    fun `event stream schema should retain model and nested body capability`() {
-        val body = QueryField("body")
-        val name = QueryField("body.name")
-        val logical = LogicalQuerySchema(
-            linkedMapOf(
-                body to field(QueryValueType.OBJECT, QueryCardinality.MANY),
-                name to field(QueryValueType.STRING),
-            ),
-        )
-        val mapping = TypeMapping.of { type ->
-            type.properties("body") { property ->
-                property.nested { nested ->
-                    nested.properties("name") { it.keyword { keyword -> keyword } }
                 }
             }
-        }
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logical,
-            ElasticsearchIndexMapping.from(INDEX, mapping),
-            QueryModel.EVENT_STREAM,
         )
-
-        schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
-        schema.fields.getValue(body).let { fieldSchema ->
-            fieldSchema.bindings.assert().containsKey(QueryCapability.ELEMENT_SCOPE)
-            fieldSchema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
-        }
-        schema.fields.getValue(name).bindings.assert().containsKey(QueryCapability.AGGREGATE_TERMS)
-        schema.rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
+        schema.path("names.en.primary", QueryCapability.EXACT_MATCH).assert().isEqualTo("names.en.primary.keyword")
+        schema.path("names.en.primary", QueryCapability.SORT).assert().isEqualTo("names.en.primary.keyword")
+        schema.field(
+            QueryField("names.en.primary")
+        )!!.projectionField.assert().isEqualTo(QueryField("names.en.primary"))
+        schema.field(QueryField("names.fr.primary"))!!.bindings.assert().isEmpty()
+        schema.field(QueryField("names.fr.primary"))!!.responseField.assert().isEqualTo(QueryField("names.fr.primary"))
+        schema.field(QueryField("names.en.primary.keyword")).assert().isNull()
+        schema.field(QueryField("names"))!!.bindings.assert().isEmpty()
+        definition.root.properties.getValue("names").properties.assert().isEmpty()
     }
 
     @Test
-    fun `nested descendants should infer relative rewrites from absolute predicates`() {
-        val items = QueryField("state.items")
-        val quantity = QueryField("state.items.quantity")
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            LogicalQuerySchema(
-                linkedMapOf(
-                    items to field(QueryValueType.OBJECT, QueryCardinality.MANY),
-                    quantity to field(QueryValueType.INTEGER),
-                ),
+    fun `known map keys preserve named declaration overrides instead of widening the default`() {
+        val definition = logical(
+            "names" to objectValue(
+                properties = mapOf("en" to objectValue(additional = scalar(QueryValueType.INTEGER))),
+                additional = objectValue(additional = scalar(QueryValueType.STRING)),
+            )
+        )
+        val schema = bind(
+            definition,
+            TypeMapping.of {
+                it.properties("names.en.primary") { it.text { text -> text.fields("keyword") { it.keyword { it } } } }
+            }
+        )
+        val field = schema.field(QueryField("names.en.primary"))!!
+        field.value.valueTypes.assert().isEqualTo(setOf(QueryValueType.INTEGER))
+        field.bindings.assert().doesNotContainKey(QueryCapability.EXACT_MATCH)
+        field.projectionField.assert().isEqualTo(QueryField("names.en.primary"))
+    }
+
+    @Test
+    fun `array members have scalar operations but no cursor or primitive element scope`() {
+        val schema = bind(
+            logical("scores" to array(scalar(QueryValueType.INTEGER))),
+            TypeMapping.of {
+                it.properties("scores") { it.long_ { it } }
+            }
+        )
+        schema.path("scores", QueryCapability.EXACT_MATCH).assert().isEqualTo("scores")
+        schema.path("scores", QueryCapability.RANGE).assert().isEqualTo("scores")
+        schema.field(QueryField("scores"))!!.bindings.assert()
+            .doesNotContainKey(QueryCapability.CURSOR_SORT).doesNotContainKey(QueryCapability.ELEMENT_SCOPE)
+        schema.field(QueryField("scores"))!!.value.valueTypes.assert().isEmpty()
+    }
+
+    @Test
+    fun `array of arrays never gains scalar or element operations`() {
+        val schema = bind(
+            logical("scores" to array(array(scalar(QueryValueType.INTEGER)))),
+            TypeMapping.of {
+                it.properties("scores") { it.long_ { it } }
+            }
+        )
+        schema.field(QueryField("scores"))!!.bindings.assert().doesNotContainKey(QueryCapability.EXACT_MATCH)
+        schema.field(QueryField("scores"))!!.bindings.assert().doesNotContainKey(QueryCapability.ELEMENT_SCOPE)
+    }
+
+    @Test
+    fun `union requires native support for every value branch`() {
+        val schema = bind(
+            logical(
+                "amount" to union(scalar(QueryValueType.INTEGER), scalar(QueryValueType.DECIMAL)),
+                "uncertain" to union(scalar(QueryValueType.INTEGER), QueryValueSchema(QueryValueKind.UNKNOWN)),
             ),
-            ElasticsearchIndexMapping.from(
-                INDEX,
-                TypeMapping.of { type ->
-                    type.properties(items.path) { property ->
-                        property.nested { nested ->
-                            nested.properties("quantity") { it.integer { integer -> integer } }
-                        }
+            TypeMapping.of {
+                it.properties("amount") { it.double_ { it } }.properties("uncertain") { it.long_ { it } }
+            }
+        )
+        // A double mapping cannot promise exact storage for the complete integer domain.
+        schema.field(QueryField("uncertain"))!!.bindings.assert().doesNotContainKey(QueryCapability.EXACT_MATCH)
+        schema.field(QueryField("amount"))!!.projectionField.assert().isEqualTo(QueryField("amount"))
+    }
+
+    @Test
+    fun `nested descendants retain relative logical scope and reject root access`() {
+        val schema = bind(
+            logical("orders" to array(objectValue(mapOf("price" to scalar(QueryValueType.INTEGER))))),
+            TypeMapping.of {
+                it.properties("orders") {
+                    it.nested { nested ->
+                        nested.properties("price") { it.long_ { it } }
                     }
-                },
-            ),
-        )
-        val filter = ElementMatchFilter(items, EqualFilter(quantity, IntNode.valueOf(10)))
-
-        schema.fields.getValue(quantity).rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
-        val resolved = schema.resolve(filter).value as ElementMatchFilter
-        (resolved.predicate as EqualFilter).field.assert().isEqualTo(QueryField("quantity"))
-    }
-
-    @Test
-    fun `nested-only search fields should not advertise root model search`() {
-        val child = QueryField("state.orders.note")
-        val logical = LogicalQuerySchema(
-            linkedMapOf(
-                QueryField("state.orders") to field(QueryValueType.OBJECT, QueryCardinality.MANY),
-                child to field(QueryValueType.STRING),
-            ),
-        )
-        val mapping = TypeMapping.of { type ->
-            type.properties("state.orders") { orders ->
-                orders.nested { nested ->
-                    nested.properties("note") { note -> note.text { it } }
                 }
             }
-        }
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logical,
-            ElasticsearchIndexMapping.from(INDEX, mapping),
         )
-
-        schema.capabilities.assert()
-            .doesNotContain(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
-        schema.fields.getValue(child).bindings.assert().containsKey(QueryCapability.FULL_TEXT_TERMS)
-        schema.resolve(SearchFilter("note")).compatibility.assert()
-            .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        schema.path("orders", QueryCapability.ELEMENT_SCOPE).assert().isEqualTo("orders")
+        schema.physicalField(QueryField("price"), QueryCapability.RANGE, QueryField("orders"))
+            .assert().isEqualTo(QueryField("orders.price"))
+        assertThrows<QuerySchemaValidationException> {
+            schema.physicalField(QueryField("orders.price"), QueryCapability.RANGE)
+        }
+        schema.field(QueryField("orders.price"))!!.bindings.assert().doesNotContainKey(QueryCapability.CURSOR_SORT)
+        val pricePath = me.ahoo.wow.query.schema.QueryPathTemplate(
+            listOf(
+                me.ahoo.wow.query.schema.QueryPathSegment.Property("orders"),
+                me.ahoo.wow.query.schema.QueryPathSegment.Item,
+                me.ahoo.wow.query.schema.QueryPathSegment.Property("price"),
+            )
+        )
+        schema.bindings.getValue(pricePath).responsePath.assert().isEqualTo(pricePath)
     }
 
     @Test
-    fun `declared flattened string descendants should support exact matching and projection`() {
-        val field = QueryField("state.labels.color")
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            LogicalQuerySchema(mapOf(field to field(QueryValueType.STRING))),
-            ElasticsearchIndexMapping.from(
-                INDEX,
-                TypeMapping.of { mapping ->
-                    mapping.properties("state.labels") { labels -> labels.flattened { it } }
-                },
+    fun `object mapping cannot support nested element scope`() {
+        val schema = bind(
+            logical("orders" to array(objectValue(mapOf("price" to scalar(QueryValueType.INTEGER))))),
+            TypeMapping.of {
+                it.properties("orders") {
+                    it.`object` { nested ->
+                        nested.properties("price") { it.long_ { it } }
+                    }
+                }
+            }
+        )
+        schema.field(QueryField("orders"))!!.bindings.assert().doesNotContainKey(QueryCapability.ELEMENT_SCOPE)
+    }
+
+    @Test
+    fun `alias cursor identity uses real target and array target cannot sort cursors`() {
+        val schema = bind(
+            logical(
+                "tags" to array(scalar(QueryValueType.STRING)),
+                "tagAlias" to scalar(QueryValueType.STRING),
+                "code" to scalar(QueryValueType.STRING),
+                "codeAlias" to scalar(QueryValueType.STRING),
             ),
+            TypeMapping.of {
+                it.properties("tags") { it.keyword { it } }.properties("tagAlias") { it.alias { it.path("tags") } }
+                    .properties("code") { it.keyword { it } }.properties("codeAlias") { it.alias { it.path("code") } }
+            }
         )
-
-        schema.binding(field.path, QueryCapability.EXACT_MATCH).assertPath(field.path, "flattened")
-        val projection = Projection(include = listOf(field))
-        schema.resolve(ListQuery(MatchAllFilter, projection = projection)).let { resolved ->
-            resolved.value.projection.assert().isSameAs(projection)
-            resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
-        }
+        schema.field(QueryField("tagAlias"))!!.bindings.assert().doesNotContainKey(QueryCapability.CURSOR_SORT)
+        schema.path("codeAlias", QueryCapability.CURSOR_SORT).assert().isEqualTo("code")
+        schema.field(QueryField("codeAlias"))!!.projectionField.assert().isEqualTo(QueryField("code"))
     }
 
     @Test
-    fun `declared unmapped source fields should retain projection while runtime fields do not`() {
-        val source = QueryField("state.opaque.name")
-        val runtime = QueryField("state.runtimeCode")
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            LogicalQuerySchema(
-                linkedMapOf(
-                    source to field(QueryValueType.STRING),
-                    runtime to field(QueryValueType.STRING),
+    fun `runtime field has native capability without source`() {
+        val schema = bind(
+            logical("rank" to scalar(QueryValueType.INTEGER)),
+            TypeMapping.of {
+                it.runtime("rank") { it.type(RuntimeFieldType.Long) }
+            }
+        )
+        schema.path("rank", QueryCapability.RANGE).assert().isEqualTo("rank")
+        schema.field(QueryField("rank"))!!.projectionField.assert().isNull()
+    }
+
+    @Test
+    fun `temporal array binds items semantic without copying it to container`() {
+        val items = QueryValueSchema(
+            QueryValueKind.SCALAR,
+            valueTypes = setOf(QueryValueType.INTEGER),
+            semanticType = Temporal.Epoch(TimeUnit.SECONDS)
+        )
+        val schema =
+            bind(logical("times" to array(items)), TypeMapping.of { it.properties("times") { it.long_ { it } } })
+        schema.path("times", QueryCapability.RANGE).assert().isEqualTo("times")
+        schema.field(QueryField("times"))!!.value.semanticType.assert().isNull()
+        schema.field(QueryField("times"))!!.value.items.assert().isSameAs(items)
+    }
+
+    @Test
+    fun `unindexed keyword keeps doc value operations while literal and text require indexing`() {
+        val schema =
+            bind(
+                logical("code" to scalar(QueryValueType.STRING), "text" to scalar(QueryValueType.STRING)),
+                TypeMapping.of {
+                    it.properties(
+                        "code"
+                    ) { it.keyword { it.index(false) } }.properties("text") { it.text { it.index(false) } }
+                }
+            )
+        schema.path("code", QueryCapability.EXACT_MATCH).assert().isEqualTo("code")
+        schema.path("code", QueryCapability.SORT).assert().isEqualTo("code")
+        schema.field(QueryField("code"))!!.bindings.assert().doesNotContainKey(QueryCapability.LITERAL_MATCH)
+        schema.field(QueryField("text"))!!.bindings.assert().doesNotContainKey(QueryCapability.FULL_TEXT_TERMS)
+    }
+
+    @Test
+    fun `ambiguous keyword siblings do not pick an arbitrary native target`() {
+        val schema = bind(
+            logical("name" to scalar(QueryValueType.STRING)),
+            TypeMapping.of {
+                it.properties("name") {
+                    it.text { text ->
+                        text.fields("raw") { it.keyword { it } }.fields("normalized") { it.keyword { it } }
+                    }
+                }
+            }
+        )
+        schema.field(QueryField("name"))!!.bindings.assert().doesNotContainKey(QueryCapability.EXACT_MATCH)
+        schema.path("name", QueryCapability.FULL_TEXT_TERMS).assert().isEqualTo("name")
+    }
+
+    @Test
+    fun `nested only search does not imply root model search`() {
+        val schema =
+            bind(
+                logical("items" to array(objectValue(mapOf("name" to scalar(QueryValueType.STRING))))),
+                TypeMapping.of {
+                    it.properties("items") { it.nested { it.properties("name") { it.text { it } } } }
+                }
+            )
+        schema.capabilities.assert().doesNotContain(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
+        schema.path("items.name", QueryCapability.FULL_TEXT_TERMS).assert().isEqualTo("items.name")
+    }
+
+    @Test
+    fun `metadata capabilities require explicit logical declaration and never include cursor`() {
+        val schema =
+            bind(
+                logical("_score" to scalar(QueryValueType.DECIMAL), "_id" to scalar(QueryValueType.STRING)),
+                TypeMapping.of { it }
+            )
+        schema.path("_score", QueryCapability.SORT).assert().isEqualTo("_score")
+        schema.field(QueryField("_score"))!!.bindings.assert().doesNotContainKey(QueryCapability.CURSOR_SORT)
+        schema.field(QueryField("_score"))!!.projectionField.assert().isNull()
+        schema.path("_id", QueryCapability.EXACT_MATCH).assert().isEqualTo("_id")
+    }
+
+    @Test
+    fun `explicit flattened descendant retains native string exact matching`() {
+        val schema =
+            bind(
+                logical("labels" to objectValue(mapOf("color" to scalar(QueryValueType.STRING)))),
+                TypeMapping.of {
+                    it.properties("labels") { it.flattened { it } }
+                }
+            )
+        schema.path("labels.color", QueryCapability.EXACT_MATCH).assert().isEqualTo("labels.color")
+        schema.field(QueryField("labels"))!!.bindings.assert().doesNotContainKey(QueryCapability.EXACT_MATCH)
+    }
+
+    @Test
+    fun `mask declarations do not trim native capabilities`() {
+        val annotation = ProtectedValue::class.java.getDeclaredField("secret")
+            .getAnnotation(me.ahoo.wow.api.query.mask.Mask::class.java)
+        val rule = me.ahoo.wow.query.schema.MaskRule(
+            me.ahoo.wow.api.query.mask.FullMaskStrategy::class,
+            annotation,
+            me.ahoo.wow.api.query.mask.FullMaskStrategy.compile(annotation)
+        )
+        val value = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING), maskRule = rule)
+        val schema =
+            bind(
+                logical("state" to objectValue(mapOf("secret" to value))),
+                TypeMapping.of {
+                    it.properties("state.secret") { it.keyword { it } }
+                }
+            )
+        schema.field(QueryField("state.secret"))!!.value.assert().isSameAs(value)
+        schema.path("state.secret", QueryCapability.CURSOR_SORT).assert().isEqualTo("state.secret")
+        schema.path("state.secret", QueryCapability.AGGREGATE_TERMS).assert().isEqualTo("state.secret")
+    }
+
+    private data class ProtectedValue(@field:me.ahoo.wow.api.query.mask.Mask val secret: String)
+
+    @Test
+    fun `primitive array members compile as scalar native predicates`() {
+        val schema = bind(
+            logical("scores" to array(scalar(QueryValueType.INTEGER))),
+            TypeMapping.of {
+                it.properties("scores") { it.long_ { it } }
+            }
+        )
+        val compiler = object : me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler() {}
+        val filter = me.ahoo.wow.api.query.EqualFilter(
+            QueryField("scores"),
+            tools.jackson.databind.node.IntNode.valueOf(3)
+        )
+        compiler.compile(filter, schema).term().field().assert().isEqualTo("scores")
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(
+                me.ahoo.wow.api.query.EqualFilter(
+                    QueryField("scores"),
+                    tools.jackson.databind.node.JsonNodeFactory.instance.arrayNode().add(3)
                 ),
-            ),
-            ElasticsearchIndexMapping.from(
-                INDEX,
-                TypeMapping.of { mapping ->
-                    mapping.properties("state.opaque") { it.`object` { field -> field.enabled(false) } }
-                        .runtime(runtime.path) { it.type(RuntimeFieldType.Keyword) }
-                },
-            ),
-        )
-
-        schema.fields.getValue(source).projectionField.assert().isEqualTo(source)
-        schema.fields.getValue(runtime).projectionField.assert().isNull()
-        schema.resolve(ListQuery(MatchAllFilter, projection = Projection(include = listOf(source))))
-            .compatibility.assert()
-            .isEqualTo(QueryCompatibilityLevel.EXACT)
+                schema
+            )
+        }
     }
 
     @Test
-    fun `projection should retain the source path when presence uses a multi-field`() {
-        val field = QueryField("state.name")
-        val logical = LogicalQuerySchema(mapOf(field to field(QueryValueType.STRING)))
-        val mapping = TypeMapping.of { type ->
-            type.properties(field.path) { property ->
-                property.text { text ->
-                    text.index(false).fields("keyword") { multiField -> multiField.keyword { it } }
+    fun `ignore above retracts native operations while preserving source and bounded enum proof`() {
+        val bounded = QueryValueSchema(
+            QueryValueKind.SCALAR,
+            valueTypes = setOf(QueryValueType.STRING),
+            enumValues = listOf(
+                tools.jackson.databind.node.JsonNodeFactory.instance.stringNode("yes"),
+                tools.jackson.databind.node.JsonNodeFactory.instance.stringNode("no")
+            )
+        )
+        val schema =
+            bind(
+                logical(
+                    "state" to objectValue(mapOf("unbounded" to scalar(QueryValueType.STRING), "bounded" to bounded))
+                ),
+                TypeMapping.of {
+                    it.properties("state.unbounded") { it.keyword { it.ignoreAbove(3) } }
+                        .properties("state.bounded") { it.keyword { it.ignoreAbove(3) } }
                 }
-            }
-        }
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logical,
-            ElasticsearchIndexMapping.from(INDEX, mapping),
-        )
-
-        schema.binding(field.path, QueryCapability.PRESENCE)
-            .assertPath("${field.path}.keyword", "keyword")
-        schema.fields.getValue(field).rewriteMode.assert().isEqualTo(QueryRewriteMode.REQUIRED)
-        val projection = Projection(include = listOf(field))
-        schema.resolve(ListQuery(MatchAllFilter, projection = projection)).let { resolved ->
-            resolved.value.projection.assert().isSameAs(projection)
-            resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
-        }
+            )
+        schema.field(QueryField("state.unbounded"))!!.bindings.assert().isEmpty()
+        schema.field(QueryField("state.unbounded"))!!.projectionField.assert().isEqualTo(QueryField("state.unbounded"))
+        schema.path("state.bounded", QueryCapability.EXACT_MATCH).assert().isEqualTo("state.bounded")
+        schema.path("state.bounded", QueryCapability.PRESENCE).assert().isEqualTo("state.bounded")
+        schema.path("state.bounded", QueryCapability.CURSOR_SORT).assert().isEqualTo("state.bounded")
     }
 
     @Test
-    fun `metadata sort fields should be exact backend bindings`() {
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            LogicalQuerySchema(emptyMap()),
-            ElasticsearchIndexMapping.from(INDEX, TypeMapping.of { it }),
+    fun `lossy known map values reject positive negative and access predicates before client io`() {
+        val client = io.mockk.mockk<org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient>()
+        val backend = me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackend(
+            me.ahoo.wow.modeling.MaterializedNamedAggregate("test", "lossy"),
+            client
         )
-        val sort = listOf("_score", "_doc", "_shard_doc").map { Sort(QueryField(it), Sort.Direction.ASC) }
-
-        schema.resolve(ListQuery(MatchAllFilter, sort = sort)).let { resolved ->
-            resolved.value.sort.assert().isSameAs(sort)
-            resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        val definition = logical(
+            "tags" to objectValue(additional = array(scalar(QueryValueType.STRING))),
+            "deleted" to scalar(QueryValueType.BOOLEAN)
+        )
+        val schema = bind(
+            definition,
+            TypeMapping.of {
+                it.properties("tags.department") { it.keyword { it.ignoreAbove(3) } }
+                    .properties("deleted") { it.boolean_ { it } }
+            }
+        )
+        val field = QueryField("tags.department")
+        val long = tools.jackson.databind.node.JsonNodeFactory.instance.stringNode("x".repeat(9000))
+        val access = with(me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy) {
+            mapOf("department" to listOf("eng")).toFilterExpression()
         }
         listOf(
-            EqualFilter(QueryField("_id"), tools.jackson.databind.node.StringNode.valueOf("id")),
-            InFilter(
-                QueryField("_id"),
-                listOf(tools.jackson.databind.node.StringNode.valueOf("id")),
-            ),
+            me.ahoo.wow.api.query.EqualFilter(field, long),
+            me.ahoo.wow.api.query.NotEqualFilter(field, long),
+            access
         ).forEach { filter ->
-            schema.resolve(filter).let { resolved ->
-                resolved.value.assert().isEqualTo(filter)
-                resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+            assertThrows<QuerySchemaValidationException> {
+                backend.list(ListQuery(filter = filter, limit = 0), schema)
+            }
+        }
+        io.mockk.verify(exactly = 0) {
+            client.search(
+                any<co.elastic.clients.elasticsearch.core.SearchRequest>(),
+                tools.jackson.databind.node.ObjectNode::class.java
+            )
+        }
+        io.mockk.verify(exactly = 0) {
+            client.openPointInTime(any<co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest>())
+        }
+    }
+
+    @Test
+    fun `nullable nested items preserve element scope but non object carriers do not`() {
+        val item = objectValue(mapOf("code" to scalar(QueryValueType.STRING)))
+        val mapping = TypeMapping.of {
+            it.properties("items") { it.nested { it.properties("code") { it.keyword { it } } } }
+        }
+        val nullable = bind(logical("items" to array(union(item, QueryValueSchema(QueryValueKind.NULL)))), mapping)
+        nullable.path("items", QueryCapability.ELEMENT_SCOPE).assert().isEqualTo("items")
+        nullable.path("items.code", QueryCapability.EXACT_MATCH).assert().isEqualTo("items.code")
+        listOf(scalar(QueryValueType.STRING), QueryValueSchema(QueryValueKind.UNKNOWN)).forEach { invalid ->
+            val schema = bind(logical("items" to array(union(item, invalid))), mapping)
+            schema.path("items", QueryCapability.ELEMENT_SCOPE).assert().isNull()
+            schema.path("items.code", QueryCapability.EXACT_MATCH).assert().isNull()
+        }
+    }
+
+    @Test
+    fun `disabled ancestors remove index capabilities while retaining source for aliases and multifields`() {
+        val definition = logical(
+            "obj" to objectValue(mapOf("code" to scalar(QueryValueType.STRING))),
+            "alias" to scalar(QueryValueType.STRING),
+        )
+        listOf(false, true).forEach { disableRoot ->
+            val schema = bind(
+                definition,
+                TypeMapping.of { root ->
+                    root.enabled(!disableRoot)
+                        .properties("obj") {
+                            it.`object` { obj ->
+                                obj.enabled(disableRoot).properties("code") {
+                                    it.keyword { keyword ->
+                                        keyword.fields("exact") { it.keyword { it } }
+                                    }
+                                }
+                            }
+                        }
+                        .properties("alias") { it.alias { it.path("obj.code") } }
+                }
+            )
+            listOf("obj.code", "alias").forEach { field ->
+                schema.field(QueryField(field))!!.bindings.assert().isEmpty()
+                schema.field(QueryField(field))!!.projectionField.assert().isEqualTo(QueryField("obj.code"))
             }
         }
     }
 
     @Test
-    fun `known scalar mappings should intersect with logical value types`() {
-        val logical = LogicalQuerySchema(
-            linkedMapOf(
-                QueryField("state.keywordInteger") to field(QueryValueType.INTEGER),
-                QueryField("state.numericString") to field(QueryValueType.STRING),
-                QueryField("state.floatingInteger") to field(QueryValueType.INTEGER),
-                QueryField("state.integer") to field(QueryValueType.INTEGER),
-                QueryField("state.decimal") to field(QueryValueType.DECIMAL),
-                QueryField("state.boolean") to field(QueryValueType.BOOLEAN),
-            ),
-        )
-        val mapping = TypeMapping.of { type ->
-            type.properties("state.keywordInteger") { it.keyword { keyword -> keyword } }
-                .properties("state.numericString") { it.long_ { number -> number } }
-                .properties("state.floatingInteger") { it.double_ { number -> number } }
-                .properties("state.integer") { it.long_ { number -> number } }
-                .properties("state.decimal") { it.double_ { number -> number } }
-                .properties("state.boolean") { it.boolean_ { boolean -> boolean } }
-        }
-
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logical,
-            ElasticsearchIndexMapping.from(INDEX, mapping),
-        )
-
-        schema.bindings("state.keywordInteger").assert().containsExactly(QueryCapability.PRESENCE)
-        schema.bindings("state.numericString").assert().containsExactly(QueryCapability.PRESENCE)
-        schema.bindings("state.floatingInteger").assert().containsExactly(QueryCapability.PRESENCE)
-        schema.bindings("state.integer").assert().contains(
-            QueryCapability.EXACT_MATCH,
-            QueryCapability.RANGE,
-            QueryCapability.SORT,
-            QueryCapability.AGGREGATE_TERMS,
-            QueryCapability.AGGREGATE_NUMERIC,
-        )
-        schema.bindings("state.decimal").assert().contains(
-            QueryCapability.EXACT_MATCH,
-            QueryCapability.RANGE,
-            QueryCapability.AGGREGATE_NUMERIC,
-        )
-        schema.bindings("state.boolean").assert().contains(
-            QueryCapability.EXACT_MATCH,
-            QueryCapability.SORT,
-            QueryCapability.AGGREGATE_TERMS,
-        )
-    }
-
-    @Test
-    fun `fielddata text should support terms aggregation`() {
-        val field = QueryField("state.category")
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            LogicalQuerySchema(mapOf(field to field(QueryValueType.STRING))),
-            ElasticsearchIndexMapping.from(
-                INDEX,
-                TypeMapping.of { mapping ->
-                    mapping.properties(field.path) { it.text { text -> text.fielddata(true) } }
-                },
-            ),
-        )
-
-        schema.binding(field.path, QueryCapability.AGGREGATE_TERMS).assertPath(field.path, "text")
-    }
-
-    @Test
-    fun `keyword ip and version mappings should support native string operations`() {
-        val keyword = QueryField("state.keyword")
-        val ip = QueryField("state.ip")
-        val version = QueryField("state.version")
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            LogicalQuerySchema(
-                linkedMapOf(
-                    keyword to field(QueryValueType.STRING),
-                    ip to field(QueryValueType.STRING),
-                    version to field(QueryValueType.STRING),
-                ),
-            ),
-            ElasticsearchIndexMapping.from(
-                INDEX,
-                TypeMapping.of { mapping ->
-                    mapping.properties(keyword.path) { it.keyword { field -> field } }
-                        .properties(ip.path) { it.ip { field -> field } }
-                        .properties(version.path) { it.version { field -> field } }
-                },
-            ),
-        )
-
-        listOf(keyword, ip, version).forEach { field ->
-            schema.bindings(field.path).assert().contains(
-                QueryCapability.EXACT_MATCH,
-                QueryCapability.SORT,
-                QueryCapability.AGGREGATE_TERMS,
-            )
-        }
-        listOf(keyword, ip).forEach { field ->
-            schema.bindings(field.path).assert().contains(QueryCapability.RANGE)
-        }
-    }
-
-    @Test
-    fun `mixed logical unions should not borrow a capability producer`() {
-        val logical = LogicalQuerySchema(
-            linkedMapOf(
-                QueryField("state.keyword") to field(QueryValueType.STRING).copy(
-                    valueTypes = setOf(QueryValueType.STRING, QueryValueType.INTEGER),
-                ),
-                QueryField("state.integer") to field(QueryValueType.STRING).copy(
-                    valueTypes = setOf(QueryValueType.STRING, QueryValueType.INTEGER),
-                ),
-                QueryField("state.numericUnion") to field(QueryValueType.INTEGER).copy(
-                    valueTypes = setOf(QueryValueType.INTEGER, QueryValueType.DECIMAL),
-                ),
-            ),
-        )
-        val mapping = TypeMapping.of { type ->
-            type.properties("state.keyword") { it.keyword { keyword -> keyword } }
-                .properties("state.integer") { it.long_ { number -> number } }
-                .properties("state.numericUnion") { it.long_ { number -> number } }
-        }
-
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logical,
-            ElasticsearchIndexMapping.from(INDEX, mapping),
-        )
-
-        schema.bindings("state.keyword").assert()
-            .contains(QueryCapability.PRESENCE, QueryCapability.LITERAL_MATCH)
-            .doesNotContain(
-                QueryCapability.EXACT_MATCH,
-                QueryCapability.SORT,
-                QueryCapability.AGGREGATE_TERMS,
-                QueryCapability.RANGE,
-                QueryCapability.AGGREGATE_NUMERIC,
-            )
-        schema.bindings("state.integer").assert()
-            .contains(QueryCapability.PRESENCE, QueryCapability.RANGE, QueryCapability.AGGREGATE_NUMERIC)
-            .doesNotContain(
-                QueryCapability.EXACT_MATCH,
-                QueryCapability.LITERAL_MATCH,
-                QueryCapability.SORT,
-                QueryCapability.AGGREGATE_TERMS,
-            )
-        schema.bindings("state.numericUnion").assert().contains(
-            QueryCapability.EXACT_MATCH,
-            QueryCapability.RANGE,
-            QueryCapability.SORT,
-            QueryCapability.AGGREGATE_TERMS,
-            QueryCapability.AGGREGATE_NUMERIC,
-        )
-    }
-
-    @Test
-    fun `temporal mappings should require their matching native or integral kinds`() {
-        val logical = LogicalQuerySchema(
-            linkedMapOf(
-                QueryField("state.nativeDate") to field(QueryValueType.STRING, semanticType = Temporal.Date),
-                QueryField("state.nativeDateOnKeyword") to field(
-                    QueryValueType.STRING,
-                    semanticType = Temporal.Date,
-                ),
-                QueryField("state.nativeDateWithInteger") to field(
-                    QueryValueType.INTEGER,
-                    semanticType = Temporal.Date,
-                ),
-                QueryField("state.epoch") to field(
-                    QueryValueType.INTEGER,
-                    semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
-                ),
-                QueryField("state.epochOnDouble") to field(
-                    QueryValueType.INTEGER,
-                    semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
-                ),
-                QueryField("state.epochWithString") to field(
-                    QueryValueType.STRING,
-                    semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
-                ),
-            ),
-        )
-        val mapping = TypeMapping.of { type ->
-            type.properties("state.nativeDate") { it.dateNanos { date -> date } }
-                .properties("state.nativeDateOnKeyword") { it.keyword { keyword -> keyword } }
-                .properties("state.nativeDateWithInteger") { it.date { date -> date } }
-                .properties("state.epoch") { it.long_ { number -> number } }
-                .properties("state.epochOnDouble") { it.double_ { number -> number } }
-                .properties("state.epochWithString") { it.long_ { number -> number } }
-        }
-
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logical,
-            ElasticsearchIndexMapping.from(INDEX, mapping),
-        )
-
-        schema.bindings("state.nativeDate").assert().contains(
-            QueryCapability.RANGE,
-            QueryCapability.AGGREGATE_TEMPORAL,
-        )
-        schema.bindings("state.nativeDateOnKeyword").assert().containsExactly(QueryCapability.PRESENCE)
-        schema.bindings("state.nativeDateWithInteger").assert().containsExactly(QueryCapability.PRESENCE)
-        schema.bindings("state.epoch").assert().contains(
-            QueryCapability.RANGE,
-            QueryCapability.AGGREGATE_NUMERIC,
-            QueryCapability.AGGREGATE_TEMPORAL,
-        )
-        schema.bindings("state.epochOnDouble").assert().containsExactly(QueryCapability.PRESENCE)
-        schema.bindings("state.epochWithString").assert().containsExactly(QueryCapability.PRESENCE)
-    }
-
-    @Test
-    fun `unsigned long should not prove epoch while signed runtime and ordinary numeric remain valid`() {
-        val logical = LogicalQuerySchema(
-            linkedMapOf(
-                QueryField("state.epoch") to field(
-                    QueryValueType.INTEGER,
-                    semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
-                ),
-                QueryField("state.integer") to field(QueryValueType.INTEGER),
-                QueryField("state.runtimeEpoch") to field(
-                    QueryValueType.INTEGER,
-                    semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
-                ),
-            ),
-        )
-        val mapping = TypeMapping.of { type ->
-            type.properties("state.epoch") { it.unsignedLong { number -> number } }
-                .properties("state.integer") { it.unsignedLong { number -> number } }
-                .runtime("state.runtimeEpoch") { it.type(RuntimeFieldType.Long) }
-        }
-
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logical,
-            ElasticsearchIndexMapping.from(INDEX, mapping),
-        )
-
-        schema.bindings("state.epoch").assert().containsExactly(QueryCapability.PRESENCE)
-        schema.bindings("state.integer").assert().contains(
-            QueryCapability.EXACT_MATCH,
-            QueryCapability.RANGE,
-            QueryCapability.SORT,
-            QueryCapability.AGGREGATE_TERMS,
-            QueryCapability.AGGREGATE_NUMERIC,
-        )
-        schema.bindings("state.runtimeEpoch").assert().contains(QueryCapability.AGGREGATE_TEMPORAL)
-    }
-
-    @Test
-    fun `runtime aliases and multifields should retain logical type checks`() {
-        val logical = LogicalQuerySchema(
-            linkedMapOf(
-                QueryField("state.aliasInteger") to field(QueryValueType.INTEGER),
-                QueryField("state.multifieldInteger") to field(QueryValueType.INTEGER),
-                QueryField("state.runtimeInteger") to field(QueryValueType.INTEGER),
-                QueryField("state.runtimeString") to field(QueryValueType.STRING),
-            ),
-        )
-        val mapping = TypeMapping.of { type ->
-            type.properties("state.target") { it.keyword { keyword -> keyword } }
-                .properties("state.aliasInteger") { it.alias { alias -> alias.path("state.target") } }
-                .properties("state.multifieldInteger") { field ->
-                    field.text { text -> text.fields("keyword") { it.keyword { keyword -> keyword } } }
-                }.runtime("state.runtimeInteger") { it.type(RuntimeFieldType.Keyword) }
-                .runtime("state.runtimeString") { it.type(RuntimeFieldType.Long) }
-        }
-
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logical,
-            ElasticsearchIndexMapping.from(INDEX, mapping),
-        )
-
-        schema.bindings("state.aliasInteger").assert().containsExactly(QueryCapability.PRESENCE)
-        schema.bindings("state.multifieldInteger").assert().containsExactly(QueryCapability.PRESENCE)
-        schema.bindings("state.runtimeInteger").assert().containsExactly(QueryCapability.PRESENCE)
-        schema.bindings("state.runtimeString").assert().containsExactly(QueryCapability.PRESENCE)
-    }
-
-    @Test
-    fun `element scope should require a many object on a nested mapping`() {
-        val logical = LogicalQuerySchema(
-            linkedMapOf(
-                QueryField("state.items") to field(QueryValueType.OBJECT, QueryCardinality.MANY),
-                QueryField("state.singleObject") to field(QueryValueType.OBJECT),
-                QueryField("state.stringItems") to field(QueryValueType.STRING, QueryCardinality.MANY),
-            ),
-        )
-        val mapping = TypeMapping.of { type ->
-            type.properties("state.items") { it.nested { nested -> nested } }
-                .properties("state.singleObject") { it.nested { nested -> nested } }
-                .properties("state.stringItems") { it.nested { nested -> nested } }
-        }
-
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logical,
-            ElasticsearchIndexMapping.from(INDEX, mapping),
-        )
-
-        schema.bindings("state.items").assert().contains(QueryCapability.ELEMENT_SCOPE)
-        schema.bindings("state.singleObject").assert().doesNotContain(QueryCapability.ELEMENT_SCOPE)
-        schema.bindings("state.stringItems").assert().doesNotContain(QueryCapability.ELEMENT_SCOPE)
-    }
-
-    @Test
-    fun `object and nested containers should not expose presence`() {
-        val logical = LogicalQuerySchema(
-            linkedMapOf(
-                QueryField("state") to field(QueryValueType.OBJECT),
-                QueryField("state.orders") to field(QueryValueType.OBJECT, QueryCardinality.MANY),
-                QueryField("state.orders.status") to field(QueryValueType.STRING),
-            ),
-        )
-        val mapping = TypeMapping.of { type ->
-            type.properties("state") { state ->
-                state.`object` { objectField ->
-                    objectField.properties("orders") { orders ->
-                        orders.nested { nested ->
-                            nested.properties("status") { status -> status.keyword { it } }
+    fun `normalized keyword rejects source literal operations and selects a lossless sibling`() {
+        val definition = logical("code" to scalar(QueryValueType.STRING), "name" to scalar(QueryValueType.STRING))
+        val schema = bind(
+            definition,
+            TypeMapping.of {
+                it.properties("code") { it.keyword { it.normalizer("lowercase") } }
+                    .properties("name") {
+                        it.keyword { keyword ->
+                            keyword.normalizer("lowercase").fields("exact") { it.keyword { it } }
+                                .fields("text") { it.text { it.analyzer("standard") } }
                         }
                     }
-                }
             }
-        }
-
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logical,
-            ElasticsearchIndexMapping.from(INDEX, mapping),
         )
-
-        schema.bindings("state").assert().doesNotContain(QueryCapability.PRESENCE)
-        schema.bindings("state.orders").assert().containsExactly(QueryCapability.ELEMENT_SCOPE)
-        schema.bindings("state.orders.status").assert().contains(
-            QueryCapability.PRESENCE,
+        listOf(
             QueryCapability.EXACT_MATCH,
             QueryCapability.LITERAL_MATCH,
+            QueryCapability.RANGE,
             QueryCapability.SORT,
-            QueryCapability.AGGREGATE_TERMS,
-        )
+            QueryCapability.CURSOR_SORT,
+            QueryCapability.AGGREGATE_TERMS
+        ).forEach { capability ->
+            schema.path("code", capability).assert().isNull()
+            schema.path("name", capability).assert().isEqualTo("name.exact")
+        }
+        schema.path("code", QueryCapability.PRESENCE).assert().isEqualTo("code")
+        schema.path("name", QueryCapability.FULL_TEXT_TERMS).assert().isEqualTo("name.text")
+        schema.path("name", QueryCapability.FULL_TEXT_PHRASE).assert().isEqualTo("name.text")
+        schema.field(QueryField("code"))!!.projectionField.assert().isEqualTo(QueryField("code"))
     }
 
     @Test
-    fun `dynamic fields should expose no inheritable bindings`() {
-        val logical = LogicalQuerySchema(
-            linkedMapOf(
-                QueryField("tags") to field(QueryValueType.OBJECT, dynamicChildren = true),
-                QueryField("state.labels") to field(QueryValueType.OBJECT, dynamicChildren = true),
-                QueryField("state.blocked") to field(QueryValueType.OBJECT, dynamicChildren = true),
-                QueryField("state.strict") to field(QueryValueType.OBJECT, dynamicChildren = true),
-                QueryField("state.disabled") to field(QueryValueType.OBJECT, dynamicChildren = true),
-                QueryField("state.unindexed") to field(QueryValueType.OBJECT, dynamicChildren = true),
-                QueryField("state.ordinary") to field(QueryValueType.OBJECT),
-            ),
+    fun `disabled source rejects reads but retains count and aggregation capabilities`() {
+        val schema = bind(
+            logical("code" to scalar(QueryValueType.STRING)),
+            TypeMapping.of {
+                it.source { it.enabled(false) }.properties("code") { it.keyword { it } }
+            }
         )
-        val mapping = TypeMapping.of { type ->
-            type.properties("tags") { it.`object` { objectField -> objectField.dynamic(DynamicMapping.True) } }
-                .properties("state.labels") { it.flattened { flattened -> flattened } }
-                .properties("state.blocked") {
-                    it.`object` { objectField -> objectField.dynamic(DynamicMapping.False) }
-                }.properties("state.strict") {
-                    it.`object` { objectField -> objectField.dynamic(DynamicMapping.Strict) }
-                }.properties("state.disabled") {
-                    it.`object` { objectField -> objectField.enabled(false) }
-                }.properties("state.unindexed") {
-                    it.flattened { flattened -> flattened.index(false) }
-                }.properties("state.ordinary") { it.flattened { flattened -> flattened } }
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(ListQuery(MatchAllFilter), schema)
         }
-
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logical,
-            ElasticsearchIndexMapping.from(INDEX, mapping),
-        )
-
-        schema.bindings("tags").assert().isEmpty()
-        listOf(
-            "tags",
-            "state.labels",
-            "state.blocked",
-            "state.strict",
-            "state.disabled",
-            "state.unindexed",
-        ).forEach { path ->
-            schema.fields.getValue(QueryField(path)).dynamicChildren.assert().isFalse()
-        }
-        schema.field(QueryField("tags.department")).assert().isNull()
-        schema.bindings("state.labels").assert().isEmpty()
-        schema.bindings("state.blocked").assert().isEmpty()
-        schema.bindings("state.strict").assert().isEmpty()
-        schema.bindings("state.disabled").assert().isEmpty()
-        schema.bindings("state.unindexed").assert().isEmpty()
-        schema.bindings("state.ordinary").assert().doesNotContain(QueryCapability.EXACT_MATCH)
-    }
-
-    @Test
-    fun `dynamic nested field should retain only element scope`() {
-        val logical = LogicalQuerySchema(
-            mapOf(
-                QueryField("state.items") to field(
-                    QueryValueType.OBJECT,
-                    QueryCardinality.MANY,
-                    dynamicChildren = true,
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(
+                ListQuery(
+                    MatchAllFilter,
+                    projection = Projection(include = listOf(QueryField("code"))),
                 ),
-            ),
-        )
-        val mapping = TypeMapping.of { type ->
-            type.properties("state.items") { it.nested { nested -> nested.dynamic(DynamicMapping.True) } }
+                schema
+            )
         }
-
-        val schema = ElasticsearchQuerySchemaAdapter.bind(logical, ElasticsearchIndexMapping.from(INDEX, mapping))
-
-        schema.bindings("state.items").assert().containsExactly(QueryCapability.ELEMENT_SCOPE)
-        schema.fields.getValue(QueryField("state.items")).dynamicChildren.assert().isFalse()
-        schema.field(QueryField("state.items.unknown")).assert().isNull()
+        validateQuery(MatchAllFilter, schema)
+        schema.path("code", QueryCapability.AGGREGATE_TERMS).assert().isEqualTo("code")
     }
 
     @Test
-    fun `invalid nested parents should suppress every descendant binding`() {
-        val logical = LogicalQuerySchema(
-            linkedMapOf(
-                QueryField("state.single") to field(QueryValueType.OBJECT),
-                QueryField("state.single.status") to field(QueryValueType.STRING),
-                QueryField("state.strings") to field(QueryValueType.STRING, QueryCardinality.MANY),
-                QueryField("state.strings.status") to field(QueryValueType.STRING),
-                QueryField("state.items") to field(QueryValueType.OBJECT, QueryCardinality.MANY),
-                QueryField("state.items.status") to field(QueryValueType.STRING),
+    fun `source pruning rejects incomplete parent reads while preserving available alias projections`() {
+        val definition = logical(
+            "obj" to objectValue(
+                mapOf(
+                    "code" to scalar(QueryValueType.STRING), "secret" to scalar(QueryValueType.STRING)
+                )
             ),
+            "alias" to scalar(QueryValueType.STRING)
         )
-        val mapping = TypeMapping.of { type ->
-            listOf("state.single", "state.strings", "state.items").forEach { path ->
-                type.properties(path) { property ->
-                    property.nested { nested ->
-                        nested.properties("status") { status -> status.keyword { it } }
+        listOf(
+            TypeMapping.of { it.source { it.excludes("obj.secret") } },
+            TypeMapping.of { it.source { it.includes("obj.code") } },
+        ).forEach { source ->
+            val mapping = TypeMapping.of {
+                it.source(source.source()!!).properties("obj") {
+                    it.`object` { obj ->
+                        obj.properties("code") { it.keyword { it.fields("exact") { it.keyword { it } } } }
+                            .properties("secret") { it.keyword { it } }
                     }
+                }.properties("alias") { it.alias { it.path("obj.code") } }
+            }
+            val schema = bind(definition, mapping)
+            listOf("obj", "obj.secret").forEach { field ->
+                assertThrows<QuerySchemaValidationException> {
+                    validateQuery(
+                        ListQuery(
+                            MatchAllFilter,
+                            projection = Projection(include = listOf(QueryField(field))),
+                        ),
+                        schema
+                    )
                 }
             }
-            type
-        }
-
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logical,
-            ElasticsearchIndexMapping.from(INDEX, mapping),
-        )
-
-        schema.bindings("state.single").assert().doesNotContain(QueryCapability.ELEMENT_SCOPE)
-        schema.bindings("state.single.status").assert().isEmpty()
-        schema.bindings("state.strings").assert().doesNotContain(QueryCapability.ELEMENT_SCOPE)
-        schema.bindings("state.strings.status").assert().isEmpty()
-        schema.bindings("state.items").assert().contains(QueryCapability.ELEMENT_SCOPE)
-        schema.bindings("state.items.status").assert().contains(
-            QueryCapability.EXACT_MATCH,
-            QueryCapability.SORT,
-        )
-    }
-
-    @Test
-    fun `adapter should wrap mapping failures with their cause`() {
-        val failure = IllegalStateException("mapping unavailable")
-        val resolver = mockk<ElasticsearchIndexMappingResolver> {
-            every { currentOrLoad(INDEX) } returns Mono.error(failure)
-        }
-
-        ElasticsearchQuerySchemaAdapter(INDEX, resolver).resolve(logicalSchema()).test()
-            .expectErrorSatisfies { error ->
-                error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
-                error.cause.assert().isSameAs(failure)
-            }.verify()
-    }
-
-    @Test
-    fun `semantic text should support terms but not phrase search`() {
-        val logical = LogicalQuerySchema(
-            mapOf(QueryField("state.semantic") to field(QueryValueType.STRING)),
-        )
-        val mapping = TypeMapping.of { type ->
-            type.properties("state.semantic") { it.semanticText { semantic -> semantic } }
-        }
-
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logical,
-            ElasticsearchIndexMapping.from(INDEX, mapping),
-        )
-
-        schema.capabilities.assert()
-            .contains(QueryCapability.FULL_TEXT_TERMS)
-            .doesNotContain(QueryCapability.FULL_TEXT_PHRASE)
-        schema.fields.getValue(QueryField("state.semantic")).bindings.assert()
-            .containsKey(QueryCapability.FULL_TEXT_TERMS)
-            .doesNotContainKey(QueryCapability.FULL_TEXT_PHRASE)
-    }
-
-    @Test
-    fun `bind should expose mapped capabilities through the narrowest physical fields`() {
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logicalSchema(),
-            ElasticsearchIndexMapping.from(INDEX, mapping()),
-        )
-
-        schema.capabilities.assert().containsExactlyInAnyOrder(
-            QueryCapability.FULL_TEXT_TERMS,
-            QueryCapability.FULL_TEXT_PHRASE,
-        )
-        schema.binding("state.name", QueryCapability.FULL_TEXT_TERMS).assertPath("state.name", "text")
-        schema.binding("state.name", QueryCapability.FULL_TEXT_PHRASE).assertPath("state.name", "text")
-        schema.binding("state.name", QueryCapability.EXACT_MATCH).assertPath("state.name.keyword", "keyword")
-        schema.binding("state.name", QueryCapability.LITERAL_MATCH).assertPath("state.name.keyword", "keyword")
-        schema.binding("state.name", QueryCapability.SORT).assertPath("state.name.keyword", "keyword")
-        schema.binding("state.name", QueryCapability.AGGREGATE_TERMS).assertPath("state.name.keyword", "keyword")
-        schema.fields.getValue(QueryField("state.name")).rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
-
-        schema.binding("state.score", QueryCapability.RANGE).assertPath("state.score", "double")
-        schema.binding("state.score", QueryCapability.AGGREGATE_NUMERIC).assertPath("state.score", "double")
-        schema.binding("state.createdAt", QueryCapability.AGGREGATE_TEMPORAL)
-            .assertPath("state.createdAt", "date")
-        schema.fields.getValue(QueryField("state.createdAt")).rewriteMode.assert().isEqualTo(QueryRewriteMode.INFER)
-        schema.binding("state.createdNanos", QueryCapability.AGGREGATE_TEMPORAL)
-            .assertPath("state.createdNanos", "date_nanos")
-        schema.binding("state.epoch", QueryCapability.AGGREGATE_TEMPORAL).assertPath("state.epoch", "long")
-        schema.binding("state.formatted", QueryCapability.RANGE).assertPath("state.formatted", "keyword")
-        schema.fields.getValue(QueryField("state.formatted")).bindings.assert()
-            .doesNotContainKey(QueryCapability.AGGREGATE_TEMPORAL)
-
-        schema.binding("state.items", QueryCapability.ELEMENT_SCOPE).assertPath("state.items", "nested")
-        schema.field(QueryField("state.labels.release")).assert().isNull()
-    }
-
-    @Test
-    fun `bind should preserve aliases runtime fields and reject unsupported or ambiguous paths`() {
-        val schema = ElasticsearchQuerySchemaAdapter.bind(
-            logicalSchema(),
-            ElasticsearchIndexMapping.from(INDEX, mapping()),
-        )
-
-        schema.binding("state.nameAlias", QueryCapability.FULL_TEXT_TERMS).assertPath("state.nameAlias", "text")
-        schema.binding("state.codeAlias", QueryCapability.EXACT_MATCH).assertPath("state.codeAlias", "keyword")
-        schema.binding("state.runtimeCode", QueryCapability.LITERAL_MATCH)
-            .assertPath("state.runtimeCode", "keyword")
-        schema.binding("state.runtimeScore", QueryCapability.AGGREGATE_NUMERIC)
-            .assertPath("state.runtimeScore", "double")
-        schema.binding("state.runtimeAt", QueryCapability.AGGREGATE_TEMPORAL)
-            .assertPath("state.runtimeAt", "date")
-        schema.binding("state.runtime.code", QueryCapability.AGGREGATE_TERMS)
-            .assertPath("state.runtime.code", "keyword")
-        val aliasProjection = Projection(include = listOf(QueryField("state.nameAlias")))
-        schema.resolve(ListQuery(MatchAllFilter, projection = aliasProjection))
-            .let { resolved ->
-                resolved.value.projection.assert().isSameAs(aliasProjection)
-                resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+            assertThrows<QuerySchemaValidationException> {
+                validateQuery(ListQuery(MatchAllFilter), schema)
             }
-        schema.resolve(
-            ListQuery(
-                MatchAllFilter,
-                projection = Projection(include = listOf(QueryField("state.runtimeCode"))),
-            ),
-        )
-            .compatibility.assert()
-            .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
-
-        schema.fields.getValue(QueryField("state.ambiguous")).bindings.assert()
-            .doesNotContainKey(QueryCapability.EXACT_MATCH)
-            .doesNotContainKey(QueryCapability.SORT)
-        schema.fields.getValue(QueryField("state.unindexedText")).bindings.assert()
-            .doesNotContainKey(QueryCapability.FULL_TEXT_TERMS)
-        schema.fields.getValue(QueryField("state.unindexedCode")).bindings.assert()
-            .doesNotContainKey(QueryCapability.LITERAL_MATCH)
-            .containsKeys(QueryCapability.EXACT_MATCH, QueryCapability.SORT, QueryCapability.AGGREGATE_TERMS)
-    }
-
-    @Test
-    fun `adapter refresh should reload mapping and provider should publish the replacement`() {
-        val client = mockk<ReactiveElasticsearchClient>()
-        val indices = mockk<ReactiveElasticsearchIndicesClient>()
-        every { client.indices() } returns indices
-        every { indices.getMapping(any<GetMappingRequest>()) } returnsMany listOf(
-            Mono.just(mappingResponse(textName())),
-            Mono.just(mappingResponse(keywordName())),
-        )
-        val context = QuerySchemaContext(MOCK_AGGREGATE_METADATA, me.ahoo.wow.api.query.schema.QueryModel.SNAPSHOT)
-        val declaration = QuerySchemaDeclaration(
-            mapOf(
-                QueryField("state.name") to QueryFieldDeclaration(
-                    valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+            schema.field(QueryField("alias"))!!.projectionField.assert().isEqualTo(QueryField("obj.code"))
+            validateQuery(
+                ListQuery(
+                    MatchAllFilter,
+                    projection = Projection(include = listOf(QueryField("alias"))),
                 ),
-            ),
-        )
-        val provider = DefaultQueryModelSchemaProvider(
-            context,
-            listOf(BeanQuerySchemaSource(listOf(QuerySchemaRegistration(context, declaration)))),
-            ElasticsearchQuerySchemaAdapter(INDEX, ElasticsearchIndexMappingResolver(client)),
-        )
-
-        provider.schema().test()
-            .assertNext { schema ->
-                schema.binding("state.name", QueryCapability.FULL_TEXT_TERMS).physicalField.assert()
-                    .isEqualTo(QueryField("state.name"))
-            }.verifyComplete()
-        val refreshed = provider.refresh().block()!!
-        refreshed.binding("state.name", QueryCapability.EXACT_MATCH).physicalField.assert()
-            .isEqualTo(QueryField("state.name"))
-        refreshed.fields.getValue(QueryField("state.name")).bindings.assert()
-            .doesNotContainKey(QueryCapability.FULL_TEXT_TERMS)
-        provider.schema().block().assert().isSameAs(refreshed)
-    }
-
-    private fun me.ahoo.wow.query.schema.QueryModelSchema.binding(
-        field: String,
-        capability: QueryCapability,
-    ) = fields.getValue(QueryField(field)).bindings.getValue(capability)
-
-    private fun me.ahoo.wow.query.schema.QueryModelSchema.bindings(field: String) =
-        fields.getValue(QueryField(field)).bindings.keys
-
-    private fun me.ahoo.wow.query.schema.QueryFieldBinding.assertPath(path: String, storageType: String) {
-        resolvedField.assert().isEqualTo(QueryField(path))
-        physicalField.assert().isEqualTo(QueryField(path))
-        this.storageType?.value.assert().isEqualTo(storageType)
-    }
-
-    private fun logicalSchema() = LogicalQuerySchema(
-        linkedMapOf(
-            QueryField("state.name") to field(QueryValueType.STRING),
-            QueryField("state.code") to field(QueryValueType.STRING),
-            QueryField("state.score") to field(QueryValueType.DECIMAL),
-            QueryField("state.createdAt") to field(QueryValueType.STRING, semanticType = Temporal.Date),
-            QueryField("state.createdNanos") to field(QueryValueType.STRING, semanticType = Temporal.Date),
-            QueryField("state.epoch") to field(
-                QueryValueType.INTEGER,
-                semanticType = Temporal.Epoch(TimeUnit.MICROSECONDS),
-            ),
-            QueryField("state.formatted") to field(
-                QueryValueType.STRING,
-                semanticType = Temporal.Formatted("yyyy-MM-dd"),
-            ),
-            QueryField("state.items") to field(QueryValueType.OBJECT, QueryCardinality.MANY),
-            QueryField("state.labels") to field(QueryValueType.OBJECT, dynamicChildren = true),
-            QueryField("state.ambiguous") to field(QueryValueType.STRING),
-            QueryField("state.unindexedText") to field(QueryValueType.STRING),
-            QueryField("state.unindexedCode") to field(QueryValueType.STRING),
-            QueryField("state.nameAlias") to field(QueryValueType.STRING),
-            QueryField("state.codeAlias") to field(QueryValueType.STRING),
-            QueryField("state.runtimeCode") to field(QueryValueType.STRING),
-            QueryField("state.runtimeScore") to field(QueryValueType.DECIMAL),
-            QueryField("state.runtimeAt") to field(QueryValueType.STRING, semanticType = Temporal.Date),
-            QueryField("state.runtime.code") to field(QueryValueType.STRING),
-        ),
-    )
-
-    private fun field(
-        valueType: QueryValueType,
-        cardinality: QueryCardinality = QueryCardinality.SINGLE,
-        semanticType: Temporal? = null,
-        dynamicChildren: Boolean = false,
-        maskRule: MaskRule? = null,
-    ) = LogicalQueryFieldSchema(
-        title = null,
-        description = null,
-        enumValues = null,
-        valueTypes = setOf(valueType),
-        nullable = false,
-        required = true,
-        cardinality = cardinality,
-        semanticType = semanticType,
-        dynamicChildren = dynamicChildren,
-        maskRule = maskRule,
-    )
-
-    private fun fullMaskRule(): MaskRule {
-        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
-        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
-    }
-
-    private data class Masked(@field:Mask val secret: String)
-
-    private fun mapping(): TypeMapping = TypeMapping.of { mapping ->
-        mapping.properties("state") { state ->
-            state.`object` { objectField ->
-                objectField
-                    .properties("name") { it.text { text -> text.fields("keyword") { key -> key.keyword { it } } } }
-                    .properties("code") { it.keyword { key -> key } }
-                    .properties("score") { it.double_ { number -> number } }
-                    .properties("createdAt") { it.date { date -> date } }
-                    .properties("createdNanos") { it.dateNanos { date -> date } }
-                    .properties("epoch") { it.long_ { number -> number } }
-                    .properties("formatted") { it.keyword { key -> key } }
-                    .properties("items") { it.nested { nested -> nested } }
-                    .properties("labels") { it.flattened { flattened -> flattened } }
-                    .properties("ambiguous") { field ->
-                        field.text { text ->
-                            text.fields("raw") { it.keyword { key -> key } }
-                                .fields("normalized") { it.keyword { key -> key } }
-                        }
-                    }.properties("unindexedText") { it.text { text -> text.index(false) } }
-                    .properties("unindexedCode") { it.keyword { key -> key.index(false) } }
-                    .properties("nameAlias") { it.alias { alias -> alias.path("state.name") } }
-                    .properties("codeAlias") { it.alias { alias -> alias.path("state.code") } }
-            }
-        }.runtime("state.runtimeCode") { it.type(RuntimeFieldType.Keyword) }
-            .runtime("state.runtimeScore") { it.type(RuntimeFieldType.Double) }
-            .runtime("state.runtimeAt") { it.type(RuntimeFieldType.Date) }
-            .runtime("state.runtime") { runtime ->
-                runtime.type(RuntimeFieldType.Composite)
-                    .fields("code") { it.type(RuntimeFieldType.Keyword) }
-            }
-    }
-
-    private fun textName(): TypeMapping = stateName(Property.of { it.text { text -> text } })
-
-    private fun keywordName(): TypeMapping = stateName(Property.of { it.keyword { keyword -> keyword } })
-
-    private fun stateName(name: Property): TypeMapping = TypeMapping.of { mapping ->
-        mapping.properties("state") { state ->
-            state.`object` { objectField -> objectField.properties("name", name) }
+                schema
+            )
         }
     }
 
-    private fun mappingResponse(mapping: TypeMapping): GetMappingResponse = GetMappingResponse.of { response ->
-        response.mappings(INDEX, IndexMappingRecord.of { record -> record.mappings(mapping) })
+    @Test
+    fun `source wildcard pruning retracts incomplete containers and keeps provable leaves`() {
+        val definition = logical(
+            "obj" to objectValue(
+                mapOf(
+                    "code" to scalar(QueryValueType.STRING),
+                    "secret" to scalar(QueryValueType.STRING)
+                )
+            ),
+            "safe" to scalar(QueryValueType.STRING)
+        )
+        val schema = bind(
+            definition,
+            TypeMapping.of {
+                it.source { it.includes("obj.*", "safe").excludes("obj.secret*") }
+            }
+        )
+        schema.field(QueryField("obj"))!!.projectionField.assert().isNull()
+        schema.field(QueryField("obj.secret"))!!.projectionField.assert().isNull()
+        schema.field(QueryField("obj.code"))!!.projectionField.assert().isEqualTo(QueryField("obj.code"))
+        schema.field(QueryField("safe"))!!.projectionField.assert().isEqualTo(QueryField("safe"))
+        val uncertain = bind(definition, TypeMapping.of { it.source { it.excludes("*.secret") } })
+        uncertain.field(QueryField("obj"))!!.projectionField.assert().isNull()
     }
 
-    companion object {
-        private const val INDEX = "wow.catalog.sku.snapshot"
-    }
+    private fun QueryModelSchema.path(field: String, capability: QueryCapability): String? =
+        field(QueryField(field))?.binding(capability)?.physicalField?.path
+
+    private fun bind(definition: LogicalQuerySchema, mapping: TypeMapping) =
+        ElasticsearchQuerySchemaAdapter.bind(definition, ElasticsearchIndexMapping.from("test", mapping))
+
+    private fun logical(vararg fields: Pair<String, QueryValueSchema>) = LogicalQuerySchema(objectValue(fields.toMap()))
+    private fun scalar(type: QueryValueType) = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(type))
+    private fun array(items: QueryValueSchema) = QueryValueSchema(QueryValueKind.ARRAY, items = items)
+    private fun union(vararg values: QueryValueSchema) = QueryValueSchema(
+        QueryValueKind.UNION,
+        alternatives = values.toList()
+    )
+    private fun objectValue(
+        properties: Map<String, QueryValueSchema> = emptyMap(),
+        additional: QueryValueSchema? = null
+    ) =
+        QueryValueSchema(QueryValueKind.OBJECT, properties = properties, additionalProperties = additional)
 }

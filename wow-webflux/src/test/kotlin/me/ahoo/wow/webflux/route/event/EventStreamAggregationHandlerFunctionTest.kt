@@ -19,15 +19,18 @@ import io.mockk.slot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.event.EventStreamQueryGateway
+import me.ahoo.wow.query.queryScope
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.getRawRequest
-import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestFilter
+import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -43,20 +46,22 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class EventStreamAggregationHandlerFunctionTest {
     @Test
-    fun `aggregation route should rewrite scope and stream handler rows`() {
+    fun `aggregation route should pass original query and scope in context`() {
         val ownerId = generateGlobalId()
         val capturedQuery = slot<AggregationQuery>()
+        lateinit var capturedScope: FilterExpression
         val subscribed = AtomicBoolean()
         val gateway = mockk<EventStreamQueryGateway> {
             every { aggregate(capture(capturedQuery)) } returns Flux.deferContextual {
                 it.getRawRequest().assert().isNotNull()
+                capturedScope = it.queryScope()
                 subscribed.set(true)
                 Flux.just(JsonNodeFactory.instance.objectNode().put("count", 1L))
             }
         }
         val function = EventStreamAggregationHandlerFunctionFactory(
             eventStreamQueryGateway = { gateway },
-            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
             testAggregateRouteContract(
@@ -73,7 +78,8 @@ class EventStreamAggregationHandlerFunctionTest {
 
         response.statusCode().assert().isEqualTo(HttpStatus.OK)
         response.writeTo(exchange, SERVER_RESPONSE_CONTEXT).block()
-        capturedQuery.captured.filter.assert().isEqualTo(OwnerIdFilter(ownerId))
+        capturedQuery.captured.filter.assert().isSameAs(MatchAllFilter)
+        capturedScope.assert().isEqualTo(OwnerIdFilter(ownerId))
         subscribed.get().assert().isTrue()
     }
 

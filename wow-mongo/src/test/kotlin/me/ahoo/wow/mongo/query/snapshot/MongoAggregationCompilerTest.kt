@@ -21,21 +21,17 @@ import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.mongo.query.MongoTestField
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.query.event.EventStreamFilterCompiler
+import me.ahoo.wow.mongo.query.mongoTestSchema
 import me.ahoo.wow.query.dsl.aggregation
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.QueryStorageType
-import me.ahoo.wow.query.schema.requireAccepted
+import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.BsonDocument
 import org.bson.BsonString
@@ -45,6 +41,54 @@ import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
 class MongoAggregationCompilerInputTest {
+
+    @Test
+    fun `root and every unwound element relative time share one compilation instant`() {
+        val instant = java.time.Instant.parse("1970-01-02T12:00:00Z")
+        val utc = ZoneId.of("UTC")
+        val input = schema(
+            field(
+                "state.rootTime",
+                QueryCapability.RANGE,
+                "state.rootTime",
+                QueryValueType.INTEGER,
+                Temporal.Epoch(TimeUnit.SECONDS)
+            ),
+            field(
+                "state.orders.elementTime",
+                QueryCapability.RANGE,
+                "state.orders.elementTime",
+                QueryValueType.INTEGER,
+                Temporal.Epoch(TimeUnit.SECONDS)
+            ),
+            field(
+                "state.orders.lines.elementTime",
+                QueryCapability.RANGE,
+                "state.orders.lines.elementTime",
+                QueryValueType.INTEGER,
+                Temporal.Epoch(TimeUnit.SECONDS)
+            ),
+        )
+        val query = aggregation {
+            filter { "state.rootTime".today(utc) }
+            expand("state.orders") { "elementTime".today(utc) }
+            expand("lines") { "elementTime".today(utc) }
+            count("count")
+        }
+        val compiler = MongoAggregationCompiler(SnapshotFilterCompiler)
+        val matches = compiler.compile(
+            query,
+            input,
+            instant
+        ).map { it.toBsonDocument() }.filter { it.containsKey("\$match") }
+        matches.assert().hasSize(3)
+        matches.forEach { it.toJson().assert().contains("86400").contains("172800") }
+        matches.drop(1).forEach { it.toJson().assert().doesNotContain("deleted") }
+        val next = compiler.compile(query, input, instant.plusSeconds(86400)).map {
+            it.toBsonDocument()
+        }.filter { it.containsKey("\$match") }
+        next.forEach { it.toJson().assert().contains("172800").contains("259200") }
+    }
 
     @Test
     fun `group should resolve its terms input once for match and group stages`() {
@@ -61,7 +105,7 @@ class MongoAggregationCompilerInputTest {
         pipeline[2].getDocument("\$group").getDocument("_id").getString("status").value.assert()
             .isEqualTo("\$storage.status")
         verify(exactly = 1) {
-            observed.resolveFieldSchema(QueryField("state.status"), QueryCapability.AGGREGATE_TERMS)
+            observed.field(QueryField("state.status"))
         }
     }
 
@@ -92,7 +136,7 @@ class MongoAggregationCompilerInputTest {
             .getArray("\$divide")[0].asDocument()
         matchInput.assert().isEqualTo(groupInput)
         verify(exactly = 1) {
-            observed.resolveFieldSchema(QueryField("state.amount"), QueryCapability.AGGREGATE_NUMERIC)
+            observed.field(QueryField("state.amount"))
         }
     }
 
@@ -121,64 +165,9 @@ class MongoAggregationCompilerInputTest {
         val groupInput = pipeline[2].getDocument("\$group").getDocument("_id").getDocument("day")
             .getDocument("\$toLong").getDocument("\$dateTrunc").getDocument("date")
         matchInput.assert().isEqualTo(groupInput)
-        verify(exactly = 1) {
-            observed.resolveFieldSchema(QueryField("state.createdAt"), QueryCapability.AGGREGATE_TEMPORAL)
+        verify(exactly = 2) {
+            observed.field(QueryField("state.createdAt"))
         }
-    }
-
-    @Test
-    fun `unknown date group should reuse native fallback without physical resolution`() {
-        val observed = spyk(schema())
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
-            aggregation {
-                dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
-                count("count")
-            },
-            observed,
-        ).map { it.toBsonDocument() }
-        val expected = BsonDocument("\$toDate", BsonString("\$state.createdAt"))
-
-        pipeline[1].getDocument("\$match").getArray("\$and")[0].asDocument()
-            .getDocument("\$expr").getArray("\$ne")[0].assert().isEqualTo(expected)
-        pipeline[2].getDocument("\$group").getDocument("_id").getDocument("day")
-            .getDocument("\$toLong").getDocument("\$dateTrunc").get("date").assert().isEqualTo(expected)
-        verify(exactly = 1) {
-            observed.resolveFieldSchema(QueryField("state.createdAt"), QueryCapability.AGGREGATE_TEMPORAL)
-        }
-        verify(exactly = 0) {
-            observed.resolvePhysicalField(
-                QueryField("state.createdAt"),
-                QueryCapability.AGGREGATE_TEMPORAL,
-                any(),
-                any(),
-                any(),
-            )
-        }
-    }
-
-    @Test
-    fun `date group should prefer a temporal alias over a declared capability miss`() {
-        val temporal = field(
-            "state.createdAt",
-            QueryCapability.AGGREGATE_TEMPORAL,
-            "storage.createdAt",
-            semanticType = Temporal.Date,
-            resolvedPath = "document.createdAt",
-        )
-        val aliasSchema = schema(
-            temporal,
-            field("document.createdAt", QueryCapability.PRESENCE, "document.createdAt"),
-        )
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
-            aggregation {
-                dateHistogram("document.createdAt", AggregationDateUnit.DAY, "day")
-                count("count")
-            },
-            aliasSchema,
-        ).map { it.toBsonDocument() }
-
-        pipeline[1].toJson().assert().contains("storage.createdAt").doesNotContain("document.createdAt")
-        pipeline[2].toJson().assert().contains("storage.createdAt").doesNotContain("document.createdAt")
     }
 
     @Test
@@ -198,57 +187,6 @@ class MongoAggregationCompilerInputTest {
                 input,
             )
         }.message.assert().isEqualTo("Query field [state.first] does not have a supported temporal semantic type.")
-    }
-
-    @Test
-    fun `unknown date group should preserve the full mapped element parent and relative field`() {
-        val input = schema(
-            field("state.orders", QueryCapability.ELEMENT_SCOPE, "storage.orders", QueryValueType.OBJECT),
-        )
-
-        listOf(
-            "createdAt" to "\$storage.orders.createdAt",
-            "orders.createdAt" to "\$storage.orders.orders.createdAt",
-        ).forEach { (field, physicalPath) ->
-            val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
-                aggregation {
-                    expand("state.orders")
-                    dateHistogram(field, AggregationDateUnit.DAY, "day")
-                    count("count")
-                },
-                input,
-            ).map { it.toBsonDocument() }
-            val expected = BsonDocument("\$toDate", BsonString(physicalPath))
-
-            pipeline[2].getDocument("\$match").getArray("\$and")[0].asDocument()
-                .getDocument("\$expr").getArray("\$ne")[0].assert().isEqualTo(expected)
-            pipeline[3].getDocument("\$group").getDocument("_id").getDocument("day")
-                .getDocument("\$toLong").getDocument("\$dateTrunc").get("date").assert().isEqualTo(expected)
-        }
-    }
-
-    @Test
-    fun `dynamic resolved alias with a numeric suffix should retain its validation failure`() {
-        val input = schema(
-            field(
-                "state.extra",
-                QueryCapability.AGGREGATE_TEMPORAL,
-                "storage.extra",
-                semanticType = Temporal.Date,
-                dynamicChildren = true,
-                resolvedPath = "document.extra",
-            ),
-        )
-
-        assertThrows<IllegalArgumentException> {
-            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
-                aggregation {
-                    dateHistogram("document.extra.123", AggregationDateUnit.DAY, "day")
-                    count("count")
-                },
-                input,
-            )
-        }
     }
 
     @Test
@@ -296,25 +234,31 @@ class MongoAggregationCompilerInputTest {
 class MongoAggregationCompilerTest {
 
     @Test
-    fun `resolved alias should win over a declared aggregation capability miss`() {
-        val schema = schema(
-            field(
-                "state.total",
-                QueryCapability.AGGREGATE_NUMERIC,
-                "storage.total",
-                QueryValueType.DECIMAL,
-                resolvedPath = "document.total",
-            ),
-            field("document.total", QueryCapability.PRESENCE, "document.total"),
-        )
-        val query = schema.resolve(
-            aggregation { sum("document.total", "total") },
-        ).requireAccepted(QuerySchemaValidationMode.STRICT)
-
-        MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)[1]
-            .toBsonDocument().toJson().assert()
-            .contains("storage.total")
-            .doesNotContain("document.total")
+    fun `unknown inputs and caller supplied physical aliases are rejected`() {
+        val schema =
+            schema(field("state.total", QueryCapability.AGGREGATE_NUMERIC, "storage.total", QueryValueType.DECIMAL))
+        listOf(
+            aggregation {
+                terms("state.unknown", "unknown")
+                count("count")
+            },
+            aggregation {
+                dateHistogram("state.unknown", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
+            aggregation { sum("storage.total", "total") },
+            aggregation {
+                expand("state.orders")
+                terms("unknown", "unknown")
+                count("count")
+            },
+        ).forEach { query ->
+            assertThrows<QuerySchemaValidationException> {
+                MongoAggregationCompiler(
+                    SnapshotFilterCompiler
+                ).compile(query, schema)
+            }
+        }
     }
 
     @Test
@@ -370,29 +314,6 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
-    fun `compatible element aggregation fields should retain the physical parent`() {
-        val schema = schema(
-            field("state.orders", QueryCapability.ELEMENT_SCOPE, "storage.orders", QueryValueType.OBJECT),
-        )
-        val resolved = schema.resolve(
-            aggregation {
-                expand("state.orders")
-                terms("extra", "extra")
-                sum("amount", "total")
-                count("count")
-            },
-        ).requireAccepted(QuerySchemaValidationMode.COMPATIBLE)
-
-        MongoAggregationCompiler(SnapshotFilterCompiler).compile(resolved, schema)
-            .first { it.toBsonDocument().containsKey("\$group") }
-            .toBsonDocument().toJson().assert()
-            .contains("\$storage.orders.extra")
-            .contains("\$storage.orders.amount")
-            .doesNotContain("\$state.orders.extra")
-            .doesNotContain("\$state.orders.amount")
-    }
-
-    @Test
     fun `resolved element filters should retain logical resolved and physical parents`() {
         val schema = schema(
             field(
@@ -400,25 +321,19 @@ class MongoAggregationCompilerTest {
                 QueryCapability.ELEMENT_SCOPE,
                 "storage.orders",
                 QueryValueType.OBJECT,
-                rewriteMode = QueryRewriteMode.REQUIRED,
-                resolvedPath = "document.orders",
             ),
             field(
                 "state.orders.status",
                 QueryCapability.EXACT_MATCH,
                 "storage.orders.status",
-                rewriteMode = QueryRewriteMode.REQUIRED,
-                resolvedPath = "document.orders.status.keyword",
                 additionalCapabilities = setOf(QueryCapability.AGGREGATE_TERMS),
             ),
         )
-        val resolved = schema.resolve(
-            aggregation {
-                expand("state.orders") { "status" eq "PAID" }
-                terms("status", "status")
-                count("count")
-            },
-        ).requireAccepted(QuerySchemaValidationMode.STRICT)
+        val resolved = aggregation {
+            expand("state.orders") { "status" eq "PAID" }
+            terms("status", "status")
+            count("count")
+        }
 
         MongoAggregationCompiler(SnapshotFilterCompiler).compile(resolved, schema)
             .joinToString { it.toBsonDocument().toJson() }.assert()
@@ -447,27 +362,6 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
-    fun `dynamic suffix without terms binding should use the conventional physical path`() {
-        val schema = schema(
-            field(
-                "state.attributes",
-                QueryCapability.EXACT_MATCH,
-                "state.attributes",
-                QueryValueType.OBJECT,
-                dynamicChildren = true,
-            ),
-        )
-        val query = aggregation {
-            terms("state.attributes.color", "color")
-            count("count")
-        }
-
-        MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
-            .first { it.toBsonDocument().containsKey("\$group") }
-            .toBsonDocument().toJson().assert().contains("state.attributes.color")
-    }
-
-    @Test
     fun `declared field without terms binding should still fail compilation`() {
         val schema = schema(
             field("state.category", QueryCapability.PRESENCE, "state.category"),
@@ -490,11 +384,10 @@ class MongoAggregationCompilerTest {
                 QueryCapability.AGGREGATE_TEMPORAL,
                 "storage.created_at",
                 semanticType = Temporal.Epoch(TimeUnit.SECONDS),
-                resolvedPath = "document.createdAt",
             ),
         )
         val query = aggregation {
-            dateHistogram("document.createdAt", AggregationDateUnit.DAY, "day")
+            dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
             count("count")
         }
 
@@ -515,31 +408,6 @@ class MongoAggregationCompilerTest {
             .contains("1000")
             .contains("\$dateTrunc")
             .doesNotContain("document.createdAt")
-    }
-
-    @Test
-    fun `compatible dynamic temporal field should compile with its original path`() {
-        val schema = schema(
-            field(
-                "state.attributes",
-                QueryCapability.EXACT_MATCH,
-                "state.attributes",
-                QueryValueType.OBJECT,
-                dynamicChildren = true,
-            ),
-        )
-        val accepted = schema.resolve(
-            aggregation {
-                dateHistogram("state.attributes.createdAt", AggregationDateUnit.DAY, "day")
-                count("count")
-            },
-        ).requireAccepted(QuerySchemaValidationMode.COMPATIBLE)
-
-        MongoAggregationCompiler(SnapshotFilterCompiler).compile(accepted, schema)
-            .single { it.toBsonDocument().containsKey("\$group") }
-            .toBsonDocument().toJson().assert()
-            .contains("\$toDate")
-            .contains("\$state.attributes.createdAt")
     }
 
     @Test
@@ -750,10 +618,11 @@ class MongoAggregationCompilerTest {
                 terms(MessageRecords.AGGREGATE_ID, "aggregate")
                 count("count")
             },
-            QueryModelSchema(
+            mongoTestSchema(
                 QueryModel.SNAPSHOT,
                 emptySet(),
                 mapOf(
+                    field("deleted", QueryCapability.EXACT_MATCH, "deleted", QueryValueType.BOOLEAN),
                     QueryField(MessageRecords.AGGREGATE_ID) to field(
                         MessageRecords.AGGREGATE_ID,
                         QueryCapability.AGGREGATE_TERMS,
@@ -775,7 +644,7 @@ class MongoAggregationCompilerTest {
                 terms(MessageRecords.ID, "event")
                 count("count")
             },
-            QueryModelSchema(
+            mongoTestSchema(
                 QueryModel.EVENT_STREAM,
                 emptySet(),
                 mapOf(
@@ -800,7 +669,7 @@ class MongoAggregationCompilerTest {
         val group = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())[1]
         group.toBsonDocument().toJson().assert()
             .contains("\$isNumber")
-            .doesNotContain("\$ne")
+            .contains("\$filter")
     }
 
     @Test
@@ -845,27 +714,27 @@ class MongoAggregationCompilerTest {
             .contains("physical.state.items.quantity")
             .doesNotContain("deleted")
     }
-
-    @Test
-    fun `accepted missing aggregation fields should retain their original path`() {
-        val query = aggregation {
-            terms("state.status", "status")
-            count("count")
-        }
-
-        MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())[2].toBsonDocument().toJson().assert()
-            .contains("\$state.status")
-    }
 }
 
-private fun schema(vararg fields: Pair<QueryField, QueryFieldSchema>) = QueryModelSchema(
+private fun schema(vararg fields: Pair<QueryField, MongoTestField>) = mongoTestSchema(
     model = QueryModel.SNAPSHOT,
     capabilities = emptySet(),
-    fields = fields.toMap() + field(
-        MessageRecords.AGGREGATE_ID,
-        QueryCapability.AGGREGATE_TERMS,
-        "_id",
-    ),
+    fields = mapOf(
+        field("deleted", QueryCapability.EXACT_MATCH, "deleted", QueryValueType.BOOLEAN),
+        field(MessageRecords.AGGREGATE_ID, QueryCapability.AGGREGATE_TERMS, "_id"),
+        field("state.status", QueryCapability.AGGREGATE_TERMS, "state.status"),
+        field("state.productId", QueryCapability.AGGREGATE_TERMS, "state.productId"),
+        field("state.amount", QueryCapability.AGGREGATE_NUMERIC, "state.amount", QueryValueType.DECIMAL),
+        field("state.quantity", QueryCapability.AGGREGATE_NUMERIC, "state.quantity", QueryValueType.INTEGER),
+        field("state.createdAt", QueryCapability.AGGREGATE_TEMPORAL, "state.createdAt", semanticType = Temporal.Date),
+        field("state.orders", QueryCapability.ELEMENT_SCOPE, "state.orders", QueryValueType.OBJECT),
+        field("state.orders.status", QueryCapability.EXACT_MATCH, "state.orders.status"),
+        field("state.orders.lines", QueryCapability.ELEMENT_SCOPE, "state.orders.lines", QueryValueType.OBJECT),
+        field("state.orders.lines.quantity", QueryCapability.RANGE, "state.orders.lines.quantity", QueryValueType.INTEGER),
+        field("state.orders.lines.productId", QueryCapability.AGGREGATE_TERMS, "state.orders.lines.productId"),
+        field("state.items", QueryCapability.ELEMENT_SCOPE, "state.items", QueryValueType.OBJECT),
+        field("state.items.quantity", QueryCapability.RANGE, "state.items.quantity", QueryValueType.INTEGER),
+    ) + fields.toMap(),
 )
 
 private fun field(
@@ -874,28 +743,12 @@ private fun field(
     physicalPath: String,
     valueType: QueryValueType = QueryValueType.STRING,
     semanticType: Temporal? = null,
-    dynamicChildren: Boolean = false,
-    rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
-    resolvedPath: String = logicalPath,
     additionalCapabilities: Set<QueryCapability> = emptySet(),
-): Pair<QueryField, QueryFieldSchema> {
-    val source = QueryField(logicalPath)
-    val physical = QueryField(
-        if (logicalPath == MessageRecords.AGGREGATE_ID && physicalPath == logicalPath) "_id" else physicalPath,
-    )
-    return source to QueryFieldSchema(
-        title = null,
-        description = null,
-        enumValues = null,
-        valueTypes = setOf(valueType),
-        nullable = false,
-        required = true,
-        cardinality = QueryCardinality.SINGLE,
-        semanticType = semanticType,
-        dynamicChildren = dynamicChildren,
-        bindings = (additionalCapabilities + capability).associateWith {
-            QueryFieldBinding(QueryField(resolvedPath), physical, QueryStorageType("test"))
-        },
-        rewriteMode = rewriteMode,
-    )
+): Pair<QueryField, MongoTestField> {
+    val value = if (capability == QueryCapability.ELEMENT_SCOPE) {
+        QueryValueSchema(QueryValueKind.ARRAY, items = QueryValueSchema(QueryValueKind.OBJECT))
+    } else {
+        QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(valueType), semanticType = semanticType)
+    }
+    return QueryField(logicalPath) to MongoTestField(value, additionalCapabilities + capability, physicalPath)
 }

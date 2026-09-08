@@ -207,15 +207,11 @@ StateEvent 驱动快照处理。选择分布式实现时，应把该通道的积
 
 纯内存应用没有 PrepareStorage 实现，应显式设置 `wow.prepare.enabled: false`。
 
-## QueryProperties
+## 查询准入
 
-配置类：`QueryProperties`；前缀：`wow.query`。
+当前查询不提供验证模式配置。Gateway 按同一 Schema 严格校验最终逻辑 Query；未知字段和缺失 capability 失败关闭。HTTP 成本限制由独立 `HttpQueryGuard` 负责，见[基础设施配置](./infrastructure.md#webflux)。
 
-| 属性 | 类型 | 默认值 | 取值 |
-| --- | --- | --- | --- |
-| `wow.query.schema.validation-mode` | `QuerySchemaValidationMode` | `compatible` | `compatible`、`strict` |
-
-`compatible` 接受 exact 与 compatible 的 Schema 解析结果；`strict` 只接受 exact。该属性控制 Query Schema 解析，不替代 HTTP 查询成本限制；后者见[基础设施配置](./infrastructure.md#webflux)。
+旧 `wow.query.schema.validation-mode` 配置的任何值（包括 `strict`）都会在启动时明确失败并要求删除；camelCase 写法同样拒绝，不会静默忽略。
 
 ## 环境特定配置
 
@@ -257,7 +253,4 @@ wow:
         type: kafka
   prepare:
     storage: mongo
-  query:
-    schema:
-      validation-mode: compatible
 ```

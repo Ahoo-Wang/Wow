@@ -15,8 +15,6 @@ package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BeforeTodayFilter
-import me.ahoo.wow.api.query.DeletionFilter
-import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.EarlierDaysFilter
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
@@ -47,6 +45,10 @@ import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.absoluteLogicalField
+import me.ahoo.wow.query.schema.withTemporal
 import tools.jackson.databind.node.JsonNodeFactory
 import java.time.Clock
 import java.time.DayOfWeek
@@ -61,33 +63,54 @@ import java.util.concurrent.TimeUnit
 class FilterNormalizer(
     private val clock: Clock = Clock.systemDefaultZone(),
     private val defaultZoneId: ZoneId = ZoneId.systemDefault(),
-    private val defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
 ) {
-    fun normalize(expression: FilterExpression): FilterExpression {
-        val hasDeletionScope = defaultDeletionState == null || expression.hasExplicitDeletionScope()
-        val normalized = normalize(expression, clock.instant())
-        return if (hasDeletionScope) {
-            normalized
+    fun normalize(expression: FilterExpression): FilterExpression = normalize(expression, clock.instant(), null, null)
+
+    fun normalize(
+        expression: FilterExpression,
+        schema: QueryModelSchema,
+        logicalParent: QueryField? = null,
+        now: Instant = clock.instant(),
+    ): FilterExpression = normalize(expression, now, schema, logicalParent)
+
+    @Suppress("CyclomaticComplexMethod")
+    private fun normalize(
+        input: FilterExpression,
+        now: Instant,
+        schema: QueryModelSchema?,
+        logicalParent: QueryField?,
+    ): FilterExpression {
+        val expression = if (input is RelativeTimeFilter && schema != null) {
+            val value = schema.field(absoluteLogicalField(input.field, logicalParent))?.value
+                ?: throw QuerySchemaValidationException("Unknown relative-time field: [${input.field}].")
+            input.withTemporal(value)
         } else {
-            simplifyAnd(listOf(DeletionFilter(checkNotNull(defaultDeletionState)), normalized))
+            input
+        }
+        return when (expression) {
+            is EqualFilter -> if (expression.value.isNull) IsNullFilter(expression.field) else expression
+            is NotEqualFilter -> if (expression.value.isNull) IsNotNullFilter(expression.field) else expression
+            is IsEmptyStringFilter -> EqualFilter(expression.field, JsonNodeFactory.instance.stringNode(""))
+            is IsNotEmptyStringFilter -> simplifyAnd(
+                listOf(
+                    IsNotNullFilter(expression.field),
+                    NotEqualFilter(expression.field, JsonNodeFactory.instance.stringNode("")),
+                ),
+            )
+            is AndFilter -> simplifyAnd(expression.operands.map { normalize(it, now, schema, logicalParent) })
+            is OrFilter -> simplifyOr(expression.operands.map { normalize(it, now, schema, logicalParent) })
+            is NorFilter -> simplifyNor(expression.operands.map { normalize(it, now, schema, logicalParent) })
+            is ElementMatchFilter -> ElementMatchFilter(
+                expression.field,
+                normalize(expression.predicate, now, schema, absoluteLogicalField(expression.field, logicalParent)),
+            )
+            is RelativeTimeFilter -> relativeTime(expression, now)
+            else -> expression
         }
     }
 
-    @Suppress("CyclomaticComplexMethod")
-    private fun normalize(expression: FilterExpression, now: Instant): FilterExpression = when (expression) {
-        is EqualFilter -> if (expression.value.isNull) IsNullFilter(expression.field) else expression
-        is NotEqualFilter -> if (expression.value.isNull) IsNotNullFilter(expression.field) else expression
-        is IsEmptyStringFilter -> EqualFilter(expression.field, JsonNodeFactory.instance.stringNode(""))
-        is IsNotEmptyStringFilter -> simplifyAnd(
-            listOf(
-                IsNotNullFilter(expression.field),
-                NotEqualFilter(expression.field, JsonNodeFactory.instance.stringNode("")),
-            ),
-        )
-        is AndFilter -> simplifyAnd(expression.operands.map { normalize(it, now) })
-        is OrFilter -> simplifyOr(expression.operands.map { normalize(it, now) })
-        is NorFilter -> simplifyNor(expression.operands.map { normalize(it, now) })
-        is ElementMatchFilter -> ElementMatchFilter(expression.field, normalize(expression.predicate, now))
+    @Suppress("CyclomaticComplexMethod") // Exhaustive public relative-time operators share one captured clock instant.
+    private fun relativeTime(expression: RelativeTimeFilter, now: Instant): FilterExpression = when (expression) {
         is YesterdayFilter -> expression.dayRange(now, -1)
         is TodayFilter -> expression.dayRange(now, 0)
         is TomorrowFilter -> expression.dayRange(now, 1)
@@ -128,14 +151,6 @@ class FilterNormalizer(
                 instantNode(end, zone(expression.zoneId), expression.resolvedDateFormatter(), expression.timeUnit),
             )
         }
-
-        else -> expression
-    }
-
-    private fun FilterExpression.hasExplicitDeletionScope(): Boolean = when (this) {
-        is DeletionFilter -> true
-        is AndFilter -> operands.any { it.hasExplicitDeletionScope() }
-        else -> false
     }
 
     private fun RelativeTimeFilter.dayRange(now: Instant, offset: Long): FilterExpression =

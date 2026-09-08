@@ -31,10 +31,8 @@ import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompi
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetric;
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPlan;
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler;
-import me.ahoo.wow.query.schema.QueryFieldBinding;
-import me.ahoo.wow.query.schema.QueryFieldSchema;
+import me.ahoo.wow.query.schema.QueryValueSchema;
 import me.ahoo.wow.query.schema.QueryModelSchema;
-import me.ahoo.wow.query.schema.QueryRewriteMode;
 import org.bson.BsonDocument;
 import org.bson.conversions.Bson;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -66,8 +64,7 @@ import java.util.concurrent.TimeUnit;
 @Threads(1)
 public class AggregationCompilerBenchmark {
     @Param({"mongo", "elasticsearch"}) public String backend;
-    @Param({"known_terms", "unknown_terms", "known_histogram", "known_epoch",
-            "unknown_date", "known_metric", "count_only"}) public String shape;
+    @Param({"known_terms", "known_histogram", "known_epoch", "known_metric", "count_only"}) public String shape;
     @Param({"1", "16"}) public int width;
     private QueryModelSchema schema;
     private AggregationQuery query;
@@ -78,16 +75,16 @@ public class AggregationCompilerBenchmark {
 
     @Setup
     public void setup() {
-        Map<QueryField, QueryFieldSchema> fields = new LinkedHashMap<>();
+        Map<QueryField, QueryValueSchema> fields = new LinkedHashMap<>();
+        Map<QueryField, Map<QueryCapability, QueryField>> bindings = new LinkedHashMap<>();
         List<AggregationGroup> groups = new ArrayList<>();
         List<AggregationMetric> metrics = new ArrayList<>();
         for (int index = 0; index < width; index++) {
             QueryField logical = new QueryField("state.field" + index);
-            QueryField resolved = new QueryField("document.field" + index);
             QueryField physical = new QueryField("storage.field" + index);
             QueryCapability capability = switch (shape) {
                 case "known_histogram", "known_metric" -> QueryCapability.Companion.getAGGREGATE_NUMERIC();
-                case "known_epoch", "unknown_date" -> QueryCapability.Companion.getAGGREGATE_TEMPORAL();
+                case "known_epoch" -> QueryCapability.Companion.getAGGREGATE_TEMPORAL();
                 default -> QueryCapability.Companion.getAGGREGATE_TERMS();
             };
             if (shape.startsWith("known_")) {
@@ -95,17 +92,15 @@ public class AggregationCompilerBenchmark {
                         ? new Temporal.Epoch(TimeUnit.MICROSECONDS) : null;
                 QueryValueType valueType = shape.equals("known_terms")
                         ? QueryValueType.Companion.getSTRING() : QueryValueType.Companion.getINTEGER();
-                fields.put(logical, new QueryFieldSchema(
-                        null, null, null, Set.of(valueType), false, true, QueryCardinality.SINGLE,
-                        semantic, false, Map.of(capability, new QueryFieldBinding(resolved, physical, null)),
-                        null, QueryRewriteMode.REQUIRED, null, null));
+                fields.put(logical, BenchmarkQuerySchemas.scalar(valueType, semantic));
+                bindings.put(logical, Map.of(capability, physical));
             }
-            QueryField input = shape.equals("known_epoch") ? resolved : logical;
+            QueryField input = logical;
             String alias = "group" + index;
             switch (shape) {
-                case "known_terms", "unknown_terms" -> groups.add(new AggregationGroup.Terms(input, alias));
+                case "known_terms" -> groups.add(new AggregationGroup.Terms(input, alias));
                 case "known_histogram" -> groups.add(new AggregationGroup.Histogram(input, alias, 10.0));
-                case "known_epoch", "unknown_date" -> groups.add(new AggregationGroup.DateHistogram(
+                case "known_epoch" -> groups.add(new AggregationGroup.DateHistogram(
                         input, alias, AggregationDateUnit.DAY, "UTC"));
                 case "known_metric" -> metrics.add(new AggregationMetric.Numeric(
                         AggregationFunction.SUM, new AggregationExpression.Field(input), "metric" + index));
@@ -114,7 +109,7 @@ public class AggregationCompilerBenchmark {
             }
         }
         if (!groups.isEmpty()) metrics.add(new AggregationMetric.Count("count"));
-        schema = new QueryModelSchema(QueryModel.Companion.getSNAPSHOT(), Set.of(), fields);
+        schema = BenchmarkQuerySchemas.create(QueryModel.Companion.getSNAPSHOT(), fields, bindings);
         query = new AggregationQuery(MatchAllFilter.INSTANCE, List.of(), groups, metrics, List.of(), 100);
         verifyPlan(compile());
     }
@@ -146,9 +141,8 @@ public class AggregationCompilerBenchmark {
             throw new IllegalStateException("wrong compiled dimensions");
         }
         String actual = switch (shape) {
-            case "known_terms", "unknown_terms" -> plan.getGroupSources().get(0).value().terms().field();
+            case "known_terms" -> plan.getGroupSources().get(0).value().terms().field();
             case "known_histogram" -> plan.getGroupSources().get(0).value().histogram().field();
-            case "unknown_date" -> plan.getGroupSources().get(0).value().dateHistogram().field();
             case "known_epoch" -> plan.getRuntimeMappings().get("__wow_date_histogram_0")
                     .script().params().get("field").to(String.class);
             case "known_metric" -> ((ElasticsearchAggregationMetric.Numeric) plan.getMetrics().get(0)).getField();

@@ -7,6 +7,8 @@ description: Apply JVM and WebFlux HTTP/OpenAPI event-stream aggregation to root
 
 Event-stream aggregation is supported through the JVM `EventStreamQueryGateway` and WebFlux HTTP/OpenAPI. There is no EventStream API Client; HTTP callers use the shared `AggregationQuery` JSON contract directly.
 
+Numeric `FIELD` inputs and arithmetic leaves follow [numeric contributions and precision](./aggregation-query.md#numeric-contributions): each current record contributes only when exactly one stored numeric value remains after nulls are ignored; duplicates count separately. COUNT still counts records. This preserves singleton-array support without changing histogram bucket contracts.
+
 ## Capabilities and Entry Points
 
 - **JVM Gateway**: `EventStreamQueryGateway.aggregate(namedAggregate, query)` executes aggregation through the policy chain.
@@ -15,7 +17,7 @@ Event-stream aggregation is supported through the JVM `EventStreamQueryGateway` 
 - **Schema HTTP**: `GET /sales-order/event/schema` and `POST /sales-order/event/schema/refresh` are separate model-level routes without tenant/owner variants.
 - **Shared contract**: see [Aggregation Queries](./aggregation-query.md) for Elements, groups, metrics, aliases, sorting, and limits; see [Filter Expressions](./filter-expression.md) for the root-filter Kotlin DSL; field capabilities come from [Query Model Schema (current reference)](./query-model-schema.md).
 
-After strict request decoding, `RewriteRequestFilter` merges tenant/owner/space scope from aggregate metadata, path variables, and the `Command-Tenant-Id`, `Command-Owner-Id`, and `Wow-Space-Id` request headers before entering `EventStreamQueryGateway`. The Gateway policy chain applies the HTTP guard and invokes the Backend bound at assembly; the Schema resolver validates and resolves the query before aggregation. The response negotiates a JSON array or SSE through `Accept`. JVM aggregation returns `Flux<ObjectNode>`. The results below are representative node rows, not fixed business data.
+The HTTP Handler decodes the request, uses `QueryRequestScope` to capture tenant/owner/space in Reactor Context, and applies HTTP cost and response limits through independent `HttpQueryGuard`. The EventStream Gateway runs preparation, scope merging, and final public validation, then passes the logical Query and same Schema to its Backend. It does not automatically apply Snapshot ABAC policies. Accept selects a JSON array or SSE; JVM aggregation returns `Flux<ObjectNode>`. The examples below show representative rows.
 
 ## Root Documents, body, and Counting Units
 

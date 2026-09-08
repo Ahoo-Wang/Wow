@@ -62,6 +62,7 @@ import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
@@ -69,7 +70,6 @@ import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
@@ -108,8 +108,9 @@ import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
-import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestFilter
-import me.ahoo.wow.webflux.route.query.HttpQueryGuardFilter
+import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
+import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ObjectProvider
@@ -156,7 +157,7 @@ internal class WebFluxAutoConfigurationTest {
             beanFactory = mockk(),
             snapshotQueryBackendFactory = TestSnapshotQueryBackendFactory,
             eventStreamQueryBackendFactory = TestEventStreamQueryBackendFactory,
-            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).httpFactories
         val handlerKeys = factories.map { it.handlerKey }
@@ -167,6 +168,53 @@ internal class WebFluxAutoConfigurationTest {
             BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY_STATE,
             BuiltInHttpRouteHandlerKeys.Event.CURSOR_QUERY,
         )
+    }
+
+    @Test
+    fun `load factories must apply configured scope and guard on both routes`() {
+        val snapshotGateway = mockk<SnapshotQueryGateway<Any>> {
+            every { dynamicSingle(any()) } returns Mono.empty()
+        }
+        val eventGateway = mockk<EventStreamQueryGateway> {
+            every { dynamicList(any()) } returns Flux.empty()
+        }
+        val beanFactory = mockk<BeanFactory> {
+            every { getBean("example.order.SnapshotQueryGateway", SnapshotQueryGateway::class.java) } returns snapshotGateway
+            every { getBean("example.order.EventStreamQueryGateway", EventStreamQueryGateway::class.java) } returns eventGateway
+        }
+        val factories = QueryRouteModule(
+            beanFactory = beanFactory,
+            snapshotQueryBackendFactory = TestSnapshotQueryBackendFactory,
+            eventStreamQueryBackendFactory = TestEventStreamQueryBackendFactory,
+            queryRequestScope = QueryRequestScope { _, _ -> filterExpression { "spaceId" isIn listOf("first", "second") } },
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            guard = HttpQueryGuard(maxFilterValues = 1),
+        ).httpFactories
+        val responseContext = object : ServerResponse.Context {
+            private val strategies = HandlerStrategies.withDefaults()
+            override fun messageWriters() = strategies.messageWriters()
+            override fun viewResolvers() = strategies.viewResolvers()
+        }
+        listOf(
+            BuiltInHttpRouteHandlerKeys.Snapshot.LOAD,
+            BuiltInHttpRouteHandlerKeys.Event.LOAD
+        ).forEach { handlerKey ->
+            val contract = queryContract(
+                "order",
+                Order::class.java.aggregateRouteMetadata()
+            ).copy(handlerKey = handlerKey)
+            val handler = factories.single { it.handlerKey == handlerKey }.create(contract)
+            val request = MockServerRequest.builder()
+                .pathVariable(
+                    "id",
+                    "specific-record"
+                ).pathVariable("headVersion", "0").pathVariable("tailVersion", "1").build()
+            val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/load").build())
+            handler.handle(request).flatMap { it.writeTo(exchange, responseContext) }.block()
+            exchange.response.statusCode.assert().isEqualTo(org.springframework.http.HttpStatus.BAD_REQUEST)
+        }
+        verify(exactly = 0) { snapshotGateway.dynamicSingle(any()) }
+        verify(exactly = 0) { eventGateway.dynamicList(any()) }
     }
 
     @Test
@@ -189,7 +237,7 @@ internal class WebFluxAutoConfigurationTest {
             beanFactory = beanFactory,
             snapshotQueryBackendFactory = TestSnapshotQueryBackendFactory,
             eventStreamQueryBackendFactory = TestEventStreamQueryBackendFactory,
-            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).httpFactories.single { it.handlerKey == BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY }
         val orderHandler = factory.create(queryContract("order", Order::class.java.aggregateRouteMetadata()))
@@ -267,7 +315,7 @@ internal class WebFluxAutoConfigurationTest {
                     .hasSingleBean(CommandWaitPolicy::class.java)
                     .hasSingleBean(TracingPolicy::class.java)
                     .hasSingleBean(BatchExecutionPolicy::class.java)
-                    .hasSingleBean(HttpQueryGuardFilter::class.java)
+                    .hasSingleBean(HttpQueryGuard::class.java)
                     .hasSingleBean(WebFluxProperties::class.java)
                     .hasSingleBean(BiScriptProperties::class.java)
                 val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
@@ -1185,7 +1233,7 @@ internal class WebFluxAutoConfigurationTest {
                         DefaultSnapshotQueryGateway<Any>(
                             namedAggregate = namedAggregate,
                             binding = QueryBackendBinding(backend, TestSnapshotQuerySchemaProvider),
-                            validationMode = QuerySchemaValidationMode.COMPATIBLE,
+
                             targetType = JsonSerializer.typeFactory.constructParametricType(
                                 MaterializedSnapshot::class.java,
                                 Any::class.java,
@@ -1201,7 +1249,7 @@ internal class WebFluxAutoConfigurationTest {
                         DefaultEventStreamQueryGateway(
                             namedAggregate = namedAggregate,
                             binding = QueryBackendBinding(backend, TestEventStreamQuerySchemaProvider),
-                            validationMode = QuerySchemaValidationMode.COMPATIBLE,
+
                         )
                     },
                 )
@@ -1209,8 +1257,8 @@ internal class WebFluxAutoConfigurationTest {
 
     private companion object {
         const val BI_SCRIPT_TEST_MAX_IN_MEMORY_SIZE: Int = 1024 * 1024
-        val SNAPSHOT_SCHEMA = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
-        val EVENT_STREAM_SCHEMA = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        val SNAPSHOT_SCHEMA = me.ahoo.wow.spring.boot.starter.query.testQuerySchema(QueryModel.SNAPSHOT)
+        val EVENT_STREAM_SCHEMA = me.ahoo.wow.spring.boot.starter.query.testQuerySchema(QueryModel.EVENT_STREAM)
         val TEST_AGGREGATES = listOf(
             "order-service" to "order",
             "order-service" to "cart",

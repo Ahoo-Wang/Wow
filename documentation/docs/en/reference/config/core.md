@@ -207,15 +207,11 @@ Configuration class: `PrepareProperties`; prefix: `wow.prepare`.
 
 A purely in-memory application has no PrepareStorage implementation and must set `wow.prepare.enabled: false`.
 
-## QueryProperties
+## Query admission
 
-Configuration class: `QueryProperties`; prefix: `wow.query`.
+There is no query validation-mode setting. The Gateway strictly validates the final logical Query against its captured Schema; unknown fields and missing capabilities fail closed. Independent `HttpQueryGuard` settings control HTTP costs; see [Infrastructure Configuration](./infrastructure.md#webflux).
 
-| Property | Type | Default | Values |
-| --- | --- | --- | --- |
-| `wow.query.schema.validation-mode` | `QuerySchemaValidationMode` | `compatible` | `compatible`, `strict` |
-
-`compatible` accepts exact and compatible schema resolutions; `strict` accepts only exact ones. This controls query-schema resolution, not HTTP query-cost limits; see [Infrastructure Configuration](./infrastructure.md#webflux) for those limits.
+Any value of the old `wow.query.schema.validation-mode` property, including `strict`, fails startup with an instruction to remove it. CamelCase spellings are rejected too; the setting is not silently ignored.
 
 ## Environment-Specific Configuration
 
@@ -257,7 +253,4 @@ wow:
         type: kafka
   prepare:
     storage: mongo
-  query:
-    schema:
-      validation-mode: compatible
 ```

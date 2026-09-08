@@ -27,7 +27,6 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.serialization.JsonSerializer
@@ -67,18 +66,19 @@ class EventStreamQueryBackendFactoryTest {
     private class StubEventStreamQueryBackend(
         override val namedAggregate: NamedAggregate,
     ) : EventStreamQueryBackend {
-        override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> =
+        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> =
             Mono.fromSupplier(JsonSerializer::createObjectNode)
         override fun list(
-            query: ResolvedQuery<IListQuery>,
+            query: IListQuery,
+            schema: QueryModelSchema,
         ): Flux<ObjectNode> = Flux.defer { Flux.just(JsonSerializer.createObjectNode()) }
-        override fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> =
+        override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> =
             Mono.fromSupplier { PagedList(1, listOf(JsonSerializer.createObjectNode())) }
 
-        override fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
+        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> =
             Mono.just(CursorPage(emptyList(), null))
-        override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = Mono.just(0L)
-        override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.just(0L)
+        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
     }
 
     private class DecoratedNamedAggregate(
@@ -88,6 +88,6 @@ class EventStreamQueryBackendFactoryTest {
     companion object {
         private val ORDER = MaterializedNamedAggregate("order-service", "order")
         private val CART = MaterializedNamedAggregate("order-service", "cart")
-        private val SCHEMA = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        private val SCHEMA = me.ahoo.wow.query.gatewaySchema(QueryModel.EVENT_STREAM)
     }
 }

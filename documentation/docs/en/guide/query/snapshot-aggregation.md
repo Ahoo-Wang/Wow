@@ -7,6 +7,8 @@ description: Apply snapshot aggregation to root documents and collection element
 
 Snapshot aggregation treats each aggregate's current materialized state as the source of truth and returns dynamic table rows whose columns are group and metric aliases. See [Aggregation Queries](./aggregation-query.md) for the shared AST, aliases, sorting, and structural limits. This page applies that contract to snapshots.
 
+Numeric `FIELD` inputs and arithmetic leaves follow [numeric contributions and precision](./aggregation-query.md#numeric-contributions): each current record contributes only when exactly one stored numeric value remains after nulls are ignored; duplicates count separately. COUNT still counts records. This preserves singleton-array support without changing histogram bucket contracts.
+
 ## Capabilities and Entry Points
 
 - **JVM Gateway**: inject the aggregate-scoped `SnapshotQueryGateway<OrderState>` through Spring, build an `AggregationQuery`, and call `query.query(snapshotQueryGateway)`. This Bean executes policies through [QueryGateway](./query-gateway.md); see [Query Backends](./query-backend.md) for the direct Backend Factory bypass boundary.
@@ -435,9 +437,9 @@ val query = aggregation {
 
 ## Backend Capabilities and Stability Boundaries
 
-- Snapshot queries append `DELETION = ACTIVE` by default. The root filter first selects snapshots, and each Element filter then selects individual expanded elements.
+- The Snapshot Gateway appends `DELETION = ACTIVE` by default. Direct Backend callers supply deletion scope explicitly; the normalizer and compiler do not add defaults. The root filter first selects snapshots, and each Element filter then selects individual expanded elements.
 - The runtime Query Model Schema and selected MongoDB or Elasticsearch mapping jointly prove whether logical fields support exact match, range, Element scope, TERMS, numeric, or temporal aggregation. A valid request DTO does not establish backend support.
-- The HTTP route executes through `SnapshotQueryGateway`, request-scope rewriting, and `HttpQueryGuardFilter`. When expensive operators are disabled, HTTP rejects Elements, metric-alias sorting, and arithmetic expressions. In-process JVM calls do not automatically receive these HTTP-only limits.
-- Masked fields remain valid for ordinary filters, full-text search, and sorting. A group, field metric, or arithmetic expression that references one resolves as `INCOMPATIBLE` and is rejected; `COUNT` is unchanged. See [Field Masking](./masking.md) for the complete matrix.
+- The HTTP Handler applies QueryRequestScope and independent `HttpQueryGuard` limits before invoking `SnapshotQueryGateway`. When expensive operators are disabled, HTTP rejects Elements, metric-alias sorting, and arithmetic expressions. In-process JVM calls do not automatically receive these HTTP-only limits.
+- Masked fields remain valid for ordinary filters, full-text search, and sorting. A group, field metric, or arithmetic expression that references one is rejected by Gateway public validation; `COUNT` is unchanged. See [Field Masking](./masking.md) for the complete matrix.
 - MongoDB and Elasticsearch share the public AST but do not promise identical physical pipelines, mappings, null handling, or bucket details. `ANY` in particular provides no stable value across executions or backends.
 - A custom `SnapshotQueryBackend` must implement the aggregation contract. Working data-query routes or published OpenAPI alone do not prove that the Backend executes aggregation.

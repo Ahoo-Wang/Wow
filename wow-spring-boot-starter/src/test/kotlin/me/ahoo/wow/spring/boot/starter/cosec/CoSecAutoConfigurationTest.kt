@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot.starter.cosec
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.cosec.appender.CoSecCommandRequestHeaderAppender
 import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor
-import me.ahoo.wow.cosec.query.CoSecRewriteRequestFilter
+import me.ahoo.wow.cosec.query.CoSecQueryRequestScope
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -34,7 +34,7 @@ class CoSecAutoConfigurationTest {
                 context.assert()
                     .hasSingleBean(CoSecCommandRequestHeaderAppender::class.java)
                     .hasSingleBean(CoSecCommandBuilderExtractor::class.java)
-                    .hasSingleBean(CoSecRewriteRequestFilter::class.java)
+                    .hasSingleBean(CoSecQueryRequestScope::class.java)
             }
     }
 }

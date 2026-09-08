@@ -28,7 +28,6 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -36,13 +35,7 @@ import me.ahoo.wow.mongo.Documents.replacePrimaryKeyTo
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackend
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
 import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.ResolvedQuery
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.requireAccepted
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.assertThrows
@@ -79,27 +72,18 @@ class MongoQueryProjectionResultTest {
         val capturedProjection = arrange { Document("value", "visible") }
         val result = when (operation) {
             "single" -> backend.single(
-                ResolvedQuery(
-                    schema.resolve(SingleQuery(MatchAllFilter, projection))
-                        .requireAccepted(QuerySchemaValidationMode.STRICT),
-                    schema,
-                ),
+                SingleQuery(MatchAllFilter, projection),
+                schema,
             ).map(::listOf)
 
             "list" -> backend.list(
-                ResolvedQuery(
-                    schema.resolve(ListQuery(MatchAllFilter, projection, limit = 1))
-                        .requireAccepted(QuerySchemaValidationMode.STRICT),
-                    schema,
-                ),
+                ListQuery(MatchAllFilter, projection, limit = 1),
+                schema,
             ).collectList()
 
             "paged" -> backend.paged(
-                ResolvedQuery(
-                    schema.resolve(PagedQuery(MatchAllFilter, projection, pagination = Pagination(size = 1)))
-                        .requireAccepted(QuerySchemaValidationMode.STRICT),
-                    schema,
-                ),
+                PagedQuery(MatchAllFilter, projection, pagination = Pagination(size = 1)),
+                schema,
             ).map { page ->
                 page.total.assert().isEqualTo(7L)
                 page.list
@@ -170,34 +154,17 @@ class MongoQueryProjectionResultTest {
         MongoEventStreamQueryBackend(namedAggregate, collection)
     }
 
-    private fun schema(model: QueryModel, logicalId: String): QueryModelSchema {
-        val logical = QueryField(logicalId)
-        val physical = QueryField("_id")
-        return QueryModelSchema(
-            model,
-            emptySet(),
-            mapOf(
-                logical to QueryFieldSchema(
-                    title = null,
-                    description = null,
-                    enumValues = null,
-                    valueTypes = setOf(QueryValueType.STRING),
-                    nullable = false,
-                    required = true,
-                    cardinality = QueryCardinality.SINGLE,
-                    semanticType = null,
-                    dynamicChildren = false,
-                    bindings = mapOf(QueryCapability.PRESENCE to QueryFieldBinding(logical, physical, null)),
-                    projectionField = physical,
-                    rewriteMode = QueryRewriteMode.NONE,
-                ),
-            ),
-        )
-    }
+    private fun schema(model: QueryModel, logicalId: String): QueryModelSchema = mongoTestSchema(
+        model,
+        fields = mapOf(
+            QueryField(logicalId) to MongoTestField(mongoScalar(), setOf(QueryCapability.PRESENCE), "_id"),
+            QueryField("deleted") to MongoTestField(mongoScalar(QueryValueType.BOOLEAN), setOf(QueryCapability.EXACT_MATCH), "deleted"),
+        ),
+    )
 
     private fun single(model: QueryModel, logicalId: String, document: () -> Document): Mono<ObjectNode> {
         arrange(document)
-        return backend(model).single(ResolvedQuery(SingleQuery(MatchAllFilter), schema(model, logicalId)))
+        return backend(model).single(SingleQuery(MatchAllFilter), schema(model, logicalId))
     }
 
     private fun arrange(document: () -> Document): io.mockk.CapturingSlot<Bson> {

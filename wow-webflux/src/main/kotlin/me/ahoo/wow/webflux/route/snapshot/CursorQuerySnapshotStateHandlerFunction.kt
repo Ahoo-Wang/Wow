@@ -19,16 +19,19 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.toStateDocumentCursorPage
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.CursorQueryHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
+import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.QueryRequestScope
 
 class CursorQuerySnapshotStateHandlerFunctionFactory(
     snapshotQueryGateway: (AggregateMetadata<*, *>) -> SnapshotQueryGateway<Any>,
-    rewriteRequestFilter: RewriteRequestFilter,
+    queryRequestScope: QueryRequestScope,
     exceptionHandler: RequestExceptionHandler,
+    guard: HttpQueryGuard = HttpQueryGuard(),
 ) : CursorQueryHandlerFunctionFactory(
     handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY_STATE,
     queryGateway = snapshotQueryGateway,
-    rewriteRequestFilter = rewriteRequestFilter,
+    queryRequestScope = queryRequestScope,
     exceptionHandler = exceptionHandler,
+    guard = guard,
     rewriteResult = { it.toStateDocumentCursorPage() },
 )

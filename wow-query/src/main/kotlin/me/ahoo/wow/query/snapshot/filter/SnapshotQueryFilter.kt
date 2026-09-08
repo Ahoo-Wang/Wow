@@ -14,9 +14,8 @@
 package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.wow.filter.FilterType
-import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 
 @FilterType(SnapshotQueryGateway::class)
-interface SnapshotQueryFilter : QueryFilter<QueryContext<*, *>>
+interface SnapshotQueryFilter : QueryFilter

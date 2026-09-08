@@ -14,15 +14,13 @@
 package me.ahoo.wow.spring.query
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.toStringWithAlias
+import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
 
@@ -49,22 +47,14 @@ class EventStreamQueryGatewayRegistrar : QueryGatewayRegistrar() {
 
         val beanDefinition = BeanDefinitionBuilder.rootBeanDefinition(EventStreamQueryGateway::class.java) {
             val binding = appContext.getBean(EventStreamQueryBackendFactory::class.java).create(namedAggregate)
-            val validationMode = appContext.getBeanProvider(QuerySchemaValidationMode::class.java)
-                .getIfAvailable { QuerySchemaValidationMode.COMPATIBLE }
 
-            @Suppress("UNCHECKED_CAST")
             val filters = appContext.getBeanProvider(QueryFilter::class.java).toList()
-                as List<QueryFilter<QueryContext<*, *>>>
-
-            @Suppress("UNCHECKED_CAST")
-            val errorHandler = appContext.getBean("eventStreamQueryErrorHandler", ErrorHandler::class.java)
-                as ErrorHandler<QueryContext<*, *>>
+            val observer = appContext.getBean("eventStreamQueryObserver", QueryObserver::class.java)
             DefaultEventStreamQueryGateway(
                 namedAggregate = namedAggregate,
                 binding = binding,
-                validationMode = validationMode,
                 filters = filters,
-                errorHandler = errorHandler,
+                observer = observer,
             )
         }.beanDefinition
 

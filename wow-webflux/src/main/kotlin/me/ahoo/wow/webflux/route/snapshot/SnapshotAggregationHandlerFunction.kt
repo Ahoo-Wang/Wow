@@ -17,11 +17,14 @@ import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
+import me.ahoo.wow.webflux.route.query.HttpQueryGuard
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.AGGREGATION_QUERY_EXTRACTOR
-import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
+import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import me.ahoo.wow.webflux.route.toServerResponse
 import me.ahoo.wow.webflux.route.writeRawRequest
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -32,13 +35,16 @@ import reactor.core.publisher.Mono
 class SnapshotAggregationHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryGateway: SnapshotQueryGateway<Any>,
-    private val rewriteRequestFilter: RewriteRequestFilter,
+    private val queryRequestScope: QueryRequestScope,
     private val exceptionHandler: RequestExceptionHandler,
+    private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
         request.body(AGGREGATION_QUERY_EXTRACTOR)
             .flatMapMany { query ->
-                queryGateway.aggregate(rewriteRequestFilter.rewrite(aggregateMetadata, request, query))
+                val scope = queryRequestScope.resolve(aggregateMetadata, request)
+                guard.flux(QueryType.AGGREGATION, query, request, scope) { queryGateway.aggregate(query) }
+                    .contextWrite { it.withQueryScope(scope) }
             }
             .writeRawRequest(request)
             .toServerResponse(request, exceptionHandler)
@@ -46,8 +52,9 @@ class SnapshotAggregationHandlerFunction(
 
 class SnapshotAggregationHandlerFunctionFactory(
     private val snapshotQueryGateway: (AggregateMetadata<*, *>) -> SnapshotQueryGateway<Any>,
-    private val rewriteRequestFilter: RewriteRequestFilter,
+    private val queryRequestScope: QueryRequestScope,
     private val exceptionHandler: RequestExceptionHandler,
+    private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION) {
     override fun create(
         contract: HttpRouteContract,
@@ -57,8 +64,9 @@ class SnapshotAggregationHandlerFunctionFactory(
         return SnapshotAggregationHandlerFunction(
             aggregateMetadata = aggregateMetadata,
             queryGateway = snapshotQueryGateway(aggregateMetadata),
-            rewriteRequestFilter = rewriteRequestFilter,
+            queryRequestScope = queryRequestScope,
             exceptionHandler = exceptionHandler,
+            guard = guard,
         )
     }
 }

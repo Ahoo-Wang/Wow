@@ -1,92 +1,59 @@
 ---
 title: Query Backend
-description: Learn how ObjectNode query backends, aggregate Gateways, Factory routing, and storage implementations fit together.
+description: Logical Query and Schema inputs, native compilation, and response ownership.
 ---
 
 # Query Backend
 
 ## QueryBackend contract
 
-`QueryBackend` is the aggregate-bound low-level contract. Its six execution methods accept only a `ResolvedQuery` prepared by the Gateway:
+`QueryBackend` is the aggregate-bound native execution boundary. The Gateway passes the final logical query and the same Schema captured for that subscription:
 
 ```kotlin
-fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode>
-fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode>
-fun paged(query: ResolvedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
-fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
-fun count(query: ResolvedQuery<FilterExpression>): Mono<Long>
-fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode>
+fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode>
+fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode>
+fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>>
+fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>>
+fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long>
+fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode>
 ```
 
-There are no compatibility overloads accepting raw queries. A Backend neither obtains nor resolves Schema and never chooses `QuerySchemaValidationMode`; it only compiles and executes `ResolvedQuery.query` with the non-null `ResolvedQuery.schema`. Schema-aware Projection, Sort, Filter, and Aggregation Compilers use `QueryFieldBinding.physicalField` as their only physical-path source; `projectionField` is already physical, and an accepted `COMPATIBLE` field without a binding retains its original path. Single, list, paged, cursor, and aggregate use `tools.jackson.databind.node.ObjectNode`; count returns `Long`, while cursor wraps nodes in `CursorPage<ObjectNode>`. `SnapshotQueryBackend` and `EventStreamQueryBackend` distinguish the data model. Typed materialization belongs to the Gateway, not the Backend; a custom Backend never implements or delegates `QueryModelSchemaProvider`.
+The Backend does not read a Provider, run request policies or whole-query public validation, or mask responses. It compiles Filter, Projection, Sort, and Aggregation from native bindings, checks native parameters and physical scope, then accesses storage. Unknown fields never become physical paths by fallback. Typed materialization belongs to the Gateway.
 
-## Node ownership constraints
+`QueryFieldSchema.value` holds the logical value definition; `binding(capability).physicalField` is absolute. MongoDB explicitly derives relative paths inside element predicates; Elasticsearch uses absolute paths with nested scope. Projection has a separate binding and selects a node with its descendants. Backend-local wildcard expressions never enter the public Query.
 
-Every subscription to a Backend publisher must create mutable `ObjectNode` instances owned exclusively by that subscription. Subscriptions created by `retry`, `repeat`, and concurrent callers each receive fresh nodes. A Backend must not cache or share nodes across subscriptions, publish cached nodes, or continue mutating a node asynchronously after emission.
+## Factories and routing
 
-Only standard JSON trees may cross the Backend boundary. MongoDB `Document`, Elasticsearch source `Map`, BSON values, `POJONode`, and arbitrary POJOs must be normalized or rejected inside the Backend instead of leaking into the Gateway.
+`SnapshotQueryBackendFactory.create(namedAggregate)` and `EventStreamQueryBackendFactory.create(namedAggregate)` return `QueryBackendBinding`, pairing a Backend with its `QueryModelSchemaProvider`. Abstract factories cache the complete binding; routing factories forward the pair atomically. Spring selects the route once when creating an aggregate Gateway. Query execution and Schema HTTP endpoints use that same pair.
 
-```mermaid
-flowchart TB
-    Route["Routing BackendFactory"] -->|"NamedAggregate, once at assembly"| Backend["Bound ObjectNode Backend"]
-    Registrar["Gateway Registrar"] --> Gateway["Aggregate Gateway Bean"]
-    Backend --> Gateway
-    Gateway --> Chain["One around chain"]
-    Chain --> Backend
-    Backend --> Store["MongoDB / Elasticsearch"]
-    Infra["Trusted infrastructure"] -. "Direct call bypasses governance" .-> Route
-```
+Applications normally inject `SnapshotQueryGateway<OrderState>` or qualify an `EventStreamQueryGateway` by Bean name. Direct factory access is for trusted diagnostics, contract tests, and storage extensions. It bypasses Gateway preparation, scope, ABAC, Mask, and Observer handling.
 
-## Injecting a typed SnapshotQueryGateway Bean
-
-Spring can inject a snapshot Gateway by its state type:
+A low-level caller must explicitly own those responsibilities. For example, public field validation followed by a raw list operation:
 
 ```kotlin
-@Component
-class OrderReader(
-    private val queryGateway: SnapshotQueryGateway<OrderState>,
-) {
-    fun find(query: PagedQuery): Mono<PagedList<MaterializedSnapshot<OrderState>>> =
-        queryGateway.paged(query)
+val binding = factory.create(namedAggregate)
+val query = ListQuery(MatchAllFilter, limit = 10)
+val rows = binding.schemaProvider.schema().flatMapMany { schema ->
+    binding.backend.list(validateQuery(query, schema), schema)
 }
 ```
 
-This is the in-process JVM entry. Requests and results traverse the same [Query Gateway](query-gateway.md) policy chain.
+This example's `MatchAllFilter` does not restrict deletion state. The Backend, `FilterNormalizer`, and compiler do not append `ACTIVE`. A low-level Snapshot caller that needs active records must explicitly use `DeletionFilter(DeletionState.ACTIVE)`. This example supplies neither authorization nor masking and does not replace an application Gateway.
 
-## Bean registration and naming
+## Native numeric semantics
 
-`SnapshotQueryGatewayRegistrar` registers `SnapshotQueryGateway<STATE>` with `ResolvableType`; its Bean name is `{contextAlias.}{aggregateName}.SnapshotQueryGateway`. `EventStreamQueryGatewayRegistrar` registers `EventStreamQueryGateway` as `{contextAlias.}{aggregateName}.EventStreamQueryGateway`.
+Numeric comparisons use the storage precision of their binding; `EXACT_MATCH` does not mean arbitrary-precision source equality. Scalar field metrics retain native aggregation; array/union fields and arithmetic leaves follow the [one numeric contribution per record](./aggregation-query.md#numeric-contributions) contract. The Backend does not scan source to reconstruct array pairing, and runtime output must obey the logical numeric model.
 
-When a same-name Gateway Bean exists, the Registrar retains it. A custom Bean owns the complete governance contract; it is not an alias for a Backend Factory.
+## Node ownership
 
-## How a Gateway binds its Backend
+Every subscription owns fresh mutable `ObjectNode` instances, including retries, repeats, and concurrent subscriptions. Do not share cached nodes or mutate them asynchronously after emission. Normalize MongoDB Documents, Elasticsearch source Maps, BSON, and POJOs to standard JSON trees inside the Backend; reject values that cannot be represented.
 
-When it creates a Gateway, the registrar calls `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` once with the current `NamedAggregate`. The Factory returns one `QueryBackendBinding`, and the registrar passes that complete binding to the Gateway. The routing Factory selects an aggregate-specific route or its default at that point. The Gateway then keeps the bound pair instead of selecting again for every request.
+## Cursor execution
 
-## Factories, caching, and storage routing
+Before validation, the Gateway appends the unique sort field: `aggregateId` for Snapshot and `id` for EventStream. The Backend does not append it again. Raw callers provide the complete effective sort themselves.
 
-`SnapshotQueryBackendFactory` and `EventStreamQueryBackendFactory` return `QueryBackendBinding<Backend>`; their abstract base classes cache the complete binding by materialized aggregate. A custom Factory explicitly pairs its Backend and `QueryModelSchemaProvider`; routing forwards that pair atomically. MongoDB, Elasticsearch, or another configured implementation compiles the admitted `ResolvedQuery` into a physical query and normalizes results as `ObjectNode`.
+MongoDB uses keyset pagination; Elasticsearch uses search_after without PIT. Both fetch size+1, without count, offset, or total. `CURSOR_SORT` is independent of `SORT`; it requires a bound single value without array ancestry or a Mask-protected source. Backends reject duplicate native sort fields and invalid tokens.
 
-A direct Factory call does not pass through the Gateway. Application code should use the Spring-registered aggregate Gateway; only low-level diagnostics, contract tests, and storage extensions should call the Factory directly.
+The token is an unsigned, unencrypted Base64URL continuation, not authorization. Return it unchanged. There is no cross-request snapshot, so concurrent writes may affect later pages.
 
-## EventStreamQueryGateway Beans
-
-Event-stream Gateways have no `STATE` generic. When multiple candidates exist, qualify by the exact Bean name instead of relying on generic disambiguation.
-
-## Raw backend access
-
-Direct Factory access is for trusted infrastructure extensions or cases that explicitly require raw backend semantics: `factory.create(namedAggregate).backend`. It bypasses Gateway request filters, ABAC, result filters, masking, and error observation; the caller must own those responsibilities.
-
-## Cursor Execution and Tokens
-
-Before validation, `QueryModelSchema.resolve(ICursorQuery)` appends the model-specific unique tie-breaker: Snapshot uses `aggregateId`, while EventStream uses the stream-record `id`. The Backend receives that sort inside `ResolvedQuery<ICursorQuery>` and neither appends nor resolves it again. MongoDB uses a keyset filter. Elasticsearch uses `search_after` without PIT. Both request `size + 1` to detect another page, perform no count or offset, and return no total. Traversal is forward-only and has no cross-request snapshot; concurrent writes can change what a later page observes.
-
-The backend encodes effective sort values as an unpadded Base64URL continuation. The token is neither encrypted nor signed, carries no authorization, and should not be logged; the framework has no cursor encryption-key configuration. Callers should pass it back unchanged rather than parse or construct it.
-
-Every effective sort must resolve exactly in Query Schema, be single-valued, carry no Mask rule, and not alias a masked projection or physical binding. Neither the requested nor resolved physical sort may be `_score`, `_doc`, or `_shard_doc`. Mask rules include those compiled from `@Mask`, `@KeepMask`, or a custom `@Masking` meta-annotation; unavailable Schema fails closed. An invalid token is rejected as `Invalid cursor.` without echoing its content.
-
-## Schema uses the same route
-
-Snapshot and EventStream Schema HTTP handlers both obtain `factory.create(namedAggregate).schemaProvider`. Because this unwraps the same routed binding used by the Registrar, Schema and query execution select the same storage route and Provider. An unavailable Provider fails explicitly instead of falling back to another backend.
-
-WebFlux publishes `snapshot/schema`, `snapshot/schema/refresh`, `event/schema`, and `event/schema/refresh` routes. [WebFlux](../extensions/webflux.md) is authoritative for runtime routes, [OpenAPI](../open-api.md) for published HTTP/OpenAPI contracts, and [API Client](./query-api-client.md) for client boundaries. `wow-apiclient.query` still provides only Snapshot query interfaces and has no EventStream query interface.
+See [Query Model Schema](./query-model-schema.md), [WebFlux](../extensions/webflux.md), and [OpenAPI](../open-api.md) for endpoint and error contracts.

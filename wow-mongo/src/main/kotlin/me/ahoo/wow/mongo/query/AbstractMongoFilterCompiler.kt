@@ -66,38 +66,59 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.physicalField
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
+import java.time.Instant
 
-abstract class AbstractMongoFilterCompiler(
-    defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
-) {
+abstract class AbstractMongoFilterCompiler {
     companion object {
         private val ESCAPE_CHARS = setOf('\\', '^', '$', '.', '|', '?', '*', '+', '(', ')', '[', ']', '{', '}')
     }
 
-    private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
-    private val filterNormalizerWithoutDefaultDeletion = FilterNormalizer(defaultDeletionState = null)
+    private val filterNormalizer = FilterNormalizer()
 
-    fun compile(filter: FilterExpression, schema: QueryModelSchema): Bson =
-        compile(filterNormalizer.normalize(filter), schema, FilterScope())
+    fun compile(filter: FilterExpression, schema: QueryModelSchema): Bson = compile(filter, schema, Instant.now())
 
-    internal fun compileWithoutDefaultDeletion(
+    internal fun compile(filter: FilterExpression, schema: QueryModelSchema, now: Instant): Bson =
+        compile(filterNormalizer.normalize(filter, schema, now = now).also(::validateNativeText), schema, FilterScope())
+
+    internal fun compileScoped(
         filter: FilterExpression,
         schema: QueryModelSchema,
-        logicalParent: QueryField? = null,
-        resolvedParent: QueryField? = logicalParent,
-        physicalParent: QueryField? = null,
+        logicalParent: QueryField,
+        physicalParent: QueryField,
+        now: Instant = Instant.now(),
     ): Bson = compile(
-        filterNormalizerWithoutDefaultDeletion.normalize(filter),
+        filterNormalizer.normalize(filter, schema, logicalParent, now),
         schema,
-        FilterScope(logicalParent, resolvedParent, physicalParent),
+        FilterScope(logicalParent, physicalParent),
     )
+
+    private fun validateNativeText(filter: FilterExpression) {
+        var count = 0
+        fun visit(expression: FilterExpression, underNor: Boolean = false) {
+            when (expression) {
+                is SearchFilter -> {
+                    if (underNor || ++count > 1) {
+                        throw QuerySchemaValidationException(
+                            "MongoDB permits one text expression and none beneath NOR."
+                        )
+                    }
+                }
+                is AndFilter -> expression.operands.forEach { visit(it, underNor) }
+                is OrFilter -> expression.operands.forEach { visit(it, underNor) }
+                is NorFilter -> expression.operands.forEach { visit(it, true) }
+                else -> Unit
+            }
+        }
+        visit(filter)
+    }
 
     private data class FilterScope(
         val logicalParent: QueryField? = null,
-        val resolvedParent: QueryField? = null,
         val physicalParent: QueryField? = null,
         val relativeToParent: Boolean = false,
     )
@@ -201,9 +222,12 @@ abstract class AbstractMongoFilterCompiler(
                     filter.predicate,
                     schema,
                     FilterScope(
-                        logicalParent = filter.field.absoluteTo(scope.logicalParent),
-                        resolvedParent = filter.field.absoluteTo(scope.resolvedParent),
-                        physicalParent = physicalField.absoluteTo(scope.physicalParent),
+                        logicalParent = scope.logicalParent?.append(filter.field) ?: filter.field,
+                        physicalParent = schema.physicalField(
+                            filter.field,
+                            QueryCapability.ELEMENT_SCOPE,
+                            scope.logicalParent
+                        ),
                         relativeToParent = true,
                     ),
                 ),
@@ -236,7 +260,7 @@ abstract class AbstractMongoFilterCompiler(
     )
 
     private fun QueryModelSchema.field(field: String): QueryField =
-        resolvePhysicalField(QueryField(field), QueryCapability.EXACT_MATCH)
+        physicalField(QueryField(field), QueryCapability.EXACT_MATCH)
 
     private fun QueryField.resolve(
         schema: QueryModelSchema,
@@ -249,15 +273,12 @@ abstract class AbstractMongoFilterCompiler(
         capability: QueryCapability,
         scope: FilterScope,
     ): QueryField {
-        val physicalField = schema.resolvePhysicalField(
-            this,
-            capability,
-            logicalParent = scope.logicalParent,
-            resolvedParent = scope.resolvedParent,
-            physicalParent = scope.physicalParent,
-        )
-        if (scope.relativeToParent || scope.physicalParent == null) return physicalField
-        return physicalField.absoluteTo(scope.physicalParent)
+        val physicalField = schema.physicalField(this, capability, scope.logicalParent)
+        val parent = scope.physicalParent
+        if (parent == null) return physicalField
+        val relative = physicalField.relativeTo(parent)
+            ?: throw QuerySchemaValidationException("Physical field [$physicalField] is outside element scope [$parent].")
+        return if (scope.relativeToParent) relative else physicalField
     }
 
     private val StringComparison.ignoreCase: Boolean

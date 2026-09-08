@@ -13,173 +13,97 @@
 
 package me.ahoo.wow.mongo.query.schema
 
+import me.ahoo.wow.query.schema.QueryPathSegment
+import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QueryStorageType
 import org.bson.Document
 
-internal data class MongoStorageSchema(
-    val types: Set<QueryStorageType>?,
-    val itemTypes: Set<QueryStorageType>?,
-) {
+internal data class MongoStorageSchema(val types: Set<QueryStorageType>?, val uncertain: Boolean = false) {
     fun union(other: MongoStorageSchema) = MongoStorageSchema(
-        types = types.unionConstraint(other.types),
-        itemTypes = itemTypes.unionConstraint(other.itemTypes),
+        if (types == null || other.types == null) null else types + other.types,
+        uncertain || other.uncertain || types == null || other.types == null,
     )
 
     fun intersect(other: MongoStorageSchema) = MongoStorageSchema(
-        types = types.intersectConstraint(other.types),
-        itemTypes = itemTypes.intersectConstraint(other.itemTypes),
+        when { types == null -> other.types
+            other.types == null -> types
+            else -> types.intersect(other.types) },
+        (uncertain || other.uncertain) && types == null && other.types == null,
     )
 }
 
-internal fun Document?.storageSchemas(): Map<String, MongoStorageSchema> {
-    if (this == null) return emptyMap()
-    return collectStorageSchemas(path = null, includeType = false)
-}
+internal fun Document?.storageSchemas(): Map<QueryPathTemplate, MongoStorageSchema> =
+    this?.collectStorageSchemas(emptyList()).orEmpty()
 
 internal fun Document.validatorSchema(): Document? = document("options")
-    ?.document("validator")
-    ?.document("\$jsonSchema")
+    ?.document("validator")?.document("\$jsonSchema")
 
-private fun Document.collectStorageSchemas(
-    path: String?,
-    includeType: Boolean,
-): Map<String, MongoStorageSchema> = buildMap {
-    if (includeType && path != null) {
-        val types = storageTypes()
-        val itemTypes = itemStorageTypes()
-        if (types != null || itemTypes != null) {
-            put(path, MongoStorageSchema(types, itemTypes))
-        }
-    }
+private fun Document.collectStorageSchemas(path: List<QueryPathSegment>): Map<QueryPathTemplate, MongoStorageSchema> = buildMap {
+    val template = QueryPathTemplate(path)
+    put(template, MongoStorageSchema(directStorageTypes()))
     document("properties")?.forEach { (name, child) ->
-        (child as? Document)?.let {
-            mergeConjunctive(it.collectStorageSchemas(path.child(name), includeType = true))
+        (child as? Document)?.let { mergeConjunctive(it.collectStorageSchemas(path + QueryPathSegment.Property(name))) }
+    }
+    document("additionalProperties")?.let {
+        val slot = path.count { it is QueryPathSegment.Key }
+        mergeConjunctive(it.collectStorageSchemas(path + QueryPathSegment.Key(slot)))
+    }
+    document("items")?.let { mergeConjunctive(it.collectStorageSchemas(path + QueryPathSegment.Item)) }
+    listOf("anyOf", "oneOf").forEach { key ->
+        val alternatives = compositionSchemas(key).map { it.collectStorageSchemas(path) }
+        if (alternatives.isNotEmpty()) {
+            val merged = alternatives.flatMapTo(linkedSetOf()) { it.keys }.associateWith { field ->
+                alternatives.filter { alternative ->
+                    val next = field.segments.getOrNull(template.segments.size)
+                    val parentTypes = alternative[template]?.types
+                    next == null || parentTypes == null || parentTypes.any {
+                        it.value in if (next == QueryPathSegment.Item) ARRAY_TYPES else OBJECT_TYPES
+                    }
+                }.map { it[field] ?: MongoStorageSchema(null, uncertain = true) }
+                    .reduceOrNull(MongoStorageSchema::union) ?: MongoStorageSchema(emptySet())
+            }
+            mergeConjunctive(merged)
         }
     }
-    document("items")?.let {
-        mergeConjunctive(it.collectStorageSchemas(path, includeType = false))
-    }
-    listOf("anyOf", "oneOf").forEach { key ->
-        mergeConjunctive(compositionSchemas(key).mergeAlternatives(path))
-    }
-    compositionSchemas("allOf").forEach {
-        mergeConjunctive(it.collectStorageSchemas(path, includeType = false))
-    }
+    compositionSchemas("allOf").forEach { mergeConjunctive(it.collectStorageSchemas(path)) }
+}
+
+private fun MutableMap<QueryPathTemplate, MongoStorageSchema>.mergeConjunctive(other: Map<QueryPathTemplate, MongoStorageSchema>) {
+    other.forEach { (field, value) -> merge(field, value, MongoStorageSchema::intersect) }
+}
+
+/** Named map keys override defaults. Array steps remain explicit; sparse native arrays are visible to admission. */
+internal fun Map<QueryPathTemplate, MongoStorageSchema>.storageAt(path: QueryPathTemplate): MongoStorageSchema? {
+    this[path]?.let { return it }
+    return entries.filter { (candidate, _) ->
+        candidate.segments.size == path.segments.size && candidate.segments.zip(path.segments).withIndex().all { (index, pair) ->
+            val (native, logical) = pair
+            native == logical || native is QueryPathSegment.Key &&
+                (
+                    logical is QueryPathSegment.Key || logical is QueryPathSegment.Property &&
+                        !containsKey(QueryPathTemplate(path.segments.take(index + 1)))
+                    )
+        }
+    }.maxByOrNull { (candidate, _) -> candidate.segments.count { it is QueryPathSegment.Property } }?.value
 }
 
 private fun Document.compositionSchemas(key: String): List<Document> =
     (this[key] as? Iterable<*>)?.filterIsInstance<Document>().orEmpty()
 
-private fun List<Document>.mergeAlternatives(path: String?): Map<String, MongoStorageSchema> =
-    buildMap {
-        val alternatives = this@mergeAlternatives
-            .filter { it.canContainChildren() }
-            .map { it.collectStorageSchemas(path, includeType = false) }
-        alternatives.flatMapTo(linkedSetOf()) { it.keys }.forEach { field ->
-            val storage = alternatives.map { it[field] }
-            put(
-                field,
-                if (storage.any { it == null }) {
-                    MongoStorageSchema(types = null, itemTypes = null)
-                } else {
-                    storage.filterNotNull().reduce(MongoStorageSchema::union)
-                },
-            )
-        }
-    }
-
-private fun Document.canContainChildren(): Boolean = storageTypes()?.any {
-    it.value in OBJECT_TYPES || it.value in ARRAY_TYPES
-} != false
-
-private fun MutableMap<String, MongoStorageSchema>.mergeConjunctive(
-    other: Map<String, MongoStorageSchema>,
-) {
-    other.forEach { (field, storage) -> merge(field, storage, MongoStorageSchema::intersect) }
+private fun Document.directStorageTypes(): Set<QueryStorageType>? = when (val declared = this["bsonType"]) {
+    is String -> declared.storageTypes()
+    is Iterable<*> -> declared.filterIsInstance<String>().flatMapTo(linkedSetOf()) { it.storageTypes() }
+    else -> null
 }
 
-private fun Document.storageTypes(): Set<QueryStorageType>? {
-    val constraints = buildList {
-        directStorageTypes()?.let(::add)
-        listOf("anyOf", "oneOf").forEach { key ->
-            unionStorageTypes(key)?.let(::add)
-        }
-        intersectionStorageTypes("allOf")?.let(::add)
-    }
-    return constraints.reduceOrNull(Set<QueryStorageType>::intersect)
+/** BSON's number alias denotes all concrete numeric types, so intersections operate on values, not spelling. */
+private fun String.storageTypes(): Set<QueryStorageType> = when (this) {
+    "null" -> emptySet()
+    "number" -> (NUMERIC_TYPES - "number").mapTo(linkedSetOf(), ::QueryStorageType)
+    else -> setOf(QueryStorageType(this))
 }
-
-private fun Document.directStorageTypes(): Set<QueryStorageType>? =
-    when (val declared = this["bsonType"]) {
-        is String -> setOfNotNull(declared.takeUnless { it == "null" }?.let(::QueryStorageType))
-        is Iterable<*> -> declared.filterIsInstance<String>()
-            .filter { it != "null" }
-            .mapTo(linkedSetOf(), ::QueryStorageType)
-        else -> null
-    }
-
-private fun Document.unionStorageTypes(key: String): Set<QueryStorageType>? {
-    if (!containsKey(key)) return null
-    val schemas = (this[key] as? Iterable<*>)?.filterIsInstance<Document>().orEmpty()
-    if (schemas.isEmpty()) return emptySet()
-    val types = schemas.map { it.storageTypes() }
-    if (types.any { it == null }) return null
-    return types.filterNotNull().flatten().toSet()
-}
-
-private fun Document.intersectionStorageTypes(key: String): Set<QueryStorageType>? {
-    if (!containsKey(key)) return null
-    val schemas = (this[key] as? Iterable<*>)?.filterIsInstance<Document>().orEmpty()
-    if (schemas.isEmpty()) return emptySet()
-    return schemas.mapNotNull { it.storageTypes() }
-        .reduceOrNull(Set<QueryStorageType>::intersect)
-}
-
-private fun Document.itemStorageTypes(): Set<QueryStorageType>? {
-    val constraints = buildList {
-        document("items")?.storageTypes()?.let(::add)
-        listOf("anyOf", "oneOf").forEach { key ->
-            unionItemStorageTypes(key)?.let(::add)
-        }
-        intersectionItemStorageTypes("allOf")?.let(::add)
-    }
-    return constraints.reduceOrNull(Set<QueryStorageType>::intersect)
-}
-
-private fun Document.unionItemStorageTypes(key: String): Set<QueryStorageType>? {
-    if (!containsKey(key)) return null
-    val schemas = (this[key] as? Iterable<*>)?.filterIsInstance<Document>().orEmpty()
-    val types = mutableListOf<Set<QueryStorageType>>()
-    for (schema in schemas) {
-        val storageTypes = schema.storageTypes()
-        if (storageTypes == null || storageTypes.any { it.value == "array" }) {
-            types += schema.itemStorageTypes() ?: return null
-        }
-    }
-    return types.takeIf { it.isNotEmpty() }?.flatten()?.toSet()
-}
-
-private fun Document.intersectionItemStorageTypes(key: String): Set<QueryStorageType>? {
-    if (!containsKey(key)) return null
-    val schemas = (this[key] as? Iterable<*>)?.filterIsInstance<Document>().orEmpty()
-    return schemas.mapNotNull { it.itemStorageTypes() }
-        .reduceOrNull(Set<QueryStorageType>::intersect)
-}
-
-private fun String?.child(name: String): String = if (this == null) name else "$this.$name"
 
 private fun Document.document(key: String): Document? = this[key] as? Document
-
-private fun <T> Set<T>?.unionConstraint(other: Set<T>?): Set<T>? = when {
-    this == null || other == null -> null
-    else -> this + other
-}
-
-private fun <T> Set<T>?.intersectConstraint(other: Set<T>?): Set<T>? = when {
-    this == null -> other
-    other == null -> this
-    else -> intersect(other)
-}
 
 internal val INTEGRAL_TYPES = setOf("int", "long")
 internal val NUMERIC_TYPES = INTEGRAL_TYPES + setOf("double", "decimal", "number")

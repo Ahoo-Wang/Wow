@@ -12,7 +12,6 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.eventsourcing.EventStore
@@ -22,7 +21,6 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.singleQuery
@@ -32,13 +30,19 @@ import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.QueryValueBindings
+import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
+import me.ahoo.wow.query.schema.QueryPathSegment
+import me.ahoo.wow.query.schema.QueryPathTemplate
+import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -97,14 +101,14 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val schema = queryBackendBinding.schemaProvider.schema().block()!!
 
         schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
-        schema.fields.assert().containsKey(QueryField("body.name"))
-        schema.fields.getValue(QueryField("body")).bindings.assert()
+        schema.field(QueryField("body.name")).assert().isNotNull()
+        schema.field(QueryField("body"))!!.bindings.assert()
             .containsKey(QueryCapability.ELEMENT_SCOPE)
     }
 
     @Test
     fun `query helpers should prepare only on subscription`() {
-        val querySchema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        val querySchema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), LogicalQuerySchema(QueryValueSchema(QueryValueKind.OBJECT)), emptyMap())
         val schemaCalls = AtomicInteger()
         val backend = object : EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate) {}
         val schemaProvider = object : QueryModelSchemaProvider {
@@ -145,7 +149,7 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
     }
 
     @Test
-    fun `identity exclusion should preserve event payload across query result shapes`() {
+    fun `identity exclusion with redundant payload inclusion should work across query result shapes`() {
         val stream = generateEventStream(
             namedAggregate.aggregateId(generateGlobalId()),
             eventCount = 1,
@@ -156,17 +160,20 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val filter = filterExpression { id(stream.id) }
         val payloadField = "body"
         val schema = queryBackendBinding.schemaProvider.schema().block()!!
-        val projection = Projection(exclude = listOf(QueryField(logicalId)))
+        val projection = Projection(
+            include = listOf(QueryField(payloadField), QueryField("$payloadField.body")),
+            exclude = listOf(QueryField(logicalId)),
+        )
         val backend = queryBackendBinding.backend
         val single = SingleQuery(filter, projection)
         val list = ListQuery(filter, projection, limit = 1)
         val paged = PagedQuery(filter, projection, pagination = Pagination(size = 1))
         val results = listOf(
-            backend.single(ResolvedQuery(schema.resolve(single).requireAccepted(QuerySchemaValidationMode.STRICT), schema))
+            backend.single(single.also { validateQuery(it, schema) }, schema)
                 .map(::listOf),
-            backend.list(ResolvedQuery(schema.resolve(list).requireAccepted(QuerySchemaValidationMode.STRICT), schema))
+            backend.list(list.also { validateQuery(it, schema) }, schema)
                 .collectList(),
-            backend.paged(ResolvedQuery(schema.resolve(paged).requireAccepted(QuerySchemaValidationMode.STRICT), schema))
+            backend.paged(paged.also { validateQuery(it, schema) }, schema)
                 .map { page ->
                     page.total.assert().isEqualTo(1L)
                     page.list
@@ -206,7 +213,7 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
             expand("body")
             terms("body.data", "data")
             count("count")
-        }.query(queryService, QuerySchemaValidationMode.STRICT)
+        }.query(queryService)
             .test()
             .assertNext { row ->
                 row.path("data").textValue().assert().isEqualTo("created")
@@ -225,7 +232,6 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
                         valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
                         nullable = DeclarationValue.Set(false),
                         required = DeclarationValue.Set(true),
-                        cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
                     ),
                 ),
             ),
@@ -235,14 +241,12 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 
 private fun ISingleQuery.query(
     binding: QueryBackendBinding<EventStreamQueryBackend>,
-    mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
 ): Mono<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMap { schema ->
-    binding.backend.single(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
+    binding.backend.single(this.also { validateQuery(it, schema) }, schema)
 }
 
 private fun AggregationQuery.query(
     binding: QueryBackendBinding<EventStreamQueryBackend>,
-    mode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
 ): Flux<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
-    binding.backend.aggregate(ResolvedQuery(schema.resolve(this).requireAccepted(mode), schema))
+    binding.backend.aggregate(this.also { validateQuery(it, schema) }, schema)
 }

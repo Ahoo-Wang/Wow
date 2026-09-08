@@ -7,6 +7,8 @@ description: 用八个业务场景说明快照根文档与集合元素的聚合�
 
 快照聚合以聚合的当前物化状态为事实来源，返回以 group 和 metric alias 为列名的动态表格行。公共 AST、别名、排序与结构限制见[聚合查询](./aggregation-query.md)；本页只说明如何把该合同应用到快照。
 
+数值 `FIELD` 与算术叶子按[数值参与值与精度](./aggregation-query.md#numeric-contributions)读取：每条当前记录忽略 null 后恰有一个存储数值才贡献值，重复项计为多个；COUNT 仍统计记录。该规则保留 singleton 数组支持，不改变直方图分桶合同。
+
 ## 能力与入口
 
 - **JVM Gateway**：通过 Spring 注入聚合级 `SnapshotQueryGateway<OrderState>`，构造 `AggregationQuery` 后调用 `query.query(snapshotQueryGateway)`。该 Bean 经 [QueryGateway](./query-gateway.md) 执行策略链；直接 Backend Factory 的绕过条件见[查询后端](./query-backend.md)。
@@ -435,9 +437,9 @@ val query = aggregation {
 
 ## 后端能力与稳定性边界
 
-- 快照查询默认追加 `DELETION = ACTIVE`；根 filter 先筛选快照，Element filter 再筛选展开后的单个元素。
+- Snapshot Gateway 默认追加 `DELETION = ACTIVE`；直接调用 Backend 时必须显式提供删除范围，Normalizer 与 Compiler 不注入默认值。根 filter 先筛选快照，Element filter 再筛选展开后的单个元素。
 - 逻辑字段能否用于精确匹配、范围、Element、TERMS、数值或时间聚合，由运行时 Query Model Schema 和所选 MongoDB / Elasticsearch mapping 共同证明；请求 DTO 合法不等于后端支持。
-- HTTP 路由经 `SnapshotQueryGateway`、请求作用域重写和 `HttpQueryGuardFilter`。禁用高成本操作符时，Elements、按 metric alias 排序和算术表达式会被拒绝；进程内 JVM 调用不自动获得这组 HTTP 专用限制。
-- 脱敏字段仍可用于普通 filter、全文 search 与 sort；group、字段 metric 或算术 expression 引用该字段时会被 Schema 判为 `INCOMPATIBLE` 并拒绝，`COUNT` 不变。完整矩阵见[字段脱敏](./masking.md)。
+- HTTP Handler 用 QueryRequestScope 与独立 `HttpQueryGuard` 处理作用域和成本，再调用 `SnapshotQueryGateway`。禁用高成本操作符时，Elements、按 metric alias 排序和算术表达式会被拒绝；进程内 JVM 调用不自动获得这组 HTTP 专用限制。
+- 脱敏字段仍可用于普通 filter、全文 search 与 sort；group、字段 metric 或算术 expression 引用该字段时会在 Gateway 公共校验阶段被拒绝，`COUNT` 不变。完整矩阵见[字段脱敏](./masking.md)。
 - MongoDB 与 Elasticsearch 共享公共 AST，但不承诺物理 pipeline、mapping、空值或桶细节完全一致。`ANY` 尤其不提供跨执行或跨后端稳定值。
 - 自定义 `SnapshotQueryBackend` 必须实现聚合合同；数据查询路由可用或 OpenAPI 已发布，不能单独证明该 Backend 会执行聚合。

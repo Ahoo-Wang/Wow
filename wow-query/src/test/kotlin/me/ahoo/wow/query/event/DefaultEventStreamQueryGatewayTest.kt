@@ -27,34 +27,28 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
-import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
-import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.ResolvedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.gatewaySchema
 import me.ahoo.wow.query.schema.MaskRule
-import me.ahoo.wow.query.schema.QueryFieldBinding
-import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QueryRewriteMode
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.schema.requireAccepted
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
+import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
@@ -73,9 +67,11 @@ class DefaultEventStreamQueryGatewayTest {
     @Test
     fun `backend should return an empty terminal cursor page`() {
         val schema = eventSchema("unused")
-        val query = schema.resolve(CursorQuery(MatchAllFilter))
-            .requireAccepted(QuerySchemaValidationMode.COMPATIBLE)
-        NoOpEventStreamQueryBackend(MOCK_AGGREGATE_METADATA).cursor(ResolvedQuery(query, schema))
+        val query = CursorQuery(
+            MatchAllFilter,
+            sort = listOf(me.ahoo.wow.api.query.Sort(QueryField("id"), me.ahoo.wow.api.query.Sort.Direction.ASC))
+        )
+        NoOpEventStreamQueryBackend(MOCK_AGGREGATE_METADATA).cursor(query, schema)
             .test()
             .assertNext { page ->
                 page.list.assert().isEmpty()
@@ -92,14 +88,33 @@ class DefaultEventStreamQueryGatewayTest {
         val gateway = DefaultEventStreamQueryGateway(
             MOCK_AGGREGATE_METADATA,
             QueryBackendBinding(backend, defaultSchemaProvider),
-            QuerySchemaValidationMode.COMPATIBLE,
+
             listOf(generic(calls), event(calls), snapshot(calls)),
-            ErrorHandler { _, error -> Mono.error(error) },
         )
 
         gateway.dynamicSingle(singleQuery { }).block()!!.path("id").textValue().assert().isEqualTo(eventStream.id)
         gateway.single(singleQuery { }).block()!!.id.assert().isEqualTo(eventStream.id)
         calls.assert().isEqualTo(listOf("generic", "event", "generic", "event"))
+    }
+
+    @Test
+    fun `event gateway appends request scope without snapshot access or deletion defaults`() {
+        val queries = mutableListOf<ISingleQuery>()
+        val backend = object : EventStreamQueryBackend by NoOpEventStreamQueryBackend(MOCK_AGGREGATE_METADATA) {
+            override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> {
+                queries += query
+                return Mono.empty()
+            }
+        }
+        val gateway = DefaultEventStreamQueryGateway(
+            MOCK_AGGREGATE_METADATA,
+            QueryBackendBinding(backend, defaultSchemaProvider),
+
+        )
+        gateway.dynamicSingle(SingleQuery(MatchAllFilter))
+            .contextWrite { it.withQueryScope(TenantIdFilter("tenant")) }
+            .test().verifyComplete()
+        queries.single().filter.assert().isEqualTo(TenantIdFilter("tenant"))
     }
 
     @Test
@@ -115,8 +130,7 @@ class DefaultEventStreamQueryGatewayTest {
         val gateway = DefaultEventStreamQueryGateway(
             MOCK_AGGREGATE_METADATA,
             QueryBackendBinding(backend, backend.schemaProvider),
-            QuerySchemaValidationMode.COMPATIBLE,
-            errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+
         )
 
         gateway.dynamicSingle(singleQuery { }).block()!!
@@ -152,8 +166,7 @@ class DefaultEventStreamQueryGatewayTest {
             val gateway = DefaultEventStreamQueryGateway(
                 MOCK_AGGREGATE_METADATA,
                 QueryBackendBinding(backend, backend.schemaProvider),
-                QuerySchemaValidationMode.COMPATIBLE,
-                errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+
             )
 
             gateway.dynamicSingle(SingleQuery(MatchAllFilter, projection = projection))
@@ -178,8 +191,7 @@ class DefaultEventStreamQueryGatewayTest {
             val gateway = DefaultEventStreamQueryGateway(
                 MOCK_AGGREGATE_METADATA,
                 QueryBackendBinding(backend, backend.schemaProvider),
-                QuerySchemaValidationMode.COMPATIBLE,
-                errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+
             )
 
             gateway.dynamicSingle(SingleQuery(MatchAllFilter))
@@ -206,8 +218,7 @@ class DefaultEventStreamQueryGatewayTest {
         val gateway = DefaultEventStreamQueryGateway(
             MOCK_AGGREGATE_METADATA,
             QueryBackendBinding(backend, backend.schemaProvider),
-            QuerySchemaValidationMode.COMPATIBLE,
-            errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+
         )
 
         gateway.dynamicSingle(singleQuery { }).block()!!
@@ -224,38 +235,39 @@ class DefaultEventStreamQueryGatewayTest {
             .assert().isEqualTo("******")
     }
 
-    private fun generic(calls: MutableList<String>) = object : QueryFilter<QueryContext<*, *>> {
-        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+    private fun generic(calls: MutableList<String>) = object : QueryFilter {
+        override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> {
             calls += "generic"
-            return next.filter(context)
+            return Mono.just(context.query)
         }
     }
 
     private fun event(calls: MutableList<String>) = object : EventStreamQueryFilter {
-        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+        override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> {
             calls += "event"
-            return next.filter(context)
+            return Mono.just(context.query)
         }
     }
 
     private fun snapshot(calls: MutableList<String>) = object : SnapshotQueryFilter {
-        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+        override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> {
             calls += "snapshot"
-            return next.filter(context)
+            return Mono.just(context.query)
         }
     }
 
     private fun backend(single: () -> Mono<ObjectNode>) = object : EventStreamQueryBackend {
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
-        override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> = single()
-        override fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> = single()
+        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
         override fun paged(
-            query: ResolvedQuery<IPagedQuery>
+            query: IPagedQuery,
+            schema: QueryModelSchema
         ): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
-        override fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
+        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> =
             Mono.just(CursorPage(emptyList(), null))
-        override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
-        override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.just(0)
+        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
     }
 
     private class SchemaEventBackend(
@@ -266,15 +278,19 @@ class DefaultEventStreamQueryGatewayTest {
 
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
         val schemaProvider = SchemaEventProvider(modelSchema)
-        override fun single(query: ResolvedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.fromSupplier(nodeSupplier)
-        override fun list(query: ResolvedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun single(
+            query: ISingleQuery,
+            schema: QueryModelSchema
+        ): Mono<ObjectNode> = Mono.fromSupplier(nodeSupplier)
+        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
         override fun paged(
-            query: ResolvedQuery<IPagedQuery>
+            query: IPagedQuery,
+            schema: QueryModelSchema
         ): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
-        override fun cursor(query: ResolvedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
+        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> =
             Mono.fromSupplier { CursorPage(listOf(nodeSupplier()), "next") }
-        override fun count(query: ResolvedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
-        override fun aggregate(query: ResolvedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.just(0)
+        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
     }
 
     private class SchemaEventProvider(
@@ -286,7 +302,7 @@ class DefaultEventStreamQueryGatewayTest {
 
     private companion object {
         val defaultSchemaProvider = object : QueryModelSchemaProvider {
-            private val schema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+            private val schema = gatewaySchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
             override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
             override fun refresh(): Mono<QueryModelSchema> = schema()
         }
@@ -294,58 +310,36 @@ class DefaultEventStreamQueryGatewayTest {
         fun eventSchema(bodyType: String): QueryModelSchema {
             val annotation = Masked::data.javaField!!.getAnnotation(Mask::class.java)
             val rule = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
-            return QueryModelSchema(
+            return gatewaySchema(
                 model = QueryModel.EVENT_STREAM,
                 capabilities = emptySet(),
                 fields = mapOf(
+                    QueryField("body.id") to stringValueSchema(),
                     QueryField("body.body.data") to fieldSchema(
                         maskRule = rule,
-                        projectionPath = "body.body.data",
+
                     ),
                     QueryField("body.bodyType") to fieldSchema(
                         enumValues = listOf(JsonSerializer.valueToTree(bodyType)),
-                        projectionPath = "body.bodyType",
+
                     ),
-                    QueryField("id") to cursorFieldSchema("id"),
+                    QueryField("id") to stringValueSchema(),
                 ),
             )
         }
 
-        fun cursorFieldSchema(path: String): QueryFieldSchema {
-            val field = QueryField(path)
-            return QueryFieldSchema(
-                title = null,
-                description = null,
-                enumValues = null,
-                valueTypes = setOf(QueryValueType.STRING),
-                nullable = false,
-                required = true,
-                cardinality = QueryCardinality.SINGLE,
-                semanticType = null,
-                dynamicChildren = false,
-                bindings = mapOf(QueryCapability.SORT to QueryFieldBinding(field, field, null)),
-                rewriteMode = QueryRewriteMode.NONE,
-            )
-        }
+        fun stringValueSchema() = me.ahoo.wow.query.schema.QueryValueSchema(
+            me.ahoo.wow.api.query.schema.QueryValueKind.SCALAR,
+            valueTypes = setOf(QueryValueType.STRING),
+        )
 
         fun fieldSchema(
             enumValues: List<tools.jackson.databind.JsonNode>? = null,
             maskRule: MaskRule? = null,
-            projectionPath: String? = null,
-            rewriteMode: QueryRewriteMode = QueryRewriteMode.NONE,
-        ) = QueryFieldSchema(
-            title = null,
-            description = null,
-            enumValues = enumValues,
+        ) = me.ahoo.wow.query.schema.QueryValueSchema(
+            me.ahoo.wow.api.query.schema.QueryValueKind.SCALAR,
             valueTypes = setOf(QueryValueType.STRING),
-            nullable = false,
-            required = true,
-            cardinality = QueryCardinality.SINGLE,
-            semanticType = null,
-            dynamicChildren = false,
-            bindings = emptyMap(),
-            projectionField = projectionPath?.let(::QueryField),
-            rewriteMode = rewriteMode,
+            enumValues = enumValues,
             maskRule = maskRule,
         )
     }

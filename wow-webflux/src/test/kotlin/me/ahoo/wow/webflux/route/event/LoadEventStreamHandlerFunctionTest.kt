@@ -44,7 +44,7 @@ class LoadEventStreamHandlerFunctionTest {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, generateGlobalId())
             .pathVariable(BatchComponent.PathVariable.HEAD_VERSION, "0")
-            .pathVariable(BatchComponent.PathVariable.TAIL_VERSION, Int.MAX_VALUE.toString())
+            .pathVariable(BatchComponent.PathVariable.TAIL_VERSION, "1")
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
             .build()
         handlerFunction.handle(request)

@@ -24,14 +24,19 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
-import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
-import me.ahoo.wow.query.schema.QueryFieldBinding
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryRewriteMode
-import me.ahoo.wow.query.schema.QuerySchemaResolution
-import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.query.schema.QueryPathSegment
+import me.ahoo.wow.query.schema.QueryPathTemplate
+import me.ahoo.wow.query.schema.QueryValueBindings
+import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.physicalField
+import me.ahoo.wow.query.schema.validateQuery
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -56,47 +61,58 @@ import java.util.concurrent.TimeUnit
 open class QueryFieldResolutionScaleBenchmark {
     @Param("static32", "static256", "static2048", "dynamic1", "dynamic16", "dynamic128", "none32", "none2048")
     lateinit var shape: String
-    private lateinit var fields: Map<QueryField, QueryFieldSchema>
     private lateinit var schema: QueryModelSchema
+    private lateinit var definition: LogicalQuerySchema
+    private lateinit var bindings: Map<QueryPathTemplate, QueryValueBindings>
     private lateinit var hit: QueryField
-    private val missing = QueryField("document.missing.code")
+    private val missing = QueryField("state.missing.code")
+    private var staticCount = 0
+    private var dynamicCount = 0
 
     @Setup
     fun setup() {
         val count = shape.filter(Char::isDigit).toInt()
-        val staticCount = if (shape.startsWith("dynamic")) 32 else count
-        val dynamicCount = when {
+        staticCount = if (shape.startsWith("dynamic")) 32 else count
+        dynamicCount = when {
             shape.startsWith("none") -> 0
             shape.startsWith("dynamic") -> count
             else -> 1
         }
-        fields = buildMap {
-            repeat(staticCount) { index ->
-                val path = "state.field$index"
-                put(QueryField(path), benchmarkField(path))
-            }
-            repeat(dynamicCount) { index ->
-                val suffix = if (index == 0) "dynamic" else "dynamic.branch$index"
-                val path = "state.$suffix"
-                put(QueryField(path), benchmarkField(path, "document.$suffix", "storage.$suffix", true))
-            }
-        }
-        schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), fields)
+        val prepared = scaleSchemaInputs(staticCount, dynamicCount)
+        definition = prepared.first
+        bindings = prepared.second
+        schema = constructSchema()
         val suffix = if (dynamicCount <= 1) "dynamic.code" else "dynamic.branch${dynamicCount - 1}.code"
-        hit = if (dynamicCount == 0) QueryField("state.field0") else QueryField("document.$suffix")
+        hit = if (dynamicCount == 0) QueryField("state.field0") else QueryField("state.$suffix")
         val expected = if (dynamicCount == 0) hit else QueryField("storage.$suffix")
-        check(schema.resolvePhysicalField(hit, QueryCapability.EXACT_MATCH) == expected)
-        check(schema.resolvePhysicalField(missing, QueryCapability.EXACT_MATCH) == missing)
+        check(schema.physicalField(hit, QueryCapability.EXACT_MATCH) == expected)
+        check(schema.physicalField(QueryField("state.field0"), QueryCapability.EXACT_MATCH) == QueryField("state.field0"))
+        check(bindings.values.count { it.bindings.isNotEmpty() } == staticCount + dynamicCount)
+        check(bindings.values.filter { it.bindings.isNotEmpty() }.all { it.bindings.keys == SCALE_CAPABILITIES })
+        val state = definition.root.properties.getValue("state")
+        check(state.properties.size == staticCount + (if (dynamicCount == 0) 0 else 1))
+        if (dynamicCount > 0) {
+            val dynamic = state.properties.getValue("dynamic")
+            check(dynamic.additionalProperties != null && dynamic.properties.size == dynamicCount - 1)
+        }
+        check(schema.field(missing) == null)
     }
 
     @Benchmark
-    fun physicalHit(): QueryField = schema.resolvePhysicalField(hit, QueryCapability.EXACT_MATCH)
+    fun physicalHit(): QueryField = schema.physicalField(hit, QueryCapability.EXACT_MATCH)
 
     @Benchmark
-    fun physicalMiss(): QueryField = schema.resolvePhysicalField(missing, QueryCapability.EXACT_MATCH)
+    fun fieldMiss(): QueryFieldSchema? = schema.field(missing)
 
     @Benchmark
-    fun constructSchema(): QueryModelSchema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), fields)
+    fun constructSchema(): QueryModelSchema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), definition, bindings)
+
+    /** Target-only: the old constructor benchmark excludes preparing its logical/native input records. */
+    @Benchmark
+    fun fullConstruction(): QueryModelSchema {
+        val (logical, native) = scaleSchemaInputs(staticCount, dynamicCount)
+        return QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), logical, native)
+    }
 }
 
 @State(Scope.Benchmark)
@@ -109,20 +125,17 @@ open class QueryFieldResolutionScaleBenchmark {
 open class QueryComponentResolutionBenchmark {
     @Param("1", "16", "64")
     var width: Int = 1
-
     private lateinit var schema: QueryModelSchema
     private lateinit var projectionQuery: SingleQuery
     private lateinit var aggregationQuery: AggregationQuery
 
     @Setup
     fun setup() {
-        val fields = (0 until width).associate { index ->
-            val path = "state.field$index"
-            QueryField(path) to benchmarkField(path)
-        }
-        schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), fields)
-        projectionQuery = SingleQuery(MatchAllFilter, Projection(include = fields.keys.toList()))
-        aggregationQuery = AggregationQuery(metrics = fields.keys.mapIndexed { index, field ->
+        val (logical, native) = scaleSchemaInputs(width, 0)
+        schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), logical, native)
+        val fields = (0 until width).map { QueryField("state.field$it") }
+        projectionQuery = SingleQuery(MatchAllFilter, Projection(include = fields))
+        aggregationQuery = AggregationQuery(metrics = fields.mapIndexed { index, field ->
             if (index % 2 == 0) {
                 AggregationMetric.Any(field, "metric$index")
             } else {
@@ -137,37 +150,72 @@ open class QueryComponentResolutionBenchmark {
                 )
             }
         })
-        check(schema.resolve(projectionQuery).compatibility == QueryCompatibilityLevel.EXACT)
-        check(schema.resolve(aggregationQuery).compatibility == QueryCompatibilityLevel.EXACT)
+        check(aggregationQuery.metrics.count { it is AggregationMetric.Any } == (width + 1) / 2)
+        check(aggregationQuery.metrics.filterIsInstance<AggregationMetric.Numeric>().all {
+            it.function == AggregationFunction.SUM && it.expression is AggregationExpression.Binary
+        })
+        check(native.values.filter { it.bindings.isNotEmpty() }.all { it.bindings.keys == SCALE_CAPABILITIES })
+        check(validateQuery(projectionQuery, schema) === projectionQuery)
+        check(validateQuery(aggregationQuery, schema) === aggregationQuery)
     }
 
     @Benchmark
-    fun projection(): QuerySchemaResolution<ISingleQuery> = schema.resolve(projectionQuery)
+    fun projection(): ISingleQuery = validateQuery(projectionQuery, schema)
 
     @Benchmark
-    fun aggregation(): QuerySchemaResolution<AggregationQuery> = schema.resolve(aggregationQuery)
+    fun aggregation(): AggregationQuery = validateQuery(aggregationQuery, schema)
 }
 
-private fun benchmarkField(
-    path: String,
-    resolved: String = path,
-    physical: String = resolved,
-    dynamic: Boolean = false,
-): QueryFieldSchema = QueryFieldSchema(
-    title = null,
-    description = null,
-    enumValues = null,
-    valueTypes = emptySet(),
-    nullable = true,
-    required = false,
-    cardinality = QueryCardinality.SINGLE,
-    semanticType = null,
-    dynamicChildren = dynamic,
-    bindings = setOf(
-        QueryCapability.EXACT_MATCH,
-        QueryCapability.PRESENCE,
-        QueryCapability.AGGREGATE_TERMS,
-        QueryCapability.AGGREGATE_NUMERIC,
-    ).associateWith { QueryFieldBinding(QueryField(resolved), QueryField(physical), null) },
-    rewriteMode = if (path == resolved) QueryRewriteMode.NONE else QueryRewriteMode.REQUIRED,
+private val SCALE_CAPABILITIES = setOf(
+    QueryCapability.EXACT_MATCH,
+    QueryCapability.PRESENCE,
+    QueryCapability.AGGREGATE_TERMS,
+    QueryCapability.AGGREGATE_NUMERIC,
 )
+
+/** Same declared fields and map layout as the frozen flat input; preparation stays outside constructSchema. */
+private fun scaleSchemaInputs(
+    staticCount: Int,
+    dynamicCount: Int,
+): Pair<LogicalQuerySchema, Map<QueryPathTemplate, QueryValueBindings>> {
+    val scalar = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.INTEGER))
+    val properties = buildMap {
+        repeat(staticCount) { put("field$it", scalar) }
+        if (dynamicCount > 0) {
+            put(
+                "dynamic",
+                QueryValueSchema(
+                    QueryValueKind.OBJECT,
+                    additionalProperties = scalar,
+                    properties = (1 until dynamicCount).associate { index ->
+                        "branch$index" to QueryValueSchema(QueryValueKind.OBJECT, additionalProperties = scalar)
+                    },
+                ),
+            )
+        }
+    }
+    val definition = LogicalQuerySchema(
+        QueryValueSchema(
+            QueryValueKind.OBJECT,
+            properties = mapOf("state" to QueryValueSchema(QueryValueKind.OBJECT, properties = properties)),
+        ),
+    )
+    val bindings = definition.values.filterKeys { it.segments.isNotEmpty() }.mapValues { (path, value) ->
+        val dynamic = path.segments.getOrNull(1) == QueryPathSegment.Property("dynamic")
+        val physical = if (dynamic) {
+            QueryPathTemplate(listOf(QueryPathSegment.Property("storage")) + path.segments.drop(1))
+        } else {
+            path
+        }
+        QueryValueBindings(
+            bindings = if (value.kind == QueryValueKind.SCALAR) {
+                SCALE_CAPABILITIES.associateWith { QueryFieldBindingTemplate(physical, null) }
+            } else {
+                emptyMap()
+            },
+            projectionPath = path,
+            responsePath = path,
+        )
+    }
+    return definition to bindings
+}

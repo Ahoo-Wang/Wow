@@ -33,11 +33,9 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler;
 import me.ahoo.wow.elasticsearch.query.event.EventStreamFilterCompiler;
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler;
 import me.ahoo.wow.modeling.MaterializedNamedAggregate;
-import me.ahoo.wow.query.ResolvedQuery;
-import me.ahoo.wow.query.schema.QueryFieldBinding;
-import me.ahoo.wow.query.schema.QueryFieldSchema;
+import me.ahoo.wow.query.schema.QueryValueSchema;
+import me.ahoo.wow.api.query.schema.QueryValueType;
 import me.ahoo.wow.query.schema.QueryModelSchema;
-import me.ahoo.wow.query.schema.QueryRewriteMode;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -69,45 +67,41 @@ import java.util.concurrent.TimeUnit;
 @Fork(value = 3, jvmArgsAppend = {"-Xms256m", "-Xmx256m"})
 @Threads(1)
 public class ElasticsearchCursorSortBenchmark {
-    @Param({"flat", "nested"}) public String shape;
+    @Param({"flat", "relocated"}) public String shape;
     @Param({"2", "16"}) public int width;
     private QueryModelSchema schema;
     private List<Sort> sorts;
-    private ResolvedQuery<ICursorQuery> query;
+    private ICursorQuery query;
     private CursorBackend backend;
 
     @Setup
     public void setup() {
-        boolean nested = shape.equals("nested");
-        Map<QueryField, QueryFieldSchema> fields = new LinkedHashMap<>();
+        boolean relocated = shape.equals("relocated");
+        Map<QueryField, QueryValueSchema> fields = new LinkedHashMap<>();
+        Map<QueryField, Map<QueryCapability, QueryField>> bindings = new LinkedHashMap<>();
         List<Sort> inputSorts = new ArrayList<>();
         for (int index = 0; index < width; index++) {
             QueryField logical = new QueryField("logical.field" + index);
-            QueryField resolved = new QueryField("document.field" + index);
-            QueryField physical = new QueryField((nested ? "body" : "state") + ".field" + index);
-            fields.put(logical, new QueryFieldSchema(
-                    null, null, null, Set.of(), true, false, QueryCardinality.SINGLE,
-                    null, false, Map.of(QueryCapability.Companion.getSORT(),
-                    new QueryFieldBinding(resolved, physical, null)),
-                    null, QueryRewriteMode.REQUIRED, null, null));
+            QueryField physical = new QueryField((relocated ? "storage" : "state") + ".field" + index);
+            fields.put(logical, BenchmarkQuerySchemas.scalar(QueryValueType.Companion.getSTRING(), null));
+            bindings.put(logical, Map.of(QueryCapability.Companion.getSORT(), physical,
+                    QueryCapability.Companion.getCURSOR_SORT(), physical));
             inputSorts.add(new Sort(logical, index % 2 == 0 ? Sort.Direction.ASC : Sort.Direction.DESC));
         }
-        schema = new QueryModelSchema(nested ? QueryModel.Companion.getEVENT_STREAM()
-                : QueryModel.Companion.getSNAPSHOT(), Set.of(), Map.copyOf(fields));
+        schema = BenchmarkQuerySchemas.create(QueryModel.Companion.getSNAPSHOT(), fields, bindings);
         sorts = List.copyOf(inputSorts);
-        query = new ResolvedQuery<>(new CursorQuery(
-                MatchAllFilter.INSTANCE, Projection.Companion.getALL(), sorts, 10, null), schema);
-        backend = new CursorBackend(nested ? EventStreamFilterCompiler.INSTANCE : SnapshotFilterCompiler.INSTANCE);
+        query = new CursorQuery(
+                MatchAllFilter.INSTANCE, Projection.Companion.getALL(), sorts, 10, null);
+        backend = new CursorBackend(SnapshotFilterCompiler.INSTANCE);
 
         List<SortOptions> ordinary = ordinarySort();
         if (ordinary.size() != width) throw new IllegalStateException("wrong sort count");
         for (int index = 0; index < width; index++) {
             FieldSort field = ordinary.get(index).field();
-            String expected = (nested ? "body" : "state") + ".field" + index;
+            String expected = (relocated ? "storage" : "state") + ".field" + index;
             SortOrder order = index % 2 == 0 ? SortOrder.Asc : SortOrder.Desc;
             if (!field.field().equals(expected) || field.order() != order || field.missing() != null
-                    || (nested ? field.nested() == null || !field.nested().path().equals("body")
-                    : field.nested() != null)) {
+                    || field.nested() != null) {
                 throw new IllegalStateException("wrong ordinary sort at " + index);
             }
         }
@@ -122,7 +116,7 @@ public class ElasticsearchCursorSortBenchmark {
     // Includes filter compilation, request and Mono assembly; never subscribes or performs I/O.
     @Benchmark
     public Mono<CursorPage<ObjectNode>> cursorRequest() {
-        return backend.cursor(query);
+        return backend.cursor(query, schema);
     }
 
     private static final class CursorBackend extends AbstractElasticsearchQueryBackend {

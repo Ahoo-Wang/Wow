@@ -13,7 +13,7 @@ Wow carries four kinds of data-access context through the write and read paths:
 3. **Space** — optional namespace metadata supplied by a request header;
 4. **ABAC tags** — resource tags plus an application-supplied principal filter.
 
-On WebFlux query routes, `RewriteRequestFilter` appends tenant, owner, and space metadata filters before invoking `QueryGateway`. A configured `AbacQueryFilter` then appends resource-tag conditions inside the Gateway filter chain.
+On WebFlux query routes, the Handler uses `QueryRequestScope` to capture tenant, owner, and space scope in Reactor Context; the Gateway merges it after preparation. The Snapshot Gateway applies independent `AbacQueryPolicy` access filters after request preparation and scope merging.
 
 ::: danger Scope is not authentication
 A tenant or owner path, `Wow-Space-Id` header, or ABAC tag is data used by routing and filtering. It does not prove who sent the request or whether that principal may choose the value. Authenticate first, bind allowed scopes on the server, authorize command and query routes, and keep raw query factories out of untrusted request paths.
@@ -144,7 +144,7 @@ As with ownership transfer, the event applies a state transition; the command-si
 
 ## ABAC (Attribute-Based Access Control)
 
-Wow stores resource tags and provides `AbacQueryFilter` as an extension point. The application supplies principal tags from authenticated context and decides whether missing context is public or denied.
+Wow stores resource tags and provides `AbacQueryPolicy` as an extension point. The application supplies principal tags from authenticated context and decides whether missing context is public or denied.
 
 ### Core Concepts
 
@@ -203,18 +203,18 @@ class OrderState(
 
 The extractor computes resource metadata during state materialization. It does not resolve principal identity.
 
-### ABAC Query Filter
+### ABAC Query Policy
 
-Subclass `AbacQueryFilter` and fail closed for protected queries:
+Subclass `AbacQueryPolicy` and fail closed for protected queries:
 
 ```kotlin
 @Component
-class MemberAbacQueryFilter(
+class MemberAbacQueryPolicy(
     private val memberships: MembershipRepository,
-) : AbacQueryFilter() {
+) : AbacQueryPolicy() {
     override fun getPrincipalTags(
         contextView: ContextView,
-        context: QueryContext<*, *>,
+        context: QueryContext<*>,
     ): Mono<AbacTags> = contextView.getOrEmpty<Principal>(Principal::class.java)
         .map { principal -> memberships.tags(principal.name, context) }
         .orElseGet { Mono.error(AccessDeniedException("Missing principal")) }
@@ -225,11 +225,11 @@ This example represents an application policy; adapt it to the actual security c
 
 ### Query Entry Points and Policy Enforcement
 
-Spring-registered aggregate `SnapshotQueryGateway` and `EventStreamQueryGateway` Beans execute configured ABAC and generic query filters. The Registrar creates one routed `QueryBackendBinding` and passes the complete binding to the Gateway. In-process calls do not execute WebFlux `RewriteRequestFilter`; callers must provide tenant, owner, and space scope explicitly in the query or through a trusted context supported by their filters. Managed Gateways automatically mask query and aggregate-state load results from Query Model Schema. See [Field Masking](./query/masking.md) for the complete boundary.
+Spring-registered aggregate Gateways run request preparation and trusted scope. The Snapshot Gateway additionally runs independent ABAC policies; EventStream does not automatically apply Snapshot ABAC. The Registrar passes a routed QueryBackendBinding to each Gateway. JVM calls do not run HTTP scope extraction; use `contextWrite { it.withQueryScope(scope) }` for trusted scope. Public validation follows preparation, scope, policies, and defaults. See [Field Masking](./query/masking.md) for managed query and aggregate-state load behavior.
 
 `SnapshotQueryBackendFactory` and `EventStreamQueryBackendFactory` return a `QueryBackendBinding`; trusted raw execution explicitly unwraps `factory.create(namedAggregate).backend`. It bypasses the `QueryGateway` policy chain and is infrastructure access that must be protected. Custom Backends never implement a Provider: their Factory explicitly pairs the Backend and `QueryModelSchemaProvider` in the binding. Schema unavailability fails every managed query closed before Backend subscription.
 
-Aggregation uses the snapshot filter chain for its root filter. Schema allows ordinary filter/search/sort operations on masked fields but rejects groups, field metrics, or expressions that would return their raw values; count is unchanged. Do not expose sensitive aggregation merely because ordinary snapshot queries pass through ABAC.
+Aggregation reuses Gateway preparation, scope, and Snapshot policies. Public validation allows ordinary filter/search/sort on masked fields but rejects groups, field metrics, or expressions that reference protected values; count is unchanged. Do not expose sensitive aggregation merely because ordinary snapshot queries pass through ABAC.
 
 ## Required Security Closure
 

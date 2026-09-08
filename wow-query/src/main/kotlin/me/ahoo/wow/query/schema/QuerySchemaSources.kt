@@ -14,13 +14,11 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QuerySemanticType
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.configuration.WowResourceLocator
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.CARDINALITY
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DYNAMIC_CHILDREN
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUES
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.FIELDS
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.NULLABLE
@@ -178,9 +176,12 @@ private fun ObjectNode.toDeclaration(field: String): QueryFieldDeclaration {
         valueTypes = valueTypes(field),
         nullable = boolean(NULLABLE, field),
         required = boolean(REQUIRED, field),
-        cardinality = cardinality(field),
+        kind = kind(field),
+        properties = properties(field),
+        items = child("items", field),
+        additionalProperties = child("additionalProperties", field),
+        alternatives = alternatives(field),
         semanticType = semanticType(field),
-        dynamicChildren = boolean(DYNAMIC_CHILDREN, field),
     )
 }
 
@@ -225,13 +226,44 @@ private fun ObjectNode.boolean(name: String, field: String): DeclarationValue<Bo
     return DeclarationValue.Set(value.booleanValue())
 }
 
-private fun ObjectNode.cardinality(field: String): DeclarationValue<QueryCardinality> {
-    if (!has(CARDINALITY)) return DeclarationValue.Unset
-    val value = get(CARDINALITY)
-    require(value.isString) {
-        "Query schema [$field.$CARDINALITY] must be a string."
-    }
-    return DeclarationValue.Set(QueryCardinality.valueOf(value.stringValue()))
+private fun ObjectNode.kind(field: String): DeclarationValue<QueryValueKind> {
+    if (!has("kind")) return DeclarationValue.Unset
+    val value = get("kind")
+    require(value.isString) { "Query schema [$field.kind] must be a string." }
+    return DeclarationValue.Set(QueryValueKind.valueOf(value.stringValue()))
+}
+
+private fun ObjectNode.properties(field: String): DeclarationValue<Map<String, QueryFieldDeclaration>> {
+    if (!has("properties")) return DeclarationValue.Unset
+    val value = get("properties")
+    require(value is ObjectNode) { "Query schema [$field.properties] must be an object." }
+    return DeclarationValue.Set(
+        value.properties().associate { (name, node) ->
+            requireQueryPathSegment(name)
+            require(node is ObjectNode) { "Query schema [$field.properties.$name] must be an object." }
+            name to node.toDeclaration("$field.$name")
+        }
+    )
+}
+
+private fun ObjectNode.child(name: String, field: String): DeclarationValue<QueryFieldDeclaration?> {
+    if (!has(name)) return DeclarationValue.Unset
+    val value = get(name)
+    if (value.isNull) return DeclarationValue.Set(null)
+    require(value is ObjectNode) { "Query schema [$field.$name] must be an object or null." }
+    return DeclarationValue.Set(value.toDeclaration("$field.$name"))
+}
+
+private fun ObjectNode.alternatives(field: String): DeclarationValue<List<QueryFieldDeclaration>> {
+    if (!has("alternatives")) return DeclarationValue.Unset
+    val value = get("alternatives")
+    require(value.isArray) { "Query schema [$field.alternatives] must be an array." }
+    return DeclarationValue.Set(
+        value.toList().map { node ->
+            require(node is ObjectNode) { "Query schema [$field.alternatives] values must be objects." }
+            node.toDeclaration("$field.alternatives")
+        }
+    )
 }
 
 private fun ObjectNode.semanticType(field: String): DeclarationValue<QuerySemanticType?> {
@@ -258,7 +290,10 @@ private val FIELD_PROPERTIES = setOf(
     VALUE_TYPES,
     NULLABLE,
     REQUIRED,
-    CARDINALITY,
+    "kind",
+    "properties",
+    "items",
+    "additionalProperties",
+    "alternatives",
     SEMANTIC_TYPE,
-    DYNAMIC_CHILDREN,
 )
