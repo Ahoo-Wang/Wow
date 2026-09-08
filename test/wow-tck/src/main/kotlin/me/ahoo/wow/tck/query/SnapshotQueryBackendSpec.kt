@@ -83,12 +83,18 @@ abstract class SnapshotQueryBackendSpec {
         JsonQuerySchemaSource(),
         object : QuerySchemaSource {
             override val priority: Int = me.ahoo.wow.query.schema.QuerySchemaSourcePriority.BEAN
-            override fun load(context: me.ahoo.wow.query.schema.QuerySchemaContext): Flux<me.ahoo.wow.query.schema.QuerySchemaDeclaration> =
-                Flux.just(me.ahoo.wow.query.schema.QuerySchemaDeclaration(mapOf(
-                    QueryField("state.orders.lines.missing") to me.ahoo.wow.query.schema.QueryFieldDeclaration(
-                        valueTypes = me.ahoo.wow.query.schema.DeclarationValue.Set(setOf(QueryValueType.DECIMAL)),
-                    ),
-                )))
+            override fun load(
+                context: me.ahoo.wow.query.schema.QuerySchemaContext
+            ): Flux<me.ahoo.wow.query.schema.QuerySchemaDeclaration> =
+                Flux.just(
+                    me.ahoo.wow.query.schema.QuerySchemaDeclaration(
+                        mapOf(
+                            QueryField("state.orders.lines.missing") to me.ahoo.wow.query.schema.QueryFieldDeclaration(
+                                valueTypes = me.ahoo.wow.query.schema.DeclarationValue.Set(setOf(QueryValueType.DECIMAL)),
+                            ),
+                        )
+                    )
+                )
         },
     )
     lateinit var snapshotStore: SnapshotStore
