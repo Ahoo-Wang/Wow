@@ -27,6 +27,9 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry
 
 class EventStreamQueryGatewayRegistrar : QueryGatewayRegistrar() {
     companion object {
+        /** Bean name for the event stream observer shared by aggregate gateways; also used for custom overrides. */
+        const val EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME = "eventStreamQueryObserver"
+
         private val log = KotlinLogging.logger {}
     }
 
@@ -51,7 +54,7 @@ class EventStreamQueryGatewayRegistrar : QueryGatewayRegistrar() {
 
             val filters = appContext.getBeanProvider(QueryFilter::class.java).toList()
             val policies = appContext.getBeanProvider(QueryPolicy::class.java).toList()
-            val observer = appContext.getBean("eventStreamQueryObserver", QueryObserver::class.java)
+            val observer = appContext.getBean(EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME, QueryObserver::class.java)
             DefaultEventStreamQueryGateway(
                 namedAggregate = namedAggregate,
                 binding = binding,

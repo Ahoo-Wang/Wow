@@ -45,6 +45,8 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
+import me.ahoo.wow.spring.query.EventStreamQueryGatewayRegistrar.Companion.EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME
+import me.ahoo.wow.spring.query.SnapshotQueryGatewayRegistrar.Companion.SNAPSHOT_QUERY_OBSERVER_BEAN_NAME
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.support.GenericApplicationContext
@@ -200,7 +202,7 @@ class QueryGatewayRegistrarTest {
             },
         )
         registerBean(
-            "snapshotQueryObserver",
+            SNAPSHOT_QUERY_OBSERVER_BEAN_NAME,
             QueryObserver::class.java,
             Supplier {
                 object : QueryObserver {
@@ -211,7 +213,7 @@ class QueryGatewayRegistrarTest {
             },
         )
         registerBean(
-            "eventStreamQueryObserver",
+            EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME,
             QueryObserver::class.java,
             Supplier {
                 object : QueryObserver {
