@@ -83,6 +83,27 @@ class ElasticsearchSortCompilerTest {
     }
 
     @Test
+    fun `logical aliases of metadata sorts should retain native missing policy`() {
+        listOf("_score", "_doc", "_shard_doc").forEach { physical ->
+            val logical = QueryField("rank")
+            val metadataSchema = nativeSchema(
+                model = QueryModel.SNAPSHOT,
+                capabilities = emptySet(),
+                fields = mapOf(logical to fieldSchema(QueryCapability.SORT to QueryField(physical))),
+            )
+            Sort.Direction.entries.forEach { direction ->
+                val actual = ElasticsearchSortCompiler.compile(
+                    listOf(Sort(logical, direction)),
+                    metadataSchema
+                ).single().field()
+                actual.field().assert().isEqualTo(physical)
+                actual.order().assert().isEqualTo(ElasticsearchSortCompiler.run { direction.toSortOrder() })
+                actual.missing().assert().isNull()
+            }
+        }
+    }
+
+    @Test
     fun `event cursor should preserve physical sorts nested context and missing order`() {
         val actual = ElasticsearchSortCompiler.compileCursor(
             sort {

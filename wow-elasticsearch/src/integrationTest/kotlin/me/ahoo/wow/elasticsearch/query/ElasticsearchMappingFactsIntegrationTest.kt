@@ -24,8 +24,11 @@ import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -122,6 +125,27 @@ class ElasticsearchMappingFactsIntegrationTest {
             backend.count(StartsWithFilter(QueryField("code"), "A"), schema).block().assert().isEqualTo(0L)
             backend.count(StartsWithFilter(QueryField("code"), "a"), schema).block().assert().isEqualTo(1L)
             assertThrows<QuerySchemaValidationException> { backend.count(StartsWithFilter(QueryField("normalized"), "A"), schema).block() }
+        }
+    }
+
+    @Test
+    fun `ordinary metadata sorts should execute without missing policy`() {
+        val metadata = mapOf(
+            "_score" to QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.DECIMAL)),
+            "_doc" to QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.INTEGER)),
+        )
+        withIndex("""{"properties":{"code":{"type":"keyword"}}}""", metadata + ("code" to string), """{"code":"A"}""") { backend, schema ->
+            metadata.keys.forEach { field ->
+                val sort = listOf(Sort(QueryField(field), Sort.Direction.DESC))
+                val single = SingleQuery(MatchAllFilter, sort = sort)
+                backend.single(validateQuery(single, schema), schema).block()!!.path("code").asString().assert().isEqualTo("A")
+                val list = ListQuery(MatchAllFilter, sort = sort, limit = 1)
+                backend.list(validateQuery(list, schema), schema).single().block()!!.path("code").asString().assert().isEqualTo("A")
+                val paged = PagedQuery(MatchAllFilter, sort = sort)
+                val page = backend.paged(validateQuery(paged, schema), schema).block()!!
+                page.total.assert().isEqualTo(1L)
+                page.list.single().path("code").asString().assert().isEqualTo("A")
+            }
         }
     }
 

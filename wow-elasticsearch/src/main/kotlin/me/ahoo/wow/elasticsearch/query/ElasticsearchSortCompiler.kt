@@ -27,8 +27,10 @@ import me.ahoo.wow.serialization.MessageRecords
 object ElasticsearchSortCompiler {
     fun compile(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> = compilePhysical(
         sort.map { it.copy(field = schema.physicalField(it.field, QueryCapability.SORT)) },
-    ) { logicalSort ->
-        missing(if (logicalSort.direction == Sort.Direction.ASC) "_first" else "_last")
+    ) { physicalSort ->
+        if (physicalSort.field !in METADATA_SORT_FIELDS) {
+            missing(if (physicalSort.direction == Sort.Direction.ASC) "_first" else "_last")
+        }
     }
 
     @Suppress("ThrowsCount")
@@ -42,7 +44,7 @@ object ElasticsearchSortCompiler {
                 )
             }
             val physicalField = schema.physicalField(item.field, QueryCapability.CURSOR_SORT)
-            if (physicalField in UNSTABLE_CURSOR_SORT_FIELDS) {
+            if (physicalField in METADATA_SORT_FIELDS) {
                 throw QuerySchemaValidationException("Elasticsearch cursor sort field [$physicalField] is unstable.")
             }
             if (!physicalFields.add(physicalField)) {
@@ -83,7 +85,7 @@ object ElasticsearchSortCompiler {
     }
 }
 
-private val UNSTABLE_CURSOR_SORT_FIELDS = setOf(
+private val METADATA_SORT_FIELDS = setOf(
     QueryField("_score"),
     QueryField("_doc"),
     QueryField("_shard_doc"),
