@@ -72,6 +72,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
   single<T extends Partial<R> = R>(
     singleQuery: SingleQueryRequest<FIELDS>,
     attributes?: Record<string, any>,
+    abortController?: AbortController,
   ): Promise<T>;
 
   /**
@@ -85,6 +86,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
   list<T extends Partial<R> = R>(
     listQuery: ListQueryRequest<FIELDS>,
     attributes?: Record<string, any>,
+    abortController?: AbortController,
   ): Promise<T[]>;
 
   /**
@@ -98,6 +100,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
   listStream<T extends Partial<R> = R>(
     listQuery: ListQueryRequest<FIELDS>,
     attributes?: Record<string, any>,
+    abortController?: AbortController,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
 
   /**
@@ -111,6 +114,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
   paged<T extends Partial<R> = R>(
     pagedQuery: PagedQueryRequest<FIELDS>,
     attributes?: Record<string, any>,
+    abortController?: AbortController,
   ): Promise<PagedList<T>>;
 
   /**
@@ -124,5 +128,6 @@ export interface QueryApi<R, FIELDS extends string = string> {
   count(
     filter: FilterExpression<FIELDS> | Condition<FIELDS>,
     attributes?: Record<string, any>,
+    abortController?: AbortController,
   ): Promise<number>;
 }
