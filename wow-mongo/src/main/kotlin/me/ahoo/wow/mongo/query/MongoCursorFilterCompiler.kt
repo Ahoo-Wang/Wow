@@ -16,7 +16,6 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Sort
-import org.bson.Document
 import org.bson.conversions.Bson
 
 internal object MongoCursorFilterCompiler {
@@ -42,7 +41,7 @@ internal object MongoCursorFilterCompiler {
 
     private fun after(sort: Sort, value: Any?): Bson = when {
         value == null && sort.direction == Sort.Direction.ASC -> Filters.ne(sort.field.path, null)
-        value == null -> Document("\$expr", false)
+        value == null -> MATCH_NONE_FILTER
         sort.direction == Sort.Direction.ASC -> Filters.gt(sort.field.path, value)
         else -> Filters.or(Filters.lt(sort.field.path, value), Filters.eq(sort.field.path, null))
     }

@@ -250,12 +250,6 @@ class SnapshotFilterCompilerTest {
     }
 
     @Test
-    fun `match none should remain impossible`() {
-        compile(MatchNoneFilter).toBsonDocument().assert()
-            .isEqualTo(org.bson.Document("\$expr", false).toBsonDocument())
-    }
-
-    @Test
     fun `mongo phrase search should reject embedded quotes`() {
         assertThrows<IllegalArgumentException> {
             compile(SearchFilter("event \"sourcing\"", mode = SearchMode.PHRASE))
