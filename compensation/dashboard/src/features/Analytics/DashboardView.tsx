@@ -12,7 +12,13 @@
  */
 
 import dayjs from "dayjs";
-import { CalendarDays, CircleAlert, RefreshCw } from "lucide-react";
+import { createClusterHref } from "../Failed/clusterScope.ts";
+import {
+  ArrowUpRight,
+  CalendarDays,
+  CircleAlert,
+  RefreshCw,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ExchangeError } from "@ahoo-wang/fetcher";
 import { RecoverableType } from "@ahoo-wang/fetcher-wow";
@@ -165,7 +171,12 @@ function PressureStatusShare({ cluster }: { cluster: PressureCluster }) {
       : (cluster.preparedCount / cluster.currentCount) * 100;
 
   return (
-    <div aria-label={t("Failed {failed}; Prepared {prepared}", { failed, prepared })}>
+    <div
+      aria-label={t("Failed {failed}; Prepared {prepared}", {
+        failed,
+        prepared,
+      })}
+    >
       <div className="flex items-center gap-2 text-xs tabular-nums">
         <span>{failed}</span>
         <span>{prepared}</span>
@@ -181,7 +192,13 @@ function PressureStatusShare({ cluster }: { cluster: PressureCluster }) {
   );
 }
 
-function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
+function PressureTable({
+  clusters,
+  window,
+}: {
+  clusters: PressureCluster[];
+  window: { start: number; end: number };
+}) {
   const now = useNow();
   const { locale, t } = useI18n();
   return (
@@ -212,7 +229,16 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
               data-dominant={index === 0 ? "true" : undefined}
             >
               <TableCell data-label={t("Cluster")}>
-                <div className="font-medium">{cluster.errorCode}</div>
+                <a
+                  className="font-medium text-primary underline underline-offset-4 focus-visible:outline-2"
+                  href={createClusterHref(cluster, window)}
+                  aria-label={t("View cluster {code}", {
+                    code: cluster.errorCode,
+                  })}
+                >
+                  {cluster.errorCode}
+                  <ArrowUpRight className="ml-1 inline size-3" aria-hidden />
+                </a>
                 <div className="text-xs text-muted-foreground">
                   {cluster.contextName} · {cluster.processorName}/
                   <wbr />
@@ -230,14 +256,22 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
               </TableCell>
               <TableCell
                 data-label={t("Oldest")}
-                title={formatDate(cluster.oldestExecuteAt ?? undefined, undefined, locale)}
+                title={formatDate(
+                  cluster.oldestExecuteAt ?? undefined,
+                  undefined,
+                  locale,
+                )}
               >
                 {cluster.oldestExecuteAt
                   ? formatAge(cluster.oldestExecuteAt, now, locale)
                   : "-"}
               </TableCell>
               <TableCell data-label={t("Next retry")}>
-                {formatDate(cluster.nextRetryAt ?? undefined, undefined, locale)}
+                {formatDate(
+                  cluster.nextRetryAt ?? undefined,
+                  undefined,
+                  locale,
+                )}
               </TableCell>
             </TableRow>
           ))
@@ -532,8 +566,16 @@ export default function DashboardView() {
                       count: snapshot.summary.data.olderThanRange.toLocaleString(),
                     })}
                   </span>
-                  <span>{t("{count} newer", { count: newerThanRange.toLocaleString() })}</span>
-                  <span>{t("{count} total", { count: activeTotal.toLocaleString() })}</span>
+                  <span>
+                    {t("{count} newer", {
+                      count: newerThanRange.toLocaleString(),
+                    })}
+                  </span>
+                  <span>
+                    {t("{count} total", {
+                      count: activeTotal.toLocaleString(),
+                    })}
+                  </span>
                 </div>
                 <Separator />
                 <dl className="dashboard-stock-secondary">
@@ -728,7 +770,8 @@ export default function DashboardView() {
                     : t("{count} clusters", {
                         count: snapshot.pressure.data!.length,
                       })}{" "}
-                · {t("Top cluster {percentage}", {
+                ·{" "}
+                {t("Top cluster {percentage}", {
                   percentage: formatPercentage(pressureShare, locale),
                 })}
               </Badge>
@@ -741,7 +784,10 @@ export default function DashboardView() {
             <Skeleton className="h-64 w-full" />
           ) : snapshot.pressure.data ? (
             <div className="dashboard-pressure-table">
-              <PressureTable clusters={snapshot.pressure.data} />
+              <PressureTable
+                clusters={snapshot.pressure.data}
+                window={window}
+              />
             </div>
           ) : null}
         </CardContent>

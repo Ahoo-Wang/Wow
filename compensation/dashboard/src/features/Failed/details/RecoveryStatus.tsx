@@ -57,7 +57,7 @@ export function RecoveryStatus({
 
   return (
     <section
-      className="overflow-hidden rounded-lg border border-blue-200 bg-white shadow-sm"
+      className="recovery-status overflow-hidden rounded-lg border border-blue-200 bg-white shadow-sm"
       aria-label={t("Recovery status")}
     >
       <div className="flex min-h-14 items-center justify-between gap-3 border-b bg-blue-50/60 px-4 py-3">
@@ -83,7 +83,7 @@ export function RecoveryStatus({
           <Pencil />
         </Button>
       </div>
-      <dl className="grid grid-cols-1 gap-x-4 gap-y-4 p-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+      <dl className="recovery-status-fields grid grid-cols-1 gap-x-4 gap-y-4 p-4">
         <div>
           <dt className="text-xs text-slate-500">{t("Retry progress")}</dt>
           <dd className="mt-1 text-sm tabular-nums text-slate-800">

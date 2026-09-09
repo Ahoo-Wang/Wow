@@ -20,8 +20,8 @@ describe("routes/constants", () => {
   });
 
   describe("NavItems", () => {
-    it("has 6 navigation items", () => {
-      expect(NavItems).toHaveLength(6);
+    it("includes an active queue for dashboard drill-down", () => {
+      expect(NavItems).toHaveLength(7);
     });
 
     it("each item has required properties", () => {
@@ -35,8 +35,9 @@ describe("routes/constants", () => {
     });
 
     it("paths match NavItemPaths", () => {
-      const paths = NavItems.map(item => item.path);
+      const paths = NavItems.map((item) => item.path);
       expect(paths).toEqual([
+        NavItemPaths.Active,
         NavItemPaths.ToRetry,
         NavItemPaths.Executing,
         NavItemPaths.NextRetry,
@@ -53,13 +54,14 @@ describe("routes/constants", () => {
     expect(DashboardNavItem).toEqual({ label: "Dashboard", path: "/" });
     expect(PrimaryNavItems.map(({ label }) => label)).toEqual([
       "Dashboard",
+      "Active executions",
       "To Retry",
       "Executing",
-      "Next Retry",
+      "Due for retry",
       "Non Retryable",
       "Succeeded",
       "Unrecoverable",
     ]);
-    expect(NavItems).toHaveLength(6);
+    expect(NavItems).toHaveLength(7);
   });
 });

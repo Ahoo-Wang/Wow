@@ -12,6 +12,7 @@
  */
 
 export enum FindCategory {
+  Active = "Active",
   ToRetry = "ToRetry",
   Executing = "Executing",
   NextRetry = "NextRetry",

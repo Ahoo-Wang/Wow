@@ -33,7 +33,8 @@ export function FailedDetailsHeader({
         <span className="h-9 w-1 shrink-0 rounded-full bg-red-500" aria-hidden />
         <div className="min-w-0">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight text-slate-950">
+            <h1 title={state.function.name}
+              className="min-w-0 max-w-full break-all text-xl font-semibold tracking-tight text-slate-950 sm:truncate">
               {state.function.name}
             </h1>
             <StatusBadge status={state.status} />

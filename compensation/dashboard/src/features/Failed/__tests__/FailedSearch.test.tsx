@@ -31,6 +31,23 @@ describe("FailedSearch", () => {
     expect(onSearch).toHaveBeenCalledWith(filter.matchAll(), false);
   });
 
+  it("immediately removes an applied filter without submitting other draft changes", () => {
+    const onSearch = vi.fn();
+    render(<FailedSearch onSearch={onSearch} />);
+    fireEvent.click(screen.getByRole("button", { name: "Add filter" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Event ID" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Event ID" }), {
+      target: { value: "EVT-1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    onSearch.mockClear();
+    fireEvent.change(screen.getByRole("textbox", { name: "Execution ID" }), {
+      target: { value: "unsubmitted" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Remove Event ID" }));
+    expect(onSearch).toHaveBeenCalledWith(filter.matchAll(), false);
+  });
+
   it("preserves the legacy exact-match semantics for text filters", () => {
     const onSearch = vi.fn();
     render(<FailedSearch onSearch={onSearch} />);

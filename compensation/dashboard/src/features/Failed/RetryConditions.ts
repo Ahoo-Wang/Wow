@@ -107,10 +107,7 @@ export class RetryConditions {
       ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
       RETRYABLE_RECOVERABILITY,
     ),
-    filter.isIn(
-      ExecutionFailedAggregatedFields.STATE_STATUS,
-      ACTIVE_STATUSES,
-    ),
+    filter.isIn(ExecutionFailedAggregatedFields.STATE_STATUS, ACTIVE_STATUSES),
     filter.eq(
       ExecutionFailedAggregatedFields.STATE_IS_BELOW_RETRY_THRESHOLD,
       false,
@@ -127,10 +124,7 @@ export class RetryConditions {
       ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
       RecoverableType.UNRECOVERABLE,
     ),
-    filter.isIn(
-      ExecutionFailedAggregatedFields.STATE_STATUS,
-      ACTIVE_STATUSES,
-    ),
+    filter.isIn(ExecutionFailedAggregatedFields.STATE_STATUS, ACTIVE_STATUSES),
   ]);
 
   static categoryToCondition(
@@ -138,6 +132,11 @@ export class RetryConditions {
     now: number,
   ): FilterExpression {
     switch (category) {
+      case FindCategory.Active:
+        return filter.isIn(
+          ExecutionFailedAggregatedFields.STATE_STATUS,
+          ACTIVE_STATUSES,
+        );
       case FindCategory.ToRetry:
         return this.toRetryCondition(now);
       case FindCategory.Executing:

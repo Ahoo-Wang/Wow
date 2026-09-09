@@ -86,7 +86,7 @@ describe("Actions", () => {
     vi.restoreAllMocks();
   });
 
-  it("leaves prepared action eligibility to the authoritative server state", () => {
+  it("disables preparation while an execution has not timed out", () => {
     render(
       <Actions
         state={{
@@ -101,8 +101,8 @@ describe("Actions", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Prepare compensation" }),
-    ).toBeEnabled();
+      screen.getByRole("button", { name: "Execution in progress" }),
+    ).toBeDisabled();
   });
 
   it("requires confirmation before force prepare", async () => {

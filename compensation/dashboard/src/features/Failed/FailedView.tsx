@@ -20,6 +20,10 @@ import { FailedTable } from "./FailedTable.tsx";
 import { FailedWorkspace } from "./FailedWorkspace.tsx";
 import type { FindCategory } from "./FindCategory.ts";
 import { useFailedQueueController } from "./useFailedQueueController.ts";
+import { useSearchParams } from "react-router";
+import { useMemo } from "react";
+import { parseClusterScope, type ClusterScope } from "./clusterScope.ts";
+import { formatDate } from "@/utils/dates.ts";
 import { useI18n } from "@/i18n.tsx";
 
 interface FailedViewProps {
@@ -61,11 +65,33 @@ function LoadingPageDetails() {
 }
 
 export default function FailedView({ category }: FailedViewProps) {
+  const [params] = useSearchParams();
+  const rawScope = params.get("cluster");
+  const scope = useMemo(() => parseClusterScope(rawScope), [rawScope]);
   const { t } = useI18n();
+  if (scope === undefined) {
+    return (
+      <div role="alert" className="p-6">
+        {t("Invalid cluster filter.")}{" "}
+        <a className="underline" href="/active">
+          {t("Clear cluster filter")}
+        </a>
+      </div>
+    );
+  }
+  return <FailedQueue key={rawScope ?? ""} category={category} scope={scope} />;
+}
+
+export function FailedQueue({
+  category,
+  scope,
+}: FailedViewProps & { scope?: ClusterScope | null }) {
+  const { t, locale } = useI18n();
   const desktop = useMediaQuery("(min-width: 960px)");
   const { isOpen: isDrawerOpen } = useGlobalDrawer();
   const controller = useFailedQueueController({
     category,
+    scope,
     desktop,
     refreshPaused: isDrawerOpen,
   });
@@ -75,6 +101,27 @@ export default function FailedView({ category }: FailedViewProps) {
       className="flex h-full min-h-0 flex-col border-r bg-white"
       aria-label={t("Failed executions")}
     >
+      {scope ? (
+        <div className="border-b bg-muted/40 px-5 py-3 text-xs">
+          <p className="font-medium">
+            {t("Cluster filter")}: {scope.errorCode}
+          </p>
+          <p className="mt-1 break-words">
+            {scope.contextName} / {scope.processorName} / {scope.functionName} ·{" "}
+            {scope.functionKind}
+          </p>
+          <p className="mt-1">
+            {formatDate(scope.start, undefined, locale)} –{" "}
+            {formatDate(scope.end - 1, undefined, locale)}
+          </p>
+          <a
+            className="mt-2 inline-block underline underline-offset-4"
+            href="/active"
+          >
+            {t("Clear cluster filter")}
+          </a>
+        </div>
+      ) : null}
       <FailedSearch
         key={controller.searchResetToken}
         onSearch={controller.onSearch}
@@ -109,6 +156,7 @@ export default function FailedView({ category }: FailedViewProps) {
     <FetchingFailedDetails
       key={controller.selectedId}
       id={controller.selectedId}
+      refreshToken={controller.refreshToken}
       mutationsDisabled={controller.mutationsDisabled}
       onChanged={controller.refresh}
     />

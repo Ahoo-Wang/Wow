@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.GetMapping
 class DashboardConfiguration(private val webProperties: WebProperties, private val resourceLoader: ResourceLoader) {
     companion object {
         const val HOME_FILE = "index.html"
+        const val ACTIVE_NAV = "/active"
         const val TO_RETRY_NAV = "/to-retry"
         const val EXECUTING_NAV = "/executing"
         const val NEXT_RETRY_NAV = "/next-retry"
@@ -43,6 +44,7 @@ class DashboardConfiguration(private val webProperties: WebProperties, private v
     @GetMapping(
         *[
             "/",
+            ACTIVE_NAV,
             TO_RETRY_NAV,
             EXECUTING_NAV,
             NEXT_RETRY_NAV,
