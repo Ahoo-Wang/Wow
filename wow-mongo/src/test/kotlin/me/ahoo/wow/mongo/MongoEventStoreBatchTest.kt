@@ -302,11 +302,13 @@ class MongoEventStoreBatchTest {
             }
         }
 
-        MongoEventStore(database, batchOptions(maxSize = 2)).use { eventStore ->
+        // Acknowledgement handling requires size-triggered batches, independent of timer scheduling.
+        val options = batchOptions(maxSize = 2).copy(maxDelay = Duration.ofHours(1))
+        MongoEventStore(database, options).use { eventStore ->
             val failedSignals = Mono.zip(
                 eventStore.append(eventStream("order-1")).materialize(),
                 eventStore.append(eventStream("order-2")).materialize(),
-            ).block()!!
+            ).block(Duration.ofSeconds(10))!!
 
             failedSignals.t1.throwable.assert().isInstanceOf(IllegalStateException::class.java)
             failedSignals.t1.throwable?.message.assert()
@@ -320,7 +322,7 @@ class MongoEventStoreBatchTest {
                     eventStore.append(eventStream("order-3")),
                     eventStore.append(eventStream("order-4")),
                 ).then()
-            ).verifyComplete()
+            ).expectComplete().verify(Duration.ofSeconds(10))
         }
 
         verify(exactly = 2) { collection.insertMany(any<List<Document>>(), any()) }
