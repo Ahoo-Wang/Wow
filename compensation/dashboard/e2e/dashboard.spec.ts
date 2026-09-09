@@ -469,9 +469,11 @@ test("loads lifecycle history through the paged EventStream REST API", async ({
     });
 });
 
-test("keeps prepared actions independent of the browser clock", async ({
+test("enables prepared actions only after the execution timeout", async ({
   page,
 }, testInfo) => {
+  const now = Date.now();
+  await page.clock.setFixedTime(now);
   await page.route("**/execution_failed/snapshot/paged/state", (route) =>
     route.fulfill({
       json: {
@@ -482,7 +484,7 @@ test("keeps prepared actions independent of the browser clock", async ({
             status: "PREPARED",
             retryState: {
               ...execution.retryState,
-              timeoutAt: Date.now() + 86_400_000,
+              timeoutAt: now + 60_000,
             },
           },
         ],
@@ -490,11 +492,25 @@ test("keeps prepared actions independent of the browser clock", async ({
     }),
   );
 
-  await page.goto("/to-retry");
+  await page.goto("/executing");
   await openDetails(page, testInfo.project.name);
 
   await expect(
+    page.getByRole("button", { name: "Execution in progress" }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "More actions" }).click();
+  await expect(
+    page.getByRole("menuitem", { name: "Force prepare" }),
+  ).toBeDisabled();
+  await page.keyboard.press("Escape");
+
+  await page.clock.setFixedTime(now + 60_001);
+  await expect(
     page.getByRole("button", { name: "Prepare compensation" }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "More actions" }).click();
+  await expect(
+    page.getByRole("menuitem", { name: "Force prepare" }),
   ).toBeEnabled();
 });
 
@@ -1047,8 +1063,8 @@ test("hides desktop navigation labels when collapsed", async ({
       "a[aria-label='Dashboard']",
     );
     const dashboardIcon = dashboard?.querySelector<SVGElement>("svg");
-    const toRetry = document.querySelector<HTMLElement>(
-      "a[aria-label='To Retry']",
+    const activeExecutions = document.querySelector<HTMLElement>(
+      "a[aria-label='Active executions']",
     );
     const footer = document.querySelector<HTMLElement>(
       "button[aria-label='Expand navigation']",
@@ -1058,7 +1074,7 @@ test("hides desktop navigation labels when collapsed", async ({
       !sidebar ||
       !dashboard ||
       !dashboardIcon ||
-      !toRetry ||
+      !activeExecutions ||
       !footer ||
       !footerIcon
     ) {
@@ -1073,7 +1089,7 @@ test("hides desktop navigation labels when collapsed", async ({
       dashboardIcon: center(dashboardIcon),
       dashboardIconSize: dashboardIcon.getBoundingClientRect().width,
       menuGap:
-        toRetry.getBoundingClientRect().top -
+        activeExecutions.getBoundingClientRect().top -
         dashboard.getBoundingClientRect().bottom,
       footer: center(footer),
       footerIcon: center(footerIcon),
@@ -1212,7 +1228,7 @@ test("reflows pressure rows from the available card width", async ({
 test("shows a distinct dashboard skeleton while initial data is pending", async ({
   page,
 }) => {
-  let release = () => undefined;
+  let release: () => void = () => undefined;
   const pending = new Promise<void>((resolve) => {
     release = resolve;
   });
