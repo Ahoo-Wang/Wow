@@ -20,6 +20,7 @@ import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryObserver
+import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.serialization.JsonSerializer
 
@@ -29,6 +30,7 @@ class DefaultEventStreamQueryGateway(
     namedAggregate: NamedAggregate,
     binding: QueryBackendBinding<EventStreamQueryBackend>,
     filters: List<QueryFilter> = emptyList(),
+    policies: List<QueryPolicy> = emptyList(),
     observer: QueryObserver = QueryLogObserver(),
 ) : EventStreamQueryGateway,
     AbstractQueryGateway<DomainEventStream>(
@@ -37,5 +39,6 @@ class DefaultEventStreamQueryGateway(
         JsonSerializer.typeFactory.constructType(DomainEventStream::class.java),
         filters,
         EventStreamQueryGateway::class,
+        policies,
         observer,
     )

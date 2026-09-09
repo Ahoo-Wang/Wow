@@ -72,6 +72,7 @@ abstract class AbstractQueryGateway<R : Any>(
     private val targetType: JavaType,
     filters: List<QueryFilter>,
     filterType: KClass<*>,
+    policies: List<QueryPolicy>,
     private val observer: QueryObserver,
 ) : QueryGateway<R> {
     private val backend = binding.backend
@@ -79,6 +80,7 @@ abstract class AbstractQueryGateway<R : Any>(
     private val prepares = filters.filter {
         it::class.scanAnnotation<FilterType>()?.value?.contains(filterType) ?: true
     }.sortedByOrder()
+    private val policies = policies.toList()
 
     private fun <Q : RewritableFilter<Q>> prepare(
         query: Q,
@@ -96,16 +98,24 @@ abstract class AbstractQueryGateway<R : Any>(
         }
         return prepared.flatMap { current ->
             val scoped = if (scope === MatchAllFilter) current else current.appendFilter(scope)
-            Mono.defer { policyFilter(identity, QueryContext(scoped, namedAggregate, schema)) }
-                .switchIfEmpty(Mono.error { IllegalStateException("QueryPolicy must emit one filter.") })
+            evaluatePolicies(identity, QueryContext(scoped, namedAggregate, schema))
                 .map { if (it === MatchAllFilter) scoped else scoped.appendFilter(it) }
         }.map { applyDefaults(it, schema) }
     }
 
-    protected open fun policyFilter(
+    private fun evaluatePolicies(
         identity: ContextView,
         context: QueryContext<*>,
-    ): Mono<FilterExpression> = Mono.just(MatchAllFilter)
+    ): Mono<FilterExpression> =
+        policies.fold(Mono.just<FilterExpression>(MatchAllFilter)) { pending, policy ->
+            pending.flatMap { combined ->
+                Mono.defer { policy.evaluate(identity, context) }
+                    .switchIfEmpty(
+                        Mono.error { IllegalStateException("QueryPolicy must emit one filter.") }
+                    )
+                    .map { if (it === MatchAllFilter) combined else combined.appendFilter(it) }
+            }
+        }
 
     private fun <Q : RewritableFilter<Q>> applyDefaults(query: Q, schema: QueryModelSchema): Q {
         if (schema.model != QueryModel.SNAPSHOT) return query

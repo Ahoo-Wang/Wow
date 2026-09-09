@@ -25,6 +25,8 @@ import reactor.util.context.ContextView
  * one additional logical filter or an error. MatchAllFilter adds no restriction; an empty publisher is a
  * protocol error. The gateway combines policy filters with AND before defaults, validation and execution.
  * Prepared queries may be replaced by QueryFilter; policy filters are appended afterward.
+ * Snapshot and EventStream gateways evaluate configured policies through the same fixed stage.
+ * A policy uses the query context to determine applicability and emits MatchAllFilter when it does not apply.
  * Policies do not replace queries, execute backends, or transform results.
  */
 fun interface QueryPolicy {

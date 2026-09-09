@@ -17,7 +17,7 @@ Numeric `FIELD` inputs and arithmetic leaves follow [numeric contributions and p
 - **Schema HTTP**: `GET /sales-order/event/schema` and `POST /sales-order/event/schema/refresh` are separate model-level routes without tenant/owner variants.
 - **Shared contract**: see [Aggregation Queries](./aggregation-query.md) for Elements, groups, metrics, aliases, sorting, and limits; see [Filter Expressions](./filter-expression.md) for the root-filter Kotlin DSL; field capabilities come from [Query Model Schema (current reference)](./query-model-schema.md).
 
-The HTTP Handler decodes the request, uses `QueryRequestScope` to capture tenant/owner/space in Reactor Context, and applies HTTP cost and response limits through independent `HttpQueryGuard`. The EventStream Gateway runs preparation, scope merging, and final public validation, then passes the logical Query and same Schema to its Backend. It does not automatically apply Snapshot ABAC policies. Accept selects a JSON array or SSE; JVM aggregation returns `Flux<ObjectNode>`. The examples below show representative rows.
+The HTTP Handler decodes the request, uses `QueryRequestScope` to capture tenant/owner/space in Reactor Context, and applies HTTP cost and response limits through independent `HttpQueryGuard`. The EventStream Gateway runs preparation, merges scope and `QueryPolicy` constraints, and performs final public validation, then passes the logical Query and same Schema to its Backend. The Snapshot ABAC tag policy returns `MatchAllFilter` for EventStream without reading tags. Accept selects a JSON array or SSE; JVM aggregation returns `Flux<ObjectNode>`. The examples below show representative rows.
 
 ## Root Documents, body, and Counting Units
 

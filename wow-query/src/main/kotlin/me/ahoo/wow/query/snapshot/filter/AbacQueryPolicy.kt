@@ -19,6 +19,7 @@ import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.wildcard
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.serialization.state.StateAggregateRecords.TAGS
@@ -30,7 +31,8 @@ import reactor.util.context.ContextView
  * Resolves terminal snapshot access conditions using attribute-based access control (ABAC).
  *
  * Principal tags from the current context are converted into query conditions and
- * appended to snapshot queries.
+ * appended to snapshot queries. Other query models are unrestricted by this policy
+ * and do not resolve principal tags.
  *
  * ## Matching rules
  *
@@ -101,12 +103,15 @@ abstract class AbacQueryPolicy : QueryPolicy {
      *
      * @param contextView the Reactor context
      * @param context the query context
-     * @return an unrestricted condition when no tags exist, otherwise the combined tag condition
+     * @return an unrestricted condition for other models or when no tags exist, otherwise the combined tag condition
      */
     override fun evaluate(
         contextView: ContextView,
         context: QueryContext<*>
-    ): Mono<FilterExpression> = getPrincipalTags(contextView, context)
-        .map { it.toFilterExpression() }
-        .switchIfEmpty(MatchAllFilter.toMono())
+    ): Mono<FilterExpression> {
+        if (context.schema.model != QueryModel.SNAPSHOT) return Mono.just(MatchAllFilter)
+        return getPrincipalTags(contextView, context)
+            .map { it.toFilterExpression() }
+            .switchIfEmpty(MatchAllFilter.toMono())
+    }
 }

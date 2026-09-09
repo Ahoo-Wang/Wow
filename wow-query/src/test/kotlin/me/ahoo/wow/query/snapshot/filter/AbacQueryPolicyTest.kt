@@ -115,6 +115,22 @@ class AbacQueryPolicyTest {
         policy.evaluate(Context.empty(), context).test().expectNext(MatchAllFilter).verifyComplete()
     }
 
+    @Test
+    fun `event stream queries do not resolve snapshot principal tags`() {
+        val policy = object : AbacQueryPolicy() {
+            override fun getPrincipalTags(
+                contextView: ContextView,
+                context: QueryContext<*>
+            ): Mono<AbacTags> = Mono.error(IllegalStateException("Snapshot tags are unavailable for event streams"))
+        }
+        val context = QueryContext<me.ahoo.wow.api.query.FilterExpression>(
+            MatchAllFilter,
+            MOCK_AGGREGATE_METADATA,
+            me.ahoo.wow.query.gatewaySchema(QueryModel.EVENT_STREAM),
+        )
+        policy.evaluate(Context.empty(), context).test().expectNext(MatchAllFilter).verifyComplete()
+    }
+
     object EmptyAbacQueryPolicy : AbacQueryPolicy() {
         override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*>): Mono<AbacTags> {
             return EMPTY_ABAC_TAGS.toMono()

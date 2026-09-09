@@ -154,7 +154,7 @@ fun ContextView.queryScope(): FilterExpression
 
 `QueryPolicy.evaluate(contextView: ContextView, context: QueryContext<*>): Mono<FilterExpression>` 是终端合同。`AbacQueryPolicy` 实现该接口，其 getPrincipalTags 接收同样两个参数，返回 `Mono<AbacTags>`；其他查询策略不依赖标签接口，可表达数据生命周期、业务约束等规则。无注册策略不追加条件；ABAC 策略对没有 tags 的 Publisher 或空 tags 集合使用 MatchAll。覆写 evaluate 则必须发出一个 FilterExpression，返回 Mono.empty 是协议错误，不能变成放行。策略失败传播错误，不走普通 Filter 恢复。这里的 Context 是 Reactor Context，不引入 HTTP 类型到 wow-query。
 
-通用 AbstractQueryGateway 不依赖 snapshot 包的 ABAC 实现。Snapshot Gateway 与 Spring Registrar 依赖 `QueryPolicy`，Gateway 组合策略 FilterExpression；通用管道的受保护 policyFilter 钩子只返回条件，随后由固定流程 AND 合并，不能返回替代 Query 或结果。EventStream 默认没有 Snapshot 的 tags 策略，也不提供无用途的 Snapshot policy 构造参数。`QueryFilter.prepare` 的结果允许后续准备步骤替换；`QueryPolicy` 只产出随后必须 AND 合并的附加逻辑条件或错误，不新增执行层、可排序中间件或策略注册中心。
+通用 AbstractQueryGateway 持有策略列表快照，统一执行 `QueryPolicy` 并以 AND 合并条件，不依赖 snapshot 包的 ABAC 实现，也不提供可绕过策略列表的子类钩子。Snapshot、EventStream Gateway 与各自 Spring Registrar 均接入该策略合同。具体策略使用已有 `QueryContext` 判断适用范围，不适用时返回 MatchAll；`AbacQueryPolicy` 仅对 `schema.model == SNAPSHOT` 读取 Principal 标签并产生标签条件。Schema 仅提供模型等结构事实，不负责选择或执行策略。`QueryFilter.prepare` 的结果允许后续准备步骤替换；`QueryPolicy` 只产出随后必须 AND 合并的附加逻辑条件或错误，不新增执行层、可排序中间件或策略注册中心。
 
 不能移动整个 FilterNormalizer 而破坏相对时间语义：时间单位/格式先根据同一 Schema 确定，每次订阅固定一次时间基准，然后按已知编码编译；count/list 的同一次 paged 操作复用同一原生 filter。
 

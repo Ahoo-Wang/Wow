@@ -123,7 +123,7 @@ Backend 从传入 Schema 取 native binding，检查原生参数和物理作用�
 
 ## 请求扩展与调用入口
 
-`QueryContext<Q>` 只含 query、namedAggregate、schema。把旧请求处理搬到 prepare；把身份约束放到 Reactor `withQueryScope` 或 Snapshot `QueryPolicy`（包括 `AbacQueryPolicy`）；Observer 只观察终止，不修改结果。Gateway 固定在 prepare 后合并 scope/policy，然后默认条件、公共校验、Backend、Mask、typed 物化。
+`QueryContext<Q>` 只含 query、namedAggregate、schema。把旧请求处理搬到 prepare；把身份约束放到 Reactor `withQueryScope` 或 `QueryPolicy`（包括仅适用 Snapshot 的 `AbacQueryPolicy`）；Observer 只观察终止，不修改结果。Gateway 固定在 prepare 后合并 scope/policy，然后默认条件、公共校验、Backend、Mask、typed 物化。
 
 业务继续使用 SnapshotQueryGateway / EventStreamQueryGateway 的 typed、dynamic、分页、游标、count 和 aggregate 方法。直接 Backend 是受信低层边界，调用者显式提供 Schema 和所有治理责任。游标唯一排序由 Gateway 追加，Backend 不追加。
 
@@ -135,9 +135,9 @@ Backend 从传入 Schema 取 native binding，检查原生参数和物理作用�
 
 1. 保留合法逻辑字段路径，删除对未声明字段透传和物理别名查询的依赖。
 2. 修改 Backend 签名与 Factory binding；按真实值树声明数组、Map 与联合分支。
-3. 分离 prepare、scope、Snapshot policy 与 Observer，使用默认 Gateway 的固定流程。
+3. 分离 prepare、scope、QueryPolicy 与 Observer，使用默认 Gateway 的固定流程。
 4. 验证普通查询、集合/元素作用域、cursor、聚合、metadata与Mask失败场景，再验证实际存储行为。
 
 当前扩展合同见[查询网关](./query-gateway.md)、[查询后端](./query-backend.md)和[查询模型 Schema](./query-model-schema.md)。
 
-`DefaultSnapshotQueryGateway` 的 `policies` 参数与 Spring 注册器现在使用 `QueryPolicy`。现有 `AbacQueryPolicy` 已实现该接口；数据生命周期、业务查询条件等其他策略直接实现 `evaluate(ContextView, QueryContext<*>): Mono<FilterExpression>`。固定策略阶段、捕获身份、AND 合并与空 Publisher 拒绝规则保持。
+`DefaultSnapshotQueryGateway` 与 `DefaultEventStreamQueryGateway` 的 `policies` 参数及各自 Spring 注册器均使用 `QueryPolicy`，由 `AbstractQueryGateway` 统一执行；不再通过子类覆写 `policyFilter`。现有 `AbacQueryPolicy` 已实现该接口，并仅对 Snapshot 读取标签。数据生命周期、业务查询条件等其他策略直接实现 `evaluate(ContextView, QueryContext<*>): Mono<FilterExpression>`。使用模型专属字段的策略应先检查 `context.schema.model`，在不适用模型上返回 `MatchAllFilter`。固定策略阶段、捕获身份、AND 合并与空 Publisher 拒绝规则保持。
