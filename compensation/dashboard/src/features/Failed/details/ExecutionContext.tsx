@@ -110,7 +110,7 @@ export function ExecutionContext({
               </Button>
             }
           >
-            <span className="block truncate" title={state.function.processorName}>
+            <span className="block break-all" title={state.function.processorName}>
               {state.function.processorName}
             </span>
           </DetailRow>

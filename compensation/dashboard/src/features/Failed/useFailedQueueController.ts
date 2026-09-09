@@ -29,10 +29,13 @@ import { FindCategory } from "./FindCategory.ts";
 import { RetryConditions } from "./RetryConditions.ts";
 import { clearExecutionSelection, selectExecution } from "./selection.ts";
 
+import { clusterCondition, type ClusterScope } from "./clusterScope.ts";
+
 type QueryTransition = "replace" | "pagination" | "refresh";
 
 interface UseFailedQueueControllerOptions {
   category: FindCategory;
+  scope?: ClusterScope | null;
   desktop: boolean;
   refreshPaused: boolean;
 }
@@ -50,6 +53,7 @@ export interface FailedQueueController {
   onSearch: (filterExpression: FilterExpression, hasFilters: boolean) => void;
   page: PagedList<ExecutionFailedState>;
   refresh: () => void;
+  refreshToken: number;
   searchResetToken: number;
   select: (state: ExecutionFailedState) => void;
   selectedId: string | null;
@@ -72,15 +76,26 @@ function isAbortError(error: Error): boolean {
 
 export function useFailedQueueController({
   category,
+  scope,
   desktop,
   refreshPaused,
 }: UseFailedQueueControllerOptions): FailedQueueController {
   const [searchParams, setSearchParams] = useSearchParams();
+  const categoryCondition = useCallback(
+    (now: number) => {
+      const condition = RetryConditions.categoryToCondition(category, now);
+      return scope
+        ? filter.and([condition, clusterCondition(scope)])
+        : condition;
+    },
+    [category, scope],
+  );
   const selectedId = searchParams.get("id");
   const [searchFilter, setSearchFilter] = useState<FilterExpression>(() =>
     filter.matchAll(),
   );
   const [hasSearchFilters, setHasSearchFilters] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
   const [searchResetToken, setSearchResetToken] = useState(0);
   const [queryTransition, setQueryTransition] =
     useState<QueryTransition>("replace");
@@ -92,7 +107,7 @@ export function useFailedQueueController({
     useState<PagedList<ExecutionFailedState>>();
   const [query, setCurrentQuery] = useState(() =>
     pagedQuery({
-      filter: RetryConditions.categoryToCondition(category, Date.now()),
+      filter: categoryCondition(Date.now()),
       sort: executionFailedSort(),
     }),
   );
@@ -212,15 +227,12 @@ export function useFailedQueueController({
       clearSelection();
       updateQuery(
         pagedQuery({
-          filter: filter.and([
-            RetryConditions.categoryToCondition(category, Date.now()),
-            nextSearchFilter,
-          ]),
+          filter: filter.and([categoryCondition(Date.now()), nextSearchFilter]),
           sort: executionFailedSort(),
         }),
       );
     },
-    [category, clearSelection, updateQuery],
+    [categoryCondition, clearSelection, updateQuery],
   );
 
   const clearFilters = useCallback(() => {
@@ -234,15 +246,12 @@ export function useFailedQueueController({
       clearSelection();
       updateQuery({
         ...query,
-        filter: filter.and([
-          RetryConditions.categoryToCondition(category, Date.now()),
-          searchFilter,
-        ]),
+        filter: filter.and([categoryCondition(Date.now()), searchFilter]),
         sort: executionFailedSort(),
         pagination: { index: nextPage, size: nextPageSize },
       });
     },
-    [category, clearSelection, query, searchFilter, updateQuery],
+    [categoryCondition, clearSelection, query, searchFilter, updateQuery],
   );
 
   const select = useCallback(
@@ -253,24 +262,23 @@ export function useFailedQueueController({
   );
 
   const refresh = useCallback(() => {
+    setRefreshToken((value) => value + 1);
     setQueryTransition("refresh");
     updateQuery({
       ...query,
-      filter: filter.and([
-        RetryConditions.categoryToCondition(category, Date.now()),
-        searchFilter,
-      ]),
+      filter: filter.and([categoryCondition(Date.now()), searchFilter]),
       sort: executionFailedSort(),
     });
-  }, [category, query, searchFilter, updateQuery]);
+  }, [categoryCondition, query, searchFilter, updateQuery]);
 
   useEffect(() => {
     const timeSensitive = [
+      FindCategory.Active,
       FindCategory.ToRetry,
       FindCategory.Executing,
       FindCategory.NextRetry,
     ].includes(category);
-    if (!timeSensitive) {
+    if (!timeSensitive && !selectedId) {
       return;
     }
 
@@ -289,7 +297,7 @@ export function useFailedQueueController({
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshVisibleQueue);
     };
-  }, [category, refresh, refreshPaused, transitioning]);
+  }, [category, refresh, refreshPaused, selectedId, transitioning]);
 
   return {
     activeId,
@@ -304,6 +312,7 @@ export function useFailedQueueController({
     onSearch,
     page,
     refresh,
+    refreshToken,
     searchResetToken,
     select,
     selectedId,

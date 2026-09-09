@@ -107,21 +107,29 @@ const searchFields: SearchField[] = [
 export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
   const [activeKeys, setActiveKeys] = useState<string[]>(["_id"]);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [appliedValues, setAppliedValues] = useState<Record<string, string>>(
+    {},
+  );
   const { t } = useI18n();
 
   const activeFields = useMemo(
     () => searchFields.filter((field) => activeKeys.includes(field.key)),
     [activeKeys],
   );
-  const appliedFilterCount = activeFields.filter((field) =>
-    Boolean(values[field.key]?.trim()),
+  const appliedFilterCount = Object.values(appliedValues).filter((value) =>
+    value.trim(),
   ).length;
+  const hasDraftValues = Object.values(values).some((value) => value.trim());
+  const hasUnappliedChanges = searchFields.some(
+    ({ key }) =>
+      (values[key]?.trim() ?? "") !== (appliedValues[key]?.trim() ?? ""),
+  );
 
-  const submit = (event?: FormEvent) => {
-    event?.preventDefault();
-    const filters = activeFields
+  const apply = (nextValues: Record<string, string>) => {
+    setAppliedValues(nextValues);
+    const filters = searchFields
       .map((field) => {
-        const value = values[field.key]?.trim();
+        const value = nextValues[field.key]?.trim();
         return value ? field.filter(value) : undefined;
       })
       .filter((filterExpression): filterExpression is FilterExpression =>
@@ -137,9 +145,19 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
     );
   };
 
+  const submit = (event?: FormEvent) => {
+    event?.preventDefault();
+    apply(
+      Object.fromEntries(
+        activeFields.map(({ key }) => [key, values[key] ?? ""]),
+      ),
+    );
+  };
+
   const clearAll = () => {
     setActiveKeys(["_id"]);
     setValues({});
+    setAppliedValues({});
     onSearch?.(filter.matchAll(), false);
   };
 
@@ -152,6 +170,9 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
       current.filter((activeKey) => activeKey !== key),
     );
     setValues((current) => ({ ...current, [key]: "" }));
+    if (appliedValues[key]?.trim()) {
+      apply({ ...appliedValues, [key]: "" });
+    }
   };
 
   return (
@@ -261,8 +282,12 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
         </div>
       ) : null}
       <div className="mt-2 flex min-h-5 items-center justify-between gap-3 text-xs text-slate-500">
-        <span>{t("Exact match across all fields")}</span>
-        {appliedFilterCount > 0 ? (
+        <span>
+          {hasUnappliedChanges
+            ? t("Unapplied changes — click Search")
+            : t("Exact match across all fields")}
+        </span>
+        {appliedFilterCount > 0 || hasDraftValues ? (
           <Button
             type="button"
             variant="link"

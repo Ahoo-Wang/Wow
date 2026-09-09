@@ -61,6 +61,7 @@ interface AppProps {
 
 const navIcons: Record<string, ComponentType<{ className?: string }>> = {
   [NavItemPaths.Dashboard]: ChartNoAxesCombined,
+  [NavItemPaths.Active]: CircleAlert,
   "/to-retry": RefreshCcw,
   "/executing": Play,
   "/next-retry": Clock3,

@@ -51,6 +51,7 @@ import { copyTextToClipboard } from "@/utils/clipboard.ts";
 import type { OnChangedCapable } from "./types.ts";
 import { commandErrorMessage } from "./commandErrors.ts";
 import { getCompensationCapabilities } from "./compensationCapabilities.ts";
+import { useNow } from "@/hooks/useNow.ts";
 import { useI18n } from "@/i18n.tsx";
 
 export interface ActionsProps
@@ -62,7 +63,7 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
   const { t } = useI18n();
   const [forceDialogOpen, setForceDialogOpen] = useState(false);
   const unavailableReasonId = useId();
-  const stateCapabilities = getCompensationCapabilities(state);
+  const stateCapabilities = getCompensationCapabilities(state, useNow());
   const capabilities = disabled
     ? {
         canForcePrepare: false,
@@ -124,7 +125,10 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
     ? { label: t("Refreshing state"), icon: <LoaderCircle /> }
     : state.status === ExecutionFailedStatus.SUCCEEDED
       ? { label: t("Already succeeded"), icon: <CircleCheck /> }
-      : { label: t("Retry limit reached"), icon: <ShieldAlert /> };
+      : state.status === ExecutionFailedStatus.PREPARED &&
+          !capabilities.canForcePrepare
+        ? { label: t("Execution in progress"), icon: <LoaderCircle /> }
+        : { label: t("Retry limit reached"), icon: <ShieldAlert /> };
 
   return (
     <>

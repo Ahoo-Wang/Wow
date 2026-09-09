@@ -18,6 +18,7 @@ import type { Message } from "@/i18n.tsx";
 
 export const NavItemPaths = {
   Dashboard: "/",
+  Active: "/active",
   Analytics: "/analytics",
   ToRetry: "/to-retry",
   Executing: "/executing",
@@ -39,6 +40,12 @@ export interface QueueNavItem extends NavItem {
 
 export const NavItems: readonly QueueNavItem[] = [
   {
+    label: "Active executions",
+    path: NavItemPaths.Active,
+    category: FindCategory.Active,
+    component: LazyFailedView,
+  },
+  {
     label: "To Retry",
     path: NavItemPaths.ToRetry,
     category: FindCategory.ToRetry,
@@ -51,7 +58,7 @@ export const NavItems: readonly QueueNavItem[] = [
     component: LazyFailedView,
   },
   {
-    label: "Next Retry",
+    label: "Due for retry",
     path: NavItemPaths.NextRetry,
     category: FindCategory.NextRetry,
     component: LazyFailedView,

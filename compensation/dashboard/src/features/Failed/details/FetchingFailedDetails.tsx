@@ -18,7 +18,7 @@ import { FailedDetails } from "./FailedDetails.tsx";
 import { queryExecutionFailedState } from "../../../services";
 import { useSingleQuery } from "@ahoo-wang/fetcher-react";
 import type { FetcherError } from "@ahoo-wang/fetcher";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,11 +27,13 @@ import { useI18n } from "@/i18n.tsx";
 
 export interface FetchingFailedDetailsProps extends OnChangedCapable {
   id: string;
+  refreshToken?: number;
   mutationsDisabled?: boolean;
 }
 
 export function FetchingFailedDetails({
   id,
+  refreshToken,
   onChanged,
   mutationsDisabled,
 }: FetchingFailedDetailsProps) {
@@ -54,14 +56,19 @@ export function FetchingFailedDetails({
     FetcherError
   >({
     query,
+    autoExecute: false,
     execute: queryExecutionFailedState,
   });
+  useEffect(() => {
+    void refreshDetails();
+  }, [query, refreshDetails, refreshToken]);
+
   const refreshDetailsAndList = useCallback(() => {
     onChanged?.();
-    void refreshDetails();
-  }, [onChanged, refreshDetails]);
+    if (!onChanged || refreshToken === undefined) void refreshDetails();
+  }, [onChanged, refreshDetails, refreshToken]);
 
-  if (loading || (result && result.id !== id)) {
+  if ((loading && !result) || (result && result.id !== id)) {
     return (
       <div
         role="status"
@@ -132,7 +139,7 @@ export function FetchingFailedDetails({
   return (
     <FailedDetails
       state={result}
-      mutationsDisabled={mutationsDisabled}
+      mutationsDisabled={mutationsDisabled || loading}
       onChanged={refreshDetailsAndList}
     />
   );

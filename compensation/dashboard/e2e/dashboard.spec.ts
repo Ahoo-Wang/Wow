@@ -828,7 +828,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
       "Dashboard",
       "To Retry",
       "Executing",
-      "Next Retry",
+      "Due for retry",
       "Non Retryable",
       "Succeeded",
       "Unrecoverable",
@@ -1013,9 +1013,10 @@ test("hides desktop navigation labels when collapsed", async ({
 
   const labels = [
     "Dashboard",
+    "Active executions",
     "To Retry",
     "Executing",
-    "Next Retry",
+    "Due for retry",
     "Non Retryable",
     "Succeeded",
     "Unrecoverable",

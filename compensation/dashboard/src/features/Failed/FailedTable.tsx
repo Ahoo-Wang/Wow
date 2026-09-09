@@ -89,6 +89,7 @@ export function FailedTable({
               type="button"
               disabled={loading}
               aria-label={t("View execution {id}", { id: info.getValue() })}
+              title={info.getValue()}
               className="block w-full truncate text-left font-medium text-slate-800 outline-none hover:text-blue-700 focus-visible:underline disabled:cursor-wait disabled:text-slate-700"
               onClick={(event) => {
                 event.stopPropagation();
@@ -109,10 +110,10 @@ export function FailedTable({
         header: t("Processor / Function"),
         cell: (info) => (
           <div className="min-w-0">
-            <div className="truncate text-sm text-slate-700">
+            <div className="truncate text-sm text-slate-700" title={info.getValue().processorName}>
               {info.getValue().processorName}
             </div>
-            <div className="mt-1 truncate text-xs text-slate-900">
+            <div className="mt-1 truncate text-xs text-slate-900" title={info.getValue().name}>
               {info.getValue().name}
             </div>
           </div>
@@ -132,7 +133,7 @@ export function FailedTable({
         header: t("Age"),
         cell: (info) => (
           <span
-            className="text-xs tabular-nums text-slate-700"
+            className="block truncate text-xs tabular-nums text-slate-700"
             title={formatDate(info.getValue(), undefined, locale)}
           >
             {formatAge(info.getValue(), now, locale)}
@@ -191,13 +192,12 @@ export function FailedTable({
                     className={cn(
                       "h-[43px] px-2 text-xs font-medium text-slate-500",
                       header.column.id === "status" &&
-                        "failed-table-status-column w-[78px]",
-                      header.column.id === "id" && "w-[124px]",
-                      header.column.id === "function" && "w-[140px]",
+                        "failed-table-status-column w-[72px]",
+                      header.column.id === "id" && "w-[32%]",
                       header.column.id === "retry" &&
-                        "failed-table-retry hidden w-[50px] text-center sm:table-cell",
+                        "failed-table-retry w-[56px] text-center",
                       header.column.id === "executeAt" &&
-                        "failed-table-age hidden w-[67px] text-right sm:table-cell",
+                        "failed-table-age w-[88px] text-right",
                     )}
                   >
                     {header.isPlaceholder
@@ -303,9 +303,9 @@ export function FailedTable({
                           cell.column.id === "status" &&
                             "failed-table-status-column",
                           cell.column.id === "retry" &&
-                            "failed-table-retry hidden text-center sm:table-cell",
+                            "failed-table-retry text-center",
                           cell.column.id === "executeAt" &&
-                            "failed-table-age hidden text-right sm:table-cell",
+                            "failed-table-age text-right",
                         )}
                       >
                         {flexRender(

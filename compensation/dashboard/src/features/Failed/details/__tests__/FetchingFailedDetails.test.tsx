@@ -87,11 +87,21 @@ describe("FetchingFailedDetails", () => {
     const onChanged = vi.fn();
     render(<FetchingFailedDetails id="remote-A" onChanged={onChanged} />);
 
+    mocks.execute.mockClear();
     fireEvent.click(
       screen.getByRole("button", { name: "Refresh selected execution" }),
     );
 
     expect(onChanged).toHaveBeenCalledOnce();
+    expect(mocks.execute).toHaveBeenCalledOnce();
+  });
+
+  it("reloads an off-page detail when the parent refresh cycle advances", () => {
+    const { rerender } = render(
+      <FetchingFailedDetails id="remote-A" refreshToken={0} />,
+    );
+    mocks.execute.mockClear();
+    rerender(<FetchingFailedDetails id="remote-A" refreshToken={1} />);
     expect(mocks.execute).toHaveBeenCalledOnce();
   });
 
@@ -109,6 +119,7 @@ describe("FetchingFailedDetails", () => {
     mocks.error = new Error("network unavailable");
 
     render(<FetchingFailedDetails id="remote-A" />);
+    mocks.execute.mockClear();
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent("network unavailable");

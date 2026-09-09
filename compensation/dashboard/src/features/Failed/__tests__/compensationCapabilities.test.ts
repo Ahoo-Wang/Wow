@@ -46,8 +46,21 @@ const preparedState: ExecutionFailedState = {
 };
 
 describe("getCompensationCapabilities", () => {
-  it("leaves prepared timeout validation to the authoritative server", () => {
+  it("allows prepared executions after their timeout", () => {
     expect(getCompensationCapabilities(preparedState)).toEqual({
+      canForcePrepare: true,
+      canPrepare: true,
+    });
+  });
+
+  it("blocks prepared executions until strictly after their timeout", () => {
+    for (const now of [1_999, 2_000]) {
+      expect(getCompensationCapabilities(preparedState, now)).toMatchObject({
+        canForcePrepare: false,
+        canPrepare: false,
+      });
+    }
+    expect(getCompensationCapabilities(preparedState, 2_001)).toMatchObject({
       canForcePrepare: true,
       canPrepare: true,
     });

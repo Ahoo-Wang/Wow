@@ -151,13 +151,13 @@ table.sr-only {
   container-type: inline-size;
 }
 
-@container (max-width: 470px) {
+@container (max-width: 560px) {
   .failed-table-age {
     display: none !important;
   }
 }
 
-@container (max-width: 395px) {
+@container (max-width: 440px) {
   .failed-table-status-column {
     display: none !important;
   }
@@ -165,9 +165,28 @@ table.sr-only {
   .failed-table-status-inline {
     display: inline-flex !important;
   }
+}
 
+@container (max-width: 360px) {
   .failed-table-retry {
     display: none !important;
+  }
+}
+
+.failed-details-body,
+.recovery-status {
+  container-type: inline-size;
+}
+
+@container (min-width: 680px) {
+  .failed-details-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 320px) {
+  .recovery-status-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

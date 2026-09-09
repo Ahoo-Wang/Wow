@@ -18,7 +18,7 @@ import {
   type ExecutionFailedState,
 } from "../../../generated";
 import { FindCategory } from "../FindCategory.ts";
-import FailedView from "../FailedView.tsx";
+import { FailedQueue as FailedView } from "../FailedView.tsx";
 
 const mocks = vi.hoisted(() => ({
   search: "",

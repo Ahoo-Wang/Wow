@@ -26,6 +26,16 @@ import {
 export type Locale = "en" | "zh-CN";
 
 const zhCN = {
+  "Execution in progress": "正在执行",
+  "Execution is in progress; wait until it times out.":
+    "执行尚未超时，请等待当前执行结果。",
+  "Due for retry": "已到重试时间",
+  "Active executions": "活跃记录",
+  "Cluster filter": "已应用集群筛选",
+  "Clear cluster filter": "清除集群筛选",
+  "Invalid cluster filter.": "集群筛选无效。",
+  "View cluster {code}": "查看失败集群 {code}",
+  "Unapplied changes — click Search": "筛选尚未应用，请点击搜索",
   Dashboard: "仪表盘",
   "To Retry": "待重试",
   Executing: "执行中",
@@ -408,9 +418,7 @@ export function I18nProvider({ children }: PropsWithChildren) {
     [locale, setLocale],
   );
 
-  return (
-    <I18nContext value={value}>{children}</I18nContext>
-  );
+  return <I18nContext value={value}>{children}</I18nContext>;
 }
 
 export function useI18n() {
