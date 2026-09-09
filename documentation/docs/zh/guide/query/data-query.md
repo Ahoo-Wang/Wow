@@ -70,6 +70,20 @@ val query = PagedQuery(
 
 `projection` 可用 `include` 或 `exclude` 控制字段，空投影表示返回全部字段。每个 QueryField 选择一个节点及其全部后代：选择对象节点会返回整棵子树，选择标量节点等同于精确字段。公共 Projection 与 Sort 不接受后端通配 pattern；要选择整个 `state` 子树，应写 `state`，而不是存储侧表达式。
 
+### MongoDB 的 ID 投影例外
+
+MongoDB 的 single/list/paged 查询保留原生 `_id` 默认返回策略：即使 `include` 未选择 ID，Snapshot 结果仍包含 `aggregateId`，EventStream 结果仍包含 `id`。这是约定的后端差异；Elasticsearch 不额外返回未选择的 ID。
+
+若只需要 `version`，可显式排除逻辑 ID。Snapshot 使用：
+
+```json
+{ "projection": { "include": ["version"], "exclude": ["aggregateId"] } }
+```
+
+EventStream 将 `exclude` 改为 `["id"]`。这是 MongoDB 允许混用 include/exclude 的 ID 特例，不能推广到任意字段组合；公共请求使用逻辑字段名，不使用物理 `_id`。
+
+cursor 查询会清理仅为排序而读取的内部字段，包括未被投影选择的 ID，因此不适用上述默认保留 ID 的例外。`include: ["version"]` 在两种后端的 cursor 结果中都只返回 `version`。state-only 入口还会解包 `state`，不会返回快照外层的 `aggregateId`。
+
 ## Count
 
 Count 请求体直接是 `FilterExpression`，没有额外的 `filter` 包装：

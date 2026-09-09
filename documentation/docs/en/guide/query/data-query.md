@@ -70,6 +70,20 @@ Here, `index` is the 1-based page number and `size` is the page size; `sort` nam
 
 `projection` can use `include` or `exclude`; an empty projection returns all fields. Each QueryField selects one node and all of its descendants: selecting an object returns its whole subtree, while selecting a scalar is an exact field selection. Public Projection and Sort do not accept backend wildcard patterns. Select `state` itself for the whole state subtree instead of using a storage-side expression.
 
+### MongoDB ID projection exception
+
+MongoDB single/list/paged queries retain the native default of returning `_id`: even when include omits the ID, Snapshot results still contain `aggregateId` and EventStream results still contain `id`. This is an accepted backend difference; Elasticsearch does not add an unrequested ID.
+
+To return only `version`, explicitly exclude the logical ID. For Snapshot queries:
+
+```json
+{ "projection": { "include": ["version"], "exclude": ["aggregateId"] } }
+```
+
+For EventStream queries, change `exclude` to `["id"]`. MongoDB allows this ID exception when combining include and exclude; it does not permit arbitrary field combinations. Public requests use logical field names, not the physical `_id`.
+
+Cursor queries remove internal fields fetched only for sorting, including an ID not selected by the projection, so the default ID retention exception does not apply. With `include: ["version"]`, cursor results contain only `version` on both backends. State-only endpoints also unwrap `state` and do not return the snapshot's outer `aggregateId`.
+
 ## Count
 
 The count body is a `FilterExpression` directly, without an outer `filter` property:
