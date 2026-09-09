@@ -27,7 +27,9 @@ import me.ahoo.wow.serialization.MessageRecords
 object ElasticsearchSortCompiler {
     fun compile(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> = compilePhysical(
         sort.map { it.copy(field = schema.physicalField(it.field, QueryCapability.SORT)) },
-    )
+    ) { logicalSort ->
+        missing(if (logicalSort.direction == Sort.Direction.ASC) "_first" else "_last")
+    }
 
     @Suppress("ThrowsCount")
     internal fun compileCursor(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> {

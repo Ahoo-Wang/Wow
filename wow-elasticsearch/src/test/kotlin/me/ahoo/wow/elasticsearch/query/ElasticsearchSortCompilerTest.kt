@@ -67,7 +67,7 @@ class ElasticsearchSortCompilerTest {
     }
 
     @Test
-    fun `should resolve logical sort fields without setting ordinary missing order`() {
+    fun `should resolve logical sort fields with the same missing order as cursor`() {
         val actual = ElasticsearchSortCompiler.compile(
             sort {
                 "name".asc()
@@ -78,10 +78,8 @@ class ElasticsearchSortCompilerTest {
 
         actual.map { it.field() }.assert().containsExactly("body.name", "body.name")
         actual.map { it.order() }.assert().containsExactly(SortOrder.Asc, SortOrder.Desc)
-        actual.forEach {
-            requireNotNull(it.nested()).path().assert().isEqualTo("body")
-            it.missing().assert().isNull()
-        }
+        actual.map { requireNotNull(it.missing()).stringValue() }.assert().containsExactly("_first", "_last")
+        actual.forEach { requireNotNull(it.nested()).path().assert().isEqualTo("body") }
     }
 
     @Test
