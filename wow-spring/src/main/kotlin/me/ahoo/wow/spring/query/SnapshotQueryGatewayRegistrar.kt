@@ -31,6 +31,9 @@ import org.springframework.core.ResolvableType
 
 class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
     companion object {
+        /** Bean name for the snapshot observer shared by aggregate gateways; also used for custom overrides. */
+        const val SNAPSHOT_QUERY_OBSERVER_BEAN_NAME = "snapshotQueryObserver"
+
         private val log = KotlinLogging.logger {}
     }
 
@@ -57,7 +60,7 @@ class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
 
             val filters = appContext.getBeanProvider(QueryFilter::class.java).toList()
             val policies = appContext.getBeanProvider(QueryPolicy::class.java).toList()
-            val observer = appContext.getBean("snapshotQueryObserver", QueryObserver::class.java)
+            val observer = appContext.getBean(SNAPSHOT_QUERY_OBSERVER_BEAN_NAME, QueryObserver::class.java)
             DefaultSnapshotQueryGateway<Any>(
                 namedAggregate = namedAggregate,
                 binding = binding,
