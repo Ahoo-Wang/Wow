@@ -1,5 +1,7 @@
 # QueryGateway ResolvedQuery Phase 1 Implementation Plan
 
+> **历史记录：** 本文保留当时的方案、实现步骤与验证数据，不作为当前实施指令。当前查询职责和扩展合同以[整体查询架构设计](../designs/2026-09-08-query-architecture-redesign.md)及其关联迁移文档为准；不要据本文恢复已移除的执行层、验证模式或兼容桥。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 让 QueryGateway 在每次订阅中固定一个 QueryModelSchema，完成过滤与解析后只把 `ResolvedQuery` 交给 QueryBackend，并移除 Backend 内的 Schema 获取、准入和验证模式职责。

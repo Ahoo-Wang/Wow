@@ -442,3 +442,23 @@ Schema 继续提供结构及原生事实，Gateway 负责公共治理和默认�
 文档构建、2 项文档测试、172 个相对链接以及主设计 Mermaid 解析通过。
 
 验证产物在本地 `build/query-architecture-migration/pr-preflight/`，包括独立审查、原生 RED/GREEN、`test-results.json`、`api/verification.json` 和最终检查日志。临时容器已回收，原有 benchmark 服务未操作。本节记录提交前证据；GitHub CI 与 Codex review 的结果以 PR 最新提交对应的审核记录为准，不以本地复核代替。
+
+## 20. 通用策略与 WebFlux 接入验收 {#query-policy-acceptance}
+
+本节记录 2026-09-09 的代码提交 `b9e43876a19655af36ba62f1acf7779175a25a13`，对应 [PR #3213](https://github.com/Ahoo-Wang/Wow/pull/3213)。它补齐第 19 节之后的通用策略接入；版本属性为用户指定的 9.0.11，但记录时发布和 dev/prod 更新仍暂停，不能据版本属性宣称制品已发布。
+
+| 职责 | 该提交的合同与验证 |
+|---|---|
+| Gateway | `AbstractQueryGateway` 持有策略列表快照，统一执行 Snapshot/EventStream 的 `QueryPolicy`。所有 prepare 完成后，以捕获的身份和同一准备上下文评估策略，AND 合并后应用默认条件和公共校验；不再提供可绕过该列表的子类钩子 |
+| QueryFilter / QueryPolicy | prepare 可替换逻辑请求；Policy 只返回附加 `FilterExpression` 或错误。重复订阅重新取得身份，空 Publisher、同步抛错和异步错误都阻止后续策略及 Backend 调用 |
+| 模型差异 | 两个 Spring Registrar 都装配 `QueryPolicy`。具体策略以 `QueryContext` 判断适用范围；ABAC 仅在 Snapshot 读取标签，其他模型返回 `MatchAllFilter`。Snapshot 默认删除范围保持，EventStream 不增加删除谓词 |
+| Schema / Backend | Schema 继续保存不可变结构、能力、绑定和保护事实；Gateway 调用公共校验，Backend 接收 `(query, schema)` 并完成原生编译执行。直接 Backend 调用仍是需要显式提供范围和准入的受信基础设施入口 |
+| WebFlux | Handler 提取请求 scope 并写入 Reactor Context，独立执行 HTTP 限额；容器 Gateway 执行同一策略链。HTTP Handler 无需增加第二套策略执行机制 |
+
+永久回归包括 `QueryGatewaySubscriptionTest`、`DefaultEventStreamQueryGatewayTest`、`AbacQueryPolicyTest`、`QueryAutoConfigurationTest` 与 `QueryPolicyWebFluxTest`。EventStream 覆盖全部十个 Gateway 方法及二十次独立身份订阅。HTTP 用例使用真实 Spring 注册器和 Handler，分别对两模型的 list/count/aggregation 发起十二次成功请求与六次拒绝请求，检查最终谓词、403 响应和 Backend 零调用。临时移除 EventStream 策略注入后，两项 HTTP 用例分别捕获 owner 约束丢失和 403 变 200；原文件按字节恢复后回归通过。
+
+五个相关模块 check 通过，测试分别为 query 355、Spring 19、starter 238、WebFlux 308、CoSec 6，共 **926**，无失败、错误或跳过。冻结 Java/Kotlin 调用方、七份 JVM 描述符、通用及模型 JSON 对照通过；文档构建及两项文档测试通过。独立代码复核无阻断；记录时该提交的 GitHub CI 全部通过。Codex 提出的三个实现层兼容桥建议按用户明确允许实现 SPI 破坏的范围不采纳，图表意见已修复，讨论已逐条回复并关闭；这不等同于自动审查从未提出意见。
+
+HTTP 证据使用进程内 WebTestClient、记录型 Backend 和手工组装的路由合同，证明容器 Gateway 与实际 Handler 的接入；不证明完整应用启动、路由发现、真实存储过滤或生产性能。该策略增量没有新增存储实测或性能提升结论，完整查询重构的原生证据仍按前文各自提交和环境解读。QueryGateway API 与旧 Condition 兼容栈保持，后者按约定到 10.0.0 才移除。
+
+本地证据分别位于 `build/query-architecture-migration/event-stream-policy/`、`webflux-query-policy/` 与 `review-b9e43876a/`。后续文档或 skill 改动不得改写这些已冻结的验证结论。

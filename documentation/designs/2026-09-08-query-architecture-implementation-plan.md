@@ -10,7 +10,7 @@
 
 **Spec:** [整体设计](2026-09-08-query-architecture-redesign.md)，以第 4 节请求扩展、第 5 节结果管道、第 11 节验收为当前合同。[对抗报告](2026-09-08-query-architecture-adversarial-review.md)中 next 中间件属于已退出方案。
 
-**当前状态：** 任务 1–7 的生产迁移及历史验收已完成，后续全面 review 和剩余债务清理另行记录。最新状态与计数统一见[PR 前深度复核验收](2026-09-08-query-architecture-adversarial-review.md#pr-readiness)；下文测试数量、阶段性“最终”及性能产物均只指各记录当时的代码。
+**当前状态：** 任务 1–7 的生产迁移及历史验收已完成。整体重构验收见[PR 前深度复核验收](2026-09-08-query-architecture-adversarial-review.md#pr-readiness)，后续通用策略、EventStream 与 HTTP 接入见[QueryPolicy 验收](2026-09-08-query-architecture-adversarial-review.md#query-policy-acceptance)。各节测试数量、阶段性“最终”及性能产物只指记录时的代码，不跨提交累加或扩大保证范围。
 
 ## Global Constraints
 
