@@ -1,0 +1,57 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const index = JSON.parse(
+  await readFile(process.argv[2] ?? 'storybook-static/index.json', 'utf8'),
+);
+const overview = await readFile(
+  new URL('../stories/Overview.stories.tsx', import.meta.url),
+  'utf8',
+);
+const targets = [
+  ...overview.matchAll(/\.\/\?path=\/(?:docs|story)\/([^'"\s]+)/g),
+].map(match => match[1]);
+assert.ok(targets.length > 0, 'Overview must link to executable examples');
+for (const id of targets)
+  assert.ok(index.entries[id], `Missing navigation target: ${id}`);
+const stories = Object.values(index.entries).filter(
+  entry => entry.type === 'story',
+);
+const regression = stories.filter(entry =>
+  entry.importPath.endsWith('.test.stories.tsx'),
+);
+assert.ok(regression.length > 0, 'Regression stories must remain indexed');
+for (const entry of regression) {
+  assert.ok(
+    entry.tags.includes('test'),
+    `${entry.id}: regression excluded from tests`,
+  );
+  assert.ok(
+    !entry.tags.includes('dev') && !entry.tags.includes('autodocs'),
+    `${entry.id}: regression exposed in documentation`,
+  );
+}
+const experiment = index.entries['development-http-service--http-view-service'];
+assert.ok(experiment, 'HTTP experiment must remain directly accessible');
+assert.ok(
+  !experiment.tags.includes('test') && !experiment.tags.includes('autodocs'),
+);
+assert.ok(
+  !index.entries['development-http-service--docs'],
+  'HTTP experiment must not mount in ordinary docs',
+);
+console.log(
+  `Verified ${targets.length} navigation targets, ${regression.length} regression stories and isolated HTTP experiment.`,
+);

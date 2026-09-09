@@ -1,0 +1,97 @@
+{
+  "name": "@ahoo-wang/fetcher-view-engine",
+  "version": "5.0.0",
+  "description": "Wow view engine core contracts and composable React view components built with shadcn/ui and Base UI.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": "Ahoo-Wang",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ahoo-Wang/fetcher.git",
+    "directory": "packages/view-engine"
+  },
+  "engines": {
+    "node": ">=20.20.2"
+  },
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run --coverage && pnpm test:compiled && pnpm test:type",
+    "test:compiled": "vitest run --mode compiled",
+    "test:type": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint . --fix",
+    "lint:check": "eslint . --max-warnings 0",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@base-ui/react": "catalog:",
+    "@tanstack/react-table": "catalog:",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "lucide-react": "catalog:",
+    "react-day-picker": "catalog:",
+    "tailwind-merge": "catalog:",
+    "@ahoo-wang/fetcher-wow": "workspace:^",
+    "@ahoo-wang/fetcher-react": "workspace:^",
+    "@date-fns/tz": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@ahoo-wang/fetcher": "workspace:^",
+    "@eslint/js": "catalog:",
+    "@rolldown/plugin-babel": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "babel-plugin-react-compiler": "catalog:",
+    "eslint": "catalog:",
+    "eslint-plugin-react-hooks": "catalog:",
+    "globals": "catalog:",
+    "jsdom": "catalog:",
+    "prettier": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "unplugin-dts": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

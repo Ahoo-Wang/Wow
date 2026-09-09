@@ -38,7 +38,11 @@ export default defineConfig({
             enabled: true,
             fileParallelism: false,
             headless: true,
-            provider: playwright({ launchOptions: { channel: 'chrome' } }),
+            provider: playwright({
+              launchOptions: {
+                channel: process.env.VIEW_ENGINE_BROWSER_CHANNEL || undefined,
+              },
+            }),
             instances: [{ browser: 'chromium' }],
           },
         },

@@ -53,6 +53,17 @@ const config: StorybookConfig = {
     options: {},
   },
   viteFinal: config =>
-    mergeConfig(config, { resolve: { alias: workspaceAliases } }),
+    mergeConfig(config, {
+      server: { watch: { ignored: ['**/coverage/**'] } },
+      resolve: {
+        alias: {
+          '@ahoo-wang/fetcher-react/core': join(
+            projectRoot,
+            'packages/react/src/core/index.ts',
+          ),
+          ...workspaceAliases,
+        },
+      },
+    }),
 };
 export default config;

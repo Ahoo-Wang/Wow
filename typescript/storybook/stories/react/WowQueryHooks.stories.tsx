@@ -10,7 +10,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import { AntdProvider } from '../shared/AntdProvider.js';
+import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Fetcher } from '@ahoo-wang/fetcher';
 import {
@@ -28,7 +29,6 @@ import {
   SnapshotQueryClient,
 } from '@ahoo-wang/fetcher-wow';
 import { useEffect, useMemo, useState } from 'react';
-import { expect, userEvent, within } from 'storybook/test';
 import { installFetchFixture } from '../fixtures/http';
 import type { FixtureViewerUser } from '../fixtures/viewer';
 
@@ -130,7 +130,25 @@ function WowQueryDemo({ scenario }: { scenario: Scenario }) {
   );
 }
 
+const scene = {
+  domain: 'CQRS query state',
+  summary: 'Exercise typed Wow query shapes through their React hook adapters.',
+  fixture: 'Local Wow responses · typed filters',
+  setup: 'A query hook starts with deterministic aggregate data and filters.',
+  observe: 'Single, list, page, count, and stream state stay visible.',
+};
+
 const meta = {
+  parameters: { docs: { story: { inline: false, height: '480px' } } },
+  decorators: [
+    (Story, context) => (
+      <AntdProvider>
+        <ScenarioFrame title={context.name} {...scene}>
+          <Story />
+        </ScenarioFrame>
+      </AntdProvider>
+    ),
+  ],
   title: 'React Hooks/Wow Queries',
   component: WowQueryDemo,
   beforeEach: installFetchFixture,
@@ -139,36 +157,25 @@ const meta = {
 } satisfies Meta<typeof WowQueryDemo>;
 
 export default meta;
-type Story = StoryObj<typeof meta>;
 
-async function queryAndExpect(canvasElement: HTMLElement, text: string) {
-  const canvas = within(canvasElement);
-  await userEvent.click(canvas.getByRole('button', { name: 'Run query' }));
-  await expect(await canvas.findByText(text)).toBeVisible();
-}
+type Story = StoryObj<typeof meta>;
 
 export const Single: Story = {
   args: { scenario: 'single' },
-  play: ({ canvasElement }) => queryAndExpect(canvasElement, 'Single · Ada'),
 };
 
 export const List: Story = {
   args: { scenario: 'list' },
-  play: ({ canvasElement }) => queryAndExpect(canvasElement, 'List · Ada, Lin'),
 };
 
 export const Paged: Story = {
   args: { scenario: 'paged' },
-  play: ({ canvasElement }) => queryAndExpect(canvasElement, 'Paged · 2 of 2'),
 };
 
 export const Count: Story = {
   args: { scenario: 'count' },
-  play: ({ canvasElement }) => queryAndExpect(canvasElement, 'Count · 2'),
 };
 
 export const Streaming: Story = {
   args: { scenario: 'stream' },
-  play: ({ canvasElement }) =>
-    queryAndExpect(canvasElement, 'Stream · Ada, Lin'),
 };

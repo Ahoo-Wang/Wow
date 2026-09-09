@@ -1,0 +1,98 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import type { ComponentType } from 'react';
+import type { FieldSort, FilterExpression } from '@ahoo-wang/fetcher-wow';
+import type { FilterExtensions } from '../filter/filterReactTypes.js';
+import type { DeepReadonly } from '../lib/types.js';
+import type {
+  RecordColumn,
+  RecordData,
+  RecordKey,
+  RecordSummaryResult,
+  RendererReference,
+  ViewDefinition,
+  ViewFieldDefinition,
+  ViewInstance,
+} from './recordModel.js';
+
+export interface RecordActionsContext {
+  readonly definition: DeepReadonly<ViewDefinition>;
+  readonly instance: DeepReadonly<ViewInstance>;
+  /** Applied query scope. Null means the component configuration has not compiled successfully. */
+  readonly filter: DeepReadonly<FilterExpression> | null;
+  readonly sort: DeepReadonly<readonly FieldSort[]>;
+  readonly options: DeepReadonly<RendererReference['options']>;
+  /** Bound to this instance, even if navigation changes while an action is running. */
+  refresh(): Promise<void>;
+}
+export interface GlobalActionsRendererProps extends RecordActionsContext {
+  selectedRowKeys: readonly RecordKey[];
+  querying: boolean;
+}
+/** Table operations receive the current page selection and the applied query scope. */
+export type TableActionsRendererProps = GlobalActionsRendererProps;
+export interface RowActionsRendererProps extends RecordActionsContext {
+  readonly record: DeepReadonly<RecordData>;
+  rowKey: RecordKey;
+}
+export interface CellRendererProps {
+  readonly value: unknown;
+  readonly record: DeepReadonly<RecordData>;
+  readonly rowKey: RecordKey;
+  readonly index: number;
+  readonly field: DeepReadonly<ViewFieldDefinition>;
+  readonly column: DeepReadonly<RecordColumn>;
+  readonly definition: DeepReadonly<ViewDefinition>;
+  readonly instance: DeepReadonly<ViewInstance>;
+  readonly options: DeepReadonly<RendererReference['options']>;
+}
+export interface ViewExtensions extends FilterExtensions {
+  cells?: Readonly<Record<string, ComponentType<CellRendererProps>>>;
+  globalActions?: Readonly<
+    Record<string, ComponentType<GlobalActionsRendererProps>>
+  >;
+  tableActions?: Readonly<
+    Record<string, ComponentType<TableActionsRendererProps>>
+  >;
+  rowActions?: Readonly<Record<string, ComponentType<RowActionsRendererProps>>>;
+}
+export interface RecordTableProps {
+  definition: DeepReadonly<ViewDefinition>;
+  instance: DeepReadonly<ViewInstance>;
+  /** Runtime query scope, supplied by the engine rather than inferred from saved configuration. */
+  appliedFilter: DeepReadonly<FilterExpression> | null;
+  rows: DeepReadonly<readonly RecordData[]>;
+  extensions?: ViewExtensions;
+  querying?: boolean;
+  /** Query failure is distinct from a successful empty result. Existing rows are retained. */
+  queryError?: string | null;
+  onQueryRetry?(): void;
+  /** Independent loaded-page and applied-filter results, rendered together. */
+  pageSummary?: RecordSummaryResult;
+  allSummary?: RecordSummaryResult;
+  onSummaryRetry?(): void;
+  selectable?: boolean;
+  selectedRowKeys: readonly RecordKey[];
+  onSelectionChange(keys: RecordKey[]): void;
+  onColumnsChange(columns: RecordColumn[]): void;
+  onSortChange(sort: FieldSort[]): void;
+  refresh(): Promise<void>;
+  className?: string;
+}
+export interface RecordColumnSettingsProps {
+  definition: ViewDefinition;
+  columns: readonly RecordColumn[];
+  onChange(columns: RecordColumn[]): void;
+  disabled?: boolean;
+}
