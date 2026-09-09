@@ -17,12 +17,12 @@ KSP 元数据 → Spring 自动装配 → 生成 HTTP 路由
 
 ## 版本基线
 
-当前 Wow `9.0.13` 源码声明：
+当前 Wow `9.0.15` 源码声明：
 
 | 组件 | 版本 |
 | --- | --- |
 | JDK | 17+ |
-| Wow | `9.0.13` |
+| Wow | `9.0.15` |
 | Spring Boot | `4.1.1` |
 | Kotlin | `2.4.20` |
 | KSP | `2.3.11` |
@@ -57,8 +57,8 @@ KSP 元数据 → Spring 自动装配 → 生成 HTTP 路由
 
 ```kotlin
 dependencies {
-    implementation(platform("me.ahoo.wow:wow-bom:9.0.13"))
-    ksp(platform("me.ahoo.wow:wow-bom:9.0.13"))
+    implementation(platform("me.ahoo.wow:wow-bom:9.0.15"))
+    ksp(platform("me.ahoo.wow:wow-bom:9.0.15"))
 
     implementation("me.ahoo.wow:wow-api") // api 模块
     ksp("me.ahoo.wow:wow-compiler")
@@ -72,7 +72,7 @@ dependencies {
 ```kotlin
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:4.1.1"))
-    implementation(platform("me.ahoo.wow:wow-bom:9.0.13"))
+    implementation(platform("me.ahoo.wow:wow-bom:9.0.15"))
 
     implementation("me.ahoo.wow:wow-spring-boot-starter")
     implementation("me.ahoo.wow:wow-spring-boot-starter") {
