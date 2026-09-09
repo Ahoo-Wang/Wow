@@ -101,14 +101,19 @@ data class Pagination(
  * Data class representing field projection settings for queries.
  *
  * Projection controls which fields are included in or excluded from query results.
- * You can either specify fields to include (include list) or fields to exclude (exclude list),
- * but not both. If both lists are empty, all fields are included.
+ * Use include to select nodes and their descendants, or exclude to omit them.
+ * If both lists are empty, all fields are included. Combining include and exclude follows backend restrictions.
  *
- * @property include List of field names to include in the results. If non-empty, only these fields will be returned.
- * @property exclude List of field names to exclude from the results. Ignored if include list is non-empty.
+ * MongoDB single/list/paged queries retain the native `_id` field by default even when include omits it.
+ * It is returned as `aggregateId` for snapshots and `id` for event streams. Explicitly exclude that logical
+ * field to suppress it; MongoDB permits this ID exclusion alongside include. Elasticsearch does not add
+ * an unrequested ID. Cursor queries remove fields fetched only for sorting, including an unrequested ID.
+ *
+ * @property include Nodes to return, subject to the MongoDB ID exception above.
+ * @property exclude Nodes to omit, including the logical ID when it should not be returned.
  *
  * ```
- * val includeOnly = Projection(include = listOf(QueryField("name"), QueryField("email")))  // Only return name and email
+ * val includeOnly = Projection(include = listOf(QueryField("name"), QueryField("email")))  // MongoDB also retains ID
  * val excludeSome = Projection(exclude = listOf(QueryField("password"), QueryField("secret")))  // Return all except password and secret
  * val allFields = Projection.ALL  // Return all fields
  * ```
