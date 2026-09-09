@@ -26,6 +26,7 @@ import {
 export type Locale = "en" | "zh-CN";
 
 const zhCN = {
+  "Execution refresh failed: {message}. Showing the last loaded state; changes are disabled.": "执行详情刷新失败：{message}。当前显示上次加载的状态，修改操作已禁用。",
   "Execution in progress": "正在执行",
   "Execution is in progress; wait until it times out.":
     "执行尚未超时，请等待当前执行结果。",

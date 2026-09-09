@@ -12,7 +12,7 @@
  */
 
 import { MemoryRouter } from "react-router";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { FunctionKind, RecoverableType } from "@ahoo-wang/fetcher-wow";
 import {
@@ -22,6 +22,7 @@ import {
 import { GlobalDrawerProvider } from "@/components/GlobalDrawer";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import FailedView from "../FailedView.tsx";
+import { FetchingFailedDetails } from "../details/FetchingFailedDetails.tsx";
 import { FindCategory } from "../FindCategory.ts";
 const mocks = vi.hoisted(() => ({ page: vi.fn(), single: vi.fn() }));
 vi.mock("../../../services", () => ({
@@ -112,4 +113,44 @@ it("does not query records for an invalid cluster link", () => {
   expect(screen.getByRole("alert")).toHaveTextContent("Invalid cluster filter.");
   expect(mocks.page).not.toHaveBeenCalled();
   expect(mocks.single).not.toHaveBeenCalled();
+});
+
+
+it("retains off-page context read-only after a refresh failure and recovers on retry", async () => {
+  mocks.single.mockResolvedValue(firstState);
+  const detail = (refreshToken: number, id = firstState.id) => (
+    <TooltipProvider><GlobalDrawerProvider>
+      <FetchingFailedDetails id={id} refreshToken={refreshToken} />
+    </GlobalDrawerProvider></TooltipProvider>
+  );
+  const view = render(detail(0));
+  await screen.findByRole("heading", { name: "handle" });
+  mocks.single.mockRejectedValue(new Error("detail unavailable"));
+  view.rerender(detail(1));
+  await screen.findByRole("alert");
+  expect(screen.getByRole("heading", { name: "handle" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Refreshing state" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Edit retry specification" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Edit function" })).toBeDisabled();
+  expect(screen.getByRole("alert")).toHaveTextContent("detail unavailable");
+
+  mocks.single.mockResolvedValue(firstState);
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.getByRole("button", { name: "Prepare compensation" })).toBeEnabled());
+
+  mocks.single.mockResolvedValue(null);
+  view.rerender(detail(2));
+  await screen.findByText("Execution not found");
+  expect(screen.queryByRole("heading", { name: "handle" })).not.toBeInTheDocument();
+});
+
+it("does not reuse another execution's context after a failed deep-link change", async () => {
+  mocks.single.mockResolvedValue(firstState);
+  const view = render(<TooltipProvider><GlobalDrawerProvider><FetchingFailedDetails id={firstState.id} /></GlobalDrawerProvider></TooltipProvider>);
+  await screen.findByRole("heading", { name: "handle" });
+  mocks.single.mockRejectedValue(new Error("other execution unavailable"));
+  view.rerender(<TooltipProvider><GlobalDrawerProvider><FetchingFailedDetails id="other-id" /></GlobalDrawerProvider></TooltipProvider>);
+  await screen.findByRole("alert");
+  expect(screen.queryByRole("heading", { name: "handle" })).not.toBeInTheDocument();
 });

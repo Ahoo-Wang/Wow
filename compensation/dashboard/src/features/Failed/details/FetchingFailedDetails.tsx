@@ -18,9 +18,10 @@ import { FailedDetails } from "./FailedDetails.tsx";
 import { queryExecutionFailedState } from "../../../services";
 import { useSingleQuery } from "@ahoo-wang/fetcher-react";
 import type { FetcherError } from "@ahoo-wang/fetcher";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { OnChangedCapable } from "../types.ts";
 import { useI18n } from "@/i18n.tsx";
@@ -38,6 +39,8 @@ export function FetchingFailedDetails({
   mutationsDisabled,
 }: FetchingFailedDetailsProps) {
   const { t } = useI18n();
+  const [lastSuccessfulState, setLastSuccessfulState] =
+    useState<ExecutionFailedState | null>();
   const query = useMemo(
     () =>
       singleQuery<ExecutionFailedAggregatedFields>({
@@ -58,6 +61,7 @@ export function FetchingFailedDetails({
     query,
     autoExecute: false,
     execute: queryExecutionFailedState,
+    onSuccess: setLastSuccessfulState,
   });
   useEffect(() => {
     void refreshDetails();
@@ -68,7 +72,14 @@ export function FetchingFailedDetails({
     if (!onChanged || refreshToken === undefined) void refreshDetails();
   }, [onChanged, refreshDetails, refreshToken]);
 
-  if ((loading && !result) || (result && result.id !== id)) {
+  const visibleState =
+    result === undefined
+      ? lastSuccessfulState?.id === id
+        ? lastSuccessfulState
+        : undefined
+      : result;
+
+  if ((loading && !visibleState) || (visibleState && visibleState.id !== id)) {
     return (
       <div
         role="status"
@@ -82,7 +93,7 @@ export function FetchingFailedDetails({
     );
   }
 
-  if (error) {
+  if (error && !visibleState) {
     return (
       <div
         role="alert"
@@ -107,7 +118,7 @@ export function FetchingFailedDetails({
     );
   }
 
-  if (result === undefined) {
+  if (visibleState === undefined) {
     return (
       <div
         role="status"
@@ -121,7 +132,7 @@ export function FetchingFailedDetails({
     );
   }
 
-  if (result === null) {
+  if (visibleState === null) {
     return (
       <div className="flex h-full min-h-60 items-center justify-center bg-slate-50 p-6 text-center">
         <div>
@@ -137,10 +148,36 @@ export function FetchingFailedDetails({
   }
 
   return (
-    <FailedDetails
-      state={result}
-      mutationsDisabled={mutationsDisabled || loading}
-      onChanged={refreshDetailsAndList}
-    />
+    <div className="flex h-full min-h-0 flex-col">
+      {error ? (
+        <Alert className="shrink-0 rounded-none border-x-0 border-t-0">
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+              {t(
+                "Execution refresh failed: {message}. Showing the last loaded state; changes are disabled.",
+                { message: error.message },
+              )}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={loading}
+              onClick={() => void refreshDetails()}
+            >
+              <RefreshCw />
+              {t("Retry")}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="min-h-0 flex-1">
+        <FailedDetails
+          state={visibleState}
+          mutationsDisabled={mutationsDisabled || loading || Boolean(error)}
+          onChanged={refreshDetailsAndList}
+        />
+      </div>
+    </div>
   );
 }
