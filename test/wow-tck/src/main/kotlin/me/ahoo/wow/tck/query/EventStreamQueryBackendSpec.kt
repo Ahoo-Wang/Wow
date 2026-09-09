@@ -24,6 +24,8 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
@@ -339,7 +341,7 @@ abstract class EventStreamQueryBackendSpec {
     }
 
     @Test
-    fun `cursor should traverse null and missing sort values in both directions`() {
+    fun `paged and cursor should preserve null and missing sort order in both directions`() {
         val tenantId = generateGlobalId()
         val nullStream = generateEventStream(namedAggregate.aggregateId(tenantId = tenantId), ownerId = "null")
         val missingStream = generateEventStream(namedAggregate.aggregateId(tenantId = tenantId), ownerId = "missing")
@@ -357,6 +359,17 @@ abstract class EventStreamQueryBackendSpec {
                 sort = listOf(Sort(QueryField("ownerId"), direction)),
                 size = 2,
             )
+
+            val effectiveSort = query.withUniqueSort(QueryField("id")).sort
+            val pages = (1..3).map { index ->
+                queryBackendBinding.paged(
+                    PagedQuery(query.filter, sort = effectiveSort, pagination = Pagination(index, query.size)),
+                ).block()!!
+            }
+            pages.forEach { it.total.assert().isEqualTo(3L) }
+            pages.map { it.list.size }.assert().containsExactly(2, 1, 0)
+            pages.flatMap { it.list }.map { it.path("id").asString() }.assert()
+                .containsExactly(*expectedIds.toTypedArray())
 
             val first = queryBackendBinding.cursor(query).block()!!
             val second = queryBackendBinding.cursor(query.copy(cursor = first.nextCursor)).block()!!

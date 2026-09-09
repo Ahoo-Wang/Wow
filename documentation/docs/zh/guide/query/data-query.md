@@ -98,6 +98,8 @@ JVM 中可使用 `filter.count(queryGateway)`。计数是否可执行以及精�
 
 排序字段必须是当前查询模型支持的逻辑字段，方向为 `ASC` 或 `DESC`。分页只改变返回窗口，不改变 `total`；当数据可能在多次请求之间变化时，应使用稳定且足够区分记录的排序。`ListQuery.limit` 与 `PagedQuery.pagination` 是两种互斥的取数方式，不应在同一个形态中混用。
 
+同一后端、相同数据集、相同过滤条件和完整有效排序下，普通分页与游标分页保持相同排序语义；普通分页需显式提供游标使用的唯一排序字段。对于两种查询均支持的单值排序字段，未配置 `null_value` 等空值替代映射时，MongoDB 与 Elasticsearch 都将 null／缺失值在升序时放在非空值之前、降序时放在非空值之后，相同排序值再按后续字段排序。这不提供跨请求快照一致性。
+
 ## 返回值与空结果
 
 查询可以返回类型化（typed）、仅状态（state-only）或 `ObjectNode` 结果，具体入口决定可用形态和解包方式。Gateway 在 Backend 返回节点后固定按同一 Query Model Schema 脱敏，再按需用 Jackson 物化 typed 结果；根 Schema 没有 `masked` 字段时直接跳过。空结果也由具体入口决定：JVM、WebFlux 和 API Client 的 404、空值或空列表语义在各自子页面及客户端页面解释；本页不把一种传输语义推广到所有入口。

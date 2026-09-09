@@ -67,7 +67,7 @@ class ElasticsearchSortCompilerTest {
     }
 
     @Test
-    fun `should resolve logical sort fields without setting ordinary missing order`() {
+    fun `should resolve logical sort fields with the same missing order as cursor`() {
         val actual = ElasticsearchSortCompiler.compile(
             sort {
                 "name".asc()
@@ -78,9 +78,28 @@ class ElasticsearchSortCompilerTest {
 
         actual.map { it.field() }.assert().containsExactly("body.name", "body.name")
         actual.map { it.order() }.assert().containsExactly(SortOrder.Asc, SortOrder.Desc)
-        actual.forEach {
-            requireNotNull(it.nested()).path().assert().isEqualTo("body")
-            it.missing().assert().isNull()
+        actual.map { requireNotNull(it.missing()).stringValue() }.assert().containsExactly("_first", "_last")
+        actual.forEach { requireNotNull(it.nested()).path().assert().isEqualTo("body") }
+    }
+
+    @Test
+    fun `logical aliases of metadata sorts should retain native missing policy`() {
+        listOf("_score", "_doc", "_shard_doc").forEach { physical ->
+            val logical = QueryField("rank")
+            val metadataSchema = nativeSchema(
+                model = QueryModel.SNAPSHOT,
+                capabilities = emptySet(),
+                fields = mapOf(logical to fieldSchema(QueryCapability.SORT to QueryField(physical))),
+            )
+            Sort.Direction.entries.forEach { direction ->
+                val actual = ElasticsearchSortCompiler.compile(
+                    listOf(Sort(logical, direction)),
+                    metadataSchema
+                ).single().field()
+                actual.field().assert().isEqualTo(physical)
+                actual.order().assert().isEqualTo(ElasticsearchSortCompiler.run { direction.toSortOrder() })
+                actual.missing().assert().isNull()
+            }
         }
     }
 

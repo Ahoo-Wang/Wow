@@ -98,6 +98,8 @@ On the JVM, use `filter.count(queryGateway)`. Execution and exactness follow the
 
 Sort fields must be logical fields supported by the current query model, with direction `ASC` or `DESC`. Pagination changes the returned window but not `total`; when data can change between requests, use a stable ordering that sufficiently distinguishes records. `ListQuery.limit` and `PagedQuery.pagination` are alternative retrieval modes and should not be mixed in one shape.
 
+For the same backend, dataset, filter, and complete effective sort, paged and cursor queries preserve the same ordering semantics. Paged queries must explicitly include the unique sort field used by cursor queries. For single-valued sort fields supported by both query forms, when no null substitution such as `null_value` is configured, MongoDB and Elasticsearch place null or missing values before non-null values in ascending order and after them in descending order; subsequent sort fields break ties. This does not provide snapshot consistency across requests.
+
 ## Results and Empty Results
 
 Queries may return typed, state-only, or `ObjectNode` results; the concrete entry point determines which forms and unwrapping rules are available. After the Backend returns nodes, the Gateway masks them with the same Query Model Schema, then optionally uses Jackson for typed materialization. It skips masking immediately when the root Schema has no `masked` fields. Empty-result behavior is also entry-point-specific: JVM, WebFlux, and API Client 404, empty-value, or empty-list semantics are explained in their child pages and client page. This page does not generalize one transport semantic to every entry point.
