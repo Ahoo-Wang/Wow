@@ -48,7 +48,7 @@ class MongoCursorFilterCompilerTest {
         MongoCursorFilterCompiler.compile(
             listOf(Sort(QueryField("rank"), Sort.Direction.DESC), Sort(QueryField("_id"), Sort.Direction.ASC)),
             listOf(null, "id-1"),
-        ).toBsonDocument().toJson().assert().contains("\$expr", "\$gt")
+        ).toBsonDocument().toJson().assert().contains("\"rank\": null", "\"_id\": {\"\$gt\": \"id-1\"}")
     }
 
     @Test

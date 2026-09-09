@@ -126,7 +126,7 @@ abstract class AbstractMongoFilterCompiler {
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun compile(filter: FilterExpression, schema: QueryModelSchema, scope: FilterScope): Bson = when (filter) {
         MatchAllFilter -> Filters.empty()
-        MatchNoneFilter -> org.bson.Document("\$expr", false)
+        MatchNoneFilter -> MATCH_NONE_FILTER
         is IdFilter -> Filters.eq(schema.identityField().path, filter.value)
         is IdsFilter -> Filters.`in`(schema.identityField().path, filter.values)
         is AggregateIdFilter -> Filters.eq(schema.field(MessageRecords.AGGREGATE_ID).path, filter.value)
