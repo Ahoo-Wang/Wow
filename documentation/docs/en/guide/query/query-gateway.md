@@ -14,7 +14,7 @@ Each subscription independently:
 1. Obtains one Schema from the Provider.
 2. Runs ordered `QueryFilter.prepare` stages; each emits one prepared logical Query.
 3. Appends the request scope from Reactor Context.
-4. Appends configured `AbacQueryPolicy` access filters for Snapshot queries, after ordinary preparation.
+4. Appends configured `QueryPolicy` filters through the shared policy stage for both Snapshot and EventStream queries, after ordinary preparation.
 5. Only the Gateway applies model defaults: Snapshot adds `DELETION = ACTIVE` unless explicitly overridden; EventStream adds no deletion predicate. It also appends the model's unique cursor sort field.
 6. Validates the final public Query, then calls `backend.operation(query, schema)`.
 7. Masks returned query nodes with the captured Schema, then optionally materializes typed results.
@@ -24,7 +24,7 @@ Each subscription independently:
 flowchart LR
     Provider --> Prepare["QueryFilter.prepare"]
     Prepare --> Scope["Request scope"]
-    Scope --> Policy["Snapshot ABAC policy"]
+    Scope --> Policy["QueryPolicy.evaluate"]
     Policy --> Validate["Defaults + public validation"]
     Validate --> Backend["Backend query + schema"]
     Backend --> Mask["Mask"]
@@ -39,16 +39,23 @@ Preparation, validation, Backend compilation, and Mask share that captured Schem
 `QueryContext<Q>` contains only `query`, `namedAggregate`, and `schema`. A Filter has no continuation, result object, or result-processing authority. It prepares a request and cannot wrap or re-execute the Backend:
 
 ```kotlin
-@Component
-class VisibleQueryFilter : SnapshotQueryFilter {
-    override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> =
-        Mono.just(context.query.appendFilter(filter { "state.visible" eq true }))
+interface QueryFilter {
+    fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q>
 }
 ```
 
-`SnapshotQueryFilter` and `EventStreamQueryFilter` restrict the applicable model; a plain `QueryFilter` can apply to both. `@Order` controls preparation order. Conditions use logical fields and still undergo final Schema validation.
+`SnapshotQueryFilter` and `EventStreamQueryFilter` restrict the applicable model; a plain `QueryFilter` can apply to both. `@Order` controls preparation order. Prepared requests use logical fields and still undergo final Schema validation.
 
-## Request scope and authorization
+## Preparation and mandatory constraints
+
+| Extension | Result | Composition |
+| --- | --- | --- |
+| `QueryFilter.prepare` | A prepared Query | Later prepare steps may replace its query/filter |
+| `QueryPolicy.evaluate` | An additional logical FilterExpression or an error | Gateway applies it with AND after all prepare steps |
+
+Both can construct filter expressions. Use QueryFilter when replacement is allowed; use QueryPolicy when a condition must survive all preparation. For example, mandatory `state.visible = true`, a data lifecycle restriction, or an authorization condition belongs in a Policy. QueryPolicy remains generic in the rules it represents; its authority is limited to adding constraints or rejecting a query. Built-in model defaults, Schema validation, backend execution and result processing retain their existing owners.
+
+## Request scope and policies
 
 A WebFlux Handler uses `QueryRequestScope` to obtain tenant/owner/space scope, places it in Reactor Context, and invokes the Gateway. `HttpQueryGuard` applies HTTP cost and response limits outside the Gateway Filter stages.
 
@@ -61,7 +68,9 @@ queryGateway.dynamicList(query)
     }
 ```
 
-`withQueryScope` combines an existing scope. Authentication remains the application's responsibility; unverified request fields are not identity. Snapshot ABAC uses independent `AbacQueryPolicy` objects. EventStream does not automatically run Snapshot ABAC. See [Data Access Control](../data-access.md).
+`withQueryScope` combines an existing scope. Authentication remains the application's responsibility; unverified request fields are not identity. Both Snapshot and EventStream Spring registrars inject `QueryPolicy` beans, and the shared Gateway stage evaluates them. A policy uses `QueryContext` to determine applicability and returns `MatchAllFilter` when it does not apply. `AbacQueryPolicy` resolves principal tags and generates tag conditions only for Snapshot; for other models it returns `MatchAllFilter` without reading tags. Other policies implement `QueryPolicy.evaluate` for rules such as data lifecycle or business query constraints without principal-tag lookup.
+
+A policy returns an additional logical filter or an error. The gateway combines filters with AND at the fixed policy stage before model defaults and validation. It cannot replace the query, execute the backend, or transform results. An empty publisher is a protocol error, not a way to signal that a policy does not apply. Policy failures terminate the query before backend execution. See [Data Access Control](../data-access.md).
 
 ## Results and observation
 

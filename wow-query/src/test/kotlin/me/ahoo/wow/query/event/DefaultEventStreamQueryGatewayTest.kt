@@ -15,7 +15,9 @@ package me.ahoo.wow.query.event
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
@@ -23,8 +25,11 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RewritableFilter
@@ -38,6 +43,7 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
@@ -58,6 +64,7 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import reactor.util.context.Context
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicReference
@@ -115,6 +122,107 @@ class DefaultEventStreamQueryGatewayTest {
             .contextWrite { it.withQueryScope(TenantIdFilter("tenant")) }
             .test().verifyComplete()
         queries.single().filter.assert().isEqualTo(TenantIdFilter("tenant"))
+    }
+
+    @Test
+    fun `every event query operation preserves policies after prepare with fresh subscription identity`() {
+        val received = mutableListOf<FilterExpression>()
+        val contexts = mutableListOf<QueryContext<*>>()
+        val filter = object : QueryFilter {
+            override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> =
+                Mono.just(context.query.withFilter(MatchAllFilter))
+                    .contextWrite { Context.of("principal", "intruder") }
+        }
+        val policies = listOf(
+            QueryPolicy { identity, context ->
+                contexts += context
+                Mono.just(OwnerIdFilter(identity.get("principal")))
+            },
+            QueryPolicy { _, context ->
+                contexts += context
+                Mono.just(TenantIdFilter("policy-tenant"))
+            },
+        )
+        val gateway = DefaultEventStreamQueryGateway(
+            MOCK_AGGREGATE_METADATA,
+            QueryBackendBinding(backend(onQuery = { received += it }) { Mono.empty() }, defaultSchemaProvider),
+            filters = listOf(filter),
+            policies = policies,
+        )
+        val input = TenantIdFilter("user-input")
+        val operations = listOf(
+            gateway.single(SingleQuery(input)),
+            gateway.dynamicSingle(SingleQuery(input)),
+            gateway.list(ListQuery(input)),
+            gateway.dynamicList(ListQuery(input)),
+            gateway.paged(PagedQuery(input)),
+            gateway.dynamicPaged(PagedQuery(input)),
+            gateway.cursor(CursorQuery(input)),
+            gateway.dynamicCursor(CursorQuery(input)),
+            gateway.count(input),
+            gateway.aggregate(AggregationQuery(input, metrics = listOf(AggregationMetric.Count("count")))),
+        )
+        contexts.assert().isEmpty()
+        received.assert().isEmpty()
+        operations.forEach { operation ->
+            listOf("alice", "bob").forEach { principal ->
+                Flux.from(operation)
+                    .contextWrite { it.put("principal", principal).withQueryScope(TenantIdFilter("trusted-scope")) }
+                    .then().test().verifyComplete()
+                received.last().assert().isEqualTo(
+                    AndFilter(
+                        listOf(
+                            TenantIdFilter("trusted-scope"),
+                            AndFilter(listOf(OwnerIdFilter(principal), TenantIdFilter("policy-tenant"))),
+                        )
+                    )
+                )
+            }
+        }
+        received.assert().hasSize(20)
+        contexts.assert().hasSize(40)
+        contexts.chunked(2).forEach { (first, second) ->
+            first.assert().isSameAs(second)
+            first.schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
+        }
+        contexts.map(System::identityHashCode).toSet().assert().hasSize(20)
+    }
+
+    @Test
+    fun `event policy empty completion and failures stop later policies and backend execution`() {
+        val rejection = IllegalStateException("Policy rejected query")
+        val received = mutableListOf<FilterExpression>()
+        var laterPolicyCalls = 0
+        val failures = listOf(
+            QueryPolicy { _, _ -> Mono.empty() },
+            QueryPolicy { _, _ -> Mono.error(rejection) },
+            QueryPolicy { _, _ -> throw rejection },
+        )
+        failures.forEachIndexed { index, policy ->
+            val gateway = DefaultEventStreamQueryGateway(
+                MOCK_AGGREGATE_METADATA,
+                QueryBackendBinding(backend(onQuery = { received += it }) { Mono.empty() }, defaultSchemaProvider),
+                policies = listOf(
+                    policy,
+                    QueryPolicy { _, _ ->
+                        laterPolicyCalls++
+                        Mono.just(MatchAllFilter)
+                    },
+                ),
+            )
+            listOf(gateway.dynamicSingle(SingleQuery(MatchAllFilter)), gateway.dynamicList(ListQuery(MatchAllFilter)))
+                .forEach { operation ->
+                    Flux.from(operation).test().expectErrorMatches {
+                        if (index == 0) {
+                            it is IllegalStateException && it.message!!.contains("QueryPolicy")
+                        } else {
+                            it === rejection
+                        }
+                    }.verify()
+                }
+        }
+        received.assert().isEmpty()
+        laterPolicyCalls.assert().isZero()
     }
 
     @Test
@@ -256,18 +364,25 @@ class DefaultEventStreamQueryGatewayTest {
         }
     }
 
-    private fun backend(single: () -> Mono<ObjectNode>) = object : EventStreamQueryBackend {
+    private fun backend(
+        onQuery: (FilterExpression) -> Unit = {},
+        single: () -> Mono<ObjectNode>,
+    ) = object : EventStreamQueryBackend {
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
-        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> = single()
-        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
+        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> =
+            single().also { onQuery(query.filter) }
+        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> =
+            Flux.empty<ObjectNode>().also { onQuery(query.filter) }
         override fun paged(
             query: IPagedQuery,
             schema: QueryModelSchema
-        ): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
+        ): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty<ObjectNode>()).also { onQuery(query.filter) }
         override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> =
-            Mono.just(CursorPage(emptyList(), null))
-        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.just(0)
-        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
+            Mono.just(CursorPage<ObjectNode>(emptyList(), null)).also { onQuery(query.filter) }
+        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> =
+            Mono.just(0L).also { onQuery(query) }
+        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> =
+            Flux.empty<ObjectNode>().also { onQuery(query.filter) }
     }
 
     private class SchemaEventBackend(

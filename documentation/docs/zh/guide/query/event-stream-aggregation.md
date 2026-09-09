@@ -17,7 +17,7 @@ description: 用六个业务场景说明事件流根文档与展开事件的 JVM
 - **Schema HTTP**：`GET /sales-order/event/schema` 与 `POST /sales-order/event/schema/refresh` 是独立的模型级路由，没有 tenant/owner 变体。
 - **公共合同**：Elements、group、metric、alias、排序与限制见[聚合查询](./aggregation-query.md)，根过滤的 Kotlin DSL 见[过滤条件](./filter-expression.md)，字段能力以 [Query Model Schema（当前说明）](./query-model-schema.md)为准。
 
-HTTP Handler 严格解码请求，用 `QueryRequestScope` 解析 tenant/owner/space 并写入 Reactor Context，由独立 `HttpQueryGuard` 执行 HTTP 成本与响应限制。EventStream Gateway 随后执行 prepare、scope 合并与最终公共校验，再把逻辑 Query 和同一 Schema 交给 Backend 聚合。它不自动应用 Snapshot ABAC policy。响应按 Accept 协商 JSON 数组或 SSE；JVM 返回 `Flux<ObjectNode>`。以下只是代表性节点行。
+HTTP Handler 严格解码请求，用 `QueryRequestScope` 解析 tenant/owner/space 并写入 Reactor Context，由独立 `HttpQueryGuard` 执行 HTTP 成本与响应限制。EventStream Gateway 随后执行 prepare、scope 与 `QueryPolicy` 约束合并、最终公共校验，再把逻辑 Query 和同一 Schema 交给 Backend 聚合。Snapshot ABAC 标签策略在 EventStream 上返回 `MatchAllFilter`，不读取标签。响应按 Accept 协商 JSON 数组或 SSE；JVM 返回 `Flux<ObjectNode>`。以下只是代表性节点行。
 
 ## 根文档、body 与统计单位
 

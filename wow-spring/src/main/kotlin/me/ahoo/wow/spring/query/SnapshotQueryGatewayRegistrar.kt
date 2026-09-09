@@ -19,11 +19,11 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.query.QueryObserver
+import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy
 import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
@@ -56,7 +56,7 @@ class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
             val binding = appContext.getBean(SnapshotQueryBackendFactory::class.java).create(namedAggregate)
 
             val filters = appContext.getBeanProvider(QueryFilter::class.java).toList()
-            val policies = appContext.getBeanProvider(AbacQueryPolicy::class.java).toList()
+            val policies = appContext.getBeanProvider(QueryPolicy::class.java).toList()
             val observer = appContext.getBean("snapshotQueryObserver", QueryObserver::class.java)
             DefaultSnapshotQueryGateway<Any>(
                 namedAggregate = namedAggregate,

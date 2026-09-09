@@ -16,7 +16,13 @@ package me.ahoo.wow.query.filter
 import me.ahoo.wow.api.query.RewritableFilter
 import reactor.core.publisher.Mono
 
-/** Prepares one request. Empty completion is a protocol error; backend execution is outside this publisher. */
+/**
+ * Rewrites a request before mandatory scope and query policy conditions are appended.
+ *
+ * A later preparation step may replace this step's query or filter. Conditions that
+ * must survive preparation belong in QueryPolicy. Empty completion is a protocol error;
+ * backend execution and result processing are outside this publisher.
+ */
 interface QueryFilter {
     fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> = Mono.just(context.query)
 }
