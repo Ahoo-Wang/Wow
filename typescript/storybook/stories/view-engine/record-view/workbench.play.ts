@@ -37,7 +37,7 @@ export const playCompactWorkbench: RecordViewPlay = async ({
     .getByRole('button', { name: '保存' })
     .getBoundingClientRect();
   const title = within(toolbar)
-    .getByRole('heading', { name: '订单管理' })
+    .getByRole('heading', { name: '我的订单', level: 2 })
     .getBoundingClientRect();
   const create = within(toolbar)
     .getByRole('button', { name: '创建订单' })

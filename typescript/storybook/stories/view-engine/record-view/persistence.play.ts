@@ -26,7 +26,7 @@ export const playBusinessRecords: RecordViewPlay = async ({
   );
   await expect(
     sidebar
-      .getAllByRole('heading', { hidden: true })
+      .getAllByRole('heading', { level: 2, hidden: true })
       .map(item => item.textContent),
   ).toEqual(['个人视图', '公共视图']);
   const systemView = sidebar.getByRole('button', {

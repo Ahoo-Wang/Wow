@@ -12,7 +12,7 @@
  */
 
 import { PanelLeftOpenIcon } from 'lucide-react';
-import { useRef, useState, useSyncExternalStore } from 'react';
+import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Button } from '../../components/ui/button.js';
 import { cn } from '../../lib/utils.js';
 import { RecordView, type RecordViewProps } from '../RecordView.js';
@@ -49,6 +49,18 @@ export function ViewPageContent({
   const pageRef = useRef<HTMLDivElement>(null);
   const expansion = useViewExpansion(pageRef, state.status === 'ready');
   const [collapsed, setCollapsed] = useState(initialSidebarCollapsed);
+  const sidebarToggleRef = useRef<HTMLButtonElement>(null);
+  const restoreSidebarFocus = useRef(false);
+  useLayoutEffect(() => {
+    if (restoreSidebarFocus.current) {
+      restoreSidebarFocus.current = false;
+      sidebarToggleRef.current?.focus();
+    }
+  }, [collapsed]);
+  function toggleSidebar() {
+    restoreSidebarFocus.current = true;
+    setCollapsed(value => !value);
+  }
   const [managerOpen, setManagerOpen] = useState(false);
   const switcherTrigger = useRef<HTMLButtonElement>(null);
   const managerReturnFocus = useRef<HTMLElement>(null);
@@ -110,12 +122,18 @@ export function ViewPageContent({
           size="icon"
           className="fve:hidden fve:@min-[64rem]:inline-flex"
           aria-label="展开视图列表"
-          onClick={() => setCollapsed(false)}
+          ref={sidebarToggleRef}
+          onClick={toggleSidebar}
         >
           <PanelLeftOpenIcon aria-hidden="true" />
         </Button>
       )}
-      <h1 className="fve:text-lg fve:font-semibold">
+      <h1
+        className={cn(
+          'fve:text-lg fve:font-semibold',
+          !collapsed && 'fve:@min-[64rem]:hidden',
+        )}
+      >
         {state.definition?.title}
       </h1>
       <div
@@ -131,14 +149,14 @@ export function ViewPageContent({
         />
       </div>
       {session && (
-        <span
+        <h2
           className={cn(
-            'fve:text-sm fve:text-muted-foreground',
+            'fve:text-sm fve:font-medium fve:text-foreground',
             collapsed ? 'fve:hidden' : 'fve:hidden fve:@min-[64rem]:inline',
           )}
         >
           {session.instance.title}
-        </span>
+        </h2>
       )}
       {session && (
         <ViewInstanceActions
@@ -176,7 +194,12 @@ export function ViewPageContent({
           />
         </div>
         {!collapsed && (
-          <ViewSidebar {...navigation} onCollapse={() => setCollapsed(true)} />
+          <ViewSidebar
+            {...navigation}
+            title={state.definition?.title ?? ''}
+            toggleRef={sidebarToggleRef}
+            onCollapse={toggleSidebar}
+          />
         )}
         <main
           tabIndex={-1}
