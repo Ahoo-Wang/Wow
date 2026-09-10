@@ -42,7 +42,8 @@
     "test:type": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint . --fix",
     "lint:check": "eslint . --max-warnings 0",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:compiled && pnpm test:type"
   },
   "dependencies": {
     "@base-ui/react": "catalog:",
