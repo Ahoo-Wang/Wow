@@ -104,7 +104,12 @@ export function RecordCell({
       </Popover>
     );
   }
-  const field = definition.fields.find(field => field.field === column.field);
+  // The intrinsic row key exists even when it is not an editable definition field.
+  const field =
+    definition.fields.find(field => field.field === column.field) ??
+    (column.field === definition.rowKey
+      ? { field: definition.rowKey, label: '记录主键' }
+      : undefined);
   if (!field) return <span role="alert">未知字段：{column.field}</span>;
   const value = readRecordValue(record, column.field);
   const reference = column.renderer ?? field.cellRenderer;

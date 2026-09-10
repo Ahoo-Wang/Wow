@@ -98,3 +98,6 @@ export type { NumberCellProps } from './record/cells/NumberCell.js';
 
 export { ViewTheme } from './theme/ViewTheme.js';
 export type { ViewThemeProps, ViewThemeStyle } from './theme/ViewTheme.js';
+
+export { RecordCardList } from './record/RecordCardList.js';
+export { RecordCardSettings } from './record/RecordCardSettings.js';

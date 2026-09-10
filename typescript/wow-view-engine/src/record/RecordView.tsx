@@ -21,13 +21,14 @@ import {
 } from 'react';
 import { FilterPanel } from '../filter/FilterPanel.js';
 import { cn } from '../lib/utils.js';
+import { RecordCardList } from './RecordCardList.js';
 import { RecordTable } from './RecordTable.js';
 import { RecordRegion } from './RecordRegion.js';
 import type { ViewEngine } from './ViewEngine.js';
 import { RecordAppliedFilters } from './page/RecordAppliedFilters.js';
 import { RecordGlobalToolbar } from './page/RecordGlobalToolbar.js';
 import { RecordPagination } from './page/RecordPagination.js';
-import { RecordTableToolbar } from './page/RecordTableToolbar.js';
+import { RecordToolbar } from './page/RecordToolbar.js';
 import {
   bindRecordPagination,
   getRecordPaginationPolicy,
@@ -35,8 +36,9 @@ import {
 import type {
   RecordPaginationRenderContext,
   RecordTableProps,
-  RecordTableToolbarRenderContext,
+  RecordToolbarRenderContext,
   ViewExtensions,
+  RecordCardRenderContext,
 } from './recordReactTypes.js';
 import { useViewExpansion, ViewExpansionContext } from './viewExpansion.js';
 
@@ -49,7 +51,8 @@ export interface RecordViewProps {
   autoRefreshPaused?: boolean;
   /** Leading content in the global toolbar, used by ViewPage for saving and instance navigation. */
   toolbarStart?: ReactNode;
-  renderTableToolbar?(context: RecordTableToolbarRenderContext): ReactNode;
+  renderToolbar?(context: RecordToolbarRenderContext): ReactNode;
+  renderCard?(context: RecordCardRenderContext): ReactNode;
   renderPagination?(context: RecordPaginationRenderContext): ReactNode;
   className?: string;
 }
@@ -62,8 +65,9 @@ export function RecordView({
   autoRefreshPaused = false,
   className,
   toolbarStart,
-  renderTableToolbar,
+  renderToolbar,
   renderPagination,
+  renderCard,
 }: RecordViewProps) {
   const state = useSyncExternalStore(
     engine.subscribe,
@@ -106,7 +110,9 @@ export function RecordView({
       });
     }
   }
-  const refresh = () => engine.refresh(id ?? undefined);
+  const refresh = async () => {
+    if (id && engine.getSnapshot().sessions[id]) await engine.refresh(id);
+  };
   const tableHandlers: Required<
     Pick<
       RecordTableProps,
@@ -133,16 +139,24 @@ export function RecordView({
   const paginationPolicy = getRecordPaginationPolicy(session);
   const paginationOperations = bindRecordPagination(engine, id);
   const tableOperations = {
+    setLayout(layout: Parameters<ViewEngine['setLayout']>[0]) {
+      if (engine.getSnapshot().sessions[id]) engine.setLayout(layout, id);
+    },
+    setCardConfig(card: Parameters<ViewEngine['setCardConfig']>[0]) {
+      if (engine.getSnapshot().sessions[id]) engine.setCardConfig(card, id);
+    },
     clearSelection() {
       if (engine.getSnapshot().sessions[id]) engine.setSelection([], id);
     },
     setColumns(columns: Parameters<ViewEngine['setColumns']>[0]) {
       if (engine.getSnapshot().sessions[id]) engine.setColumns(columns, id);
     },
-    async refresh() {
-      if (engine.getSnapshot().sessions[id]) await engine.refresh(id);
-    },
+    refresh,
   };
+  const Result =
+    instance.config.presentation.layout === 'table'
+      ? RecordTable
+      : RecordCardList;
   const error =
     !session.queryError && localError?.id === id ? localError.message : null;
   return (
@@ -186,6 +200,9 @@ export function RecordView({
             expansion={expansion}
             refresh={refresh}
             onRefresh={() => run(refresh)}
+            onLayoutChange={layout =>
+              run(() => tableOperations.setLayout(layout))
+            }
           />
         )}
       />
@@ -197,14 +214,14 @@ export function RecordView({
       />
       <RecordRegion
         key={`toolbar-region:${id}`}
-        label="表格工具栏"
-        render={renderTableToolbar}
-        resetKey={[renderTableToolbar, definition, session]}
+        label="记录工具栏"
+        render={renderToolbar}
+        resetKey={[renderToolbar, definition, session]}
         context={{
           definition,
           session,
           defaultContent: (
-            <RecordTableToolbar
+            <RecordToolbar
               key={`toolbar:${id}`}
               definition={definition}
               session={session}
@@ -213,6 +230,10 @@ export function RecordView({
               refresh={refresh}
               onSelectionClear={() => run(tableOperations.clearSelection)}
               onColumnsChange={tableHandlers.onColumnsChange}
+              onSortChange={tableHandlers.onSortChange}
+              onCardChange={
+                renderCard ? undefined : tableOperations.setCardConfig
+              }
             />
           ),
           appliedFilter: session.appliedFilter,
@@ -229,8 +250,9 @@ export function RecordView({
           <span>{error}</span>
         </div>
       )}
-      <RecordTable
-        key={`table:${id}`}
+      <Result
+        renderCard={renderCard}
+        key={`${instance.config.presentation.layout}:${id}`}
         className="fve:rounded-none fve:border-x-0 fve:border-b-0"
         definition={definition}
         instance={instance}

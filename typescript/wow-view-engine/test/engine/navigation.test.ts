@@ -109,6 +109,7 @@ it('ignores a switched-away read and obsolete unknown-instance selections', asyn
     host: { instance: { load: loadInstance } } as unknown as ViewHost,
   });
   await engine.load();
+  const previousRows = selected(engine).rows;
   const old = deferred<unknown>();
   paged.mockImplementationOnce(() => old.promise);
   const query = engine.refresh();
@@ -116,7 +117,7 @@ it('ignores a switched-away read and obsolete unknown-instance selections', asyn
   await engine.selectInstance('shared');
   old.resolve({ total: 1, list: [{ state: { id: 'old' } }] });
   await query;
-  expect(selected(engine, 'mine').rows).toEqual([]);
+  expect(selected(engine, 'mine').rows).toEqual(previousRows);
   const readFirst = engine.selectInstance('first');
   const readSecond = engine.selectInstance('second');
   second.resolve(instance('second'));

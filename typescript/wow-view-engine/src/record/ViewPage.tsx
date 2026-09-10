@@ -116,8 +116,9 @@ function OwnedViewPage(props: ViewPageProps) {
       filterContext={props.filterContext}
       selectable={props.selectable}
       autoRefreshPaused={props.autoRefreshPaused}
-      renderTableToolbar={props.renderTableToolbar}
+      renderToolbar={props.renderToolbar}
       renderPagination={props.renderPagination}
+      renderCard={props.renderCard}
       className={props.className}
       initialSidebarCollapsed={props.initialSidebarCollapsed}
     />

@@ -55,8 +55,11 @@ export function useRecordTable({
   | 'onColumnsChange'
   | 'onSortChange'
 > & { availableWidth: number }): RecordTableModel {
+  const presentation = instance.config.presentation;
+  if (presentation.layout !== 'table')
+    throw new Error('RecordTable 需要 table 布局');
   const columns = orderRecordColumns(
-    instance.config.presentation.table.columns,
+    presentation.table.columns,
     definition.rowKey,
   );
   const byId = new Map(

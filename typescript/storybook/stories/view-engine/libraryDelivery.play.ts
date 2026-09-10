@@ -33,7 +33,7 @@ export const playExtensions: Play = async ({ canvasElement, args }) => {
     ),
   ).toBeEnabled();
   await expect(
-    within(canvas.getByRole('group', { name: '表格工具栏' })).getByRole(
+    within(canvas.getByRole('group', { name: '记录工具栏' })).getByRole(
       'button',
       { name: '批量处理' },
     ),

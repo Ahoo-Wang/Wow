@@ -42,6 +42,7 @@ const definition: ViewDefinition = {
   id: 'builtin-filters',
   title: '内置筛选器',
   sourceId: 'query-echo',
+  allowedLayouts: ['table', 'card'],
   rowKey: 'id',
   timeZone: 'Asia/Shanghai',
   fields: [

@@ -78,3 +78,5 @@ export type {
   FilterOptionValue,
   FilterOptionItem,
 } from './filter/filterOptionSource.js';
+
+export { resolveRecordPresentation } from './record/resolveRecordPresentation.js';

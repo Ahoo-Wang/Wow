@@ -277,7 +277,7 @@ edited. Pin choices persist with the instance. Headers, rows and summaries move 
 resizing/visibility reflected in their offsets. Selection stays before the key
 column. Pin/order changes do not query records or aggregates.
 
-`extensions.cells`, `extensions.globalActions`, `extensions.tableActions`, `extensions.rowActions`, and
+`extensions.cells`, `extensions.globalActions`, `extensions.toolbarActions`, `extensions.rowActions`, and
 `extensions.filters` register local React components referenced by JSON names.
 Extension inputs use exported `DeepReadonly<T>` snapshots. Copy the fields needed
 into a component's own form state, then submit changes through host commands or
@@ -285,9 +285,9 @@ engine methods. Unsubmitted filter edits do not rerender the record-cell boundar
 Field definitions and table columns bind full dot paths relative to returned records, such as `customer.name`, `state.amount` and `items.0.name`. Default, built-in and custom cells share the same lookup and receive the resolved `value`. Only own properties are read; missing/null intermediates resolve to undefined and default to “—”, while zero and false are preserved. Bracket syntax, wildcards and automatic object-to-column expansion are not supported.
 Action rendering errors recover when the renderer's inputs change, including
 selection or query state; unrelated draft edits do not repeatedly retry a failure.
-Definitions use `recordActions.global`, `.table` and `.row` to choose their action
+Definitions use `recordActions.global`, `.toolbar` and `.row` to choose their action
 areas (for example, create, batch process and inspect record). Existing global
-registrations retain their location; move batch components to `tableActions` explicitly.
+registrations retain their location; move batch components to `toolbarActions` explicitly.
 Standalone `RecordTable` requires `appliedFilter` explicitly. Business actions receive
 that runtime scope (`filter` is null until compilation succeeds), stable record keys and an
 instance-bound refresh callback. Selection contains explicit current-page keys.
@@ -537,7 +537,7 @@ Select menus, dropdown menus and Popover panels use a body portal so clipping an
 
 Variable themes propagate to library portals. Structural selectors such as `.brand [data-slot=...]` do not cross a body portal, and arbitrary CSSOM stylesheet replacement without an attribute/class/inline-style change is not observed. Third-party portals must use that component's own theme-container support. Define aliases and derived values at the target theme boundary: CSS custom-property references are resolved before inheritance, so a child cannot be assumed to recompute an inherited derived value after changing its inputs. Change paired colors such as `--fve-primary` and `--fve-primary-foreground` together. The complete public variable table and region callback contracts are in the [API reference](../../skills/fetcher-view-engine/references/api.md).
 
-`ViewPage`, `ViewPageContent` and `RecordView` accept `renderTableToolbar` and `renderPagination`. Each callback receives readonly state, the default region node and instance-bound controlled operations. Return the default node to preserve it, wrap it to compose UI, or return `null` to hide it. Return a component when the extension needs Hooks or local state.
+`ViewPage`, `ViewPageContent` and `RecordView` accept `renderToolbar` and `renderPagination`. Each callback receives readonly state, the default region node and instance-bound controlled operations. Return the default node to preserve it, wrap it to compose UI, or return `null` to hide it. Return a component when the extension needs Hooks or local state.
 
 `FilterDatePicker` uses the shadcn Calendar with a Chinese locale and a controlled `Date | undefined`. `FilterTimeInput` combines a text input with hour/minute/second Select controls; it preserves incomplete input and accepts `HH:mm` or `HH:mm:ss`, with whole-second precision at most. Restored fractional clock values are truncated to seconds when displayed or edited. Both accept `inline` for composition inside `FieldFilter`. The host owns timezone conversion and applying the query. Unset values are valid: keep the editor visible and omit its value-dependent predicate on Query. If no predicates remain, apply `filter.matchAll()`. A date/time pair is unset only when both parts are empty; partial values require completion. Clock selectors preserve the other typed segments during partial input. Malformed nonempty input remains invalid; value-free operators and explicit null/zero/false literals retain their Wow semantics.
 
@@ -663,3 +663,9 @@ Creation does not modify the default-instance preference. `LocalStorageViewHost`
 If the source of an unconfirmed creation disappears from a full list response, `getSnapshot().pendingCreates` retains its editor context separately from visible views. Use `reloadInstance(sourceId)` to reconcile the original request; `ViewPageContent` provides the recovery action. These entries contain no business rows and cannot be queried or saved as ordinary instances. Reload preserves local title/configuration and filter drafts, while taking the authoritative returned `scope`.
 
 Remote label snapshots change for an ID when that ID is added or reselected, using the selected candidate. Hydration and changes to other IDs do not overwrite its saved label. Text collection paste honors the current caret/selection before splitting values. Invalid range endpoint structures report validation errors instead of becoming an unset predicate.
+
+Record views support table and card layouts with definition-level `defaultPresentation` presets. Use `resolveRecordPresentation` to construct a presentation, and `setLayout` / `setCardConfig` to edit it. Switching back preserves the previous configuration. See [table and card guide](https://fetcher.ahoo.me/guides/view-engine/table-and-runtime).
+
+Use `renderCard(context)` for custom card content while the library retains grid, selection and paging. Layout switching uses a current-mode dropdown in the global toolbar at every width.
+
+`ViewDefinition.allowedLayouts` is required and must be nonempty and unique: `['table']`, `['card']`, or both. A single allowed layout hides the toolbar switch. The engine and instance loading reject disallowed active layouts. Switching preserves each layout's configuration. Cards use a top-right selection button (`aria-pressed`) without a separate row; custom content should leave this corner clear. Global controls use icons with hints; menus retain text.

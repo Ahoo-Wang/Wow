@@ -32,6 +32,7 @@ const definition: ViewDefinition = {
   id: 'orders',
   title: '订单',
   sourceId: 'orders',
+  allowedLayouts: ['table', 'card'],
   rowKey: 'id',
   fields: [{ field: 'amount', label: '金额', type: 'number', sortable: true }],
 };
@@ -140,13 +141,13 @@ describe('record boundaries', () => {
     expect(() =>
       validateViewDefinition({
         ...definition,
-        recordActions: { table: { name: 'batch', options: { limit: 10 } } },
+        recordActions: { toolbar: { name: 'batch', options: { limit: 10 } } },
       }),
     ).not.toThrow();
     expect(() =>
       validateViewDefinition({
         ...definition,
-        recordActions: { table: { name: '' } },
+        recordActions: { toolbar: { name: '' } },
       }),
     ).toThrow();
   });
@@ -339,7 +340,7 @@ it.each([{}, [1]])(
     expect(() =>
       validateViewDefinition({
         ...definition,
-        recordActions: { table: { name: 'custom', options: { value } } },
+        recordActions: { toolbar: { name: 'custom', options: { value } } },
       }),
     ).toThrow();
     expect(getter).not.toHaveBeenCalled();

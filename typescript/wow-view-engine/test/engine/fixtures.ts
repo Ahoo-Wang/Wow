@@ -29,6 +29,7 @@ export const definition: ViewDefinition = {
   id: 'orders',
   title: 'Orders',
   sourceId: 'orders-source',
+  allowedLayouts: ['table', 'card'],
   rowKey: 'state.id',
   fields: [
     { field: 'state.id', label: 'ID', type: 'string', sortable: true },

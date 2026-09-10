@@ -11,9 +11,14 @@
  * limitations under the License.
  */
 
+import { PlusIcon } from 'lucide-react';
 import { compileBuiltinFilter } from '@ahoo-wang/fetcher-view-engine';
 import {
   Button,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverTitle,
   FilterSelect,
   InputGroupInput,
   NumberCell,
@@ -21,7 +26,7 @@ import {
   type FilterEditorProps,
   type GlobalActionsRendererProps,
   type RowActionsRendererProps,
-  type TableActionsRendererProps,
+  type ToolbarActionsRendererProps,
   type ViewExtensions,
 } from '@ahoo-wang/fetcher-view-engine/react';
 import { useOrderOperations } from './OrderOperations.js';
@@ -30,6 +35,9 @@ function CreateOrder({ refresh, querying }: GlobalActionsRendererProps) {
   const { service, busy, run } = useOrderOperations();
   return (
     <Button
+      aria-label="创建订单"
+      title="创建订单"
+      size="icon-sm"
       disabled={busy || querying}
       onClick={() =>
         run(
@@ -38,37 +46,84 @@ function CreateOrder({ refresh, querying }: GlobalActionsRendererProps) {
         )
       }
     >
-      创建订单
+      <PlusIcon aria-hidden="true" />
     </Button>
   );
 }
-function ProcessOrder({ record, rowKey, refresh }: RowActionsRendererProps) {
+export function OrderRowActions({
+  record,
+  rowKey,
+  refresh,
+}: Pick<RowActionsRendererProps, 'record' | 'rowKey' | 'refresh'>) {
   const { service, busy, run } = useOrderOperations();
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      aria-label={`处理订单 ${rowKey}`}
-      disabled={busy || record.status === 'processed'}
-      onClick={() => {
-        // Renderer inputs are readonly snapshots. Edit a copy for the business write.
-        const draft = { ...record };
-        draft.status = 'processed';
-        run(async () => {
-          await service.saveOrder(draft);
-          return `已处理订单 ${rowKey}`;
-        }, refresh);
-      }}
-    >
-      处理
-    </Button>
+    <>
+      <Popover>
+        <PopoverTrigger
+          render={
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label={`查看订单 ${rowKey}`}
+            />
+          }
+        >
+          查看详情
+        </PopoverTrigger>
+        <PopoverContent aria-label={`订单详情 ${rowKey}`}>
+          <PopoverTitle>订单详情 {String(rowKey)}</PopoverTitle>
+          <dl className="fve:grid fve:gap-2">
+            <div>
+              <dt>客户</dt>
+              <dd>{String(record.customer)}</dd>
+            </div>
+            <div>
+              <dt>订单编号</dt>
+              <dd>{String(rowKey)}</dd>
+            </div>
+            <div>
+              <dt>金额</dt>
+              <dd>
+                <NumberCell
+                  value={
+                    typeof record.amount === 'number' ? record.amount : null
+                  }
+                  format={{ style: 'currency', currency: 'CNY' }}
+                />
+              </dd>
+            </div>
+            <div>
+              <dt>状态</dt>
+              <dd>{record.status === 'processed' ? '已处理' : '待处理'}</dd>
+            </div>
+          </dl>
+        </PopoverContent>
+      </Popover>
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label={`处理订单 ${rowKey}`}
+        disabled={busy || record.status === 'processed'}
+        onClick={() => {
+          // Renderer inputs are readonly snapshots. Edit a copy for the business write.
+          const draft = { ...record };
+          draft.status = 'processed';
+          run(async () => {
+            await service.saveOrder(draft);
+            return `已处理订单 ${rowKey}`;
+          }, refresh);
+        }}
+      >
+        处理
+      </Button>
+    </>
   );
 }
 function ProcessOrders({
   selectedRowKeys,
   querying,
   refresh,
-}: TableActionsRendererProps) {
+}: ToolbarActionsRendererProps) {
   const { service, busy, run } = useOrderOperations();
   return (
     <Button
@@ -134,8 +189,8 @@ function Money({ value, field }: CellRendererProps) {
 }
 export const orderExtensions: ViewExtensions = {
   globalActions: { 'create-order': CreateOrder },
-  rowActions: { 'process-order': ProcessOrder },
-  tableActions: { 'process-orders': ProcessOrders },
+  rowActions: { 'process-order': OrderRowActions },
+  toolbarActions: { 'process-orders': ProcessOrders },
   filters: {
     'order-status': {
       component: OrderStatus,

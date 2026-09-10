@@ -131,7 +131,7 @@ it.each([
   [{ pagination: { mode: 'offset', size: 10 } }, '分页方式'],
   [{ pagination: { mode: 'paged', size: 0 } }, '每页数量'],
   [{ pagination: { mode: 'paged', size: 1.5 } }, '每页数量'],
-  [{ presentation: { layout: 'grid', table: { columns: [] } } }, 'table 布局'],
+  [{ presentation: { layout: 'grid', table: { columns: [] } } }, '展示布局'],
 ])(
   'rejects saved query configuration that cannot be executed %j',
   (patch, message) => {

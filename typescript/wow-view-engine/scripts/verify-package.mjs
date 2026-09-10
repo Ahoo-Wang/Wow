@@ -126,7 +126,7 @@ function verifyTypes(directory) {
     export const multi = <FilterRemoteSelect label="users" source={optionSource} multiple values={[1,'1']} onValueChange={values => { const ids: (string|number)[] = values; void ids; }} />;
     export const single = <FilterRemoteSelect label="user" source={optionSource} value={1} onValueChange={value => { const id: string|number|null = value; void id; }} />;
     export const localMulti = <FilterMultiSelect label="ids" options={[{value: 1,label:'one'}]} value={[1]} onValueChange={values => { const id: number = values[0]; void id; }} />;
-    export const datedDefinition: ViewDefinition = { id: 'dates', sourceId: 'dates', title: 'Dates', rowKey: 'id', timeZone: 'Asia/Shanghai', fields: [{field: 'created',label:'Created',type:'datetime',editor:{name:'builtin',options:{showTime:true}}}] };
+    export const datedDefinition: ViewDefinition = { id: 'dates', sourceId: 'dates', title: 'Dates', allowedLayouts: ['table'], rowKey: 'id', timeZone: 'Asia/Shanghai', fields: [{field: 'created',label:'Created',type:'datetime',editor:{name:'builtin',options:{showTime:true}}}] };
     export const dateRange = <FilterDateTimeRange field={datedDefinition.fields[0]} timeZone={datedDefinition.timeZone} showTime value={{lowerBound:{date:'2026-09-06',time:'09:00'},upperBound:{date:'2026-09-06',time:'10:00'}}} onValueChange={() => {}} />;
     // @ts-expect-error Fields use the view or panel timezone instead of individual overrides.
     export const fieldTimeZone: FilterFieldDefinition = {field:'created',label:'Created',type:'datetime',timeZone:'UTC'};
@@ -141,7 +141,11 @@ function verifyTypes(directory) {
     declare const engine: ViewEngine;
     declare const host: ViewHost;
     declare const instance: DeepReadonly<ViewInstance>;
-    engine.setColumns(instance.config.presentation.table.columns);
+    if (instance.config.presentation.layout === 'table') {
+      engine.setColumns(instance.config.presentation.table.columns);
+    } else {
+      engine.setCardConfig(instance.config.presentation.card);
+    }
     void engine.setSort(instance.config.sort);
     engine.setFilterDraft(instance.config.filters);
     void engine.applyFilter();

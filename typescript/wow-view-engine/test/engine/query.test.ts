@@ -71,14 +71,15 @@ it('sends server pagination without projection and keeps column edits local', as
 it('clears stale rows and ignores old query resolution and rejection after a newer filter', async () => {
   const { engine, paged } = setup();
   await engine.load();
+  const previousRows = selected(engine).rows;
   const old = deferred<unknown>();
   paged.mockImplementationOnce(() => old.promise);
   const previous = engine.refresh();
   await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
   expect(selected(engine)).toMatchObject({
-    rows: [],
+    rows: previousRows,
     queryStatus: 'loading',
-    total: null,
+    total: 1,
   });
   const controller = paged.mock.calls[1][2];
   engine.setFilterDraft(

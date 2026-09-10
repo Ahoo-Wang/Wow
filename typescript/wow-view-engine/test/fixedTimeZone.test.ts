@@ -51,6 +51,7 @@ it.each([
         title: 'Dates',
         sourceId: 'dates',
         rowKey: 'created',
+        allowedLayouts: ['table'],
         fields: [field],
         timeZone,
       }),

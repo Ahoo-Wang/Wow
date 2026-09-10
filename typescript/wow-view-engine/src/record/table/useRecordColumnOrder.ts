@@ -11,33 +11,22 @@
  * limitations under the License.
  */
 
-import {
-  useId,
-  useState,
-  type DragEvent,
-  type HTMLAttributes,
-  type ButtonHTMLAttributes,
-} from 'react';
-import { type RecordColumn } from '../recordModel.js';
+import { useListOrder } from '../../lib/useListOrder.js';
+import type { RecordColumn } from '../recordModel.js';
 import {
   getRecordColumnPinning,
   orderRecordColumns,
 } from '../recordColumns.js';
 import type { RecordColumnSettingsProps } from '../recordReactTypes.js';
 
-/** Reordering stays inside each pinned region and supports pointer and keyboard input. */
+/** Table-specific order and pinned-region constraints. */
 export function useRecordColumnOrder({
   definition,
   columns: configuredColumns,
   onChange,
   disabled,
 }: RecordColumnSettingsProps) {
-  const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [dropBoundary, setDropBoundary] = useState<number | null>(null);
-  const [announcement, setAnnouncement] = useState('');
-  const instructionsId = useId();
   const columns = orderRecordColumns(configuredColumns, definition.rowKey);
-  const draggedIndex = columns.findIndex(column => column.id === draggedId);
   function isLocked(column: RecordColumn): boolean {
     return column.kind === 'actions' || column.field === definition.rowKey;
   }
@@ -50,112 +39,15 @@ export function useRecordColumnOrder({
         : '操作')
     );
   }
-  function canMove(index: number, target: number): boolean {
-    const column = columns[index];
-    const other = columns[target];
-    return Boolean(
-      !disabled &&
-      column &&
-      other &&
-      index !== target &&
+  const order = useListOrder({
+    items: columns,
+    onChange,
+    disabled,
+    titleOf,
+    canMove: (column, other) =>
       getRecordColumnPinning(column, definition.rowKey) ===
         getRecordColumnPinning(other, definition.rowKey) &&
       isLocked(column) === isLocked(other),
-    );
-  }
-  function move(index: number, target: number) {
-    if (!canMove(index, target)) return;
-    const next = [...columns];
-    const [column] = next.splice(index, 1);
-    next.splice(target, 0, column);
-    onChange(next);
-    setAnnouncement(`${titleOf(column)}已移至第 ${target + 1} 列`);
-  }
-  function endDrag() {
-    setDraggedId(null);
-    setDropBoundary(null);
-  }
-  function resolveDrop(event: DragEvent<HTMLOListElement>) {
-    if (disabled || draggedIndex < 0) return null;
-    const bounds = Array.from(event.currentTarget.children, row =>
-      row.getBoundingClientRect(),
-    );
-    const hovered = bounds.findIndex(
-      row => event.clientY >= row.top && event.clientY <= row.bottom,
-    );
-    if (
-      hovered >= 0 &&
-      hovered !== draggedIndex &&
-      !canMove(draggedIndex, hovered)
-    )
-      return null;
-    const before = bounds.findIndex(
-      row => event.clientY < row.top + row.height / 2,
-    );
-    const boundary = before < 0 ? bounds.length : before;
-    const target = boundary > draggedIndex ? boundary - 1 : boundary;
-    return target === draggedIndex || canMove(draggedIndex, target)
-      ? { boundary, target }
-      : null;
-  }
-  const listProps: HTMLAttributes<HTMLOListElement> = {
-    onDragOver: event => {
-      const drop = resolveDrop(event);
-      setDropBoundary(
-        drop && drop.target !== draggedIndex ? drop.boundary : null,
-      );
-      event.dataTransfer.dropEffect = drop ? 'move' : 'none';
-      if (drop) event.preventDefault();
-    },
-    onDragLeave: event => {
-      if (
-        !(event.relatedTarget instanceof Node) ||
-        !event.currentTarget.contains(event.relatedTarget)
-      )
-        setDropBoundary(null);
-    },
-    onDrop: event => {
-      const drop = resolveDrop(event);
-      if (drop) {
-        event.preventDefault();
-        move(draggedIndex, drop.target);
-      }
-      endDrag();
-    },
-  };
-  function handleProps(index: number): ButtonHTMLAttributes<HTMLButtonElement> {
-    const column = columns[index];
-    const movable = canMove(index, index - 1) || canMove(index, index + 1);
-    return {
-      disabled: !movable,
-      draggable: movable,
-      onDragStart: event => {
-        if (!movable) {
-          event.preventDefault();
-          return;
-        }
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', column.id);
-        setDraggedId(column.id);
-      },
-      onDragEnd: endDrag,
-      onKeyDown: event => {
-        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
-        event.preventDefault();
-        move(index, index + (event.key === 'ArrowUp' ? -1 : 1));
-      },
-    };
-  }
-  return {
-    columns,
-    draggedId,
-    dropBoundary,
-    announcement,
-    instructionsId,
-    isLocked,
-    titleOf,
-    endDrag,
-    listProps,
-    handleProps,
-  };
+  });
+  return { ...order, columns, isLocked, titleOf };
 }

@@ -36,6 +36,7 @@ const definition: ViewDefinition = {
   id: 'builtin-cells',
   title: '内置单元格',
   sourceId: 'cell-examples',
+  allowedLayouts: ['table', 'card'],
   rowKey: 'id',
   timeZone: 'Asia/Shanghai',
   allowedOperators: [FilterOperator.MATCH_ALL],

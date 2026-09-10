@@ -44,14 +44,16 @@ export interface ViewDefinition {
   title: string;
   sourceId: string;
   rowKey: string;
+  allowedLayouts: readonly RecordPresentation['layout'][];
   /** Shared datetime timezone for filters and cells; omitted uses the local runtime timezone. */
   timeZone?: string;
   fields: readonly ViewFieldDefinition[];
+  defaultPresentation?: DeepReadonly<RecordPresentationDefaults>;
   allowedOperators?: readonly FilterOperator[];
   filterEditors?: Partial<Record<FilterOperator, FilterEditorReference>>;
   recordActions?: {
     global?: RendererReference;
-    table?: RendererReference;
+    toolbar?: RendererReference;
     row?: RendererReference;
   };
 }
@@ -78,15 +80,40 @@ export type RecordColumn =
       summary?: readonly RecordSummaryFunction[];
     })
   | (RecordColumnBase & { kind: 'actions' });
+export interface RecordTableConfig {
+  columns: RecordColumn[];
+}
+export type RecordCardFieldConfig = Pick<
+  Extract<RecordColumn, { kind: 'field' }>,
+  'id' | 'field' | 'title' | 'renderer'
+>;
+export interface RecordCardConfig {
+  title: RecordCardFieldConfig;
+  cover?: { field: string };
+  fields: RecordCardFieldConfig[];
+  actions?: { visible?: boolean; renderer?: RendererReference };
+}
+export interface RecordPresentationDefaults {
+  table?: RecordTableConfig;
+  card?: RecordCardConfig;
+}
 export interface RecordTablePresentation {
   layout: 'table';
-  table: { columns: RecordColumn[] };
+  table: RecordTableConfig;
+  card?: RecordCardConfig;
 }
+export interface RecordCardPresentation {
+  layout: 'card';
+  card: RecordCardConfig;
+  table?: RecordTableConfig;
+}
+export type RecordPresentation =
+  RecordTablePresentation | RecordCardPresentation;
 export interface RecordViewConfig {
   sort: FieldSort[];
   pagination: { mode: 'paged' | 'cursor'; size: number };
   filters: FilterConfiguration;
-  presentation: RecordTablePresentation;
+  presentation: RecordPresentation;
 }
 /** Metadata shared by saved view kinds; query and presentation belong to their kind. */
 export interface ViewInstanceMetadata {

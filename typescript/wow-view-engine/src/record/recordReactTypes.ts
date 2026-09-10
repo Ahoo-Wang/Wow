@@ -17,6 +17,8 @@ import type { FilterExtensions } from '../filter/filterReactTypes.js';
 import type { DeepReadonly } from '../lib/types.js';
 import type {
   RecordColumn,
+  RecordCardConfig,
+  RecordPresentation,
   RecordData,
   RecordKey,
   RecordSummaryResult,
@@ -27,7 +29,7 @@ import type {
   RecordSession,
 } from './recordModel.js';
 
-export interface RecordTableToolbarRenderContext {
+export interface RecordToolbarRenderContext {
   readonly definition: DeepReadonly<ViewDefinition>;
   readonly session: DeepReadonly<RecordSession>;
   readonly defaultContent: ReactNode;
@@ -36,6 +38,8 @@ export interface RecordTableToolbarRenderContext {
   readonly selectedRowKeys: readonly RecordKey[];
   clearSelection(): void;
   setColumns(columns: RecordColumn[]): void;
+  setLayout(layout: RecordPresentation['layout']): void;
+  setCardConfig(card: RecordCardConfig): void;
   refresh(): Promise<void>;
 }
 export interface RecordPaginationRenderContext {
@@ -69,8 +73,8 @@ export interface GlobalActionsRendererProps extends RecordActionsContext {
   selectedRowKeys: readonly RecordKey[];
   querying: boolean;
 }
-/** Table operations receive the current page selection and the applied query scope. */
-export type TableActionsRendererProps = GlobalActionsRendererProps;
+/** Toolbar operations receive the current page selection and the applied query scope. */
+export type ToolbarActionsRendererProps = GlobalActionsRendererProps;
 export interface RowActionsRendererProps extends RecordActionsContext {
   readonly record: DeepReadonly<RecordData>;
   rowKey: RecordKey;
@@ -91,8 +95,8 @@ export interface ViewExtensions extends FilterExtensions {
   globalActions?: Readonly<
     Record<string, ComponentType<GlobalActionsRendererProps>>
   >;
-  tableActions?: Readonly<
-    Record<string, ComponentType<TableActionsRendererProps>>
+  toolbarActions?: Readonly<
+    Record<string, ComponentType<ToolbarActionsRendererProps>>
   >;
   rowActions?: Readonly<Record<string, ComponentType<RowActionsRendererProps>>>;
 }
@@ -123,5 +127,40 @@ export interface RecordColumnSettingsProps {
   definition: ViewDefinition;
   columns: readonly RecordColumn[];
   onChange(columns: RecordColumn[]): void;
+  disabled?: boolean;
+}
+
+export interface RecordCardRenderContext {
+  readonly definition: DeepReadonly<ViewDefinition>;
+  readonly instance: DeepReadonly<ViewInstance>;
+  readonly record: DeepReadonly<RecordData>;
+  readonly rowKey: RecordKey;
+  readonly index: number;
+  readonly selected: boolean;
+  readonly defaultContent: ReactNode;
+  /** Bound to this instance; does not repeat business writes. */
+  refresh(): Promise<void>;
+}
+export type RecordCardListProps = Pick<
+  RecordTableProps,
+  | 'definition'
+  | 'instance'
+  | 'appliedFilter'
+  | 'rows'
+  | 'extensions'
+  | 'querying'
+  | 'queryError'
+  | 'onQueryRetry'
+  | 'selectable'
+  | 'selectedRowKeys'
+  | 'onSelectionChange'
+  | 'refresh'
+  | 'className'
+> & { renderCard?(context: RecordCardRenderContext): ReactNode };
+export interface RecordCardSettingsProps {
+  definition: DeepReadonly<ViewDefinition>;
+  card: DeepReadonly<RecordCardConfig>;
+  /** Synchronous application; throw to retain the draft and show a local error. */
+  onChange(card: RecordCardConfig): void;
   disabled?: boolean;
 }

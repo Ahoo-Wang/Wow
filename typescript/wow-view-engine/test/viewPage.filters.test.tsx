@@ -130,7 +130,7 @@ it('keeps the applied summary below the editor until a new query is applied', as
   ).toBeTruthy();
   expect(
     summary.compareDocumentPosition(
-      screen.getByRole('group', { name: '表格工具栏' }),
+      screen.getByRole('group', { name: '记录工具栏' }),
     ) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   fireEvent.change(screen.getByRole('textbox', { name: '金额值' }), {
@@ -199,7 +199,7 @@ it('collapses filters without unmounting editors, applying drafts or clearing se
       .getAttribute('aria-checked'),
   ).toBe('false');
   expect(document.activeElement).toBe(
-    screen.getByRole('group', { name: '表格工具栏' }),
+    screen.getByRole('group', { name: '记录工具栏' }),
   );
   expect(paged).toHaveBeenCalledTimes(1);
   fireEvent.click(toggle);
@@ -318,7 +318,7 @@ it('changes filter mode from the global toolbar and reopens the same pending dra
   );
   await waitFor(() =>
     expect(
-      screen.getByRole('button', { name: '收起筛选' }).textContent,
+      screen.getByRole('button', { name: '收起筛选' }).getAttribute('title'),
     ).toContain('高级'),
   );
   expect(
@@ -331,7 +331,7 @@ it('changes filter mode from the global toolbar and reopens the same pending dra
   );
   await waitFor(() =>
     expect(
-      screen.getByRole('button', { name: '收起筛选' }).textContent,
+      screen.getByRole('button', { name: '收起筛选' }).getAttribute('title'),
     ).toContain('简单'),
   );
   expect(paged).toHaveBeenCalledTimes(1);

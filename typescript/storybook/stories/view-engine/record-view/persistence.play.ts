@@ -203,6 +203,10 @@ export const playRestoreFocus: RecordViewPlay = async ({ canvasElement }) => {
     ).not.toBeInTheDocument();
     await userEvent.keyboard('{Tab}');
     await expect(
+      canvas.getByRole('button', { name: '展示方式：表格' }),
+    ).toHaveFocus();
+    await userEvent.keyboard('{Tab}');
+    await expect(
       canvas.getByRole('button', { name: '收起筛选' }),
     ).toHaveFocus();
   }

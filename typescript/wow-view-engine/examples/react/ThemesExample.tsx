@@ -15,7 +15,7 @@ import { useState } from 'react';
 import {
   InputGroup,
   InputGroupInput,
-  type RecordTableToolbarRenderContext,
+  type RecordToolbarRenderContext,
   Button,
   FilterSelect,
   Popover,
@@ -148,7 +148,7 @@ export function ThemesExample() {
               instances={orderViews}
               host={service.host}
               extensions={orderExtensions}
-              renderTableToolbar={context => <ToolbarNote {...context} />}
+              renderToolbar={context => <ToolbarNote {...context} />}
               selectable
               autoRefreshPaused={busy}
               initialSidebarCollapsed
@@ -161,7 +161,7 @@ export function ThemesExample() {
 }
 
 /** A real component owns Hooks; a render callback only composes it. */
-function ToolbarNote({ defaultContent }: RecordTableToolbarRenderContext) {
+function ToolbarNote({ defaultContent }: RecordToolbarRenderContext) {
   const [note, setNote] = useState('');
   return (
     <div>

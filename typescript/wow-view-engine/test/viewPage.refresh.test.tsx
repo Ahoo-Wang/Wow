@@ -34,7 +34,7 @@ it('clears selection when selection is disabled so actions and automatic refresh
     definitionId: definition.id,
     definition: {
       ...definition,
-      recordActions: { global: { name: 'global' }, table: { name: 'table' } },
+      recordActions: { global: { name: 'global' }, toolbar: { name: 'table' } },
     },
     host,
   });
@@ -45,7 +45,7 @@ it('clears selection when selection is disabled so actions and automatic refresh
         <button>全局选中 {selectedRowKeys.length}</button>
       ),
     },
-    tableActions: {
+    toolbarActions: {
       table: ({ selectedRowKeys }: GlobalActionsRendererProps) => (
         <button>表格选中 {selectedRowKeys.length}</button>
       ),

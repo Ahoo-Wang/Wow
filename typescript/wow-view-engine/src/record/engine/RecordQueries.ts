@@ -65,12 +65,13 @@ export class RecordQueries {
     id: string,
     update: () => void,
     invalidateSummary = false,
+    mode: 'query' | 'refresh' = 'query',
   ): Promise<void> {
     const current = this.captureIntent(id);
     update();
     if (!current()) return;
     if (invalidateSummary) this.summaries.invalidate(id);
-    if (current()) await this.run(id);
+    if (current()) await this.run(id, mode);
   }
 
   private captureIntent(id: string): () => boolean {
@@ -90,7 +91,11 @@ export class RecordQueries {
     };
   }
 
-  async run(id: string, background = false): Promise<void> {
+  async run(
+    id: string,
+    mode: 'query' | 'refresh' | 'background' = 'query',
+  ): Promise<void> {
+    const background = mode === 'background';
     const session = this.store.session(id);
     const definition = this.store.definition();
     const lifecycle = this.scope.version;
@@ -104,9 +109,17 @@ export class RecordQueries {
       background
         ? { refreshing: true, queryError: null }
         : {
-            rows: [],
+            rows:
+              mode === 'refresh' &&
+              session.instance.config.pagination.mode === 'paged'
+                ? session.rows
+                : [],
             selectedRowKeys: [],
-            total: null,
+            total:
+              mode === 'refresh' &&
+              session.instance.config.pagination.mode === 'paged'
+                ? session.total
+                : null,
             nextCursor: null,
             queryError: null,
             queryStatus: 'loading',
@@ -232,7 +245,10 @@ export class RecordQueries {
 
   async retry(id?: string): Promise<void> {
     const session = this.store.session(id);
-    await this.run(session.instance.id);
+    const retainsRows =
+      session.instance.config.pagination.mode === 'paged' &&
+      session.rows.length > 0;
+    await this.run(session.instance.id, retainsRows ? 'refresh' : 'query');
   }
 
   async refresh(
@@ -242,7 +258,7 @@ export class RecordQueries {
     const session = this.store.session(id);
     if (options?.background) {
       if (getRecordRefreshBlockReason(session)) return;
-      await this.run(session.instance.id, true);
+      await this.run(session.instance.id, 'background');
       return;
     }
     await this.change(
@@ -252,6 +268,7 @@ export class RecordQueries {
           this.store.patch(session.instance.id, { page: 1, cursor: null });
       },
       true,
+      'refresh',
     );
   }
 }

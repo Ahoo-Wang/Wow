@@ -129,6 +129,14 @@ it('accepts the gap shown by the drop marker and uses the pointer side of each r
   const status = list.children[2];
   fireEvent.dragStart(handle, { dataTransfer });
   fireEvent.dragOver(status, { dataTransfer, clientY: 220 });
+  fireEvent.dragLeave(list, { relatedTarget: status });
+  expect(
+    list.querySelector('[data-slot="column-drop-indicator"]'),
+  ).toBeTruthy();
+  fireEvent.dragLeave(list, { relatedTarget: document.body });
+  expect(list.querySelector('[data-slot="column-drop-indicator"]')).toBeNull();
+  fireEvent.keyDown(handle, { key: 'Tab' });
+
   fireEvent.drop(status, { dataTransfer, clientY: 220 });
   expect(onChange).toHaveBeenLastCalledWith([
     configured[1],
@@ -166,6 +174,11 @@ it('supports keyboard reordering on the drag handle without crossing fixed regio
   }
   render(<Example />);
   fireEvent.click(screen.getByRole('button', { name: '列设置' }));
+  const locked = screen.getByRole('button', { name: '拖动调整主键顺序' });
+  const transfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
+  expect(fireEvent.dragStart(locked, { dataTransfer: transfer })).toBe(false);
+  expect(transfer.setData).not.toHaveBeenCalled();
+  expect(onChange).not.toHaveBeenCalled();
   const handle = screen.getByRole('button', { name: '拖动调整金额顺序' });
   handle.focus();
   fireEvent.keyDown(handle, { key: 'ArrowUp' });
@@ -173,7 +186,7 @@ it('supports keyboard reordering on the drag handle without crossing fixed regio
     onChange.mock.lastCall?.[0].map((column: RecordColumn) => column.id),
   ).toEqual(['key', 'amount', 'name', 'actions']);
   expect(document.activeElement).toBe(handle);
-  expect(screen.getByRole('status').textContent).toContain('金额已移至第 2 列');
+  expect(screen.getByRole('status').textContent).toContain('金额已移至第 2 项');
   fireEvent.keyDown(handle, { key: 'ArrowUp' });
   expect(onChange).toHaveBeenCalledTimes(1);
   fireEvent.keyDown(handle, { key: 'ArrowDown' });

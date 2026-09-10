@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { RecordPresentation, RecordCardConfig } from './recordModel.js';
 import type { FieldSort } from '@ahoo-wang/fetcher-wow';
 import type {
   FilterCompilerRegistry,
@@ -214,6 +215,14 @@ export class ViewEngine {
 
   setSort(sort: DeepReadonly<FieldSort[]>, id?: string): Promise<void> {
     return this.edits.setSort(sort, id);
+  }
+
+  setLayout(layout: RecordPresentation['layout'], id?: string): void {
+    this.edits.setLayout(layout, id);
+  }
+
+  setCardConfig(card: DeepReadonly<RecordCardConfig>, id?: string): void {
+    this.edits.setCardConfig(card, id);
   }
 
   setColumns(columns: DeepReadonly<RecordColumn[]>, id?: string): void {

@@ -80,6 +80,7 @@ export const definition: ViewDefinition = {
   id: 'order-management',
   title: '订单管理',
   sourceId: 'orders',
+  allowedLayouts: ['table', 'card'],
   rowKey: 'aggregateId',
   timeZone: 'Asia/Shanghai',
   allowedOperators: [
@@ -220,7 +221,7 @@ export const definition: ViewDefinition = {
   ],
   recordActions: {
     global: { name: 'order-actions' },
-    table: { name: 'order-table-actions' },
+    toolbar: { name: 'order-table-actions' },
     row: { name: 'order-row-actions' },
   },
 };

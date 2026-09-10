@@ -379,10 +379,11 @@ it('ignores a replayed create response after the engine has been disposed', asyn
 it('keeps a malformed query response out of the session and allows explicit retry', async () => {
   const { engine, paged } = fixture();
   await engine.load();
+  const previousRows = selected(engine).rows;
   paged.mockResolvedValueOnce([]);
   await expect(engine.refresh()).rejects.toThrow('分页对象');
   expect(selected(engine).queryStatus).toBe('error');
-  expect(selected(engine).rows).toEqual([]);
+  expect(selected(engine).rows).toEqual(previousRows);
   await engine.refresh();
   expect(selected(engine).queryStatus).toBe('success');
 });

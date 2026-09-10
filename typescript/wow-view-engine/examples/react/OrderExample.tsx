@@ -11,13 +11,19 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   LocalStorageViewHost,
+  resolveRecordPresentation,
+  type RecordPresentation,
   type ViewHost,
   type LocalStorageViewHostOptions,
 } from '@ahoo-wang/fetcher-view-engine';
-import { Button, ViewPage } from '@ahoo-wang/fetcher-view-engine/react';
+import {
+  Button,
+  ViewPage,
+  type RecordCardRenderContext,
+} from '@ahoo-wang/fetcher-view-engine/react';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 import { orderDefinition, orderViews } from './orders.js';
 import {
@@ -29,6 +35,8 @@ import { orderExtensions } from './OrderExtensions.js';
 
 export interface OrderExampleProps extends OrderServiceOptions {
   scopeKey?: string;
+  layout?: RecordPresentation['layout'];
+  renderCard?(context: RecordCardRenderContext): ReactNode;
   appearance?: 'light' | 'dark';
   initialSidebarCollapsed?: boolean;
   /** Development-only persistence of view configuration in this browser. */
@@ -57,12 +65,28 @@ function ScopedOrders({
   scopeKey,
   appearance = 'light',
   initialSidebarCollapsed = true,
+  layout = 'table',
+  renderCard,
   persistViews = false,
   createViewHost,
   ...options
 }: OrderExampleProps & { scopeKey: string }) {
   // One local service per access scope; production hosts should enforce the same scope server-side.
   const [service] = useState(() => createOrderService(options));
+  const [views] = useState(() => ({
+    ...orderViews,
+    instances: orderViews.instances.map(instance => ({
+      ...instance,
+      config: {
+        ...instance.config,
+        presentation: resolveRecordPresentation(
+          orderDefinition,
+          layout,
+          instance.config.presentation,
+        ),
+      },
+    })),
+  }));
   const localOptions: LocalStorageViewHostOptions | null = persistViews
     ? {
         scopeKey,
@@ -71,7 +95,7 @@ function ScopedOrders({
         lock: (name, operation, signal) =>
           navigator.locks.request(name, { signal }, operation),
         definition: orderDefinition,
-        instances: orderViews,
+        instances: views,
         resolveSource: (id: string) => service.host.resolveSource(id),
       }
     : null;
@@ -154,10 +178,11 @@ function ScopedOrders({
             {...(!persistViews &&
               !createViewHost && {
                 definition: orderDefinition,
-                instances: orderViews,
+                instances: views,
               })}
             host={host}
             extensions={orderExtensions}
+            renderCard={renderCard}
             selectable
             autoRefreshPaused={busy}
             initialSidebarCollapsed={initialSidebarCollapsed}

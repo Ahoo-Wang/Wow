@@ -164,7 +164,7 @@ export function Scenario({
           />
         ),
       },
-      tableActions: {
+      toolbarActions: {
         'order-table-actions': props => (
           <OrderActions
             {...props}

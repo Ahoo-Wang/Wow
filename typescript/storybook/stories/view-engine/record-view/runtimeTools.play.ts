@@ -24,7 +24,7 @@ export const playRuntimeTools: RecordViewPlay = async ({ canvasElement }) => {
     canvas.getByRole('group', { name: '全局工具栏' }),
   );
   const tableToolbar = within(
-    canvas.getByRole('group', { name: '表格工具栏' }),
+    canvas.getByRole('group', { name: '记录工具栏' }),
   );
   const table = canvas.getByRole('table');
   const query = canvas.getByRole('button', { name: '查询' });

@@ -23,7 +23,14 @@ import {
 import { validateFilterJson } from '../../filter/filterConfigurationValidation.js';
 import { sameFilterQuery } from '../../filter/filterTree.js';
 import type { DeepReadonly } from '../../lib/types.js';
-import type { RecordColumn, RecordKey } from '../recordModel.js';
+import type {
+  RecordColumn,
+  RecordKey,
+  RecordPresentation,
+  RecordCardConfig,
+} from '../recordModel.js';
+import { validateRecordPresentation } from '../validation/presentationValidation.js';
+import { resolveRecordPresentation } from '../resolveRecordPresentation.js';
 import { getRecordKey } from '../recordValidation.js';
 import type { SessionStore } from './SessionStore.js';
 import type { RecordQueries } from './RecordQueries.js';
@@ -147,22 +154,47 @@ export class RecordEdits {
     });
   }
 
+  setLayout(layout: RecordPresentation['layout'], id?: string): void {
+    const session = this.store.session(id);
+    const presentation = resolveRecordPresentation(
+      this.store.definition(),
+      layout,
+      session.instance.config.presentation,
+    );
+    this.setPresentation(presentation, session.instance.id);
+  }
+
+  setCardConfig(card: DeepReadonly<RecordCardConfig>, id?: string): void {
+    const session = this.store.session(id);
+    this.setPresentation(
+      { ...session.instance.config.presentation, card },
+      session.instance.id,
+    );
+  }
+
   setColumns(columns: DeepReadonly<RecordColumn[]>, id?: string): void {
     const session = this.store.session(id);
+    this.setPresentation(
+      { ...session.instance.config.presentation, table: { columns } },
+      session.instance.id,
+    );
+  }
+
+  private setPresentation(
+    presentation: DeepReadonly<RecordPresentation>,
+    id: string,
+  ): void {
+    const session = this.store.session(id);
+    validateRecordPresentation(presentation, this.store.definition());
+    if (sameJsonState(session.instance.config.presentation, presentation))
+      return;
     const key = this.summaries.key(session);
     this.store.updateInstance(session, {
       ...session.instance,
-      config: {
-        ...session.instance.config,
-        presentation: {
-          ...session.instance.config.presentation,
-          table: { columns },
-        },
-      },
+      config: { ...session.instance.config, presentation },
     });
-    const current = this.store.find(session.instance.id);
-    if (current && key !== this.summaries.key(current))
-      this.summaries.sync(session.instance.id);
+    const current = this.store.find(id);
+    if (current && key !== this.summaries.key(current)) this.summaries.sync(id);
   }
 
   async setPage(index: number, id?: string): Promise<void> {

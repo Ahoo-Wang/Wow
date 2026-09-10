@@ -11,18 +11,22 @@
  * limitations under the License.
  */
 
+import type { FieldSort } from '@ahoo-wang/fetcher-wow';
+import { RecordSortSettings } from './RecordSortSettings.js';
 import { useRef } from 'react';
 import { Button } from '../../components/ui/button.js';
+import { RecordCardSettings } from '../RecordCardSettings.js';
 import { RecordColumnSettings } from '../RecordColumnSettings.js';
 import type {
   RecordColumn,
+  RecordCardConfig,
   RecordSession,
   ViewDefinition,
 } from '../recordModel.js';
 import type { ViewExtensions } from '../recordReactTypes.js';
 import { RecordActions } from './RecordActions.js';
 
-export function RecordTableToolbar({
+export function RecordToolbar({
   definition,
   session,
   extensions,
@@ -30,6 +34,8 @@ export function RecordTableToolbar({
   refresh,
   onSelectionClear,
   onColumnsChange,
+  onCardChange,
+  onSortChange,
 }: {
   definition: ViewDefinition;
   session: RecordSession;
@@ -38,6 +44,8 @@ export function RecordTableToolbar({
   refresh(): Promise<void>;
   onSelectionClear(): void;
   onColumnsChange(columns: RecordColumn[]): void;
+  onCardChange?(card: RecordCardConfig): void;
+  onSortChange(sort: FieldSort[]): void;
 }) {
   const tableToolbarRef = useRef<HTMLDivElement>(null);
   const { instance } = session;
@@ -45,8 +53,8 @@ export function RecordTableToolbar({
   return (
     <div
       role="group"
-      aria-label="表格工具栏"
-      data-slot="record-table-toolbar"
+      aria-label="记录工具栏"
+      data-slot="record-toolbar"
       ref={tableToolbarRef}
       tabIndex={-1}
       className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-[var(--fve-toolbar-gap)] fve:border-t fve:px-[var(--fve-toolbar-padding-x)] fve:py-[var(--fve-toolbar-padding-y)]"
@@ -75,18 +83,32 @@ export function RecordTableToolbar({
       </div>
       <div className="fve:ml-auto fve:flex fve:flex-wrap fve:items-center fve:gap-2">
         <RecordActions
-          kind="table"
+          kind="toolbar"
           definition={definition}
           session={session}
           extensions={extensions}
           refresh={refresh}
         />
-        <RecordColumnSettings
-          key={id}
+        <RecordSortSettings
           definition={definition}
-          columns={instance.config.presentation.table.columns}
-          onChange={onColumnsChange}
+          sort={instance.config.sort}
+          onChange={onSortChange}
         />
+        {instance.config.presentation.layout === 'table' ? (
+          <RecordColumnSettings
+            key={id}
+            definition={definition}
+            columns={instance.config.presentation.table.columns}
+            onChange={onColumnsChange}
+          />
+        ) : onCardChange ? (
+          <RecordCardSettings
+            key={id}
+            definition={definition}
+            card={instance.config.presentation.card}
+            onChange={onCardChange}
+          />
+        ) : null}
       </div>
     </div>
   );

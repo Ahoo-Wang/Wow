@@ -31,6 +31,7 @@ const definition: ViewDefinition = {
   title: '筛选配置持久化',
   sourceId: orderDefinition.sourceId,
   rowKey: orderDefinition.rowKey,
+  allowedLayouts: ['table'],
   fields: orderDefinition.fields,
   allowedOperators: orderDefinition.allowedOperators,
 };
@@ -44,10 +45,11 @@ const initial: ViewInstance = {
     presentation: {
       layout: 'table',
       table: {
-        columns:
-          orderViews.instances[0].config.presentation.table.columns.filter(
-            column => column.kind === 'field',
-          ),
+        columns: definition.fields.map(field => ({
+          id: field.field,
+          field: field.field,
+          kind: 'field',
+        })),
       },
     },
   },

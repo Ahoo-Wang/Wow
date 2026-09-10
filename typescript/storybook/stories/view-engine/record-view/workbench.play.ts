@@ -21,7 +21,7 @@ export const playCompactWorkbench: RecordViewPlay = async ({
   await canvas.findByRole('row', { name: /ORD-202609-1001/ });
   const page = within(canvasElement.ownerDocument.body);
   const toolbar = canvas.getByRole('group', { name: '全局工具栏' });
-  const tableToolbar = canvas.getByRole('group', { name: '表格工具栏' });
+  const tableToolbar = canvas.getByRole('group', { name: '记录工具栏' });
   const appliedFilters = canvas.getByRole('region', { name: '已应用筛选' });
   await expect(appliedFilters).toHaveTextContent('订单金额 大于等于 0');
   await expect(
@@ -97,7 +97,7 @@ export const playCompactWorkbench: RecordViewPlay = async ({
   await waitFor(() => expect(page.queryByRole('menu')).not.toBeInTheDocument());
   await expect(
     within(toolbar).getByRole('button', { name: '收起筛选' }),
-  ).toHaveTextContent('高级');
+  ).toHaveAttribute('title', '收起筛选 · 高级');
   await userEvent.click(mode);
   await userEvent.click(
     await page.findByRole('menuitemradio', { name: '简单' }),
@@ -105,7 +105,7 @@ export const playCompactWorkbench: RecordViewPlay = async ({
   await waitFor(() => expect(page.queryByRole('menu')).not.toBeInTheDocument());
   await expect(
     within(toolbar).getByRole('button', { name: '收起筛选' }),
-  ).toHaveTextContent('简单');
+  ).toHaveAttribute('title', '收起筛选 · 简单');
   await expect(
     within(canvas.getByRole('navigation', { name: '记录分页' })).getByText(
       '共 18 条记录',

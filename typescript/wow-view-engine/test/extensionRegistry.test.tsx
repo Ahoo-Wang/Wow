@@ -36,6 +36,7 @@ function sample(extensions: ViewExtensions) {
     definition: model,
     instance: saved,
     record: { state: { id: 'row', amount: 1 } },
+    allowedLayouts: ['table', 'card'],
     rowKey: 'row',
     index: 0,
     appliedFilter: session.appliedFilter,
@@ -73,7 +74,12 @@ function sample(extensions: ViewExtensions) {
 }
 it('does not resolve inherited names from empty action or cell registries', () => {
   render(
-    sample({ cells: {}, globalActions: {}, tableActions: {}, rowActions: {} }),
+    sample({
+      cells: {},
+      globalActions: {},
+      toolbarActions: {},
+      rowActions: {},
+    }),
   );
   expect(screen.getAllByRole('alert')).toHaveLength(4);
   expect(screen.queryByText('[object Undefined]')).toBeNull();
@@ -85,7 +91,7 @@ it('allows explicitly registered names even if they match Object.prototype', () 
     sample({
       cells: registry,
       globalActions: registry,
-      tableActions: registry,
+      toolbarActions: registry,
       rowActions: registry,
     }),
   );

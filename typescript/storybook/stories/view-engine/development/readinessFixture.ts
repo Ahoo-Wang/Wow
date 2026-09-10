@@ -24,6 +24,7 @@ const definition: ViewDefinition = {
   id: 'readiness',
   sourceId: 'readiness',
   title: '数据视图验收',
+  allowedLayouts: ['table', 'card'],
   rowKey: 'meta.id',
   timeZone: 'Asia/Shanghai',
   allowedOperators: [Op.MATCH_ALL, Op.AND, Op.EQ, Op.GTE, Op.BETWEEN, Op.IN],

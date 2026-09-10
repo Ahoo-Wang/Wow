@@ -34,7 +34,19 @@ export const orderDefinition: ViewDefinition = {
   id: 'demo-orders',
   sourceId: 'demo-orders',
   title: '订单工作台',
+  allowedLayouts: ['table', 'card'],
   rowKey: 'id',
+  defaultPresentation: {
+    card: {
+      title: { id: 'customer', field: 'customer' },
+      fields: [
+        { id: 'id', field: 'id' },
+        { id: 'amount', field: 'amount' },
+        { id: 'status', field: 'status' },
+      ],
+      actions: {},
+    },
+  },
   allowedOperators: [
     FilterOperator.MATCH_ALL,
     FilterOperator.AND,
@@ -75,7 +87,7 @@ export const orderDefinition: ViewDefinition = {
   ],
   recordActions: {
     global: { name: 'create-order' },
-    table: { name: 'process-orders' },
+    toolbar: { name: 'process-orders' },
     row: { name: 'process-order' },
   },
 };

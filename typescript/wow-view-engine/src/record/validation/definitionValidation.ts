@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { validateRecordPresentationDefaults } from './presentationValidation.js';
 import { encodeViewResourceId } from '../viewServiceContract.js';
 import { validateTimeZone } from '../../lib/timeZone.js';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
@@ -116,6 +117,13 @@ export function validateViewDefinition(
     assertText(value.timeZone, '时区');
     validateTimeZone(value.timeZone);
   }
+  if (
+    !Array.isArray(value.allowedLayouts) ||
+    !value.allowedLayouts.length ||
+    new Set(value.allowedLayouts).size !== value.allowedLayouts.length ||
+    value.allowedLayouts.some(layout => layout !== 'table' && layout !== 'card')
+  )
+    throw new Error('allowedLayouts 必须为非空且不重复的 table/card 数组');
   validateFields(value.fields);
   if (
     value.allowedOperators !== undefined &&
@@ -136,7 +144,12 @@ export function validateViewDefinition(
   if (value.recordActions !== undefined) {
     assertObject(value.recordActions, '业务操作');
     validateReference(value.recordActions.global);
-    validateReference(value.recordActions.table);
+    validateReference(value.recordActions.toolbar);
     validateReference(value.recordActions.row);
   }
+  if (value.defaultPresentation !== undefined)
+    validateRecordPresentationDefaults(
+      value.defaultPresentation,
+      value as unknown as ViewDefinition,
+    );
 }

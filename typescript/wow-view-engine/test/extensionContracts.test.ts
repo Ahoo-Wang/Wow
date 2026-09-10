@@ -21,7 +21,7 @@ it('checks readonly snapshots and component registration boundaries at compile t
   const configPath = resolve('tsconfig.json');
   const file = resolve('src/__extension_contract__.ts');
   const source = `
-    import type { CellRendererProps } from './record/recordReactTypes.js';
+    import type { RecordCardRenderContext, CellRendererProps } from './record/recordReactTypes.js';
     import type { FilterEditorProps } from './filter/filterReactTypes.js';
     import type { DeepReadonly } from './lib/types.js';
     import type { ViewEngine } from './record/ViewEngine.js';
@@ -35,6 +35,11 @@ it('checks readonly snapshots and component registration boundaries at compile t
     const headless: ViewEngineOptions['filterCompilers'] = { custom: { compile: registration.compile } };
     // @ts-expect-error React registers compilation with its component, never through a second registry
     page.filterCompilers;
+    declare const card: RecordCardRenderContext;
+    // @ts-expect-error custom card records are readonly
+    card.record.amount = 99;
+    // @ts-expect-error cards cannot access engine internals
+    card.engine;
     declare const cell: CellRendererProps;
     declare const editor: FilterEditorProps;
     const value: unknown = cell.record.amount;
@@ -54,7 +59,10 @@ it('checks readonly snapshots and component registration boundaries at compile t
     state.definition!.title = 'changed';
     engine.setFilterDraft(snapshot.sessions.mine.filterDraft);
     engine.setSort(snapshot.sessions.mine.instance.config.sort);
-    engine.setColumns(snapshot.sessions.mine.instance.config.presentation.table.columns);
+    const presentation = snapshot.sessions.mine.instance.config.presentation;
+    if (presentation.layout === 'table') engine.setColumns(presentation.table.columns);
+    if (presentation.layout === 'card') engine.setCardConfig(presentation.card);
+    engine.setLayout('card');
     engine.applyFilter('mine');
     // @ts-expect-error queries compile the canonical configuration rather than accepting expressions
     engine.applyFilter(snapshot.sessions.mine.appliedFilter);

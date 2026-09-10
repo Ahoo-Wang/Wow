@@ -25,6 +25,7 @@ export const definition: ViewDefinition = {
   id: 'orders',
   sourceId: 'orders',
   title: '订单管理',
+  allowedLayouts: ['table', 'card'],
   rowKey: 'id',
   fields: [{ field: 'amount', label: '金额', type: 'number', sortable: true }],
 };

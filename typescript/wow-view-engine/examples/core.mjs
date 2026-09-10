@@ -25,6 +25,7 @@ const definition = {
   id: 'orders',
   title: 'Orders',
   sourceId: 'orders',
+  allowedLayouts: ['table', 'card'],
   rowKey: 'id',
   allowedOperators: ['MATCH_ALL', 'GTE'],
   fields: [

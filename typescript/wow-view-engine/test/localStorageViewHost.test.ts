@@ -208,3 +208,39 @@ it('keeps scoped deletion idempotent without touching another users instance', a
     code: 'FORBIDDEN',
   });
 });
+
+it('persists both layouts and restores each configuration after reloading', async () => {
+  const host = new LocalStorageViewHost(options());
+  const first = new ViewEngine({ definitionId: definition.id, host });
+  try {
+    await first.load();
+    first.setLayout('card');
+    first.setCardConfig({
+      title: { id: 'title', field: 'amount' },
+      fields: [],
+      actions: { visible: false, renderer: { name: 'custom' } },
+    });
+    const savedPresentation =
+      first.getSnapshot().sessions[instance.id].instance.config.presentation;
+    await first.save();
+    const second = new ViewEngine({
+      definitionId: definition.id,
+      host: new LocalStorageViewHost(options()),
+    });
+    try {
+      await second.load();
+      expect(
+        second.getSnapshot().sessions[instance.id].instance.config.presentation,
+      ).toEqual(savedPresentation);
+      second.setLayout('table');
+      second.setLayout('card');
+      expect(
+        second.getSnapshot().sessions[instance.id].instance.config.presentation,
+      ).toEqual(savedPresentation);
+    } finally {
+      second.dispose();
+    }
+  } finally {
+    first.dispose();
+  }
+});
