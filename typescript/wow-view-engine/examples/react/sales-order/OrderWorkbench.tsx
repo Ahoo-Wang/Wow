@@ -432,23 +432,33 @@ function WorkbenchSession({
         <Dialog.Portal>
           <div className="fve-root sales-dialog-scope" data-theme={appearance}>
             <Dialog.Backdrop className="sales-backdrop" />
-            <Dialog.Popup ref={popupRef} className="sales-dialog">
-              <Dialog.Title>
-                {dialog?.action === 'create'
-                  ? '创建销售订单'
-                  : dialog?.action === 'detail'
-                    ? `订单详情 ${dialog.id}`
-                    : dialog
-                      ? actionLabels[dialog.action]
-                      : ''}
-              </Dialog.Title>
-              <Dialog.Description className="sales-muted">
-                {dialog?.action === 'detail'
-                  ? '核对订单记录，再选择当前岗位要执行的操作。'
-                  : '填写本次业务信息，确认后更新订单。'}
-              </Dialog.Description>
+            <Dialog.Popup ref={popupRef} className="sales-sheet">
+              <header className="sales-sheet-header">
+                <Dialog.Title>
+                  {dialog?.action === 'create'
+                    ? '创建销售订单'
+                    : dialog?.action === 'detail'
+                      ? `订单详情 ${dialog.id}`
+                      : dialog
+                        ? actionLabels[dialog.action]
+                        : ''}
+                </Dialog.Title>
+                <Dialog.Description className="sales-muted">
+                  {dialog?.action === 'detail'
+                    ? '核对订单记录，再选择当前岗位要执行的操作。'
+                    : '填写本次业务信息，确认后更新订单。'}
+                </Dialog.Description>
+                <Dialog.Close
+                  render={<Button variant="ghost" />}
+                  className="sales-close"
+                  disabled={busy}
+                  aria-label="关闭详情"
+                >
+                  关闭
+                </Dialog.Close>
+              </header>
               {dialog?.action === 'detail' && selected ? (
-                <>
+                <div className="sales-sheet-body">
                   {feedback}
                   <section className="sales-next" aria-label="订单下一步">
                     <div>
@@ -514,7 +524,7 @@ function WorkbenchSession({
                     })}
                   </section>
                   <OrderDetails order={selected} />
-                </>
+                </div>
               ) : (
                 dialog && (
                   <OrderForms
@@ -536,14 +546,6 @@ function WorkbenchSession({
                   />
                 )
               )}
-              <Dialog.Close
-                render={<Button variant="ghost" />}
-                className="sales-close"
-                disabled={busy}
-                aria-label="关闭详情"
-              >
-                关闭
-              </Dialog.Close>
             </Dialog.Popup>
           </div>
         </Dialog.Portal>

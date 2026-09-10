@@ -102,27 +102,59 @@
   z-index: 100;
 }
 
-.sales-dialog {
+.sales-sheet {
   position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: min(860px, calc(100vw - 32px));
-  max-height: 90vh;
-  overflow: auto;
+  inset: 0 0 0 auto;
+  width: min(860px, 100vw);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--fve-background);
   color: var(--fve-foreground);
   border: 1px solid var(--fve-border);
-  border-radius: 12px;
-  padding: 28px;
+  border-radius: 0;
   z-index: 101;
   box-shadow: 0 20px 60px #0003;
 }
 
-.sales-dialog h2 {
+.sales-sheet h2 {
   font-size: 20px;
   font-weight: 650;
   margin: 0 70px 8px 0;
+}
+
+.sales-sheet-header {
+  position: relative;
+  flex-shrink: 0;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--fve-border);
+}
+
+.sales-sheet-header p {
+  margin: 0;
+  padding-right: 48px;
+}
+
+.sales-sheet-body,
+.sales-form-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 16px 24px;
+}
+
+.sales-sheet-body .sales-notice:empty {
+  display: none;
+}
+
+.sales-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sales-close {
@@ -133,7 +165,6 @@
 
 .sales-form fieldset {
   border: 0;
-  padding: 0;
   margin: 0;
   min-width: 0;
 }
@@ -191,8 +222,9 @@
   justify-content: flex-end;
   gap: 10px;
   border-top: 1px solid var(--fve-border);
-  padding-top: 18px;
-  margin-top: 20px;
+  flex-shrink: 0;
+  padding: 16px 24px max(16px, env(safe-area-inset-bottom));
+  background: var(--fve-background);
 }
 
 .sales-facts {
@@ -333,8 +365,12 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .sales-dialog {
-    padding: 20px;
+  .sales-sheet-header,
+  .sales-sheet-body,
+  .sales-form-body,
+  .sales-form-actions {
+    padding-left: 16px;
+    padding-right: 16px;
   }
 
   .sales-totals {

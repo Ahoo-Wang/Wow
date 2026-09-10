@@ -207,7 +207,7 @@ export function OrderForms({
   }
   return (
     <form onSubmit={submit} className="sales-form">
-      <fieldset disabled={busy}>
+      <fieldset disabled={busy} className="sales-form-body">
         {isDraft ? (
           <>
             <div className="sales-fields">
@@ -528,7 +528,7 @@ export function OrderForms({
           disabled={busy}
           onClick={onCancel}
         >
-          返回
+          {order ? '返回详情' : '取消创建'}
         </Button>
         <Button type="submit" disabled={busy}>
           {busy

@@ -12,7 +12,7 @@
  */
 
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import displayMeta, {
   Workbench,
   ReturnFromReceipt,
@@ -25,6 +25,38 @@ const meta = {
   tags: ['!dev', '!autodocs', 'test'],
 };
 export default meta;
+export const SheetNavigation: StoryObj<typeof meta> = {
+  ...Workbench,
+  play: async ({ canvasElement }) => {
+    const { canvas, page, open } = orderJourney(canvasElement);
+    const dialog = await open('SO-202609-1005');
+    const window = canvasElement.ownerDocument.defaultView!;
+    await waitFor(() => {
+      const bounds = dialog.getBoundingClientRect();
+      expect(bounds.top).toBe(0);
+      expect(bounds.right).toBe(window.innerWidth);
+      expect(bounds.height).toBe(window.innerHeight);
+    });
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: '登记退款',
+        exact: true,
+      }),
+    );
+    await userEvent.click(page.getByRole('button', { name: '返回详情' }));
+    await expect(page.getByRole('dialog')).toBe(dialog);
+    await expect(dialog).toHaveAccessibleName('订单详情 SO-202609-1005');
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(page.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
+    await expect(
+      canvas.getByRole('button', {
+        name: '查看订单 SO-202609-1005',
+      }),
+    ).toHaveFocus();
+  },
+};
 export const ReturnToClosure: StoryObj<typeof meta> = {
   ...ReturnFromReceipt,
   play: async ({ canvasElement }) => {
