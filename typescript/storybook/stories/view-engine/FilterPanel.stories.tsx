@@ -62,6 +62,19 @@ export const BusinessFilters: Story = {
   render: args => <Scenario {...args} />,
 };
 
+export const SimpleElement: Story = {
+  name: '简单 · 同一元素满足',
+  render: args => (
+    <Scenario
+      {...args}
+      initial={createFilterConfiguration(
+        newFilterNode(FilterOperator.ELEMENT_MATCH, 'items'),
+        'simple',
+      )}
+    />
+  ),
+};
+
 export const AdvancedTree: Story = {
   name: '高级 · 逻辑与同一元素',
   render: args => <Scenario {...args} initial={nestedFilter} />,

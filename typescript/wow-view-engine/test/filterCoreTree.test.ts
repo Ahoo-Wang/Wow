@@ -280,7 +280,7 @@ it('validates fields, capabilities and element relative scope even for unset val
   ]);
 });
 
-it('recognizes only root match-all, field predicates and flat AND as simple', () => {
+it('recognizes root match-all, field predicates and flat AND as simple', () => {
   expect(isSimpleFilter(newFilterNode(Op.MATCH_ALL))).toBe(true);
   expect(isSimpleFilter(node(Op.EQ, 'amount'))).toBe(true);
   expect(
@@ -307,8 +307,35 @@ it('recognizes only root match-all, field predicates and flat AND as simple', ()
         ],
       },
     ),
-    node(Op.ELEMENT_MATCH, 'items'),
     node(Op.EQ),
   ])
     expect(isSimpleFilter(draft)).toBe(false);
+});
+
+it('recognizes recursive element scopes and enforces field uniqueness within each scope', () => {
+  const element = (predicate: FilterComponentConfig) => ({
+    ...newFilterNode(Op.ELEMENT_MATCH, 'items'),
+    predicate,
+  });
+  const and = (...operands: FilterComponentConfig[]) => ({
+    ...newFilterNode(Op.AND),
+    operands,
+  });
+  const nested = element(
+    and(node(Op.EQ, 'quantity'), element(node(Op.EQ, 'quantity'))),
+  );
+  expect(isSimpleFilter(and(node(Op.EQ, 'quantity'), nested))).toBe(true);
+  expect(isSimpleFilter(newFilterNode(Op.ELEMENT_MATCH, 'items'))).toBe(true);
+  expect(isSimpleFilter(newFilterNode(Op.AND))).toBe(false);
+  for (const predicate of [
+    and(node(Op.GTE, 'quantity'), node(Op.LTE, 'quantity')),
+    { ...and(node(Op.EQ, 'quantity')), operator: Op.OR },
+    { ...and(node(Op.EQ, 'quantity')), operator: Op.NOR },
+    and(and(node(Op.EQ, 'quantity'))),
+    node(Op.MATCH_ALL),
+  ])
+    expect(isSimpleFilter(element(predicate))).toBe(false);
+  expect(isSimpleFilter(and(nested, element(node(Op.EQ, 'quantity'))))).toBe(
+    false,
+  );
 });

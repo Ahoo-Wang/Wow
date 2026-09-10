@@ -452,9 +452,9 @@ export function OrderFilters({
 }
 ```
 
-Simple mode uses an implicit AND; advanced mode structurally edits all 50 Wow operators including AND / OR / NOR / ELEMENT_MATCH. Editing, clearing, undo and mode switches make no requests. Query calls `onApply` with `{configuration, expression}`. The host executes the request and supplies `querying` / `queryError`. Use `onPendingChange` to guard view saving.
+Simple mode uses an implicit AND at the root and within each ELEMENT_MATCH scope, including nested arrays; advanced mode structurally edits all 50 Wow operators including AND / OR / NOR / ELEMENT_MATCH. Editing, clearing, undo and mode switches make no requests. Query calls `onApply` with `{configuration, expression}`. The host executes the request and supplies `querying` / `queryError`. Use `onPendingChange` to guard view saving.
 
-Simple mode allows one condition per field, including unset values. Advanced AND/OR/NOR groups allow multiple conditions on the same field, including inside element scopes. Repeated bindings are valid for compilation and instance persistence; they keep the editor in advanced mode until each field occurs once and the tree is otherwise simple.
+Simple mode allows one condition per field within each scope, including unset values. Element predicates show “same element satisfies” with child filters and no logical-group selector. Empty element scopes remain editable but block Query until a child condition is added. Advanced AND/OR/NOR groups allow multiple conditions on the same field, including inside element scopes. Repeated bindings are valid for compilation and instance persistence; they keep the editor in advanced mode until each field occurs once per scope and the tree is otherwise simple.
 
 Add filter opens an anchored Popover with grouped checkboxes, keeping the table and query toolbar in place. Its height is capped and its field area scrolls internally. It stays open for continuous additions; Done or Escape closes it and returns focus to Add filter. Clicking outside dismisses it. Set `group` on field definitions to group choices in definition order. Ungrouped fields appear under Other fields when mixed with named groups. Checking a field adds its condition; unchecking removes that field's direct conditions in the current group. Checkbox state follows the draft even when a value is unset. Advanced mode shows each selected field’s condition count and an adjacent Append condition action for additional same-field predicates in any logical group; advanced mode places AND/OR/NOR in the adjacent icon dropdown instead of the field picker. Root-level operators remain add actions. Logical menu choices respect the definition allowlist. Changes apply only on Query.
 
@@ -464,8 +464,8 @@ Simple mode has no condition action menu or ordering controls. Advanced mode sup
 
 For composition, `FilterPanel.renderToolbar` replaces the default heading and receives
 `FilterPanelToolbarProps`: `panelId`, `mode`, `options`, `pending`, `disabled` and
-`onModeChange`. Use its guarded callback and disabled options; incomplete or nested
-advanced conditions cannot switch to simple. `collapsed` hides only the body and
+`onModeChange`. Use its guarded callback and disabled options; incomplete conditions, repeated fields within a scope, OR/NOR and nested logical groups
+cannot switch to simple. Supported element scopes switch without changing the tree. `collapsed` hides only the body and
 retains editors. `RecordView.toolbarStart` accepts leading global-toolbar content;
 `ViewPage` supplies saving, title and instance navigation there.
 

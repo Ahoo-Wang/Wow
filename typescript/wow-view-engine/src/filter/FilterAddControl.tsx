@@ -62,10 +62,7 @@ export function FilterAddControl({
     );
     if (
       !operators.length ||
-      (!canAdd && !bindings.some(node => node.field === field.field)) ||
-      (mode === 'simple' &&
-        field.type === 'array' &&
-        operators.every(op => FILTER_OPERATORS[op].category === 'element'))
+      (!canAdd && !bindings.some(node => node.field === field.field))
     )
       return [];
     return [
@@ -123,8 +120,6 @@ export function FilterAddControl({
               op =>
                 (!props.allowedOperators ||
                   props.allowedOperators.includes(op)) &&
-                (mode === 'advanced' ||
-                  FILTER_OPERATORS[op].category !== 'element') &&
                 (getNamedFilterOperators(
                   resolveFilterComponent(op, field, props.editors).name,
                 )?.includes(op) ??

@@ -281,9 +281,9 @@ export function OrderFilters({
 }
 ```
 
-简单模式隐含 AND，高级模式结构化编辑全部 50 种 Wow 操作以及 AND / OR / NOR / ELEMENT_MATCH。编辑、清空、撤销、模式切换都不请求服务；点击查询后通过 `onApply` 提交合法条件。宿主接收 `{configuration, expression}` 并管理请求，通过 `querying` / `queryError` 传回状态。`onPendingChange` 用于保存视图前的待查询保护。
+简单模式在根级和每个 ELEMENT_MATCH 元素作用域内隐含 AND，支持嵌套数组；高级模式结构化编辑全部 50 种 Wow 操作以及 AND / OR / NOR / ELEMENT_MATCH。编辑、清空、撤销、模式切换都不请求服务；点击查询后通过 `onApply` 提交合法条件。宿主接收 `{configuration, expression}` 并管理请求，通过 `querying` / `queryError` 传回状态。`onPendingChange` 用于保存视图前的待查询保护。
 
-简单模式中每个字段只保留一项，未设置值也占用该字段。高级模式的 AND、OR、NOR 均允许同一字段多条规则，元素作用域内同样适用；编译与实例保存接受合法的重复字段条件。包含重复字段的草稿保持高级模式，删除多余条件且结构可平铺后才允许切回简单模式。
+简单模式中每个作用域内的字段只保留一项，未设置值也占用该字段。元素条件显示“同一元素满足”和子筛选项，不显示逻辑组合选择器；空元素作用域可继续编辑，但添加子条件前不能查询。高级模式的 AND、OR、NOR 均允许同一字段多条规则，元素作用域内同样适用；编译与实例保存接受合法的重复字段条件。包含重复字段的草稿保持高级模式，删除多余条件且各作用域符合简单模式结构后才允许切回简单模式。
 
 点击“添加筛选”打开锚定按钮的 Popover，按组展示 Checkbox，打开和关闭不改变表格、查询按钮的位置。浮层限制高度，字段区内部滚动；添加后保持打开，支持连续添加。“完成”或 Esc 关闭并返回触发按钮焦点，点击外部也可关闭。字段定义可通过 `group` 指定分组，按定义中的首次出现顺序展示。与有分组字段混用时，未分组字段显示在“其他字段”下；复选框与当前分组的草稿同步：勾选添加条件，取消勾选移除该字段的直接条件，未设置值仍显示为已勾选。高级模式在已选字段旁显示条件数量和“追加条件”加号，AND、OR、NOR 统一支持追加；高级模式在“添加筛选”旁提供图标下拉按钮，独立选择 AND/OR/NOR 并添加到当前分组，这三项不进入字段面板；未获定义允许的操作禁用。根级操作仍保留添加按钮。所有变更仍在点击“查询”后统一生效。
 
@@ -295,7 +295,7 @@ export function OrderFilters({
 
 自定义筛选器可使用任意 React 组件。注册 `render: 'value'`（默认）替换值区域，或用 `render: 'filter'` 与 `FilterComponentProps` 接管完整非容器 UI。面板继续负责字段与能力校验、错误展示，以及点击查询后统一生效。
 
-组合布局可用 `FilterPanel.renderToolbar` 替换默认标题，接收 `FilterPanelToolbarProps`：`panelId`、`mode`、`options`、`pending`、`disabled`、`onModeChange`。使用面板提供的回调与禁用选项，嵌套或未完善的高级条件不能切回简单模式。`collapsed` 仅隐藏内容并保留编辑器；`RecordView.toolbarStart` 可插入全局工具栏左侧内容，`ViewPage` 在此提供保存、标题与实例选择。
+组合布局可用 `FilterPanel.renderToolbar` 替换默认标题，接收 `FilterPanelToolbarProps`：`panelId`、`mode`、`options`、`pending`、`disabled`、`onModeChange`。使用面板提供的回调与禁用选项，含 OR/NOR、嵌套逻辑分组、作用域内重复字段或未完善的条件不能切回简单模式；符合规则的元素作用域可切换且保留原树结构。`collapsed` 仅隐藏内容并保留编辑器；`RecordView.toolbarStart` 可插入全局工具栏左侧内容，`ViewPage` 在此提供保存、标题与实例选择。
 
 ## 单个控件
 

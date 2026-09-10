@@ -22,7 +22,9 @@ import {
 } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { FilterPanel } from '../src/filter/FilterPanel.js';
-import { fields, select } from './fixtures/filterPanel.js';
+import { useEffect } from 'react';
+import type { FilterComponentProps } from '../src/filter/filterReactTypes.js';
+import { fields, select, builtinCompiler } from './fixtures/filterPanel.js';
 
 afterEach(cleanup);
 
@@ -198,33 +200,165 @@ it('keeps simple filters free of condition menus and applies the original order'
   );
 });
 
-it('does not offer destructive simple-mode conversion for element conditions', async () => {
+it('switches element conditions to simple mode without changing their tree', async () => {
+  const apply = vi.fn(),
+    change = vi.fn();
+  const root = {
+    ...node('AND'),
+    operands: [
+      node('EQ', 'amount', { value: 10 }),
+      {
+        ...node('ELEMENT_MATCH', 'items'),
+        predicate: {
+          ...node('AND'),
+          operands: [node('EQ', 'quantity', { value: 2 })],
+        },
+      },
+    ],
+  };
   render(
     <FilterPanel
       fields={fields}
-      defaultValue={configuration({
-        ...node('AND'),
-        operands: [
-          node('EQ', 'amount', { value: 10 }),
-          {
-            ...node('ELEMENT_MATCH', 'items'),
-            predicate: {
-              ...node('AND'),
-              operands: [node('EQ', 'quantity', { value: 2 })],
-            },
-          },
-        ],
-      })}
-      onApply={() => {}}
+      defaultValue={configuration(root, 'advanced')}
+      onApply={apply}
+      onChange={change}
     />,
   );
-  fireEvent.click(screen.getByRole('combobox', { name: '筛选模式' }));
-  expect(
-    (await screen.findByRole('option', { name: '简单' })).getAttribute(
-      'aria-disabled',
-    ),
-  ).toBe('true');
-  fireEvent.keyDown(screen.getByRole('option', { name: '高级', exact: true }), {
-    key: 'Escape',
+  await select('筛选模式', '简单');
+  expect(change).toHaveBeenLastCalledWith({ mode: 'simple', root });
+  expect(screen.queryByRole('combobox', { name: '组合方式' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /添加逻辑分组/ })).toBeNull();
+  expect(apply).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '查询', exact: true }));
+  expect(apply).toHaveBeenCalledWith({
+    configuration: { mode: 'simple', root },
+    expression: filter.and([
+      filter.eq('amount', 10),
+      filter.elementMatch('items', filter.and([filter.eq('quantity', 2)])),
+    ]),
   });
+  await select('筛选模式', '高级');
+  expect(change).toHaveBeenLastCalledWith({ mode: 'advanced', root });
+});
+
+it.each([false, true])(
+  'adds and completes a simple element scope (element-only: %s)',
+  async onlyElement => {
+    const apply = vi.fn(),
+      change = vi.fn();
+    const definitions = fields.map(field =>
+      field.field === 'items' && onlyElement
+        ? { ...field, operators: [node('ELEMENT_MATCH').operator] }
+        : field,
+    );
+    render(
+      <FilterPanel fields={definitions} onApply={apply} onChange={change} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: '添加筛选' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: '商品明细' }));
+    fireEvent.click(screen.getByRole('button', { name: '完成' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    if (!onlyElement) await select('商品明细操作', '同一元素满足');
+    expect(change.mock.lastCall?.[0].mode).toBe('simple');
+    expect(
+      screen.getByRole('group', { name: '商品明细元素条件' }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('combobox', { name: '组合方式' })).toBeNull();
+    expect(
+      screen
+        .getByRole('button', { name: '查询', exact: true })
+        .hasAttribute('disabled'),
+    ).toBe(true);
+    fireEvent.click(
+      screen.getByRole('button', { name: '商品明细元素内添加筛选' }),
+    );
+    fireEvent.click(screen.getByRole('checkbox', { name: '数量' }));
+    expect(
+      screen
+        .getByRole('checkbox', { name: '数量' })
+        .getAttribute('aria-checked'),
+    ).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: '完成' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.change(screen.getByLabelText('数量值'), {
+      target: { value: '2' },
+    });
+    expect(apply).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '查询', exact: true }));
+    expect(apply.mock.lastCall?.[0].expression).toEqual(
+      filter.elementMatch('items', filter.and([filter.eq('quantity', 2)])),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '删除数量条件' }));
+    expect(screen.getByRole('alert').textContent).toContain('至少需要一个条件');
+    fireEvent.click(
+      screen.getByRole('button', { name: '商品明细元素内添加筛选' }),
+    );
+    fireEvent.click(screen.getByRole('checkbox', { name: '数量' }));
+    expect(change.mock.lastCall?.[0].root.predicate.operands).toHaveLength(1);
+  },
+);
+
+it('creates a single element predicate when AND is not allowed', async () => {
+  const apply = vi.fn();
+  render(
+    <FilterPanel
+      fields={fields}
+      allowedOperators={[node('ELEMENT_MATCH').operator, node('EQ').operator]}
+      onApply={apply}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: '添加筛选' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: '商品明细' }));
+  fireEvent.click(screen.getByRole('button', { name: '完成' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  await select('商品明细操作', '同一元素满足');
+  fireEvent.click(
+    screen.getByRole('button', { name: '商品明细元素内添加筛选' }),
+  );
+  fireEvent.click(screen.getByRole('checkbox', { name: '数量' }));
+  fireEvent.click(screen.getByRole('button', { name: '完成' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  fireEvent.change(screen.getByLabelText('数量值'), { target: { value: '2' } });
+  fireEvent.click(screen.getByRole('button', { name: '查询', exact: true }));
+  expect(apply.mock.lastCall?.[0].expression).toEqual(
+    filter.elementMatch('items', filter.eq('quantity', 2)),
+  );
+});
+
+it('clears invalid custom-editor state when switching to an element container', async () => {
+  function InvalidEditor({ onValidityChange }: FilterComponentProps) {
+    useEffect(() => {
+      onValidityChange(false, '旧编辑器错误');
+    }, [onValidityChange]);
+    return null;
+  }
+  const apply = vi.fn();
+  render(
+    <FilterPanel
+      fields={fields}
+      defaultValue={configuration(node('EQ', 'items', {}, { name: 'custom' }))}
+      extensions={{
+        filters: {
+          custom: {
+            component: InvalidEditor,
+            modes: ['simple', 'advanced'],
+            ...builtinCompiler,
+          },
+        },
+      }}
+      onApply={apply}
+    />,
+  );
+  expect(screen.getByRole('alert').textContent).toContain('旧编辑器错误');
+  await select('商品明细操作', '同一元素满足');
+  fireEvent.click(
+    screen.getByRole('button', { name: '商品明细元素内添加筛选' }),
+  );
+  fireEvent.click(screen.getByRole('checkbox', { name: '数量' }));
+  fireEvent.click(screen.getByRole('button', { name: '完成' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  fireEvent.change(screen.getByLabelText('数量值'), { target: { value: '2' } });
+  expect(screen.queryByRole('alert')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '查询', exact: true }));
+  expect(apply).toHaveBeenCalledTimes(1);
 });

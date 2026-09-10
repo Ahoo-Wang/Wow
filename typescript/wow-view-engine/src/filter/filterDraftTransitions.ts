@@ -30,6 +30,8 @@ export function transitionFilterOperator(
   op: FilterOperator,
 ): FilterComponentConfig {
   if (node.operator === op) return structuredClone(node);
+  if (op === FilterOperator.ELEMENT_MATCH)
+    return { ...newFilterNode(op, node.field), id: node.id };
   const next = {
     ...newFilterNode(op, node.field, node.component),
     id: node.id,

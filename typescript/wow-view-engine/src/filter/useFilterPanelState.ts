@@ -203,7 +203,9 @@ export function useFilterPanelState(props: FilterPanelProps) {
     const next = transitionFilterOperator(node, op);
     const before = FILTER_OPERATORS[node.operator]?.input,
       after = FILTER_OPERATORS[op]?.input;
-    change(replaceFilterNode(configurationRef.current.root, node.id, next)!);
+    if (op === FilterOperator.ELEMENT_MATCH) update(node.id, next);
+    else
+      change(replaceFilterNode(configurationRef.current.root, node.id, next)!);
     if (
       before !== after &&
       after !== 'none' &&
@@ -242,7 +244,14 @@ export function useFilterPanelState(props: FilterPanelProps) {
       fields,
     ).find(item => item.node.id === target.id)?.node;
     if (!current || !canAppend(current)) return;
-    const next = appendNode(current, child);
+    const allowed = latest.current.props.allowedOperators;
+    const next =
+      current.operator === FilterOperator.AND &&
+      current.operands?.length === 0 &&
+      allowed &&
+      !allowed.includes(FilterOperator.AND)
+        ? child
+        : appendNode(current, child);
     if (mode === 'advanced' || isSimpleFilter(next)) update(current.id, next);
   }
   function currentEditorNode(node: FilterComponentConfig) {

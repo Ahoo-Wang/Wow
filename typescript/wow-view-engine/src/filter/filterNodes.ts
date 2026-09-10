@@ -40,21 +40,31 @@ export function newFilterNode(
 export function isSimpleFilter(
   draft: DeepReadonly<FilterComponentConfig>,
 ): boolean {
-  const ordinary = (node: DeepReadonly<FilterComponentConfig>) =>
-    Object.prototype.hasOwnProperty.call(FILTER_OPERATORS, node.operator) &&
-    FILTER_OPERATORS[node.operator].category === 'field' &&
-    typeof node.field === 'string' &&
-    node.field.length > 0 &&
-    node.operands === undefined &&
-    node.predicate === undefined;
-  return (
-    draft.operator === Op.MATCH_ALL ||
-    ordinary(draft) ||
-    (draft.operator === Op.AND &&
-      Array.isArray(draft.operands) &&
-      draft.operands.length > 0 &&
-      draft.operands.every(ordinary) &&
-      new Set(draft.operands.map(node => node.field)).size ===
-        draft.operands.length)
-  );
+  function bound(node: DeepReadonly<FilterComponentConfig>): boolean {
+    return (
+      Object.prototype.hasOwnProperty.call(FILTER_OPERATORS, node.operator) &&
+      typeof node.field === 'string' &&
+      node.field.length > 0 &&
+      node.operands === undefined &&
+      (node.operator === Op.ELEMENT_MATCH
+        ? !!node.predicate && scope(node.predicate, true)
+        : FILTER_OPERATORS[node.operator].category === 'field' &&
+          node.predicate === undefined)
+    );
+  }
+  function scope(
+    node: DeepReadonly<FilterComponentConfig>,
+    allowEmpty = false,
+  ): boolean {
+    return (
+      bound(node) ||
+      (node.operator === Op.AND &&
+        Array.isArray(node.operands) &&
+        (allowEmpty || node.operands.length > 0) &&
+        node.operands.every(bound) &&
+        new Set(node.operands.map(child => child.field)).size ===
+          node.operands.length)
+    );
+  }
+  return draft.operator === Op.MATCH_ALL || scope(draft);
 }

@@ -22,6 +22,7 @@ import type {
   FilterConfiguration,
   FilterComponentConfig,
 } from '../src/filter/filterModel.js';
+import { transitionFilterOperator } from '../src/filter/filterDraftTransitions.js';
 import { fields, node } from './fixtures/filterCore.js';
 
 it('round trips stable identities, unset controls, typed buffers and date/time attributes through JSON', () => {
@@ -232,4 +233,34 @@ it('keeps element and logical containers builtin when a field has a custom leaf 
   const config = createFilterConfiguration(draft, 'advanced');
   expect(config.root.component.name).toBe('builtin');
   expect(compileFilterConfiguration(config, fields).errors).toEqual([]);
+});
+
+it('round trips and compiles simple element predicates without flattening their scope', () => {
+  const root = {
+    ...node(Op.ELEMENT_MATCH, 'items'),
+    predicate: {
+      ...node(Op.AND),
+      operands: [node(Op.EQ, 'quantity', { value: 2 })],
+    },
+  };
+  const config = createFilterConfiguration(root, 'simple');
+  const reloaded = JSON.parse(JSON.stringify(config));
+  expect(reloaded).toEqual(config);
+  expect(() => validateFilterConfiguration(reloaded, fields)).not.toThrow();
+  expect(compileFilterConfiguration(reloaded, fields)).toEqual(
+    compileFilterConfiguration({ ...config, mode: 'advanced' }, fields),
+  );
+  expect(compileFilterConfiguration(reloaded, fields).errors).toEqual([]);
+});
+
+it('switches a custom array editor to a builtin element container', () => {
+  const source = {
+    ...node(Op.EQ, 'items'),
+    component: { name: 'custom' },
+    props: { value: ['a'] },
+  };
+  const result = transitionFilterOperator(source, Op.ELEMENT_MATCH);
+  expect(result.component).toEqual({ name: 'builtin' });
+  expect(result.props).toEqual({});
+  expect(() => createFilterConfiguration(result, 'simple')).not.toThrow();
 });

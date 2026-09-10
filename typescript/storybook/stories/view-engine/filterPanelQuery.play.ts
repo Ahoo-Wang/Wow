@@ -12,7 +12,7 @@
  */
 
 import { FILTER_OPERATORS } from '@ahoo-wang/fetcher-view-engine';
-import { FilterOperator } from '@ahoo-wang/fetcher-wow';
+import { filter, FilterOperator } from '@ahoo-wang/fetcher-wow';
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
 import type { DemoArgs } from './FilterPanelExamples.js';
@@ -109,4 +109,59 @@ export const playAllOperators: NonNullable<Story['play']> = async ({
     await userEvent.click(canvas.getByRole('button', { name: '查询' }));
     await expect(canvas.getByTestId('applied-filter')).toHaveTextContent(op);
   }
+};
+
+export const playSimpleElement: NonNullable<Story['play']> = async ({
+  canvasElement,
+  args,
+}) => {
+  if (args.disabled) return;
+  const canvas = within(canvasElement),
+    page = within(canvasElement.ownerDocument.body);
+  await expect(
+    canvas.getByRole('combobox', { name: '筛选模式' }),
+  ).toHaveTextContent('简单');
+  await expect(canvas.queryByRole('combobox', { name: '组合方式' })).toBeNull();
+  await expect(
+    canvas.getByRole('button', { name: '查询', exact: true }),
+  ).toBeDisabled();
+  await userEvent.click(
+    canvas.getByRole('button', { name: '商品明细元素内添加筛选' }),
+  );
+  await userEvent.click(
+    await page.findByRole('checkbox', { name: '商品编码' }),
+  );
+  await userEvent.click(page.getByRole('checkbox', { name: '数量' }));
+  await expect(page.queryByRole('button', { name: /追加/ })).toBeNull();
+  await userEvent.click(page.getByRole('button', { name: '完成' }));
+  await userEvent.type(canvas.getByLabelText('商品编码值'), 'SKU-1');
+  await userEvent.type(canvas.getByLabelText('数量值'), '2');
+  await expect(canvas.getByLabelText('宿主状态')).toHaveTextContent(
+    '已应用 0 次',
+  );
+  await userEvent.click(
+    canvas.getByRole('button', { name: '查询', exact: true }),
+  );
+  const expected = filter.elementMatch(
+    'items',
+    filter.and([filter.eq('sku', 'SKU-1'), filter.eq('quantity', 2)]),
+  );
+  await expect(
+    JSON.parse(canvas.getByTestId('applied-filter').textContent!),
+  ).toEqual(expected);
+  for (const mode of ['高级', '简单']) {
+    await userEvent.click(canvas.getByRole('combobox', { name: '筛选模式' }));
+    await userEvent.click(
+      await page.findByRole('option', { name: mode, exact: true }),
+    );
+  }
+  await expect(canvas.queryByRole('combobox', { name: '组合方式' })).toBeNull();
+  await expect(canvas.getByLabelText('数量值')).toHaveValue('2');
+  await expect(canvas.getByLabelText('宿主状态')).toHaveTextContent(
+    '已应用 1 次',
+  );
+  await userEvent.click(canvas.getByRole('button', { name: '清空条件' }));
+  await expect(canvas.getByLabelText('数量值')).toHaveValue('');
+  await userEvent.click(canvas.getByRole('button', { name: '撤销筛选修改' }));
+  await expect(canvas.getByLabelText('数量值')).toHaveValue('2');
 };

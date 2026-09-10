@@ -62,6 +62,20 @@ export function FilterNode({
     field?.label ?? node.field ?? descriptor?.label ?? String(node.operator);
   const nodeIssues = issues.filter(issue => issue.id === node.id);
   const errorId = `${panelId}-${node.id}-error`;
+  if (mode === 'simple' && node.operator === FilterOperator.AND) {
+    return (
+      <>
+        {node.operands?.map(child => (
+          <FilterNode key={`${epoch}:${child.id}`} node={child} panel={panel} />
+        ))}
+        {nodeIssues.length > 0 && (
+          <div role="alert" id={errorId}>
+            {nodeIssues.map(issue => issue.message).join('；')}
+          </div>
+        )}
+      </>
+    );
+  }
   if (node.operands || node.operator === FilterOperator.ELEMENT_MATCH) {
     const element = node.operator === FilterOperator.ELEMENT_MATCH;
     return (
@@ -169,7 +183,8 @@ export function FilterNode({
   ).filter(
     op =>
       (!props.allowedOperators || props.allowedOperators.includes(op)) &&
-      (mode === 'advanced' || FILTER_OPERATORS[op].category === 'field') &&
+      (mode === 'advanced' ||
+        ['field', 'element'].includes(FILTER_OPERATORS[op].category)) &&
       !resolveFilterEditor(
         {
           ...location,

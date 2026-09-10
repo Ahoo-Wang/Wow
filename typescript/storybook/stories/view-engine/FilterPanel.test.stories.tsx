@@ -17,6 +17,7 @@ import {
   playSearchableSelect,
 } from './filterPanelExtensions.play.js';
 import {
+  playSimpleElement,
   playAdvancedTree,
   playAllOperators,
   playBusinessFilters,
@@ -28,6 +29,7 @@ import {
   playRepeatedFields,
 } from './filterPanelSelection.play.js';
 import displayMeta, {
+  SimpleElement as DisplaySimpleElement,
   AdvancedTree as DisplayAdvancedTree,
   AllOperators as DisplayAllOperators,
   BusinessFilters as DisplayBusinessFilters,
@@ -110,4 +112,10 @@ export const AllOperators: Story = {
   ...DisplayAllOperators,
   tags: ['!dev', '!autodocs', 'test'],
   play: playAllOperators,
+};
+
+export const SimpleElement: Story = {
+  ...DisplaySimpleElement,
+  tags: ['!dev', '!autodocs', 'test'],
+  play: playSimpleElement,
 };

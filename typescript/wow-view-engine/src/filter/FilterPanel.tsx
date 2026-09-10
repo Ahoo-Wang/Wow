@@ -108,7 +108,7 @@ export function FilterPanel(props: FilterPanelProps) {
         )}
         {!simple && (
           <p className="fve:m-0 fve:text-sm fve:text-muted-foreground">
-            当前包含同一字段的多条规则、嵌套或特殊条件，需使用高级模式。
+            当前包含同一作用域内的重复字段、逻辑分组或特殊条件，需使用高级模式。
           </p>
         )}
         {mode === 'advanced' && simple && issues.length > 0 && (
