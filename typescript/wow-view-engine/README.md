@@ -1,5 +1,7 @@
 # Fetcher View Engine
 
+View Engine owns further data-view development. `@ahoo-wang/fetcher-viewer` is deprecated and in maintenance mode, with no new features; use this package for new projects. The packages use different models and APIs, so migration requires adaptation.
+
 [Task guides](../../wiki/guides/view-engine/index.md) · [API reference](../../wiki/reference/view-engine/index.md) · [Shared runnable example](../../wiki/examples/view-engine.md)
 
 Independent `@ahoo-wang/fetcher-view-engine` package with headless Wow filter compilation and validation, a complete `FilterPanel`, structured value editors, and shadcn/Base UI controls. It also provides a headless ViewEngine and a complete RecordView page with host-managed definitions, instances and persistence. Cards, AnalysisView and DashboardView remain separate work.
