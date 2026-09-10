@@ -19,15 +19,6 @@ export async function startViewService({
   allowedOrigin = 'http://127.0.0.1:6006',
 }) {
   const values = new Map();
-  const storage = {
-    getItem: key => values.get(key) ?? null,
-    setItem: (key, value) => {
-      values.set(key, value);
-    },
-    removeItem: key => {
-      values.delete(key);
-    },
-  };
   const accounts = new Map([
     [
       'alice-token',
@@ -75,14 +66,9 @@ export async function startViewService({
     new Host({
       definition,
       instances,
-      storage,
+      store: values,
       serviceKey: account.service,
       scopeKey: account.user,
-      // Transactions supplied by this host are synchronous; Node executes each to completion before another request callback.
-      lock: async (_name, operation, signal) => {
-        signal?.throwIfAborted();
-        return operation();
-      },
       resolveSource: () => source,
       instancePermissions: instance => ({
         save: account.writer || instance.scope.type === 'personal',

@@ -15,7 +15,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { ProductCatalogExample } from '../../packages/view-engine/examples/react/catalog/ProductCatalogExample.js';
 import { RecordViewExample } from '../docs/RecordViewExample.js';
 const meta = {
-  title: 'View Engine/卡片模式',
+  id: 'view-engine-专项场景-卡片模式',
+  title: 'View Engine/专项场景/数据展示/卡片模式',
   component: ProductCatalogExample,
   parameters: { layout: 'fullscreen' },
 } satisfies Meta<typeof ProductCatalogExample>;

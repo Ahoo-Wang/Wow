@@ -21,15 +21,14 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { filter } from '@ahoo-wang/fetcher-wow';
-import { LocalStorageViewHost } from '../src/record/LocalStorageViewHost.js';
+import { MemoryViewHost } from '../src/record/MemoryViewHost.js';
 import { ViewPage } from '../src/record/ViewPage.js';
 import { compileBuiltinFilter } from '../src/filter/filterCore.js';
 import type { FilterEditorProps, ViewExtensions } from '../src/react.js';
 import { definition, instance, setup } from './fixtures/viewPage.js';
 
-import { storageLock } from './fixtures/storageLock.js';
-
-beforeEach(() => localStorage.clear());
+const store = new Map<string, string | null>();
+beforeEach(() => store.clear());
 afterEach(cleanup);
 function fixture() {
   const { host: source, paged } = setup();
@@ -41,9 +40,8 @@ function fixture() {
   };
   const options = {
     scopeKey: 'contract',
-    storage: localStorage,
+    store,
     serviceKey: 'test-service',
-    lock: storageLock,
     definition,
     instances: { instances: [saved], defaultInstanceId: saved.id },
     resolveSource: source.resolveSource,
@@ -74,7 +72,7 @@ const extensions: ViewExtensions = {
 
 it('reconstructs custom components from server JSON with a new host, engine and runtime registry', async () => {
   const { options, paged } = fixture();
-  const host = new LocalStorageViewHost(options);
+  const host = new MemoryViewHost(options);
   const mounted = render(
     <ViewPage
       scopeKey="contract"
@@ -90,11 +88,11 @@ it('reconstructs custom components from server JSON with a new host, engine and 
   fireEvent.click(screen.getByRole('button', { name: '保存', exact: true }));
   await waitFor(() =>
     expect(
-      JSON.parse(localStorage.getItem(host.storageKey)!).instances[0].config
-        .filters.root.props.displayLabel,
+      JSON.parse(store.get(host.storageKey)!).instances[0].config.filters.root
+        .props.displayLabel,
     ).toBe('无法从查询表达式恢复的标签'),
   );
-  const payload = localStorage.getItem(host.storageKey)!;
+  const payload = store.get(host.storageKey)!;
   expect(
     JSON.parse(payload).instances.find(
       (item: { id: string }) => item.id === 'mine',
@@ -114,7 +112,7 @@ it('reconstructs custom components from server JSON with a new host, engine and 
     <ViewPage
       scopeKey="contract"
       definitionId={definition.id}
-      host={new LocalStorageViewHost(options)}
+      host={new MemoryViewHost(options)}
       extensions={{
         filters: {
           'amount-picker': {
@@ -132,37 +130,37 @@ it('reconstructs custom components from server JSON with a new host, engine and 
       .value,
   ).toBe('无法从查询表达式恢复的标签');
   expect(paged.mock.lastCall?.[0].filter).toEqual(filter.gte('amount', 10));
-  expect(localStorage.getItem(host.storageKey)).toBe(payload);
+  expect(store.get(host.storageKey)).toBe(payload);
 });
 
 it('blocks a missing runtime extension without deleting service configuration, then recovers when registered', async () => {
   const { options, paged } = fixture();
-  const host = new LocalStorageViewHost(options);
+  const host = new MemoryViewHost(options);
   await host.instance!.save(await host.instance!.load(instance.id));
-  const payload = localStorage.getItem(host.storageKey);
+  const payload = store.get(host.storageKey);
   const mounted = render(
     <ViewPage scopeKey="contract" definitionId={definition.id} host={host} />,
   );
   await screen.findAllByText(/未注册.*amount-picker/);
   expect(paged).not.toHaveBeenCalled();
-  expect(localStorage.getItem(host.storageKey)).toBe(payload);
+  expect(store.get(host.storageKey)).toBe(payload);
   mounted.unmount();
   render(
     <ViewPage
       scopeKey="contract"
       definitionId={definition.id}
-      host={new LocalStorageViewHost(options)}
+      host={new MemoryViewHost(options)}
       extensions={extensions}
     />,
   );
   await screen.findByRole('cell', { name: '42' });
   expect(paged).toHaveBeenCalledTimes(1);
-  expect(localStorage.getItem(host.storageKey)).toBe(payload);
+  expect(store.get(host.storageKey)).toBe(payload);
 });
 
 it('surfaces a real host revision conflict, preserves the draft, and saves after explicit reload', async () => {
   const { options } = fixture();
-  const host = new LocalStorageViewHost(options);
+  const host = new MemoryViewHost(options);
   render(
     <ViewPage
       scopeKey="contract"
@@ -175,7 +173,7 @@ it('surfaces a real host revision conflict, preserves the draft, and saves after
   fireEvent.change(screen.getByRole('textbox', { name: '自定义标签' }), {
     target: { value: '保留的本地草稿' },
   });
-  const remoteActor = new LocalStorageViewHost(options);
+  const remoteActor = new MemoryViewHost(options);
   await act(async () =>
     remoteActor.instance!.rename(
       instance.id,

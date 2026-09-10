@@ -12,20 +12,18 @@
  */
 
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { LocalStorageViewHost } from '../src/record/LocalStorageViewHost.js';
+import { MemoryViewHost } from '../src/record/MemoryViewHost.js';
 import { ViewEngine } from '../src/record/ViewEngine.js';
 import { definition, instance, setup } from './fixtures/viewPage.js';
 
-import { storageLock } from './fixtures/storageLock.js';
-
-beforeEach(() => localStorage.clear());
+const store = new Map<string, string | null>();
+beforeEach(() => store.clear());
 afterEach(() => vi.restoreAllMocks());
 function options(scopeKey = 'developer') {
   return {
     scopeKey,
-    storage: localStorage,
+    store,
     serviceKey: 'test-service',
-    lock: storageLock,
     definition,
     instances: {
       instances: [
@@ -44,7 +42,7 @@ function options(scopeKey = 'developer') {
 }
 
 it('persists component configuration, names, creation, deletion and ordering across new hosts', async () => {
-  const host = new LocalStorageViewHost(options());
+  const host = new MemoryViewHost(options());
   const edited = await host.instance!.load(instance.id);
   edited.config.filters.root.props = {
     ...edited.config.filters.root.props,
@@ -66,7 +64,7 @@ it('persists component configuration, names, creation, deletion and ordering acr
     'system',
     instance.id,
   ]);
-  const restored = new LocalStorageViewHost(options());
+  const restored = new MemoryViewHost(options());
   expect(
     (await restored.instance!.list(definition.id)).instances.map(
       item => item.id,
@@ -75,7 +73,7 @@ it('persists component configuration, names, creation, deletion and ordering acr
   expect(await restored.instance!.load(instance.id)).toEqual(saved);
   expect((await restored.instance!.load(copy.id)).title).toBe('本地副本');
   expect(
-    JSON.parse(localStorage.getItem(host.storageKey)!).instances[2].config,
+    JSON.parse(store.get(host.storageKey)!).instances[2].config,
   ).not.toHaveProperty('filter');
   await restored.instance!.delete(copy.id, renamed.revision);
   expect((await host.instance!.list(definition.id)).instances).toHaveLength(2);
@@ -83,28 +81,28 @@ it('persists component configuration, names, creation, deletion and ordering acr
 
 it('isolates scope and definition, preserves seeds, and resets only its own key', async () => {
   const input = options();
-  const host = new LocalStorageViewHost(input);
+  const host = new MemoryViewHost(input);
   input.instances.instances[0] = { ...instance, title: '外部修改' };
   const loaded = await host.instance!.load(instance.id);
   expect(loaded.title).toBe(instance.title);
   loaded.title = '保存的标题';
   await host.instance!.save(loaded);
-  const other = new LocalStorageViewHost(options('another-user'));
+  const other = new MemoryViewHost(options('another-user'));
   expect((await other.instance!.load(instance.id)).title).toBe(instance.title);
-  const differentDefinition = new LocalStorageViewHost({
+  const differentDefinition = new MemoryViewHost({
     ...options(),
     definition: { ...definition, id: 'other' },
     instances: { instances: [], defaultInstanceId: null },
   });
   expect(differentDefinition.storageKey).not.toBe(host.storageKey);
-  localStorage.setItem('unrelated', 'keep');
+  store.set('unrelated', 'keep');
   await host.reset();
   expect((await host.instance!.load(instance.id)).title).toBe(instance.title);
-  expect(localStorage.getItem('unrelated')).toBe('keep');
+  expect(store.get('unrelated')).toBe('keep');
 });
 
 it('rejects stale writes and protects system views even when callers bypass UI permissions', async () => {
-  const host = new LocalStorageViewHost(options());
+  const host = new MemoryViewHost(options());
   const stale = await host.instance!.load(instance.id);
   await host.instance!.save({ ...stale, title: '最新版本' });
   await expect(host.instance!.save(stale)).rejects.toThrow(/重新加载/);
@@ -136,26 +134,26 @@ it('rejects stale writes and protects system views even when callers bypass UI p
 });
 
 it('reports corrupted data and storage failures without overwriting existing records', async () => {
-  const host = new LocalStorageViewHost(options());
-  localStorage.setItem(host.storageKey, '{broken');
+  const host = new MemoryViewHost(options());
+  store.set(host.storageKey, '{broken');
   await expect(host.instance!.list(definition.id)).rejects.toThrow();
-  expect(localStorage.getItem(host.storageKey)).toBe('{broken');
+  expect(store.get(host.storageKey)).toBe('{broken');
   await host.reset();
   const saved = await host.instance!.save(
     await host.instance!.load(instance.id),
   );
-  const before = localStorage.getItem(host.storageKey);
-  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+  const before = store.get(host.storageKey);
+  vi.spyOn(store, 'set').mockImplementation(() => {
     throw new DOMException('full', 'QuotaExceededError');
   });
   await expect(
     host.instance!.save({ ...saved, title: '不会保存' }),
   ).rejects.toThrow('full');
-  expect(localStorage.getItem(host.storageKey)).toBe(before);
+  expect(store.get(host.storageKey)).toBe(before);
 });
 
 it('keeps the default selection valid after deletion and honors aborted reads', async () => {
-  const host = new LocalStorageViewHost(options());
+  const host = new MemoryViewHost(options());
   await host.instance!.delete(
     instance.id,
     (await host.instance!.load(instance.id)).revision,
@@ -177,7 +175,7 @@ it('restores a saved view through a fresh engine while delegating record queries
   const input = { ...options(), resolveSource: source.resolveSource };
   const first = new ViewEngine({
     definitionId: definition.id,
-    host: new LocalStorageViewHost(input),
+    host: new MemoryViewHost(input),
   });
   await first.load();
   first.setTitle('持久化视图');
@@ -185,7 +183,7 @@ it('restores a saved view through a fresh engine while delegating record queries
   first.dispose();
   const second = new ViewEngine({
     definitionId: definition.id,
-    host: new LocalStorageViewHost(input),
+    host: new MemoryViewHost(input),
   });
   await second.load();
   expect(second.getSnapshot().sessions.mine.instance.title).toBe('持久化视图');
@@ -195,8 +193,8 @@ it('restores a saved view through a fresh engine while delegating record queries
 });
 
 it('keeps scoped deletion idempotent without touching another users instance', async () => {
-  const alice = new LocalStorageViewHost(options('alice'));
-  const bob = new LocalStorageViewHost(options('bob'));
+  const alice = new MemoryViewHost(options('alice'));
+  const bob = new MemoryViewHost(options('bob'));
   const own = await alice.instance.load(instance.id);
   const others = await bob.instance.load(instance.id);
   await alice.instance.delete(own.id, own.revision);
@@ -210,7 +208,7 @@ it('keeps scoped deletion idempotent without touching another users instance', a
 });
 
 it('persists both layouts and restores each configuration after reloading', async () => {
-  const host = new LocalStorageViewHost(options());
+  const host = new MemoryViewHost(options());
   const first = new ViewEngine({ definitionId: definition.id, host });
   try {
     await first.load();
@@ -225,7 +223,7 @@ it('persists both layouts and restores each configuration after reloading', asyn
     await first.save();
     const second = new ViewEngine({
       definitionId: definition.id,
-      host: new LocalStorageViewHost(options()),
+      host: new MemoryViewHost(options()),
     });
     try {
       await second.load();
@@ -243,4 +241,17 @@ it('persists both layouts and restores each configuration after reloading', asyn
   } finally {
     first.dispose();
   }
+});
+
+it('keeps default stores independent even for the same service identity', async () => {
+  const input = { ...options(), store: undefined };
+  const left = new MemoryViewHost(input);
+  const right = new MemoryViewHost(input);
+  const created = await left.instance.create(
+    { ...instance, title: 'only left' },
+    { requestId: 'private-store' },
+  );
+  await expect(right.instance.load(created.id)).rejects.toMatchObject({
+    code: 'NOT_FOUND',
+  });
 });

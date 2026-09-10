@@ -13,7 +13,7 @@
 
 import { afterEach, expect, it, vi } from 'vitest';
 import { ViewEngine } from '../../src/record/ViewEngine.js';
-import { LocalStorageViewHost } from '../../src/record/LocalStorageViewHost.js';
+import { MemoryViewHost } from '../../src/record/MemoryViewHost.js';
 import {
   ViewServiceError,
   type ViewCreateContext,
@@ -27,21 +27,12 @@ afterEach(() => {
 });
 function service(defaultInstanceId: string | null = 'mine') {
   const values = new Map<string, string>();
-  return new LocalStorageViewHost({
+  return new MemoryViewHost({
     serviceKey: 'recover',
     scopeKey: 'alice',
     definition,
     instances: { instances: [instance()], defaultInstanceId },
-    storage: {
-      getItem: key => values.get(key) ?? null,
-      setItem: (key, value) => {
-        values.set(key, value);
-      },
-      removeItem: key => {
-        values.delete(key);
-      },
-    },
-    lock: async (_name, operation) => operation(),
+    store: values,
     resolveSource: () => ({ paged: async () => ({ list: [], total: 0 }) }),
   });
 }

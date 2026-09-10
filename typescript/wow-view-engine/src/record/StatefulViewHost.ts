@@ -30,7 +30,6 @@ import {
   encodeViewResourceId,
   type ViewCreateContext,
   type ViewPermissionSnapshot,
-  type ViewStorageLock,
 } from './viewServiceContract.js';
 import type {
   ViewDefinition,
@@ -39,7 +38,7 @@ import type {
   ViewInstancePermissions,
 } from './recordModel.js';
 
-export interface LocalStorageViewHostOptions {
+export interface StatefulViewHostOptions {
   /** Trusted service/tenant namespace, independent of the current user. */
   serviceKey: string;
   /** Trusted current user identity; never take this from a write payload. */
@@ -47,19 +46,22 @@ export interface LocalStorageViewHostOptions {
   definition: ViewDefinition;
   instances: ViewInstanceList;
   resolveSource: ViewHost['resolveSource'];
-  storage: {
-    getItem(key: string): string | null;
-    setItem(key: string, value: string): void;
-    removeItem(key: string): void;
-  };
-  /** All clients for the same storage key must use the same exclusive lock domain. */
-  lock: ViewStorageLock;
   instancePermissions?: NonNullable<ViewHost['permission']>['getInstance'];
   canReorder?: () => boolean;
   permissionsRevision?: () => number;
 }
-/** Executable view-service fixture: shared content, private views/order, atomic CAS and create receipts. */
-export class LocalStorageViewHost implements ViewHost {
+export interface ViewStateChange<T> {
+  result: T;
+  value?: string | null;
+}
+export type ViewStateTransaction = <T>(
+  key: string,
+  change: (raw: string | null | undefined) => ViewStateChange<T>,
+  signal?: AbortSignal,
+) => Promise<T>;
+
+/** Shared view-domain behavior for the actual memory and IndexedDB stores. Not a public storage adapter. */
+export abstract class StatefulViewHost implements ViewHost {
   readonly definition = {
     load: async (id: string, signal?: AbortSignal): Promise<ViewDefinition> => {
       signal?.throwIfAborted();
@@ -312,10 +314,13 @@ export class LocalStorageViewHost implements ViewHost {
   readonly storageKey: string;
   private readonly storedDefinition: ViewDefinition;
   private readonly initial: ViewInstanceList;
-  private readonly options: LocalStorageViewHostOptions;
+  private readonly options: StatefulViewHostOptions;
   private readonly permissionListeners = new Set<() => void>();
 
-  constructor(options: LocalStorageViewHostOptions) {
+  protected constructor(
+    options: StatefulViewHostOptions,
+    private readonly transact: ViewStateTransaction,
+  ) {
     if (
       ![options.scopeKey, options.serviceKey].every(
         value => typeof value === 'string' && value.trim(),
@@ -345,9 +350,10 @@ export class LocalStorageViewHost implements ViewHost {
 
   /** Administrative fixture reset for this service/definition, across its users. Not a REST operation. */
   async reset(): Promise<void> {
-    await this.options.lock(this.storageKey, () =>
-      this.options.storage.removeItem(this.storageKey),
-    );
+    await this.transact(this.storageKey, () => ({
+      value: null,
+      result: undefined,
+    }));
   }
 
   private assertDefinition(id: string): void {
@@ -413,20 +419,14 @@ export class LocalStorageViewHost implements ViewHost {
     write: boolean,
     signal?: AbortSignal,
   ): Promise<T> {
-    return this.options.lock(
+    return this.transact(
       this.storageKey,
-      () => {
+      raw => {
         signal?.throwIfAborted();
-        let raw: string | null;
-        try {
-          raw = this.options.storage.getItem(this.storageKey);
-        } catch (error) {
-          throw new ViewServiceError('UNAVAILABLE', message(error));
-        }
         let state: ServiceState;
         try {
           state =
-            raw === null
+            raw == null
               ? {
                   instances: this.initial.instances
                     .filter(item => item.scope.type === 'public')
@@ -474,17 +474,10 @@ export class LocalStorageViewHost implements ViewHost {
         )
           throw new ViewServiceError('CORRUPT_STATE', '可见实例 ID 重复');
         const result = operation(state);
-        if (write || raw === null) {
-          try {
-            this.options.storage.setItem(
-              this.storageKey,
-              JSON.stringify(copy(state)),
-            );
-          } catch (error) {
-            throw new ViewServiceError('UNAVAILABLE', message(error));
-          }
-        }
-        return structuredClone(result);
+        return {
+          result: structuredClone(result),
+          value: write || raw == null ? JSON.stringify(copy(state)) : undefined,
+        };
       },
       signal,
     );

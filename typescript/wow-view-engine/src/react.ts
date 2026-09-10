@@ -101,3 +101,8 @@ export type { ViewThemeProps, ViewThemeStyle } from './theme/ViewTheme.js';
 
 export { RecordCardList } from './record/RecordCardList.js';
 export { RecordCardSettings } from './record/RecordCardSettings.js';
+
+export {
+  IndexedDBViewHost,
+  type IndexedDBViewHostOptions,
+} from './record/IndexedDBViewHost.js';

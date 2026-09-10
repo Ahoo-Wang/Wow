@@ -22,7 +22,8 @@ import displayMeta, {
 } from './RecordCardList.stories.js';
 const meta = {
   ...displayMeta,
-  title: 'View Engine/卡片模式/回归',
+  id: 'view-engine-专项场景-卡片模式-回归',
+  title: 'View Engine/专项场景/数据展示/卡片模式/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 export default meta;
@@ -61,14 +62,14 @@ export const RoundTrip: Story = {
       await canvas.findByRole('list', { name: '记录卡片' }),
     ).toBeVisible();
     await userEvent.click(
-      await canvas.findByRole('button', { name: '选择记录 ORDER-001' }),
+      await canvas.findByRole('button', { name: '选择记录 SO-202609-1001' }),
     );
     await changeLayout(canvasElement, '卡片', '表格');
     await expect(canvas.getByRole('table')).toBeVisible();
     await expect(canvas.getByText('已选本页 1 条')).toBeVisible();
     await changeLayout(canvasElement, '表格', '卡片');
     await expect(
-      await canvas.findByRole('button', { name: '选择记录 ORDER-001' }),
+      await canvas.findByRole('button', { name: '选择记录 SO-202609-1001' }),
     ).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(canvas.getByRole('button', { name: '卡片设置' }));
     const page = within(canvasElement.ownerDocument.body);

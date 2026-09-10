@@ -18,28 +18,36 @@ import {
   fireEvent,
   cleanup,
   within,
+  waitFor,
 } from '@testing-library/react';
-import { OrderExample } from '../examples/react/OrderExample.js';
+import { OrderWorkbench } from '../examples/react/sales-order/OrderWorkbench.js';
 afterEach(cleanup);
-it('shows actionable business cards and refreshes the pending queue after processing', async () => {
-  render(<OrderExample layout="card" scopeKey="card-business-test" />);
+it('opens a business order from cards and creates an order with real quantities', async () => {
+  render(<OrderWorkbench layout="card" />);
   const cards = await screen.findByRole('list', { name: '记录卡片' });
-  expect(await within(cards).findByText('青山商店')).toBeTruthy();
   fireEvent.click(
-    within(cards).getByRole('button', { name: '查看订单 DEMO-1' }),
+    await within(cards).findByRole('button', {
+      name: '查看订单 SO-202609-1018',
+    }),
   );
+  const dialog = await screen.findByRole('dialog', {
+    name: '订单详情 SO-202609-1018',
+  });
+  expect(within(dialog).getByLabelText('订单状态')).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole('button', { name: '关闭详情' }));
+  fireEvent.click(screen.getByRole('button', { name: '创建订单' }));
+  fireEvent.click(await screen.findByRole('button', { name: '确认创建' }));
   expect(
-    await screen.findByRole('dialog', { name: '订单详情 DEMO-1' }),
+    await screen.findByRole('dialog', { name: '订单详情 SO-202609-1019' }),
   ).toBeTruthy();
-  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
-  fireEvent.click(
-    within(cards).getByRole('button', { name: '处理订单 DEMO-1' }),
-  );
-  expect(await screen.findByText('已处理订单 DEMO-1')).toBeTruthy();
+  const close = screen.getByRole('button', {
+    name: '关闭详情',
+  }) as HTMLButtonElement;
+  await waitFor(() => expect(close.disabled).toBe(false));
+  fireEvent.click(close);
   expect(
-    within(cards).queryByRole('button', { name: '处理订单 DEMO-1' }),
-  ).toBeNull();
-  expect(
-    await within(cards).findByRole('button', { name: '处理订单 DEMO-2' }),
+    await within(
+      await screen.findByRole('list', { name: '记录卡片' }),
+    ).findByRole('button', { name: '查看订单 SO-202609-1019' }),
   ).toBeTruthy();
 });

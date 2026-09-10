@@ -22,11 +22,12 @@ const meta = {
       ...recordViewMeta.parameters.docs,
       description: {
         component:
-          '通过定义的 recordActions 引用全局/表格/行操作，通过字段或列 renderer 引用单元格。这里使用本地定义与应用提供的运行时注册，不要求远端视图服务。\n\n操作获得已应用 filter、sort、选中键或当前记录，以及绑定实例的 refresh。业务应用负责执行写入、错误反馈和防重；读写结果不会通过修改只读 record/instance 对象回写。完整五类扩展源码见“扩展接入 → 公共包”。',
+          '本页使用简化订单快照验证单项引擎契约；完整销售业务见“全链路体验”。\n\n通过定义的 recordActions 引用全局/表格/行操作，通过字段或列 renderer 引用单元格。这里使用本地定义与应用提供的运行时注册，不要求远端视图服务。\n\n操作获得已应用 filter、sort、选中键或当前记录，以及绑定实例的 refresh。业务应用负责执行写入、错误反馈和防重；读写结果不会通过修改只读 record/instance 对象回写。完整五类扩展源码见“扩展接入”。',
       },
     },
   },
-  title: 'View Engine/扩展接入/本地定义',
+  id: 'view-engine-专项场景-本地操作宿主',
+  title: 'View Engine/专项场景/视图与运行时/本地操作宿主',
 };
 
 export default meta;

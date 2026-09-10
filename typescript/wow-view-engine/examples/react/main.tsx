@@ -16,7 +16,7 @@ import { BuiltinCellsExample } from './BuiltinCellsExample.js';
 import { BuiltinFiltersExample } from './BuiltinFiltersExample.js';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { OrderExample } from './OrderExample.js';
+import { OrderWorkbench } from './sales-order/OrderWorkbench.js';
 import { FilterPersistenceExample } from './FilterPersistenceExample.js';
 
 const root = document.getElementById('root');
@@ -33,7 +33,7 @@ createRoot(root).render(
     ) : example === 'persistence' ? (
       <FilterPersistenceExample />
     ) : (
-      <OrderExample
+      <OrderWorkbench
         scopeKey="local-user:demo-orders"
         persistViews={example === 'local-storage'}
       />

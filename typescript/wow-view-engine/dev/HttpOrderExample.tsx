@@ -12,13 +12,13 @@
  */
 
 import {
-  OrderExample,
-  type OrderExampleProps,
-} from '../examples/react/OrderExample.js';
-import { orderDefinition } from '../examples/react/orders.js';
+  OrderWorkbench,
+  type OrderWorkbenchProps,
+} from '../examples/react/sales-order/OrderWorkbench.js';
+import { orderDefinition } from '../examples/react/sales-order/views.js';
 import { HttpViewHost } from './http/HttpViewHost.js';
 export interface HttpOrderExampleProps extends Omit<
-  OrderExampleProps,
+  OrderWorkbenchProps,
   'createViewHost'
 > {
   viewServiceUrl?: string;
@@ -33,7 +33,7 @@ export function HttpOrderExample({
   ...props
 }: HttpOrderExampleProps) {
   return (
-    <OrderExample
+    <OrderWorkbench
       {...props}
       key={JSON.stringify([viewServiceUrl, viewServiceTimeoutMs])}
       createViewHost={resolveSource =>

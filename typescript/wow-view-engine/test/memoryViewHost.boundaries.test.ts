@@ -12,20 +12,19 @@
  */
 
 import { beforeEach, expect, it, vi } from 'vitest';
-import { LocalStorageViewHost } from '../src/record/LocalStorageViewHost.js';
+import { MemoryViewHost } from '../src/record/MemoryViewHost.js';
 import type { ViewInstance } from '../src/record/recordModel.js';
 import { definition, instance } from './engine/fixtures.js';
-import { storageLock } from './fixtures/storageLock.js';
 
-beforeEach(() => localStorage.clear());
+const store = new Map<string, string | null>();
+beforeEach(() => store.clear());
 function options() {
   return {
     serviceKey: 'boundary-service',
     scopeKey: 'alice',
     definition,
     instances: { instances: [instance()], defaultInstanceId: 'mine' },
-    storage: localStorage,
-    lock: storageLock,
+    store,
     resolveSource: vi.fn(() => ({
       paged: async () => ({ list: [], total: 0 }),
     })),
@@ -39,17 +38,17 @@ it('rejects an unusable service identity or seed default before writing storage'
     { serviceKey: ' ' },
     { instances: { ...seed.instances, defaultInstanceId: 'missing' } },
   ]) {
-    expect(() => new LocalStorageViewHost({ ...seed, ...patch })).toThrow(
+    expect(() => new MemoryViewHost({ ...seed, ...patch })).toThrow(
       expect.objectContaining({ code: 'INVALID_ARGUMENT' }),
     );
-    expect(localStorage.length).toBe(0);
+    expect(store.size).toBe(0);
   }
-  expect(() => new LocalStorageViewHost(seed)).not.toThrow();
+  expect(() => new MemoryViewHost(seed)).not.toThrow();
 });
 
 it('routes only the configured record source without invoking an unrelated resolver', () => {
   const seed = options();
-  const host = new LocalStorageViewHost(seed);
+  const host = new MemoryViewHost(seed);
   expect(() => host.resolveSource('another-source')).toThrow(
     expect.objectContaining({ code: 'NOT_FOUND' }),
   );
@@ -59,14 +58,14 @@ it('routes only the configured record source without invoking an unrelated resol
 });
 
 it('rejects a missing create request identity without inserting a view or receipt', async () => {
-  const host = new LocalStorageViewHost(options());
+  const host = new MemoryViewHost(options());
   const before = await host.instance.list(definition.id);
-  const raw = localStorage.getItem(host.storageKey);
+  const raw = store.get(host.storageKey);
   for (const requestId of ['', ' ']) {
     await expect(
       host.instance.create(instance(), { requestId }),
     ).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
-    expect(localStorage.getItem(host.storageKey)).toBe(raw);
+    expect(store.get(host.storageKey)).toBe(raw);
   }
   const created = await host.instance.create(instance(), {
     requestId: 'valid',
@@ -78,7 +77,7 @@ it('rejects a missing create request identity without inserting a view or receip
 
 it('enforces creation permissions at dispatch and permits the same request after access is granted', async () => {
   let allowed = false;
-  const host = new LocalStorageViewHost({
+  const host = new MemoryViewHost({
     ...options(),
     instancePermissions: () => ({
       saveAsPersonal: allowed,
@@ -86,7 +85,7 @@ it('enforces creation permissions at dispatch and permits the same request after
     }),
   });
   await host.instance.list(definition.id);
-  const before = localStorage.getItem(host.storageKey);
+  const before = store.get(host.storageKey);
   for (const scope of [
     { type: 'personal' },
     { type: 'public', source: 'shared' },
@@ -94,7 +93,7 @@ it('enforces creation permissions at dispatch and permits the same request after
     await expect(
       host.instance.create({ ...instance(), scope }, { requestId: scope.type }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
-    expect(localStorage.getItem(host.storageKey)).toBe(before);
+    expect(store.get(host.storageKey)).toBe(before);
   }
   allowed = true;
   const created = await host.instance.create(instance(), {
@@ -104,9 +103,9 @@ it('enforces creation permissions at dispatch and permits the same request after
 });
 
 it('rejects visibility changes and invalid renames without consuming the current revision', async () => {
-  const host = new LocalStorageViewHost(options());
+  const host = new MemoryViewHost(options());
   const saved = await host.instance.load('mine');
-  const raw = localStorage.getItem(host.storageKey);
+  const raw = store.get(host.storageKey);
   await expect(
     host.instance.save({
       ...saved,
@@ -116,7 +115,7 @@ it('rejects visibility changes and invalid renames without consuming the current
   await expect(
     host.instance.rename(saved.id, ' ', saved.revision),
   ).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
-  expect(localStorage.getItem(host.storageKey)).toBe(raw);
+  expect(store.get(host.storageKey)).toBe(raw);
   const renamed = await host.instance.rename(
     saved.id,
     'Valid name',
@@ -127,12 +126,12 @@ it('rejects visibility changes and invalid renames without consuming the current
 });
 
 it('rejects stale ordering membership and accepts a refreshed complete order', async () => {
-  const host = new LocalStorageViewHost(options());
+  const host = new MemoryViewHost(options());
   const first = await host.instance.list(definition.id);
   const created = await host.instance.create(instance(), {
     requestId: 'new-view',
   });
-  const raw = localStorage.getItem(host.storageKey);
+  const raw = store.get(host.storageKey);
   for (const stale of [
     first.instances.map(item => item.id),
     ['mine', 'missing'],
@@ -140,7 +139,7 @@ it('rejects stale ordering membership and accepts a refreshed complete order', a
     await expect(
       host.preference.saveOrder(definition.id, stale),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
-    expect(localStorage.getItem(host.storageKey)).toBe(raw);
+    expect(store.get(host.storageKey)).toBe(raw);
   }
   await host.preference.saveOrder(definition.id, [created.id, 'mine']);
   expect(
@@ -150,34 +149,22 @@ it('rejects stale ordering membership and accepts a refreshed complete order', a
 
 it('reports unavailable reads without rewriting storage and succeeds after the adapter recovers', async () => {
   const seed = options();
-  const original = new LocalStorageViewHost(seed);
+  const original = new MemoryViewHost(seed);
   const saved = await original.instance.load('mine');
-  const raw = localStorage.getItem(original.storageKey);
-  const getItem = vi
-    .fn()
-    .mockImplementationOnce(() => {
-      throw new Error('storage offline');
-    })
-    .mockImplementation((key: string) => localStorage.getItem(key));
-  const setItem = vi.fn((key: string, value: string) =>
-    localStorage.setItem(key, value),
-  );
-  const host = new LocalStorageViewHost({
-    ...seed,
-    storage: {
-      getItem,
-      setItem,
-      removeItem: key => localStorage.removeItem(key),
-    },
+  const raw = store.get(original.storageKey);
+  vi.spyOn(store, 'get').mockImplementationOnce(() => {
+    throw new Error('storage offline');
   });
+  const set = vi.spyOn(store, 'set');
+  const host = new MemoryViewHost(seed);
   await expect(host.instance.load('mine')).rejects.toMatchObject({
     code: 'UNAVAILABLE',
     message: 'storage offline',
   });
-  expect(setItem).not.toHaveBeenCalled();
-  expect(localStorage.getItem(host.storageKey)).toBe(raw);
+  expect(set).not.toHaveBeenCalled();
+  expect(store.get(host.storageKey)).toBe(raw);
   expect(await host.instance.load('mine')).toEqual(saved);
-  expect(setItem).not.toHaveBeenCalled();
+  expect(set).not.toHaveBeenCalled();
 });
 
 it.each([
@@ -194,11 +181,11 @@ it.each([
 ])(
   'preserves corrupt storage with %s and recovers when valid persisted state is restored',
   async problem => {
-    const host = new LocalStorageViewHost(options());
+    const host = new MemoryViewHost(options());
     const created = await host.instance.create(instance(), {
       requestId: 'receipt',
     });
-    const valid = localStorage.getItem(host.storageKey)!;
+    const valid = store.get(host.storageKey)!;
     const state = JSON.parse(valid);
     const mine = state.instances.find(
       (item: ViewInstance) => item.id === 'mine',
@@ -249,12 +236,12 @@ it.each([
       },
     }[problem];
     const corrupt = JSON.stringify(invalid);
-    localStorage.setItem(host.storageKey, corrupt);
+    store.set(host.storageKey, corrupt);
     await expect(host.instance.list(definition.id)).rejects.toMatchObject({
       code: 'CORRUPT_STATE',
     });
-    expect(localStorage.getItem(host.storageKey)).toBe(corrupt);
-    localStorage.setItem(host.storageKey, valid);
+    expect(store.get(host.storageKey)).toBe(corrupt);
+    store.set(host.storageKey, valid);
     expect(await host.instance.load(created.id)).toEqual(created);
     expect(
       await host.instance.create(instance(), { requestId: 'receipt' }),

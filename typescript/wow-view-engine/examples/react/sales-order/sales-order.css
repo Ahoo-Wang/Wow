@@ -1,0 +1,404 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.sales-workbench {
+  padding: 24px;
+  background: var(--fve-background);
+  color: var(--fve-foreground);
+  font-family: system-ui, sans-serif;
+  min-width: 0;
+}
+
+.sales-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.sales-header h2 {
+  font-size: 24px;
+  line-height: 1.3;
+  margin: 8px 0 12px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+.sales-header p {
+  max-width: 760px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.sales-eyebrow {
+  font-size: 12px;
+  color: var(--fve-primary);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+}
+
+.sales-controls {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  flex-shrink: 0;
+}
+
+.sales-context {
+  font-size: 12px;
+  color: var(--fve-muted-foreground);
+  padding: 12px 0 18px;
+  border-bottom: 1px solid var(--fve-border);
+  margin-bottom: 16px;
+}
+
+.sales-muted {
+  color: var(--fve-muted-foreground);
+  line-height: 1.6;
+}
+
+.sales-notice {
+  font-size: 13px;
+  min-height: 30px;
+  padding: 10px 0;
+}
+
+.sales-dev {
+  font-size: 12px;
+  border-top: 1px solid var(--fve-border);
+  padding-top: 16px;
+}
+
+.sales-dev summary {
+  cursor: pointer;
+}
+
+.sales-dev pre {
+  overflow: auto;
+  padding: 12px;
+  background: var(--fve-muted);
+}
+
+.sales-dialog-scope {
+  font-family: system-ui, sans-serif;
+  color: var(--fve-foreground);
+}
+
+.sales-backdrop {
+  position: fixed;
+  inset: 0;
+  background: #0006;
+  z-index: 100;
+}
+
+.sales-dialog {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(860px, calc(100vw - 32px));
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--fve-background);
+  color: var(--fve-foreground);
+  border: 1px solid var(--fve-border);
+  border-radius: 12px;
+  padding: 28px;
+  z-index: 101;
+  box-shadow: 0 20px 60px #0003;
+}
+
+.sales-dialog h2 {
+  font-size: 20px;
+  font-weight: 650;
+  margin: 0 70px 8px 0;
+}
+
+.sales-close {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+}
+
+.sales-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.sales-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin: 18px 0;
+}
+
+.sales-form label,
+.sales-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.sales-form input,
+.sales-form select,
+.sales-form textarea,
+.sales-controls select {
+  background: var(--fve-background);
+  color: var(--fve-foreground);
+  border: 1px solid var(--fve-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  min-width: 0;
+  width: 100%;
+  font: inherit;
+}
+
+.sales-form textarea {
+  min-height: 80px;
+}
+
+.sales-form input:focus-visible,
+.sales-form select:focus-visible,
+.sales-controls select:focus-visible {
+  outline: 2px solid var(--fve-ring);
+  outline-offset: 2px;
+}
+
+.sales-item-form {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin: 14px 0;
+}
+
+.sales-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid var(--fve-border);
+  padding-top: 18px;
+  margin-top: 20px;
+}
+
+.sales-facts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+
+.sales-facts span {
+  background: var(--fve-muted);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.sales-totals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.sales-totals dt {
+  font-size: 12px;
+  color: var(--fve-muted-foreground);
+}
+
+.sales-totals dd {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 6px 0;
+}
+
+.sales-table-scroll {
+  overflow: auto;
+  margin: 20px 0;
+}
+
+.sales-details table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.sales-details caption {
+  text-align: left;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.sales-details th,
+.sales-details td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--fve-border);
+}
+
+.sales-details details {
+  border-top: 1px solid var(--fve-border);
+  padding: 14px 0;
+  font-size: 13px;
+}
+
+.sales-details summary {
+  cursor: pointer;
+}
+
+.sales-details li {
+  margin: 8px 0;
+}
+
+.sales-details h3 {
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+.sales-actions {
+  border-top: 1px solid var(--fve-border);
+  padding-top: 16px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sales-actions h3 {
+  width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sales-actions > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-width: 220px;
+}
+
+.sales-actions small {
+  font-size: 11px;
+  color: var(--fve-muted-foreground);
+  max-width: 170px;
+}
+
+.sales-error {
+  padding: 12px;
+  border: 1px solid var(--fve-destructive);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.sales-card-note {
+  font-size: 12px;
+  padding: 8px;
+  color: var(--fve-muted-foreground);
+}
+
+@media (width <= 640px) {
+  .sales-workbench {
+    padding: 12px;
+  }
+
+  .sales-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .sales-header h2 {
+    font-size: 21px;
+  }
+
+  .sales-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .sales-item-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .sales-dialog {
+    padding: 20px;
+  }
+
+  .sales-totals {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.sales-next {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: var(--fve-muted);
+  padding: 12px;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+
+.sales-next > div {
+  flex: 1;
+  min-width: 200px;
+}
+
+.sales-next p {
+  font-size: 12px;
+  color: var(--fve-foreground);
+  margin: 6px 0 0;
+}
+
+.sales-next label {
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sales-next select {
+  font: inherit;
+  padding: 6px;
+  border: 1px solid var(--fve-border);
+  border-radius: 6px;
+  background: var(--fve-background);
+  color: var(--fve-foreground);
+}
+
+.sales-actions {
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--fve-border);
+  padding-bottom: 12px;
+}
+
+.sales-order-context {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.sales-order-context dt {
+  font-size: 12px;
+  color: var(--fve-muted-foreground);
+}
+
+.sales-order-context dd {
+  font-size: 13px;
+  margin: 4px 0;
+}

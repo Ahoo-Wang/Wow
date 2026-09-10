@@ -26,11 +26,12 @@ const meta = {
       ...recordViewMeta.parameters.docs,
       description: {
         component:
-          '检查同一数据视图在不同容器宽度和主题中的表现。列根据容器布局，主键与操作边缘保持固定；日期范围与普通筛选项遵循同一网格。\n\n依次尝试：拖动列宽 → 打开列设置/日期弹层 → 切换主题 → 缩窄容器。弹层应保留主题、可读内容和 Escape 焦点恢复。显式主题使用 `.fve-root` 与 `data-theme`，消费者无需 Tailwind 构建。',
+          '本页使用简化订单快照验证单项引擎契约；完整销售业务见“全链路体验”。\n\n检查同一数据视图在不同容器宽度和主题中的表现。列根据容器布局，主键与操作边缘保持固定；日期范围与普通筛选项遵循同一网格。\n\n依次尝试：拖动列宽 → 打开列设置/日期弹层 → 切换主题 → 缩窄容器。弹层应保留主题、可读内容和 Escape 焦点恢复。显式主题使用 `.fve-root` 与 `data-theme`，消费者无需 Tailwind 构建。',
       },
     },
   },
-  title: 'View Engine/Record View/布局与主题',
+  id: 'view-engine-专项场景-record-view-布局与主题',
+  title: 'View Engine/专项场景/数据展示/布局与主题',
 };
 
 export default meta;

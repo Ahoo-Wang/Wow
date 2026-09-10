@@ -44,13 +44,6 @@ export interface ViewPermissionSnapshot {
   instances: Record<string, Required<ViewInstancePermissions>>;
   reorder: boolean;
 }
-/** Inject Web Locks in browsers or the service's transaction lock in tests. */
-export type ViewStorageLock = <T>(
-  name: string,
-  operation: () => T,
-  signal?: AbortSignal,
-) => Promise<T>;
-
 /** Encode one resource ID without allowing URL normalization to change its resource. */
 export function encodeViewResourceId(value: unknown): string {
   if (

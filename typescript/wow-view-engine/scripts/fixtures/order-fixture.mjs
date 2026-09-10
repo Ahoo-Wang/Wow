@@ -12,22 +12,27 @@ export async function loadOrderFixture() {
   const packageRoot = fileURLToPath(new URL('../../', import.meta.url));
   const temporary = mkdtempSync(join(packageRoot, '.view-service-fixture-'));
   try {
-    const source = readFileSync(
-      join(packageRoot, 'examples/react/orders.ts'),
-      'utf8',
+    for (const name of ['model', 'views']) {
+      const source = readFileSync(
+        join(packageRoot, `examples/react/sales-order/${name}.ts`),
+        'utf8',
+      );
+      writeFileSync(
+        join(temporary, `${name}.js`),
+        ts.transpileModule(source, {
+          compilerOptions: {
+            target: ts.ScriptTarget.ES2022,
+            module: ts.ModuleKind.ESNext,
+          },
+        }).outputText,
+      );
+    }
+    const fixture = await import(
+      pathToFileURL(join(temporary, 'views.js')).href
     );
-    const javascript = ts.transpileModule(source, {
-      compilerOptions: {
-        target: ts.ScriptTarget.ES2022,
-        module: ts.ModuleKind.ESNext,
-      },
-    }).outputText;
-    const file = join(temporary, 'orders.mjs');
-    writeFileSync(file, javascript);
-    const fixture = await import(pathToFileURL(file).href);
     return {
       definition: fixture.orderDefinition,
-      instances: fixture.orderViews,
+      instances: fixture.createProtocolViews(),
     };
   } finally {
     rmSync(temporary, { recursive: true, force: true });

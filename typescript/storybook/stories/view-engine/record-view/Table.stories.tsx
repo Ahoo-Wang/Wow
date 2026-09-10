@@ -23,11 +23,12 @@ const meta = {
       ...recordViewMeta.parameters.docs,
       description: {
         component:
-          '列配置包含显隐、顺序、宽度、固定位置和多选汇总。列宽通过表头边缘拖动调整；普通列沿相邻固定列扩展固定区域。\n\n订单金额与实付金额分别使用 state.totalAmount、state.paidAmount，商品明细保留在 state.items。默认同时汇总两列，包含未付、部分支付与付清的订单。\n\n本页汇总来自已加载记录，所有汇总来自已应用筛选的 aggregate 查询，均不按选中行计算。商品明细条件筛选整笔订单，汇总计算订单金额；不会仅累加命中的明细。可同时选择 SUM/AVG/MIN/MAX；金额与汇总共用字段 numberFormat。\n\n失败入口紧邻“所有”标签，每个范围只显示一次；展开查看原因并独立重试。加载使用 Spin，空记录和缺失数值保持图标/占位。',
+          '本页使用简化订单快照验证单项引擎契约；完整销售业务见“全链路体验”。\n\n列配置包含显隐、顺序、宽度、固定位置和多选汇总。列宽通过表头边缘拖动调整；普通列沿相邻固定列扩展固定区域。\n\n订单金额与实付金额分别使用 state.totalAmount、state.paidAmount，商品明细保留在 state.items。默认同时汇总两列，包含未付、部分支付与付清的订单。\n\n本页汇总来自已加载记录，所有汇总来自已应用筛选的 aggregate 查询，均不按选中行计算。商品明细条件筛选整笔订单，汇总计算订单金额；不会仅累加命中的明细。可同时选择 SUM/AVG/MIN/MAX；金额与汇总共用字段 numberFormat。\n\n失败入口紧邻“所有”标签，每个范围只显示一次；展开查看原因并独立重试。加载使用 Spin，空记录和缺失数值保持图标/占位。',
       },
     },
   },
-  title: 'View Engine/Record View/表格与汇总',
+  id: 'view-engine-专项场景-record-view-表格与汇总',
+  title: 'View Engine/专项场景/数据展示/表格与汇总',
 };
 
 export default meta;

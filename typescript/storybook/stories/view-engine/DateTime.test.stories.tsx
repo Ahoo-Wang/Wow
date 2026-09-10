@@ -25,7 +25,8 @@ import type { StoryObj as RegressionStoryObj } from '@storybook/react-vite';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/基础组件/日期时间/回归',
+  id: 'view-engine-专项场景-基础组件-日期时间-回归',
+  title: 'View Engine/专项场景/组件与主题/日期时间/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 

@@ -24,7 +24,8 @@ import type { StoryObj as RegressionStoryObj } from '@storybook/react-vite';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/扩展接入/公共包/回归',
+  id: 'view-engine-专项场景-配置与恢复-回归',
+  title: 'View Engine/专项场景/视图与运行时/配置与恢复/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 

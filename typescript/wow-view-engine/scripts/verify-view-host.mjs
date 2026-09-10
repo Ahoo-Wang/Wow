@@ -26,7 +26,7 @@ const baseUrl = (
 const url =
   process.env.VIEW_HOST_E2E_URL ??
   `${baseUrl}/iframe.html?id=development-local-storage--local-storage-views&viewMode=story`;
-const key = 'fve:views:["demo-view-service","demo-orders"]';
+const key = 'fve:views:["sales-demo","sales-orders"]';
 const channel = process.env.VIEW_ENGINE_BROWSER_CHANNEL;
 const browser = await chromium.launch({
   ...(channel ? { channel } : {}),
@@ -36,17 +36,36 @@ try {
   const page = await browser.newPage({
     viewport: { width: 1440, height: 1000 },
   });
+  await page.addInitScript(() => {
+    window.readViewState = key =>
+      new Promise((resolve, reject) => {
+        const request = indexedDB.open('fve-view-state', 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const tx = db.transaction('states');
+          const read = tx.objectStore('states').get(key);
+          read.onsuccess = () =>
+            resolve(read.result ? JSON.parse(read.result) : null);
+          tx.oncomplete = () => db.close();
+          tx.onabort = () => {
+            db.close();
+            reject(tx.error);
+          };
+        };
+      });
+  });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   const read = () =>
-    page.evaluate(key => {
-      const state = JSON.parse(localStorage.getItem(key));
+    page.evaluate(async key => {
+      const state = await window.readViewState(key);
       if (!state) return null;
-      const user = state.users['storybook:local-view-host'];
+      const user = state.users['storybook:local-view-host:sales'];
       const visible = state.instances.filter(
         item =>
           item.ownerKey === null ||
-          item.ownerKey === 'storybook:local-view-host',
+          item.ownerKey === 'storybook:local-view-host:sales',
       );
       const ids = [
         ...user.order.filter(id => visible.some(item => item.id === id)),
@@ -81,20 +100,24 @@ try {
   const closeManager = manager =>
     manager.getByRole('button', { name: '关闭', exact: true }).click();
   await page.goto(url);
-  await page.getByRole('cell', { name: 'DEMO-1', exact: true }).waitFor();
+  await page
+    .getByRole('cell', { name: 'SO-202609-1018', exact: true })
+    .waitFor();
   await editor().fill('只能从组件属性恢复的标签');
   await status().click();
-  await page.getByRole('option', { name: '已处理', exact: true }).click();
+  await page.getByRole('option', { name: '已确认', exact: true }).click();
   await query();
-  await page.getByRole('cell', { name: 'DEMO-3', exact: true }).waitFor();
+  await page
+    .getByRole('cell', { name: 'SO-202609-1017', exact: true })
+    .waitFor();
   await save();
   await page.waitForFunction(
-    key =>
-      JSON.parse(localStorage.getItem(key))?.instances.find(
+    async key =>
+      (await window.readViewState(key))?.instances.find(
         item =>
-          item.id === 'pending' &&
-          item.ownerKey === 'storybook:local-view-host',
-      ).config.filters.root.props.selectedId === 'processed',
+          item.id === 'my-orders' &&
+          item.ownerKey === 'storybook:local-view-host:sales',
+      ).config.filters.root.props.selectedId === 'confirmed',
     key,
   );
   const saved = await read();
@@ -104,64 +127,55 @@ try {
     '只能从组件属性恢复的标签',
   );
   await reload();
-  await page.getByRole('cell', { name: 'DEMO-3', exact: true }).waitFor();
-  assert.equal((await status().textContent()).trim(), '已处理');
+  await page
+    .getByRole('cell', { name: 'SO-202609-1017', exact: true })
+    .waitFor();
+  assert.equal(
+    (await status().textContent()).replace('▼', '').trim(),
+    '已确认',
+  );
   assert.equal(await editor().inputValue(), '只能从组件属性恢复的标签');
 
-  // The same restored runtime resolves all five extension types; record writes do not rewrite view JSON.
-  await status().click();
-  await page.getByRole('option', { name: '待处理', exact: true }).click();
-  await query();
-  await page.getByLabel('金额 120.00 元', { exact: true }).waitFor();
+  // Business writes refresh the active view without writing view configuration.
   const beforeActions = await read();
   await page.getByRole('button', { name: '创建订单', exact: true }).click();
-  await page.getByRole('cell', { name: 'DEMO-4', exact: true }).waitFor();
+  await page.getByRole('button', { name: '确认创建', exact: true }).click();
   await page
-    .getByRole('button', { name: '处理订单 DEMO-1', exact: true })
-    .click();
-  await page
-    .getByRole('cell', { name: 'DEMO-1', exact: true })
-    .waitFor({ state: 'detached' });
-  await page
-    .getByRole('checkbox', { name: '选择记录 DEMO-2', exact: true })
-    .click();
-  await page
-    .getByRole('checkbox', { name: '选择记录 DEMO-4', exact: true })
-    .click();
-  await page.getByRole('button', { name: '批量处理', exact: true }).click();
-  await page.getByRole('img', { name: '暂无记录', exact: true }).waitFor();
+    .getByRole('dialog', { name: '订单详情 SO-202609-1019', exact: true })
+    .waitFor();
+  await page.getByRole('button', { name: '关闭详情', exact: true }).click();
   assert.deepEqual(await read(), beforeActions);
-  await page
-    .getByRole('button', { name: '重新打开已保存视图', exact: true })
-    .click();
-  await page.getByRole('cell', { name: 'DEMO-3', exact: true }).waitFor();
-  assert.equal((await status().textContent()).trim(), '已处理');
   await reload();
-  await page.getByRole('cell', { name: 'DEMO-3', exact: true }).waitFor();
   assert.equal(
-    await page.getByRole('cell', { name: 'DEMO-4', exact: true }).count(),
+    await page
+      .getByRole('cell', { name: 'SO-202609-1019', exact: true })
+      .count(),
     0,
   );
 
   // An unset component must survive even though it compiles to MATCH_ALL.
   await page.getByRole('button', { name: /^清空条件值：/ }).click();
-  await page.getByRole('cell', { name: 'DEMO-1', exact: true }).waitFor();
+  await page
+    .getByRole('cell', { name: 'SO-202609-1018', exact: true })
+    .waitFor();
   await save();
   await page.waitForFunction(
-    key =>
+    async key =>
       !(
         'selectedId' in
-        JSON.parse(localStorage.getItem(key)).instances.find(
+        (await window.readViewState(key)).instances.find(
           item =>
-            item.id === 'pending' &&
-            item.ownerKey === 'storybook:local-view-host',
+            item.id === 'my-orders' &&
+            item.ownerKey === 'storybook:local-view-host:sales',
         ).config.filters.root.props
       ),
     key,
   );
   await reload();
-  await page.getByRole('cell', { name: 'DEMO-1', exact: true }).waitFor();
-  assert.equal((await status().textContent()).trim(), '不限');
+  await page
+    .getByRole('cell', { name: 'SO-202609-1018', exact: true })
+    .waitFor();
+  assert.equal((await status().textContent()).replace('▼', '').trim(), '不限');
   assert.equal(await editor().inputValue(), '只能从组件属性恢复的标签');
 
   let manager = await openManager();
@@ -178,13 +192,13 @@ try {
     0,
   );
   await manager
-    .getByRole('button', { name: '编辑待处理订单名称', exact: true })
+    .getByRole('button', { name: '编辑我的订单名称', exact: true })
     .click();
   await manager
-    .getByRole('textbox', { name: '待处理订单名称', exact: true })
+    .getByRole('textbox', { name: '我的订单名称', exact: true })
     .fill('本地验证视图');
   await manager
-    .getByRole('button', { name: '保存待处理订单名称', exact: true })
+    .getByRole('button', { name: '保存我的订单名称', exact: true })
     .click();
   await manager
     .getByRole('button', { name: '编辑本地验证视图名称', exact: true })
@@ -198,8 +212,8 @@ try {
     .fill('可恢复副本');
   await dialog.getByRole('button', { name: '创建视图', exact: true }).click();
   await page.waitForFunction(
-    key =>
-      JSON.parse(localStorage.getItem(key)).instances.some(
+    async key =>
+      (await window.readViewState(key)).instances.some(
         item => item.title === '可恢复副本',
       ),
     key,
@@ -212,9 +226,13 @@ try {
     .getByRole('button', { name: '拖动调整可恢复副本顺序', exact: true })
     .press('ArrowUp');
   await page.waitForFunction(
-    ({ key, id }) =>
-      JSON.parse(localStorage.getItem(key)).users['storybook:local-view-host']
-        .order[0] === id,
+    async ({ key, id }) =>
+      (await window.readViewState(key)).users[
+        'storybook:local-view-host:sales'
+      ].order.indexOf(id) <
+      (await window.readViewState(key)).users[
+        'storybook:local-view-host:sales'
+      ].order.indexOf('my-orders'),
     { key, id: copy.id },
   );
   await closeManager(manager);
@@ -235,10 +253,8 @@ try {
     .getByRole('button', { name: '删除视图', exact: true })
     .click();
   await page.waitForFunction(
-    ({ key, id }) =>
-      !JSON.parse(localStorage.getItem(key)).instances.some(
-        item => item.id === id,
-      ),
+    async ({ key, id }) =>
+      !(await window.readViewState(key)).instances.some(item => item.id === id),
     { key, id: copy.id },
   );
   await closeManager(manager);

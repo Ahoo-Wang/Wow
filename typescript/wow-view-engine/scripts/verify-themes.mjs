@@ -270,7 +270,7 @@ try {
       ).backgroundColor.startsWith('oklch('),
     );
     const selected = page.getByRole('checkbox', {
-      name: '选择记录 DEMO-1',
+      name: '选择记录 SO-202609-1018',
       exact: true,
     });
     await selected.check();

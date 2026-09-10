@@ -34,10 +34,26 @@ import '@ahoo-wang/fetcher-view-engine/themes/green.css';
 import '@ahoo-wang/fetcher-view-engine/themes/orange.css';
 import '@ahoo-wang/fetcher-view-engine/themes/shadcn.css';
 import './my-theme.css';
-import { createOrderService } from './orderService.js';
-import { orderDefinition, orderViews } from './orders.js';
-import { OrderOperationsProvider } from './OrderOperations.js';
-import { orderExtensions } from './OrderExtensions.js';
+import { createOrderService } from './sales-order/service.js';
+import { createOrderHost } from './sales-order/host.js';
+import { orderDefinition, createProtocolViews } from './sales-order/views.js';
+
+import { orderExtensions } from './sales-order/OrderExtensions.js';
+
+const orderViews = createProtocolViews();
+const definition = structuredClone(orderDefinition);
+// This theme gallery has no business action provider; remove action slots from both layouts.
+delete definition.recordActions;
+if (definition.defaultPresentation?.card)
+  definition.defaultPresentation = {
+    ...definition.defaultPresentation,
+    card: { ...definition.defaultPresentation.card, actions: undefined },
+  };
+for (const instance of orderViews.instances) {
+  const table = instance.config.presentation?.table;
+  if (table)
+    table.columns = table.columns.filter(column => column.kind !== 'actions');
+}
 
 /** All styling and components are consumed through public package entry points. */
 export function ThemesExample() {
@@ -46,7 +62,12 @@ export function ThemesExample() {
     useState<ViewThemeProps['appearance']>('light');
   const [density, setDensity] =
     useState<ViewThemeProps['density']>('comfortable');
-  const [service] = useState(() => createOrderService());
+  const [host] = useState(() =>
+    createOrderHost(createOrderService(), 'sales', 'all', {
+      definition,
+      instances: orderViews,
+    }),
+  );
   return (
     <div className="theme-example-host">
       <ViewTheme
@@ -139,22 +160,19 @@ export function ThemesExample() {
           {'\n'}
           {`<ViewTheme theme="${theme}" appearance="${appearance}" density="${density}">`}
         </pre>
-        <OrderOperationsProvider service={service}>
-          {busy => (
-            <ViewPage
-              scopeKey="theme-example"
-              definitionId={orderDefinition.id}
-              definition={orderDefinition}
-              instances={orderViews}
-              host={service.host}
-              extensions={orderExtensions}
-              renderToolbar={context => <ToolbarNote {...context} />}
-              selectable
-              autoRefreshPaused={busy}
-              initialSidebarCollapsed
-            />
-          )}
-        </OrderOperationsProvider>
+
+        <ViewPage
+          scopeKey="theme-example"
+          definitionId={orderDefinition.id}
+          definition={definition}
+          instances={orderViews}
+          host={host}
+          extensions={orderExtensions}
+          renderToolbar={context => <ToolbarNote {...context} />}
+          selectable
+
+          initialSidebarCollapsed
+        />
       </ViewTheme>
     </div>
   );

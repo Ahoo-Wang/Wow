@@ -13,66 +13,40 @@
 
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
-import { OrderExample } from '../../packages/view-engine/examples/react/OrderExample.js';
+import { OrderWorkbench } from '../../packages/view-engine/examples/react/sales-order/OrderWorkbench.js';
+import { playFailureAndScope } from './libraryDelivery.play.js';
 const meta = {
   title: 'View Engine/订单卡片/业务回归',
-  component: OrderExample,
+  component: OrderWorkbench,
   args: { layout: 'card' },
   tags: ['!dev', '!autodocs', 'test'],
-} satisfies Meta<typeof OrderExample>;
+} satisfies Meta<typeof OrderWorkbench>;
 export default meta;
-type Story = StoryObj<typeof meta>;
-const Cards = {};
-export const BusinessActions: Story = {
-  ...Cards,
+export const BusinessActions: StoryObj<typeof meta> = {
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
+    const canvas = within(canvasElement),
+      page = within(canvasElement.ownerDocument.body);
     const cards = await canvas.findByRole('list', { name: '记录卡片' });
     await userEvent.click(
-      await within(cards).findByRole('button', { name: '查看订单 DEMO-1' }),
+      await within(cards).findByRole('button', {
+        name: '查看订单 SO-202609-1018',
+      }),
     );
-    const page = within(canvasElement.ownerDocument.body);
-    await expect(
-      await page.findByRole('dialog', { name: '订单详情 DEMO-1' }),
-    ).toBeVisible();
-    await userEvent.keyboard('{Escape}');
+    const dialog = await page.findByRole('dialog', {
+      name: '订单详情 SO-202609-1018',
+    });
+    await expect(within(dialog).getByLabelText('订单状态')).toBeVisible();
+    await userEvent.click(page.getByRole('button', { name: '关闭详情' }));
+    await userEvent.click(canvas.getByRole('button', { name: '创建订单' }));
     await userEvent.click(
-      within(cards).getByRole('button', { name: '处理订单 DEMO-1' }),
-    );
-    await expect(await canvas.findByText('已处理订单 DEMO-1')).toBeVisible();
-    await expect(
-      within(cards).queryByRole('button', { name: '处理订单 DEMO-1' }),
-    ).not.toBeInTheDocument();
-    await userEvent.click(
-      await canvas.findByRole('button', { name: '选择记录 DEMO-2' }),
-    );
-    await userEvent.click(
-      canvas.getByRole('button', { name: '批量处理', exact: true }),
-    );
-    await expect(await canvas.findByText('已处理 1 笔订单')).toBeVisible();
-    await expect(
-      await canvas.findByText('暂无数据', { exact: true }),
-    ).toBeVisible();
-    await userEvent.click(
-      canvas.getByRole('button', { name: '创建订单', exact: true }),
+      await page.findByRole('button', { name: '确认创建' }),
     );
     await expect(
-      await canvas.findByRole('button', { name: '处理订单 DEMO-4' }),
+      await page.findByRole('dialog', { name: '订单详情 SO-202609-1019' }),
     ).toBeVisible();
   },
 };
-export const RetryBusinessAction: Story = {
-  ...Cards,
-  args: { failFirstWrite: true },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(
-      await canvas.findByRole('button', { name: '处理订单 DEMO-1' }),
-    );
-    await expect(await canvas.findByRole('alert')).toHaveTextContent(
-      '订单处理暂时失败',
-    );
-    await userEvent.click(canvas.getByRole('button', { name: '重试订单操作' }));
-    await expect(await canvas.findByText('已处理订单 DEMO-1')).toBeVisible();
-  },
+export const RetryBusinessAction: StoryObj<typeof meta> = {
+  args: { failFirstQuery: true, failFirstWrite: true },
+  play: playFailureAndScope,
 };

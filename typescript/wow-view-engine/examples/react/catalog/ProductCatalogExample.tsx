@@ -11,12 +11,10 @@
  * limitations under the License.
  */
 
+import { IndexedDBViewHost } from '@ahoo-wang/fetcher-view-engine/react';
 import { createContext, useContext, useRef, useState } from 'react';
 import { HeartIcon } from 'lucide-react';
-import {
-  LocalStorageViewHost,
-  type ViewHost,
-} from '@ahoo-wang/fetcher-view-engine';
+import { type ViewHost } from '@ahoo-wang/fetcher-view-engine';
 import {
   Button,
   ViewPage,
@@ -62,12 +60,9 @@ function CatalogWorkspace({
   const [generation, setGeneration] = useState(0);
   const [host] = useState<ViewHost>(() =>
     persistViews
-      ? new LocalStorageViewHost({
+      ? new IndexedDBViewHost({
           scopeKey: 'demo:product-catalog',
           serviceKey: 'catalog-v1',
-          storage: localStorage,
-          lock: (name, operation, signal) =>
-            navigator.locks.request(name, { signal }, operation),
           definition,
           instances: views,
           resolveSource: () => catalog.source,

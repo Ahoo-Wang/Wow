@@ -28,11 +28,12 @@ const meta = {
       ...recordViewMeta.parameters.docs,
       description: {
         component:
-          '筛选输入只修改草稿，Enter/查询才更新记录。已应用区域的清空按钮将控件值恢复为未设置并立即查询，不删除控件。\n\n普通分页返回 list/total；游标模式返回 list/nextCursor，只向后翻页。每条记录采用 Wow MaterializedSnapshot<OrderState>：aggregateId 为行标识，业务字段使用 state.customer、state.totalAmount、state.paidAmount 等路径，state.items 保留商品、单价、数量和小计。下单时间使用快照 firstEventTime，支付时间使用 state.paidAt，两者均为毫秒时间戳；未支付时 paidAt 为 null。金额单位为人民币元；商品明细通过自定义渲染器组合内置 TagsCell 展示。\n\nfirstOperator（创建人）与 operator（最后操作人）保存 userId，字段 options 使用 { value: userId, label: 姓名 } 映射。内置 text 单元格显示姓名，multi-select 按姓名选择但提交 ID；没有映射的 ID 保留原值。新建记录使用当前用户作为创建人，批量处理仅更新最后操作人。\n\n排序、页大小和筛选改变后由引擎重新协调查询。失败时保留可恢复状态，空结果保留工具栏与创建入口。请实际修改条件、切页并重试失败场景，观察记录而不只观察开发输出。所有 source 方法沿用 Wow QueryApi，取消信号继续传给业务 I/O。',
+          '本页使用简化订单快照验证单项引擎契约；完整销售业务见“全链路体验”。\n\n筛选输入只修改草稿，Enter/查询才更新记录。已应用区域的清空按钮将控件值恢复为未设置并立即查询，不删除控件。\n\n普通分页返回 list/total；游标模式返回 list/nextCursor，只向后翻页。每条记录采用 Wow MaterializedSnapshot<OrderState>：aggregateId 为行标识，业务字段使用 state.customer、state.totalAmount、state.paidAmount 等路径，state.items 保留商品、单价、数量和小计。下单时间使用快照 firstEventTime，支付时间使用 state.paidAt，两者均为毫秒时间戳；未支付时 paidAt 为 null。金额单位为人民币元；商品明细通过自定义渲染器组合内置 TagsCell 展示。\n\nfirstOperator（创建人）与 operator（最后操作人）保存 userId，字段 options 使用 { value: userId, label: 姓名 } 映射。内置 text 单元格显示姓名，multi-select 按姓名选择但提交 ID；没有映射的 ID 保留原值。新建记录使用当前用户作为创建人，批量处理仅更新最后操作人。\n\n排序、页大小和筛选改变后由引擎重新协调查询。失败时保留可恢复状态，空结果保留工具栏与创建入口。请实际修改条件、切页并重试失败场景，观察记录而不只观察开发输出。所有 source 方法沿用 Wow QueryApi，取消信号继续传给业务 I/O。',
       },
     },
   },
-  title: 'View Engine/Record View/查询与分页',
+  id: 'view-engine-专项场景-record-view-查询与分页',
+  title: 'View Engine/专项场景/查询与筛选/查询与分页',
 };
 
 export default meta;

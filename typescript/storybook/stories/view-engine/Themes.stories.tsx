@@ -14,7 +14,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { ThemesExample } from '../../packages/view-engine/examples/react/ThemesExample.js';
 const meta = {
-  title: 'View Engine/主题/可导入主题',
+  id: 'view-engine-专项场景-主题-可导入主题',
+  title: 'View Engine/专项场景/组件与主题/可导入主题',
   component: ThemesExample,
 } satisfies Meta<typeof ThemesExample>;
 export default meta;

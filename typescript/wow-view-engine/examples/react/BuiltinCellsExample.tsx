@@ -11,10 +11,12 @@
  * limitations under the License.
  */
 
+import { IndexedDBViewHost } from '@ahoo-wang/fetcher-view-engine/react';
 import { useState } from 'react';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import {
-  LocalStorageViewHost,
+  MemoryViewHost,
+  type MemoryViewHostOptions,
   createFilterConfiguration,
   type RecordData,
   type ViewDefinition,
@@ -231,18 +233,7 @@ function CellSession({
   const [generation, setGeneration] = useState(0);
   const [saved, setSaved] = useState('');
   const [createHost] = useState(() => {
-    const memory = new Map<string, string>();
-    const storage = persist
-      ? localStorage
-      : {
-          getItem: (key: string) => memory.get(key) ?? null,
-          setItem: (key: string, value: string) => {
-            memory.set(key, value);
-          },
-          removeItem: (key: string) => {
-            memory.delete(key);
-          },
-        };
+    const store = new Map<string, string | null>();
     const rows = invalidData
       ? [
           {
@@ -256,22 +247,22 @@ function CellSession({
           },
         ]
       : records;
-    return () =>
-      new LocalStorageViewHost({
-        serviceKey: 'builtin-cell-demo',
-        scopeKey,
-        storage,
-        definition,
-        instances,
-        lock: (name, operation, signal) =>
-          navigator.locks.request(name, { signal }, operation),
-        resolveSource: () => ({
-          paged: async <T extends Partial<RecordData> = RecordData>() => ({
-            list: structuredClone(rows) as T[],
-            total: rows.length,
-          }),
+    const configuration: MemoryViewHostOptions = {
+      serviceKey: 'builtin-cell-demo',
+      scopeKey,
+      definition,
+      instances,
+      resolveSource: () => ({
+        paged: async <T extends Partial<RecordData> = RecordData>() => ({
+          list: structuredClone(rows) as T[],
+          total: rows.length,
         }),
-      });
+      }),
+    };
+    return () =>
+      persist
+        ? new IndexedDBViewHost(configuration)
+        : new MemoryViewHost({ ...configuration, store });
   });
   const [host, setHost] = useState(createHost);
   return (

@@ -61,16 +61,15 @@ export {
 export { sameFilterQuery } from './filter/filterTree.js';
 
 export {
-  LocalStorageViewHost,
-  type LocalStorageViewHostOptions,
-} from './record/LocalStorageViewHost.js';
+  MemoryViewHost,
+  type MemoryViewHostOptions,
+} from './record/MemoryViewHost.js';
 
 export { ViewServiceError } from './record/viewServiceContract.js';
 export type {
   ViewServiceErrorCode,
   ViewCreateContext,
   ViewPermissionSnapshot,
-  ViewStorageLock,
 } from './record/viewServiceContract.js';
 
 export type {

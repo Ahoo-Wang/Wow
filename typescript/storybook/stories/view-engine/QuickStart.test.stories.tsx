@@ -10,18 +10,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { playExtensions, playNarrowDark } from './libraryDelivery.play.js';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import displayMeta, {
-  FiveExtensions as DisplayFiveExtensions,
-  NarrowDark as DisplayNarrowDark,
   Minimal as DisplayMinimal,
 } from './QuickStart.stories.js';
 import type { StoryObj as RegressionStoryObj } from '@storybook/react-vite';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/快速开始/回归',
+  id: 'view-engine-扩展接入-最小接入-回归',
+  title: 'View Engine/开发接入/最小接入/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 
@@ -34,35 +32,25 @@ export const Minimal: Story = {
   tags: ['!dev', '!autodocs', 'test'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByText('ORDER-001')).toBeVisible();
-    await expect(canvas.getByText('ORDER-002')).toBeVisible();
+    await expect(await canvas.findByText('SO-202609-1001')).toBeVisible();
+    await expect(canvas.getByText('SO-202609-1002')).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: '下一页' }));
-    await expect(await canvas.findByText('ORDER-003')).toBeVisible();
+    await expect(await canvas.findByText('SO-202609-1003')).toBeVisible();
     const amount = canvas.getByRole('textbox', { name: '金额值' });
     await userEvent.clear(amount);
-    await userEvent.type(amount, '200');
-    await expect(canvas.getByText('ORDER-003')).toBeVisible();
+    await userEvent.type(amount, '10000');
+    await expect(canvas.getByText('SO-202609-1003')).toBeVisible();
     await userEvent.keyboard('{Enter}');
-    await expect(await canvas.findByText('ORDER-002')).toBeVisible();
-    await waitFor(() => expect(canvas.queryByText('ORDER-003')).toBeNull());
+    await expect(await canvas.findByText('SO-202609-1001')).toBeVisible();
+    await waitFor(() =>
+      expect(canvas.queryByText('SO-202609-1003')).toBeNull(),
+    );
     await userEvent.click(
       canvas.getByRole('button', { name: /清空条件值：金额/ }),
     );
-    await expect(await canvas.findByText('ORDER-001')).toBeVisible();
+    await expect(await canvas.findByText('SO-202609-1001')).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: /金额排序/ }));
-    await expect(await canvas.findByText('ORDER-003')).toBeVisible();
-    await expect(canvas.queryByText('ORDER-002')).toBeNull();
+    await expect(await canvas.findByText('SO-202609-1003')).toBeVisible();
+    await expect(canvas.queryByText('SO-202609-1001')).toBeNull();
   },
-};
-
-export const FiveExtensions: Story = {
-  ...DisplayFiveExtensions,
-  tags: ['!dev', '!autodocs', 'test'],
-  play: playExtensions,
-};
-
-export const NarrowDark: Story = {
-  ...DisplayNarrowDark,
-  tags: ['!dev', '!autodocs', 'test'],
-  play: playNarrowDark,
 };

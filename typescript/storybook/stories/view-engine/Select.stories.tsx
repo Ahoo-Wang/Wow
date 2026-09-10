@@ -71,7 +71,8 @@ function SelectDemo({ appearance, disabled }: DemoArgs) {
 }
 
 const meta = {
-  title: 'View Engine/基础组件/Select',
+  id: 'view-engine-专项场景-基础组件-select',
+  title: 'View Engine/专项场景/组件与主题/Select',
   args: { appearance: 'light', disabled: false },
   argTypes: {
     appearance: { control: 'inline-radio', options: ['light', 'dark'] },

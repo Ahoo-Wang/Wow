@@ -37,7 +37,8 @@ import { chooseInstance } from './playHelpers.js';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/Record View/查询与分页/回归',
+  id: 'view-engine-专项场景-record-view-查询与分页-回归',
+  title: 'View Engine/专项场景/查询与筛选/查询与分页/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 

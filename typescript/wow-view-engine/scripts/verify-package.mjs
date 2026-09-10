@@ -103,7 +103,7 @@ function verifyCoreImports(entry, packageDirectory) {
 function verifyTypes(directory) {
   const exampleDirectory = join(root, 'examples/react');
   assert.ok(
-    existsSync(join(exampleDirectory, 'OrderExample.tsx')),
+    existsSync(join(exampleDirectory, 'sales-order/OrderWorkbench.tsx')),
     'React example is required for package verification',
   );
   cpSync(exampleDirectory, join(directory, 'examples/react'), {
@@ -115,7 +115,7 @@ function verifyTypes(directory) {
     `
     import { ViewEngine, compileBuiltinFilter, clearBuiltinFilterProps, type DeepReadonly, type ViewHost, type ViewInstance, type RecordQuerySource } from '${manifest.name}';
     import { FilterPanel, ViewPage, type CellRendererProps, type FilterEditorProps, type FilterExtensions } from '${manifest.name}/react';
-    import { OrderExample } from './examples/react/OrderExample.js';
+    import { OrderWorkbench } from './examples/react/sales-order/OrderWorkbench.js';
     import type { FilterOptionSource, FilterFieldDefinition, ViewDefinition } from '${manifest.name}';
     import { FilterRemoteSelect, FilterMultiSelect, FilterDateTimeRange } from '${manifest.name}/react';
     import { TextCell, TagsCell, StatusCell, LinkCell, DateTimeCell, NumberCell } from '${manifest.name}/react';
@@ -173,7 +173,7 @@ function verifyTypes(directory) {
     export const page = <ViewPage definitionId="orders" scopeKey="user:tenant" host={host} extensions={{ ...filters, cells: { custom: cell } }} />;
     // @ts-expect-error React filter definitions are registered only through extensions.filters.
     export const splitRegistration = <ViewPage definitionId="orders" scopeKey="user:tenant" host={host} filterCompilers={{ custom: { compile: compileBuiltinFilter } }} />;
-    export const example = OrderExample;
+    export const example = OrderWorkbench;
   `,
   );
   const reactTypes = join(root, 'node_modules/@types/react');
@@ -196,13 +196,9 @@ function verifyTypes(directory) {
   const coreProbe = join(directory, 'headless-types.ts');
   writeFileSync(
     coreProbe,
-    `import { ViewEngine, type LocalStorageViewHostOptions } from '${manifest.name}';
+    `import { ViewEngine, type MemoryViewHostOptions } from '${manifest.name}';
      export const engine = ViewEngine;
-     export const storage: LocalStorageViewHostOptions['storage'] = {
-       getItem: (_key: string) => null,
-       setItem: (_key: string, _value: string) => {},
-       removeItem: (_key: string) => {},
-     };`,
+     export const store: NonNullable<MemoryViewHostOptions['store']> = new Map();`,
   );
   const headless = ts.createProgram([coreProbe], {
     ...options,

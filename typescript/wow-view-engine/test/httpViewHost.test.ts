@@ -15,7 +15,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { setTimeout as delay } from 'node:timers/promises';
 import {
-  LocalStorageViewHost,
+  MemoryViewHost,
   ViewEngine,
   ViewServiceError,
 } from '@ahoo-wang/fetcher-view-engine';
@@ -32,7 +32,7 @@ import { definition, instance, setup } from './fixtures/viewPage.js';
 let server: Awaited<ReturnType<typeof startViewService>>;
 beforeEach(async () => {
   server = await startViewService({
-    Host: LocalStorageViewHost,
+    Host: MemoryViewHost,
     ServiceError: ViewServiceError,
     statuses: VIEW_SERVICE_STATUS,
     definition,

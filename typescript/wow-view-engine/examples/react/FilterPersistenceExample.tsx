@@ -22,22 +22,37 @@ import {
 import { Button, ViewPage } from '@ahoo-wang/fetcher-view-engine/react';
 import { FilterOperator, type FilterExpression } from '@ahoo-wang/fetcher-wow';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
-import { orderDefinition, orderViews } from './orders.js';
-import { orderExtensions } from './OrderExtensions.js';
-import { createOrderService } from './orderService.js';
+import { orderDefinition, createProtocolViews } from './sales-order/views.js';
+import { orderExtensions } from './sales-order/OrderExtensions.js';
+import { createOrderSource } from './sales-order/querySource.js';
+import { createOrderService } from './sales-order/service.js';
 
+const orderViews = createProtocolViews();
 const definition: ViewDefinition = {
   id: orderDefinition.id,
   title: '筛选配置持久化',
   sourceId: orderDefinition.sourceId,
   rowKey: orderDefinition.rowKey,
   allowedLayouts: ['table'],
-  fields: orderDefinition.fields,
+  fields: orderDefinition.fields
+    .filter(f =>
+      ['aggregateId', 'state.totalAmount', 'state.lifecycle'].includes(f.field),
+    )
+    .map(f =>
+      f.field === 'state.lifecycle'
+        ? {
+            ...f,
+            editor: { name: 'order-status' },
+            operators: [FilterOperator.EQ],
+          }
+        : f,
+    ),
   allowedOperators: orderDefinition.allowedOperators,
 };
 const initial: ViewInstance = {
   ...orderViews.instances[0],
   title: '我的筛选配置',
+  scope: { type: 'personal' },
   revision: '1',
   config: {
     ...orderViews.instances[0].config,
@@ -67,14 +82,15 @@ export function FilterPersistenceExample({
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(initial));
   const [host] = useState<ViewHost>(() => {
     let stored = savedJson;
-    const service = createOrderService({
-      onEvent: event => {
-        if (event.type === 'query')
-          setQueries(value => [...value, event.filter]);
+    const service = createOrderService();
+    const source = createOrderSource(service.read, {
+      onQuery: (_method, request) => {
+        if ('filter' in request)
+          setQueries(value => [...value, request.filter]);
       },
     });
     return {
-      resolveSource: service.host.resolveSource,
+      resolveSource: () => source,
       definition: { load: async () => structuredClone(definition) },
       instance: {
         list: async () => ({
