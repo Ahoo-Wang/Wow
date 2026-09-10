@@ -153,6 +153,7 @@ export class ViewEngine {
     if (this.capabilities?.state === state) return this.capabilities.value;
     const value: ViewCapabilities = freeze({
       reorder: this.canReorderInstances(),
+      setDefault: this.canSetDefaultInstance(),
       instances: Object.fromEntries(
         [
           ...new Set([
@@ -268,6 +269,14 @@ export class ViewEngine {
 
   renameInstance(title: string, id?: string): Promise<void> {
     return this.management.renameInstance(title, id);
+  }
+
+  canSetDefaultInstance(): boolean {
+    return this.management.canSetDefaultInstance();
+  }
+
+  setDefaultInstance(instanceId: string | null): Promise<void> {
+    return this.management.setDefaultInstance(instanceId);
   }
 
   canReorderInstances(): boolean {

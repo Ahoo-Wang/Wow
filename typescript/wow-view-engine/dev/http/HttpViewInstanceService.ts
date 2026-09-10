@@ -20,6 +20,7 @@ import type { ViewInstanceService } from '@ahoo-wang/fetcher-view-engine';
 import {
   ViewServiceError,
   type ViewCreateContext,
+  type ViewDeleteResult,
 } from '@ahoo-wang/fetcher-view-engine';
 import type { HttpViewTransport } from './HttpViewTransport.js';
 export class HttpViewInstanceService implements ViewInstanceService {
@@ -82,8 +83,11 @@ export class HttpViewInstanceService implements ViewInstanceService {
       this.transport.revision(revision),
     );
   };
-  readonly delete = async (id: string, revision?: string): Promise<void> => {
-    await this.transport.request(
+  readonly delete = async (
+    id: string,
+    revision?: string,
+  ): Promise<ViewDeleteResult> => {
+    return this.transport.request(
       `/instances/${encodeViewResourceId(id)}`,
       'DELETE',
       undefined,

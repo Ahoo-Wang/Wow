@@ -87,3 +87,29 @@ it('derives reload capability from uncertain creation receipts as well as host m
   expect(engine.getCapabilitiesSnapshot().instances.mine.reload).toBe(false);
   engine.dispose();
 });
+
+it('publishes added and removed default saving capability without disturbing the session', async () => {
+  const { host, paged } = setup();
+  const engine = new ViewEngine({ definitionId: 'orders', host });
+  await engine.load();
+  const before = engine.getSnapshot();
+  const notified = vi.fn();
+  const unsubscribe = engine.subscribe(notified);
+  expect(engine.getCapabilitiesSnapshot().setDefault).toBe(false);
+  const saveDefault = vi.fn(async () => {});
+  engine.updateHost({ ...host, preference: { saveDefault } });
+  expect(engine.canSetDefaultInstance()).toBe(true);
+  expect(engine.getCapabilitiesSnapshot().setDefault).toBe(true);
+  expect(notified).toHaveBeenCalledTimes(1);
+  await engine.setDefaultInstance('system');
+  expect(saveDefault).toHaveBeenCalledWith('orders', 'system');
+  engine.updateHost(host);
+  expect(engine.getCapabilitiesSnapshot().setDefault).toBe(false);
+  await expect(engine.setDefaultInstance(null)).rejects.toThrow();
+  expect(engine.getSnapshot().sessions).toBe(before.sessions);
+  expect(paged).toHaveBeenCalledTimes(1);
+  engine.updateHost({ ...host, preference: { saveDefault } });
+  engine.dispose();
+  expect(engine.getCapabilitiesSnapshot().setDefault).toBe(false);
+  unsubscribe();
+});

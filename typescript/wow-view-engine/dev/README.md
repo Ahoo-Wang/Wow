@@ -36,17 +36,18 @@ const instance = new HttpViewInstanceService(transport);
 const views = await instance.list('orders');
 ```
 
-| Method | Path relative to `/view-service/definitions/{definitionId}` | Body / condition                                         |
-| ------ | ----------------------------------------------------------- | -------------------------------------------------------- |
-| GET    | `/`                                                         | ViewDefinition                                           |
-| GET    | `/instances`                                                | ViewInstanceList                                         |
-| GET    | `/instances/{id}`                                           | ViewInstance                                             |
-| GET    | `/permissions`                                              | ViewPermissionSnapshot                                   |
-| POST   | `/instances`                                                | Instance without id/revision; `Idempotency-Key` required |
-| PUT    | `/instances/{id}`                                           | Complete instance; quoted revision in `If-Match`         |
-| PATCH  | `/instances/{id}/name`                                      | `{title}`; `If-Match`                                    |
-| DELETE | `/instances/{id}`                                           | `If-Match`                                               |
-| PUT    | `/order`                                                    | `{instanceIds}`: complete unique visible order           |
+| Method | Path relative to `/view-service/definitions/{definitionId}` | Body / condition                                            |
+| ------ | ----------------------------------------------------------- | ----------------------------------------------------------- |
+| GET    | `/`                                                         | ViewDefinition                                              |
+| GET    | `/instances`                                                | ViewInstanceList                                            |
+| GET    | `/instances/{id}`                                           | ViewInstance                                                |
+| GET    | `/permissions`                                              | ViewPermissionSnapshot                                      |
+| POST   | `/instances`                                                | Instance without id/revision; `Idempotency-Key` required    |
+| PUT    | `/instances/{id}`                                           | Complete instance; quoted revision in `If-Match`            |
+| PATCH  | `/instances/{id}/name`                                      | `{title}`; `If-Match`                                       |
+| DELETE | `/instances/{id}`                                           | `If-Match`                                                  |
+| PUT    | `/order`                                                    | `{instanceIds}`: complete unique visible order              |
+| PUT    | `/default`                                                  | `{instanceId}`: visible ID, or `null` for no auto-selection |
 
 Definition and instance IDs must be nonblank, valid Unicode strings; the entire
 ID cannot be `.` or `..`. The same rule applies to local metadata and HTTP inputs.
@@ -78,6 +79,8 @@ A permission snapshot is `{revision, reorder, instances: {[id]: {save, rename, d
 
 Personal ordering is a complete replacement: the last successful replacement for the same user wins. The current visible ID set must match, and no other user's order is modified. Instance writes use revision CAS. These are separate, explicit concurrency semantics.
 
+The default preference is private to the authenticated user. Any visible view can be selected without edit permission; `null` disables automatic selection. The replacement is idempotent, so callers can retry the same value after an unknown write outcome or reload to confirm it.
+
 ```bash
 pnpm --filter @ahoo-wang/fetcher-view-engine build
 pnpm storybook
@@ -88,3 +91,5 @@ node packages/view-engine/scripts/verify-http-view-host.mjs --serve
 ```
 
 The fixture allows only the origin in `VIEW_ENGINE_E2E_BASE_URL` (default `http://127.0.0.1:6006`). Set it when using another Storybook address, including `http://localhost:6006`. Requests from other browser origins are rejected before preflight or mutations.
+
+The successful `DELETE /instances/{id}` envelope contains `ViewDeleteResult`: `{ defaultInstance: ViewInstance | null }`. The receipt comes from the deletion transaction; idempotent repeats also return the current user's authoritative default. Clients must retain this response body.

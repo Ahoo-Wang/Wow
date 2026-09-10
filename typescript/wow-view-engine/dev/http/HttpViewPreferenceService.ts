@@ -15,6 +15,13 @@ import type { ViewPreferenceService } from '@ahoo-wang/fetcher-view-engine';
 import type { HttpViewTransport } from './HttpViewTransport.js';
 export class HttpViewPreferenceService implements ViewPreferenceService {
   constructor(private readonly transport: HttpViewTransport) {}
+  readonly saveDefault = async (
+    id: string,
+    instanceId: string | null,
+  ): Promise<void> => {
+    this.transport.assertDefinition(id);
+    await this.transport.request('/default', 'PUT', { instanceId });
+  };
   readonly saveOrder = async (
     id: string,
     instanceIds: string[],

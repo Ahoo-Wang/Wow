@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ViewInstancePermissions } from './recordModel.js';
+import type { ViewInstance, ViewInstancePermissions } from './recordModel.js';
 
 export type ViewServiceErrorCode =
   | 'INVALID_ARGUMENT'
@@ -37,6 +37,10 @@ export class ViewServiceError extends Error {
 export interface ViewCreateContext {
   requestId: string;
   signal?: AbortSignal;
+}
+/** The current user's authoritative default at the deletion transaction's commit. */
+export interface ViewDeleteResult {
+  defaultInstance: ViewInstance | null;
 }
 export interface ViewPermissionSnapshot {
   /** Monotonic authority revision; stale responses cannot restore revoked grants. */

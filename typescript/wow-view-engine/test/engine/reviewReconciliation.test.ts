@@ -298,7 +298,7 @@ it('does not resurrect a copy deleted while reconciliation was in flight', async
         list,
         create,
         load,
-        delete: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue({ defaultInstance: null }),
       },
       permission: {
         getInstance: () => ({ save: true, saveAsPersonal: true, delete: true }),
@@ -389,7 +389,7 @@ it('does not resurrect a copy first opened and deleted during reconciliation', a
         list,
         create,
         load,
-        delete: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue({ defaultInstance: null }),
       },
       permission: {
         getInstance: () => ({ save: true, saveAsPersonal: true, delete: true }),
@@ -430,7 +430,7 @@ it('does not resurrect a copy opened and deleted before original create receipt'
         list,
         create,
         load,
-        delete: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue({ defaultInstance: null }),
       },
       permission: {
         getInstance: () => ({ save: true, saveAsPersonal: true, delete: true }),

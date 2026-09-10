@@ -44,7 +44,7 @@ it('can reopen and retry the original uncertain deletion without enabling other 
     .mockRejectedValueOnce(
       new ViewServiceError('UNKNOWN_OUTCOME', '删除结果未知'),
     )
-    .mockResolvedValue(undefined);
+    .mockResolvedValue({ defaultInstance: null });
   render(
     <ViewPage scopeKey="delete-recovery" definitionId="orders" host={host} />,
   );
@@ -105,7 +105,7 @@ it('manages names and deletion together while protecting system views and pendin
   host.instance!.delete = vi
     .fn()
     .mockRejectedValueOnce(new ViewServiceError('CONFLICT', '删除失败，请重试'))
-    .mockResolvedValue(undefined);
+    .mockResolvedValue({ defaultInstance: null });
   render(<ViewPage scopeKey="test-user" definitionId="orders" host={host} />);
   await screen.findByRole('cell', { name: '42' });
   fireEvent.change(screen.getByRole('textbox', { name: '金额值' }), {
@@ -271,4 +271,121 @@ it('manages names for prototype-like instance IDs', async () => {
   expect(
     await manager.findByRole('button', { name: '编辑新的名称名称' }),
   ).toBeTruthy();
+});
+
+it('sets and clears the system default without changing the current view or pending filters', async () => {
+  const { host, paged } = setup();
+  host.preference!.saveDefault = vi.fn().mockResolvedValue(undefined);
+  render(
+    <ViewPage scopeKey="default-test" definitionId="orders" host={host} />,
+  );
+  await screen.findByRole('cell', { name: '42' });
+  fireEvent.change(screen.getByRole('textbox', { name: '金额值' }), {
+    target: { value: '99' },
+  });
+  fireEvent.click(screen.getAllByRole('button', { name: '管理视图' })[0]);
+  const manager = within(
+    await screen.findByRole('dialog', { name: '管理视图' }),
+  );
+  fireEvent.click(
+    manager.getByRole('button', { name: '将所有订单设为默认视图' }),
+  );
+  await waitFor(() =>
+    expect(host.preference!.saveDefault).toHaveBeenLastCalledWith(
+      'orders',
+      'system',
+    ),
+  );
+  const cancel = await manager.findByRole('button', {
+    name: '取消所有订单的默认视图',
+  });
+  expect(manager.getAllByText('默认')).toHaveLength(1);
+  fireEvent.click(cancel);
+  await waitFor(() =>
+    expect(host.preference!.saveDefault).toHaveBeenLastCalledWith(
+      'orders',
+      null,
+    ),
+  );
+  await waitFor(() => expect(manager.queryByText('默认')).toBeNull());
+  fireEvent.click(manager.getByRole('button', { name: '完成' }));
+  await screen.findByRole('cell', { name: '42' });
+  expect(
+    (screen.getByRole('textbox', { name: '金额值' }) as HTMLInputElement).value,
+  ).toBe('99');
+  expect(
+    screen.getByRole('combobox', { name: '选择视图实例' }).textContent,
+  ).toContain('我的订单');
+  expect(paged).toHaveBeenCalledTimes(1);
+});
+
+it('keeps the previous default on failure and retries the same button while retaining focus', async () => {
+  const { host } = setup();
+  let resolveSave!: () => void;
+  host.preference!.saveDefault = vi
+    .fn()
+    .mockRejectedValueOnce(new Error('保存失败'))
+    .mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          resolveSave = resolve;
+        }),
+    );
+  render(
+    <ViewPage scopeKey="default-retry" definitionId="orders" host={host} />,
+  );
+  await screen.findByRole('cell', { name: '42' });
+  fireEvent.click(screen.getAllByRole('button', { name: '管理视图' })[0]);
+  const dialog = await screen.findByRole('dialog', { name: '管理视图' });
+  const manager = within(dialog);
+  const button = manager.getByRole('button', {
+    name: '将所有订单设为默认视图',
+  });
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      manager.getByRole('heading', { name: '管理视图' }),
+    ),
+  );
+  button.focus();
+  fireEvent.click(button);
+  expect((await manager.findByRole('alert')).textContent).toContain('保存失败');
+  expect(
+    within(manager.getByRole('listitem', { name: '我的订单' })).getByText(
+      '默认',
+    ),
+  ).toBeTruthy();
+  expect(document.activeElement).toBe(button);
+  fireEvent.click(button);
+  expect(button.getAttribute('aria-disabled')).toBe('true');
+  fireEvent.click(button);
+  expect(host.preference!.saveDefault).toHaveBeenCalledTimes(2);
+  fireEvent.keyDown(dialog, { key: 'Escape' });
+  fireEvent.click(manager.getByRole('button', { name: '完成' }));
+  expect(screen.getByRole('dialog', { name: '管理视图' })).toBe(dialog);
+  await act(async () => resolveSave());
+  expect(manager.getByRole('button', { name: '取消所有订单的默认视图' })).toBe(
+    button,
+  );
+  expect(document.activeElement).toBe(button);
+  expect(manager.queryByRole('alert')).toBeNull();
+  expect(manager.getAllByText('默认')).toHaveLength(1);
+});
+
+it('shows a loaded default without exposing unsupported preference controls', async () => {
+  const { host } = setup();
+  delete host.preference!.saveDefault;
+  render(
+    <ViewPage scopeKey="default-read-only" definitionId="orders" host={host} />,
+  );
+  await screen.findByRole('cell', { name: '42' });
+  fireEvent.click(screen.getAllByRole('button', { name: '管理视图' })[0]);
+  const manager = within(
+    await screen.findByRole('dialog', { name: '管理视图' }),
+  );
+  expect(
+    within(manager.getByRole('listitem', { name: '我的订单' })).getByText(
+      '默认',
+    ),
+  ).toBeTruthy();
+  expect(manager.queryByRole('button', { name: /默认视图/ })).toBeNull();
 });

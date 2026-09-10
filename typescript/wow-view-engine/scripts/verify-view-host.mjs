@@ -235,9 +235,35 @@ try {
       ].order.indexOf('my-orders'),
     { key, id: copy.id },
   );
+  await manager
+    .getByRole('button', { name: '将可恢复副本设为默认视图', exact: true })
+    .click();
+  await manager
+    .getByRole('button', { name: '取消可恢复副本的默认视图', exact: true })
+    .waitFor();
+  const defaultButton = manager.getByRole('button', {
+    name: '将本地验证视图设为默认视图',
+    exact: true,
+  });
+  await defaultButton.click();
+  await manager
+    .getByRole('button', { name: '取消本地验证视图的默认视图', exact: true })
+    .waitFor();
+  assert.equal((await read()).defaultInstanceId, 'my-orders');
   await closeManager(manager);
   await reload();
+  assert.equal(
+    await page
+      .getByRole('button', { name: '本地验证视图', exact: true })
+      .getAttribute('aria-current'),
+    'page',
+  );
   manager = await openManager();
+  assert.equal(await manager.getByText('默认', { exact: true }).count(), 1);
+  await manager
+    .getByRole('listitem', { name: '本地验证视图', exact: true })
+    .getByText('默认', { exact: true })
+    .waitFor();
   assert.deepEqual(
     await manager
       .getByRole('list', { name: '个人视图顺序' })
@@ -269,6 +295,19 @@ try {
   await manager
     .getByRole('button', { name: '编辑本地验证视图名称', exact: true })
     .waitFor();
+  await manager
+    .getByRole('button', { name: '取消本地验证视图的默认视图', exact: true })
+    .press('Enter');
+  await manager
+    .getByRole('button', { name: '将本地验证视图设为默认视图', exact: true })
+    .waitFor();
+  assert.equal(await manager.getByText('默认', { exact: true }).count(), 0);
+  await closeManager(manager);
+  await page.reload();
+  await page.getByText('请选择一个视图实例', { exact: true }).waitFor();
+  assert.equal((await read()).defaultInstanceId, null);
+  manager = await openManager();
+  assert.equal(await manager.getByText('默认', { exact: true }).count(), 0);
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({
@@ -281,6 +320,8 @@ try {
         'business records excluded from view storage',
         'rename/create/order/delete survive reload',
         'system view controls protected',
+        'personal default survives reload and selects the saved instance',
+        'cleared default survives reload without auto-selection',
       ],
     }),
   );

@@ -39,7 +39,9 @@ it.each(['save', 'rename', 'delete'] as const)(
         ...instance(id),
         title,
       }));
-      host.instance!.delete = vi.fn().mockResolvedValue(undefined);
+      host.instance!.delete = vi
+        .fn()
+        .mockResolvedValue({ defaultInstance: null });
       host.instance![operation] = vi.fn().mockRejectedValue(failure);
       host.instance!.load = vi.fn(async () => ({
         ...instance(),
@@ -195,6 +197,7 @@ it.each(['save', 'rename', 'delete'] as const)(
       host.instance!.rename = vi.fn(() => response.promise);
       host.instance!.delete = vi.fn(async () => {
         await response.promise;
+        return { defaultInstance: null };
       });
       await engine.load();
       engine.setTitle('Submitted');

@@ -54,6 +54,7 @@ export function createHost(
     ]),
   );
   let instanceOrder = [...saved.keys()];
+  let defaultInstanceId = initialInstances.defaultInstanceId;
   let failNextDelete = failFirstDelete;
   let nextInstance = 1;
   const createReceipts = new Map<
@@ -107,11 +108,12 @@ export function createHost(
             instances: instanceOrder
               .filter(id => saved.has(id))
               .map(loadInstance),
-            defaultInstanceId: saved.has(
-              initialInstances.defaultInstanceId ?? '',
-            )
-              ? initialInstances.defaultInstanceId
-              : (instanceOrder[0] ?? null),
+            defaultInstanceId:
+              defaultInstanceId === null
+                ? null
+                : saved.has(defaultInstanceId)
+                  ? defaultInstanceId
+                  : (instanceOrder.find(id => saved.has(id)) ?? null),
           };
         },
         async load(id: string) {
@@ -143,24 +145,31 @@ export function createHost(
       async delete(id, revision) {
         await pause();
         const previous = saved.get(id);
-        if (!previous) return;
-        if (
-          previous.scope.type === 'public' &&
-          previous.scope.source === 'system'
-        )
-          throw new ViewServiceError('FORBIDDEN', '系统视图不能删除。');
-        if (revision !== previous.revision)
-          throw new ViewServiceError(
-            'REVISION_CONFLICT',
-            '视图已被更新，请重新加载后再删除。',
-          );
-        if (failNextDelete) {
-          failNextDelete = false;
-          throw new ViewServiceError('CONFLICT', '删除失败，请重试。');
+        if (previous) {
+          if (
+            previous.scope.type === 'public' &&
+            previous.scope.source === 'system'
+          )
+            throw new ViewServiceError('FORBIDDEN', '系统视图不能删除。');
+          if (revision !== previous.revision)
+            throw new ViewServiceError(
+              'REVISION_CONFLICT',
+              '视图已被更新，请重新加载后再删除。',
+            );
+          if (failNextDelete) {
+            failNextDelete = false;
+            throw new ViewServiceError('CONFLICT', '删除失败，请重试。');
+          }
+          saved.delete(id);
+          instanceOrder = instanceOrder.filter(value => value !== id);
+          if (defaultInstanceId === id)
+            defaultInstanceId = instanceOrder.find(id => saved.has(id)) ?? null;
+          onWrite('delete', structuredClone(previous));
         }
-        saved.delete(id);
-        instanceOrder = instanceOrder.filter(value => value !== id);
-        onWrite('delete', structuredClone(previous));
+        return {
+          defaultInstance:
+            defaultInstanceId === null ? null : loadInstance(defaultInstanceId),
+        };
       },
       async save(instance) {
         await pause();
@@ -205,6 +214,15 @@ export function createHost(
       },
     },
     preference: {
+      ...(!local && {
+        async saveDefault(definitionId: string, id: string | null) {
+          await pause();
+          if (definitionId !== definition.id)
+            throw new Error('订单视图定义不存在。');
+          if (id !== null) loadInstance(id);
+          defaultInstanceId = id;
+        },
+      }),
       async saveOrder(definitionId, ids) {
         await pause();
         if (

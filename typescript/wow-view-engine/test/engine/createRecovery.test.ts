@@ -189,7 +189,7 @@ it('finishes a lost deletion response by idempotent retry', async () => {
     instance: {
       ...host.instance,
       delete: async (id, revision) => {
-        await host.instance.delete(id, revision);
+        const result = await host.instance.delete(id, revision);
         if (first) {
           first = false;
           throw new ViewServiceError(
@@ -197,6 +197,7 @@ it('finishes a lost deletion response by idempotent retry', async () => {
             'deleted response missing',
           );
         }
+        return result;
       },
     },
     resolveSource: id => host.resolveSource(id),

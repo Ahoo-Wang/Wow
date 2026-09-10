@@ -260,6 +260,16 @@ export async function startViewService({
           body?.instanceIds,
         );
         control.mutations++;
+      } else if (
+        request.method === 'PUT' &&
+        path[3] === 'default' &&
+        path.length === 4
+      ) {
+        result = await host.preference.saveDefault(
+          definition.id,
+          body?.instanceId,
+        );
+        control.mutations++;
       } else throw new ServiceError('NOT_FOUND', '接口不存在');
       await send(200, result);
     } catch (error) {

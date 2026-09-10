@@ -87,6 +87,7 @@ export class ViewLoader {
       definition: null,
       instanceIds: [],
       selectedInstanceId: null,
+      defaultInstanceId: null,
       sessions: Object.create(null),
     });
     let defaultId: string | null = null;
@@ -180,6 +181,7 @@ export class ViewLoader {
         definition: copy(definition),
         instanceIds: instances.map(instance => instance.id),
         selectedInstanceId: defaultId,
+        defaultInstanceId: defaultId,
         sessions,
         pendingCreates,
       });

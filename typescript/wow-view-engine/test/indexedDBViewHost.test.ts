@@ -261,3 +261,27 @@ it.each(['blocked', 'error'] as const)(
     expect(db.connection.transaction).not.toHaveBeenCalled();
   },
 );
+
+it('commits a cleared default and restores it in a fresh host', async () => {
+  const db = databasePort();
+  const done = vi.fn();
+  const pending = createHost().preference.saveDefault!(
+    definition.id,
+    null,
+  ).then(done);
+  db.open();
+  db.readSuccess();
+  const raw = db.store.put.mock.calls[0][0];
+  expect(JSON.parse(raw).users.alice.defaultInstanceId).toBeNull();
+  await Promise.resolve();
+  expect(done).not.toHaveBeenCalled();
+  db.commit();
+  await pending;
+  expect(done).toHaveBeenCalledOnce();
+  const restored = databasePort(raw);
+  const list = createHost().instance.list(definition.id);
+  restored.open();
+  restored.readSuccess();
+  restored.commit();
+  await expect(list).resolves.toMatchObject({ defaultInstanceId: null });
+});

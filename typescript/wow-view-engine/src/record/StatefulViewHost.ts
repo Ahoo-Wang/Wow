@@ -27,6 +27,7 @@ import {
 import { readInstanceList } from './validation/instanceValidation.js';
 import {
   ViewServiceError,
+  type ViewDeleteResult,
   encodeViewResourceId,
   type ViewCreateContext,
   type ViewPermissionSnapshot,
@@ -77,24 +78,13 @@ export abstract class StatefulViewHost implements ViewHost {
       this.assertDefinition(id);
       return this.transaction(
         state => {
-          const visible = this.visible(state);
-          const user = state.users[this.options.scopeKey];
-          const ids = [
-            ...user.order.filter(id => visible.some(item => item.id === id)),
-            ...visible
-              .map(item => item.id)
-              .filter(id => !user.order.includes(id)),
-          ];
+          const visible = this.ordered(state, this.options.scopeKey);
           return {
-            instances: ids.map(id =>
-              this.dto(visible.find(item => item.id === id)!),
+            instances: visible.map(item => this.dto(item)),
+            defaultInstanceId: this.resolveDefault(
+              state.users[this.options.scopeKey].defaultInstanceId,
+              visible,
             ),
-            defaultInstanceId:
-              user.defaultInstanceId === null
-                ? null
-                : visible.some(item => item.id === user.defaultInstanceId)
-                  ? user.defaultInstanceId
-                  : (ids[0] ?? null),
           };
         },
         false,
@@ -216,13 +206,35 @@ export abstract class StatefulViewHost implements ViewHost {
         return this.dto(next);
       }, true);
     },
-    delete: async (id: string, revision?: string): Promise<void> => {
+    delete: async (
+      id: string,
+      revision?: string,
+    ): Promise<ViewDeleteResult> => {
       encodeViewResourceId(id);
-      await this.transaction(state => {
+      return this.transaction(state => {
         // Absence is scoped to this caller, including inaccessible personal views.
-        if (!this.visible(state).some(item => item.id === id)) return;
-        const previous = this.writable(state, id, revision, 'delete');
-        state.instances.splice(state.instances.indexOf(previous), 1);
+        if (this.visible(state).some(item => item.id === id)) {
+          const previous = this.writable(state, id, revision, 'delete');
+          state.instances.splice(state.instances.indexOf(previous), 1);
+          for (const [scopeKey, user] of Object.entries(state.users)) {
+            if (user.defaultInstanceId === id)
+              user.defaultInstanceId = this.resolveDefault(
+                id,
+                this.ordered(state, scopeKey),
+              );
+          }
+        }
+        const visible = this.ordered(state, this.options.scopeKey);
+        const defaultId = this.resolveDefault(
+          state.users[this.options.scopeKey].defaultInstanceId,
+          visible,
+        );
+        return {
+          defaultInstance:
+            defaultId === null
+              ? null
+              : this.dto(visible.find(item => item.id === defaultId)!),
+        };
       }, true);
     },
   };
@@ -284,6 +296,16 @@ export abstract class StatefulViewHost implements ViewHost {
     },
   };
   readonly preference = {
+    saveDefault: async (
+      id: string,
+      instanceId: string | null,
+    ): Promise<void> => {
+      this.assertDefinition(id);
+      await this.transaction(state => {
+        if (instanceId !== null) this.find(state, instanceId);
+        state.users[this.options.scopeKey].defaultInstanceId = instanceId;
+      }, true);
+    },
     saveOrder: async (id: string, instanceIds: string[]): Promise<void> => {
       this.assertDefinition(id);
       await this.transaction(state => {
@@ -372,10 +394,24 @@ export abstract class StatefulViewHost implements ViewHost {
   }: ViewInstance): ViewInstance {
     return { id, definitionId, kind, title, scope, revision, config };
   }
-  private visible(state: ServiceState) {
+  private visible(state: ServiceState, scopeKey = this.options.scopeKey) {
     return state.instances.filter(
-      item => item.ownerKey === null || item.ownerKey === this.options.scopeKey,
+      item => item.ownerKey === null || item.ownerKey === scopeKey,
     );
+  }
+  private ordered(state: ServiceState, scopeKey: string) {
+    const visible = this.visible(state, scopeKey);
+    const { order } = state.users[scopeKey];
+    const ids = [
+      ...order.filter(id => visible.some(item => item.id === id)),
+      ...visible.map(item => item.id).filter(id => !order.includes(id)),
+    ];
+    return ids.map(id => visible.find(item => item.id === id)!);
+  }
+  private resolveDefault(id: string | null, visible: StoredInstance[]) {
+    return id === null || visible.some(item => item.id === id)
+      ? id
+      : (visible[0]?.id ?? null);
   }
   private find(state: ServiceState, id: string): StoredInstance {
     encodeViewResourceId(id);
@@ -465,6 +501,11 @@ export abstract class StatefulViewHost implements ViewHost {
               defaultInstanceId: this.initial.defaultInstanceId,
             },
           };
+          state.users[this.options.scopeKey].defaultInstanceId =
+            this.resolveDefault(
+              this.initial.defaultInstanceId,
+              this.ordered(state, this.options.scopeKey),
+            );
           write = true;
         }
         // Visibility must never contain a public/private ID collision.

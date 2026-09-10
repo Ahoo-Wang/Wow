@@ -31,6 +31,7 @@ export class SessionStore {
     definition: null,
     instanceIds: [],
     selectedInstanceId: null,
+    defaultInstanceId: null,
     sessions: Object.create(null),
     pendingCreates: Object.create(null),
   });

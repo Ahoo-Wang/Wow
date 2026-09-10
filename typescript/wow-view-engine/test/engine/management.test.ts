@@ -157,7 +157,7 @@ it('does not resurrect a deleted view or drop a new one when order persistence f
   const { engine } = setup({
     host: {
       preference: { saveOrder: () => response.promise },
-      instance: { delete: async () => {} },
+      instance: { delete: async () => ({ defaultInstance: null }) },
       permission: { getInstance: permissions },
     } as unknown as ViewHost,
   });

@@ -12,6 +12,9 @@
  */
 
 import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test';
+import { ViewEngine } from '@ahoo-wang/fetcher-view-engine';
+import { createHost } from './createHost.js';
+import { definition } from './fixtures.js';
 import type { RecordViewPlay } from './demoTypes.js';
 
 export const playManageViews: RecordViewPlay = async ({ canvasElement }) => {
@@ -49,6 +52,30 @@ export const playManageViews: RecordViewPlay = async ({ canvasElement }) => {
   await expect(
     manager.queryByRole('button', { name: '删除全部订单' }),
   ).not.toBeInTheDocument();
+  const defaultButton = manager.getByRole('button', {
+    name: '将全部订单设为默认视图',
+  });
+  await userEvent.click(defaultButton);
+  await waitFor(() =>
+    expect(defaultButton).toHaveAccessibleName('取消全部订单的默认视图'),
+  );
+  await expect(manager.getAllByText('默认')).toHaveLength(1);
+  await expect(
+    within(manager.getByRole('listitem', { name: '全部订单' })).getByText(
+      '默认',
+    ),
+  ).toBeInTheDocument();
+  await expect(defaultButton).toHaveFocus();
+  await expect(chooser).toHaveTextContent('我的订单');
+  await expect(amount).toHaveValue('2000');
+  await userEvent.keyboard('{Enter}');
+  await waitFor(() =>
+    expect(manager.queryByText('默认')).not.toBeInTheDocument(),
+  );
+  await expect(defaultButton).toHaveFocus();
+  await expect(canvas.getByTestId('record-query-count')).toHaveTextContent(
+    /^1$/,
+  );
   await expect(manager.queryByRole('textbox')).not.toBeInTheDocument();
   await expect(
     manager.queryByRole('button', { name: '编辑全部订单名称' }),
@@ -181,4 +208,29 @@ export const playManageViews: RecordViewPlay = async ({ canvasElement }) => {
   await expect(
     canvas.queryByRole('button', { name: '视图选项' }),
   ).not.toBeInTheDocument();
+
+  // The same fake service must preserve a deletion fallback through later sorting and engine reload.
+  const { host, initialInstances } = createHost(
+    {},
+    () => {},
+    () => {},
+    () => {},
+    () => {},
+  );
+  const engine = new ViewEngine({ definitionId: definition.id, host });
+  const [personal, system, shared] = initialInstances.instances;
+  try {
+    await engine.load();
+    await engine.setDefaultInstance(personal.id);
+    await engine.deleteInstance(personal.id);
+    await expect(engine.getSnapshot().defaultInstanceId).toBe(system.id);
+    await engine.reorderInstances([shared.id, system.id]);
+    await engine.load();
+    await expect(engine.getSnapshot()).toMatchObject({
+      defaultInstanceId: system.id,
+      selectedInstanceId: system.id,
+    });
+  } finally {
+    engine.dispose();
+  }
 };

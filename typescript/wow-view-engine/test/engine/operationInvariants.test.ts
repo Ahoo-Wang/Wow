@@ -296,7 +296,7 @@ it.each(['saveAs', 'delete'] as const)(
   async operation => {
     const { engine, paged, host } = setup({
       host: {
-        instance: { delete: async () => {} },
+        instance: { delete: async () => ({ defaultInstance: null }) },
         permission: { getInstance: managementPermissions },
       },
     });

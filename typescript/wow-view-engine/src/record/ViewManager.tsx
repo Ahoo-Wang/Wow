@@ -74,6 +74,7 @@ export function ViewManager({
           </DialogTitle>
           <DialogDescription>
             点击编辑图标修改名称；拖动手柄调整组内顺序，排序仅对你生效。
+            默认视图仅对你生效，下次进入时自动打开。
           </DialogDescription>
         </DialogHeader>
         <span role="status" aria-live="polite" className="fve:sr-only">

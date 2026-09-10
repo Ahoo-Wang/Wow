@@ -15,6 +15,7 @@ import {
   CheckIcon,
   GripVerticalIcon,
   PencilIcon,
+  StarIcon,
   Trash2Icon,
   XIcon,
 } from 'lucide-react';
@@ -22,9 +23,11 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type DragEvent,
   type RefObject,
 } from 'react';
+import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import { cn } from '../../lib/utils.js';
@@ -67,7 +70,17 @@ export function ViewManagerRow({
 }) {
   const { id, scope } = session.instance;
   const title = session.baseline.title;
-  const capabilities = useViewCapabilities(engine).instances[id];
+  const viewCapabilities = useViewCapabilities(engine);
+  const capabilities = viewCapabilities.instances[id];
+  const state = useSyncExternalStore(
+    engine.subscribe,
+    engine.getSnapshot,
+    engine.getSnapshot,
+  );
+  const isDefault = state.defaultInstanceId === id;
+  const defaultLabel = isDefault
+    ? `取消${title}的默认视图`
+    : `将${title}设为默认视图`;
   const permissions = capabilities?.permissions ?? deniedPermissions;
   const system = scope.type === 'public' && scope.source === 'system';
   const writing =
@@ -202,6 +215,25 @@ export function ViewManagerRow({
         <span className="fve:inline-flex fve:h-5 fve:shrink-0 fve:items-center fve:rounded-4xl fve:border fve:border-border fve:px-2 fve:text-xs fve:font-medium">
           系统
         </span>
+      )}
+      {isDefault && <Badge variant="secondary">默认</Badge>}
+      {viewCapabilities.setDefault && (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={defaultLabel}
+          title={defaultLabel}
+          disabled={writing}
+          focusableWhenDisabled
+          onClick={() =>
+            void execute(() => engine.setDefaultInstance(isDefault ? null : id))
+          }
+        >
+          <StarIcon
+            aria-hidden="true"
+            fill={isDefault ? 'currentColor' : 'none'}
+          />
+        </Button>
       )}
       {permissions.delete && (
         <Button

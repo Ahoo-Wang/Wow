@@ -446,7 +446,7 @@ it('sorts a card-only view using the shared engine configuration', async () => {
 
 it('ignores delayed layout edits after their rendered instance has been deleted', async () => {
   const { host } = setup();
-  host.instance!.delete = vi.fn().mockResolvedValue(undefined);
+  host.instance!.delete = vi.fn().mockResolvedValue({ defaultInstance: null });
   host.permission = { getInstance: () => ({ delete: true }) };
   const engine = new ViewEngine({
     definitionId: definition.id,
@@ -479,7 +479,7 @@ it('ignores delayed layout edits after their rendered instance has been deleted'
 
 it('uses the same guarded refresh for retained card and toolbar contexts', async () => {
   const { host, paged } = setup();
-  host.instance!.delete = vi.fn().mockResolvedValue(undefined);
+  host.instance!.delete = vi.fn().mockResolvedValue({ defaultInstance: null });
   host.permission = { getInstance: () => ({ delete: true }) };
   const engine = new ViewEngine({
     definitionId: definition.id,

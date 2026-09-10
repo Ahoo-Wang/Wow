@@ -145,6 +145,7 @@ export interface ViewInstancePermissions {
 /** Immutable UI capabilities; subscribe through ViewEngine.subscribe. */
 export interface ViewCapabilities {
   readonly reorder: boolean;
+  readonly setDefault: boolean;
   readonly instances: Readonly<
     Record<
       string,
@@ -205,6 +206,7 @@ export interface ViewEngineState {
   readonly definition: DeepReadonly<ViewDefinition> | null;
   readonly instanceIds: readonly string[];
   readonly selectedInstanceId: string | null;
+  readonly defaultInstanceId: string | null;
   readonly sessions: Readonly<Record<string, RecordSession>>;
   /** Local recovery contexts whose source is absent from the authoritative instance list. */
   readonly pendingCreates: Readonly<Record<string, RecordSession>>;

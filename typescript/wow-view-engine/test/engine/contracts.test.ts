@@ -34,7 +34,7 @@ it.each(['rename', 'delete'] as const)(
       title,
       revision: '2',
     }));
-    host.instance!.delete = vi.fn(async () => {});
+    host.instance!.delete = vi.fn(async () => ({ defaultInstance: null }));
     await engine.load();
     const report = vi.spyOn(console, 'error').mockImplementation(() => {});
     const notified = vi.fn();

@@ -20,6 +20,7 @@ import type {
 } from './recordModel.js';
 import type {
   ViewCreateContext,
+  ViewDeleteResult,
   ViewPermissionSnapshot,
 } from './viewServiceContract.js';
 /** Definition metadata, independent of instance persistence and runtime sources. */
@@ -35,7 +36,7 @@ export interface ViewInstanceService {
     context: ViewCreateContext,
   ): Promise<ViewInstance>;
   save?(instance: ViewInstance): Promise<ViewInstance>;
-  delete?(instanceId: string, revision?: string): Promise<void>;
+  delete?(instanceId: string, revision?: string): Promise<ViewDeleteResult>;
   rename?(
     instanceId: string,
     title: string,
@@ -45,6 +46,7 @@ export interface ViewInstanceService {
 /** Current user's display preferences; never changes shared view content. */
 export interface ViewPreferenceService {
   saveOrder?(definitionId: string, instanceIds: string[]): Promise<void>;
+  saveDefault?(definitionId: string, instanceId: string | null): Promise<void>;
 }
 /** Synchronous UI policy projection plus explicit refresh and change notifications. */
 export interface ViewPermissionService {
