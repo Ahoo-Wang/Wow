@@ -58,7 +58,8 @@
     "test:type": "tsc --noEmit -p test/tsconfig.types.json",
     "lint": "eslint . --fix",
     "clean": "rm -rf dist",
-    "analyze": "npx vite-bundle-analyzer -p auto"
+    "analyze": "npx vite-bundle-analyzer -p auto",
+    "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:type"
   },
   "peerDependencies": {
     "@ahoo-wang/fetcher": "workspace:^5.0.0",

@@ -56,7 +56,8 @@
     "lint": "eslint . --fix",
     "clean": "rm -rf dist",
     "analyze": "npx vite-bundle-analyzer -p auto",
-    "generate": "node dist/cli.js generate -i test/demo.spec.json -o test-output -t tsconfig.json"
+    "generate": "node dist/cli.js generate -i test/demo.spec.json -o test-output -t tsconfig.json",
+    "test:no-coverage": "vitest run --coverage.enabled=false --testTimeout=15000"
   },
   "peerDependencies": {
     "@ahoo-wang/fetcher": "workspace:^5.0.0",

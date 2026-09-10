@@ -142,6 +142,33 @@ describe('ModelGenerator', () => {
       ).toBe(true);
     });
 
+    it('filters framework cursor wrappers while retaining business cursor models', () => {
+      const context = {
+        ...mockContext,
+        contextAggregates: new Map([
+          ['example', [{ state: { key: 'example.order.OrderState' } }]],
+        ]),
+        getOrCreateSourceFile: vi.fn(() => ({ addStatements: vi.fn() })),
+      };
+      const generator = new ModelGenerator(context as any);
+      const types = (generator as any).stateAggregatedTypeNames();
+      expect(
+        (generator as any).isWowSchema(
+          'example.order.OrderStateMaterializedSnapshotCursorPage',
+          types,
+        ),
+      ).toBe(true);
+      expect(
+        (generator as any).isWowSchema(
+          'example.order.OrderAggregatedDomainEventStreamCursorPage',
+          types,
+        ),
+      ).toBe(true);
+      expect(
+        (generator as any).isWowSchema('example.order.OrderCursorPage', types),
+      ).toBe(false);
+    });
+
     it('should return false for non-wow schemas', () => {
       const generator = new ModelGenerator(mockContext as any);
       const aggregatedTypeNames = new Set<string>();

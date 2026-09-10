@@ -104,6 +104,7 @@ export class ModelGenerator implements Generator {
       schemaKey.endsWith('AggregatedCondition') ||
       schemaKey.endsWith('AggregatedDomainEventStream') ||
       schemaKey.endsWith('AggregatedDomainEventStreamPagedList') ||
+      schemaKey.endsWith('AggregatedDomainEventStreamCursorPage') ||
       schemaKey.endsWith(
         'AggregatedDomainEventStreamServerSentEventNonNullData',
       ) ||
@@ -120,6 +121,7 @@ export class ModelGenerator implements Generator {
   private aggregatedSchemaSuffix = [
     'MaterializedSnapshot',
     'MaterializedSnapshotPagedList',
+    'MaterializedSnapshotCursorPage',
     'MaterializedSnapshotServerSentEventNonNullData',
     'PagedList',
     'ServerSentEventNonNullData',
