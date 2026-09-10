@@ -22,12 +22,22 @@ import {
 import { FilterPanel } from '../filter/FilterPanel.js';
 import { cn } from '../lib/utils.js';
 import { RecordTable } from './RecordTable.js';
+import { RecordRegion } from './RecordRegion.js';
 import type { ViewEngine } from './ViewEngine.js';
 import { RecordAppliedFilters } from './page/RecordAppliedFilters.js';
 import { RecordGlobalToolbar } from './page/RecordGlobalToolbar.js';
 import { RecordPagination } from './page/RecordPagination.js';
 import { RecordTableToolbar } from './page/RecordTableToolbar.js';
-import type { RecordTableProps, ViewExtensions } from './recordReactTypes.js';
+import {
+  bindRecordPagination,
+  getRecordPaginationPolicy,
+} from './page/recordPaginationPolicy.js';
+import type {
+  RecordPaginationRenderContext,
+  RecordTableProps,
+  RecordTableToolbarRenderContext,
+  ViewExtensions,
+} from './recordReactTypes.js';
 import { useViewExpansion, ViewExpansionContext } from './viewExpansion.js';
 
 export interface RecordViewProps {
@@ -39,6 +49,8 @@ export interface RecordViewProps {
   autoRefreshPaused?: boolean;
   /** Leading content in the global toolbar, used by ViewPage for saving and instance navigation. */
   toolbarStart?: ReactNode;
+  renderTableToolbar?(context: RecordTableToolbarRenderContext): ReactNode;
+  renderPagination?(context: RecordPaginationRenderContext): ReactNode;
   className?: string;
 }
 /** Renders the selected instance. The caller owns engine.load()/dispose(). */
@@ -50,6 +62,8 @@ export function RecordView({
   autoRefreshPaused = false,
   className,
   toolbarStart,
+  renderTableToolbar,
+  renderPagination,
 }: RecordViewProps) {
   const state = useSyncExternalStore(
     engine.subscribe,
@@ -116,6 +130,19 @@ export function RecordView({
   if (!id || !session || !definition) return null;
   const { instance } = session;
   const querying = session.queryStatus === 'loading';
+  const paginationPolicy = getRecordPaginationPolicy(session);
+  const paginationOperations = bindRecordPagination(engine, id);
+  const tableOperations = {
+    clearSelection() {
+      if (engine.getSnapshot().sessions[id]) engine.setSelection([], id);
+    },
+    setColumns(columns: Parameters<ViewEngine['setColumns']>[0]) {
+      if (engine.getSnapshot().sessions[id]) engine.setColumns(columns, id);
+    },
+    async refresh() {
+      if (engine.getSnapshot().sessions[id]) await engine.refresh(id);
+    },
+  };
   const error =
     !session.queryError && localError?.id === id ? localError.message : null;
   return (
@@ -126,6 +153,7 @@ export function RecordView({
         className,
       )}
       aria-label="数据视图"
+      data-slot="record-view"
     >
       <FilterPanel
         key={`filter:${id}`}
@@ -167,15 +195,31 @@ export function RecordView({
         session={session}
         run={run}
       />
-      <RecordTableToolbar
-        key={`toolbar:${id}`}
-        definition={definition}
-        session={session}
-        extensions={extensions}
-        selectable={selectable}
-        refresh={refresh}
-        onSelectionClear={() => run(() => engine.setSelection([], id))}
-        onColumnsChange={tableHandlers.onColumnsChange}
+      <RecordRegion
+        key={`toolbar-region:${id}`}
+        label="表格工具栏"
+        render={renderTableToolbar}
+        resetKey={[renderTableToolbar, definition, session]}
+        context={{
+          definition,
+          session,
+          defaultContent: (
+            <RecordTableToolbar
+              key={`toolbar:${id}`}
+              definition={definition}
+              session={session}
+              extensions={extensions}
+              selectable={selectable}
+              refresh={refresh}
+              onSelectionClear={() => run(tableOperations.clearSelection)}
+              onColumnsChange={tableHandlers.onColumnsChange}
+            />
+          ),
+          appliedFilter: session.appliedFilter,
+          querying,
+          selectedRowKeys: session.selectedRowKeys,
+          ...tableOperations,
+        }}
       />
       {error && (
         <div
@@ -202,7 +246,26 @@ export function RecordView({
         selectedRowKeys={session.selectedRowKeys}
         refresh={refresh}
       />
-      <RecordPagination engine={engine} session={session} run={run} />
+      <RecordRegion
+        key={`pagination-region:${id}`}
+        label="分页"
+        render={renderPagination}
+        resetKey={[renderPagination, definition, session]}
+        context={{
+          definition,
+          session,
+          defaultContent: (
+            <RecordPagination
+              session={session}
+              policy={paginationPolicy}
+              operations={paginationOperations}
+              run={run}
+            />
+          ),
+          ...paginationPolicy,
+          ...paginationOperations,
+        }}
+      />
     </section>
   );
 }

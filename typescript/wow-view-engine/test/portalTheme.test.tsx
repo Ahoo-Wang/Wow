@@ -95,3 +95,31 @@ it('updates a default-open portal and releases its ancestor observer after closi
   view.unmount();
   computed.mockRestore();
 });
+
+it('recaptures theme and density changes while a portal remains open', async () => {
+  const draw = (theme: string) => (
+    <div
+      data-fve-theme={theme}
+      data-fve-density={theme === 'brand' ? 'compact' : 'comfortable'}
+    >
+      <Popover defaultOpen>
+        <PopoverTrigger>Live</PopoverTrigger>
+        <PopoverContent>
+          <PopoverTitle>Live theme</PopoverTitle>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+  const view = render(draw('blue'));
+  await screen.findByRole('dialog');
+  const scope = screen
+    .getByRole('button', { name: 'Live' })
+    .closest('.fve-root');
+  const computed = vi.spyOn(window, 'getComputedStyle');
+  view.rerender(draw('brand'));
+  await waitFor(() =>
+    expect(computed.mock.calls.some(([element]) => element === scope)).toBe(
+      true,
+    ),
+  );
+});

@@ -17,7 +17,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils.js';
 
 const badgeVariants = cva(
-  'fve:group/badge fve:inline-flex fve:h-5 fve:w-fit fve:shrink-0 fve:items-center fve:justify-center fve:gap-1 fve:overflow-hidden fve:rounded-4xl fve:border fve:border-transparent fve:px-2 fve:py-0.5 fve:text-xs fve:font-medium fve:whitespace-nowrap fve:transition-all fve:focus-visible:border-ring fve:focus-visible:ring-[3px] fve:focus-visible:ring-ring/50 fve:has-data-[icon=inline-end]:pr-1.5 fve:has-data-[icon=inline-start]:pl-1.5 fve:aria-invalid:border-destructive fve:aria-invalid:ring-destructive/20 fve:dark:aria-invalid:ring-destructive/40 fve:[&>svg]:pointer-events-none fve:[&>svg]:size-3!',
+  'fve:group/badge fve:inline-flex fve:h-5 fve:w-fit fve:shrink-0 fve:items-center fve:justify-center fve:gap-1 fve:overflow-hidden fve:rounded-4xl fve:border fve:border-transparent fve:px-2 fve:py-0.5 fve:text-xs fve:font-medium fve:whitespace-nowrap fve:transition-all fve:focus-visible:border-ring fve:focus-visible:ring-[3px] fve:focus-visible:ring-ring fve:has-data-[icon=inline-end]:pr-1.5 fve:has-data-[icon=inline-start]:pl-1.5 fve:aria-invalid:border-destructive fve:aria-invalid:ring-destructive/20 fve:dark:aria-invalid:ring-destructive/40 fve:[&>svg]:pointer-events-none fve:[&>svg]:size-3!',
   {
     variants: {
       variant: {

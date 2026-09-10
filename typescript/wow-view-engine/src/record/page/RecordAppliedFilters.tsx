@@ -172,8 +172,9 @@ export function RecordAppliedFilters({
     <section
       ref={rootRef}
       aria-label="已应用筛选"
+      data-slot="record-applied-filters"
       tabIndex={-1}
-      className="fve:flex fve:min-w-0 fve:flex-wrap fve:items-center fve:gap-2 fve:border-t fve:px-3 fve:py-2 fve:outline-none fve:focus-visible:ring-2 fve:focus-visible:ring-ring fve:focus-visible:ring-inset"
+      className="fve:flex fve:min-w-0 fve:flex-wrap fve:items-center fve:gap-[var(--fve-toolbar-gap)] fve:border-t fve:px-[var(--fve-toolbar-padding-x)] fve:py-[var(--fve-toolbar-padding-y)] fve:outline-none fve:focus-visible:ring-2 fve:focus-visible:ring-ring fve:focus-visible:ring-inset"
     >
       <span className="fve:shrink-0 fve:text-xs fve:font-medium fve:text-muted-foreground">
         已应用{items.length > 1 ? ' · 全部满足' : ''}

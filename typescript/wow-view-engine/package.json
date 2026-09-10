@@ -24,7 +24,13 @@
       "types": "./dist/react.d.ts",
       "import": "./dist/react.js"
     },
-    "./styles.css": "./dist/styles.css"
+    "./styles.css": "./dist/styles.css",
+    "./themes/neutral.css": "./dist/themes/neutral.css",
+    "./themes/blue.css": "./dist/themes/blue.css",
+    "./themes/violet.css": "./dist/themes/violet.css",
+    "./themes/green.css": "./dist/themes/green.css",
+    "./themes/orange.css": "./dist/themes/orange.css",
+    "./themes/shadcn.css": "./dist/themes/shadcn.css"
   },
   "files": [
     "dist",
@@ -43,7 +49,8 @@
     "lint": "eslint . --fix",
     "lint:check": "eslint . --max-warnings 0",
     "clean": "rm -rf dist",
-    "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:compiled && pnpm test:type"
+    "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:compiled && pnpm test:type",
+    "test:themes": "node scripts/verify-themes.mjs"
   },
   "dependencies": {
     "@base-ui/react": "catalog:",

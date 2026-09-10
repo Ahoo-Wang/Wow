@@ -46,9 +46,10 @@ export function RecordTableToolbar({
     <div
       role="group"
       aria-label="表格工具栏"
+      data-slot="record-table-toolbar"
       ref={tableToolbarRef}
       tabIndex={-1}
-      className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-2 fve:border-t fve:px-3 fve:py-2"
+      className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-[var(--fve-toolbar-gap)] fve:border-t fve:px-[var(--fve-toolbar-padding-x)] fve:py-[var(--fve-toolbar-padding-y)]"
     >
       <div className="fve:flex fve:flex-wrap fve:items-center fve:gap-3">
         {selectable && session.selectedRowKeys.length > 0 && (

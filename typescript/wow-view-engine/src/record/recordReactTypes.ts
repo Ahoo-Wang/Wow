@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import type { FieldSort, FilterExpression } from '@ahoo-wang/fetcher-wow';
 import type { FilterExtensions } from '../filter/filterReactTypes.js';
 import type { DeepReadonly } from '../lib/types.js';
@@ -24,7 +24,36 @@ import type {
   ViewDefinition,
   ViewFieldDefinition,
   ViewInstance,
+  RecordSession,
 } from './recordModel.js';
+
+export interface RecordTableToolbarRenderContext {
+  readonly definition: DeepReadonly<ViewDefinition>;
+  readonly session: DeepReadonly<RecordSession>;
+  readonly defaultContent: ReactNode;
+  readonly appliedFilter: DeepReadonly<FilterExpression> | null;
+  readonly querying: boolean;
+  readonly selectedRowKeys: readonly RecordKey[];
+  clearSelection(): void;
+  setColumns(columns: RecordColumn[]): void;
+  refresh(): Promise<void>;
+}
+export interface RecordPaginationRenderContext {
+  readonly definition: DeepReadonly<ViewDefinition>;
+  readonly session: DeepReadonly<RecordSession>;
+  readonly defaultContent: ReactNode;
+  readonly mode: 'paged' | 'cursor';
+  readonly page: number;
+  readonly pageSize: number;
+  readonly pageCount: number | null;
+  readonly canNext: boolean;
+  readonly canPrevious: boolean;
+  readonly canChangePageSize: boolean;
+  setPage(index: number): Promise<void>;
+  setPageSize(size: number): Promise<void>;
+  nextPage(): Promise<void>;
+  previousPage(): Promise<void>;
+}
 
 export interface RecordActionsContext {
   readonly definition: DeepReadonly<ViewDefinition>;

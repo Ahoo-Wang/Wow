@@ -12,6 +12,7 @@
  */
 
 import { fileURLToPath, URL } from 'node:url';
+import { readFileSync, readdirSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
@@ -31,6 +32,16 @@ export default defineConfig({
       generateBundle: {
         order: 'post',
         handler(_options, bundle) {
+          const themes = new URL('./src/themes/', import.meta.url);
+          for (const name of readdirSync(themes).filter(name =>
+            name.endsWith('.css'),
+          )) {
+            this.emitFile({
+              type: 'asset',
+              fileName: `themes/${name}`,
+              source: readFileSync(new URL(name, themes), 'utf8'),
+            });
+          }
           for (const asset of Object.values(bundle)) {
             if (asset.type === 'asset' && asset.fileName.endsWith('.css')) {
               const css =

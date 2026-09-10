@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { ThemesExample } from './ThemesExample.js';
 import { BuiltinCellsExample } from './BuiltinCellsExample.js';
 import { BuiltinFiltersExample } from './BuiltinFiltersExample.js';
 import { StrictMode } from 'react';
@@ -23,7 +24,9 @@ if (!root) throw new Error('订单示例缺少 root 容器。');
 const example = new URLSearchParams(location.search).get('example');
 createRoot(root).render(
   <StrictMode>
-    {example === 'builtin-cells' ? (
+    {example === 'themes' ? (
+      <ThemesExample />
+    ) : example === 'builtin-cells' ? (
       <BuiltinCellsExample persist />
     ) : example === 'builtin-filters' ? (
       <BuiltinFiltersExample persist />

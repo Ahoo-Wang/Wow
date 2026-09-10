@@ -95,3 +95,6 @@ export { DateTimeCell } from './record/cells/DateTimeCell.js';
 export type { DateTimeCellProps } from './record/cells/DateTimeCell.js';
 export { NumberCell } from './record/cells/NumberCell.js';
 export type { NumberCellProps } from './record/cells/NumberCell.js';
+
+export { ViewTheme } from './theme/ViewTheme.js';
+export type { ViewThemeProps, ViewThemeStyle } from './theme/ViewTheme.js';

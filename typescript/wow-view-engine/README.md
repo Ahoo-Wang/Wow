@@ -512,12 +512,32 @@ export function AmountFilter() {
 ## Entries and theme
 
 - The core entry exports field/configuration contracts and filter compilation helpers without React, DOM or CSS.
-- `/react` exports `FilterPanel`, `FilterValueEditor`, individual filter controls and composition primitives.
-- `/styles.css` contains compiled, prefixed styles. Consumers do not need Tailwind. React 19 is required when using `/react`.
+- `/react` exports `ViewTheme`, `ViewThemeStyle`, `FilterPanel`, `FilterValueEditor`, individual filter controls and composition primitives.
+- `/styles.css` contains compiled, prefixed component styles and the default Neutral appearance. `/themes/{neutral,blue,violet,green,orange,shadcn}.css` adds selectable themes. Consumers do not need Tailwind. React 19 is required when using `/react`.
 
-Styles reuse the shadcn base-nova Neutral theme. Utilities use the `fve:` prefix; theme tokens use `--fve-*`. Wrap controls in `.fve-root` to override tokens together; `data-theme="light"` and `data-theme="dark"` select an explicit appearance. Without an explicit theme, components follow the inherited CSS `color-scheme` using `light-dark()`.
+Importing a theme only makes it available; select it with `data-fve-theme` or `ViewTheme.theme`. Import order does not select a theme. Theme names are open strings, so custom CSS uses the same contract:
+
+```tsx
+import { ViewTheme } from '@ahoo-wang/fetcher-view-engine/react';
+import '@ahoo-wang/fetcher-view-engine/styles.css';
+import '@ahoo-wang/fetcher-view-engine/themes/blue.css';
+
+<ViewTheme theme="blue" appearance="system" density="compact">
+  <ViewPage {...props} />
+</ViewTheme>;
+```
+
+`appearance` accepts `light`, `dark` or `system`; `density` accepts `comfortable` or `compact`. Omitted values inherit. `ViewThemeStyle` accepts normal React CSS properties plus typed `--fve-*` variables. Plain CSS remains the base interface: use `.fve-root[data-fve-theme='brand']` for an arbitrary custom theme. An unknown or unloaded name does not throw and falls back through CSS inheritance/defaults; that fallback does not prove the theme file was imported.
+
+Use `px` or `rem` for `--fve-font-size`; `em` and `%` compound through the semantic text scale. Other public size variables may use `em` relative to the effective font. When `--fve-line-height` is unset, the root uses `1.5` and semantic text styles retain their upstream ratios; setting it overrides those ratios.
+
+The `shadcn` theme reads complete CSS colors such as `oklch(...)`, `hsl(...)` or `#hex` from the host's semantic variables. It does not parse legacy bare HSL channels. Missing tokens use library fallbacks, while present invalid or cyclic values follow normal CSS invalid-value behavior. The host still owns global preference, persistence and `.dark`; a local light marker cannot reconstruct light tokens when the host only defines dark values.
 
 Select menus, dropdown menus and Popover panels use a body portal so clipping ancestors do not hide them. Each opening, including a controlled `open` change, copies the control's current theme tokens, explicit theme marker, color scheme and typography to the portal. Dark variants use native CSS container style queries to respect the nearest explicit theme, including light sections inside a dark page and dark sections inside light sections. A `data-theme` value takes priority over `.dark` on the same element. This requires modern browsers with container style query support; no legacy compatibility layer is included. While open, ancestor theme class, data-theme and inline style changes are reflected in the popup; closed popups do not observe ancestors. `SelectContent.container` is available for hosts that explicitly choose another Select portal target.
+
+Variable themes propagate to library portals. Structural selectors such as `.brand [data-slot=...]` do not cross a body portal, and arbitrary CSSOM stylesheet replacement without an attribute/class/inline-style change is not observed. Third-party portals must use that component's own theme-container support. Define aliases and derived values at the target theme boundary: CSS custom-property references are resolved before inheritance, so a child cannot be assumed to recompute an inherited derived value after changing its inputs. Change paired colors such as `--fve-primary` and `--fve-primary-foreground` together. The complete public variable table and region callback contracts are in the [API reference](../../skills/fetcher-view-engine/references/api.md).
+
+`ViewPage`, `ViewPageContent` and `RecordView` accept `renderTableToolbar` and `renderPagination`. Each callback receives readonly state, the default region node and instance-bound controlled operations. Return the default node to preserve it, wrap it to compose UI, or return `null` to hide it. Return a component when the extension needs Hooks or local state.
 
 `FilterDatePicker` uses the shadcn Calendar with a Chinese locale and a controlled `Date | undefined`. `FilterTimeInput` combines a text input with hour/minute/second Select controls; it preserves incomplete input and accepts `HH:mm` or `HH:mm:ss`, with whole-second precision at most. Restored fractional clock values are truncated to seconds when displayed or edited. Both accept `inline` for composition inside `FieldFilter`. The host owns timezone conversion and applying the query. Unset values are valid: keep the editor visible and omit its value-dependent predicate on Query. If no predicates remain, apply `filter.matchAll()`. A date/time pair is unset only when both parts are empty; partial values require completion. Clock selectors preserve the other typed segments during partial input. Malformed nonempty input remains invalid; value-free operators and explicit null/zero/false literals retain their Wow semantics.
 

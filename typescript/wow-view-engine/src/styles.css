@@ -25,10 +25,14 @@
 .dark:not([data-theme='light']),
 [data-theme='dark'] {
   --fve-theme-mode: dark;
+
+  color-scheme: dark;
 }
 
 [data-theme='light'] {
   --fve-theme-mode: light;
+
+  color-scheme: light;
 }
 
 @theme inline {
@@ -54,47 +58,89 @@
   --radius-sm: calc(var(--fve-radius) * 0.6);
   --radius-md: calc(var(--fve-radius) * 0.8);
   --radius-lg: var(--fve-radius);
+  --radius-xl: calc(var(--fve-radius) * 1.4);
+  --radius-2xl: calc(var(--fve-radius) * 1.8);
+  --radius-3xl: calc(var(--fve-radius) * 2.2);
+  --radius-4xl: calc(var(--fve-radius) * 2.6);
+  --text-xs: calc(var(--fve-font-size) * 6 / 7);
+  --text-sm: var(--fve-font-size);
+  --text-base: calc(var(--fve-font-size) * 8 / 7);
+  --text-lg: calc(var(--fve-font-size) * 9 / 7);
+  --text-xl: calc(var(--fve-font-size) * 10 / 7);
+  /* stylelint-disable custom-property-pattern -- Tailwind requires --text-*--line-height companion tokens. */
+  --text-xs--line-height: var(
+    --fve-line-height-xs,
+    var(--fve-line-height, calc(4 / 3))
+  );
+  --text-sm--line-height: var(
+    --fve-line-height-sm,
+    var(--fve-line-height, calc(10 / 7))
+  );
+  --text-base--line-height: var(--fve-line-height, 1.5);
+  --text-lg--line-height: var(--fve-line-height, calc(14 / 9));
+  --text-xl--line-height: var(--fve-line-height, 1.4);
+  /* stylelint-enable custom-property-pattern */
 }
 
-.fve-root:not(.fve-root .fve-root) {
-  --fve-background: light-dark(oklch(1 0 0deg), oklch(0.145 0 0deg));
-  --fve-foreground: light-dark(oklch(0.145 0 0deg), oklch(0.985 0 0deg));
-  --fve-primary: light-dark(oklch(0.205 0 0deg), oklch(0.922 0 0deg));
-  --fve-primary-foreground: light-dark(
-    oklch(0.985 0 0deg),
-    oklch(0.205 0 0deg)
-  );
-  --fve-secondary: light-dark(oklch(0.97 0 0deg), oklch(0.269 0 0deg));
-  --fve-secondary-foreground: light-dark(
-    oklch(0.205 0 0deg),
-    oklch(0.985 0 0deg)
-  );
-  --fve-muted: light-dark(oklch(0.97 0 0deg), oklch(0.269 0 0deg));
-  --fve-muted-foreground: light-dark(oklch(0.556 0 0deg), oklch(0.708 0 0deg));
-  --fve-accent: var(--fve-muted);
-  --fve-accent-foreground: var(--fve-foreground);
-  --fve-popover: light-dark(oklch(1 0 0deg), oklch(0.205 0 0deg));
-  --fve-popover-foreground: var(--fve-foreground);
-  --fve-destructive: light-dark(
-    oklch(0.577 0.245 27.325deg),
-    oklch(0.704 0.191 22.216deg)
-  );
-  --fve-success: light-dark(oklch(0.42 0.12 150deg), oklch(0.8 0.12 150deg));
-  --fve-warning: light-dark(oklch(0.45 0.1 75deg), oklch(0.83 0.12 75deg));
-  --fve-info: light-dark(oklch(0.44 0.16 255deg), oklch(0.8 0.1 255deg));
-  --fve-border: light-dark(oklch(0.922 0 0deg), oklch(1 0 0deg / 10%));
-  --fve-input: light-dark(oklch(0.922 0 0deg), oklch(1 0 0deg / 15%));
-  --fve-ring: light-dark(oklch(0.708 0 0deg), oklch(0.556 0 0deg));
-  --fve-radius: 0.625rem;
-  --fve-radius-md: calc(var(--fve-radius) * 0.8);
-
-  color: var(--fve-foreground);
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
+@layer theme {
+  :where(.fve-root:not(.fve-root .fve-root)) {
+    --fve-background: light-dark(oklch(1 0 0deg), oklch(0.145 0 0deg));
+    --fve-foreground: light-dark(oklch(0.145 0 0deg), oklch(0.985 0 0deg));
+    --fve-primary: light-dark(oklch(0.205 0 0deg), oklch(0.922 0 0deg));
+    --fve-primary-foreground: light-dark(
+      oklch(0.985 0 0deg),
+      oklch(0.205 0 0deg)
+    );
+    --fve-secondary: light-dark(oklch(0.97 0 0deg), oklch(0.269 0 0deg));
+    --fve-secondary-foreground: light-dark(
+      oklch(0.205 0 0deg),
+      oklch(0.985 0 0deg)
+    );
+    --fve-muted: light-dark(oklch(0.97 0 0deg), oklch(0.269 0 0deg));
+    --fve-muted-foreground: light-dark(
+      oklch(0.556 0 0deg),
+      oklch(0.708 0 0deg)
+    );
+    --fve-accent: var(--fve-muted);
+    --fve-accent-foreground: var(--fve-foreground);
+    --fve-popover: light-dark(oklch(1 0 0deg), oklch(0.205 0 0deg));
+    --fve-popover-foreground: var(--fve-foreground);
+    --fve-destructive: light-dark(
+      oklch(0.577 0.245 27.325deg),
+      oklch(0.704 0.191 22.216deg)
+    );
+    --fve-success: light-dark(oklch(0.42 0.12 150deg), oklch(0.8 0.12 150deg));
+    --fve-warning: light-dark(oklch(0.45 0.1 75deg), oklch(0.83 0.12 75deg));
+    --fve-info: light-dark(oklch(0.44 0.16 255deg), oklch(0.8 0.1 255deg));
+    --fve-border: light-dark(oklch(0.922 0 0deg), oklch(1 0 0deg / 10%));
+    --fve-input: light-dark(oklch(0.922 0 0deg), oklch(1 0 0deg / 15%));
+    --fve-ring: light-dark(oklch(0.556 0 0deg), oklch(0.708 0 0deg));
+    --fve-radius: 0.625rem;
+    --fve-font-family: ui-sans-serif, system-ui, sans-serif;
+    --fve-font-size: 14px;
+    --fve-control-height: 2rem;
+    --fve-table-cell-padding-x: 0.5rem;
+    --fve-table-cell-padding-y: 0.5rem;
+    --fve-toolbar-padding-x: 0.75rem;
+    --fve-toolbar-padding-y: 0.5rem;
+    --fve-toolbar-gap: 0.5rem;
+  }
 }
 
 @layer base {
+  /* Internal component wrappers inherit host typography; only theme boundaries apply tokens. */
+  :where(.fve-root:not(.fve-root .fve-root), .fve-root[data-fve-theme]) {
+    font-family: var(--fve-font-family);
+    font-size: var(--fve-font-size);
+    line-height: var(--fve-line-height, 1.5);
+  }
+
+  :where(.fve-root) {
+    color: var(--fve-foreground);
+
+    --fve-radius-md: calc(var(--fve-radius) * 0.8);
+  }
+
   .fve-root,
   .fve-root::before,
   .fve-root::after,
@@ -214,4 +260,36 @@
   border-radius: 0;
   overflow: auto;
   overscroll-behavior: contain;
+}
+
+@layer theme {
+  :where(.fve-root[data-fve-density='comfortable']) {
+    --fve-control-height: 2rem;
+    --fve-table-cell-padding-x: 0.5rem;
+    --fve-table-cell-padding-y: 0.5rem;
+    --fve-toolbar-padding-x: 0.75rem;
+    --fve-toolbar-padding-y: 0.5rem;
+    --fve-toolbar-gap: 0.5rem;
+  }
+
+  :where(.fve-root[data-fve-density='compact']) {
+    --fve-control-height: 1.75rem;
+    --fve-table-cell-padding-x: 0.375rem;
+    --fve-table-cell-padding-y: 0.25rem;
+    --fve-toolbar-padding-x: 0.5rem;
+    --fve-toolbar-padding-y: 0.25rem;
+    --fve-toolbar-gap: 0.375rem;
+  }
+}
+
+.fve-root[data-theme='system'] {
+  color-scheme: light dark;
+
+  --fve-theme-mode: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  .fve-root[data-theme='system'] {
+    --fve-theme-mode: dark;
+  }
 }

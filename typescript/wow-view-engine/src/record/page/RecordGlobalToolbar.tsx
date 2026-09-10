@@ -70,7 +70,8 @@ export function RecordGlobalToolbar({
     <header
       role="group"
       aria-label="全局工具栏"
-      className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-2 fve:px-3 fve:py-2"
+      data-slot="record-global-toolbar"
+      className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-[var(--fve-toolbar-gap)] fve:px-[var(--fve-toolbar-padding-x)] fve:py-[var(--fve-toolbar-padding-y)]"
     >
       <div className="fve:flex fve:min-w-0 fve:flex-wrap fve:items-center fve:gap-2">
         {toolbarStart === undefined ? (

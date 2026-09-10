@@ -336,12 +336,32 @@ export function AmountFilter() {
 ## 入口与主题
 
 - 核心入口导出字段与草稿契约、过滤器编译校验函数，不加载 React、DOM 或 CSS。
-- `/react` 导出 `FilterPanel`、`FilterValueEditor`、单个过滤器控件及组合组件。
-- `/styles.css` 是已编译且带前缀的独立样式，宿主无需安装 Tailwind。使用 `/react` 时需要 React 19。
+- `/react` 导出 `ViewTheme`、`ViewThemeStyle`、`FilterPanel`、`FilterValueEditor`、单个过滤器控件及组合组件。
+- `/styles.css` 包含已编译的前缀组件样式与默认 Neutral 外观；`/themes/{neutral,blue,violet,green,orange,shadcn}.css` 提供可选主题。宿主无需安装 Tailwind；使用 `/react` 时需要 React 19。
 
-样式沿用 shadcn base-nova 的默认 Neutral 主题。工具类使用 `fve:` 前缀，主题变量使用 `--fve-*`。宿主可用 `.fve-root` 包裹组件并覆盖变量，通过 `data-theme="light"` 或 `data-theme="dark"` 显式指定外观；未指定时通过 `light-dark()` 跟随继承的 CSS `color-scheme`。
+导入主题只会让它可用，必须通过 `data-fve-theme` 或 `ViewTheme.theme` 选择；导入顺序不会选择主题。主题名是开放字符串，自定义 CSS 使用相同契约：
+
+```tsx
+import { ViewTheme } from '@ahoo-wang/fetcher-view-engine/react';
+import '@ahoo-wang/fetcher-view-engine/styles.css';
+import '@ahoo-wang/fetcher-view-engine/themes/blue.css';
+
+<ViewTheme theme="blue" appearance="system" density="compact">
+  <ViewPage {...props} />
+</ViewTheme>;
+```
+
+`appearance` 可取 `light`、`dark` 或 `system`，`density` 可取 `comfortable` 或 `compact`；省略时继承。`ViewThemeStyle` 同时接受普通 React CSS 属性与有类型的 `--fve-*` 变量。CSS 是基础接口，任意自定义主题可使用 `.fve-root[data-fve-theme='brand']`。未知或未加载的主题名不会抛错，而是按 CSS 继承/默认值回退；发生回退不代表主题文件已经正确导入。
+
+`--fve-font-size` 只使用 `px` 或 `rem`；`em` 与 `%` 会在语义字号中重复放大。其他公开尺寸变量可使用相对于有效字号的 `em`。未设置 `--fve-line-height` 时，根行高为 `1.5`，语义文字样式保留上游比例；显式设置后会覆盖这些比例。
+
+`shadcn` 主题读取宿主语义变量中的完整 CSS 颜色，例如 `oklch(...)`、`hsl(...)` 或 `#hex`，不解析旧版裸 HSL 通道。缺失 token 使用库回退值；已存在但无效或循环的值遵循 CSS 的无效值行为。全局偏好、持久化和 `.dark` 仍由宿主负责；如果宿主只定义了深色 token，局部 light 标记无法还原浅色 token。
 
 Select、下拉菜单与 Popover 面板默认 Portal 到 body，避免被有裁剪或滚动的祖先容器遮住。每次打开（包括受控 `open` 变化）时，将所属范围当前的主题变量、显式主题标记、颜色模式和字体传到弹层。深色变体使用原生 CSS 容器样式查询遵循最近的显式主题，支持深色页面内的浅色区域及浅色区域内的深色区域；同一元素上的 `data-theme` 优先于 `.dark`。需要支持容器样式查询的现代浏览器，不提供旧浏览器兼容层。打开期间会同步实际祖先的 class、data-theme 与行内样式变化，关闭后停止监听。宿主需要其他 Select 挂载位置时可显式指定 `SelectContent.container`。
+
+变量主题会传入库自己的 Portal；`.brand [data-slot=...]` 一类结构选择器不会跨越 body Portal，任意 CSSOM 样式表替换若没有属性、class 或行内样式变化也不会被监听。第三方 Portal 必须采用其组件自己的主题容器机制。别名和派生值应定义在目标主题边界：CSS 自定义属性引用在继承前解析，不能假设子作用域修改基础变量后会重算继承的派生值。`--fve-primary` 与 `--fve-primary-foreground` 等配对颜色应一起修改。完整公开变量表与区域回调契约见 [API 参考](../../skills/fetcher-view-engine/references/api.md)。
+
+`ViewPage`、`ViewPageContent` 与 `RecordView` 支持 `renderTableToolbar` 和 `renderPagination`。每个回调收到只读状态、默认区域节点和绑定实例的受控操作。返回默认节点可保留它，包裹节点可组合 UI，返回 `null` 可隐藏区域。扩展需要 Hook 或局部状态时应返回一个组件。
 
 `FilterDatePicker` 使用中文 shadcn Calendar，受控值为 `Date | undefined`。`FilterTimeInput` 组合文本输入与时、分、秒 Select，保留未完成输入，接受 `HH:mm` 或 `HH:mm:ss`，最多精确到秒；已有小数秒时间在显示或编辑时截到秒。两者均支持 `inline`，可放入 `FieldFilter`。时区转换和查询生效时机由宿主管理。未设置值合法：保留编辑器，点击查询时不生成需要值的对应谓词；没有剩余条件时使用 `filter.matchAll()`。日期和时间均为空才算未设置，只填一项时提示补全；时间下拉保留其他已填写片段。已填写但格式错误时仍提示错误；无需值的操作与显式 null / 零 / false 保留 Wow 语义。
 

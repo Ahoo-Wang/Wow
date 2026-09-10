@@ -16,7 +16,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils.js';
 
 const buttonVariants = cva(
-  'fve:group/button fve:inline-flex fve:shrink-0 fve:items-center fve:justify-center fve:rounded-lg fve:border fve:border-transparent fve:bg-clip-padding fve:text-sm fve:font-medium fve:whitespace-nowrap fve:transition-all fve:outline-none fve:select-none fve:focus-visible:border-ring fve:focus-visible:ring-3 fve:focus-visible:ring-ring/50 fve:active:not-aria-[haspopup]:translate-y-px fve:disabled:pointer-events-none fve:disabled:opacity-50 fve:aria-invalid:border-destructive fve:aria-invalid:ring-3 fve:aria-invalid:ring-destructive/20 fve:dark:aria-invalid:border-destructive/50 fve:dark:aria-invalid:ring-destructive/40 fve:[&_svg]:pointer-events-none fve:[&_svg]:shrink-0 fve:[&_svg:not([class*=size-])]:size-4',
+  'fve:group/button fve:inline-flex fve:shrink-0 fve:items-center fve:justify-center fve:rounded-lg fve:border fve:border-transparent fve:bg-clip-padding fve:text-sm fve:font-medium fve:whitespace-nowrap fve:transition-all fve:outline-none fve:select-none fve:focus-visible:border-ring fve:focus-visible:ring-3 fve:focus-visible:ring-ring fve:active:not-aria-[haspopup]:translate-y-px fve:disabled:pointer-events-none fve:disabled:opacity-50 fve:aria-invalid:border-destructive fve:aria-invalid:ring-3 fve:aria-invalid:ring-destructive/20 fve:dark:aria-invalid:border-destructive/50 fve:dark:aria-invalid:ring-destructive/40 fve:[&_svg]:pointer-events-none fve:[&_svg]:shrink-0 fve:[&_svg:not([class*=size-])]:size-4',
   {
     variants: {
       variant: {
@@ -34,11 +34,11 @@ const buttonVariants = cva(
       },
       size: {
         default:
-          'fve:h-8 fve:gap-1.5 fve:px-2.5 fve:has-data-[icon=inline-end]:pr-2 fve:has-data-[icon=inline-start]:pl-2',
+          'fve:h-(--fve-control-height) fve:gap-1.5 fve:px-2.5 fve:has-data-[icon=inline-end]:pr-2 fve:has-data-[icon=inline-start]:pl-2',
         xs: 'fve:h-6 fve:gap-1 fve:rounded-[min(var(--fve-radius-md),10px)] fve:px-2 fve:text-xs fve:in-data-[slot=button-group]:rounded-lg fve:has-data-[icon=inline-end]:pr-1.5 fve:has-data-[icon=inline-start]:pl-1.5 fve:[&_svg:not([class*=size-])]:size-3',
-        sm: 'fve:h-7 fve:gap-1 fve:rounded-[min(var(--fve-radius-md),12px)] fve:px-2.5 fve:text-[0.8rem] fve:in-data-[slot=button-group]:rounded-lg fve:has-data-[icon=inline-end]:pr-1.5 fve:has-data-[icon=inline-start]:pl-1.5 fve:[&_svg:not([class*=size-])]:size-3.5',
+        sm: 'fve:h-7 fve:gap-1 fve:rounded-[min(var(--fve-radius-md),12px)] fve:px-2.5 fve:text-[length:calc(var(--fve-font-size)*32/35)] fve:in-data-[slot=button-group]:rounded-lg fve:has-data-[icon=inline-end]:pr-1.5 fve:has-data-[icon=inline-start]:pl-1.5 fve:[&_svg:not([class*=size-])]:size-3.5',
         lg: 'fve:h-9 fve:gap-1.5 fve:px-2.5 fve:has-data-[icon=inline-end]:pr-2 fve:has-data-[icon=inline-start]:pl-2',
-        icon: 'fve:size-8',
+        icon: 'fve:size-(--fve-control-height)',
         'icon-xs':
           'fve:size-6 fve:rounded-[min(var(--fve-radius-md),10px)] fve:in-data-[slot=button-group]:rounded-lg fve:[&_svg:not([class*=size-])]:size-3',
         'icon-sm':

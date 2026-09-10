@@ -15,30 +15,32 @@ import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Button } from '../../components/ui/button.js';
 import { FilterSelect } from '../../filter/FilterSelect.js';
 import type { RecordSession } from '../recordModel.js';
-import type { ViewEngine } from '../ViewEngine.js';
+import type { RecordPaginationPolicy } from './recordPaginationPolicy.js';
 
 export function RecordPagination({
-  engine,
   session,
+  policy,
+  operations,
   run,
 }: {
-  engine: ViewEngine;
   session: RecordSession;
+  policy: RecordPaginationPolicy;
+  operations: {
+    setPageSize(size: number): Promise<void>;
+    nextPage(): Promise<void>;
+    previousPage(): Promise<void>;
+  };
   run(action: () => void | Promise<void>): void;
 }) {
   if (session.queryError) return null;
   const { instance } = session;
-  const id = instance.id;
   const querying = session.queryStatus === 'loading';
-  const paged = instance.config.pagination.mode === 'paged';
-  const pageCount =
-    session.total === null
-      ? null
-      : Math.max(1, Math.ceil(session.total / instance.config.pagination.size));
+  const paged = policy.mode === 'paged';
   return (
     <nav
       aria-label="记录分页"
-      className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-x-4 fve:gap-y-2 fve:border-t fve:px-3 fve:py-2 fve:text-sm"
+      data-slot="record-pagination"
+      className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-[var(--fve-toolbar-gap)] fve:border-t fve:px-[var(--fve-toolbar-padding-x)] fve:py-[var(--fve-toolbar-padding-y)] fve:text-sm"
     >
       <div
         role="status"
@@ -58,9 +60,9 @@ export function RecordPagination({
             label="每页记录数"
             value={String(instance.config.pagination.size)}
             onValueChange={size =>
-              run(() => engine.setPageSize(Number(size), id))
+              run(() => operations.setPageSize(Number(size)))
             }
-            disabled={querying}
+            disabled={!policy.canChangePageSize}
             options={[
               ...new Set([10, 20, 50, 100, instance.config.pagination.size]),
             ]
@@ -71,7 +73,7 @@ export function RecordPagination({
         <div className="fve:flex fve:items-center fve:gap-2">
           <span>
             {paged
-              ? `第 ${session.page} / ${pageCount ?? '–'} 页`
+              ? `第 ${session.page} / ${policy.pageCount ?? '–'} 页`
               : `第 ${session.page} 页`}
           </span>
           {paged && (
@@ -79,8 +81,8 @@ export function RecordPagination({
               variant="outline"
               size="icon-sm"
               aria-label="上一页"
-              disabled={querying || session.page <= 1}
-              onClick={() => run(() => engine.setPage(session.page - 1, id))}
+              disabled={!policy.canPrevious}
+              onClick={() => run(operations.previousPage)}
             >
               <ChevronLeftIcon aria-hidden="true" />
             </Button>
@@ -89,20 +91,8 @@ export function RecordPagination({
             variant="outline"
             size="icon-sm"
             aria-label="下一页"
-            disabled={
-              querying ||
-              session.queryStatus !== 'success' ||
-              (paged
-                ? pageCount === null || session.page >= pageCount
-                : session.nextCursor === null)
-            }
-            onClick={() =>
-              run(() =>
-                paged
-                  ? engine.setPage(session.page + 1, id)
-                  : engine.nextPage(id),
-              )
-            }
+            disabled={!policy.canNext}
+            onClick={() => run(operations.nextPage)}
           >
             <ChevronRightIcon aria-hidden="true" />
           </Button>

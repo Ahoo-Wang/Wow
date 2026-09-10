@@ -41,19 +41,32 @@ export function usePortalTheme(open?: boolean, defaultOpen = false) {
         .map(name => [name, computed.getPropertyValue(name)]),
     );
     const marker = scope.current.closest(
-      ".dark, [data-theme='dark'], [data-theme='light']",
+      ".dark, [data-theme='dark'], [data-theme='light'], [data-theme='system']",
     );
+    const system = marker?.getAttribute('data-theme') === 'system';
+    const systemDark =
+      scope.current.ownerDocument.defaultView?.matchMedia?.(
+        '(prefers-color-scheme: dark)',
+      ).matches ?? false;
     setTheme({
-      'data-theme': marker
-        ? marker.getAttribute('data-theme') === 'dark' ||
-          (marker.getAttribute('data-theme') !== 'light' &&
-            marker.classList.contains('dark'))
+      'data-theme': system
+        ? systemDark
           ? 'dark'
           : 'light'
-        : undefined,
+        : marker
+          ? marker.getAttribute('data-theme') === 'dark' ||
+            (marker.getAttribute('data-theme') !== 'light' &&
+              marker.classList.contains('dark'))
+            ? 'dark'
+            : 'light'
+          : undefined,
       style: {
         ...variables,
-        colorScheme: computed.colorScheme,
+        colorScheme: system
+          ? systemDark
+            ? 'dark'
+            : 'light'
+          : computed.colorScheme,
         fontFamily: computed.fontFamily,
         fontSize: computed.fontSize,
         lineHeight: computed.lineHeight,
@@ -72,9 +85,22 @@ export function usePortalTheme(open?: boolean, defaultOpen = false) {
     )
       observer.observe(element, {
         attributes: true,
-        attributeFilter: ['class', 'data-theme', 'style'],
+        attributeFilter: [
+          'class',
+          'data-theme',
+          'data-fve-theme',
+          'data-fve-density',
+          'style',
+        ],
       });
-    return () => observer.disconnect();
+    const media = scope.current.ownerDocument.defaultView?.matchMedia?.(
+      '(prefers-color-scheme: dark)',
+    );
+    media?.addEventListener('change', readTheme);
+    return () => {
+      observer.disconnect();
+      media?.removeEventListener('change', readTheme);
+    };
   }, [readTheme, open, uncontrolledOpen]);
   const captureTheme = useCallback(
     (nextOpen: boolean) => {

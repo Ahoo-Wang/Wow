@@ -113,7 +113,7 @@ function Calendar({
         ),
         weekdays: cn('fve:flex', defaultClassNames.weekdays),
         weekday: cn(
-          'fve:flex-1 fve:rounded-(--fve-cell-radius) fve:text-[0.8rem] fve:font-normal fve:text-muted-foreground fve:select-none',
+          'fve:flex-1 fve:rounded-(--fve-cell-radius) fve:text-[length:calc(var(--fve-font-size)*32/35)] fve:font-normal fve:text-muted-foreground fve:select-none',
           defaultClassNames.weekday,
         ),
         week: cn('fve:mt-2 fve:flex fve:w-full', defaultClassNames.week),
@@ -122,7 +122,7 @@ function Calendar({
           defaultClassNames.week_number_header,
         ),
         week_number: cn(
-          'fve:text-[0.8rem] fve:text-muted-foreground fve:select-none',
+          'fve:text-[length:calc(var(--fve-font-size)*32/35)] fve:text-muted-foreground fve:select-none',
           defaultClassNames.week_number,
         ),
         day: cn(
