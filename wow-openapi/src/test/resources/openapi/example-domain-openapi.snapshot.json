@@ -4774,7 +4774,7 @@
         "type" : "string"
       },
       "wow.api.query.AggregationFunction" : {
-        "enum" : [ "SUM", "AVG", "MIN", "MAX" ],
+        "enum" : [ "SUM", "AVG", "MIN", "MAX", "STDDEV", "VARIANCE" ],
         "type" : "string"
       },
       "wow.api.query.AggregationGroup.DateHistogram" : {
@@ -4838,7 +4838,9 @@
           "mapping" : {
             "ANY" : "#/components/schemas/wow.api.query.AggregationMetric.Any",
             "COUNT" : "#/components/schemas/wow.api.query.AggregationMetric.Count",
-            "NUMERIC" : "#/components/schemas/wow.api.query.AggregationMetric.Numeric"
+            "DISTINCT_COUNT" : "#/components/schemas/wow.api.query.AggregationMetric.DistinctCount",
+            "NUMERIC" : "#/components/schemas/wow.api.query.AggregationMetric.Numeric",
+            "PERCENTILE" : "#/components/schemas/wow.api.query.AggregationMetric.Percentile"
           },
           "propertyName" : "type"
         },
@@ -4847,7 +4849,11 @@
         }, {
           "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Count"
         }, {
+          "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.DistinctCount"
+        }, {
           "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Numeric"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Percentile"
         } ],
         "properties" : {
           "alias" : {
@@ -4882,6 +4888,21 @@
         "required" : [ "alias", "type" ],
         "type" : "object"
       },
+      "wow.api.query.AggregationMetric.DistinctCount" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "expression" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationExpression"
+          },
+          "type" : {
+            "const" : "DISTINCT_COUNT"
+          }
+        },
+        "required" : [ "alias", "expression", "type" ],
+        "type" : "object"
+      },
       "wow.api.query.AggregationMetric.Numeric" : {
         "properties" : {
           "alias" : {
@@ -4898,6 +4919,27 @@
           }
         },
         "required" : [ "alias", "expression", "function", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.AggregationMetric.Percentile" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "expression" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationExpression"
+          },
+          "percentile" : {
+            "exclusiveMaximum" : 100,
+            "exclusiveMinimum" : 0,
+            "format" : "double",
+            "type" : "number"
+          },
+          "type" : {
+            "const" : "PERCENTILE"
+          }
+        },
+        "required" : [ "alias", "expression", "percentile", "type" ],
         "type" : "object"
       },
       "wow.api.query.AggregationQuery" : {

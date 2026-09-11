@@ -970,8 +970,16 @@ abstract class SnapshotQueryBackendSpec {
             .test()
             .assertNext { row ->
                 // PAID amounts 排序后 [10,20,20,30,50]：(n-1)*0.5=2 → [20,20]；(n-1)*0.95=3.8 → [30,50]
-                assertPercentileWithinRankBounds(row.path("median").doubleValue(), listOf(10.0, 20.0, 20.0, 30.0, 50.0), 50.0)
-                assertPercentileWithinRankBounds(row.path("p95").doubleValue(), listOf(10.0, 20.0, 20.0, 30.0, 50.0), 95.0)
+                assertPercentileWithinRankBounds(
+                    row.path("median").doubleValue(),
+                    listOf(10.0, 20.0, 20.0, 30.0, 50.0),
+                    50.0
+                )
+                assertPercentileWithinRankBounds(
+                    row.path("p95").doubleValue(),
+                    listOf(10.0, 20.0, 20.0, 30.0, 50.0),
+                    95.0
+                )
             }.verifyComplete()
     }
 
