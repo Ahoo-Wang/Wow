@@ -199,7 +199,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     private fun AggregationQuery.emptySummary(): Document = metrics.associateTo(Document()) { metric ->
         metric.alias to when (metric) {
             is AggregationMetric.Count, is AggregationMetric.DistinctCount -> 0L
-            else -> null
+            is AggregationMetric.Any, is AggregationMetric.Numeric, is AggregationMetric.Percentile -> null
         }
     }
 
