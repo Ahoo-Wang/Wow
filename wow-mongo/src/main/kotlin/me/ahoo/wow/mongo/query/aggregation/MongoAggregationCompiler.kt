@@ -96,6 +96,7 @@ internal class MongoAggregationCompiler(
         add(Aggregates.limit(query.limit))
     }
 
+    @Suppress("LongMethod")
     private fun group(
         query: AggregationQuery,
         id: Document?,
@@ -117,12 +118,54 @@ internal class MongoAggregationCompiler(
                         add(Accumulators.max(metric.alias, "\$$field"))
                     }
                     is AggregationMetric.Numeric -> {
-                        val (input, contributes) = metric.toMongoInput(parent, physicalParent, schema)
+                        val nullGuarded = metric.function == AggregationFunction.MIN ||
+                            metric.function == AggregationFunction.MAX
+                        val (input, contributes) = numericParticipation(
+                            metric.expression,
+                            nullGuarded,
+                            parent,
+                            physicalParent,
+                            schema,
+                        )
                         add(metric.function.accumulate(metric.alias, input))
                         add(
                             Accumulators.sum(
                                 metric.countAlias,
                                 Document("\$cond", listOf(contributes, 1, 0)),
+                            ),
+                        )
+                    }
+                    is AggregationMetric.Percentile -> {
+                        val (input, contributes) = numericParticipation(
+                            metric.expression,
+                            nullGuarded = true,
+                            parent,
+                            physicalParent,
+                            schema,
+                        )
+                        add(
+                            BsonField(
+                                metric.alias,
+                                Document(
+                                    "\$percentile",
+                                    Document("input", input)
+                                        .append("p", listOf(metric.percentile / 100.0))
+                                        .append("method", "approximate"),
+                                ),
+                            ),
+                        )
+                        add(
+                            Accumulators.sum(
+                                metric.countAlias,
+                                Document("\$cond", listOf(contributes, 1, 0)),
+                            ),
+                        )
+                    }
+                    is AggregationMetric.DistinctCount -> {
+                        add(
+                            Accumulators.push(
+                                metric.alias,
+                                distinctCountInput(metric.expression, parent, physicalParent, schema),
                             ),
                         )
                     }
@@ -132,6 +175,7 @@ internal class MongoAggregationCompiler(
         return Aggregates.group(id, accumulators)
     }
 
+    @Suppress("LongMethod")
     private fun project(query: AggregationQuery): Bson {
         val projections = buildList {
             add(Projections.excludeId())
@@ -141,14 +185,61 @@ internal class MongoAggregationCompiler(
                     when (metric) {
                         is AggregationMetric.Count -> Projections.include(metric.alias)
                         is AggregationMetric.Any -> Projections.include(metric.alias)
-                        is AggregationMetric.Numeric -> Projections.computed(
+                        is AggregationMetric.Numeric -> {
+                            val accumulated: Any = if (metric.function == AggregationFunction.VARIANCE) {
+                                Document("\$pow", listOf("\$${metric.alias}", 2))
+                            } else {
+                                "\$${metric.alias}"
+                            }
+                            Projections.computed(
+                                metric.alias,
+                                Document(
+                                    "\$cond",
+                                    listOf(
+                                        Document("\$eq", listOf("\$${metric.countAlias}", 0)),
+                                        null,
+                                        accumulated,
+                                    ),
+                                ),
+                            )
+                        }
+                        is AggregationMetric.Percentile -> Projections.computed(
                             metric.alias,
                             Document(
                                 "\$cond",
                                 listOf(
                                     Document("\$eq", listOf("\$${metric.countAlias}", 0)),
                                     null,
-                                    "\$${metric.alias}",
+                                    Document("\$arrayElemAt", listOf("\$${metric.alias}", 0)),
+                                ),
+                            ),
+                        )
+                        is AggregationMetric.DistinctCount -> Projections.computed(
+                            metric.alias,
+                            Document(
+                                "\$size",
+                                Document(
+                                    "\$setUnion",
+                                    listOf(
+                                        Document(
+                                            "\$filter",
+                                            Document(
+                                                "input",
+                                                Document(
+                                                    "\$reduce",
+                                                    Document("input", "\$${metric.alias}")
+                                                        .append("initialValue", emptyList<Any>())
+                                                        .append(
+                                                            "in",
+                                                            Document(
+                                                                "\$concatArrays",
+                                                                listOf("\$\$value", "\$\$this"),
+                                                            ),
+                                                        ),
+                                                ),
+                                            ).append("cond", Document("\$ne", listOf("\$\$this", null))),
+                                        ),
+                                    ),
                                 ),
                             ),
                         )
@@ -164,6 +255,9 @@ internal class MongoAggregationCompiler(
         AggregationFunction.AVG -> Accumulators.avg(field, input)
         AggregationFunction.MIN -> Accumulators.min(field, input)
         AggregationFunction.MAX -> Accumulators.max(field, input)
+        AggregationFunction.STDDEV,
+        AggregationFunction.VARIANCE,
+        -> BsonField(field, Document("\$stdDevPop", input))
     }
 
     private fun AggregationGroup.compile(
@@ -204,14 +298,15 @@ internal class MongoAggregationCompiler(
         }
     }
 
-    private fun AggregationMetric.Numeric.toMongoInput(
+    private fun numericParticipation(
+        expression: AggregationExpression,
+        nullGuarded: Boolean,
         parent: QueryField?,
         physicalParent: String?,
         schema: QueryModelSchema,
     ): Pair<Any, Any> {
-        val metricExpression = expression
-        if (metricExpression is AggregationExpression.Field) {
-            val field = metricExpression.field.resolve(
+        if (expression is AggregationExpression.Field) {
+            val field = expression.field.resolve(
                 parent,
                 physicalParent,
                 schema,
@@ -219,17 +314,45 @@ internal class MongoAggregationCompiler(
             )
             val value = numericInput("\$$field")
             val isNumber = Document("\$isNumber", value)
-            val input = when (function) {
-                AggregationFunction.MIN,
-                AggregationFunction.MAX,
-                -> Document("\$cond", listOf(isNumber, value, null))
-
-                else -> value
-            }
+            val input = if (nullGuarded) Document("\$cond", listOf(isNumber, value, null)) else value
             return input to isNumber
         }
-        val input = metricExpression.toMongoExpression(parent, physicalParent, schema)
+        val input = expression.toMongoExpression(parent, physicalParent, schema)
         return input to Document("\$ne", listOf(input, null))
+    }
+
+    private fun distinctCountInput(
+        expression: AggregationExpression,
+        parent: QueryField?,
+        physicalParent: String?,
+        schema: QueryModelSchema,
+    ): Any {
+        val value: Any = if (expression is AggregationExpression.Field) {
+            val logicalField = parent?.append(expression.field) ?: expression.field
+            val capability = when {
+                schema.field(logicalField)?.binding(QueryCapability.AGGREGATE_TERMS) != null ->
+                    QueryCapability.AGGREGATE_TERMS
+                else -> QueryCapability.AGGREGATE_NUMERIC
+            }
+            "\$${expression.field.resolve(parent, physicalParent, schema, capability)}"
+        } else {
+            expression.toMongoExpression(parent, physicalParent, schema)
+        }
+        return Document(
+            "\$cond",
+            listOf(
+                Document("\$isArray", value),
+                value,
+                Document(
+                    "\$cond",
+                    listOf(
+                        Document("\$eq", listOf(value, null)),
+                        emptyList<Any>(),
+                        listOf(value),
+                    ),
+                ),
+            ),
+        )
     }
 
     private fun AggregationExpression.toMongoExpression(
@@ -473,6 +596,6 @@ internal class MongoAggregationCompiler(
         }
     )
 
-    private val AggregationMetric.Numeric.countAlias: String
+    private val AggregationMetric.countAlias: String
         get() = "__wow_value_count_$alias"
 }

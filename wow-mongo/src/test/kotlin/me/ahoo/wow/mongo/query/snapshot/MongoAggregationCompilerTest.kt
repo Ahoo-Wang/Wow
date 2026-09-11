@@ -689,6 +689,79 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `stddev and variance accumulate population statistics`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                stddev("state.amount", "stddev")
+                variance("state.amount", "variance")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        listOf("stddev", "variance").forEach { alias ->
+            group.getDocument(alias).toJson().assert()
+                .contains("\$stdDevPop")
+            group.getDocument("__wow_value_count_$alias").toJson().assert()
+                .contains("\$isNumber")
+        }
+        val project = pipeline.first { it.containsKey("\$project") }.getDocument("\$project")
+        project.getDocument("stddev").toJson().assert()
+            .contains("__wow_value_count_stddev")
+            .doesNotContain("\$pow")
+        project.getDocument("variance").toJson().assert()
+            .contains("__wow_value_count_variance")
+            .contains("\$pow")
+            .contains("\"\$variance\"")
+    }
+
+    @Test
+    fun `percentile accumulates approximate t-digest input with contribution guard`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                percentile("state.amount", 95.0, "p95")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        group.toJson().assert()
+            .contains("\$percentile")
+            .contains("\"p\": [0.95]")
+            .contains("\"method\": \"approximate\"")
+            .contains("__wow_value_count_p95")
+        val project = pipeline.first { it.containsKey("\$project") }.getDocument("\$project")
+        project.getDocument("p95").toJson().assert()
+            .contains("__wow_value_count_p95")
+            .contains("\$arrayElemAt")
+            .contains("\"\$p95\"")
+    }
+
+    @Test
+    fun `distinct count pushes wrapped participation and projects set size`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                distinctCount("state.productId", "products")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        group.toJson().assert()
+            .contains("\$push")
+            .contains("\$isArray")
+        val project = pipeline.first { it.containsKey("\$project") }.getDocument("\$project")
+        project.toJson().assert()
+            .contains("\$reduce")
+            .contains("\$concatArrays")
+            .contains("\$setUnion")
+            .contains("\$size")
+        val setUnion = project.getDocument("products").getDocument("\$size").getArray("\$setUnion")
+        setUnion.assert().hasSize(1)
+        setUnion[0].asDocument().containsKey("\$filter").assert().isTrue()
+    }
+
+    @Test
     fun `schema bindings should apply to root and element filters without element deletion scope`() {
         val query = aggregation {
             filter { "state.status" eq "PAID" }
