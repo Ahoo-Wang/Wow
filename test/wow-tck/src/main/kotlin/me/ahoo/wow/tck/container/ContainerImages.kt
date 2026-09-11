@@ -14,7 +14,7 @@
 package me.ahoo.wow.tck.container
 
 object ContainerImages {
-    const val MONGO = "mongo:6.0.6"
+    const val MONGO = "mongo:7.0"
     const val KAFKA = "confluentinc/cp-kafka:7.4.0"
     const val ELASTICSEARCH_REPOSITORY = "docker.elastic.co/elasticsearch/elasticsearch"
     const val ELASTICSEARCH_TAG = "9.2.6"

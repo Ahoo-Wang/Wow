@@ -20,7 +20,7 @@ class ContainerImagesTest {
 
     @Test
     fun `should expose container images`() {
-        ContainerImages.MONGO.assert().isEqualTo("mongo:6.0.6")
+        ContainerImages.MONGO.assert().isEqualTo("mongo:7.0")
         ContainerImages.KAFKA.assert().isEqualTo("confluentinc/cp-kafka:7.4.0")
         ContainerImages.ELASTICSEARCH_REPOSITORY.assert().isEqualTo("docker.elastic.co/elasticsearch/elasticsearch")
         ContainerImages.ELASTICSEARCH_TAG.assert().isEqualTo("9.2.6")
