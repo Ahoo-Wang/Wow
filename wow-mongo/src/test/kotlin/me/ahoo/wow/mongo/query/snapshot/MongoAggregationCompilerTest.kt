@@ -700,19 +700,18 @@ class MongoAggregationCompilerTest {
 
         val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
         listOf("stddev", "variance").forEach { alias ->
-            group.getDocument(alias).toJson().assert()
-                .contains("\$stdDevPop")
-            group.getDocument("__wow_value_count_$alias").toJson().assert()
-                .contains("\$isNumber")
+            group.getDocument(alias).containsKey("\$stdDevPop").assert().isTrue()
+            group.getDocument("__wow_value_count_$alias").containsKey("\$sum").assert().isTrue()
         }
         val project = pipeline.first { it.containsKey("\$project") }.getDocument("\$project")
-        project.getDocument("stddev").toJson().assert()
-            .contains("__wow_value_count_stddev")
-            .doesNotContain("\$pow")
-        project.getDocument("variance").toJson().assert()
-            .contains("__wow_value_count_variance")
-            .contains("\$pow")
-            .contains("\"\$variance\"")
+        val stddevCond = project.getDocument("stddev").getArray("\$cond")
+        stddevCond.get(1).isNull.assert().isTrue()
+        stddevCond.get(2).asString().value.assert().isEqualTo("\$stddev")
+        val varianceCond = project.getDocument("variance").getArray("\$cond")
+        varianceCond.get(1).isNull.assert().isTrue()
+        val pow = varianceCond.get(2).asDocument().getArray("\$pow")
+        pow.get(0).asString().value.assert().isEqualTo("\$variance")
+        pow.get(1).asInt32().value.assert().isEqualTo(2)
     }
 
     @Test
@@ -725,16 +724,16 @@ class MongoAggregationCompilerTest {
         ).map { it.toBsonDocument() }
 
         val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
-        group.toJson().assert()
-            .contains("\$percentile")
-            .contains("\"p\": [0.95]")
-            .contains("\"method\": \"approximate\"")
-            .contains("__wow_value_count_p95")
+        val percentile = group.getDocument("p95").getDocument("\$percentile")
+        percentile.getArray("p").map { it.asDouble().value }.assert().containsExactly(0.95)
+        percentile.getString("method").value.assert().isEqualTo("approximate")
+        group.getDocument("__wow_value_count_p95").containsKey("\$sum").assert().isTrue()
         val project = pipeline.first { it.containsKey("\$project") }.getDocument("\$project")
-        project.getDocument("p95").toJson().assert()
-            .contains("__wow_value_count_p95")
-            .contains("\$arrayElemAt")
-            .contains("\"\$p95\"")
+        val cond = project.getDocument("p95").getArray("\$cond")
+        cond.get(1).isNull.assert().isTrue()
+        val arrayElemAt = cond.get(2).asDocument().getArray("\$arrayElemAt")
+        arrayElemAt.get(0).asString().value.assert().isEqualTo("\$p95")
+        arrayElemAt.get(1).asInt32().value.assert().isEqualTo(0)
     }
 
     @Test
@@ -747,19 +746,17 @@ class MongoAggregationCompilerTest {
         ).map { it.toBsonDocument() }
 
         val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
-        group.toJson().assert()
-            .contains("\$addToSet")
-            .doesNotContain("\$push")
+        group.getDocument("products").containsKey("\$addToSet").assert().isTrue()
+        group.toJson().assert().doesNotContain("\$push")
         val project = pipeline.first { it.containsKey("\$project") }.getDocument("\$project")
-        project.toJson().assert()
-            .contains("\$reduce")
-            .contains("\$concatArrays")
-            .contains("\$isArray")
-            .contains("\$setUnion")
-            .contains("\$size")
         val setUnion = project.getDocument("products").getDocument("\$size").getArray("\$setUnion")
         setUnion.assert().hasSize(1)
-        setUnion[0].asDocument().containsKey("\$filter").assert().isTrue()
+        val filter = setUnion[0].asDocument().getDocument("\$filter")
+        val reduce = filter.getDocument("input").getDocument("\$reduce")
+        reduce.getArray("initialValue").assert().isEmpty()
+        val concatArrays = reduce.getDocument("in").getArray("\$concatArrays")
+        concatArrays.get(0).asString().value.assert().isEqualTo("\$\$value")
+        concatArrays.get(1).asDocument().containsKey("\$cond").assert().isTrue()
     }
 
     @Test

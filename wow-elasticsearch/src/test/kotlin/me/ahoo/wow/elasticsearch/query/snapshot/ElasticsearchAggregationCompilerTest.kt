@@ -186,6 +186,27 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
+    fun `non-field distinct count and percentile expressions compile to runtime fields`() {
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                distinctCount(field("amount") + constant(0.0), "amounts")
+                percentile(field("amount") * constant(1.0), 95.0, "p95")
+            },
+            schema,
+        )
+
+        plan.runtimeMappings.keys.assert().containsExactly("__wow_expression_0", "__wow_expression_1")
+        plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.DistinctCount>().single().field.assert()
+            .isEqualTo("__wow_expression_0")
+        val percentile = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Percentile>().single()
+        percentile.field.assert().isEqualTo("__wow_expression_1")
+        percentile.percentile.assert().isEqualTo(95.0)
+        plan.runtimeMappings.values.forEach { runtimeField ->
+            runtimeField.type().assert().isEqualTo(RuntimeFieldType.Double)
+        }
+    }
+
+    @Test
     fun `missing native field never falls back to physical input`() {
         assertThrows<QuerySchemaValidationException> {
             compiler.compile(

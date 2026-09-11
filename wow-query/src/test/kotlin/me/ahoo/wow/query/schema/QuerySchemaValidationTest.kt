@@ -447,6 +447,22 @@ class QuerySchemaValidationTest {
     }
 
     @Test
+    fun `distinct count accepts terms-only fields while percentile and stddev require numeric`() {
+        val termsOnly = boundSchemaFixture(
+            objectFixture("customerId" to scalarFixture()),
+            fieldCapabilities = setOf(QueryCapability.AGGREGATE_TERMS),
+        )
+        val query = aggregation { distinctCount("customerId", "customers") }
+        validateQuery(query, termsOnly).assert().isSameAs(query)
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(aggregation { percentile("customerId", 95.0, "p95") }, termsOnly)
+        }
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(aggregation { stddev("customerId", "std") }, termsOnly)
+        }
+    }
+
+    @Test
     fun `masked values stay queryable but public cursor and aggregate admission reject them`() {
         val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
         val mask = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
