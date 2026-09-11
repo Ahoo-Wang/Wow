@@ -417,6 +417,36 @@ class QuerySchemaValidationTest {
     }
 
     @Test
+    fun `distinct count accepts terms or numeric fields and rejects others while percentile follows numeric rules`() {
+        val both = boundSchemaFixture(
+            objectFixture(
+                "customerId" to scalarFixture(),
+                "amount" to scalarFixture(QueryValueType.DECIMAL),
+            )
+        )
+        val query = aggregation {
+            distinctCount("customerId", "customers")
+            distinctCount("amount", "amounts")
+            stddev("amount", "stddev")
+            variance("amount", "variance")
+            percentile("amount", 95.0, "p95")
+            median("amount", "median")
+        }
+        validateQuery(query, both).assert().isSameAs(query)
+
+        val presenceOnly = boundSchemaFixture(
+            objectFixture("code" to scalarFixture()),
+            fieldCapabilities = setOf(QueryCapability.PRESENCE),
+        )
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(aggregation { distinctCount("code", "codes") }, presenceOnly)
+        }
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(aggregation { percentile("code", 95.0, "p") }, presenceOnly)
+        }
+    }
+
+    @Test
     fun `masked values stay queryable but public cursor and aggregate admission reject them`() {
         val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
         val mask = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
@@ -436,6 +466,15 @@ class QuerySchemaValidationTest {
             validateQuery(
                 aggregation {
                     terms("state.secret", "secret")
+                    count("count")
+                },
+                schema
+            )
+        }
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(
+                aggregation {
+                    distinctCount("state.secret", "secrets")
                     count("count")
                 },
                 schema

@@ -113,10 +113,21 @@ fun validateQuery(projection: Projection, schema: QueryModelSchema): Projection 
 
 /** Per-invocation public checks, never retained by a schema and never producing physical AST. */
 private class QueryValidator(private val schema: QueryModelSchema) {
-    private fun field(name: QueryField, capability: QueryCapability, parent: QueryField? = null): QueryFieldSchema {
+    private fun field(
+        name: QueryField,
+        capability: QueryCapability,
+        parent: QueryField? = null,
+    ): QueryFieldSchema = field(name, setOf(capability), capability.toString(), parent)
+
+    private fun field(
+        name: QueryField,
+        capabilities: Set<QueryCapability>,
+        label: String,
+        parent: QueryField?,
+    ): QueryFieldSchema {
         val logical = absoluteLogicalField(name, parent)
         val field = schema.field(logical) ?: throw QuerySchemaValidationException("Unknown logical field [$logical].")
-        requireSchema(field.binding(capability) != null) { "Field [$logical] does not support [$capability]." }
+        requireSchema(capabilities.any { field.binding(it) != null }) { "Field [$logical] does not support [$label]." }
         requireSchema(
             field.elementAncestors != null && field.elementAncestors == schema.requiredElementAncestors(parent)
         ) {
@@ -282,6 +293,8 @@ private class QueryValidator(private val schema: QueryModelSchema) {
                     aggregationField(metric.field, QueryCapability.AGGREGATE_TERMS, parent).value.cardinality == QueryCardinality.SINGLE,
                 ) { "ANY requires a single value." }
                 is AggregationMetric.Numeric -> expression(metric.expression, parent)
+                is AggregationMetric.DistinctCount -> distinctCountExpression(metric.expression, parent)
+                is AggregationMetric.Percentile -> expression(metric.expression, parent)
             }
         }
     }
@@ -301,8 +314,35 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         }
     }
 
+    private fun distinctCountExpression(expression: AggregationExpression, parent: QueryField?) {
+        when (expression) {
+            is AggregationExpression.Field -> aggregationField(
+                expression.field,
+                setOf(QueryCapability.AGGREGATE_TERMS, QueryCapability.AGGREGATE_NUMERIC),
+                parent,
+            )
+            is AggregationExpression.Constant -> Unit
+            is AggregationExpression.Binary -> {
+                expression(expression.left, parent)
+                expression(expression.right, parent)
+            }
+        }
+    }
+
     private fun aggregationField(name: QueryField, capability: QueryCapability, parent: QueryField?): QueryFieldSchema {
         val field = field(name, capability, parent)
+        requireSchema(!isFieldProtected(schema, field.logicalField, field)) {
+            "Protected field [${field.logicalField}] cannot be aggregated."
+        }
+        return field
+    }
+
+    private fun aggregationField(
+        name: QueryField,
+        capabilities: Set<QueryCapability>,
+        parent: QueryField?,
+    ): QueryFieldSchema {
+        val field = field(name, capabilities, capabilities.joinToString(" or "), parent)
         requireSchema(!isFieldProtected(schema, field.logicalField, field)) {
             "Protected field [${field.logicalField}] cannot be aggregated."
         }
