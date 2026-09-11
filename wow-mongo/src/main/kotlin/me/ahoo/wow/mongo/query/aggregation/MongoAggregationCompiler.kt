@@ -35,6 +35,7 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.distinctCountCapability
 import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.physicalField
 import org.bson.Document
@@ -347,12 +348,7 @@ internal class MongoAggregationCompiler(
         physicalParent: String?,
         schema: QueryModelSchema,
     ): Any = if (expression is AggregationExpression.Field) {
-        val logicalField = parent?.append(expression.field) ?: expression.field
-        val capability = when {
-            schema.field(logicalField)?.binding(QueryCapability.AGGREGATE_TERMS) != null ->
-                QueryCapability.AGGREGATE_TERMS
-            else -> QueryCapability.AGGREGATE_NUMERIC
-        }
+        val capability = schema.distinctCountCapability(expression.field, parent)
         "\$${expression.field.resolve(parent, physicalParent, schema, capability)}"
     } else {
         expression.toMongoExpression(parent, physicalParent, schema)

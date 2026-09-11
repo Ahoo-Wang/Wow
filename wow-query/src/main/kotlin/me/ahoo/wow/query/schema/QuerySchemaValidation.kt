@@ -284,13 +284,17 @@ private class QueryValidator(private val schema: QueryModelSchema) {
                 is AggregationGroup.Histogram -> QueryCapability.AGGREGATE_NUMERIC
                 is AggregationGroup.DateHistogram -> QueryCapability.AGGREGATE_TEMPORAL
             }
-            aggregationField(group.field, capability, parent)
+            aggregationField(group.field, setOf(capability), parent)
         }
         query.metrics.forEach { metric ->
             when (metric) {
                 is AggregationMetric.Count -> Unit
                 is AggregationMetric.Any -> requireSchema(
-                    aggregationField(metric.field, QueryCapability.AGGREGATE_TERMS, parent).value.cardinality == QueryCardinality.SINGLE,
+                    aggregationField(
+                        metric.field,
+                        setOf(QueryCapability.AGGREGATE_TERMS),
+                        parent,
+                    ).value.cardinality == QueryCardinality.SINGLE,
                 ) { "ANY requires a single value." }
                 is AggregationMetric.Numeric -> expression(metric.expression, parent)
                 is AggregationMetric.DistinctCount -> distinctCountExpression(metric.expression, parent)
@@ -303,7 +307,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         when (expression) {
             is AggregationExpression.Field -> aggregationField(
                 expression.field,
-                QueryCapability.AGGREGATE_NUMERIC,
+                setOf(QueryCapability.AGGREGATE_NUMERIC),
                 parent
             )
             is AggregationExpression.Constant -> Unit
@@ -327,14 +331,6 @@ private class QueryValidator(private val schema: QueryModelSchema) {
                 expression(expression.right, parent)
             }
         }
-    }
-
-    private fun aggregationField(name: QueryField, capability: QueryCapability, parent: QueryField?): QueryFieldSchema {
-        val field = field(name, capability, parent)
-        requireSchema(!isFieldProtected(schema, field.logicalField, field)) {
-            "Protected field [${field.logicalField}] cannot be aggregated."
-        }
-        return field
     }
 
     private fun aggregationField(

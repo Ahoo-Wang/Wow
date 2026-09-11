@@ -39,6 +39,7 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOrder
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.distinctCountCapability
 import me.ahoo.wow.query.schema.physicalField
 import java.time.Instant
 import java.util.concurrent.TimeUnit
@@ -68,10 +69,7 @@ internal sealed interface ElasticsearchAggregationMetric {
         override val alias: String,
         val function: AggregationFunction,
         val field: String,
-    ) : ElasticsearchAggregationMetric {
-        val valueCountAlias: String
-            get() = "__wow_value_count_$alias"
-    }
+    ) : ElasticsearchAggregationMetric
 
     data class Any(
         override val alias: String,
@@ -84,11 +82,11 @@ internal sealed interface ElasticsearchAggregationMetric {
         override val alias: String,
         val field: String,
         val percentile: Double,
-    ) : ElasticsearchAggregationMetric {
-        val valueCountAlias: String
-            get() = "__wow_value_count_$alias"
-    }
+    ) : ElasticsearchAggregationMetric
 }
+
+internal val ElasticsearchAggregationMetric.valueCountAlias: String
+    get() = "__wow_value_count_$alias"
 
 internal class ElasticsearchAggregationCompiler(
     private val filterCompiler: AbstractElasticsearchFilterCompiler,
@@ -312,14 +310,7 @@ internal class ElasticsearchAggregationCompiler(
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): ElasticsearchAggregationMetric.DistinctCount {
         val metricField = (expression as? AggregationExpression.Field)?.field?.let { field ->
-            val logicalField = parent?.append(field) ?: field
-            val capability = when {
-                schema.field(logicalField)?.binding(QueryCapability.AGGREGATE_TERMS) != null ->
-                    QueryCapability.AGGREGATE_TERMS
-
-                else -> QueryCapability.AGGREGATE_NUMERIC
-            }
-            field.resolve(parent, physicalParent, schema, capability)
+            field.resolve(parent, physicalParent, schema, schema.distinctCountCapability(field, parent))
         } ?: "__wow_expression_$index".also { runtimeFieldName ->
             runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(
                 parent,

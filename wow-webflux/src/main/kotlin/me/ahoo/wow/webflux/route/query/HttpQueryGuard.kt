@@ -208,6 +208,11 @@ class HttpQueryGuard(
         }
     }
 
+    /**
+     * Gates every expression-bearing metric on non-field inputs. Bare constants are included on
+     * purpose: this matches the pre-existing NUMERIC gate, where a constant-only metric is also
+     * rejected as an expensive operator.
+     */
     private fun AggregationMetric.hasArithmeticExpression(): Boolean = when (this) {
         is AggregationMetric.Numeric -> expression !is AggregationExpression.Field
         is AggregationMetric.DistinctCount -> expression !is AggregationExpression.Field

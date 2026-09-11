@@ -317,10 +317,10 @@ internal class ElasticsearchAggregationPager(
         aggregations: Map<String, Aggregate>,
     ): Double? {
         if (aggregations.getValue(valueCountAlias).valueCount().value() == 0.0) return null
-        val percentile = aggregations.getValue(alias).tdigestPercentiles().values().array()
-            .firstOrNull { it.key() == this.percentile }
+        val entry = aggregations.getValue(alias).tdigestPercentiles().values().array()
+            .firstOrNull { it.key() == percentile }
             ?: error("Aggregation metric [$alias] is missing percentile [$percentile].")
-        val value = percentile.value()
+        val value = entry.value()
         require(value != null && value.isFinite()) { "Aggregation metric [$alias] must be finite." }
         return value
     }

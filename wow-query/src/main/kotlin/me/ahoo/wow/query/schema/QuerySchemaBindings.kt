@@ -92,5 +92,14 @@ fun QueryModelSchema.physicalField(
 fun QueryModelSchema.projectionField(field: QueryField): QueryField =
     this.field(field)?.projectionField ?: throw QuerySchemaValidationException("Field [$field] cannot be projected.")
 
+/** Resolves the capability a DISTINCT_COUNT input consumes: AGGREGATE_TERMS when bound, otherwise AGGREGATE_NUMERIC. */
+fun QueryModelSchema.distinctCountCapability(field: QueryField, logicalParent: QueryField? = null): QueryCapability {
+    val logical = absoluteLogicalField(field, logicalParent)
+    return when {
+        this.field(logical)?.binding(QueryCapability.AGGREGATE_TERMS) != null -> QueryCapability.AGGREGATE_TERMS
+        else -> QueryCapability.AGGREGATE_NUMERIC
+    }
+}
+
 internal fun QueryModelSchema.requiredElementAncestors(parent: QueryField?): List<QueryField>? =
     if (parent == null) emptyList() else field(parent)?.elementAncestors?.plus(parent)
