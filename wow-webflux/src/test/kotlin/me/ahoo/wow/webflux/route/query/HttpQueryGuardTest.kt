@@ -218,6 +218,56 @@ class HttpQueryGuardTest {
     }
 
     @Test
+    fun rejectsArithmeticExpressionsOnAllExpressionBearingMetrics() {
+        val distinctCountArithmetic = AggregationQuery(
+            metrics = listOf(
+                AggregationMetric.DistinctCount(
+                    AggregationExpression.Binary(
+                        AggregationExpressionOperator.ADD,
+                        AggregationExpression.Field(QueryField("state.amount")),
+                        AggregationExpression.Constant(0.0),
+                    ),
+                    "amounts",
+                ),
+            ),
+            limit = 1,
+        )
+        val percentileArithmetic = AggregationQuery(
+            metrics = listOf(
+                AggregationMetric.Percentile(
+                    AggregationExpression.Binary(
+                        AggregationExpressionOperator.MULTIPLY,
+                        AggregationExpression.Field(QueryField("state.amount")),
+                        AggregationExpression.Constant(1.0),
+                    ),
+                    95.0,
+                    "p95",
+                ),
+            ),
+            limit = 1,
+        )
+        listOf(distinctCountArithmetic, percentileArithmetic).forEach {
+            expectRejected(QueryType.AGGREGATION, it)
+        }
+
+        val fieldOnly = AggregationQuery(
+            metrics = listOf(
+                AggregationMetric.DistinctCount(
+                    AggregationExpression.Field(QueryField("state.amount")),
+                    "amounts",
+                ),
+                AggregationMetric.Percentile(
+                    AggregationExpression.Field(QueryField("state.amount")),
+                    95.0,
+                    "p95",
+                ),
+            ),
+            limit = 1,
+        )
+        expectAllowed(QueryType.AGGREGATION, fieldOnly)
+    }
+
+    @Test
     fun timesOutTheWholeMonoAndIdleFluxPublisher() {
         StepVerifier.withVirtualTime {
             guard(idleTimeout = Duration.ofSeconds(1)).mono(QueryType.SINGLE, IdFilter("id")) {

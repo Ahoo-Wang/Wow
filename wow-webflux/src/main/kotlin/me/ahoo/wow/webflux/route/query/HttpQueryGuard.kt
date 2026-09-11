@@ -117,7 +117,7 @@ class HttpQueryGuard(
                 }
                 require(
                     allowExpensiveOperators || query.metrics.none { metric ->
-                        metric is AggregationMetric.Numeric && metric.expression !is AggregationExpression.Field
+                        metric.hasArithmeticExpression()
                     },
                 ) {
                     "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed."
@@ -206,6 +206,13 @@ class HttpQueryGuard(
                 "HTTP query filter values[$valueCount] must not exceed $maxFilterValues."
             }
         }
+    }
+
+    private fun AggregationMetric.hasArithmeticExpression(): Boolean = when (this) {
+        is AggregationMetric.Numeric -> expression !is AggregationExpression.Field
+        is AggregationMetric.DistinctCount -> expression !is AggregationExpression.Field
+        is AggregationMetric.Percentile -> expression !is AggregationExpression.Field
+        is AggregationMetric.Count, is AggregationMetric.Any -> false
     }
 
     private fun FilterExpression.isExpensive(): Boolean =
