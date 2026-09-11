@@ -59,7 +59,9 @@ Every Metric also has a unique alias, used as a result-column name.
 | Type | Shape |
 | --- | --- |
 | `COUNT` | Counts records in the current scope |
-| `NUMERIC` | Applies `SUM`, `AVG`, `MIN`, or `MAX` to an Expression |
+| `NUMERIC` | Applies `SUM`, `AVG`, `MIN`, `MAX`, `STDDEV`, or `VARIANCE` to an Expression |
+| `DISTINCT_COUNT` | Counts the distinct non-null contribution values of an Expression as an integer; an empty set yields `0` |
+| `PERCENTILE` | Computes `PERCENTILE(p)` over a numeric Expression, `0 < p < 100`; the DSL's `median` equals `p=50` |
 | `ANY` | Selects one field value |
 
 `ANY` is not a substitute for a deterministic group key: its selected non-null value is not guaranteed to be stable across executions or backends.
@@ -80,9 +82,13 @@ A declared scalar `FIELD` retains native aggregation and its precision; array or
 
 These rules assume that stored values and runtime-field output obey the logical numeric model; they do not promise per-row validation of arbitrary malformed data. Elasticsearch numeric doc values preserve duplicates but do not preserve source-array positions; see [doc_values](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/doc-values). `HISTOGRAM` and `DATE_HISTOGRAM` retain their separate bucket contracts and do not inherit these NUMERIC contribution rules.
 
+`STDDEV` and `VARIANCE` use the population convention and share the numeric-contribution rule of `SUM`/`AVG`: they are `null` when no value contributes and return `0` for a single contributing value. `PERCENTILE` follows the same contribution rule and is `null` when nothing contributes; MongoDB and Elasticsearch both use the t-digest approximation, so the result falls inside the rank interval of the sorted contributions (linear interpolation convention `(n-1)·p`) and bitwise equality is not promised. `DISTINCT_COUNT` participates differently from `NUMERIC`: an array field referenced by `FIELD` contributes element by element to the distinct set (no prior Elements expansion required), and null/missing entries do not participate; `CONSTANT`/`BINARY` expressions still contribute at most one value per record. Elasticsearch `cardinality` is near-exact within its precision threshold; MongoDB counts the set of contributing values exactly.
+
+**Version requirement**: `PERCENTILE` on the MongoDB backend requires server 7.0+ (the `$percentile` operator); the other new metrics have no additional version requirement. Older servers return their native error.
+
 ## Arithmetic and Temporal Expressions
 
-The `NUMERIC` Expression AST has only `FIELD`, finite `CONSTANT`, and `BINARY`. `BINARY` operators are `ADD`, `SUBTRACT`, `MULTIPLY`, and `DIVIDE`; they can nest to express arithmetic. The Kotlin DSL provides `field(...)`, `constant(...)`, `+`, `-`, `*`, `/`, and `sum`, `avg`, `min`, `max`.
+The `NUMERIC` Expression AST has only `FIELD`, finite `CONSTANT`, and `BINARY`. `BINARY` operators are `ADD`, `SUBTRACT`, `MULTIPLY`, and `DIVIDE`; they can nest to express arithmetic. The Kotlin DSL provides `field(...)`, `constant(...)`, `+`, `-`, `*`, `/`, and `sum`, `avg`, `min`, `max`, `stddev`, `variance`, `percentile`, `median`, and `distinctCount`.
 
 Temporal bucketing is not a numeric Expression. It is a `DATE_HISTOGRAM` Group whose units are listed above.
 
