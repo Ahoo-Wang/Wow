@@ -738,7 +738,7 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
-    fun `distinct count pushes wrapped participation and projects set size`() {
+    fun `distinct count accumulates a set during grouping and projects set size`() {
         val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation {
                 distinctCount("state.productId", "products")
@@ -748,12 +748,13 @@ class MongoAggregationCompilerTest {
 
         val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
         group.toJson().assert()
-            .contains("\$push")
-            .contains("\$isArray")
+            .contains("\$addToSet")
+            .doesNotContain("\$push")
         val project = pipeline.first { it.containsKey("\$project") }.getDocument("\$project")
         project.toJson().assert()
             .contains("\$reduce")
             .contains("\$concatArrays")
+            .contains("\$isArray")
             .contains("\$setUnion")
             .contains("\$size")
         val setUnion = project.getDocument("products").getDocument("\$size").getArray("\$setUnion")

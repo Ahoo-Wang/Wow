@@ -163,7 +163,7 @@ internal class MongoAggregationCompiler(
                     }
                     is AggregationMetric.DistinctCount -> {
                         add(
-                            Accumulators.push(
+                            Accumulators.addToSet(
                                 metric.alias,
                                 distinctCountInput(metric.expression, parent, physicalParent, schema),
                             ),
@@ -233,7 +233,27 @@ internal class MongoAggregationCompiler(
                                                             "in",
                                                             Document(
                                                                 "\$concatArrays",
-                                                                listOf("\$\$value", "\$\$this"),
+                                                                listOf(
+                                                                    "\$\$value",
+                                                                    Document(
+                                                                        "\$cond",
+                                                                        listOf(
+                                                                            Document("\$isArray", "\$\$this"),
+                                                                            "\$\$this",
+                                                                            Document(
+                                                                                "\$cond",
+                                                                                listOf(
+                                                                                    Document(
+                                                                                        "\$eq",
+                                                                                        listOf("\$\$this", null)
+                                                                                    ),
+                                                                                    emptyList<Any>(),
+                                                                                    listOf("\$\$this"),
+                                                                                ),
+                                                                            ),
+                                                                        ),
+                                                                    ),
+                                                                ),
                                                             ),
                                                         ),
                                                 ),
@@ -326,33 +346,16 @@ internal class MongoAggregationCompiler(
         parent: QueryField?,
         physicalParent: String?,
         schema: QueryModelSchema,
-    ): Any {
-        val value: Any = if (expression is AggregationExpression.Field) {
-            val logicalField = parent?.append(expression.field) ?: expression.field
-            val capability = when {
-                schema.field(logicalField)?.binding(QueryCapability.AGGREGATE_TERMS) != null ->
-                    QueryCapability.AGGREGATE_TERMS
-                else -> QueryCapability.AGGREGATE_NUMERIC
-            }
-            "\$${expression.field.resolve(parent, physicalParent, schema, capability)}"
-        } else {
-            expression.toMongoExpression(parent, physicalParent, schema)
+    ): Any = if (expression is AggregationExpression.Field) {
+        val logicalField = parent?.append(expression.field) ?: expression.field
+        val capability = when {
+            schema.field(logicalField)?.binding(QueryCapability.AGGREGATE_TERMS) != null ->
+                QueryCapability.AGGREGATE_TERMS
+            else -> QueryCapability.AGGREGATE_NUMERIC
         }
-        return Document(
-            "\$cond",
-            listOf(
-                Document("\$isArray", value),
-                value,
-                Document(
-                    "\$cond",
-                    listOf(
-                        Document("\$eq", listOf(value, null)),
-                        emptyList<Any>(),
-                        listOf(value),
-                    ),
-                ),
-            ),
-        )
+        "\$${expression.field.resolve(parent, physicalParent, schema, capability)}"
+    } else {
+        expression.toMongoExpression(parent, physicalParent, schema)
     }
 
     private fun AggregationExpression.toMongoExpression(
