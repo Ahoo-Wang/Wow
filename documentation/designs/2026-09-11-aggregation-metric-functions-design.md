@@ -68,7 +68,7 @@ sealed interface AggregationMetric {
 
 | 指标 | 参与值 | 空参与值 | 结果类型 | 精度口径 |
 |---|---|---|---|---|
-| `DISTINCT_COUNT` | 非空标量值；数组/标量数组联合字段的元素逐个参与（同现有指标口径） | `0` | 整数 | ES `cardinality` 阈值内近似精确；Mongo `$addToSet` 精确 |
+| `DISTINCT_COUNT` | 非空标量值；`FIELD` 引用的数组字段按元素逐个参与（与 NUMERIC 指标「多值字段不参与」的规则不同，需在用户文档中显式说明）；`CONSTANT`/`BINARY` 表达式按每条记录单值参与 | `0` | 整数 | ES `cardinality` 阈值内近似精确；Mongo 参与值集合精确 |
 | `STDDEV` | 有限 double，同 `AVG` 口径 | `null` | 数值 | 双后端精确（可精确断言） |
 | `VARIANCE` | 同上 | `null` | 数值 | 双后端精确 |
 | `PERCENTILE(p)` | 同上 | `null` | 数值 | 双后端 t-digest 近似，TCK 用秩区间断言 |
@@ -144,7 +144,7 @@ TCK（`SnapshotQueryBackendSpec` / `EventStreamQueryBackendSpec`）新增场景�
 1. 字符串字段 `DISTINCT_COUNT`：含 null 排除与空集 `0` 语义
 2. `DISTINCT_COUNT` × Top-N 排序组合
 3. `STDDEV`/`VARIANCE` 已知数据集精确断言（数据集选取避免浮点表示歧义；`VARIANCE` 因 Mongo 经平方间接计算，必要时用极小相对容差）
-4. `PERCENTILE` 跨后端秩区间断言：结果落在排序后参与值第 `floor(n·p)` 与 `ceil(n·p)` 个值之间（含端点），规避两个 t-digest 实现差异
+4. `PERCENTILE` 跨后端秩区间断言：按线性插值秩约定（`(n−1)·p`），结果须落在排序后第 `floor((n−1)·p)` 与 `ceil((n−1)·p)` 个参与值之间（0 基下标，含端点），规避两个 t-digest 实现差异
 5. 空参与值：`STDDEV`/`VARIANCE`/`PERCENTILE` → `null`；`DISTINCT_COUNT` → `0`
 6. 单参与值组 `STDDEV` = `0`
 7. 嵌套 `elements` 作用域内的新指标（作用域规则同现有指标）
