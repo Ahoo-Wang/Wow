@@ -689,6 +689,77 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `stddev and variance accumulate population statistics`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                stddev("state.amount", "stddev")
+                variance("state.amount", "variance")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        listOf("stddev", "variance").forEach { alias ->
+            group.getDocument(alias).containsKey("\$stdDevPop").assert().isTrue()
+            group.getDocument("__wow_value_count_$alias").containsKey("\$sum").assert().isTrue()
+        }
+        val project = pipeline.first { it.containsKey("\$project") }.getDocument("\$project")
+        val stddevCond = project.getDocument("stddev").getArray("\$cond")
+        stddevCond.get(1).isNull.assert().isTrue()
+        stddevCond.get(2).asString().value.assert().isEqualTo("\$stddev")
+        val varianceCond = project.getDocument("variance").getArray("\$cond")
+        varianceCond.get(1).isNull.assert().isTrue()
+        val pow = varianceCond.get(2).asDocument().getArray("\$pow")
+        pow.get(0).asString().value.assert().isEqualTo("\$variance")
+        pow.get(1).asInt32().value.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `percentile accumulates approximate t-digest input with contribution guard`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                percentile("state.amount", 95.0, "p95")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        val percentile = group.getDocument("p95").getDocument("\$percentile")
+        percentile.getArray("p").map { it.asDouble().value }.assert().containsExactly(0.95)
+        percentile.getString("method").value.assert().isEqualTo("approximate")
+        group.getDocument("__wow_value_count_p95").containsKey("\$sum").assert().isTrue()
+        val project = pipeline.first { it.containsKey("\$project") }.getDocument("\$project")
+        val cond = project.getDocument("p95").getArray("\$cond")
+        cond.get(1).isNull.assert().isTrue()
+        val arrayElemAt = cond.get(2).asDocument().getArray("\$arrayElemAt")
+        arrayElemAt.get(0).asString().value.assert().isEqualTo("\$p95")
+        arrayElemAt.get(1).asInt32().value.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `distinct count accumulates a set during grouping and projects set size`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                distinctCount("state.productId", "products")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("products").containsKey("\$addToSet").assert().isTrue()
+        group.toJson().assert().doesNotContain("\$push")
+        val project = pipeline.first { it.containsKey("\$project") }.getDocument("\$project")
+        val setUnion = project.getDocument("products").getDocument("\$size").getArray("\$setUnion")
+        setUnion.assert().hasSize(1)
+        val filter = setUnion[0].asDocument().getDocument("\$filter")
+        val reduce = filter.getDocument("input").getDocument("\$reduce")
+        reduce.getArray("initialValue").assert().isEmpty()
+        val concatArrays = reduce.getDocument("in").getArray("\$concatArrays")
+        concatArrays.get(0).asString().value.assert().isEqualTo("\$\$value")
+        concatArrays.get(1).asDocument().containsKey("\$cond").assert().isTrue()
+    }
+
+    @Test
     fun `schema bindings should apply to root and element filters without element deletion scope`() {
         val query = aggregation {
             filter { "state.status" eq "PAID" }

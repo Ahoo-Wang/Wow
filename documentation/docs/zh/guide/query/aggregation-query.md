@@ -59,7 +59,9 @@ flowchart LR
 | 类型 | 形状 |
 | --- | --- |
 | `COUNT` | 统计当前作用域的记录数 |
-| `NUMERIC` | 对 Expression 使用 `SUM`、`AVG`、`MIN` 或 `MAX` |
+| `NUMERIC` | 对 Expression 使用 `SUM`、`AVG`、`MIN`、`MAX`、`STDDEV` 或 `VARIANCE` |
+| `DISTINCT_COUNT` | 统计 Expression 非空参与值的去重个数，结果为整数；空集为 `0` |
+| `PERCENTILE` | 对数值 Expression 计算 `PERCENTILE(p)`，`0 < p < 100`；DSL 的 `median` 等价 `p=50` |
 | `ANY` | 选择一个字段值 |
 
 `ANY` 不能替代确定性的 group key：所选的非 null 值不保证在不同执行或后端间稳定。
@@ -80,9 +82,13 @@ flowchart LR
 
 上述规则以存储值及 runtime 字段输出符合逻辑数值模型为前提，不承诺对任意脏数据逐行校验。Elasticsearch 数值 doc values 保留重复数值；它们不是源数组位置的副本，参见 [doc_values](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/doc-values)。`HISTOGRAM` 和 `DATE_HISTOGRAM` 仍使用各自的分桶合同，不套用本节 NUMERIC 指标的参与值规则。
 
+`STDDEV` 与 `VARIANCE` 为总体口径（population），与 `SUM`/`AVG` 使用相同的数值参与值规则，无有效贡献时为 `null`，单个贡献值的结果为 `0`。`PERCENTILE` 同样遵循该参与值规则，无有效贡献时为 `null`；MongoDB 与 Elasticsearch 均使用 t-digest 近似算法：小规模输入接近精确，大或偏斜分组的误差以秩空间（分位误差）度量，不承诺逐位一致，也不承诺落在任何精确次序统计量区间内。`DISTINCT_COUNT` 的参与规则与 `NUMERIC` 不同：`FIELD` 引用的数组字段按元素逐个参与去重（不必先 Elements 展开），null/缺失不参与；`CONSTANT`/`BINARY` 表达式仍按每条记录至多一个值参与。Elasticsearch `cardinality` 在默认精度阈值（约 3000 个不同值）内近似精确，超过阈值的大基数结果可能偏低；MongoDB 按参与值集合精确计数。
+
+**版本要求**：`PERCENTILE` 在 MongoDB 后端需要服务端 7.0+（`$percentile` 算子）；其余新指标无额外版本要求。旧版本服务端会返回其原生错误。
+
 ## 算术与时间表达式
 
-`NUMERIC` 的 Expression AST 只有 `FIELD`、有限 `CONSTANT` 与 `BINARY`。`BINARY` 运算符为 `ADD`、`SUBTRACT`、`MULTIPLY`、`DIVIDE`；可嵌套以表达算术式。Kotlin DSL 对应 `field(...)`、`constant(...)` 与 `+`、`-`、`*`、`/`，并提供 `sum`、`avg`、`min`、`max`。
+`NUMERIC` 的 Expression AST 只有 `FIELD`、有限 `CONSTANT` 与 `BINARY`。`BINARY` 运算符为 `ADD`、`SUBTRACT`、`MULTIPLY`、`DIVIDE`；可嵌套以表达算术式。Kotlin DSL 对应 `field(...)`、`constant(...)` 与 `+`、`-`、`*`、`/`，并提供 `sum`、`avg`、`min`、`max`、`stddev`、`variance`、`percentile`、`median` 与 `distinctCount`。
 
 日期分桶不是数值 Expression；它是 `DATE_HISTOGRAM` Group，单位列在上一节。
 

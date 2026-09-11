@@ -1,6 +1,6 @@
 ---
 title: Event Stream Aggregation
-description: Apply JVM and WebFlux HTTP/OpenAPI event-stream aggregation to root documents and expanded events through six business scenarios.
+description: Apply JVM and WebFlux HTTP/OpenAPI event-stream aggregation to root documents and expanded events through seven business scenarios.
 ---
 
 # Event Stream Aggregation
@@ -36,6 +36,7 @@ flowchart TB
     Event --> S2["2 Revision × bodyType"]
     Event --> S5Event["5 Event count"]
     Event --> S6["6 Payload analysis"]
+    Event --> S7["7 Distinct event-name count"]
 ```
 
 ## Scenario 1: Event Name Frequency
@@ -383,6 +384,60 @@ val query = aggregation {
 **Boundary**
 
 `body.body.data` is not a wildcard promise from the system fields. The actual Query Model Schema must declare it and prove TERMS capability. MongoDB must also store the payload in a queryable form. In Elasticsearch, the outer `body` must remain nested to preserve fields from the same event, and `body.body.data` must also have an aggregatable mapping.
+
+## Scenario 7: Distinct Event Name Count
+
+**Business question**
+
+How many events does the history of `tenant-a` contain in total, and how many distinct event names do they span?
+
+**Counting unit**
+
+One expanded event. `COUNT` counts the events and `DISTINCT_COUNT` deduplicates the event names.
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    filter { tenantId("tenant-a") }
+    expand("body")
+    count("eventCount")
+    distinctCount("name", "distinctNames")
+}
+```
+
+**HTTP JSON**
+
+```json
+{
+  "filter": {"op": "TENANT_ID", "value": "tenant-a"},
+  "elements": [
+    {"path": "body"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "eventCount"},
+    {
+      "type": "DISTINCT_COUNT",
+      "expression": {"type": "FIELD", "field": "name"},
+      "alias": "distinctNames"
+    }
+  ]
+}
+```
+
+**Result interpretation**
+
+```json
+[
+  {"eventCount": 438, "distinctNames": 6}
+]
+```
+
+With the same counting unit as Scenario 5, `eventCount` counts expanded events and `distinctNames` is the distinct count of their names. `COUNT` counts every record once, while `DISTINCT_COUNT` counts only the deduplicated non-null contribution values, yields `0` for an empty set, and lets array fields participate element by element, which differs from the `NUMERIC` rule (see [numeric contributions and precision](./aggregation-query.md#numeric-contributions)).
+
+**Boundary**
+
+`body` must support Element scope, and the expanded `name` field must support TERMS or numeric aggregation. Elasticsearch uses `cardinality`, which is near-exact within its precision threshold; MongoDB counts the contributing-value set exactly.
 
 ## Field Availability and Backend Boundaries
 

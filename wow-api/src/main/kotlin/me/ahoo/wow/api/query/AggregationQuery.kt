@@ -200,12 +200,16 @@ enum class AggregationExpressionOperator {
     JsonSubTypes.Type(AggregationMetric.Count::class, name = "COUNT"),
     JsonSubTypes.Type(AggregationMetric.Numeric::class, name = "NUMERIC"),
     JsonSubTypes.Type(AggregationMetric.Any::class, name = "ANY"),
+    JsonSubTypes.Type(AggregationMetric.DistinctCount::class, name = "DISTINCT_COUNT"),
+    JsonSubTypes.Type(AggregationMetric.Percentile::class, name = "PERCENTILE"),
 )
 @Schema(
     oneOf = [
         AggregationMetric.Count::class,
         AggregationMetric.Numeric::class,
         AggregationMetric.Any::class,
+        AggregationMetric.DistinctCount::class,
+        AggregationMetric.Percentile::class,
     ],
     discriminatorProperty = QueryProtocol.Polymorphic.TYPE,
 )
@@ -237,6 +241,29 @@ sealed interface AggregationMetric {
             requireAggregationAlias(alias)
         }
     }
+
+    data class DistinctCount(
+        val expression: AggregationExpression,
+        override val alias: String,
+    ) : AggregationMetric {
+        init {
+            requireAggregationAlias(alias)
+        }
+    }
+
+    data class Percentile(
+        val expression: AggregationExpression,
+        @get:Schema(minimum = "0", exclusiveMinimum = true, maximum = "100", exclusiveMaximum = true)
+        val percentile: Double,
+        override val alias: String,
+    ) : AggregationMetric {
+        init {
+            requireAggregationAlias(alias)
+            require(percentile.isFinite() && percentile > 0.0 && percentile < 100.0) {
+                "percentile must be finite and within (0, 100)."
+            }
+        }
+    }
 }
 
 enum class AggregationFunction {
@@ -244,6 +271,8 @@ enum class AggregationFunction {
     AVG,
     MIN,
     MAX,
+    STDDEV,
+    VARIANCE,
 }
 
 private fun requireAggregationAlias(alias: String) {
@@ -259,8 +288,13 @@ private data class PendingExpression(
 
 private fun List<AggregationMetric>.requireValidExpressions() {
     val pending = ArrayDeque<PendingExpression>()
-    filterIsInstance<AggregationMetric.Numeric>().forEach { metric ->
-        pending.addLast(PendingExpression(metric.expression, 1))
+    forEach { metric ->
+        when (metric) {
+            is AggregationMetric.Numeric -> pending.addLast(PendingExpression(metric.expression, 1))
+            is AggregationMetric.DistinctCount -> pending.addLast(PendingExpression(metric.expression, 1))
+            is AggregationMetric.Percentile -> pending.addLast(PendingExpression(metric.expression, 1))
+            is AggregationMetric.Count, is AggregationMetric.Any -> Unit
+        }
     }
     var nodes = 0
     while (pending.isNotEmpty()) {

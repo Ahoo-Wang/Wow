@@ -1,6 +1,6 @@
 ---
 title: 事件流聚合
-description: 用六个业务场景说明事件流根文档与展开事件的 JVM、WebFlux HTTP/OpenAPI 聚合查询。
+description: 用七个业务场景说明事件流根文档与展开事件的 JVM、WebFlux HTTP/OpenAPI 聚合查询。
 ---
 
 # 事件流聚合
@@ -36,6 +36,7 @@ flowchart TB
     Event --> S2["2 Revision × BodyType"]
     Event --> S5Event["5 事件数量"]
     Event --> S6["6 Payload 分析"]
+    Event --> S7["7 事件名去重计数"]
 ```
 
 ## 场景 1：事件名称频次
@@ -383,6 +384,60 @@ val query = aggregation {
 **边界**
 
 `body.body.data` 不是系统字段的通配承诺，必须由实际 Query Model Schema 声明并验证 TERMS 能力；MongoDB 还需以可查询形态存储该 payload。Elasticsearch 中外层 `body` 必须保持 nested 以维持同一事件内字段的关联，`body.body.data` 还必须启用可聚合 mapping。
+
+## 场景 7：事件名去重计数
+
+**业务问题**
+
+租户 `tenant-a` 的历史事件总共有多少条，涉及多少个去重事件名称？
+
+**统计单位**
+
+展开后的单个事件；`COUNT` 统计事件条数，`DISTINCT_COUNT` 对事件名称去重。
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    filter { tenantId("tenant-a") }
+    expand("body")
+    count("eventCount")
+    distinctCount("name", "distinctNames")
+}
+```
+
+**HTTP JSON**
+
+```json
+{
+  "filter": {"op": "TENANT_ID", "value": "tenant-a"},
+  "elements": [
+    {"path": "body"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "eventCount"},
+    {
+      "type": "DISTINCT_COUNT",
+      "expression": {"type": "FIELD", "field": "name"},
+      "alias": "distinctNames"
+    }
+  ]
+}
+```
+
+**结果解读**
+
+```json
+[
+  {"eventCount": 438, "distinctNames": 6}
+]
+```
+
+与场景 5 相同的统计单位下，`eventCount` 统计展开后的事件条数，`distinctNames` 是这些事件名称的去重个数。`COUNT` 对每条记录计一次；`DISTINCT_COUNT` 只统计非空参与值的去重结果，空集为 `0`，数组字段按元素逐个参与，参与规则与 `NUMERIC` 不同（见[数值参与值与精度](./aggregation-query.md#numeric-contributions)）。
+
+**边界**
+
+`body` 必须具备 Element scope，展开后的 `name` 必须具备 TERMS 或数值聚合能力。Elasticsearch 使用 `cardinality`，在精度阈值内近似精确；MongoDB 按参与值集合精确计数。
 
 ## 字段可用性与后端边界
 

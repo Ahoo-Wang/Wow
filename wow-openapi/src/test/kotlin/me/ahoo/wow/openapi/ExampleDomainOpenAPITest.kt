@@ -177,6 +177,8 @@ internal class ExampleDomainOpenAPITest {
                 "#/components/schemas/wow.api.query.AggregationMetric.Count",
                 "#/components/schemas/wow.api.query.AggregationMetric.Numeric",
                 "#/components/schemas/wow.api.query.AggregationMetric.Any",
+                "#/components/schemas/wow.api.query.AggregationMetric.DistinctCount",
+                "#/components/schemas/wow.api.query.AggregationMetric.Percentile",
             )
             metricSchema.discriminator.propertyName.assert().isEqualTo("type")
             (metricSchema.properties.getValue("alias").readOnly == true).assert().isFalse()

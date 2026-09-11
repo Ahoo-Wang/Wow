@@ -117,6 +117,32 @@ class AggregationQueryDsl {
     fun max(expression: AggregationExpression, alias: String) =
         numeric(AggregationFunction.MAX, expression, alias)
 
+    fun distinctCount(field: String, alias: String) = distinctCount(field(field), alias)
+
+    fun distinctCount(expression: AggregationExpression, alias: String) {
+        metrics += AggregationMetric.DistinctCount(expression, alias)
+    }
+
+    fun stddev(field: String, alias: String) = stddev(field(field), alias)
+
+    fun stddev(expression: AggregationExpression, alias: String) =
+        numeric(AggregationFunction.STDDEV, expression, alias)
+
+    fun variance(field: String, alias: String) = variance(field(field), alias)
+
+    fun variance(expression: AggregationExpression, alias: String) =
+        numeric(AggregationFunction.VARIANCE, expression, alias)
+
+    fun percentile(field: String, p: Double, alias: String) = percentile(field(field), p, alias)
+
+    fun percentile(expression: AggregationExpression, p: Double, alias: String) {
+        metrics += AggregationMetric.Percentile(expression, p, alias)
+    }
+
+    fun median(field: String, alias: String) = median(field(field), alias)
+
+    fun median(expression: AggregationExpression, alias: String) = percentile(expression, 50.0, alias)
+
     private fun numeric(
         function: AggregationFunction,
         expression: AggregationExpression,

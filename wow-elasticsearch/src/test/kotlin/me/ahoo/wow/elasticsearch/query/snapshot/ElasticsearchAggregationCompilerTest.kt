@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
+import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -51,6 +52,7 @@ class ElasticsearchAggregationCompilerTest {
                 "amount" to scalar,
                 "createdAt" to temporal,
                 "name" to text,
+                "customerId" to text,
                 "orders" to array(
                     obj(
                         mapOf(
@@ -72,6 +74,7 @@ class ElasticsearchAggregationCompilerTest {
                     .properties("amount") { it.long_ { it } }
                     .properties("createdAt") { it.long_ { it } }
                     .properties("name") { it.text { it.fields("keyword") { it.keyword { it } } } }
+                    .properties("customerId") { it.text { it.fields("keyword") { it.keyword { it } } } }
                     .properties("orders") {
                         it.nested { orders ->
                             orders.properties("status") { it.keyword { it } }
@@ -159,6 +162,47 @@ class ElasticsearchAggregationCompilerTest {
         (plan.metrics.single() as ElasticsearchAggregationMetric.Any).field.assert().isEqualTo("name.keyword")
         assertThrows<QuerySchemaValidationException> {
             compiler.compile(aggregation { any("name.keyword", "sample") }, schema)
+        }
+    }
+
+    @Test
+    fun `plan should map distinct count and percentile metrics`() {
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                distinctCount("customerId", "customers")
+                percentile("amount", 95.0, "p95")
+                stddev("amount", "stddev")
+                variance("amount", "variance")
+            },
+            schema,
+        )
+
+        plan.metrics.assert().containsExactly(
+            ElasticsearchAggregationMetric.DistinctCount("customers", "customerId.keyword"),
+            ElasticsearchAggregationMetric.Percentile("p95", "amount", 95.0),
+            ElasticsearchAggregationMetric.Numeric("stddev", AggregationFunction.STDDEV, "amount"),
+            ElasticsearchAggregationMetric.Numeric("variance", AggregationFunction.VARIANCE, "amount"),
+        )
+    }
+
+    @Test
+    fun `non-field distinct count and percentile expressions compile to runtime fields`() {
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                distinctCount(field("amount") + constant(0.0), "amounts")
+                percentile(field("amount") * constant(1.0), 95.0, "p95")
+            },
+            schema,
+        )
+
+        plan.runtimeMappings.keys.assert().containsExactly("__wow_expression_0", "__wow_expression_1")
+        plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.DistinctCount>().single().field.assert()
+            .isEqualTo("__wow_expression_0")
+        val percentile = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Percentile>().single()
+        percentile.field.assert().isEqualTo("__wow_expression_1")
+        percentile.percentile.assert().isEqualTo(95.0)
+        plan.runtimeMappings.values.forEach { runtimeField ->
+            runtimeField.type().assert().isEqualTo(RuntimeFieldType.Double)
         }
     }
 

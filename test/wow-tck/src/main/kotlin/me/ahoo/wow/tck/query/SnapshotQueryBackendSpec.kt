@@ -78,6 +78,7 @@ import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.ceil
 
 @Suppress("LargeClass")
 abstract class SnapshotQueryBackendSpec {
@@ -871,6 +872,217 @@ abstract class SnapshotQueryBackendSpec {
     }
 
     @Test
+    fun `aggregation should count distinct values excluding null`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            distinctCount("productId", "products")
+            distinctCount("amount", "amounts")
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext {
+                it.assertWireEquals(mapOf("products" to 4L, "amounts" to 4L))
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should count distinct array elements`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            distinctCount("samples", "samples")
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext { it.assertWireEquals(mapOf("samples" to 3L)) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should calculate exact population stddev and variance`() {
+        saveAggregationStates(
+            MockStateAggregate(
+                id = "stddev-a",
+                orders = listOf(
+                    MockOrder(
+                        status = "PAID",
+                        lines = listOf(
+                            MockLine(
+                                productId = "s1",
+                                quantity = 1,
+                                amount = 10.0,
+                                createdAt = Instant.parse("2026-01-01T10:00:00Z"),
+                                discounts = emptyList(),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            MockStateAggregate(
+                id = "stddev-b",
+                orders = listOf(
+                    MockOrder(
+                        status = "PAID",
+                        lines = listOf(
+                            MockLine(
+                                productId = "s2",
+                                quantity = 1,
+                                amount = 20.0,
+                                createdAt = Instant.parse("2026-01-01T10:00:00Z"),
+                                discounts = emptyList(),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders") { "status" eq "PAID" }
+            expand("lines")
+            count("count")
+            stddev("amount", "stddev")
+            variance("amount", "variance")
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext {
+                it.assertWireEquals(mapOf("count" to 2L, "stddev" to 5.0, "variance" to 25.0))
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should calculate percentile metrics within rank bounds`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders") { "status" eq "PAID" }
+            expand("lines")
+            median("amount", "median")
+            percentile("amount", 95.0, "p95")
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext { row ->
+                // PAID amounts 排序后 [10,20,20,30,50]：(n-1)*0.5=2 → [20,20]；(n-1)*0.95=3.8 → [30,50]
+                assertPercentileWithinRankBounds(
+                    row.path("median").doubleValue(),
+                    listOf(10.0, 20.0, 20.0, 30.0, 50.0),
+                    50.0
+                )
+                assertPercentileWithinRankBounds(
+                    row.path("p95").doubleValue(),
+                    listOf(10.0, 20.0, 20.0, 30.0, 50.0),
+                    95.0
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should return null or zero when no value contributes`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders") { "status" eq "CANCELLED" }
+            expand("lines") { "productId" eq "gamma" }
+            count("count")
+            stddev("amount", "stddev")
+            variance("amount", "variance")
+            median("amount", "median")
+            distinctCount("amount", "amounts")
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext {
+                it.assertWireEquals(
+                    mapOf(
+                        "count" to 1L,
+                        "stddev" to null,
+                        "variance" to null,
+                        "median" to null,
+                        "amounts" to 0L,
+                    ),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should return zero distinct count in an empty summary`() {
+        aggregation {
+            filter {
+                deletion(DeletionState.ACTIVE)
+                aggregateId("missing")
+            }
+            count("count")
+            distinctCount("version", "versions")
+            percentile("version", 50.0, "median")
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext {
+                it.assertWireEquals(mapOf("count" to 0L, "versions" to 0L, "median" to null))
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should sort groups by distinct count`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders") { "status" eq "PAID" }
+            expand("lines")
+            terms("productId", "product")
+            distinctCount("amount", "amounts")
+            stddev("amount", "amtStddev")
+            sort { "amounts".desc() }
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // 各组参与值：alpha {10,30}、beta {20,20}、delta {50}（单值组）
+                // 总体方差/标准差：alpha 100.0/10.0、beta 0.0/0.0、delta 0.0/0.0（单值组 STDDEV=0）
+                rows.map { row ->
+                    listOf(
+                        row.path("product").textValue(),
+                        row.path("amounts").longValue(),
+                        row.path("amtStddev").doubleValue(),
+                    )
+                }.assert().containsExactly(
+                    listOf("alpha", 2L, 10.0), // 与 beta/delta 并列时按 product ASC 稳定排序在前
+                    listOf("beta", 1L, 0.0),
+                    listOf("delta", 1L, 0.0),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should apply arithmetic expressions to new metrics`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders") { "status" eq "PAID" }
+            expand("lines")
+            distinctCount(field("amount") + constant(0.0), "amounts")
+            median(field("amount") * constant(1.0), "medianAmount")
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext { row ->
+                row.path("amounts").longValue().assert().isEqualTo(4L)
+                assertPercentileWithinRankBounds(
+                    row.path("medianAmount").doubleValue(),
+                    listOf(10.0, 20.0, 20.0, 30.0, 50.0),
+                    50.0,
+                )
+            }.verifyComplete()
+    }
+
+    @Test
     fun `aggregation should support cancellation after a real result`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
@@ -896,6 +1108,14 @@ abstract class SnapshotQueryBackendSpec {
                 ),
             ).test().verifyComplete()
         }
+    }
+
+    private fun assertPercentileWithinRankBounds(value: Double, sortedValues: List<Double>, p: Double) {
+        val rank = (sortedValues.size - 1) * p / 100.0
+        val lower = sortedValues[rank.toInt()]
+        val upper = sortedValues[ceil(rank).toInt()]
+        value.assert().isGreaterThanOrEqualTo(lower)
+        value.assert().isLessThanOrEqualTo(upper)
     }
 
     private fun saveCursorSnapshots(vararg states: MockStateAggregate): List<String> {

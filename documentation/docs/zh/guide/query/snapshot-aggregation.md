@@ -1,6 +1,6 @@
 ---
 title: 快照聚合
-description: 用八个业务场景说明快照根文档与集合元素的聚合查询。
+description: 用九个业务场景说明快照根文档与集合元素的聚合查询。
 ---
 
 # 快照聚合
@@ -32,6 +32,7 @@ flowchart TB
     Root --> S3["3 数值区间"]
     Root --> S4["4 业务时间趋势"]
     Root --> S7["7 多维交叉分析"]
+    Root --> S9["9 去重客户数与 P95 金额"]
     Item --> S5["5 明细项 Top-N"]
     Item --> S6["6 派生金额"]
     Item --> S8["8 ANY 展示字段"]
@@ -434,6 +435,71 @@ val query = aggregation {
 ```
 
 `ANY` 只适合 `productId` 组内值稳定的展示字段。如果同一商品 ID 下存在多个 `name`，选中的非 null 值在不同执行或后端间不稳定；需要确定结果时，应修复业务数据或把名称建模为确定性 group key，而不是依赖 `ANY`。
+
+## 场景 9：去重客户数与 P95 金额
+
+**业务问题**
+
+各订单状态分别涉及多少去重客户？这些订单金额的 P95 与总体标准差是多少？
+
+**统计单位**
+
+快照根文档；每份当前订单快照贡献一个客户 ID 参与值和一个金额参与值。
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    filter { deletion(DeletionState.ACTIVE) }
+    terms("state.status", "status")
+    distinctCount("state.customerId", "customers")
+    percentile("state.totalAmount", 95.0, "p95Amount")
+    stddev("state.totalAmount", "amountStddev")
+    sort { "customers".desc() }
+}
+```
+
+**HTTP JSON 与结果解读**
+
+```json
+{
+  "filter": {"op": "DELETION", "state": "ACTIVE"},
+  "groupBy": [
+    {"type": "TERMS", "field": "state.status", "alias": "status"}
+  ],
+  "metrics": [
+    {
+      "type": "DISTINCT_COUNT",
+      "expression": {"type": "FIELD", "field": "state.customerId"},
+      "alias": "customers"
+    },
+    {
+      "type": "PERCENTILE",
+      "expression": {"type": "FIELD", "field": "state.totalAmount"},
+      "percentile": 95,
+      "alias": "p95Amount"
+    },
+    {
+      "type": "NUMERIC",
+      "function": "STDDEV",
+      "expression": {"type": "FIELD", "field": "state.totalAmount"},
+      "alias": "amountStddev"
+    }
+  ],
+  "sort": [
+    {"field": "customers", "direction": "DESC"}
+  ]
+}
+```
+
+```json
+[
+  {"status": "PAID", "customers": 35, "p95Amount": 812.5, "amountStddev": 143.2},
+  {"status": "FAILED", "customers": 6, "p95Amount": 240.0, "amountStddev": 87.6}
+]
+```
+
+`customers` 是组内去重客户数：`DISTINCT_COUNT` 只对非空参与值去重，空集为 `0`，数组字段按元素逐个参与，参与规则与 `NUMERIC` 不同（见[数值参与值与精度](./aggregation-query.md#numeric-contributions)）。`p95Amount` 与 `amountStddev` 遵循与 `SUM`/`AVG` 相同的数值参与规则，无有效贡献时为 `null`；`amountStddev` 为总体口径，单个贡献值为 `0`；`p95Amount` 由 t-digest 近似计算。`PERCENTILE` 在 MongoDB 后端需要服务端 7.0+。显式 `deletion` 过滤与 Gateway 默认追加的 `DELETION = ACTIVE` 一致。
 
 ## 后端能力与稳定性边界
 

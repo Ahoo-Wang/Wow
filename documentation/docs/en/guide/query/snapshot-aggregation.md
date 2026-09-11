@@ -1,6 +1,6 @@
 ---
 title: Snapshot Aggregation
-description: Apply snapshot aggregation to root documents and collection elements through eight business scenarios.
+description: Apply snapshot aggregation to root documents and collection elements through nine business scenarios.
 ---
 
 # Snapshot Aggregation
@@ -32,6 +32,7 @@ flowchart TB
     Root --> S3["3 Numeric ranges"]
     Root --> S4["4 Business-time trend"]
     Root --> S7["7 Multidimensional analysis"]
+    Root --> S9["9 Distinct customers and P95 amount"]
     Item --> S5["5 Line-item Top-N"]
     Item --> S6["6 Derived amount"]
     Item --> S8["8 ANY display field"]
@@ -434,6 +435,71 @@ val query = aggregation {
 ```
 
 `ANY` is suitable only for a display field whose value is stable within each `productId` group. If one product ID has multiple `name` values, the selected non-null value is unstable across executions or backends. For deterministic results, repair the business data or model the name as a deterministic group key instead of relying on `ANY`.
+
+## Scenario 9: Distinct Customers and P95 Amount
+
+**Business question**
+
+How many distinct customers does each order status involve, and what are the P95 and the population standard deviation of those order amounts?
+
+**Counting unit**
+
+Root snapshot documents; each current order snapshot contributes one customer-ID participation value and one amount participation value.
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    filter { deletion(DeletionState.ACTIVE) }
+    terms("state.status", "status")
+    distinctCount("state.customerId", "customers")
+    percentile("state.totalAmount", 95.0, "p95Amount")
+    stddev("state.totalAmount", "amountStddev")
+    sort { "customers".desc() }
+}
+```
+
+**HTTP JSON and result interpretation**
+
+```json
+{
+  "filter": {"op": "DELETION", "state": "ACTIVE"},
+  "groupBy": [
+    {"type": "TERMS", "field": "state.status", "alias": "status"}
+  ],
+  "metrics": [
+    {
+      "type": "DISTINCT_COUNT",
+      "expression": {"type": "FIELD", "field": "state.customerId"},
+      "alias": "customers"
+    },
+    {
+      "type": "PERCENTILE",
+      "expression": {"type": "FIELD", "field": "state.totalAmount"},
+      "percentile": 95,
+      "alias": "p95Amount"
+    },
+    {
+      "type": "NUMERIC",
+      "function": "STDDEV",
+      "expression": {"type": "FIELD", "field": "state.totalAmount"},
+      "alias": "amountStddev"
+    }
+  ],
+  "sort": [
+    {"field": "customers", "direction": "DESC"}
+  ]
+}
+```
+
+```json
+[
+  {"status": "PAID", "customers": 35, "p95Amount": 812.5, "amountStddev": 143.2},
+  {"status": "FAILED", "customers": 6, "p95Amount": 240.0, "amountStddev": 87.6}
+]
+```
+
+`customers` is the distinct customer count per group: `DISTINCT_COUNT` deduplicates non-null contribution values only, yields `0` for an empty set, and lets array fields participate element by element, which differs from the `NUMERIC` rule (see [numeric contributions and precision](./aggregation-query.md#numeric-contributions)). `p95Amount` and `amountStddev` follow the same numeric-contribution rule as `SUM`/`AVG` and are `null` when nothing contributes; `amountStddev` is population-standard-deviation and returns `0` for a single value; `p95Amount` is approximated by t-digest. `PERCENTILE` on the MongoDB backend requires server 7.0+. The explicit `deletion` filter matches the Gateway's default `DELETION = ACTIVE`.
 
 ## Backend Capabilities and Stability Boundaries
 

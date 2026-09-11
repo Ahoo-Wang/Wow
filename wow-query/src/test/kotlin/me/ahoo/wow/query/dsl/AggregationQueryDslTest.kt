@@ -118,4 +118,43 @@ class AggregationQueryDslTest {
             ),
         )
     }
+
+    @Test
+    fun `aggregation DSL should map new metric functions`() {
+        val query = aggregation {
+            terms("status", "status")
+            distinctCount("customerId", "customers")
+            stddev("amount", "amtStddev")
+            variance("amount", "amtVariance")
+            percentile("amount", 95.0, "amtP95")
+            median("amount", "amtMedian")
+        }
+
+        query.metrics.assert().containsExactly(
+            AggregationMetric.DistinctCount(
+                AggregationExpression.Field(QueryField("customerId")),
+                "customers",
+            ),
+            AggregationMetric.Numeric(
+                AggregationFunction.STDDEV,
+                AggregationExpression.Field(QueryField("amount")),
+                "amtStddev",
+            ),
+            AggregationMetric.Numeric(
+                AggregationFunction.VARIANCE,
+                AggregationExpression.Field(QueryField("amount")),
+                "amtVariance",
+            ),
+            AggregationMetric.Percentile(
+                AggregationExpression.Field(QueryField("amount")),
+                95.0,
+                "amtP95",
+            ),
+            AggregationMetric.Percentile(
+                AggregationExpression.Field(QueryField("amount")),
+                50.0,
+                "amtMedian",
+            ),
+        )
+    }
 }

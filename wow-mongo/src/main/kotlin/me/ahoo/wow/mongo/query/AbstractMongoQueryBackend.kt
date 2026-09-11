@@ -186,6 +186,8 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
                 is AggregationMetric.Count -> (get(metric.alias) as Number).toLong()
                 is AggregationMetric.Any -> get(metric.alias).toTermsValue(metric.alias)
                 is AggregationMetric.Numeric -> get(metric.alias).toFiniteDouble(metric.alias)
+                is AggregationMetric.Percentile -> get(metric.alias).toFiniteDouble(metric.alias)
+                is AggregationMetric.DistinctCount -> (get(metric.alias) as Number).toLong()
             }
         }
         return this
@@ -195,7 +197,10 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
         if (this is Decimal128) toFiniteDouble(alias) else this
 
     private fun AggregationQuery.emptySummary(): Document = metrics.associateTo(Document()) { metric ->
-        metric.alias to if (metric is AggregationMetric.Count) 0L else null
+        metric.alias to when (metric) {
+            is AggregationMetric.Count, is AggregationMetric.DistinctCount -> 0L
+            is AggregationMetric.Any, is AggregationMetric.Numeric, is AggregationMetric.Percentile -> null
+        }
     }
 
     private fun Any?.toFiniteDouble(alias: String): Double? {

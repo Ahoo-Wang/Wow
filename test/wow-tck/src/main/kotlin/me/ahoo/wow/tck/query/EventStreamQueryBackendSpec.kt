@@ -480,6 +480,24 @@ abstract class EventStreamQueryBackendSpec {
             .assertNext { it.path("count").longValue().assert().isZero() }
             .verifyComplete()
     }
+
+    @Test
+    fun aggregateDistinctEventNames() {
+        val tenantId = generateGlobalId()
+        eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = tenantId))).block()
+
+        aggregation {
+            filter { tenantId(tenantId) }
+            expand("body")
+            count("count")
+            distinctCount("name", "names")
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext { row ->
+                row.path("count").longValue().assert().isEqualTo(10L)
+                row.path("names").longValue().assert().isEqualTo(2L)
+            }.verifyComplete()
+    }
 }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
