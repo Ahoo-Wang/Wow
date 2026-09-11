@@ -11,12 +11,12 @@
  * limitations under the License.
  */
 
-export * from './abac';
-export * from './common';
-export * from './endpoints';
-export * from './error';
-export * from './function';
-export * from './messaging';
-export * from './modeling';
-export * from './naming';
-export * from './bi';
+export * from './abac.js';
+export * from './common.js';
+export * from './endpoints.js';
+export * from './error.js';
+export * from './function.js';
+export * from './messaging.js';
+export * from './modeling.js';
+export * from './naming.js';
+export * from './bi.js';

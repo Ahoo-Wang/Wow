@@ -14,12 +14,15 @@
 import type { PartialBy } from '@ahoo-wang/fetcher';
 import { combineURLs } from '@ahoo-wang/fetcher';
 import type { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
-import type { AggregateNameCapable, AliasBoundedContext } from '../types';
-import type { ResourceAttributionPathSpec } from '../types';
-import { SnapshotQueryClient } from './snapshot';
-import { EventStreamQueryClient } from './event';
-import { LoadStateAggregateClient } from './state';
-import { LoadOwnerStateAggregateClient } from './state';
+import type {
+  AggregateNameCapable,
+  AliasBoundedContext,
+} from '../types/index.js';
+import type { ResourceAttributionPathSpec } from '../types/index.js';
+import { SnapshotQueryClient } from './snapshot/index.js';
+import { EventStreamQueryClient } from './event/index.js';
+import { LoadStateAggregateClient } from './state/index.js';
+import { LoadOwnerStateAggregateClient } from './state/index.js';
 
 /**
  * Configuration options for query clients.

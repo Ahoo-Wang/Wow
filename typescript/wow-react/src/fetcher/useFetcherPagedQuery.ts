@@ -18,9 +18,9 @@ import type {
   PagedQueryRequest,
 } from '@ahoo-wang/fetcher-wow';
 import type { FetcherError } from '@ahoo-wang/fetcher';
-import type { UseQueryReturn } from '../../core';
-import type { UseFetcherQueryOptions } from '../../fetcher';
-import { useFetcherQuery } from '../../fetcher';
+import type { UseQueryReturn } from '../../core/index.js';
+import type { UseFetcherQueryOptions } from '../../fetcher/index.js';
+import { useFetcherQuery } from '../../fetcher/index.js';
 
 /**
  * Options for configuring the useFetcherPagedQuery hook.

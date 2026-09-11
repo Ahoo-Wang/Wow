@@ -11,6 +11,6 @@
  * limitations under the License.
  */
 
-export * from './snapshot';
-export * from './snapshotQueryApi';
-export * from './snapshotQueryClient';
+export * from './snapshot.js';
+export * from './snapshotQueryApi.js';
+export * from './snapshotQueryClient.js';

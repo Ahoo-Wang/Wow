@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { Operator } from './operator';
+import { Operator } from './operator.js';
 
 /**
  * Helper function to detect condition is validate or not

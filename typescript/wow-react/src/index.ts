@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-export * from './fetcher';
-export * from './useCountQuery';
-export * from './useListQuery';
-export * from './useListStreamQuery';
-export * from './usePagedQuery';
-export * from './useSingleQuery';
+export * from './fetcher/index.js';
+export * from './useCountQuery.js';
+export * from './useListQuery.js';
+export * from './useListStreamQuery.js';
+export * from './usePagedQuery.js';
+export * from './useSingleQuery.js';

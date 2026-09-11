@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-export * from './useFetcherCountQuery';
-export * from './useFetcherListQuery';
-export * from './useFetcherListStreamQuery';
-export * from './useFetcherPagedQuery';
-export * from './useFetcherSingleQuery';
+export * from './useFetcherCountQuery.js';
+export * from './useFetcherListQuery.js';
+export * from './useFetcherListStreamQuery.js';
+export * from './useFetcherPagedQuery.js';
+export * from './useFetcherSingleQuery.js';

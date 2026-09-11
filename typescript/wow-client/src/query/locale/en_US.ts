@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { OperatorLocale } from './operatorLocale';
+import type { OperatorLocale } from './operatorLocale.js';
 
 /** @deprecated This locale belongs to the legacy Condition API. */
 export const en_US: OperatorLocale = {

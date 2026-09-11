@@ -16,8 +16,8 @@ import {
   type ElementFilterExpression,
   type FilterExpression,
   type QueryField,
-} from './filter';
-import type { FieldSort } from './sort';
+} from './filter.js';
+import type { FieldSort } from './sort.js';
 
 export enum AggregationGroupType {
   TERMS = 'TERMS',

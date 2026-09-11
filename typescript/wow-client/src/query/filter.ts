@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { DeletionState } from './condition';
+import { DeletionState } from './condition.js';
 
 export type QueryField<FIELDS extends string = string> = FIELDS;
 /** @deprecated Use QueryField instead. */

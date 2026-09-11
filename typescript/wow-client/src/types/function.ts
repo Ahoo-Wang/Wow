@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { Named, NamedBoundedContext } from './naming';
+import type { Named, NamedBoundedContext } from './naming.js';
 
 /**
  * Function kind enum

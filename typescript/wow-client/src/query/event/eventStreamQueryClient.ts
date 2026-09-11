@@ -14,20 +14,20 @@
 import {
   type EventStreamQueryApi,
   EventStreamQueryEndpointPaths,
-} from './eventStreamQueryApi';
-import type { AggregationQuery } from '../aggregation';
-import type { Condition } from '../condition';
-import type { FilterExpression } from '../filter';
+} from './eventStreamQueryApi.js';
+import type { AggregationQuery } from '../aggregation.js';
+import type { Condition } from '../condition.js';
+import type { FilterExpression } from '../filter.js';
 import type {
   ListQueryRequest,
   PagedList,
   PagedQueryRequest,
-} from '../queryable';
-import type { DomainEventStream } from './domainEventStream';
-import type { DynamicDocument } from '../types';
+} from '../queryable.js';
+import type { DomainEventStream } from './domainEventStream.js';
+import type { DynamicDocument } from '../types.js';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
-import type { CursorPage, CursorQuery } from '../cursorQuery';
+import type { CursorPage, CursorQuery } from '../cursorQuery.js';
 
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import type {

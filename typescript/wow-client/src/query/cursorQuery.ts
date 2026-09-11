@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-import type { FilterExpression } from './filter';
-import type { Projection } from './projection';
-import type { FieldSort } from './sort';
+import type { FilterExpression } from './filter.js';
+import type { Projection } from './projection.js';
+import type { FieldSort } from './sort.js';
 
 export const DEFAULT_CURSOR_SIZE = 10;
 export const MAX_CURSOR_SIZE = 2_147_483_646;

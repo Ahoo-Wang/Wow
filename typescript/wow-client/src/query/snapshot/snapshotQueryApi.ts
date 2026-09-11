@@ -11,16 +11,16 @@
  * limitations under the License.
  */
 
-import type { QueryApi } from '../queryApi';
-import type { MaterializedSnapshot } from './snapshot';
+import type { QueryApi } from '../queryApi.js';
+import type { MaterializedSnapshot } from './snapshot.js';
 import type {
   ListQueryRequest,
   PagedList,
   PagedQueryRequest,
   SingleQueryRequest,
-} from '../queryable';
+} from '../queryable.js';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import type { CursorPage, CursorQuery } from '../cursorQuery';
+import type { CursorPage, CursorQuery } from '../cursorQuery.js';
 
 /**
  * Interface for snapshot query API operations.

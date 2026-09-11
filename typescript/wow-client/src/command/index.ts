@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-export * from './commandClient';
-export * from './commandHeaders';
-export * from './commandRequest';
-export * from './commandResult';
-export * from './types';
+export * from './commandClient.js';
+export * from './commandHeaders.js';
+export * from './commandRequest.js';
+export * from './commandResult.js';
+export * from './types.js';

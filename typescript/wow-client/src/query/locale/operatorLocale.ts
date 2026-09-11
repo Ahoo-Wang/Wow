@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { Operator } from '../operator';
+import type { Operator } from '../operator.js';
 
 /** @deprecated Operator locale metadata belongs to the legacy Condition API. */
 export type OperatorLocale = {

@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-import { type CommandRequest } from './commandRequest';
+import { type CommandRequest } from './commandRequest.js';
 import {
   type CommandResult,
   type CommandResultEventStream,
-} from './commandResult';
+} from './commandResult.js';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 

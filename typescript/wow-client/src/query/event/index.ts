@@ -11,6 +11,6 @@
  * limitations under the License.
  */
 
-export * from './domainEventStream';
-export * from './eventStreamQueryApi';
-export * from './eventStreamQueryClient';
+export * from './domainEventStream.js';
+export * from './eventStreamQueryApi.js';
+export * from './eventStreamQueryClient.js';

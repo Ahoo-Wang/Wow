@@ -27,7 +27,7 @@ import type {
   StateCapable,
   TenantId,
   Version,
-} from '../../types';
+} from '../../types/index.js';
 
 /**
  * Interface for materialized snapshots with full capabilities.

@@ -14,10 +14,10 @@
 import {
   type SnapshotQueryApi,
   SnapshotQueryEndpointPaths,
-} from './snapshotQueryApi';
-import { aggregateId, type Condition } from '../condition';
-import type { AggregationQuery } from '../aggregation';
-import { filter, type FilterExpression } from '../filter';
+} from './snapshotQueryApi.js';
+import { aggregateId, type Condition } from '../condition.js';
+import type { AggregationQuery } from '../aggregation.js';
+import { filter, type FilterExpression } from '../filter.js';
 import {
   listQuery,
   type ListQueryRequest,
@@ -25,11 +25,11 @@ import {
   type PagedQueryRequest,
   singleQuery,
   type SingleQueryRequest,
-} from '../queryable';
-import type { MaterializedSnapshot } from './snapshot';
-import type { DynamicDocument } from '../types';
+} from '../queryable.js';
+import type { MaterializedSnapshot } from './snapshot.js';
+import type { DynamicDocument } from '../types.js';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import type { CursorPage, CursorQuery } from '../cursorQuery';
+import type { CursorPage, CursorQuery } from '../cursorQuery.js';
 import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';

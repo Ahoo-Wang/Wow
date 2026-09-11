@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-import { all, type Condition, type ConditionCapable } from './condition';
-import type { FilterCapable, FilterExpression } from './filter';
-import { type SortCapable } from './sort';
-import { DEFAULT_PAGINATION, type Pagination } from './pagination';
-import { type ProjectionCapable } from './projection';
+import { all, type Condition, type ConditionCapable } from './condition.js';
+import type { FilterCapable, FilterExpression } from './filter.js';
+import { type SortCapable } from './sort.js';
+import { DEFAULT_PAGINATION, type Pagination } from './pagination.js';
+import { type ProjectionCapable } from './projection.js';
 
 /**
  * Interface for queryable objects that support conditions, projection, and sorting.

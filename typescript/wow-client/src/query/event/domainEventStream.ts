@@ -23,9 +23,13 @@ import type {
   SpaceIdCapable,
   StateCapable,
   Version,
-} from '../../types';
-import type { CommandId, CommandStage, RequestId } from '../../command';
-import type { BodyCapable } from '../../types';
+} from '../../types/index.js';
+import type {
+  CommandId,
+  CommandStage,
+  RequestId,
+} from '../../command/index.js';
+import type { BodyCapable } from '../../types/index.js';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 /**

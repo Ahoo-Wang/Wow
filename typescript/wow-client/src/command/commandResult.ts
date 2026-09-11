@@ -19,7 +19,7 @@ import type {
   FunctionInfoCapable,
   Identifier,
   NamedBoundedContext,
-} from '../types';
+} from '../types/index.js';
 import type {
   CommandId,
   CommandResultCapable,
@@ -28,7 +28,7 @@ import type {
   RequestId,
   SignalTimeCapable,
   WaitCommandIdCapable,
-} from './types';
+} from './types.js';
 import { type JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 /**

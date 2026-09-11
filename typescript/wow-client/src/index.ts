@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-export * from './command';
-export * from './configuration';
-export * from './query';
-export * from './types';
-export * from './getPropertyValue';
+export * from './command/index.js';
+export * from './configuration/index.js';
+export * from './query/index.js';
+export * from './types/index.js';
+export * from './getPropertyValue.js';

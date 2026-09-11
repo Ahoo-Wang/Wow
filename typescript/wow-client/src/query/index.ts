@@ -11,19 +11,19 @@
  * limitations under the License.
  */
 
-export * from './condition';
-export * from './aggregation';
-export * from './filter';
-export * from './operator';
-export * from './locale/operatorLocale';
-export * from './pagination';
-export * from './projection';
-export * from './queryable';
-export * from './queryApi';
-export * from './sort';
-export * from './event';
-export * from './snapshot';
-export * from './state';
-export * from './cursorQuery';
-export * from './queryClients';
-export * from './types';
+export * from './condition.js';
+export * from './aggregation.js';
+export * from './filter.js';
+export * from './operator.js';
+export * from './locale/operatorLocale.js';
+export * from './pagination.js';
+export * from './projection.js';
+export * from './queryable.js';
+export * from './queryApi.js';
+export * from './sort.js';
+export * from './event/index.js';
+export * from './snapshot/index.js';
+export * from './state/index.js';
+export * from './cursorQuery.js';
+export * from './queryClients.js';
+export * from './types.js';

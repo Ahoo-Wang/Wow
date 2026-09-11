@@ -16,13 +16,13 @@ import type {
   PagedList,
   PagedQueryRequest,
   SingleQueryRequest,
-} from './queryable';
+} from './queryable.js';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import type { AggregationQuery } from './aggregation';
-import type { Condition } from './condition';
-import type { FilterExpression } from './filter';
-import type { DynamicDocument } from './types';
-import type { CursorPage, CursorQuery } from './cursorQuery';
+import type { AggregationQuery } from './aggregation.js';
+import type { Condition } from './condition.js';
+import type { FilterExpression } from './filter.js';
+import type { DynamicDocument } from './types.js';
+import type { CursorPage, CursorQuery } from './cursorQuery.js';
 
 /**
  * Interface for generic query API operations.

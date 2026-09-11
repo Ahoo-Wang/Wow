@@ -16,7 +16,7 @@ import type {
   ErrorInfo,
   FunctionInfoCapable,
   Identifier,
-} from '../types';
+} from '../types/index.js';
 import type { PartialBy, RemoveReadonlyFields } from '@ahoo-wang/fetcher';
 
 /**

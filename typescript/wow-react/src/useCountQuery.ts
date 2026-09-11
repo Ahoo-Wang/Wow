@@ -13,8 +13,8 @@
 
 import type { Condition, FilterExpression } from '@ahoo-wang/fetcher-wow';
 import type { FetcherError } from '@ahoo-wang/fetcher';
-import type { UseQueryOptions, UseQueryReturn } from '../core';
-import { useQuery } from '../core';
+import type { UseQueryOptions, UseQueryReturn } from '../core/index.js';
+import { useQuery } from '../core/index.js';
 
 /**
  * Options for the useCountQuery hook.
