@@ -137,7 +137,7 @@ class ElasticsearchNumericContractTest {
                     query.metrics.forEach { metric ->
                         val actual = row.path(metric.alias)
                         if (expected == null) actual.isNull.assert().isTrue()
-                        else actual.doubleValue().assert().isEqualTo(expected)
+                        else actual.doubleValue().assert().isEqualTo(expected.expectedFor(metric.alias))
                     }
                 }
             }
@@ -151,7 +151,7 @@ class ElasticsearchNumericContractTest {
             val summary = query(nested).copy(groupBy = emptyList())
             val row = backend.aggregate(validateQuery(summary, unionSchema), unionSchema).single().block()!!
             summary.metrics.forEach { metric ->
-                row.path(metric.alias).doubleValue().assert().isEqualTo(if (metric.alias.startsWith("SUM")) 21.0 else 7.0)
+                row.path(metric.alias).doubleValue().assert().isEqualTo(summaryExpectedFor(metric.alias))
             }
         }
     }
@@ -201,6 +201,16 @@ class ElasticsearchNumericContractTest {
         "null" to (null to null),
         "missing" to (null to null),
     )
+
+    private fun Double.expectedFor(alias: String): Double =
+        // STDDEV/VARIANCE are population statistics: a single contributing value has zero dispersion.
+        if (alias.startsWith("STDDEV") || alias.startsWith("VARIANCE")) 0.0 else this
+
+    private fun summaryExpectedFor(alias: String): Double = when {
+        alias.startsWith("SUM") -> 21.0
+        alias.startsWith("STDDEV") || alias.startsWith("VARIANCE") -> 0.0
+        else -> 7.0
+    }
 
     private fun definition(value: QueryValueSchema): LogicalQuerySchema {
         val record = QueryValueSchema(QueryValueKind.OBJECT, properties = mapOf(
