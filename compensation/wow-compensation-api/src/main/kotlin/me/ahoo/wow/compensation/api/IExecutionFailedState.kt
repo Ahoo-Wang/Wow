@@ -24,6 +24,7 @@ import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.naming.Materialized
+import me.ahoo.wow.api.query.schema.QueryTemporal
 
 data class ErrorDetails(
     override val errorCode: String,
@@ -116,18 +117,21 @@ data class RetryState(
      *
      * @see java.time.temporal.ChronoUnit.MILLIS
      */
+    @QueryTemporal
     val retryAt: Long,
     /**
      * Execution timeout deadline.
      *
      * @see java.time.temporal.ChronoUnit.MILLIS
      */
+    @QueryTemporal
     val timeoutAt: Long,
     /**
      * Timestamp of the next retry.
      *
      * @see java.time.temporal.ChronoUnit.MILLIS
      */
+    @QueryTemporal
     val nextRetryAt: Long,
 ) {
     fun timeout(): Boolean {

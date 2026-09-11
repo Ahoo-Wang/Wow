@@ -41,7 +41,7 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
     override lateinit var error: ErrorDetails
         private set
 
-    @field:QueryTemporal
+    @QueryTemporal
     override var executeAt: Long = 0
         private set
     override lateinit var retrySpec: RetrySpec
