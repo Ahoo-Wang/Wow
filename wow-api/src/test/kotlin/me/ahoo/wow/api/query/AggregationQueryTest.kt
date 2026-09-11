@@ -336,4 +336,106 @@ class AggregationQueryTest {
             AggregationGroup.DateHistogram(QueryField("createdAt"), "day", AggregationDateUnit.DAY, "invalid")
         }
     }
+
+    @Test
+    fun `distinct count and percentile metrics should round trip through JSON`() {
+        val json = """
+            {
+              "metrics": [
+                {"type": "DISTINCT_COUNT", "expression": {"field": "state.customerId"}, "alias": "customers"},
+                {"type": "PERCENTILE", "expression": {"field": "state.amount"}, "percentile": 95.0, "alias": "p95"},
+                {"type": "NUMERIC", "function": "STDDEV", "expression": {"field": "state.amount"}, "alias": "stddev"},
+                {"type": "NUMERIC", "function": "VARIANCE", "expression": {"field": "state.amount"}, "alias": "variance"}
+              ]
+            }
+        """.trimIndent()
+
+        val query = configuredMapper.readValue(json, AggregationQuery::class.java)
+
+        query.metrics.assert().containsExactly(
+            AggregationMetric.DistinctCount(
+                AggregationExpression.Field(QueryField("state.customerId")),
+                "customers",
+            ),
+            AggregationMetric.Percentile(
+                AggregationExpression.Field(QueryField("state.amount")),
+                95.0,
+                "p95",
+            ),
+            AggregationMetric.Numeric(
+                AggregationFunction.STDDEV,
+                AggregationExpression.Field(QueryField("state.amount")),
+                "stddev",
+            ),
+            AggregationMetric.Numeric(
+                AggregationFunction.VARIANCE,
+                AggregationExpression.Field(QueryField("state.amount")),
+                "variance",
+            ),
+        )
+        configuredMapper.writeValueAsString(query).assert()
+            .contains("\"type\":\"DISTINCT_COUNT\"")
+            .contains("\"type\":\"PERCENTILE\"")
+    }
+
+    @Test
+    fun `distinct count and percentile should reject internal aliases`() {
+        assertThrows<IllegalArgumentException> {
+            AggregationMetric.DistinctCount(
+                AggregationExpression.Field(QueryField("state.customerId")),
+                "__wow_customers",
+            )
+        }
+        assertThrows<IllegalArgumentException> {
+            AggregationMetric.Percentile(
+                AggregationExpression.Field(QueryField("state.amount")),
+                95.0,
+                "__wow_p95",
+            )
+        }
+    }
+
+    @Test
+    fun `percentile should require a finite ratio within exclusive bounds`() {
+        listOf(0.0, 100.0, -1.0, 101.0, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY).forEach { p ->
+            assertThrows<IllegalArgumentException> {
+                AggregationMetric.Percentile(
+                    AggregationExpression.Field(QueryField("state.amount")),
+                    p,
+                    "p95",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `new metric expressions should count toward expression limits`() {
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                metrics = listOf(AggregationMetric.DistinctCount(nestedExpression(9), "customers")),
+            )
+        }
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                metrics = listOf(AggregationMetric.Percentile(nestedExpression(9), 50.0, "median")),
+            )
+        }
+    }
+
+    @Test
+    fun `unknown metric JSON subtype should fail`() {
+        val json = """
+            {
+              "metrics": [{
+                "type": "QUANTILE",
+                "expression": {"field": "amount"},
+                "alias": "q"
+              }]
+            }
+        """.trimIndent()
+
+        assertThrows<InvalidTypeIdException> {
+            bareMapper.readValue(json, AggregationQuery::class.java)
+        }
+    }
 }
