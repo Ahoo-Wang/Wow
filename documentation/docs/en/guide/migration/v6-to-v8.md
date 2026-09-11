@@ -143,7 +143,7 @@ unconditional write is not conformant. Audit every custom `SnapshotStore` and ba
 conditional update, transaction, or an equivalent atomic primitive.
 
 No snapshot data rewrite is required solely for this rule, but old writers can violate it; stop them before relying on
-the guarantee. Mongo's implementation uses expressions requiring MongoDB 5.2+; the repository TCK pins MongoDB 6.0.6.
+the guarantee. Mongo's implementation uses expressions requiring MongoDB 5.2+; the repository TCK pins MongoDB 7.0.
 
 ## Redis EventStore Canonical v2 Layout (introduced in v8.9.0)
 

@@ -140,7 +140,7 @@ inventory 与 backup；为 v6/早期 v8 回滚保留它们，回滚窗口结束�
 等价原子原语。
 
 该规则本身无需重写 snapshot 数据，但旧 writer 会破坏保证，依赖前必须停止。Mongo implementation 使用
-要求 MongoDB 5.2+ 的表达式；仓库 TCK 固定 MongoDB 6.0.6。
+要求 MongoDB 5.2+ 的表达式；仓库 TCK 固定 MongoDB 7.0。
 
 ## Redis EventStore Canonical v2 布局（v8.9.0 引入）
 

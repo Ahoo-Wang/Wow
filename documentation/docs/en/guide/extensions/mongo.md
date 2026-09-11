@@ -235,7 +235,7 @@ Focused check:
 ./gradlew :wow-mongo:check
 ```
 
-The repository TCK currently uses `mongo:6.0.6`. A module check does not prove your server version, topology, data volume, or index migration.
+The repository TCK currently uses `mongo:7.0`. A module check does not prove your server version, topology, data volume, or index migration.
 
 ## Related Topics
 
