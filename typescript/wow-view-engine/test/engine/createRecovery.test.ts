@@ -12,14 +12,14 @@
  */
 
 import { afterEach, expect, it, vi } from 'vitest';
-import { ViewEngine } from '../../src/record/ViewEngine.js';
+import { ViewEngine } from '../../src/engine/ViewEngine.js';
 import { MemoryViewHost } from '../../src/record/MemoryViewHost.js';
 import {
   ViewServiceError,
   type ViewCreateContext,
 } from '../../src/record/viewServiceContract.js';
-import type { ViewInstance } from '../../src/record/recordModel.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+import type { ViewInstance } from '../../src/contracts/viewModel.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import { definition, instance, deferred } from './fixtures.js';
 const engines: ViewEngine[] = [];
 afterEach(() => {
@@ -168,9 +168,11 @@ it('replays an invalid create response with its original key and preserves newer
   });
   await engine.load();
   await expect(engine.saveAs(copyOptions)).rejects.toThrow();
-  engine.setColumns([
-    { id: 'amount', kind: 'field', field: 'state.amount', width: 321 },
-  ]);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setColumns([
+      { id: 'amount', kind: 'field', field: 'state.amount', width: 321 },
+    ]);
   await engine.reloadInstance();
   expect(create.mock.calls[0][1].requestId).toBe(
     create.mock.calls[1][1].requestId,
@@ -346,7 +348,9 @@ it('preserves edits to an existing copy made by synchronous query-cancellation o
   await engine.load();
   const copyId = engine.getSnapshot().instanceIds.find(id => id !== 'mine')!;
   block = true;
-  const reading = engine.refresh();
+  const reading = engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh();
   await started.promise;
   let edited = false;
   const stop = engine.subscribe(() => {

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { RecordData, RecordKey } from '../recordModel.js';
+import type { RecordData, RecordKey } from '../../contracts/viewModel.js';
 import { assertObject } from './validationPrimitives.js';
 
 /** Dot paths use exact own-property segments, preserving null and falsey values. */

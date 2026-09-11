@@ -25,7 +25,7 @@ import type {
   FilterConfiguration,
 } from '../src/filter/filterModel.js';
 import { validateViewInstance } from '../src/record/recordValidation.js';
-import type { ViewDefinition } from '../src/record/recordModel.js';
+import type { ViewDefinition } from '../src/contracts/viewModel.js';
 import { definition, instance, setup } from './engine/fixtures.js';
 
 const view: ViewDefinition = {
@@ -105,12 +105,12 @@ it.each([undefined, Op.AND, Op.OR, Op.NOR])(
     const statuses: string[] = [];
     engine.subscribe(() => statuses.push(engine.getSnapshot().status));
     try {
-      await expect(engine.load()).rejects.toThrow('元素条件不能使用根级操作');
-      expect(engine.getSnapshot()).toMatchObject({
-        status: 'error',
-        sessions: {},
-      });
-      expect(statuses).not.toContain('ready');
+      await engine.load();
+      expect(engine.getSnapshot().status).toBe('ready');
+      expect(
+        engine.getSnapshot().sessions[saved.id].validation.length,
+      ).toBeGreaterThan(0);
+      expect(statuses).toContain('ready');
       expect(host.resolveSource).not.toHaveBeenCalled();
       expect(paged).not.toHaveBeenCalled();
     } finally {

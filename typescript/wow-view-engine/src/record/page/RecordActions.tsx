@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { RecordSession, ViewDefinition } from '../recordModel.js';
+import { useMemo } from 'react';
+import type {
+  RecordSession,
+  RecordViewDefinition,
+} from '../../contracts/viewModel.js';
 import type { ViewExtensions } from '../recordReactTypes.js';
 import { RecordRendererBoundary } from '../RecordRendererBoundary.js';
 
@@ -23,15 +27,27 @@ export function RecordActions({
   refresh,
 }: {
   kind: 'global' | 'toolbar';
-  definition: ViewDefinition;
+  definition: RecordViewDefinition;
   session: RecordSession;
   extensions?: ViewExtensions;
   refresh(): Promise<void>;
 }) {
-  const { instance } = session;
-  const id = instance.id;
+  const { id, definitionId, title, scope, revision } = session.instance;
+  const config = session.result?.config ?? session.instance.config;
+  const instance = useMemo(
+    () => ({
+      id,
+      definitionId,
+      title,
+      scope,
+      revision,
+      kind: 'record' as const,
+      config,
+    }),
+    [id, definitionId, title, scope, revision, config],
+  );
   const querying = session.queryStatus === 'loading';
-  const reference = definition.recordActions?.[kind];
+  const reference = definition.record.recordActions?.[kind];
   if (!reference) return null;
   const registry =
     kind === 'global' ? extensions?.globalActions : extensions?.toolbarActions;

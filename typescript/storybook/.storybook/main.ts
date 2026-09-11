@@ -33,6 +33,8 @@ function getAbsolutePath(value: string): string {
 }
 
 const config: StorybookConfig = {
+  // The developer highlighter scans all DOM styles on mutations, even without targets.
+  features: { highlight: process.env.VIEW_ENGINE_ACCEPTANCE !== 'true' },
   stories: ['../stories/**/*.stories.@(ts|tsx)'],
   addons: [
     getAbsolutePath('@chromatic-com/storybook'),

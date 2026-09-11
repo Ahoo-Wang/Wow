@@ -32,7 +32,7 @@ import {
 
 const meta = {
   id: 'view-engine-专项场景-过滤器',
-  title: 'View Engine/专项场景/查询与筛选/组合筛选',
+  title: 'View Engine/查询与筛选/组合筛选',
   args: { appearance: 'light', disabled: false },
   argTypes: {
     appearance: { control: 'inline-radio', options: ['light', 'dark'] },

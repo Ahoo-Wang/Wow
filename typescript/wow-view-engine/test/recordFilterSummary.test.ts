@@ -19,8 +19,8 @@ import {
   StringComparison,
   DeletionState,
 } from '@ahoo-wang/fetcher-wow';
-import { describeRecordFilter } from '../src/record/recordFilterSummary.js';
-import type { ViewFieldDefinition } from '../src/record/recordModel.js';
+import { describeFilter } from '../src/filter/filterSummary.js';
+import type { ViewFieldDefinition } from '../src/contracts/viewModel.js';
 
 const fields: ViewFieldDefinition[] = [
   {
@@ -46,7 +46,7 @@ const fields: ViewFieldDefinition[] = [
 ];
 
 it('preserves boolean branches, exact numeric thresholds and falsey values in applied summaries', () => {
-  const result = describeRecordFilter(
+  const result = describeFilter(
     filter.and([
       filter.gte('amount', 1.00001),
       filter.or([filter.eq('active', false), filter.eq('customer', null)]),
@@ -58,9 +58,9 @@ it('preserves boolean branches, exact numeric thresholds and falsey values in ap
   expect(result.text).toBe(
     '满足全部条件（金额 大于等于 1.00001；满足任一条件（启用 等于 否；客户 等于 空值）；全部条件均不满足（客户 等于 空字符串））',
   );
-  expect(describeRecordFilter(filter.matchAll(), fields).count).toBe(0);
+  expect(describeFilter(filter.matchAll(), fields).count).toBe(0);
   expect(
-    describeRecordFilter(
+    describeFilter(
       filter.or([filter.matchAll(), filter.eq('amount', 0)]),
       fields,
     ),
@@ -69,7 +69,7 @@ it('preserves boolean branches, exact numeric thresholds and falsey values in ap
 
 it('resolves enum labels and element-relative fields without losing the container meaning', () => {
   expect(
-    describeRecordFilter(
+    describeFilter(
       filter.and([
         filter.isIn('status', ['pending']),
         filter.between('amount', 0, 1000),
@@ -85,7 +85,7 @@ it('resolves enum labels and element-relative fields without losing the containe
 
 it('uses applied option labels with static labels and raw values as fallbacks', () => {
   expect(
-    describeRecordFilter(
+    describeFilter(
       filter.isIn('status', ['pending', 'ready', 'unknown']),
       fields,
       {
@@ -105,7 +105,7 @@ it('uses applied option labels with static labels and raw values as fallbacks', 
 
 it('shows built-in applied datetimes in the view timezone at second precision', () => {
   expect(
-    describeRecordFilter(
+    describeFilter(
       filter.between(
         'createdAt',
         Date.parse('2026-09-08T01:00:00.123Z'),
@@ -119,7 +119,7 @@ it('shows built-in applied datetimes in the view timezone at second precision', 
 
 it('describes date-only component intent instead of its expanded query', () => {
   expect(
-    describeRecordFilter(
+    describeFilter(
       filter.nor([
         filter.between(
           'createdAt',
@@ -149,7 +149,7 @@ it('describes search scope and matching semantics in the applied summary', () =>
     [SearchMode.TERMS, '分词匹配'],
   ] as const) {
     expect(
-      describeRecordFilter(
+      describeFilter(
         {
           op: FilterOperator.SEARCH,
           query: '采购订单',
@@ -161,7 +161,7 @@ it('describes search scope and matching semantics in the applied summary', () =>
     ).toBe(`全文搜索 采购订单 范围：客户、legacy ${label}`);
   }
   expect(
-    describeRecordFilter(
+    describeFilter(
       { op: FilterOperator.DELETION, state: DeletionState.DELETED },
       fields,
     ).text,
@@ -174,7 +174,7 @@ it('shows case sensitivity and relative-time zones without changing the applied 
     [StringComparison.CASE_SENSITIVE, '区分大小写'],
   ] as const) {
     expect(
-      describeRecordFilter(
+      describeFilter(
         {
           op: FilterOperator.CONTAINS,
           field: 'customer',
@@ -185,7 +185,7 @@ it('shows case sensitivity and relative-time zones without changing the applied 
       ).text,
     ).toBe(`客户 包含文本 AbC ${label}`);
   }
-  const summary = describeRecordFilter(
+  const summary = describeFilter(
     {
       op: FilterOperator.RECENT_DAYS,
       field: 'created',

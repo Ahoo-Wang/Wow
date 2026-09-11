@@ -20,7 +20,7 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { ViewPage } from '../src/record/ViewPage.js';
+import { ViewPage } from './fixtures/OwnedViewPage.js';
 import { instance, setup } from './fixtures/viewPage.js';
 
 afterEach(cleanup);

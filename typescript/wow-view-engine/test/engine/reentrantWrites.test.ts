@@ -14,8 +14,8 @@ import { createFilterConfiguration } from '../../src/filter/filterCore.js';
 
 import { filter, FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { expect, it, vi } from 'vitest';
-import type { ViewInstance } from '../../src/record/recordModel.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+import type { ViewInstance } from '../../src/contracts/viewModel.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import { deferred, instance, setup } from './fixtures.js';
 
 it.each(['loaded', 'pending'] as const)(
@@ -41,7 +41,9 @@ it.each(['loaded', 'pending'] as const)(
     await engine.load();
     const stalled = deferred<{ list: never[]; total: number }>();
     paged.mockReturnValueOnce(stalled.promise);
-    const refreshing = engine.refresh();
+    const refreshing = engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .refresh();
     await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
     const saving = engine.saveAs({
       title: 'Copy',
@@ -99,7 +101,9 @@ it('carries edits published while canceling the source read into the selected co
   });
   await engine.load();
   paged.mockReturnValueOnce(stalled.promise);
-  const refreshing = engine.refresh();
+  const refreshing = engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh();
   await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
   const saving = engine.saveAs({ title: 'Copy', scope: { type: 'personal' } });
   const draft = {
@@ -118,7 +122,7 @@ it('carries edits published while canceling the source read into the selected co
       source.writeStatus === 'creating'
     ) {
       edited = true;
-      engine.setFilterDraft(createFilterConfiguration(draft), 'mine');
+      engine.record('mine').setFilterDraft(createFilterConfiguration(draft));
     }
   });
   try {

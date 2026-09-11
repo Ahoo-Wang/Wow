@@ -147,7 +147,7 @@ export const playCompactWorkbench: RecordViewPlay = async ({
   await expect(canvas.getByTestId('record-query-count')).toHaveTextContent(
     /^1$/,
   );
-  await expect(canvas.getByRole('button', { name: '保存' })).toBeDisabled();
+  await expect(canvas.getByRole('button', { name: '保存' })).toBeEnabled();
   await userEvent.click(expand);
   await expect(canvas.getByRole('textbox', { name: '订单金额值' })).toBe(
     amount,

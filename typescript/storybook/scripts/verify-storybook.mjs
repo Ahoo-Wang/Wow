@@ -36,10 +36,13 @@ const stories = Object.values(index.entries).filter(
   entry => entry.type === 'story',
 );
 const viewEngineGroups = new Set([
-  '开始体验',
-  '订单业务流程',
-  '开发接入',
-  '专项场景',
+  '入门与业务流程',
+  '真实 API 接入',
+  '引擎与宿主',
+  '数据视图',
+  '分析视图',
+  '查询与筛选',
+  '扩展与组件',
 ]);
 for (const entry of stories.filter(
   entry => entry.title.startsWith('View Engine/') && entry.tags.includes('dev'),

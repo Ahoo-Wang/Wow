@@ -43,7 +43,7 @@ import {
 } from '../../components/ui/select.js';
 import { useListOrder } from '../../lib/useListOrder.js';
 import { cn } from '../../lib/utils.js';
-import type { ViewDefinition } from '../recordModel.js';
+import type { RecordViewDefinition } from '../../contracts/viewModel.js';
 
 /** Uses the same ordered sort configuration as table headers. */
 export function RecordSortSettings({
@@ -52,7 +52,7 @@ export function RecordSortSettings({
   onChange,
   disabled,
 }: {
-  definition: ViewDefinition;
+  definition: RecordViewDefinition;
   sort: readonly FieldSort[];
   onChange(sort: FieldSort[]): void;
   disabled?: boolean;

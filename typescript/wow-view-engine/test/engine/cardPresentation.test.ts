@@ -18,9 +18,9 @@ it('preserves both layouts, rows and selection across round trips and saving', a
   const { engine, paged } = setup();
   try {
     await engine.load();
-    engine.setSelection(['a']);
+    engine.record(engine.getSnapshot().selectedInstanceId!).setSelection(['a']);
     const before = selected(engine);
-    engine.setLayout('card');
+    engine.record(engine.getSnapshot().selectedInstanceId!).setLayout('card');
     expect(paged).toHaveBeenCalledTimes(1);
     expect(selected(engine).rows).toEqual(before.rows);
     expect(selected(engine).selectedRowKeys).toEqual(['a']);
@@ -29,16 +29,16 @@ it('preserves both layouts, rows and selection across round trips and saving', a
       fields: [],
       actions: { visible: false, renderer: { name: 'custom' } },
     };
-    engine.setCardConfig(card);
-    engine.setLayout('table');
+    engine.record(engine.getSnapshot().selectedInstanceId!).setCardConfig(card);
+    engine.record(engine.getSnapshot().selectedInstanceId!).setLayout('table');
     expect(selected(engine).instance.config.presentation.table).toEqual(
       before.instance.config.presentation.table,
     );
-    engine.setLayout('card');
+    engine.record(engine.getSnapshot().selectedInstanceId!).setLayout('card');
     expect(selected(engine).instance.config.presentation.card).toEqual(card);
     await engine.save();
     expect(selected(engine).dirty).toBe(false);
-    engine.setLayout('table');
+    engine.record(engine.getSnapshot().selectedInstanceId!).setLayout('table');
     await engine.restore();
     expect(selected(engine).instance.config.presentation.layout).toBe('card');
   } finally {
@@ -63,7 +63,7 @@ it('cancels hidden summaries and lets background record refresh continue', async
   try {
     await engine.load();
     expect(selected(engine).allSummary.status).toBe('loading');
-    engine.setLayout('card');
+    engine.record(engine.getSnapshot().selectedInstanceId!).setLayout('card');
     expect(
       (
         aggregate.mock.calls[0] as unknown as [
@@ -73,17 +73,20 @@ it('cancels hidden summaries and lets background record refresh continue', async
         ]
       )[2].signal.aborted,
     ).toBe(true);
-    await engine.refresh(undefined, { background: true });
+    await engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .refresh({ background: true });
     expect(paged).toHaveBeenCalledTimes(2);
-    await engine.refreshSummary();
+    await engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .refreshSummary();
     expect(aggregate).toHaveBeenCalledTimes(1);
     pending.reject(new Error('late'));
     await Promise.resolve();
     expect(selected(engine).allSummary.status).toBe('idle');
-    engine.setLayout('table');
+    engine.record(engine.getSnapshot().selectedInstanceId!).setLayout('table');
     expect(aggregate).toHaveBeenCalledTimes(1);
-    await Promise.resolve();
-    expect(aggregate).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(aggregate).toHaveBeenCalledTimes(2));
   } finally {
     engine.dispose();
   }
@@ -93,7 +96,10 @@ it('keeps the current layout when target defaults cannot be created', async () =
   const saved = instance();
   saved.config.presentation = {
     layout: 'card',
-    card: { title: { id: 'title', field: definition.rowKey }, fields: [] },
+    card: {
+      title: { id: 'title', field: definition.record.rowKey },
+      fields: [],
+    },
   };
   const { engine } = setup({
     definition: { ...definition, fields: [] },
@@ -101,7 +107,11 @@ it('keeps the current layout when target defaults cannot be created', async () =
   });
   try {
     await engine.load();
-    expect(() => engine.setLayout('table')).toThrow();
+    expect(() =>
+      engine
+        .record(engine.getSnapshot().selectedInstanceId!)
+        .setLayout('table'),
+    ).toThrow();
     expect(selected(engine).instance.config.presentation.layout).toBe('card');
     expect(selected(engine).dirty).toBe(false);
   } finally {
@@ -118,8 +128,10 @@ it('does not cancel a record query or replace its layout on completion', async (
       list: { state: { id: string; amount: number } }[];
     }>();
     paged.mockReturnValueOnce(pending.promise);
-    const refresh = engine.refresh();
-    engine.setLayout('card');
+    const refresh = engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .refresh();
+    engine.record(engine.getSnapshot().selectedInstanceId!).setLayout('card');
     pending.resolve({ total: 1, list: [{ state: { id: 'b', amount: 9 } }] });
     await refresh;
     expect(selected(engine).queryStatus).toBe('success');
@@ -135,12 +147,12 @@ it('validates renderer options before comparing presentation snapshots', async (
   const { engine } = setup();
   try {
     await engine.load();
-    engine.setLayout('card');
+    engine.record(engine.getSnapshot().selectedInstanceId!).setLayout('card');
     const getter = vi.fn(() => 'value');
     const options = {};
     Object.defineProperty(options, 'value', { enumerable: true, get: getter });
     expect(() =>
-      engine.setCardConfig({
+      engine.record(engine.getSnapshot().selectedInstanceId!).setCardConfig({
         title: {
           id: 'title',
           field: 'state.id',
@@ -159,11 +171,13 @@ it('keeps paged cards mounted during an explicit refresh of the same query', asy
   const { engine, paged } = setup();
   try {
     await engine.load();
-    engine.setLayout('card');
+    engine.record(engine.getSnapshot().selectedInstanceId!).setLayout('card');
     const before = selected(engine).rows;
     const pending = deferred<{ list: typeof before; total: number }>();
     paged.mockReturnValueOnce(pending.promise);
-    const refresh = engine.refresh();
+    const refresh = engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .refresh();
     expect(selected(engine).queryStatus).toBe('loading');
     expect(selected(engine).rows).toEqual(before);
     pending.resolve({ list: before, total: before.length });
@@ -180,14 +194,18 @@ it.each(['a', 'b'])(
     const { engine, paged } = setup();
     try {
       await engine.load();
-      engine.setLayout('card');
+      engine.record(engine.getSnapshot().selectedInstanceId!).setLayout('card');
       const pending = deferred<{
         list: { state: { id: string; amount: number } }[];
         total: number;
       }>();
       paged.mockReturnValueOnce(pending.promise);
-      const refresh = engine.refresh();
-      engine.setSelection(['a']);
+      const refresh = engine
+        .record(engine.getSnapshot().selectedInstanceId!)
+        .refresh();
+      engine
+        .record(engine.getSnapshot().selectedInstanceId!)
+        .setSelection(['a']);
       expect(selected(engine).selectedRowKeys).toEqual(['a']);
       pending.resolve({ list: [{ state: { id: key, amount: 10 } }], total: 1 });
       await refresh;
@@ -206,15 +224,19 @@ it.each(['table', 'card'] as const)(
     const { engine, paged } = setup();
     try {
       await engine.load();
-      engine.setLayout(layout);
+      engine.record(engine.getSnapshot().selectedInstanceId!).setLayout(layout);
       const before = selected(engine).rows;
       const total = selected(engine).total;
       paged.mockRejectedValueOnce(new Error('refresh failed'));
-      await expect(engine.refresh()).rejects.toThrow('refresh failed');
+      await expect(
+        engine.record(engine.getSnapshot().selectedInstanceId!).refresh(),
+      ).rejects.toThrow('refresh failed');
       expect(selected(engine).rows).toEqual(before);
       const retryResult = deferred<unknown>();
       paged.mockReturnValueOnce(retryResult.promise);
-      const retry = engine.retryQuery();
+      const retry = engine
+        .record(engine.getSnapshot().selectedInstanceId!)
+        .retryQuery();
       expect(selected(engine).queryStatus).toBe('loading');
       expect(selected(engine).rows).toEqual(before);
       expect(selected(engine).total).toBe(total);
@@ -222,7 +244,9 @@ it.each(['table', 'card'] as const)(
       retryResult.reject(new Error('retry failed'));
       await failed;
       expect(selected(engine).rows).toEqual(before);
-      await engine.retryQuery();
+      await engine
+        .record(engine.getSnapshot().selectedInstanceId!)
+        .retryQuery();
       expect(selected(engine).queryStatus).toBe('success');
       expect(selected(engine).queryError).toBeNull();
     } finally {

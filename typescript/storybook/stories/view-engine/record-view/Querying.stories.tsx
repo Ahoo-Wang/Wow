@@ -33,7 +33,7 @@ const meta = {
     },
   },
   id: 'view-engine-专项场景-record-view-查询与分页',
-  title: 'View Engine/专项场景/查询与筛选/查询与分页',
+  title: 'View Engine/数据视图/查询与分页',
 };
 
 export default meta;

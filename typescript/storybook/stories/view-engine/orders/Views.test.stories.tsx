@@ -17,7 +17,7 @@ import displayMeta, { Workbench } from './Views.stories.js';
 const meta = {
   ...displayMeta,
   id: 'view-engine-我的工作视图-回归',
-  title: 'View Engine/开发接入/我的工作视图/回归',
+  title: 'View Engine/引擎与宿主/我的工作视图/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 export default meta;

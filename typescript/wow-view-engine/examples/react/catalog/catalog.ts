@@ -23,7 +23,7 @@ import {
   resolveRecordPresentation,
   type RecordData,
   type RecordQuerySource,
-  type ViewDefinition,
+  type RecordViewDefinition,
   type ViewInstanceList,
 } from '@ahoo-wang/fetcher-view-engine';
 
@@ -50,12 +50,10 @@ export const products = [
   favorite: false,
   cover: new URL(`./${kind}-${i % 3}.svg?no-inline`, import.meta.url).href,
 }));
-export const definition: ViewDefinition = {
+export const definition: RecordViewDefinition = {
   id: 'product-catalog',
   sourceId: 'products',
   title: '生活选品库',
-  rowKey: 'id',
-  allowedLayouts: ['table', 'card'],
   allowedOperators: [Op.MATCH_ALL, Op.AND, Op.EQ],
   fields: [
     { field: 'id', label: '商品编号', type: 'string', operators: [] },
@@ -114,28 +112,32 @@ export const definition: ViewDefinition = {
     },
     { field: 'favorite', label: '已收藏', type: 'boolean', operators: [Op.EQ] },
   ],
-  recordActions: {
-    row: { name: 'product-actions' },
-    toolbar: { name: 'product-batch' },
-  },
-  defaultPresentation: {
-    card: {
-      title: { id: 'name', field: 'name' },
-      cover: { field: 'cover' },
-      fields: [
-        { id: 'price', field: 'price' },
-        { id: 'stock', field: 'stock' },
-        { id: 'status', field: 'status' },
-      ],
-      actions: {},
+  record: {
+    rowKey: 'id',
+    allowedLayouts: ['table', 'card'],
+    recordActions: {
+      row: { name: 'product-actions' },
+      toolbar: { name: 'product-batch' },
     },
-    table: {
-      columns: [
-        ...['id', 'name', 'category', 'price', 'stock', 'status'].map(
-          field => ({ id: field, field, kind: 'field' as const }),
-        ),
-        { id: 'actions', kind: 'actions' },
-      ],
+    defaultPresentation: {
+      card: {
+        title: { id: 'name', field: 'name' },
+        cover: { field: 'cover' },
+        fields: [
+          { id: 'price', field: 'price' },
+          { id: 'stock', field: 'stock' },
+          { id: 'status', field: 'status' },
+        ],
+        actions: {},
+      },
+      table: {
+        columns: [
+          ...['id', 'name', 'category', 'price', 'stock', 'status'].map(
+            field => ({ id: field, field, kind: 'field' as const }),
+          ),
+          { id: 'actions', kind: 'actions' },
+        ],
+      },
     },
   },
 };
@@ -146,6 +148,7 @@ export const views: ViewInstanceList = {
       id: 'all-products',
       definitionId: definition.id,
       kind: 'record',
+      revision: 'initial',
       title: '全部商品',
       scope: { type: 'personal' },
       config: {

@@ -16,7 +16,7 @@ import { OrderWorkbench } from '../../../packages/view-engine/examples/react/sal
 import source from '../../../packages/view-engine/examples/react/sales-order/OrderWorkbench.tsx?raw';
 const meta = {
   id: 'view-engine-我的工作视图',
-  title: 'View Engine/开发接入/我的工作视图',
+  title: 'View Engine/引擎与宿主/我的工作视图',
   component: OrderWorkbench,
   parameters: {
     layout: 'fullscreen',

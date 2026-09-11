@@ -13,18 +13,26 @@
 
 import { expect, it, vi } from 'vitest';
 import { asc, desc } from '@ahoo-wang/fetcher-wow';
-import type { ViewEngine } from '../../src/record/ViewEngine.js';
-import type { RecordQuerySource } from '../../src/record/recordModel.js';
+import type { ViewEngine } from '../../src/engine/ViewEngine.js';
+import type { RecordQuerySource } from '../../src/contracts/viewModel.js';
 import { deferred, instance, selected, setup } from './fixtures.js';
 
 const commands = {
   sort: (engine: ViewEngine, id: string) =>
-    engine.setSort([desc('state.amount')], id),
-  page: (engine: ViewEngine, id: string) => engine.setPage(2, id),
-  pageSize: (engine: ViewEngine, id: string) => engine.setPageSize(5, id),
-  apply: (engine: ViewEngine, id: string) => engine.applyFilter(id),
+    engine
+      .record(id ?? engine.getSnapshot().selectedInstanceId!)
+      .setSort([desc('state.amount')]),
+  page: (engine: ViewEngine, id: string) =>
+    engine.record(id ?? engine.getSnapshot().selectedInstanceId!).setPage(2),
+  pageSize: (engine: ViewEngine, id: string) =>
+    engine
+      .record(id ?? engine.getSnapshot().selectedInstanceId!)
+      .setPageSize(5),
+  apply: (engine: ViewEngine, id: string) =>
+    engine.record(id ?? engine.getSnapshot().selectedInstanceId!).applyFilter(),
   restore: (engine: ViewEngine, id: string) => engine.restore(id),
-  next: (engine: ViewEngine, id: string) => engine.nextPage(id),
+  next: (engine: ViewEngine, id: string) =>
+    engine.record(id ?? engine.getSnapshot().selectedInstanceId!).nextPage(),
 };
 type Command = keyof typeof commands;
 async function prepared(command: Command) {
@@ -58,7 +66,9 @@ it.each(Object.keys(commands) as Command[])(
       if (fired) return;
       fired = true;
       newer = (
-        mode === 'cursor' ? engine.refresh('mine') : engine.setPage(3, 'mine')
+        mode === 'cursor'
+          ? engine.record('mine').refresh()
+          : engine.record('mine').setPage(3)
       ).then(() => {
         finished = true;
       });
@@ -95,10 +105,13 @@ it.each(Object.keys(commands) as Command[])(
     const unsubscribe = engine.subscribe(() => {
       if (fired) return;
       fired = true;
-      outcome = engine.refresh('mine').then(
-        () => 'success',
-        error => error.message,
-      );
+      outcome = engine
+        .record('mine')
+        .refresh()
+        .then(
+          () => 'success',
+          error => error.message,
+        );
     });
     const old = commands[command](engine, 'mine').then(
       () => 'success',
@@ -195,10 +208,15 @@ it('does not let a rejected invalid edit suppress the valid outer query', async 
   const unsubscribe = engine.subscribe(() => {
     if (fired) return;
     fired = true;
-    rejected = engine.setSort([asc('missing')]).catch(error => error);
+    rejected = engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .setSort([asc('missing')])
+      .catch(error => error);
   });
   try {
-    await engine.setSort([desc('state.amount')]);
+    await engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .setSort([desc('state.amount')]);
     expect(await rejected).toBeInstanceOf(Error);
     expect(paged).toHaveBeenCalledTimes(1);
     expect(selected(engine).queryStatus).toBe('success');
@@ -242,13 +260,16 @@ it.each(['apply', 'restore', 'refresh'] as const)(
     const unsubscribe = engine.subscribe(() => {
       if (fired || selected(engine).allSummary.status !== 'idle') return;
       fired = true;
-      newer = engine.setPage(3).then(() => {
-        finished = true;
-      });
+      newer = engine
+        .record(engine.getSnapshot().selectedInstanceId!)
+        .setPage(3)
+        .then(() => {
+          finished = true;
+        });
     });
     const old =
       command === 'refresh'
-        ? engine.refresh()
+        ? engine.record(engine.getSnapshot().selectedInstanceId!).refresh()
         : commands[command](engine, 'mine');
     try {
       await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(1));
@@ -277,9 +298,11 @@ it('does not access a disposed session after a column edit notification', async 
   const unsubscribe = engine.subscribe(() => engine.dispose());
   try {
     expect(() =>
-      engine.setColumns([
-        { id: 'amount', kind: 'field', field: 'state.amount', width: 200 },
-      ]),
+      engine
+        .record(engine.getSnapshot().selectedInstanceId!)
+        .setColumns([
+          { id: 'amount', kind: 'field', field: 'state.amount', width: 200 },
+        ]),
     ).not.toThrow();
   } finally {
     unsubscribe();
@@ -309,7 +332,9 @@ it('does not start a summary query after its invalidation notification disposes 
     if (selected(engine).allSummary.status === 'idle') engine.dispose();
   });
   try {
-    await expect(engine.refreshSummary()).resolves.toBeUndefined();
+    await expect(
+      engine.record(engine.getSnapshot().selectedInstanceId!).refreshSummary(),
+    ).resolves.toBeUndefined();
     expect(aggregate).not.toHaveBeenCalled();
   } finally {
     unsubscribe();
@@ -352,12 +377,17 @@ it('keeps the newer aggregate request started by a page-summary notification', a
       current.pageSummary.status === 'loading'
     ) {
       started = true;
-      older = engine.refreshSummary();
+      older = engine
+        .record(engine.getSnapshot().selectedInstanceId!)
+        .refreshSummary();
     } else if (started && !nested && current.pageSummary.status === 'success') {
       nested = true;
-      newer = engine.refreshSummary().then(() => {
-        finished = true;
-      });
+      newer = engine
+        .record(engine.getSnapshot().selectedInstanceId!)
+        .refreshSummary()
+        .then(() => {
+          finished = true;
+        });
     }
   });
   const load = engine.load();

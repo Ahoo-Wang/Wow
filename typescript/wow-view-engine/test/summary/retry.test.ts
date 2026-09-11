@@ -25,7 +25,9 @@ it('isolates aggregation failure and retries only the summary', async () => {
   expect(session(engine).rows).toHaveLength(2);
   expect(session(engine).pageSummary.values).toEqual({ amount: { SUM: 5 } });
   expect(source.aggregate).toHaveBeenCalledTimes(1);
-  await engine.refreshSummary();
+  await engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refreshSummary();
   expect(session(engine).allSummary.values.amount?.SUM).toBe(30);
   expect(source.paged).toHaveBeenCalledTimes(1);
   engine.dispose();

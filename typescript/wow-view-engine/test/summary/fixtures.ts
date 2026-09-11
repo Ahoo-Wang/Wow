@@ -17,12 +17,12 @@ import {
 } from '../../src/filter/filterCore.js';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { vi } from 'vitest';
-import { ViewEngine } from '../../src/record/ViewEngine.js';
+import { ViewEngine } from '../../src/engine/ViewEngine.js';
 import type {
   RecordColumn,
   ViewDefinition,
   ViewInstance,
-} from '../../src/record/recordModel.js';
+} from '../../src/contracts/viewModel.js';
 import { getRecordSummaryMetrics } from '../../src/record/recordPresentation.js';
 
 export function metricsFor(columns: RecordColumn[]) {
@@ -42,8 +42,7 @@ export const definition: ViewDefinition = {
   id: 'orders',
   title: '订单',
   sourceId: 'orders',
-  allowedLayouts: ['table', 'card'],
-  rowKey: 'id',
+  record: { allowedLayouts: ['table', 'card'], rowKey: 'id' },
   fields: [
     { field: 'id', label: '编号', type: 'string' },
     { field: 'amount', label: '金额', type: 'number', sortable: true },
@@ -56,6 +55,7 @@ export function setup() {
     definitionId: 'orders',
     title: '我的订单',
     kind: 'record',
+    revision: 'initial',
     scope: { type: 'personal' },
     config: {
       filters: createFilterConfiguration(

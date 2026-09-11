@@ -11,8 +11,12 @@
  * limitations under the License.
  */
 
+import {
+  bindRecordPagination,
+  getRecordPaginationPolicy,
+} from '../../src/record/page/recordPaginationPolicy.js';
 import { afterEach, expect, it, vi } from 'vitest';
-import type { ViewEngine } from '../../src/record/ViewEngine.js';
+import type { ViewEngine } from '../../src/engine/ViewEngine.js';
 import { instance, selected, setup } from './fixtures.js';
 
 const engines: ViewEngine[] = [];
@@ -34,7 +38,7 @@ async function laterPage() {
   await vi.waitFor(() =>
     expect(selected(engine).allSummary.status).toBe('success'),
   );
-  await engine.setPage(5);
+  await engine.record(engine.getSnapshot().selectedInstanceId!).setPage(5);
   paged.mockClear();
   aggregate.mockResolvedValue([{ summary0: 50 }]);
   return { engine, paged, aggregate };
@@ -48,7 +52,9 @@ it.each([false, true])(
     paged
       .mockResolvedValueOnce({ total: 22, list: [] })
       .mockResolvedValueOnce({ total: 22, list: first });
-    await engine.refresh(undefined, { background });
+    await engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .refresh({ background });
     expect(paged.mock.calls.map(([query]) => query.pagination.index)).toEqual([
       5, 1,
     ]);
@@ -71,7 +77,7 @@ it.each([false, true])(
 it('bounds correction when the result becomes completely empty', async () => {
   const { engine, paged } = await laterPage();
   paged.mockResolvedValue({ total: 0, list: [] });
-  await engine.refresh();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).refresh();
   expect(paged).toHaveBeenCalledTimes(2);
   expect(selected(engine)).toMatchObject({
     page: 1,
@@ -86,7 +92,9 @@ it('exposes a failed correction and retries the corrected page', async () => {
   paged
     .mockResolvedValueOnce({ total: 22, list: [] })
     .mockRejectedValueOnce(new Error('first page unavailable'));
-  await expect(engine.refresh()).rejects.toThrow('first page unavailable');
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).refresh(),
+  ).rejects.toThrow('first page unavailable');
   expect(selected(engine)).toMatchObject({
     page: 1,
     queryStatus: 'error',
@@ -98,7 +106,7 @@ it('exposes a failed correction and retries the corrected page', async () => {
     total: 22,
     list: [{ state: { id: 'first' } }],
   });
-  await engine.retryQuery();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).retryQuery();
   expect(paged.mock.calls.map(([query]) => query.pagination.index)).toEqual([
     5, 1, 1,
   ]);
@@ -117,10 +125,12 @@ it('lets newer navigation supersede a page correction', async () => {
       !newer
     ) {
       unsubscribe();
-      newer = engine.setPage(2);
+      newer = engine
+        .record(engine.getSnapshot().selectedInstanceId!)
+        .setPage(2);
     }
   });
-  await engine.refresh();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).refresh();
   await newer;
   expect(paged.mock.calls.map(([query]) => query.pagination.index)).toEqual([
     5, 2,
@@ -130,3 +140,57 @@ it('lets newer navigation supersede a page correction', async () => {
     rows: [{ state: { id: 'newer' } }],
   });
 });
+
+it.each(['paged', 'cursor'] as const)(
+  'navigates the displayed %s result after an unrun mode edit',
+  async mode => {
+    const { engine, paged, cursor } = setup({
+      instances: {
+        instances: [instance('mine', mode)],
+        defaultInstanceId: 'mine',
+      },
+    });
+    paged.mockResolvedValue({
+      total: 40,
+      list: [{ state: { id: 'a', amount: 10 } }],
+    });
+    cursor.mockImplementation(async query => ({
+      list: [{ state: { id: 'a' } }],
+      nextCursor: query.cursor === null ? 'next' : null,
+    }));
+    try {
+      await engine.load();
+      const pagination = bindRecordPagination(engine, 'mine');
+      engine.record('mine').edit(config => ({
+        ...config,
+        pagination: { mode: mode === 'paged' ? 'cursor' : 'paged', size: 20 },
+      }));
+      expect(getRecordPaginationPolicy(selected(engine) as never).mode).toBe(
+        mode,
+      );
+      await pagination.nextPage();
+      expect(getRecordPaginationPolicy(selected(engine) as never).page).toBe(2);
+      if (mode === 'paged') {
+        await pagination.previousPage();
+        expect(getRecordPaginationPolicy(selected(engine) as never).page).toBe(
+          1,
+        );
+        await pagination.setPage(3);
+        expect(paged.mock.calls.at(-1)![0].pagination).toMatchObject({
+          index: 3,
+          size: 10,
+        });
+        expect(cursor).not.toHaveBeenCalled();
+      } else {
+        expect(cursor.mock.calls.at(-1)![0]).toMatchObject({
+          cursor: 'next',
+          size: 10,
+        });
+        expect(paged).not.toHaveBeenCalled();
+      }
+      expect(selected(engine).instance.config.pagination.size).toBe(20);
+    } finally {
+      engine.dispose();
+    }
+  },
+);

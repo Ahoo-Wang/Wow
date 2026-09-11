@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-import { useState, type ReactNode } from 'react';
+import { useOverlayOpen } from '../lib/OverlayScope.js';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Combobox } from '@base-ui/react/combobox';
 import { CheckIcon, ChevronDownIcon, XIcon } from 'lucide-react';
 import { Button } from '../components/ui/button.js';
@@ -63,7 +64,15 @@ export function FilterChoiceSelect<V extends string | number>({
   search,
   footer,
 }: FilterChoiceSelectProps<V>) {
-  const { scope, theme, captureTheme } = usePortalTheme();
+  const [open, setOpen] = useOverlayOpen();
+  const previousOpen = useRef(open);
+  useEffect(() => {
+    if (previousOpen.current !== open) {
+      previousOpen.current = open;
+      onOpenChange?.(open);
+    }
+  }, [open, onOpenChange]);
+  const { scope, theme, captureTheme } = usePortalTheme(open);
   const [localSearch, setLocalSearch] = useState('');
   const keyword = search?.value ?? localSearch;
   const selected = [...new Set(values)].map(
@@ -115,9 +124,10 @@ export function FilterChoiceSelect<V extends string | number>({
         }}
         disabled={disabled}
         isItemEqualToValue={(a, b) => a.value === b.value}
+        open={open}
         onOpenChange={open => {
+          setOpen(open);
           captureTheme(open);
-          onOpenChange?.(open);
         }}
         onValueChange={next => {
           if (disabled) return;

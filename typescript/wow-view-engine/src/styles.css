@@ -115,6 +115,11 @@
     --fve-border: light-dark(oklch(0.922 0 0deg), oklch(1 0 0deg / 10%));
     --fve-input: light-dark(oklch(0.922 0 0deg), oklch(1 0 0deg / 15%));
     --fve-ring: light-dark(oklch(0.556 0 0deg), oklch(0.708 0 0deg));
+    --fve-chart-1: light-dark(oklch(0.52 0.18 255deg), oklch(0.75 0.14 255deg));
+    --fve-chart-2: light-dark(oklch(0.48 0.12 165deg), oklch(0.77 0.13 165deg));
+    --fve-chart-3: light-dark(oklch(0.58 0.15 65deg), oklch(0.8 0.14 80deg));
+    --fve-chart-4: light-dark(oklch(0.5 0.16 305deg), oklch(0.77 0.13 305deg));
+    --fve-chart-5: light-dark(oklch(0.52 0.18 20deg), oklch(0.77 0.14 20deg));
     --fve-radius: 0.625rem;
     --fve-font-family: ui-sans-serif, system-ui, sans-serif;
     --fve-font-size: 14px;

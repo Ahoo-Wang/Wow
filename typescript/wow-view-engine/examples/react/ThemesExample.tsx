@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { ExampleViewPage } from './ExampleViewPage.js';
 import { useState } from 'react';
 import {
   InputGroup,
@@ -23,7 +24,6 @@ import {
   PopoverContent,
   PopoverTitle,
   ViewTheme,
-  ViewPage,
   type ViewThemeProps,
 } from '@ahoo-wang/fetcher-view-engine/react';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
@@ -43,11 +43,14 @@ import { orderExtensions } from './sales-order/OrderExtensions.js';
 const orderViews = createProtocolViews();
 const definition = structuredClone(orderDefinition);
 // This theme gallery has no business action provider; remove action slots from both layouts.
-delete definition.recordActions;
-if (definition.defaultPresentation?.card)
-  definition.defaultPresentation = {
-    ...definition.defaultPresentation,
-    card: { ...definition.defaultPresentation.card, actions: undefined },
+delete definition.record.recordActions;
+if (definition.record.defaultPresentation?.card)
+  definition.record.defaultPresentation = {
+    ...definition.record.defaultPresentation,
+    card: {
+      ...definition.record.defaultPresentation.card,
+      actions: undefined,
+    },
   };
 for (const instance of orderViews.instances) {
   const table = instance.config.presentation?.table;
@@ -161,7 +164,7 @@ export function ThemesExample() {
           {`<ViewTheme theme="${theme}" appearance="${appearance}" density="${density}">`}
         </pre>
 
-        <ViewPage
+        <ExampleViewPage
           scopeKey="theme-example"
           definitionId={orderDefinition.id}
           definition={definition}

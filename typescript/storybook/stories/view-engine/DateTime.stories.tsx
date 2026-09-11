@@ -22,7 +22,7 @@ import {
 
 const meta = {
   id: 'view-engine-专项场景-基础组件-日期时间',
-  title: 'View Engine/专项场景/组件与主题/日期时间',
+  title: 'View Engine/扩展与组件/日期时间',
   args: { appearance: 'light', disabled: false },
   argTypes: {
     appearance: { control: 'inline-radio', options: ['light', 'dark'] },

@@ -12,8 +12,8 @@
  */
 
 import { expect, it, vi } from 'vitest';
-import type { ViewInstance } from '../../src/record/recordModel.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+import type { ViewInstance } from '../../src/contracts/viewModel.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import { ViewServiceError } from '../../src/record/viewServiceContract.js';
 import {
   deferred,
@@ -115,9 +115,11 @@ it.each(['save', 'rename'] as const)(
       await expect(
         operation === 'save' ? engine.save() : engine.renameInstance('Rename'),
       ).rejects.toBe(failure);
-      engine.setColumns([
-        { id: 'amount', kind: 'field', field: 'state.amount', width: 321 },
-      ]);
+      engine
+        .record(engine.getSnapshot().selectedInstanceId!)
+        .setColumns([
+          { id: 'amount', kind: 'field', field: 'state.amount', width: 321 },
+        ]);
       const draft = selected(engine).instance.config;
       expect(engine.canReloadInstance()).toBe(true);
       expect(engine.getCapabilitiesSnapshot().instances.mine.reload).toBe(true);
@@ -125,8 +127,9 @@ it.each(['save', 'rename'] as const)(
       expect(list).toHaveBeenCalledWith('orders', expect.any(AbortSignal));
       expect(engine.getSnapshot().selectedInstanceId).toBe('mine');
       expect(selected(engine)).toMatchObject({
-        baseline: persisted,
-        instance: { title: 'Local title', config: draft, revision: 'r2' },
+        baseline: instance(),
+        conflict: { remote: persisted },
+        instance: { title: 'Local title', config: draft, revision: 'r1' },
         requiresReload: false,
         writeError: null,
         dirty: true,
@@ -135,7 +138,10 @@ it.each(['save', 'rename'] as const)(
         ...value,
         revision: 'r3',
       }));
-      await engine.save();
+      await expect(engine.save()).rejects.toThrow('冲突');
+      expect(host.instance!.save).not.toHaveBeenCalled();
+      await engine.overwriteInstance(selected(engine).conflict!, 'mine');
+      expect(selected(engine).conflict).toBeUndefined();
       expect(host.instance!.save).toHaveBeenCalledWith(
         expect.objectContaining({
           revision: 'r2',

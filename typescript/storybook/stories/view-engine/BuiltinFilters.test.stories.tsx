@@ -21,7 +21,7 @@ import displayMeta, {
 const meta = {
   ...displayMeta,
   id: 'view-engine-专项场景-过滤器-内置组件-回归',
-  title: 'View Engine/专项场景/查询与筛选/内置筛选器/回归',
+  title: 'View Engine/查询与筛选/内置筛选器/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 export default meta;

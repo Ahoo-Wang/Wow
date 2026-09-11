@@ -24,7 +24,7 @@ import {
   type Column,
   type ReactTable,
 } from '@tanstack/react-table';
-import type { RecordColumn, RecordData } from '../recordModel.js';
+import type { RecordColumn, RecordData } from '../../contracts/viewModel.js';
 import type { getRecordTableLayout } from '../recordTableLayout.js';
 
 export const recordTableFeatures = tableFeatures({

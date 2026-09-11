@@ -12,7 +12,7 @@
  */
 
 import { expect, it, vi } from 'vitest';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import { deferred, instance, selected, setup } from './fixtures.js';
 
 it('retains the current records until a successful refresh replaces them', async () => {
@@ -22,18 +22,24 @@ it('retains the current records until a successful refresh replaces them', async
   }>();
   const { engine, paged } = setup();
   await engine.load();
-  engine.setColumns([
-    { id: 'amount', kind: 'field', field: 'state.amount', width: 240 },
-  ]);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setColumns([
+      { id: 'amount', kind: 'field', field: 'state.amount', width: 240 },
+    ]);
   const before = selected(engine);
   paged.mockReturnValueOnce(response.promise);
-  const refreshing = engine.refresh(undefined, { background: true });
+  const refreshing = engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh({ background: true });
   expect(selected(engine)).toMatchObject({
     rows: before.rows,
     queryStatus: 'success',
     refreshing: true,
   });
-  await engine.refresh(undefined, { background: true });
+  await engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh({ background: true });
   response.resolve({ list: [{ state: { id: 'b', amount: 20 } }], total: 1 });
   await refreshing;
   expect(selected(engine)).toMatchObject({
@@ -53,9 +59,11 @@ it('preserves a selection made while a background read is in flight', async () =
   const { engine, paged } = setup();
   await engine.load();
   paged.mockReturnValueOnce(response.promise);
-  const refreshing = engine.refresh(undefined, { background: true });
+  const refreshing = engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh({ background: true });
   await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
-  engine.setSelection(['a']);
+  engine.record(engine.getSnapshot().selectedInstanceId!).setSelection(['a']);
   response.resolve({ list: [{ state: { id: 'b', amount: 20 } }], total: 1 });
   await refreshing;
   expect(selected(engine)).toMatchObject({
@@ -70,17 +78,21 @@ it('keeps records on failure and waits for an explicit retry', async () => {
   const { engine, paged } = setup();
   await engine.load();
   paged.mockRejectedValueOnce(new Error('temporarily unavailable'));
-  await expect(engine.refresh(undefined, { background: true })).rejects.toThrow(
-    'temporarily unavailable',
-  );
+  await expect(
+    engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .refresh({ background: true }),
+  ).rejects.toThrow('temporarily unavailable');
   expect(selected(engine)).toMatchObject({
     rows: [{ state: { id: 'a', amount: 10 } }],
     queryStatus: 'error',
     refreshing: false,
   });
-  await engine.refresh(undefined, { background: true });
+  await engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh({ background: true });
   expect(paged).toHaveBeenCalledTimes(2);
-  await engine.refresh();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).refresh();
   expect(selected(engine).queryStatus).toBe('success');
   engine.dispose();
 });
@@ -88,11 +100,17 @@ it('keeps records on failure and waits for an explicit retry', async () => {
 it('does not refresh selected records, pending filters or a later cursor page', async () => {
   const { engine, paged } = setup();
   await engine.load();
-  engine.setSelection(['a']);
-  await engine.refresh(undefined, { background: true });
-  engine.setSelection([]);
-  engine.setFilterValidity(false);
-  await engine.refresh(undefined, { background: true });
+  engine.record(engine.getSnapshot().selectedInstanceId!).setSelection(['a']);
+  await engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh({ background: true });
+  engine.record(engine.getSnapshot().selectedInstanceId!).setSelection([]);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterValidity(false);
+  await engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh({ background: true });
   expect(paged).toHaveBeenCalledTimes(1);
   engine.dispose();
   const cursorView = setup({
@@ -106,8 +124,12 @@ it('does not refresh selected records, pending filters or a later cursor page', 
     nextCursor: query.cursor === null ? 'next' : null,
   }));
   await cursorView.engine.load();
-  await cursorView.engine.nextPage();
-  await cursorView.engine.refresh(undefined, { background: true });
+  await cursorView.engine
+    .record(cursorView.engine.getSnapshot().selectedInstanceId!)
+    .nextPage();
+  await cursorView.engine
+    .record(cursorView.engine.getSnapshot().selectedInstanceId!)
+    .refresh({ background: true });
   expect(cursorView.cursor).toHaveBeenCalledTimes(2);
   expect(selected(cursorView.engine).page).toBe(2);
   cursorView.engine.dispose();
@@ -134,7 +156,9 @@ it('waits for an in-flight all-record summary before another background refresh'
   });
   await engine.load();
   expect(selected(engine).allSummary.status).toBe('loading');
-  await engine.refresh(undefined, { background: true });
+  await engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh({ background: true });
   expect(paged).toHaveBeenCalledTimes(1);
   engine.dispose();
 });

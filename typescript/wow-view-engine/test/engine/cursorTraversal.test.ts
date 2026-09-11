@@ -19,7 +19,7 @@ import {
 import { afterEach, expect, it, vi } from 'vitest';
 import { SortDirection } from '@ahoo-wang/fetcher-wow';
 
-import type { ViewEngine } from '../../src/record/ViewEngine.js';
+import type { ViewEngine } from '../../src/engine/ViewEngine.js';
 import { deferred, instance, selected, setup } from './fixtures.js';
 
 const engines: ViewEngine[] = [];
@@ -47,14 +47,16 @@ it.each([
       cursor.mockResolvedValueOnce({ list: [], nextCursor });
     await engine.load();
     for (let page = 1; page < cursors.length - 1; page++)
-      await engine.nextPage();
-    await expect(engine.nextPage()).rejects.toThrow(/游标/);
+      await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
+    await expect(
+      engine.record(engine.getSnapshot().selectedInstanceId!).nextPage(),
+    ).rejects.toThrow(/游标/);
     expect(selected(engine)).toMatchObject({
       queryStatus: 'error',
       nextCursor: null,
       rows: [],
     });
-    await engine.nextPage();
+    await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
     expect(cursor).toHaveBeenCalledTimes(cursors.length);
   },
 );
@@ -70,11 +72,11 @@ it('keeps consumed cursors per instance and permits reloading its current page',
   const { engine, cursor } = setupCursor(['mine', 'shared']);
   cursor.mockImplementation(async query => page(query.cursor));
   await engine.load();
-  await engine.nextPage();
-  await engine.nextPage();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
   await engine.selectInstance('shared');
-  await engine.nextPage();
-  await engine.nextPage();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
   await engine.selectInstance('mine');
   expect(selected(engine)).toMatchObject({
     page: 3,
@@ -83,7 +85,9 @@ it('keeps consumed cursors per instance and permits reloading its current page',
     queryStatus: 'success',
   });
   cursor.mockResolvedValueOnce({ list: [], nextCursor: 'a' });
-  await expect(engine.nextPage()).rejects.toThrow(/游标/);
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).nextPage(),
+  ).rejects.toThrow(/游标/);
   expect(cursor.mock.calls.map(([query]) => query.cursor)).toEqual([
     null,
     'a',
@@ -101,7 +105,9 @@ it('retries a failed page and accepts a corrected non-looping response', async (
   cursor.mockImplementation(async query => page(query.cursor));
   await engine.load();
   cursor.mockRejectedValueOnce(new Error('temporarily unavailable'));
-  await expect(engine.nextPage()).rejects.toThrow('temporarily unavailable');
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).nextPage(),
+  ).rejects.toThrow('temporarily unavailable');
   await engine.selectInstance('shared');
   await engine.selectInstance('mine');
   expect(selected(engine)).toMatchObject({
@@ -110,7 +116,9 @@ it('retries a failed page and accepts a corrected non-looping response', async (
     queryStatus: 'success',
   });
   cursor.mockResolvedValueOnce({ list: [], nextCursor: 'a' });
-  await expect(engine.nextPage()).rejects.toThrow(/游标/);
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).nextPage(),
+  ).rejects.toThrow(/游标/);
   await engine.selectInstance('shared');
   await engine.selectInstance('mine');
   expect(selected(engine)).toMatchObject({
@@ -126,28 +134,32 @@ it.each(['refresh', 'filter', 'sort', 'size', 'restore', 'load'] as const)(
     const { engine, cursor } = setupCursor();
     cursor.mockImplementation(async query => page(query.cursor));
     await engine.load();
-    await engine.nextPage();
-    await engine.nextPage();
+    await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
+    await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
     switch (action) {
       case 'refresh':
-        await engine.refresh();
+        await engine.record(engine.getSnapshot().selectedInstanceId!).refresh();
         break;
       case 'filter':
-        engine.setFilterDraft(
+        engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
           createFilterConfiguration({
             ...newFilterNode(FilterOperator.GT, 'state.amount'),
             props: { value: 10 },
           }),
         );
-        await engine.applyFilter();
+        await engine
+          .record(engine.getSnapshot().selectedInstanceId!)
+          .applyFilter();
         break;
       case 'sort':
-        await engine.setSort([
-          { field: 'state.amount', direction: SortDirection.DESC },
-        ]);
+        await engine
+          .record(engine.getSnapshot().selectedInstanceId!)
+          .setSort([{ field: 'state.amount', direction: SortDirection.DESC }]);
         break;
       case 'size':
-        await engine.setPageSize(20);
+        await engine
+          .record(engine.getSnapshot().selectedInstanceId!)
+          .setPageSize(20);
         break;
       case 'restore':
         await engine.restore();
@@ -162,7 +174,7 @@ it.each(['refresh', 'filter', 'sort', 'size', 'restore', 'load'] as const)(
       nextCursor: 'a',
       queryStatus: 'success',
     });
-    await engine.nextPage();
+    await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
     expect(selected(engine)).toMatchObject({
       page: 2,
       cursor: 'a',
@@ -176,8 +188,10 @@ it('allows a background refresh of the first cursor page', async () => {
   const { engine, cursor } = setupCursor();
   cursor.mockImplementation(async query => page(query.cursor));
   await engine.load();
-  await engine.refresh(undefined, { background: true });
-  await engine.nextPage();
+  await engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh({ background: true });
+  await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
   expect(selected(engine)).toMatchObject({
     cursor: 'a',
     nextCursor: 'b',
@@ -207,11 +221,11 @@ it('detects a cycle when a successful page notification starts the next page syn
       session.queryStatus === 'success'
     ) {
       advanced = true;
-      next = engine.nextPage();
+      next = engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
     }
   });
   try {
-    await engine.nextPage();
+    await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
     expect(next).toBeDefined();
     await expect(next).rejects.toThrow(/游标/);
     expect(selected(engine)).toMatchObject({
@@ -229,18 +243,20 @@ it.each(['success', 'failure'] as const)(
     const { engine, cursor } = setupCursor();
     cursor.mockImplementation(async query => page(query.cursor));
     await engine.load();
-    await engine.nextPage();
+    await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
     const stalled = deferred<{ list: never[]; nextCursor: string | null }>();
     cursor.mockReturnValueOnce(stalled.promise);
-    const previous = engine.nextPage();
+    const previous = engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .nextPage();
     await vi.waitFor(() => expect(cursor).toHaveBeenCalledTimes(3));
     const controller = cursor.mock.calls[2][2];
-    await engine.refresh();
+    await engine.record(engine.getSnapshot().selectedInstanceId!).refresh();
     expect(controller.signal.aborted).toBe(true);
     if (outcome === 'success') stalled.resolve({ list: [], nextCursor: 'c' });
     else stalled.reject(new Error('obsolete failure'));
     await previous;
-    await engine.nextPage();
+    await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
     expect(selected(engine)).toMatchObject({
       cursor: 'a',
       nextCursor: 'b',
@@ -256,7 +272,9 @@ it('ignores a late cursor result after disposal', async () => {
   await engine.load();
   const stalled = deferred<{ list: never[]; nextCursor: string | null }>();
   cursor.mockReturnValueOnce(stalled.promise);
-  const previous = engine.nextPage();
+  const previous = engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .nextPage();
   await vi.waitFor(() => expect(cursor).toHaveBeenCalledTimes(2));
   const before = engine.getSnapshot();
   engine.dispose();

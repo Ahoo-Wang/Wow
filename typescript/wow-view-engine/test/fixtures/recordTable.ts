@@ -20,7 +20,7 @@ import type {
   RecordColumn,
   ViewDefinition,
   ViewInstance,
-} from '../../src/record/recordModel.js';
+} from '../../src/contracts/viewModel.js';
 import type { RecordTableProps } from '../../src/record/recordReactTypes.js';
 
 export function cleanupTable() {
@@ -72,8 +72,6 @@ export const definition: ViewDefinition = {
   id: 'orders',
   title: '订单',
   sourceId: 'orders',
-  allowedLayouts: ['table', 'card'],
-  rowKey: 'meta.id',
   fields: [
     { field: 'name', label: '名称', type: 'string', sortable: true },
     { field: 'amount', label: '金额', type: 'number', sortable: true },
@@ -85,6 +83,7 @@ export const definition: ViewDefinition = {
     { field: 'active', label: '启用', type: 'boolean' },
     { field: 'detail', label: '详情' },
   ],
+  record: { allowedLayouts: ['table', 'card'], rowKey: 'meta.id' },
 };
 
 export const columns: RecordColumn[] = [
@@ -97,6 +96,7 @@ export const instance: ViewInstance = {
   definitionId: 'orders',
   title: '我的订单',
   kind: 'record',
+  revision: 'initial',
   scope: { type: 'personal' },
   config: {
     filters: createFilterConfiguration(newFilterNode(FilterOperator.MATCH_ALL)),

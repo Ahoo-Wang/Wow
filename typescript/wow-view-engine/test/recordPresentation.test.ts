@@ -28,12 +28,18 @@ describe('record presentation', () => {
       ['grid'],
     ]) {
       expect(() =>
-        validateViewDefinition({ ...definition, allowedLayouts }),
+        validateViewDefinition({
+          ...definition,
+          record: { ...definition.record, allowedLayouts },
+        }),
       ).toThrow();
     }
   });
   it('rejects disabled layouts when resolving and loading saved instances', () => {
-    const restricted = { ...definition, allowedLayouts: ['table'] as const };
+    const restricted = {
+      ...definition,
+      record: { ...definition.record, allowedLayouts: ['table'] as const },
+    };
     expect(() => resolveRecordPresentation(restricted, 'card')).toThrow();
     const saved = instance();
     saved.config.presentation = resolveRecordPresentation(definition, 'card');
@@ -42,7 +48,7 @@ describe('record presentation', () => {
   it('initializes only the requested layout and preserves both on return', () => {
     const first = resolveRecordPresentation(definition, 'card');
     expect(first.table).toBeUndefined();
-    expect(first.card?.title.field).toBe(definition.rowKey);
+    expect(first.card?.title.field).toBe(definition.record.rowKey);
     const table = resolveRecordPresentation(definition, 'table', first);
     expect(table.table?.columns.map(column => column.id)).toEqual(
       definition.fields.map(field => field.field),
@@ -63,10 +69,13 @@ describe('record presentation', () => {
   });
   it('copies definition presets, preferring existing configuration', () => {
     const card = {
-      title: { id: 'title', field: definition.rowKey },
+      title: { id: 'title', field: definition.record.rowKey },
       fields: [],
     };
-    const custom = { ...definition, defaultPresentation: { card } };
+    const custom = {
+      ...definition,
+      record: { ...definition.record, defaultPresentation: { card } },
+    };
     validateViewDefinition(custom);
     const resolved = resolveRecordPresentation(custom, 'card');
     expect(resolved.card).toEqual(card);
@@ -85,11 +94,11 @@ describe('record presentation', () => {
     expect(() =>
       validateViewDefinition({
         ...definition,
-        defaultPresentation: { card: null },
+        record: { ...definition.record, defaultPresentation: { card: null } },
       }),
     ).toThrow();
     const card = {
-      title: { id: 'title', field: definition.rowKey },
+      title: { id: 'title', field: definition.record.rowKey },
       fields: [],
       actions: {},
     };

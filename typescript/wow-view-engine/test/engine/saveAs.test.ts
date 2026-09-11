@@ -12,8 +12,8 @@
  */
 
 import { expect, it, vi } from 'vitest';
-import type { ViewInstance } from '../../src/record/recordModel.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+import type { ViewInstance } from '../../src/contracts/viewModel.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import { deferred, instance, selected, setup } from './fixtures.js';
 
 it('selects a saved copy using the latest source config, leaving the source draft untouched', async () => {
@@ -28,9 +28,11 @@ it('selects a saved copy using the latest source config, leaving the source draf
     title: 'Copy',
     scope: { type: 'public', source: 'shared' },
   });
-  engine.setColumns([
-    { id: 'amount', kind: 'field', field: 'state.amount', width: 300 },
-  ]);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setColumns([
+      { id: 'amount', kind: 'field', field: 'state.amount', width: 300 },
+    ]);
   const latestConfig = selected(engine).instance.config;
   response.resolve({
     ...instance('created'),
@@ -91,6 +93,7 @@ it('does not let save-as completion cancel a newer pending navigation', async ()
   write.resolve({ ...instance('created'), title: 'Copy' });
   await saving;
   expect(engine.getSnapshot().selectedInstanceId).toBe('mine');
+  expect(engine.getSnapshot().openingInstanceId).toBe('remote');
   read.resolve(instance('remote'));
   await navigating;
   expect(engine.getSnapshot().selectedInstanceId).toBe('remote');

@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { FilterComponentProperties } from './filterModel.js';
 import { FilterOperator as Op } from '@ahoo-wang/fetcher-wow';
 import type {
   FilterEditorProps,
@@ -157,6 +158,13 @@ function TextValues(props: FilterEditorProps) {
   const list = values(props);
   if (!list.every(value => typeof value === 'string'))
     throw new TypeError('多值文本只接受字符串');
+  const rawText = props.props.rawText ?? '';
+  if (typeof rawText !== 'string') throw new TypeError('文本缓冲必须是字符串');
+  function change(values: string[], rawText: string) {
+    const next: FilterComponentProperties = { ...props.props, values };
+    delete next.rawText;
+    props.onChange(rawText ? { ...next, rawText } : next);
+  }
   return (
     <FilterTextValues
       label={props.field?.label ?? '文本'}
@@ -164,8 +172,9 @@ function TextValues(props: FilterEditorProps) {
       disabled={props.disabled}
       invalid={!!props.errors?.length}
       errorId={props.errorId}
-      onValidityChange={props.onValidityChange}
-      onValueChange={values => props.onChange({ ...props.props, values })}
+      rawText={rawText}
+      onRawTextChange={text => change(list, text)}
+      onValueChange={change}
     />
   );
 }

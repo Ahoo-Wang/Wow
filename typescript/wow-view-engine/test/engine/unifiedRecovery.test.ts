@@ -12,12 +12,12 @@
  */
 
 import { afterEach, expect, it, vi } from 'vitest';
-import type { ViewEngine } from '../../src/record/ViewEngine.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+import type { ViewEngine } from '../../src/engine/ViewEngine.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import type {
   ViewEngineOptions,
   ViewInstance,
-} from '../../src/record/recordModel.js';
+} from '../../src/contracts/viewModel.js';
 import { ViewServiceError } from '../../src/record/viewServiceContract.js';
 import { deferred, definition, instance, selected, setup } from './fixtures.js';
 
@@ -82,17 +82,21 @@ it('retries the failed cursor page without losing its position or cycle history,
     .mockResolvedValueOnce({ list: [], nextCursor: 'a' })
     .mockResolvedValueOnce({ list: [], nextCursor: 'a' });
   await engine.load();
-  await engine.nextPage();
-  await expect(engine.nextPage()).rejects.toThrow('temporary failure');
-  await engine.retryQuery();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).nextPage(),
+  ).rejects.toThrow('temporary failure');
+  await engine.record(engine.getSnapshot().selectedInstanceId!).retryQuery();
   expect(selected(engine)).toMatchObject({
     page: 3,
     cursor: 'b',
     nextCursor: 'c',
     queryStatus: 'success',
   });
-  await expect(engine.nextPage()).rejects.toThrow('重复分页游标');
-  await engine.refresh();
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).nextPage(),
+  ).rejects.toThrow('重复分页游标');
+  await engine.record(engine.getSnapshot().selectedInstanceId!).refresh();
   expect(selected(engine)).toMatchObject({
     page: 1,
     cursor: null,
@@ -150,15 +154,15 @@ it('clears failed navigation when the current valid instance is selected without
   await engine.load();
   engine.setTitle('Draft');
   await expect(engine.selectInstance('missing')).rejects.toThrow('not found');
-  const session = selected(engine);
+  const session = selected(engine, 'mine');
   expect(engine.getSnapshot().error).toBe('not found');
   await engine.selectInstance('mine');
   expect(engine.getSnapshot().error).toBeNull();
-  expect(selected(engine)).toBe(session);
+  expect(selected(engine).instance).toBe(session.instance);
   expect(paged).toHaveBeenCalledOnce();
 });
 
-it.each(['', '   '])(
+it.each([undefined, '', '   '])(
   'rejects an empty revision %j from lists, reads and writes without replacing the baseline',
   async revision => {
     const invalid = { ...instance(), revision };
@@ -187,38 +191,26 @@ it.each(['', '   '])(
   },
 );
 
-it('completes save-as before records settle and keeps its query failure out of write recovery', async () => {
-  const records = deferred<never>();
+it('saves a copy without querying and keeps a later explicit query failure out of write recovery', async () => {
   const { engine, host, paged } = fixture();
   await engine.load();
-  paged.mockReturnValueOnce(records.promise);
-  let completed = false;
-  const saving = engine
-    .saveAs({ title: 'Copy', scope: { type: 'personal' } })
-    .then(() => {
-      completed = true;
-    });
-  try {
-    await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
-    await vi.waitFor(() => expect(completed).toBe(true));
-    expect(engine.getSnapshot().selectedInstanceId).toBe('created');
-    records.reject(new Error('records offline'));
-    await saving;
-    await vi.waitFor(() =>
-      expect(selected(engine).queryError).toBe('records offline'),
-    );
-    expect(selected(engine)).toMatchObject({
-      writeError: null,
-      requiresReload: false,
-      queryStatus: 'error',
-    });
-    await engine.retryQuery();
-    expect(selected(engine).queryStatus).toBe('success');
-    expect(host.instance!.create).toHaveBeenCalledOnce();
-  } finally {
-    records.reject(new Error('records offline'));
-    await saving.catch(() => {});
-  }
+  expect(
+    await engine.saveAs({ title: 'Copy', scope: { type: 'personal' } }),
+  ).toBe('created');
+  expect(paged).toHaveBeenCalledOnce();
+  expect(engine.getSnapshot().selectedInstanceId).toBe('created');
+  paged.mockRejectedValueOnce(new Error('records offline'));
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).refresh(),
+  ).rejects.toThrow('records offline');
+  expect(selected(engine)).toMatchObject({
+    writeError: null,
+    requiresReload: false,
+    queryStatus: 'error',
+  });
+  await engine.record(engine.getSnapshot().selectedInstanceId!).retryQuery();
+  expect(selected(engine).queryStatus).toBe('success');
+  expect(host.instance!.create).toHaveBeenCalledOnce();
 });
 
 it('keeps a successful creation reconciliation successful when its record query fails', async () => {
@@ -242,7 +234,7 @@ it('keeps a successful creation reconciliation successful when its record query 
   );
   expect(selected(engine, 'mine').requiresReload).toBe(false);
   expect(engine.getSnapshot().selectedInstanceId).toBe('created');
-  await engine.retryQuery();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).retryQuery();
   expect(create).toHaveBeenCalledTimes(2);
 });
 
@@ -287,7 +279,9 @@ it.each(['save', 'rename', 'delete', 'order'] as const)(
         return stalled.promise;
       },
     );
-    const reading = engine.refresh();
+    const reading = engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .refresh();
     await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
     await engine.load();
     expect(await outcome).toBeInstanceOf(Error);
@@ -333,7 +327,7 @@ it('keeps a navigation triggered by reconciliation cancellation newer than the r
   await redirected;
   remote.resolve(instance('remote'));
   await navigating;
-  expect(engine.getSnapshot().selectedInstanceId).toBe('shared');
+  expect(engine.getSnapshot().selectedInstanceId).toBe('remote');
   expect(engine.getSnapshot().sessions.created.baseline).toEqual(persisted);
   expect(selected(engine, 'mine').requiresReload).toBe(false);
 });
@@ -510,15 +504,15 @@ it.each([
           'abort',
           () => {
             const actions = {
-              refresh: () => engine.refresh('mine'),
-              retry: () => engine.retryQuery('mine'),
-              sort: () => engine.setSort([], 'mine'),
-              apply: () => engine.applyFilter('mine'),
-              page: () => engine.setPage(2, 'mine'),
-              pageSize: () => engine.setPageSize(20, 'mine'),
-              next: () => engine.nextPage('mine'),
+              refresh: () => engine.record('mine').refresh(),
+              retry: () => engine.record('mine').retryQuery(),
+              sort: () => engine.record('mine').setSort([]),
+              apply: () => engine.record('mine').applyFilter(),
+              page: () => engine.record('mine').setPage(2),
+              pageSize: () => engine.record('mine').setPageSize(20),
+              next: () => engine.record('mine').nextPage(),
               restore: () => engine.restore('mine'),
-              summary: () => engine.refreshSummary('mine'),
+              summary: () => engine.record('mine').refreshSummary(),
             };
             attempt = actions[operation]().then(
               () => null,
@@ -557,7 +551,7 @@ it.each([
     currentDefinition = {
       ...definition,
       sourceId: 'new',
-      rowKey: 'state.newId',
+      record: { ...definition.record, rowKey: 'state.newId' },
       fields: [
         { field: 'state.newId', label: 'ID', type: 'string' },
         definition.fields[1],

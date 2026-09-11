@@ -13,7 +13,7 @@
 
 import { beforeEach, expect, it, vi } from 'vitest';
 import { MemoryViewHost } from '../src/record/MemoryViewHost.js';
-import { ViewEngine } from '../src/record/ViewEngine.js';
+import { ViewEngine } from '../src/engine/ViewEngine.js';
 import { definition, instance, setup } from './fixtures/viewPage.js';
 
 const store = new Map<string, string | null>();

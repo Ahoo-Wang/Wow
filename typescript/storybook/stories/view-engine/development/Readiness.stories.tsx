@@ -3,6 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
+import { ExampleViewPage } from '../../../packages/view-engine/examples/react/ExampleViewPage.js';
 import {
   createContext,
   useContext,
@@ -12,7 +13,6 @@ import {
 } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
-  ViewPage,
   TextCell,
   Button,
   type CellRendererProps,
@@ -82,7 +82,7 @@ function ReadinessWorkbench() {
           </Button>
         </div>
         {mounted && (
-          <ViewPage
+          <ExampleViewPage
             scopeKey="readiness:local"
             definitionId={service.definition.id}
             definition={service.definition}

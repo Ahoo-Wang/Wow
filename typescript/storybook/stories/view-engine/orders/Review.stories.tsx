@@ -16,7 +16,7 @@ import { OrderWorkbench } from '../../../packages/view-engine/examples/react/sal
 import source from '../../../packages/view-engine/examples/react/sales-order/OrderWorkbench.tsx?raw';
 const meta = {
   id: 'view-engine-接单与审核',
-  title: 'View Engine/订单业务流程/接单与审核',
+  title: 'View Engine/入门与业务流程/订单流程/接单与审核',
   component: OrderWorkbench,
   parameters: {
     layout: 'fullscreen',

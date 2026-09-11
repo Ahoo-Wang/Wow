@@ -19,8 +19,8 @@ import {
   validateFilterConfiguration,
 } from '../../src/filter/filterCore.js';
 import { validateViewInstance } from '../../src/record/recordValidation.js';
-import type { ViewDefinition } from '../../src/record/recordModel.js';
-import type { ViewEngine } from '../../src/record/ViewEngine.js';
+import type { ViewDefinition } from '../../src/contracts/viewModel.js';
+import type { ViewEngine } from '../../src/engine/ViewEngine.js';
 import { definition, instance, setup } from './fixtures.js';
 
 const engines: ViewEngine[] = [];
@@ -60,7 +60,7 @@ const cases = [
   },
 ];
 it.each(cases)(
-  'rejects excluded operators before publishing sessions: $operator',
+  'retains excluded operators as repairable configuration: $operator',
   async expression => {
     const saved = instance();
     saved.config.filters = createFilterConfiguration(expression);
@@ -80,12 +80,11 @@ it.each(cases)(
       },
     });
     engines.push(engine);
-    await expect(engine.load()).rejects.toThrow('当前视图不允许操作');
-    expect(engine.getSnapshot()).toMatchObject({
-      status: 'error',
-      definition: null,
-      sessions: {},
-    });
+    await engine.load();
+    expect(engine.getSnapshot().status).toBe('ready');
+    expect(
+      engine.getSnapshot().sessions[saved.id].validation.length,
+    ).toBeGreaterThan(0);
     expect(paged).not.toHaveBeenCalled();
   },
 );
@@ -102,18 +101,25 @@ it('uses the same boundary when selecting or reloading a remote instance', async
   });
   engines.push(engine);
   await engine.load();
-  await expect(engine.selectInstance('other')).rejects.toThrow(
-    '当前视图不允许操作',
+  await engine.selectInstance('other');
+  expect(engine.getSnapshot().sessions.other.validation.length).toBeGreaterThan(
+    0,
   );
-  expect(engine.getSnapshot().sessions.other).toBeUndefined();
+  await engine.selectInstance('mine');
   engine.setTitle('Keep this title');
   const before = engine.getSnapshot().sessions.mine;
   load.mockResolvedValue({ ...forbidden, id: 'mine' });
-  await expect(engine.reloadInstance('mine')).rejects.toThrow(
-    '当前视图不允许操作',
-  );
+  await engine.reloadInstance('mine');
   expect(engine.getSnapshot().sessions.mine.instance).toEqual(before.instance);
-  expect(paged).toHaveBeenCalledOnce();
+  const beforeAdoption = paged.mock.calls.length;
+  await engine.useRemoteInstance(
+    engine.getSnapshot().sessions.mine.conflict!,
+    'mine',
+  );
+  expect(engine.getSnapshot().sessions.mine.validation.length).toBeGreaterThan(
+    0,
+  );
+  expect(paged).toHaveBeenCalledTimes(beforeAdoption);
 });
 it('keeps permitted opaque editor props valid without requiring a compiler at the structural boundary', () => {
   const saved = instance();

@@ -31,6 +31,11 @@ function selection(multiple: boolean, textOnly = false): FilterCompiler {
         )
       )
         throw new TypeError('选择器不支持当前操作');
+      if (textOnly && props.rawText !== undefined) {
+        if (typeof props.rawText !== 'string')
+          throw new TypeError('文本缓冲必须是字符串');
+        if (props.rawText.trim()) throw new TypeError('请按回车确认输入');
+      }
       if (props.selectedOptions !== undefined)
         readFilterOptions(props.selectedOptions);
       const input = multiple
@@ -60,6 +65,7 @@ function selection(multiple: boolean, textOnly = false): FilterCompiler {
       delete next.value;
       delete next.values;
       delete next.selectedOptions;
+      if (textOnly) delete next.rawText;
       return next;
     },
   };

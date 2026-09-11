@@ -19,7 +19,7 @@ import hostSource from '../../../packages/view-engine/examples/react/sales-order
 import workbenchSource from '../../../packages/view-engine/examples/react/sales-order/OrderWorkbench.tsx?raw';
 const meta = {
   id: 'view-engine-扩展接入',
-  title: 'View Engine/开发接入/业务扩展',
+  title: 'View Engine/扩展与组件/业务扩展',
   component: OrderWorkbench,
   parameters: {
     layout: 'fullscreen',

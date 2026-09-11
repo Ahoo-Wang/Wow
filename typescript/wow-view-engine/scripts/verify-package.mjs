@@ -113,8 +113,8 @@ function verifyTypes(directory) {
   writeFileSync(
     probe,
     `
-    import { ViewEngine, compileBuiltinFilter, clearBuiltinFilterProps, type DeepReadonly, type ViewHost, type ViewInstance, type RecordQuerySource } from '${manifest.name}';
-    import { FilterPanel, ViewPage, type CellRendererProps, type FilterEditorProps, type FilterExtensions } from '${manifest.name}/react';
+    import { ViewEngine, compileBuiltinFilter, clearBuiltinFilterProps, type DeepReadonly, type ViewHost, type ViewInstance, type RecordViewInstance, type RecordQuerySource } from '${manifest.name}';
+    import { FilterPanel, ViewPage, useViewEngine, type CellRendererProps, type FilterEditorProps, type FilterExtensions } from '${manifest.name}/react';
     import { OrderWorkbench } from './examples/react/sales-order/OrderWorkbench.js';
     import type { FilterOptionSource, FilterFieldDefinition, ViewDefinition } from '${manifest.name}';
     import { FilterRemoteSelect, FilterMultiSelect, FilterDateTimeRange } from '${manifest.name}/react';
@@ -126,7 +126,7 @@ function verifyTypes(directory) {
     export const multi = <FilterRemoteSelect label="users" source={optionSource} multiple values={[1,'1']} onValueChange={values => { const ids: (string|number)[] = values; void ids; }} />;
     export const single = <FilterRemoteSelect label="user" source={optionSource} value={1} onValueChange={value => { const id: string|number|null = value; void id; }} />;
     export const localMulti = <FilterMultiSelect label="ids" options={[{value: 1,label:'one'}]} value={[1]} onValueChange={values => { const id: number = values[0]; void id; }} />;
-    export const datedDefinition: ViewDefinition = { id: 'dates', sourceId: 'dates', title: 'Dates', allowedLayouts: ['table'], rowKey: 'id', timeZone: 'Asia/Shanghai', fields: [{field: 'created',label:'Created',type:'datetime',editor:{name:'builtin',options:{showTime:true}}}] };
+    export const datedDefinition: ViewDefinition = { id: 'dates', sourceId: 'dates', title: 'Dates', record: { allowedLayouts: ['table'], rowKey: 'id' }, timeZone: 'Asia/Shanghai', fields: [{field: 'created',label:'Created',type:'datetime',editor:{name:'builtin',options:{showTime:true}}}] };
     export const dateRange = <FilterDateTimeRange field={datedDefinition.fields[0]} timeZone={datedDefinition.timeZone} showTime value={{lowerBound:{date:'2026-09-06',time:'09:00'},upperBound:{date:'2026-09-06',time:'10:00'}}} onValueChange={() => {}} />;
     // @ts-expect-error Fields use the view or panel timezone instead of individual overrides.
     export const fieldTimeZone: FilterFieldDefinition = {field:'created',label:'Created',type:'datetime',timeZone:'UTC'};
@@ -140,18 +140,19 @@ function verifyTypes(directory) {
     export const noQuery: RecordQuerySource = {};
     declare const engine: ViewEngine;
     declare const host: ViewHost;
-    declare const instance: DeepReadonly<ViewInstance>;
+    declare const instance: DeepReadonly<RecordViewInstance>;
+    const record = engine.record(instance.id);
     if (instance.config.presentation.layout === 'table') {
-      engine.setColumns(instance.config.presentation.table.columns);
+      record.setColumns(instance.config.presentation.table.columns);
     } else {
-      engine.setCardConfig(instance.config.presentation.card);
+      record.setCardConfig(instance.config.presentation.card);
     }
-    void engine.setSort(instance.config.sort);
-    engine.setFilterDraft(instance.config.filters);
-    void engine.applyFilter();
+    void record.setSort(instance.config.sort);
+    record.setFilterDraft(instance.config.filters);
+    void record.applyFilter();
     // @ts-expect-error Query expressions cannot replace canonical editing state.
-    void engine.applyFilter({ op: 'MATCH_ALL' });
-    export const controlledPanel = <FilterPanel fields={[]} value={instance.config.filters} onChange={configuration => engine.setFilterDraft(configuration)} appliedValue={instance.config.filters} onApply={({configuration, expression}) => { engine.setFilterDraft(configuration); void expression; }} />;
+    void record.applyFilter({ op: 'MATCH_ALL' });
+    export const controlledPanel = <FilterPanel fields={[]} value={instance.config.filters} onChange={configuration => record.setFilterDraft(configuration)} appliedValue={instance.config.filters} onApply={({configuration, expression}) => { record.setFilterDraft(configuration); void expression; }} />;
     export const localPanel = <FilterPanel fields={[]} defaultValue={instance.config.filters} onApply={({expression}) => { void expression; }} />;
     // @ts-expect-error Controlled and local ownership are mutually exclusive.
     export const mixedPanel = <FilterPanel fields={[]} value={instance.config.filters} defaultValue={instance.config.filters} onChange={() => {}} onApply={() => {}} />;
@@ -170,9 +171,9 @@ function verifyTypes(directory) {
       record.id = 'mutated';
       return String(record.id);
     };
-    export const page = <ViewPage definitionId="orders" scopeKey="user:tenant" host={host} extensions={{ ...filters, cells: { custom: cell } }} />;
+    export function Page() { const binding = useViewEngine({ definitionId: 'orders', scopeKey: 'user:tenant', host, extensions: { ...filters, cells: { custom: cell } } }); return <ViewPage {...binding} />; }
     // @ts-expect-error React filter definitions are registered only through extensions.filters.
-    export const splitRegistration = <ViewPage definitionId="orders" scopeKey="user:tenant" host={host} filterCompilers={{ custom: { compile: compileBuiltinFilter } }} />;
+    export const splitRegistration = useViewEngine({ definitionId: 'orders', scopeKey: 'user:tenant', host, filterCompilers: { custom: { compile: compileBuiltinFilter } } });
     export const example = OrderWorkbench;
   `,
   );
@@ -202,6 +203,8 @@ function verifyTypes(directory) {
   );
   const headless = ts.createProgram([coreProbe], {
     ...options,
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
     skipLibCheck: false,
     lib: ['lib.es2022.d.ts'],
     types: ['node'],
@@ -237,6 +240,41 @@ function verifyTypes(directory) {
     ).resolvedModule;
     assert.equal(resolved?.resolvedFileName, resolve(directory, target));
   }
+  const nodeProbe = join(directory, 'nodenext-consumer.mts');
+  writeFileSync(
+    nodeProbe,
+    `
+    import { compileAnalysis, type AnalysisViewConfig, type AnalysisCompileContext } from '${manifest.name}';
+    import { useViewEngine, ViewPage, type UseViewEngineOptions } from '${manifest.name}/react';
+    declare const config: AnalysisViewConfig;
+    declare const context: AnalysisCompileContext;
+    declare const options: UseViewEngineOptions;
+    const result = compileAnalysis(config, context);
+    const binding = useViewEngine(options);
+    type Query = NonNullable<typeof result.plan>['query'];
+    // @ts-expect-error Missing metrics must be rejected even through the public package boundary.
+    const invalid: Query = { metrics: [] };
+    // @ts-expect-error Scope is required for lifecycle isolation.
+    useViewEngine({ host: options.host, definitionId: options.definitionId });
+    void [binding, ViewPage, invalid];
+  `,
+  );
+  const nodeProgram = ts.createProgram([nodeProbe], {
+    ...options,
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    skipLibCheck: false,
+  });
+  const nodeDiagnostics = ts.getPreEmitDiagnostics(nodeProgram);
+  assert.equal(
+    nodeDiagnostics.length,
+    0,
+    ts.formatDiagnosticsWithColorAndContext(nodeDiagnostics, {
+      getCanonicalFileName: file => file,
+      getCurrentDirectory: () => directory,
+      getNewLine: () => '\n',
+    }),
+  );
   const examples = filesIn(join(directory, 'examples/react')).filter(file =>
     /\.tsx?$/.test(file),
   );
@@ -260,7 +298,7 @@ function verifyTypes(directory) {
     'Type integration reached private source',
   );
   console.log(
-    `Public types passed: core readonly inputs, readonly snapshots/renderers and ${examples.length} React example modules.`,
+    `Public types passed: strict NodeNext contracts, core readonly inputs, readonly snapshots/renderers and ${examples.length} React example modules.`,
   );
 }
 

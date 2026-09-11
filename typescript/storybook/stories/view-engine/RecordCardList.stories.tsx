@@ -16,7 +16,7 @@ import { ProductCatalogExample } from '../../packages/view-engine/examples/react
 import { RecordViewExample } from '../docs/RecordViewExample.js';
 const meta = {
   id: 'view-engine-专项场景-卡片模式',
-  title: 'View Engine/专项场景/数据展示/卡片模式',
+  title: 'View Engine/数据视图/卡片模式',
   component: ProductCatalogExample,
   parameters: { layout: 'fullscreen' },
 } satisfies Meta<typeof ProductCatalogExample>;

@@ -107,7 +107,7 @@ it('honors a title renderer for the intrinsic row key without changing field def
             card: {
               title: {
                 id: 'title',
-                field: definition.rowKey,
+                field: definition.record!.rowKey,
                 renderer: { name: 'custom' },
               },
               fields: [],
@@ -120,7 +120,7 @@ it('honors a title renderer for the intrinsic row key without changing field def
     />,
   );
   expect(screen.getByRole('heading', { name: 'Custom a' })).toBeTruthy();
-  expect(renderer.mock.calls[0][0].field.field).toBe(definition.rowKey);
+  expect(renderer.mock.calls[0][0].field.field).toBe(definition.record!.rowKey);
   expect(definition.fields).toEqual([]);
 });
 

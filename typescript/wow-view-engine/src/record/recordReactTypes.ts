@@ -1,3 +1,4 @@
+import type { AnalysisExtensions } from '../analysis/analysisReactTypes.js';
 /*
  * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,14 +24,14 @@ import type {
   RecordKey,
   RecordSummaryResult,
   RendererReference,
-  ViewDefinition,
+  RecordViewDefinition,
   ViewFieldDefinition,
-  ViewInstance,
+  RecordViewInstance,
   RecordSession,
-} from './recordModel.js';
+} from '../contracts/viewModel.js';
 
 export interface RecordToolbarRenderContext {
-  readonly definition: DeepReadonly<ViewDefinition>;
+  readonly definition: DeepReadonly<RecordViewDefinition>;
   readonly session: DeepReadonly<RecordSession>;
   readonly defaultContent: ReactNode;
   readonly appliedFilter: DeepReadonly<FilterExpression> | null;
@@ -43,7 +44,7 @@ export interface RecordToolbarRenderContext {
   refresh(): Promise<void>;
 }
 export interface RecordPaginationRenderContext {
-  readonly definition: DeepReadonly<ViewDefinition>;
+  readonly definition: DeepReadonly<RecordViewDefinition>;
   readonly session: DeepReadonly<RecordSession>;
   readonly defaultContent: ReactNode;
   readonly mode: 'paged' | 'cursor';
@@ -60,8 +61,8 @@ export interface RecordPaginationRenderContext {
 }
 
 export interface RecordActionsContext {
-  readonly definition: DeepReadonly<ViewDefinition>;
-  readonly instance: DeepReadonly<ViewInstance>;
+  readonly definition: DeepReadonly<RecordViewDefinition>;
+  readonly instance: DeepReadonly<RecordViewInstance>;
   /** Applied query scope. Null means the component configuration has not compiled successfully. */
   readonly filter: DeepReadonly<FilterExpression> | null;
   readonly sort: DeepReadonly<readonly FieldSort[]>;
@@ -86,11 +87,11 @@ export interface CellRendererProps {
   readonly index: number;
   readonly field: DeepReadonly<ViewFieldDefinition>;
   readonly column: DeepReadonly<RecordColumn>;
-  readonly definition: DeepReadonly<ViewDefinition>;
-  readonly instance: DeepReadonly<ViewInstance>;
+  readonly definition: DeepReadonly<RecordViewDefinition>;
+  readonly instance: DeepReadonly<RecordViewInstance>;
   readonly options: DeepReadonly<RendererReference['options']>;
 }
-export interface ViewExtensions extends FilterExtensions {
+export interface ViewExtensions extends FilterExtensions, AnalysisExtensions {
   cells?: Readonly<Record<string, ComponentType<CellRendererProps>>>;
   globalActions?: Readonly<
     Record<string, ComponentType<GlobalActionsRendererProps>>
@@ -101,8 +102,8 @@ export interface ViewExtensions extends FilterExtensions {
   rowActions?: Readonly<Record<string, ComponentType<RowActionsRendererProps>>>;
 }
 export interface RecordTableProps {
-  definition: DeepReadonly<ViewDefinition>;
-  instance: DeepReadonly<ViewInstance>;
+  definition: DeepReadonly<RecordViewDefinition>;
+  instance: DeepReadonly<RecordViewInstance>;
   /** Runtime query scope, supplied by the engine rather than inferred from saved configuration. */
   appliedFilter: DeepReadonly<FilterExpression> | null;
   rows: DeepReadonly<readonly RecordData[]>;
@@ -124,15 +125,15 @@ export interface RecordTableProps {
   className?: string;
 }
 export interface RecordColumnSettingsProps {
-  definition: ViewDefinition;
+  definition: RecordViewDefinition;
   columns: readonly RecordColumn[];
   onChange(columns: RecordColumn[]): void;
   disabled?: boolean;
 }
 
 export interface RecordCardRenderContext {
-  readonly definition: DeepReadonly<ViewDefinition>;
-  readonly instance: DeepReadonly<ViewInstance>;
+  readonly definition: DeepReadonly<RecordViewDefinition>;
+  readonly instance: DeepReadonly<RecordViewInstance>;
   readonly record: DeepReadonly<RecordData>;
   readonly rowKey: RecordKey;
   readonly index: number;
@@ -158,7 +159,7 @@ export type RecordCardListProps = Pick<
   | 'className'
 > & { renderCard?(context: RecordCardRenderContext): ReactNode };
 export interface RecordCardSettingsProps {
-  definition: DeepReadonly<ViewDefinition>;
+  definition: DeepReadonly<RecordViewDefinition>;
   card: DeepReadonly<RecordCardConfig>;
   /** Synchronous application; throw to retain the draft and show a local error. */
   onChange(card: RecordCardConfig): void;

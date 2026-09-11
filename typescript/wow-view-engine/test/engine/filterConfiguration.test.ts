@@ -18,7 +18,7 @@ import {
   newFilterNode,
 } from '../../src/filter/filterCore.js';
 import type { FilterCompilerRegistry } from '../../src/filter/filterModel.js';
-import type { ViewInstance } from '../../src/record/recordModel.js';
+import type { ViewInstance } from '../../src/contracts/viewModel.js';
 import { definition, instance, selected, setup } from './fixtures.js';
 
 it('uses the definition timezone when loading, editing, applying and restoring local datetime filters', async () => {
@@ -46,7 +46,7 @@ it('uses the definition timezone when loading, editing, applying and restoring l
     const initial = filter.gte('state.created', Date.UTC(2026, 0, 15, 15, 30));
     expect(paged.mock.lastCall?.[0].filter).toEqual(initial);
     expect(selected(engine).filterPending).toBe(false);
-    engine.setFilterDraft(
+    engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
       createFilterConfiguration({
         ...selected(engine).filterDraft.root,
         id: 'renamed-created-filter',
@@ -56,7 +56,7 @@ it('uses the definition timezone when loading, editing, applying and restoring l
       filterPending: false,
       dirty: true,
     });
-    engine.setFilterDraft(
+    engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
       createFilterConfiguration({
         ...selected(engine).filterDraft.root,
         props: {
@@ -66,7 +66,7 @@ it('uses the definition timezone when loading, editing, applying and restoring l
       }),
     );
     expect(selected(engine).filterPending).toBe(true);
-    await engine.applyFilter();
+    await engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter();
     expect(paged.mock.lastCall?.[0].filter).toEqual(
       filter.gte('state.created', Date.UTC(2026, 0, 15, 16, 30)),
     );
@@ -89,10 +89,12 @@ it('saves an added unset control without a query and restores its identity throu
     ...newFilterNode(FilterOperator.GTE, 'state.amount'),
     props: { value: 10 },
   };
-  engine.setFilterDraft(createFilterConfiguration(condition));
-  await engine.applyFilter();
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft(createFilterConfiguration(condition));
+  await engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter();
   const unset = newFilterNode(FilterOperator.EQ, 'state.id');
-  engine.setFilterDraft(
+  engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
     createFilterConfiguration({
       id: 'saved-group',
       operator: FilterOperator.AND,
@@ -146,7 +148,7 @@ function customView(): ViewInstance {
   return saved;
 }
 
-it('saves non-query custom props without querying and requires Query for changed semantics', async () => {
+it('saves current valid custom configuration without changing the queried scope', async () => {
   let saved = customView();
   const saveInstance = vi.fn(async (value: ViewInstance) => {
     saved = JSON.parse(JSON.stringify({ ...value, revision: 'r2' }));
@@ -162,12 +164,14 @@ it('saves non-query custom props without querying and requires Query for changed
     filter.gte('state.amount', 10),
   );
   const original = selected(active.engine).filterDraft.root;
-  active.engine.setFilterDraft(
-    createFilterConfiguration({
-      ...original,
-      props: { ...original.props, displayLabel: '十元' },
-    }),
-  );
+  active.engine
+    .record(active.engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft(
+      createFilterConfiguration({
+        ...original,
+        props: { ...original.props, displayLabel: '十元' },
+      }),
+    );
   expect(selected(active.engine)).toMatchObject({
     dirty: true,
     filterPending: false,
@@ -179,17 +183,23 @@ it('saves non-query custom props without querying and requires Query for changed
     displayLabel: '十元',
     appearance: 'compact',
   });
-  active.engine.setFilterDraft(
-    createFilterConfiguration({
-      ...original,
-      props: { ...original.props, selectedAmount: 50, displayLabel: 'Fifty' },
-    }),
-  );
-  await expect(active.engine.save()).rejects.toThrow(/先查询/);
+  active.engine
+    .record(active.engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft(
+      createFilterConfiguration({
+        ...original,
+        props: { ...original.props, selectedAmount: 50, displayLabel: 'Fifty' },
+      }),
+    );
+  await active.engine.save();
+  expect(active.paged).toHaveBeenCalledTimes(1);
+  expect(saved.config.filters.root.props.selectedAmount).toBe(50);
   expect(selected(active.engine).appliedFilter).toEqual(
     filter.gte('state.amount', 10),
   );
-  await active.engine.applyFilter();
+  await active.engine
+    .record(active.engine.getSnapshot().selectedInstanceId!)
+    .applyFilter();
   await active.engine.save();
   expect(active.paged).toHaveBeenCalledTimes(2);
   expect(saved.config).not.toHaveProperty('filter');
@@ -214,19 +224,25 @@ it('preserves an unresolved component and prevents every record and aggregate re
   const { engine, host, paged, cursor } = setup({
     instances: { instances: [saved], defaultInstanceId: saved.id },
   });
-  await expect(engine.load()).rejects.toThrow(/编译/);
+  await engine.load();
   expect(selected(engine)).toMatchObject({
     appliedFilter: null,
     filterPending: true,
-    queryStatus: 'error',
+    queryStatus: 'idle',
   });
   expect(selected(engine).instance.config.filters).toEqual(
     saved.config.filters,
   );
-  await engine.refreshSummary();
-  await expect(engine.refresh()).rejects.toThrow(/编译/);
-  await expect(engine.applyFilter()).rejects.toThrow(/未注册/);
-  await expect(engine.save()).rejects.toThrow(/先查询/);
+  await engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refreshSummary();
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).refresh(),
+  ).rejects.toThrow(/编译/);
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter(),
+  ).rejects.toThrow(/未注册/);
+  await expect(engine.save()).rejects.toThrow(/配置无效/);
   expect(host.resolveSource).not.toHaveBeenCalled();
   expect(paged).not.toHaveBeenCalled();
   expect(cursor).not.toHaveBeenCalled();
@@ -240,7 +256,7 @@ it('blocks a registered compiler which tries to query another field', async () =
       amountPicker: { compile: () => filter.eq('state.id', 'foreign') },
     },
   });
-  await expect(engine.load()).rejects.toThrow(/编译/);
+  await engine.load();
   expect(host.resolveSource).not.toHaveBeenCalled();
   expect(selected(engine).instance.config.filters.root.props).toEqual(
     saved.config.filters.root.props,
@@ -250,10 +266,14 @@ it('blocks a registered compiler which tries to query another field', async () =
 it('persists filter mode independently of a query and restores the saved mode', async () => {
   const { engine, paged } = setup();
   await engine.load();
-  engine.setFilterMode('advanced');
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterMode('advanced');
   expect(selected(engine)).toMatchObject({ dirty: true, filterPending: false });
   await engine.save();
-  engine.setFilterMode('simple');
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterMode('simple');
   await engine.restore();
   expect(selected(engine).filterDraft.mode).toBe('advanced');
   expect(selected(engine).dirty).toBe(false);
@@ -266,7 +286,7 @@ it('rejects non-JSON component edits even when JSON.stringify would hide the cha
   const initial = selected(engine).filterDraft;
   for (const value of [() => {}, Number.NaN, new Date(), [undefined]]) {
     expect(() =>
-      engine.setFilterDraft({
+      engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft({
         ...initial,
         root: {
           ...initial.root,

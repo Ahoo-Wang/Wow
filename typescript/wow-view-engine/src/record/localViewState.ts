@@ -12,17 +12,18 @@
  */
 
 import { sameJsonState } from '../lib/snapshot.js';
-import type { ViewDefinition, ViewInstance } from './recordModel.js';
+import type {
+  ViewDefinition,
+  ViewInstance,
+  ViewCreateInput,
+} from '../contracts/viewModel.js';
 import { validateViewInstance } from './recordValidation.js';
 
 export type StoredInstance = ViewInstance & { ownerKey: string | null };
 export interface ServiceState {
   instances: StoredInstance[];
   users: Record<string, { order: string[]; defaultInstanceId: string | null }>;
-  creates: Record<
-    string,
-    { input: Omit<ViewInstance, 'id' | 'revision'>; result: ViewInstance }
-  >;
+  creates: Record<string, { input: ViewCreateInput; result: ViewInstance }>;
 }
 
 /** Validate persisted service state independently of storage and locking. */
@@ -79,6 +80,6 @@ export function createViewInput({
   title,
   scope,
   config,
-}: Omit<ViewInstance, 'id' | 'revision'>) {
-  return { definitionId, kind, title, scope, config };
+}: ViewCreateInput): ViewCreateInput {
+  return { definitionId, kind, title, scope, config } as ViewCreateInput;
 }

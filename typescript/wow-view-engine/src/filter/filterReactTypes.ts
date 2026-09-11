@@ -124,6 +124,8 @@ interface FilterPanelOptions {
   extensions?: FilterExtensions;
   editors?: Readonly<Partial<Record<FilterOperator, FilterEditorReference>>>;
   context?: unknown;
+  /** Hide query actions and shortcuts when a parent owns execution; defaults to true. */
+  showQueryAction?: boolean;
   querying?: boolean;
   queryError?: ReactNode;
   disabled?: boolean;

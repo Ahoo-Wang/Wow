@@ -31,7 +31,7 @@ const meta = {
     },
   },
   id: 'view-engine-专项场景-record-view-布局与主题',
-  title: 'View Engine/专项场景/数据展示/布局与主题',
+  title: 'View Engine/数据视图/布局与主题',
 };
 
 export default meta;

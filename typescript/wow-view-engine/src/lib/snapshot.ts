@@ -49,16 +49,27 @@ export function message(error: unknown): string {
 
 /** Compare JSON snapshots independent of object key order; absent and undefined properties agree. */
 export function sameJsonState(a: unknown, b: unknown): boolean {
-  function canonical(value: unknown): unknown {
-    if (Array.isArray(value)) return value.map(canonical);
-    if (value && typeof value === 'object')
-      return Object.fromEntries(
-        Object.entries(value)
-          .filter(([, value]) => value !== undefined)
-          .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-          .map(([key, value]) => [key, canonical(value)]),
-      );
-    return value;
+  if (a === b) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length)
+      return false;
+    for (let index = 0; index < a.length; index++) {
+      if (!sameJsonState(a[index] ?? null, b[index] ?? null)) return false;
+    }
+    return true;
   }
-  return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+  const left = a as Record<string, unknown>,
+    right = b as Record<string, unknown>;
+  const keys = Object.keys(left).filter(key => left[key] !== undefined);
+  if (
+    keys.length !==
+    Object.keys(right).filter(key => right[key] !== undefined).length
+  )
+    return false;
+  return keys.every(
+    key =>
+      Object.prototype.hasOwnProperty.call(right, key) &&
+      sameJsonState(left[key], right[key]),
+  );
 }

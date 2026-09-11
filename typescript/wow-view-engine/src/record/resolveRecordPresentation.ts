@@ -17,7 +17,7 @@ import type {
   ViewDefinition,
   RecordPresentation,
   RecordPresentationDefaults,
-} from './recordModel.js';
+} from '../contracts/viewModel.js';
 import {
   validateRecordPresentation,
   validateRecordPresentationDefaults,
@@ -29,13 +29,13 @@ export function resolveRecordPresentation(
   layout: RecordPresentation['layout'],
   existing?: DeepReadonly<RecordPresentationDefaults>,
 ): RecordPresentation {
-  for (const input of [existing, definition.defaultPresentation])
+  for (const input of [existing, definition.record!.defaultPresentation])
     if (input !== undefined)
       validateRecordPresentationDefaults(input, definition);
   const table =
     existing?.table ??
     (layout === 'table'
-      ? (definition.defaultPresentation?.table ?? {
+      ? (definition.record!.defaultPresentation?.table ?? {
           columns: definition.fields.map(field => ({
             id: field.field,
             kind: 'field' as const,
@@ -46,10 +46,10 @@ export function resolveRecordPresentation(
   const card =
     existing?.card ??
     (layout === 'card'
-      ? (definition.defaultPresentation?.card ?? {
-          title: { id: 'title', field: definition.rowKey },
+      ? (definition.record!.defaultPresentation?.card ?? {
+          title: { id: 'title', field: definition.record!.rowKey },
           fields: [],
-          ...(definition.recordActions?.row ? { actions: {} } : {}),
+          ...(definition.record!.recordActions?.row ? { actions: {} } : {}),
         })
       : undefined);
   const result = {

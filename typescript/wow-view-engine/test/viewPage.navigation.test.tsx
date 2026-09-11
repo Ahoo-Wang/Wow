@@ -21,7 +21,7 @@ import {
 } from '@testing-library/react';
 import { filter } from '@ahoo-wang/fetcher-wow';
 import { afterEach, expect, it, vi } from 'vitest';
-import { ViewPage } from '../src/record/ViewPage.js';
+import { ViewPage } from './fixtures/OwnedViewPage.js';
 import { setup } from './fixtures/viewPage.js';
 
 afterEach(cleanup);
@@ -144,7 +144,7 @@ it.each([false, true])(
     expect(
       (screen.getByRole('button', { name: '保存' }) as HTMLButtonElement)
         .disabled,
-    ).toBe(true);
+    ).toBe(false);
     await select('所有订单');
     expect(
       (screen.getByRole('textbox', { name: '金额值' }) as HTMLInputElement)

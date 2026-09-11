@@ -12,7 +12,7 @@
  */
 
 import { afterEach, expect, it, vi } from 'vitest';
-import type { ViewEngine } from '../../src/record/ViewEngine.js';
+import type { ViewEngine } from '../../src/engine/ViewEngine.js';
 import { ViewServiceError } from '../../src/record/viewServiceContract.js';
 import {
   deferred,
@@ -33,7 +33,9 @@ it.each(['abort', 'notification'] as const)(
     await engine.load();
     const stalled = deferred<{ total: number; list: never[] }>();
     paged.mockReturnValueOnce(stalled.promise);
-    const background = engine.refresh(undefined, { background: true });
+    const background = engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .refresh({ background: true });
     await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
     paged.mockResolvedValue({
       total: 1,
@@ -45,7 +47,9 @@ it.each(['abort', 'notification'] as const)(
     const refresh = () => {
       if (!started) {
         started = true;
-        newer = engine.refresh();
+        newer = engine
+          .record(engine.getSnapshot().selectedInstanceId!)
+          .refresh();
       }
     };
     const unsubscribe = engine.subscribe(() => {
@@ -61,7 +65,9 @@ it.each(['abort', 'notification'] as const)(
         once: true,
       });
     try {
-      engine.setSelection(['a']);
+      engine
+        .record(engine.getSnapshot().selectedInstanceId!)
+        .setSelection(['a']);
       await newer;
       expect(selected(engine).rows).toEqual([
         { state: { id: 'b', amount: 20 } },
@@ -269,7 +275,9 @@ it('keeps cursor navigation issued synchronously after reload ahead of its autom
   const unsubscribe = engine.subscribe(() => {
     if (!moved && selected(engine).baseline.revision === 'r2') {
       moved = true;
-      navigation = engine.nextPage();
+      navigation = engine
+        .record(engine.getSnapshot().selectedInstanceId!)
+        .nextPage();
       void navigation.catch(() => {});
     }
   });
@@ -311,7 +319,9 @@ it.each(['saveAs', 'delete'] as const)(
     const unsubscribe = engine.subscribe(() => {
       if (!moved && engine.getSnapshot().selectedInstanceId !== 'mine') {
         moved = true;
-        navigation = engine.setPage(2);
+        navigation = engine
+          .record(engine.getSnapshot().selectedInstanceId!)
+          .setPage(2);
         void navigation.catch(() => {});
       }
     });

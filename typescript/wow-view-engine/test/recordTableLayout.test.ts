@@ -16,7 +16,7 @@ import { getRecordTableLayout } from '../src/record/recordTableLayout.js';
 import type {
   RecordColumn,
   ViewFieldDefinition,
-} from '../src/record/recordModel.js';
+} from '../src/contracts/viewModel.js';
 
 it('keeps business space usable and never merges numeric metrics into the summary label', () => {
   const columns: RecordColumn[] = [

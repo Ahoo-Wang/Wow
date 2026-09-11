@@ -17,20 +17,19 @@ import {
 } from '../../src/filter/filterCore.js';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { vi } from 'vitest';
-import { ViewEngine } from '../../src/record/ViewEngine.js';
+import { ViewEngine } from '../../src/engine/ViewEngine.js';
 import type {
-  ViewDefinition,
+  RecordViewDefinition,
   ViewEngineOptions,
-  ViewInstance,
-} from '../../src/record/recordModel.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+  RecordViewInstance,
+} from '../../src/contracts/viewModel.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 
-export const definition: ViewDefinition = {
+export const definition: RecordViewDefinition = {
   id: 'orders',
   title: 'Orders',
   sourceId: 'orders-source',
-  allowedLayouts: ['table', 'card'],
-  rowKey: 'state.id',
+  record: { allowedLayouts: ['table', 'card'], rowKey: 'state.id' },
   fields: [
     { field: 'state.id', label: 'ID', type: 'string', sortable: true },
     { field: 'state.amount', label: 'Amount', type: 'number', sortable: true },
@@ -40,7 +39,7 @@ export const definition: ViewDefinition = {
 export function instance(
   id = 'mine',
   mode: 'paged' | 'cursor' = 'paged',
-): ViewInstance {
+): RecordViewInstance {
   return {
     id,
     definitionId: 'orders',

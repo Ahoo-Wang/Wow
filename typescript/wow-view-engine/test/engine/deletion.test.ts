@@ -12,8 +12,8 @@
  */
 
 import { expect, it, vi } from 'vitest';
-import type { ViewInstance } from '../../src/record/recordModel.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+import type { ViewInstance } from '../../src/contracts/viewModel.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import { ViewServiceError } from '../../src/record/viewServiceContract.js';
 import {
   deferred,
@@ -203,7 +203,9 @@ it('ignores a late query response after its view is deleted', async () => {
   });
   await engine.load();
   paged.mockReturnValueOnce(response.promise);
-  const refreshing = engine.refresh();
+  const refreshing = engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh();
   await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
   await engine.deleteInstance();
   response.resolve({

@@ -23,9 +23,18 @@ export function fixedTimeZoneOffset(timeZone?: string): number | undefined {
   );
 }
 
+const validTimeZones = new Set<string>();
 export function validateTimeZone(timeZone?: string): void {
   if (timeZone !== undefined && typeof timeZone !== 'string')
     throw new TypeError('时区必须是字符串');
-  if (fixedTimeZoneOffset(timeZone) === undefined)
-    new Intl.DateTimeFormat('en', { timeZone });
+  if (
+    timeZone === undefined ||
+    fixedTimeZoneOffset(timeZone) !== undefined ||
+    validTimeZones.has(timeZone)
+  )
+    return;
+  new Intl.DateTimeFormat('en', { timeZone });
+  if (validTimeZones.size >= 64)
+    validTimeZones.delete(validTimeZones.values().next().value!);
+  validTimeZones.add(timeZone);
 }

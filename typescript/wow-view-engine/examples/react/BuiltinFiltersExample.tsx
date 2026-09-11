@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { ExampleViewPage } from './ExampleViewPage.js';
 import { IndexedDBViewHost } from '@ahoo-wang/fetcher-view-engine/react';
 import { useState } from 'react';
 import {
@@ -28,10 +29,10 @@ import {
   createFilterConfiguration,
   type FilterComponentConfig,
   type FilterOptionSource,
-  type ViewDefinition,
+  type RecordViewDefinition,
   type ViewInstanceList,
 } from '@ahoo-wang/fetcher-view-engine';
-import { Button, ViewPage } from '@ahoo-wang/fetcher-view-engine/react';
+import { Button } from '@ahoo-wang/fetcher-view-engine/react';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
 const candidates = [
@@ -40,12 +41,10 @@ const candidates = [
   { value: 'u3', label: '用户丙', group: '运营' },
   { value: 'u4', label: '用户丁', group: '运营' },
 ];
-const definition: ViewDefinition = {
+const definition: RecordViewDefinition = {
   id: 'builtin-filters',
   title: '内置筛选器',
   sourceId: 'query-echo',
-  allowedLayouts: ['table', 'card'],
-  rowKey: 'id',
   timeZone: 'Asia/Shanghai',
   fields: [
     { field: 'id', label: '编号', type: 'string' },
@@ -95,6 +94,7 @@ const definition: ViewDefinition = {
       editor: { name: 'datetime-range' },
     },
   ],
+  record: { allowedLayouts: ['table', 'card'], rowKey: 'id' },
 };
 const draft: FilterComponentConfig = {
   id: 'all',
@@ -303,7 +303,7 @@ function ExampleSession({
           重置示例
         </Button>
       </div>
-      <ViewPage
+      <ExampleViewPage
         key={generation}
         definitionId={definition.id}
         host={host}

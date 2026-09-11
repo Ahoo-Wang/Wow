@@ -537,12 +537,16 @@ function WorkbenchSession({
                         selected ? { ...dialog, action: 'detail' } : null,
                       )
                     }
-                    onSubmit={command =>
-                      execute(
-                        command,
-                        dialog.refresh ?? (() => engine!.refresh()),
-                      )
-                    }
+                    onSubmit={command => {
+                      const id = engine?.getSnapshot().selectedInstanceId;
+                      if (!engine || !id)
+                        return Promise.reject(
+                          new Error('请先选择有效的视图实例'),
+                        );
+                      const refresh =
+                        dialog.refresh ?? engine.record(id).refresh;
+                      return execute(command, refresh);
+                    }}
                   />
                 )
               )}

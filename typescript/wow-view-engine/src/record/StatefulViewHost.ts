@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-import type { ViewHost } from './ViewHost.js';
+import type { ViewCreateInput } from '../contracts/viewModel.js';
+import type { ViewHost } from '../contracts/ViewHost.js';
 import {
   createViewInput,
   validateLocalViewState,
@@ -37,7 +38,7 @@ import type {
   ViewInstance,
   ViewInstanceList,
   ViewInstancePermissions,
-} from './recordModel.js';
+} from '../contracts/viewModel.js';
 
 export interface StatefulViewHostOptions {
   /** Trusted service/tenant namespace, independent of the current user. */
@@ -107,6 +108,11 @@ export abstract class StatefulViewHost implements ViewHost {
           instance.revision,
           'save',
         );
+        if (previous.kind !== instance.kind)
+          throw new ViewServiceError(
+            'INVALID_ARGUMENT',
+            '保存不能改变视图类型',
+          );
         if (!sameJsonState(previous.scope, instance.scope))
           throw new ViewServiceError(
             'INVALID_ARGUMENT',
@@ -122,7 +128,7 @@ export abstract class StatefulViewHost implements ViewHost {
       }, true);
     },
     create: async (
-      input: Omit<ViewInstance, 'id' | 'revision'>,
+      input: ViewCreateInput,
       context: ViewCreateContext,
     ): Promise<ViewInstance> => {
       if (typeof context?.requestId !== 'string' || !context.requestId.trim())
@@ -192,7 +198,7 @@ export abstract class StatefulViewHost implements ViewHost {
     rename: async (
       id: string,
       title: string,
-      revision?: string,
+      revision: string,
     ): Promise<ViewInstance> => {
       return this.transaction(state => {
         const previous = this.writable(state, id, revision, 'rename');
@@ -206,10 +212,7 @@ export abstract class StatefulViewHost implements ViewHost {
         return this.dto(next);
       }, true);
     },
-    delete: async (
-      id: string,
-      revision?: string,
-    ): Promise<ViewDeleteResult> => {
+    delete: async (id: string, revision: string): Promise<ViewDeleteResult> => {
       encodeViewResourceId(id);
       return this.transaction(state => {
         // Absence is scoped to this caller, including inaccessible personal views.
@@ -392,7 +395,15 @@ export abstract class StatefulViewHost implements ViewHost {
     revision,
     config,
   }: ViewInstance): ViewInstance {
-    return { id, definitionId, kind, title, scope, revision, config };
+    return {
+      id,
+      definitionId,
+      kind,
+      title,
+      scope,
+      revision,
+      config,
+    } as ViewInstance;
   }
   private visible(state: ServiceState, scopeKey = this.options.scopeKey) {
     return state.instances.filter(

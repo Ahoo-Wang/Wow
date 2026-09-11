@@ -4,7 +4,7 @@ View Engine owns further data-view development. `@ahoo-wang/fetcher-viewer` is d
 
 [Task guides](../../wiki/guides/view-engine/index.md) · [API reference](../../wiki/reference/view-engine/index.md) · [Shared runnable example](../../wiki/examples/view-engine.md)
 
-Independent `@ahoo-wang/fetcher-view-engine` package with headless Wow filter compilation and validation, a complete `FilterPanel`, structured value editors, and shadcn/Base UI controls. It also provides a headless ViewEngine and a complete RecordView page with host-managed definitions, instances and persistence. Cards, AnalysisView and DashboardView remain separate work.
+Independent `@ahoo-wang/fetcher-view-engine` package with headless Wow filter compilation and validation, a complete `FilterPanel`, structured value editors, and shadcn/Base UI controls. It also provides a headless ViewEngine and a complete RecordView page with host-managed definitions, instances and persistence. Record table/card views and analysis tables/charts share the same engine; dashboards are outside this scope.
 
 ## Module responsibilities
 
@@ -12,7 +12,7 @@ The public `ViewEngine` composes internal services; applications use its public 
 
 | Module                                                     | Owns                                                                                                                     |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `record/engine/SessionStore`, `sessionState`               | Immutable snapshots, subscriptions, saved/editing baselines and derived dirty/pending state.                             |
+| `engine/SessionStore`, `sessionState`                      | Immutable snapshots, subscriptions, saved/editing baselines and derived dirty/pending state.                             |
 | `EngineScope`, `InstanceWork`                              | Lifetime/navigation versions, cancellable selection, write/reload exclusion and uncertain create receipts.               |
 | `RecordEdits`                                              | Validated draft/config changes and the record/summary queries each change requires.                                      |
 | `RecordQueries`, `RecordSummaries`                         | Independent record and aggregate requests, cancellation, result validation and failure recovery.                         |
@@ -39,7 +39,7 @@ pnpm exec vite packages/view-engine/examples/react --host 127.0.0.1 --port 4175
 
 After `pnpm install`, `pnpm storybook` and `pnpm build-storybook` explicitly build View Engine and its workspace dependencies before starting or building Storybook. Both use the public `dist` entries, including CSS. Restart the command after editing package source to rebuild it; no source aliases replace the package during production acceptance.
 
-`examples/react/FilterPersistenceExample.tsx` saves the selected status ID and an independently edited display name. Open `http://127.0.0.1:4175/?example=persistence`, or **View Engine → 专项场景 → 视图与运行时 → 配置与恢复 → 公共包 · 组件配置 JSON 保存与重新打开**, to add an unset control, save it without querying, and reopen the JSON in a new engine. Changing the display name can also be saved directly; changing the status requires Query before Save.
+`examples/react/FilterPersistenceExample.tsx` saves the selected status ID and an independently edited display name. Open `http://127.0.0.1:4175/?example=persistence`, or **View Engine → 专项场景 → 视图与运行时 → 配置与恢复 → 公共包 · 组件配置 JSON 保存与重新打开**, to add an unset control, save it without querying, and reopen the JSON in a new engine. Changing the display name can also be saved directly; valid changed status values can be saved before Query.
 
 `verify-package.mjs` creates a temporary archive, checks its exports/CSS and exact distribution content, then runs and type-checks consumers against the extracted package. It performs no installation or publication. These are library integration examples backed by a strict local simulated service; production authentication, authorization, persistence and backend query behavior still require host-system verification.
 
@@ -58,15 +58,15 @@ VIEW_ENGINE_BROWSERS=chromium,firefox,webkit VIEW_ENGINE_ARTIFACTS=/tmp/view-eng
 
 The default is Playwright Chromium; `VIEW_ENGINE_BROWSER_CHANNEL=chrome` selects installed Chrome. If the default browser cache is not writable, set the same writable `PLAYWRIGHT_BROWSERS_PATH` during installation and execution. `VIEW_ENGINE_BROWSERS` selects only the UX/scale checks; service recovery uses Chromium. CI installs three engines and runs this entry point, uploading per-stage logs, measurement JSON and screenshots on failure.
 
-The fixture uses 100 loaded rows, 30 data columns and 100 filter candidates at 1440px/390px in light/dark themes. It checks keyboard query/selection, retry and repeated disposal. Refresh, selection and field-picker warm interactions each record 10 samples with a 1000ms p95 regression ceiling, including automation transport and paint settlement; this is not a business-network latency SLA. Larger workloads need consumer measurements; virtual scrolling or arbitrary scale is not promised.
+The fixture uses 100 loaded rows, 30 data columns and 100 filter candidates at 1440px/390px in light/dark themes. It checks keyboard query/selection, retry and repeated disposal. Refresh, selection and field-picker warm interactions each record 10 samples with a 1250ms p95 regression ceiling, including automation transport and paint settlement; this is not a business-network latency SLA. Larger workloads need consumer measurements; virtual scrolling or arbitrary scale is not promised.
 
 Raw axe findings are retained. WebKit's hidden Base UI focus-sentinel naming diagnostic is recorded as [upstream expected behavior](https://github.com/mui/base-ui/issues/5237), with actual keyboard entry, Tab exit and Escape restoration checked separately. Other violations fail acceptance. This does not replace real VoiceOver/mobile-device testing.
 
-## RecordView
+## Shared record and analysis lifecycle
 
 ```tsx
 import type { ViewHost } from '@ahoo-wang/fetcher-view-engine';
-import { ViewPage } from '@ahoo-wang/fetcher-view-engine/react';
+import { useViewEngine, ViewPage } from '@ahoo-wang/fetcher-view-engine/react';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
 export function OrderPage({
@@ -76,229 +76,51 @@ export function OrderPage({
   host: ViewHost;
   scopeKey: string;
 }) {
-  return (
-    <ViewPage
-      scopeKey={scopeKey}
-      definitionId="orders"
-      host={host}
-      selectable
-    />
-  );
+  const binding = useViewEngine({ scopeKey, definitionId: 'orders', host });
+  return <ViewPage {...binding} selectable />;
 }
 ```
 
-`ViewHost` is a composition facade, not a REST API containing every operation.
-`definition` (`ViewDefinitionService`) loads metadata; `instance`
-(`ViewInstanceService`) lists, loads, creates, saves, renames and deletes saved
-views; `preference` (`ViewPreferenceService`) saves the current user's order;
-`permission` (`ViewPermissionService`) projects and refreshes grants.
-Each service can be provided independently; omitted services/methods disable
-that capability. `resolveSource` remains a local runtime bridge.
+`useViewEngine(options)` owns creation, loading and disposal, including React StrictMode. Its required `scopeKey` and `definitionId` identify the lifetime; changing either replaces the engine. Optional local `definition`/`instances`, paired compiler/editor registrations in `extensions`, `limits` and `onDiagnostic` initialize that lifetime. Same-scope host updates preserve edits. Change the React key to explicitly reinitialize other inputs. The hook returns `ViewEngineBinding`: `{ engine: ViewEngine | null, extensions?, error? }`.
 
-```ts
-const host: ViewHost = {
-  definition: definitionService,
-  instance: instanceService,
-  preference: preferenceService,
-  permission: permissionService,
-  resolveSource: id => businessSources[id],
-};
-```
+`ViewPage` is pure UI: pass the binding, or a caller-owned engine. It never loads or disposes that engine. `ViewPageContent` requires a non-null engine. Both compose navigation, shared writes and the selected `RecordView` or `AnalysisView`. `RecordView` and `AnalysisView` render only their own kind. A headless caller creates `new ViewEngine({ definitionId, host, definition?, instances?, filterCompilers?, analysisCompilers?, limits?, onDiagnostic? })`, calls `load()`, then `dispose()` when its scope ends.
 
-The service contracts live in `src/record/ViewHost.ts`, separately from record
-metadata. MemoryViewHost implements them with a shared storage transaction.
-HTTP remains an internal development experiment, not part of the public package.
-When replacing only one method, merge its service explicitly, for example
-`instance: {...host.instance, save: customSave}`.
+### Definitions and saved instances
 
-`ViewHost` loads the definition and complete instance list, resolves a configured
-Wow query source, supplies permissions, and optionally saves/creates instances.
-Instance lists require `defaultInstanceId: null` or an ID present in that list.
-If supplied, `revision` must be a nonblank string. Invalid responses fail at the load boundary.
-For local data, pass `definition` and `instances: {instances, defaultInstanceId}`
-to the page. Required `scopeKey` identifies the user/tenant/access scope; change
-it when that scope changes. The engine lives for `[scopeKey, definitionId]`.
-Same-scope host callbacks and capabilities update without discarding drafts.
-Local definition/list values initialize that lifetime; changing their object
-references does not reload them. Change the React key to explicitly reinitialize.
-`ViewPage` owns the engine lifecycle; use
-`ViewPageContent` or `RecordView` with an existing engine when the host owns it.
+`ViewDefinition` has `id`, `title`, `sourceId`, shared `fields`, optional `timeZone`, `allowedOperators` and `filterEditors`. Declare at least one capability:
 
-Each `engine.load()` initializes permissions alongside metadata: it awaits
-`permission.load(definitionId, signal)` when available, otherwise `permission.refresh(signal)`.
-The provider owns the permission projection and must initialize its synchronous getters
-before resolving. Initialization failure prevents ready state and record queries; retry
-uses `load()`, and disposal/reload aborts the initialization signal. Providers with only
-synchronous getters need no initialization. Same-scope `updateHost` expects a prepared
-projection; subsequent asynchronous changes notify `permission.subscribe`.
+- `record: { rowKey, allowedLayouts, defaultPresentation?, recordActions? }`. `RecordViewDefinition` makes this capability required. Row keys are own-property paths; `allowedLayouts` is a nonempty unique list of `table`/`card`.
+- `analysis: AnalysisCapability` authorizes COUNT, field grouping, numeric functions, date units and bounds. An aggregate-only source does not need a record row key or paging functions.
 
-A `RecordQuerySource` supplies `paged`, `cursor`, or both. `aggregate` remains optional.
-Unsupported saved pagination modes fail explicitly before record/aggregate dispatch;
-paged-only adapters do not need a throwing cursor stub.
+`ViewInstance` is the discriminated union `RecordViewInstance | AnalysisViewInstance`. Both require nonblank `id`, `definitionId`, `title`, `revision` and a `scope`. `kind: 'record'` uses `RecordViewConfig` (`filters`, `sort`, `pagination`, `presentation`); `kind: 'analysis'` uses `AnalysisViewConfig` described below. Scope is personal or public/system/shared; it is not permission. Create input omits only ID and revision; the service returns both.
 
-Engine subscriber exceptions are reported through `console.error` and do not interrupt
-writes or other subscribers. Filter compilation depends on draft/applied-filter/validity
-changes; selection, query status, summaries and title-only edits do not recompile it.
-All five extension registries resolve only explicitly registered own properties.
-Persisted component names identify stable property/compile semantics. Use a new name
-such as `order-status/v2` for an incompatible change and keep the old registration while
-old configurations exist. Unknown registrations remain blocked; no automatic migration
-framework is implied.
+`ViewInstanceList` contains the visible instances and `defaultInstanceId: string | null`. Default preference and current selection are independent. The list may mix kinds. Structurally valid but currently unexecutable configurations remain editable with `session.validation`; a broken instance does not prevent healthy siblings from being used.
 
-Instances persist `config.filters: {mode, root}`. Each component stores a stable
-configuration ID, `{name, options?}` reference, operator, field binding, raw JSON
-`props`, and any child components. The compiled query lives only in
-`session.appliedFilter`; `null` means compilation has not succeeded and blocks
-record and aggregate requests. Saved JSON never reconstructs components from a
-compiled expression. Object properties with `undefined` are omitted; explicit
-null, false, zero and empty strings survive JSON. Non-JSON values are rejected.
+### Working content, applied results and saves
 
-`setFilterDraft(configuration, id?, valid?)` compiles through the registered pure functions.
-Valid edits producing the same applied query immediately update the accepted
-configuration and editor baseline, enabling Save without a request. Adding an
-unset control or changing its display label follows this path. Changed query
-values and invalid local input set `filterPending` and block Save until Query
-accepts the draft or Undo restores it. `setFilterMode` persists supported mode
-changes when synchronized. `dirty` compares accepted configuration with saved JSON.
-`sameFilterQuery` ignores object key order and redundant singleton AND/OR wrappers;
-other expression differences still require Query.
+Snapshots are immutable. `ViewEngineState.version` increases on publication and each session has an `editVersion` for working edits. `RecordSession.queryAttempt` captures the in-flight query; `RecordSession.result` binds successful rows to its config/filter/page/cursor and receivedAt. `AnalysisSession.pendingQuery` captures the in-flight plan. Render provenance and business actions must use the applicable result/attempt, never infer them from working edits. `ViewSession` is discriminated by `kind`; narrow it before accessing record-only or analysis-only state. Shared fields include `baseline`, current working `instance`, `dirty`, `validation`, `writeStatus`, `writeError`, `requiresReload` and optional `conflict`.
 
-Programmatic clients call `setFilterDraft(configuration)` before `applyFilter(id?)`.
-Editing and accepted filter snapshots both use `FilterConfiguration`, including mode. `applyFilter` rejects invalid editor buffers
-without changing the draft or applied query. `setFilterValidity(true)` cannot
-make a changed or uncompiled query eligible for Save.
+Record sessions retain `filterDraft`, `filterBaseline`, `appliedFilter`, `filterPending`, page/cursor, rows, summaries and selection. Editing working filters does not change the applied query or records. `filterPending` means the working filter differs from the applied scope; it does not by itself disable Save. Analysis sessions keep an independent successful `result` with query/schema provenance; later edits or failed runs do not relabel those rows as a new result.
 
-Core snapshots use `DeepReadonly` for definitions, instances, drafts and records.
-Read these values directly, or pass them back to `setFilterDraft`,
-`setSort` and `setColumns`; the engine copies accepted inputs. Build edits as new
-objects. Host query/write requests receive independent, editable DTOs.
+`save(id?)` validates and persists current working content without running a query. Invalid raw input blocks saving, but valid unqueried edits can be saved. A receipt advances the baseline while preserving edits made after submission. `saveAs({ title, scope }, id?)` returns `Promise<string | undefined>`: a created ID when known; creation recovery can outlive the originating selection. Runtime rows, selection, errors and countdowns are never persisted as configuration.
 
-The table uses shadcn Table + TanStack Table with server sorting and paged or
-forward cursor queries. Resize at table-header edges by dragging, with keyboard arrows as an accessible alternative. Reorder columns by dragging their handles within the same
-fixed region, or focus a handle and use Up/Down keys; show/hide columns there too.
-Dropping commits the order; cancelling leaves it unchanged. Presentation edits never
-query. Only Query applies filter edits. The page retains drafts per instance and
-guards save/save-as while filters are pending. Save-as supports personal/shared
-instances; permissions and actual persistence remain with the host.
+### Commands and result ownership
 
-The compact workbench orders its global toolbar as title, current instance and Save split button, with Save As/Restore in the menu. Creation stays on the right.
-The active instance has no separate edited badge; save enablement reflects the guarded draft state.
-Successful saves briefly show a check and “已保存”, with an accessible announcement.
-Personal and public views form two navigation groups; system views carry a System badge.
-**Manage views**, beside the sidebar heading and inside the view switcher dropdown, combines inline
-name editing, confirmed deletion and within-group drag ordering. Names display
-as text until Edit is clicked. Save or Cancel returns to text; Escape cancels
-only the current name edit, while failed saves keep the input for retry. System views
-cannot be renamed or deleted; their personal display position can still change.
-Implement `host.instance.rename(id, title, revision?)` / `instance.delete(id, revision?)`
-and grant `rename` / `delete` through `permission.getInstance`. Renaming changes
-only persisted metadata, retaining pending filters and unsaved column configuration.
-The optional `preference.saveOrder(definitionId, ids)` stores ordering for the fixed
-current user, including public views; it must not change other users' ordering.
-Writes persist before updating the list and failures keep edits available for retry.
-Full `engine.load()` rejects while save, rename, delete or preference ordering is in flight;
-commands that read or edit sessions are rejected until loading finishes, including cancellation callbacks. Successful Save As and reconciliation complete
-independently of the subsequent record request, whose failure stays in `queryError`.
-After a dispatched save, rename or delete returns `UNKNOWN_OUTCOME`, `UNAVAILABLE`
-or an unclassified exception, the engine blocks unrelated writes to that instance and retains
-local edits. Save/rename require successful reload; an absent or inaccessible instance
-retains its recovery error and edits. Unknown creates can replay their original request
-ID, and unknown deletes can replay the same ID/revision. Subscribed UI controls read
-`getCapabilitiesSnapshot().instances[id].retryDelete`. Hosts should use definitive
-`ViewServiceError` codes for known rejections.
-The headless engine exposes `renameInstance(title, id?)`, `deleteInstance(id?)`,
-`canReorderInstances()` and `reorderInstances(ids)`. Save As and Restore remain
-in the original split button; its standalone Delete entry is removed.
+`engine.analysis(id)` binds `edit(updater)`, `run()`, `refresh()`, `clearSort()`, `setFilterValidity(valid)` and `restore()` to one analysis instance. `edit`/`clearSort`/`restore` do not query; `run` compiles and validates the complete result before publishing. `engine.record(id)` binds `edit(updater)`, `refresh()`, `setPage(page)`, `setPageSize(size)`, `applyFilter()` and `restore()`. Bound commands become invalid after the instance lifetime is replaced. Editing callbacks must be pure and may not reenter engine commands.
 
-When saving the current instance is not permitted, Save As becomes the primary action.
-Save As uses radio buttons with descriptions for Personal (visible only to you)
-and Public (visible to users with access). Unavailable scopes remain visible but
-disabled, and the initial selection uses an allowed scope.
-The filter split button toggles the panel and selects simple/advanced mode without
-an extra heading row. Add filter sits on the left; Undo, Clear and Query align right.
-A separate table toolbar shows the selected count and Clear selection on the left,
-with batch actions and column settings on the right. Clear selection
-keeps the query and filter draft. Pending edits appear near Query when expanded
-and in the filter toggle when collapsed; the current title/sidebar does not repeat
-the notice, while other instances retain pending markers. Record counts and
-pagination share the footer. Collapsing filters keeps editors, drafts and selection.
-A compact applied-filter summary sits below the editor and above the table toolbar,
-remaining visible when the editor is collapsed. Top-level AND conditions appear as
-separate shadcn Badge tags; OR/NOR and element conditions remain complete groups.
-Each tag's close button uses registered clear semantics to unset its values and immediately queries, retaining every
-field, operator, group and editor ID. Value-free predicates and custom components without clear semantics have no clear button.
-Clearing is disabled while a query is loading or unapplied edits remain; query or
-undo those edits first. Enter in a single-line filter input applies the query;
-IME composition, selectors, multiline inputs and popup interactions keep their
-normal keyboard behavior.
-Labels preserve exact thresholds and wrap long expressions; no conditions displays
-all records. Pending edits do not replace the applied tags until Query is applied.
-The global filter toggle only controls visibility and mode; it has no applied-filter tooltip.
+`engine.analysis(id).refresh()` requests a safe automatic refresh: it runs only when the current query still matches the successful result, editor input is valid, writes are idle, and no conflict or reload requirement exists. It skips ineligible states without submitting drafts; `run()` remains the explicit execution/retry operation. `AnalysisSession.queryValid` is derived from query compilation, editor validity and resource limits; presentation-only errors do not make the query invalid, though they still block saving.
 
-Unpinned string columns without enum options or an explicit `width` share spare container width,
-starting from 180px and growing up to 480px. Explicit widths, pinned columns and
-other field types keep their configured/default sizes. Narrow tables scroll
-horizontally. Dragging an automatic column persists its actual new width. Column settings have
-no width input; definitions can omit width to opt into automatic sizing. Container
-resizing never edits the instance or queries. Space that cannot be assigned stays
-before right-pinned columns, keeping actions at the right edge. The responsive
-workbench Storybook scene shows 15 records per page.
-Numeric cells and headers align right and use tabular numerals, including cells
-rendered by extensions unless the extension overrides their alignment.
+Both session kinds expose `editorEpoch`. Accepting a reviewed remote version advances it and discards local editor buffers; ordinary reload/restore retain their documented non-destructive input behavior. Custom mounted editors should bind commands and reset their local buffers when `(instance.id, editorEpoch)` changes, as the built-in views do. Old validity callbacks are ignored after this reset; old analysis edits and record draft edits are rejected rather than overwriting the accepted remote configuration. Published active and pending-create sessions use the same final validation path. Record admission always checks pagination/layout discriminants and nested presentation structure; missing field or capability references remain recoverable semantic errors. Cancelling an analysis refresh retains the successful result status, allowing subsequent automatic refresh.
 
-When pinned regions leave less than 128px for business fields, the table uses a
-temporary compact layout: row keys shrink with full values available in tooltips,
-action columns use 64px popover triggers, and ordinary pinned fields scroll with
-the center region. Saved widths and pinning return when space allows; key/action
-resize handles are available in the regular layout. Extremely small containers or
-many mandatory columns show an explicit space warning. This adaptation does not
-persist presentation changes.
+All record operations are on `engine.record(id)`: `setFilterDraft(configuration, valid?)`, `setFilterValidity(valid)`, `setFilterMode(mode)`, `applyFilter()`, `setSort(sort)`, `setColumns(columns)`, `setLayout(layout)`, `setCardConfig(card)`, `setPage(index)`, `setPageSize(size)`, `nextPage()`, `setSelection(keys)`, `refresh({ background? }?)`, `retryQuery()` and `refreshSummary()`. The facade no longer exposes direct record commands. Shared operations are `setTitle`, `save`, `saveAs`, `restore`, `reloadInstance`, `renameInstance`, `deleteInstance`, `setDefaultInstance` and `reorderInstances`. Record restore restores the baseline and queries; analysis restore restores its working configuration without running.
 
-Query failures render in the record area, with an icon, cause and retry. They do not
-show the empty-result icon, zero-record claims or pagination. `engine.retryQuery(id?)`
-retries the current page/cursor, as does the record error action; explicit `refresh()`
-still restarts cursor pagination at page one. Background failures
-retain existing rows and label them as the previous result. Auto-refresh tooltips
-explain pauses and what will resume the countdown.
+### Conflicts, unknown writes and runtime bounds
 
-Summary calculation/query helpers consume `RecordSummaryMetric[]` (`id`, `field`,
-`function`) independently of table settings. Use
-`getRecordSummaryMetrics(instance.config.presentation)` to adapt a table instance.
-`ViewInstanceMetadata` holds common instance metadata. `RecordViewConfig` directly
-contains `sort`, `pagination`, canonical `filters` and `presentation`;
-`RecordTablePresentation` defines its table layout and columns.
+A real divergence retains the old baseline, local edits and latest remote document in `session.conflict`. Normal Save cannot silently put old content on a newer revision. The UI offers use latest, save a copy, and overwrite when permitted. `useRemoteInstance(review, id?)` and `overwriteInstance(review, id?)` require the exact reviewed conflict snapshot. New local edits or a new remote revision invalidate an old confirmation. Overwrite still uses the reviewed remote revision as CAS. Remote metadata and current permissions remain authoritative.
 
-The field bound to `definition.rowKey` always stays at the left edge, and action
-columns at the right edge. Their sides cannot be changed by saved preferences or
-column settings. An unpinned field can be pinned only when exactly one adjacent settings row is
-pinned; it inherits that neighbor's side. Neither neighbor pinned, or both pinned,
-disables pinning. Ordinary pinned fields can be unpinned; no side selector is shown.
-Numeric summaries share the same settings row with visibility and pinning. The contract still accepts
-`pinned: 'left' | 'right' | false` from the host, preserving configured sides until
-edited. Pin choices persist with the instance. Headers, rows and summaries move together, with
-resizing/visibility reflected in their offsets. Selection stays before the key
-column. Pin/order changes do not query records or aggregates.
+Unknown write outcomes are separate: after a dispatched timeout, network failure or `UNKNOWN_OUTCOME`, preserve the original operation and reconcile using `reloadInstance`. An uncertain create reuses its original `requestId` and submitted body; changing the request ID can create duplicates. Unknown delete recovery retains its original identity and revision. Default-view preferences, delete receipts and cross-tab transactions remain host responsibilities. The provided memory/browser hosts are reference adapters, not a production authorization boundary.
 
-`extensions.cells`, `extensions.globalActions`, `extensions.toolbarActions`, `extensions.rowActions`, and
-`extensions.filters` register local React components referenced by JSON names.
-Extension inputs use exported `DeepReadonly<T>` snapshots. Copy the fields needed
-into a component's own form state, then submit changes through host commands or
-engine methods. Unsubmitted filter edits do not rerender the record-cell boundary.
-Field definitions and table columns bind full dot paths relative to returned records, such as `customer.name`, `state.amount` and `items.0.name`. Default, built-in and custom cells share the same lookup and receive the resolved `value`. Only own properties are read; missing/null intermediates resolve to undefined and default to “—”, while zero and false are preserved. Bracket syntax, wildcards and automatic object-to-column expansion are not supported.
-Action rendering errors recover when the renderer's inputs change, including
-selection or query state; unrelated draft edits do not repeatedly retry a failure.
-Definitions use `recordActions.global`, `.toolbar` and `.row` to choose their action
-areas (for example, create, batch process and inspect record). Existing global
-registrations retain their location; move batch components to `toolbarActions` explicitly.
-Standalone `RecordTable` requires `appliedFilter` explicitly. Business actions receive
-that runtime scope (`filter` is null until compilation succeeds), stable record keys and an
-instance-bound refresh callback. Selection contains explicit current-page keys.
-Records, definitions and instances must be JSON data; keys must be unique strings
-or finite numbers, with no index fallback. The core import remains React-free.
-
-See **View Engine → 专项场景 → 数据展示** in Storybook and the full
-[host/renderer API contract](../../skills/fetcher-view-engine/references/api.md#record-views-and-host-contract).
-The stories use an in-memory service to demonstrate request/response behavior.
+Default `limits` are load 15,000 ms, query/write 30,000 ms, 4 concurrent queries, 5 retained result sets and 262,144 configuration bytes. Result eviction does not evict working drafts or recovery state. Late reads cannot overwrite a newer request or result scope; cancellation is not a user-facing query failure. Optional `onDiagnostic` receives operation identity, kind, phase, elapsed time and optional error code, without query/row payloads; callback failures are isolated. Verify the host/backend contract and browser flows for your deployment; these APIs alone do not establish production readiness.
 
 ## View service contract and runtime boundary
 
@@ -318,7 +140,7 @@ const host = new IndexedDBViewHost({
 });
 ```
 
-`serviceKey` is a trusted tenant/service namespace; `scopeKey` is the trusted user within it. Storage uses `fve:views:${JSON.stringify([serviceKey, definition.id])}`. Public views are shared within this namespace; personal views and display order are isolated by user. Private ownership is service-owned and is not accepted from write bodies. Use an access-scoped ViewPage key that includes both tenant and user; omit ViewPage's local `definition`/`instances` props so loading goes through the host.
+`serviceKey` is a trusted tenant/service namespace; `scopeKey` is the trusted user within it. Storage uses `fve:views:${JSON.stringify([serviceKey, definition.id])}`. Public views are shared within this namespace; personal views and display order are isolated by user. Private ownership is service-owned and is not accepted from write bodies. Set useViewEngine's scopeKey to include tenant and user; omit its local definition/instances inputs so loading goes through the host.
 
 IndexedDBViewHost commits read, authorization, revision checks and writes in one IndexedDB readwrite transaction. MemoryViewHost uses a native Map for in-process service state; a shared Map is supplied explicitly. The two hosts share only domain rules, and all browser persistence uses IndexedDB. Seed instances get service-issued revisions on initialization. System views are read-only. Optional `instancePermissions`, `canReorder` and `permissionsRevision` supply a trusted policy; increment the monotonic policy revision whenever grants change. Writes always recheck the current policy inside the transaction.
 
@@ -407,7 +229,7 @@ from the next deadline. It shows Paused while blocked and Refreshing during a
 read; resuming, changing the interval or finishing a refresh starts a full new
 interval. Countdown changes do not trigger per-second screen-reader announcements.
 
-Headless consumers can call `engine.refresh(id, {background: true})` and observe
+Headless consumers can call `engine.record(id).refresh({background: true})` and observe
 `session.refreshing`. The engine enforces the query, selection and write guards;
 the React controls additionally manage timers, document visibility and focus.
 
@@ -451,13 +273,13 @@ export function OrderFilters({
 }
 ```
 
-Simple mode uses an implicit AND at the root and within each ELEMENT_MATCH scope, including nested arrays; advanced mode structurally edits all 50 Wow operators including AND / OR / NOR / ELEMENT_MATCH. Editing, clearing, undo and mode switches make no requests. Query calls `onApply` with `{configuration, expression}`. The host executes the request and supplies `querying` / `queryError`. Use `onPendingChange` to guard view saving.
+Simple mode uses an implicit AND at the root and within each ELEMENT_MATCH scope, including nested arrays; advanced mode structurally edits all 50 Wow operators including AND / OR / NOR / ELEMENT_MATCH. Editing, clearing, undo and mode switches make no requests. Query calls `onApply` with `{configuration, expression}`. The host executes the request and supplies `querying` / `queryError`. Use `onPendingChange` to show unapplied query edits; use configuration validity to guard saving.
 
 Simple mode allows one condition per field within each scope, including unset values. Element predicates show “same element satisfies” with child filters and no logical-group selector. Empty element scopes remain editable but block Query until a child condition is added. Advanced AND/OR/NOR groups allow multiple conditions on the same field, including inside element scopes. Repeated bindings are valid for compilation and instance persistence; they keep the editor in advanced mode until each field occurs once per scope and the tree is otherwise simple.
 
 Add filter opens an anchored Popover with grouped checkboxes, keeping the table and query toolbar in place. Its height is capped and its field area scrolls internally. It stays open for continuous additions; Done or Escape closes it and returns focus to Add filter. Clicking outside dismisses it. Set `group` on field definitions to group choices in definition order. Ungrouped fields appear under Other fields when mixed with named groups. Checking a field adds its condition; unchecking removes that field's direct conditions in the current group. Checkbox state follows the draft even when a value is unset. Advanced mode shows each selected field’s condition count and an adjacent Append condition action for additional same-field predicates in any logical group; advanced mode places AND/OR/NOR in the adjacent icon dropdown instead of the field picker. Root-level operators remain add actions. Logical menu choices respect the definition allowlist. Changes apply only on Query.
 
-Fully unset values keep their controls but produce no predicate; partial values, invalid data and missing extensions block Query. Fields bind when added and remain in their original group and scope. `extensions.filters` supplies local custom editors. `value` / `onChange` lets the host own the configuration per instance; `defaultValue` instead gives the panel local ownership. `appliedValue` supplies an accepted configuration baseline. These snapshots share the same component tree; mode lives in configuration.mode. Custom components publish serializable `props` through `onChange(props)`; saveable UI state such as selected IDs and display labels belongs there. Keep only unsaved temporary buffers in local React state.
+Fully unset values keep their controls but produce no predicate; partial values, invalid data and missing extensions block Query. Fields bind when added and remain in their original group and scope. `extensions.filters` supplies local custom editors. `value` / `onChange` lets the host own the configuration per instance; `defaultValue` instead gives the panel local ownership. `appliedValue` supplies an accepted configuration baseline. These snapshots share the same component tree; mode lives in configuration.mode. Custom components publish serializable `props` through `onChange(props)`; saveable UI state such as selected IDs and display labels belongs there. Serialize recoverable raw buffers in component props; local-only React state does not survive unmounts.
 
 Simple mode has no condition action menu or ordering controls. Advanced mode supports adding, deleting and editing groups without moving conditions between groups. Built-in scalar rows omit Clear and Special value buttons; deleting input text leaves an unset value. Use null/empty-string operators for those predicates. Existing datetime edits retain their original offset in repeated DST hours, while dates in other seasons use their actual offset. Without an applicable offset hint, repeated local times choose the earlier occurrence independently of the system timezone; nonexistent DST times remain invalid.
 
@@ -595,23 +417,26 @@ const dateEditor = { name: 'datetime-range' };
 const dateTimeEditor = { name: 'datetime-range', options: { showTime: true } };
 ```
 
-Remote candidates are supplied through `extensions.optionSources`, outside ViewHost. The source object should remain stable during a session; replace it when its data scope changes. `ViewPage.scopeKey` isolates access scopes; standalone panels should use a React `key` when the user/tenant changes.
+Remote candidates are supplied through `extensions.optionSources`, outside ViewHost. The source object should remain stable during a session; replace it when its data scope changes. `useViewEngine` scopeKey isolates access scopes; standalone panels should use a React `key` when the user/tenant changes.
 
 ```tsx
 import type { FilterOptionSource } from '@ahoo-wang/fetcher-view-engine';
-import { ViewPage } from '@ahoo-wang/fetcher-view-engine/react';
+import { useViewEngine, ViewPage } from '@ahoo-wang/fetcher-view-engine/react';
 
 // sources.users implements search(query, signal) and resolve(ids, signal).
 // search returns the existing Wow CursorPage: { list, nextCursor }.
 // resolve returns { list, missing }, explicitly accounting for every requested ID.
 const sources: Record<string, FilterOptionSource> = { users: userOptionSource };
 
-<ViewPage
-  definitionId="orders"
-  scopeKey="tenant:user:access"
-  host={host}
-  extensions={{ optionSources: sources }}
-/>;
+function RemoteOptionsPage() {
+  const binding = useViewEngine({
+    definitionId: 'orders',
+    scopeKey: 'tenant:user:access',
+    host,
+    extensions: { optionSources: sources },
+  });
+  return <ViewPage {...binding} />;
+}
 // Field: editor: { name: 'remote-multi-select', options: { source: 'users', pageSize: 20, debounceMs: 300 } }
 ```
 
@@ -663,8 +488,115 @@ If the source of an unconfirmed creation disappears from a full list response, `
 
 Remote label snapshots change for an ID when that ID is added or reselected, using the selected candidate. Hydration and changes to other IDs do not overwrite its saved label. Text collection paste honors the current caret/selection before splitting values. Invalid range endpoint structures report validation errors instead of becoming an unset predicate.
 
-Record views support table and card layouts with definition-level `defaultPresentation` presets. Use `resolveRecordPresentation` to construct a presentation, and `setLayout` / `setCardConfig` to edit it. Switching back preserves the previous configuration. See [table and card guide](https://fetcher.ahoo.me/guides/view-engine/table-and-runtime).
+Record views support table and card layouts with `record.defaultPresentation` presets. Use `resolveRecordPresentation` to construct a presentation, and `setLayout` / `setCardConfig` to edit it. Switching back preserves the previous configuration. See [table and card guide](https://fetcher.ahoo.me/guides/view-engine/table-and-runtime).
 
 Use `renderCard(context)` for custom card content while the library retains grid, selection and paging. Layout switching uses a current-mode dropdown in the global toolbar at every width.
 
-`ViewDefinition.allowedLayouts` is required and must be nonempty and unique: `['table']`, `['card']`, or both. A single allowed layout hides the toolbar switch. The engine and instance loading reject disallowed active layouts. Switching preserves each layout's configuration. Cards use a top-right selection button (`aria-pressed`) without a separate row; custom content should leave this corner clear. Global controls use icons with hints; menus retain text.
+`ViewDefinition.record.allowedLayouts` is required when record capability is declared and must be nonempty and unique: `['table']`, `['card']`, or both. A single allowed layout hides the toolbar switch. The engine and instance loading reject disallowed active layouts. Switching preserves each layout's configuration. Cards use a top-right selection button (`aria-pressed`) without a separate row; custom content should leave this corner clear. Global controls use icons with hints; menus retain text.
+
+## Pure analysis compilation
+
+The core entry exports `compileAnalysis(config, context)`, `validateAnalysisResult(rows, plan)` and `analysisRowKey(row, dimensions)`, together with the analysis model types. These functions do not render React or make requests. The following example compiles COUNT + SUM and validates a supplied response; it does not depend on analysis page or engine integration.
+
+```ts
+import { AggregationFunction, FilterOperator } from '@ahoo-wang/fetcher-wow';
+import {
+  compileAnalysis,
+  createFilterConfiguration,
+  newFilterNode,
+  validateAnalysisResult,
+  type AnalysisCompileContext,
+  type AnalysisViewConfig,
+} from '@ahoo-wang/fetcher-view-engine';
+
+const context: AnalysisCompileContext = {
+  fields: [{ field: 'amount', label: 'Amount', type: 'number' }],
+  capability: {
+    count: true,
+    fields: [
+      { field: 'amount', groups: [], functions: [AggregationFunction.SUM] },
+    ],
+  },
+};
+const config: AnalysisViewConfig = {
+  filters: createFilterConfiguration(newFilterNode(FilterOperator.MATCH_ALL)),
+  dimensions: [],
+  metrics: [
+    {
+      id: 'count',
+      component: { name: 'count' },
+      alias: 'orders',
+      title: 'Orders',
+      props: {},
+    },
+    {
+      id: 'sum',
+      component: { name: 'numeric' },
+      field: 'amount',
+      alias: 'revenue',
+      title: 'Revenue',
+      props: { function: AggregationFunction.SUM },
+    },
+  ],
+  sort: [],
+  limit: 100,
+  presentation: {
+    layout: 'table',
+    columns: [{ alias: 'orders' }, { alias: 'revenue' }],
+  },
+};
+const compiled = compileAnalysis(config, context);
+if (!compiled.plan)
+  throw new Error(compiled.errors.map(error => error.message).join('; '));
+const result = validateAnalysisResult(
+  [{ orders: 2, revenue: 125 }],
+  compiled.plan,
+);
+if (!result.rows)
+  throw new Error(result.errors.map(error => error.message).join('; '));
+console.log(compiled.plan.query, result.rows);
+```
+
+`AnalysisViewConfig` keeps `filters`, `dimensions`, `metrics`, alias-based `sort`, `limit` and table `presentation.columns`. Each component has a stable `id`, persisted `component` reference, optional `field`, output `alias`, display `title` and raw JSON `props`. Incomplete text can remain in configuration, but compilation returns errors and no executable plan.
+
+`AnalysisCompileContext` supplies filter `fields`, explicit `capability`, optional `timeZone`, `allowedOperators`, `filterCompilers` and custom analysis `compilers`. Capabilities separately authorize COUNT, field grouping, numeric functions and date units. Built-ins are `terms`, `histogram` (`props.interval`), `date-histogram` (`props.unit`), `count`, `numeric` (`props.function`) and `any` (an authorized scalar representative value). Date grouping requires an explicit timezone. Custom `AnalysisCompiler` registrations require a nonempty, unique `roles` array (`['dimension']`, `['metric']` or both). `AnalysisComponentCompileContext` extends `AnalysisCompileContext` with the actual readonly `role`; custom compilers and editors can branch on it. Unsupported roles are rejected before compilation. `compile` returns one group or metric, which core validates against its field, alias and capability. The engine and React adapter snapshot and freeze role metadata for each lifecycle.
+
+`compileAnalysis` returns `{ plan?, errors }`; a successful `AnalysisPlan` contains the Wow `query`, matching `schema` and optional `timeZone`. Group aliases omitted from sort are appended in ascending order for deterministic ordering. Default ceilings are 32 groups, 64 metrics, 32 effective sort items and 10,000 rows; capability limits may tighten them. At least one metric is required. Ungrouped analysis has no sort and admits at most one result row.
+
+`validateAnalysisResult` returns `{ rows?, errors }`, rejecting the whole result on missing aliases, invalid types, excess rows or duplicate typed dimension tuples. It reads aliases as literal own keys, retains only schema columns, permits null only for nullable columns, and requires COUNT to be a nonnegative safe integer. Date bucket values are epoch milliseconds. Call `analysisRowKey(row, plan.schema.filter(column => column.role === 'dimension'))` on a validated row for its typed dimension identity.
+
+### Text value buffers
+
+`FilterTextValues` accepts `value?: readonly string[]`, optional controlled `rawText?: string`, `onRawTextChange?(text)` for raw typing, and `onValueChange(values, rawText)`. Without `rawText` it owns a local input buffer. Enter/paste commits the new value collection with an empty buffer in one callback; removing a chip returns the remaining values with the current buffer. A controlled caller must update both values and rawText from that callback. IME confirmation does not submit a token or query.
+
+The registered `text-values` editor serializes every raw edit in `props.rawText`, so unconfirmed input survives instance navigation. Nonempty trimmed rawText prevents pure compilation; a non-string rawText is invalid. Confirmation removes rawText while retaining confirmed values; clearing removes both values and rawText. Whitespace-only input contributes no unconfirmed value. Standalone `onValidityChange(valid, message?)` remains optional; registered validity comes from compilation.
+
+`AnalysisPlan.schema` preserves query output order and semantic metadata. `projectAnalysis(plan, rows, presentation).plan` applies `presentation.columns` alias order and optional positive CSS-pixel width, then appends unspecified outputs without hiding columns. Query compilation does not depend on presentation compatibility. `analysisRowKey` canonicalizes dimension order by alias, so presentation reordering preserves row identity. Histogram `props.interval` accepts complete positive numeric text while keeping the original editor string; the compiled interval is a number.
+
+## TypeScript consumption boundary
+
+Validated with TypeScript 6.0.3 in both ESNext + Bundler and NodeNext modes, with strict checking and `skipLibCheck: false`. Packed public exports preserve the negative assertions for invalid aggregation metrics and missing engine scope. Relative module references throughout the Wow/React dependency chain use explicit `.js` paths, including `/index.js` for directory exports.
+
+## Analysis charts and Wow API integration
+
+`AnalysisPresentation.layout` supports `table`, `metric`, `bar`, `line`, `area` and `pie`. A bar can use `orientation: 'horizontal'`; `donut: true` renders a ring. `x`, `series` and `metrics` reference output aliases. The same verified result can be displayed in different ways without querying again. Saving persists configuration; **Run analysis** refreshes data. While a query draft differs, the previous result retains its executed scope and presentation.
+
+Switching to the data table retains the chart axes, series, metric selection and display preferences for the return trip. Deleting an output removes its display references; deleting the last selected metric restores metric defaults, while an explicitly empty user selection remains editable. Selecting an available metric also removes stale aliases. Positive and negative SUM values stack separately around zero in both bar and area charts; null/missing combinations report incompatibility while the data table remains available. Changing the layout never truncates a valid metric selection or replaces an explicitly empty selection. A multi-metric pie request shows its compatibility message until the user explicitly selects one supported metric; returning to the previous layout retains the selection. Optional defaults are resolved when rendering rather than written into the draft, so a layout round trip does not create an otherwise unchanged dirty view.
+
+`projectAnalysis` is a pure projection with no transport or persistence. It preserves typed grouping identity and null values, never averages averages or invents zero buckets. Charts are limited to 500 returned groups and 12 series. Incompatible units, additional unrepresented dimensions, numeric ANY values or unsupported chart shapes explain the problem and show a table. Pie and stacked charts require additive COUNT/SUM metrics; null stacking and all-zero pies also fall back. The data table pages already returned rows locally.
+
+`AnalysisView` loads shadcn Chart/Recharts on demand. Query configuration uses an accessible right-side Sheet at every viewport size; visualization settings fold independently on the left. Results show executed root/element filters, timezone and returned limits. Date axes have compact ticks; tooltips and data tables retain complete values. `formatAnalysisValue(value, column, timeZone)` handles enum labels and display-only numeric formatting. `capability.fields[].numberFormat` accepts Intl number options plus `locale`; COUNT keeps exact integer formatting. Chart colors use scoped `--fve-chart-1` through `--fve-chart-5` tokens.
+
+`adaptWowAnalysisSchema(schema, { labels?, units? })` maps a current Wow Schema into filter fields and aggregation capabilities. Masked, unknown/union values, scalar arrays and unsupported temporal encodings are not advertised. Valid homogeneous `enumValues` become typed field options. Authorized object-array `ELEMENT_SCOPE` paths become predefined `capability.scopes`; `config.scope` selects one and supplies a filter for each element layer. Root filters remain root-relative; each element filter and final aggregation field is relative to its selected element.
+
+When `capability.expressions` permits it, a numeric metric can carry a bounded FIELD/CONSTANT/BINARY `expression` (depth 8, at most 256 nodes). ANY is a representative scalar shown in the table, never a stable group/series identity or numeric chart metric. `AnalysisEditor` accepts filter extensions/context and reports combined element-filter validity; the full `AnalysisView` combines root and element editing validity before run/save.
+
+Reuse `SnapshotQueryClient` or `EventStreamQueryClient` with the application's existing authenticated `Fetcher` as the host source. See the [compensation dev example](examples/react/compensation/README.md) for Schema discovery, real read-only queries, cancellation, local view persistence and opt-in integration tests. Root event-stream COUNT counts batches; COUNT after expanding the `body` scope counts event entries. Storybook **View Engine → 专项场景 → 分析图表** supplies offline chart scenarios; **补偿 API 分析** connects only after explicit selection.
+
+Production acceptance is reproducible with `VIEW_ENGINE_BROWSER_CHANNEL=chrome pnpm verify:view-engine` (or an installed Playwright browser). The existing verifier builds and serves static Storybook, checks host and accessibility contracts, then enforces analysis input P95 ≤300ms and cached-instance switching P95 ≤350ms at 100 fields/20 filters/100 rows. It also checks input retention and cancellation with 10,000 rows ×21 columns. Set `VIEW_ENGINE_ARTIFACTS` to retain raw samples and environment metadata; development-mode timing is not production acceptance.
+
+Analysis uses three regions: a right-side query Sheet, central results, and a left visualization panel collapsed by default. The query Sheet keeps its editor mounted across closing and resizing; closing preserves drafts and neither saves nor runs. Select a chart type before configuring visualization fields. Unconfigured analysis defaults to the data table; saved charts retain their presentation. The bottom Analysis / Table modes are always available, even without a chart or result, and switching does not query or save. Chart incompatibility stays in Analysis mode with an explicit Table action. Dimensions and metrics keep their summary chips, retained popover editors and keyboard ordering.
+
+Analysis configuration keeps a single mounted editor subtree across desktop/dialog placement and dialog closure, preserving extension-local drafts and validity. `DialogContent.keepMounted` (default `false`) retains hidden dialog content when needed. Pie/donut charts include persistent per-group values and shares of returned groups; values remain unchanged and ratios are normalized before summation to avoid overflow.
+
+View-kind icons are consistent in the sidebar, instance selector and view manager, with accessible type descriptions. Chart and metric results use centered bottom Analysis/Data table tabs. Switching tabs is local, does not query or save, and retains the returned-table page after its first opening. Unsupported chart configurations show their reason in Analysis mode and offer an explicit action to view the data table; neither mode is disabled or selected implicitly.

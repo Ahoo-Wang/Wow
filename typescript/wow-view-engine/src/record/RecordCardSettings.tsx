@@ -33,7 +33,7 @@ import {
 import { useListOrder } from '../lib/useListOrder.js';
 import { cn } from '../lib/utils.js';
 import { cloneSnapshot } from '../lib/types.js';
-import type { RecordCardConfig } from './recordModel.js';
+import type { RecordCardConfig } from '../contracts/viewModel.js';
 import type { RecordCardSettingsProps } from './recordReactTypes.js';
 
 function FieldChoice({
@@ -97,9 +97,9 @@ export function RecordCardSettings({
     value: field.field,
     label: field.label,
   }));
-  const titles = fields.some(field => field.value === definition.rowKey)
+  const titles = fields.some(field => field.value === definition.record.rowKey)
     ? fields
-    : [{ value: definition.rowKey, label: '记录主键' }, ...fields];
+    : [{ value: definition.record.rowKey, label: '记录主键' }, ...fields];
   const order = useListOrder({
     items: draft.fields,
     onChange: fields => setDraft({ ...draft, fields }),
@@ -257,7 +257,7 @@ export function RecordCardSettings({
             }}
           />
         </div>
-        {(draft.actions || definition.recordActions?.row) && (
+        {(draft.actions || definition.record.recordActions?.row) && (
           <label className="fve:flex fve:items-center fve:gap-2">
             <Checkbox
               disabled={disabled}

@@ -24,6 +24,7 @@ import { cn } from '../lib/utils.js';
 
 export function FilterPanel(props: FilterPanelProps) {
   const panel = useFilterPanelState(props);
+  const showQueryAction = props.showQueryAction ?? true;
   const {
     panelId,
     mode,
@@ -50,6 +51,7 @@ export function FilterPanel(props: FilterPanelProps) {
         aria-label="筛选器"
         onKeyDown={event => {
           if (
+            !showQueryAction ||
             event.key !== 'Enter' ||
             event.defaultPrevented ||
             event.repeat ||
@@ -102,7 +104,7 @@ export function FilterPanel(props: FilterPanelProps) {
               disabled={disabled}
             />
             <span role="status" aria-live="polite">
-              {pending ? '待查询' : ''}
+              {showQueryAction && pending ? '待查询' : ''}
             </span>
           </div>
         )}
@@ -144,14 +146,17 @@ export function FilterPanel(props: FilterPanelProps) {
             panel={panel}
           />
           <div className="fve:ml-auto fve:flex fve:flex-wrap fve:items-center fve:justify-end fve:gap-2">
-            {!props.collapsed && props.renderToolbar && pending && (
-              <span
-                role="status"
-                className="fve:text-sm fve:text-muted-foreground"
-              >
-                筛选未生效
-              </span>
-            )}
+            {showQueryAction &&
+              !props.collapsed &&
+              props.renderToolbar &&
+              pending && (
+                <span
+                  role="status"
+                  className="fve:text-sm fve:text-muted-foreground"
+                >
+                  筛选未生效
+                </span>
+              )}
             <Button
               variant="ghost"
               disabled={disabled || !pending}
@@ -169,15 +174,17 @@ export function FilterPanel(props: FilterPanelProps) {
             >
               清空条件
             </Button>
-            <Button
-              disabled={panel.applyDisabled}
-              onClick={apply}
-              aria-keyshortcuts="Enter"
-              title="查询（Enter）"
-            >
-              <SearchIcon aria-hidden="true" />
-              {panel.submitting ? '查询中' : '查询'}
-            </Button>
+            {showQueryAction && (
+              <Button
+                disabled={panel.applyDisabled}
+                onClick={apply}
+                aria-keyshortcuts="Enter"
+                title="查询（Enter）"
+              >
+                <SearchIcon aria-hidden="true" />
+                {panel.submitting ? '查询中' : '查询'}
+              </Button>
+            )}
           </div>
         </div>
         {panel.clearReason && (

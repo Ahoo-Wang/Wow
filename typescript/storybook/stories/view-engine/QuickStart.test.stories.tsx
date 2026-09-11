@@ -19,7 +19,7 @@ import type { StoryObj as RegressionStoryObj } from '@storybook/react-vite';
 const meta = {
   ...displayMeta,
   id: 'view-engine-扩展接入-最小接入-回归',
-  title: 'View Engine/开发接入/最小接入/回归',
+  title: 'View Engine/入门与业务流程/最小接入/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 

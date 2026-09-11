@@ -23,7 +23,7 @@ import {
   PopoverTitle,
   PopoverDescription,
 } from '../../components/ui/popover.js';
-import type { RecordSummaryResult } from '../recordModel.js';
+import type { RecordSummaryResult } from '../../contracts/viewModel.js';
 
 function SummaryError({
   label,

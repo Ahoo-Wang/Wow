@@ -28,7 +28,7 @@ const meta = {
     },
   },
   id: 'view-engine-专项场景-record-view-表格与汇总',
-  title: 'View Engine/专项场景/数据展示/表格与汇总',
+  title: 'View Engine/数据视图/表格与汇总',
 };
 
 export default meta;

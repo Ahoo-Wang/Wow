@@ -23,7 +23,7 @@ import displayMeta, {
 const meta = {
   ...displayMeta,
   id: 'view-engine-专项场景-卡片模式-回归',
-  title: 'View Engine/专项场景/数据展示/卡片模式/回归',
+  title: 'View Engine/数据视图/卡片模式/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 export default meta;

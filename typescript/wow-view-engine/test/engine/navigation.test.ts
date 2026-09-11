@@ -15,8 +15,8 @@ import { createFilterConfiguration } from '../../src/filter/filterCore.js';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { expect, it, vi } from 'vitest';
 import { newFilterNode } from '../../src/filter/filterCore.js';
-import type { ViewInstance } from '../../src/record/recordModel.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+import type { ViewInstance } from '../../src/contracts/viewModel.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import { deferred, instance, selected, setup } from './fixtures.js';
 
 it('keeps a subscriber navigation newer than the selection canceling a query', async () => {
@@ -33,7 +33,9 @@ it('keeps a subscriber navigation newer than the selection canceling a query', a
     entered.resolve();
     return stalled.promise;
   });
-  const refreshing = engine.refresh();
+  const refreshing = engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh();
   await entered.promise;
   let redirected: Promise<void> | undefined;
   let redirect = true;
@@ -66,11 +68,17 @@ it('retains each instance draft and mode, clearing selection for the new query w
   const { engine, paged } = setup();
   await engine.load();
   const draft = newFilterNode(FilterOperator.EQ, 'state.amount');
-  engine.setFilterDraft(createFilterConfiguration(draft));
-  engine.setFilterValidity(false);
-  engine.setFilterMode('advanced');
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft(createFilterConfiguration(draft));
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterValidity(false);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterMode('advanced');
   engine.setTitle('Local draft');
-  engine.setSelection(['a']);
+  engine.record(engine.getSnapshot().selectedInstanceId!).setSelection(['a']);
   await engine.selectInstance('shared');
   expect(selected(engine).instance.title).toBe('shared');
   expect(selected(engine).filterPending).toBe(false);
@@ -83,9 +91,13 @@ it('retains each instance draft and mode, clearing selection for the new query w
     instance: { title: 'Local draft' },
   });
   expect(paged).toHaveBeenCalledTimes(3);
-  await expect(engine.applyFilter()).rejects.toThrow(/筛选/);
-  engine.setFilterValidity(true);
-  await engine.applyFilter();
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter(),
+  ).rejects.toThrow(/筛选/);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterValidity(true);
+  await engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter();
   expect(selected(engine).filterDraft.root).toEqual(draft);
   expect(selected(engine).filterPending).toBe(false);
   expect(selected(engine).selectedRowKeys).toEqual([]);
@@ -112,7 +124,9 @@ it('ignores a switched-away read and obsolete unknown-instance selections', asyn
   const previousRows = selected(engine).rows;
   const old = deferred<unknown>();
   paged.mockImplementationOnce(() => old.promise);
-  const query = engine.refresh();
+  const query = engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh();
   await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
   await engine.selectInstance('shared');
   old.resolve({ total: 1, list: [{ state: { id: 'old' } }] });
@@ -187,4 +201,25 @@ it('keeps the reload started synchronously by abort as the current owner', async
   engine.dispose();
   first.resolve(instance());
   await initial;
+});
+
+it('retains the workspace and its in-flight query when an unknown selection fails', async () => {
+  const pending = deferred<ViewInstance>();
+  const { engine, paged } = setup({
+    host: { instance: { load: () => pending.promise } } as unknown as ViewHost,
+  });
+  await engine.load();
+  const queryResult = deferred<unknown>();
+  paged.mockImplementationOnce(() => queryResult.promise);
+  const query = engine.record('mine').refresh();
+  const opening = engine.selectInstance('missing');
+  const rejected = expect(opening).rejects.toThrow('unavailable');
+  expect(engine.getSnapshot().selectedInstanceId).toBe('mine');
+  pending.reject(new Error('unavailable'));
+  await rejected;
+  expect(engine.getSnapshot().selectedInstanceId).toBe('mine');
+  queryResult.resolve({ total: 1, list: [{ state: { id: 'retained' } }] });
+  await query;
+  expect(selected(engine).rows).toEqual([{ state: { id: 'retained' } }]);
+  engine.dispose();
 });

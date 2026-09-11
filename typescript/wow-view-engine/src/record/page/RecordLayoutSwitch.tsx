@@ -26,7 +26,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu.js';
-import type { RecordPresentation } from '../recordModel.js';
+import type { RecordPresentation } from '../../contracts/viewModel.js';
 
 const layouts = [
   { value: 'table', label: '表格' },

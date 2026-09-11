@@ -4,7 +4,7 @@ View Engine 承担数据视图能力的后续演进。`@ahoo-wang/fetcher-viewer
 
 [任务指南](../../wiki/zh/guides/view-engine/index.md) · [API 参考](../../wiki/zh/reference/view-engine/index.md) · [共享可运行示例](../../wiki/zh/examples/view-engine.md)
 
-独立的 `@ahoo-wang/fetcher-view-engine` 包，提供可独立使用的 Wow 过滤器编译与校验、完整 `FilterPanel`、结构化值编辑器和 shadcn/Base UI 控件。同时提供不依赖 React 的 ViewEngine 和完整 RecordView 页面，定义、实例与保存接口由宿主管理。卡片、AnalysisView 与 DashboardView 属于后续工作。
+独立的 `@ahoo-wang/fetcher-view-engine` 包，提供可独立使用的 Wow 过滤器编译与校验、完整 `FilterPanel`、结构化值编辑器和 shadcn/Base UI 控件。同时提供不依赖 React 的 ViewEngine 和完整 RecordView 页面，定义、实例与保存接口由宿主管理。记录表格/卡片与分析表格、图表共享同一引擎；本次不包含仪表盘。
 
 ## 模块职责
 
@@ -12,7 +12,7 @@ View Engine 承担数据视图能力的后续演进。`@ahoo-wang/fetcher-viewer
 
 | 模块                                                       | 职责                                                                          |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `record/engine/SessionStore`、`sessionState`               | 不可变快照、订阅、保存与编辑基线，集中推导 dirty/pending。                    |
+| `engine/SessionStore`、`sessionState`                      | 不可变快照、订阅、保存与编辑基线，集中推导 dirty/pending。                    |
 | `EngineScope`、`InstanceWork`                              | 生命周期与导航版本、选择请求取消、写入/重载互斥，以及待核对的创建回包。       |
 | `RecordEdits`                                              | 校验草稿与配置修改，统一决定何时查询记录或汇总。                              |
 | `RecordQueries`、`RecordSummaries`                         | 独立的记录和聚合请求、取消、回包校验与失败恢复。                              |
@@ -39,7 +39,7 @@ pnpm exec vite packages/view-engine/examples/react --host 127.0.0.1 --port 4175
 
 执行 `pnpm install` 后，`pnpm storybook` 和 `pnpm build-storybook` 会先显式构建 View Engine 及其工作区依赖，再启动或构建 Storybook。两者均使用包含 CSS 的公开 `dist` 入口；编辑包源码后重新运行命令即可重建，生产验收继续验证真实包产物。
 
-`examples/react/FilterPersistenceExample.tsx` 保存选中状态 ID 和独立编辑的显示名称。打开 `http://127.0.0.1:4175/?example=persistence`，或 **View Engine → 专项场景 → 视图与运行时 → 配置与恢复 → 公共包 · 组件配置 JSON 保存与重新打开**：新增未设置控件后无需查询即可保存，并在新引擎中恢复；只改显示名称也能直接保存，状态值改变后则需先查询。
+`examples/react/FilterPersistenceExample.tsx` 保存选中状态 ID 和独立编辑的显示名称。打开 `http://127.0.0.1:4175/?example=persistence`，或 **View Engine → 专项场景 → 视图与运行时 → 配置与恢复 → 公共包 · 组件配置 JSON 保存与重新打开**：新增未设置控件后无需查询即可保存，并在新引擎中恢复；只改显示名称也能直接保存，有效状态值改变后同样可以在查询前保存。
 
 `verify-package.mjs` 创建临时归档，检查 exports、CSS 与构建内容一致性，再针对解包后的产物运行并类型校验使用方代码，不执行安装或发布。示例使用严格的本地模拟服务；库级验证不替代宿主的真实鉴权、权限、持久化和后端查询验证。
 
@@ -58,15 +58,15 @@ VIEW_ENGINE_BROWSERS=chromium,firefox,webkit VIEW_ENGINE_ARTIFACTS=/tmp/view-eng
 
 默认使用 Playwright Chromium；`VIEW_ENGINE_BROWSER_CHANNEL=chrome` 可使用本机 Chrome。浏览器缓存目录不可写时，用 `PLAYWRIGHT_BROWSERS_PATH` 指向可写目录，并在安装和运行时使用同一值。`VIEW_ENGINE_BROWSERS` 仅控制新增的 UX/规模验收；服务恢复阶段使用 Chromium。CI 安装三个引擎并执行相同入口，失败时上传分阶段日志、测量 JSON 和截图。
 
-验收负载为每页 100 行、30 个数据列、100 个筛选候选字段；覆盖 1440px/390px、浅色/深色、键盘查询与选择、错误重试及反复卸载。刷新、行选择和字段面板的暖交互分别记录 10 个样本，p95 上限为 1000ms，包含自动化通信和绘制等待，不是业务网络延迟 SLA。更大规模需要消费方独立测量；当前不承诺虚拟滚动或任意数据量。
+验收负载为每页 100 行、30 个数据列、100 个筛选候选字段；覆盖 1440px/390px、浅色/深色、键盘查询与选择、错误重试及反复卸载。刷新、行选择和字段面板的暖交互分别记录 10 个样本，p95 上限为 1250ms，包含自动化通信和绘制等待，不是业务网络延迟 SLA。更大规模需要消费方独立测量；当前不承诺虚拟滚动或任意数据量。
 
 可访问性保留原始 axe 结果。WebKit 对 Base UI 隐藏焦点哨兵的命名告警按[上游已知行为](https://github.com/mui/base-ui/issues/5237)单独记录，并验证实际键盘进入、Tab 离开和 Escape 恢复；其他违规仍使验收失败。这不替代真实 VoiceOver/移动设备人工测试。
 
-## RecordView 数据视图
+## 记录与分析的共享生命周期
 
 ```tsx
 import type { ViewHost } from '@ahoo-wang/fetcher-view-engine';
-import { ViewPage } from '@ahoo-wang/fetcher-view-engine/react';
+import { useViewEngine, ViewPage } from '@ahoo-wang/fetcher-view-engine/react';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
 export function OrderPage({
@@ -76,94 +76,51 @@ export function OrderPage({
   host: ViewHost;
   scopeKey: string;
 }) {
-  return (
-    <ViewPage
-      scopeKey={scopeKey}
-      definitionId="orders"
-      host={host}
-      selectable
-    />
-  );
+  const binding = useViewEngine({ scopeKey, definitionId: 'orders', host });
+  return <ViewPage {...binding} selectable />;
 }
 ```
 
-`ViewHost` 是组合门面，接口按职责组织：`definition`（`ViewDefinitionService`）读取定义；`instance`（`ViewInstanceService`）负责实例列表、读取、创建、保存、改名与删除；`preference`（`ViewPreferenceService`）保存当前用户的排序偏好；`permission`（`ViewPermissionService`）提供权限快照、刷新与订阅。各服务可以独立注入，未提供的服务或方法会禁用对应能力。`resolveSource` 保留为本地运行时的数据源桥接。
+`useViewEngine(options)` 负责创建、加载和释放，包括 React StrictMode。必填的 `scopeKey` 与 `definitionId` 标识生命周期，任一变化都会替换引擎。可选的本地 `definition`/`instances`、`extensions` 中成对的编译器/编辑器注册、`limits`、`onDiagnostic` 用于初始化该生命周期。同范围的 host 更新保留编辑；其他初始化输入需要重新建立时，显式改变 React key。返回的 `ViewEngineBinding` 为 `{ engine: ViewEngine | null, extensions?, error? }`。
 
-```ts
-const host: ViewHost = {
-  definition: definitionService,
-  instance: instanceService,
-  preference: preferenceService,
-  permission: permissionService,
-  resolveSource: id => businessSources[id],
-};
-```
+`ViewPage` 是纯 UI，接收 binding 或调用方持有的 engine，不会自行加载或释放引擎。`ViewPageContent` 要求非 null engine。两者组合导航、共享写入和选中的 `RecordView` 或 `AnalysisView`；后两者只渲染各自类型。无界面调用方创建 `new ViewEngine({ definitionId, host, definition?, instances?, filterCompilers?, analysisCompilers?, limits?, onDiagnostic? })`，调用 `load()`，范围结束时调用 `dispose()`。
 
-服务契约位于独立的 `src/record/ViewHost.ts`。`MemoryViewHost` 实现相同职责边界，存储操作共用事务以保持完整性；HTTP 保留为包外的开发实验。只替换某个方法时显式合并该服务，例如 `instance: {...host.instance, save: customSave}`。
+### 定义与已保存实例
 
-实例列表必须提供 `defaultInstanceId: null` 或列表中已有的实例 ID；可选 `revision` 一旦提供就必须是非空白字符串。无效响应在加载边界失败。
+`ViewDefinition` 包含 `id`、`title`、`sourceId`、共享 `fields`，以及可选的 `timeZone`、`allowedOperators`、`filterEditors`。至少声明一种能力：
 
-`ViewHost` 加载定义及完整实例列表、解析已配置的 Wow 查询客户端、提供权限，并按需实现保存与创建接口。本地数据可直接传入 `definition` 与 `instances: {instances, defaultInstanceId}`。必填 `scopeKey` 标识用户、租户与访问范围，范围变化时更换此值；引擎按 `[scopeKey, definitionId]` 管理生命周期。同一作用域下替换宿主对象会更新回调与能力，保留草稿。本地定义和列表作为该生命周期的初始值，引用变化不触发重载；需要重新初始化时显式改变 React key。宿主自行管理引擎时，使用 `ViewPageContent` 或 `RecordView`。
+- `record: { rowKey, allowedLayouts, defaultPresentation?, recordActions? }`。`RecordViewDefinition` 将该能力标记为必需；rowKey 是自有属性路径，allowedLayouts 是非空且不重复的 table/card 列表。
+- `analysis: AnalysisCapability` 授权 COUNT、字段分组、数值函数、时间粒度和上限。仅聚合的数据源不需要记录主键或分页方法。
 
-每次 `engine.load()` 都会与元数据并行初始化权限：优先等待 `permission.load(definitionId, signal)`，未提供时等待 `permission.refresh(signal)`。权限服务负责维护快照，并须在完成前准备好同步 getter。初始化失败时不进入 ready、不查询记录；通过 `load()` 重试，释放或重新加载会取消初始化信号。只有同步 getter 的服务无需初始化。同作用域 `updateHost` 接收已准备好的权限投影；后续异步变化通过 `permission.subscribe` 通知。
+`ViewInstance` 是 `RecordViewInstance | AnalysisViewInstance` 判别联合。两者都要求非空 `id`、`definitionId`、`title`、`revision` 和 `scope`。`kind: 'record'` 使用 `RecordViewConfig`（filters、sort、pagination、presentation）；`kind: 'analysis'` 使用下文的 `AnalysisViewConfig`。scope 支持个人或公共/系统/共享分类，不代表权限。创建输入只省略 ID 和 revision，由服务回执返回。
 
-`RecordQuerySource` 可以只提供 `paged`、只提供 `cursor` 或同时提供两者；`aggregate` 仍为可选能力。保存的分页模式不受支持时，在发出记录及汇总请求前明确报错，页码分页适配器无需编写会抛错的游标方法。
+`ViewInstanceList` 包含可见实例与 `defaultInstanceId: string | null`，可以混合两类视图。默认偏好与当前选中项独立。结构可读取但当前不可执行的配置仍保留编辑入口，通过 `session.validation` 报错；单个失效实例不会阻断健康实例。
 
-引擎订阅回调异常通过 `console.error` 报告，不中断写入和其他订阅者。筛选编译只在草稿、已应用条件或有效性变化时重新执行；行选择、查询状态、汇总和仅改标题不触发重新编译。五类扩展均只读取注册表自身明确注册的属性。持久化组件名称代表稳定的属性与编译语义；不兼容变化应使用新名称（例如 `order-status/v2`），旧配置仍存在时保留旧注册。未知注册继续阻止相关能力运行，当前不引入自动迁移框架。
+### 工作配置、已应用结果与保存
 
-实例保存 `config.filters: {mode, root}`。每个组件保存稳定配置 ID、`{name, options?}` 引用、操作符、字段绑定、原始 JSON `props` 和子组件。编译结果只在运行时的 `session.appliedFilter` 中；null 表示尚未编译成功，阻止记录及汇总查询。恢复直接读取组件配置，不从查询表达式反推 UI。对象属性中的 undefined 保存时省略；null、false、零和空字符串保留，拒绝非 JSON 值。
+快照不可变。`ViewEngineState.version` 随发布递增，会话 `editVersion` 标识工作编辑版本。`RecordSession.queryAttempt` 捕获在途查询，`RecordSession.result` 将成功行绑定到当时的 config/filter/page/cursor 和 receivedAt；`AnalysisSession.pendingQuery` 捕获在途计划。展示来源和业务动作必须使用对应结果/请求快照，不能从工作编辑推断。`ViewSession` 按 kind 区分；访问记录或分析专属字段前先收窄类型。共享字段包括 baseline、当前工作 instance、dirty、validation、writeStatus、writeError、requiresReload，以及可选 conflict。
 
-`setFilterDraft(configuration, id?, valid?)` 通过已注册的纯函数编译。有效修改若未改变已应用查询，会立即更新接受的配置与编辑基线，无需请求即可保存，例如新增未设置控件或修改显示名称。查询值改变或输入无效时产生 `filterPending`，需先查询接受草稿或撤销修改，才能保存。同步状态下 `setFilterMode` 保存支持的模式变化；`dirty` 比较接受的配置与已存 JSON。`sameFilterQuery` 忽略对象键顺序和仅含一个条件的冗余 AND/OR 包装，其余表达式变化仍需查询。
+记录会话保留 filterDraft、filterBaseline、appliedFilter、filterPending、页码/游标、行、汇总与选择。编辑工作筛选不会改变已应用查询或记录。filterPending 表示工作筛选与已应用范围不同，本身不阻止保存。分析会话独立保留成功 result 及查询/schema 来源；后续编辑或执行失败不会把旧行标记为新结果。
 
-程序调用先 `setFilterDraft(configuration)`，再 `applyFilter(id?)`。编辑和已接受筛选快照均使用含模式的 `FilterConfiguration`。局部输入无效时拒绝执行，保留草稿和已应用查询；`setFilterValidity(true)` 也不能使已改变或未编译的查询变得可保存。
+`save(id?)` 校验并保存当前工作内容，不执行查询。无效原始输入阻止保存；有效但未查询的编辑可以保存。回执推进保存基线，同时保留提交后的编辑。`saveAs({ title, scope }, id?)` 返回 `Promise<string | undefined>`：身份已知时返回创建 ID，创建核对可以跨越原选中实例。运行时行、选择、错误和倒计时不会作为配置保存。
 
-核心快照中的定义、实例、草稿和记录采用 `DeepReadonly`。可直接读取，也可将快照传回 `setFilterDraft`、`setSort` 和 `setColumns`，引擎会复制接受的输入。修改时构造新对象；传给宿主查询和写入接口的参数仍是独立、可编辑的数据对象。
+### 命令与结果归属
 
-表格采用 shadcn Table + TanStack Table，支持服务端排序、分页与只向前的游标查询。仅在表头列边缘拖动调整宽度，并保留键盘方向键作为无障碍替代；列设置通过拖动手柄调整同一区域内的顺序，也可聚焦手柄后按上、下方向键移动，同时支持显示/隐藏。松手后写入顺序，取消拖动保持原配置。调整列展示不查询，筛选点击“查询”才生效。页面按实例保留草稿，当前实例不再单独显示“已编辑”标签，由保存按钮表达可保存状态，有待查询筛选时仍阻止保存。另存为支持个人和公共共享实例，实际权限与持久化由宿主负责。
+`engine.analysis(id)` 将 `edit(updater)`、`run()`、`refresh()`、`clearSort()`、`setFilterValidity(valid)`、`restore()` 绑定到指定分析实例。edit/clearSort/restore 不查询；run 编译并校验完整结果后才发布。`engine.record(id)` 绑定 `edit(updater)`、`refresh()`、`setPage(page)`、`setPageSize(size)`、`applyFilter()`、`restore()`。实例生命周期被替换后，旧命令失效。编辑回调必须纯净，不得重入引擎命令。
 
-紧凑工作台将标题与全局工具栏合并：按标题、当前实例、保存组合按钮排列，菜单提供另存为与还原，创建等全局操作置于右侧。没有原实例保存权限时，主按钮改为另存为。筛选组合按钮同时提供展开/收起和简单/高级模式选择，省去独立标题行；添加筛选在左，撤销、清空与查询在右。
+`engine.analysis(id).refresh()` 请求安全的自动刷新：仅当当前查询仍与成功结果一致、编辑输入有效、写入空闲且没有冲突或待重载状态时执行；不满足条件则跳过，不提交草稿。`run()` 仍用于显式执行或重试。`AnalysisSession.queryValid` 统一由查询编译、编辑有效性和资源限制推导；仅展示配置错误不会使查询失效，但仍阻止保存。
 
-独立记录工具栏左侧显示已选数量和取消选择，右侧依次为批量操作、列设置。取消选择不查询，也不清空筛选草稿。待查询提示在展开时位于查询附近，收起时位于筛选按钮；当前标题与侧栏不再重复，其他实例仍保留待查询标记。记录统计和分页统一放在底部。筛选区默认展开，收起时编辑器持续挂载，保留草稿与勾选。收起状态不保存到实例，也不触发查询；窄容器内控件自动换行。
+两类会话都暴露 `editorEpoch`。采纳已审阅的远端版本会推进该代次并丢弃本地编辑器缓冲；普通重载和还原保留已约定的非破坏性输入行为。自定义已挂载编辑器应在 `(instance.id, editorEpoch)` 变化时重新绑定命令并重置本地缓冲，内置视图已处理。旧有效性回调在重置后被忽略，旧分析编辑和记录草稿编辑会被拒绝，不能覆盖刚采纳的远端配置。已发布的普通会话和待核对另存会话走同一最终校验路径。记录准入始终检查分页/布局判别字段及嵌套展示结构；失效字段或能力引用仍作为可恢复的语义错误处理。取消分析刷新时保留已有结果的成功状态，后续自动刷新可以继续。
 
-未固定、没有枚举选项且未显式设置 `width` 的 string 列均分剩余宽度，从默认 180px 增长到最多 480px；显式列宽、固定列与其他类型保持配置或默认尺寸。窄容器内横向滚动。拖动自动列会保存实际新宽度；列设置不提供宽度输入，定义可省略 width 启用自动适配。容器大小变化不修改实例、不查询。无法分配的空间放在右固定区域之前，操作保持右边缘。数值表头与单元格默认右对齐，使用等宽数字；自定义渲染器可覆盖自身对齐。响应式工作台 Storybook 示例每页展示 15 条记录。
+记录操作统一通过 `engine.record(id)`：`setFilterDraft(configuration, valid?)`、`setFilterValidity(valid)`、`setFilterMode(mode)`、`applyFilter()`、`setSort(sort)`、`setColumns(columns)`、`setLayout(layout)`、`setCardConfig(card)`、`setPage(index)`、`setPageSize(size)`、`nextPage()`、`setSelection(keys)`、`refresh({ background? }?)`、`retryQuery()`、`refreshSummary()`。门面不再提供直接记录命令。共享操作为 setTitle、save、saveAs、restore、reloadInstance、renameInstance、deleteInstance、setDefaultInstance、reorderInstances。记录还原会恢复基线并查询；分析还原只恢复工作配置，不运行。
 
-视图列表分为“个人视图”和“公共视图”，系统视图显示“系统”标签。
-列表旁及视图切换下拉面板底部的**管理视图**统一提供行内改名、确认删除和组内拖动排序。
-名称默认显示为文本，点击编辑图标才显示输入框；保存或取消后恢复文本，Escape 取消当前名称编辑，保存失败保留输入以便重试。
-系统视图不能改名或删除，但可调整其个人展示顺序。改名由
-`host.instance.rename(id, title, revision?)` 执行，删除由 `instance.delete(id, revision?)`
-执行，宿主通过 `permission.getInstance` 的 `rename` / `delete` 授权。
-改名只保存名称，保留待查询筛选和未保存的列配置，不触发查询。
-`preference.saveOrder(definitionId, ids)` 保存当前用户的展示顺序，包括公共视图；不影响其他用户。
-写入成功后更新列表，失败保留编辑并可重试。save、rename、delete 或偏好排序进行中时，完整 `engine.load()` 会被拒绝；加载完成前不接受读取或编辑会话的命令，包括取消回调中重入的命令；快照仍可读取。另存为或核对成功后独立完成，后续记录读取失败仅保留在 `queryError` 中。原保存菜单移除独立删除入口，保留另存为和还原。
+### 冲突、未知写入与运行上限
 
-save、rename 或 delete 发出后，`UNKNOWN_OUTCOME`、`UNAVAILABLE` 或未分类异常会阻止该实例的其他写入并保留本地编辑。保存和改名需要重载成功核对版本；实例不存在或不可访问时保留核对错误与编辑。不确定的创建可通过原请求 ID 重试；不确定的删除可按同一 ID/revision 幂等重试。界面订阅 `getCapabilitiesSnapshot().instances[id].retryDelete` 判断此例外。宿主应使用明确的 `ViewServiceError` 代码报告确定拒绝。
-无 React 时可调用 `renameInstance(title, id?)`、`deleteInstance(id?)`、
-`canReorderInstances()` 和 `reorderInstances(ids)`。
+真实分歧在 session.conflict 中保留旧基线、本地编辑及最新远端文档。普通保存不能把旧内容静默附加到新 revision。页面提供使用最新版本、另存配置，以及有权限时覆盖。`useRemoteInstance(review, id?)` 与 `overwriteInstance(review, id?)` 要求确切的已审阅冲突快照；后续本地编辑或远端版本变化使旧确认失效。覆盖仍使用审阅过的远端 revision 做 CAS，远端元数据和当前权限始终有效。
 
-主键列（字段绑定 `definition.rowKey`）始终固定在左侧最前面，操作列始终固定在右侧最后面，实例配置和列设置都不能改变这两类列的固定方向。列设置使用图钉按钮切换固定状态，不提供左/右下拉框：未固定列仅在上下恰有一个相邻设置项已固定时可点击，继承其固定方向；上下均未固定或均已固定时不可固定，已固定的普通列仍可取消固定；主键和操作列显示已固定且禁用的图钉。宿主契约仍接受 `pinned: 'left' | 'right' | false`，已有固定方向在用户修改前保持有效，调整随实例保存；同一区域内可拖动排序，数值汇总选择与显隐、固定控件处于同一行。表头、数据行和汇总行保持对齐，隐藏与调宽同步更新偏移；选择列位于主键之前。调整固定位置和顺序不查询记录或汇总。
+未知写入结果单独处理：请求发出后的超时、网络错误或 UNKNOWN_OUTCOME 保留原操作，通过 reloadInstance 核对。未知创建重用原 requestId 与提交体，换新 requestId 可能产生重复。未知删除保留原身份与 revision。默认偏好、删除回执和跨标签页事务仍由宿主负责。内置内存/浏览器宿主是参考适配器，不是生产授权边界。
 
-`extensions.cells`、`globalActions`、`toolbarActions`、`rowActions` 与 `filters` 注册任意本地 React 组件，远程定义只保存名称与 JSON 参数。定义通过 `recordActions.global`、`.toolbar`、`.row` 指定创建、批量处理、查看记录等操作所在区域。已有全局注册保留原位置，批量组件需显式移到 `toolbarActions`。独立使用 `RecordTable` 时必须显式传入 `appliedFilter`。业务操作得到这一运行时查询范围（编译成功前 `filter` 为 null）、稳定记录主键与绑定当前实例的刷新回调。勾选仅表示明确选择的当前页记录。定义、实例和记录必须是 JSON 数据；主键必须为唯一字符串或有限数字，不回退到数组下标。核心入口仍不加载 React。
-
-扩展输入采用导出的 `DeepReadonly<T>` 递归只读快照。把需要编辑的字段复制到组件自己的表单状态，再通过宿主命令或引擎方法提交。尚未查询的筛选编辑不会触发记录单元格边界的重渲染。
-
-字段定义和列的 `field` 使用相对于返回记录的完整点路径，例如 `customer.name`、`state.amount`、`items.0.name`。默认、内置和自定义单元格共用取值函数，渲染器直接接收解析后的 `value`。只读取自有属性；缺失或中间值为空时返回 undefined，默认显示“—”，保留零和 false。不解析方括号或通配符，也不自动展开对象生成列。
-
-全局和批量操作组件渲染失败后，选择、查询状态等实际输入发生变化时会重新尝试渲染；无关的筛选草稿编辑不会反复触发失败组件。
-
-Storybook 的 **View Engine → 专项场景 → 数据展示** 使用内存服务演示完整请求与回包。详见[宿主与扩展契约](../../skills/fetcher-view-engine/references/api.md#record-views-and-host-contract)。
-
-另存为的“可见范围”使用 Radio：个人视图仅自己可见，公共视图对有访问权限的用户可见。两项均直接展示说明；无创建权限的范围禁用，默认选中有权限的范围。
-
-当固定区域让业务字段不足 128px 时，表格临时采用紧凑布局：主键缩窄并通过 Tooltip 显示完整值，操作列使用 64px 图标弹层，普通固定列暂随中间区域滚动。容器恢复后还原原列宽与固定偏好，不写入实例；紧凑模式的主键/操作列自动定宽，在常规布局中可拖动调宽。极窄容器或固定锚点过多时明确提示空间不足。
-
-查询失败在记录区展示图标、原因与重试，不使用空结果图标，不显示零条记录或分页。后台失败保留原记录，并标明上次查询结果。
-
-已应用筛选在编辑区下方、记录工具栏上方展示为 shadcn Badge 标签，收起编辑区后仍可见；顶层 AND 条件分别展示，OR/NOR 与元素条件保留完整分组。点击标签的 × 按注册的清空语义将值设为“未设置”并立即查询，保留字段、操作符、分组与编辑器 ID；无需值的操作及未提供清空语义的自定义组件不提供清空按钮。查询中或有待查询修改时禁用清空，先查询或撤销修改后可继续操作。单行筛选输入框支持回车查询；中文输入法确认、下拉选择、多行输入和弹层交互保留原有键盘行为。标签保留精确阈值，长条件自动换行，无条件时显示“全部记录”。待查询草稿不会替换标签；顶部筛选按钮仅保留展开/收起与模式，不再显示摘要 Tooltip。
-
-记录错误区域的“重试查询”调用 `engine.retryQuery(id?)`，保留当前页码与游标；显式 `refresh()` 仍使游标分页回到第一页。
-
-自动刷新暂停时提供原因和恢复条件。普通保存成功后短暂显示“已保存”及无障碍播报。
+limits 默认：加载 15,000 ms，查询/写入 30,000 ms，4 个并发查询，5 份保留结果集，配置 262,144 字节。结果回收不会清除工作草稿或恢复状态。晚到读取不能覆盖新请求或不同结果范围；取消不作为用户查询失败。可选 onDiagnostic 只接收操作身份、类型、阶段、耗时及可选错误码，不携带查询/行内容，回调异常被隔离。部署时仍需核验宿主/后端契约和浏览器流程，具备这些 API 不代表生产验收完成。
 
 ## 视图服务契约与运行时边界
 
@@ -183,7 +140,7 @@ const host = new IndexedDBViewHost({
 });
 ```
 
-`serviceKey` 标识服务／租户，`scopeKey` 标识其中的可信用户。存储键为 `fve:views:${JSON.stringify([serviceKey, definition.id])}`。公共视图在同一服务内共享，个人视图与展示顺序按用户隔离；归属由服务决定，不能通过写入正文伪造。ViewPage 的 scopeKey 应包含租户与用户；不传本地 definition/instances，让加载完整经过宿主。
+`serviceKey` 标识服务／租户，`scopeKey` 标识其中的可信用户。存储键为 `fve:views:${JSON.stringify([serviceKey, definition.id])}`。公共视图在同一服务内共享，个人视图与展示顺序按用户隔离；归属由服务决定，不能通过写入正文伪造。useViewEngine 的 scopeKey 应包含租户与用户；不传本地 definition/instances，让加载完整经过宿主。
 
 `IndexedDBViewHost` 将读取、授权、版本检查和写入放在同一个 IndexedDB 读写事务中提交。`MemoryViewHost` 使用原生 Map 保存进程内服务状态，需共享时显式传入同一个 Map；两个宿主只共享业务规则，浏览器持久化全部使用 IndexedDB。初始实例在初始化时取得服务端版本。系统视图只读。可选 `instancePermissions`、`canReorder`、`permissionsRevision` 提供可信权限策略，权限变化时必须递增策略版本；写入在事务内重新检查最新权限。
 
@@ -238,7 +195,7 @@ HTTP 脚本启动隔离的本地服务，以相同的 MemoryViewHost 逻辑、�
 计算。暂停时显示“已暂停”，请求期间显示“刷新中”；恢复、切换周期或刷新完成后
 重新开始完整周期。倒计时不会每秒触发读屏播报。
 
-无 React 时可调用 `engine.refresh(id, {background: true})`，通过
+无 React 时可调用 `engine.record(id).refresh({background: true})`，通过
 `session.refreshing` 观察后台读取状态。引擎负责查询、选择和写入保护，
 React 控件额外管理定时器、页面可见性与编辑焦点。
 
@@ -280,13 +237,13 @@ export function OrderFilters({
 }
 ```
 
-简单模式在根级和每个 ELEMENT_MATCH 元素作用域内隐含 AND，支持嵌套数组；高级模式结构化编辑全部 50 种 Wow 操作以及 AND / OR / NOR / ELEMENT_MATCH。编辑、清空、撤销、模式切换都不请求服务；点击查询后通过 `onApply` 提交合法条件。宿主接收 `{configuration, expression}` 并管理请求，通过 `querying` / `queryError` 传回状态。`onPendingChange` 用于保存视图前的待查询保护。
+简单模式在根级和每个 ELEMENT_MATCH 元素作用域内隐含 AND，支持嵌套数组；高级模式结构化编辑全部 50 种 Wow 操作以及 AND / OR / NOR / ELEMENT_MATCH。编辑、清空、撤销、模式切换都不请求服务；点击查询后通过 `onApply` 提交合法条件。宿主接收 `{configuration, expression}` 并管理请求，通过 `querying` / `queryError` 传回状态。`onPendingChange` 用于提示尚未应用的查询编辑；保存由配置有效性校验保护。
 
 简单模式中每个作用域内的字段只保留一项，未设置值也占用该字段。元素条件显示“同一元素满足”和子筛选项，不显示逻辑组合选择器；空元素作用域可继续编辑，但添加子条件前不能查询。高级模式的 AND、OR、NOR 均允许同一字段多条规则，元素作用域内同样适用；编译与实例保存接受合法的重复字段条件。包含重复字段的草稿保持高级模式，删除多余条件且各作用域符合简单模式结构后才允许切回简单模式。
 
 点击“添加筛选”打开锚定按钮的 Popover，按组展示 Checkbox，打开和关闭不改变表格、查询按钮的位置。浮层限制高度，字段区内部滚动；添加后保持打开，支持连续添加。“完成”或 Esc 关闭并返回触发按钮焦点，点击外部也可关闭。字段定义可通过 `group` 指定分组，按定义中的首次出现顺序展示。与有分组字段混用时，未分组字段显示在“其他字段”下；复选框与当前分组的草稿同步：勾选添加条件，取消勾选移除该字段的直接条件，未设置值仍显示为已勾选。高级模式在已选字段旁显示条件数量和“追加条件”加号，AND、OR、NOR 统一支持追加；高级模式在“添加筛选”旁提供图标下拉按钮，独立选择 AND/OR/NOR 并添加到当前分组，这三项不进入字段面板；未获定义允许的操作禁用。根级操作仍保留添加按钮。所有变更仍在点击“查询”后统一生效。
 
-完全未设置的值保留控件但不产生谓词；部分填写、无效数据和未注册扩展阻止查询。所有字段在添加时绑定，保留所属分组及作用域。`extensions.filters` 提供本地自定义编辑器；`value` / `onChange` 可将配置交由宿主按实例保留；`defaultValue` 则让面板本地管理，两者互斥。`appliedValue` 提供已接受配置基线。各快照共用组件树，模式位于 configuration.mode。自定义组件通过 `onChange(props)` 发布可序列化属性；选中 ID、显示名称等需要保存的 UI 状态放在 props，仅未提交的临时缓冲保留在 React 局部状态中。
+完全未设置的值保留控件但不产生谓词；部分填写、无效数据和未注册扩展阻止查询。所有字段在添加时绑定，保留所属分组及作用域。`extensions.filters` 提供本地自定义编辑器；`value` / `onChange` 可将配置交由宿主按实例保留；`defaultValue` 则让面板本地管理，两者互斥。`appliedValue` 提供已接受配置基线。各快照共用组件树，模式位于 configuration.mode。自定义组件通过 `onChange(props)` 发布可序列化属性；选中 ID、显示名称等需要保存的 UI 状态放在 props，需要跨卸载恢复的原始缓冲同样放在组件 props 中。
 
 简单模式没有条件操作菜单或前后排序。高级模式支持新增、删除和编辑分组，不提供条件或分组的移动功能；内置标量筛选项移除“清空”和“特殊值”按钮；删除输入内容可保留未设置值，空值和空字符串使用对应操作符。编辑已有日期时间会保留夏令时重复小时的原偏移，跨季节日期仍使用目标日期的实际偏移。没有适用的偏移提示时，重复时刻统一选择较早的一次，不受系统时区影响；跳时期间不存在的本地时间仍判为无效。
 
@@ -410,23 +367,26 @@ const dateEditor = { name: 'datetime-range' };
 const dateTimeEditor = { name: 'datetime-range', options: { showTime: true } };
 ```
 
-远程候选通过 `extensions.optionSources` 注入，不加入 ViewHost。数据源对象在会话内应保持稳定，范围变化时替换对象。ViewPage 使用 `scopeKey` 隔离访问范围，独立 FilterPanel 在用户/租户变化时使用 React `key` 重挂载。
+远程候选通过 `extensions.optionSources` 注入，不加入 ViewHost。数据源对象在会话内应保持稳定，范围变化时替换对象。useViewEngine 使用 `scopeKey` 隔离访问范围，独立 FilterPanel 在用户/租户变化时使用 React `key` 重挂载。
 
 ```tsx
 import type { FilterOptionSource } from '@ahoo-wang/fetcher-view-engine';
-import { ViewPage } from '@ahoo-wang/fetcher-view-engine/react';
+import { useViewEngine, ViewPage } from '@ahoo-wang/fetcher-view-engine/react';
 
 // sources.users 提供 search(query, signal) 和 resolve(ids, signal)。
 // search 复用 Wow CursorPage，返回 { list, nextCursor }。
 // resolve 返回 { list, missing }，明确交代每一个请求 ID。
 const sources: Record<string, FilterOptionSource> = { users: userOptionSource };
 
-<ViewPage
-  definitionId="orders"
-  scopeKey="tenant:user:access"
-  host={host}
-  extensions={{ optionSources: sources }}
-/>;
+function RemoteOptionsPage() {
+  const binding = useViewEngine({
+    definitionId: 'orders',
+    scopeKey: 'tenant:user:access',
+    host,
+    extensions: { optionSources: sources },
+  });
+  return <ViewPage {...binding} />;
+}
 // 字段：editor: { name: 'remote-multi-select', options: { source: 'users', pageSize: 20, debounceMs: 300 } }
 ```
 
@@ -478,8 +438,115 @@ LinkCell 在 URL 解析后允许 HTTP(S)、mailto、tel 和相对地址，危险
 
 远程标签快照仅在该 ID 新增或重新选择时采用当前候选；后台回填或修改其他 ID 不覆盖其已保存名称。多值文本粘贴先按光标/选区替换再拆分。畸形区间端点报告校验错误，不会退化为未设置条件。
 
-记录视图支持表格与卡片布局，通过定义级 `defaultPresentation` 提供预设。使用 `resolveRecordPresentation` 构造展示配置，使用 `setLayout` / `setCardConfig` 编辑；切换回来保留原配置。参见[表格与卡片指南](https://fetcher.ahoo.me/zh/guides/view-engine/table-and-runtime)。
+记录视图支持表格与卡片布局，通过`record.defaultPresentation` 提供预设。使用 `resolveRecordPresentation` 构造展示配置，使用 `setLayout` / `setCardConfig` 编辑；切换回来保留原配置。参见[表格与卡片指南](https://fetcher.ahoo.me/zh/guides/view-engine/table-and-runtime)。
 
 使用 `renderCard(context)` 自定义卡片信息结构，网格、选择与分页仍由库管理。展示方式切换位于顶部全局工具栏，统一使用显示当前模式的下拉框。
 
-`ViewDefinition.allowedLayouts` 为必填的非空、不重复数组：`['table']`、`['card']` 或同时开启。仅允许一种布局时，顶部不显示切换入口；引擎和实例加载均拒绝未允许的活动布局。切换保留各模式配置。卡片使用右上角选择按钮（`aria-pressed`），不占独立行；自定义内容应避让该角标。顶部通用操作使用图标及提示，菜单保留文字。
+`ViewDefinition.record.allowedLayouts` 为必填的非空、不重复数组：`['table']`、`['card']` 或同时开启。仅允许一种布局时，顶部不显示切换入口；引擎和实例加载均拒绝未允许的活动布局。切换保留各模式配置。卡片使用右上角选择按钮（`aria-pressed`），不占独立行；自定义内容应避让该角标。顶部通用操作使用图标及提示，菜单保留文字。
+
+## 纯分析编译
+
+核心入口导出 `compileAnalysis(config, context)`、`validateAnalysisResult(rows, plan)`、`analysisRowKey(row, dimensions)` 及分析模型类型。这些函数不渲染 React，也不发请求。下面的示例编译 COUNT + SUM 并校验给定回包，不依赖分析页面或引擎集成。
+
+```ts
+import { AggregationFunction, FilterOperator } from '@ahoo-wang/fetcher-wow';
+import {
+  compileAnalysis,
+  createFilterConfiguration,
+  newFilterNode,
+  validateAnalysisResult,
+  type AnalysisCompileContext,
+  type AnalysisViewConfig,
+} from '@ahoo-wang/fetcher-view-engine';
+
+const context: AnalysisCompileContext = {
+  fields: [{ field: 'amount', label: 'Amount', type: 'number' }],
+  capability: {
+    count: true,
+    fields: [
+      { field: 'amount', groups: [], functions: [AggregationFunction.SUM] },
+    ],
+  },
+};
+const config: AnalysisViewConfig = {
+  filters: createFilterConfiguration(newFilterNode(FilterOperator.MATCH_ALL)),
+  dimensions: [],
+  metrics: [
+    {
+      id: 'count',
+      component: { name: 'count' },
+      alias: 'orders',
+      title: 'Orders',
+      props: {},
+    },
+    {
+      id: 'sum',
+      component: { name: 'numeric' },
+      field: 'amount',
+      alias: 'revenue',
+      title: 'Revenue',
+      props: { function: AggregationFunction.SUM },
+    },
+  ],
+  sort: [],
+  limit: 100,
+  presentation: {
+    layout: 'table',
+    columns: [{ alias: 'orders' }, { alias: 'revenue' }],
+  },
+};
+const compiled = compileAnalysis(config, context);
+if (!compiled.plan)
+  throw new Error(compiled.errors.map(error => error.message).join('; '));
+const result = validateAnalysisResult(
+  [{ orders: 2, revenue: 125 }],
+  compiled.plan,
+);
+if (!result.rows)
+  throw new Error(result.errors.map(error => error.message).join('; '));
+console.log(compiled.plan.query, result.rows);
+```
+
+`AnalysisViewConfig` 保存 `filters`、`dimensions`、`metrics`、基于 alias 的 `sort`、`limit` 和表格 `presentation.columns`。每个组件都有稳定的 `id`、可持久化的 `component` 引用、可选 `field`、输出 `alias`、展示 `title` 和原始 JSON `props`。不完整文本可以保留在配置中，但编译会返回错误，不产生可执行计划。
+
+`AnalysisCompileContext` 提供筛选 `fields`、明确的 `capability`，以及可选 `timeZone`、`allowedOperators`、`filterCompilers` 和自定义分析 `compilers`。能力分别授权 COUNT、字段分组、数值函数和时间粒度。内置组件为 `terms`、`histogram`（`props.interval`）、`date-histogram`（`props.unit`）、`count`、`numeric`（`props.function`）和 `any`（已授权标量字段的代表值）。日期分组必须明确时区。自定义 `AnalysisCompiler` 注册必须声明非空且不重复的 `roles`（`['dimension']`、`['metric']` 或两者）。`AnalysisComponentCompileContext` 在 `AnalysisCompileContext` 上增加实际的只读 `role`，供自定义编译器和编辑器分支处理。不支持的角色会在调用编译器前被拒绝。`compile` 返回单个分组或指标，核心校验其字段、alias 和能力后才接受。引擎与 React 适配器在每个生命周期内复制并冻结角色元数据。
+
+`compileAnalysis` 返回 `{ plan?, errors }`；成功的 `AnalysisPlan` 包含 Wow `query`、匹配的 `schema` 和可选 `timeZone`。排序中未指定的分组 alias 会追加为升序，确保顺序稳定。默认上限为 32 个分组、64 个指标、32 个有效排序项和 10,000 行，能力限制可以进一步收紧。至少需要一个指标。不分组的分析不支持排序，结果最多一行。
+
+`validateAnalysisResult` 返回 `{ rows?, errors }`，遇到缺失 alias、类型无效、超量行或重复的带类型维度组合时拒绝整批结果。alias 按字面自有键读取，只保留 schema 中的列；仅可空列接受 null，COUNT 必须是非负安全整数，日期分桶值为 epoch 毫秒。对已校验行调用 `analysisRowKey(row, plan.schema.filter(column => column.role === 'dimension'))`，可获得带类型的维度身份。
+
+### 多值文本缓冲
+
+`FilterTextValues` 接收 `value?: readonly string[]`、可选受控 `rawText?: string`、报告原始键入的 `onRawTextChange?(text)` 和 `onValueChange(values, rawText)`。未提供 rawText 时由组件保存本地输入缓冲。回车或粘贴确认时，通过一次回调返回新值集合和空缓冲；移除标签时返回剩余值及当前缓冲。受控调用方应在该回调中同时更新 values 和 rawText。输入法确认不会提交值或发起查询。
+
+注册的 `text-values` 编辑器将每次原始编辑保存到 `props.rawText`，未确认输入可跨实例切换恢复。去除首尾空白后非空的 rawText 阻止纯编译，非字符串 rawText 无效。确认会移除 rawText 并保留已确认值；清空同时移除 values 和 rawText。仅空白输入不产生未确认值。独立控件仍可使用可选 `onValidityChange(valid, message?)`，注册组件的有效性由编译结果决定。
+
+`AnalysisPlan.schema` 保留查询输出顺序与语义元数据。`projectAnalysis(plan, rows, presentation).plan` 才按 `presentation.columns` 中的 alias 顺序与可选正数 CSS 像素宽度排列，再追加未指定输出，不隐藏列。查询编译不依赖展示兼容性。`analysisRowKey` 按 alias 规范化维度顺序，展示重排不改变行身份。histogram 的 `props.interval` 接受完整正数文本，并保留原始编辑字符串，编译后 interval 为数值。
+
+## TypeScript 消费边界
+
+已验证 TypeScript 6.0.3 的 ESNext + Bundler 和 NodeNext 两种模式，均使用 strict 与 `skipLibCheck: false`。打包后的公开入口仍能拒绝无效聚合指标和缺失引擎 scope 的错误输入。Wow／React 依赖链中的相对模块引用已使用明确的 `.js` 路径，目录导出使用 `/index.js`。
+
+## 分析图表与 Wow API 接入
+
+`AnalysisPresentation.layout` 支持 `table`、`metric`、`bar`、`line`、`area` 和 `pie`。柱状图可设置 `orientation: 'horizontal'`；`donut: true` 使用环形。`x`、`series` 和 `metrics` 引用输出 alias。同一份已校验结果可以切换展示方式而不重新查询。保存只持久化配置，**运行分析**才刷新数据；查询草稿改变时，旧结果保留自己的执行口径和展示配置。
+
+切换到数据表时保留图表轴、系列、指标选择和显示偏好，切回后恢复。删除输出会清理对应展示引用；最后一个被选指标被删除时恢复默认指标，用户主动清空的选择仍保留为可编辑状态。重新选择有效指标也会移除失效别名。柱状图与面积图将正负 SUM 值分别堆叠在零轴两侧；null 或缺失组合提示不兼容，数据表仍可查看。 仅切换布局不会截断有效指标选择，也不会替换用户主动清空的选择。多指标切换到饼图时保留选择并提示兼容性问题，直到用户明确选定一个支持的指标；直接切回原布局时保留原有选择。 可选默认值在渲染时解析，不反写进草稿，因此单纯往返切换不会把原本未修改的视图标记为待保存。
+
+`projectAnalysis` 是不涉及网络或持久化的纯投影，保留带类型的分组身份和 null，不再次平均 AVG，不虚构零值时间桶。图形最多展示 500 个已返回分组和 12 个系列。单位不兼容、存在未表达的额外维度、数值 ANY 或不支持的图形组合时，解释原因并显示表格。饼图和堆叠要求可加的 COUNT/SUM 指标；含 null 的堆叠和全零饼图也会回退。数据表分页只切换已经返回的行。
+
+`AnalysisView` 按需加载 shadcn Chart/Recharts。查询配置统一使用右侧可访问 Sheet；左侧可视化配置独立折叠。结果始终显示执行时的根/元素筛选、时区和返回上限。日期坐标轴使用紧凑标签，tooltip 和数据表保留完整值。`formatAnalysisValue(value, column, timeZone)` 支持枚举标签和纯显示数字格式；`capability.fields[].numberFormat` 接收 Intl 数字选项与 `locale`，COUNT 保留准确整数显示。图表颜色使用局部 `--fve-chart-1` 至 `--fve-chart-5` token。
+
+`adaptWowAnalysisSchema(schema, { labels?, units? })` 将当前 Wow Schema 转为筛选字段与聚合能力，不暴露 masked、未知/联合类型、标量数组和不支持的时间编码。合法同类型 `enumValues` 转为保留原始类型的字段选项。已授权对象数组的 `ELEMENT_SCOPE` 路径形成预定义 `capability.scopes`；`config.scope` 选择统计对象并提供各层元素筛选。根筛选保持根字段语义，各层元素筛选和最终聚合字段相对于选定元素。
+
+启用 `capability.expressions` 后，数值指标可包含 FIELD/CONSTANT/BINARY `expression`，最多 8 层、256 个节点。ANY 仅作为表格中的标量代表值，不作为稳定分组/系列身份或数值图表指标。`AnalysisEditor` 接收筛选扩展、宿主上下文并报告合并后的元素筛选有效性；完整 `AnalysisView` 将根与元素编辑有效性合并，用于运行和保存。
+
+宿主数据源复用 `SnapshotQueryClient` / `EventStreamQueryClient` 与应用已有的鉴权 `Fetcher`。[补偿 dev 示例](examples/react/compensation/README.md) 提供 Schema 发现、真实只读查询、取消、本地视图持久化及显式启用的集成测试。根事件流 COUNT 统计批次，展开 `body` 范围后 COUNT 统计事件条目。Storybook **View Engine → 专项场景 → 分析图表** 提供离线场景，**补偿 API 分析** 在用户主动连接后才访问服务。
+
+可通过 `VIEW_ENGINE_BROWSER_CHANNEL=chrome pnpm verify:view-engine` 复现生产验收（或使用已安装的 Playwright 浏览器）。现有验证器构建并服务静态 Storybook，检查宿主与无障碍契约，然后在 100 字段/20 个过滤项/100 行下强制输入 P95 ≤300ms、缓存实例切换 P95 ≤350ms，并检查 10,000 行×21 列时的输入保留与取消。设置 `VIEW_ENGINE_ARTIFACTS` 可保留原始样本和环境信息；开发模式计时不作为生产验收。
+
+分析采用三块区域：右侧查询 Sheet、中间结果区、默认折叠的左侧可视化配置区。查询编辑器在关闭和调整尺寸时保持挂载；关闭保留草稿，不保存也不运行。先选择图表展示方式，再配置字段。未配置图表时默认显示数据表；已保存图表恢复原展示配置。底部“分析 / 数据表”模式始终保留，包括无图表或无结果时，切换不查询、不保存。图表不兼容时在分析模式说明原因，并提供明确的查看数据表操作。维度和指标保留摘要卡片、弹层编辑和键盘排序。
+
+分析配置在桌面/对话框切换及关闭时保留同一编辑子树，保存扩展本地草稿与有效性。`DialogContent.keepMounted` 默认 `false`，需要时可保留关闭后隐藏的内容。饼图/环形图常驻显示分组数值和已返回分组内占比；原始值不变，占比先归一化再求和，避免溢出。
+
+侧栏、实例选择器和管理视图统一使用图标区分分析视图与数据视图，并提供可访问的类型说明。图表与指标结果通过底部居中的“分析 / 数据表”标签切换；切换只影响本地展示，不发起查询或保存，数据表首次打开后保留当前页。图表配置不支持绘制时在分析模式显示原因，并提供“查看数据表”操作，不自动切换模式或覆盖图表配置。

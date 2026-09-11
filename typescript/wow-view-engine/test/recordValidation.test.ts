@@ -20,7 +20,7 @@ import { FilterOperator, SortDirection } from '@ahoo-wang/fetcher-wow';
 import type {
   ViewDefinition,
   ViewInstance,
-} from '../src/record/recordModel.js';
+} from '../src/contracts/viewModel.js';
 import {
   validateViewDefinition,
   validateViewInstance,
@@ -32,12 +32,12 @@ const definition: ViewDefinition = {
   id: 'orders',
   title: '订单',
   sourceId: 'orders',
-  allowedLayouts: ['table', 'card'],
-  rowKey: 'id',
+  record: { allowedLayouts: ['table', 'card'], rowKey: 'id' },
   fields: [{ field: 'amount', label: '金额', type: 'number', sortable: true }],
 };
 const instance: ViewInstance = {
   id: 'all',
+  revision: 'initial',
   definitionId: 'orders',
   title: '全部',
   kind: 'record',
@@ -141,13 +141,19 @@ describe('record boundaries', () => {
     expect(() =>
       validateViewDefinition({
         ...definition,
-        recordActions: { toolbar: { name: 'batch', options: { limit: 10 } } },
+        record: {
+          ...definition.record,
+          recordActions: { toolbar: { name: 'batch', options: { limit: 10 } } },
+        },
       }),
     ).not.toThrow();
     expect(() =>
       validateViewDefinition({
         ...definition,
-        recordActions: { toolbar: { name: '' } },
+        record: {
+          ...definition.record,
+          recordActions: { toolbar: { name: '' } },
+        },
       }),
     ).toThrow();
   });
@@ -340,7 +346,10 @@ it.each([{}, [1]])(
     expect(() =>
       validateViewDefinition({
         ...definition,
-        recordActions: { toolbar: { name: 'custom', options: { value } } },
+        record: {
+          ...definition.record,
+          recordActions: { toolbar: { name: 'custom', options: { value } } },
+        },
       }),
     ).toThrow();
     expect(getter).not.toHaveBeenCalled();

@@ -17,7 +17,7 @@ import source from '../docs/RecordViewExample.tsx?raw';
 
 const meta = {
   id: 'view-engine-扩展接入-最小接入',
-  title: 'View Engine/开发接入/最小接入',
+  title: 'View Engine/入门与业务流程/最小接入',
   component: RecordViewExample,
   parameters: {
     layout: 'fullscreen',

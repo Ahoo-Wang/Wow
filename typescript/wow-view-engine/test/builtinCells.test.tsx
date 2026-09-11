@@ -26,7 +26,7 @@ import { formatRecordValue } from '../src/record/recordValueFormat.js';
 import type {
   RendererReference,
   ViewFieldDefinition,
-} from '../src/record/recordModel.js';
+} from '../src/contracts/viewModel.js';
 import type { ViewExtensions } from '../src/record/recordReactTypes.js';
 import { definition, instance } from './fixtures/recordTable.js';
 

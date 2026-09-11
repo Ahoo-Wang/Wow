@@ -20,7 +20,7 @@ import type { Story } from './demoTypes.js';
 const meta = {
   ...displayMeta,
   id: 'view-engine-专项场景-本地操作宿主-回归',
-  title: 'View Engine/专项场景/视图与运行时/本地操作宿主/回归',
+  title: 'View Engine/引擎与宿主/本地操作宿主/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 

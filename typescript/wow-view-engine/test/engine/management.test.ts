@@ -15,8 +15,8 @@ import { createFilterConfiguration } from '../../src/filter/filterCore.js';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { expect, it, vi } from 'vitest';
 import { newFilterNode } from '../../src/filter/filterCore.js';
-import type { ViewInstance } from '../../src/record/recordModel.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+import type { ViewInstance } from '../../src/contracts/viewModel.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import {
   deferred,
   instance,
@@ -35,17 +35,21 @@ it('renames persisted metadata without saving draft filters, columns or newer ed
     } as unknown as ViewHost,
   });
   await engine.load();
-  engine.setColumns([
-    { id: 'amount', kind: 'field', field: 'state.amount', width: 240 },
-  ]);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setColumns([
+      { id: 'amount', kind: 'field', field: 'state.amount', width: 240 },
+    ]);
   const draft = newFilterNode(FilterOperator.GTE, 'state.amount');
-  engine.setFilterDraft(
+  engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
     createFilterConfiguration({
       ...draft,
       props: { ...draft.props, value: 50 },
     }),
   );
-  engine.setFilterValidity(false);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterValidity(false);
   const before = selected(engine);
   const renaming = engine.renameInstance('  New name  ');
   expect(renameInstance).toHaveBeenCalledWith('mine', 'New name', 'r1');

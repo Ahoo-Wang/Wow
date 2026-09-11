@@ -21,8 +21,9 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { ViewPage, ViewPageContent } from '../src/record/ViewPage.js';
-import { ViewEngine } from '../src/record/ViewEngine.js';
+import { ViewPage } from './fixtures/OwnedViewPage.js';
+import { ViewPageContent } from '../src/view/ViewPage.js';
+import { ViewEngine } from '../src/engine/ViewEngine.js';
 import { definition, instance, setup } from './fixtures/viewPage.js';
 
 afterEach(cleanup);

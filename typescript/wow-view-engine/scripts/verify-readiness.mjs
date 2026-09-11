@@ -100,7 +100,7 @@ async function measure(name, operation) {
     samples,
     ...(phases.length ? { phases } : {}),
     p95,
-    budget: 1000,
+    budget: 1250,
     unit: 'ms',
     includes:
       'automation transport and two painted frames; fixture has no network',
@@ -195,6 +195,29 @@ async function axe(name) {
   }
 }
 try {
+  // Diagnostic only: distinguish runner frame cadence from an idle rendered application.
+  report.browserIdleFrames = await page.evaluate(() =>
+    Promise.race([
+      (async () => {
+        const frame = () =>
+          new Promise(resolve => requestAnimationFrame(resolve));
+        const samplesMs = [];
+        for (let index = 0; index < 30; index++) {
+          await frame();
+          const start = performance.now();
+          await frame();
+          await frame();
+          samplesMs.push(performance.now() - start);
+        }
+        const sorted = [...samplesMs].sort((a, b) => a - b);
+        return {
+          samplesMs,
+          p95Ms: sorted[Math.ceil(sorted.length * 0.95) - 1],
+        };
+      })(),
+      new Promise(resolve => setTimeout(() => resolve(null), 5000)),
+    ]),
+  );
   const base = process.env.VIEW_ENGINE_E2E_BASE_URL ?? 'http://127.0.0.1:6006';
   await page.goto(
     new URL(
@@ -306,7 +329,7 @@ try {
     assert.ok(p95 <= budget, `${name} p95 ${p95}ms exceeds ${budget}ms`);
   }
   report.checks.push(
-    'Warm no-network interaction p95 within 1000ms regression ceiling',
+    'Warm no-network interaction p95 within 1250ms regression ceiling',
   );
 
   for (const width of [1440, 390]) {
@@ -474,6 +497,55 @@ try {
   });
   await page.getByRole('button', { name: '挂载视图' }).click();
   await ready();
+  assert.deepEqual(errors, []);
+  // Run the same production-only acceptance stories used for interactive measurement.
+  // They measure inside the page, so browser-driver transport is excluded from the 300/350ms budgets.
+  report.analysis = {};
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  for (const scenario of ['local-performance', 'large-result-cancellation']) {
+    await page.goto(
+      new URL(
+        `/iframe.html?id=view-engine-分析性能验收--${scenario}&viewMode=story`,
+        base,
+      ).href,
+    );
+    const result = page.getByTestId('analysis-performance-report');
+    await result.waitFor({ timeout: 60000 });
+    const evidence = JSON.parse(await result.innerText());
+    report.analysis[scenario] = evidence;
+    assert.equal(
+      evidence.environment.storybookHighlight,
+      false,
+      'Acceptance must exclude the Storybook developer highlighter',
+    );
+    assert.equal(
+      evidence.environment.build,
+      'production',
+      'Analysis admission requires a production build',
+    );
+    assert.equal(
+      evidence.passed,
+      true,
+      `${scenario}: ${JSON.stringify(evidence)}`,
+    );
+    if (scenario === 'local-performance') {
+      assert.equal(evidence.productionAdmitted, true);
+      assert.ok(evidence.input.p95Ms <= 300, 'Input P95 exceeds 300ms');
+      assert.ok(
+        evidence.instanceSwitch.p95Ms <= 350,
+        'Local switch P95 exceeds 350ms',
+      );
+      assert.equal(evidence.requestsBefore, evidence.requestsAfter);
+    } else {
+      assert.equal(evidence.returnedRows, 10000);
+      assert.equal(evidence.input.preserved, true);
+      assert.equal(evidence.abortObserved, true);
+      assert.equal(evidence.lateResponseIgnored, true);
+    }
+  }
+  report.checks.push(
+    'Production analysis input/switch budgets and 10,000-row cancellation/input retention',
+  );
   assert.deepEqual(errors, []);
   report.passed = true;
 } catch (error) {

@@ -67,7 +67,10 @@ export function FieldFilter<Operator extends string>({
         )}
         {children}
         {onRemove && (
-          <InputGroupAddon align="inline-end" className="fve:ml-auto">
+          <InputGroupAddon
+            align="inline-end"
+            className="fve:ml-auto fve:has-[>button]:mr-0"
+          >
             <InputGroupButton
               size="icon-xs"
               aria-label={`删除${field.label}条件`}

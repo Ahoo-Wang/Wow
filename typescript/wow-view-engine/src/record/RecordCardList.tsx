@@ -22,7 +22,7 @@ import { RecordRegion } from './RecordRegion.js';
 import { RecordRendererBoundary } from './RecordRendererBoundary.js';
 import { getRecordKey, readRecordValue } from './recordValidation.js';
 import { formatRecordValue } from './recordValueFormat.js';
-import type { RecordColumn } from './recordModel.js';
+import type { RecordColumn } from '../contracts/viewModel.js';
 import type { RecordCardListProps } from './recordReactTypes.js';
 
 function Cover({ value, alt }: { value: unknown; alt: string }) {
@@ -77,7 +77,9 @@ export function RecordCardList(props: RecordCardListProps) {
   if (presentation.layout !== 'card')
     throw new Error('RecordCardList 需要 card 布局');
   const { card } = presentation;
-  const keys = rows.map(record => getRecordKey(record, definition.rowKey));
+  const keys = rows.map(record =>
+    getRecordKey(record, definition.record.rowKey),
+  );
   const selected = keys.filter(key => selectedRowKeys.includes(key));
   return (
     <div

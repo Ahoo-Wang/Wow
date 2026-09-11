@@ -36,13 +36,13 @@ import {
 import type { FilterPanelToolbarProps } from '../../filter/filterReactTypes.js';
 import type {
   RecordSession,
-  ViewDefinition,
+  RecordViewDefinition,
   RecordPresentation,
-} from '../recordModel.js';
+} from '../../contracts/viewModel.js';
 import type { ViewExtensions } from '../recordReactTypes.js';
 import { RecordRefreshControls } from '../RecordRefreshControls.js';
-import type { ViewEngine } from '../ViewEngine.js';
-import type { useViewExpansion } from '../viewExpansion.js';
+import type { ViewEngine } from '../../engine/ViewEngine.js';
+import type { useViewExpansion } from '../../view/viewExpansion.js';
 import { RecordLayoutSwitch } from './RecordLayoutSwitch.js';
 import { RecordActions } from './RecordActions.js';
 
@@ -63,7 +63,7 @@ export function RecordGlobalToolbar({
   onLayoutChange,
 }: {
   engine: ViewEngine;
-  definition: ViewDefinition;
+  definition: RecordViewDefinition;
   session: RecordSession;
   extensions?: ViewExtensions;
   toolbarStart?: ReactNode;
@@ -95,7 +95,7 @@ export function RecordGlobalToolbar({
       </div>
       <div className="fve:ml-auto fve:flex fve:flex-wrap fve:items-center fve:gap-2">
         <RecordLayoutSwitch
-          allowedLayouts={definition.allowedLayouts}
+          allowedLayouts={definition.record.allowedLayouts}
           layout={session.instance.config.presentation.layout}
           onChange={onLayoutChange}
         />

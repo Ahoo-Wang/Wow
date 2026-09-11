@@ -66,7 +66,7 @@ export default defineConfig({
     },
     rolldownOptions: {
       external:
-        /^(react|react-dom|react-day-picker|@base-ui\/react|@ahoo-wang\/fetcher-wow|@ahoo-wang\/fetcher-react|@date-fns\/tz|@tanstack\/react-table|lucide-react|class-variance-authority|clsx|tailwind-merge)(\/|$)/,
+        /^(react|react-dom|react-day-picker|@base-ui\/react|@ahoo-wang\/fetcher-wow|@ahoo-wang\/fetcher-react|@date-fns\/tz|@tanstack\/react-table|lucide-react|class-variance-authority|clsx|tailwind-merge|recharts)(\/|$)/,
     },
   },
 });

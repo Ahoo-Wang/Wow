@@ -12,7 +12,7 @@
  */
 
 import { expect, it, vi } from 'vitest';
-import { ViewEngine } from '../src/record/ViewEngine.js';
+import { ViewEngine } from '../src/engine/ViewEngine.js';
 import { instance, setup } from './fixtures/viewPage.js';
 
 it('publishes immutable same-scope capabilities without losing sessions or querying', async () => {

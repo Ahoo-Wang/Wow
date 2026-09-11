@@ -11,14 +11,22 @@
  * limitations under the License.
  */
 
+import { ANALYSIS_LIMITS } from '../../analysis/analysisCapabilities.js';
+import { MAX_ANALYSIS_ELEMENTS } from '../../analysis/analysisModel.js';
+import { validateFilterJson } from '../../filter/filterConfigurationValidation.js';
 import { validateRecordPresentationDefaults } from './presentationValidation.js';
 import { encodeViewResourceId } from '../viewServiceContract.js';
 import { validateTimeZone } from '../../lib/timeZone.js';
-import { FilterOperator } from '@ahoo-wang/fetcher-wow';
+import {
+  FilterOperator,
+  AggregationGroupType,
+  AggregationFunction,
+  AggregationDateUnit,
+} from '@ahoo-wang/fetcher-wow';
 import {
   type ViewDefinition,
   type ViewFieldDefinition,
-} from '../recordModel.js';
+} from '../../contracts/viewModel.js';
 import { RECORD_SUMMARY_LABELS } from '../recordPresentation.js';
 import { formatRecordNumber } from '../recordValueFormat.js';
 import {
@@ -104,6 +112,85 @@ function validateFields(value: unknown) {
   }
 }
 
+function enumList(value: unknown, allowed: readonly string[], label: string) {
+  if (
+    !Array.isArray(value) ||
+    new Set(value).size !== value.length ||
+    value.some(item => typeof item !== 'string' || !allowed.includes(item))
+  )
+    throw new Error(`${label}无效`);
+}
+function validateAnalysisCapability(value: unknown, scoped = false) {
+  assertObject(value, '分析能力');
+  if (typeof value.count !== 'boolean' || !Array.isArray(value.fields))
+    throw new Error('分析能力无效');
+  if (value.expressions !== undefined && typeof value.expressions !== 'boolean')
+    throw new Error('表达式能力必须为布尔值');
+  const paths = new Set<string>();
+  for (const field of value.fields) {
+    assertObject(field, '分析字段');
+    assertPath(field.field, '分析字段路径');
+    if (paths.has(field.field as string)) throw new Error('分析字段重复');
+    paths.add(field.field as string);
+    enumList(field.groups, Object.values(AggregationGroupType), '分组能力');
+    enumList(
+      field.functions,
+      Object.values(AggregationFunction),
+      '数值函数能力',
+    );
+    if (field.dateUnits !== undefined)
+      enumList(field.dateUnits, Object.values(AggregationDateUnit), '时间粒度');
+    if (field.any !== undefined && typeof field.any !== 'boolean')
+      throw new Error('代表值能力必须为布尔值');
+    if (field.unit !== undefined) assertText(field.unit, '指标单位');
+    if (field.numberFormat !== undefined) {
+      assertObject(field.numberFormat, '分析数值格式');
+      if (field.numberFormat.locale !== undefined)
+        assertText(field.numberFormat.locale, '分析数值区域设置');
+      formatRecordNumber(0, { numberFormat: field.numberFormat });
+    }
+  }
+  if (value.limits !== undefined) {
+    assertObject(value.limits, '分析限制');
+    const maxima: Record<string, number> = ANALYSIS_LIMITS;
+    for (const [name, limit] of Object.entries(value.limits)) {
+      if (
+        limit !== undefined &&
+        (typeof limit !== 'number' ||
+          !Number.isSafeInteger(limit) ||
+          limit <= 0 ||
+          !Object.prototype.hasOwnProperty.call(maxima, name) ||
+          limit > maxima[name])
+      )
+        throw new Error('分析限制无效');
+    }
+  }
+  if (value.scopes !== undefined) {
+    if (scoped || !Array.isArray(value.scopes)) throw new Error('分析范围无效');
+    const ids = new Set<string>();
+    for (const scope of value.scopes) {
+      assertObject(scope, '分析范围');
+      assertText(scope.id, '分析范围 ID');
+      assertText(scope.label, '分析范围名称');
+      if (ids.has(scope.id)) throw new Error('分析范围重复');
+      ids.add(scope.id);
+      if (
+        !Array.isArray(scope.elements) ||
+        !scope.elements.length ||
+        scope.elements.length > MAX_ANALYSIS_ELEMENTS
+      )
+        throw new Error('分析范围元素链无效');
+      for (const element of scope.elements) {
+        assertObject(element, '范围元素');
+        assertPath(element.path, '元素路径');
+        validateFields(element.fields);
+      }
+      validateFields(scope.fields);
+      validateAnalysisCapability(scope.capability, true);
+    }
+  }
+}
+
 export function validateViewDefinition(
   value: unknown,
 ): asserts value is ViewDefinition {
@@ -112,16 +199,29 @@ export function validateViewDefinition(
   encodeViewResourceId(value.id);
   assertText(value.title, '定义名称');
   assertText(value.sourceId, '数据源 ID');
-  assertPath(value.rowKey, '记录主键');
+  if (!value.record && !value.analysis)
+    throw new Error('定义至少需要 record 或 analysis 能力');
+  if (value.record !== undefined) {
+    assertObject(value.record, '记录能力');
+    assertPath(value.record.rowKey, '记录主键');
+  }
+  if (value.analysis !== undefined) {
+    validateFilterJson(value.analysis);
+    validateAnalysisCapability(value.analysis);
+  }
   if (value.timeZone !== undefined) {
     assertText(value.timeZone, '时区');
     validateTimeZone(value.timeZone);
   }
   if (
-    !Array.isArray(value.allowedLayouts) ||
-    !value.allowedLayouts.length ||
-    new Set(value.allowedLayouts).size !== value.allowedLayouts.length ||
-    value.allowedLayouts.some(layout => layout !== 'table' && layout !== 'card')
+    value.record !== undefined &&
+    (!Array.isArray(value.record.allowedLayouts) ||
+      !value.record.allowedLayouts.length ||
+      new Set(value.record.allowedLayouts).size !==
+        value.record.allowedLayouts.length ||
+      value.record.allowedLayouts.some(
+        layout => layout !== 'table' && layout !== 'card',
+      ))
   )
     throw new Error('allowedLayouts 必须为非空且不重复的 table/card 数组');
   validateFields(value.fields);
@@ -141,15 +241,15 @@ export function validateViewDefinition(
       validateReference(editor);
     }
   }
-  if (value.recordActions !== undefined) {
-    assertObject(value.recordActions, '业务操作');
-    validateReference(value.recordActions.global);
-    validateReference(value.recordActions.toolbar);
-    validateReference(value.recordActions.row);
+  if (value.record?.recordActions !== undefined) {
+    assertObject(value.record?.recordActions, '业务操作');
+    validateReference(value.record.recordActions.global);
+    validateReference(value.record.recordActions.toolbar);
+    validateReference(value.record.recordActions.row);
   }
-  if (value.defaultPresentation !== undefined)
+  if (value.record?.defaultPresentation !== undefined)
     validateRecordPresentationDefaults(
-      value.defaultPresentation,
+      value.record?.defaultPresentation,
       value as unknown as ViewDefinition,
     );
 }

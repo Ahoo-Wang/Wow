@@ -13,6 +13,7 @@
 
 import type * as React from 'react';
 import { createContext, useContext } from 'react';
+import { useOverlayOpen, useOverlayVisible } from '../../lib/OverlayScope.js';
 import { usePortalTheme, type PortalTheme } from '../../lib/usePortalTheme.js';
 import { Select as SelectPrimitive } from '@base-ui/react/select';
 import { cn } from '../../lib/utils.js';
@@ -23,18 +24,28 @@ const SelectTheme = createContext<PortalTheme>({ style: {} });
 function Select<Value, Multiple extends boolean | undefined = false>(
   props: SelectPrimitive.Root.Props<Value, Multiple>,
 ) {
+  const [localOpen, setOpen] = useOverlayOpen(props.defaultOpen);
+  const visible = useOverlayVisible();
+  const actualOpen = visible && (props.open ?? localOpen);
   const { scope, theme, captureTheme } = usePortalTheme(
-    props.open,
+    actualOpen,
     props.defaultOpen,
   );
   return (
-    <span ref={scope} className="fve-root fve:inline-flex fve:max-w-full">
+    <span
+      ref={scope}
+      className="fve-root fve:inline-flex fve:min-w-0 fve:max-w-full"
+    >
       <SelectTheme.Provider value={theme}>
         <SelectPrimitive.Root
           {...props}
+          open={actualOpen}
           onOpenChange={(open, details) => {
-            captureTheme(open);
             props.onOpenChange?.(open, details);
+            if (!details.isCanceled) {
+              setOpen(open);
+              captureTheme(open);
+            }
           }}
         />
       </SelectTheme.Provider>
@@ -56,7 +67,7 @@ function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
   return (
     <SelectPrimitive.Value
       data-slot="select-value"
-      className={cn('fve:flex fve:flex-1 fve:text-left', className)}
+      className={cn('fve:flex fve:min-w-0 fve:flex-1 fve:text-left', className)}
       {...props}
     />
   );
@@ -75,7 +86,7 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        'fve:flex fve:w-fit fve:items-center fve:justify-between fve:gap-1.5 fve:rounded-lg fve:border fve:border-input fve:bg-transparent fve:py-2 fve:pr-2 fve:pl-2.5 fve:text-sm fve:whitespace-nowrap fve:transition-colors fve:outline-none fve:select-none fve:focus-visible:border-ring fve:focus-visible:ring-3 fve:focus-visible:ring-ring fve:disabled:cursor-not-allowed fve:disabled:opacity-50 fve:aria-invalid:border-destructive fve:aria-invalid:ring-3 fve:aria-invalid:ring-destructive/20 fve:data-placeholder:text-muted-foreground fve:data-[size=default]:h-(--fve-control-height) fve:data-[size=sm]:h-7 fve:data-[size=sm]:rounded-[min(var(--fve-radius-md),10px)] fve:*:data-[slot=select-value]:line-clamp-1 fve:*:data-[slot=select-value]:flex fve:*:data-[slot=select-value]:items-center fve:*:data-[slot=select-value]:gap-1.5 fve:dark:bg-input/30 fve:dark:hover:bg-input/50 fve:dark:aria-invalid:border-destructive/50 fve:dark:aria-invalid:ring-destructive/40 fve:[&_svg]:pointer-events-none fve:[&_svg]:shrink-0 fve:[&_svg:not([class*=size-])]:size-4',
+        'fve:flex fve:min-w-0 fve:w-fit fve:max-w-full fve:items-center fve:justify-between fve:gap-1.5 fve:rounded-lg fve:border fve:border-input fve:bg-transparent fve:py-2 fve:pr-2 fve:pl-2.5 fve:text-sm fve:whitespace-nowrap fve:transition-colors fve:outline-none fve:select-none fve:focus-visible:border-ring fve:focus-visible:ring-3 fve:focus-visible:ring-ring fve:disabled:cursor-not-allowed fve:disabled:opacity-50 fve:aria-invalid:border-destructive fve:aria-invalid:ring-3 fve:aria-invalid:ring-destructive/20 fve:data-placeholder:text-muted-foreground fve:data-[size=default]:h-(--fve-control-height) fve:data-[size=sm]:h-7 fve:data-[size=sm]:rounded-[min(var(--fve-radius-md),10px)] fve:*:data-[slot=select-value]:line-clamp-1 fve:*:data-[slot=select-value]:flex fve:*:data-[slot=select-value]:items-center fve:*:data-[slot=select-value]:gap-1.5 fve:dark:bg-input/30 fve:dark:hover:bg-input/50 fve:dark:aria-invalid:border-destructive/50 fve:dark:aria-invalid:ring-destructive/40 fve:[&_svg]:pointer-events-none fve:[&_svg]:shrink-0 fve:[&_svg:not([class*=size-])]:size-4',
         className,
       )}
       {...props}

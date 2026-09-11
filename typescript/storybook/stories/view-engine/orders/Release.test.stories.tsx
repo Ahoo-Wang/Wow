@@ -17,7 +17,7 @@ import displayMeta from './Release.stories.js';
 const meta = {
   ...displayMeta,
   id: 'view-engine-收款与放行-回归',
-  title: 'View Engine/订单业务流程/收款与放行/回归',
+  title: 'View Engine/入门与业务流程/订单流程/收款与放行/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 export default meta;

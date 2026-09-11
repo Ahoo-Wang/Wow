@@ -14,7 +14,7 @@
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Button } from '../../components/ui/button.js';
 import { FilterSelect } from '../../filter/FilterSelect.js';
-import type { RecordSession } from '../recordModel.js';
+import type { RecordSession } from '../../contracts/viewModel.js';
 import type { RecordPaginationPolicy } from './recordPaginationPolicy.js';
 
 export function RecordPagination({
@@ -33,7 +33,6 @@ export function RecordPagination({
   run(action: () => void | Promise<void>): void;
 }) {
   if (session.queryError) return null;
-  const { instance } = session;
   const querying = session.queryStatus === 'loading';
   const paged = policy.mode === 'paged';
   return (
@@ -58,14 +57,12 @@ export function RecordPagination({
           <span>每页</span>
           <FilterSelect
             label="每页记录数"
-            value={String(instance.config.pagination.size)}
+            value={String(policy.pageSize)}
             onValueChange={size =>
               run(() => operations.setPageSize(Number(size)))
             }
             disabled={!policy.canChangePageSize}
-            options={[
-              ...new Set([10, 20, 50, 100, instance.config.pagination.size]),
-            ]
+            options={[...new Set([10, 20, 50, 100, policy.pageSize])]
               .sort((a, b) => a - b)
               .map(size => ({ value: String(size), label: `${size} 条` }))}
           />
@@ -73,8 +70,8 @@ export function RecordPagination({
         <div className="fve:flex fve:items-center fve:gap-2">
           <span>
             {paged
-              ? `第 ${session.page} / ${policy.pageCount ?? '–'} 页`
-              : `第 ${session.page} 页`}
+              ? `第 ${policy.page} / ${policy.pageCount ?? '–'} 页`
+              : `第 ${policy.page} 页`}
           </span>
           {paged && (
             <Button

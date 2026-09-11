@@ -20,12 +20,15 @@ import type {
   RecordSummaryFunction,
   ViewDefinition,
   ViewFieldDefinition,
-} from '../recordModel.js';
+} from '../../contracts/viewModel.js';
 import {
   RECORD_COLUMN_MAX_WIDTH,
   RECORD_COLUMN_MIN_WIDTH,
 } from '../recordColumns.js';
-import { getRecordSummaryFunctions } from '../recordPresentation.js';
+import {
+  getRecordSummaryFunctions,
+  RECORD_SUMMARY_LABELS,
+} from '../recordPresentation.js';
 import {
   assertObject,
   assertText,
@@ -35,10 +38,11 @@ import {
 export function validateRecordTableConfig(
   value: unknown,
   definition: DeepReadonly<ViewDefinition>,
+  semantic = true,
 ): asserts value is RecordTableConfig {
   assertObject(value, '表格配置');
   const columns = value.columns;
-  if (!Array.isArray(columns) || !columns.length)
+  if (!Array.isArray(columns) || (semantic && !columns.length))
     throw new Error('请至少配置一列');
   const columnIds = new Set<string>();
   let visible = false;
@@ -76,33 +80,48 @@ export function validateRecordTableConfig(
       );
       if (
         column.kind !== 'field' ||
-        !field ||
         !Array.isArray(column.summary) ||
         new Set(column.summary).size !== column.summary.length ||
         column.summary.some(
           summary =>
-            !getRecordSummaryFunctions(field as ViewFieldDefinition).includes(
-              summary as RecordSummaryFunction,
-            ),
+            typeof summary !== 'string' ||
+            !Object.prototype.hasOwnProperty.call(
+              RECORD_SUMMARY_LABELS,
+              summary,
+            ) ||
+            (semantic &&
+              (!field ||
+                !getRecordSummaryFunctions(
+                  field as ViewFieldDefinition,
+                ).includes(summary as RecordSummaryFunction))),
         )
       )
         throw new Error('列汇总函数无效或字段不支持');
       summaryCount += column.summary.length;
     }
     if (column.kind === 'field') {
-      if (!definition.fields.some(field => field.field === column.field))
+      assertText(column.field, '列字段路径');
+      if (
+        semantic &&
+        !definition.fields.some(field => field.field === column.field)
+      )
         throw new Error(`列引用了未知字段：${String(column.field)}`);
     } else if (column.kind === 'actions') {
-      if (!column.renderer && !definition.recordActions?.row)
+      if (
+        semantic &&
+        !column.renderer &&
+        !definition.record!.recordActions?.row
+      )
         throw new Error('操作列缺少行操作扩展');
     } else throw new Error('列类型不支持');
   }
-  if (!visible) throw new Error('请至少显示一列');
+  if (semantic && !visible) throw new Error('请至少显示一列');
   if (summaryCount > 64) throw new Error('最多配置 64 个汇总指标');
 }
 export function validateRecordCardConfig(
   value: unknown,
   definition: DeepReadonly<ViewDefinition>,
+  semantic = true,
 ): asserts value is RecordCardConfig {
   assertObject(value, '卡片配置');
   function field(config: unknown, title = false) {
@@ -110,7 +129,8 @@ export function validateRecordCardConfig(
     assertText(config.id, '卡片字段 ID');
     assertText(config.field, '卡片字段路径');
     if (
-      !(title && config.field === definition.rowKey) &&
+      semantic &&
+      !(title && config.field === definition.record!.rowKey) &&
       !definition.fields.some(field => field.field === config.field)
     )
       throw new Error(`卡片引用了未知字段：${config.field}`);
@@ -128,7 +148,9 @@ export function validateRecordCardConfig(
   if (value.cover !== undefined) {
     assertObject(value.cover, '卡片封面');
     const coverField = value.cover.field;
+    assertText(coverField, '卡片封面字段');
     if (
+      semantic &&
       !definition.fields.some(
         field => field.field === coverField && field.type === 'string',
       )
@@ -143,33 +165,39 @@ export function validateRecordCardConfig(
     )
       throw new Error('卡片操作 visible 必须为布尔值');
     validateReference(value.actions.renderer);
-    if (!value.actions.renderer && !definition.recordActions?.row)
+    if (
+      semantic &&
+      !value.actions.renderer &&
+      !definition.record!.recordActions?.row
+    )
       throw new Error('卡片操作缺少行操作扩展');
   }
 }
 export function validateRecordPresentationDefaults(
   value: unknown,
   definition: DeepReadonly<ViewDefinition>,
+  semantic = true,
 ): asserts value is RecordPresentationDefaults {
   assertObject(value, '展示配置');
   if (value.table !== undefined)
-    validateRecordTableConfig(value.table, definition);
+    validateRecordTableConfig(value.table, definition, semantic);
   if (value.card !== undefined)
-    validateRecordCardConfig(value.card, definition);
+    validateRecordCardConfig(value.card, definition, semantic);
 }
 export function validateRecordPresentation(
   value: unknown,
   definition: DeepReadonly<ViewDefinition>,
+  semantic = true,
 ): asserts value is RecordPresentation {
   assertObject(value, '展示配置');
   if (value.layout !== 'table' && value.layout !== 'card')
     throw new Error('展示布局必须为 table 或 card');
-  if (!definition.allowedLayouts.includes(value.layout))
+  if (semantic && !definition.record!.allowedLayouts.includes(value.layout))
     throw new Error(`视图定义不允许展示布局：${value.layout}`);
-  validateRecordPresentationDefaults(value, definition);
+  validateRecordPresentationDefaults(value, definition, semantic);
   if (value.layout === 'table')
-    validateRecordTableConfig(value.table, definition);
+    validateRecordTableConfig(value.table, definition, semantic);
   else if (value.layout === 'card')
-    validateRecordCardConfig(value.card, definition);
+    validateRecordCardConfig(value.card, definition, semantic);
   else throw new Error('展示布局必须为 table 或 card');
 }

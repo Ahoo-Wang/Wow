@@ -19,7 +19,9 @@ import {
 } from '../components/ui/input-group.js';
 export interface FilterTextValuesProps {
   value?: readonly string[];
-  onValueChange(values: string[]): void;
+  rawText?: string;
+  onRawTextChange?(text: string): void;
+  onValueChange(values: string[], rawText: string): void;
   onValidityChange?(valid: boolean, message?: string): void;
   label: string;
   disabled?: boolean;
@@ -29,24 +31,30 @@ export interface FilterTextValuesProps {
 export function FilterTextValues({
   value = [],
   onValueChange,
+  rawText,
+  onRawTextChange,
   onValidityChange,
   label,
   disabled,
   invalid,
   errorId,
 }: FilterTextValuesProps) {
-  const [text, setText] = useState('');
+  const [localText, setText] = useState('');
+  const text = rawText ?? localText;
   const [composing, setComposing] = useState(false);
   function commit(input: string) {
-    onValueChange([
-      ...new Set([
-        ...value,
-        ...input
-          .split(/[\r\n,，;；]+/)
-          .map(part => part.trim())
-          .filter(Boolean),
-      ]),
-    ]);
+    onValueChange(
+      [
+        ...new Set([
+          ...value,
+          ...input
+            .split(/[\r\n,，;；]+/)
+            .map(part => part.trim())
+            .filter(Boolean),
+        ]),
+      ],
+      '',
+    );
     setText('');
     onValidityChange?.(true);
   }
@@ -64,7 +72,12 @@ export function FilterTextValues({
             size="icon-xs"
             aria-label={`移除${item}`}
             disabled={disabled}
-            onClick={() => onValueChange(value.filter(other => other !== item))}
+            onClick={() =>
+              onValueChange(
+                value.filter(other => other !== item),
+                text,
+              )
+            }
           >
             <XIcon aria-hidden="true" />
           </InputGroupButton>
@@ -80,6 +93,7 @@ export function FilterTextValues({
         placeholder="输入或粘贴多个值"
         onChange={event => {
           setText(event.target.value);
+          onRawTextChange?.(event.target.value);
           onValidityChange?.(!event.target.value.trim(), '请按回车确认输入');
         }}
         onCompositionStart={() => setComposing(true)}

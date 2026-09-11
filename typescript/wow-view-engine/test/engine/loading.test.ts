@@ -15,8 +15,8 @@ import { expect, it, vi } from 'vitest';
 import type {
   ViewDefinition,
   ViewInstance,
-} from '../../src/record/recordModel.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+} from '../../src/contracts/viewModel.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import { deferred, definition, instance, selected, setup } from './fixtures.js';
 
 it.each([{ instances: [] }, { instances: [instance()] }])(
@@ -120,5 +120,9 @@ it('ignores obsolete loads and prevents query dispatch or snapshot commits after
   expect(paged).toHaveBeenCalledOnce();
   expect(delayed.engine.getSnapshot()).toBe(snapshot);
   expect(listener).not.toHaveBeenCalled();
-  await expect(delayed.engine.refresh()).rejects.toThrow();
+  await expect(
+    delayed.engine
+      .record(delayed.engine.getSnapshot().selectedInstanceId!)
+      .refresh(),
+  ).rejects.toThrow();
 });

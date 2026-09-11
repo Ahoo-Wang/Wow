@@ -68,7 +68,7 @@ export const playFilterPersistence: Play = async ({ canvasElement }) => {
 
   await userEvent.click(status());
   await userEvent.click(await page.findByRole('option', { name: '已确认' }));
-  await expect(save()).toBeDisabled();
+  await expect(save()).toBeEnabled();
   await expect(canvas.getByText('筛选未生效')).toBeInTheDocument();
   await expect(queryCount()).toHaveTextContent(/^3$/);
   await userEvent.click(label());

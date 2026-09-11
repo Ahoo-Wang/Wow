@@ -27,7 +27,7 @@ const meta = {
     },
   },
   id: 'view-engine-专项场景-record-view-视图管理',
-  title: 'View Engine/专项场景/视图与运行时/视图管理',
+  title: 'View Engine/引擎与宿主/视图管理',
 };
 
 export default meta;

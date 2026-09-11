@@ -22,7 +22,7 @@ import {
 } from '@testing-library/react';
 import { filter } from '@ahoo-wang/fetcher-wow';
 import { MemoryViewHost } from '../src/record/MemoryViewHost.js';
-import { ViewPage } from '../src/record/ViewPage.js';
+import { ViewPage } from './fixtures/OwnedViewPage.js';
 import { compileBuiltinFilter } from '../src/filter/filterCore.js';
 import type { FilterEditorProps, ViewExtensions } from '../src/react.js';
 import { definition, instance, setup } from './fixtures/viewPage.js';
@@ -158,7 +158,7 @@ it('blocks a missing runtime extension without deleting service configuration, t
   expect(store.get(host.storageKey)).toBe(payload);
 });
 
-it('surfaces a real host revision conflict, preserves the draft, and saves after explicit reload', async () => {
+it('surfaces a real host revision conflict, preserves the draft, and saves only after explicit conflict review', async () => {
   const { options } = fixture();
   const host = new MemoryViewHost(options);
   render(
@@ -195,7 +195,18 @@ it('surfaces a real host revision conflict, preserves the draft, and saves after
   await waitFor(() =>
     expect(screen.queryByText('视图已被更新，请重新加载')).toBeNull(),
   );
-  fireEvent.click(screen.getByRole('button', { name: '保存', exact: true }));
+  expect(
+    screen.getByRole('button', { name: '保存', exact: true }),
+  ).toHaveProperty('disabled', true);
+  fireEvent.click(
+    screen.getByRole('button', { name: '覆盖远端版本', exact: true }),
+  );
+  fireEvent.click(
+    await screen.findByRole('button', {
+      name: '确认覆盖远端版本',
+      exact: true,
+    }),
+  );
   await waitFor(async () =>
     expect(
       (await remoteActor.instance!.load(instance.id)).config.filters.root.props

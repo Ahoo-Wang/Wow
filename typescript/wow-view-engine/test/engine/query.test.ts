@@ -36,8 +36,8 @@ it('sends server pagination without projection and keeps column edits local', as
     undefined,
     expect.any(AbortController),
   ]);
-  engine.setSelection(['a']);
-  engine.setColumns([
+  engine.record(engine.getSnapshot().selectedInstanceId!).setSelection(['a']);
+  engine.record(engine.getSnapshot().selectedInstanceId!).setColumns([
     {
       id: 'amount',
       kind: 'field',
@@ -49,19 +49,19 @@ it('sends server pagination without projection and keeps column edits local', as
   expect(selected(engine).selectedRowKeys).toEqual(['a']);
   expect(paged).toHaveBeenCalledOnce();
   expect(selected(engine).dirty).toBe(true);
-  await engine.setSort([
-    { field: 'state.amount', direction: SortDirection.DESC },
-  ]);
+  await engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setSort([{ field: 'state.amount', direction: SortDirection.DESC }]);
   expect(selected(engine).selectedRowKeys).toEqual([]);
   expect(paged.mock.calls.at(-1)?.[0]).toMatchObject({
     sort: [{ field: 'state.amount', direction: 'DESC' }],
     pagination: { index: 1, size: 10 },
   });
-  engine.setSelection(['a']);
-  await engine.setPage(3);
+  engine.record(engine.getSnapshot().selectedInstanceId!).setSelection(['a']);
+  await engine.record(engine.getSnapshot().selectedInstanceId!).setPage(3);
   expect(selected(engine).selectedRowKeys).toEqual([]);
   expect(paged.mock.calls.at(-1)?.[0].pagination.index).toBe(3);
-  await engine.setPageSize(25);
+  await engine.record(engine.getSnapshot().selectedInstanceId!).setPageSize(25);
   expect(paged.mock.calls.at(-1)?.[0].pagination).toEqual({
     index: 1,
     size: 25,
@@ -74,7 +74,9 @@ it('clears stale rows and ignores old query resolution and rejection after a new
   const previousRows = selected(engine).rows;
   const old = deferred<unknown>();
   paged.mockImplementationOnce(() => old.promise);
-  const previous = engine.refresh();
+  const previous = engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh();
   await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
   expect(selected(engine)).toMatchObject({
     rows: previousRows,
@@ -82,13 +84,13 @@ it('clears stale rows and ignores old query resolution and rejection after a new
     total: 1,
   });
   const controller = paged.mock.calls[1][2];
-  engine.setFilterDraft(
+  engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
     createFilterConfiguration({
       ...newFilterNode(FilterOperator.GT, 'state.amount'),
       props: { value: 5 },
     }),
   );
-  await engine.applyFilter();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter();
   expect(controller.signal.aborted).toBe(true);
   old.reject(new Error('obsolete error'));
   await previous;
@@ -101,9 +103,11 @@ it('clears stale rows and ignores old query resolution and rejection after a new
 
   const older = deferred<unknown>();
   paged.mockImplementationOnce(() => older.promise);
-  const olderQuery = engine.refresh();
+  const olderQuery = engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh();
   await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(4));
-  await engine.refresh();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).refresh();
   older.resolve({ total: 1, list: [{ state: { id: 'obsolete' } }] });
   await olderQuery;
   expect(selected(engine).rows[0]).toEqual({
@@ -129,32 +133,34 @@ it('resets cursor position on filter, sort, size and refresh and exposes no prev
     size: 10,
     cursor: null,
   });
-  engine.setSelection(['a']);
-  await engine.nextPage();
+  engine.record(engine.getSnapshot().selectedInstanceId!).setSelection(['a']);
+  await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
   expect(cursor.mock.calls.at(-1)?.[0].cursor).toBe('next');
   expect(selected(engine)).toMatchObject({ page: 2, selectedRowKeys: [] });
-  await expect(engine.setPage(1)).rejects.toThrow();
-  engine.setFilterDraft(
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).setPage(1),
+  ).rejects.toThrow();
+  engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
     createFilterConfiguration({
       ...newFilterNode(FilterOperator.GT, 'state.amount'),
       props: { value: 2 },
     }),
   );
-  await engine.applyFilter();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter();
   expect(cursor.mock.calls.at(-1)?.[0].cursor).toBeNull();
-  await engine.nextPage();
-  await engine.setSort([
-    { field: 'state.amount', direction: SortDirection.ASC },
-  ]);
+  await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
+  await engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setSort([{ field: 'state.amount', direction: SortDirection.ASC }]);
   expect(cursor.mock.calls.at(-1)?.[0].cursor).toBeNull();
-  await engine.nextPage();
-  await engine.setPageSize(20);
+  await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).setPageSize(20);
   expect(cursor.mock.calls.at(-1)?.[0]).toMatchObject({
     cursor: null,
     size: 20,
   });
-  await engine.nextPage();
-  await engine.refresh();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).refresh();
   expect(selected(engine).page).toBe(1);
   expect(cursor.mock.calls.at(-1)?.[0].cursor).toBeNull();
 });

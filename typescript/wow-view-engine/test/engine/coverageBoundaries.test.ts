@@ -20,13 +20,13 @@ import { afterEach, expect, it, vi } from 'vitest';
 import {} from '@ahoo-wang/fetcher-wow';
 
 import type { FilterMode } from '../../src/filter/filterModel.js';
-import type { ViewEngine } from '../../src/record/ViewEngine.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+import type { ViewEngine } from '../../src/engine/ViewEngine.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import type {
   ViewEngineOptions,
   ViewInstance,
   ViewInstanceList,
-} from '../../src/record/recordModel.js';
+} from '../../src/contracts/viewModel.js';
 import { ViewServiceError } from '../../src/record/viewServiceContract.js';
 import {
   deferred,
@@ -90,7 +90,7 @@ it('rejects a definition returned for another resource and permits a corrected l
   expect(paged).toHaveBeenCalledOnce();
 });
 
-it('reports a failed remote selection without replacing the active session, then allows retry', async () => {
+it('retains the workspace during failed remote selection and allows retry', async () => {
   const load = vi
     .fn()
     .mockRejectedValueOnce(new Error('instance offline'))
@@ -105,7 +105,8 @@ it('reports a failed remote selection without replacing the active session, then
     'instance offline',
   );
   expect(engine.getSnapshot().error).toBe('instance offline');
-  expect(selected(engine)).toBe(before);
+  expect(engine.getSnapshot().selectedInstanceId).toBe('mine');
+  expect(selected(engine, 'mine')).toBe(before);
   expect(engine.getSnapshot().instanceIds).not.toContain('remote');
   expect(paged).toHaveBeenCalledOnce();
   await engine.selectInstance('remote');
@@ -159,20 +160,29 @@ it('rejects invalid editing commands without changing the draft or dispatching r
   await engine.load();
   const before = engine.getSnapshot();
   expect(() =>
-    engine.setFilterDraft(
-      createFilterConfiguration(selected(engine).filterDraft.root),
-      undefined,
-      'true' as unknown as boolean,
-    ),
+    engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .setFilterDraft(
+        createFilterConfiguration(selected(engine).filterDraft.root),
+        'true' as unknown as boolean,
+      ),
   ).toThrow('有效性必须是布尔值');
-  expect(() => engine.setFilterMode('unknown' as FilterMode)).toThrow(
-    '筛选模式无效',
-  );
-  expect(() => engine.setSelection(['not-on-page'])).toThrow('当前查询结果');
-  await expect(engine.setPage(0)).rejects.toThrow('页码必须是正整数');
+  expect(() =>
+    engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .setFilterMode('unknown' as FilterMode),
+  ).toThrow('筛选模式无效');
+  expect(() =>
+    engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .setSelection(['not-on-page']),
+  ).toThrow('当前查询结果');
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).setPage(0),
+  ).rejects.toThrow('页码必须是正整数');
   expect(engine.getSnapshot()).toBe(before);
   expect(paged).toHaveBeenCalledOnce();
-  engine.setFilterDraft(
+  engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
     createFilterConfiguration({
       ...newFilterNode(FilterOperator.OR),
       operands: [
@@ -187,10 +197,14 @@ it('rejects invalid editing commands without changing the draft or dispatching r
       ],
     }),
   );
-  expect(() => engine.setFilterMode('simple')).toThrow('高级筛选模式');
+  expect(() =>
+    engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .setFilterMode('simple'),
+  ).toThrow('高级筛选模式');
   expect(paged).toHaveBeenCalledOnce();
   await engine.restore();
-  await engine.nextPage();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).nextPage();
   expect(selected(engine).page).toBe(2);
   expect(paged).toHaveBeenCalledTimes(3);
 });
@@ -381,10 +395,12 @@ it('keeps a malformed query response out of the session and allows explicit retr
   await engine.load();
   const previousRows = selected(engine).rows;
   paged.mockResolvedValueOnce([]);
-  await expect(engine.refresh()).rejects.toThrow('分页对象');
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).refresh(),
+  ).rejects.toThrow('分页对象');
   expect(selected(engine).queryStatus).toBe('error');
   expect(selected(engine).rows).toEqual(previousRows);
-  await engine.refresh();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).refresh();
   expect(selected(engine).queryStatus).toBe('success');
 });
 
@@ -408,7 +424,7 @@ it('reports overflowing page summaries while retaining valid records and recover
   });
   expect(selected(engine).pageSummary.error).toContain('超出数值范围');
   expect(selected(engine).rows).toHaveLength(2);
-  await engine.refresh();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).refresh();
   expect(selected(engine).pageSummary.status).toBe('success');
 });
 
@@ -427,7 +443,9 @@ it('does not dispatch a reload when canceling the active query disposes its engi
       return response.promise;
     },
   );
-  const reading = engine.refresh();
+  const reading = engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .refresh();
   await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
   await engine.reloadInstance();
   expect(load).not.toHaveBeenCalled();
@@ -439,7 +457,9 @@ it('does not dispatch a reload when canceling the active query disposes its engi
 
 it('rejects selection before initialization and permits it after load', async () => {
   const { engine, paged } = fixture();
-  await expect(engine.refresh()).rejects.toThrow('请先选择有效的视图实例');
+  await expect(
+    engine.record(engine.getSnapshot().selectedInstanceId!).refresh(),
+  ).rejects.toThrow('请先选择有效的视图实例');
   await expect(engine.selectInstance('mine')).rejects.toThrow(
     '视图定义尚未加载',
   );
@@ -475,5 +495,5 @@ it('preserves navigation started by an aborted selection over the request causin
   await previous;
   expect(engine.getSnapshot().selectedInstanceId).toBe('shared');
   expect(engine.getSnapshot().instanceIds).toEqual(['mine', 'shared']);
-  expect(load.mock.calls[1][1]?.aborted).toBe(true);
+  expect(load).toHaveBeenCalledOnce();
 });

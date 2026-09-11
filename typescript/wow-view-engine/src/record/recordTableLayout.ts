@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { type RecordColumn, type ViewFieldDefinition } from './recordModel.js';
+import {
+  type RecordColumn,
+  type ViewFieldDefinition,
+} from '../contracts/viewModel.js';
 import {
   getRecordColumnPinning,
   RECORD_COLUMN_DEFAULT_WIDTH,

@@ -15,9 +15,10 @@ import { FilterOperator as Op, SortDirection } from '@ahoo-wang/fetcher-wow';
 import {
   createFilterConfiguration,
   newFilterNode,
-  type ViewDefinition,
+  type RecordViewDefinition,
   type ViewFieldDefinition,
   type ViewInstanceList,
+  type RecordViewInstance,
 } from '@ahoo-wang/fetcher-view-engine';
 import { lifecycleLabels, type Stage } from './model.js';
 export const stageLabels: Record<Stage, string> = {
@@ -46,12 +47,10 @@ const textField = (field: string, label: string): ViewFieldDefinition => ({
   operators: [Op.EQ, Op.IN, Op.CONTAINS],
   sortable: true,
 });
-export const orderDefinition: ViewDefinition = {
+export const orderDefinition: RecordViewDefinition = {
   id: 'sales-orders',
   title: '销售订单',
   sourceId: 'sales-orders',
-  rowKey: 'aggregateId',
-  allowedLayouts: ['table', 'card'],
   timeZone: 'Asia/Shanghai',
   allowedOperators: [
     Op.MATCH_ALL,
@@ -194,25 +193,31 @@ export const orderDefinition: ViewDefinition = {
       ],
     },
   ],
-  defaultPresentation: {
-    card: {
-      title: { id: 'id', field: 'aggregateId' },
-      fields: [
-        { id: 'customer', field: 'state.customerId' },
-        { id: 'due', field: 'state.dueAt' },
-        { id: 'progress', field: 'state.remainingToShip' },
-        { id: 'amount', field: 'state.totalAmount' },
-      ],
-      actions: {},
+  record: {
+    rowKey: 'aggregateId',
+    allowedLayouts: ['table', 'card'],
+    defaultPresentation: {
+      card: {
+        title: { id: 'id', field: 'aggregateId' },
+        fields: [
+          { id: 'customer', field: 'state.customerId' },
+          { id: 'due', field: 'state.dueAt' },
+          { id: 'progress', field: 'state.remainingToShip' },
+          { id: 'amount', field: 'state.totalAmount' },
+        ],
+        actions: {},
+      },
+    },
+    recordActions: {
+      global: { name: 'order-create' },
+      toolbar: { name: 'order-batch' },
+      row: { name: 'order-detail' },
     },
   },
-  recordActions: {
-    global: { name: 'order-create' },
-    toolbar: { name: 'order-batch' },
-    row: { name: 'order-detail' },
-  },
 };
-export function createOrderViews(stage: Stage = 'all'): ViewInstanceList {
+export function createOrderViews(
+  stage: Stage = 'all',
+): ViewInstanceList & { instances: RecordViewInstance[] } {
   return {
     defaultInstanceId: `orders-${stage}`,
     instances: (Object.keys(stageLabels) as Stage[]).map(key => {
@@ -303,6 +308,7 @@ export function createOrderViews(stage: Stage = 'all'): ViewInstanceList {
         definitionId: orderDefinition.id,
         title: stageLabels[key],
         kind: 'record',
+        revision: 'initial',
         scope: { type: 'public', source: 'system' },
         config: {
           filters: createFilterConfiguration(
@@ -362,7 +368,9 @@ export function createOrderViews(stage: Stage = 'all'): ViewInstanceList {
 }
 
 /** Dedicated persistence/transport story: includes opaque editor state in a writable view. */
-export function createProtocolViews(): ViewInstanceList {
+export function createProtocolViews(): ViewInstanceList & {
+  instances: RecordViewInstance[];
+} {
   const views = createOrderViews('all');
   const personal = structuredClone(views.instances[0]);
   personal.id = 'my-orders';

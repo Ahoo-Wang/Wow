@@ -47,7 +47,7 @@ export const playBusinessRecords: RecordViewPlay = async ({
   await expect(canvas.getByTestId('record-query-count')).toHaveTextContent(
     /^1$/,
   );
-  await expect(canvas.getByRole('button', { name: '保存' })).toBeDisabled();
+  await expect(canvas.getByRole('button', { name: '保存' })).toBeEnabled();
   await expect(canvas.getByText('筛选未生效')).toBeInTheDocument();
   await userEvent.click(canvas.getByRole('button', { name: '查询' }));
   await canvas.findByRole('row', { name: /ORD-202609-1002/ });
@@ -162,7 +162,7 @@ export const playBusinessRecords: RecordViewPlay = async ({
   await expect(
     canvas.queryByRole('button', { name: '保存' }),
   ).not.toBeInTheDocument();
-  await chooseInstance(canvasElement, '我的订单 · 待查询');
+  await chooseInstance(canvasElement, '我的订单 · 已编辑 · 待查询');
   await expect(canvas.getByLabelText('订单金额值')).toHaveValue('2500');
   await userEvent.click(canvas.getByRole('button', { name: '视图选项' }));
   await userEvent.click(await page.findByRole('menuitem', { name: '还原' }));

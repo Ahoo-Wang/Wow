@@ -130,7 +130,7 @@ export function RecordTableHeader({
                 {!(
                   compact &&
                   (column.kind === 'actions' ||
-                    column.field === definition.rowKey)
+                    column.field === definition.record.rowKey)
                 ) && (
                   <div
                     role="separator"

@@ -28,10 +28,10 @@ import type {
   FilterCompilerRegistry,
   FilterComponentConfig,
 } from '../src/filter/filterModel.js';
-import { ViewEngine } from '../src/record/ViewEngine.js';
-import { ViewPageContent } from '../src/record/ViewPage.js';
+import { ViewEngine } from '../src/engine/ViewEngine.js';
+import { ViewPageContent } from '../src/view/ViewPage.js';
 import { RecordAppliedFilters } from '../src/record/page/RecordAppliedFilters.js';
-import type { ViewDefinition } from '../src/record/recordModel.js';
+import type { ViewDefinition } from '../src/contracts/viewModel.js';
 import { definition, instance, setup } from './fixtures/viewPage.js';
 
 const engines: ViewEngine[] = [];
@@ -123,8 +123,10 @@ it('unsets one applied AND value while keeping every filter and editor', async (
   const { engine, paged } = await openView(baseline);
   baseline.operands!.push(newFilterNode(FilterOperator.EQ, 'customer'));
   await act(async () => {
-    engine.setFilterDraft(createFilterConfiguration(baseline));
-    await engine.applyFilter();
+    engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .setFilterDraft(createFilterConfiguration(baseline));
+    await engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter();
   });
   const customer = screen.getByRole('textbox', { name: '客户值' });
   const summary = screen.getByRole('region', { name: '已应用筛选' });
@@ -247,7 +249,7 @@ it('does not offer value clearing for a value-free condition', async () => {
   expect(summary.textContent).toContain('金额');
   expect(within(summary).queryByRole('button')).toBeNull();
   act(() =>
-    engine.setFilterDraft(
+    engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
       createFilterConfiguration({
         ...newFilterNode(FilterOperator.GT, 'amount'),
         props: { value: 1 },
@@ -309,7 +311,9 @@ it('keeps applied remote labels scoped to their nodes while skipping unset nodes
     '满足任一条件（客户 属于 [用户甲]；客户 属于 [用户乙]；明细 同一元素满足（明细客户 属于 [明细用户]））',
   );
   draft.operands![1] = customer('first', '草稿标签', 'u2');
-  engine.setFilterDraft(createFilterConfiguration(draft));
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft(createFilterConfiguration(draft));
   expect(engine.getSnapshot().sessions.mine.filterPending).toBe(true);
   rerender();
   expect(summary.textContent).toContain('客户 属于 [用户甲]');

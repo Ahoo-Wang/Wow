@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
+import { useOverlayOpen } from '../lib/OverlayScope.js';
 import { CalendarIcon } from 'lucide-react';
 import { zhCN } from 'react-day-picker/locale';
 import { Calendar } from '../components/ui/calendar.js';
@@ -43,7 +43,7 @@ export function FilterDatePicker({
   invalid,
   errorId,
 }: FilterDatePickerProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useOverlayOpen();
   const selected =
     value && Number.isFinite(value.getTime()) ? value : undefined;
   const display = selected

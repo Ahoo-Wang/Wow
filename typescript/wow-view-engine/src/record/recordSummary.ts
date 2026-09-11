@@ -21,7 +21,7 @@ import type {
   RecordData,
   RecordSummaryFunction,
   RecordSummaryResult,
-} from './recordModel.js';
+} from '../contracts/viewModel.js';
 import { readRecordValue } from './recordValidation.js';
 import { RECORD_SUMMARY_LABELS } from './recordPresentation.js';
 import { cloneSnapshot, type DeepReadonly } from '../lib/types.js';

@@ -27,7 +27,7 @@ const meta = {
     },
   },
   id: 'view-engine-专项场景-record-view-运行时工具',
-  title: 'View Engine/专项场景/视图与运行时/运行时工具',
+  title: 'View Engine/引擎与宿主/运行时工具',
 };
 
 export default meta;

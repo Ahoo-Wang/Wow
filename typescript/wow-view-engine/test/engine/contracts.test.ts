@@ -12,7 +12,7 @@
  */
 
 import { expect, it, vi } from 'vitest';
-import { ViewEngine } from '../../src/record/ViewEngine.js';
+import { ViewEngine } from '../../src/engine/ViewEngine.js';
 import { createFilterConfiguration } from '../../src/filter/filterCore.js';
 import { filter } from '@ahoo-wang/fetcher-wow';
 import {
@@ -134,12 +134,12 @@ it('does not recompile filters for selection, title or query status changes', as
   });
   await engine.load();
   compile.mockClear();
-  engine.setSelection(['a']);
+  engine.record(engine.getSnapshot().selectedInstanceId!).setSelection(['a']);
   engine.setTitle('new title');
-  await engine.refresh();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).refresh();
   expect(compile).not.toHaveBeenCalled();
   expect(selected(engine).dirty).toBe(true);
-  engine.setFilterDraft(
+  engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
     createFilterConfiguration({
       ...selected(engine).filterDraft.root,
       props: { value: 2 },
@@ -147,7 +147,7 @@ it('does not recompile filters for selection, title or query status changes', as
   );
   expect(compile).toHaveBeenCalled();
   expect(selected(engine).filterPending).toBe(true);
-  await engine.applyFilter();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter();
   expect(selected(engine).filterPending).toBe(false);
   engine.dispose();
 });

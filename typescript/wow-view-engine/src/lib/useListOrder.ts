@@ -26,12 +26,14 @@ export function useListOrder<T extends { id: string }>({
   canMove: permitsMove,
   titleOf,
   disabled,
+  orientation = 'vertical',
 }: {
   items: readonly T[];
   onChange(items: T[]): void;
   canMove?(item: T, target: T): boolean;
   titleOf(item: T): string;
   disabled?: boolean;
+  orientation?: 'vertical' | 'horizontal';
 }) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropBoundary, setDropBoundary] = useState<number | null>(null);
@@ -65,7 +67,11 @@ export function useListOrder<T extends { id: string }>({
       row.getBoundingClientRect(),
     );
     const hovered = bounds.findIndex(
-      row => event.clientY >= row.top && event.clientY <= row.bottom,
+      row =>
+        event.clientY >= row.top &&
+        event.clientY <= row.bottom &&
+        (orientation === 'vertical' ||
+          (event.clientX >= row.left && event.clientX <= row.right)),
     );
     if (
       hovered >= 0 &&
@@ -73,8 +79,12 @@ export function useListOrder<T extends { id: string }>({
       !canMove(draggedIndex, hovered)
     )
       return null;
-    const before = bounds.findIndex(
-      row => event.clientY < row.top + row.height / 2,
+    const before = bounds.findIndex(row =>
+      orientation === 'vertical'
+        ? event.clientY < row.top + row.height / 2
+        : event.clientY < row.top ||
+          (event.clientY <= row.bottom &&
+            event.clientX < row.left + row.width / 2),
     );
     const boundary = before < 0 ? bounds.length : before;
     const target = boundary > draggedIndex ? boundary - 1 : boundary;
@@ -124,9 +134,21 @@ export function useListOrder<T extends { id: string }>({
       },
       onDragEnd: endDrag,
       onKeyDown: event => {
-        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+        if (
+          ![
+            'ArrowUp',
+            'ArrowDown',
+            ...(orientation === 'horizontal'
+              ? ['ArrowLeft', 'ArrowRight']
+              : []),
+          ].includes(event.key)
+        )
+          return;
         event.preventDefault();
-        move(index, index + (event.key === 'ArrowUp' ? -1 : 1));
+        move(
+          index,
+          index + (['ArrowUp', 'ArrowLeft'].includes(event.key) ? -1 : 1),
+        );
       },
     };
   }

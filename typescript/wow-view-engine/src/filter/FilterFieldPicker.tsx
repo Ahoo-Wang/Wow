@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-import { useState, type ReactNode } from 'react';
+import { useOverlayOpen } from '../lib/OverlayScope.js';
+import type { ReactNode } from 'react';
 import { PlusIcon } from 'lucide-react';
 import { Button } from '../components/ui/button.js';
 import { ButtonGroup } from '../components/ui/button-group.js';
@@ -47,7 +48,7 @@ export function FilterFieldPicker({
   onRemove(value: string): void;
   children?: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useOverlayOpen();
   const groups = new Map<string, FieldChoice[]>();
   for (const option of options) {
     const items = groups.get(option.group) ?? [];

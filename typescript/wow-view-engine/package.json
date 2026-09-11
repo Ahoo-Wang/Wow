@@ -45,7 +45,7 @@
     "build": "vite build",
     "test": "vitest run --coverage && pnpm test:compiled && pnpm test:type",
     "test:compiled": "vitest run --mode compiled",
-    "test:type": "tsc --noEmit -p tsconfig.json",
+    "test:type": "tsc --noEmit -p tsconfig.json && node scripts/verify-extension-contracts.mjs",
     "lint": "eslint . --fix",
     "lint:check": "eslint . --max-warnings 0",
     "clean": "rm -rf dist",
@@ -62,7 +62,8 @@
     "tailwind-merge": "catalog:",
     "@ahoo-wang/fetcher-wow": "workspace:^",
     "@ahoo-wang/fetcher-react": "workspace:^",
-    "@date-fns/tz": "catalog:"
+    "@date-fns/tz": "catalog:",
+    "recharts": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",

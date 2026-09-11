@@ -11,13 +11,13 @@
  * limitations under the License.
  */
 
+import { ExampleViewPage } from '../ExampleViewPage.js';
 import { IndexedDBViewHost } from '@ahoo-wang/fetcher-view-engine/react';
 import { createContext, useContext, useRef, useState } from 'react';
 import { HeartIcon } from 'lucide-react';
 import { type ViewHost } from '@ahoo-wang/fetcher-view-engine';
 import {
   Button,
-  ViewPage,
   Popover,
   PopoverTrigger,
   PopoverContent,
@@ -122,7 +122,7 @@ function CatalogWorkspace({
             重新打开已保存视图
           </Button>
         )}
-        <ViewPage
+        <ExampleViewPage
           key={generation}
           scopeKey="demo:product-catalog"
           definitionId={definition.id}

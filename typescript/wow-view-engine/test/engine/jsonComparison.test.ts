@@ -83,3 +83,16 @@ it('accepts a saved response that only reorders opaque component property keys',
     engine.dispose();
   }
 });
+
+it('compares sparse JSON arrays by their serialized null slots and ignores inherited keys', () => {
+  expect(sameJsonState(new Array(1), [null])).toBe(true);
+  expect(sameJsonState(new Array(1), [1])).toBe(false);
+  expect(sameJsonState([1], new Array(1))).toBe(false);
+  expect(
+    sameJsonState({ optional: undefined, value: null }, { value: null }),
+  ).toBe(true);
+  expect(sameJsonState(Object.create({ inherited: 1 }), { inherited: 1 })).toBe(
+    false,
+  );
+  expect(sameJsonState([1], { 0: 1 })).toBe(false);
+});

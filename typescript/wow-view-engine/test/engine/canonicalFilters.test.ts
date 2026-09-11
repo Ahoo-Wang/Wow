@@ -13,7 +13,7 @@
 
 import { afterEach, expect, it } from 'vitest';
 import { FilterOperator, filter } from '@ahoo-wang/fetcher-wow';
-import type { ViewEngine } from '../../src/record/ViewEngine.js';
+import type { ViewEngine } from '../../src/engine/ViewEngine.js';
 import type { FilterConfiguration } from '../../src/filter/filterModel.js';
 import { selected, setup } from './fixtures.js';
 const engines: ViewEngine[] = [];
@@ -36,10 +36,12 @@ it('uses the same configuration representation for draft, applied and persisted 
     selected(engine).instance.config.filters,
   );
   expect('filterMode' in selected(engine)).toBe(false);
-  engine.setFilterDraft(configuration);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft(configuration);
   expect(selected(engine).filterDraft).toEqual(configuration);
   expect(selected(engine).filterPending).toBe(true);
-  await engine.applyFilter();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter();
   expect(paged.mock.calls.at(-1)?.[0].filter).toEqual(
     filter.gte('state.amount', 20),
   );
@@ -53,10 +55,14 @@ it('keeps configuration-only edits saveable without reapplying an unchanged quer
   const { engine, paged } = setup();
   engines.push(engine);
   await engine.load();
-  engine.setFilterDraft(configuration);
-  await engine.applyFilter();
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft(configuration);
+  await engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter();
   const calls = paged.mock.calls.length;
-  engine.setFilterDraft({ ...configuration, mode: 'advanced' });
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft({ ...configuration, mode: 'advanced' });
   expect(selected(engine).filterPending).toBe(false);
   expect(selected(engine).instance.config.filters.mode).toBe('advanced');
   expect(paged).toHaveBeenCalledTimes(calls);

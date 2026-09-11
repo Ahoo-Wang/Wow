@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { RecordSession } from './recordModel.js';
+import type { RecordSession } from '../contracts/viewModel.js';
 
 /** Domain guards shared by the query command and its React controls. */
 export function getRecordRefreshBlockReason(session: RecordSession) {

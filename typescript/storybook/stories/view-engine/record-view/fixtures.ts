@@ -21,7 +21,7 @@ import {
   newFilterNode,
   type FilterConfiguration,
   type RecordData,
-  type ViewDefinition,
+  type RecordViewDefinition,
   type ViewInstance,
   type ViewInstanceList,
 } from '@ahoo-wang/fetcher-view-engine';
@@ -76,12 +76,10 @@ const numberOperators = [
   FilterOperator.LTE,
 ];
 
-export const definition: ViewDefinition = {
+export const definition: RecordViewDefinition = {
   id: 'order-management',
   title: '订单管理',
   sourceId: 'orders',
-  allowedLayouts: ['table', 'card'],
-  rowKey: 'aggregateId',
   timeZone: 'Asia/Shanghai',
   allowedOperators: [
     FilterOperator.MATCH_ALL,
@@ -219,10 +217,14 @@ export const definition: ViewDefinition = {
       },
     })),
   ],
-  recordActions: {
-    global: { name: 'order-actions' },
-    toolbar: { name: 'order-table-actions' },
-    row: { name: 'order-row-actions' },
+  record: {
+    allowedLayouts: ['table', 'card'],
+    rowKey: 'aggregateId',
+    recordActions: {
+      global: { name: 'order-actions' },
+      toolbar: { name: 'order-table-actions' },
+      row: { name: 'order-row-actions' },
+    },
   },
 };
 

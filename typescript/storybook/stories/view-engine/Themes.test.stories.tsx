@@ -18,7 +18,7 @@ import displayMeta, { ImportableThemes } from './Themes.stories.js';
 const meta = {
   ...displayMeta,
   id: 'view-engine-专项场景-主题-可导入主题-回归',
-  title: 'View Engine/专项场景/组件与主题/可导入主题/回归',
+  title: 'View Engine/扩展与组件/可导入主题/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 export default meta;

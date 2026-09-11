@@ -179,37 +179,73 @@ export function createOrderSource(
         failNextSummary = false;
         throw new Error('汇总服务暂时不可用，请重试汇总。');
       }
-      if (query.groupBy?.length || query.elements?.length || query.sort?.length)
-        throw new Error('演示服务仅支持无分组字段汇总');
+      if (
+        query.elements?.length ||
+        query.groupBy?.some(group => group.type !== 'TERMS')
+      )
+        throw new Error('演示服务仅支持普通字段分组与数值汇总');
       const matched = read().filter(record =>
         matches(record, query.filter ?? filter.matchAll()),
       );
-      const result: RecordData = {};
-      for (const metric of query.metrics) {
-        if (metric.type !== 'NUMERIC' || metric.expression.type !== 'FIELD')
-          throw new Error('演示服务仅支持数值字段汇总');
-        const field = metric.expression.field;
-        const values = matched
-          .map(record => readRecordValue(record, field))
-          .filter(
-            (value): value is number =>
-              typeof value === 'number' && Number.isFinite(value),
-          );
-        if (!values.length) {
-          result[metric.alias] = null;
-          continue;
-        }
-        const sum = values.reduce((sum, value) => sum + value, 0);
-        result[metric.alias] =
-          metric.function === 'SUM'
-            ? sum
-            : metric.function === 'AVG'
-              ? sum / values.length
-              : metric.function === 'MIN'
-                ? Math.min(...values)
-                : Math.max(...values);
+      const groups = query.groupBy ?? [];
+      // ponytail: bounded demo data uses in-memory grouping; a production host delegates aggregation to its query service.
+      const buckets = new Map<string, RecordData[]>();
+      if (!groups.length) buckets.set('[]', matched);
+      for (const record of groups.length ? matched : []) {
+        const key = JSON.stringify(
+          groups.map(group => readRecordValue(record, group.field) ?? null),
+        );
+        const bucket = buckets.get(key) ?? [];
+        bucket.push(record);
+        buckets.set(key, bucket);
       }
-      return [result as Row];
+      const rows = [...buckets].map(([key, records]) => {
+        const values: unknown[] = JSON.parse(key);
+        const result: RecordData = Object.fromEntries(
+          groups.map((group, index) => [group.alias, values[index]]),
+        );
+        for (const metric of query.metrics) {
+          if (metric.type === 'COUNT') {
+            result[metric.alias] = records.length;
+            continue;
+          }
+          if (metric.type !== 'NUMERIC' || metric.expression.type !== 'FIELD')
+            throw new Error('演示服务仅支持数值字段汇总');
+          const field = metric.expression.field;
+          const values = records
+            .map(record => readRecordValue(record, field))
+            .filter(
+              (value): value is number =>
+                typeof value === 'number' && Number.isFinite(value),
+            );
+          if (!values.length) {
+            result[metric.alias] = null;
+            continue;
+          }
+          const sum = values.reduce((sum, value) => sum + value, 0);
+          result[metric.alias] =
+            metric.function === 'SUM'
+              ? sum
+              : metric.function === 'AVG'
+                ? sum / values.length
+                : metric.function === 'MIN'
+                  ? Math.min(...values)
+                  : Math.max(...values);
+        }
+        return result;
+      });
+      rows.sort((left, right) => {
+        for (const sort of query.sort ?? []) {
+          const compared = compare(
+            left[sort.field],
+            right[sort.field],
+            sort.direction,
+          );
+          if (compared) return compared;
+        }
+        return 0;
+      });
+      return rows.slice(0, query.limit ?? rows.length) as Row[];
     },
     async paged<T extends Partial<RecordData> = RecordData>(
       query: PagedQueryRequest,

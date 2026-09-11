@@ -18,7 +18,7 @@ import { RecordColumnSettings } from '../src/record/RecordColumnSettings.js';
 import {
   type RecordColumn,
   type ViewDefinition,
-} from '../src/record/recordModel.js';
+} from '../src/contracts/viewModel.js';
 import { getRecordColumnPinning } from '../src/record/recordColumns.js';
 import {
   cleanupTable,
@@ -77,7 +77,10 @@ it('keeps headers, records and summaries aligned with default action pins, resiz
         },
         definition: {
           ...definition,
-          recordActions: { row: { name: 'actions' } },
+          record: {
+            ...definition.record,
+            recordActions: { row: { name: 'actions' } },
+          },
         },
         extensions: { rowActions: { actions: () => <button>查看</button> } },
         pageSummary: {
@@ -220,18 +223,25 @@ it('locks the bound row key and actions to opposite edges despite conflicting pr
     },
   ];
   const before = structuredClone(configured);
-  expect(getRecordColumnPinning(configured[0], definition.rowKey)).toBe(
+  expect(getRecordColumnPinning(configured[0], definition.record!.rowKey)).toBe(
     'right',
   );
-  expect(getRecordColumnPinning(configured[3], definition.rowKey)).toBe('left');
-  expect(getRecordColumnPinning(configured[4], definition.rowKey)).toBe(false);
+  expect(getRecordColumnPinning(configured[3], definition.record!.rowKey)).toBe(
+    'left',
+  );
+  expect(getRecordColumnPinning(configured[4], definition.record!.rowKey)).toBe(
+    false,
+  );
   const boundDefinition: ViewDefinition = {
     ...definition,
     fields: [
       ...definition.fields,
       { field: 'meta.id', label: '主键', type: 'number' },
     ],
-    recordActions: { row: { name: 'actions' } },
+    record: {
+      ...definition.record,
+      recordActions: { row: { name: 'actions' } },
+    },
   };
   const onChange = vi.fn();
   const view = render(

@@ -72,7 +72,7 @@ export function RecordTableBody({
           {selectable && (
             <TableCell data-pinned="start" style={{ left: 0 }}>
               <Checkbox
-                aria-label={`选择记录 ${String(getRecordKey(row.original, definition.rowKey))}`}
+                aria-label={`选择记录 ${String(getRecordKey(row.original, definition.record.rowKey))}`}
                 checked={row.getIsSelected()}
                 onCheckedChange={checked => row.toggleSelected(checked)}
               />
@@ -108,7 +108,10 @@ export function RecordTableBody({
                   <RecordCell
                     column={column}
                     record={row.original}
-                    rowKey={getRecordKey(row.original, definition.rowKey)}
+                    rowKey={getRecordKey(
+                      row.original,
+                      definition.record.rowKey,
+                    )}
                     index={row.index}
                     definition={definition}
                     instance={instance}

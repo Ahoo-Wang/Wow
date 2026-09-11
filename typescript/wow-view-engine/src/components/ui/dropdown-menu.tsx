@@ -12,6 +12,7 @@
  */
 
 import { createContext, useContext } from 'react';
+import { useOverlayOpen, useOverlayVisible } from '../../lib/OverlayScope.js';
 import { usePortalTheme, type PortalTheme } from '../../lib/usePortalTheme.js';
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
 import { cn } from '../../lib/utils.js';
@@ -19,8 +20,11 @@ import { CheckIcon } from 'lucide-react';
 
 const MenuTheme = createContext<PortalTheme>({ style: {} });
 function DropdownMenu(props: MenuPrimitive.Root.Props) {
+  const [localOpen, setOpen] = useOverlayOpen(props.defaultOpen);
+  const visible = useOverlayVisible();
+  const actualOpen = visible && (props.open ?? localOpen);
   const { scope, theme, captureTheme } = usePortalTheme(
-    props.open,
+    actualOpen,
     props.defaultOpen,
   );
   return (
@@ -28,9 +32,13 @@ function DropdownMenu(props: MenuPrimitive.Root.Props) {
       <MenuTheme.Provider value={theme}>
         <MenuPrimitive.Root
           {...props}
+          open={actualOpen}
           onOpenChange={(open, details) => {
-            captureTheme(open);
             props.onOpenChange?.(open, details);
+            if (!details.isCanceled) {
+              setOpen(open);
+              captureTheme(open);
+            }
           }}
         />
       </MenuTheme.Provider>

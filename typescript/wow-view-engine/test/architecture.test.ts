@@ -27,7 +27,7 @@ it('keeps the public core runtime independent of browser UI libraries and global
   const uiImports = [...graph].flatMap(([file, module]) =>
     [
       ...module.external.filter(specifier =>
-        /^(react(?:$|[-/])|@tanstack\/|@base-ui\/|lucide-react$)/.test(
+        /^(react(?:$|[-/])|@tanstack\/|@base-ui\/|lucide-react$|recharts(?:$|\/))/.test(
           specifier,
         ),
       ),

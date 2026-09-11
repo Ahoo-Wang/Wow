@@ -120,6 +120,22 @@ export function validateFilterConfiguration(
   fields?: readonly FilterFieldDefinition[],
   allowedOperators?: readonly FilterOperator[],
 ): asserts value is FilterConfiguration {
+  validateConfiguration(value, fields, allowedOperators, true);
+}
+
+/** Transport admission requires a renderable tree, while operator context/props may need repair. */
+export function validateFilterConfigurationStructure(
+  value: unknown,
+): asserts value is FilterConfiguration {
+  validateConfiguration(value, undefined, undefined, false);
+}
+
+function validateConfiguration(
+  value: unknown,
+  fields: readonly FilterFieldDefinition[] | undefined,
+  allowedOperators: readonly FilterOperator[] | undefined,
+  semantic: boolean,
+): asserts value is FilterConfiguration {
   validateFilterJson(value);
   object(value);
   keys(value, ['mode', 'root']);
@@ -162,13 +178,15 @@ export function validateFilterConfiguration(
       throw new TypeError('筛选组件缺少绑定字段');
     if (!bound && value.field !== undefined)
       throw new TypeError('根级操作不能绑定字段');
-    const field = validateFilterNodeContext(
-      operator,
-      value.field as string | undefined,
-      scope,
-      allowedOperators,
-      element,
-    );
+    const field = semantic
+      ? validateFilterNodeContext(
+          operator,
+          value.field as string | undefined,
+          scope,
+          allowedOperators,
+          element,
+        )
+      : undefined;
     if (descriptor.category === 'logical') {
       if (!Array.isArray(value.operands))
         throw new TypeError('分组条件必须是数组');
@@ -189,14 +207,15 @@ export function validateFilterConfiguration(
     }
     if (value.component.name === 'builtin') {
       checkBuiltinProps(value.props);
-      checkShape({
-        ...value.props,
-        id: value.id,
-        op: value.operator,
-        ...(bound ? { field: value.field } : {}),
-        ...(descriptor.category === 'logical' ? { operands: [] } : {}),
-        ...(descriptor.category === 'element' ? { predicate: {} } : {}),
-      } as Parameters<typeof checkShape>[0]);
+      if (semantic)
+        checkShape({
+          ...value.props,
+          id: value.id,
+          op: value.operator,
+          ...(bound ? { field: value.field } : {}),
+          ...(descriptor.category === 'logical' ? { operands: [] } : {}),
+          ...(descriptor.category === 'element' ? { predicate: {} } : {}),
+        } as Parameters<typeof checkShape>[0]);
     }
   }
   function visit(
@@ -216,6 +235,7 @@ export function validateFilterConfiguration(
   }
   visit(value.root, fields);
   if (
+    semantic &&
     value.mode === 'simple' &&
     !isSimpleFilter(value.root as FilterComponentConfig)
   )

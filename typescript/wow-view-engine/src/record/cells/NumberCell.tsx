@@ -12,7 +12,7 @@
  */
 
 import { cn } from '../../lib/utils.js';
-import { type ViewFieldDefinition } from '../recordModel.js';
+import { type ViewFieldDefinition } from '../../contracts/viewModel.js';
 import { formatRecordNumber } from '../recordValueFormat.js';
 import { TextCell } from './TextCell.js';
 

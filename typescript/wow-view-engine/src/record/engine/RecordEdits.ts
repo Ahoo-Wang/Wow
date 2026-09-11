@@ -28,15 +28,14 @@ import type {
   RecordKey,
   RecordPresentation,
   RecordCardConfig,
-} from '../recordModel.js';
+} from '../../contracts/viewModel.js';
 import { validateRecordPresentation } from '../validation/presentationValidation.js';
 import { resolveRecordPresentation } from '../resolveRecordPresentation.js';
 import { getRecordKey } from '../recordValidation.js';
-import type { SessionStore } from './SessionStore.js';
+import type { SessionStore } from '../../engine/SessionStore.js';
 import type { RecordQueries } from './RecordQueries.js';
 import type { RecordSummaries } from './RecordSummaries.js';
 import { copy, sameJsonState } from '../../lib/snapshot.js';
-import { isSystemSession } from './sessionState.js';
 
 /** Explicit session edits, validation and the queries each edit requires. */
 export class RecordEdits {
@@ -47,7 +46,7 @@ export class RecordEdits {
   ) {}
 
   async applyFilter(id?: string): Promise<void> {
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
     if (!session.filterValid)
       throw new Error('筛选输入无效，请先修正或撤销修改');
     const definition = this.store.definition();
@@ -92,7 +91,7 @@ export class RecordEdits {
     id?: string,
     valid?: boolean,
   ): void {
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
     const nextValid = valid === undefined ? session.filterValid : valid;
     if (typeof nextValid !== 'boolean')
       throw new Error('筛选有效性必须是布尔值');
@@ -124,17 +123,25 @@ export class RecordEdits {
         },
         { ...patch, filterBaseline: patch.filterDraft },
       );
-    } else this.store.patch(session.instance.id, patch);
+    } else
+      this.store.patch(session.instance.id, {
+        kind: 'record',
+        ...patch,
+        instance: {
+          ...session.instance,
+          config: { ...session.instance.config, filters: patch.filterDraft },
+        },
+      });
   }
 
   setFilterValidity(valid: boolean, id?: string): void {
     if (typeof valid !== 'boolean') throw new Error('筛选有效性必须是布尔值');
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
     this.setFilterDraft(session.filterDraft, session.instance.id, valid);
   }
 
   setFilterMode(mode: FilterMode, id?: string): void {
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
     if (mode !== 'simple' && mode !== 'advanced')
       throw new Error('筛选模式无效');
     if (mode === 'simple' && !isSimpleFilter(session.filterDraft.root))
@@ -144,7 +151,7 @@ export class RecordEdits {
   }
 
   async setSort(sort: DeepReadonly<FieldSort[]>, id?: string): Promise<void> {
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
     await this.queries.change(session.instance.id, () => {
       this.store.updateInstance(
         session,
@@ -155,7 +162,7 @@ export class RecordEdits {
   }
 
   setLayout(layout: RecordPresentation['layout'], id?: string): void {
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
     const presentation = resolveRecordPresentation(
       this.store.definition(),
       layout,
@@ -165,7 +172,7 @@ export class RecordEdits {
   }
 
   setCardConfig(card: DeepReadonly<RecordCardConfig>, id?: string): void {
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
     this.setPresentation(
       { ...session.instance.config.presentation, card },
       session.instance.id,
@@ -173,7 +180,7 @@ export class RecordEdits {
   }
 
   setColumns(columns: DeepReadonly<RecordColumn[]>, id?: string): void {
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
     this.setPresentation(
       { ...session.instance.config.presentation, table: { columns } },
       session.instance.id,
@@ -184,7 +191,7 @@ export class RecordEdits {
     presentation: DeepReadonly<RecordPresentation>,
     id: string,
   ): void {
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
     validateRecordPresentation(presentation, this.store.definition());
     if (sameJsonState(session.instance.config.presentation, presentation))
       return;
@@ -194,22 +201,34 @@ export class RecordEdits {
       config: { ...session.instance.config, presentation },
     });
     const current = this.store.find(id);
-    if (current && key !== this.summaries.key(current)) this.summaries.sync(id);
+    if (current?.kind === 'record' && key !== this.summaries.key(current))
+      this.summaries.sync(id);
   }
 
   async setPage(index: number, id?: string): Promise<void> {
-    const session = this.store.session(id);
-    if (session.instance.config.pagination.mode !== 'paged')
+    const session = this.store.recordSession(id);
+    if (
+      (
+        session.result?.config ??
+        session.queryAttempt?.config ??
+        session.instance.config
+      ).pagination.mode !== 'paged'
+    )
       throw new Error('游标分页仅支持向后加载下一页');
     if (!Number.isSafeInteger(index) || index < 1)
       throw new Error('页码必须是正整数');
-    await this.queries.change(session.instance.id, () => {
-      this.store.patch(session.instance.id, { page: index });
-    });
+    await this.queries.change(
+      session.instance.id,
+      () => {
+        this.store.patch(session.instance.id, { kind: 'record', page: index });
+      },
+      false,
+      'scope',
+    );
   }
 
   async setPageSize(size: number, id?: string): Promise<void> {
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
     await this.queries.change(session.instance.id, () => {
       this.store.updateInstance(
         session,
@@ -226,30 +245,36 @@ export class RecordEdits {
   }
 
   async nextPage(id?: string): Promise<void> {
-    const session = this.store.session(id);
-    if (session.instance.config.pagination.mode === 'paged')
+    const session = this.store.recordSession(id);
+    if (
+      (
+        session.result?.config ??
+        session.queryAttempt?.config ??
+        session.instance.config
+      ).pagination.mode === 'paged'
+    )
       return this.setPage(session.page + 1, session.instance.id);
     if (session.queryStatus !== 'success' || session.nextCursor === null)
       return;
-    await this.queries.change(session.instance.id, () => {
-      this.store.patch(session.instance.id, {
-        page: session.page + 1,
-        cursor: session.nextCursor,
-      });
-    });
-  }
-
-  setTitle(title: string, id?: string): void {
-    const session = this.store.session(id);
-    if (isSystemSession(session)) throw new Error('系统视图不能编辑名称');
-    this.store.updateInstance(session, { ...session.instance, title });
+    await this.queries.change(
+      session.instance.id,
+      () => {
+        this.store.patch(session.instance.id, {
+          kind: 'record',
+          page: session.page + 1,
+          cursor: session.nextCursor,
+        });
+      },
+      false,
+      'scope',
+    );
   }
 
   setSelection(keys: RecordKey[], id?: string): void {
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
     const available = new Set(
       session.rows.map(row =>
-        getRecordKey(row, this.store.definition().rowKey),
+        getRecordKey(row, this.store.definition().record!.rowKey),
       ),
     );
     if (!Array.isArray(keys) || keys.some(key => !available.has(key)))
@@ -257,12 +282,13 @@ export class RecordEdits {
     if (session.refreshing && keys.length)
       this.queries.cancel(session.instance.id);
     this.store.patch(session.instance.id, {
+      kind: 'record',
       selectedRowKeys: [...new Set(keys)],
     });
   }
 
   async restore(id?: string): Promise<void> {
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
     const filters = session.baseline.config.filters;
     const filterDraft = filters;
     const definition = this.store.definition();
@@ -277,6 +303,7 @@ export class RecordEdits {
       session.instance.id,
       () => {
         this.store.patch(session.instance.id, {
+          kind: 'record',
           instance: session.baseline,
           filterDraft,
           filterBaseline: filterDraft,

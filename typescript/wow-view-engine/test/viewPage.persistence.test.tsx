@@ -22,14 +22,15 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { ViewEngine } from '../src/record/ViewEngine.js';
-import { ViewPage, ViewPageContent } from '../src/record/ViewPage.js';
-import type { ViewInstance } from '../src/record/recordModel.js';
+import { ViewEngine } from '../src/engine/ViewEngine.js';
+import { ViewPage } from './fixtures/OwnedViewPage.js';
+import { ViewPageContent } from '../src/view/ViewPage.js';
+import type { ViewInstance } from '../src/contracts/viewModel.js';
 import { definition, instance, setup } from './fixtures/viewPage.js';
 
 afterEach(cleanup);
 
-it('saves an added unset control without querying and requires Query after entering a value', async () => {
+it('saves both unset controls and valid pending values without applying them', async () => {
   const { host, paged } = setup();
   render(
     <ViewPage
@@ -69,14 +70,26 @@ it('saves an added unset control without querying and requires Query after enter
   expect(customer?.props).toEqual({});
   expect(paged).toHaveBeenCalledTimes(1);
   fireEvent.change(input, { target: { value: 'Alice' } });
-  expect(save.disabled).toBe(true);
+  expect(save.disabled).toBe(false);
+  fireEvent.click(save);
+  await waitFor(() => expect(host.instance!.save).toHaveBeenCalledTimes(2));
+  expect(
+    vi
+      .mocked(host.instance!.save!)
+      .mock.calls[1][0].config.filters.root.operands?.find(
+        node => node.field === 'customer',
+      )?.props.value,
+  ).toBe('Alice');
+  expect(
+    screen.getByRole('region', { name: '已应用筛选' }).textContent,
+  ).not.toContain('Alice');
   expect(paged).toHaveBeenCalledTimes(1);
   fireEvent.keyDown(input, { key: 'Enter' });
   await waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
-  expect(save.disabled).toBe(false);
+  expect(save.disabled).toBe(true);
 });
 
-it('keeps filter edits manual, blocks saves while pending, then saves applied configuration', async () => {
+it('saves valid working filters while queries keep their previously applied scope', async () => {
   const { host, paged } = setup();
   render(<ViewPage scopeKey="test-user" definitionId="orders" host={host} />);
   await screen.findByRole('cell', { name: '42' });
@@ -88,11 +101,8 @@ it('keeps filter edits manual, blocks saves while pending, then saves applied co
     (await screen.findByRole('menuitem', { name: '另存为' })).getAttribute(
       'aria-disabled',
     ),
-  ).toBe('true');
+  ).not.toBe('true');
   fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
-  fireEvent.click(screen.getByRole('button', { name: '查询', exact: true }));
-  await waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
-  expect(paged.mock.calls[1][0].filter).toEqual(filter.gte('amount', 20));
   fireEvent.click(screen.getByRole('button', { name: '保存', exact: true }));
   await waitFor(() => expect(host.instance!.save).toHaveBeenCalledTimes(1));
   await waitFor(() =>
@@ -108,6 +118,17 @@ it('keeps filter edits manual, blocks saves while pending, then saves applied co
   expect(
     screen.getByRole('status', { name: '保存状态' }).textContent,
   ).toContain('视图已保存');
+  expect(paged).toHaveBeenCalledTimes(1);
+  expect(
+    vi.mocked(host.instance!.save!).mock.calls[0][0].config.filters.root.props
+      .value,
+  ).toEqual({ type: 'number', value: '20' });
+  expect(
+    screen.getByRole('region', { name: '已应用筛选' }).textContent,
+  ).toContain('10');
+  fireEvent.click(screen.getByRole('button', { name: '查询', exact: true }));
+  await waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
+  expect(paged.mock.calls[1][0].filter).toEqual(filter.gte('amount', 20));
 });
 it.each(['personal', 'shared'])(
   'save-as radios explain visibility and respect %s-only permission',

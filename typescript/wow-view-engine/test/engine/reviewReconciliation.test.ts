@@ -21,8 +21,8 @@ import {} from '@ahoo-wang/fetcher-wow';
 
 import { ViewServiceError } from '../../src/record/viewServiceContract.js';
 import { deferred, instance, selected, setup } from './fixtures.js';
-import type { ViewEngine } from '../../src/record/ViewEngine.js';
-import type { ViewInstance } from '../../src/record/recordModel.js';
+import type { ViewEngine } from '../../src/engine/ViewEngine.js';
+import type { ViewInstance } from '../../src/contracts/viewModel.js';
 
 const engines: ViewEngine[] = [];
 afterEach(() => engines.splice(0).forEach(engine => engine.dispose()));
@@ -43,12 +43,14 @@ it('uses authoritative scope while retaining editable title and filter draft on 
     ...newFilterNode(FilterOperator.GTE, 'state.amount'),
     props: { value: 42 },
   };
-  engine.setFilterDraft(createFilterConfiguration(draft));
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft(createFilterConfiguration(draft));
   await engine.reloadInstance();
   expect(selected(engine).instance.scope).toEqual(remote.scope);
   expect(selected(engine).instance.title).toBe('Local title');
   expect(selected(engine).filterDraft.root).toEqual(draft);
-  await engine.applyFilter();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter();
   await engine.save();
   expect(vi.mocked(host.instance!.save!).mock.calls[0][0].scope).toEqual(
     remote.scope,
@@ -83,7 +85,9 @@ it('retains an absent source only for creation recovery across repeated full loa
     ...newFilterNode(FilterOperator.GTE, 'state.amount'),
     props: { value: 42 },
   };
-  engine.setFilterDraft(createFilterConfiguration(draft));
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft(createFilterConfiguration(draft));
   list.mockResolvedValue({ instances: [], defaultInstanceId: null });
   await engine.load();
   await engine.load();
@@ -94,7 +98,7 @@ it('retains an absent source only for creation recovery across repeated full loa
   );
   expect(engine.getSnapshot().pendingCreates.mine.rows).toEqual([]);
   expect(engine.canReloadInstance('mine')).toBe(true);
-  await expect(engine.refresh('mine')).rejects.toThrow();
+  await expect(engine.record('mine').refresh()).rejects.toThrow();
   await expect(engine.save('mine')).rejects.toThrow();
   await engine.reloadInstance('mine');
   expect(create.mock.calls[1][1].requestId).toBe(
@@ -104,6 +108,9 @@ it('retains an absent source only for creation recovery across repeated full loa
   expect(engine.getSnapshot().pendingCreates).toEqual({});
   expect(engine.getSnapshot().instanceIds).toEqual(['created']);
   expect(selected(engine, 'created').filterDraft.root).toEqual(draft);
+  expect(selected(engine, 'created').appliedFilter).toEqual({
+    op: FilterOperator.MATCH_ALL,
+  });
   expect(selected(engine, 'created').filterPending).toBe(true);
   expect(paged).toHaveBeenCalledOnce();
 });
@@ -225,7 +232,9 @@ it('retains recovery editor if source reappears before reconciliation', async ()
       engine.getSnapshot().sessions.mine.filterDraft.root,
     );
     draft.id = 'local-filter-draft';
-    engine.setFilterDraft(createFilterConfiguration(draft));
+    engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .setFilterDraft(createFilterConfiguration(draft));
     list.mockResolvedValue({ instances: [], defaultInstanceId: null });
     await engine.load();
     expect(engine.getSnapshot().pendingCreates.mine.filterDraft.root.id).toBe(

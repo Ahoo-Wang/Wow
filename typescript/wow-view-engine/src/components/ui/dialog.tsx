@@ -77,17 +77,25 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  keepMounted = false,
+  side,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
+  /** Preserve local editor state while the dialog is closed. */
+  keepMounted?: boolean;
+  /** Right-edge Sheet; shares dialog focus, theme and dismissal behavior. */
+  side?: 'right';
 }) {
   return (
-    <DialogPortal>
+    <DialogPortal keepMounted={keepMounted}>
       <DialogOverlay />
       <DialogPrimitive.Popup
-        data-slot="dialog-content"
+        data-slot={side === 'right' ? 'sheet-content' : 'dialog-content'}
         className={cn(
-          'fve-root fve:fixed fve:top-1/2 fve:left-1/2 fve:z-50 fve:grid fve:w-full fve:max-w-[calc(100%-2rem)] fve:-translate-x-1/2 fve:-translate-y-1/2 fve:gap-4 fve:rounded-xl fve:bg-popover fve:p-4 fve:text-sm fve:text-popover-foreground fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:outline-none fve:sm:max-w-sm fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95',
+          side === 'right'
+            ? 'fve-root fve:fixed fve:inset-y-0 fve:right-0 fve:z-50 fve:flex fve:h-dvh fve:w-full fve:flex-col fve:gap-4 fve:bg-popover fve:p-4 fve:text-sm fve:text-popover-foreground fve:shadow-lg fve:outline-none fve:sm:max-w-[38rem] fve:data-closed:hidden'
+            : 'fve-root fve:fixed fve:top-1/2 fve:left-1/2 fve:z-50 fve:grid fve:w-full fve:max-w-[calc(100%-2rem)] fve:-translate-x-1/2 fve:-translate-y-1/2 fve:gap-4 fve:rounded-xl fve:bg-popover fve:p-4 fve:text-sm fve:text-popover-foreground fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:outline-none fve:sm:max-w-sm fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95',
           className,
         )}
         {...props}

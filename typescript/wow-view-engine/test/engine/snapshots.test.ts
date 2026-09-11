@@ -17,10 +17,10 @@ import {
   createFilterConfiguration,
   newFilterNode,
 } from '../../src/filter/filterCore.js';
-import type { ViewDefinition } from '../../src/record/recordModel.js';
+import type { ViewDefinition } from '../../src/contracts/viewModel.js';
 import { definition, instance, selected, setup } from './fixtures.js';
 
-it('derives pending from core draft changes and only accepts the queried editing baseline', async () => {
+it('derives pending from core draft changes and saves valid working configuration independently of the queried baseline', async () => {
   const saved = instance();
   saved.config.filters = createFilterConfiguration({
     ...newFilterNode(FilterOperator.GTE, 'state.amount'),
@@ -31,34 +31,36 @@ it('derives pending from core draft changes and only accepts the queried editing
   });
   await engine.load();
   engine.setTitle('Edited title');
-  engine.setFilterDraft(
+  engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
     createFilterConfiguration({
       ...newFilterNode(FilterOperator.GTE, 'state.amount'),
       props: { value: 500 },
     }),
   );
   expect(selected(engine).filterPending).toBe(true);
-  await expect(engine.save()).rejects.toThrow(/先查询/);
-  expect(host.instance!.save).not.toHaveBeenCalled();
-  engine.setFilterDraft(
+  await engine.save();
+  expect(host.instance!.save).toHaveBeenCalledOnce();
+  expect(selected(engine).appliedFilter).toMatchObject({ value: 10 });
+  engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
     createFilterConfiguration({
       ...newFilterNode(FilterOperator.GTE, 'state.amount'),
       props: { value: 10 },
     }),
   );
   expect(selected(engine).filterPending).toBe(false);
-  engine.setFilterValidity(false);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterValidity(false);
   expect(selected(engine).filterPending).toBe(true);
-  engine.setFilterDraft(
+  engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
     createFilterConfiguration({
       ...newFilterNode(FilterOperator.GTE, 'state.amount'),
       props: { value: 500 },
     }),
-    undefined,
     true,
   );
   expect(selected(engine).filterPending).toBe(true);
-  await engine.applyFilter();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter();
   expect(selected(engine).filterPending).toBe(false);
   await engine.save();
   expect(selected(engine).baseline.config.filters.root).toMatchObject({
@@ -66,11 +68,15 @@ it('derives pending from core draft changes and only accepts the queried editing
     field: 'state.amount',
     props: { value: 500 },
   });
-  engine.setFilterDraft(
-    createFilterConfiguration(newFilterNode(FilterOperator.EQ, 'state.amount')),
-  );
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft(
+      createFilterConfiguration(
+        newFilterNode(FilterOperator.EQ, 'state.amount'),
+      ),
+    );
   expect(selected(engine).filterPending).toBe(true);
-  await engine.applyFilter();
+  await engine.record(engine.getSnapshot().selectedInstanceId!).applyFilter();
   expect(selected(engine).filterPending).toBe(false);
   expect(selected(engine).filterDraft.root.operator).toBe(FilterOperator.EQ);
 });
@@ -96,7 +102,9 @@ it('isolates snapshots and request payloads from caller and host mutation', asyn
   expect(selected(engine).appliedFilter?.op).toBe('MATCH_ALL');
   const draft = newFilterNode(FilterOperator.EQ, 'state.amount');
   const configuration = createFilterConfiguration(draft);
-  engine.setFilterDraft(configuration);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft(configuration);
   configuration.root.props.value = 999;
   expect(selected(engine).filterDraft.root.props.value).toBeUndefined();
   expect(snapshot.sessions.mine.instance.title).toBe('mine');
@@ -109,13 +117,19 @@ it('does not publish identical controlled filter state again', async () => {
   const snapshot = engine.getSnapshot();
   const listener = vi.fn();
   engine.subscribe(listener);
-  engine.setFilterValidity(true);
-  engine.setFilterMode('simple');
-  engine.setFilterDraft(
-    createFilterConfiguration(
-      structuredClone(selected(engine).filterDraft.root),
-    ),
-  );
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterValidity(true);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterMode('simple');
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft(
+      createFilterConfiguration(
+        structuredClone(selected(engine).filterDraft.root),
+      ),
+    );
   expect(engine.getSnapshot()).toBe(snapshot);
   expect(listener).not.toHaveBeenCalled();
 });

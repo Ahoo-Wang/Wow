@@ -12,7 +12,7 @@
  */
 
 import { useListOrder } from '../../lib/useListOrder.js';
-import type { RecordColumn } from '../recordModel.js';
+import type { RecordColumn } from '../../contracts/viewModel.js';
 import {
   getRecordColumnPinning,
   orderRecordColumns,
@@ -26,9 +26,14 @@ export function useRecordColumnOrder({
   onChange,
   disabled,
 }: RecordColumnSettingsProps) {
-  const columns = orderRecordColumns(configuredColumns, definition.rowKey);
+  const columns = orderRecordColumns(
+    configuredColumns,
+    definition.record.rowKey,
+  );
   function isLocked(column: RecordColumn): boolean {
-    return column.kind === 'actions' || column.field === definition.rowKey;
+    return (
+      column.kind === 'actions' || column.field === definition.record.rowKey
+    );
   }
   function titleOf(column: RecordColumn): string {
     return (
@@ -45,8 +50,8 @@ export function useRecordColumnOrder({
     disabled,
     titleOf,
     canMove: (column, other) =>
-      getRecordColumnPinning(column, definition.rowKey) ===
-        getRecordColumnPinning(other, definition.rowKey) &&
+      getRecordColumnPinning(column, definition.record.rowKey) ===
+        getRecordColumnPinning(other, definition.record.rowKey) &&
       isLocked(column) === isLocked(other),
   });
   return { ...order, columns, isLocked, titleOf };

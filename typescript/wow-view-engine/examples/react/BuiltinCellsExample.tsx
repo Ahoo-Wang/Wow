@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { ExampleViewPage } from './ExampleViewPage.js';
 import { IndexedDBViewHost } from '@ahoo-wang/fetcher-view-engine/react';
 import { useState } from 'react';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
@@ -19,12 +20,11 @@ import {
   type MemoryViewHostOptions,
   createFilterConfiguration,
   type RecordData,
-  type ViewDefinition,
+  type RecordViewDefinition,
   type ViewInstanceList,
 } from '@ahoo-wang/fetcher-view-engine';
 import {
   Button,
-  ViewPage,
   TextCell,
   TagsCell,
   StatusCell,
@@ -34,12 +34,10 @@ import {
 } from '@ahoo-wang/fetcher-view-engine/react';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
-const definition: ViewDefinition = {
+const definition: RecordViewDefinition = {
   id: 'builtin-cells',
   title: '内置单元格',
   sourceId: 'cell-examples',
-  allowedLayouts: ['table', 'card'],
-  rowKey: 'id',
   timeZone: 'Asia/Shanghai',
   allowedOperators: [FilterOperator.MATCH_ALL],
   fields: [
@@ -81,6 +79,7 @@ const definition: ViewDefinition = {
       numberFormat: { style: 'percent', maximumFractionDigits: 1 },
     },
   ],
+  record: { allowedLayouts: ['table', 'card'], rowKey: 'id' },
 };
 const instances: ViewInstanceList = {
   defaultInstanceId: 'mine',
@@ -304,7 +303,7 @@ function CellSession({
           重置示例
         </Button>
       </div>
-      <ViewPage
+      <ExampleViewPage
         key={generation}
         definitionId={definition.id}
         host={host}

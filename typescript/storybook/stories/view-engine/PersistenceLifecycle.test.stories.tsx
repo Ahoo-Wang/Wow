@@ -31,7 +31,7 @@ function PersistenceToggle({ catalog = false }: { catalog?: boolean }) {
   );
 }
 const meta = {
-  title: 'View Engine/专项场景/视图与运行时/持久化生命周期/回归',
+  title: 'View Engine/引擎与宿主/持久化生命周期/回归',
   component: PersistenceToggle,
   tags: ['!dev', '!autodocs', 'test'],
   beforeEach: async ({ args }) => {

@@ -25,8 +25,8 @@ import type {
   FilterEditorProps,
   FilterRegistration,
 } from '../src/filter/filterReactTypes.js';
-import { ViewPage } from '../src/record/ViewPage.js';
-import type { ViewInstance } from '../src/record/recordModel.js';
+import { ViewPage } from './fixtures/OwnedViewPage.js';
+import type { ViewInstance } from '../src/contracts/viewModel.js';
 import { instance, setup } from './fixtures/viewPage.js';
 
 afterEach(cleanup);
@@ -266,7 +266,16 @@ it('does not query from core-only compiler options accidentally spread into a Re
     filterCompilers: { custom: { compile } },
   };
   render(<ViewPage scopeKey="component-registry" {...options} />);
-  await screen.findByText('筛选组件配置无法编译，请先修正筛选');
+  const query = await screen.findByRole('button', {
+    name: '查询',
+    exact: true,
+  });
+  expect(query).toHaveProperty('disabled', true);
   expect(paged).not.toHaveBeenCalled();
+  expect(compile).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '删除金额条件' }));
+  expect(query).toHaveProperty('disabled', false);
+  fireEvent.click(query);
+  await waitFor(() => expect(paged).toHaveBeenCalledOnce());
   expect(compile).not.toHaveBeenCalled();
 });

@@ -15,8 +15,8 @@ import { createFilterConfiguration } from '../../src/filter/filterCore.js';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { expect, it, vi } from 'vitest';
 import { newFilterNode } from '../../src/filter/filterCore.js';
-import type { ViewInstance } from '../../src/record/recordModel.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+import type { ViewInstance } from '../../src/contracts/viewModel.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import { ViewServiceError } from '../../src/record/viewServiceContract.js';
 import { deferred, instance, selected, setup } from './fixtures.js';
 
@@ -37,7 +37,9 @@ it('denies unavailable writes and pending filter drafts', async () => {
   expect(selected(engine).requiresReload).toBe(false);
   const pending = setup();
   await pending.engine.load();
-  pending.engine.setFilterValidity(false);
+  pending.engine
+    .record(pending.engine.getSnapshot().selectedInstanceId!)
+    .setFilterValidity(false);
   await expect(pending.engine.save()).rejects.toThrow();
   await expect(
     pending.engine.saveAs({ title: 'New', scope: { type: 'personal' } }),
@@ -87,6 +89,7 @@ it('accepts host metadata changes while requiring exact persisted title, scope a
           ...value,
           id: 'created',
           createdAt: 'today',
+          revision: 'created-r1',
         }),
       },
     } as unknown as ViewHost,
@@ -164,16 +167,21 @@ it('requires explicit reload after a malformed or changed echo, preserving local
     await expect(engine.save()).rejects.toThrow();
     expect(saveInstance).toHaveBeenCalledOnce();
     const draft = newFilterNode(FilterOperator.EQ, 'state.amount');
-    engine.setFilterDraft(createFilterConfiguration(draft));
-    engine.setFilterValidity(false);
+    engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .setFilterDraft(createFilterConfiguration(draft));
+    engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .setFilterValidity(false);
     await engine.reloadInstance();
     expect(selected(engine)).toMatchObject({
       requiresReload: false,
       dirty: true,
       filterDraft: { root: draft },
       filterPending: true,
-      instance: { title: 'My draft', revision: 'r9' },
-      baseline: { title: 'Server title', revision: 'r9' },
+      instance: { title: 'My draft', revision: 'r1' },
+      baseline: { title: 'mine', revision: 'r1' },
+      conflict: { remote: { title: 'Server title', revision: 'r9' } },
     });
   }
 });

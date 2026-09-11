@@ -19,7 +19,7 @@ import {
 import source from '../../packages/view-engine/examples/react/BuiltinCellsExample.tsx?raw';
 const meta = {
   id: 'view-engine-专项场景-单元格-内置组件',
-  title: 'View Engine/专项场景/组件与主题/内置单元格',
+  title: 'View Engine/扩展与组件/内置单元格',
   component: BuiltinCellsExample,
   args: { appearance: 'light' },
   argTypes: {

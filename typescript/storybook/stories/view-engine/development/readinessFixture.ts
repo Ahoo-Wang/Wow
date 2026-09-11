@@ -8,7 +8,7 @@ import {
   readRecordValue,
   type RecordData,
   type RecordQuerySource,
-  type ViewDefinition,
+  type RecordViewDefinition,
   type ViewFieldDefinition,
   type ViewHost,
   type ViewInstanceList,
@@ -20,12 +20,10 @@ import {
   type PagedList,
 } from '@ahoo-wang/fetcher-wow';
 
-const definition: ViewDefinition = {
+const definition: RecordViewDefinition = {
   id: 'readiness',
   sourceId: 'readiness',
   title: '数据视图验收',
-  allowedLayouts: ['table', 'card'],
-  rowKey: 'meta.id',
   timeZone: 'Asia/Shanghai',
   allowedOperators: [Op.MATCH_ALL, Op.AND, Op.EQ, Op.GTE, Op.BETWEEN, Op.IN],
   fields: (
@@ -98,6 +96,7 @@ const definition: ViewDefinition = {
     group:
       index < 6 ? '基本信息' : `指标组 ${Math.floor((index - 6) / 10) + 1}`,
   })),
+  record: { allowedLayouts: ['table', 'card'], rowKey: 'meta.id' },
 };
 const instances: ViewInstanceList = {
   defaultInstanceId: 'all',
@@ -106,6 +105,7 @@ const instances: ViewInstanceList = {
       id: 'all',
       definitionId: definition.id,
       kind: 'record',
+      revision: 'initial',
       title: '验收订单',
       scope: { type: 'personal' },
       config: {

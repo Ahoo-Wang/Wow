@@ -13,7 +13,7 @@
 
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MemoryViewHost } from '../src/record/MemoryViewHost.js';
-import { ViewEngine } from '../src/record/ViewEngine.js';
+import { ViewEngine } from '../src/engine/ViewEngine.js';
 import { definition, instance, setup } from './fixtures/viewPage.js';
 
 const store = new Map<string, string | null>();
@@ -48,10 +48,9 @@ it('uses the deletion receipt after another client changes the fallback order', 
   const otherClient = new MemoryViewHost(input);
   const engine = new ViewEngine({ definitionId: definition.id, host });
   await engine.load();
-  engine.setColumns(
-    [{ id: 'amount', kind: 'field', field: 'amount', width: 240 }],
-    'system',
-  );
+  engine
+    .record('system')
+    .setColumns([{ id: 'amount', kind: 'field', field: 'amount', width: 240 }]);
   const draft = engine.getSnapshot().sessions.system;
   await otherClient.preference.saveOrder(definition.id, [
     'mine',
@@ -410,8 +409,8 @@ it('persists both layouts and restores each configuration after reloading', asyn
   const first = new ViewEngine({ definitionId: definition.id, host });
   try {
     await first.load();
-    first.setLayout('card');
-    first.setCardConfig({
+    first.record(first.getSnapshot().selectedInstanceId!).setLayout('card');
+    first.record(first.getSnapshot().selectedInstanceId!).setCardConfig({
       title: { id: 'title', field: 'amount' },
       fields: [],
       actions: { visible: false, renderer: { name: 'custom' } },
@@ -428,8 +427,10 @@ it('persists both layouts and restores each configuration after reloading', asyn
       expect(
         second.getSnapshot().sessions[instance.id].instance.config.presentation,
       ).toEqual(savedPresentation);
-      second.setLayout('table');
-      second.setLayout('card');
+      second
+        .record(second.getSnapshot().selectedInstanceId!)
+        .setLayout('table');
+      second.record(second.getSnapshot().selectedInstanceId!).setLayout('card');
       expect(
         second.getSnapshot().sessions[instance.id].instance.config.presentation,
       ).toEqual(savedPresentation);

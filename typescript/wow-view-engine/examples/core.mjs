@@ -25,8 +25,7 @@ const definition = {
   id: 'orders',
   title: 'Orders',
   sourceId: 'orders',
-  allowedLayouts: ['table', 'card'],
-  rowKey: 'id',
+  record: { allowedLayouts: ['table', 'card'], rowKey: 'id' },
   allowedOperators: ['MATCH_ALL', 'GTE'],
   fields: [
     { field: 'id', label: 'Order', type: 'string' },
@@ -210,7 +209,7 @@ try {
     expression: { op: 'MATCH_ALL' },
     errors: [],
   });
-  engine.setFilterDraft(unset, undefined, true);
+  engine.record(initial.id).setFilterDraft(unset, true);
   assert.equal(session().filterPending, false);
   assert.equal(session().dirty, true);
   await engine.save();
@@ -236,23 +235,28 @@ try {
   );
   assert.ok(compiledInvalid.errors.length > 0);
   assert.equal(compiledInvalid.expression, undefined);
-  engine.setFilterDraft(invalid, undefined, false);
+  engine.record(initial.id).setFilterDraft(invalid, false);
   const callsBeforeInvalid = queries.length;
-  await assert.rejects(engine.applyFilter());
+  await assert.rejects(engine.record(initial.id).applyFilter());
   await assert.rejects(engine.save());
   assert.equal(queries.length, callsBeforeInvalid);
   assert.deepEqual(writes, ['save']);
 
   const valid = { ...unset, root: { ...unset.root, props: { value: 25 } } };
-  engine.setFilterDraft(valid, undefined, true);
+  engine.record(initial.id).setFilterDraft(valid, true);
   const compiled = compileFilterConfiguration(
     valid,
     definition.fields,
     definition.allowedOperators,
   );
   assert.deepEqual(compiled.errors, []);
-  await assert.rejects(engine.save());
-  await engine.applyFilter();
+  await engine.save();
+  assert.equal(queries.length, callsBeforeInvalid);
+  assert.deepEqual(
+    session().rows.map(row => row.id),
+    ['order-1', 'order-2'],
+  );
+  await engine.record(initial.id).applyFilter();
   assert.deepEqual(
     session().rows.map(row => row.id),
     ['order-2', 'order-3'],
@@ -263,7 +267,6 @@ try {
     value: 25,
   });
   assert.equal(session().filterPending, false);
-  await engine.save();
   assert.equal(session().baseline.revision, '3');
   assert.equal(session().dirty, false);
 
@@ -280,7 +283,7 @@ try {
     },
   };
   const beforeMetadata = queries.length;
-  engine.setFilterDraft(opaque, undefined, true);
+  engine.record(initial.id).setFilterDraft(opaque, true);
   assert.equal(session().filterPending, false);
   assert.equal(session().dirty, true);
   assert.equal('props' in session().appliedFilter, false);
@@ -301,6 +304,8 @@ try {
     source: 'shared',
   });
   assert.equal(session().dirty, false);
+  // Creation completes independently of its result request.
+  await engine.record('shared-copy').refresh();
   assert.deepEqual(
     session().rows.map(row => row.id),
     ['order-2', 'order-3'],
@@ -309,7 +314,8 @@ try {
 
   const pending = { started: deferred(), result: deferred() };
   delayedQuery = pending;
-  const refresh = engine.refresh();
+  const activeRecord = engine.record(engine.getSnapshot().selectedInstanceId);
+  const refresh = activeRecord.refresh();
   const controller = await pending.started.promise;
   const beforeDispose = engine.getSnapshot();
   const notificationsBeforeDispose = notifications;
@@ -319,9 +325,9 @@ try {
   await refresh;
   assert.equal(engine.getSnapshot(), beforeDispose);
   assert.equal(notifications, notificationsBeforeDispose);
-  await assert.rejects(engine.refresh());
+  await assert.rejects(activeRecord.refresh());
   console.log(
-    'Core example passed: load, immutable snapshots, unset and opaque props JSON save without querying, new-engine reload, invalid filters, Query-before-Save, saveAs, dispose and stale results.',
+    'Core example passed: load, immutable snapshots, unset and opaque props JSON save without querying, new-engine reload, invalid filters, Save without Query, saveAs, dispose and stale results.',
   );
 } finally {
   unsubscribe();

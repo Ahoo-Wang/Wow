@@ -18,7 +18,7 @@ import {
   useTable,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { type RecordData } from '../recordModel.js';
+import { type RecordData } from '../../contracts/viewModel.js';
 import {
   RECORD_COLUMN_DEFAULT_WIDTH,
   RECORD_COLUMN_MAX_WIDTH,
@@ -60,7 +60,7 @@ export function useRecordTable({
     throw new Error('RecordTable 需要 table 布局');
   const columns = orderRecordColumns(
     presentation.table.columns,
-    definition.rowKey,
+    definition.record.rowKey,
   );
   const byId = new Map(
     columns.map(column => [JSON.stringify(column.id), column]),
@@ -100,7 +100,7 @@ export function useRecordTable({
   const layout = getRecordTableLayout({
     columns,
     fields: definition.fields,
-    rowKey: definition.rowKey,
+    rowKey: definition.record.rowKey,
     selectable,
     availableWidth,
   });
@@ -112,7 +112,8 @@ export function useRecordTable({
     features: recordTableFeatures,
     columns: columnDefs,
     data: rows,
-    getRowId: record => JSON.stringify(getRecordKey(record, definition.rowKey)),
+    getRowId: record =>
+      JSON.stringify(getRecordKey(record, definition.record.rowKey)),
     manualSorting: true,
     sortDescFirst: false,
     enableMultiSort: true,
@@ -143,7 +144,7 @@ export function useRecordTable({
       const next = functionalUpdate(updater, rowSelection);
       const keys = new Map(
         rows.map(record => {
-          const key = getRecordKey(record, definition.rowKey);
+          const key = getRecordKey(record, definition.record.rowKey);
           return [JSON.stringify(key), key] as const;
         }),
       );

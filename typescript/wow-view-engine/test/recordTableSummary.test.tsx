@@ -20,7 +20,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { RecordTable } from '../src/record/RecordTable.js';
-import type { ViewInstance } from '../src/record/recordModel.js';
+import type { ViewInstance } from '../src/contracts/viewModel.js';
 import {
   cleanupTable,
   definition,

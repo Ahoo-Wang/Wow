@@ -19,9 +19,9 @@ import {
   screen,
 } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { ViewPage } from '../src/record/ViewPage.js';
+import { ViewPage } from './fixtures/OwnedViewPage.js';
 import { RecordView } from '../src/record/RecordView.js';
-import { ViewEngine } from '../src/record/ViewEngine.js';
+import { ViewEngine } from '../src/engine/ViewEngine.js';
 import type { GlobalActionsRendererProps } from '../src/record/recordReactTypes.js';
 import { definition, setup } from './fixtures/viewPage.js';
 
@@ -34,7 +34,13 @@ it('clears selection when selection is disabled so actions and automatic refresh
     definitionId: definition.id,
     definition: {
       ...definition,
-      recordActions: { global: { name: 'global' }, toolbar: { name: 'table' } },
+      record: {
+        ...definition.record,
+        recordActions: {
+          global: { name: 'global' },
+          toolbar: { name: 'table' },
+        },
+      },
     },
     host,
   });
@@ -128,7 +134,7 @@ it('automatically refreshes without overlapping requests and stops when disabled
     expect(paged).toHaveBeenCalledTimes(2);
     expect(refresh.textContent).toContain('刷新中');
     expect(screen.getByRole('cell', { name: '42' })).toBeTruthy();
-    await act(() => vi.advanceTimersByTimeAsync(900000));
+    await act(() => vi.advanceTimersByTimeAsync(10000));
     expect(paged).toHaveBeenCalledTimes(2);
     await act(async () =>
       complete({ list: [{ id: 0, amount: 43 }], total: 1 }),
@@ -199,6 +205,60 @@ it('pauses automatic refresh while hidden, editing or explicitly paused and clea
     await act(() => vi.advanceTimersByTimeAsync(60000));
     expect(paged).toHaveBeenCalledTimes(2);
   } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('exposes automatic refresh timeout, ignores the late response and retries without overlap', async () => {
+  const { host, paged } = setup();
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+  const engine = new ViewEngine({
+    definitionId: definition.id,
+    definition,
+    host,
+  });
+  await engine.load();
+  const view = render(<RecordView engine={engine} />);
+  fireEvent.click(screen.getByRole('button', { name: '自动刷新设置' }));
+  const interval = await screen.findByRole('menuitemradio', {
+    name: '每 30 秒',
+  });
+  let complete!: (value: {
+    list: { id: number; amount: number }[];
+    total: number;
+  }) => void;
+  paged.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        complete = resolve;
+      }),
+  );
+  vi.useFakeTimers();
+  try {
+    fireEvent.click(interval);
+    await act(() => vi.advanceTimersByTimeAsync(30000));
+    expect(paged).toHaveBeenCalledTimes(2);
+    await act(() => vi.advanceTimersByTimeAsync(29999));
+    expect(paged).toHaveBeenCalledTimes(2);
+    await act(() => vi.advanceTimersByTimeAsync(1));
+    expect(screen.getByText('操作超时，请重试')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '刷新' }).textContent).toContain(
+      '已暂停',
+    );
+    await act(async () =>
+      complete({ list: [{ id: 0, amount: 999 }], total: 1 }),
+    );
+    expect(screen.queryByRole('cell', { name: '999' })).toBeNull();
+    paged.mockResolvedValue({ list: [{ id: 0, amount: 43 }], total: 1 });
+    await act(async () =>
+      fireEvent.click(screen.getByRole('button', { name: '重试查询' })),
+    );
+    expect(paged).toHaveBeenCalledTimes(3);
+    expect(screen.getByRole('cell', { name: '43' })).toBeTruthy();
+    expect(screen.queryByText('操作超时，请重试')).toBeNull();
+  } finally {
+    view.unmount();
+    engine.dispose();
     vi.useRealTimers();
   }
 });

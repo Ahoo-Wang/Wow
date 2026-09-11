@@ -12,7 +12,7 @@
  */
 
 import { expect, it, vi } from 'vitest';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import {
   deferred,
   instance,
@@ -29,9 +29,11 @@ it('changes only the default after the host confirms the write', async () => {
   });
   expect(engine.getSnapshot().defaultInstanceId).toBe(null);
   await engine.load();
-  engine.setColumns([
-    { id: 'amount', kind: 'field', field: 'state.amount', width: 240 },
-  ]);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setColumns([
+      { id: 'amount', kind: 'field', field: 'state.amount', width: 240 },
+    ]);
   const before = selected(engine);
   const pending = engine.setDefaultInstance('shared');
   expect(engine.getSnapshot().defaultInstanceId).toBe('mine');

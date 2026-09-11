@@ -47,7 +47,7 @@ import type { DemoArgs } from './FilterPanelExamples.js';
 const meta = {
   ...displayMeta,
   id: 'view-engine-专项场景-过滤器-回归',
-  title: 'View Engine/专项场景/查询与筛选/组合筛选/回归',
+  title: 'View Engine/查询与筛选/组合筛选/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 

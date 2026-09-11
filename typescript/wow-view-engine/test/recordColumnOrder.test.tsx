@@ -15,7 +15,7 @@ import { useState } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { RecordColumnSettings } from '../src/record/RecordColumnSettings.js';
-import type { RecordColumn } from '../src/record/recordModel.js';
+import type { RecordColumn } from '../src/contracts/viewModel.js';
 import {
   cleanupTable,
   columns,

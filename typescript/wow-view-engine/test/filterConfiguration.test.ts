@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 import { FilterOperator as Op } from '@ahoo-wang/fetcher-wow';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import {
   createFilterConfiguration,
   compileFilterConfiguration,
@@ -263,4 +263,41 @@ it('switches a custom array editor to a builtin element container', () => {
   expect(result.component).toEqual({ name: 'builtin' });
   expect(result.props).toEqual({});
   expect(() => createFilterConfiguration(result, 'simple')).not.toThrow();
+});
+
+it('avoids cloning the field catalog for builtins while isolating extension context', () => {
+  const config = createFilterConfiguration({
+    id: 'amount',
+    operator: Op.GTE,
+    field: 'amount',
+    component: { name: 'builtin' },
+    props: { value: 1 },
+  });
+  const clone = vi.spyOn(globalThis, 'structuredClone');
+  try {
+    expect(compileFilterConfiguration(config, fields).errors).toEqual([]);
+    expect(
+      clone.mock.calls.filter(
+        ([value]) => value && typeof value === 'object' && 'fields' in value,
+      ),
+    ).toHaveLength(0);
+    const custom = {
+      ...config,
+      root: { ...config.root, component: { name: 'custom' } },
+    };
+    let received: unknown;
+    compileFilterConfiguration(custom, fields, undefined, {
+      custom: {
+        compile(_props, context) {
+          received = context.fields;
+          expect(context.fields).not.toBe(fields);
+          expect(Object.isFrozen(context.fields)).toBe(true);
+          return undefined;
+        },
+      },
+    });
+    expect(received).toEqual(fields);
+  } finally {
+    clone.mockRestore();
+  }
 });

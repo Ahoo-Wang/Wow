@@ -16,7 +16,7 @@ import { BuiltinFiltersExample } from '../../packages/view-engine/examples/react
 import source from '../../packages/view-engine/examples/react/BuiltinFiltersExample.tsx?raw';
 const meta = {
   id: 'view-engine-专项场景-过滤器-内置组件',
-  title: 'View Engine/专项场景/查询与筛选/内置筛选器',
+  title: 'View Engine/查询与筛选/内置筛选器',
   component: BuiltinFiltersExample,
   args: { appearance: 'light' },
   argTypes: {

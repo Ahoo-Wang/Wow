@@ -21,7 +21,7 @@ import { playNarrowDark } from '../libraryDelivery.play.js';
 const meta = {
   ...displayMeta,
   id: 'view-engine-全链路体验-回归',
-  title: 'View Engine/开始体验/全链路体验/回归',
+  title: 'View Engine/入门与业务流程/全链路体验/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 export default meta;

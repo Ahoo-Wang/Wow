@@ -11,23 +11,22 @@
  * limitations under the License.
  */
 
+import { compileFilterConfiguration } from '../../filter/filterCore.js';
+import type { FilterComponentConfig } from '../../filter/filterModel.js';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { XIcon } from 'lucide-react';
 import { useId, useRef } from 'react';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
-import { getBuiltinFilterCompiler } from '../../filter/builtinFilterCompilers.js';
-import { compileFilterConfiguration } from '../../filter/filterCore.js';
 import { clearFilterValues } from '../../filter/filterConfiguration.js';
-import type {
-  FilterComponentConfig,
-  FilterFieldDefinition,
-} from '../../filter/filterModel.js';
 import { replaceFilterNode, sameFilterNode } from '../../filter/filterTree.js';
-import { cloneSnapshot, type DeepReadonly } from '../../lib/types.js';
-import { describeRecordFilter } from '../recordFilterSummary.js';
-import type { RecordSession, ViewDefinition } from '../recordModel.js';
-import type { ViewEngine } from '../ViewEngine.js';
+import { cloneSnapshot } from '../../lib/types.js';
+import { describeConfiguredFilter } from '../../filter/describeConfiguredFilter.js';
+import type {
+  RecordSession,
+  RecordViewDefinition,
+} from '../../contracts/viewModel.js';
+import type { ViewEngine } from '../../engine/ViewEngine.js';
 
 export function RecordAppliedFilters({
   engine,
@@ -36,7 +35,7 @@ export function RecordAppliedFilters({
   run,
 }: {
   engine: ViewEngine;
-  definition: ViewDefinition;
+  definition: RecordViewDefinition;
   session: RecordSession;
   run(action: () => void | Promise<void>): void;
 }) {
@@ -50,51 +49,14 @@ export function RecordAppliedFilters({
       : baseline.operator === FilterOperator.AND
         ? (baseline.operands ?? [])
         : [baseline];
-  function describe(
-    node: DeepReadonly<FilterComponentConfig>,
-    fields: readonly FilterFieldDefinition[],
-  ): ReturnType<typeof describeRecordFilter> | undefined {
-    const result = compileFilterConfiguration(
-      { mode: 'advanced', root: node },
-      fields,
+  const items = nodes.flatMap(node => {
+    const summary = describeConfiguredFilter(
+      node,
+      definition.fields,
       definition.allowedOperators,
       engine.filterCompilers,
       definition.timeZone,
     );
-    if (
-      !result.expression ||
-      (result.expression.op === FilterOperator.MATCH_ALL &&
-        node.operator !== FilterOperator.MATCH_ALL)
-    )
-      return undefined;
-    const field = fields.find(field => field.field === node.field);
-    const editor = node.component;
-    const builtin =
-      editor.name === 'builtin' ||
-      (!Object.prototype.hasOwnProperty.call(
-        engine.filterCompilers,
-        editor.name,
-      ) &&
-        getBuiltinFilterCompiler(editor.name) !== undefined);
-    return describeRecordFilter(
-      result.expression,
-      fields,
-      {
-        node,
-        timeZone: definition.timeZone,
-        showTime: builtin ? editor.options?.showTime === true : undefined,
-        operands: node.operands?.flatMap(
-          child => describe(child, fields) ?? [],
-        ),
-        predicate: node.predicate
-          ? describe(node.predicate, field?.fields ?? [])
-          : undefined,
-      },
-      false,
-    );
-  }
-  const items = nodes.flatMap(node => {
-    const summary = describe(node, definition.fields);
     if (!summary || node.operator === FilterOperator.MATCH_ALL) return [];
     let clearable = false;
     try {
@@ -126,6 +88,7 @@ export function RecordAppliedFilters({
       const current = state.sessions[session.instance.id];
       if (
         !current ||
+        current.kind !== 'record' ||
         !state.definition ||
         current.filterPending ||
         current.queryStatus === 'loading'
@@ -161,8 +124,12 @@ export function RecordAppliedFilters({
       if (!result.expression)
         throw new Error(result.errors[0]?.message ?? '无法清空此筛选条件值');
       // Keep every field, operator and editor ID; only values become unset.
-      engine.setFilterDraft(configuration, current.instance.id);
-      const query = engine.applyFilter(current.instance.id);
+      engine
+        .record(current.instance.id ?? engine.getSnapshot().selectedInstanceId!)
+        .setFilterDraft(configuration);
+      const query = engine
+        .record(current.instance.id ?? engine.getSnapshot().selectedInstanceId!)
+        .applyFilter();
       rootRef.current?.focus();
       await query;
     });

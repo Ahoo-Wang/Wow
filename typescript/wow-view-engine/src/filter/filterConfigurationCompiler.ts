@@ -168,7 +168,16 @@ export function compileFilterConfiguration(
         throw new TypeError(`未注册筛选编译器：${node.component.name}`);
       const expression = compiler.compile(
         copy(node.props),
-        filterCompilerContext(node, scope, timeZone),
+        // Builtins are internal pure functions; only extensions need a defensive catalog copy.
+        node.component.name === 'builtin'
+          ? {
+              operator: node.operator,
+              fields: scope,
+              field,
+              timeZone,
+              options: node.component.options,
+            }
+          : filterCompilerContext(node, scope, timeZone),
       );
       if (expression === undefined) return undefined;
       return validateOutput(

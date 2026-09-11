@@ -13,7 +13,7 @@
 
 import { scalar } from '../filter/filterScalar.js';
 import { fixedTimeZoneOffset } from '../lib/timeZone.js';
-import type { ViewFieldDefinition } from './recordModel.js';
+import type { ViewFieldDefinition } from '../contracts/viewModel.js';
 
 export type RecordDateTimeFormat = Pick<
   Intl.DateTimeFormatOptions,

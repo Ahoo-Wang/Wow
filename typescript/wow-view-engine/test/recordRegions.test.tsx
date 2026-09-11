@@ -23,14 +23,15 @@ import { useState, type ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { RecordLayoutSwitch } from '../src/record/page/RecordLayoutSwitch.js';
 import { RecordView } from '../src/record/RecordView.js';
-import { ViewEngine } from '../src/record/ViewEngine.js';
-import { ViewPage, ViewPageContent } from '../src/record/ViewPage.js';
+import { ViewEngine } from '../src/engine/ViewEngine.js';
+import { ViewPage } from './fixtures/OwnedViewPage.js';
+import { ViewPageContent } from '../src/view/ViewPage.js';
 import type {
   RecordPaginationRenderContext,
   RecordCardRenderContext,
   RecordToolbarRenderContext,
 } from '../src/record/recordReactTypes.js';
-import type { ViewInstance } from '../src/record/recordModel.js';
+import type { ViewInstance } from '../src/contracts/viewModel.js';
 import { definition, instance, setup } from './fixtures/viewPage.js';
 
 const engines: ViewEngine[] = [];
@@ -345,7 +346,9 @@ it.each(['renderToolbar', 'renderPagination'] as const)(
       />,
     );
     fireEvent.click(screen.getByRole('button', { name: '区域状态 0' }));
-    await act(() => engine.refresh());
+    await act(() =>
+      engine.record(engine.getSnapshot().selectedInstanceId!).refresh(),
+    );
     expect(screen.getByRole('button', { name: '区域状态 1' })).toBeTruthy();
     await act(() => engine.selectInstance('other'));
     expect(screen.getByRole('button', { name: '区域状态 0' })).toBeTruthy();
@@ -397,7 +400,10 @@ it('hides layout switching when the definition allows only one layout', () => {
 
 it('sorts a card-only view using the shared engine configuration', async () => {
   const { host, paged } = setup();
-  const onlyCard = { ...definition, allowedLayouts: ['card'] as const };
+  const onlyCard = {
+    ...definition,
+    record: { ...definition.record, allowedLayouts: ['card'] as const },
+  };
   const saved = structuredClone(instance);
   saved.config.presentation = {
     layout: 'card',
@@ -489,7 +495,7 @@ it('uses the same guarded refresh for retained card and toolbar contexts', async
   });
   engines.push(engine);
   await engine.load();
-  engine.setLayout('card');
+  engine.record(engine.getSnapshot().selectedInstanceId!).setLayout('card');
   let card!: RecordCardRenderContext;
   let toolbar!: RecordToolbarRenderContext;
   render(

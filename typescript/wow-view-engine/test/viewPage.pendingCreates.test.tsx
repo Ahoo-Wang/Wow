@@ -20,7 +20,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { ViewPageContent } from '../src/record/page/ViewPageContent.js';
+import { ViewPageContent } from '../src/view/ViewPageContent.js';
 import { ViewServiceError } from '../src/record/viewServiceContract.js';
 import { instance, setup } from './engine/fixtures.js';
 

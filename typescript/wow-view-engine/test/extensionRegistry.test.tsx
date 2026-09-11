@@ -20,7 +20,7 @@ import {
 import { filter } from '@ahoo-wang/fetcher-wow';
 import { RecordActions } from '../src/record/page/RecordActions.js';
 import { RecordCell } from '../src/record/table/RecordCell.js';
-import { createSession } from '../src/record/engine/sessionState.js';
+import { createSession } from '../src/engine/sessionState.js';
 import { definition, instance } from './engine/fixtures.js';
 import type { ViewExtensions } from '../src/record/recordReactTypes.js';
 afterEach(cleanup);
@@ -28,7 +28,10 @@ function sample(extensions: ViewExtensions) {
   const reference = { name: 'toString' };
   const model = {
     ...definition,
-    recordActions: { global: reference, table: reference, row: reference },
+    record: {
+      ...definition.record,
+      recordActions: { global: reference, table: reference, row: reference },
+    },
   };
   const saved = instance();
   const session = createSession(saved, model, {});

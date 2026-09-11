@@ -12,6 +12,8 @@
  */
 
 import { useState } from 'react';
+import { FilterOperator, filter } from '@ahoo-wang/fetcher-wow';
+import { getBuiltinFilterCompiler } from '../src/filter/builtinFilterCompilers.js';
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { FilterMultiSelect } from '../src/filter/FilterMultiSelect.js';
@@ -56,7 +58,7 @@ it('splits pasted values without losing spaces, leading zeros or triggering Quer
   fireEvent.paste(input, {
     clipboardData: { getData: () => '001,001；A B\nabc' },
   });
-  expect(change).toHaveBeenLastCalledWith(['001', 'A B', 'abc']);
+  expect(change).toHaveBeenLastCalledWith(['001', 'A B', 'abc'], '');
   fireEvent.change(input, { target: { value: 'next' } });
   fireEvent.keyDown(input, { key: 'Enter' });
   expect(query).not.toHaveBeenCalled();
@@ -84,7 +86,7 @@ it.each([
     fireEvent.change(input, { target: { value: text } });
     input.setSelectionRange(start, end);
     fireEvent.paste(input, { clipboardData: { getData: () => '001,002' } });
-    expect(change).toHaveBeenLastCalledWith(expected);
+    expect(change).toHaveBeenLastCalledWith(expected, '');
     expect(input.value).toBe('');
   },
 );
@@ -116,4 +118,64 @@ it('selects with the keyboard without submitting the panel and can remove a disa
   fireEvent.click(screen.getByText('已选 1 项'));
   fireEvent.click(screen.getByRole('button', { name: '移除已停用' }));
   expect(changed).toHaveBeenLastCalledWith([], []);
+});
+
+it('keeps controlled raw text through IME and removal, then commits atomically', () => {
+  const change = vi.fn();
+  function Example() {
+    const [values, setValues] = useState(['kept']);
+    const [rawText, setRawText] = useState('');
+    return (
+      <FilterTextValues
+        label="编号"
+        value={values}
+        rawText={rawText}
+        onRawTextChange={setRawText}
+        onValueChange={(values, text) => {
+          change(values, text);
+          setValues(values);
+          setRawText(text);
+        }}
+      />
+    );
+  }
+  render(<Example />);
+  const input = screen.getByRole('textbox', { name: '编号' });
+  fireEvent.compositionStart(input);
+  fireEvent.change(input, { target: { value: '订单' } });
+  fireEvent.keyDown(input, { key: 'Enter' });
+  expect(change).not.toHaveBeenCalled();
+  expect(input).toHaveProperty('value', '订单');
+  fireEvent.compositionEnd(input);
+  fireEvent.click(screen.getByRole('button', { name: '移除kept' }));
+  expect(change).toHaveBeenLastCalledWith([], '订单');
+  expect(input).toHaveProperty('value', '订单');
+  fireEvent.keyDown(input, { key: 'Enter' });
+  expect(change).toHaveBeenLastCalledWith(['订单'], '');
+  expect(input).toHaveProperty('value', '');
+});
+
+it('rejects serialized unconfirmed text and clears the raw buffer with values', () => {
+  const compiler = getBuiltinFilterCompiler('text-values')!;
+  const context = {
+    operator: FilterOperator.IN,
+    field: { field: 'orderNo', label: '编号', type: 'string' as const },
+    fields: [{ field: 'orderNo', label: '编号', type: 'string' as const }],
+  };
+  const props = { values: ['001'], rawText: '002', presentation: 'retained' };
+  expect(() => compiler.compile(props, context)).toThrow('请按回车确认输入');
+  expect(() => compiler.compile({ rawText: 2 }, context)).toThrow(
+    '文本缓冲必须是字符串',
+  );
+  expect(compiler.compile({ ...props, rawText: '  ' }, context)).toEqual(
+    filter.isIn('orderNo', ['001']),
+  );
+  const cleared = compiler.clear!(props, context);
+  expect(cleared).toEqual({ presentation: 'retained' });
+  expect(compiler.compile(cleared, context)).toBeUndefined();
+  expect(props).toEqual({
+    values: ['001'],
+    rawText: '002',
+    presentation: 'retained',
+  });
 });

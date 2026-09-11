@@ -14,7 +14,7 @@
 import { cleanup, fireEvent, render } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, expect, it } from 'vitest';
-import { ViewPage } from '../src/record/ViewPage.js';
+import { ViewPage } from './fixtures/OwnedViewPage.js';
 import { setup } from './fixtures/viewPage.js';
 
 afterEach(() => {

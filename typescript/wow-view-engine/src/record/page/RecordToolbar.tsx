@@ -21,8 +21,8 @@ import type {
   RecordColumn,
   RecordCardConfig,
   RecordSession,
-  ViewDefinition,
-} from '../recordModel.js';
+  RecordViewDefinition,
+} from '../../contracts/viewModel.js';
 import type { ViewExtensions } from '../recordReactTypes.js';
 import { RecordActions } from './RecordActions.js';
 
@@ -37,7 +37,7 @@ export function RecordToolbar({
   onCardChange,
   onSortChange,
 }: {
-  definition: ViewDefinition;
+  definition: RecordViewDefinition;
   session: RecordSession;
   extensions?: ViewExtensions;
   selectable: boolean;

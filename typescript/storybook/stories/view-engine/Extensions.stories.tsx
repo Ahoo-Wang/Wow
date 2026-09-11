@@ -21,7 +21,7 @@ import persistenceSource from '../../packages/view-engine/examples/react/FilterP
 
 const meta = {
   id: 'view-engine-专项场景-配置与恢复',
-  title: 'View Engine/专项场景/视图与运行时/配置与恢复',
+  title: 'View Engine/引擎与宿主/配置与恢复',
   component: OrderWorkbench,
   parameters: {
     layout: 'fullscreen',

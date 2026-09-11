@@ -18,18 +18,18 @@ import { createFilterConfiguration } from '../../src/filter/filterConfiguration.
 import type {
   ViewDefinition,
   ViewInstance,
-} from '../../src/record/recordModel.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+} from '../../src/contracts/viewModel.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 
 export const definition: ViewDefinition = {
   id: 'orders',
   sourceId: 'orders',
   title: '订单管理',
-  allowedLayouts: ['table', 'card'],
-  rowKey: 'id',
   fields: [{ field: 'amount', label: '金额', type: 'number', sortable: true }],
+  record: { allowedLayouts: ['table', 'card'], rowKey: 'id' },
 };
 export const instance: ViewInstance = {
+  revision: 'initial',
   id: 'mine',
   definitionId: 'orders',
   title: '我的订单',

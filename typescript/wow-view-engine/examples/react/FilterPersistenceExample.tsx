@@ -11,15 +11,16 @@
  * limitations under the License.
  */
 
+import { ExampleViewPage } from './ExampleViewPage.js';
 import { useState } from 'react';
 import {
   createFilterConfiguration,
   newFilterNode,
-  type ViewDefinition,
+  type RecordViewDefinition,
   type ViewHost,
   type ViewInstance,
 } from '@ahoo-wang/fetcher-view-engine';
-import { Button, ViewPage } from '@ahoo-wang/fetcher-view-engine/react';
+import { Button } from '@ahoo-wang/fetcher-view-engine/react';
 import { FilterOperator, type FilterExpression } from '@ahoo-wang/fetcher-wow';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 import { orderDefinition, createProtocolViews } from './sales-order/views.js';
@@ -28,12 +29,10 @@ import { createOrderSource } from './sales-order/querySource.js';
 import { createOrderService } from './sales-order/service.js';
 
 const orderViews = createProtocolViews();
-const definition: ViewDefinition = {
+const definition: RecordViewDefinition = {
   id: orderDefinition.id,
   title: '筛选配置持久化',
   sourceId: orderDefinition.sourceId,
-  rowKey: orderDefinition.rowKey,
-  allowedLayouts: ['table'],
   fields: orderDefinition.fields
     .filter(f =>
       ['aggregateId', 'state.totalAmount', 'state.lifecycle'].includes(f.field),
@@ -48,6 +47,7 @@ const definition: ViewDefinition = {
         : f,
     ),
   allowedOperators: orderDefinition.allowedOperators,
+  record: { rowKey: orderDefinition.record.rowKey, allowedLayouts: ['table'] },
 };
 const initial: ViewInstance = {
   ...orderViews.instances[0],
@@ -70,7 +70,7 @@ const initial: ViewInstance = {
   },
 };
 
-/** A new ViewPage creates a new engine and restores the JSON, including opaque display props. */
+/** A new ExampleViewPage creates a new engine and restores the JSON, including opaque display props. */
 export function FilterPersistenceExample({
   appearance = 'light',
 }: {
@@ -141,7 +141,7 @@ export function FilterPersistenceExample({
         查询 <span data-testid="persistence-query-count">{queries.length}</span>{' '}
         次 · 保存 <span data-testid="persistence-save-count">{writes}</span> 次
       </p>
-      <ViewPage
+      <ExampleViewPage
         key={generation}
         definitionId={definition.id}
         scopeKey="local-user:filter-persistence"

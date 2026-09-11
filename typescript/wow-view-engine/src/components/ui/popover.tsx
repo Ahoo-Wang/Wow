@@ -13,28 +13,43 @@
 
 import type * as React from 'react';
 import { createContext, useContext } from 'react';
+import {
+  useOverlayOpen,
+  useOverlayVisible,
+  OverlayScope,
+} from '../../lib/OverlayScope.js';
 import { usePortalTheme, type PortalTheme } from '../../lib/usePortalTheme.js';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { cn } from '../../lib/utils.js';
 
+const PopoverOpen = createContext(false);
 const PopoverTheme = createContext<PortalTheme>({ style: {} });
 
 function Popover(props: PopoverPrimitive.Root.Props) {
+  const [localOpen, setOpen] = useOverlayOpen(props.defaultOpen);
+  const visible = useOverlayVisible();
+  const actualOpen = visible && (props.open ?? localOpen);
   const { scope, theme, captureTheme } = usePortalTheme(
-    props.open,
+    actualOpen,
     props.defaultOpen,
   );
   return (
     <span ref={scope} className="fve-root fve:inline-flex fve:max-w-full">
-      <PopoverTheme.Provider value={theme}>
-        <PopoverPrimitive.Root
-          {...props}
-          onOpenChange={(open, details) => {
-            captureTheme(open);
-            props.onOpenChange?.(open, details);
-          }}
-        />
-      </PopoverTheme.Provider>
+      <PopoverOpen.Provider value={actualOpen}>
+        <PopoverTheme.Provider value={theme}>
+          <PopoverPrimitive.Root
+            {...props}
+            open={actualOpen}
+            onOpenChange={(open, details) => {
+              props.onOpenChange?.(open, details);
+              if (!details.isCanceled) {
+                setOpen(open);
+                captureTheme(open);
+              }
+            }}
+          />
+        </PopoverTheme.Provider>
+      </PopoverOpen.Provider>
     </span>
   );
 }
@@ -58,6 +73,7 @@ function PopoverContent({
     'align' | 'alignOffset' | 'side' | 'sideOffset'
   >) {
   const theme = useContext(PopoverTheme);
+  const open = useContext(PopoverOpen);
   return (
     <PopoverPrimitive.Portal
       keepMounted={keepMounted}
@@ -78,7 +94,9 @@ function PopoverContent({
             className,
           )}
           {...props}
-        />
+        >
+          <OverlayScope visible={open}>{props.children}</OverlayScope>
+        </PopoverPrimitive.Popup>
       </PopoverPrimitive.Positioner>
     </PopoverPrimitive.Portal>
   );

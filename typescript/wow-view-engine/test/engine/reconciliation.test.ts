@@ -15,8 +15,8 @@ import { createFilterConfiguration } from '../../src/filter/filterCore.js';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { expect, it, vi } from 'vitest';
 import { newFilterNode } from '../../src/filter/filterCore.js';
-import type { ViewInstance } from '../../src/record/recordModel.js';
-import type { ViewHost } from '../../src/record/ViewHost.js';
+import type { ViewInstance } from '../../src/contracts/viewModel.js';
+import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import { deferred, instance, selected, setup } from './fixtures.js';
 
 it('reconciles a changed create echo by reading the created ID and preserving both drafts', async () => {
@@ -39,12 +39,18 @@ it('reconciles a changed create echo by reading the created ID and preserving bo
   await expect(
     engine.saveAs({ title: 'My copy', scope: { type: 'personal' } }),
   ).rejects.toThrow();
-  engine.setColumns([
-    { id: 'amount', kind: 'field', field: 'state.amount', width: 200 },
-  ]);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setColumns([
+      { id: 'amount', kind: 'field', field: 'state.amount', width: 200 },
+    ]);
   const draft = newFilterNode(FilterOperator.GTE, 'state.amount');
-  engine.setFilterDraft(createFilterConfiguration(draft));
-  engine.setFilterValidity(false);
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterDraft(createFilterConfiguration(draft));
+  engine
+    .record(engine.getSnapshot().selectedInstanceId!)
+    .setFilterValidity(false);
   await engine.reloadInstance();
   expect(loadInstance.mock.calls[0][0]).toBe('created-1');
   expect(engine.getSnapshot().selectedInstanceId).toBe('created-1');

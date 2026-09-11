@@ -21,7 +21,7 @@ import { orderJourney } from './lifecycle.play.js';
 const meta = {
   ...displayMeta,
   id: 'view-engine-售后与关闭-回归',
-  title: 'View Engine/订单业务流程/售后与关闭/回归',
+  title: 'View Engine/入门与业务流程/订单流程/售后与关闭/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 export default meta;

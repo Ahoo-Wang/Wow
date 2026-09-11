@@ -29,7 +29,7 @@ import {
   type RecordColumn,
   type RecordData,
   type RecordKey,
-} from '../recordModel.js';
+} from '../../contracts/viewModel.js';
 import type { RecordTableProps } from '../recordReactTypes.js';
 import { readRecordValue } from '../recordValidation.js';
 import { formatRecordValue } from '../recordValueFormat.js';
@@ -57,7 +57,7 @@ export function RecordCell({
   compact?: boolean;
 }) {
   if (column.kind === 'actions') {
-    const reference = column.renderer ?? definition.recordActions?.row;
+    const reference = column.renderer ?? definition.record.recordActions?.row;
     const registry = extensions?.rowActions;
     const Renderer =
       reference &&
@@ -107,8 +107,8 @@ export function RecordCell({
   // The intrinsic row key exists even when it is not an editable definition field.
   const field =
     definition.fields.find(field => field.field === column.field) ??
-    (column.field === definition.rowKey
-      ? { field: definition.rowKey, label: '记录主键' }
+    (column.field === definition.record.rowKey
+      ? { field: definition.record.rowKey, label: '记录主键' }
       : undefined);
   if (!field) return <span role="alert">未知字段：{column.field}</span>;
   const value = readRecordValue(record, column.field);
@@ -141,7 +141,7 @@ export function RecordCell({
     );
   }
   const text = formatRecordValue(value, field, definition.timeZone);
-  if (compact && column.field === definition.rowKey) {
+  if (compact && column.field === definition.record.rowKey) {
     return (
       <TooltipProvider>
         <Tooltip>

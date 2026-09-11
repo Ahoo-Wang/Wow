@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { useOverlayOpen } from '../lib/OverlayScope.js';
 import { Combobox } from '@base-ui/react/combobox';
 import { CheckIcon, ChevronDownIcon } from 'lucide-react';
 import type { FilterSelectProps } from './FilterSelect.js';
@@ -44,7 +45,8 @@ export function FilterSearchSelect<Value extends string>({
   invalid,
   errorId,
 }: FilterSearchSelectProps<Value>) {
-  const { scope, theme, captureTheme } = usePortalTheme();
+  const [open, setOpen] = useOverlayOpen();
+  const { scope, theme, captureTheme } = usePortalTheme(open);
   const selected =
     value === null
       ? null
@@ -62,7 +64,9 @@ export function FilterSearchSelect<Value extends string>({
         value={selected}
         disabled={disabled}
         isItemEqualToValue={(a, b) => a.value === b.value}
+        open={open}
         onOpenChange={open => {
+          setOpen(open);
           captureTheme(open);
         }}
         onValueChange={next => {

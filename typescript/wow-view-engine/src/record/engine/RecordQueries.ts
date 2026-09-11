@@ -11,18 +11,29 @@
  * limitations under the License.
  */
 
-import type { RecordQuerySource } from '../recordModel.js';
-import type { ViewHost } from '../ViewHost.js';
+import {
+  beginDiagnostic,
+  RuntimeLimitError,
+  type RuntimeDiagnostic,
+  assertConfigSize,
+  withDeadline,
+  validateRuntimeLimits,
+  QueryBudget,
+  type RuntimeLimits,
+} from '../../engine/runtimeLimits.js';
+import type { RecordQuerySource } from '../../contracts/viewModel.js';
+import type { ViewHost } from '../../contracts/ViewHost.js';
 import { validateRecordRows } from '../recordValidation.js';
 import { getRecordRefreshBlockReason } from '../recordRefreshPolicy.js';
 import { cloneSnapshot } from '../../lib/types.js';
-import type { EngineScope } from './EngineScope.js';
-import type { SessionStore } from './SessionStore.js';
+import type { EngineScope } from '../../engine/EngineScope.js';
+import type { SessionStore } from '../../engine/SessionStore.js';
 import type { RecordSummaries } from './RecordSummaries.js';
 import { copy, message } from '../../lib/snapshot.js';
 
 /** Owns record reads; pagination and UI edits only submit explicit query commands. */
 export class RecordQueries {
+  private readonly releases = new Map<string, () => void>();
   private readonly queries = new Map<string, AbortController>();
   private readonly intents = new Map<string, symbol>();
   private readonly consumedCursors = new Map<string, Set<string>>();
@@ -31,8 +42,13 @@ export class RecordQueries {
     private readonly scope: EngineScope,
     private readonly host: ViewHost,
     private readonly summaries: RecordSummaries,
+    private readonly limits: Readonly<RuntimeLimits> = validateRuntimeLimits(),
+    private readonly budget = new QueryBudget(limits.maxConcurrentQueries),
+    private readonly onDiagnostic?: (event: RuntimeDiagnostic) => void,
   ) {}
   reset(): void {
+    this.releases.forEach(release => release());
+    this.releases.clear();
     this.queries.forEach(controller => controller.abort());
     this.queries.clear();
     this.consumedCursors.clear();
@@ -44,7 +60,14 @@ export class RecordQueries {
     this.replaceController(id);
   }
 
-  private replaceController(id: string, next?: AbortController): void {
+  private replaceController(
+    id: string,
+    next?: AbortController,
+    release?: () => void,
+  ): void {
+    this.releases.get(id)?.();
+    if (release) this.releases.set(id, release);
+    else this.releases.delete(id);
     this.intents.set(id, Symbol());
     const previous = this.queries.get(id);
     if (next) this.queries.set(id, next);
@@ -53,8 +76,12 @@ export class RecordQueries {
     // Abort listeners may already have started a newer read.
     if (this.queries.get(id) !== next) return;
     const session = this.store.find(id);
-    if (session?.queryStatus === 'loading' || session?.refreshing)
+    if (
+      session?.kind === 'record' &&
+      (session.queryStatus === 'loading' || session.refreshing)
+    )
       this.store.patch(id, {
+        kind: 'record',
         refreshing: false,
         ...(session.queryStatus === 'loading' ? { queryStatus: 'idle' } : {}),
       });
@@ -65,7 +92,7 @@ export class RecordQueries {
     id: string,
     update: () => void,
     invalidateSummary = false,
-    mode: 'query' | 'refresh' = 'query',
+    mode: 'query' | 'refresh' | 'scope' = 'query',
   ): Promise<void> {
     const current = this.captureIntent(id);
     update();
@@ -87,37 +114,81 @@ export class RecordQueries {
     return async () => {
       if (!current() || this.store.getSnapshot().selectedInstanceId !== id)
         return;
-      await (refresh ? this.refresh(id) : this.run(id));
+      const session = this.store.find(id);
+      if (!session) return;
+      if (session.kind !== 'record') return;
+      if (
+        session.appliedFilter === null ||
+        session.validation.some(
+          issue => issue.id === 'config' || issue.id === 'config-size',
+        )
+      )
+        return;
+      await (refresh ? this.refresh(id) : this.run(id, 'scope'));
     };
   }
 
   async run(
     id: string,
-    mode: 'query' | 'refresh' | 'background' = 'query',
+    mode: 'query' | 'refresh' | 'background' | 'scope' | 'retry' = 'query',
   ): Promise<void> {
     const background = mode === 'background';
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
+    const prior =
+      mode === 'query'
+        ? null
+        : mode === 'retry'
+          ? session.queryAttempt
+          : (session.result ?? session.queryAttempt);
+    const config = prior?.config ?? {
+      ...session.instance.config,
+      filters: session.filterBaseline,
+    };
+    const filter = prior?.filter ?? session.appliedFilter;
+    const queryAttempt = filter
+      ? { config, filter, page: session.page, cursor: session.cursor }
+      : null;
+    const diagnostic = beginDiagnostic(this.onDiagnostic, 'record', 'query');
+    try {
+      assertConfigSize(config, this.limits.maxConfigBytes);
+    } catch (error) {
+      diagnostic('failed', 'RESOURCE_LIMIT');
+      throw error;
+    }
     const definition = this.store.definition();
     const lifecycle = this.scope.version;
     const controller = new AbortController();
     const current = () =>
       this.scope.current(lifecycle) && this.queries.get(id) === controller;
-    this.replaceController(id, controller);
-    if (!current()) return;
+    let release: () => void;
+    try {
+      release = this.budget.acquire(`record:${id}`, controller);
+    } catch (error) {
+      diagnostic('failed', 'BUSY');
+      throw error;
+    }
+    const deadline = Date.now() + this.limits.queryTimeoutMs;
+    this.replaceController(id, controller, release);
+    if (!current()) {
+      diagnostic('superseded');
+      return;
+    }
     this.store.patch(
       id,
       background
-        ? { refreshing: true, queryError: null }
+        ? { kind: 'record', refreshing: true, queryError: null, queryAttempt }
         : {
+            kind: 'record',
+            queryAttempt,
             rows:
-              mode === 'refresh' &&
-              session.instance.config.pagination.mode === 'paged'
+              (mode === 'refresh' || mode === 'retry') &&
+              config.pagination.mode === 'paged'
                 ? session.rows
                 : [],
             selectedRowKeys: [],
             total:
-              mode === 'refresh' &&
-              session.instance.config.pagination.mode === 'paged'
+              (mode === 'refresh' || mode === 'retry') &&
+              config.pagination.mode === 'paged'
                 ? session.total
                 : null,
             nextCursor: null,
@@ -128,46 +199,57 @@ export class RecordQueries {
     );
     if (!background) this.summaries.sync(id, undefined, false);
     try {
+      diagnostic('started');
       if (!current()) return;
-      const filter = session.appliedFilter;
       if (filter === null)
         throw new Error('筛选组件配置无法编译，请先修正筛选');
-      const source = await this.host.resolveSource(definition.sourceId);
+      const source = await withDeadline(
+        () => this.host.resolveSource(definition.sourceId),
+        Math.max(1, deadline - Date.now()),
+        controller,
+      );
       if (!current()) return;
-      const { sort, pagination } = session.instance.config;
+      const { sort, pagination } = config;
       if (!source || typeof source[pagination.mode] !== 'function')
         throw new Error(`数据源不支持 ${pagination.mode} 分页查询`);
       if (!background) this.summaries.sync(id, source);
       if (!current()) return;
-      const result =
-        pagination.mode === 'paged'
-          ? await source.paged!(
-              cloneSnapshot<
-                Parameters<NonNullable<RecordQuerySource['paged']>>[0]
-              >({
-                filter,
-                sort,
-                pagination: { index: session.page, size: pagination.size },
-              }),
-              undefined,
-              controller,
-            )
-          : await source.cursor!(
-              cloneSnapshot<
-                Parameters<NonNullable<RecordQuerySource['cursor']>>[0]
-              >({
-                filter,
-                sort,
-                size: pagination.size,
-                cursor: session.cursor,
-              }),
-              undefined,
-              controller,
-            );
+      const result = await withDeadline<
+        | Awaited<ReturnType<NonNullable<RecordQuerySource['paged']>>>
+        | Awaited<ReturnType<NonNullable<RecordQuerySource['cursor']>>>
+      >(
+        () =>
+          pagination.mode === 'paged'
+            ? source.paged!(
+                cloneSnapshot<
+                  Parameters<NonNullable<RecordQuerySource['paged']>>[0]
+                >({
+                  filter,
+                  sort,
+                  pagination: { index: session.page, size: pagination.size },
+                }),
+                undefined,
+                controller,
+              )
+            : source.cursor!(
+                cloneSnapshot<
+                  Parameters<NonNullable<RecordQuerySource['cursor']>>[0]
+                >({
+                  filter,
+                  sort,
+                  size: pagination.size,
+                  cursor: session.cursor,
+                }),
+                undefined,
+                controller,
+              ),
+        Math.max(1, deadline - Date.now()),
+        controller,
+      );
       if (!current()) return;
       if (!result || typeof result !== 'object' || Array.isArray(result))
         throw new Error('查询结果必须是分页对象');
-      validateRecordRows(result.list, definition.rowKey);
+      validateRecordRows(result.list, definition.record!.rowKey);
       let total: number | null = null;
       let nextCursor: string | null = null;
       let consumedCursors: Set<string> | undefined;
@@ -183,6 +265,7 @@ export class RecordQueries {
           if (background) this.summaries.invalidate(id);
           if (!current()) return;
           this.store.patch(id, {
+            kind: 'record',
             page: 1,
             rows: [],
             selectedRowKeys: [],
@@ -194,7 +277,8 @@ export class RecordQueries {
           if (!current()) return;
           // Page one remains valid even at total=0, so correction cannot loop.
           // Return the new owner directly so its failures reach the caller.
-          return this.run(id);
+          diagnostic('superseded');
+          return this.run(id, mode);
         }
       } else {
         if (
@@ -221,7 +305,19 @@ export class RecordQueries {
         if (session.cursor !== null) consumedCursors.add(session.cursor);
         this.consumedCursors.set(id, consumedCursors);
       }
+      release();
       this.store.patch(id, {
+        kind: 'record',
+        result: {
+          config: copy(config),
+          filter: copy(filter),
+          page: session.page,
+          cursor: session.cursor,
+          rows,
+          total,
+          nextCursor,
+          receivedAt: Date.now(),
+        },
         rows,
         refreshing: false,
         total,
@@ -229,33 +325,43 @@ export class RecordQueries {
         queryStatus: 'success',
       });
       this.summaries.sync(id, source);
+      diagnostic('succeeded');
     } catch (error) {
       if (!current()) return;
+      release();
       this.store.patch(id, {
+        kind: 'record',
         queryStatus: 'error',
         queryError: message(error),
         refreshing: false,
       });
       if (!background) this.summaries.updatePage(id);
+      diagnostic(
+        'failed',
+        error instanceof RuntimeLimitError ? error.code : 'QUERY_FAILED',
+      );
       throw error;
     } finally {
+      diagnostic(
+        this.scope.disposed || !this.queries.has(id)
+          ? 'cancelled'
+          : 'superseded',
+      );
+      release();
       if (this.queries.get(id) === controller) this.queries.delete(id);
     }
   }
 
   async retry(id?: string): Promise<void> {
-    const session = this.store.session(id);
-    const retainsRows =
-      session.instance.config.pagination.mode === 'paged' &&
-      session.rows.length > 0;
-    await this.run(session.instance.id, retainsRows ? 'refresh' : 'query');
+    const session = this.store.recordSession(id);
+    await this.run(session.instance.id, 'retry');
   }
 
   async refresh(
     id?: string,
     options?: { background?: boolean },
   ): Promise<void> {
-    const session = this.store.session(id);
+    const session = this.store.recordSession(id);
     if (options?.background) {
       if (getRecordRefreshBlockReason(session)) return;
       await this.run(session.instance.id, 'background');
@@ -264,8 +370,18 @@ export class RecordQueries {
     await this.change(
       session.instance.id,
       () => {
-        if (session.instance.config.pagination.mode === 'cursor')
-          this.store.patch(session.instance.id, { page: 1, cursor: null });
+        if (
+          (
+            session.result?.config ??
+            session.queryAttempt?.config ??
+            session.instance.config
+          ).pagination.mode === 'cursor'
+        )
+          this.store.patch(session.instance.id, {
+            kind: 'record',
+            page: 1,
+            cursor: null,
+          });
       },
       true,
       'refresh',

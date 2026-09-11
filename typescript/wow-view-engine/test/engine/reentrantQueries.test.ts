@@ -36,20 +36,24 @@ it.each(['state', 'abort'] as const)(
     await engine.load();
     const stalled = deferred<{ total: number; list: never[] }>();
     paged.mockReturnValueOnce(stalled.promise);
-    const previous = engine.refresh();
+    const previous = engine
+      .record(engine.getSnapshot().selectedInstanceId!)
+      .refresh();
     await vi.waitFor(() => expect(paged).toHaveBeenCalledTimes(2));
     let next: Promise<void> | undefined;
     let submitted = false;
     const submit = () => {
       if (!submitted) {
         submitted = true;
-        engine.setFilterDraft(
+        engine.record(engine.getSnapshot().selectedInstanceId!).setFilterDraft(
           createFilterConfiguration({
             ...newFilterNode(FilterOperator.GTE, 'state.amount'),
             props: { value: 20 },
           }),
         );
-        next = engine.applyFilter();
+        next = engine
+          .record(engine.getSnapshot().selectedInstanceId!)
+          .applyFilter();
       }
     };
     const unsubscribe = engine.subscribe(() => {
@@ -61,7 +65,7 @@ it.each(['state', 'abort'] as const)(
         once: true,
       });
     try {
-      await engine.refresh();
+      await engine.record(engine.getSnapshot().selectedInstanceId!).refresh();
       await next;
       expect(submitted).toBe(true);
       expect(selected(engine)).toMatchObject({
@@ -129,9 +133,12 @@ it.each(['load', 'select'] as const)(
       if (!newer && engine.getSnapshot().selectedInstanceId === 'mine') {
         // Guard before setPage publishes another notification.
         newer = Promise.resolve();
-        newer = engine.setPage(2).then(() => {
-          finished = true;
-        });
+        newer = engine
+          .record(engine.getSnapshot().selectedInstanceId!)
+          .setPage(2)
+          .then(() => {
+            finished = true;
+          });
       }
     });
     const initial =

@@ -305,10 +305,14 @@ it.each(['save', 'rename', 'delete'] as const)(
         await expect(engine.deleteInstance()).rejects.toThrow('核对');
         await engine.reloadInstance();
         expect(session().requiresReload).toBe(false);
-        expect(session().baseline.revision).not.toBe(revision);
+        if (operation === 'rename')
+          expect(session().conflict?.remote.revision).not.toBe(revision);
+        else expect(session().baseline.revision).not.toBe(revision);
         expect(session().instance.title).toBe('本地编辑');
         engine.setTitle('核对后的编辑');
-        await engine.save();
+        if (session().conflict)
+          await engine.overwriteInstance(session().conflict!);
+        else await engine.save();
         expect((await client().instance.load(instance.id)).title).toBe(
           '核对后的编辑',
         );
