@@ -77,6 +77,17 @@ internal sealed interface ElasticsearchAggregationMetric {
         override val alias: String,
         val field: String,
     ) : ElasticsearchAggregationMetric
+
+    data class DistinctCount(override val alias: String, val field: String) : ElasticsearchAggregationMetric
+
+    data class Percentile(
+        override val alias: String,
+        val field: String,
+        val percentile: Double,
+    ) : ElasticsearchAggregationMetric {
+        val valueCountAlias: String
+            get() = "__wow_value_count_$alias"
+    }
 }
 
 internal class ElasticsearchAggregationCompiler(
@@ -281,6 +292,68 @@ internal class ElasticsearchAggregationCompiler(
             }
             ElasticsearchAggregationMetric.Numeric(alias, function, metricField)
         }
+
+        is AggregationMetric.DistinctCount -> toDistinctCountPlan(
+            parent,
+            physicalParent,
+            index,
+            schema,
+            runtimeMappings
+        )
+
+        is AggregationMetric.Percentile -> toPercentilePlan(parent, physicalParent, index, schema, runtimeMappings)
+    }
+
+    private fun AggregationMetric.DistinctCount.toDistinctCountPlan(
+        parent: QueryField?,
+        physicalParent: QueryField?,
+        index: Int,
+        schema: QueryModelSchema,
+        runtimeMappings: MutableMap<String, RuntimeField>,
+    ): ElasticsearchAggregationMetric.DistinctCount {
+        val metricField = (expression as? AggregationExpression.Field)?.field?.let { field ->
+            val logicalField = parent?.append(field) ?: field
+            val capability = when {
+                schema.field(logicalField)?.binding(QueryCapability.AGGREGATE_TERMS) != null ->
+                    QueryCapability.AGGREGATE_TERMS
+
+                else -> QueryCapability.AGGREGATE_NUMERIC
+            }
+            field.resolve(parent, physicalParent, schema, capability)
+        } ?: "__wow_expression_$index".also { runtimeFieldName ->
+            runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(
+                parent,
+                physicalParent,
+                schema,
+            ).compile(expression)
+        }
+        return ElasticsearchAggregationMetric.DistinctCount(alias, metricField)
+    }
+
+    private fun AggregationMetric.Percentile.toPercentilePlan(
+        parent: QueryField?,
+        physicalParent: QueryField?,
+        index: Int,
+        schema: QueryModelSchema,
+        runtimeMappings: MutableMap<String, RuntimeField>,
+    ): ElasticsearchAggregationMetric.Percentile {
+        val metricExpression = expression
+        val scalarField = (metricExpression as? AggregationExpression.Field)?.field?.takeIf { field ->
+            val logicalField = parent?.append(field) ?: field
+            schema.field(logicalField)?.value?.cardinality == QueryCardinality.SINGLE
+        }
+        val metricField = if (scalarField != null) {
+            scalarField.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC)
+        } else {
+            "__wow_expression_$index".also { runtimeFieldName ->
+                runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(
+                    parent,
+                    physicalParent,
+                    schema,
+                ).compile(metricExpression)
+            }
+        }
+        return ElasticsearchAggregationMetric.Percentile(alias, metricField, percentile)
     }
 
     private inner class RuntimeExpressionCompiler(

@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
+import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -51,6 +52,7 @@ class ElasticsearchAggregationCompilerTest {
                 "amount" to scalar,
                 "createdAt" to temporal,
                 "name" to text,
+                "customerId" to text,
                 "orders" to array(
                     obj(
                         mapOf(
@@ -72,6 +74,7 @@ class ElasticsearchAggregationCompilerTest {
                     .properties("amount") { it.long_ { it } }
                     .properties("createdAt") { it.long_ { it } }
                     .properties("name") { it.text { it.fields("keyword") { it.keyword { it } } } }
+                    .properties("customerId") { it.text { it.fields("keyword") { it.keyword { it } } } }
                     .properties("orders") {
                         it.nested { orders ->
                             orders.properties("status") { it.keyword { it } }
@@ -160,6 +163,26 @@ class ElasticsearchAggregationCompilerTest {
         assertThrows<QuerySchemaValidationException> {
             compiler.compile(aggregation { any("name.keyword", "sample") }, schema)
         }
+    }
+
+    @Test
+    fun `plan should map distinct count and percentile metrics`() {
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                distinctCount("customerId", "customers")
+                percentile("amount", 95.0, "p95")
+                stddev("amount", "stddev")
+                variance("amount", "variance")
+            },
+            schema,
+        )
+
+        plan.metrics.assert().containsExactly(
+            ElasticsearchAggregationMetric.DistinctCount("customers", "customerId.keyword"),
+            ElasticsearchAggregationMetric.Percentile("p95", "amount", 95.0),
+            ElasticsearchAggregationMetric.Numeric("stddev", AggregationFunction.STDDEV, "amount"),
+            ElasticsearchAggregationMetric.Numeric("variance", AggregationFunction.VARIANCE, "amount"),
+        )
     }
 
     @Test

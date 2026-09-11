@@ -191,6 +191,30 @@ internal class ElasticsearchAggregationPager(
                                 AggregationFunction.AVG -> builder.avg { it.field(metric.field) }
                                 AggregationFunction.MIN -> builder.min { it.field(metric.field) }
                                 AggregationFunction.MAX -> builder.max { it.field(metric.field) }
+                                AggregationFunction.STDDEV, AggregationFunction.VARIANCE ->
+                                    builder.extendedStats { it.field(metric.field) }
+                            }
+                        },
+                    )
+                    put(
+                        metric.valueCountAlias,
+                        Aggregation.of { builder -> builder.valueCount { it.field(metric.field) } },
+                    )
+                }
+
+                is ElasticsearchAggregationMetric.DistinctCount -> put(
+                    metric.alias,
+                    Aggregation.of { builder -> builder.cardinality { it.field(metric.field) } },
+                )
+
+                is ElasticsearchAggregationMetric.Percentile -> {
+                    put(
+                        metric.alias,
+                        Aggregation.of { builder ->
+                            builder.percentiles {
+                                it.field(metric.field)
+                                    .percents(listOf(metric.percentile))
+                                    .keyed(false)
                             }
                         },
                     )
@@ -259,6 +283,8 @@ internal class ElasticsearchAggregationPager(
         is ElasticsearchAggregationMetric.Count -> docCount
         is ElasticsearchAggregationMetric.Any -> aggregations.getValue(alias).anyValue(alias)
         is ElasticsearchAggregationMetric.Numeric -> numericValue(aggregations)
+        is ElasticsearchAggregationMetric.DistinctCount -> aggregations.getValue(alias).cardinality().value()
+        is ElasticsearchAggregationMetric.Percentile -> percentileValue(aggregations)
     }
 
     private fun Aggregate.anyValue(alias: String): Any? = when {
@@ -280,7 +306,21 @@ internal class ElasticsearchAggregationPager(
             AggregationFunction.AVG -> aggregations.getValue(alias).avg().value()
             AggregationFunction.MIN -> aggregations.getValue(alias).min().value()
             AggregationFunction.MAX -> aggregations.getValue(alias).max().value()
+            AggregationFunction.STDDEV -> aggregations.getValue(alias).extendedStats().stdDeviationPopulation()
+            AggregationFunction.VARIANCE -> aggregations.getValue(alias).extendedStats().variancePopulation()
         }
+        require(value != null && value.isFinite()) { "Aggregation metric [$alias] must be finite." }
+        return value
+    }
+
+    private fun ElasticsearchAggregationMetric.Percentile.percentileValue(
+        aggregations: Map<String, Aggregate>,
+    ): Double? {
+        if (aggregations.getValue(valueCountAlias).valueCount().value() == 0.0) return null
+        val percentile = aggregations.getValue(alias).tdigestPercentiles().values().array()
+            .firstOrNull { it.key() == this.percentile }
+            ?: error("Aggregation metric [$alias] is missing percentile [$percentile].")
+        val value = percentile.value()
         require(value != null && value.isFinite()) { "Aggregation metric [$alias] must be finite." }
         return value
     }
