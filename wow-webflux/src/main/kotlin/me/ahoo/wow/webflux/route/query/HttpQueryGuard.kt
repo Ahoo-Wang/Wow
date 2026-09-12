@@ -125,6 +125,7 @@ class HttpQueryGuard(
                 ) {
                     "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed."
                 }
+                query.having?.let { validateHaving(it) }
                 return
             }
             is IListQuery -> validateList(query)
@@ -207,6 +208,39 @@ class HttpQueryGuard(
         if (valueCount != null) {
             require(maxFilterValues == 0 || valueCount <= maxFilterValues) {
                 "HTTP query filter values[$valueCount] must not exceed $maxFilterValues."
+            }
+        }
+    }
+
+    private fun validateHaving(having: HavingExpression) {
+        val pending = ArrayDeque<HavingExpression>()
+        pending.add(having)
+        var nodes = 0
+        while (pending.isNotEmpty()) {
+            val current = pending.removeLast()
+            nodes++
+            require(maxFilterNodes == 0 || nodes <= maxFilterNodes) {
+                "HTTP having nodes[$nodes] must not exceed $maxFilterNodes."
+            }
+            val valueCount = when (current) {
+                is HavingExpression.Condition -> 1
+                is HavingExpression.Between -> 2
+                is HavingExpression.In -> current.values.size
+                is HavingExpression.IsNull -> 0
+                is HavingExpression.And -> {
+                    pending.addAll(current.operands)
+                    0
+                }
+
+                is HavingExpression.Or -> {
+                    pending.addAll(current.operands)
+                    0
+                }
+            }
+            if (valueCount > 0) {
+                require(maxFilterValues == 0 || valueCount <= maxFilterValues) {
+                    "HTTP having values[$valueCount] must not exceed $maxFilterValues."
+                }
             }
         }
     }

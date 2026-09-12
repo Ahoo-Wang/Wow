@@ -21,8 +21,10 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
@@ -37,6 +39,7 @@ class AggregationQueryDsl {
     private val metrics = mutableListOf<AggregationMetric>()
     private var sort: List<Sort> = emptyList()
     private var limit: Int = AggregationQuery.DEFAULT_LIMIT
+    private var having: HavingExpression? = null
 
     fun filter(filter: FilterExpression) {
         this.filter = filter
@@ -240,7 +243,11 @@ class AggregationQueryDsl {
         this.limit = limit
     }
 
-    fun build(): AggregationQuery = AggregationQuery(filter, elements, groups, metrics, sort, limit)
+    fun having(init: HavingDsl.() -> HavingExpression) {
+        having = HavingDsl().init()
+    }
+
+    fun build(): AggregationQuery = AggregationQuery(filter, elements, groups, metrics, sort, limit, having = having)
 }
 
 /**
@@ -270,4 +277,41 @@ class DerivedExpressionDsl {
         operator: AggregationExpressionOperator,
         other: DerivedExpression,
     ): DerivedExpression = DerivedExpression.Binary(operator, this, other)
+}
+
+/**
+ * Dedicated expression context for [AggregationQueryDsl.having]: its [String.eq] takes a [Double]
+ * and yields a [HavingExpression] rather than the [FilterExpression] built by [FilterDsl], so the
+ * two scopes must not share a receiver type.
+ */
+@QueryDslMarker
+class HavingDsl {
+    infix fun String.eq(value: Double): HavingExpression = condition(ComparisonOperator.EQ, value)
+
+    infix fun String.ne(value: Double): HavingExpression = condition(ComparisonOperator.NE, value)
+
+    infix fun String.gt(value: Double): HavingExpression = condition(ComparisonOperator.GT, value)
+
+    infix fun String.gte(value: Double): HavingExpression = condition(ComparisonOperator.GTE, value)
+
+    infix fun String.lt(value: Double): HavingExpression = condition(ComparisonOperator.LT, value)
+
+    infix fun String.lte(value: Double): HavingExpression = condition(ComparisonOperator.LTE, value)
+
+    fun String.between(lower: Double, upper: Double): HavingExpression = HavingExpression.Between(this, lower, upper)
+
+    fun String.isIn(values: List<Double>): HavingExpression = HavingExpression.In(this, values)
+
+    fun String.isNull(): HavingExpression = HavingExpression.IsNull(this)
+
+    fun String.isNotNull(): HavingExpression = HavingExpression.IsNull(this, negated = true)
+
+    infix fun HavingExpression.and(other: HavingExpression): HavingExpression = HavingExpression.And(
+        listOf(this, other)
+    )
+
+    infix fun HavingExpression.or(other: HavingExpression): HavingExpression = HavingExpression.Or(listOf(this, other))
+
+    private fun String.condition(operator: ComparisonOperator, value: Double) =
+        HavingExpression.Condition(this, operator, value)
 }

@@ -20,9 +20,11 @@ import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.GreaterThanFilter
+import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.QueryField
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
@@ -258,6 +260,87 @@ class AggregationQueryDslTest {
             AggregationMetric.Count("total"),
             AggregationMetric.Derived("net", expression),
         )
+    }
+
+    @Test
+    fun `aggregation DSL should build having expressions`() {
+        val query = aggregation {
+            terms("state.status", "status")
+            count("paid")
+            sum("amount", "paidAmount") { "state.status" eq "PAID" }
+            derived("attainment") { ref("paidAmount") / constant(6000.0) }
+            having {
+                ("attainment" gte 0.8) and ("paid" gt 10.0)
+            }
+            sort { "attainment".desc() }
+        }
+
+        val having = requireNotNull(query.having) as HavingExpression.And
+        (having.operands[0] as HavingExpression.Condition).let {
+            it.metric.assert().isEqualTo("attainment")
+            it.operator.assert().isEqualTo(ComparisonOperator.GTE)
+            it.value.assert().isEqualTo(0.8)
+        }
+        (having.operands[1] as HavingExpression.Condition).let {
+            it.metric.assert().isEqualTo("paid")
+            it.operator.assert().isEqualTo(ComparisonOperator.GT)
+            it.value.assert().isEqualTo(10.0)
+        }
+    }
+
+    @Test
+    fun `aggregation DSL having supports the full operator set`() {
+        val comparisons = aggregation {
+            terms("state.status", "status")
+            count("c")
+            having {
+                ((("c" eq 1.0) and ("c" ne 2.0)) and (("c" gt 3.0) and ("c" gte 4.0))) and
+                    (("c" lt 5.0) and ("c" lte 6.0))
+            }
+        }
+        fun HavingExpression.conditions(): List<HavingExpression.Condition> = when (this) {
+            is HavingExpression.Condition -> listOf(this)
+            is HavingExpression.And -> operands.flatMap { it.conditions() }
+            else -> throw AssertionError("Unexpected having operand: $this")
+        }
+        val leaves = requireNotNull(comparisons.having).conditions()
+        leaves.map(HavingExpression.Condition::metric).assert().containsOnly("c")
+        leaves.map(HavingExpression.Condition::operator).assert().containsExactly(
+            ComparisonOperator.EQ,
+            ComparisonOperator.NE,
+            ComparisonOperator.GT,
+            ComparisonOperator.GTE,
+            ComparisonOperator.LT,
+            ComparisonOperator.LTE,
+        )
+        leaves.map(HavingExpression.Condition::value).assert().containsExactly(1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
+
+        val leavesQuery = aggregation {
+            terms("state.status", "status")
+            count("c")
+            having {
+                ("c".between(1.0, 2.0) or "c".isIn(listOf(3.0, 4.0))) or
+                    ("c".isNull() or "c".isNotNull())
+            }
+        }
+        val or = requireNotNull(leavesQuery.having) as HavingExpression.Or
+        val left = or.operands[0] as HavingExpression.Or
+        val between = left.operands[0] as HavingExpression.Between
+        between.metric.assert().isEqualTo("c")
+        between.lower.assert().isEqualTo(1.0)
+        between.upper.assert().isEqualTo(2.0)
+        val isIn = left.operands[1] as HavingExpression.In
+        isIn.metric.assert().isEqualTo("c")
+        isIn.values.assert().containsExactly(3.0, 4.0)
+        val right = or.operands[1] as HavingExpression.Or
+        (right.operands[0] as HavingExpression.IsNull).let {
+            it.metric.assert().isEqualTo("c")
+            it.negated.assert().isFalse()
+        }
+        (right.operands[1] as HavingExpression.IsNull).let {
+            it.metric.assert().isEqualTo("c")
+            it.negated.assert().isTrue()
+        }
     }
 
     @Test
