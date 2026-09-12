@@ -259,4 +259,26 @@ class AggregationQueryDslTest {
             AggregationMetric.Derived("net", expression),
         )
     }
+
+    @Test
+    fun `derived expression operators build binary nodes for every operator`() {
+        val query = aggregation {
+            count("a")
+            count("b")
+            derived("plus") { ref("a") + ref("b") }
+            derived("minus") { ref("a") - ref("b") }
+            derived("times") { ref("a") * ref("b") }
+            derived("div") { ref("a") / ref("b") }
+        }
+
+        val derived = query.metrics.filterIsInstance<AggregationMetric.Derived>()
+        derived.assert().hasSize(4)
+        val operators = derived.map { (it.expression as DerivedExpression.Binary).operator }
+        operators.assert().containsExactly(
+            AggregationExpressionOperator.ADD,
+            AggregationExpressionOperator.SUBTRACT,
+            AggregationExpressionOperator.MULTIPLY,
+            AggregationExpressionOperator.DIVIDE,
+        )
+    }
 }

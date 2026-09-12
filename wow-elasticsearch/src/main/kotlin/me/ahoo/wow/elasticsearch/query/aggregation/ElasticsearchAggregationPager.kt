@@ -46,8 +46,8 @@ private const val GROUP_AGGREGATION = "__wow_groups"
  * "Expected a multi bucket aggregation". One catch-all `filters` bucket provides the required
  * multi-bucket parent without changing any computed value.
  */
-private const val SUMMARY_BUCKET_AGGREGATION = "__wow_summary_bucket"
-private const val SUMMARY_BUCKET_KEY = "_wow"
+internal const val SUMMARY_BUCKET_AGGREGATION = "__wow_summary_bucket"
+internal const val SUMMARY_BUCKET_KEY = "_wow"
 
 internal class ElasticsearchAggregationPager(
     private val client: ReactiveElasticsearchClient,

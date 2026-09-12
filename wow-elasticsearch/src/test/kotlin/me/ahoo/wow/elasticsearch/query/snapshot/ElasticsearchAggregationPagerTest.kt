@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
 import co.elastic.clients.elasticsearch._types.aggregations.Buckets
+import co.elastic.clients.elasticsearch._types.aggregations.FiltersBucket
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
 import co.elastic.clients.elasticsearch._types.aggregations.DoubleTermsBucket
 import co.elastic.clients.elasticsearch._types.aggregations.LongTermsBucket
@@ -40,6 +41,8 @@ import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
+import me.ahoo.wow.elasticsearch.query.aggregation.SUMMARY_BUCKET_AGGREGATION
+import me.ahoo.wow.elasticsearch.query.aggregation.SUMMARY_BUCKET_KEY
 import me.ahoo.wow.elasticsearch.query.aggregation.selectTopRows
 import me.ahoo.wow.elasticsearch.query.toObjectNode
 import me.ahoo.wow.query.QueryBackendBinding
@@ -323,6 +326,36 @@ class ElasticsearchAggregationPagerTest {
         request.captured.assertSummaryRequest(plan)
         verify(exactly = 1) { client.search(any<SearchRequest>(), Map::class.java) }
         client.verifyNoPointInTimeCalls()
+    }
+
+    @Test
+    fun `derived summaries wrap metrics in a keyed filters bucket`() {
+        stubPointInTime()
+        val request = slot<SearchRequest>()
+        every { client.search(capture(request), Map::class.java) } returns Mono.just(derivedSummaryResponse())
+        val plan = compileAggregation(
+            aggregation {
+                count("count")
+                derived("one") { constant(1.0) }
+                derived("next") { ref("count") + constant(1.0) }
+            },
+        )
+
+        pager().execute(plan)
+            .test()
+            .assertNext {
+                it.path("count").longValue().assert().isEqualTo(0L)
+                it.path("one").doubleValue().assert().isEqualTo(1.0)
+                it.path("next").doubleValue().assert().isEqualTo(1.0)
+            }
+            .verifyComplete()
+
+        request.captured.aggregations().values.single().aggregations()
+            .getValue(SUMMARY_BUCKET_AGGREGATION)
+            .aggregations().apply {
+                getValue("one").bucketScript().assert().isNotNull()
+                getValue("next").bucketScript().assert().isNotNull()
+            }
     }
 
     @Test
@@ -760,6 +793,35 @@ class ElasticsearchAggregationPagerTest {
                     "__wow_value_count_total",
                     Aggregate.of { value -> value.valueCount { count -> count.value(0.0) } },
                 )
+        }
+    }
+
+    private fun derivedSummaryResponse(): SearchResponse<Map<*, *>> = response("pit-2") { aggregate ->
+        aggregate.filter { filter ->
+            filter.docCount(0).aggregations(
+                SUMMARY_BUCKET_AGGREGATION,
+                Aggregate.of { bucket ->
+                    bucket.filters { filters ->
+                        filters.buckets { buckets ->
+                            buckets.keyed(
+                                mapOf(
+                                    SUMMARY_BUCKET_KEY to FiltersBucket.of { keyed ->
+                                        keyed.docCount(0)
+                                            .aggregations(
+                                                "one",
+                                                Aggregate.of { value -> value.simpleValue { it.value(1.0) } },
+                                            )
+                                            .aggregations(
+                                                "next",
+                                                Aggregate.of { value -> value.simpleValue { it.value(1.0) } },
+                                            )
+                                    },
+                                ),
+                            )
+                        }
+                    }
+                },
+            )
         }
     }
 

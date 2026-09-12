@@ -521,6 +521,46 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
+    fun `derived metrics reference percentile distinct and deviation paths`() {
+        val plan = compiler.compile(
+            aggregation {
+                percentile("amount", 95.0, "p95")
+                distinctCount("customerId", "customers")
+                stddev("amount", "deviation")
+                variance("amount", "spread")
+                count("total")
+                derived("sharpness") { ref("p95") / ref("deviation") }
+                derived("spreadPerCustomer") { ref("spread") - ref("customers") }
+                derived("mixed") { (ref("total") + constant(1.0)) * constant(2.0) - constant(3.0) }
+            },
+            schema,
+        )
+        val derived = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Derived>()
+
+        val sharpness = derived[0]
+        sharpness.bucketsPath["v0"].assert().isEqualTo("p95[95.0]")
+        sharpness.bucketsPath["c0"].assert().isEqualTo("__wow_value_count_p95.value")
+        sharpness.bucketsPath["v1"].assert().isEqualTo("deviation.std_deviation_population")
+        sharpness.bucketsPath["c1"].assert().isEqualTo("__wow_value_count_deviation.value")
+        requireNotNull(sharpness.script.source()).scriptString().assert().contains("/ ")
+
+        val spreadPerCustomer = derived[1]
+        // 引用编号为编译级首现共享：sharpness 已占用 v0/c0、v1/c1
+        spreadPerCustomer.bucketsPath["v2"].assert().isEqualTo("spread.variance_population")
+        spreadPerCustomer.bucketsPath["c2"].assert().isEqualTo("__wow_value_count_spread.value")
+        spreadPerCustomer.bucketsPath["v3"].assert().isEqualTo("customers.value")
+        spreadPerCustomer.bucketsPath.assert().doesNotContainKey("c3") // cardinality 恒非 null，无需空语义守卫
+        requireNotNull(spreadPerCustomer.script.source()).scriptString().assert().contains(" - ")
+
+        val mixed = derived[2]
+        mixed.bucketsPath.values.single().assert().isEqualTo("_count")
+        requireNotNull(mixed.script.source()).scriptString().assert()
+            .contains(" + 1.0")
+            .contains(" * 2.0")
+            .contains(" - 3.0")
+    }
+
+    @Test
     fun `two nested scopes keep predicates relative and native paths absolute`() {
         val query = aggregation {
             expand("orders") { "status" eq "PAID" }
