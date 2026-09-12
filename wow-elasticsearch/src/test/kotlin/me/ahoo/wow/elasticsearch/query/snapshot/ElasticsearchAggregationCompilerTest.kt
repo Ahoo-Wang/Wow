@@ -194,6 +194,7 @@ class ElasticsearchAggregationCompilerTest {
         requireNotNull(script.source()).scriptString().assert()
             .contains("doc.containsKey")
             .contains("size() == 1")
+            .contains("emit(")
             .contains("params.missing")
         plan.groupSources.single().value().terms().field().assert().isEqualTo("__wow_missing_terms_0")
     }

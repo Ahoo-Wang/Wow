@@ -346,10 +346,11 @@ internal class ElasticsearchAggregationCompiler(
             if (doc.containsKey(field) && doc[field].size() == 1) {
                 def raw = doc[field].value;
                 if (raw != null) {
-                    return raw.toString();
+                    emit(raw.toString());
+                    return;
                 }
             }
-            return params.missing;
+            emit(params.missing);
         """.trimIndent()
         return RuntimeField.of { runtime ->
             runtime.type(RuntimeFieldType.Keyword)
