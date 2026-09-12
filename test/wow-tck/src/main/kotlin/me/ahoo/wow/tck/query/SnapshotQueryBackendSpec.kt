@@ -1780,6 +1780,32 @@ abstract class SnapshotQueryBackendSpec {
             .verifyComplete()
     }
 
+    @Test
+    fun `aggregation dense hour histogram should fill local wall clock hours in a half hour offset zone`() {
+        // Australia/Lord_Howe（7 月标准时 +10:30，1970 锚点却为 +10:00）：锚点起的流逝小时算术会把
+        // 0.5 小时偏移漂移截断成 local :30 键。真实桶为本地 03:00 与 05:00，补齐行必须是本地
+        // 04:00 的边界键——小时网格必须锚定在本地墙钟整点上。
+        val zone = ZoneId.of("Australia/Lord_Howe")
+        val hour3 = ZonedDateTime.of(2026, 7, 2, 3, 0, 0, 0, zone).toInstant().toEpochMilli()
+        val hour4 = ZonedDateTime.of(2026, 7, 2, 4, 0, 0, 0, zone).toInstant().toEpochMilli()
+        val hour5 = ZonedDateTime.of(2026, 7, 2, 5, 0, 0, 0, zone).toInstant().toEpochMilli()
+        saveAggregationStates(lordHoweHourState())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.HOUR, "hour", timeZone = zone, dense = true)
+            count("count")
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.assert().hasSize(3)
+                rows.map { it.path("hour").longValue() }.assert().containsExactly(hour3, hour4, hour5)
+            }
+            .verifyComplete()
+    }
+
     private fun saveAggregationStates(vararg states: MockStateAggregate) {
         states.forEachIndexed { index, state ->
             snapshotStore.save(
@@ -1934,6 +1960,37 @@ abstract class SnapshotQueryBackendSpec {
                             quantity = 2,
                             amount = 20.0,
                             createdAt = Instant.parse("2011-12-30T12:00:00Z"),
+                            discounts = emptyList(),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    /**
+     * 两行 line 分别落在 Lord Howe 本地 2026-07-02 的 03:00 与 05:00（标准时 +10:30）：
+     * 2026-07-01T16:30:00Z = 本地 03:00+10:30；2026-07-01T18:30:00Z = 本地 05:00+10:30，
+     * 中间的本地 04:00 桶（2026-07-01T17:30:00Z）应由 dense 补齐。7 月无区转换边沿。
+     */
+    private fun lordHoweHourState(): MockStateAggregate =
+        MockStateAggregate(
+            id = "aggregation-lord-howe",
+            orders = listOf(
+                MockOrder(
+                    status = "PAID",
+                    lines = listOf(
+                        MockLine(
+                            productId = "hour-03",
+                            quantity = 1,
+                            amount = 10.0,
+                            createdAt = Instant.parse("2026-07-01T16:30:00Z"),
+                            discounts = emptyList(),
+                        ),
+                        MockLine(
+                            productId = "hour-05",
+                            quantity = 2,
+                            amount = 20.0,
+                            createdAt = Instant.parse("2026-07-01T18:30:00Z"),
                             discounts = emptyList(),
                         ),
                     ),
