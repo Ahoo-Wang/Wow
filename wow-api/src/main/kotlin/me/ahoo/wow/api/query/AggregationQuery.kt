@@ -217,7 +217,14 @@ sealed interface AggregationMetric {
     @get:Schema(accessMode = Schema.AccessMode.READ_WRITE)
     val alias: String
 
-    data class Count(override val alias: String) : AggregationMetric {
+    @get:Schema(accessMode = Schema.AccessMode.READ_WRITE)
+    val filter: FilterExpression
+
+    data class Count(
+        override val alias: String,
+        @get:JsonInclude(JsonInclude.Include.CUSTOM, valueFilter = MatchAllFilterValueFilter::class)
+        override val filter: FilterExpression = MatchAllFilter,
+    ) : AggregationMetric {
         init {
             requireAggregationAlias(alias)
         }
@@ -227,6 +234,8 @@ sealed interface AggregationMetric {
         val function: AggregationFunction,
         val expression: AggregationExpression,
         override val alias: String,
+        @get:JsonInclude(JsonInclude.Include.CUSTOM, valueFilter = MatchAllFilterValueFilter::class)
+        override val filter: FilterExpression = MatchAllFilter,
     ) : AggregationMetric {
         init {
             requireAggregationAlias(alias)
@@ -236,6 +245,8 @@ sealed interface AggregationMetric {
     data class Any(
         val field: QueryField,
         override val alias: String,
+        @get:JsonInclude(JsonInclude.Include.CUSTOM, valueFilter = MatchAllFilterValueFilter::class)
+        override val filter: FilterExpression = MatchAllFilter,
     ) : AggregationMetric {
         init {
             requireAggregationAlias(alias)
@@ -245,6 +256,8 @@ sealed interface AggregationMetric {
     data class DistinctCount(
         val expression: AggregationExpression,
         override val alias: String,
+        @get:JsonInclude(JsonInclude.Include.CUSTOM, valueFilter = MatchAllFilterValueFilter::class)
+        override val filter: FilterExpression = MatchAllFilter,
     ) : AggregationMetric {
         init {
             requireAggregationAlias(alias)
@@ -256,6 +269,8 @@ sealed interface AggregationMetric {
         @get:Schema(minimum = "0", exclusiveMinimum = true, maximum = "100", exclusiveMaximum = true)
         val percentile: Double,
         override val alias: String,
+        @get:JsonInclude(JsonInclude.Include.CUSTOM, valueFilter = MatchAllFilterValueFilter::class)
+        override val filter: FilterExpression = MatchAllFilter,
     ) : AggregationMetric {
         init {
             requireAggregationAlias(alias)
@@ -279,6 +294,22 @@ private fun requireAggregationAlias(alias: String) {
     require('.' !in alias) { "aggregation alias must contain one segment." }
     require(!alias.startsWith("__wow")) { "aggregation alias must not use the reserved __wow prefix." }
     QueryField(alias)
+}
+
+/**
+ * Omits the [MatchAllFilter] default of metric-level `filter` properties so unfiltered queries
+ * keep their original JSON shape.
+ *
+ * Jackson 3 resolves `JsonInclude.Include.CUSTOM` value filters through
+ * `valueFilterInstance.equals(propertyValue)` (see `BeanPropertyWriter.serializeAsProperty`),
+ * so the omission predicate is expressed via [equals]. Kotlin constructor defaults cannot be
+ * honored by `JsonInclude.Include.NON_DEFAULT` here: `jackson-module-kotlin` does not expose
+ * creator defaults to inclusion checks.
+ */
+internal class MatchAllFilterValueFilter {
+    override fun equals(other: Any?): Boolean = other === MatchAllFilter
+
+    override fun hashCode(): Int = MatchAllFilterValueFilter::class.hashCode()
 }
 
 private data class PendingExpression(

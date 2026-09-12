@@ -182,9 +182,20 @@ internal class ExampleDomainOpenAPITest {
             )
             metricSchema.discriminator.propertyName.assert().isEqualTo("type")
             (metricSchema.properties.getValue("alias").readOnly == true).assert().isFalse()
+            assertMetricFilterSchema(metricSchema)
             val anySchema = openAPI.components.schemas.getValue("wow.api.query.AggregationMetric.Any")
             anySchema.required.assert().containsExactlyInAnyOrder("field", "alias", "type")
             anySchema.properties.getValue("field").`$ref`.assert().isEqualTo(logicalFieldRef)
+        }
+
+        private fun assertMetricFilterSchema(metricSchema: Schema<*>) {
+            val filterRef = "#/components/schemas/wow.api.query.FilterExpression"
+            metricSchema.properties.getValue("filter").`$ref`.assert().isEqualTo(filterRef)
+            metricSchema.oneOf.mapNotNull { it.`$ref` }.forEach { metricRef ->
+                val concreteSchema = openAPI.components.schemas.getValue(metricRef.substringAfterLast('/'))
+                concreteSchema.properties.getValue("filter").`$ref`.assert().isEqualTo(filterRef)
+                concreteSchema.required.assert().doesNotContain("filter")
+            }
         }
 
         private fun assertFilterExpressionQueryFieldDefinition() {

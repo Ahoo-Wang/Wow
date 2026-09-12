@@ -141,13 +141,14 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         when (expression) {
             MatchAllFilter, MatchNoneFilter -> Unit
             is IdFilter, is IdsFilter -> metadata(
-                if (schema.model == QueryModel.EVENT_STREAM) MessageRecords.ID else MessageRecords.AGGREGATE_ID
+                if (schema.model == QueryModel.EVENT_STREAM) MessageRecords.ID else MessageRecords.AGGREGATE_ID,
+                parent
             )
-            is AggregateIdFilter, is AggregateIdsFilter -> metadata(MessageRecords.AGGREGATE_ID)
-            is TenantIdFilter -> metadata(MessageRecords.TENANT_ID)
-            is OwnerIdFilter -> metadata(MessageRecords.OWNER_ID)
-            is SpaceIdFilter -> metadata(MessageRecords.SPACE_ID)
-            is DeletionFilter -> metadata(StateAggregateRecords.DELETED)
+            is AggregateIdFilter, is AggregateIdsFilter -> metadata(MessageRecords.AGGREGATE_ID, parent)
+            is TenantIdFilter -> metadata(MessageRecords.TENANT_ID, parent)
+            is OwnerIdFilter -> metadata(MessageRecords.OWNER_ID, parent)
+            is SpaceIdFilter -> metadata(MessageRecords.SPACE_ID, parent)
+            is DeletionFilter -> metadata(StateAggregateRecords.DELETED, parent)
             is AndFilter -> expression.operands.forEach { filter(it, parent) }
             is OrFilter -> expression.operands.forEach { filter(it, parent) }
             is NorFilter -> expression.operands.forEach { filter(it, parent) }
@@ -205,7 +206,13 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         }
     }
 
-    private fun metadata(name: String) { field(QueryField(name), QueryCapability.EXACT_MATCH) }
+    private fun metadata(name: String, parent: QueryField?) {
+        field(
+            QueryField(name),
+            QueryCapability.EXACT_MATCH,
+            parent
+        )
+    }
 
     private fun equality(name: QueryField, value: JsonNode, parent: QueryField?) {
         if (value.isNull) {
@@ -287,6 +294,9 @@ private class QueryValidator(private val schema: QueryModelSchema) {
             aggregationField(group.field, setOf(capability), parent)
         }
         query.metrics.forEach { metric ->
+            if (metric.filter !== MatchAllFilter) {
+                filter(metric.filter, parent)
+            }
             when (metric) {
                 is AggregationMetric.Count -> Unit
                 is AggregationMetric.Any -> requireSchema(

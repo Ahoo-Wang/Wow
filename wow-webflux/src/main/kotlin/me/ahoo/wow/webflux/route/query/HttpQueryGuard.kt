@@ -105,7 +105,10 @@ class HttpQueryGuard(
             is AggregationQuery -> {
                 validateResultSize(query.limit, "aggregation")
                 validateFilters(
-                    listOf(query.filter) + query.elements.map(AggregationElement::filter) + scopeFilters,
+                    listOf(query.filter) +
+                        query.elements.map(AggregationElement::filter) +
+                        query.metrics.map(AggregationMetric::filter).filter { it !== MatchAllFilter } +
+                        scopeFilters,
                     rejectMatchAll = false,
                 )
                 require(allowExpensiveOperators || query.elements.isEmpty()) {

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -49,10 +50,14 @@ class ElasticsearchAggregationCompilerTest {
         obj(
             mapOf(
                 "deleted" to QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.BOOLEAN)),
+                "tenantId" to text,
+                "ownerId" to text,
+                "spaceId" to text,
                 "amount" to scalar,
                 "createdAt" to temporal,
                 "name" to text,
                 "customerId" to text,
+                "tags" to array(text),
                 "orders" to array(
                     obj(
                         mapOf(
@@ -71,10 +76,14 @@ class ElasticsearchAggregationCompilerTest {
             "test",
             TypeMapping.of {
                 it.properties("deleted") { it.boolean_ { it } }
+                    .properties("tenantId") { it.keyword { it } }
+                    .properties("ownerId") { it.keyword { it } }
+                    .properties("spaceId") { it.keyword { it } }
                     .properties("amount") { it.long_ { it } }
                     .properties("createdAt") { it.long_ { it } }
                     .properties("name") { it.text { it.fields("keyword") { it.keyword { it } } } }
                     .properties("customerId") { it.text { it.fields("keyword") { it.keyword { it } } } }
+                    .properties("tags") { it.keyword { it } }
                     .properties("orders") {
                         it.nested { orders ->
                             orders.properties("status") { it.keyword { it } }
@@ -226,6 +235,226 @@ class ElasticsearchAggregationCompilerTest {
                 schema
             )
         }
+    }
+
+    @Test
+    fun `array valued metric filter fields are rejected`() {
+        val exception = assertThrows<QuerySchemaValidationException> {
+            compiler.compile(aggregation { count("tagged") { "tags" eq "premium" } }, schema)
+        }
+        exception.message.assert().contains("must be scalar")
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(
+                aggregation {
+                    expand("orders")
+                    count("recent") { "lines".elementMatch { "quantity" gt 0 } }
+                },
+                schema,
+            )
+        }
+    }
+
+    @Test
+    fun `element scoped and union array metric filter fields are rejected`() {
+        val tags = array(text)
+        val bound = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                obj(
+                    mapOf(
+                        "deleted" to QueryValueSchema(
+                            QueryValueKind.SCALAR,
+                            valueTypes = setOf(QueryValueType.BOOLEAN),
+                        ),
+                        "notes" to QueryValueSchema(QueryValueKind.UNION, alternatives = listOf(text, tags)),
+                        "orders" to array(obj(mapOf("lines" to array(obj(mapOf("tags" to tags)))))),
+                    )
+                )
+            ),
+            ElasticsearchIndexMapping.from(
+                "test",
+                TypeMapping.of { mapping ->
+                    mapping.properties("deleted") { deleted -> deleted.boolean_ { it } }
+                        .properties("notes") { notes -> notes.keyword { it } }
+                        .properties("orders") { orders ->
+                            orders.nested { ordersNested ->
+                                ordersNested.properties("lines") { lines ->
+                                    lines.nested { linesNested ->
+                                        linesNested.properties("tags") { tags -> tags.keyword { it } }
+                                    }
+                                }
+                            }
+                        }
+                }
+            ),
+        )
+
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(
+                aggregation {
+                    expand("orders")
+                    expand("lines")
+                    count("tagged") { "tags" eq "promo" }
+                },
+                bound,
+            )
+        }.message.assert().isEqualTo(
+            "Aggregation metric filter field [orders.lines.tags] must be scalar; " +
+                "array fields are not supported in metric filters.",
+        )
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(aggregation { count("noted") { "notes" eq "premium" } }, bound)
+        }.message.assert().isEqualTo(
+            "Aggregation metric filter field [notes] must be scalar; " +
+                "array fields are not supported in metric filters.",
+        )
+    }
+
+    @Test
+    fun `search filters in metric filters are rejected`() {
+        val exception = assertThrows<QuerySchemaValidationException> {
+            compiler.compile(aggregation { count("hits") { "name" search "premium" } }, schema)
+        }
+        exception.message.assert().contains("do not support search filters")
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(aggregation { count("hits") { search("premium") } }, schema)
+        }
+    }
+
+    @Test
+    fun `metric plan models default to unfiltered`() {
+        ElasticsearchAggregationMetric.Count("count").filter.assert().isNull()
+        ElasticsearchAggregationMetric.Any("sample", "name").filter.assert().isNull()
+        ElasticsearchAggregationMetric.Numeric("sum", AggregationFunction.SUM, "amount").filter.assert().isNull()
+        ElasticsearchAggregationMetric.DistinctCount("customers", "customerId").filter.assert().isNull()
+        ElasticsearchAggregationMetric.Percentile("p95", "amount", 95.0).filter.assert().isNull()
+    }
+
+    @Test
+    fun `every scalar filter leaf type compiles a non-null metric filter query`() {
+        val plan = compiler.compile(
+            aggregation {
+                count("equal") { "deleted" eq false }
+                count("notEqual") { "name" ne "Alpha" }
+                count("inList") { "name" isIn listOf("Alpha", "Beta") }
+                count("notInList") { "name" notIn listOf("Alpha") }
+                count("greater") { "amount" gt 1 }
+                count("greaterOrEqual") { "amount" gte 1 }
+                count("less") { "amount" lt 9 }
+                count("lessOrEqual") { "amount" lte 9 }
+                count("between") { "amount".between(1, 5) }
+                count("contains") { "name".containsText("Alp") }
+                count("startsWith") { "name".startsWithText("Alp") }
+                count("endsWith") { "name".endsWithText("pha") }
+                count("nullName") { "name".isNull() }
+                count("notNullName") { "name".isNotNull() }
+                count("present") { "name".exists() }
+                count("absent") { "name".notExists() }
+                count("emptyString") { "name".isEmptyString() }
+                count("notEmptyString") { "name".isNotEmptyString() }
+                count("allTerms") { "customerId" containsAll listOf("premium") }
+                count("emptyCollection") { "name".isEmptyCollection() }
+                count("today") { "createdAt".today() }
+            },
+            schema,
+        )
+
+        plan.metrics.associateBy { it.alias }.forEach { (alias, metric) ->
+            metric.filter.assert().isNotNull()
+        }
+        val metrics = plan.metrics.associateBy { it.alias }
+        metrics.getValue("equal").filter!!.isTerm.assert().isTrue()
+        metrics.getValue("greater").filter!!.isRange.assert().isTrue()
+        metrics.getValue("inList").filter!!.isTerms.assert().isTrue()
+        metrics.getValue("contains").filter!!.isWildcard.assert().isTrue()
+        metrics.getValue("today").filter!!.isBool.assert().isTrue()
+    }
+
+    @Test
+    fun `metadata and logical metric filters compile scoped queries`() {
+        val plan = compiler.compile(
+            aggregation {
+                count("byId") { id("order-1") }
+                count("byIds") { ids("order-1", "order-2") }
+                count("byAggregateId") { aggregateId("order-1") }
+                count("byAggregateIds") { aggregateIds("order-1", "order-2") }
+                count("byTenant") { tenantId("tenant-1") }
+                count("byOwner") { ownerId("owner-1") }
+                count("bySpace") { spaceId("space-1") }
+                count("active") { deletion(DeletionState.ACTIVE) }
+                count("anyState") { deletion(DeletionState.ALL) }
+                count("none") { matchNone() }
+                count("composed") {
+                    and {
+                        "deleted" eq false
+                        "amount" gt 0
+                    }
+                }
+                count("either") {
+                    or {
+                        "deleted" eq false
+                        "amount" gt 0
+                    }
+                }
+                count("neither") {
+                    nor {
+                        "deleted" eq false
+                        "amount" gt 0
+                    }
+                }
+                count("nested") {
+                    and {
+                        or {
+                            "deleted" eq false
+                            "name".exists()
+                        }
+                    }
+                }
+            },
+            schema,
+        )
+
+        val metrics = plan.metrics.associateBy { it.alias }
+        metrics.forEach { (alias, metric) ->
+            metric.filter.assert().isNotNull()
+        }
+        metrics.getValue("byIds").filter!!.isIds.assert().isTrue()
+        metrics.getValue("none").filter!!.isMatchNone.assert().isTrue()
+        metrics.getValue("anyState").filter!!.isMatchAll.assert().isTrue()
+        metrics.getValue("composed").filter!!.isBool.assert().isTrue()
+
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(aggregation { count("unknown") { "unknown" eq "value" } }, schema)
+        }
+    }
+
+    @Test
+    fun `plan should compile metric filters into scoped queries`() {
+        val plan = compiler.compile(
+            aggregation {
+                count("paid") { "deleted" eq false }
+                sum("amount", "paidAmount") { "deleted" eq false }
+            },
+            schema,
+        )
+
+        val count = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Count>().single()
+        count.filter.assert().isNotNull()
+        count.filter!!.term().field().assert().isEqualTo("deleted")
+        val numeric = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Numeric>().single()
+        numeric.filter.assert().isNotNull()
+        numeric.filter!!.term().field().assert().isEqualTo("deleted")
+
+        val scoped = compiler.compile(
+            aggregation {
+                expand("orders")
+                count("paidOrders") { "status" eq "PAID" }
+            },
+            schema,
+        )
+        (scoped.metrics.single() as ElasticsearchAggregationMetric.Count).filter!!.term().field()
+            .assert().isEqualTo("orders.status")
+
+        compiler.compile(aggregation { count("count") }, schema).metrics.single().filter.assert().isNull()
     }
 
     @Test

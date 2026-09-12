@@ -1,6 +1,6 @@
 ---
 title: 快照聚合
-description: 用九个业务场景说明快照根文档与集合元素的聚合查询。
+description: 用十个业务场景说明快照根文档与集合元素的聚合查询。
 ---
 
 # 快照聚合
@@ -33,6 +33,7 @@ flowchart TB
     Root --> S4["4 业务时间趋势"]
     Root --> S7["7 多维交叉分析"]
     Root --> S9["9 去重客户数与 P95 金额"]
+    Root --> S10["10 漏斗多条件计数"]
     Item --> S5["5 明细项 Top-N"]
     Item --> S6["6 派生金额"]
     Item --> S8["8 ANY 展示字段"]
@@ -500,6 +501,44 @@ val query = aggregation {
 ```
 
 `customers` 是组内去重客户数：`DISTINCT_COUNT` 只对非空参与值去重，空集为 `0`，数组字段按元素逐个参与，参与规则与 `NUMERIC` 不同（见[数值参与值与精度](./aggregation-query.md#numeric-contributions)）。`p95Amount` 与 `amountStddev` 遵循与 `SUM`/`AVG` 相同的数值参与规则，无有效贡献时为 `null`；`amountStddev` 为总体口径，单个贡献值为 `0`；`p95Amount` 由 t-digest 近似计算。`PERCENTILE` 在 MongoDB 后端需要服务端 7.0+。显式 `deletion` 过滤与 Gateway 默认追加的 `DELETION = ACTIVE` 一致。
+
+## 场景 10：漏斗：同图多条件计数
+
+**业务问题**
+
+不发起多次查询，如何在同一张结果表里得到“全部订单 → 已支付订单”两级漏斗的数量？
+
+**统计单位**
+
+快照根文档；`orderCount` 统计每份当前快照，`paidCount` 只统计 `state.status = PAID` 的快照。
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    count("orderCount")
+    count("paidCount") { "state.status" eq "PAID" }
+}
+```
+
+**HTTP JSON 与结果解读**
+
+```json
+{
+  "metrics": [
+    {"type": "COUNT", "alias": "orderCount"},
+    {"type": "COUNT", "alias": "paidCount", "filter": {"op": "EQ", "field": "state.status", "value": "PAID"}}
+  ]
+}
+```
+
+```json
+[
+  {"orderCount": 50, "paidCount": 42}
+]
+```
+
+两个指标共享同一统计单位与根过滤，metric filter 只作用于各自的指标，因此 `paidCount ≤ orderCount` 恒成立。漏斗的每一级都是一个带 filter 的独立 COUNT，需要更多层级时继续追加即可，不必拆成多次查询。metric filter 的空集语义、限制与版本要求见[指标级过滤](./aggregation-query.md#metric-filter)。
 
 ## 后端能力与稳定性边界
 

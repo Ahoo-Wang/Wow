@@ -103,12 +103,15 @@ public class AggregationCompilerBenchmark {
                 case "known_epoch" -> groups.add(new AggregationGroup.DateHistogram(
                         input, alias, AggregationDateUnit.DAY, "UTC"));
                 case "known_metric" -> metrics.add(new AggregationMetric.Numeric(
-                        AggregationFunction.SUM, new AggregationExpression.Field(input), "metric" + index));
-                case "count_only" -> metrics.add(new AggregationMetric.Count("count" + index));
+                        AggregationFunction.SUM,
+                        new AggregationExpression.Field(input),
+                        "metric" + index,
+                        MatchAllFilter.INSTANCE));
+                case "count_only" -> metrics.add(new AggregationMetric.Count("count" + index, MatchAllFilter.INSTANCE));
                 default -> throw new IllegalArgumentException(shape);
             }
         }
-        if (!groups.isEmpty()) metrics.add(new AggregationMetric.Count("count"));
+        if (!groups.isEmpty()) metrics.add(new AggregationMetric.Count("count", MatchAllFilter.INSTANCE));
         schema = BenchmarkQuerySchemas.create(QueryModel.Companion.getSNAPSHOT(), fields, bindings);
         query = new AggregationQuery(MatchAllFilter.INSTANCE, List.of(), groups, metrics, List.of(), 100);
         verifyPlan(compile());

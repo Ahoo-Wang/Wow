@@ -4858,6 +4858,9 @@
         "properties" : {
           "alias" : {
             "type" : "string"
+          },
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
           }
         }
       },
@@ -4868,6 +4871,9 @@
           },
           "field" : {
             "$ref" : "#/components/schemas/wow.api.query.QueryField"
+          },
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
           },
           "type" : {
             "const" : "ANY"
@@ -4880,6 +4886,9 @@
         "properties" : {
           "alias" : {
             "type" : "string"
+          },
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
           },
           "type" : {
             "const" : "COUNT"
@@ -4896,6 +4905,9 @@
           "expression" : {
             "$ref" : "#/components/schemas/wow.api.query.AggregationExpression"
           },
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+          },
           "type" : {
             "const" : "DISTINCT_COUNT"
           }
@@ -4910,6 +4922,9 @@
           },
           "expression" : {
             "$ref" : "#/components/schemas/wow.api.query.AggregationExpression"
+          },
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
           },
           "function" : {
             "$ref" : "#/components/schemas/wow.api.query.AggregationFunction"
@@ -4928,6 +4943,9 @@
           },
           "expression" : {
             "$ref" : "#/components/schemas/wow.api.query.AggregationExpression"
+          },
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
           },
           "percentile" : {
             "exclusiveMaximum" : 100,

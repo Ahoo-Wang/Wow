@@ -438,4 +438,64 @@ class AggregationQueryTest {
             bareMapper.readValue(json, AggregationQuery::class.java)
         }
     }
+
+    @Test
+    fun `metric filters should round trip and omit defaults`() {
+        val json = """
+            {
+              "metrics": [
+                {"type": "COUNT", "alias": "total"},
+                {"type": "COUNT", "filter": {"op": "EQ", "field": "status", "value": "PAID"}, "alias": "paid"},
+                {"type": "NUMERIC", "function": "SUM", "expression": {"field": "amount"},
+                 "filter": {"op": "EQ", "field": "status", "value": "PAID"}, "alias": "paidAmount"}
+              ]
+            }
+        """.trimIndent()
+
+        val query = configuredMapper.readValue(json, AggregationQuery::class.java)
+        query.metrics.filterIsInstance<AggregationMetric.Count>().assert().hasSize(2)
+        query.metrics[1].filter.assert().isInstanceOf(EqualFilter::class.java)
+        query.metrics.filterIsInstance<AggregationMetric.Numeric>().single().filter.assert()
+            .isInstanceOf(EqualFilter::class.java)
+        query.metrics[0].filter.assert().isEqualTo(MatchAllFilter)
+        val wire = configuredMapper.writeValueAsString(query)
+        wire.assert()
+            .contains("\"type\":\"COUNT\",\"alias\":\"total\"")
+            .contains("\"op\":\"EQ\"")
+            .doesNotContain("\"alias\":\"total\",\"filter\"")
+    }
+
+    @Test
+    fun `explicit MATCH_ALL metric filters should deserialize and re-serialize omitted`() {
+        val json = """
+            {
+              "metrics": [
+                {"type": "COUNT", "alias": "total", "filter": {"op": "MATCH_ALL"}},
+                {"type": "NUMERIC", "function": "SUM", "expression": {"field": "amount"}, "alias": "sumAmount",
+                 "filter": {"op": "MATCH_ALL"}}
+              ]
+            }
+        """.trimIndent()
+
+        val explicit = configuredMapper.readValue(json, AggregationQuery::class.java)
+        explicit.metrics.forEach { metric ->
+            metric.filter.assert().isEqualTo(MatchAllFilter)
+        }
+        val omitted = AggregationQuery(
+            metrics = listOf(
+                AggregationMetric.Count("total"),
+                AggregationMetric.Numeric(
+                    AggregationFunction.SUM,
+                    AggregationExpression.Field(QueryField("amount")),
+                    "sumAmount",
+                ),
+            ),
+        )
+
+        configuredMapper.writeValueAsString(explicit).assert()
+            .isEqualTo(configuredMapper.writeValueAsString(omitted))
+        configuredMapper.writeValueAsString(explicit).assert()
+            .doesNotContain("\"alias\":\"total\",\"filter\"")
+            .doesNotContain("\"alias\":\"sumAmount\",\"filter\"")
+    }
 }

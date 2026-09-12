@@ -417,6 +417,61 @@ class QuerySchemaValidationTest {
     }
 
     @Test
+    fun `metric filters follow the current scope for root and element contexts`() {
+        val schema = boundSchemaFixture(
+            objectFixture(
+                "tenantId" to scalarFixture(),
+                "orders" to arrayFixture(
+                    objectFixture("status" to scalarFixture(), "amount" to scalarFixture(QueryValueType.DECIMAL))
+                )
+            )
+        )
+        // Root scope: metric filters may use root-level filters (tenantId is declared at the root).
+        validateQuery(
+            aggregation {
+                count("tenantOrders") { tenantId("tenant") }
+            },
+            schema,
+        ).assert().isNotNull()
+        // Element scope: root-level fields are rejected through filter()'s element-scope validation.
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(
+                aggregation {
+                    expand("orders")
+                    count("counted") { tenantId("tenant") }
+                },
+                schema,
+            )
+        }
+        // Element scope: fields of the current scope are legal; unknown fields are rejected.
+        validateQuery(
+            aggregation {
+                expand("orders")
+                count("paid") { "status" eq "PAID" }
+            },
+            schema,
+        ).assert().isNotNull()
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(
+                aggregation {
+                    expand("orders")
+                    sum("missing", "total") { "status" eq "PAID" }
+                },
+                schema,
+            )
+        }
+        // Unfiltered metrics (MatchAllFilter) skip metric filter validation inside element scope.
+        validateQuery(
+            aggregation {
+                expand("orders")
+                count("all")
+                sum("amount", "total")
+            },
+            schema,
+        ).assert().isNotNull()
+    }
+
+    @Test
     fun `distinct count accepts terms or numeric fields and rejects others while percentile follows numeric rules`() {
         val both = boundSchemaFixture(
             objectFixture(
