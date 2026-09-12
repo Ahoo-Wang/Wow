@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
@@ -203,6 +204,13 @@ class AggregationQueryDsl {
     fun median(expression: AggregationExpression, alias: String, init: FilterDsl.() -> Unit) =
         percentile(expression, 50.0, alias, init)
 
+    fun derived(alias: String, expression: DerivedExpression) {
+        metrics += AggregationMetric.Derived(alias, expression)
+    }
+
+    fun derived(alias: String, init: DerivedExpressionDsl.() -> DerivedExpression) =
+        derived(alias, DerivedExpressionDsl().init())
+
     private fun numeric(
         function: AggregationFunction,
         expression: AggregationExpression,
@@ -233,4 +241,33 @@ class AggregationQueryDsl {
     }
 
     fun build(): AggregationQuery = AggregationQuery(filter, elements, groups, metrics, sort, limit)
+}
+
+/**
+ * Dedicated expression context for [AggregationQueryDsl.derived]: [constant] returns a
+ * [DerivedExpression.Constant] rather than the [AggregationExpression.Constant] built by
+ * [AggregationQueryDsl.constant], so the two scopes must not share a receiver type.
+ */
+@QueryDslMarker
+class DerivedExpressionDsl {
+    fun ref(metric: String): DerivedExpression = DerivedExpression.MetricRef(metric)
+
+    fun constant(value: Double): DerivedExpression = DerivedExpression.Constant(value)
+
+    operator fun DerivedExpression.plus(other: DerivedExpression): DerivedExpression =
+        binary(AggregationExpressionOperator.ADD, other)
+
+    operator fun DerivedExpression.minus(other: DerivedExpression): DerivedExpression =
+        binary(AggregationExpressionOperator.SUBTRACT, other)
+
+    operator fun DerivedExpression.times(other: DerivedExpression): DerivedExpression =
+        binary(AggregationExpressionOperator.MULTIPLY, other)
+
+    operator fun DerivedExpression.div(other: DerivedExpression): DerivedExpression =
+        binary(AggregationExpressionOperator.DIVIDE, other)
+
+    private fun DerivedExpression.binary(
+        operator: AggregationExpressionOperator,
+        other: DerivedExpression,
+    ): DerivedExpression = DerivedExpression.Binary(operator, this, other)
 }
