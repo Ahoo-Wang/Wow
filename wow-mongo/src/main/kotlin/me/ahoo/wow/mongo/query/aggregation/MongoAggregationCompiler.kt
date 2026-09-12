@@ -38,6 +38,10 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.distinctCountCapability
 import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.physicalField
+import org.bson.BsonArray
+import org.bson.BsonDocument
+import org.bson.BsonNull
+import org.bson.BsonValue
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.time.Instant
@@ -91,7 +95,7 @@ internal class MongoAggregationCompiler(
             id
         }
 
-        add(group(query, groupId, logicalParent, physicalParent, schema))
+        add(group(query, groupId, logicalParent, physicalParent, schema, now))
         add(project(query))
         query.effectiveSort().takeIf { it.isNotEmpty() }?.let { add(Aggregates.sort(it.toBson())) }
         add(Aggregates.limit(query.limit))
@@ -104,11 +108,19 @@ internal class MongoAggregationCompiler(
         parent: QueryField?,
         physicalParent: String?,
         schema: QueryModelSchema,
+        now: Instant,
     ): Bson {
         val accumulators = buildList {
             query.metrics.forEach { metric ->
+                val guard = metricFilter(metric, parent, physicalParent, schema, now)?.toGuardCondition()
                 when (metric) {
-                    is AggregationMetric.Count -> add(Accumulators.sum(metric.alias, 1))
+                    is AggregationMetric.Count -> add(
+                        if (guard == null) {
+                            Accumulators.sum(metric.alias, 1)
+                        } else {
+                            Accumulators.sum(metric.alias, Document("\$cond", listOf(guard, 1, 0)))
+                        },
+                    )
                     is AggregationMetric.Any -> {
                         val field = metric.field.resolve(
                             parent,
@@ -116,7 +128,13 @@ internal class MongoAggregationCompiler(
                             schema,
                             QueryCapability.AGGREGATE_TERMS,
                         )
-                        add(Accumulators.max(metric.alias, "\$$field"))
+                        add(
+                            if (guard == null) {
+                                Accumulators.max(metric.alias, "\$$field")
+                            } else {
+                                Accumulators.max(metric.alias, Document("\$cond", listOf(guard, "\$$field", null)))
+                            },
+                        )
                     }
                     is AggregationMetric.Numeric -> {
                         val nullGuarded = metric.function == AggregationFunction.MIN ||
@@ -128,11 +146,12 @@ internal class MongoAggregationCompiler(
                             physicalParent,
                             schema,
                         )
-                        add(metric.function.accumulate(metric.alias, input))
+                        val guardedInput = guard.wrapParticipation(input)
+                        add(metric.function.accumulate(metric.alias, guardedInput))
                         add(
                             Accumulators.sum(
                                 metric.countAlias,
-                                Document("\$cond", listOf(contributes, 1, 0)),
+                                Document("\$cond", listOf(guard.wrapContribution(contributes), 1, 0)),
                             ),
                         )
                     }
@@ -149,7 +168,7 @@ internal class MongoAggregationCompiler(
                                 metric.alias,
                                 Document(
                                     "\$percentile",
-                                    Document("input", input)
+                                    Document("input", guard.wrapParticipation(input))
                                         .append("p", listOf(metric.percentile / 100.0))
                                         .append("method", "approximate"),
                                 ),
@@ -158,7 +177,7 @@ internal class MongoAggregationCompiler(
                         add(
                             Accumulators.sum(
                                 metric.countAlias,
-                                Document("\$cond", listOf(contributes, 1, 0)),
+                                Document("\$cond", listOf(guard.wrapContribution(contributes), 1, 0)),
                             ),
                         )
                     }
@@ -166,7 +185,9 @@ internal class MongoAggregationCompiler(
                         add(
                             Accumulators.addToSet(
                                 metric.alias,
-                                distinctCountInput(metric.expression, parent, physicalParent, schema),
+                                guard.wrapParticipation(
+                                    distinctCountInput(metric.expression, parent, physicalParent, schema),
+                                ),
                             ),
                         )
                     }
@@ -174,6 +195,51 @@ internal class MongoAggregationCompiler(
             }
         }
         return Aggregates.group(id, accumulators)
+    }
+
+    /**
+     * Compiles the record-level filter of [metric] against its enclosing scope,
+     * or returns `null` for [MatchAllFilter] so unfiltered metrics keep their unwrapped accumulators.
+     */
+    private fun metricFilter(
+        metric: AggregationMetric,
+        parent: QueryField?,
+        physicalParent: String?,
+        schema: QueryModelSchema,
+        now: Instant,
+    ): Bson? {
+        val filter = metric.filter
+        if (filter === MatchAllFilter) {
+            return null
+        }
+        if (parent == null) {
+            return filterCompiler.compile(filter, schema, now)
+        }
+        return filterCompiler.compileScoped(
+            filter,
+            schema,
+            logicalParent = parent,
+            physicalParent = QueryField(requireNotNull(physicalParent)),
+            now = now,
+        )
+    }
+
+    /**
+     * Wraps a participating value so records rejected by the filter contribute `null` instead.
+     */
+    private fun Any?.wrapParticipation(input: Any): Any = if (this == null) {
+        input
+    } else {
+        Document("\$cond", listOf(this, input, null))
+    }
+
+    /**
+     * Extends a contribution predicate with the filter so rejected records add zero to the value count.
+     */
+    private fun Any?.wrapContribution(contributes: Any): Any = if (this == null) {
+        contributes
+    } else {
+        Document("\$and", listOf(this, contributes))
     }
 
     @Suppress("LongMethod")
@@ -598,3 +664,126 @@ internal class MongoAggregationCompiler(
     private val AggregationMetric.countAlias: String
         get() = "__wow_value_count_$alias"
 }
+
+/**
+ * MongoDB evaluates a match document in expression position as a truthy object literal,
+ * so a `$cond` guard must re-express the compiled predicate with aggregation operators.
+ * The translation covers every shape [AbstractMongoFilterCompiler] emits and preserves
+ * its null-versus-missing match semantics.
+ */
+private fun Bson.toGuardCondition(): Any = toGuardCondition(toBsonDocument())
+
+private fun toGuardCondition(document: BsonDocument): Any = when (document.size) {
+    0 -> Document("\$literal", true)
+    1 -> toGuardCondition(document.entries.first())
+    else -> Document("\$and", document.entries.map(::toGuardCondition))
+}
+
+private fun toGuardCondition(entry: Map.Entry<String, BsonValue>): Any {
+    val path = entry.key
+    val condition = entry.value
+    return when {
+        path == "\$and" || path == "\$or" ->
+            Document(path, condition.asArray().map { toGuardCondition(it.asDocument()) })
+
+        path == "\$nor" -> Document(
+            "\$not",
+            listOf(Document("\$or", condition.asArray().map { toGuardCondition(it.asDocument()) })),
+        )
+
+        path.startsWith("\$") -> throw QuerySchemaValidationException(
+            "MongoDB metric filters cannot translate operator [$path] into a guard condition.",
+        )
+
+        else -> toGuardCondition(path, condition)
+    }
+}
+
+private fun toGuardCondition(path: String, condition: BsonValue): Any {
+    if (condition.isNull) {
+        return matchesNull(path)
+    }
+    if (!condition.isDocument) {
+        return Document("\$eq", listOf(fieldRef(path), condition))
+    }
+    val document = condition.asDocument()
+    return when {
+        document.containsKey("\$elemMatch") -> throw QuerySchemaValidationException(
+            "MongoDB metric filters cannot translate [\$elemMatch] into a guard condition.",
+        )
+
+        document.containsKey("\$regex") -> regexGuard(path, document)
+
+        else -> document.entries.map { (operator, value) -> toGuardCondition(path, operator, value) }
+            .let { conditions -> conditions.singleOrNull() ?: Document("\$and", conditions) }
+    }
+}
+
+@Suppress("CyclomaticComplexMethod")
+private fun toGuardCondition(path: String, operator: String, value: BsonValue): Any = when (operator) {
+    "\$eq" -> if (value.isNull) matchesNull(path) else Document("\$eq", listOf(fieldRef(path), value))
+    "\$ne" -> if (value.isNull) {
+        Document("\$and", listOf(Document("\$ne", listOf(fieldRef(path), null)), isPresent(path)))
+    } else {
+        Document("\$ne", listOf(fieldRef(path), value))
+    }
+
+    "\$gt", "\$gte", "\$lt", "\$lte" -> Document(operator, listOf(fieldRef(path), value))
+    "\$in" -> inGuard(path, value.asArray())
+    "\$nin" -> Document("\$not", listOf(inGuard(path, value.asArray())))
+    "\$exists" -> if (value.asBoolean().value) {
+        isPresent(path)
+    } else {
+        Document("\$eq", listOf(typeOf(path), "missing"))
+    }
+
+    "\$size" -> Document(
+        "\$eq",
+        listOf(
+            Document(
+                "\$size",
+                Document(
+                    "\$cond",
+                    listOf(
+                        Document("\$isArray", listOf(fieldRef(path))),
+                        fieldRef(path),
+                        BsonArray(List(value.asNumber().intValue() + 1) { BsonNull.VALUE }),
+                    ),
+                ),
+            ),
+            value.asNumber().intValue(),
+        ),
+    )
+
+    else -> throw QuerySchemaValidationException(
+        "MongoDB metric filters cannot translate operator [$operator] into a guard condition.",
+    )
+}
+
+private fun matchesNull(path: String): Any = Document(
+    "\$or",
+    listOf(
+        Document("\$eq", listOf(fieldRef(path), null)),
+        Document("\$eq", listOf(typeOf(path), "missing")),
+    ),
+)
+
+private fun inGuard(path: String, values: BsonArray): Any {
+    val condition = Document("\$in", listOf(fieldRef(path), values))
+    if (values.none(BsonValue::isNull)) {
+        return condition
+    }
+    return Document("\$or", listOf(condition, Document("\$eq", listOf(typeOf(path), "missing"))))
+}
+
+private fun regexGuard(path: String, document: BsonDocument): Document {
+    val regex = Document("input", fieldRef(path)).append("regex", document.getString("\$regex"))
+    document.getString("\$options")?.let { regex.append("options", it) }
+    return Document("\$regexMatch", regex)
+}
+
+private fun fieldRef(path: String): String = "\$$path"
+
+private fun typeOf(path: String): Document = Document("\$type", fieldRef(path))
+
+private fun isPresent(path: String): Document = Document("\$ne", listOf(typeOf(path), "missing"))

@@ -33,7 +33,10 @@ import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.serialization.MessageRecords
+import org.bson.BsonArray
+import org.bson.BsonBoolean
 import org.bson.BsonDocument
+import org.bson.BsonInt32
 import org.bson.BsonString
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -760,6 +763,81 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `filtered count accumulates conditional ones`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation { count("paid") { "state.status" eq "PAID" } },
+            statusFilterSchema,
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        val accumulator = group.getDocument("paid").getDocument("\$sum").getArray("\$cond")
+        accumulator.get(1).asInt32().value.assert().isEqualTo(1)
+        accumulator.get(2).asInt32().value.assert().isEqualTo(0)
+        accumulator.get(0).asDocument().assert().isEqualTo(paidStatusGuard)
+    }
+
+    @Test
+    fun `filtered numeric metrics guard contributions with the filter`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                sum("state.amount", "paidAmount") { "state.status" eq "PAID" }
+                percentile("state.amount", 50.0, "paidP50") { "state.status" eq "PAID" }
+            },
+            statusFilterSchema,
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("paidAmount").getDocument("\$sum").getArray("\$cond").get(0).asDocument()
+            .assert().isEqualTo(paidStatusGuard)
+        val countGuard = group.getDocument("__wow_value_count_paidAmount").getDocument("\$sum")
+            .getArray("\$cond").get(0).asDocument()
+        countGuard.getArray("\$and").get(0).asDocument().assert().isEqualTo(paidStatusGuard)
+        countGuard.getArray("\$and").get(1).asDocument().containsKey("\$isNumber").assert().isTrue()
+        group.getDocument("paidP50").getDocument("\$percentile").getDocument("input")
+            .getArray("\$cond").get(0).asDocument().assert().isEqualTo(paidStatusGuard)
+    }
+
+    @Test
+    fun `filtered distinct count and any null non matching records`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                distinctCount("state.productId", "paidProducts") { "state.status" eq "PAID" }
+                any("state.status", "anyStatus") { "deleted" eq false }
+            },
+            statusFilterSchema,
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("paidProducts").getDocument("\$addToSet").getArray("\$cond").get(0).asDocument()
+            .assert().isEqualTo(paidStatusGuard)
+        val anyGuard = group.getDocument("anyStatus").getDocument("\$max").getArray("\$cond")
+        anyGuard.get(0).asDocument().assert().isEqualTo(
+            BsonDocument("\$eq", BsonArray(listOf(BsonString("\$deleted"), BsonBoolean(false)))),
+        )
+        anyGuard.get(1).asString().value.assert().isEqualTo("\$state.status")
+        anyGuard.get(2).isNull.assert().isTrue()
+    }
+
+    @Test
+    fun `unfiltered metrics keep their unwrapped accumulators`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                count("count")
+                sum("state.amount", "total")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("count").get("\$sum").assert().isEqualTo(BsonInt32(1))
+        group.getDocument("total").getDocument("\$sum").getArray("\$cond").get(0).asDocument()
+            .containsKey("\$isArray").assert().isTrue()
+        val countGuard = group.getDocument("__wow_value_count_total").getDocument("\$sum").getArray("\$cond")
+        countGuard.get(0).asDocument().containsKey("\$isNumber").assert().isTrue()
+        countGuard.get(0).asDocument().containsKey("\$and").assert().isFalse()
+    }
+
+    @Test
     fun `schema bindings should apply to root and element filters without element deletion scope`() {
         val query = aggregation {
             filter { "state.status" eq "PAID" }
@@ -786,6 +864,20 @@ class MongoAggregationCompilerTest {
             .doesNotContain("deleted")
     }
 }
+
+private val statusFilterSchema = schema(
+    field(
+        "state.status",
+        QueryCapability.EXACT_MATCH,
+        "state.status",
+        additionalCapabilities = setOf(QueryCapability.AGGREGATE_TERMS),
+    ),
+)
+
+private val paidStatusGuard = BsonDocument(
+    "\$eq",
+    BsonArray(listOf(BsonString("\$state.status"), BsonString("PAID"))),
+)
 
 private fun schema(vararg fields: Pair<QueryField, MongoTestField>) = mongoTestSchema(
     model = QueryModel.SNAPSHOT,
