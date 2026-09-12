@@ -479,21 +479,25 @@ class ElasticsearchAggregationCompilerTest {
         derived.assert().hasSize(2)
         val aov = derived[0]
         // filtered Numeric: value via the metric filter wrapper, count via the wrapper's value count;
+        // wrapper traversal uses the '>' separator — a dotted path would look up a sibling literally
+        // named "__wow_metric_filter_paidAmount.paidAmount" and fail request validation;
         // filtered Count: alias._count
         aov.bucketsPath.assert().containsKey("v0").containsKey("c0").containsKey("v1")
-        aov.bucketsPath["v0"].assert().isEqualTo("__wow_metric_filter_paidAmount.paidAmount.value")
-        aov.bucketsPath["c0"].assert().isEqualTo("__wow_metric_filter_paidAmount.__wow_value_count_paidAmount.value")
+        aov.bucketsPath["v0"].assert().isEqualTo("__wow_metric_filter_paidAmount>paidAmount.value")
+        aov.bucketsPath["c0"].assert().isEqualTo("__wow_metric_filter_paidAmount>__wow_value_count_paidAmount.value")
         aov.bucketsPath["v1"].assert().isEqualTo("paid._count")
         requireNotNull(aov.script.source()).scriptString().assert()
             // NaN sentinel: an empty-set sum is a value (0.0), not a gap, so the guard must stay
-            // in-double-arithmetic (Painless throws on null operands) and let NaN flow to the final wrap
-            .contains("((params.c0 as double) == 0.0 ? Double.NaN : (params.v0 as double))")
-            .contains("(params.v1 as double)")
+            // in-double-arithmetic (Painless throws on null operands) and let NaN flow to the final wrap;
+            // casts use the Painless `(double)` form — Painless has no `as` cast operator
+            .contains("(((double) params.c0) == 0.0 ? Double.NaN : ((double) params.v0))")
+            .contains("((double) params.v1)")
             .contains("Double.NaN")
             .contains("Double.isFinite")
             .doesNotContain("== 0.0 ? null")
+            .doesNotContain(" as double")
         val attainment = derived[1]
-        attainment.bucketsPath["v0"].assert().isEqualTo("__wow_metric_filter_paidAmount.paidAmount.value")
+        attainment.bucketsPath["v0"].assert().isEqualTo("__wow_metric_filter_paidAmount>paidAmount.value")
         attainment.bucketsPath["v2"].assert().isEqualTo("totalAmount.value") // unfiltered Numeric has no wrapper
         attainment.bucketsPath["c2"].assert().isEqualTo("__wow_value_count_totalAmount.value")
         requireNotNull(attainment.script.source()).scriptString().assert().contains("Double.isFinite")
@@ -512,7 +516,7 @@ class ElasticsearchAggregationCompilerTest {
         val quarter = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Derived>()[1]
         quarter.bucketsPath.values.single().assert().isEqualTo("half.value")
         requireNotNull(quarter.script.source()).scriptString().assert()
-            .contains("(params.v1 as double)")
+            .contains("((double) params.v1)")
             .contains("/ 2.0")
     }
 

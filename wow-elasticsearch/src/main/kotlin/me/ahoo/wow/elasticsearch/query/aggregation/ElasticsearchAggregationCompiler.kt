@@ -463,10 +463,10 @@ internal class ElasticsearchAggregationCompiler(
      *
      * Guards use a NaN sentinel instead of null: Painless throws on null arithmetic operands, and an
      * empty-set sum is a value (0.0), not a gap, so the count guard must stay in double arithmetic
-     * (`Double.NaN`). Every reference is cast `as double` (plain `_count` paths arrive as Longs —
-     * Long/Long division is integer division), division relies on IEEE semantics (x / 0.0 → ±Infinity)
-     * instead of an explicit zero guard, and the final `!Double.isFinite` wrap unifies NaN and ±Infinity
-     * to null.
+     * (`Double.NaN`). Every reference is cast `(double)` — Painless has no `as` cast operator, and
+     * plain `_count` paths arrive as Longs (Long/Long division is integer division). Division relies
+     * on IEEE semantics (x / 0.0 → ±Infinity) instead of an explicit zero guard, and the final
+     * `!Double.isFinite` wrap unifies NaN and ±Infinity to null.
      */
     private fun DerivedExpression.toScript(
         prior: Map<String, ElasticsearchAggregationMetric>,
@@ -479,11 +479,11 @@ internal class ElasticsearchAggregationCompiler(
             val index = derivedRefIndexes.getOrPut(metric) { derivedRefIndexes.size }
             bucketsPath["v$index"] = valuePath
             if (countPath == null) {
-                "(params.v$index as double)"
+                "((double) params.v$index)"
             } else {
                 bucketsPath["c$index"] = countPath
                 // empty-set guard: zero count -> NaN sentinel (null would throw in Painless arithmetic)
-                "((params.c$index as double) == 0.0 ? Double.NaN : (params.v$index as double))"
+                "(((double) params.c$index) == 0.0 ? Double.NaN : ((double) params.v$index))"
             }
         }
 
@@ -520,10 +520,14 @@ internal class ElasticsearchAggregationCompiler(
     /**
      * Resolves (valuePath, countPath?) of a referenced metric plan; a non-null countPath means the
      * script needs the empty-set guard. Filtered wrapper names are based on the referenced metric's
-     * own alias: [metricFilterAggregationName] with that alias.
+     * own alias: [metricFilterAggregationName] with that alias. Metrics under that wrapper are
+     * referenced with the `>` separator — buckets_path resolves `a.b` against sibling aggregation
+     * *names* (a dot would look for a sibling literally named `a.b`), while `a>b` descends into the
+     * single-bucket wrapper [a]. Filtered Counts keep the filter aggregation named [alias] itself,
+     * so their doc_count is `alias._count`.
      */
     private fun ElasticsearchAggregationMetric.referencePaths(): Pair<String, String?> {
-        val scope = if (filter == null) "" else "${metricFilterAggregationName(alias)}."
+        val scope = if (filter == null) "" else "${metricFilterAggregationName(alias)}>"
         return when (this) {
             is ElasticsearchAggregationMetric.Count ->
                 // unfiltered: the bucket's own doc_count; filtered: the doc_count of the filter aggregation named alias
