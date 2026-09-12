@@ -1,6 +1,6 @@
 ---
 title: Snapshot Aggregation
-description: Apply snapshot aggregation to root documents and collection elements through eleven business scenarios.
+description: Apply snapshot aggregation to root documents and collection elements through twelve business scenarios.
 ---
 
 # Snapshot Aggregation
@@ -35,6 +35,7 @@ flowchart TB
     Root --> S9["9 Distinct customers and P95 amount"]
     Root --> S10["10 Funnel conditional counts"]
     Root --> S11["11 Attainment and paid AOV"]
+    Root --> S12["12 Attainment-threshold filtering"]
     Item --> S5["5 Line-item Top-N"]
     Item --> S6["6 Derived amount"]
     Item --> S8["8 ANY display field"]
@@ -622,6 +623,79 @@ val query = aggregation {
 ```
 
 `paidAov = paidAmount / paid`, and `attainment = paidAmount / targetAmount`. The FAILED row demonstrates empty-set semantics: no PAID record exists in the group, so `paidAmount` is `null` on an empty set, and any null operand propagates `null` — both derived metrics are therefore `null` (dividing by `paid = 0` yields `null` as well). A derived metric cannot carry a metric filter itself; its combination with metric filtering is to reference filtered metrics, and sort can reference a derived alias directly. HTTP rejects derived metrics as arithmetic expressions when expensive operators are disabled. See [Derived Metrics](./aggregation-query.md#derived-metrics) for reference rules and semantics.
+
+## Scenario 12: Attainment-Threshold Filtering
+
+**Business question**
+
+Which order statuses reach at least 80% attainment of a fixed target (6000) in paid amount, with more than 10 paid orders?
+
+**Counting unit**
+
+Root snapshot documents; `paid` and `paidAmount` count only snapshots with `state.status = PAID`, attainment is computed after aggregation, and having then filters grouped rows by aggregated values.
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    terms("state.status", "status")
+    count("paid") { "state.status" eq "PAID" }
+    sum("state.totalAmount", "paidAmount") { "state.status" eq "PAID" }
+    derived("attainment") { ref("paidAmount") / constant(6000.0) }
+    having {
+        ("attainment" gte 0.8) and ("paid" gt 10)
+    }
+    sort { "attainment".desc() }
+    limit(20)
+}
+```
+
+**HTTP JSON and result interpretation**
+
+```json
+{
+  "groupBy": [
+    {"type": "TERMS", "field": "state.status", "alias": "status"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "paid", "filter": {"op": "EQ", "field": "state.status", "value": "PAID"}},
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": {"type": "FIELD", "field": "state.totalAmount"},
+      "alias": "paidAmount",
+      "filter": {"op": "EQ", "field": "state.status", "value": "PAID"}
+    },
+    {
+      "type": "DERIVED",
+      "alias": "attainment",
+      "expression": {
+        "type": "BINARY",
+        "operator": "DIVIDE",
+        "left": {"type": "METRIC_REF", "metric": "paidAmount"},
+        "right": {"type": "CONSTANT", "value": 6000.0}
+      }
+    }
+  ],
+  "having": {"type": "AND", "operands": [
+    {"type": "CONDITION", "metric": "attainment", "operator": "GTE", "value": 0.8},
+    {"type": "CONDITION", "metric": "paid", "operator": "GT", "value": 10}
+  ]},
+  "sort": [
+    {"field": "attainment", "direction": "DESC"}
+  ],
+  "limit": 20
+}
+```
+
+```json
+[
+  {"status": "PAID", "paid": 42, "paidAmount": 5400.0, "attainment": 0.9},
+  {"status": "SHIPPED", "paid": 12, "paidAmount": 4800.0, "attainment": 0.8}
+]
+```
+
+Having filters groups by their per-row metric results after aggregation, keeping only statuses with `attainment ≥ 0.8` and `paid > 10`; both `sort` and `limit` apply to the filtered rows, so non-qualifying statuses (for example `attainment = 0.5` or `paid ≤ 10`) do not consume `limit` slots. Null fails: a group whose `paidAmount` is `null` (no PAID record in the group) fails every comparison; switch to `isNull()` when those groups are the target. Having may reference only declared metric aliases (group aliases and unknown names are rejected), never an `ANY` metric; referencing derived metrics has no declaration-order restriction. The HTTP guard counts having nodes toward `max-filter-nodes` and comparison values toward `max-filter-values`. Aggregated values carry no index selectivity, so prefer metric sorting plus having on large data. See [HAVING](./aggregation-query.md#having) for semantics and rules.
 
 ## Backend Capabilities and Stability Boundaries
 
