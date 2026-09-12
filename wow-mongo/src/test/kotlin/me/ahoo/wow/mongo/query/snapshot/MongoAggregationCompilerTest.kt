@@ -31,13 +31,21 @@ import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.mongo.query.mongoTestSchema
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryPathSegment
+import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.BsonArray
 import org.bson.BsonBoolean
 import org.bson.BsonDocument
+import org.bson.BsonDouble
 import org.bson.BsonInt32
+import org.bson.BsonInt64
 import org.bson.BsonNull
 import org.bson.BsonString
 import org.junit.jupiter.api.Test
@@ -1034,6 +1042,219 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `element scoped metric filters compile guards relative to their element`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                expand("state.orders")
+                count("paid") { "status" eq "PAID" }
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("paid").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument("\$eq", BsonArray(listOf(BsonString("\$state.orders.status"), BsonString("PAID")))),
+        )
+    }
+
+    @Test
+    fun `range metric filters translate into comparison guards`() {
+        val rangeSchema = schema(
+            field(
+                "state.amount",
+                QueryCapability.RANGE,
+                "state.amount",
+                QueryValueType.DECIMAL,
+                additionalCapabilities = setOf(QueryCapability.AGGREGATE_NUMERIC),
+            ),
+        )
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                count("above") { "state.amount" gt 10.0 }
+                count("within") { "state.amount".between(1.0, 5.0) }
+            },
+            rangeSchema,
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("above").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument("\$gt", BsonArray(listOf(BsonString("\$state.amount"), BsonDouble(10.0)))),
+        )
+        group.getDocument("within").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument(
+                "\$and",
+                BsonArray(
+                    listOf(
+                        BsonDocument("\$gte", BsonArray(listOf(BsonString("\$state.amount"), BsonDouble(1.0)))),
+                        BsonDocument("\$lte", BsonArray(listOf(BsonString("\$state.amount"), BsonDouble(5.0)))),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `relative time metric filters normalize into one shared range instant`() {
+        val temporalSchema = schema(
+            field(
+                "state.createdAt",
+                QueryCapability.RANGE,
+                "state.createdAt",
+                QueryValueType.INTEGER,
+                Temporal.Epoch(TimeUnit.SECONDS),
+                additionalCapabilities = setOf(QueryCapability.AGGREGATE_TEMPORAL),
+            ),
+        )
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation { count("today") { "state.createdAt".today(ZoneId.of("UTC")) } },
+            temporalSchema,
+            java.time.Instant.parse("1970-01-02T12:00:00Z"),
+        ).map { it.toBsonDocument() }
+
+        val guard = pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+            .getDocument("today").getDocument("\$sum").getArray("\$cond")[0].asDocument()
+        guard.getArray("\$and")[0].asDocument().assert().isEqualTo(
+            BsonDocument("\$gte", BsonArray(listOf(BsonString("\$state.createdAt"), BsonInt64(86400)))),
+        )
+        guard.getArray("\$and")[1].asDocument().assert().isEqualTo(
+            BsonDocument("\$lt", BsonArray(listOf(BsonString("\$state.createdAt"), BsonInt64(172800)))),
+        )
+    }
+
+    @Test
+    fun `match none metric filters guard with an empty in list`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation { count("none") { matchNone() } },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+            .getDocument("none").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument("\$in", BsonArray(listOf(BsonString("\$_id"), BsonArray()))),
+        )
+    }
+
+    @Test
+    fun `all state deletion metric filters guard with literal true`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation { count("every") { deletion(DeletionState.ALL) } },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+            .getDocument("every").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert()
+            .isEqualTo(BsonDocument("\$literal", BsonBoolean(true)))
+    }
+
+    @Test
+    fun `or metric filters translate into or guards`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                count("either") {
+                    or {
+                        "state.status" eq "PAID"
+                        "state.status" eq "SHIPPED"
+                    }
+                }
+            },
+            statusFilterSchema,
+        ).map { it.toBsonDocument() }
+
+        pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+            .getDocument("either").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument(
+                "\$or",
+                BsonArray(
+                    listOf(
+                        BsonDocument("\$eq", BsonArray(listOf(BsonString("\$state.status"), BsonString("PAID")))),
+                        BsonDocument("\$eq", BsonArray(listOf(BsonString("\$state.status"), BsonString("SHIPPED")))),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `map keyed collection metric filters translate size guards`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation { count("empty") { "state.labels.foo".isEmptyCollection() } },
+            mapCollectionSchema,
+        ).map { it.toBsonDocument() }
+
+        pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+            .getDocument("empty").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument(
+                "\$eq",
+                BsonArray(
+                    listOf(
+                        BsonDocument(
+                            "\$size",
+                            BsonDocument(
+                                "\$cond",
+                                BsonArray(
+                                    listOf(
+                                        BsonDocument("\$isArray", BsonArray(listOf(BsonString("\$state.labels.foo")))),
+                                        BsonString("\$state.labels.foo"),
+                                        BsonArray(listOf(BsonNull.VALUE)),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        BsonInt32(0),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `map keyed element match metric filters are rejected`() {
+        assertThrows<QuerySchemaValidationException> {
+            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+                aggregation { count("grouped") { "state.groups.foo".elementMatch { "name" eq "A" } } },
+                mapCollectionSchema,
+            )
+        }.message.assert().isEqualTo(
+            "MongoDB metric filters cannot translate [\$elemMatch] into a guard condition.",
+        )
+    }
+
+    @Test
+    fun `union array metric filter fields are rejected`() {
+        val schema = schema(
+            QueryField("state.notes") to MongoTestField(
+                QueryValueSchema(
+                    QueryValueKind.UNION,
+                    alternatives = listOf(
+                        QueryValueSchema(
+                            QueryValueKind.SCALAR,
+                            valueTypes = setOf(QueryValueType.STRING),
+                        ),
+                        QueryValueSchema(
+                            QueryValueKind.ARRAY,
+                            items = QueryValueSchema(
+                                QueryValueKind.SCALAR,
+                                valueTypes = setOf(QueryValueType.STRING),
+                            ),
+                        ),
+                    ),
+                ),
+                setOf(QueryCapability.EXACT_MATCH),
+                "state.notes",
+            ),
+        )
+
+        assertThrows<QuerySchemaValidationException> {
+            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+                aggregation { count("noted") { "state.notes" eq "premium" } },
+                schema,
+            )
+        }.message.assert().isEqualTo(
+            "Aggregation metric filter field [state.notes] must be scalar; array fields are not supported in metric filters.",
+        )
+    }
+
+    @Test
     fun `metric filters cannot use text search`() {
         assertThrows<QuerySchemaValidationException> {
             MongoAggregationCompiler(SnapshotFilterCompiler).compile(
@@ -1142,6 +1363,90 @@ private val guardFilterSchema = schema(
         additionalCapabilities = setOf(QueryCapability.EXACT_MATCH, QueryCapability.PRESENCE),
     ),
 )
+
+/**
+ * A map-of-lists schema: concrete map keys resolve to array values whose physical paths
+ * carry [me.ahoo.wow.query.schema.QueryPathSegment.Key] templates, so metric filters over
+ * them are not rejected by the plain array-field guard.
+ */
+private val mapCollectionSchema = run {
+    fun template(segments: List<QueryPathSegment>) = QueryPathTemplate(segments)
+    val labelsKey = template(
+        listOf(
+            QueryPathSegment.Property("state"),
+            QueryPathSegment.Property("labels"),
+            QueryPathSegment.Key(0),
+        ),
+    )
+    val groupsKey = template(
+        listOf(
+            QueryPathSegment.Property("state"),
+            QueryPathSegment.Property("groups"),
+            QueryPathSegment.Key(0),
+        ),
+    )
+    val groupName = template(
+        listOf(
+            QueryPathSegment.Property("state"),
+            QueryPathSegment.Property("groups"),
+            QueryPathSegment.Key(0),
+            QueryPathSegment.Item,
+            QueryPathSegment.Property("name"),
+        ),
+    )
+    fun bindings(path: QueryPathTemplate, capabilities: Set<QueryCapability>) = QueryValueBindings(
+        bindings = capabilities.associateWith { QueryFieldBindingTemplate(path, storageTypes = null) },
+        projectionPath = path,
+        responsePath = path,
+    )
+    val definition = LogicalQuerySchema(
+        QueryValueSchema(
+            QueryValueKind.OBJECT,
+            properties = mapOf(
+                "state" to QueryValueSchema(
+                    QueryValueKind.OBJECT,
+                    properties = mapOf(
+                        "labels" to QueryValueSchema(
+                            QueryValueKind.OBJECT,
+                            additionalProperties = QueryValueSchema(
+                                QueryValueKind.ARRAY,
+                                items = QueryValueSchema(
+                                    QueryValueKind.SCALAR,
+                                    valueTypes = setOf(QueryValueType.STRING),
+                                ),
+                            ),
+                        ),
+                        "groups" to QueryValueSchema(
+                            QueryValueKind.OBJECT,
+                            additionalProperties = QueryValueSchema(
+                                QueryValueKind.ARRAY,
+                                items = QueryValueSchema(
+                                    QueryValueKind.OBJECT,
+                                    properties = mapOf(
+                                        "name" to QueryValueSchema(
+                                            QueryValueKind.SCALAR,
+                                            valueTypes = setOf(QueryValueType.STRING),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    QueryModelSchema(
+        QueryModel.SNAPSHOT,
+        emptySet(),
+        definition,
+        mapOf(
+            labelsKey to bindings(labelsKey, setOf(QueryCapability.PRESENCE)),
+            groupsKey to bindings(groupsKey, setOf(QueryCapability.ELEMENT_SCOPE, QueryCapability.PRESENCE)),
+            groupName to bindings(groupName, setOf(QueryCapability.EXACT_MATCH)),
+        ),
+    )
+}
 
 private fun schema(vararg fields: Pair<QueryField, MongoTestField>) = mongoTestSchema(
     model = QueryModel.SNAPSHOT,

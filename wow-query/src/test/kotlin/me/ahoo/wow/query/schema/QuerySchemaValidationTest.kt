@@ -460,6 +460,15 @@ class QuerySchemaValidationTest {
                 schema,
             )
         }
+        // Unfiltered metrics (MatchAllFilter) skip metric filter validation inside element scope.
+        validateQuery(
+            aggregation {
+                expand("orders")
+                count("all")
+                sum("amount", "total")
+            },
+            schema,
+        ).assert().isNotNull()
     }
 
     @Test

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -49,6 +50,9 @@ class ElasticsearchAggregationCompilerTest {
         obj(
             mapOf(
                 "deleted" to QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.BOOLEAN)),
+                "tenantId" to text,
+                "ownerId" to text,
+                "spaceId" to text,
                 "amount" to scalar,
                 "createdAt" to temporal,
                 "name" to text,
@@ -72,6 +76,9 @@ class ElasticsearchAggregationCompilerTest {
             "test",
             TypeMapping.of {
                 it.properties("deleted") { it.boolean_ { it } }
+                    .properties("tenantId") { it.keyword { it } }
+                    .properties("ownerId") { it.keyword { it } }
+                    .properties("spaceId") { it.keyword { it } }
                     .properties("amount") { it.long_ { it } }
                     .properties("createdAt") { it.long_ { it } }
                     .properties("name") { it.text { it.fields("keyword") { it.keyword { it } } } }
@@ -310,6 +317,113 @@ class ElasticsearchAggregationCompilerTest {
         exception.message.assert().contains("do not support search filters")
         assertThrows<QuerySchemaValidationException> {
             compiler.compile(aggregation { count("hits") { search("premium") } }, schema)
+        }
+    }
+
+    @Test
+    fun `metric plan models default to unfiltered`() {
+        ElasticsearchAggregationMetric.Count("count").filter.assert().isNull()
+        ElasticsearchAggregationMetric.Any("sample", "name").filter.assert().isNull()
+        ElasticsearchAggregationMetric.Numeric("sum", AggregationFunction.SUM, "amount").filter.assert().isNull()
+        ElasticsearchAggregationMetric.DistinctCount("customers", "customerId").filter.assert().isNull()
+        ElasticsearchAggregationMetric.Percentile("p95", "amount", 95.0).filter.assert().isNull()
+    }
+
+    @Test
+    fun `every scalar filter leaf type compiles a non-null metric filter query`() {
+        val plan = compiler.compile(
+            aggregation {
+                count("equal") { "deleted" eq false }
+                count("notEqual") { "name" ne "Alpha" }
+                count("inList") { "name" isIn listOf("Alpha", "Beta") }
+                count("notInList") { "name" notIn listOf("Alpha") }
+                count("greater") { "amount" gt 1 }
+                count("greaterOrEqual") { "amount" gte 1 }
+                count("less") { "amount" lt 9 }
+                count("lessOrEqual") { "amount" lte 9 }
+                count("between") { "amount".between(1, 5) }
+                count("contains") { "name".containsText("Alp") }
+                count("startsWith") { "name".startsWithText("Alp") }
+                count("endsWith") { "name".endsWithText("pha") }
+                count("nullName") { "name".isNull() }
+                count("notNullName") { "name".isNotNull() }
+                count("present") { "name".exists() }
+                count("absent") { "name".notExists() }
+                count("emptyString") { "name".isEmptyString() }
+                count("notEmptyString") { "name".isNotEmptyString() }
+                count("allTerms") { "customerId" containsAll listOf("premium") }
+                count("emptyCollection") { "name".isEmptyCollection() }
+                count("today") { "createdAt".today() }
+            },
+            schema,
+        )
+
+        plan.metrics.associateBy { it.alias }.forEach { (alias, metric) ->
+            metric.filter.assert().isNotNull()
+        }
+        val metrics = plan.metrics.associateBy { it.alias }
+        metrics.getValue("equal").filter!!.isTerm.assert().isTrue()
+        metrics.getValue("greater").filter!!.isRange.assert().isTrue()
+        metrics.getValue("inList").filter!!.isTerms.assert().isTrue()
+        metrics.getValue("contains").filter!!.isWildcard.assert().isTrue()
+        metrics.getValue("today").filter!!.isBool.assert().isTrue()
+    }
+
+    @Test
+    fun `metadata and logical metric filters compile scoped queries`() {
+        val plan = compiler.compile(
+            aggregation {
+                count("byId") { id("order-1") }
+                count("byIds") { ids("order-1", "order-2") }
+                count("byAggregateId") { aggregateId("order-1") }
+                count("byAggregateIds") { aggregateIds("order-1", "order-2") }
+                count("byTenant") { tenantId("tenant-1") }
+                count("byOwner") { ownerId("owner-1") }
+                count("bySpace") { spaceId("space-1") }
+                count("active") { deletion(DeletionState.ACTIVE) }
+                count("anyState") { deletion(DeletionState.ALL) }
+                count("none") { matchNone() }
+                count("composed") {
+                    and {
+                        "deleted" eq false
+                        "amount" gt 0
+                    }
+                }
+                count("either") {
+                    or {
+                        "deleted" eq false
+                        "amount" gt 0
+                    }
+                }
+                count("neither") {
+                    nor {
+                        "deleted" eq false
+                        "amount" gt 0
+                    }
+                }
+                count("nested") {
+                    and {
+                        or {
+                            "deleted" eq false
+                            "name".exists()
+                        }
+                    }
+                }
+            },
+            schema,
+        )
+
+        val metrics = plan.metrics.associateBy { it.alias }
+        metrics.forEach { (alias, metric) ->
+            metric.filter.assert().isNotNull()
+        }
+        metrics.getValue("byIds").filter!!.isIds.assert().isTrue()
+        metrics.getValue("none").filter!!.isMatchNone.assert().isTrue()
+        metrics.getValue("anyState").filter!!.isMatchAll.assert().isTrue()
+        metrics.getValue("composed").filter!!.isBool.assert().isTrue()
+
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(aggregation { count("unknown") { "unknown" eq "value" } }, schema)
         }
     }
 
