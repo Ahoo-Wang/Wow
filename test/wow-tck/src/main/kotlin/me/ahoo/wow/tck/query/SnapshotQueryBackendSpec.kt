@@ -1755,6 +1755,31 @@ abstract class SnapshotQueryBackendSpec {
             .verifyComplete()
     }
 
+    @Test
+    fun `aggregation dense day histogram should skip a local date the zone never had`() {
+        // Pacific/Apia 于 2011-12-30 跳变（-10:00 直达 +14:00）：本地 2011-12-30 从未存在，
+        // 两个实际桶（本地 12-29 与 12-31）在日历索引上相隔 2，但它们是连续的“存在日”，
+        // 中间不得产生任何补齐行——更不得让坍缩索引复制 12-31 的键。
+        val zone = ZoneId.of("Pacific/Apia")
+        val day29 = ZonedDateTime.of(2011, 12, 29, 0, 0, 0, 0, zone).toInstant().toEpochMilli()
+        val day31 = ZonedDateTime.of(2011, 12, 31, 0, 0, 0, 0, zone).toInstant().toEpochMilli()
+        saveAggregationStates(apiaSkippedDateState())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", timeZone = zone, dense = true)
+            count("count")
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.assert().hasSize(2)
+                rows.map { it.path("day").longValue() }.assert().containsExactly(day29, day31)
+            }
+            .verifyComplete()
+    }
+
     private fun saveAggregationStates(vararg states: MockStateAggregate) {
         states.forEachIndexed { index, state ->
             snapshotStore.save(
@@ -1880,6 +1905,36 @@ abstract class SnapshotQueryBackendSpec {
                             createdAt = Instant.parse("2026-01-04T10:00:00Z"),
                             discounts = emptyList(),
                             productName = null,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    /**
+     * 两行 line 分别落在 Pacific/Apia 跳变（2011-12-30 被整日跳过）两侧的两个真实本地日：
+     * 2011-12-29T10:00:00Z = 本地 2011-12-29T00:00-10:00；2011-12-30T12:00:00Z = 本地 2011-12-31T02:00+14:00。
+     */
+    private fun apiaSkippedDateState(): MockStateAggregate =
+        MockStateAggregate(
+            id = "aggregation-apia",
+            orders = listOf(
+                MockOrder(
+                    status = "PAID",
+                    lines = listOf(
+                        MockLine(
+                            productId = "before-skip",
+                            quantity = 1,
+                            amount = 10.0,
+                            createdAt = Instant.parse("2011-12-29T10:00:00Z"),
+                            discounts = emptyList(),
+                        ),
+                        MockLine(
+                            productId = "after-skip",
+                            quantity = 2,
+                            amount = 20.0,
+                            createdAt = Instant.parse("2011-12-30T12:00:00Z"),
+                            discounts = emptyList(),
                         ),
                     ),
                 ),
