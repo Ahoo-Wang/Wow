@@ -1452,6 +1452,27 @@ abstract class SnapshotQueryBackendSpec {
     }
 
     @Test
+    fun `aggregation having should apply limit after filtering with group alias sort`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            sum("amount", "total")
+            having { "total" gte 40.0 } // alpha/beta/delta 存活，gamma null 判假
+            sort { "product".asc() } // 分组别名排序路径（非指标排序）
+            limit(2) // 存活行数 3 > limit：分组别名升序截断为前 2
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map { it.path("product").textValue() }.assert().containsExactly("alpha", "beta")
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun `aggregation having matching nothing should return an empty flux`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
         aggregation {

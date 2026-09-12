@@ -661,6 +661,30 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
+    fun `group sort with having should truncate survivors at limit`() {
+        stubPointInTime()
+        // single terminal page (no after key): two having survivors but limit(1)
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            groupResponse("pit-2", listOf(metricBucket("a", 9.0), metricBucket("b", 9.0))),
+        )
+        val plan = compileAggregation(
+            aggregation {
+                terms("state.product", "product")
+                sum("state.total", "total")
+                having { "total" gte 5.0 }
+                sort { "product".asc() } // group sort path (not metric sort)
+                limit(1)
+            },
+        )
+
+        pager(batchSize = 10).execute(plan)
+            .map { it.path("product").asString() }
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
     fun `metric sort with having should filter rows before top N`() {
         val requests = mutableListOf<SearchRequest>()
         stubPointInTime()

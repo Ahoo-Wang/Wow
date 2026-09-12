@@ -89,7 +89,11 @@ internal class ElasticsearchAggregationPager(
                 }
             }
         val rows = pages.concatMapIterable({ it.rows }, 1)
-        if (!plan.metricSorted) return rows
+        if (!plan.metricSorted) {
+            // having filters client-side, so a page can yield more survivors than the remaining
+            // limit; the no-having path stays capped by the composite page size and needs no truncation
+            return if (plan.having != null) rows.take(plan.limit.toLong()) else rows
+        }
 
         return rows.collect(
             { BoundedTopRows(plan.effectiveSort, plan.limit, plan.groupSources.map { it.name() }) },
