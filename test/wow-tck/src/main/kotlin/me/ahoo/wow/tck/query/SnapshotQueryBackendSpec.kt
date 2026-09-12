@@ -1677,6 +1677,32 @@ abstract class SnapshotQueryBackendSpec {
     }
 
     @Test
+    fun `aggregation dense fill rows should carry ANY metrics as explicit JSON null`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            any("productName", "name")
+            count("count")
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // 5 个实际桶 + 28 个补齐日，与上方 dense DAY 场景一致
+                rows.assert().hasSize(33)
+                val gapRow = rows.first { it.path("day").longValue() == Instant.parse("2026-01-04T00:00:00Z").toEpochMilli() }
+                // ANY 在补齐行上必须是显式 JSON null（键存在且值为 null），而不是省略键
+                gapRow.path("name").isNull.assert().isTrue()
+                gapRow.path("count").longValue().assert().isZero()
+                // 至少一个实际桶的 ANY 值非空：stateA 的 01-01 行 productName 为 "Alpha"
+                rows.map { it.path("name").textValue() }.filterNotNull().assert().contains("Alpha")
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun `aggregation terms missingKey should bucket missing values into the sentinel key`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
         aggregation {
