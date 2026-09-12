@@ -1294,7 +1294,7 @@ class MongoAggregationCompilerTest {
                 mapCollectionSchema,
             )
         }.message.assert().isEqualTo(
-            "Aggregation metric filter field [state.groups.foo] must be scalar; array fields are not supported in metric filters.",
+            "Aggregation metric filters do not support [ELEMENT_MATCH].",
         )
     }
 
