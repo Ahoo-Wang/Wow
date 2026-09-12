@@ -270,7 +270,8 @@ internal class MongoAggregationCompiler(
      * accumulated value through `$ifNull` with its empty-semantics fallback — a no-op rewrite on
      * grouped documents, which always carry the accumulated fields, that gives `$densify`-synthetic
      * documents the empty value of their metric. A dense date histogram additionally inverts its
-     * bucket index back into the display key with `$dateAdd(timezone)`, mirroring [DenseDateGrid.keyOf].
+     * bucket index back into the display key with `$dateAdd(timezone)` — `$dateFromParts(timezone)`
+     * for HOUR, keeping the grid on the local wall clock — mirroring [DenseDateGrid.keyOf].
      */
     @Suppress("LongMethod")
     private fun project(
@@ -424,10 +425,24 @@ internal class MongoAggregationCompiler(
      * `$dateAdd`, so the fill-aware `$project` inversion would emit a duplicate of that bucket's
      * key. Synthetic documents whose index does not round-trip are therefore dropped BEFORE the
      * inversion. Real documents always round-trip — their index derives from `$dateTrunc` of an
-     * existing local time — so the stage is a no-op for them. `$dateAdd` takes no `startOfWeek`
-     * parameter; `$dateDiff` counts week boundaries on it, so WEEK passes Monday explicitly.
+     * existing local time — so the stage is a no-op for them. Dense HOUR grids round-trip through
+     * the wall-clock [denseHourKey] inversion and [wallHourIndex], dropping wall hours skipped
+     * whole by a DST gap. `$dateAdd` takes no `startOfWeek` parameter; `$dateDiff` counts week
+     * boundaries on it, so WEEK passes Monday explicitly.
      */
     private fun denseRoundTripMatch(group: AggregationGroup.DateHistogram, grid: DenseDateGrid): Bson {
+        if (group.unit == AggregationDateUnit.HOUR) {
+            val key = denseHourKey(group, grid, "\$${group.alias}")
+            return Filters.expr(
+                Document(
+                    "\$eq",
+                    listOf(
+                        wallHourIndex(Date.from(grid.anchor.toInstant()), key, mongoTimeZone(group.timeZone)),
+                        "\$${group.alias}",
+                    ),
+                ),
+            )
+        }
         val dateDiff = Document(
             "\$dateDiff",
             Document("startDate", Date.from(grid.anchor.toInstant()))
@@ -441,7 +456,11 @@ internal class MongoAggregationCompiler(
 
     private fun denseKeyProjection(group: AggregationGroup.DateHistogram, grid: DenseDateGrid): Document = Document(
         "\$toLong",
-        denseDateAdd(group, grid, "\$${group.alias}"),
+        if (group.unit == AggregationDateUnit.HOUR) {
+            denseHourKey(group, grid, "\$${group.alias}")
+        } else {
+            denseDateAdd(group, grid, "\$${group.alias}")
+        },
     )
 
     private fun denseDateAdd(group: AggregationGroup.DateHistogram, grid: DenseDateGrid, amount: Any): Document =
@@ -617,27 +636,110 @@ internal class MongoAggregationCompiler(
 
         is AggregationGroup.DateHistogram -> {
             val input = dateInput(parent, physicalParent, schema)
+            val zone = mongoTimeZone(timeZone)
             val truncation = Document("date", input)
                 .append("unit", unit.name.lowercase())
-                .append("timezone", mongoTimeZone(timeZone))
+                .append("timezone", zone)
                 .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") }
             if (denseGrid != null) {
                 // `$densify` has no timezone option, so dense histograms group by the integer
-                // bucket index (`$dateDiff` from the [DenseDateGrid.anchor]) and densify numerically;
-                // the index is inverted back into the display key by [denseKeyProjection].
-                Filters.expr(Document("\$ne", listOf(input, null))) to Document(
-                    "\$dateDiff",
-                    Document("startDate", Date.from(denseGrid.anchor.toInstant()))
-                        .append("endDate", Document("\$dateTrunc", truncation))
-                        .append("unit", unit.name.lowercase())
-                        .append("timezone", mongoTimeZone(timeZone))
-                        .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") },
-                )
+                // bucket index from the [DenseDateGrid.anchor] and densify numerically; the index
+                // is inverted back into the display key by [denseKeyProjection].
+                Filters.expr(Document("\$ne", listOf(input, null))) to if (unit == AggregationDateUnit.HOUR) {
+                    wallHourIndex(Date.from(denseGrid.anchor.toInstant()), wallHourTruncation(input, zone), zone)
+                } else {
+                    Document(
+                        "\$dateDiff",
+                        Document("startDate", Date.from(denseGrid.anchor.toInstant()))
+                            .append("endDate", Document("\$dateTrunc", truncation))
+                            .append("unit", unit.name.lowercase())
+                            .append("timezone", zone)
+                            .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") },
+                    )
+                }
             } else {
-                Filters.expr(Document("\$ne", listOf(input, null))) to
-                    Document("\$toLong", Document("\$dateTrunc", truncation))
+                val key = if (unit == AggregationDateUnit.HOUR) {
+                    wallHourTruncation(input, zone)
+                } else {
+                    Document("\$dateTrunc", truncation)
+                }
+                Filters.expr(Document("\$ne", listOf(input, null))) to Document("\$toLong", key)
             }
         }
+    }
+
+    /**
+     * Truncates [input] onto the LOCAL wall-clock hour grid. MongoDB aligns `$dateTrunc`
+     * (unit `hour`) to UTC hour boundaries, so a zone with a sub-hour offset (e.g.
+     * Australia/Lord_Howe, +10:30) would key its buckets at local :30 instead of the wall
+     * hour — diverging the Elasticsearch `calendar_interval` semantics. Every real-world
+     * zone offset is a whole number of minutes, so minute truncation is offset-safe;
+     * subtracting the wall minute-of-hour then lands exactly on the local hour. For
+     * whole-hour offsets the result is instant-identical to `$dateTrunc` (unit `hour`).
+     */
+    private fun wallHourTruncation(input: Any, zone: String): Document = Document(
+        "\$dateSubtract",
+        Document(
+            "startDate",
+            Document("\$dateTrunc", Document("date", input).append("unit", "minute").append("timezone", zone)),
+        )
+            .append("unit", "minute")
+            .append("amount", Document("\$minute", Document("date", input).append("timezone", zone))),
+    )
+
+    /**
+     * Wall-clock bucket index for dense HOUR histograms: calendar day difference times 24
+     * plus the wall hour of [wallHour]. Elapsed `$dateDiff` (unit `hour`) arithmetic would
+     * truncate sub-hour zone-offset shifts and drift the index onto local :30 keys — the
+     * day difference is date-based and `$hour` reads the wall clock, so the composite is
+     * unique per wall hour, mirroring [DenseDateGrid.indexOf].
+     */
+    private fun wallHourIndex(anchor: Date, wallHour: Any, zone: String): Document = Document(
+        "\$add",
+        listOf(
+            Document(
+                "\$multiply",
+                listOf(
+                    Document(
+                        "\$dateDiff",
+                        Document("startDate", anchor)
+                            .append("endDate", wallHour)
+                            .append("unit", "day")
+                            .append("timezone", zone),
+                    ),
+                    24,
+                ),
+            ),
+            Document("\$hour", Document("date", wallHour).append("timezone", zone)),
+        ),
+    )
+
+    /**
+     * Inverts a dense HOUR bucket [index] back into its display key in WALL space: the index
+     * splits into day/hour parts, `$dateAdd` (unit `day`) steps whole calendar days from the
+     * anchor, and `$dateFromParts` rebuilds the local wall time. A wall hour skipped whole by
+     * a DST gap resolves FORWARD onto the next real bucket and is dropped by the
+     * [denseRoundTripMatch] stage — mirroring [DenseDateGrid]'s round-trip skip.
+     */
+    private fun denseHourKey(group: AggregationGroup.DateHistogram, grid: DenseDateGrid, index: Any): Document {
+        val zone = mongoTimeZone(group.timeZone)
+        val dayIndex = Document("\$floor", Document("\$divide", listOf(index, 24)))
+        val hourOfDay = Document("\$subtract", listOf(index, Document("\$multiply", listOf(dayIndex, 24))))
+        val dayDate = Document(
+            "\$dateAdd",
+            Document("startDate", Date.from(grid.anchor.toInstant()))
+                .append("unit", "day")
+                .append("amount", dayIndex)
+                .append("timezone", zone),
+        )
+        return Document(
+            "\$dateFromParts",
+            Document("year", Document("\$year", Document("date", dayDate).append("timezone", zone)))
+                .append("month", Document("\$month", Document("date", dayDate).append("timezone", zone)))
+                .append("day", Document("\$dayOfMonth", Document("date", dayDate).append("timezone", zone)))
+                .append("hour", hourOfDay)
+                .append("timezone", zone),
+        )
     }
 
     private fun numericParticipation(
