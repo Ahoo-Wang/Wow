@@ -4838,6 +4838,7 @@
           "mapping" : {
             "ANY" : "#/components/schemas/wow.api.query.AggregationMetric.Any",
             "COUNT" : "#/components/schemas/wow.api.query.AggregationMetric.Count",
+            "DERIVED" : "#/components/schemas/wow.api.query.AggregationMetric.Derived",
             "DISTINCT_COUNT" : "#/components/schemas/wow.api.query.AggregationMetric.DistinctCount",
             "NUMERIC" : "#/components/schemas/wow.api.query.AggregationMetric.Numeric",
             "PERCENTILE" : "#/components/schemas/wow.api.query.AggregationMetric.Percentile"
@@ -4848,6 +4849,8 @@
           "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Any"
         }, {
           "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Count"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Derived"
         }, {
           "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.DistinctCount"
         }, {
@@ -4895,6 +4898,24 @@
           }
         },
         "required" : [ "alias", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.AggregationMetric.Derived" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "expression" : {
+            "$ref" : "#/components/schemas/wow.api.query.DerivedExpression"
+          },
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+          },
+          "type" : {
+            "const" : "DERIVED"
+          }
+        },
+        "required" : [ "alias", "expression", "type" ],
         "type" : "object"
       },
       "wow.api.query.AggregationMetric.DistinctCount" : {
@@ -5046,6 +5067,66 @@
           }
         },
         "required" : [ "filter" ],
+        "type" : "object"
+      },
+      "wow.api.query.DerivedExpression" : {
+        "discriminator" : {
+          "mapping" : {
+            "BINARY" : "#/components/schemas/wow.api.query.DerivedExpression.Binary",
+            "CONSTANT" : "#/components/schemas/wow.api.query.DerivedExpression.Constant",
+            "METRIC_REF" : "#/components/schemas/wow.api.query.DerivedExpression.MetricRef"
+          },
+          "propertyName" : "type"
+        },
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/wow.api.query.DerivedExpression.Binary"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.DerivedExpression.Constant"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.DerivedExpression.MetricRef"
+        } ]
+      },
+      "wow.api.query.DerivedExpression.Binary" : {
+        "properties" : {
+          "left" : {
+            "$ref" : "#/components/schemas/wow.api.query.DerivedExpression"
+          },
+          "operator" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationExpressionOperator"
+          },
+          "right" : {
+            "$ref" : "#/components/schemas/wow.api.query.DerivedExpression"
+          },
+          "type" : {
+            "const" : "BINARY"
+          }
+        },
+        "required" : [ "left", "operator", "right", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.DerivedExpression.Constant" : {
+        "properties" : {
+          "type" : {
+            "const" : "CONSTANT"
+          },
+          "value" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        },
+        "required" : [ "type", "value" ],
+        "type" : "object"
+      },
+      "wow.api.query.DerivedExpression.MetricRef" : {
+        "properties" : {
+          "metric" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "METRIC_REF"
+          }
+        },
+        "required" : [ "metric", "type" ],
         "type" : "object"
       },
       "wow.api.query.FilterExpression" : {
