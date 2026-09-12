@@ -174,55 +174,54 @@ internal class ElasticsearchAggregationPager(
     private fun ElasticsearchAggregationPlan.metricAggregations(): Map<String, Aggregation> = buildMap {
         metrics.forEach { metric ->
             when (metric) {
-                is ElasticsearchAggregationMetric.Count -> Unit
-                is ElasticsearchAggregationMetric.Any -> put(
-                    metric.alias,
-                    Aggregation.of { builder ->
+                is ElasticsearchAggregationMetric.Count -> metric.filter?.let { filter ->
+                    put(metric.alias, Aggregation.of { builder -> builder.filter(filter) })
+                }
+
+                is ElasticsearchAggregationMetric.Any -> putMetricAggregations(
+                    metric,
+                    metric.alias to Aggregation.of { builder ->
                         builder.terms { terms -> terms.field(metric.field).size(1) }
                     },
                 )
 
-                is ElasticsearchAggregationMetric.Numeric -> {
-                    put(
-                        metric.alias,
-                        Aggregation.of { builder ->
-                            when (metric.function) {
-                                AggregationFunction.SUM -> builder.sum { it.field(metric.field) }
-                                AggregationFunction.AVG -> builder.avg { it.field(metric.field) }
-                                AggregationFunction.MIN -> builder.min { it.field(metric.field) }
-                                AggregationFunction.MAX -> builder.max { it.field(metric.field) }
-                                AggregationFunction.STDDEV, AggregationFunction.VARIANCE ->
-                                    builder.extendedStats { it.field(metric.field) }
-                            }
-                        },
-                    )
-                    put(
-                        metric.valueCountAlias,
-                        Aggregation.of { builder -> builder.valueCount { it.field(metric.field) } },
-                    )
-                }
-
-                is ElasticsearchAggregationMetric.DistinctCount -> put(
-                    metric.alias,
-                    Aggregation.of { builder -> builder.cardinality { it.field(metric.field) } },
+                is ElasticsearchAggregationMetric.Numeric -> putMetricAggregations(
+                    metric,
+                    metric.alias to Aggregation.of { builder ->
+                        when (metric.function) {
+                            AggregationFunction.SUM -> builder.sum { it.field(metric.field) }
+                            AggregationFunction.AVG -> builder.avg { it.field(metric.field) }
+                            AggregationFunction.MIN -> builder.min { it.field(metric.field) }
+                            AggregationFunction.MAX -> builder.max { it.field(metric.field) }
+                            AggregationFunction.STDDEV, AggregationFunction.VARIANCE ->
+                                builder.extendedStats { it.field(metric.field) }
+                        }
+                    },
+                    metric.valueCountAlias to Aggregation.of { builder ->
+                        builder.valueCount { it.field(metric.field) }
+                    },
                 )
 
-                is ElasticsearchAggregationMetric.Percentile -> {
-                    put(
-                        metric.alias,
-                        Aggregation.of { builder ->
-                            builder.percentiles {
-                                it.field(metric.field)
-                                    .percents(listOf(metric.percentile))
-                                    .keyed(false)
-                            }
-                        },
-                    )
-                    put(
-                        metric.valueCountAlias,
-                        Aggregation.of { builder -> builder.valueCount { it.field(metric.field) } },
-                    )
-                }
+                is ElasticsearchAggregationMetric.DistinctCount -> putMetricAggregations(
+                    metric,
+                    metric.alias to Aggregation.of { builder ->
+                        builder.cardinality { it.field(metric.field) }
+                    },
+                )
+
+                is ElasticsearchAggregationMetric.Percentile -> putMetricAggregations(
+                    metric,
+                    metric.alias to Aggregation.of { builder ->
+                        builder.percentiles {
+                            it.field(metric.field)
+                                .percents(listOf(metric.percentile))
+                                .keyed(false)
+                        }
+                    },
+                    metric.valueCountAlias to Aggregation.of { builder ->
+                        builder.valueCount { it.field(metric.field) }
+                    },
+                )
             }
         }
     }
@@ -280,11 +279,17 @@ internal class ElasticsearchAggregationPager(
         docCount: Long,
         aggregations: Map<String, Aggregate>,
     ): Any? = when (this) {
-        is ElasticsearchAggregationMetric.Count -> docCount
-        is ElasticsearchAggregationMetric.Any -> aggregations.getValue(alias).anyValue(alias)
-        is ElasticsearchAggregationMetric.Numeric -> numericValue(aggregations)
-        is ElasticsearchAggregationMetric.DistinctCount -> aggregations.getValue(alias).cardinality().value()
-        is ElasticsearchAggregationMetric.Percentile -> percentileValue(aggregations)
+        is ElasticsearchAggregationMetric.Count -> if (filter == null) {
+            docCount
+        } else {
+            aggregations.getValue(alias).filter().docCount()
+        }
+
+        is ElasticsearchAggregationMetric.Any -> aggregations.filtered(this).getValue(alias).anyValue(alias)
+        is ElasticsearchAggregationMetric.Numeric -> numericValue(aggregations.filtered(this))
+        is ElasticsearchAggregationMetric.DistinctCount ->
+            aggregations.filtered(this).getValue(alias).cardinality().value()
+        is ElasticsearchAggregationMetric.Percentile -> percentileValue(aggregations.filtered(this))
     }
 
     private fun Aggregate.anyValue(alias: String): Any? = when {
@@ -436,3 +441,33 @@ private fun incomparableValues(left: JsonNode?, right: JsonNode?): Nothing =
 private fun nestedAggregationName(index: Int): String = "__wow_element_$index"
 
 private fun filterAggregationName(index: Int): String = "__wow_element_filter_$index"
+
+private fun metricFilterAggregationName(alias: String): String = "__wow_metric_filter_$alias"
+
+/**
+ * Publishes a metric's aggregations directly, or nested under one filter aggregation
+ * so only records accepted by the metric filter contribute to it.
+ */
+private fun MutableMap<String, Aggregation>.putMetricAggregations(
+    metric: ElasticsearchAggregationMetric,
+    vararg subAggregations: Pair<String, Aggregation>,
+) {
+    val filter = metric.filter
+    if (filter == null) {
+        subAggregations.forEach { (name, aggregation) -> put(name, aggregation) }
+        return
+    }
+    put(
+        metricFilterAggregationName(metric.alias),
+        Aggregation.of { builder ->
+            builder.filter(filter)
+            subAggregations.forEach { (name, aggregation) -> builder.aggregations(name, aggregation) }
+            builder
+        },
+    )
+}
+
+private fun Map<String, Aggregate>.filtered(metric: ElasticsearchAggregationMetric): Map<String, Aggregate> {
+    val filter = metric.filter ?: return this
+    return getValue(metricFilterAggregationName(metric.alias)).filter().aggregations()
+}

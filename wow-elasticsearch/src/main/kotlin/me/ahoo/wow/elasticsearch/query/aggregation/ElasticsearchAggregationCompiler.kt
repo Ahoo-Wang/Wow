@@ -21,6 +21,8 @@ import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.json.JsonData
 import co.elastic.clients.util.NamedValue
+import me.ahoo.wow.api.query.AggregateIdFilter
+import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
@@ -28,8 +30,43 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.BetweenFilter
+import me.ahoo.wow.api.query.ContainsAllFilter
+import me.ahoo.wow.api.query.ContainsFilter
+import me.ahoo.wow.api.query.DeletionFilter
+import me.ahoo.wow.api.query.ElementMatchFilter
+import me.ahoo.wow.api.query.EndsWithFilter
+import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.ExistsFilter
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.GreaterThanFilter
+import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
+import me.ahoo.wow.api.query.IdFilter
+import me.ahoo.wow.api.query.IdsFilter
+import me.ahoo.wow.api.query.InFilter
+import me.ahoo.wow.api.query.IsEmptyFilter
+import me.ahoo.wow.api.query.IsEmptyStringFilter
+import me.ahoo.wow.api.query.IsNotEmptyStringFilter
+import me.ahoo.wow.api.query.IsNotNullFilter
+import me.ahoo.wow.api.query.IsNullFilter
+import me.ahoo.wow.api.query.LessThanFilter
+import me.ahoo.wow.api.query.LessThanOrEqualFilter
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.api.query.NorFilter
+import me.ahoo.wow.api.query.NotEqualFilter
+import me.ahoo.wow.api.query.NotExistsFilter
+import me.ahoo.wow.api.query.NotInFilter
+import me.ahoo.wow.api.query.OrFilter
+import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.RelativeTimeFilter
+import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.SpaceIdFilter
+import me.ahoo.wow.api.query.StartsWithFilter
+import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -62,26 +99,37 @@ internal data class ElasticsearchAggregationElement(
 
 internal sealed interface ElasticsearchAggregationMetric {
     val alias: String
+    val filter: Query?
 
-    data class Count(override val alias: String) : ElasticsearchAggregationMetric
+    data class Count(
+        override val alias: String,
+        override val filter: Query? = null,
+    ) : ElasticsearchAggregationMetric
 
     data class Numeric(
         override val alias: String,
         val function: AggregationFunction,
         val field: String,
+        override val filter: Query? = null,
     ) : ElasticsearchAggregationMetric
 
     data class Any(
         override val alias: String,
         val field: String,
+        override val filter: Query? = null,
     ) : ElasticsearchAggregationMetric
 
-    data class DistinctCount(override val alias: String, val field: String) : ElasticsearchAggregationMetric
+    data class DistinctCount(
+        override val alias: String,
+        val field: String,
+        override val filter: Query? = null,
+    ) : ElasticsearchAggregationMetric
 
     data class Percentile(
         override val alias: String,
         val field: String,
         val percentile: Double,
+        override val filter: Query? = null,
     ) : ElasticsearchAggregationMetric
 }
 
@@ -133,7 +181,7 @@ internal class ElasticsearchAggregationCompiler(
             }
         }
         val metrics = query.metrics.mapIndexed { index, metric ->
-            metric.toPlan(logicalParent, physicalParent, index, schema, runtimeMappings)
+            metric.toPlan(logicalParent, physicalParent, index, schema, runtimeMappings, now)
         }
         val metricAliases = query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
         return ElasticsearchAggregationPlan(
@@ -265,41 +313,75 @@ internal class ElasticsearchAggregationCompiler(
         index: Int,
         schema: QueryModelSchema,
         runtimeMappings: MutableMap<String, RuntimeField>,
-    ): ElasticsearchAggregationMetric = when (this) {
-        is AggregationMetric.Count -> ElasticsearchAggregationMetric.Count(alias)
-        is AggregationMetric.Any -> ElasticsearchAggregationMetric.Any(
-            alias,
-            field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS),
-        )
-        is AggregationMetric.Numeric -> {
-            val metricExpression = expression
-            val scalarField = (metricExpression as? AggregationExpression.Field)?.field?.takeIf { field ->
-                val logicalField = parent?.append(field) ?: field
-                schema.field(logicalField)?.value?.cardinality == QueryCardinality.SINGLE
-            }
-            val metricField = if (scalarField != null) {
-                scalarField.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC)
-            } else {
-                "__wow_expression_$index".also { runtimeFieldName ->
-                    runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(
-                        parent,
-                        physicalParent,
-                        schema,
-                    ).compile(metricExpression)
+        now: Instant,
+    ): ElasticsearchAggregationMetric {
+        val filter = metricFilter(parent, physicalParent, schema, now)
+        return when (this) {
+            is AggregationMetric.Count -> ElasticsearchAggregationMetric.Count(alias, filter)
+            is AggregationMetric.Any -> ElasticsearchAggregationMetric.Any(
+                alias,
+                field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS),
+                filter,
+            )
+            is AggregationMetric.Numeric -> {
+                val metricExpression = expression
+                val scalarField = (metricExpression as? AggregationExpression.Field)?.field?.takeIf { field ->
+                    val logicalField = parent?.append(field) ?: field
+                    schema.field(logicalField)?.value?.cardinality == QueryCardinality.SINGLE
                 }
+                val metricField = if (scalarField != null) {
+                    scalarField.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC)
+                } else {
+                    "__wow_expression_$index".also { runtimeFieldName ->
+                        runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(
+                            parent,
+                            physicalParent,
+                            schema,
+                        ).compile(metricExpression)
+                    }
+                }
+                ElasticsearchAggregationMetric.Numeric(alias, function, metricField, filter)
             }
-            ElasticsearchAggregationMetric.Numeric(alias, function, metricField)
+
+            is AggregationMetric.DistinctCount -> toDistinctCountPlan(
+                parent,
+                physicalParent,
+                index,
+                schema,
+                runtimeMappings,
+                filter,
+            )
+
+            is AggregationMetric.Percentile -> toPercentilePlan(
+                parent,
+                physicalParent,
+                index,
+                schema,
+                runtimeMappings,
+                filter,
+            )
         }
+    }
 
-        is AggregationMetric.DistinctCount -> toDistinctCountPlan(
-            parent,
-            physicalParent,
-            index,
-            schema,
-            runtimeMappings
-        )
-
-        is AggregationMetric.Percentile -> toPercentilePlan(parent, physicalParent, index, schema, runtimeMappings)
+    /**
+     * Compiles the record-level filter of this metric against its enclosing scope,
+     * or returns `null` for [MatchAllFilter] so unfiltered metrics keep their unwrapped aggregations.
+     */
+    private fun AggregationMetric.metricFilter(
+        parent: QueryField?,
+        physicalParent: QueryField?,
+        schema: QueryModelSchema,
+        now: Instant,
+    ): Query? {
+        val filter = this.filter
+        if (filter === MatchAllFilter) {
+            return null
+        }
+        filter.requireScalarMetricFilterFields(parent, schema)
+        if (parent == null || physicalParent == null) {
+            return filterCompiler.compile(filter, schema, now)
+        }
+        return filterCompiler.compileScoped(filter, schema, parent, physicalParent, now)
     }
 
     private fun AggregationMetric.DistinctCount.toDistinctCountPlan(
@@ -308,6 +390,7 @@ internal class ElasticsearchAggregationCompiler(
         index: Int,
         schema: QueryModelSchema,
         runtimeMappings: MutableMap<String, RuntimeField>,
+        filter: Query?,
     ): ElasticsearchAggregationMetric.DistinctCount {
         val metricField = (expression as? AggregationExpression.Field)?.field?.let { field ->
             field.resolve(parent, physicalParent, schema, schema.distinctCountCapability(field, parent))
@@ -318,7 +401,7 @@ internal class ElasticsearchAggregationCompiler(
                 schema,
             ).compile(expression)
         }
-        return ElasticsearchAggregationMetric.DistinctCount(alias, metricField)
+        return ElasticsearchAggregationMetric.DistinctCount(alias, metricField, filter)
     }
 
     private fun AggregationMetric.Percentile.toPercentilePlan(
@@ -327,6 +410,7 @@ internal class ElasticsearchAggregationCompiler(
         index: Int,
         schema: QueryModelSchema,
         runtimeMappings: MutableMap<String, RuntimeField>,
+        filter: Query?,
     ): ElasticsearchAggregationMetric.Percentile {
         val metricExpression = expression
         val scalarField = (metricExpression as? AggregationExpression.Field)?.field?.takeIf { field ->
@@ -344,7 +428,7 @@ internal class ElasticsearchAggregationCompiler(
                 ).compile(metricExpression)
             }
         }
-        return ElasticsearchAggregationMetric.Percentile(alias, metricField, percentile)
+        return ElasticsearchAggregationMetric.Percentile(alias, metricField, percentile, filter)
     }
 
     private inner class RuntimeExpressionCompiler(
@@ -475,3 +559,64 @@ internal class ElasticsearchAggregationCompiler(
             TimeUnit.DAYS -> 86_400_000L to 1L
         }
 }
+
+/**
+ * Filter aggregations keep Elasticsearch's element-matching semantics over array fields while
+ * MongoDB metric guards compare whole values, so array-valued fields and [ElementMatchFilter]
+ * are rejected to mirror the MongoDB compiler's scalar-only metric filter contract.
+ */
+@Suppress("CyclomaticComplexMethod", "LongMethod")
+private fun FilterExpression.requireScalarMetricFilterFields(
+    parent: QueryField?,
+    schema: QueryModelSchema,
+) {
+    when (this) {
+        MatchAllFilter, MatchNoneFilter,
+        is IdFilter, is IdsFilter, is AggregateIdFilter, is AggregateIdsFilter,
+        is TenantIdFilter, is OwnerIdFilter, is SpaceIdFilter, is DeletionFilter,
+        -> Unit
+
+        is AndFilter -> operands.forEach { it.requireScalarMetricFilterFields(parent, schema) }
+        is OrFilter -> operands.forEach { it.requireScalarMetricFilterFields(parent, schema) }
+        is NorFilter -> operands.forEach { it.requireScalarMetricFilterFields(parent, schema) }
+        is ElementMatchFilter -> throw QuerySchemaValidationException(
+            "Elasticsearch metric filters cannot translate [ELEMENT_MATCH] into a filter aggregation.",
+        )
+        is SearchFilter -> fields.forEach { it.requireScalarMetricFilterField(parent, schema) }
+        is RelativeTimeFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is EqualFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is NotEqualFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is GreaterThanFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is GreaterThanOrEqualFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is LessThanFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is LessThanOrEqualFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is BetweenFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is ContainsFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is StartsWithFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is EndsWithFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is InFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is NotInFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is ContainsAllFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is IsEmptyFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is IsEmptyStringFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is IsNotEmptyStringFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is IsNullFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is IsNotNullFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is ExistsFilter -> field.requireScalarMetricFilterField(parent, schema)
+        is NotExistsFilter -> field.requireScalarMetricFilterField(parent, schema)
+    }
+}
+
+private fun QueryField.requireScalarMetricFilterField(parent: QueryField?, schema: QueryModelSchema) {
+    val logical = parent?.append(this) ?: this
+    val value = schema.field(logical)?.value ?: return
+    if (value.isArrayValued) {
+        throw QuerySchemaValidationException(
+            "Aggregation metric filter field [$logical] must be scalar; array fields are not supported in metric filters.",
+        )
+    }
+}
+
+private val QueryValueSchema.isArrayValued: Boolean
+    get() = kind == QueryValueKind.ARRAY ||
+        (kind == QueryValueKind.UNION && alternatives.any { it.kind == QueryValueKind.ARRAY })

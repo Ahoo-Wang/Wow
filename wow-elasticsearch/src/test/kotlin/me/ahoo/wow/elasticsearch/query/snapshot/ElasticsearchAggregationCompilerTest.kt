@@ -53,6 +53,7 @@ class ElasticsearchAggregationCompilerTest {
                 "createdAt" to temporal,
                 "name" to text,
                 "customerId" to text,
+                "tags" to array(text),
                 "orders" to array(
                     obj(
                         mapOf(
@@ -75,6 +76,7 @@ class ElasticsearchAggregationCompilerTest {
                     .properties("createdAt") { it.long_ { it } }
                     .properties("name") { it.text { it.fields("keyword") { it.keyword { it } } } }
                     .properties("customerId") { it.text { it.fields("keyword") { it.keyword { it } } } }
+                    .properties("tags") { it.keyword { it } }
                     .properties("orders") {
                         it.nested { orders ->
                             orders.properties("status") { it.keyword { it } }
@@ -226,6 +228,53 @@ class ElasticsearchAggregationCompilerTest {
                 schema
             )
         }
+    }
+
+    @Test
+    fun `array valued metric filter fields are rejected`() {
+        val exception = assertThrows<QuerySchemaValidationException> {
+            compiler.compile(aggregation { count("tagged") { "tags" eq "premium" } }, schema)
+        }
+        exception.message.assert().contains("must be scalar")
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(
+                aggregation {
+                    expand("orders")
+                    count("recent") { "lines".elementMatch { "quantity" gt 0 } }
+                },
+                schema,
+            )
+        }
+    }
+
+    @Test
+    fun `plan should compile metric filters into scoped queries`() {
+        val plan = compiler.compile(
+            aggregation {
+                count("paid") { "deleted" eq false }
+                sum("amount", "paidAmount") { "deleted" eq false }
+            },
+            schema,
+        )
+
+        val count = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Count>().single()
+        count.filter.assert().isNotNull()
+        count.filter!!.term().field().assert().isEqualTo("deleted")
+        val numeric = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Numeric>().single()
+        numeric.filter.assert().isNotNull()
+        numeric.filter!!.term().field().assert().isEqualTo("deleted")
+
+        val scoped = compiler.compile(
+            aggregation {
+                expand("orders")
+                count("paidOrders") { "status" eq "PAID" }
+            },
+            schema,
+        )
+        (scoped.metrics.single() as ElasticsearchAggregationMetric.Count).filter!!.term().field()
+            .assert().isEqualTo("orders.status")
+
+        compiler.compile(aggregation { count("count") }, schema).metrics.single().filter.assert().isNull()
     }
 
     @Test
