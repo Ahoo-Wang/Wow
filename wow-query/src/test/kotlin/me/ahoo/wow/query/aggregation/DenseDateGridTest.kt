@@ -75,6 +75,21 @@ class DenseDateGridTest {
     }
 
     @Test
+    fun `half hour offset zone hour grid should step local wall clock hours`() {
+        // Australia/Lord_Howe anchors at +10:00 (1970) but sits at +10:30 in July 2026. Elapsed-hour
+        // arithmetic from the anchor truncates the 0.5h offset drift (495264.5 -> 495264) and lands
+        // on local :30 — off the local wall-clock hour grid. Index/key arithmetic must stay on the
+        // LOCAL timeline so every bucket boundary is a real local hour.
+        val zone = ZoneId.of("Australia/Lord_Howe")
+        val grid = DenseDateGrid(AggregationDateUnit.HOUR, zone)
+        val midnight = ZonedDateTime.of(2026, 7, 2, 0, 0, 0, 0, zone).toInstant().toEpochMilli()
+        val oneAM = ZonedDateTime.of(2026, 7, 2, 1, 0, 0, 0, zone).toInstant().toEpochMilli()
+        val twoAM = ZonedDateTime.of(2026, 7, 2, 2, 0, 0, 0, zone).toInstant().toEpochMilli()
+        grid.keysBetween(midnight, twoAM).assert().containsExactly(oneAM)
+        grid.keyOf(grid.indexOf(oneAM)).assert().isEqualTo(oneAM)
+    }
+
+    @Test
     fun `week grid should anchor monday and step whole weeks`() {
         val grid = DenseDateGrid(AggregationDateUnit.WEEK, utc)
         grid.anchor.dayOfWeek.assert().isEqualTo(DayOfWeek.MONDAY)

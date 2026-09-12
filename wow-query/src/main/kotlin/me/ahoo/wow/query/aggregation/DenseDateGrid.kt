@@ -16,6 +16,7 @@ package me.ahoo.wow.query.aggregation
 import me.ahoo.wow.api.query.AggregationDateUnit
 import java.time.DayOfWeek
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
@@ -32,6 +33,11 @@ import java.util.stream.LongStream
  * integer bucket-index space anchored at a grid-aligned local midnight (Monday for WEEK); Mongo
  * inverts indices with `$dateAdd(timezone)` and this class mirrors it with `java.time`, so the
  * grids are identical by construction.
+ *
+ * All index/key arithmetic runs on the LOCAL wall-clock timeline (`LocalDateTime`). Elapsed-instant
+ * arithmetic (`ZonedDateTime` with time-based units) would truncate half-hour zone-offset shifts —
+ * e.g. Australia/Lord_Howe (+10:00 at the 1970 anchor, +10:30 later) truncates 495264.5 elapsed
+ * hours to 495264 and lands on local :30, off the wall-clock hour grid.
  */
 class DenseDateGrid(unit: AggregationDateUnit, private val timeZone: ZoneId) {
     private val stepUnit: TemporalUnit = when (unit) {
@@ -48,6 +54,7 @@ class DenseDateGrid(unit: AggregationDateUnit, private val timeZone: ZoneId) {
     val anchor: ZonedDateTime = ZonedDateTime.of(1970, 1, 1, 0, 0, 0, 0, timeZone).let {
         if (unit == AggregationDateUnit.WEEK) it.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) else it
     }
+    private val anchorLocal: LocalDateTime = anchor.toLocalDateTime()
 
     /**
      * Index of the bucket containing [epochMillis], floored: the result `n` always satisfies
@@ -59,15 +66,15 @@ class DenseDateGrid(unit: AggregationDateUnit, private val timeZone: ZoneId) {
      * floor semantics on the negative side. Non-negative truncation is already floor.
      */
     fun indexOf(epochMillis: Long): Long {
-        val dateTime = Instant.ofEpochMilli(epochMillis).atZone(timeZone)
-        val index = anchor.until(dateTime, stepUnit)
-        if (anchor.plus(index, stepUnit) > dateTime) {
+        val local = Instant.ofEpochMilli(epochMillis).atZone(timeZone).toLocalDateTime()
+        val index = anchorLocal.until(local, stepUnit)
+        if (anchorLocal.plus(index, stepUnit) > local) {
             return index - 1
         }
         return index
     }
 
-    fun keyOf(index: Long): Long = anchor.plus(index, stepUnit).toInstant().toEpochMilli()
+    fun keyOf(index: Long): Long = anchorLocal.plus(index, stepUnit).atZone(timeZone).toInstant().toEpochMilli()
 
     /** Grid keys strictly between the two bucket keys, emitted in stream direction. */
     fun keysBetween(fromMillis: Long, toMillis: Long): List<Long> =
