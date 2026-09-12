@@ -66,6 +66,33 @@ flowchart LR
 
 `ANY` 不能替代确定性的 group key：所选的非 null 值不保证在不同执行或后端间稳定。
 
+### 指标级过滤 {#metric-filter}
+
+每种 Metric 还可以带一个可选的记录级 `filter`，DSL 以尾 lambda 表达，省略时为 `MATCH_ALL`。它作用于当前作用域（根文档或最内层 Element）的记录：不满足该 `filter` 的记录只对这个指标零贡献，不影响同查询的其他指标，也不替代根 `filter` 或 Element `filter`。过滤器的 JSON 形状与[过滤条件](./filter-expression.md)一致：
+
+```kotlin
+count("paid") { "status" eq "PAID" }
+sum("total", "paidTotal") { "status" eq "PAID" }
+```
+
+```json
+{"type": "COUNT", "alias": "paid", "filter": {"op": "EQ", "field": "status", "value": "PAID"}}
+```
+
+空匹配沿用各指标的空集语义：`COUNT` 与 `DISTINCT_COUNT` 返回 `0`，数值 metric、`ANY` 与 `PERCENTILE` 返回 `null`。
+
+以下限制在两个后端一致，并在编译期拒绝：
+
+- metric filter 引用的字段必须为标量；数组及含数组的联合字段不受支持，`IS_EMPTY`/`$size` 一类必然指向数组字段的条件也一并拒绝——尽管其语义本可保真，为保持统一契约不再单独放行；
+- `SEARCH` 全文、`ELEMENT_MATCH` 与 `CONTAINS_ALL`（`$all` 语义）不受支持；
+- 作用域规则与 Element filter 相同：处于 Element 作用域内的 metric filter 不得引用根级字段或 root-only 过滤器。
+
+版本与已知边界：
+
+- MongoDB 后端使用 metric filter 需要服务端 5.0+（守卫表达式中的 `$not`）；`PERCENTILE` 指标本身仍需 7.0+。旧版本服务端返回其原生错误。
+- MongoDB 守卫表达式的 `$gt`/`$lt` 族比较遵循 BSON 全序而非 `$match` 的类型分档，类型混杂数据下计数可能偏多；`$regex` 遇到非字符串输入会报错而不是静默不匹配。两者均为边界情形，不构成后端间逐位一致的承诺。
+- HTTP 查询保护不把 metric filter 视为高成本操作符；其过滤值数与其他 filter 一起计入 `wow.webflux.query.max-filter-values` 上限。
+
 ### 数值参与值与精度 {#numeric-contributions}
 
 `NUMERIC` 每条当前记录至多贡献一个值；当前记录由根文档或最内层 Elements 决定。直接 `FIELD` 与 `BINARY` 中的每个字段叶子使用相同口径：忽略 null/缺失后，恰好一个存储数值参与计算，零个或多个数值均贡献 `null`。重复数值分别计数；`[7,7]` 不是单值。

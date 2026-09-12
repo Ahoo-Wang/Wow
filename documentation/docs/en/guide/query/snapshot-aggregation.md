@@ -1,6 +1,6 @@
 ---
 title: Snapshot Aggregation
-description: Apply snapshot aggregation to root documents and collection elements through nine business scenarios.
+description: Apply snapshot aggregation to root documents and collection elements through ten business scenarios.
 ---
 
 # Snapshot Aggregation
@@ -33,6 +33,7 @@ flowchart TB
     Root --> S4["4 Business-time trend"]
     Root --> S7["7 Multidimensional analysis"]
     Root --> S9["9 Distinct customers and P95 amount"]
+    Root --> S10["10 Funnel conditional counts"]
     Item --> S5["5 Line-item Top-N"]
     Item --> S6["6 Derived amount"]
     Item --> S8["8 ANY display field"]
@@ -500,6 +501,44 @@ val query = aggregation {
 ```
 
 `customers` is the distinct customer count per group: `DISTINCT_COUNT` deduplicates non-null contribution values only, yields `0` for an empty set, and lets array fields participate element by element, which differs from the `NUMERIC` rule (see [numeric contributions and precision](./aggregation-query.md#numeric-contributions)). `p95Amount` and `amountStddev` follow the same numeric-contribution rule as `SUM`/`AVG` and are `null` when nothing contributes; `amountStddev` is population-standard-deviation and returns `0` for a single value; `p95Amount` is approximated by t-digest. `PERCENTILE` on the MongoDB backend requires server 7.0+. The explicit `deletion` filter matches the Gateway's default `DELETION = ACTIVE`.
+
+## Scenario 10: Funnel: Conditional Counts in One Chart
+
+**Business question**
+
+Without issuing multiple queries, how can one result table show the two-level funnel of "all orders → paid orders"?
+
+**Counting unit**
+
+Root snapshot documents; `orderCount` counts every current snapshot, while `paidCount` counts only snapshots with `state.status = PAID`.
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    count("orderCount")
+    count("paidCount") { "state.status" eq "PAID" }
+}
+```
+
+**HTTP JSON and result interpretation**
+
+```json
+{
+  "metrics": [
+    {"type": "COUNT", "alias": "orderCount"},
+    {"type": "COUNT", "alias": "paidCount", "filter": {"op": "EQ", "field": "state.status", "value": "PAID"}}
+  ]
+}
+```
+
+```json
+[
+  {"orderCount": 50, "paidCount": 42}
+]
+```
+
+Both metrics share the same counting unit and root filter; each metric filter applies to its own metric only, so `paidCount ≤ orderCount` always holds. Each funnel level is one independent filtered COUNT — append more levels instead of splitting the funnel into multiple queries. See [Metric Filter](./aggregation-query.md#metric-filter) for empty-match semantics, limits, and version requirements.
 
 ## Backend Capabilities and Stability Boundaries
 

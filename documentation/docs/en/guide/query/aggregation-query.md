@@ -66,6 +66,33 @@ Every Metric also has a unique alias, used as a result-column name.
 
 `ANY` is not a substitute for a deterministic group key: its selected non-null value is not guaranteed to be stable across executions or backends.
 
+### Metric Filter {#metric-filter}
+
+Every Metric also accepts an optional record-level `filter`, written in the DSL as a trailing lambda and defaulting to `MATCH_ALL`. It applies to the records of the current scope (root document or innermost Element): a record that fails the `filter` contributes nothing to that metric only, without affecting other metrics in the same query and without replacing the root `filter` or an Element `filter`. The JSON shape matches [Filter Expressions](./filter-expression.md):
+
+```kotlin
+count("paid") { "status" eq "PAID" }
+sum("total", "paidTotal") { "status" eq "PAID" }
+```
+
+```json
+{"type": "COUNT", "alias": "paid", "filter": {"op": "EQ", "field": "status", "value": "PAID"}}
+```
+
+An empty match keeps each metric's empty-set semantics: `COUNT` and `DISTINCT_COUNT` return `0`, while numeric metrics, `ANY`, and `PERCENTILE` return `null`.
+
+The following limits are shared by both backends and enforced at compile time:
+
+- fields referenced by a metric filter must be scalar; array fields and unions containing arrays are unsupported, and conditions that necessarily target array fields — such as `IS_EMPTY`/`$size` — are rejected as well: their semantics could be preserved, but they are refused in favor of one uniform contract;
+- full-text `SEARCH`, `ELEMENT_MATCH`, and `CONTAINS_ALL` (`$all` semantics) are unsupported;
+- scoping follows the Element filter rule: a metric filter inside an Element scope must not reference root-level fields or root-only filters.
+
+Versions and known boundaries:
+
+- metric filters on the MongoDB backend require server 5.0+ (`$not` inside the guard expression); the `PERCENTILE` metric itself still requires 7.0+. Older servers return their native error.
+- the `$gt`/`$lt` family in MongoDB guard expressions compares by the BSON total order rather than `$match` type bracketing, so counts over mixed-type data may run high; `$regex` raises an error on non-string input instead of silently not matching. Both are edge cases and do not promise bitwise cross-backend equality.
+- the HTTP query guard does not treat metric filters as expensive operators; their filter value counts feed the same `wow.webflux.query.max-filter-values` cap as other filters.
+
 ### Numeric Contributions and Precision {#numeric-contributions}
 
 `NUMERIC` contributes at most one value per current record, which is a root document or the innermost expanded Element. A direct `FIELD` and each field leaf in `BINARY` use the same rule: after ignoring null/missing entries, exactly one stored numeric value contributes; zero or multiple values contribute `null`. Duplicate numeric entries count separately; `[7,7]` is not a singleton.
