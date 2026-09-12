@@ -11,13 +11,13 @@
  * limitations under the License.
  */
 
-import { withDeadline } from './runtimeLimits.js';
+import { withDeadline } from '../lib/runtimeLimits.js';
 import type {
   ViewSession,
   ViewInstancePermissions,
 } from '../contracts/viewModel.js';
 import type { ViewHost } from '../contracts/ViewHost.js';
-import { validateViewInstance } from '../record/recordValidation.js';
+import { validateViewInstance } from '../contracts/validation/instanceValidation.js';
 
 import type { EngineScope } from './EngineScope.js';
 import type { SessionStore } from './SessionStore.js';
@@ -25,8 +25,18 @@ import { hasUnknownWriteOutcome, type InstanceWork } from './InstanceWork.js';
 import type { ViewQueries } from './ViewQueries.js';
 import type { RecordSummaries } from '../record/engine/RecordSummaries.js';
 import { copy, message, sameJsonState } from '../lib/snapshot.js';
-import { createSession, instanceContent, withContent } from './sessionState.js';
+import {
+  createSession,
+  instanceContent,
+  baselinePatch,
+} from './sessionState.js';
+import { reconcileWriteFailure, writeFailurePatch } from './writeRecovery.js';
 import { permissionsFor } from './instancePermissions.js';
+
+/** 类型保持的数组守卫：Array.isArray 的 any[] 谓词会把 readonly 数组退化为 any[]。 */
+function isReadonlyArray(value: unknown): value is readonly unknown[] {
+  return Array.isArray(value);
+}
 
 /** Explicit persisted name, deletion and user-preference operations. */
 export class ViewManagement {
@@ -96,33 +106,22 @@ export class ViewManagement {
       };
       this.work.finishWrite(id, token, () =>
         this.store.patch(id, {
-          ...(baseline.kind === 'record'
-            ? {
-                kind: 'record',
-                baseline,
-                instance: withContent(baseline, local),
-              }
-            : {
-                kind: 'analysis',
-                baseline,
-                instance: withContent(baseline, local),
-              }),
+          ...baselinePatch(baseline, local),
           writeStatus: 'idle',
           writeError: null,
         }),
       );
     } catch (error) {
       if (!current()) return;
-      this.work.finishWrite(id, token, () =>
-        this.store.patch(id, {
-          writeStatus: 'idle',
-          writeError: message(error),
-          ...(received || (dispatched && hasUnknownWriteOutcome(error))
-            ? { requiresReload: true }
-            : {}),
-        }),
-      );
-      throw error;
+      reconcileWriteFailure(error, {
+        finish: onSettled => this.work.finishWrite(id, token, onSettled),
+        patch: writeFailurePatch(
+          this.store,
+          id,
+          error,
+          received || (dispatched && hasUnknownWriteOutcome(error)),
+        ),
+      });
     } finally {
       this.work.finishWrite(id, token);
     }
@@ -198,7 +197,8 @@ export class ViewManagement {
     if (this.work.ordering) throw new Error('视图顺序正在保存');
     const known = new Set(this.store.getSnapshot().instanceIds);
     if (
-      !Array.isArray(instanceIds) ||
+      // 类型保持守卫，避免 Array.isArray 把 readonly 参数退化为 any[]。
+      !isReadonlyArray(instanceIds) ||
       instanceIds.length !== known.size ||
       new Set(instanceIds).size !== known.size ||
       instanceIds.some(id => !known.has(id))
@@ -324,18 +324,14 @@ export class ViewManagement {
       void followUp?.().catch(() => {});
     } catch (error) {
       if (!current()) return;
-      if (dispatched && hasUnknownWriteOutcome(error))
-        this.work.markDeleteUnverified(id, session.baseline.revision);
-      this.work.finishWrite(id, token, () =>
-        this.store.patch(id, {
-          writeStatus: 'idle',
-          writeError: message(error),
-          ...(dispatched && hasUnknownWriteOutcome(error)
-            ? { requiresReload: true }
-            : {}),
-        }),
-      );
-      throw error;
+      const unknownOutcome = dispatched && hasUnknownWriteOutcome(error);
+      reconcileWriteFailure(error, {
+        finish: onSettled => this.work.finishWrite(id, token, onSettled),
+        beforePatch: unknownOutcome
+          ? () => this.work.markDeleteUnverified(id, session.baseline.revision)
+          : undefined,
+        patch: writeFailurePatch(this.store, id, error, unknownOutcome),
+      });
     } finally {
       this.work.finishWrite(id, token);
     }

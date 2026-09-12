@@ -34,12 +34,13 @@ import {
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu.js';
 import type { FilterPanelToolbarProps } from '../../filter/filterReactTypes.js';
+import type { FilterMode } from '../../filter/filterModel.js';
 import type {
   RecordSession,
   RecordViewDefinition,
   RecordPresentation,
 } from '../../contracts/viewModel.js';
-import type { ViewExtensions } from '../recordReactTypes.js';
+import type { RecordExtensions } from '../recordReactTypes.js';
 import { RecordRefreshControls } from '../RecordRefreshControls.js';
 import type { ViewEngine } from '../../engine/ViewEngine.js';
 import type { useViewExpansion } from '../../view/viewExpansion.js';
@@ -65,7 +66,7 @@ export function RecordGlobalToolbar({
   engine: ViewEngine;
   definition: RecordViewDefinition;
   session: RecordSession;
-  extensions?: ViewExtensions;
+  extensions?: RecordExtensions;
   toolbarStart?: ReactNode;
   filterToolbar: FilterPanelToolbarProps;
   filtersOpen: boolean;
@@ -146,7 +147,8 @@ export function RecordGlobalToolbar({
                     if (next !== 'simple' && next !== 'advanced') return;
                     if (options.find(option => option.value === next)?.disabled)
                       return;
-                    onModeChange(next);
+                    // 前置比较已过滤出合法模式；包装组件回调参数为 any，收窄仅为类型表达。
+                    onModeChange(next as FilterMode);
                     onFiltersOpenChange(true);
                   }}
                 >

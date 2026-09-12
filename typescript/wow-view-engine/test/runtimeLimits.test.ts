@@ -18,7 +18,7 @@ import {
   assertConfigSize,
   withDeadline,
   QueryBudget,
-} from '../src/engine/runtimeLimits.js';
+} from '../src/lib/runtimeLimits.js';
 import { AnalysisCommands } from '../src/analysis/AnalysisCommands.js';
 import { SessionStore } from '../src/engine/SessionStore.js';
 import { EngineScope } from '../src/engine/EngineScope.js';

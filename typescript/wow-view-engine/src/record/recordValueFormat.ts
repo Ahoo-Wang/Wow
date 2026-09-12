@@ -76,6 +76,8 @@ export function formatRecordDateTime(
 export function recordValueText(value: unknown): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'object') return JSON.stringify(value) ?? '';
+  // 展示层兜底：故意对任意已准入值做 ToString，保持既有运行时输出不变。
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string
   return String(value);
 }
 export function formatRecordValue(

@@ -13,10 +13,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { resolveRecordPresentation } from '../src/record/resolveRecordPresentation.js';
-import {
-  validateViewDefinition,
-  validateViewInstance,
-} from '../src/record/recordValidation.js';
+import { validateViewDefinition } from '../src/contracts/validation/definitionValidation.js';
+import { validateViewInstance } from '../src/contracts/validation/instanceValidation.js';
 import { definition, instance } from './engine/fixtures.js';
 
 describe('record presentation', () => {

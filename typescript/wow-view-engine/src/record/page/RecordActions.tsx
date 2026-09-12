@@ -16,7 +16,7 @@ import type {
   RecordSession,
   RecordViewDefinition,
 } from '../../contracts/viewModel.js';
-import type { ViewExtensions } from '../recordReactTypes.js';
+import type { RecordExtensions } from '../recordReactTypes.js';
 import { RecordRendererBoundary } from '../RecordRendererBoundary.js';
 
 export function RecordActions({
@@ -29,7 +29,7 @@ export function RecordActions({
   kind: 'global' | 'toolbar';
   definition: RecordViewDefinition;
   session: RecordSession;
-  extensions?: ViewExtensions;
+  extensions?: RecordExtensions;
   refresh(): Promise<void>;
 }) {
   const { id, definitionId, title, scope, revision } = session.instance;

@@ -89,7 +89,7 @@ function ReadinessWorkbench() {
             instances={service.instances}
             host={service.host}
             extensions={extensions}
-            selectable
+            record={{ selectable: true }}
             initialSidebarCollapsed
           />
         )}

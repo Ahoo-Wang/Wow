@@ -17,7 +17,7 @@ import { expect, it, vi } from 'vitest';
 import { newFilterNode } from '../../src/filter/filterCore.js';
 import type { ViewInstance } from '../../src/contracts/viewModel.js';
 import type { ViewHost } from '../../src/contracts/ViewHost.js';
-import { ViewServiceError } from '../../src/record/viewServiceContract.js';
+import { ViewServiceError } from '../../src/contracts/viewServiceContract.js';
 import { deferred, instance, selected, setup } from './fixtures.js';
 
 it('denies unavailable writes and pending filter drafts', async () => {

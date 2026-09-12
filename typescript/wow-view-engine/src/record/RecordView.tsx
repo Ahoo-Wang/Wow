@@ -38,7 +38,7 @@ import type {
   RecordPaginationRenderContext,
   RecordTableProps,
   RecordToolbarRenderContext,
-  ViewExtensions,
+  RecordExtensions,
   RecordCardRenderContext,
 } from './recordReactTypes.js';
 import {
@@ -59,7 +59,7 @@ function hasRecordCapability(
 
 export interface RecordViewProps {
   engine: ViewEngine;
-  extensions?: ViewExtensions;
+  extensions?: RecordExtensions;
   filterContext?: unknown;
   selectable?: boolean;
   /** Pause periodic reads while the host performs an external business action. */
@@ -147,8 +147,7 @@ export function RecordView({
     ],
   );
   useEffect(() => {
-    if (!selectable && id && selectionCount)
-      engine.record(id!).setSelection([]);
+    if (!selectable && id && selectionCount) engine.record(id).setSelection([]);
   }, [engine, id, selectable, selectionCount]);
   const definition = hasRecordCapability(state.definition)
     ? state.definition
@@ -179,7 +178,7 @@ export function RecordView({
   }
   const refresh = async () => {
     if (id && engine.getSnapshot().sessions[id])
-      await engine.record(id!).refresh();
+      await engine.record(id).refresh();
   };
   const tableHandlers: Required<
     Pick<
@@ -213,23 +212,22 @@ export function RecordView({
       layout: Parameters<ReturnType<ViewEngine['record']>['setLayout']>[0],
     ) {
       if (engine.getSnapshot().sessions[id])
-        engine.record(id!).setLayout(layout);
+        engine.record(id).setLayout(layout);
     },
     setCardConfig(
       card: Parameters<ReturnType<ViewEngine['record']>['setCardConfig']>[0],
     ) {
       if (engine.getSnapshot().sessions[id])
-        engine.record(id!).setCardConfig(card);
+        engine.record(id).setCardConfig(card);
     },
     clearSelection() {
-      if (engine.getSnapshot().sessions[id])
-        engine.record(id!).setSelection([]);
+      if (engine.getSnapshot().sessions[id]) engine.record(id).setSelection([]);
     },
     setColumns(
       columns: Parameters<ReturnType<ViewEngine['record']>['setColumns']>[0],
     ) {
       if (engine.getSnapshot().sessions[id])
-        engine.record(id!).setColumns(columns);
+        engine.record(id).setColumns(columns);
     },
     refresh,
   };
@@ -254,7 +252,7 @@ export function RecordView({
         value={session.filterDraft}
         fields={definition.fields}
         timeZone={definition.timeZone}
-        onApply={() => engine.record(id!).applyFilter()}
+        onApply={() => engine.record(id).applyFilter()}
         appliedValue={session.filterBaseline}
         onChange={draft => filterCommands!.setFilterDraft(draft)}
         onValidityChange={valid => filterCommands!.setFilterValidity(valid)}

@@ -21,9 +21,9 @@ import type {
   ViewDefinition,
   ViewInstance,
 } from '../src/contracts/viewModel.js';
+import { validateViewDefinition } from '../src/contracts/validation/definitionValidation.js';
+import { validateViewInstance } from '../src/contracts/validation/instanceValidation.js';
 import {
-  validateViewDefinition,
-  validateViewInstance,
   readRecordValue,
   validateRecordRows,
 } from '../src/record/recordValidation.js';

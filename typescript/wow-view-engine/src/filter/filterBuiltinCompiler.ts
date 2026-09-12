@@ -41,6 +41,11 @@ import {
   timeToSeconds,
 } from './filterDateTimeValue.js';
 
+/** 类型保持的数组守卫：Array.isArray 的 any[] 谓词会把 readonly 数组退化为 any[]。 */
+function isReadonlyArray(value: unknown): value is readonly unknown[] {
+  return Array.isArray(value);
+}
+
 export function compileProtocolNode(
   draft: DeepReadonly<ProtocolNode>,
   fields: readonly FilterFieldDefinition[],
@@ -63,7 +68,8 @@ export function compileProtocolNode(
         element,
       );
       if (descriptor.category === 'logical') {
-        if (!Array.isArray(node.operands) || node.operands.length === 0)
+        // 类型保持守卫，避免 Array.isArray 把 readonly operands 退化为 any[]。
+        if (!isReadonlyArray(node.operands) || node.operands.length === 0)
           throw new TypeError('分组至少需要一个条件');
         const operands = Array.from(node.operands, child =>
           visit(child, scope, element),

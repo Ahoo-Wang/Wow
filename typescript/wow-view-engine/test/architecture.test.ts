@@ -12,7 +12,7 @@
  */
 
 // @vitest-environment node
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { expect, it } from 'vitest';
 import {
   root,
@@ -86,4 +86,23 @@ it('distinguishes runtime imports and browser references from types, strings and
     ],
   ]);
   expect(cyclesIn(cyclic)).toEqual([['a.ts', 'b.ts', 'a.ts']]);
+});
+
+it('keeps per-kind session derivation independent of lifecycle orchestration', () => {
+  for (const entry of [
+    'record/engine/recordSession.ts',
+    'analysis/analysisSession.ts',
+  ]) {
+    const graph = graphFrom([join(root, entry)]);
+    for (const service of [
+      'engine/sessionState.ts',
+      'engine/SessionStore.ts',
+      'engine/ViewEngine.ts',
+    ]) {
+      expect(
+        graph.has(join(root, service)),
+        `${entry} must not reach ${service}`,
+      ).toBe(false);
+    }
+  }
 });

@@ -72,7 +72,9 @@ export function RecordLayoutSwitch({
               <DropdownMenuRadioGroup
                 value={layout}
                 onValueChange={value => {
-                  if (value === 'table' || value === 'card') onChange(value);
+                  // 字面量比较已过滤出合法布局；包装组件回调参数为 any，收窄仅为类型表达。
+                  if (value === 'table' || value === 'card')
+                    onChange(value as 'table' | 'card');
                 }}
               >
                 {layouts

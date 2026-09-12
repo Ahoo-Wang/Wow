@@ -84,6 +84,8 @@ export function withDeadline<T>(
       clearTimeout(timer);
       controller.signal.removeEventListener('abort', cancel);
       if (success) resolve(value as T);
+      // 原样透传上层操作的拒绝值，包装成 Error 会改变对外的拒绝契约。
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
       else reject(value);
     };
     const cancel = () =>

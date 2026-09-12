@@ -65,12 +65,7 @@ export function describeFilter(
     const children =
       context.operands ??
       expression.operands.map(child =>
-        describeFilter(
-          child as DeepReadonly<FilterExpression>,
-          fields,
-          context,
-          false,
-        ),
+        describeFilter(child, fields, context, false),
       );
     return {
       count: children.reduce((sum, child) => sum + child.count, 0),
@@ -114,6 +109,8 @@ export function describeFilter(
           ? date.date
           : [date.date, date.time].filter(Boolean).join(' ');
     }
+    // 展示层兜底：故意对任意筛选值做 ToString，保持既有运行时输出不变。
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     return typeof value === 'object' ? JSON.stringify(value) : String(value);
   }
   const values: string[] = [];

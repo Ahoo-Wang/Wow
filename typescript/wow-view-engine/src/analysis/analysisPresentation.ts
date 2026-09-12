@@ -26,12 +26,17 @@ export interface AnalysisPresentation {
   donut?: boolean;
 }
 
+/** 类型保持的数组守卫：Array.isArray 的 any[] 谓词会把 readonly 数组退化为 any[]。 */
+function isReadonlyArray(value: unknown): value is readonly unknown[] {
+  return Array.isArray(value);
+}
+
 /** Resolve implicit selection before filtering selectable candidates; never hide current intent. */
 export function resolveAnalysisMetricAliases(
   schema: DeepReadonly<readonly AnalysisResultColumn[]>,
   value: DeepReadonly<Pick<AnalysisPresentation, 'metrics'>>,
 ): string[] {
-  return Array.isArray(value.metrics)
+  return isReadonlyArray(value.metrics)
     ? [...value.metrics]
     : schema
         .filter(
@@ -65,14 +70,14 @@ export function pruneAnalysisPresentation(
     value.series !== (x ?? dimensions[0]?.alias)
       ? value.series
       : undefined;
-  const selected = Array.isArray(value.metrics)
+  const selected = isReadonlyArray(value.metrics)
     ? value.metrics.filter(alias =>
         metrics.some(column => column.alias === alias),
       )
     : undefined;
   return {
     ...value,
-    columns: Array.isArray(value.columns)
+    columns: isReadonlyArray(value.columns)
       ? value.columns
           .filter(
             column =>

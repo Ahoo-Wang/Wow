@@ -13,7 +13,7 @@
 
 import { expect, it, vi } from 'vitest';
 import { filter } from '@ahoo-wang/fetcher-wow';
-import { ViewServiceError } from '../../src/record/viewServiceContract.js';
+import { ViewServiceError } from '../../src/contracts/viewServiceContract.js';
 import type { ViewInstance } from '../../src/contracts/viewModel.js';
 import { instance, setup } from './fixtures.js';
 

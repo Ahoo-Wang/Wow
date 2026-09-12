@@ -32,7 +32,12 @@ export const reactLintConfig = {
 export default tseslint.config(
   { ignores: ['dist/**', 'node_modules/**', 'coverage/**'] },
   {
-    files: ['**/*.{ts,tsx}'],
+    // test/、dev/、examples/ 不在 tsconfig 项目内，保持非类型检查规则。
+    files: [
+      'test/**/*.{ts,tsx}',
+      'dev/**/*.{ts,tsx}',
+      'examples/**/*.{ts,tsx}',
+    ],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     ...reactLintConfig,
     languageOptions: {
@@ -44,6 +49,35 @@ export default tseslint.config(
     rules: {
       ...reactLintConfig.rules,
       '@typescript-eslint/consistent-type-imports': 'error',
+    },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      ...tseslint.configs.recommendedTypeChecked,
+    ],
+    ...reactLintConfig,
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+      parserOptions: {
+        // allowDefaultProject 供 reactLint.test.ts 以 lintText 虚拟检查 src/LintProbe.tsx。
+        projectService: {
+          allowDefaultProject: ['src/LintProbe.tsx'],
+        },
+        tsconfigRootDir: fileURLToPath(new URL('.', import.meta.url)),
+      },
+    },
+    rules: {
+      ...reactLintConfig.rules,
+      '@typescript-eslint/consistent-type-imports': 'error',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'error',
+      '@typescript-eslint/no-floating-promises': 'error',
+      // 以下三条发现项均远超 20 处（108/55/41），且 src 大量按 React/store 惯用法把方法作为值传递，
+      // 行为中性修复需 .bind/箭头包装（改变函数身份，影响 memo/依赖数组），按护栏任务纪律整体降级关闭。
+      '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
     },
   },
 );

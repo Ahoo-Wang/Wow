@@ -31,11 +31,16 @@ export const EMPTY_RECORD_SUMMARY: RecordSummaryResult = {
   values: {},
   error: null,
 };
+/** 类型保持的数组守卫：Array.isArray 的 any[] 谓词会把 readonly 数组退化为 any[]。 */
+function isReadonlyArray(value: unknown): value is readonly unknown[] {
+  return Array.isArray(value);
+}
 /** Validate public query input and keep aliases independent of presentation ordering. */
 function orderedMetrics(
   metrics: readonly RecordSummaryMetric[],
 ): RecordSummaryMetric[] {
-  if (!Array.isArray(metrics) || metrics.length > 64)
+  // 类型保持守卫，避免 Array.isArray 把 readonly 参数退化为 any[]。
+  if (!isReadonlyArray(metrics) || metrics.length > 64)
     throw new Error('最多配置 64 个汇总指标');
   const seen = new Set<string>();
   for (const metric of metrics) {
@@ -163,7 +168,7 @@ export function readRecordSummaryResult(
       (typeof resultValue !== 'number' || !Number.isFinite(resultValue))
     )
       throw new Error(`汇总结果 ${alias} 必须是合法数值`);
-    (result[metric.id] ??= {})[metric.function] = resultValue as number | null;
+    (result[metric.id] ??= {})[metric.function] = resultValue;
   });
   return result;
 }

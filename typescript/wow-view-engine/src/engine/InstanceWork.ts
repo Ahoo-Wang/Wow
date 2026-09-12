@@ -12,7 +12,7 @@
  */
 
 import type { ViewSession, ViewInstance } from '../contracts/viewModel.js';
-import { ViewServiceError } from '../record/viewServiceContract.js';
+import { ViewServiceError } from '../contracts/viewServiceContract.js';
 
 /** Only a definitive service rejection proves a dispatched write did not commit. */
 export function hasUnknownWriteOutcome(error: unknown): boolean {

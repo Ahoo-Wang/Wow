@@ -39,6 +39,8 @@ const scalarTypes = [
   { value: 'boolean', label: '布尔' },
 ] as const;
 function textValue(value: unknown): string {
+  // 展示层兜底：故意对任意标量草稿值做 ToString，保持既有运行时输出不变。
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string
   return value === undefined || value === null ? '' : String(value);
 }
 

@@ -48,14 +48,17 @@ function CopyText({ text }: { text: string }) {
         variant="ghost"
         aria-label="复制文本"
         disabled={status === 'loading'}
-        onClick={async () => {
-          setStatus('loading');
-          try {
-            await navigator.clipboard.writeText(text);
-            setStatus('success');
-          } catch {
-            setStatus('error');
-          }
+        onClick={() => {
+          // onClick 期望 void 返回；同步包装保持既有异步复制流程不变。
+          void (async () => {
+            setStatus('loading');
+            try {
+              await navigator.clipboard.writeText(text);
+              setStatus('success');
+            } catch {
+              setStatus('error');
+            }
+          })();
         }}
       >
         {status === 'success' ? (

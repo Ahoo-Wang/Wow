@@ -16,7 +16,7 @@ import {
   validateRuntimeLimits,
   QueryBudget,
   type RuntimeLimits,
-} from '../../engine/runtimeLimits.js';
+} from '../../lib/runtimeLimits.js';
 import type {
   ViewSource,
   RecordSession,

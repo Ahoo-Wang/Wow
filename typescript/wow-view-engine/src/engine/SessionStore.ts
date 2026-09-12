@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { validateRuntimeLimits, type RuntimeLimits } from './runtimeLimits.js';
+import {
+  validateRuntimeLimits,
+  type RuntimeLimits,
+} from '../lib/runtimeLimits.js';
 import type { AnalysisCompilerRegistry } from '../analysis/analysisModel.js';
 import type { FilterCompilerRegistry } from '../filter/filterModel.js';
 import type {
@@ -20,9 +23,10 @@ import type {
   ViewSession,
   ViewEngineState,
 } from '../contracts/viewModel.js';
-import { validateViewInstance } from '../record/recordValidation.js';
+import { validateViewInstance } from '../contracts/validation/instanceValidation.js';
 import type { EngineScope } from './EngineScope.js';
-import { EMPTY_RECORD_SUMMARY } from '../record/recordSummary.js';
+import { clearAnalysisResult } from '../analysis/analysisSession.js';
+import { clearRecordResult } from '../record/engine/recordSession.js';
 import { copy, freeze } from '../lib/snapshot.js';
 import { deriveSession } from './sessionState.js';
 
@@ -157,17 +161,8 @@ export class SessionStore {
       this.resultAccess.delete(id);
       sessions[id] =
         session.kind === 'analysis'
-          ? { ...session, result: null }
-          : {
-              ...session,
-              result: null,
-              rows: [],
-              total: null,
-              nextCursor: null,
-              selectedRowKeys: [],
-              pageSummary: EMPTY_RECORD_SUMMARY,
-              allSummary: EMPTY_RECORD_SUMMARY,
-            };
+          ? clearAnalysisResult(session)
+          : clearRecordResult(session);
     }
     if (retained.length > this.limits.maxRetainedResults)
       next = { ...next, sessions };

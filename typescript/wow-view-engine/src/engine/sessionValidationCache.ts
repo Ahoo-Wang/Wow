@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { assertConfigSize, validateRuntimeLimits } from './runtimeLimits.js';
+import {
+  assertConfigSize,
+  validateRuntimeLimits,
+} from '../lib/runtimeLimits.js';
 import type { FilterValidationError } from '../filter/filterModel.js';
 
 import { compileFilterConfiguration } from '../filter/filterConfiguration.js';

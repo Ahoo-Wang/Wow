@@ -107,18 +107,22 @@ export function ViewRefreshControls({
         );
       }
     }
-    doc.addEventListener('visibilitychange', tick);
-    doc.addEventListener('focusin', tick);
-    doc.addEventListener('focusout', tick);
+    // 事件监听期望 void 返回；同步包装保持既有浮动 Promise 语义不变。
+    const onActivity = () => {
+      void tick();
+    };
+    doc.addEventListener('visibilitychange', onActivity);
+    doc.addEventListener('focusin', onActivity);
+    doc.addEventListener('focusout', onActivity);
     timer = setTimeout(() => {
       void tick();
     }, 0);
     return () => {
       stopped = true;
       clearTimeout(timer);
-      doc.removeEventListener('visibilitychange', tick);
-      doc.removeEventListener('focusin', tick);
-      doc.removeEventListener('focusout', tick);
+      doc.removeEventListener('visibilitychange', onActivity);
+      doc.removeEventListener('focusin', onActivity);
+      doc.removeEventListener('focusout', onActivity);
     };
   }, [engine, id, interval, suspended, querying, root, onAutoRefresh]);
   const countdown =

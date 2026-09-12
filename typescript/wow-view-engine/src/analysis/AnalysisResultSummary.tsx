@@ -17,6 +17,7 @@ import type {
 import type { FilterCompilerRegistry } from '../filter/filterModel.js';
 import type { DeepReadonly } from '../lib/types.js';
 import { describeConfiguredFilter } from '../filter/describeConfiguredFilter.js';
+import { SortDirection } from '@ahoo-wang/fetcher-wow';
 
 /** All labels and values describe the successful execution, never the working query. */
 export function AnalysisResultSummary({
@@ -101,7 +102,7 @@ export function AnalysisResultSummary({
           {plan.query.sort
             ?.map(
               item =>
-                `${plan.schema.find(column => column.alias === item.field)?.title ?? item.field} ${item.direction === 'DESC' ? '降序' : '升序'}`,
+                `${plan.schema.find(column => column.alias === item.field)?.title ?? item.field} ${item.direction === SortDirection.DESC ? '降序' : '升序'}`,
             )
             .join('、') || '未指定'}
         </p>

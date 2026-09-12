@@ -29,7 +29,10 @@ export function freeze<T>(value: T, ancestors = new Set<object>()): T {
   )
     throw new Error('视图数据必须为无循环引用的 JSON 数据');
   ancestors.add(value);
-  Object.values(value).forEach(item => freeze(item, ancestors));
+  // 收窄为 Record 后 Object.values 返回 unknown[]，递归冻结的入参保持类型安全。
+  Object.values(value as Record<string, unknown>).forEach(item =>
+    freeze(item, ancestors),
+  );
   ancestors.delete(value);
   return Object.freeze(value);
 }

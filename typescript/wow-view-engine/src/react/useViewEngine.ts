@@ -14,18 +14,17 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { ViewEngine } from '../engine/ViewEngine.js';
 import type { ViewEngineOptions } from '../contracts/viewModel.js';
-import type { ViewExtensions } from '../record/recordReactTypes.js';
-import type { AnalysisExtensions } from '../analysis/analysisReactTypes.js';
+import type { ViewExtensions } from '../view/viewReactTypes.js';
 export interface UseViewEngineOptions extends Omit<
   ViewEngineOptions,
   'filterCompilers' | 'analysisCompilers'
 > {
   scopeKey: string;
-  extensions?: ViewExtensions & AnalysisExtensions;
+  extensions?: ViewExtensions;
 }
 export interface ViewEngineBinding {
   engine: ViewEngine | null;
-  extensions?: ViewExtensions & AnalysisExtensions;
+  extensions?: ViewExtensions;
   error?: string;
 }
 function capture(options: UseViewEngineOptions, identity: string) {

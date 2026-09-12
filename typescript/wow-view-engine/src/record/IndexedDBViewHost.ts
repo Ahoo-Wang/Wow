@@ -16,7 +16,7 @@ import {
   type StatefulViewHostOptions,
   type ViewStateTransaction,
 } from './StatefulViewHost.js';
-import { ViewServiceError } from './viewServiceContract.js';
+import { ViewServiceError } from '../contracts/viewServiceContract.js';
 import { message } from '../lib/snapshot.js';
 export interface IndexedDBViewHostOptions extends StatefulViewHostOptions {
   databaseName?: string;
@@ -44,6 +44,8 @@ function indexedDBTransaction(
         settled = true;
         signal?.removeEventListener('abort', abort);
         db?.close();
+        // error 可能是原始 abort 原因（signal.reason），原样透传以保持拒绝值不变。
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
         if (error !== undefined) reject(error);
         else resolve(result!);
       };
@@ -103,7 +105,8 @@ function indexedDBTransaction(
             read.onsuccess = () => {
               try {
                 signal?.throwIfAborted();
-                const next = operation(read.result);
+                // 该 store 仅存入字符串或空值，IDBRequest.result 的 any 收窄回契约类型。
+                const next = operation(read.result as string | null);
                 result = next.result;
                 if (next.value !== undefined) {
                   try {

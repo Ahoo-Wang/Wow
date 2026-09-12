@@ -196,7 +196,7 @@ it('pauses automatic refresh while hidden, editing or explicitly paused and clea
         scopeKey="test-user"
         definitionId="orders"
         host={host}
-        autoRefreshPaused
+        record={{ autoRefreshPaused: true }}
       />,
     );
     await act(() => vi.advanceTimersByTimeAsync(45000));

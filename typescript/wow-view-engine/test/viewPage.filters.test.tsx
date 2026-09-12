@@ -171,7 +171,7 @@ it('collapses filters without unmounting editors, applying drafts or clearing se
       scopeKey="test-user"
       definitionId="orders"
       host={host}
-      selectable
+      record={{ selectable: true }}
     />,
   );
   await screen.findByRole('cell', { name: '42' });

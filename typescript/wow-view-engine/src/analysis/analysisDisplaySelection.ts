@@ -17,6 +17,11 @@ import type { AnalysisPresentation } from './analysisPresentation.js';
 import { ANALYSIS_VISUALIZATIONS } from './analysisVisualizations.js';
 import { projectAnalysis } from './analysisProjection.js';
 
+/** 类型保持的数组守卫：Array.isArray 的 any[] 谓词会把 readonly 数组退化为 any[]。 */
+function isReadonlyArray(value: unknown): value is readonly unknown[] {
+  return Array.isArray(value);
+}
+
 export type VisualizationType = Exclude<
   AnalysisPresentation['layout'],
   'table'
@@ -120,7 +125,7 @@ export function inferCapabilities(result: VisualizationResult) {
   const capabilities = ANALYSIS_VISUALIZATIONS.filter(
     chart => chart.value !== 'table',
   ).map(chart => ({
-    type: chart.value as VisualizationType,
+    type: chart.value,
     label: chart.label,
     ...resolveMappings(chart.value, result),
   }));
@@ -157,7 +162,7 @@ export function initialDisplayMapping(
     return {
       ...value,
       layout,
-      columns: Array.isArray(value.columns)
+      columns: isReadonlyArray(value.columns)
         ? value.columns.map(column => ({ ...column }))
         : [],
       metrics: value.metrics ? [...value.metrics] : undefined,
@@ -180,7 +185,7 @@ export function initialDisplayMapping(
   );
   return {
     ...value,
-    columns: Array.isArray(value.columns)
+    columns: isReadonlyArray(value.columns)
       ? value.columns.map(column => ({ ...column }))
       : [],
     layout,

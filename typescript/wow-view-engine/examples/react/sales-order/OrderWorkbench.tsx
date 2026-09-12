@@ -351,12 +351,11 @@ function WorkbenchSession({
           <ViewPageContent
             engine={engine}
             extensions={orderExtensions}
-            selectable
-            initialSidebarCollapsed={initialSidebarCollapsed}
-            autoRefreshPaused={busy}
-            renderCard={customRegions ? DeliveryCard : undefined}
-            renderToolbar={
-              customRegions
+            record={{
+              selectable: true,
+              autoRefreshPaused: busy,
+              renderCard: customRegions ? DeliveryCard : undefined,
+              renderToolbar: customRegions
                 ? context => (
                     <>
                       <p className="sales-card-note">
@@ -365,8 +364,9 @@ function WorkbenchSession({
                       {context.defaultContent}
                     </>
                   )
-                : undefined
-            }
+                : undefined,
+            }}
+            initialSidebarCollapsed={initialSidebarCollapsed}
           />
         ) : (
           <p role="status">正在加载视图…</p>

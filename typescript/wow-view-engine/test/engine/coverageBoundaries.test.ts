@@ -27,7 +27,7 @@ import type {
   ViewInstance,
   ViewInstanceList,
 } from '../../src/contracts/viewModel.js';
-import { ViewServiceError } from '../../src/record/viewServiceContract.js';
+import { ViewServiceError } from '../../src/contracts/viewServiceContract.js';
 import {
   deferred,
   definition,

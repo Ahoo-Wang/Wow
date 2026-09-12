@@ -221,10 +221,11 @@ export function compileAnalysis(
     void _presentation;
     validateFilterJson(queryConfig);
     validateTimeZone(context.timeZone);
+    // 经由临时数组检查，避免 Array.isArray 的 any[] 谓词经断言收窄退化 config 的静态类型。
     requireValue(
-      Array.isArray(config.dimensions) &&
-        Array.isArray(config.metrics) &&
-        Array.isArray(config.sort),
+      [config.dimensions, config.metrics, config.sort].every(list =>
+        Array.isArray(list),
+      ),
       '分析配置列表无效',
     );
     const defaults = ANALYSIS_LIMITS;

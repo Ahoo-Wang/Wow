@@ -15,21 +15,20 @@ import {
   ANALYSIS_LIMITS,
   analysisGroupValueType,
 } from './analysisCapabilities.js';
-import { effectiveSortAliases, canAddAnalysisSort } from './analysisSort.js';
+import { effectiveSortAliases } from './analysisSort.js';
 import {
-  AggregationGroupType as Group,
+  analysisOutputs,
+  dateLabels,
+  groupNames,
+  names,
+} from './analysisEditorLabels.js';
+import { AnalysisEditorBoundary, Choice } from './AnalysisComponentChoice.js';
+import type { AggregationGroupType as Group } from '@ahoo-wang/fetcher-wow';
+import {
   AggregationFunction,
   AggregationExpressionType,
-  SortDirection,
 } from '@ahoo-wang/fetcher-wow';
-import {
-  Component,
-  useId,
-  useState,
-  useRef,
-  useLayoutEffect,
-  type ReactNode,
-} from 'react';
+import { useState, useRef, useLayoutEffect } from 'react';
 import type { FilterExtensions } from '../filter/filterReactTypes.js';
 import type { AnalysisExtensions } from './analysisReactTypes.js';
 import { ChevronDownIcon, GripVerticalIcon, PlusIcon } from 'lucide-react';
@@ -48,6 +47,7 @@ import {
 } from './analysisCompiler.js';
 import { AnalysisExpressionEditor } from './AnalysisExpressionEditor.js';
 import { AnalysisScopeEditor } from './AnalysisScopeEditor.js';
+import { AnalysisSortEditor } from './AnalysisSortEditor.js';
 import { useListOrder } from '../lib/useListOrder.js';
 import { OverlayScope } from '../lib/OverlayScope.js';
 import { cloneSnapshot, type DeepReadonly } from '../lib/types.js';
@@ -71,94 +71,6 @@ export interface AnalysisEditorProps {
   filterContext?: unknown;
   /** Combined validity of currently mounted element-scope filter editors. */
   onFilterValidityChange?(valid: boolean): void;
-}
-const groupNames: Record<Group, string> = {
-  [Group.TERMS]: 'terms',
-  [Group.HISTOGRAM]: 'histogram',
-  [Group.DATE_HISTOGRAM]: 'date-histogram',
-};
-const names: Record<string, string> = Object.assign(Object.create(null), {
-  terms: '按值分组',
-  histogram: '数值分桶',
-  'date-histogram': '日期分桶',
-  count: '记录数',
-  numeric: '数值统计',
-  any: '代表值',
-});
-const dateLabels: Record<string, string> = {
-  YEAR: '年',
-  QUARTER: '季度',
-  MONTH: '月',
-  WEEK: '周',
-  DAY: '日',
-  HOUR: '小时',
-  MINUTE: '分钟',
-  SECOND: '秒',
-};
-class AnalysisEditorBoundary extends Component<
-  { children: ReactNode },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    return this.state.failed ? (
-      <div role="alert">
-        编辑器无法显示，请重试或切换类型。
-        <Button
-          variant="outline"
-          onClick={() => this.setState({ failed: false })}
-        >
-          重试编辑器
-        </Button>
-      </div>
-    ) : (
-      this.props.children
-    );
-  }
-}
-function Choice({
-  label,
-  caption,
-  value,
-  options,
-  onChange,
-  disabled,
-  invalid,
-}: {
-  label: string;
-  caption?: string;
-  value?: string;
-  options: { value: string; label: string }[];
-  onChange(value: string): void;
-  disabled?: boolean;
-  invalid?: boolean;
-}) {
-  return (
-    <label className="fve:flex fve:min-w-0 fve:max-w-full fve:flex-col fve:gap-1">
-      {caption ?? label.replace(/^(维度|指标|排序) \d+ /, '')}
-      <FilterSelect
-        label={label}
-        value={value}
-        options={options}
-        disabled={disabled || !options.length}
-        invalid={invalid}
-        onValueChange={next => {
-          if (!disabled) onChange(next);
-        }}
-      />
-    </label>
-  );
-}
-
-function analysisOutputs(value: DeepReadonly<AnalysisViewConfig>) {
-  return [
-    ...value.dimensions,
-    ...value.metrics,
-    ...value.dimensions.flatMap(item => (item.label ? [item.label] : [])),
-  ];
 }
 
 function ComponentList({
@@ -396,12 +308,12 @@ function ComponentList({
                                     MIN: '最小值',
                                     MAX: '最大值',
                                   } as Record<string, string>
-                                )[String(item.props.function)] ??
+                                )[item.props.function as string] ??
                                 '选择统计方式')
                               : component === 'date-histogram'
-                                ? `按${dateLabels[String(item.props.unit)] ?? '未选粒度'}分组`
+                                ? `按${dateLabels[item.props.unit as string] ?? '未选粒度'}分组`
                                 : component === 'histogram'
-                                  ? `每 ${item.props.interval ?? '未设桶宽'} 分桶`
+                                  ? `每 ${(item.props.interval as string | number | undefined) ?? '未设桶宽'} 分桶`
                                   : (names[component] ?? component)}
                             {issues.length > 0 && ' · 待完善'}
                           </span>
@@ -642,7 +554,10 @@ function ComponentList({
                                     inputMode="decimal"
                                     aria-label={`${label} 桶宽`}
                                     aria-invalid={issues.length > 0}
-                                    value={String(item.props.interval ?? '')}
+                                    value={String(
+                                      (item.props.interval as
+                                        string | number | undefined) ?? '',
+                                    )}
                                     onChange={event => {
                                       update(index, {
                                         props: {
@@ -809,8 +724,7 @@ function ComponentList({
   );
 }
 export function AnalysisEditor(props: AnalysisEditorProps) {
-  const { value, onChange, disabled, errors = [] } = props;
-  const limitHintId = useId();
+  const { value, onChange, disabled = false, errors = [] } = props;
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const maxLimit =
     props.context.capability.limits?.maxLimit ?? ANALYSIS_LIMITS.maxLimit;
@@ -823,25 +737,6 @@ export function AnalysisEditor(props: AnalysisEditorProps) {
     if (!disabled)
       onChange({ ...cloneSnapshot<AnalysisViewConfig>(value), ...patch });
   }
-  const outputs = analysisOutputs(value);
-  const maxSort =
-    props.context.capability.limits?.maxSort ?? ANALYSIS_LIMITS.maxSort;
-  function sortOptions(index = value.sort.length) {
-    const remaining = value.sort.filter((_, i) => i !== index);
-    // The compiler appends every dimension not already explicitly sorted.
-    return outputs.filter(
-      output =>
-        output.alias === value.sort[index]?.alias ||
-        (!remaining.some(sort => sort.alias === output.alias) &&
-          canAddAnalysisSort(
-            value.dimensions,
-            remaining,
-            output.alias,
-            maxSort,
-          )),
-    );
-  }
-  const nextSortOutput = sortOptions()[0];
   let context: AnalysisCompileContext;
   try {
     context = analysisScopeContext(value, props.context);
@@ -888,121 +783,13 @@ export function AnalysisEditor(props: AnalysisEditorProps) {
             className="fve:flex fve:flex-col fve:gap-4 fve:border-t fve:p-3"
             onFocus={() => setAdvancedOpen(true)}
           >
-            <fieldset
+            <AnalysisSortEditor
+              value={value}
+              context={props.context}
               disabled={disabled}
-              className="fve:flex fve:min-w-0 fve:flex-col fve:gap-2"
-            >
-              <legend>结果排序</legend>
-              {value.sort.map((sort, index) => (
-                <div
-                  key={sort.alias}
-                  className="fve:flex fve:flex-wrap fve:items-end fve:gap-2"
-                >
-                  <Choice
-                    label={`排序 ${index + 1} 输出`}
-                    value={sort.alias}
-                    options={sortOptions(index).map(output => ({
-                      value: output.alias,
-                      label: output.title,
-                    }))}
-                    disabled={disabled}
-                    onChange={alias =>
-                      update({
-                        sort: value.sort.map((item, i) =>
-                          i === index ? { ...item, alias } : item,
-                        ),
-                      })
-                    }
-                  />
-                  <Choice
-                    label={`排序 ${index + 1} 方向`}
-                    value={sort.direction}
-                    options={[
-                      { value: SortDirection.ASC, label: '升序' },
-                      { value: SortDirection.DESC, label: '降序' },
-                    ]}
-                    disabled={disabled}
-                    onChange={direction =>
-                      update({
-                        sort: value.sort.map((item, i) =>
-                          i === index
-                            ? { ...item, direction: direction as SortDirection }
-                            : item,
-                        ),
-                      })
-                    }
-                  />
-                  <Button
-                    variant="ghost"
-                    disabled={disabled}
-                    aria-label={`删除排序 ${index + 1}`}
-                    onClick={() =>
-                      update({ sort: value.sort.filter((_, i) => i !== index) })
-                    }
-                  >
-                    删除
-                  </Button>
-                </div>
-              ))}
-              <div className="fve:flex fve:flex-wrap fve:gap-2">
-                <Button
-                  variant="outline"
-                  disabled={
-                    disabled || !value.dimensions.length || !nextSortOutput
-                  }
-                  onClick={() => {
-                    if (nextSortOutput)
-                      update({
-                        sort: [
-                          ...value.sort,
-                          {
-                            alias: nextSortOutput.alias,
-                            direction: SortDirection.ASC,
-                          },
-                        ],
-                      });
-                  }}
-                >
-                  添加排序
-                </Button>
-                <Button
-                  variant="ghost"
-                  disabled={disabled || !value.sort.length}
-                  onClick={() => update({ sort: [] })}
-                >
-                  清除排序
-                </Button>
-              </div>
-            </fieldset>
-            <label className="fve:flex fve:min-w-0 fve:max-w-full fve:flex-col fve:gap-1">
-              最多结果行数
-              <span
-                id={limitHintId}
-                className="fve:text-sm fve:text-muted-foreground"
-              >
-                请输入 1 至 {maxLimit} 的整数
-              </span>
-              <Input
-                aria-label="最多结果行数"
-                inputMode="numeric"
-                value={value.limit}
-                disabled={disabled}
-                aria-invalid={invalidLimit || undefined}
-                aria-describedby={limitHintId}
-                onChange={event => {
-                  const raw = event.target.value;
-                  const number = Number(raw);
-                  update({
-                    limit:
-                      /^[1-9]\d*$/.test(raw) &&
-                      Number.isSafeInteger(number) &&
-                      number > 0
-                        ? number
-                        : raw,
-                  });
-                }}
-              />
-            </label>
+              invalidLimit={invalidLimit}
+              update={update}
+            />
           </div>
         </details>
         {errors

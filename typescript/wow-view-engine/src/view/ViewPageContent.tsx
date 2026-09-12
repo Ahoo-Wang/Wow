@@ -27,20 +27,35 @@ import {
   ViewSidebar,
 } from './ViewNavigation.js';
 
+import type { ViewEngine } from '../engine/ViewEngine.js';
+import type { ViewExtensions } from './viewReactTypes.js';
+
 import { useViewCapabilities } from './useViewCapabilities.js';
 
-export interface ViewPageContentProps extends Omit<
-  RecordViewProps,
-  'toolbarStart'
-> {
+export interface ViewPageContentProps {
+  engine: ViewEngine;
+  extensions?: ViewExtensions;
+  filterContext?: unknown;
+  className?: string;
   initialSidebarCollapsed?: boolean;
+  /** Record-only presentation and business-operation controls. */
+  record?: Pick<
+    RecordViewProps,
+    | 'selectable'
+    | 'autoRefreshPaused'
+    | 'renderToolbar'
+    | 'renderCard'
+    | 'renderPagination'
+  >;
 }
 /** Compose a caller-owned engine into the same page UI without transferring lifecycle ownership. */
 export function ViewPageContent({
   engine,
   initialSidebarCollapsed = false,
   className,
-  ...recordProps
+  extensions,
+  filterContext,
+  record,
 }: ViewPageContentProps) {
   const state = useSyncExternalStore(
     engine.subscribe,
@@ -266,8 +281,8 @@ export function ViewPageContent({
           {
             <AnalysisView
               engine={engine}
-              extensions={recordProps.extensions}
-              filterContext={recordProps.filterContext}
+              extensions={extensions}
+              filterContext={filterContext}
               toolbarStart={toolbarStart}
               configurationOpen={configurationPanels.get(id!)}
               onConfigurationOpenChange={open =>
@@ -279,7 +294,9 @@ export function ViewPageContent({
             <RecordView
               key={id}
               engine={engine}
-              {...recordProps}
+              {...record}
+              extensions={extensions}
+              filterContext={filterContext}
               configurationOpen={configurationPanels.get(id!) ?? true}
               onConfigurationOpenChange={open =>
                 setConfigurationPanels(panels => new Map(panels).set(id!, open))

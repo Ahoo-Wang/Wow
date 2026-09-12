@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { withDeadline } from './runtimeLimits.js';
+import { withDeadline } from '../lib/runtimeLimits.js';
 import type {
   ViewSession,
   ViewDefinition,
@@ -21,11 +21,9 @@ import type {
 } from '../contracts/viewModel.js';
 import { cloneSnapshot } from '../lib/types.js';
 import type { ViewHost } from '../contracts/ViewHost.js';
-import {
-  validateViewDefinition,
-  validateViewInstance,
-} from '../record/recordValidation.js';
-import { readInstanceList } from '../record/validation/instanceValidation.js';
+import { validateViewDefinition } from '../contracts/validation/definitionValidation.js';
+import { validateViewInstance } from '../contracts/validation/instanceValidation.js';
+import { readInstanceList } from '../contracts/validation/instanceValidation.js';
 import type { EngineScope } from './EngineScope.js';
 import type { SessionStore } from './SessionStore.js';
 import type { InstanceWork } from './InstanceWork.js';
@@ -99,6 +97,8 @@ export class ViewLoader {
     let defaultId: string | null = null;
     let followUp: (() => Promise<void>) | undefined;
     try {
+      // 原样重抛已暂存的历史错误，包装会改变下游捕获到的错误类型。
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
       if (this.inputError) throw this.inputError;
       const [definition, list] = await withDeadline(
         () =>

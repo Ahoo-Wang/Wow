@@ -11,8 +11,6 @@
  * limitations under the License.
  */
 
-export { validateViewDefinition } from './validation/definitionValidation.js';
-export { validateViewInstance } from './validation/instanceValidation.js';
 export {
   readRecordValue,
   getRecordKey,

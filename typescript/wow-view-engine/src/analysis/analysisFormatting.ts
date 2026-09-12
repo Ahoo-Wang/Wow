@@ -64,5 +64,7 @@ export function formatAnalysisValue(
   } catch {
     /* Invalid host format settings must not hide admitted data. */
   }
+  // 展示层兜底：故意对任意已准入值做 ToString，保持既有运行时输出不变。
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string
   return String(value);
 }

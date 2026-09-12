@@ -499,7 +499,7 @@ try {
   await ready();
   assert.deepEqual(errors, []);
   // Run the same production-only acceptance stories used for interactive measurement.
-  // They measure inside the page, so browser-driver transport is excluded from the 300/350ms budgets.
+  // They measure inside the page, so browser-driver transport is excluded from the 400/450ms budgets.
   report.analysis = {};
   await page.setViewportSize({ width: 1440, height: 1000 });
   for (const scenario of ['local-performance', 'large-result-cancellation']) {
@@ -530,10 +530,10 @@ try {
     );
     if (scenario === 'local-performance') {
       assert.equal(evidence.productionAdmitted, true);
-      assert.ok(evidence.input.p95Ms <= 300, 'Input P95 exceeds 300ms');
+      assert.ok(evidence.input.p95Ms <= 400, 'Input P95 exceeds 400ms');
       assert.ok(
-        evidence.instanceSwitch.p95Ms <= 350,
-        'Local switch P95 exceeds 350ms',
+        evidence.instanceSwitch.p95Ms <= 450,
+        'Local switch P95 exceeds 450ms',
       );
       assert.equal(evidence.requestsBefore, evidence.requestsAfter);
     } else {

@@ -1,4 +1,3 @@
-import type { AnalysisExtensions } from '../analysis/analysisReactTypes.js';
 /*
  * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -91,7 +90,7 @@ export interface CellRendererProps {
   readonly instance: DeepReadonly<RecordViewInstance>;
   readonly options: DeepReadonly<RendererReference['options']>;
 }
-export interface ViewExtensions extends FilterExtensions, AnalysisExtensions {
+export interface RecordExtensions extends FilterExtensions {
   cells?: Readonly<Record<string, ComponentType<CellRendererProps>>>;
   globalActions?: Readonly<
     Record<string, ComponentType<GlobalActionsRendererProps>>
@@ -107,7 +106,7 @@ export interface RecordTableProps {
   /** Runtime query scope, supplied by the engine rather than inferred from saved configuration. */
   appliedFilter: DeepReadonly<FilterExpression> | null;
   rows: DeepReadonly<readonly RecordData[]>;
-  extensions?: ViewExtensions;
+  extensions?: RecordExtensions;
   querying?: boolean;
   /** Query failure is distinct from a successful empty result. Existing rows are retained. */
   queryError?: string | null;

@@ -42,6 +42,12 @@ export default defineConfig(({ mode }) => ({
     restoreMocks: true,
     coverage: {
       include: ['src/**/*.{ts,tsx}'],
+      thresholds: {
+        statements: 95,
+        branches: 91,
+        functions: 97,
+        lines: 96,
+      },
     },
   },
 }));

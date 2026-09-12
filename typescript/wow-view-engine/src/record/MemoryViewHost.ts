@@ -15,7 +15,7 @@ import {
   StatefulViewHost,
   type StatefulViewHostOptions,
 } from './StatefulViewHost.js';
-import { ViewServiceError } from './viewServiceContract.js';
+import { ViewServiceError } from '../contracts/viewServiceContract.js';
 import { message } from '../lib/snapshot.js';
 
 export interface MemoryViewHostOptions extends StatefulViewHostOptions {
@@ -26,6 +26,8 @@ export interface MemoryViewHostOptions extends StatefulViewHostOptions {
 /** In-process view service for memory examples and Node HTTP fixtures. No browser globals or persistence. */
 export class MemoryViewHost extends StatefulViewHost {
   constructor({ store = new Map(), ...options }: MemoryViewHostOptions) {
+    // async 仅为满足 Promise 事务签名；临界区刻意保持同步（Map 读取无 await）。
+    // eslint-disable-next-line @typescript-eslint/require-await
     super(options, async (key, change, signal) => {
       signal?.throwIfAborted();
       let raw: string | null | undefined;

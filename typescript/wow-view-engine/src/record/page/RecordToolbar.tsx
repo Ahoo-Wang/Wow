@@ -23,7 +23,7 @@ import type {
   RecordSession,
   RecordViewDefinition,
 } from '../../contracts/viewModel.js';
-import type { ViewExtensions } from '../recordReactTypes.js';
+import type { RecordExtensions } from '../recordReactTypes.js';
 import { RecordActions } from './RecordActions.js';
 
 export function RecordToolbar({
@@ -39,7 +39,7 @@ export function RecordToolbar({
 }: {
   definition: RecordViewDefinition;
   session: RecordSession;
-  extensions?: ViewExtensions;
+  extensions?: RecordExtensions;
   selectable: boolean;
   refresh(): Promise<void>;
   onSelectionClear(): void;

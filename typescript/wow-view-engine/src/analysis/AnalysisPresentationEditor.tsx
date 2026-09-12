@@ -139,7 +139,7 @@ export function AnalysisPresentationEditor({
     if (!locked)
       onChange(
         chartOnly && value.layout === 'table'
-          ? initialDisplayMapping(value, plan!, layout, rows)
+          ? initialDisplayMapping(value, plan, layout, rows)
           : { ...retained, layout },
       );
   };
@@ -361,12 +361,12 @@ export function AnalysisPresentationEditor({
             const repaired = pruneAnalysisPresentation(
               value,
               dimensions,
-              plan!.schema.filter(column => column.role === 'metric'),
+              plan.schema.filter(column => column.role === 'metric'),
             );
             onChange(
               value.layout === 'table'
                 ? repaired
-                : initialDisplayMapping(repaired, plan!, value.layout, rows),
+                : initialDisplayMapping(repaired, plan, value.layout, rows),
             );
           }}
         >

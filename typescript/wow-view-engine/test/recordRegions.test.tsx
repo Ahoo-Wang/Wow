@@ -63,15 +63,17 @@ it('forwards record regions through ViewPage and composes each default region on
       scopeKey="regions"
       definitionId="orders"
       host={host}
-      renderToolbar={context => {
-        tableContexts.push(context);
-        return (
-          <div aria-label="自定义记录工具栏">{context.defaultContent}</div>
-        );
-      }}
-      renderPagination={context => {
-        paginationContexts.push(context);
-        return <StatefulRegion>{context.defaultContent}</StatefulRegion>;
+      record={{
+        renderToolbar: context => {
+          tableContexts.push(context);
+          return (
+            <div aria-label="自定义记录工具栏">{context.defaultContent}</div>
+          );
+        },
+        renderPagination: context => {
+          paginationContexts.push(context);
+          return <StatefulRegion>{context.defaultContent}</StatefulRegion>;
+        },
       }}
     />,
   );
@@ -92,12 +94,14 @@ it('forwards record regions through ViewPage and composes each default region on
       scopeKey="regions"
       definitionId="orders"
       host={{ ...host }}
-      renderToolbar={context => (
-        <div aria-label="自定义记录工具栏">{context.defaultContent}</div>
-      )}
-      renderPagination={context => (
-        <StatefulRegion>{context.defaultContent}</StatefulRegion>
-      )}
+      record={{
+        renderToolbar: context => (
+          <div aria-label="自定义记录工具栏">{context.defaultContent}</div>
+        ),
+        renderPagination: context => (
+          <StatefulRegion>{context.defaultContent}</StatefulRegion>
+        ),
+      }}
     />,
   );
   expect(screen.getByRole('button', { name: '区域状态 1' })).toBeTruthy();
@@ -123,14 +127,16 @@ it('binds ViewPageContent region operations to their rendered instance', async (
   render(
     <ViewPageContent
       engine={engine}
-      selectable
-      renderToolbar={context => {
-        if (context.session.instance.id === instance.id) table = context;
-        return context.defaultContent;
-      }}
-      renderPagination={context => {
-        if (context.session.instance.id === instance.id) pagination = context;
-        return context.defaultContent;
+      record={{
+        selectable: true,
+        renderToolbar: context => {
+          if (context.session.instance.id === instance.id) table = context;
+          return context.defaultContent;
+        },
+        renderPagination: context => {
+          if (context.session.instance.id === instance.id) pagination = context;
+          return context.defaultContent;
+        },
       }}
     />,
   );
@@ -362,7 +368,9 @@ it('places layout switching in the global toolbar and forwards custom cards from
       scopeKey="custom-card"
       definitionId="orders"
       host={host}
-      renderCard={({ record }) => <div>业务卡片 {String(record.amount)}</div>}
+      record={{
+        renderCard: ({ record }) => <div>业务卡片 {String(record.amount)}</div>,
+      }}
     />,
   );
   await screen.findByRole('cell', { name: '42' });

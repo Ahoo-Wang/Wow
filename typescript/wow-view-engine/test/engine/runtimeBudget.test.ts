@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { RuntimeDiagnostic } from '../../src/engine/runtimeLimits.js';
+import type { RuntimeDiagnostic } from '../../src/lib/runtimeLimits.js';
 import { afterEach, expect, it, vi } from 'vitest';
 import { deferred, instance, selected, setup } from './fixtures.js';
 afterEach(() => vi.useRealTimers());

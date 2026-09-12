@@ -12,7 +12,7 @@
  */
 
 import { ViewServiceError } from '@ahoo-wang/fetcher-view-engine';
-import { encodeViewResourceId as encodeId } from '../../src/record/viewServiceContract.js';
+import { encodeViewResourceId as encodeId } from '../../src/contracts/viewServiceContract.js';
 /** Experimental wire mapping; not part of the published ViewHost contract. */
 export const VIEW_SERVICE_STATUS = {
   INVALID_ARGUMENT: 400,

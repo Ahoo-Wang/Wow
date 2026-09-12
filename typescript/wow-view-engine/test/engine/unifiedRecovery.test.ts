@@ -18,7 +18,7 @@ import type {
   ViewEngineOptions,
   ViewInstance,
 } from '../../src/contracts/viewModel.js';
-import { ViewServiceError } from '../../src/record/viewServiceContract.js';
+import { ViewServiceError } from '../../src/contracts/viewServiceContract.js';
 import { deferred, definition, instance, selected, setup } from './fixtures.js';
 
 const engines: ViewEngine[] = [];

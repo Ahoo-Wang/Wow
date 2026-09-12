@@ -67,6 +67,7 @@ export type { ViewPageProps, ViewPageContentProps } from './view/ViewPage.js';
 export { RecordTable } from './record/RecordTable.js';
 export { RecordColumnSettings } from './record/RecordColumnSettings.js';
 export type * from './record/recordReactTypes.js';
+export type { ViewExtensions } from './view/viewReactTypes.js';
 export { Button } from './components/ui/button.js';
 
 export { FilterMultiSelect } from './filter/FilterMultiSelect.js';

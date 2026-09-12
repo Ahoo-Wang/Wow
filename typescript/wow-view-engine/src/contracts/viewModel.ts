@@ -34,10 +34,7 @@ import type {
   AnalysisRow,
 } from '../analysis/analysisModel.js';
 import type { FilterValidationError } from '../filter/filterModel.js';
-import type {
-  RuntimeLimits,
-  RuntimeDiagnostic,
-} from '../engine/runtimeLimits.js';
+import type { RuntimeLimits, RuntimeDiagnostic } from '../lib/runtimeLimits.js';
 import type { ViewHost } from './ViewHost.js';
 
 export type RecordData = Record<string, unknown>;

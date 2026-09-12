@@ -259,7 +259,7 @@ export function AnalysisChart({
                   )}{' '}
                   {series?.unit}
                   {presentation.layout === 'pie' &&
-                    ` · ${formatShare(item.payload.share, raw as number)}`}
+                    ` · ${formatShare(item.payload.share as number, raw as number)}`}
                 </span>
               </>
             );

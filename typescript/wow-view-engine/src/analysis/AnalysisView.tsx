@@ -11,9 +11,6 @@
  * limitations under the License.
  */
 import {
-  Component,
-  lazy,
-  Suspense,
   useMemo,
   useCallback,
   useContext,
@@ -35,7 +32,6 @@ import type { ViewEngine } from '../engine/ViewEngine.js';
 import type { FilterExtensions } from '../filter/filterReactTypes.js';
 import { describeConfiguredFilter } from '../filter/describeConfiguredFilter.js';
 import { Button } from '../components/ui/button.js';
-import { Badge } from '../components/ui/badge.js';
 
 import { ViewRefreshControls } from '../view/ViewRefreshControls.js';
 import {
@@ -49,37 +45,13 @@ import {
   analysisQueryPolicy,
   hasUnrunAnalysisQuery,
 } from './analysisQueryPolicy.js';
-import { AnalysisResultSummary } from './AnalysisResultSummary.js';
+import { AnalysisResult } from './AnalysisResultView.js';
 import { AnalysisQuerySheet } from './AnalysisQuerySheet.js';
-import { AnalysisTable } from './AnalysisTable.js';
-import { AnalysisResultTabs } from './AnalysisResultTabs.js';
 import { AnalysisPresentationEditor } from './AnalysisPresentationEditor.js';
-import { projectAnalysis } from './analysisProjection.js';
 import type { AnalysisCompileContext } from './analysisModel.js';
 import type { AnalysisPresentation } from './analysisPresentation.js';
 import type { AnalysisExtensions } from './analysisReactTypes.js';
 
-const Chart = lazy(() =>
-  import('./AnalysisChart.js').then(module => ({
-    default: module.AnalysisChart,
-  })),
-);
-class ChartBoundary extends Component<
-  { children: ReactNode },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    return this.state.failed ? (
-      <p role="alert">图表暂时无法显示，请切换到下方“数据表”查看结果。</p>
-    ) : (
-      this.props.children
-    );
-  }
-}
 const tablePresentation: AnalysisPresentation = {
   layout: 'table',
   columns: [],
@@ -227,14 +199,6 @@ function AnalysisInstanceView({
       : tablePresentation;
   const resultPresentation = presentation;
   const resultPlan = result?.plan;
-  const projectedResult = useMemo(
-    () =>
-      result && resultPlan
-        ? projectAnalysis(resultPlan, result.rows, resultPresentation)
-        : undefined,
-    [result, resultPlan, resultPresentation],
-  );
-  const tablePlan = projectedResult?.plan;
   if (!session || !commands || !context || !definition) return null;
   const { instance } = session;
   function run(action: () => void | Promise<void>) {
@@ -307,29 +271,6 @@ function AnalysisInstanceView({
   const setMode = (mode: 'analysis' | 'table') =>
     setResultMode({ id: instance.id, mode });
 
-  const error = [
-    ...new Set(
-      [
-        session.queryError,
-        session.writeError,
-        localError?.id === instance.id ? localError.message : null,
-      ].filter(Boolean),
-    ),
-  ].join('；');
-  const table =
-    result && tablePlan ? (
-      <AnalysisTable
-        key={instance.id}
-        plan={tablePlan}
-        rows={result.rows}
-        sort={instance.config.sort}
-        stale={stale}
-        querying={querying}
-        sortDisabled={!session.queryValid}
-        maxSort={definition.analysis?.limits?.maxSort}
-        onSortChange={sort => run(() => commands.setSort(sort))}
-      />
-    ) : null;
   const querySummary = [
     instance.config.scope
       ? (definition.analysis?.scopes?.find(
@@ -489,169 +430,39 @@ function AnalysisInstanceView({
             </p>
           )}
         </section>
-        <div
-          aria-label="分析结果区"
-          className="fve:flex fve:min-w-0 fve:flex-col fve:gap-4 fve:rounded-xl fve:border fve:bg-background fve:p-4"
-        >
-          <div className="fve:flex fve:flex-col fve:gap-3">
-            <div className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-2">
-              <h2 className="fve:font-semibold">分析结果</h2>
-              <div className="fve:flex fve:items-center fve:gap-2">
-                {querying && <Badge variant="secondary">正在查询</Badge>}
-                {stale && <Badge variant="outline">配置尚未运行</Badge>}
-                {!session.queryValid && (
-                  <Badge variant="outline">查询配置待修复</Badge>
-                )}
-              </div>
-            </div>
-            {result && (
-              <AnalysisResultSummary
-                result={result}
-                definition={definition}
-                compilers={engine.filterCompilers}
-              />
-            )}
-            {(stale || (session.queryError && result)) && (
-              <div className="fve:flex fve:flex-wrap fve:items-center fve:gap-2">
-                <p
-                  role="status"
-                  className="fve:text-sm fve:text-muted-foreground"
-                >
-                  以下仍为上次成功结果。
-                </p>
-                {!session.queryError && (
-                  <Button
-                    variant="outline"
-                    disabled={!canRun}
-                    onClick={() => run(() => commands.run())}
-                  >
-                    运行当前配置
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-          {error && (
-            <div
-              role="alert"
-              className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-2 fve:rounded-md fve:border fve:border-destructive/30 fve:p-3 fve:text-destructive"
-            >
-              <span>{error}</span>
-              {session.queryError && (
-                <Button
-                  variant="outline"
-                  disabled={!canRun}
-                  onClick={() => run(() => commands.run())}
-                >
-                  {session.queryAttempt &&
-                  compiled?.plan &&
-                  sameJsonState(session.queryAttempt.query, compiled.plan.query)
-                    ? '重试本次查询'
-                    : '运行当前配置'}
-                </Button>
-              )}
-            </div>
-          )}
-          {resultPresentation.layout === 'table' &&
-            !!projectedResult?.issues.length && (
-              <p role="status">
-                {projectedResult.issues.join('；')}
-                。请选择展示方式或修复展示配置。
-              </p>
-            )}
-          <AnalysisResultTabs
-            key={instance.id}
-            value={mode}
-            onValueChange={setMode}
-            onConfigure={() => {
-              flushSync(() => setVisualPanel({ id: instance.id, open: true }));
-              const panel = containerRef.current?.querySelector(
-                '[aria-label="可视化配置区"]',
+        <AnalysisResult
+          active={active}
+          session={session}
+          definition={definition}
+          compilers={engine.filterCompilers}
+          mode={mode}
+          canRun={canRun}
+          localError={
+            localError?.id === instance.id ? localError.message : undefined
+          }
+          onRun={() => run(() => commands.run())}
+          onSortChange={sort => run(() => commands.setSort(sort))}
+          onModeChange={setMode}
+          onConfigure={() => {
+            flushSync(() => setVisualPanel({ id: instance.id, open: true }));
+            const panel = containerRef.current?.querySelector(
+              '[aria-label="可视化配置区"]',
+            );
+            const target =
+              panel?.querySelector<HTMLElement>(
+                '[aria-invalid="true"]:not([aria-disabled="true"]):not(:disabled)',
+              ) ??
+              panel?.querySelector<HTMLElement>(
+                '[data-slot="analysis-mapping-heading"]',
               );
-              const target =
-                panel?.querySelector<HTMLElement>(
-                  '[aria-invalid="true"]:not([aria-disabled="true"]):not(:disabled)',
-                ) ??
-                panel?.querySelector<HTMLElement>(
-                  '[data-slot="analysis-mapping-heading"]',
-                );
-              target?.focus();
-              target?.scrollIntoView?.({ block: 'nearest' });
-            }}
-            table={
-              table ?? (
-                <p
-                  role="status"
-                  className="fve:min-h-64 fve:p-8 fve:text-center"
-                >
-                  {querying
-                    ? '正在获取分析结果…'
-                    : session.queryStatus === 'success'
-                      ? '分析结果缓存已释放'
-                      : '配置查询并运行后，在此查看聚合数据。'}
-                </p>
-              )
-            }
-            issues={
-              resultPresentation.layout === 'table'
-                ? []
-                : projectedResult?.issues
-            }
-          >
-            {result && resultPlan && resultPresentation.layout !== 'table' ? (
-              active && (
-                <ChartBoundary
-                  key={`${instance.id}:${result.receivedAt}:${JSON.stringify(resultPresentation)}`}
-                >
-                  <Suspense
-                    fallback={
-                      <p role="status" className="fve:p-8 fve:text-center">
-                        正在加载图表…
-                      </p>
-                    }
-                  >
-                    <Chart
-                      plan={resultPlan}
-                      rows={result.rows}
-                      presentation={resultPresentation}
-                    />
-                  </Suspense>
-                </ChartBoundary>
-              )
-            ) : (
-              <div
-                role="status"
-                className="fve:flex fve:min-h-64 fve:flex-col fve:items-center fve:justify-center fve:gap-3 fve:text-center"
-              >
-                <p>
-                  {!result
-                    ? querying
-                      ? '正在获取分析结果…'
-                      : session.queryStatus === 'success'
-                        ? '分析结果缓存已释放'
-                        : '先配置查询并运行'
-                    : '先选择报表展示方式'}
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    result
-                      ? setVisualPanel({ id: instance.id, open: true })
-                      : session.queryStatus === 'success' && canRun
-                        ? run(() => commands.run())
-                        : toggleConfiguration(true)
-                  }
-                >
-                  {result
-                    ? '选择展示方式'
-                    : session.queryStatus === 'success' && canRun
-                      ? '重新运行查询'
-                      : '配置查询'}
-                </Button>
-              </div>
-            )}
-          </AnalysisResultTabs>
-        </div>
+            target?.focus();
+            target?.scrollIntoView?.({ block: 'nearest' });
+          }}
+          onChoosePresentation={() =>
+            setVisualPanel({ id: instance.id, open: true })
+          }
+          onOpenQuery={() => toggleConfiguration(true)}
+        />
       </div>
       <AnalysisQuerySheet
         engine={engine}

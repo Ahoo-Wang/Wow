@@ -19,7 +19,6 @@ import type {
   RecordPresentationDefaults,
   RecordSummaryFunction,
   ViewDefinition,
-  ViewFieldDefinition,
 } from '../../contracts/viewModel.js';
 import {
   RECORD_COLUMN_MAX_WIDTH,
@@ -33,7 +32,7 @@ import {
   assertObject,
   assertText,
   validateReference,
-} from './validationPrimitives.js';
+} from '../../contracts/validation/validationPrimitives.js';
 
 export function validateRecordTableConfig(
   value: unknown,
@@ -91,9 +90,9 @@ export function validateRecordTableConfig(
             ) ||
             (semantic &&
               (!field ||
-                !getRecordSummaryFunctions(
-                  field as ViewFieldDefinition,
-                ).includes(summary as RecordSummaryFunction))),
+                !getRecordSummaryFunctions(field).includes(
+                  summary as RecordSummaryFunction,
+                ))),
         )
       )
         throw new Error('列汇总函数无效或字段不支持');
@@ -140,7 +139,8 @@ export function validateRecordCardConfig(
   field(value.title, true);
   if (!Array.isArray(value.fields)) throw new Error('卡片摘要字段必须为数组');
   const ids = new Set<string>();
-  for (const item of value.fields) {
+  // field() 已在访问前校验 id 为字符串，这里收窄仅为类型表达。
+  for (const item of value.fields as readonly { id: string }[]) {
     field(item);
     if (ids.has(item.id)) throw new Error(`卡片字段 ID 重复：${item.id}`);
     ids.add(item.id);

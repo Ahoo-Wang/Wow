@@ -24,7 +24,7 @@ import type {
   FilterComponentConfig,
   FilterConfiguration,
 } from '../src/filter/filterModel.js';
-import { validateViewInstance } from '../src/record/recordValidation.js';
+import { validateViewInstance } from '../src/contracts/validation/instanceValidation.js';
 import type { ViewDefinition } from '../src/contracts/viewModel.js';
 import { definition, instance, setup } from './engine/fixtures.js';
 

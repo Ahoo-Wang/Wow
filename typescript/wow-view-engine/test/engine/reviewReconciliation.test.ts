@@ -19,7 +19,7 @@ import {
 import { afterEach, expect, it, vi } from 'vitest';
 import {} from '@ahoo-wang/fetcher-wow';
 
-import { ViewServiceError } from '../../src/record/viewServiceContract.js';
+import { ViewServiceError } from '../../src/contracts/viewServiceContract.js';
 import { deferred, instance, selected, setup } from './fixtures.js';
 import type { ViewEngine } from '../../src/engine/ViewEngine.js';
 import type { ViewInstance } from '../../src/contracts/viewModel.js';

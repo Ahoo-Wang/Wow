@@ -20,7 +20,7 @@ import {
   validateRuntimeLimits,
   QueryBudget,
   type RuntimeLimits,
-} from '../../engine/runtimeLimits.js';
+} from '../../lib/runtimeLimits.js';
 import type { RecordQuerySource } from '../../contracts/viewModel.js';
 import type { ViewHost } from '../../contracts/ViewHost.js';
 import { validateRecordRows } from '../recordValidation.js';

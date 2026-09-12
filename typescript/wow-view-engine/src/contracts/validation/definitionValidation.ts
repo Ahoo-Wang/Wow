@@ -14,7 +14,7 @@
 import { ANALYSIS_LIMITS } from '../../analysis/analysisCapabilities.js';
 import { MAX_ANALYSIS_ELEMENTS } from '../../analysis/analysisModel.js';
 import { validateFilterJson } from '../../filter/filterConfigurationValidation.js';
-import { validateRecordPresentationDefaults } from './presentationValidation.js';
+import { validateRecordPresentationDefaults } from '../../record/validation/presentationValidation.js';
 import { encodeViewResourceId } from '../viewServiceContract.js';
 import { validateTimeZone } from '../../lib/timeZone.js';
 import {
@@ -23,12 +23,9 @@ import {
   AggregationFunction,
   AggregationDateUnit,
 } from '@ahoo-wang/fetcher-wow';
-import {
-  type ViewDefinition,
-  type ViewFieldDefinition,
-} from '../../contracts/viewModel.js';
-import { RECORD_SUMMARY_LABELS } from '../recordPresentation.js';
-import { formatRecordNumber } from '../recordValueFormat.js';
+import { type ViewDefinition } from '../viewModel.js';
+import { RECORD_SUMMARY_LABELS } from '../../record/recordPresentation.js';
+import { formatRecordNumber } from '../../record/recordValueFormat.js';
 import {
   assertObject,
   assertText,
@@ -50,6 +47,8 @@ function validateFields(value: unknown) {
     if (
       field.type !== undefined &&
       !['string', 'number', 'boolean', 'date', 'datetime', 'array'].includes(
+        // 校验器故意对未知类型值做 ToString 以校验其字符串形态。
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         String(field.type),
       )
     )
@@ -59,7 +58,10 @@ function validateFields(value: unknown) {
     if (
       field.operators !== undefined &&
       (!Array.isArray(field.operators) ||
-        field.operators.some(op => !Object.values(FilterOperator).includes(op)))
+        field.operators.some(
+          // 校验器故意逐个检查原始值是否为合法操作符，断言仅为类型表达。
+          op => !Object.values(FilterOperator).includes(op as FilterOperator),
+        ))
     )
       throw new Error('字段操作符不支持');
     if (field.options !== undefined) {
@@ -90,7 +92,7 @@ function validateFields(value: unknown) {
       if (field.type !== 'number') throw new Error('只有数值字段支持数值格式');
       if (field.numberFormat.locale !== undefined)
         assertText(field.numberFormat.locale, '数值区域设置');
-      formatRecordNumber(0, field as unknown as ViewFieldDefinition);
+      formatRecordNumber(0, field);
     }
     if (field.summaryFunctions !== undefined) {
       if (
@@ -229,7 +231,8 @@ export function validateViewDefinition(
     value.allowedOperators !== undefined &&
     (!Array.isArray(value.allowedOperators) ||
       value.allowedOperators.some(
-        op => !Object.values(FilterOperator).includes(op),
+        // 校验器故意逐个检查原始值是否为合法操作符，断言仅为类型表达。
+        op => !Object.values(FilterOperator).includes(op as FilterOperator),
       ))
   )
     throw new Error('定义操作符不支持');

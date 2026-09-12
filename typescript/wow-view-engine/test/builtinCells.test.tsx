@@ -27,7 +27,7 @@ import type {
   RendererReference,
   ViewFieldDefinition,
 } from '../src/contracts/viewModel.js';
-import type { ViewExtensions } from '../src/record/recordReactTypes.js';
+import type { RecordExtensions } from '../src/record/recordReactTypes.js';
 import { definition, instance } from './fixtures/recordTable.js';
 
 afterEach(() => {
@@ -39,7 +39,7 @@ function cell(
   value: unknown,
   renderer: RendererReference,
   field: Partial<ViewFieldDefinition> = {},
-  extensions?: ViewExtensions,
+  extensions?: RecordExtensions,
   timeZone?: string,
 ) {
   return (

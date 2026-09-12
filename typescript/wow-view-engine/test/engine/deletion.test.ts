@@ -14,7 +14,7 @@
 import { expect, it, vi } from 'vitest';
 import type { ViewInstance } from '../../src/contracts/viewModel.js';
 import type { ViewHost } from '../../src/contracts/ViewHost.js';
-import { ViewServiceError } from '../../src/record/viewServiceContract.js';
+import { ViewServiceError } from '../../src/contracts/viewServiceContract.js';
 import {
   deferred,
   instance,
@@ -248,3 +248,45 @@ it.each(['load', 'dispose'] as const)(
     engine.dispose();
   },
 );
+
+it('retains delete retry when a superseded reload settles before its replacement fails', async () => {
+  const first = deferred<ViewInstance>();
+  const second = deferred<ViewInstance>();
+  const load = vi
+    .fn()
+    .mockReturnValueOnce(first.promise)
+    .mockReturnValueOnce(second.promise);
+  const { engine } = setup({
+    host: {
+      instance: {
+        load,
+        delete: vi.fn().mockRejectedValue(new Error('network failure')),
+      },
+      permission: { getInstance: permissions },
+    } as unknown as ViewHost,
+  });
+  await engine.load();
+  try {
+    await expect(engine.deleteInstance()).rejects.toThrow('network failure');
+    expect(engine.getCapabilitiesSnapshot().instances.mine.retryDelete).toBe(
+      true,
+    );
+    const obsolete = engine.reloadInstance();
+    let replacement!: Promise<void>;
+    const replaced = first.promise.then(() => {
+      replacement = engine.reloadInstance();
+    });
+    first.resolve(instance());
+    await replaced;
+    await obsolete;
+    const failed = expect(replacement).rejects.toThrow('reload failure');
+    second.reject(new Error('reload failure'));
+    await failed;
+    expect(selected(engine).requiresReload).toBe(true);
+    expect(engine.getCapabilitiesSnapshot().instances.mine.retryDelete).toBe(
+      true,
+    );
+  } finally {
+    engine.dispose();
+  }
+});

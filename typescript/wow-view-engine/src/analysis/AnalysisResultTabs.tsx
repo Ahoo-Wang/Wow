@@ -39,7 +39,9 @@ export function AnalysisResultTabs({
     <Tabs.Root
       value={value}
       onValueChange={value => {
-        if (value === 'analysis' || value === 'table') onValueChange(value);
+        // 上方字面量比较已过滤出合法值；包装组件回调参数为 any，收窄仅为类型表达。
+        if (value === 'analysis' || value === 'table')
+          onValueChange(value as 'analysis' | 'table');
         if (value === 'table') setTableVisited(true);
       }}
       className="fve-root fve:flex fve:min-w-0 fve:flex-col fve:gap-3"

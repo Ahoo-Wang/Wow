@@ -146,7 +146,7 @@ it('recovers batch actions on selection changes without retrying on unrelated dr
   render(
     <ViewPageContent
       engine={engine}
-      selectable
+      record={{ selectable: true }}
       extensions={{ toolbarActions: { batch: Batch } }}
     />,
   );
@@ -235,7 +235,7 @@ it('separates global and table actions while sharing the applied query context',
   render(
     <ViewPageContent
       engine={engine}
-      selectable
+      record={{ selectable: true }}
       extensions={{
         globalActions: { create: () => <button>新建记录</button> },
         toolbarActions: {

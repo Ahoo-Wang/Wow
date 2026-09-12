@@ -38,7 +38,7 @@ import {
   QueryBudget,
   beginDiagnostic,
   RuntimeLimitError,
-} from './runtimeLimits.js';
+} from '../lib/runtimeLimits.js';
 import { AnalysisCommands } from '../analysis/AnalysisCommands.js';
 import type { RecordViewConfig } from '../contracts/viewModel.js';
 import { validateFilterJson } from '../filter/filterConfigurationValidation.js';
@@ -55,7 +55,7 @@ import { RecordEdits } from '../record/engine/RecordEdits.js';
 import { ViewLoader } from './ViewLoader.js';
 import { ViewReload } from './ViewReload.js';
 import { ViewPersistence } from './ViewPersistence.js';
-import { ViewServiceError } from '../record/viewServiceContract.js';
+import { ViewServiceError } from '../contracts/viewServiceContract.js';
 import { isSystemSession } from './sessionState.js';
 import { ViewManagement } from './ViewManagement.js';
 
@@ -91,8 +91,11 @@ export class ViewEngine {
     const host = new Proxy({} as ViewHost, {
       get: (_target, property) => {
         const current = this.host;
-        const value = Reflect.get(current, property, current);
-        return typeof value === 'function' ? value.bind(current) : value;
+        // Reflect.get 返回 any；收窄为 unknown 后按运行时形态分别处理，消除不安全调用。
+        const value = Reflect.get(current, property, current) as unknown;
+        return typeof value === 'function'
+          ? (value as (...args: unknown[]) => unknown).bind(current)
+          : value;
       },
     });
     this.filterCompilers = Object.freeze(

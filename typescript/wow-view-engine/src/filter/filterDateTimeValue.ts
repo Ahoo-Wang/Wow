@@ -57,8 +57,7 @@ export function dateTimeValue(
   timeZone?: string,
 ): FilterDateTimeValue {
   if (value === undefined || value === null) return {};
-  if (typeof value === 'object' && !Array.isArray(value))
-    return value as FilterDateTimeValue;
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
   if (typeof value === 'number' && Number.isFinite(value)) {
     try {
       const offset = fixedTimeZoneOffset(timeZone);
@@ -87,5 +86,7 @@ export function dateTimeValue(
       /* The compiler reports invalid field timezone metadata. */
     }
   }
+  // 宽松兜底：对未识别的遗留值（含数组等）故意 ToString，保持既有运行时输出不变。
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string
   return { date: String(value) };
 }

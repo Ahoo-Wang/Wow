@@ -23,7 +23,7 @@ import type {
   ViewCreateContext,
   ViewDeleteResult,
   ViewPermissionSnapshot,
-} from '../record/viewServiceContract.js';
+} from './viewServiceContract.js';
 /** Definition metadata, independent of instance persistence and runtime sources. */
 export interface ViewDefinitionService {
   load?(definitionId: string, signal?: AbortSignal): Promise<ViewDefinition>;

@@ -19,7 +19,7 @@ import {
   assertObject,
   assertText,
   assertPath,
-} from '../validation/validationPrimitives.js';
+} from '../../contracts/validation/validationPrimitives.js';
 import { TextCell } from './TextCell.js';
 import { TagsCell } from './TagsCell.js';
 import { isCellValue } from './cellValue.js';
@@ -81,7 +81,7 @@ function TagsRenderer(props: CellRendererProps) {
     <TagsCell
       value={value}
       options={props.field.options}
-      maxVisible={config.maxVisible as number | undefined}
+      maxVisible={config.maxVisible}
     />
   );
 }
@@ -157,7 +157,7 @@ function DateTimeRenderer(props: CellRendererProps) {
       value={value}
       type={props.field.type === 'date' ? 'date' : 'datetime'}
       timeZone={props.definition.timeZone}
-      locale={config.locale as string | undefined}
+      locale={config.locale}
       dateStyle={config.dateStyle as Intl.DateTimeFormatOptions['dateStyle']}
       timeStyle={config.timeStyle as Intl.DateTimeFormatOptions['timeStyle']}
     />

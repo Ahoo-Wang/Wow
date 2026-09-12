@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-import { expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ViewInstance } from '../../src/contracts/viewModel.js';
 import type { ViewHost } from '../../src/contracts/ViewHost.js';
-import { ViewServiceError } from '../../src/record/viewServiceContract.js';
+import { ViewServiceError } from '../../src/contracts/viewServiceContract.js';
+import { reconcileWriteFailure } from '../../src/engine/writeRecovery.js';
 import {
   deferred,
   instance,
@@ -249,3 +250,32 @@ it.each(['save', 'rename', 'delete'] as const)(
     }
   },
 );
+
+describe('reconcileWriteFailure', () => {
+  it('runs beforePatch, then patch inside finish, then rethrows the original error', () => {
+    const order: string[] = [];
+    const error = new Error('写入失败');
+    expect(() =>
+      reconcileWriteFailure(error, {
+        finish: onSettled => {
+          order.push('finish');
+          onSettled();
+        },
+        patch: () => order.push('patch'),
+        beforePatch: () => order.push('beforePatch'),
+      }),
+    ).toThrow(error);
+    expect(order).toEqual(['beforePatch', 'finish', 'patch']);
+  });
+
+  it('works without beforePatch and always rethrows', () => {
+    const finish = vi.fn(onSettled => onSettled());
+    expect(() =>
+      reconcileWriteFailure('boom', {
+        finish,
+        patch: () => {},
+      }),
+    ).toThrow('boom');
+    expect(finish).toHaveBeenCalledOnce();
+  });
+});

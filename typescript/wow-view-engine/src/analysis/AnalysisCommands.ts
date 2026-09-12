@@ -38,7 +38,7 @@ import {
   reportDiagnostic,
   type RuntimeLimits,
   type RuntimeDiagnostic,
-} from '../engine/runtimeLimits.js';
+} from '../lib/runtimeLimits.js';
 
 /** Analysis owns plans and results; the shared engine owns all document writes. */
 export class AnalysisCommands {

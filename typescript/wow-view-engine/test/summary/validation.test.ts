@@ -16,10 +16,8 @@ import { expect, it } from 'vitest';
 import type { RecordColumn } from '../../src/contracts/viewModel.js';
 import { getRecordSummaryFunctions } from '../../src/record/recordPresentation.js';
 import { createRecordSummaryQuery } from '../../src/record/recordSummary.js';
-import {
-  validateViewDefinition,
-  validateViewInstance,
-} from '../../src/record/recordValidation.js';
+import { validateViewDefinition } from '../../src/contracts/validation/definitionValidation.js';
+import { validateViewInstance } from '../../src/contracts/validation/instanceValidation.js';
 import { definition, metricsFor, setup } from './fixtures.js';
 
 it('rejects duplicate or unsupported selections and counts the total number of metrics', () => {

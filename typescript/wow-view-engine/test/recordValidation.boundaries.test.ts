@@ -13,10 +13,8 @@
 
 import { FilterOperator, SortDirection } from '@ahoo-wang/fetcher-wow';
 import { expect, it, vi } from 'vitest';
-import {
-  validateViewDefinition,
-  validateViewInstance,
-} from '../src/record/recordValidation.js';
+import { validateViewDefinition } from '../src/contracts/validation/definitionValidation.js';
+import { validateViewInstance } from '../src/contracts/validation/instanceValidation.js';
 import type { ViewHost } from '../src/contracts/ViewHost.js';
 import { definition, instance, setup } from './engine/fixtures.js';
 

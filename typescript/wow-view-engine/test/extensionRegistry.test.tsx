@@ -22,9 +22,9 @@ import { RecordActions } from '../src/record/page/RecordActions.js';
 import { RecordCell } from '../src/record/table/RecordCell.js';
 import { createSession } from '../src/engine/sessionState.js';
 import { definition, instance } from './engine/fixtures.js';
-import type { ViewExtensions } from '../src/record/recordReactTypes.js';
+import type { RecordExtensions } from '../src/record/recordReactTypes.js';
 afterEach(cleanup);
-function sample(extensions: ViewExtensions) {
+function sample(extensions: RecordExtensions) {
   const reference = { name: 'toString' };
   const model = {
     ...definition,

@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { AggregationFunction } from '@ahoo-wang/fetcher-wow';
 import { getAnalysisVisualization } from './analysisVisualizations.js';
 import type { DeepReadonly } from '../lib/types.js';
 import type {
@@ -82,12 +83,12 @@ export function validateAnalysisPresentation(
       p.x !== undefined &&
       !schema.some(s => s.alias === p.x && s.role === 'dimension')
     )
-      issues.push(`横轴维度已失效，请重新选择（${p.x}）`);
+      issues.push(`横轴维度已失效，请重新选择（${p.x as string}）`);
     if (
       p.series !== undefined &&
       !schema.some(s => s.alias === p.series && s.role === 'dimension')
     )
-      issues.push(`系列维度已失效，请重新选择（${p.series}）`);
+      issues.push(`系列维度已失效，请重新选择（${p.series as string}）`);
     for (const m of metrics ?? [])
       if (!schema.some(s => s.alias === m && s.role === 'metric'))
         issues.push(`指标 ${m} 已失效，请重新选择`);
@@ -173,7 +174,7 @@ export function projectAnalysis(
     visualization.stacked &&
     metrics.some(
       c =>
-        c.aggregation !== 'SUM' &&
+        c.aggregation !== AggregationFunction.SUM &&
         c.aggregation !== 'COUNT' &&
         c.format !== 'count',
     )
@@ -275,7 +276,7 @@ export function projectAnalysis(
     presentation.layout === 'pie' &&
     metrics.some(
       c =>
-        c.aggregation !== 'SUM' &&
+        c.aggregation !== AggregationFunction.SUM &&
         c.aggregation !== 'COUNT' &&
         c.format !== 'count',
     )
@@ -389,7 +390,7 @@ export function projectAnalysis(
       ? splitValues.findIndex(([id]) => id === analysisRowKey(row, [split]))
       : 0;
     metrics.forEach((m, i) => {
-      point![`s${splitIndex * metrics.length + i}`] = row[m.alias] as
+      point[`s${splitIndex * metrics.length + i}`] = row[m.alias] as
         number | null;
     });
   }

@@ -21,18 +21,16 @@ import {
 } from './localViewState.js';
 import { copy, message, sameJsonState } from '../lib/snapshot.js';
 
-import {
-  validateViewDefinition,
-  validateViewInstance,
-} from './recordValidation.js';
-import { readInstanceList } from './validation/instanceValidation.js';
+import { validateViewDefinition } from '../contracts/validation/definitionValidation.js';
+import { validateViewInstance } from '../contracts/validation/instanceValidation.js';
+import { readInstanceList } from '../contracts/validation/instanceValidation.js';
 import {
   ViewServiceError,
   type ViewDeleteResult,
   encodeViewResourceId,
   type ViewCreateContext,
   type ViewPermissionSnapshot,
-} from './viewServiceContract.js';
+} from '../contracts/viewServiceContract.js';
 import type {
   ViewDefinition,
   ViewInstance,
@@ -65,6 +63,8 @@ export type ViewStateTransaction = <T>(
 /** Shared view-domain behavior for the actual memory and IndexedDB stores. Not a public storage adapter. */
 export abstract class StatefulViewHost implements ViewHost {
   readonly definition = {
+    // async 仅为满足 Promise 契约；本地定义读取无异步步骤。
+    // eslint-disable-next-line @typescript-eslint/require-await
     load: async (id: string, signal?: AbortSignal): Promise<ViewDefinition> => {
       signal?.throwIfAborted();
       this.assertDefinition(id);
@@ -158,7 +158,7 @@ export abstract class StatefulViewHost implements ViewHost {
               'FORBIDDEN',
               '系统视图只能通过初始配置提供',
             );
-          const allowed = this.permission!.getInstance(candidate);
+          const allowed = this.permission.getInstance(candidate);
           if (
             !(candidate.scope.type === 'personal'
               ? allowed.saveAsPersonal
@@ -284,17 +284,17 @@ export abstract class StatefulViewHost implements ViewHost {
           instances: Object.fromEntries(
             this.visible(state).map(item => [
               item.id,
-              this.permission!.getInstance(this.dto(item)),
+              this.permission.getInstance(this.dto(item)),
             ]),
           ),
-          reorder: this.permission!.getDefinition().reorder,
+          reorder: this.permission.getDefinition().reorder,
         }),
         false,
         signal,
       );
     },
     refresh: async (): Promise<void> => {
-      await this.permission!.load(this.storedDefinition.id);
+      await this.permission.load(this.storedDefinition.id);
       this.permissionListeners.forEach(listener => listener());
     },
   };
@@ -312,7 +312,7 @@ export abstract class StatefulViewHost implements ViewHost {
     saveOrder: async (id: string, instanceIds: string[]): Promise<void> => {
       this.assertDefinition(id);
       await this.transaction(state => {
-        if (!this.permission!.getDefinition().reorder)
+        if (!this.permission.getDefinition().reorder)
           throw new ViewServiceError('FORBIDDEN', '没有视图排序权限');
         const visible = this.visible(state);
         if (
@@ -437,7 +437,7 @@ export abstract class StatefulViewHost implements ViewHost {
     action: 'save' | 'rename' | 'delete',
   ): StoredInstance {
     const instance = this.find(state, id);
-    if (!this.permission!.getInstance(this.dto(instance))[action])
+    if (!this.permission.getInstance(this.dto(instance))[action])
       throw new ViewServiceError(
         'FORBIDDEN',
         '系统视图或未授权视图不能修改或删除',

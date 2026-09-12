@@ -17,7 +17,7 @@ import type {
   ViewInstance,
   ViewCreateInput,
 } from '../contracts/viewModel.js';
-import { validateViewInstance } from './recordValidation.js';
+import { validateViewInstance } from '../contracts/validation/instanceValidation.js';
 
 export type StoredInstance = ViewInstance & { ownerKey: string | null };
 export interface ServiceState {

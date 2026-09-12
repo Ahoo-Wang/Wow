@@ -17,7 +17,7 @@ import { MemoryViewHost } from '../../src/record/MemoryViewHost.js';
 import {
   ViewServiceError,
   type ViewCreateContext,
-} from '../../src/record/viewServiceContract.js';
+} from '../../src/contracts/viewServiceContract.js';
 import type { ViewInstance } from '../../src/contracts/viewModel.js';
 import type { ViewHost } from '../../src/contracts/ViewHost.js';
 import { definition, instance, deferred } from './fixtures.js';

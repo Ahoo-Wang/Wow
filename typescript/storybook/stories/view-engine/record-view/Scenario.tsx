@@ -214,7 +214,7 @@ export function Scenario({
         instances={options.local ? runtime.initialInstances : undefined}
         extensions={extensions}
         initialSidebarCollapsed={options.sidebarCollapsed}
-        selectable
+        record={{ selectable: true }}
       />
       <div
         role="status"

@@ -55,7 +55,7 @@ export function validateFilterJson(
         !('value' in Object.getOwnPropertyDescriptor(value, key)!)
       )
         throw new TypeError('筛选属性必须是普通 JSON 对象');
-      validateFilterJson((value as Record<string, unknown>)[key], ancestors);
+      validateFilterJson(value[key], ancestors);
     }
   }
   ancestors.delete(value);
@@ -65,7 +65,9 @@ function object(value: unknown): asserts value is Record<string, unknown> {
     !value ||
     typeof value !== 'object' ||
     Array.isArray(value) ||
-    ![Object.prototype, null].includes(Object.getPrototypeOf(value))
+    ![Object.prototype, null].includes(
+      Object.getPrototypeOf(value) as object | null,
+    )
   )
     throw new TypeError('筛选配置必须是普通对象');
 }

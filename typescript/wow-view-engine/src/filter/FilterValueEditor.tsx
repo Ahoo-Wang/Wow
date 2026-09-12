@@ -23,10 +23,7 @@ import type {
 } from './filterModel.js';
 import { FILTER_OPERATORS, stringOperators } from './filterOperators.js';
 import { ScalarEditor } from './FilterScalarEditor.js';
-import {
-  FilterDateTimeRange,
-  type FilterDateTimeRangeProps,
-} from './FilterDateTimeRange.js';
+import { FilterDateTimeRange } from './FilterDateTimeRange.js';
 import { FilterSearchEditor } from './FilterSearchEditor.js';
 import { FilterValueParameters } from './FilterValueParameters.js';
 import { FilterSelect } from './FilterSelect.js';
@@ -171,12 +168,10 @@ export function FilterValueEditor({
             invalid={invalid}
             errorId={errorId}
             field={field}
-            value={
-              {
-                lowerBound: properties.lowerBound,
-                upperBound: properties.upperBound,
-              } as FilterDateTimeRangeProps['value']
-            }
+            value={{
+              lowerBound: properties.lowerBound,
+              upperBound: properties.upperBound,
+            }}
             disabled={disabled}
             onValueChange={update}
           />

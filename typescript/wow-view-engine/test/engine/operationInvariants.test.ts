@@ -13,7 +13,7 @@
 
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ViewEngine } from '../../src/engine/ViewEngine.js';
-import { ViewServiceError } from '../../src/record/viewServiceContract.js';
+import { ViewServiceError } from '../../src/contracts/viewServiceContract.js';
 import {
   deferred,
   instance,

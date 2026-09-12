@@ -171,9 +171,10 @@ export function ThemesExample() {
           instances={orderViews}
           host={host}
           extensions={orderExtensions}
-          renderToolbar={context => <ToolbarNote {...context} />}
-          selectable
-
+          record={{
+            renderToolbar: context => <ToolbarNote {...context} />,
+            selectable: true,
+          }}
           initialSidebarCollapsed
         />
       </ViewTheme>

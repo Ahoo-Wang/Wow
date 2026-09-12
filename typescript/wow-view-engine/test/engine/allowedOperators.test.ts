@@ -18,7 +18,7 @@ import {
   createFilterConfiguration,
   validateFilterConfiguration,
 } from '../../src/filter/filterCore.js';
-import { validateViewInstance } from '../../src/record/recordValidation.js';
+import { validateViewInstance } from '../../src/contracts/validation/instanceValidation.js';
 import type { ViewDefinition } from '../../src/contracts/viewModel.js';
 import type { ViewEngine } from '../../src/engine/ViewEngine.js';
 import { definition, instance, setup } from './fixtures.js';

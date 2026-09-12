@@ -21,7 +21,7 @@ const file = fileURLToPath(
   new URL('../src/__extension_contract__.ts', import.meta.url),
 );
 const source = `
-  import type { RecordCardRenderContext, CellRendererProps } from './record/recordReactTypes.js';
+  import type { RecordCardRenderContext, CellRendererProps, RecordExtensions } from './record/recordReactTypes.js';
   import type { FilterEditorProps } from './filter/filterReactTypes.js';
   import type { DeepReadonly } from './lib/types.js';
   import type { ViewEngine } from './engine/ViewEngine.js';
@@ -44,7 +44,17 @@ const source = `
   customAnalysis.roles.push('metric');
   // @ts-expect-error the actual component role cannot be changed
   componentContext.role = 'dimension';
+  declare const recordExtensions: RecordExtensions;
+  // @ts-expect-error record consumers must not depend on analysis registrations
+  recordExtensions.analysis;
   declare const page: ViewPageProps;
+  const recordOptions: NonNullable<ViewPageProps['record']> = { selectable: true, autoRefreshPaused: true, renderToolbar: context => context.defaultContent };
+  // @ts-expect-error record options are scoped, not global page policy
+  page.autoRefreshPaused;
+  // @ts-expect-error selection applies only to record views
+  page.selectable;
+  // @ts-expect-error page shell owns configuration panel coordination
+  page.record!.configurationOpen;
   declare const registration: FilterRegistration;
   const extensions: ViewPageProps['extensions'] = { filters: { custom: registration } };
   const headless: ViewEngineOptions['filterCompilers'] = { custom: { compile: registration.compile } };

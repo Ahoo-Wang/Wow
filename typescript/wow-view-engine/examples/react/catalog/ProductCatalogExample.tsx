@@ -129,10 +129,12 @@ function CatalogWorkspace({
           {...(!persistViews && { definition, instances: views })}
           host={host}
           extensions={productExtensions}
-          renderCard={custom ? renderProductCard : undefined}
-          selectable
+          record={{
+            renderCard: custom ? renderProductCard : undefined,
+            selectable: true,
+            autoRefreshPaused: busy,
+          }}
           initialSidebarCollapsed
-          autoRefreshPaused={busy}
         />
       </div>
     </ProductOperationsContext.Provider>

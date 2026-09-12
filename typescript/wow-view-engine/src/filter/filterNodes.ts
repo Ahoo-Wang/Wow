@@ -18,6 +18,11 @@ import type {
 } from './filterModel.js';
 import { definition, FILTER_OPERATORS } from './filterOperators.js';
 
+/** 类型保持的数组守卫：Array.isArray 的 any[] 谓词会把 readonly 数组退化为 any[]。 */
+function isReadonlyArray(value: unknown): value is readonly unknown[] {
+  return Array.isArray(value);
+}
+
 export function newFilterNode(
   op: Op,
   field?: string,
@@ -59,7 +64,7 @@ export function isSimpleFilter(
     return (
       bound(node) ||
       (node.operator === Op.AND &&
-        Array.isArray(node.operands) &&
+        isReadonlyArray(node.operands) &&
         (allowEmpty || node.operands.length > 0) &&
         node.operands.every(bound) &&
         new Set(node.operands.map(child => child.field)).size ===
