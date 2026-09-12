@@ -21,7 +21,9 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -173,6 +175,23 @@ class ElasticsearchAggregationCompilerTest {
         assertThrows<QuerySchemaValidationException> {
             compiler.compile(aggregation { any("name.keyword", "sample") }, schema)
         }
+    }
+
+    @Test
+    fun `plan should carry the having expression`() {
+        val plan = compiler.compile(
+            aggregation {
+                terms("name", "name")
+                count("c")
+                having { "c" gte 2.0 }
+            },
+            schema,
+        )
+        val having = plan.having as HavingExpression.Condition
+        having.metric.assert().isEqualTo("c")
+        having.operator.assert().isEqualTo(ComparisonOperator.GTE)
+        having.value.assert().isEqualTo(2.0)
+        compiler.compile(aggregation { count("c") }, schema).having.assert().isNull()
     }
 
     @Test

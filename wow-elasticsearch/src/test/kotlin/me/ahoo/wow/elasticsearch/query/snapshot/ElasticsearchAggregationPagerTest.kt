@@ -603,6 +603,93 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
+    fun `group sort with having should keep paging past fully filtered pages`() {
+        val requests = mutableListOf<SearchRequest>()
+        stubPointInTime()
+        // first page: two buckets fully filtered by having; second page: one surviving bucket
+        every { client.search(capture(requests), Map::class.java) } returnsMany listOf(
+            Mono.just(groupResponse("pit-2", listOf(metricBucket("a", 1.0), metricBucket("b", 1.0)), "b")),
+            Mono.just(groupResponse("pit-3", listOf(metricBucket("c", 9.0)))),
+        )
+        val plan = compileAggregation(
+            aggregation {
+                terms("state.product", "product")
+                sum("state.total", "total")
+                having { "total" gte 5.0 }
+                sort { "product".asc() } // group sort path (not metric sort)
+                limit(1)
+            },
+        )
+
+        pager(batchSize = 2).execute(plan)
+            .map { it.path("product").asString() }
+            .test()
+            .assertNext { it.assert().isEqualTo("c") }
+            .verifyComplete()
+
+        // a fully-filtered first page is not bucket exhaustion; only an empty after key stops paging
+        requests.assert().hasSize(2)
+    }
+
+    @Test
+    fun `group sort with having should request uncapped page sizes`() {
+        val requests = mutableListOf<SearchRequest>()
+        stubPointInTime()
+        every { client.search(capture(requests), Map::class.java) } returnsMany listOf(
+            Mono.just(groupResponse("pit-2", listOf(metricBucket("a", 9.0)), "a")),
+            Mono.just(groupResponse("pit-3", emptyList())),
+        )
+        val plan = compileAggregation(
+            aggregation {
+                terms("state.product", "product")
+                sum("state.total", "total")
+                having { "total" gte 5.0 }
+                sort { "product".asc() }
+                limit(1)
+            },
+        )
+
+        pager(batchSize = 10).execute(plan)
+            .map { it.path("product").asString() }
+            .test()
+            .expectNext("a")
+            .verifyComplete()
+
+        // having filters client-side, so over-fetching is allowed: composite size stays at page capacity
+        // (10 / bucketWidth 1) instead of being capped to limit - fetched (1 - 0)
+        requests.single().aggregations().values.single().composite().size().assert().isEqualTo(10)
+    }
+
+    @Test
+    fun `metric sort with having should filter rows before top N`() {
+        val requests = mutableListOf<SearchRequest>()
+        stubPointInTime()
+        every { client.search(capture(requests), Map::class.java) } returnsMany listOf(
+            Mono.just(groupResponse("pit-2", listOf(metricBucket("a", 4.0), metricBucket("b", 6.0), metricBucket("c", 5.0)), "c")),
+            Mono.just(groupResponse("pit-3", emptyList())),
+        )
+        val plan = compileAggregation(
+            aggregation {
+                terms("state.product", "product")
+                sum("state.total", "total")
+                having { "total" gte 5.0 }
+                sort { "total".desc() } // metric sort path
+                limit(2)
+            },
+        )
+
+        pager(batchSize = 3).execute(plan)
+            .map { it.path("product").asString() }
+            .test()
+            // a (4.0) fails having and never enters the bounded top N; without filtering the
+            // top-2 would be [b, a] — only survivors [b (6.0), c (5.0)] compete
+            .expectNext("b", "c")
+            .verifyComplete()
+
+        requests.assert().hasSize(2)
+    }
+
+    @Test
     fun `non finite metric should fail the aggregation`() {
         stubPointInTime()
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
