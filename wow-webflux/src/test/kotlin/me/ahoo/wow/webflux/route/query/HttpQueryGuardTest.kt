@@ -45,6 +45,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.serialization.MessageRecords
@@ -214,6 +215,17 @@ class HttpQueryGuardTest {
             QueryType.AGGREGATION,
             valueHeavy,
             guard(maxFilterValues = 1, allowExpensiveOperators = true),
+        )
+    }
+
+    @Test
+    fun `aggregation metric filters count toward filter value limits`() {
+        expectRejected(
+            QueryType.AGGREGATION,
+            aggregation {
+                count("statuses") { "status" isIn listOf("PAID", "SHIPPED", "CANCELLED") }
+            },
+            guard(maxFilterValues = 2),
         )
     }
 
