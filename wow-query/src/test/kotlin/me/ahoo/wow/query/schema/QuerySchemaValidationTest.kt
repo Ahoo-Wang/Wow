@@ -424,6 +424,14 @@ class QuerySchemaValidationTest {
         val schema = boundSchemaFixture(
             objectFixture(
                 "name" to scalarFixture(QueryValueType.STRING),
+                "nickname" to QueryValueSchema(
+                    QueryValueKind.UNION,
+                    alternatives = listOf(scalarFixture(QueryValueType.STRING), QueryValueSchema(QueryValueKind.NULL))
+                ),
+                "label" to QueryValueSchema(
+                    QueryValueKind.UNION,
+                    alternatives = listOf(scalarFixture(QueryValueType.STRING), scalarFixture(QueryValueType.INTEGER))
+                ),
                 "amount" to scalarFixture(QueryValueType.DECIMAL),
                 "names" to arrayFixture(scalarFixture(QueryValueType.STRING)),
             )
@@ -433,11 +441,15 @@ class QuerySchemaValidationTest {
             metrics = listOf(AggregationMetric.Count("count")),
         )
         validateQuery(termsWithMissingKey("name"), schema).assert().isNotNull()
+        validateQuery(termsWithMissingKey("nickname"), schema).assert().isNotNull()
         assertThrows<QuerySchemaValidationException> {
             validateQuery(termsWithMissingKey("amount"), schema)
         }.message.assert().isEqualTo("Field [amount] must be a single-valued string field to declare missingKey.")
         assertThrows<QuerySchemaValidationException> {
             validateQuery(termsWithMissingKey("names"), schema)
+        }
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(termsWithMissingKey("label"), schema)
         }
     }
 

@@ -347,10 +347,12 @@ private class QueryValidator(private val schema: QueryModelSchema) {
 
     private fun requireTermsMissingKeySupport(group: AggregationGroup, field: QueryFieldSchema) {
         if (group is AggregationGroup.Terms && group.missingKey != null) {
+            val value = field.value
             requireSchema(
-                field.value.kind == QueryValueKind.SCALAR &&
-                    QueryValueType.STRING in field.value.valueTypes &&
-                    field.value.cardinality == QueryCardinality.SINGLE,
+                value.cardinality == QueryCardinality.SINGLE &&
+                    value.operationValues().all {
+                        it.kind == QueryValueKind.NULL || it.valueTypes == setOf(QueryValueType.STRING)
+                    },
             ) { "Field [${field.logicalField}] must be a single-valued string field to declare missingKey." }
         }
     }
