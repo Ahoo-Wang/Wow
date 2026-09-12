@@ -37,6 +37,8 @@ data class AggregationQuery(
     override val sort: List<Sort> = emptyList(),
     @get:Schema(defaultValue = DEFAULT_LIMIT_TEXT, minimum = "1", maximum = MAX_LIMIT_TEXT)
     val limit: Int = DEFAULT_LIMIT,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val having: HavingExpression? = null,
 ) : FilterCapable<AggregationQuery>, SortCapable {
     init {
         require(elements.size <= MAX_ELEMENTS) { "elements must contain at most $MAX_ELEMENTS paths." }
@@ -48,6 +50,7 @@ data class AggregationQuery(
         require(groupBy.isNotEmpty() || sort.isEmpty()) { "sort requires at least one groupBy." }
         metrics.requireValidExpressions()
         metrics.requireValidDerivedMetrics()
+        requireValidHaving(having, groupBy, metrics)
 
         val aliases = groupBy.map(AggregationGroup::alias) + metrics.map(AggregationMetric::alias)
         require(aliases.distinct().size == aliases.size) { "aggregation aliases must be unique." }
@@ -326,6 +329,59 @@ sealed interface DerivedExpression {
     ) : DerivedExpression
 }
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = QueryProtocol.Polymorphic.TYPE)
+@JsonSubTypes(
+    JsonSubTypes.Type(HavingExpression.Condition::class, name = "CONDITION"),
+    JsonSubTypes.Type(HavingExpression.Between::class, name = "BETWEEN"),
+    JsonSubTypes.Type(HavingExpression.In::class, name = "IN"),
+    JsonSubTypes.Type(HavingExpression.IsNull::class, name = "IS_NULL"),
+    JsonSubTypes.Type(HavingExpression.And::class, name = "AND"),
+    JsonSubTypes.Type(HavingExpression.Or::class, name = "OR"),
+)
+@Schema(
+    oneOf = [
+        HavingExpression.Condition::class,
+        HavingExpression.Between::class,
+        HavingExpression.In::class,
+        HavingExpression.IsNull::class,
+        HavingExpression.And::class,
+        HavingExpression.Or::class,
+    ],
+    discriminatorProperty = QueryProtocol.Polymorphic.TYPE,
+)
+sealed interface HavingExpression {
+    data class Condition(val metric: String, val operator: ComparisonOperator, val value: Double) : HavingExpression
+
+    data class Between(val metric: String, val lower: Double, val upper: Double) : HavingExpression
+
+    data class In(
+        val metric: String,
+        @get:ArraySchema(minItems = 1)
+        val values: List<Double>,
+    ) : HavingExpression
+
+    data class IsNull(val metric: String, val negated: Boolean = false) : HavingExpression
+
+    data class And(
+        @get:ArraySchema(minItems = 1)
+        val operands: List<HavingExpression>,
+    ) : HavingExpression
+
+    data class Or(
+        @get:ArraySchema(minItems = 1)
+        val operands: List<HavingExpression>,
+    ) : HavingExpression
+}
+
+enum class ComparisonOperator {
+    EQ,
+    NE,
+    GT,
+    GTE,
+    LT,
+    LTE,
+}
+
 enum class AggregationFunction {
     SUM,
     AVG,
@@ -448,4 +504,71 @@ private fun AggregationMetric.Derived.requireValidDerivedExpression(declared: Ma
         }
     }
     return nodes
+}
+
+private data class PendingHavingExpression(
+    val expression: HavingExpression,
+    val depth: Int,
+)
+
+private fun requireValidHaving(having: HavingExpression?, groupBy: List<AggregationGroup>, metrics: List<AggregationMetric>) {
+    if (having == null) {
+        return
+    }
+    require(groupBy.isNotEmpty()) { "having requires at least one groupBy." }
+    val metricAliases = metrics.mapTo(hashSetOf(), AggregationMetric::alias)
+    val anyAliases = metrics.filterIsInstance<AggregationMetric.Any>().mapTo(hashSetOf(), AggregationMetric::alias)
+    val pending = ArrayDeque<PendingHavingExpression>()
+    pending.addLast(PendingHavingExpression(having, 1))
+    while (pending.isNotEmpty()) {
+        val (current, depth) = pending.removeLast()
+        require(depth <= AggregationQuery.MAX_EXPRESSION_DEPTH) {
+            "having expression depth must be at most ${AggregationQuery.MAX_EXPRESSION_DEPTH}."
+        }
+        when (current) {
+            is HavingExpression.Condition -> {
+                requireValidHavingMetric(current.metric, metricAliases, anyAliases)
+                require(current.value.isFinite()) { "having condition [${current.metric}] value must be finite." }
+            }
+
+            is HavingExpression.Between -> {
+                requireValidHavingMetric(current.metric, metricAliases, anyAliases)
+                require(current.lower.isFinite() && current.upper.isFinite()) {
+                    "having between [${current.metric}] bounds must be finite."
+                }
+                require(current.lower <= current.upper) {
+                    "having between [${current.metric}] lower bound must not exceed upper bound."
+                }
+            }
+
+            is HavingExpression.In -> {
+                requireValidHavingMetric(current.metric, metricAliases, anyAliases)
+                require(current.values.isNotEmpty()) { "having in [${current.metric}] values must not be empty." }
+                require(current.values.all(Double::isFinite)) {
+                    "having in [${current.metric}] values must be finite."
+                }
+            }
+
+            is HavingExpression.IsNull -> requireValidHavingMetric(current.metric, metricAliases, anyAliases)
+
+            is HavingExpression.And -> {
+                require(current.operands.isNotEmpty()) { "having AND operands must not be empty." }
+                current.operands.forEach {
+                    pending.addLast(PendingHavingExpression(it, depth + 1))
+                }
+            }
+
+            is HavingExpression.Or -> {
+                require(current.operands.isNotEmpty()) { "having OR operands must not be empty." }
+                current.operands.forEach {
+                    pending.addLast(PendingHavingExpression(it, depth + 1))
+                }
+            }
+        }
+    }
+}
+
+private fun requireValidHavingMetric(metric: String, metricAliases: Set<String>, anyAliases: Set<String>) {
+    require(metric in metricAliases) { "having condition [$metric] must reference a declared metric alias." }
+    require(metric !in anyAliases) { "having condition [$metric] cannot reference ANY metric." }
 }

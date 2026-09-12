@@ -21,6 +21,8 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.search.ResponseBody
 import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.ComparisonOperator
+import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
@@ -87,7 +89,11 @@ internal class ElasticsearchAggregationPager(
                 }
             }
         val rows = pages.concatMapIterable({ it.rows }, 1)
-        if (!plan.metricSorted) return rows
+        if (!plan.metricSorted) {
+            // having filters client-side, so a page can yield more survivors than the remaining
+            // limit; the no-having path stays capped by the composite page size and needs no truncation
+            return if (plan.having != null) rows.take(plan.limit.toLong()) else rows
+        }
 
         return rows.collect(
             { BoundedTopRows(plan.effectiveSort, plan.limit, plan.groupSources.map { it.name() }) },
@@ -104,7 +110,11 @@ internal class ElasticsearchAggregationPager(
     ): Mono<AggregationPage> {
         return search(plan, pit, aggregation).map { response ->
             val composite = response.innermost(plan).getValue(GROUP_AGGREGATION).composite()
-            val rows = composite.buckets().array().map { it.toRow(plan) }
+            val rows = composite.buckets().array()
+                .asSequence()
+                .map { it.toRow(plan) }
+                .filter { row -> plan.having == null || row.matchesHaving(plan.having) }
+                .toList()
             AggregationPage(rows, composite.afterKey(), fetched + rows.size)
         }
     }
@@ -113,7 +123,7 @@ internal class ElasticsearchAggregationPager(
         val bucketWidth = 1 + metrics.count { it is ElasticsearchAggregationMetric.Any } +
             metrics.count { it.filter != null }
         val pageCapacity = (batchSize / bucketWidth).coerceAtLeast(1)
-        return if (metricSorted) pageCapacity else min(pageCapacity, limit - fetched)
+        return if (metricSorted || having != null) pageCapacity else min(pageCapacity, limit - fetched)
     }
 
     private fun search(
@@ -404,10 +414,51 @@ internal class ElasticsearchAggregationPager(
         val fetched: Int,
     ) {
         fun shouldStop(plan: ElasticsearchAggregationPlan): Boolean {
-            if (afterKey.isEmpty() || rows.isEmpty()) return true
+            if (afterKey.isEmpty()) return true
+            // a fully-filtered page is not bucket exhaustion; only an empty after key stops paging
+            if (plan.having == null && rows.isEmpty()) return true
             return !plan.metricSorted && fetched >= plan.limit
         }
     }
+}
+
+/**
+ * Evaluates a HAVING expression client-side against a produced aggregation row (Elasticsearch has
+ * no bucket_selector under composite aggregations). Null-fails semantics: a missing or JSON-null
+ * metric alias makes every comparison false; [HavingExpression.IsNull] captures exactly those rows.
+ */
+private fun ObjectNode.matchesHaving(having: HavingExpression): Boolean = when (having) {
+    is HavingExpression.And -> having.operands.all { matchesHaving(it) }
+    is HavingExpression.Or -> having.operands.any { matchesHaving(it) }
+    is HavingExpression.IsNull -> isNullMetric(having.metric) != having.negated
+    is HavingExpression.Condition -> metricDouble(having.metric)
+        ?.let { compare(it, having.operator, having.value) } == true
+
+    is HavingExpression.Between -> metricDouble(having.metric)
+        ?.let { it >= having.lower && it <= having.upper } == true
+
+    is HavingExpression.In -> metricDouble(having.metric)
+        ?.let { value -> having.values.any { it == value } } == true
+}
+
+private fun ObjectNode.isNullMetric(metric: String): Boolean {
+    val value = get(metric)
+    return value == null || value.isNull
+}
+
+private fun ObjectNode.metricDouble(metric: String): Double? {
+    val value = get(metric) ?: return null
+    if (value.isNull) return null
+    return value.asDouble()
+}
+
+private fun compare(left: Double, operator: ComparisonOperator, right: Double): Boolean = when (operator) {
+    ComparisonOperator.EQ -> left == right
+    ComparisonOperator.NE -> left != right
+    ComparisonOperator.GT -> left > right
+    ComparisonOperator.GTE -> left >= right
+    ComparisonOperator.LT -> left < right
+    ComparisonOperator.LTE -> left <= right
 }
 
 internal fun selectTopRows(

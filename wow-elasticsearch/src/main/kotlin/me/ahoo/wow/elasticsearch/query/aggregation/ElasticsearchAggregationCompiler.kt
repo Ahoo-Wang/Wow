@@ -29,6 +29,7 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DerivedExpression
+import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
@@ -56,6 +57,7 @@ internal data class ElasticsearchAggregationPlan(
     val effectiveSort: List<Sort>,
     val limit: Int,
     val metricSorted: Boolean,
+    val having: HavingExpression? = null,
 )
 
 internal data class ElasticsearchAggregationElement(
@@ -165,6 +167,7 @@ internal class ElasticsearchAggregationCompiler(
             effectiveSort = effectiveSort,
             limit = query.limit,
             metricSorted = effectiveSort.any { it.field.path in metricAliases },
+            having = query.having,
         )
     }
 

@@ -230,6 +230,81 @@ class HttpQueryGuardTest {
     }
 
     @Test
+    fun `having values count toward filter value limits`() {
+        expectAllowed(
+            QueryType.AGGREGATION,
+            aggregation {
+                terms("state.status", "status")
+                count("c")
+                having { "c".isIn(listOf(1.0, 2.0)) }
+            },
+            guard(maxFilterValues = 2),
+        )
+        expectRejected(
+            QueryType.AGGREGATION,
+            aggregation {
+                terms("state.status", "status")
+                count("c")
+                having { "c".isIn(listOf(1.0, 2.0, 3.0)) }
+            },
+            guard(maxFilterValues = 2),
+        )
+    }
+
+    @Test
+    fun `having nodes count toward filter node limits`() {
+        expectAllowed(
+            QueryType.AGGREGATION,
+            aggregation {
+                terms("state.status", "status")
+                count("c")
+                having { ("c" gt 1.0) and ("c" lt 2.0) }
+            },
+            // 共享预算含根过滤器节点（默认 MatchAll 计 1）：1 + having 3 = 4
+            guard(maxFilterNodes = 4),
+        )
+        expectRejected(
+            QueryType.AGGREGATION,
+            aggregation {
+                terms("state.status", "status")
+                count("c")
+                having { ("c" gt 1.0) and (("c" lt 2.0) and ("c" ne 3.0)) }
+            },
+            guard(maxFilterNodes = 2),
+        )
+    }
+
+    @Test
+    fun `having shares the node budget with filters`() {
+        val guard = guard(maxFilterNodes = 5)
+        // metric filter And(2 leaves) = 3 nodes, having And(2 conditions) = 3 nodes:
+        // each part fits the cap, the combined request (6) must not
+        expectRejected(
+            QueryType.AGGREGATION,
+            aggregation {
+                terms("state.status", "status")
+                count("paid") {
+                    and {
+                        "state.status" eq "PAID"
+                        "state.status" eq "SHIPPED"
+                    }
+                }
+                having { ("paid" gt 1.0) and ("paid" lt 5.0) }
+            },
+            guard,
+        )
+        expectAllowed(
+            QueryType.AGGREGATION,
+            aggregation {
+                terms("state.status", "status")
+                count("paid")
+                having { ("paid" gt 1.0) and ("paid" lt 5.0) }
+            },
+            guard,
+        )
+    }
+
+    @Test
     fun rejectsArithmeticExpressionsOnAllExpressionBearingMetrics() {
         val distinctCountArithmetic = AggregationQuery(
             metrics = listOf(

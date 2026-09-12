@@ -593,4 +593,98 @@ class AggregationQueryTest {
             DerivedExpression.Constant(Double.POSITIVE_INFINITY)
         }
     }
+
+    @Test
+    fun `having should round trip and omit when absent`() {
+        val json = """
+            {
+              "groupBy": [{"type": "TERMS", "field": "status", "alias": "status"}],
+              "metrics": [{"type": "COUNT", "alias": "paid"}],
+              "having": {"type": "AND", "operands": [
+                {"type": "CONDITION", "metric": "paid", "operator": "GT", "value": 10.0},
+                {"type": "IS_NULL", "metric": "paid", "negated": true}
+              ]}
+            }
+        """.trimIndent()
+
+        val query = configuredMapper.readValue(json, AggregationQuery::class.java)
+        val having = requireNotNull(query.having) as HavingExpression.And
+
+        (having.operands.single { it is HavingExpression.Condition } as HavingExpression.Condition).let {
+            it.metric.assert().isEqualTo("paid")
+            it.operator.assert().isEqualTo(ComparisonOperator.GT)
+            it.value.assert().isEqualTo(10.0)
+        }
+        (having.operands.single { it is HavingExpression.IsNull } as HavingExpression.IsNull)
+            .negated.assert().isTrue()
+        val wire = configuredMapper.writeValueAsString(query)
+        wire.assert().contains("\"type\":\"AND\"").contains("\"operator\":\"GT\"")
+
+        val plain = configuredMapper.writeValueAsString(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(QueryField("status"), "status")),
+                metrics = listOf(AggregationMetric.Count("paid")),
+            ),
+        )
+        plain.assert().doesNotContain("\"having\"")
+    }
+
+    @Test
+    fun `having references and bounds are validated at construction`() {
+        fun query(
+            having: HavingExpression?,
+            groupBy: List<AggregationGroup> = listOf(AggregationGroup.Terms(QueryField("status"), "status")),
+        ) = AggregationQuery(
+            groupBy = groupBy,
+            metrics = listOf(AggregationMetric.Count("paid")),
+            having = having,
+        )
+        val gt = HavingExpression.Condition("paid", ComparisonOperator.GT, 1.0)
+
+        query(HavingExpression.And(listOf(gt, HavingExpression.IsNull("paid"))))
+        query(HavingExpression.Condition("paid", ComparisonOperator.GTE, 0.0))
+
+        assertThrows<IllegalArgumentException> { query(gt, groupBy = emptyList()) }
+            .message.assert().contains("groupBy")
+        assertThrows<IllegalArgumentException> {
+            query(HavingExpression.Condition("unknown", ComparisonOperator.GT, 1.0))
+        }.message.assert().contains("declared metric alias")
+        assertThrows<IllegalArgumentException> {
+            query(HavingExpression.Condition("status", ComparisonOperator.GT, 1.0))
+        }.message.assert().contains("declared metric alias")
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(QueryField("status"), "status")),
+                metrics = listOf(AggregationMetric.Any(QueryField("state"), "sample"), AggregationMetric.Count("paid")),
+                having = HavingExpression.Condition("sample", ComparisonOperator.GT, 1.0),
+            )
+        }.message.assert().contains("ANY")
+        assertThrows<IllegalArgumentException> {
+            query(HavingExpression.Condition("paid", ComparisonOperator.GT, Double.POSITIVE_INFINITY))
+        }
+        assertThrows<IllegalArgumentException> { query(HavingExpression.Between("paid", 5.0, 1.0)) }
+        assertThrows<IllegalArgumentException> { query(HavingExpression.In("paid", emptyList())) }
+        assertThrows<IllegalArgumentException> { query(HavingExpression.And(emptyList())) }
+    }
+
+    @Test
+    fun `having may reference derived metrics regardless of declaration order`() {
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(QueryField("status"), "status")),
+            metrics = listOf(
+                AggregationMetric.Count("total"),
+                AggregationMetric.Derived(
+                    "half",
+                    DerivedExpression.Binary(
+                        AggregationExpressionOperator.DIVIDE,
+                        DerivedExpression.MetricRef("total"),
+                        DerivedExpression.Constant(2.0),
+                    ),
+                ),
+            ),
+            having = HavingExpression.Condition("half", ComparisonOperator.GTE, 0.5),
+        )
+
+        (query.having as HavingExpression.Condition).metric.assert().isEqualTo("half")
+    }
 }

@@ -104,7 +104,7 @@ class HttpQueryGuard(
         when (query) {
             is AggregationQuery -> {
                 validateResultSize(query.limit, "aggregation")
-                validateFilters(
+                val filterNodes = validateFilters(
                     listOf(query.filter) +
                         query.elements.map(AggregationElement::filter) +
                         query.metrics.map(AggregationMetric::filter).filter { it !== MatchAllFilter } +
@@ -125,6 +125,7 @@ class HttpQueryGuard(
                 ) {
                     "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed."
                 }
+                query.having?.let { validateHaving(it, filterNodes) }
                 return
             }
             is IListQuery -> validateList(query)
@@ -175,7 +176,7 @@ class HttpQueryGuard(
         }
     }
 
-    private fun validateFilters(filters: List<FilterExpression>, rejectMatchAll: Boolean) {
+    private fun validateFilters(filters: List<FilterExpression>, rejectMatchAll: Boolean): Int {
         val pending = ArrayDeque<FilterExpression>()
         pending.addAll(filters)
         var nodes = 0
@@ -197,6 +198,7 @@ class HttpQueryGuard(
         require(!rejectMatchAll || !filters.all { it.isMatchAll() }) {
             "HTTP counting query must not match all documents."
         }
+        return nodes
     }
 
     private fun validateFilterNode(filter: FilterExpression) {
@@ -207,6 +209,39 @@ class HttpQueryGuard(
         if (valueCount != null) {
             require(maxFilterValues == 0 || valueCount <= maxFilterValues) {
                 "HTTP query filter values[$valueCount] must not exceed $maxFilterValues."
+            }
+        }
+    }
+
+    private fun validateHaving(having: HavingExpression, sharedNodes: Int) {
+        val pending = ArrayDeque<HavingExpression>()
+        pending.add(having)
+        var nodes = sharedNodes
+        while (pending.isNotEmpty()) {
+            val current = pending.removeLast()
+            nodes++
+            require(maxFilterNodes == 0 || nodes <= maxFilterNodes) {
+                "HTTP filter and having nodes[$nodes] must not exceed $maxFilterNodes."
+            }
+            val valueCount = when (current) {
+                is HavingExpression.Condition -> 1
+                is HavingExpression.Between -> 2
+                is HavingExpression.In -> current.values.size
+                is HavingExpression.IsNull -> 0
+                is HavingExpression.And -> {
+                    pending.addAll(current.operands)
+                    0
+                }
+
+                is HavingExpression.Or -> {
+                    pending.addAll(current.operands)
+                    0
+                }
+            }
+            if (valueCount > 0) {
+                require(maxFilterValues == 0 || valueCount <= maxFilterValues) {
+                    "HTTP having values[$valueCount] must not exceed $maxFilterValues."
+                }
             }
         }
     }

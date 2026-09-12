@@ -26,7 +26,9 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DerivedExpression
+import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
@@ -101,6 +103,7 @@ internal class MongoAggregationCompiler(
                 add(derivedProject(query, metric))
             }
         }
+        query.having?.let { add(Aggregates.match(it.toHavingDocument())) }
         query.effectiveSort().takeIf { it.isNotEmpty() }?.let { add(Aggregates.sort(it.toBson())) }
         add(Aggregates.limit(query.limit))
     }
@@ -425,6 +428,59 @@ internal class MongoAggregationCompiler(
             )
         }
     }
+
+    /**
+     * Compiles [HavingExpression] into the post-derivation `$match` filter over projected metric
+     * aliases. Snapshot floats are stored as Decimal128 (the writer maps JSON floats to
+     * BigDecimal), and MongoDB compares a Decimal128 metric against the BSON-double condition
+     * value in decimal space — `Decimal128(0.8) $gte 0.8` is false although both round-trip as
+     * the same wire double. Every numeric condition therefore wraps the metric in `$toDouble`
+     * under `$expr`, so comparisons follow the IEEE-double semantics of the surfaced metric value
+     * and the Elasticsearch evaluator. The BSON comparison total order still ranks `null` below
+     * every number — a bare `$lt`/`$lte`/`$ne` would match it — so every numeric form conjoins a
+     * `$ne: null` guard. [HavingExpression.IsNull] is the only unguarded form: the first
+     * `$project` and every derived stage carry ALL metric aliases forward, so the alias always
+     * exists and `Document(metric, null)` is IS NULL while `Filters.ne(metric, null)` is NOT NULL.
+     */
+    private fun HavingExpression.toHavingDocument(): Bson = when (this) {
+        is HavingExpression.And -> Filters.and(operands.map { it.toHavingDocument() })
+        is HavingExpression.Or -> Filters.or(operands.map { it.toHavingDocument() })
+        is HavingExpression.IsNull -> if (negated) {
+            Filters.ne(metric, null)
+        } else {
+            Document(metric, null)
+        }
+        is HavingExpression.Condition -> numericHavingMatch(metric) {
+            Document(operator.matchOperator, listOf(it, value))
+        }
+        is HavingExpression.Between -> numericHavingMatch(metric) {
+            Filters.and(
+                Document("\$gte", listOf(it, lower)),
+                Document("\$lte", listOf(it, upper)),
+            )
+        }
+        is HavingExpression.In -> numericHavingMatch(metric) {
+            Document("\$in", listOf(it, values))
+        }
+    }
+
+    private fun numericHavingMatch(metric: String, condition: (toDouble: Document) -> Bson): Bson = Document(
+        "\$expr",
+        Filters.and(
+            Document("\$ne", listOf("\$$metric", null)),
+            condition(Document("\$toDouble", "\$$metric")),
+        ),
+    )
+
+    private val ComparisonOperator.matchOperator: String
+        get() = when (this) {
+            ComparisonOperator.EQ -> "\$eq"
+            ComparisonOperator.NE -> "\$ne"
+            ComparisonOperator.GT -> "\$gt"
+            ComparisonOperator.GTE -> "\$gte"
+            ComparisonOperator.LT -> "\$lt"
+            ComparisonOperator.LTE -> "\$lte"
+        }
 
     private fun AggregationGroup.compile(
         parent: QueryField?,

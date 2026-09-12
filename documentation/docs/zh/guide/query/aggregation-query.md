@@ -143,6 +143,70 @@ aggregation {
 - MongoDB 在聚合投影之后追加额外的 `$project` 阶段计算派生值，每个派生指标一个阶段，按声明顺序执行；Elasticsearch 在桶内使用 `bucket_script` 管道聚合。两者均无新增存储版本要求（`$project` 与 `bucket_script` 都早于受支持的 MongoDB 7.0 / Elasticsearch 9.x 基线）；
 - HTTP 查询保护把派生指标视为算术表达式：`wow.webflux.query.allow-expensive-operators=false` 时会被拒绝，与既有 metric 算术表达式门槛一致。
 
+### HAVING（按聚合值筛选分组） {#having}
+
+`having` 在聚合完成后按每行的 metric 结果筛选分组行，对应 SQL 的 `HAVING`：根 `filter` 与 metric filter 作用于记录，having 作用于聚合值。省略 having 时不筛选。它的 AST 是递归多态的 `HavingExpression`：
+
+| 类型 | 形状 |
+| --- | --- |
+| `CONDITION` | `metric` + `EQ`/`NE`/`GT`/`GTE`/`LT`/`LTE` + 有限 `value` |
+| `BETWEEN` | 闭区间 `lower ≤ upper` |
+| `IN` | 非空取值集合 |
+| `IS_NULL` | 捕获 metric 值为 `null` 的行；`negated` 反转为 `isNotNull()` |
+| `AND` / `OR` | 非空 operands，递归嵌套 |
+
+DSL 在 `having { }` 中以 metric alias 直接书写比较，用中缀 `and`/`or` 组合：
+
+```kotlin
+aggregation {
+    terms("state.status", "status")
+    count("paid") { "status" eq "PAID" }
+    sum("amount", "paidAmount") { "status" eq "PAID" }
+    derived("attainment") { ref("paidAmount") / constant(6000.0) }
+    having {
+        ("attainment" gte 0.8) and ("paid" gt 10.0)
+    }
+    sort { "attainment".desc() }
+    limit(20)
+}
+```
+
+上例只保留“达成率不低于 0.8 且已支付订单数大于 10”的状态；`sort` 与 `limit` 都作用于筛选后的行。除六个比较外，DSL 还提供 `between(lower, upper)`、`isIn(values)`、`isNull()` 与 `isNotNull()`。`having` 可选且省略时不出现在 JSON 中，既有查询 JSON 形状不变：
+
+```json
+"having": {"type": "AND", "operands": [
+  {"type": "CONDITION", "metric": "attainment", "operator": "GTE", "value": 0.8},
+  {"type": "CONDITION", "metric": "paid", "operator": "GT", "value": 10}
+]}
+```
+
+语义采用 SQL HAVING 口径：
+
+- null 判假：metric 值为 `null` 的行（空集语义的 `NUMERIC`/`PERCENTILE`，以及 null 传播的派生指标）在任何比较、`BETWEEN` 与 `IN` 下都不成立；`isNull()` 恰好捕获这些行，`isNotNull()` 将其排除；
+- 数值比较统一在 IEEE double 空间进行；
+- `limit` 是筛选后的结果行数上限，`sort` 作用于筛选后的行。
+
+引用与取值规则在构造 `AggregationQuery` 时校验，违反即抛 `IllegalArgumentException`：
+
+- having 需要至少一个 `groupBy`；
+- 引用的 alias 必须是已声明的 metric alias：未知名字与 group alias 一律拒绝；
+- 不能引用 `ANY` metric：其值跨执行与后端不稳定；
+- 与 `METRIC_REF` 不同，having 引用派生指标没有声明顺序限制，列表中任意位置的派生指标都可被引用；
+- 比较值必须有限；`BETWEEN` 要求 `lower ≤ upper`；`IN` 取值不可为空；`AND`/`OR` 的 operands 不可为空；
+- having 表达式深度与派生表达式一样受 `depth ≤ 8` 限制。
+
+实现与后端口径：
+
+- MongoDB 在聚合投影链之后把 having 编译为一个追加的 `$match` 阶段：比较在投影后的 metric 值上进行，数值统一转换到 IEEE double 空间（Decimal128 存储值安全转换）；
+- Elasticsearch 的 composite 聚合下没有 `bucket_selector`，having 在客户端求值：metric 排序查询在 top-N 截断前先过滤行；group 排序查询按页超取，直到集满 `limit` 个存活行或桶耗尽；
+- 性能建议：聚合值不携带索引选择性，having 无法像根 filter 那样下推到索引；成本取决于所需排序语义——metric 值 Top-N 为保证全局正确性必然扫描全部 composite 桶（having 不增加额外扫描），group 排序 + 高选择性 having 收满 `limit` 个存活行即提前终止，仅当存活行稀疏时才退化为全桶扫描；
+- 两个后端均无新增存储版本要求。
+
+HTTP 查询护栏：
+
+- filter 与 having 节点数共享每请求同一份 `wow.webflux.query.max-filter-nodes` 预算；比较取值计入 `wow.webflux.query.max-filter-values`——`CONDITION` 计 1 个、`BETWEEN` 计 2 个、`IN` 计其取值数；
+- having 的比较不视为高成本算子，不受 `wow.webflux.query.allow-expensive-operators` 约束；但它引用的算术/派生 metric 仍按各自规则受该开关约束。
+
 ### 数值参与值与精度 {#numeric-contributions}
 
 `NUMERIC` 每条当前记录至多贡献一个值；当前记录由根文档或最内层 Elements 决定。直接 `FIELD` 与 `BINARY` 中的每个字段叶子使用相同口径：忽略 null/缺失后，恰好一个存储数值参与计算，零个或多个数值均贡献 `null`。重复数值分别计数；`[7,7]` 不是单值。

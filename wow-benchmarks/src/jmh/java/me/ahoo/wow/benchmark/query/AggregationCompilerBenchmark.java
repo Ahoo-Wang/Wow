@@ -113,7 +113,7 @@ public class AggregationCompilerBenchmark {
         }
         if (!groups.isEmpty()) metrics.add(new AggregationMetric.Count("count", MatchAllFilter.INSTANCE));
         schema = BenchmarkQuerySchemas.create(QueryModel.Companion.getSNAPSHOT(), fields, bindings);
-        query = new AggregationQuery(MatchAllFilter.INSTANCE, List.of(), groups, metrics, List.of(), 100);
+        query = new AggregationQuery(MatchAllFilter.INSTANCE, List.of(), groups, metrics, List.of(), 100, null);
         verifyPlan(compile());
     }
 

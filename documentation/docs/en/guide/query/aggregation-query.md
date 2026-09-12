@@ -143,6 +143,70 @@ Implementation and guardrails:
 - MongoDB evaluates derived metrics in additional `$project` stages after the aggregation projection, one stage per derived metric in declaration order; Elasticsearch uses `bucket_script` pipeline aggregations inside the bucket. Neither adds storage version requirements (`$project` and `bucket_script` both predate the supported MongoDB 7.0 / Elasticsearch 9.x baselines);
 - the HTTP query guard treats derived metrics as arithmetic expressions: they are rejected when `wow.webflux.query.allow-expensive-operators=false`, consistent with the existing metric arithmetic gating.
 
+### HAVING: Filter Groups by Aggregated Values {#having}
+
+`having` filters grouped rows by their per-row metric results after aggregation, mirroring SQL's `HAVING`: the root `filter` and metric filters act on records, while having acts on aggregated values. Omitting having disables filtering. Its AST is the recursive, polymorphic `HavingExpression`:
+
+| Type | Shape |
+| --- | --- |
+| `CONDITION` | `metric` + `EQ`/`NE`/`GT`/`GTE`/`LT`/`LTE` + finite `value` |
+| `BETWEEN` | closed interval `lower ≤ upper` |
+| `IN` | non-empty value set |
+| `IS_NULL` | captures rows whose metric value is `null`; `negated` inverts it into `isNotNull()` |
+| `AND` / `OR` | non-empty operands, recursively nested |
+
+The DSL writes comparisons directly on metric aliases inside `having { }`, composed with infix `and`/`or`:
+
+```kotlin
+aggregation {
+    terms("state.status", "status")
+    count("paid") { "status" eq "PAID" }
+    sum("amount", "paidAmount") { "status" eq "PAID" }
+    derived("attainment") { ref("paidAmount") / constant(6000.0) }
+    having {
+        ("attainment" gte 0.8) and ("paid" gt 10.0)
+    }
+    sort { "attainment".desc() }
+    limit(20)
+}
+```
+
+The example keeps only the states whose attainment is at least `0.8` and whose paid count exceeds `10`; both `sort` and `limit` apply to the filtered rows. Beyond the six comparisons, the DSL also provides `between(lower, upper)`, `isIn(values)`, `isNull()`, and `isNotNull()`. `having` is optional and omitted from the JSON when absent, so existing query JSON shapes are unchanged:
+
+```json
+"having": {"type": "AND", "operands": [
+  {"type": "CONDITION", "metric": "attainment", "operator": "GTE", "value": 0.8},
+  {"type": "CONDITION", "metric": "paid", "operator": "GT", "value": 10}
+]}
+```
+
+The semantics follow the SQL HAVING convention:
+
+- null fails: a row whose metric value is `null` (an empty-set `NUMERIC`/`PERCENTILE`, or a derived metric with null propagation) fails every comparison, `BETWEEN`, and `IN`; `isNull()` captures exactly those rows, and `isNotNull()` excludes them;
+- numeric comparisons unify into IEEE double space;
+- `limit` caps the result rows after filtering, and `sort` applies to the filtered rows.
+
+Reference and value rules are enforced while constructing the `AggregationQuery`; violations throw `IllegalArgumentException`:
+
+- having requires at least one `groupBy`;
+- a referenced alias must be a declared metric alias: unknown names and group aliases are rejected;
+- referencing an `ANY` metric is rejected: its value is unstable across executions and backends;
+- unlike `METRIC_REF`, having carries no declaration-order restriction and may reference derived metrics anywhere in the list;
+- comparison values must be finite; `BETWEEN` requires `lower ≤ upper`; `IN` values cannot be empty; `AND`/`OR` operands cannot be empty;
+- having expressions share the derived-expression depth cap of 8.
+
+Implementation and backend conventions:
+
+- MongoDB compiles having into one additional `$match` stage after the aggregation projection chain: comparisons run over the projected metric values, unified into IEEE double space (Decimal128-stored values convert safely);
+- Elasticsearch has no `bucket_selector` under composite aggregations, so having evaluates client-side: metric-sort queries filter rows before the top-N truncation, and group-sort queries over-fetch pages until `limit` surviving rows are collected or buckets are exhausted;
+- performance guidance: aggregated values carry no index selectivity, so having cannot push down to an index the way a root filter can; cost follows the ordering you need — metric-value top-N inherently scans every composite bucket for global correctness (having adds no extra scan there), while group-alias sorting with a selective having stops early once `limit` surviving rows are collected and only degrades to a full bucket scan when survivors are sparse;
+- neither backend adds storage version requirements.
+
+HTTP query guardrails:
+
+- filter and having nodes share one `wow.webflux.query.max-filter-nodes` budget per request, and comparison values count toward `wow.webflux.query.max-filter-values` — `CONDITION` counts 1, `BETWEEN` counts 2, and `IN` counts its number of values;
+- having comparisons are not treated as expensive operators and are not gated by `wow.webflux.query.allow-expensive-operators`; arithmetic/derived metrics referenced by having still follow their own rules under that switch.
+
 ### Numeric Contributions and Precision {#numeric-contributions}
 
 `NUMERIC` contributes at most one value per current record, which is a root document or the innermost expanded Element. A direct `FIELD` and each field leaf in `BINARY` use the same rule: after ignoring null/missing entries, exactly one stored numeric value contributes; zero or multiple values contribute `null`. Duplicate numeric entries count separately; `[7,7]` is not a singleton.

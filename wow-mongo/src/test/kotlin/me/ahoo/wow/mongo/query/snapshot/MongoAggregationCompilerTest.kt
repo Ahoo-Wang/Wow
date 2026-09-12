@@ -689,6 +689,79 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `having compiles into a post-derivation match with null guards`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status")
+                count("lines")
+                sum("state.amount", "total")
+                derived("avgAmount") { ref("total") / ref("lines") }
+                having { ("avgAmount" gte 10.0) and ("total" gt 0.0) }
+                sort { "avgAmount".desc() }
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val matchIndex = pipeline.indexOfLast { it.containsKey("\$match") }
+        val projectIndex = pipeline.indexOfLast { it.containsKey("\$project") }
+        val sortIndex = pipeline.indexOfFirst { it.containsKey("\$sort") }
+        projectIndex.assert().isLessThan(matchIndex) // after the derived $project chain
+        matchIndex.assert().isLessThan(sortIndex) // before $sort
+
+        val having = pipeline[matchIndex].getDocument("\$match")
+        val and = having.getArray("\$and")
+        and.assert().hasSize(2)
+        assertNumericHavingMatch(and[0].asDocument()).getArray("\$gte")[1].asNumber()
+            .doubleValue().assert().isEqualTo(10.0)
+        assertNumericHavingMatch(and[1].asDocument()).getArray("\$gt")[1].asNumber()
+            .doubleValue().assert().isEqualTo(0.0)
+    }
+
+    @Test
+    fun `having null checks and in-lists compile without numeric guards`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status")
+                count("lines")
+                sum("state.amount", "total")
+                having { ("total".isNull()) or ("total".isIn(listOf(40.0, 50.0))) }
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+        val or = pipeline.last { it.containsKey("\$match") }.getDocument("\$match").getArray("\$or")
+        requireNotNull(or[0].asDocument().get("total")).isNull.assert().isTrue() // IS NULL: no $ne guard
+        assertNumericHavingMatch(or[1].asDocument()).getArray("\$in")[1].asArray()
+            .assert().hasSize(2)
+    }
+
+    @Test
+    fun `having ne conditions keep the comparison value beside the null guard`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status")
+                count("lines")
+                sum("state.amount", "total")
+                having { ("total" ne 5.0) }
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+        val having = pipeline.last { it.containsKey("\$match") }.getDocument("\$match")
+        assertNumericHavingMatch(having).getArray("\$ne")[1].asNumber()
+            .doubleValue().assert().isEqualTo(5.0)
+    }
+
+    @Test
+    fun `queries without having keep their pipeline shape`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation { count("count") },
+            schema(),
+        )
+        pipeline.map { it.toBsonDocument().keys.first() }.assert()
+            .containsExactly("\$match", "\$group", "\$project", "\$limit")
+        pipeline.filter { it.toBsonDocument().containsKey("\$match") }.assert().hasSize(1) // root filter only
+    }
+
+    @Test
     fun `plain field metric should normalize scalar or singleton values without conversion`() {
         val groupJson = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation { sum("state.amount", "total") },
@@ -1729,4 +1802,20 @@ private fun field(
         QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(valueType), semanticType = semanticType)
     }
     return QueryField(logicalPath) to MongoTestField(value, additionalCapabilities + capability, physicalPath)
+}
+
+/**
+ * Asserts the numeric having match shape — `{$expr: {$and: [{$ne: ["$metric", null]}, condition]}}`
+ * with the compared metric wrapped in `$toDouble` — and returns the condition document.
+ */
+private fun assertNumericHavingMatch(operand: BsonDocument): BsonDocument {
+    val and = operand.getDocument("\$expr").getArray("\$and")
+    and.assert().hasSize(2)
+    and[0].asDocument().getArray("\$ne").let { ne ->
+        ne[0].asString().value.assert().startsWith("$") // the compared metric alias
+        ne[1].isNull.assert().isTrue() // null guard
+    }
+    val condition = and[1].asDocument()
+    condition.toJson().assert().contains("\$toDouble") // compared in double space
+    return condition
 }

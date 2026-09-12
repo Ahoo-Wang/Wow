@@ -536,6 +536,29 @@ abstract class EventStreamQueryBackendSpec {
                 row.path("firstShare").doubleValue().assert().isEqualTo(0.1)
             }.verifyComplete()
     }
+
+    @Test
+    fun aggregateHavingEventCounts() {
+        val tenantId = generateGlobalId()
+        eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = tenantId))).block()
+        // fixture 同 aggregateEventsByName：mock_aggregate_created=1、mock_aggregate_changed=9（断言值 [1, 9]）
+        // having 阈值 gte 2 只保留 9 计数组，即该断言值中满足阈值的严格子集
+        aggregation {
+            filter { tenantId(tenantId) }
+            expand("body")
+            terms("name", "eventName")
+            count("count")
+            having { "count" gte 2.0 }
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map { it.path("eventName").textValue() }.assert()
+                    .containsExactly("mock_aggregate_changed")
+                rows.single().path("count").longValue().assert().isEqualTo(9L)
+            }
+            .verifyComplete()
+    }
 }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =

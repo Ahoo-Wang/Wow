@@ -1,6 +1,6 @@
 ---
 title: 快照聚合
-description: 用十一个业务场景说明快照根文档与集合元素的聚合查询。
+description: 用十二个业务场景说明快照根文档与集合元素的聚合查询。
 ---
 
 # 快照聚合
@@ -35,6 +35,7 @@ flowchart TB
     Root --> S9["9 去重客户数与 P95 金额"]
     Root --> S10["10 漏斗多条件计数"]
     Root --> S11["11 达成率与客单价"]
+    Root --> S12["12 达成率阈值筛选"]
     Item --> S5["5 明细项 Top-N"]
     Item --> S6["6 派生金额"]
     Item --> S8["8 ANY 展示字段"]
@@ -622,6 +623,78 @@ val query = aggregation {
 ```
 
 `paidAov = paidAmount / paid`，`attainment = paidAmount / targetAmount`。FAILED 行演示空集语义：`paidAmount` 在组内无 PAID 记录、空集为 `null`，任一操作数为 `null` 即传播为 `null`，因此两个派生指标都是 `null`（除以 `paid = 0` 同样得到 `null`）。派生指标本身不能带 metric filter，它与指标级过滤的组合方式是引用带 filter 的 metric；sort 可以直接引用派生 alias。HTTP 禁用高成本操作符时会拒绝派生指标这类算术表达式。引用规则与语义详见[派生指标](./aggregation-query.md#derived-metrics)。
+
+## 场景 12：达成率阈值筛选
+
+**业务问题**
+
+哪些订单状态的已支付金额相对固定目标（6000 元）的达成率不低于 80%，且已支付订单超过 10 单？
+
+**统计单位**
+
+快照根文档；`paid` 与 `paidAmount` 只统计 `state.status = PAID` 的快照，达成率在聚合完成后计算，having 再按聚合值筛选分组行。
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    terms("state.status", "status")
+    count("paid") { "state.status" eq "PAID" }
+    sum("state.totalAmount", "paidAmount") { "state.status" eq "PAID" }
+    derived("attainment") { ref("paidAmount") / constant(6000.0) }
+    having {
+        ("attainment" gte 0.8) and ("paid" gt 10.0)
+    }
+    sort { "attainment".desc() }
+    limit(20)
+}
+```
+
+**HTTP JSON 与结果解读**
+
+```json
+{
+  "groupBy": [
+    {"type": "TERMS", "field": "state.status", "alias": "status"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "paid", "filter": {"op": "EQ", "field": "state.status", "value": "PAID"}},
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": {"type": "FIELD", "field": "state.totalAmount"},
+      "alias": "paidAmount",
+      "filter": {"op": "EQ", "field": "state.status", "value": "PAID"}
+    },
+    {
+      "type": "DERIVED",
+      "alias": "attainment",
+      "expression": {
+        "type": "BINARY",
+        "operator": "DIVIDE",
+        "left": {"type": "METRIC_REF", "metric": "paidAmount"},
+        "right": {"type": "CONSTANT", "value": 6000.0}
+      }
+    }
+  ],
+  "having": {"type": "AND", "operands": [
+    {"type": "CONDITION", "metric": "attainment", "operator": "GTE", "value": 0.8},
+    {"type": "CONDITION", "metric": "paid", "operator": "GT", "value": 10}
+  ]},
+  "sort": [
+    {"field": "attainment", "direction": "DESC"}
+  ],
+  "limit": 20
+}
+```
+
+```json
+[
+  {"status": "PAID", "paid": 42, "paidAmount": 5400.0, "attainment": 0.9}
+]
+```
+
+having 在聚合完成后按每行的 metric 结果筛选分组，只保留“`attainment ≥ 0.8` 且 `paid > 10`”的状态；`sort` 与 `limit` 作用于筛选后的行，未达标的状态（如 `attainment = 0.5` 或 `paid ≤ 10`）不占用 `limit` 名额。null 判假：`paidAmount` 为 `null` 的组（如组内没有 PAID 记录）在任何比较下都不成立，需要捕获这些组时改用 `isNull()`。本例中这一语义尤为直接：两个 metric 都只保留 PAID 记录而查询按 `state.status` 分组，因此所有非 PAID 组的 `paid = 0`、`attainment = null`，必然被滤除——只有 `PAID` 行可能存活；若要度量非 PAID 组，应改按独立维度（商品、客户）分组。having 只能引用已声明的 metric alias（group alias 与未知名字被拒绝），不能引用 `ANY` metric；引用派生指标没有声明顺序限制。HTTP 护栏把 filter 与 having 节点计入同一份 `max-filter-nodes` 预算、比较取值计入 `max-filter-values`。成本取决于所需排序语义：metric 值 Top-N 必然扫描全部桶（having 不增加额外扫描），group 排序 + 高选择性 having 收满 `limit` 个存活行即提前终止，仅当存活行稀疏时才退化为全桶扫描。语义与规则详见 [HAVING](./aggregation-query.md#having)。
 
 ## 后端能力与稳定性边界
 
