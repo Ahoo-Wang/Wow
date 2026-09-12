@@ -135,7 +135,7 @@ aggregation {
 
 - null 传播：任一操作数为 `null` 时结果为 `null`；引用空集的 `NUMERIC`/`PERCENTILE`（结果为 `null`）同样传播为 `null`。`COUNT` 引用不会为 `null`（空集为 `0`），但除以该 `0` 仍得到 `null`；
 - 除以零的结果为 `null`，派生结果必须有限；
-- 派生指标本身不能带 metric filter：filter 是记录级概念，派生在聚合之后计算。它与[指标级过滤](#metric-filter)的组合方式是引用带 filter 的 metric——上例 `paidAov` 即“已支付金额 / 已支付数量”；
+- 派生指标本身不能带 metric filter：filter 是记录级概念，派生在聚合之后计算。它与[指标级过滤](#metric-filter)的组合方式是引用带 filter 的 metric——上例 `paidAov` 即“已支付金额 / 已支付数量”。OpenAPI schema 为保持形状兼容仍在 `DERIVED` 上展示继承来的可选 `filter` 属性——反序列化时会忽略传入的取值，且 DSL 与构造器均无法设置它；
 - sort 可以引用派生 alias，上例即按 `paidAov` 降序。
 
 实现与护栏：

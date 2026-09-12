@@ -201,6 +201,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
         metric.alias to when (metric) {
             is AggregationMetric.Count, is AggregationMetric.DistinctCount -> 0L
             is AggregationMetric.Any, is AggregationMetric.Numeric, is AggregationMetric.Percentile -> null
+            // Deliberate empty-row semantics: constants are computed by the pipeline itself; this synthetic row only appears when the result flux is empty.
             is AggregationMetric.Derived -> null
         }
     }

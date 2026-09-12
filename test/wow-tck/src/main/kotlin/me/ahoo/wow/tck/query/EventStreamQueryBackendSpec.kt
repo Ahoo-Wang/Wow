@@ -508,7 +508,7 @@ abstract class EventStreamQueryBackendSpec {
             expand("body")
             count("all")
             // body.revision 是事件模式版本字符串（所有事件恒为 "0.0.1"），数值 eq 无法命中；
-            // 改按 body.name 精确匹配首个事件（事件名按 pascalTo_snake 策略为 mock_aggregate_created，仅 1 个）
+            // 改按 body.name 精确匹配首个事件（事件名按 pascalToSnake 策略为 mock_aggregate_created，仅 1 个）
             count("first") { "name" eq "mock_aggregate_created" }
         }.query(queryBackendBinding)
             .test()

@@ -135,7 +135,7 @@ Computation semantics:
 
 - null propagation: any null operand yields `null`; a reference to an empty-set `NUMERIC`/`PERCENTILE` (whose result is `null`) propagates `null` as well. `COUNT` references are never `null` (an empty set is `0`), but dividing by that `0` still yields `null`;
 - division by zero yields `null`, and the derived result must be finite;
-- a derived metric cannot carry a metric filter itself: filter is a record-level concept, and derived computes after aggregation. Its combination with the [Metric Filter](#metric-filter) is to reference filtered metrics — `paidAov` above is exactly "paid amount / paid count";
+- a derived metric cannot carry a metric filter itself: filter is a record-level concept, and derived computes after aggregation. Its combination with the [Metric Filter](#metric-filter) is to reference filtered metrics — `paidAov` above is exactly "paid amount / paid count". The OpenAPI schema still shows the inherited optional `filter` property on `DERIVED` for shape compatibility — values sent there are ignored at deserialization, and the DSL/constructors cannot set it;
 - sort may reference a derived alias; the example sorts by `paidAov` descending.
 
 Implementation and guardrails:
