@@ -694,7 +694,7 @@ val query = aggregation {
 ]
 ```
 
-having 在聚合完成后按每行的 metric 结果筛选分组，只保留“`attainment ≥ 0.8` 且 `paid > 10`”的状态；`sort` 与 `limit` 作用于筛选后的行，未达标的状态（如 `attainment = 0.5` 或 `paid ≤ 10`）不占用 `limit` 名额。null 判假：`paidAmount` 为 `null` 的组（如组内没有 PAID 记录）在任何比较下都不成立，需要捕获这些组时改用 `isNull()`。本例中这一语义尤为直接：两个 metric 都只保留 PAID 记录而查询按 `state.status` 分组，因此所有非 PAID 组的 `paid = 0`、`attainment = null`，必然被滤除——只有 `PAID` 行可能存活；若要度量非 PAID 组，应改按独立维度（商品、客户）分组。having 只能引用已声明的 metric alias（group alias 与未知名字被拒绝），不能引用 `ANY` metric；引用派生指标没有声明顺序限制。HTTP 护栏把 filter 与 having 节点计入同一份 `max-filter-nodes` 预算、比较取值计入 `max-filter-values`。聚合值没有索引选择性，大数据量优先 metric 排序 + having。语义与规则详见 [HAVING](./aggregation-query.md#having)。
+having 在聚合完成后按每行的 metric 结果筛选分组，只保留“`attainment ≥ 0.8` 且 `paid > 10`”的状态；`sort` 与 `limit` 作用于筛选后的行，未达标的状态（如 `attainment = 0.5` 或 `paid ≤ 10`）不占用 `limit` 名额。null 判假：`paidAmount` 为 `null` 的组（如组内没有 PAID 记录）在任何比较下都不成立，需要捕获这些组时改用 `isNull()`。本例中这一语义尤为直接：两个 metric 都只保留 PAID 记录而查询按 `state.status` 分组，因此所有非 PAID 组的 `paid = 0`、`attainment = null`，必然被滤除——只有 `PAID` 行可能存活；若要度量非 PAID 组，应改按独立维度（商品、客户）分组。having 只能引用已声明的 metric alias（group alias 与未知名字被拒绝），不能引用 `ANY` metric；引用派生指标没有声明顺序限制。HTTP 护栏把 filter 与 having 节点计入同一份 `max-filter-nodes` 预算、比较取值计入 `max-filter-values`。成本取决于所需排序语义：metric 值 Top-N 必然扫描全部桶（having 不增加额外扫描），group 排序 + 高选择性 having 收满 `limit` 个存活行即提前终止，仅当存活行稀疏时才退化为全桶扫描。语义与规则详见 [HAVING](./aggregation-query.md#having)。
 
 ## 后端能力与稳定性边界
 

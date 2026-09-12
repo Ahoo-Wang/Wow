@@ -6413,6 +6413,7 @@
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.HavingExpression"
             },
+            "minItems" : 1,
             "type" : "array"
           },
           "type" : {
@@ -6474,6 +6475,7 @@
               "format" : "double",
               "type" : "number"
             },
+            "minItems" : 1,
             "type" : "array"
           }
         },
@@ -6501,6 +6503,7 @@
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.HavingExpression"
             },
+            "minItems" : 1,
             "type" : "array"
           },
           "type" : {

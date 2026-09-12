@@ -199,7 +199,7 @@ aggregation {
 
 - MongoDB 在聚合投影链之后把 having 编译为一个追加的 `$match` 阶段：比较在投影后的 metric 值上进行，数值统一转换到 IEEE double 空间（Decimal128 存储值安全转换）；
 - Elasticsearch 的 composite 聚合下没有 `bucket_selector`，having 在客户端求值：metric 排序查询在 top-N 截断前先过滤行；group 排序查询按页超取，直到集满 `limit` 个存活行或桶耗尽；
-- 性能建议：聚合值不携带索引选择性，having 无法像根 filter 那样下推到索引；大数据量优先选择 metric 排序 + having，group 排序 + having 且选择性差时最坏可能遍历所有桶；
+- 性能建议：聚合值不携带索引选择性，having 无法像根 filter 那样下推到索引；成本取决于所需排序语义——metric 值 Top-N 为保证全局正确性必然扫描全部 composite 桶（having 不增加额外扫描），group 排序 + 高选择性 having 收满 `limit` 个存活行即提前终止，仅当存活行稀疏时才退化为全桶扫描；
 - 两个后端均无新增存储版本要求。
 
 HTTP 查询护栏：

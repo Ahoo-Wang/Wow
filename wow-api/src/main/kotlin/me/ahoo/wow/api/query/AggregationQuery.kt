@@ -354,13 +354,23 @@ sealed interface HavingExpression {
 
     data class Between(val metric: String, val lower: Double, val upper: Double) : HavingExpression
 
-    data class In(val metric: String, val values: List<Double>) : HavingExpression
+    data class In(
+        val metric: String,
+        @get:ArraySchema(minItems = 1)
+        val values: List<Double>,
+    ) : HavingExpression
 
     data class IsNull(val metric: String, val negated: Boolean = false) : HavingExpression
 
-    data class And(val operands: List<HavingExpression>) : HavingExpression
+    data class And(
+        @get:ArraySchema(minItems = 1)
+        val operands: List<HavingExpression>,
+    ) : HavingExpression
 
-    data class Or(val operands: List<HavingExpression>) : HavingExpression
+    data class Or(
+        @get:ArraySchema(minItems = 1)
+        val operands: List<HavingExpression>,
+    ) : HavingExpression
 }
 
 enum class ComparisonOperator {

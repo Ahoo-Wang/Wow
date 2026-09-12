@@ -199,7 +199,7 @@ Implementation and backend conventions:
 
 - MongoDB compiles having into one additional `$match` stage after the aggregation projection chain: comparisons run over the projected metric values, unified into IEEE double space (Decimal128-stored values convert safely);
 - Elasticsearch has no `bucket_selector` under composite aggregations, so having evaluates client-side: metric-sort queries filter rows before the top-N truncation, and group-sort queries over-fetch pages until `limit` surviving rows are collected or buckets are exhausted;
-- performance guidance: aggregated values carry no index selectivity, so having cannot push down to an index the way a root filter can; prefer metric-sort + having on large data, and expect group-sort + having with poor selectivity to scan every bucket in the worst case;
+- performance guidance: aggregated values carry no index selectivity, so having cannot push down to an index the way a root filter can; cost follows the ordering you need — metric-value top-N inherently scans every composite bucket for global correctness (having adds no extra scan there), while group-alias sorting with a selective having stops early once `limit` surviving rows are collected and only degrades to a full bucket scan when survivors are sparse;
 - neither backend adds storage version requirements.
 
 HTTP query guardrails:
