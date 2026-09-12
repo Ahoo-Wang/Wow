@@ -464,4 +464,38 @@ class AggregationQueryTest {
             .contains("\"op\":\"EQ\"")
             .doesNotContain("\"alias\":\"total\",\"filter\"")
     }
+
+    @Test
+    fun `explicit MATCH_ALL metric filters should deserialize and re-serialize omitted`() {
+        val json = """
+            {
+              "metrics": [
+                {"type": "COUNT", "alias": "total", "filter": {"op": "MATCH_ALL"}},
+                {"type": "NUMERIC", "function": "SUM", "expression": {"field": "amount"}, "alias": "sumAmount",
+                 "filter": {"op": "MATCH_ALL"}}
+              ]
+            }
+        """.trimIndent()
+
+        val explicit = configuredMapper.readValue(json, AggregationQuery::class.java)
+        explicit.metrics.forEach { metric ->
+            metric.filter.assert().isEqualTo(MatchAllFilter)
+        }
+        val omitted = AggregationQuery(
+            metrics = listOf(
+                AggregationMetric.Count("total"),
+                AggregationMetric.Numeric(
+                    AggregationFunction.SUM,
+                    AggregationExpression.Field(QueryField("amount")),
+                    "sumAmount",
+                ),
+            ),
+        )
+
+        configuredMapper.writeValueAsString(explicit).assert()
+            .isEqualTo(configuredMapper.writeValueAsString(omitted))
+        configuredMapper.writeValueAsString(explicit).assert()
+            .doesNotContain("\"alias\":\"total\",\"filter\"")
+            .doesNotContain("\"alias\":\"sumAmount\",\"filter\"")
+    }
 }

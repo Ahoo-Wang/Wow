@@ -248,6 +248,61 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
+    fun `element scoped and union array metric filter fields are rejected`() {
+        val tags = array(text)
+        val bound = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                obj(
+                    mapOf(
+                        "deleted" to QueryValueSchema(
+                            QueryValueKind.SCALAR,
+                            valueTypes = setOf(QueryValueType.BOOLEAN),
+                        ),
+                        "notes" to QueryValueSchema(QueryValueKind.UNION, alternatives = listOf(text, tags)),
+                        "orders" to array(obj(mapOf("lines" to array(obj(mapOf("tags" to tags)))))),
+                    )
+                )
+            ),
+            ElasticsearchIndexMapping.from(
+                "test",
+                TypeMapping.of { mapping ->
+                    mapping.properties("deleted") { deleted -> deleted.boolean_ { it } }
+                        .properties("notes") { notes -> notes.keyword { it } }
+                        .properties("orders") { orders ->
+                            orders.nested { ordersNested ->
+                                ordersNested.properties("lines") { lines ->
+                                    lines.nested { linesNested ->
+                                        linesNested.properties("tags") { tags -> tags.keyword { it } }
+                                    }
+                                }
+                            }
+                        }
+                }
+            ),
+        )
+
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(
+                aggregation {
+                    expand("orders")
+                    expand("lines")
+                    count("tagged") { "tags" eq "promo" }
+                },
+                bound,
+            )
+        }.message.assert().isEqualTo(
+            "Aggregation metric filter field [orders.lines.tags] must be scalar; " +
+                "array fields are not supported in metric filters.",
+        )
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(aggregation { count("noted") { "notes" eq "premium" } }, bound)
+        }.message.assert().isEqualTo(
+            "Aggregation metric filter field [notes] must be scalar; " +
+                "array fields are not supported in metric filters.",
+        )
+    }
+
+    @Test
     fun `search filters in metric filters are rejected`() {
         val exception = assertThrows<QuerySchemaValidationException> {
             compiler.compile(aggregation { count("hits") { "name" search "premium" } }, schema)

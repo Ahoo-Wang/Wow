@@ -1183,6 +1183,34 @@ abstract class SnapshotQueryBackendSpec {
     }
 
     @Test
+    fun `aggregation metric filters should preserve null versus missing semantics`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            count("all") // 6 行
+            count("withAmount") { "amount" ne null } // 非 null 非 missing：仅 gamma 行 amount=null 被排除 = 5
+            count("nullishAmount") { "amount" eq null } // null 与 missing 均命中：仅 gamma = 1
+            count("hasMissing") { "missing".exists() } // missing 字段从未写入任何行 = 0
+            count("missingOrNull") { "missing" eq null } // 全部行缺失该字段 = 6
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext {
+                it.assertWireEquals(
+                    mapOf(
+                        "all" to 6L,
+                        "withAmount" to 5L,
+                        "nullishAmount" to 1L,
+                        "hasMissing" to 0L,
+                        "missingOrNull" to 6L,
+                    ),
+                )
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun `aggregation should support cancellation after a real result`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
 

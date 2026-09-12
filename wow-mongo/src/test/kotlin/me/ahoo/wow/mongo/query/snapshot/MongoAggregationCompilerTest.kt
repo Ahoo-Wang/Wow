@@ -37,6 +37,7 @@ import org.bson.BsonArray
 import org.bson.BsonBoolean
 import org.bson.BsonDocument
 import org.bson.BsonInt32
+import org.bson.BsonNull
 import org.bson.BsonString
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -839,6 +840,171 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `metric filters should guard null equality and inequality with type conditions`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                count("notAlpha") { "state.productName" ne "Alpha" }
+                count("nullName") { "state.productName" eq null }
+                count("notNullName") { "state.productName" ne null }
+            },
+            guardFilterSchema,
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("notAlpha").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert()
+            .isEqualTo(BsonDocument("\$ne", BsonArray(listOf(BsonString("\$state.productName"), BsonString("Alpha")))))
+        group.getDocument("nullName").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument(
+                "\$or",
+                BsonArray(
+                    listOf(
+                        BsonDocument(
+                            "\$eq",
+                            BsonArray(listOf(BsonString("\$state.productName"), BsonNull.VALUE)),
+                        ),
+                        BsonDocument(
+                            "\$eq",
+                            BsonArray(
+                                listOf(BsonDocument("\$type", BsonString("\$state.productName")), BsonString("missing"))
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        group.getDocument("notNullName").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument(
+                "\$and",
+                BsonArray(
+                    listOf(
+                        BsonDocument(
+                            "\$ne",
+                            BsonArray(listOf(BsonString("\$state.productName"), BsonNull.VALUE)),
+                        ),
+                        BsonDocument(
+                            "\$ne",
+                            BsonArray(
+                                listOf(
+                                    BsonDocument("\$type", BsonString("\$state.productName")),
+                                    BsonString("missing"),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `metric filters should translate nin and nor into not guards`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                count("notInList") { "state.productName" notIn listOf("Alpha", "Beta") }
+                count("neither") {
+                    nor {
+                        "state.productName" eq "Alpha"
+                        "state.productName" eq "Beta"
+                    }
+                }
+            },
+            guardFilterSchema,
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("notInList").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument(
+                "\$not",
+                BsonArray(
+                    listOf(
+                        BsonDocument(
+                            "\$in",
+                            BsonArray(
+                                listOf(
+                                    BsonString("\$state.productName"),
+                                    BsonArray(listOf(BsonString("Alpha"), BsonString("Beta"))),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        group.getDocument("neither").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument(
+                "\$not",
+                BsonArray(
+                    listOf(
+                        BsonDocument(
+                            "\$or",
+                            BsonArray(
+                                listOf(
+                                    BsonDocument(
+                                        "\$eq",
+                                        BsonArray(listOf(BsonString("\$state.productName"), BsonString("Alpha"))),
+                                    ),
+                                    BsonDocument(
+                                        "\$eq",
+                                        BsonArray(listOf(BsonString("\$state.productName"), BsonString("Beta"))),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `metric filters should translate exists checks into type guards`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                count("present") { "state.productName".exists() }
+                count("absent") { "state.productName".notExists() }
+            },
+            guardFilterSchema,
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("present").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument(
+                "\$ne",
+                BsonArray(listOf(BsonDocument("\$type", BsonString("\$state.productName")), BsonString("missing"))),
+            ),
+        )
+        group.getDocument("absent").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument(
+                "\$eq",
+                BsonArray(listOf(BsonDocument("\$type", BsonString("\$state.productName")), BsonString("missing"))),
+            ),
+        )
+    }
+
+    @Test
+    fun `metric filters should translate in-lists into expression in guards`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                count("inList") { "state.productName" isIn listOf("Alpha", "Beta") }
+            },
+            guardFilterSchema,
+        ).map { it.toBsonDocument() }
+
+        pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+            .getDocument("inList").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument(
+                "\$in",
+                BsonArray(
+                    listOf(
+                        BsonString("\$state.productName"),
+                        BsonArray(listOf(BsonString("Alpha"), BsonString("Beta"))),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun `metric filters cannot use text search`() {
         assertThrows<QuerySchemaValidationException> {
             MongoAggregationCompiler(SnapshotFilterCompiler).compile(
@@ -931,6 +1097,15 @@ private val statusFilterSchema = schema(
 private val paidStatusGuard = BsonDocument(
     "\$eq",
     BsonArray(listOf(BsonString("\$state.status"), BsonString("PAID"))),
+)
+
+private val guardFilterSchema = schema(
+    field(
+        "state.productName",
+        QueryCapability.LITERAL_MATCH,
+        "state.productName",
+        additionalCapabilities = setOf(QueryCapability.EXACT_MATCH, QueryCapability.PRESENCE),
+    ),
 )
 
 private fun schema(vararg fields: Pair<QueryField, MongoTestField>) = mongoTestSchema(
