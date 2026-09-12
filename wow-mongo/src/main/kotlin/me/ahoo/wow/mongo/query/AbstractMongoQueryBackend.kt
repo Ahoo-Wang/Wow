@@ -188,6 +188,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
                 is AggregationMetric.Numeric -> get(metric.alias).toFiniteDouble(metric.alias)
                 is AggregationMetric.Percentile -> get(metric.alias).toFiniteDouble(metric.alias)
                 is AggregationMetric.DistinctCount -> (get(metric.alias) as Number).toLong()
+                is AggregationMetric.Derived -> get(metric.alias).toFiniteDouble(metric.alias)
             }
         }
         return this
@@ -200,6 +201,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
         metric.alias to when (metric) {
             is AggregationMetric.Count, is AggregationMetric.DistinctCount -> 0L
             is AggregationMetric.Any, is AggregationMetric.Numeric, is AggregationMetric.Percentile -> null
+            is AggregationMetric.Derived -> null
         }
     }
 

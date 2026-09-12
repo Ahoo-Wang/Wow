@@ -585,6 +585,85 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `derived metrics compile into a second project stage`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status")
+                count("paid")
+                sum("state.amount", "paidAmount") { "state.status" eq "PAID" }
+                derived("aov") { ref("paidAmount") / ref("paid") }
+            },
+            statusFilterSchema,
+        ).map { it.toBsonDocument() }
+
+        val projects = pipeline.filter { it.containsKey("\$project") }
+        projects.assert().hasSize(2)
+        val derivedStage = projects[1].getDocument("\$project")
+        derivedStage.containsKey("_id").assert().isTrue()
+        val aov = derivedStage.getDocument("aov").getDocument("\$let")
+        val binary = aov.getDocument("vars").getDocument("value").getDocument("\$let")
+        binary.getDocument("vars").getString("left").value.assert().isEqualTo("\$paidAmount")
+        binary.getDocument("vars").getString("right").value.assert().isEqualTo("\$paid")
+        val cond = binary.getDocument("in").getArray("\$cond")
+        cond.get(0).asDocument().getArray("\$and").assert().hasSize(3)
+        cond.get(1).asDocument().getArray("\$divide").assert().hasSize(2)
+        aov.getDocument("in").getArray("\$cond").get(0).asDocument().getArray("\$and").assert().hasSize(3)
+        derivedStage.containsKey("paid").assert().isTrue()
+        derivedStage.containsKey("paidAmount").assert().isTrue()
+        pipeline.indexOfLast { it.containsKey("\$project") }
+            .assert().isLessThan(pipeline.indexOfFirst { it.containsKey("\$sort") })
+    }
+
+    @Test
+    fun `derived without derived metrics keeps a single project stage`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status")
+                count("total")
+                sum("state.amount", "totalAmount")
+                sort { "totalAmount".desc() }
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        pipeline.map { it.keys.first() }.assert()
+            .containsExactly("\$match", "\$match", "\$group", "\$project", "\$sort", "\$limit")
+        pipeline.filter { it.containsKey("\$project") }.assert().hasSize(1)
+    }
+
+    @Test
+    fun `derived constants and chains compile leaves in order`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                count("total")
+                derived("target") { constant(120.0) }
+                derived("half") { ref("total") / constant(2.0) }
+                derived("quarter") { ref("half") / constant(2.0) }
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val projects = pipeline.filter { it.containsKey("\$project") }
+        projects.assert().hasSize(4)
+        val targetStage = projects[1].getDocument("\$project")
+        targetStage.getDocument("target").getValue("\$literal").asDouble().value.assert().isEqualTo(120.0)
+
+        val halfStage = projects[2].getDocument("\$project")
+        val half = halfStage.getDocument("half").getDocument("\$let")
+            .getDocument("vars").getDocument("value").getDocument("\$let")
+        half.getDocument("vars").getString("left").value.assert().isEqualTo("\$total")
+        half.getDocument("vars").getDocument("right").getValue("\$literal").asDouble().value.assert().isEqualTo(2.0)
+
+        val quarterStage = projects[3].getDocument("\$project")
+        quarterStage.containsKey("half").assert().isTrue()
+        val quarter = quarterStage.getDocument("quarter").getDocument("\$let")
+            .getDocument("vars").getDocument("value").getDocument("\$let")
+        quarter.getDocument("vars").getString("left").value.assert().isEqualTo("\$half")
+        val keys = quarterStage.keys.toList()
+        keys.indexOf("half").assert().isLessThan(keys.indexOf("quarter"))
+    }
+
+    @Test
     fun `plain field metric should normalize scalar or singleton values without conversion`() {
         val groupJson = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation { sum("state.amount", "total") },
