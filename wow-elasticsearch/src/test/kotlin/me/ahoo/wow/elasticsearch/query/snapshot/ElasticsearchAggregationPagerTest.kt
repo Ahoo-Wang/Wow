@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
 import co.elastic.clients.elasticsearch._types.aggregations.Buckets
+import co.elastic.clients.elasticsearch._types.aggregations.CompositeAggregationSource
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
 import co.elastic.clients.elasticsearch._types.aggregations.DoubleTermsBucket
 import co.elastic.clients.elasticsearch._types.aggregations.FiltersBucket
@@ -28,24 +29,31 @@ import co.elastic.clients.elasticsearch.core.OpenPointInTimeResponse
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.SearchResponse
 import co.elastic.clients.json.JsonData
+import co.elastic.clients.util.NamedValue
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
+import me.ahoo.wow.elasticsearch.query.aggregation.DenseBucketPlan
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
+import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetric
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
+import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPlan
 import me.ahoo.wow.elasticsearch.query.aggregation.SUMMARY_BUCKET_AGGREGATION
 import me.ahoo.wow.elasticsearch.query.aggregation.SUMMARY_BUCKET_KEY
 import me.ahoo.wow.elasticsearch.query.aggregation.selectTopRows
 import me.ahoo.wow.elasticsearch.query.toObjectNode
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
@@ -59,6 +67,10 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
+
+private const val DAY_MILLIS = 86_400_000L
 
 private val AGGREGATION_SCHEMA = me.ahoo.wow.elasticsearch.query.aggregationTestSchema()
 
@@ -732,6 +744,89 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
+    fun `dense date histogram should fill gaps within one composite page`() {
+        stubPointInTime()
+        val day1 = Instant.parse("2026-01-01T00:00:00Z").toEpochMilli()
+        val day4 = Instant.parse("2026-01-04T00:00:00Z").toEpochMilli()
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            denseGroupResponse("pit-2", listOf(dayBucket(day1, 2), dayBucket(day4, 5))),
+        )
+
+        pager().execute(densePlan())
+            .map { it.path("day").longValue() to it.path("count").longValue() }
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // composite emits only actual buckets; both interior days are client-side fills
+                rows.assert().containsExactly(
+                    day1 to 2L,
+                    (day1 + DAY_MILLIS) to 0L,
+                    (day4 - DAY_MILLIS) to 0L,
+                    day4 to 5L
+                )
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `dense date histogram should bridge the gap across composite pages`() {
+        stubPointInTime()
+        val day1 = Instant.parse("2026-01-01T00:00:00Z").toEpochMilli()
+        val day2 = day1 + DAY_MILLIS
+        val day4 = day1 + 3 * DAY_MILLIS
+        every { client.search(any<SearchRequest>(), Map::class.java) } returnsMany listOf(
+            Mono.just(denseGroupResponse("pit-2", listOf(dayBucket(day1, 1), dayBucket(day2, 2)), afterDay = day2)),
+            Mono.just(denseGroupResponse("pit-3", listOf(dayBucket(day4, 4)))),
+        )
+
+        pager(batchSize = 2).execute(densePlan())
+            .map { it.path("day").longValue() }
+            .collectList()
+            .test()
+            .assertNext { days ->
+                // day3 is filled between the previous page's last bucket and this page's first bucket
+                days.assert().containsExactly(day1, day2, day2 + DAY_MILLIS, day4)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `dense date histogram should count filled rows toward the limit`() {
+        stubPointInTime()
+        val day1 = Instant.parse("2026-01-01T00:00:00Z").toEpochMilli()
+        val day4 = Instant.parse("2026-01-04T00:00:00Z").toEpochMilli()
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            denseGroupResponse("pit-2", listOf(dayBucket(day1, 2), dayBucket(day4, 5))),
+        )
+
+        pager().execute(densePlan(limit = 3))
+            .map { it.path("day").longValue() }
+            .collectList()
+            .test()
+            .assertNext { days -> days.assert().containsExactly(day1, day1 + DAY_MILLIS, day4 - DAY_MILLIS) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `dense date histogram should fill gaps in descending stream direction`() {
+        stubPointInTime()
+        val day1 = Instant.parse("2026-01-01T00:00:00Z").toEpochMilli()
+        val day4 = Instant.parse("2026-01-04T00:00:00Z").toEpochMilli()
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            denseGroupResponse("pit-2", listOf(dayBucket(day4, 5), dayBucket(day1, 2))),
+        )
+
+        pager().execute(densePlan(sortDesc = true))
+            .map { it.path("day").longValue() }
+            .collectList()
+            .test()
+            .assertNext { days ->
+                days.assert().containsExactly(day4, day4 - DAY_MILLIS, day1 + DAY_MILLIS, day1)
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun `snapshot service with custom compiler should fail aggregation before Elasticsearch access`() {
         val compiler = mockk<AbstractElasticsearchFilterCompiler> {
             every { compile(any(), any()) } returns
@@ -788,6 +883,56 @@ class ElasticsearchAggregationPagerTest {
         ElasticsearchAggregationPager(client, "test-index")
     } else {
         ElasticsearchAggregationPager(client, "test-index", batchSize)
+    }
+
+    private fun densePlan(
+        limit: Int = 100,
+        sortDesc: Boolean = false,
+    ): ElasticsearchAggregationPlan {
+        val direction = if (sortDesc) Sort.Direction.DESC else Sort.Direction.ASC
+        return ElasticsearchAggregationPlan(
+            rootQuery = co.elastic.clients.elasticsearch._types.query_dsl.Query.of {
+                it.matchAll { matchAll -> matchAll }
+            },
+            elements = emptyList(),
+            groupSources = listOf(
+                NamedValue.of(
+                    "day",
+                    CompositeAggregationSource.of {
+                        it.dateHistogram { dateHistogram ->
+                            dateHistogram.field("createdAt").calendarInterval { interval -> interval.time("day") }
+                        }
+                    },
+                )
+            ),
+            metrics = listOf(ElasticsearchAggregationMetric.Count("count")),
+            runtimeMappings = emptyMap(),
+            effectiveSort = listOf(Sort(QueryField("day"), direction)),
+            limit = limit,
+            metricSorted = false,
+            having = null,
+            dense = DenseBucketPlan(
+                alias = "day",
+                grid = DenseDateGrid(AggregationDateUnit.DAY, ZoneId.of("UTC")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        )
+    }
+
+    private fun dayBucket(day: Long, count: Long): CompositeBucket = CompositeBucket.of {
+        it.key("day", FieldValue.of(day)).docCount(count)
+    }
+
+    private fun denseGroupResponse(
+        pitId: String,
+        buckets: List<CompositeBucket>,
+        afterDay: Long? = null,
+    ): SearchResponse<Map<*, *>> = response(pitId) { aggregate ->
+        aggregate.composite { composite ->
+            composite.buckets(Buckets.of<CompositeBucket> { it.array(buckets) }).apply {
+                if (afterDay != null) afterKey("day", FieldValue.of(afterDay))
+            }
+        }
     }
 
     private fun stubPointInTime(closeRequest: io.mockk.CapturingSlot<ClosePointInTimeRequest>? = null) {

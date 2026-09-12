@@ -29,6 +29,7 @@ import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchPointInTime
 import me.ahoo.wow.elasticsearch.query.requireComplete
 import me.ahoo.wow.elasticsearch.query.toObjectNode
+import me.ahoo.wow.query.aggregation.EmptyAggregationValues
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -88,11 +89,26 @@ internal class ElasticsearchAggregationPager(
                     searchPage(plan, pit, page.afterKey, page.fetched)
                 }
             }
-        val rows = pages.concatMapIterable({ it.rows }, 1)
+        val rows = if (plan.dense == null) {
+            pages.concatMapIterable({ it.rows }, 1)
+        } else {
+            var previousKey: Long? = null
+            pages.concatMap(
+                { page ->
+                    val gapRows = previousKey?.let { prev ->
+                        page.firstKey?.let { next -> fillGapRows(prev, next, plan) }
+                    }.orEmpty()
+                    page.lastKey?.let { previousKey = it }
+                    Flux.concat(Flux.fromIterable(gapRows), Flux.fromIterable(page.rows))
+                },
+                1,
+            )
+        }
         if (!plan.metricSorted) {
             // having filters client-side, so a page can yield more survivors than the remaining
-            // limit; the no-having path stays capped by the composite page size and needs no truncation
-            return if (plan.having != null) rows.take(plan.limit.toLong()) else rows
+            // limit; dense fills likewise emit more rows than the server page size — both paths
+            // cap at the limit client-side, the no-fill no-having path stays composite-capped
+            return if (plan.having != null || plan.dense != null) rows.take(plan.limit.toLong()) else rows
         }
 
         return rows.collect(
@@ -110,12 +126,30 @@ internal class ElasticsearchAggregationPager(
     ): Mono<AggregationPage> {
         return search(plan, pit, aggregation).map { response ->
             val composite = response.innermost(plan).getValue(GROUP_AGGREGATION).composite()
-            val rows = composite.buckets().array()
-                .asSequence()
-                .map { it.toRow(plan) }
-                .filter { row -> plan.having == null || row.matchesHaving(plan.having) }
-                .toList()
-            AggregationPage(rows, composite.afterKey(), fetched + rows.size)
+            val buckets = composite.buckets().array()
+            val denseAlias = plan.dense?.alias
+            fun bucketKey(bucket: CompositeBucket): Long? =
+                denseAlias?.let { bucket.key().getValue(it) }?.let { it.nativeValue() as Long }
+
+            val firstKey = buckets.firstOrNull()?.let(::bucketKey)
+            val lastKey = buckets.lastOrNull()?.let(::bucketKey)
+            // composite never emits empty buckets, so dense gaps between consecutive ACTUAL buckets
+            // of one page are filled here against raw (pre-having) keys; grouped() bridges the gap
+            // between the previous page's last bucket and this page's first bucket
+            var previousBucketKey: Long? = null
+            val rows = buckets.flatMap { bucket ->
+                val key = bucketKey(bucket)
+                val gapRows = previousBucketKey?.let { prev ->
+                    key?.let { next -> fillGapRows(prev, next, plan) }
+                }.orEmpty()
+                if (key != null) {
+                    previousBucketKey = key
+                }
+                gapRows + listOf(bucket.toRow(plan)).filter { row ->
+                    plan.having == null || row.matchesHaving(plan.having)
+                }
+            }
+            AggregationPage(rows, composite.afterKey(), fetched + rows.size, firstKey, lastKey)
         }
     }
 
@@ -412,6 +446,8 @@ internal class ElasticsearchAggregationPager(
         val rows: List<ObjectNode>,
         val afterKey: Map<String, FieldValue>,
         val fetched: Int,
+        val firstKey: Long? = null,
+        val lastKey: Long? = null,
     ) {
         fun shouldStop(plan: ElasticsearchAggregationPlan): Boolean {
             if (afterKey.isEmpty()) return true
@@ -420,6 +456,25 @@ internal class ElasticsearchAggregationPager(
             return !plan.metricSorted && fetched >= plan.limit
         }
     }
+}
+
+/**
+ * Client-side dense fill between two consecutive actual bucket keys: the gap rows follow each
+ * metric's empty semantics and participate in having like any other row.
+ */
+internal fun fillGapRows(
+    fromKey: Long,
+    toKey: Long,
+    plan: ElasticsearchAggregationPlan,
+): List<ObjectNode> {
+    val dense = requireNotNull(plan.dense)
+    val rows = dense.grid.keysBetween(fromKey, toKey).map { key ->
+        val values = LinkedHashMap<String, Any?>()
+        values[dense.alias] = key
+        values.putAll(EmptyAggregationValues.values(dense.metrics))
+        values.toObjectNode()
+    }
+    return if (plan.having == null) rows else rows.filter { it.matchesHaving(plan.having) }
 }
 
 /**

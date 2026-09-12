@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.HavingExpression
@@ -197,6 +198,28 @@ class ElasticsearchAggregationCompilerTest {
             .contains("emit(")
             .contains("params.missing")
         plan.groupSources.single().value().terms().field().assert().isEqualTo("__wow_missing_terms_0")
+    }
+
+    @Test
+    fun `dense date histogram should carry the dense bucket plan`() {
+        val plan = compiler.compile(
+            aggregation {
+                dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+                count("count")
+            },
+            schema,
+        )
+        val dense = requireNotNull(plan.dense)
+        dense.alias.assert().isEqualTo("day")
+        // the plan carries the ORIGINAL API metrics so empty-value evaluation sees declaration order
+        dense.metrics.assert().containsExactly(AggregationMetric.Count("count"))
+        compiler.compile(
+            aggregation {
+                dateHistogram("createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
+            schema,
+        ).dense.assert().isNull()
     }
 
     @Test
