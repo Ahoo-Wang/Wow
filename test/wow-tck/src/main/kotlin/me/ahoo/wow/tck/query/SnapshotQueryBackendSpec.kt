@@ -1088,8 +1088,8 @@ abstract class SnapshotQueryBackendSpec {
         aggregation {
             filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders")
-            count("all")                            // stateA 两单 + stateB 一单 = 3
-            count("paid") { "status" eq "PAID" }    // 2
+            count("all") // stateA 两单 + stateB 一单 = 3
+            count("paid") { "status" eq "PAID" } // 2
         }.query(queryBackendBinding)
             .test()
             .assertNext { it.assertWireEquals(mapOf("all" to 3L, "paid" to 2L)) }
@@ -1103,9 +1103,9 @@ abstract class SnapshotQueryBackendSpec {
             filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders")
             expand("lines")
-            count("big") { "quantity" gte 2 }                               // beta,gamma,alpha,beta,delta = 5
-            sum("amount", "bigAmount") { "quantity" gte 2 }                 // 20+null+30+20+50 = 120.0
-            distinctCount("productId", "bigProducts") { "quantity" gte 2 }  // {alpha,beta,delta,gamma} = 4
+            count("big") { "quantity" gte 2 } // beta,gamma,alpha,beta,delta = 5
+            sum("amount", "bigAmount") { "quantity" gte 2 } // 20+null+30+20+50 = 120.0
+            distinctCount("productId", "bigProducts") { "quantity" gte 2 } // {alpha,beta,delta,gamma} = 4
         }.query(queryBackendBinding)
             .test()
             .assertNext {
@@ -1120,10 +1120,10 @@ abstract class SnapshotQueryBackendSpec {
             filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders")
             expand("lines")
-            count("none") { "quantity" gt 100 }                              // 0L
-            sum("amount", "noneAmount") { "quantity" gt 100 }                // null
+            count("none") { "quantity" gt 100 } // 0L
+            sum("amount", "noneAmount") { "quantity" gt 100 } // null
             distinctCount("productId", "noneProducts") { "quantity" gt 100 } // 0L
-            percentile("amount", 95.0, "noneP95") { "quantity" gt 100 }      // null
+            percentile("amount", 95.0, "noneP95") { "quantity" gt 100 } // null
         }.query(queryBackendBinding)
             .test()
             .assertNext {
@@ -1140,8 +1140,8 @@ abstract class SnapshotQueryBackendSpec {
             filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders") { "status" eq "PAID" }
             expand("lines")
-            count("all")                          // PAID 5 行
-            count("big") { "quantity" gte 2 }     // beta(2),alpha(4),beta(2),delta(5) = 4
+            count("all") // PAID 5 行
+            count("big") { "quantity" gte 2 } // beta(2),alpha(4),beta(2),delta(5) = 4
         }.query(queryBackendBinding)
             .test()
             .assertNext { it.assertWireEquals(mapOf("all" to 5L, "big" to 4L)) }
