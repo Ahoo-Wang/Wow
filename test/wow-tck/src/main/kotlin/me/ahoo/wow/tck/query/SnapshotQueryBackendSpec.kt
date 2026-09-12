@@ -77,6 +77,8 @@ import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.ceil
@@ -1545,6 +1547,185 @@ abstract class SnapshotQueryBackendSpec {
             .expectNextCount(1)
             .thenCancel()
             .verify()
+    }
+
+    @Test
+    fun `aggregation dense day histogram should fill interior gaps with empty metric semantics`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            count("count")
+            sum("amount", "total")
+            derived("aov") { ref("total") / ref("count") }
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // 5 个实际桶（01-01/01-02/01-03/02-01/02-02）+ 28 个补齐日（01-04..01-31）
+                rows.assert().hasSize(33)
+                rows.first().path("day").longValue().assert()
+                    .isEqualTo(Instant.parse("2026-01-01T00:00:00Z").toEpochMilli())
+                rows.last().path("day").longValue().assert()
+                    .isEqualTo(Instant.parse("2026-02-02T00:00:00Z").toEpochMilli())
+                val gapRow = rows.first { it.path("day").longValue() == Instant.parse("2026-01-04T00:00:00Z").toEpochMilli() }
+                gapRow.path("count").longValue().assert().isZero()
+                gapRow.path("total").isNull.assert().isTrue()
+                gapRow.path("aov").isNull.assert().isTrue()
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense should not fill a single bucket`() {
+        saveAggregationStates(aggregationAnyNullState()) // 单行 line：2026-01-04
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            count("count")
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows -> rows.assert().hasSize(1) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense should let having drop filled rows`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            count("count")
+            having { "count" gte 1.0 } // 补齐行 count=0 判假
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows -> rows.assert().hasSize(5) } // 仅实际桶
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense should let having match exactly the filled rows`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            count("count")
+            having { "count" eq 0.0 }
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.assert().hasSize(28)
+                rows.first().path("day").longValue().assert()
+                    .isEqualTo(Instant.parse("2026-01-04T00:00:00Z").toEpochMilli())
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense should place filled rows in descending order`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            count("count")
+            sort { "day".desc() }
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.take(3).map { it.path("day").longValue() }.assert().containsExactly(
+                    Instant.parse("2026-02-02T00:00:00Z").toEpochMilli(),
+                    Instant.parse("2026-02-01T00:00:00Z").toEpochMilli(),
+                    Instant.parse("2026-01-31T00:00:00Z").toEpochMilli(), // 首个补齐日
+                )
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense should count filled rows toward the limit`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            count("count")
+            limit(5) // 01-01/01-02/01-03 为实际桶，01-04/01-05 为补齐行
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.assert().hasSize(5)
+                rows[3].path("count").longValue().assert().isZero()
+                rows[4].path("count").longValue().assert().isZero()
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation terms missingKey should bucket missing values into the sentinel key`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productName", "name", missingKey = "__missing__")
+            count("count")
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // productName 有值：alpha 行 "Alpha"、B 的 alpha 行 "Alpha 2026"；缺省 4 行
+                // 字典序："Alpha" < "Alpha 2026" < "__missing__"（'A'=0x41 < '_'=0x5F）
+                rows.map { it.path("name").textValue() }.assert()
+                    .containsExactly("Alpha", "Alpha 2026", "__missing__")
+                rows[2].path("count").longValue().assert().isEqualTo(4L)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense week histogram should align local week starts in a non utc zone`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        val zone = ZoneId.of("Asia/Shanghai")
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.WEEK, "week", timeZone = zone, dense = true)
+            count("count")
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // 实际桶：2025-12-29 周（01-01/01-02/01-03 三行）、2026-01-26 周（02-01）、2026-02-02 周（02-02）
+                // 补齐：2026-01-05/01-12/01-19 三周
+                rows.assert().hasSize(6)
+                rows.map { it.path("week").longValue() }.assert().containsExactly(
+                    ZonedDateTime.of(2025, 12, 29, 0, 0, 0, 0, zone).toInstant().toEpochMilli(),
+                    ZonedDateTime.of(2026, 1, 5, 0, 0, 0, 0, zone).toInstant().toEpochMilli(),
+                    ZonedDateTime.of(2026, 1, 12, 0, 0, 0, 0, zone).toInstant().toEpochMilli(),
+                    ZonedDateTime.of(2026, 1, 19, 0, 0, 0, 0, zone).toInstant().toEpochMilli(),
+                    ZonedDateTime.of(2026, 1, 26, 0, 0, 0, 0, zone).toInstant().toEpochMilli(),
+                    ZonedDateTime.of(2026, 2, 2, 0, 0, 0, 0, zone).toInstant().toEpochMilli(),
+                )
+                rows[1].path("count").longValue().assert().isZero()
+            }
+            .verifyComplete()
     }
 
     private fun saveAggregationStates(vararg states: MockStateAggregate) {
