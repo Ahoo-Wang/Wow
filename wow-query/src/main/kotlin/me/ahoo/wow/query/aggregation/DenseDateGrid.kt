@@ -77,13 +77,21 @@ class DenseDateGrid(unit: AggregationDateUnit, private val timeZone: ZoneId) {
      * Gap bucket indices strictly between the two instants' buckets, emitted in stream direction.
      * The stream is lazy: callers facing a potentially huge gap (e.g. two SECOND buckets a year
      * apart) consume it demand-driven instead of materializing every index.
+     *
+     * A grid point must be an EXISTING local time. An index whose key does not round-trip
+     * (`indexOf(keyOf(index)) != index`) is not a grid point and is skipped: whole-day zone
+     * gaps — e.g. Pacific/Apia skipped local 2011-12-30 entirely, so the nonexistent midnight
+     * resolves FORWARD onto the next real bucket's instant and the key collapses onto it —
+     * yield no bucket. The round-trip filter stays inside the lazy stream.
      */
     fun gapIndices(fromMillis: Long, toMillis: Long): LongStream = when {
         fromMillis < toMillis -> LongStream.range(indexOf(fromMillis) + 1, indexOf(toMillis))
+            .filter { index -> indexOf(keyOf(index)) == index }
 
         fromMillis > toMillis -> {
             val toIndex = indexOf(toMillis)
             LongStream.iterate(indexOf(fromMillis) - 1, { index -> index > toIndex }, { index -> index - 1 })
+                .filter { index -> indexOf(keyOf(index)) == index }
         }
 
         else -> LongStream.empty()

@@ -108,7 +108,7 @@ internal class MongoAggregationCompiler(
 
         add(group(query, groupId, logicalParent, physicalParent, schema, now))
         if (denseGroup != null && denseGrid != null) {
-            addAll(denseStages(denseGroup))
+            addAll(denseStages(denseGroup, denseGrid))
         }
         add(project(query, denseGroup, denseGrid))
         query.metrics.forEach { metric ->
@@ -405,27 +405,53 @@ internal class MongoAggregationCompiler(
     /**
      * Stages that carry the grouped bucket index through numeric densification: the index moves
      * out of `_id` onto the alias, then `$densify` fills every missing integer between the data
-     * min and max (`bounds: "full"` keeps the window interior-gap-only).
+     * min and max (`bounds: "full"` keeps the window interior-gap-only). The closing `$match`
+     * drops densify-synthetic documents whose index does not round-trip — see [denseRoundTripMatch].
      */
-    private fun denseStages(denseGroup: AggregationGroup.DateHistogram): List<Bson> = listOf(
+    private fun denseStages(denseGroup: AggregationGroup.DateHistogram, grid: DenseDateGrid): List<Bson> = listOf(
         Aggregates.set(Field(denseGroup.alias, "\$_id.${denseGroup.alias}")),
         Aggregates.densify(
             denseGroup.alias,
             DensifyRange.fullRangeWithStep(1L),
             DensifyOptions.densifyOptions(),
         ),
+        Aggregates.match(denseRoundTripMatch(denseGroup, grid)),
     )
+
+    /**
+     * A grid point must be an EXISTING local time: a zone that skipped a whole local date (e.g.
+     * Pacific/Apia 2011-12-30) collapses the synthetic index onto the NEXT real bucket under
+     * `$dateAdd`, so the fill-aware `$project` inversion would emit a duplicate of that bucket's
+     * key. Synthetic documents whose index does not round-trip are therefore dropped BEFORE the
+     * inversion. Real documents always round-trip — their index derives from `$dateTrunc` of an
+     * existing local time — so the stage is a no-op for them. `$dateAdd` takes no `startOfWeek`
+     * parameter; `$dateDiff` counts week boundaries on it, so WEEK passes Monday explicitly.
+     */
+    private fun denseRoundTripMatch(group: AggregationGroup.DateHistogram, grid: DenseDateGrid): Bson {
+        val dateDiff = Document(
+            "\$dateDiff",
+            Document("startDate", Date.from(grid.anchor.toInstant()))
+                .append("endDate", denseDateAdd(group, grid, "\$${group.alias}"))
+                .append("unit", group.unit.name.lowercase())
+                .append("timezone", mongoTimeZone(group.timeZone))
+                .apply { if (group.unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") }
+        )
+        return Filters.expr(Document("\$eq", listOf(dateDiff, "\$${group.alias}")))
+    }
 
     private fun denseKeyProjection(group: AggregationGroup.DateHistogram, grid: DenseDateGrid): Document = Document(
         "\$toLong",
+        denseDateAdd(group, grid, "\$${group.alias}"),
+    )
+
+    private fun denseDateAdd(group: AggregationGroup.DateHistogram, grid: DenseDateGrid, amount: Any): Document =
         Document(
             "\$dateAdd",
             Document("startDate", Date.from(grid.anchor.toInstant()))
                 .append("unit", group.unit.name.lowercase())
-                .append("amount", "\$${group.alias}")
+                .append("amount", amount)
                 .append("timezone", mongoTimeZone(group.timeZone)),
-        ),
-    )
+        )
 
     private fun AggregationFunction.accumulate(field: String, input: Any): BsonField = when (this) {
         AggregationFunction.SUM -> Accumulators.sum(field, input)

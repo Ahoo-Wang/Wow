@@ -579,6 +579,28 @@ class MongoAggregationCompilerTest {
             BsonDocument("step", BsonInt64(1)).append("bounds", BsonString("full")),
         )
 
+        // A zone that skipped a whole local date (e.g. Pacific/Apia 2011-12-30) collapses the
+        // synthetic index onto the next real bucket under `$dateAdd`: densify-synthetic documents
+        // whose index does not round-trip must be dropped BEFORE the fill-aware `$project`
+        // inversion. Real documents always round-trip, so the stage is a no-op for them.
+        val densifyIndex = pipeline.indexOfFirst { it.containsKey("\$densify") }
+        val projectIndex = pipeline.indexOfFirst { it.containsKey("\$project") }
+        (densifyIndex < projectIndex).assert().isTrue()
+        val roundTrip = pipeline.subList(densifyIndex + 1, projectIndex)
+            .single { it.containsKey("\$match") }
+            .getDocument("\$match")
+            .getDocument("\$expr")
+            .getArray("\$eq")
+        val roundTripDiff = roundTrip[0].asDocument().getDocument("\$dateDiff")
+        roundTripDiff.getString("unit").value.assert().isEqualTo("day")
+        roundTripDiff.getString("timezone").value.assert().isEqualTo("UTC")
+        roundTripDiff.containsKey("startOfWeek").assert().isFalse()
+        val roundTripAdd = roundTripDiff.getDocument("endDate").getDocument("\$dateAdd")
+        roundTripAdd.getString("unit").value.assert().isEqualTo("day")
+        roundTripAdd.getString("amount").value.assert().isEqualTo("\$day")
+        roundTripAdd.getString("timezone").value.assert().isEqualTo("UTC")
+        roundTrip[1].asString().value.assert().isEqualTo("\$day")
+
         val project = pipeline.single { it.containsKey("\$project") }.getDocument("\$project")
         val dateAdd = project.getDocument("day").getDocument("\$toLong").getDocument("\$dateAdd")
         dateAdd.getString("unit").value.assert().isEqualTo("day")

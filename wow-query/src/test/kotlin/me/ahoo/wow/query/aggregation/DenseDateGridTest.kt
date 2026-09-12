@@ -108,6 +108,29 @@ class DenseDateGridTest {
     }
 
     @Test
+    fun `zone that skipped a whole local date yields no gap keys between the two real days`() {
+        // Pacific/Apia jumped from 2011-12-29 23:59:59 (-10:00) straight to 2011-12-31 00:00 (+14:00):
+        // local 2011-12-30 never existed. The skipped calendar index resolves FORWARD onto the next
+        // real bucket instant (keyOf collapses) and does not round-trip — it is not a grid point and
+        // must produce NO bucket, even though the two real buckets sit two calendar indices apart.
+        val zone = ZoneId.of("Pacific/Apia")
+        val grid = DenseDateGrid(AggregationDateUnit.DAY, zone)
+        val day29 = ZonedDateTime.of(2011, 12, 29, 0, 0, 0, 0, zone).toInstant().toEpochMilli()
+        val day31 = ZonedDateTime.of(2011, 12, 31, 0, 0, 0, 0, zone).toInstant().toEpochMilli()
+        val skippedIndex = grid.indexOf(day31) - 1
+
+        // The collapse itself: the nonexistent local midnight maps onto the next real bucket's key.
+        grid.keyOf(skippedIndex).assert().isEqualTo(grid.keyOf(skippedIndex + 1))
+        grid.indexOf(grid.keyOf(skippedIndex)).assert().isNotEqualTo(skippedIndex)
+
+        // A grid point must be an EXISTING local time — the skipped index is skipped in both
+        // directions, so the correct dense window between the two CONSECUTIVE real days is empty.
+        grid.keysBetween(day29, day31).assert().isEmpty()
+        grid.keysBetween(day31, day29).assert().isEmpty()
+        grid.gapIndices(day29, day31).count().assert().isZero()
+    }
+
+    @Test
     fun `pre anchor bucket start is the greatest grid key at or before each instant`() {
         val probes = listOf(
             millis("1969-12-31T23:59:59.999Z"),
