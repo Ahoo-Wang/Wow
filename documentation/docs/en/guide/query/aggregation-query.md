@@ -164,7 +164,7 @@ aggregation {
     sum("amount", "paidAmount") { "status" eq "PAID" }
     derived("attainment") { ref("paidAmount") / constant(6000.0) }
     having {
-        ("attainment" gte 0.8) and ("paid" gt 10)
+        ("attainment" gte 0.8) and ("paid" gt 10.0)
     }
     sort { "attainment".desc() }
     limit(20)
@@ -204,7 +204,7 @@ Implementation and backend conventions:
 
 HTTP query guardrails:
 
-- having nodes count toward `wow.webflux.query.max-filter-nodes`, and comparison values count toward `wow.webflux.query.max-filter-values` — `CONDITION` counts 1, `BETWEEN` counts 2, and `IN` counts its number of values;
+- filter and having nodes share one `wow.webflux.query.max-filter-nodes` budget per request, and comparison values count toward `wow.webflux.query.max-filter-values` — `CONDITION` counts 1, `BETWEEN` counts 2, and `IN` counts its number of values;
 - having comparisons are not treated as expensive operators and are not gated by `wow.webflux.query.allow-expensive-operators`; arithmetic/derived metrics referenced by having still follow their own rules under that switch.
 
 ### Numeric Contributions and Precision {#numeric-contributions}

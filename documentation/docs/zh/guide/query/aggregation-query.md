@@ -164,7 +164,7 @@ aggregation {
     sum("amount", "paidAmount") { "status" eq "PAID" }
     derived("attainment") { ref("paidAmount") / constant(6000.0) }
     having {
-        ("attainment" gte 0.8) and ("paid" gt 10)
+        ("attainment" gte 0.8) and ("paid" gt 10.0)
     }
     sort { "attainment".desc() }
     limit(20)
@@ -204,7 +204,7 @@ aggregation {
 
 HTTP 查询护栏：
 
-- having 节点数计入 `wow.webflux.query.max-filter-nodes`；比较取值计入 `wow.webflux.query.max-filter-values`——`CONDITION` 计 1 个、`BETWEEN` 计 2 个、`IN` 计其取值数；
+- filter 与 having 节点数共享每请求同一份 `wow.webflux.query.max-filter-nodes` 预算；比较取值计入 `wow.webflux.query.max-filter-values`——`CONDITION` 计 1 个、`BETWEEN` 计 2 个、`IN` 计其取值数；
 - having 的比较不视为高成本算子，不受 `wow.webflux.query.allow-expensive-operators` 约束；但它引用的算术/派生 metric 仍按各自规则受该开关约束。
 
 ### 数值参与值与精度 {#numeric-contributions}
