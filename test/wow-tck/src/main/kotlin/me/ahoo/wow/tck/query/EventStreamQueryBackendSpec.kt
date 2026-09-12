@@ -498,6 +498,25 @@ abstract class EventStreamQueryBackendSpec {
                 row.path("names").longValue().assert().isEqualTo(2L)
             }.verifyComplete()
     }
+
+    @Test
+    fun aggregateFilteredEventCounts() {
+        val tenantId = generateGlobalId()
+        eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = tenantId))).block()
+        aggregation {
+            filter { tenantId(tenantId) }
+            expand("body")
+            count("all")
+            // body.revision 是事件模式版本字符串（所有事件恒为 "0.0.1"），数值 eq 无法命中；
+            // 改按 body.name 精确匹配首个事件（事件名按 pascalToSnake 策略为 mock_aggregate_created，仅 1 个）
+            count("first") { "name" eq "mock_aggregate_created" }
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext { row ->
+                row.path("all").longValue().assert().isEqualTo(10L)
+                row.path("first").longValue().assert().isEqualTo(1L)
+            }.verifyComplete()
+    }
 }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =

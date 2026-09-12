@@ -1083,6 +1083,106 @@ abstract class SnapshotQueryBackendSpec {
     }
 
     @Test
+    fun `aggregation should count a funnel of metric filtered counts`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            count("all")                            // stateA 两单 + stateB 一单 = 3
+            count("paid") { "status" eq "PAID" }    // 2
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext { it.assertWireEquals(mapOf("all" to 3L, "paid" to 2L)) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should filter numeric and distinct metrics by record filters`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            count("big") { "quantity" gte 2 }                               // beta,gamma,alpha,beta,delta = 5
+            sum("amount", "bigAmount") { "quantity" gte 2 }                 // 20+null+30+20+50 = 120.0
+            distinctCount("productId", "bigProducts") { "quantity" gte 2 }  // {alpha,beta,delta,gamma} = 4
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext {
+                it.assertWireEquals(mapOf("big" to 5L, "bigAmount" to 120.0, "bigProducts" to 4L))
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should return zero or null when a metric filter matches nothing`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            count("none") { "quantity" gt 100 }                              // 0L
+            sum("amount", "noneAmount") { "quantity" gt 100 }                // null
+            distinctCount("productId", "noneProducts") { "quantity" gt 100 } // 0L
+            percentile("amount", 95.0, "noneP95") { "quantity" gt 100 }      // null
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext {
+                it.assertWireEquals(
+                    mapOf("none" to 0L, "noneAmount" to null, "noneProducts" to 0L, "noneP95" to null),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should combine metric filters with element filters`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders") { "status" eq "PAID" }
+            expand("lines")
+            count("all")                          // PAID 5 行
+            count("big") { "quantity" gte 2 }     // beta(2),alpha(4),beta(2),delta(5) = 4
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext { it.assertWireEquals(mapOf("all" to 5L, "big" to 4L)) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should sort groups by a filtered metric`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            sum("amount", "bigAmount") { "quantity" gte 2 } // alpha=30(仅qty4行), beta=40, delta=50, gamma=null(amt空)
+            sort { "bigAmount".desc() }
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // gamma 组通过过滤条件（quantity=3）但 amount 为 null，bigAmount=null 保留并按 DESC 置于末尾
+                rows.map { it.path("product").textValue() }.assert()
+                    .containsExactly("delta", "beta", "alpha", "gamma")
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should scope metric filters to the innermost element`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            count("byName") { "productName" eq "Alpha" } // 仅 stateA 的 alpha 行 = 1
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext { it.path("byName").longValue().assert().isEqualTo(1L) }
+            .verifyComplete()
+    }
+
+    @Test
     fun `aggregation should support cancellation after a real result`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
