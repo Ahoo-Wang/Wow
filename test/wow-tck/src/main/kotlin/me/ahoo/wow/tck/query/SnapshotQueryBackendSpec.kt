@@ -1300,6 +1300,22 @@ abstract class SnapshotQueryBackendSpec {
     }
 
     @Test
+    fun `aggregation should evaluate derived metrics over an empty ungrouped summary`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines") { "quantity" gt 10000 } // 元素过滤零匹配：空聚合摘要
+            count("c") // 0
+            derived("one") { constant(1.0) } // 常量可求值
+            derived("next") { ref("c") + constant(1.0) } // 引用计数空语义 0 -> 1.0
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext { it.assertWireEquals(mapOf("c" to 0L, "one" to 1.0, "next" to 1.0)) }
+            .verifyComplete()
+    }
+
+    @Test
     fun `aggregation should propagate null from empty metrics into derived`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
         aggregation {
