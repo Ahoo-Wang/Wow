@@ -48,8 +48,23 @@ class DenseDateGrid(unit: AggregationDateUnit, private val timeZone: ZoneId) {
         if (unit == AggregationDateUnit.WEEK) it.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) else it
     }
 
-    fun indexOf(epochMillis: Long): Long =
-        anchor.until(Instant.ofEpochMilli(epochMillis).atZone(timeZone), stepUnit)
+    /**
+     * Index of the bucket containing [epochMillis], floored: the result `n` always satisfies
+     * `keyOf(n) <= epochMillis < keyOf(n + 1)`.
+     *
+     * [Temporal.until][java.time.temporal.Temporal.until] truncates toward zero for date-based
+     * units, so non-aligned instants before the anchor land one bucket ahead — including
+     * differences within `(-1, 0)` units, which truncate to `0`; the overshoot check restores
+     * floor semantics on the negative side. Non-negative truncation is already floor.
+     */
+    fun indexOf(epochMillis: Long): Long {
+        val dateTime = Instant.ofEpochMilli(epochMillis).atZone(timeZone)
+        val index = anchor.until(dateTime, stepUnit)
+        if (anchor.plus(index, stepUnit) > dateTime) {
+            return index - 1
+        }
+        return index
+    }
 
     fun keyOf(index: Long): Long = anchor.plus(index, stepUnit).toInstant().toEpochMilli()
 

@@ -38,12 +38,18 @@ class EmptyAggregationValuesTest {
                     AggregationExpression.Field(QueryField("productId")),
                     "products",
                 ),
+                AggregationMetric.Percentile(
+                    AggregationExpression.Field(QueryField("latency")),
+                    95.0,
+                    "p95",
+                ),
             ),
         )
         values["count"].assert().isEqualTo(0L)
         values["any"].assert().isNull()
         values["total"].assert().isNull()
         values["products"].assert().isEqualTo(0L)
+        values["p95"].assert().isNull()
     }
 
     @Test
@@ -59,6 +65,25 @@ class EmptyAggregationValuesTest {
         values["scaled"].assert().isEqualTo(2.0)
     }
 
+    @Test
+    fun `derived metrics propagate null operands and non finite results to null`() {
+        val values = EmptyAggregationValues.values(
+            listOf(
+                AggregationMetric.Numeric(
+                    AggregationFunction.SUM,
+                    AggregationExpression.Field(QueryField("amount")),
+                    "total",
+                ),
+                AggregationMetric.Derived("plusNull", plusOne("total")),
+                AggregationMetric.Derived("overflow", doubleOverflow()),
+            ),
+        )
+        // A null operand (empty SUM) nullifies the whole expression.
+        values["plusNull"].assert().isNull()
+        // Double overflow yields a non-finite result, which collapses to null.
+        values["overflow"].assert().isNull()
+    }
+
     private fun div(metric: String) = DerivedExpression.Binary(
         AggregationExpressionOperator.DIVIDE,
         DerivedExpression.MetricRef(metric),
@@ -68,6 +93,18 @@ class EmptyAggregationValuesTest {
     private fun constantTimesTwo() = DerivedExpression.Binary(
         AggregationExpressionOperator.MULTIPLY,
         DerivedExpression.Constant(1.0),
+        DerivedExpression.Constant(2.0),
+    )
+
+    private fun plusOne(metric: String) = DerivedExpression.Binary(
+        AggregationExpressionOperator.ADD,
+        DerivedExpression.MetricRef(metric),
+        DerivedExpression.Constant(1.0),
+    )
+
+    private fun doubleOverflow() = DerivedExpression.Binary(
+        AggregationExpressionOperator.MULTIPLY,
+        DerivedExpression.Constant(Double.MAX_VALUE),
         DerivedExpression.Constant(2.0),
     )
 }

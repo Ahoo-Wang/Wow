@@ -92,4 +92,38 @@ class DenseDateGridTest {
             Instant.parse("2026-07-01T00:00:00Z").toEpochMilli(),
         ).assert().containsExactly(Instant.parse("2026-04-01T00:00:00Z").toEpochMilli())
     }
+
+    @Test
+    fun `pre anchor instants floor into their containing bucket`() {
+        // Temporal.until truncates toward zero for date-based units, so non-aligned instants before
+        // the anchor would otherwise land one bucket ahead of the bucket that contains them.
+        DenseDateGrid(AggregationDateUnit.DAY, utc)
+            .indexOf(millis("1969-12-31T12:00:00Z")).assert().isEqualTo(-1L) // inside [1969-12-31, 1970-01-01)
+        DenseDateGrid(AggregationDateUnit.WEEK, utc) // Monday anchor 1969-12-29
+            .indexOf(millis("1969-12-28T00:00:00Z")).assert().isEqualTo(-1L) // Sunday of the previous week
+        DenseDateGrid(AggregationDateUnit.MONTH, utc)
+            .indexOf(millis("1969-12-15T00:00:00Z")).assert().isEqualTo(-1L)
+        DenseDateGrid(AggregationDateUnit.YEAR, utc)
+            .indexOf(millis("1969-06-15T00:00:00Z")).assert().isEqualTo(-1L)
+    }
+
+    @Test
+    fun `pre anchor bucket start is the greatest grid key at or before each instant`() {
+        val probes = listOf(
+            millis("1969-12-31T23:59:59.999Z"),
+            millis("1969-12-31T00:00:00Z"),
+            millis("1969-12-15T12:34:56Z"),
+            millis("1969-06-15T00:00:00Z"),
+        )
+        AggregationDateUnit.entries.forEach { unit ->
+            val grid = DenseDateGrid(unit, utc)
+            probes.forEach { probe ->
+                val bucketStart = grid.keyOf(grid.indexOf(probe))
+                (bucketStart <= probe).assert().isTrue()
+                (grid.keyOf(grid.indexOf(probe) + 1) > probe).assert().isTrue()
+            }
+            // Aligned keys round trip exactly, also before the anchor.
+            grid.indexOf(grid.keyOf(-5L)).assert().isEqualTo(-5L)
+        }
+    }
 }
