@@ -51,6 +51,11 @@ data class AggregationQuery(
         metrics.requireValidExpressions()
         metrics.requireValidDerivedMetrics()
         requireValidHaving(having, groupBy, metrics)
+        groupBy.forEach { group ->
+            if (group is AggregationGroup.DateHistogram && group.dense) {
+                require(groupBy.size == 1) { "dense requires DATE_HISTOGRAM to be the only groupBy." }
+            }
+        }
 
         val aliases = groupBy.map(AggregationGroup::alias) + metrics.map(AggregationMetric::alias)
         require(aliases.distinct().size == aliases.size) { "aggregation aliases must be unique." }
@@ -111,9 +116,14 @@ sealed interface AggregationGroup {
     data class Terms(
         override val field: QueryField,
         override val alias: String,
+        @get:JsonInclude(JsonInclude.Include.NON_NULL)
+        val missingKey: String? = null,
     ) : AggregationGroup {
         init {
             requireAggregationAlias(alias)
+            if (missingKey != null) {
+                require(missingKey.isNotBlank()) { "terms missingKey must not be blank." }
+            }
         }
     }
 
@@ -136,6 +146,8 @@ sealed interface AggregationGroup {
         override val alias: String,
         val unit: AggregationDateUnit,
         val timeZone: String = "UTC",
+        @get:JsonInclude(JsonInclude.Include.CUSTOM, valueFilter = FalseValueFilter::class)
+        val dense: Boolean = false,
     ) : AggregationGroup {
         init {
             requireAggregationAlias(alias)
@@ -411,6 +423,18 @@ internal class MatchAllFilterValueFilter {
     override fun equals(other: Any?): Boolean = other === MatchAllFilter
 
     override fun hashCode(): Int = MatchAllFilterValueFilter::class.hashCode()
+}
+
+/**
+ * Omits the `false` default of [AggregationGroup.DateHistogram.dense] so non-dense queries
+ * keep their original JSON shape. Constructor defaults cannot use
+ * [JsonInclude.Include.NON_DEFAULT] here for the reason documented on
+ * [MatchAllFilterValueFilter].
+ */
+internal class FalseValueFilter {
+    override fun equals(other: Any?): Boolean = other == java.lang.Boolean.FALSE
+
+    override fun hashCode(): Int = FalseValueFilter::class.hashCode()
 }
 
 private data class PendingExpression(

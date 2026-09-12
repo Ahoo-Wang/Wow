@@ -16,6 +16,9 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.CursorQuery
@@ -413,6 +416,40 @@ class QuerySchemaValidationTest {
                 },
                 schema
             )
+        }
+    }
+
+    @Test
+    fun `terms missing key requires a single valued string field`() {
+        val schema = boundSchemaFixture(
+            objectFixture(
+                "name" to scalarFixture(QueryValueType.STRING),
+                "nickname" to QueryValueSchema(
+                    QueryValueKind.UNION,
+                    alternatives = listOf(scalarFixture(QueryValueType.STRING), QueryValueSchema(QueryValueKind.NULL))
+                ),
+                "label" to QueryValueSchema(
+                    QueryValueKind.UNION,
+                    alternatives = listOf(scalarFixture(QueryValueType.STRING), scalarFixture(QueryValueType.INTEGER))
+                ),
+                "amount" to scalarFixture(QueryValueType.DECIMAL),
+                "names" to arrayFixture(scalarFixture(QueryValueType.STRING)),
+            )
+        )
+        fun termsWithMissingKey(field: String) = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(QueryField(field), field, missingKey = "UNKNOWN")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        validateQuery(termsWithMissingKey("name"), schema).assert().isNotNull()
+        validateQuery(termsWithMissingKey("nickname"), schema).assert().isNotNull()
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(termsWithMissingKey("amount"), schema)
+        }.message.assert().isEqualTo("Field [amount] must be a single-valued string field to declare missingKey.")
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(termsWithMissingKey("names"), schema)
+        }
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(termsWithMissingKey("label"), schema)
         }
     }
 
