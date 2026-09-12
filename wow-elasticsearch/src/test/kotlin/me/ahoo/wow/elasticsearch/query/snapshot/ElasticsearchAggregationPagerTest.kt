@@ -16,9 +16,9 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
 import co.elastic.clients.elasticsearch._types.aggregations.Buckets
-import co.elastic.clients.elasticsearch._types.aggregations.FiltersBucket
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
 import co.elastic.clients.elasticsearch._types.aggregations.DoubleTermsBucket
+import co.elastic.clients.elasticsearch._types.aggregations.FiltersBucket
 import co.elastic.clients.elasticsearch._types.aggregations.LongTermsBucket
 import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
