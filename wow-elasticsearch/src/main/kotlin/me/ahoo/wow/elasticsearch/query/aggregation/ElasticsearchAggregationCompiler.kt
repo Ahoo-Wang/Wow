@@ -460,6 +460,13 @@ internal class ElasticsearchAggregationCompiler(
      * referenced sibling aggregations in [bucketsPath]. A [DerivedExpression.MetricRef] contributes
      * a `vN` value entry and — for metrics whose empty-set semantics differ from a missing value —
      * an additional `cN` value-count entry the script guards on.
+     *
+     * Guards use a NaN sentinel instead of null: Painless throws on null arithmetic operands, and an
+     * empty-set sum is a value (0.0), not a gap, so the count guard must stay in double arithmetic
+     * (`Double.NaN`). Every reference is cast `as double` (plain `_count` paths arrive as Longs —
+     * Long/Long division is integer division), division relies on IEEE semantics (x / 0.0 → ±Infinity)
+     * instead of an explicit zero guard, and the final `!Double.isFinite` wrap unifies NaN and ±Infinity
+     * to null.
      */
     private fun DerivedExpression.toScript(
         prior: Map<String, ElasticsearchAggregationMetric>,
@@ -472,10 +479,11 @@ internal class ElasticsearchAggregationCompiler(
             val index = derivedRefIndexes.getOrPut(metric) { derivedRefIndexes.size }
             bucketsPath["v$index"] = valuePath
             if (countPath == null) {
-                "params.v$index"
+                "(params.v$index as double)"
             } else {
                 bucketsPath["c$index"] = countPath
-                "(params.c$index == 0.0 ? null : params.v$index)" // empty-set guard: zero count -> null
+                // empty-set guard: zero count -> NaN sentinel (null would throw in Painless arithmetic)
+                "((params.c$index as double) == 0.0 ? Double.NaN : (params.v$index as double))"
             }
         }
 
@@ -503,7 +511,8 @@ internal class ElasticsearchAggregationCompiler(
             AggregationExpressionOperator.DIVIDE -> {
                 val leftScript = left.toScript(prior, derivedRefIndexes, bucketsPath)
                 val rightScript = right.toScript(prior, derivedRefIndexes, bucketsPath)
-                "($rightScript == 0.0 ? null : $leftScript / $rightScript)" // painless division by zero throws -> explicit guard
+                // all-double operands follow IEEE: x / 0.0 -> ±Infinity, unified to null by the final wrap
+                "($leftScript / $rightScript)"
             }
         }
     }

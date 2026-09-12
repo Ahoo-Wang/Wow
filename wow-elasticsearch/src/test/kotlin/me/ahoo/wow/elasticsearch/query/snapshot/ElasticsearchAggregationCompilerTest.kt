@@ -485,7 +485,13 @@ class ElasticsearchAggregationCompilerTest {
         aov.bucketsPath["c0"].assert().isEqualTo("__wow_metric_filter_paidAmount.__wow_value_count_paidAmount.value")
         aov.bucketsPath["v1"].assert().isEqualTo("paid._count")
         requireNotNull(aov.script.source()).scriptString().assert()
-            .contains("(params.c0 == 0.0 ? null : params.v0)").contains("params.v1 == 0.0 ? null")
+            // NaN sentinel: an empty-set sum is a value (0.0), not a gap, so the guard must stay
+            // in-double-arithmetic (Painless throws on null operands) and let NaN flow to the final wrap
+            .contains("((params.c0 as double) == 0.0 ? Double.NaN : (params.v0 as double))")
+            .contains("(params.v1 as double)")
+            .contains("Double.NaN")
+            .contains("Double.isFinite")
+            .doesNotContain("== 0.0 ? null")
         val attainment = derived[1]
         attainment.bucketsPath["v0"].assert().isEqualTo("__wow_metric_filter_paidAmount.paidAmount.value")
         attainment.bucketsPath["v2"].assert().isEqualTo("totalAmount.value") // unfiltered Numeric has no wrapper
@@ -505,7 +511,9 @@ class ElasticsearchAggregationCompilerTest {
         )
         val quarter = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Derived>()[1]
         quarter.bucketsPath.values.single().assert().isEqualTo("half.value")
-        requireNotNull(quarter.script.source()).scriptString().assert().contains("/ 2.0")
+        requireNotNull(quarter.script.source()).scriptString().assert()
+            .contains("(params.v1 as double)")
+            .contains("/ 2.0")
     }
 
     @Test
