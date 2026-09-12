@@ -1241,6 +1241,121 @@ abstract class SnapshotQueryBackendSpec {
     }
 
     @Test
+    fun `aggregation should derive ratios from filtered metrics`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            count("big") { "quantity" gte 2 } // 5
+            sum("amount", "bigAmount") { "quantity" gte 2 } // 120.0
+            derived("aov") { ref("bigAmount") / ref("big") } // 24.0
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext { it.assertWireEquals(mapOf("big" to 5L, "bigAmount" to 120.0, "aov" to 24.0)) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should derive ratios between sums and constants`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            sum("amount", "totalAmount") // 130.0（gamma 的 null 不参与）
+            sum("amount", "bigAmount") { "quantity" gte 2 } // 120.0
+            derived("margin") { (ref("totalAmount") - ref("bigAmount")) / constant(10.0) } // 1.0
+            derived("target") { constant(120.0) }
+            derived("attainment") { ref("bigAmount") / ref("target") } // 1.0（派生引用派生）
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext {
+                it.assertWireEquals(
+                    mapOf(
+                        "totalAmount" to 130.0,
+                        "bigAmount" to 120.0,
+                        "margin" to 1.0,
+                        "target" to 120.0,
+                        "attainment" to 1.0,
+                    ),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should derive null on division by zero`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            count("none") { "quantity" gt 100 } // 0
+            sum("amount", "bigAmount") { "quantity" gte 2 } // 120.0
+            derived("ratio") { ref("bigAmount") / ref("none") } // 120/0 -> null
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext { it.assertWireEquals(mapOf("none" to 0L, "bigAmount" to 120.0, "ratio" to null)) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should propagate null from empty metrics into derived`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            sum("amount", "noneAmount") { "quantity" gt 100 } // null（过滤后无参与值）
+            derived("scaled") { ref("noneAmount") * constant(2.0) } // null * 2 -> null
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext { it.assertWireEquals(mapOf("noneAmount" to null, "scaled" to null)) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should derive from previously derived metrics`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            count("big") { "quantity" gte 2 } // 5
+            sum("amount", "bigAmount") { "quantity" gte 2 } // 120.0
+            derived("aov") { ref("bigAmount") / ref("big") } // 24.0
+            derived("aovDoubled") { ref("aov") * constant(2.0) } // 48.0（派生链）
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext {
+                it.assertWireEquals(
+                    mapOf("big" to 5L, "bigAmount" to 120.0, "aov" to 24.0, "aovDoubled" to 48.0),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should sort groups by a derived metric`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            sum("amount", "bigAmount") { "quantity" gte 2 } // delta=50, beta=40, alpha=30, gamma=null
+            derived("share") { ref("bigAmount") / constant(50.0) } // 1.0 / 0.8 / 0.6 / null
+            sort { "share".desc() }
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // gamma 组通过过滤条件（quantity=3）但 amount 为 null，share=null 按_desc 置尾，与 Phase 1 排序口径一致
+                rows.map { it.path("product").textValue() }.assert()
+                    .containsExactly("delta", "beta", "alpha", "gamma")
+            }.verifyComplete()
+    }
+
+    @Test
     fun `aggregation should support cancellation after a real result`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
