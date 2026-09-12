@@ -213,10 +213,26 @@ internal class ElasticsearchAggregationCompiler(
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): NamedValue<CompositeAggregationSource> {
         val source = when (this) {
-            is AggregationGroup.Terms -> CompositeAggregationSource.of {
-                it.terms { terms ->
-                    terms.field(field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS))
-                        .order(sort.direction.toSortOrder())
+            is AggregationGroup.Terms -> {
+                val declaredMissingKey = missingKey
+                if (declaredMissingKey == null) {
+                    CompositeAggregationSource.of {
+                        it.terms { terms ->
+                            terms.field(field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS))
+                                .order(sort.direction.toSortOrder())
+                        }
+                    }
+                } else {
+                    val runtimeFieldName = "__wow_missing_terms_$index"
+                    runtimeMappings[runtimeFieldName] = missingKeyRuntimeField(
+                        field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS),
+                        declaredMissingKey,
+                    )
+                    CompositeAggregationSource.of {
+                        it.terms { terms ->
+                            terms.field(runtimeFieldName).order(sort.direction.toSortOrder())
+                        }
+                    }
                 }
             }
 
@@ -305,6 +321,38 @@ internal class ElasticsearchAggregationCompiler(
         """.trimIndent()
         return RuntimeField.of { runtime ->
             runtime.type(RuntimeFieldType.Date)
+                .script(
+                    Script.of { script ->
+                        script.lang(ScriptLanguage.Painless)
+                            .source { it.scriptString(source) }
+                            .params(params)
+                    },
+                )
+        }
+    }
+
+    /**
+     * Single-valued passthrough with a declared sentinel: the sentinel stays a plain string key so
+     * composite ordering matches MongoDB's `$ifNull` lexicographic position (composite
+     * `missing_bucket` orders its null key first, which would diverge).
+     */
+    private fun missingKeyRuntimeField(physicalPath: String, missingKey: String): RuntimeField {
+        val params = mapOf(
+            "field" to JsonData.of(physicalPath),
+            "missing" to JsonData.of(missingKey),
+        )
+        val source = """
+            String field = params.field;
+            if (doc.containsKey(field) && doc[field].size() == 1) {
+                def raw = doc[field].value;
+                if (raw != null) {
+                    return raw.toString();
+                }
+            }
+            return params.missing;
+        """.trimIndent()
+        return RuntimeField.of { runtime ->
+            runtime.type(RuntimeFieldType.Keyword)
                 .script(
                     Script.of { script ->
                         script.lang(ScriptLanguage.Painless)
