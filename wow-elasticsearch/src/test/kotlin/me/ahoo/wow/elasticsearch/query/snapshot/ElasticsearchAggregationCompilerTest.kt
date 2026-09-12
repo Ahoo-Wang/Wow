@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import co.elastic.clients.elasticsearch._types.Script
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import me.ahoo.test.asserts.assert
@@ -327,6 +328,11 @@ class ElasticsearchAggregationCompilerTest {
         ElasticsearchAggregationMetric.Numeric("sum", AggregationFunction.SUM, "amount").filter.assert().isNull()
         ElasticsearchAggregationMetric.DistinctCount("customers", "customerId").filter.assert().isNull()
         ElasticsearchAggregationMetric.Percentile("p95", "amount", 95.0).filter.assert().isNull()
+        ElasticsearchAggregationMetric.Derived(
+            "aov",
+            emptyMap(),
+            Script.of { it.source { s -> s.scriptString("null") } },
+        ).filter.assert().isNull()
     }
 
     @Test
@@ -455,6 +461,51 @@ class ElasticsearchAggregationCompilerTest {
             .assert().isEqualTo("orders.status")
 
         compiler.compile(aggregation { count("count") }, schema).metrics.single().filter.assert().isNull()
+    }
+
+    @Test
+    fun `derived metrics plan bucket scripts with guarded paths`() {
+        val plan = compiler.compile(
+            aggregation {
+                count("paid") { "deleted" eq false }
+                sum("amount", "paidAmount") { "deleted" eq false }
+                sum("amount", "totalAmount")
+                derived("aov") { ref("paidAmount") / ref("paid") }
+                derived("attainment") { ref("paidAmount") / ref("totalAmount") }
+            },
+            schema,
+        )
+        val derived = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Derived>()
+        derived.assert().hasSize(2)
+        val aov = derived[0]
+        // filtered Numeric: value via the metric filter wrapper, count via the wrapper's value count;
+        // filtered Count: alias._count
+        aov.bucketsPath.assert().containsKey("v0").containsKey("c0").containsKey("v1")
+        aov.bucketsPath["v0"].assert().isEqualTo("__wow_metric_filter_paidAmount.paidAmount.value")
+        aov.bucketsPath["c0"].assert().isEqualTo("__wow_metric_filter_paidAmount.__wow_value_count_paidAmount.value")
+        aov.bucketsPath["v1"].assert().isEqualTo("paid._count")
+        requireNotNull(aov.script.source()).scriptString().assert()
+            .contains("(params.c0 == 0.0 ? null : params.v0)").contains("params.v1 == 0.0 ? null")
+        val attainment = derived[1]
+        attainment.bucketsPath["v0"].assert().isEqualTo("__wow_metric_filter_paidAmount.paidAmount.value")
+        attainment.bucketsPath["v2"].assert().isEqualTo("totalAmount.value") // unfiltered Numeric has no wrapper
+        attainment.bucketsPath["c2"].assert().isEqualTo("__wow_value_count_totalAmount.value")
+        requireNotNull(attainment.script.source()).scriptString().assert().contains("Double.isFinite")
+    }
+
+    @Test
+    fun `derived chains reference prior derived aliases`() {
+        val plan = compiler.compile(
+            aggregation {
+                count("total")
+                derived("half") { ref("total") / constant(2.0) }
+                derived("quarter") { ref("half") / constant(2.0) }
+            },
+            schema,
+        )
+        val quarter = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Derived>()[1]
+        quarter.bucketsPath.values.single().assert().isEqualTo("half.value")
+        requireNotNull(quarter.script.source()).scriptString().assert().contains("/ 2.0")
     }
 
     @Test
