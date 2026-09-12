@@ -291,7 +291,8 @@ private class QueryValidator(private val schema: QueryModelSchema) {
                 is AggregationGroup.Histogram -> QueryCapability.AGGREGATE_NUMERIC
                 is AggregationGroup.DateHistogram -> QueryCapability.AGGREGATE_TEMPORAL
             }
-            aggregationField(group.field, setOf(capability), parent)
+            val field = aggregationField(group.field, setOf(capability), parent)
+            requireTermsMissingKeySupport(group, field)
         }
         query.metrics.forEach { metric ->
             if (metric.filter !== MatchAllFilter) {
@@ -341,6 +342,16 @@ private class QueryValidator(private val schema: QueryModelSchema) {
                 expression(expression.left, parent)
                 expression(expression.right, parent)
             }
+        }
+    }
+
+    private fun requireTermsMissingKeySupport(group: AggregationGroup, field: QueryFieldSchema) {
+        if (group is AggregationGroup.Terms && group.missingKey != null) {
+            requireSchema(
+                field.value.kind == QueryValueKind.SCALAR &&
+                    QueryValueType.STRING in field.value.valueTypes &&
+                    field.value.cardinality == QueryCardinality.SINGLE,
+            ) { "Field [${field.logicalField}] must be a single-valued string field to declare missingKey." }
         }
     }
 
