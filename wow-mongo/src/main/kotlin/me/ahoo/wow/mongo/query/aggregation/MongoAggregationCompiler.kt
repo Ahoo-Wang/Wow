@@ -87,12 +87,14 @@ internal class MongoAggregationCompiler(
 
         val groupId = query.groupBy.takeIf { it.isNotEmpty() }?.let { groups ->
             val id = Document()
-            val filters = groups.map { group ->
+            val filters = groups.mapNotNull { group ->
                 val (filter, expression) = group.compile(logicalParent, physicalParent, schema)
                 id[group.alias] = expression
                 filter
             }
-            add(Aggregates.match(Filters.and(filters)))
+            if (filters.isNotEmpty()) {
+                add(Aggregates.match(Filters.and(filters)))
+            }
             id
         }
 
@@ -486,10 +488,14 @@ internal class MongoAggregationCompiler(
         parent: QueryField?,
         physicalParent: String?,
         schema: QueryModelSchema,
-    ): Pair<Bson, Any> = when (this) {
+    ): Pair<Bson?, Any> = when (this) {
         is AggregationGroup.Terms -> {
             val path = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS)
-            Filters.and(Filters.exists(path), Filters.ne(path, null)) to "\$$path"
+            if (missingKey == null) {
+                Filters.and(Filters.exists(path), Filters.ne(path, null)) to "\$$path"
+            } else {
+                null to Document("\$ifNull", listOf("\$$path", missingKey))
+            }
         }
         is AggregationGroup.Histogram -> {
             val path = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC)

@@ -632,6 +632,62 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `terms missingKey drops the group guard and buckets by an ifNull sentinel key`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status", missingKey = "UNKNOWN")
+                count("count")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        pipeline.map { it.keys.first() }.assert()
+            .containsExactly("\$match", "\$group", "\$project", "\$sort", "\$limit")
+        pipeline.single { it.containsKey("\$group") }.getDocument("\$group").getDocument("_id").assert().isEqualTo(
+            BsonDocument(
+                "status",
+                BsonDocument("\$ifNull", BsonArray(listOf(BsonString("\$state.status"), BsonString("UNKNOWN")))),
+            ),
+        )
+    }
+
+    @Test
+    fun `terms without missingKey keeps the exists null guard`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status")
+                count("count")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        pipeline.map { it.keys.first() }.assert()
+            .containsExactly("\$match", "\$match", "\$group", "\$project", "\$sort", "\$limit")
+        pipeline[1].getDocument("\$match").toJson().assert()
+            .contains("\$exists")
+            .contains("\$ne")
+        pipeline.single { it.containsKey("\$group") }.getDocument("\$group").getDocument("_id")
+            .getString("status").value.assert().isEqualTo("\$state.status")
+    }
+
+    @Test
+    fun `a missingKey terms group keeps the guards of its sibling groups`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status", missingKey = "UNKNOWN")
+                histogram("state.amount", 10.0, "range")
+                count("count")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val guard = pipeline[1].getDocument("\$match")
+        guard.toJson().assert()
+            .contains("state.amount")
+            .doesNotContain("state.status")
+    }
+
+    @Test
     fun `derived constants and chains compile leaves in order`() {
         val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation {
