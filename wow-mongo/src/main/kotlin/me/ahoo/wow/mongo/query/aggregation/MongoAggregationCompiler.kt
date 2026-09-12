@@ -34,7 +34,9 @@ import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.distinctCountCapability
 import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.physicalField
@@ -112,7 +114,8 @@ internal class MongoAggregationCompiler(
     ): Bson {
         val accumulators = buildList {
             query.metrics.forEach { metric ->
-                val guard = metricFilter(metric, parent, physicalParent, schema, now)?.toGuardCondition()
+                val guard = metricFilter(metric, parent, physicalParent, schema, now)
+                    ?.toGuardCondition(schema)
                 when (metric) {
                     is AggregationMetric.Count -> add(
                         if (guard == null) {
@@ -671,35 +674,65 @@ internal class MongoAggregationCompiler(
  * The translation covers every shape [AbstractMongoFilterCompiler] emits and preserves
  * its null-versus-missing match semantics.
  */
-private fun Bson.toGuardCondition(): Any = toGuardCondition(toBsonDocument())
+private fun Bson.toGuardCondition(schema: QueryModelSchema): Any =
+    toGuardCondition(toBsonDocument(), schema.arrayValuedPhysicalFields())
 
-private fun toGuardCondition(document: BsonDocument): Any = when (document.size) {
+/**
+ * Guard expressions compare whole values while `$match` matches array elements,
+ * so filters over array-valued fields are rejected instead of diverging silently.
+ */
+private fun QueryModelSchema.arrayValuedPhysicalFields(): Set<String> =
+    bindings.entries.flatMapTo(mutableSetOf()) { (logical, native) ->
+        val value = definition.values[logical] ?: return@flatMapTo emptyList()
+        if (!value.isArrayValued) {
+            return@flatMapTo emptyList()
+        }
+        native.bindings.values
+            .filterNot { template -> template.physicalPath.segments.any { it is QueryPathSegment.Key } }
+            .map { template -> template.physicalPath.field(emptyList()).path }
+    }
+
+private val QueryValueSchema.isArrayValued: Boolean
+    get() = kind == QueryValueKind.ARRAY ||
+        (kind == QueryValueKind.UNION && alternatives.any { it.kind == QueryValueKind.ARRAY })
+
+private fun toGuardCondition(document: BsonDocument, arrayValuedFields: Set<String>): Any = when (document.size) {
     0 -> Document("\$literal", true)
-    1 -> toGuardCondition(document.entries.first())
-    else -> Document("\$and", document.entries.map(::toGuardCondition))
+    1 -> toGuardCondition(document.entries.first(), arrayValuedFields)
+    else -> Document("\$and", document.entries.map { toGuardCondition(it, arrayValuedFields) })
 }
 
-private fun toGuardCondition(entry: Map.Entry<String, BsonValue>): Any {
+private fun toGuardCondition(entry: Map.Entry<String, BsonValue>, arrayValuedFields: Set<String>): Any {
     val path = entry.key
     val condition = entry.value
     return when {
         path == "\$and" || path == "\$or" ->
-            Document(path, condition.asArray().map { toGuardCondition(it.asDocument()) })
+            Document(path, condition.asArray().map { toGuardCondition(it.asDocument(), arrayValuedFields) })
 
         path == "\$nor" -> Document(
             "\$not",
-            listOf(Document("\$or", condition.asArray().map { toGuardCondition(it.asDocument()) })),
+            listOf(
+                Document(
+                    "\$or",
+                    condition.asArray().map { toGuardCondition(it.asDocument(), arrayValuedFields) },
+                ),
+            ),
         )
 
         path.startsWith("\$") -> throw QuerySchemaValidationException(
             "MongoDB metric filters cannot translate operator [$path] into a guard condition.",
         )
 
-        else -> toGuardCondition(path, condition)
+        else -> toGuardCondition(path, condition, arrayValuedFields)
     }
 }
 
-private fun toGuardCondition(path: String, condition: BsonValue): Any {
+private fun toGuardCondition(path: String, condition: BsonValue, arrayValuedFields: Set<String>): Any {
+    if (path in arrayValuedFields) {
+        throw QuerySchemaValidationException(
+            "Aggregation metric filter field [$path] must be scalar; array fields are not supported in metric filters.",
+        )
+    }
     if (condition.isNull) {
         return matchesNull(path)
     }
@@ -737,23 +770,26 @@ private fun toGuardCondition(path: String, operator: String, value: BsonValue): 
         Document("\$eq", listOf(typeOf(path), "missing"))
     }
 
-    "\$size" -> Document(
-        "\$eq",
-        listOf(
-            Document(
-                "\$size",
+    "\$size" -> {
+        val size = value.asNumber().intValue()
+        Document(
+            "\$eq",
+            listOf(
                 Document(
-                    "\$cond",
-                    listOf(
-                        Document("\$isArray", listOf(fieldRef(path))),
-                        fieldRef(path),
-                        BsonArray(List(value.asNumber().intValue() + 1) { BsonNull.VALUE }),
+                    "\$size",
+                    Document(
+                        "\$cond",
+                        listOf(
+                            Document("\$isArray", listOf(fieldRef(path))),
+                            fieldRef(path),
+                            BsonArray(List(size + 1) { BsonNull.VALUE }),
+                        ),
                     ),
                 ),
+                size,
             ),
-            value.asNumber().intValue(),
-        ),
-    )
+        )
+    }
 
     else -> throw QuerySchemaValidationException(
         "MongoDB metric filters cannot translate operator [$operator] into a guard condition.",

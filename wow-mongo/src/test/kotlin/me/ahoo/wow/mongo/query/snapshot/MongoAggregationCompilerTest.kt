@@ -234,6 +234,7 @@ class MongoAggregationCompilerInputTest {
     }
 }
 
+@Suppress("LargeClass")
 class MongoAggregationCompilerTest {
 
     @Test
@@ -835,6 +836,59 @@ class MongoAggregationCompilerTest {
         val countGuard = group.getDocument("__wow_value_count_total").getDocument("\$sum").getArray("\$cond")
         countGuard.get(0).asDocument().containsKey("\$isNumber").assert().isTrue()
         countGuard.get(0).asDocument().containsKey("\$and").assert().isFalse()
+    }
+
+    @Test
+    fun `metric filters cannot use text search`() {
+        assertThrows<QuerySchemaValidationException> {
+            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+                aggregation { count("found") { "state.status" search "PAID" } },
+                statusFilterSchema,
+            )
+        }
+    }
+
+    @Test
+    fun `metric filters cannot use element match`() {
+        assertThrows<QuerySchemaValidationException> {
+            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+                aggregation { count("orders") { "state.orders".elementMatch { "status" eq "PAID" } } },
+                schema(),
+            )
+        }
+    }
+
+    @Test
+    fun `metric filters cannot use contains all`() {
+        assertThrows<QuerySchemaValidationException> {
+            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+                aggregation { count("tagged") { "state.status" containsAll listOf("A", "B") } },
+                statusFilterSchema,
+            )
+        }
+    }
+
+    @Test
+    fun `metric filters cannot filter on array valued fields`() {
+        val schema = schema(
+            QueryField("state.tags") to MongoTestField(
+                QueryValueSchema(
+                    kind = QueryValueKind.ARRAY,
+                    items = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING)),
+                ),
+                setOf(QueryCapability.EXACT_MATCH),
+                "state.tags",
+            ),
+        )
+
+        assertThrows<QuerySchemaValidationException> {
+            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+                aggregation { count("tagged") { "state.tags" eq "promo" } },
+                schema,
+            )
+        }.message.assert().isEqualTo(
+            "Aggregation metric filter field [state.tags] must be scalar; array fields are not supported in metric filters.",
+        )
     }
 
     @Test
