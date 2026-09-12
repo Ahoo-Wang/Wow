@@ -431,13 +431,16 @@ internal class MongoAggregationCompiler(
 
     /**
      * Compiles [HavingExpression] into the post-derivation `$match` filter over projected metric
-     * aliases. The BSON comparison total order ranks `null` below every number, so a bare
-     * `{alias: {$gt: v}}` would match `null` metric values — contradicting the null-fails
-     * semantics of the guarded projections. Every comparison condition (Condition, Between, In)
-     * therefore conjoins `$ne: null` with its operator. [HavingExpression.IsNull] is the only
-     * unguarded form: the first `$project` and every derived stage carry ALL metric aliases
-     * forward, so the alias always exists and `Document(metric, null)` is IS NULL while
-     * `Filters.ne(metric, null)` is NOT NULL.
+     * aliases. Snapshot floats are stored as Decimal128 (the writer maps JSON floats to
+     * BigDecimal), and MongoDB compares a Decimal128 metric against the BSON-double condition
+     * value in decimal space — `Decimal128(0.8) $gte 0.8` is false although both round-trip as
+     * the same wire double. Every numeric condition therefore wraps the metric in `$toDouble`
+     * under `$expr`, so comparisons follow the IEEE-double semantics of the surfaced metric value
+     * and the Elasticsearch evaluator. The BSON comparison total order still ranks `null` below
+     * every number — a bare `$lt`/`$lte`/`$ne` would match it — so every numeric form conjoins a
+     * `$ne: null` guard. [HavingExpression.IsNull] is the only unguarded form: the first
+     * `$project` and every derived stage carry ALL metric aliases forward, so the alias always
+     * exists and `Document(metric, null)` is IS NULL while `Filters.ne(metric, null)` is NOT NULL.
      */
     private fun HavingExpression.toHavingDocument(): Bson = when (this) {
         is HavingExpression.And -> Filters.and(operands.map { it.toHavingDocument() })
@@ -447,26 +450,27 @@ internal class MongoAggregationCompiler(
         } else {
             Document(metric, null)
         }
-        is HavingExpression.Condition ->
-            if (operator == ComparisonOperator.NE) {
-                // A Document cannot repeat `$ne`, so the value and the null guard collapse into
-                // one `$nin`: metric != value AND metric != null.
-                Document(metric, Document("\$nin", listOf(value, null)))
-            } else {
-                Document(
-                    metric,
-                    Document(operator.matchOperator, value).append("\$ne", null),
-                )
-            }
-        is HavingExpression.Between -> Document(
-            metric,
-            Document("\$gte", lower).append("\$lte", upper).append("\$ne", null),
-        )
-        is HavingExpression.In -> Document(
-            metric,
-            Document("\$in", values).append("\$ne", null),
-        )
+        is HavingExpression.Condition -> numericHavingMatch(metric) {
+            Document(operator.matchOperator, listOf(it, value))
+        }
+        is HavingExpression.Between -> numericHavingMatch(metric) {
+            Filters.and(
+                Document("\$gte", listOf(it, lower)),
+                Document("\$lte", listOf(it, upper)),
+            )
+        }
+        is HavingExpression.In -> numericHavingMatch(metric) {
+            Document("\$in", listOf(it, values))
+        }
     }
+
+    private fun numericHavingMatch(metric: String, condition: (toDouble: Document) -> Bson): Bson = Document(
+        "\$expr",
+        Filters.and(
+            Document("\$ne", listOf("\$$metric", null)),
+            condition(Document("\$toDouble", "\$$metric")),
+        ),
+    )
 
     private val ComparisonOperator.matchOperator: String
         get() = when (this) {

@@ -1372,6 +1372,144 @@ abstract class SnapshotQueryBackendSpec {
     }
 
     @Test
+    fun `aggregation having should filter groups by count thresholds`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            count("lines")
+            having { "lines" gte 2.0 } // alpha=2、beta=2 存活；delta=1、gamma=1 排除
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map { it.path("product").textValue() }.assert().containsExactly("alpha", "beta")
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation having should filter groups by derived thresholds`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            sum("amount", "total")
+            derived("share") { ref("total") / constant(50.0) }
+            // share：alpha 0.8、beta 0.8、delta 1.0 命中；gamma null 判假；无显式 sort -> 分组别名升序
+            having { "share" gte 0.8 }
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map { it.path("product").textValue() }.assert().containsExactly("alpha", "beta", "delta")
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation having should treat null as failing comparisons`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            sum("amount", "total")
+            having { "total".isNotNull() } // gamma 的 total=null 排除
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map { it.path("product").textValue() }.assert().containsExactly("alpha", "beta", "delta")
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation having should apply limit after filtering`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            sum("amount", "total")
+            having { "total" gte 40.0 } // alpha/beta/delta 存活，gamma null 判假
+            sort { "total".desc() }
+            limit(2) // 过滤后行数：delta(50) > alpha(40)=beta(40)，tie 按分组别名序 alpha<beta
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map { it.path("product").textValue() }.assert().containsExactly("delta", "alpha")
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation having matching nothing should return an empty flux`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            count("lines")
+            having { "lines" gt 100.0 }
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { it.assert().isEmpty() }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation having should compose with and and or`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            count("lines")
+            sum("amount", "total")
+            having { ("total" gte 40.0) and (("lines" gt 1.0) or ("total" gte 50.0)) }
+            // alpha: 40>=40 且 2>1 -> 命中；beta 同；delta: 50>=40 且 50>=50 -> 命中；gamma: null 判假 -> 排除
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map { it.path("product").textValue() }.assert().containsExactly("alpha", "beta", "delta")
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation having should support between and in`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            sum("amount", "total")
+            having { ("total".between(40.0, 45.0)) or ("total".isIn(listOf(50.0))) }
+            // between [40,45]：alpha/beta；in [50.0]：delta；gamma null 两者皆判假
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map { it.path("product").textValue() }.assert().containsExactly("alpha", "beta", "delta")
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun `aggregation should support cancellation after a real result`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
 

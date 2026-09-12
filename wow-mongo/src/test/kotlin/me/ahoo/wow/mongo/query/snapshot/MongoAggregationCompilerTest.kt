@@ -711,14 +711,10 @@ class MongoAggregationCompilerTest {
         val having = pipeline[matchIndex].getDocument("\$match")
         val and = having.getArray("\$and")
         and.assert().hasSize(2)
-        and[0].asDocument().getDocument("avgAmount").let {
-            it.getDouble("\$gte").value.assert().isEqualTo(10.0)
-            it.containsKey("\$ne").assert().isTrue() // null guard
-        }
-        and[1].asDocument().getDocument("total").let {
-            it.getDouble("\$gt").value.assert().isEqualTo(0.0)
-            it.containsKey("\$ne").assert().isTrue()
-        }
+        assertNumericHavingMatch(and[0].asDocument()).getArray("\$gte")[1].asNumber()
+            .doubleValue().assert().isEqualTo(10.0)
+        assertNumericHavingMatch(and[1].asDocument()).getArray("\$gt")[1].asNumber()
+            .doubleValue().assert().isEqualTo(0.0)
     }
 
     @Test
@@ -734,9 +730,8 @@ class MongoAggregationCompilerTest {
         ).map { it.toBsonDocument() }
         val or = pipeline.last { it.containsKey("\$match") }.getDocument("\$match").getArray("\$or")
         requireNotNull(or[0].asDocument().get("total")).isNull.assert().isTrue() // IS NULL: no $ne guard
-        val inDoc = or[1].asDocument().getDocument("total")
-        inDoc.getArray("\$in").assert().hasSize(2)
-        inDoc.containsKey("\$ne").assert().isTrue()
+        assertNumericHavingMatch(or[1].asDocument()).getArray("\$in")[1].asArray()
+            .assert().hasSize(2)
     }
 
     @Test
@@ -751,11 +746,8 @@ class MongoAggregationCompilerTest {
             schema(),
         ).map { it.toBsonDocument() }
         val having = pipeline.last { it.containsKey("\$match") }.getDocument("\$match")
-        val neDoc = having.getDocument("total")
-        val nin = neDoc.getArray("\$nin")
-        nin.assert().hasSize(2)
-        nin[0].asNumber().doubleValue().assert().isEqualTo(5.0)
-        nin[1].isNull.assert().isTrue()
+        assertNumericHavingMatch(having).getArray("\$ne")[1].asNumber()
+            .doubleValue().assert().isEqualTo(5.0)
     }
 
     @Test
@@ -1810,4 +1802,20 @@ private fun field(
         QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(valueType), semanticType = semanticType)
     }
     return QueryField(logicalPath) to MongoTestField(value, additionalCapabilities + capability, physicalPath)
+}
+
+/**
+ * Asserts the numeric having match shape — `{$expr: {$and: [{$ne: ["$metric", null]}, condition]}}`
+ * with the compared metric wrapped in `$toDouble` — and returns the condition document.
+ */
+private fun assertNumericHavingMatch(operand: BsonDocument): BsonDocument {
+    val and = operand.getDocument("\$expr").getArray("\$and")
+    and.assert().hasSize(2)
+    and[0].asDocument().getArray("\$ne").let { ne ->
+        ne[0].asString().value.assert().startsWith("$") // the compared metric alias
+        ne[1].isNull.assert().isTrue() // null guard
+    }
+    val condition = and[1].asDocument()
+    condition.toJson().assert().contains("\$toDouble") // compared in double space
+    return condition
 }
