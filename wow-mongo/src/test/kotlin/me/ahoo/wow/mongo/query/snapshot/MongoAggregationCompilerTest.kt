@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -1005,6 +1006,34 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `metric filters should translate literal match regex leaves into regexMatch guards`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                count("contains") { "state.productName".containsText("Alpha") }
+                count("startsWith") { "state.productName".startsWithText("Alpha") }
+                count("endsWith") { "state.productName".endsWithText("2026") }
+                count("containsIgnoreCase") {
+                    "state.productName".containsText("alpha", StringComparison.CASE_INSENSITIVE)
+                }
+            },
+            guardFilterSchema,
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("contains").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            regexMatchGuard("Alpha"),
+        )
+        group.getDocument("startsWith").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            regexMatchGuard("^Alpha"),
+        )
+        group.getDocument("endsWith").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            regexMatchGuard("2026\$"),
+        )
+        group.getDocument("containsIgnoreCase").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert()
+            .isEqualTo(regexMatchGuard("alpha", "i"))
+    }
+
+    @Test
     fun `metric filters cannot use text search`() {
         assertThrows<QuerySchemaValidationException> {
             MongoAggregationCompiler(SnapshotFilterCompiler).compile(
@@ -1098,6 +1127,12 @@ private val paidStatusGuard = BsonDocument(
     "\$eq",
     BsonArray(listOf(BsonString("\$state.status"), BsonString("PAID"))),
 )
+
+private fun regexMatchGuard(pattern: String, options: String? = null): BsonDocument {
+    val condition = BsonDocument("input", BsonString("\$state.productName")).append("regex", BsonString(pattern))
+    options?.let { condition.append("options", BsonString(it)) }
+    return BsonDocument("\$regexMatch", condition)
+}
 
 private val guardFilterSchema = schema(
     field(

@@ -43,6 +43,7 @@ import me.ahoo.wow.query.schema.physicalField
 import org.bson.BsonArray
 import org.bson.BsonDocument
 import org.bson.BsonNull
+import org.bson.BsonRegularExpression
 import org.bson.BsonValue
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -736,6 +737,9 @@ private fun toGuardCondition(path: String, condition: BsonValue, arrayValuedFiel
     if (condition.isNull) {
         return matchesNull(path)
     }
+    if (condition.isRegularExpression) {
+        return regexGuard(path, condition.asRegularExpression())
+    }
     if (!condition.isDocument) {
         return Document("\$eq", listOf(fieldRef(path), condition))
     }
@@ -754,11 +758,16 @@ private fun toGuardCondition(path: String, condition: BsonValue, arrayValuedFiel
 
 @Suppress("CyclomaticComplexMethod")
 private fun toGuardCondition(path: String, operator: String, value: BsonValue): Any = when (operator) {
-    "\$eq" -> if (value.isNull) matchesNull(path) else Document("\$eq", listOf(fieldRef(path), value))
-    "\$ne" -> if (value.isNull) {
-        Document("\$and", listOf(Document("\$ne", listOf(fieldRef(path), null)), isPresent(path)))
-    } else {
-        Document("\$ne", listOf(fieldRef(path), value))
+    "\$eq" -> when {
+        value.isNull -> matchesNull(path)
+        value.isRegularExpression -> regexGuard(path, value.asRegularExpression())
+        else -> Document("\$eq", listOf(fieldRef(path), value))
+    }
+
+    "\$ne" -> when {
+        value.isNull -> Document("\$and", listOf(Document("\$ne", listOf(fieldRef(path), null)), isPresent(path)))
+        value.isRegularExpression -> Document("\$not", listOf(regexGuard(path, value.asRegularExpression())))
+        else -> Document("\$ne", listOf(fieldRef(path), value))
     }
 
     "\$gt", "\$gte", "\$lt", "\$lte" -> Document(operator, listOf(fieldRef(path), value))
@@ -805,17 +814,36 @@ private fun matchesNull(path: String): Any = Document(
 )
 
 private fun inGuard(path: String, values: BsonArray): Any {
-    val condition = Document("\$in", listOf(fieldRef(path), values))
-    if (values.none(BsonValue::isNull)) {
-        return condition
+    if (values.none { it.isRegularExpression }) {
+        val condition = Document("\$in", listOf(fieldRef(path), values))
+        if (values.none(BsonValue::isNull)) {
+            return condition
+        }
+        return Document("\$or", listOf(condition, Document("\$eq", listOf(typeOf(path), "missing"))))
     }
-    return Document("\$or", listOf(condition, Document("\$eq", listOf(typeOf(path), "missing"))))
+    val conditions = values.mapTo(mutableListOf()) { value ->
+        when {
+            value.isRegularExpression -> regexGuard(path, value.asRegularExpression())
+            value.isNull -> Document("\$eq", listOf(fieldRef(path), null))
+            else -> Document("\$eq", listOf(fieldRef(path), value))
+        }
+    }
+    if (values.any(BsonValue::isNull)) {
+        conditions += Document("\$eq", listOf(typeOf(path), "missing"))
+    }
+    return conditions.singleOrNull() ?: Document("\$or", conditions)
 }
 
 private fun regexGuard(path: String, document: BsonDocument): Document {
     val regex = Document("input", fieldRef(path)).append("regex", document.getString("\$regex"))
     document.getString("\$options")?.let { regex.append("options", it) }
     return Document("\$regexMatch", regex)
+}
+
+private fun regexGuard(path: String, regex: BsonRegularExpression): Document {
+    val condition = Document("input", fieldRef(path)).append("regex", regex.pattern)
+    regex.options?.takeIf { it.isNotEmpty() }?.let { condition.append("options", it) }
+    return Document("\$regexMatch", condition)
 }
 
 private fun fieldRef(path: String): String = "\$$path"
