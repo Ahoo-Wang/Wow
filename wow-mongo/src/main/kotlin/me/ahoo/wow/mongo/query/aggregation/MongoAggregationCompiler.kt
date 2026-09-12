@@ -697,11 +697,12 @@ private val QueryValueSchema.isArrayValued: Boolean
     get() = kind == QueryValueKind.ARRAY ||
         (kind == QueryValueKind.UNION && alternatives.any { it.kind == QueryValueKind.ARRAY })
 
-private fun toGuardCondition(document: BsonDocument, arrayValuedFields: Set<String>): Any = when (document.size) {
-    0 -> Document("\$literal", true)
-    1 -> toGuardCondition(document.entries.first(), arrayValuedFields)
-    else -> Document("\$and", document.entries.map { toGuardCondition(it, arrayValuedFields) })
-}
+private fun toGuardCondition(document: BsonDocument, arrayValuedFields: Set<String>): Any =
+    if (document.size == 0) {
+        Document("\$literal", true)
+    } else {
+        toGuardCondition(document.entries.single(), arrayValuedFields)
+    }
 
 private fun toGuardCondition(entry: Map.Entry<String, BsonValue>, arrayValuedFields: Set<String>): Any {
     val path = entry.key
@@ -744,30 +745,20 @@ private fun toGuardCondition(path: String, condition: BsonValue, arrayValuedFiel
         return Document("\$eq", listOf(fieldRef(path), condition))
     }
     val document = condition.asDocument()
-    return when {
-        document.containsKey("\$elemMatch") -> throw QuerySchemaValidationException(
+    if (document.containsKey("\$elemMatch")) {
+        throw QuerySchemaValidationException(
             "MongoDB metric filters cannot translate [\$elemMatch] into a guard condition.",
         )
-
-        document.containsKey("\$regex") -> regexGuard(path, document)
-
-        else -> document.entries.map { (operator, value) -> toGuardCondition(path, operator, value) }
-            .let { conditions -> conditions.singleOrNull() ?: Document("\$and", conditions) }
     }
+    return document.entries.single().let { (operator, value) -> toGuardCondition(path, operator, value) }
 }
 
 @Suppress("CyclomaticComplexMethod")
 private fun toGuardCondition(path: String, operator: String, value: BsonValue): Any = when (operator) {
-    "\$eq" -> when {
-        value.isNull -> matchesNull(path)
-        value.isRegularExpression -> regexGuard(path, value.asRegularExpression())
-        else -> Document("\$eq", listOf(fieldRef(path), value))
-    }
-
-    "\$ne" -> when {
-        value.isNull -> Document("\$and", listOf(Document("\$ne", listOf(fieldRef(path), null)), isPresent(path)))
-        value.isRegularExpression -> Document("\$not", listOf(regexGuard(path, value.asRegularExpression())))
-        else -> Document("\$ne", listOf(fieldRef(path), value))
+    "\$ne" -> if (value.isNull) {
+        Document("\$and", listOf(Document("\$ne", listOf(fieldRef(path), null)), isPresent(path)))
+    } else {
+        Document("\$ne", listOf(fieldRef(path), value))
     }
 
     "\$gt", "\$gte", "\$lt", "\$lte" -> Document(operator, listOf(fieldRef(path), value))
@@ -813,32 +804,7 @@ private fun matchesNull(path: String): Any = Document(
     ),
 )
 
-private fun inGuard(path: String, values: BsonArray): Any {
-    if (values.none { it.isRegularExpression }) {
-        val condition = Document("\$in", listOf(fieldRef(path), values))
-        if (values.none(BsonValue::isNull)) {
-            return condition
-        }
-        return Document("\$or", listOf(condition, Document("\$eq", listOf(typeOf(path), "missing"))))
-    }
-    val conditions = values.mapTo(mutableListOf()) { value ->
-        when {
-            value.isRegularExpression -> regexGuard(path, value.asRegularExpression())
-            value.isNull -> Document("\$eq", listOf(fieldRef(path), null))
-            else -> Document("\$eq", listOf(fieldRef(path), value))
-        }
-    }
-    if (values.any(BsonValue::isNull)) {
-        conditions += Document("\$eq", listOf(typeOf(path), "missing"))
-    }
-    return conditions.singleOrNull() ?: Document("\$or", conditions)
-}
-
-private fun regexGuard(path: String, document: BsonDocument): Document {
-    val regex = Document("input", fieldRef(path)).append("regex", document.getString("\$regex"))
-    document.getString("\$options")?.let { regex.append("options", it) }
-    return Document("\$regexMatch", regex)
-}
+private fun inGuard(path: String, values: BsonArray): Any = Document("\$in", listOf(fieldRef(path), values))
 
 private fun regexGuard(path: String, regex: BsonRegularExpression): Document {
     val condition = Document("input", fieldRef(path)).append("regex", regex.pattern)
