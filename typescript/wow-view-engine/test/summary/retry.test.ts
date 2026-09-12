@@ -12,7 +12,37 @@
  */
 
 import { expect, it, vi } from 'vitest';
-import { session, setup } from './fixtures.js';
+import { deferred, session, setup } from './fixtures.js';
+
+it('reports budget refusal and retries only the summary after the slot is released', async () => {
+  const { engine, source } = setup({ maxConcurrentQueries: 1 });
+  const pending = deferred<{ list: []; total: number }>();
+  source.paged.mockReturnValueOnce(pending.promise);
+  const loading = engine.load();
+  const failure = expect(loading).rejects.toThrow('记录服务不可用');
+  try {
+    await vi.waitFor(() => expect(source.paged).toHaveBeenCalledOnce());
+    await vi.waitFor(() => {
+      expect(session(engine).allSummary.status).toBe('error');
+      expect(session(engine).allSummary.error).toContain('并发');
+    });
+    expect(source.aggregate).not.toHaveBeenCalled();
+    await expect(engine.record('mine').refreshSummary()).rejects.toMatchObject({
+      code: 'BUSY',
+    });
+    pending.reject(new Error('记录服务不可用'));
+    await failure;
+    await engine.record('mine').refreshSummary();
+    expect(session(engine).allSummary.status).toBe('success');
+    expect(session(engine).allSummary.values.amount?.SUM).toBe(30);
+    expect(source.aggregate).toHaveBeenCalledOnce();
+    expect(source.paged).toHaveBeenCalledOnce();
+  } finally {
+    pending.reject(new Error('记录服务不可用'));
+    await failure;
+    engine.dispose();
+  }
+});
 
 it('isolates aggregation failure and retries only the summary', async () => {
   const { engine, source } = setup();

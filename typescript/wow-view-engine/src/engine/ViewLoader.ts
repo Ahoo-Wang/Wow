@@ -226,6 +226,7 @@ export class ViewLoader {
   }
 
   async selectInstance(id: string): Promise<void> {
+    if (this.store.isPosition(id)) throw new Error('运行位置不属于实例导航');
     const definition = this.store.definition();
     if (
       Object.prototype.hasOwnProperty.call(

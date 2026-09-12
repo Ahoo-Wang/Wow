@@ -113,6 +113,9 @@ export function withDeadline<T>(
 export class QueryBudget {
   private readonly owners = new Map<string, object>();
   constructor(private readonly maximum: number) {}
+  get size(): number {
+    return this.owners.size;
+  }
   acquire(key: string, token: object): () => void {
     if (!this.owners.has(key) && this.owners.size >= this.maximum)
       throw new RuntimeLimitError('BUSY', '查询并发已达上限，请稍后重试');

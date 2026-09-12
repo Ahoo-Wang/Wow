@@ -12,11 +12,10 @@
  */
 
 import {
-  withDeadline,
   validateRuntimeLimits,
-  QueryBudget,
   type RuntimeLimits,
 } from '../../lib/runtimeLimits.js';
+import { RequestRunner } from '../../engine/RequestRunner.js';
 import type {
   ViewSource,
   RecordSession,
@@ -37,7 +36,6 @@ import { copy, message, sameJsonState } from '../../lib/snapshot.js';
 
 /** Independent page/all summary state and cancellable aggregate requests. */
 export class RecordSummaries {
-  private readonly releases = new Map<string, () => void>();
   private readonly requests = new Map<string, AbortController>();
   private readonly keys = new Map<string, string>();
   constructor(
@@ -45,22 +43,24 @@ export class RecordSummaries {
     private readonly scope: EngineScope,
     private readonly host: ViewHost,
     private readonly limits: Readonly<RuntimeLimits> = validateRuntimeLimits(),
-    private readonly budget = new QueryBudget(limits.maxConcurrentQueries),
+    private readonly runner = new RequestRunner({
+      maxConcurrent: limits.maxConcurrentQueries,
+      maxQueued: 48,
+      maxTimeoutMs: limits.queryTimeoutMs,
+    }),
   ) {}
   hasPending(id: string): boolean {
     return this.requests.has(id);
   }
   reset(): void {
-    this.releases.forEach(release => release());
-    this.releases.clear();
-    this.requests.forEach(controller => controller.abort());
+    this.requests.forEach((controller, id) =>
+      this.runner.cancel(`summary:${id}`, controller),
+    );
     this.requests.clear();
     this.keys.clear();
   }
 
   invalidate(id: string): void {
-    this.releases.get(id)?.();
-    this.releases.delete(id);
     const controller = this.requests.get(id);
     this.requests.delete(id);
     this.keys.delete(id);
@@ -70,6 +70,7 @@ export class RecordSummaries {
         kind: 'record',
         allSummary: EMPTY_RECORD_SUMMARY,
       });
+    if (controller) this.runner.cancel(`summary:${id}`, controller);
     controller?.abort();
   }
 
@@ -134,42 +135,39 @@ export class RecordSummaries {
     const latest = this.store.recordSession(id);
     if (this.key(latest) !== key || this.keys.get(id) === key) return;
     const controller = new AbortController();
-    const release = this.budget.acquire(`summary:${id}`, controller);
-    this.releases.set(id, release);
-    const deadline = Date.now() + this.limits.queryTimeoutMs;
     this.requests.set(id, controller);
-    this.keys.set(id, key);
     const current = () =>
       this.scope.current(lifecycle) && this.requests.get(id) === controller;
     const metrics = getRecordSummaryMetrics(
       session.instance.config.presentation,
     );
-    this.store.patch(id, {
-      kind: 'record',
-      allSummary: { status: 'loading', values: {}, error: null },
-    });
     try {
-      if (!current()) return;
-      source ??= await withDeadline(
-        () => this.host.resolveSource(this.store.definition().sourceId),
-        Math.max(1, deadline - Date.now()),
+      const result = await this.runner.submit({
+        key: `summary:${id}`,
+        policy: 'reject',
+        timeoutMs: this.limits.queryTimeoutMs,
         controller,
-      );
-      if (!current()) return;
-      if (!source.aggregate)
-        throw new Error('数据源未提供 aggregate，无法汇总所有记录');
-      const result = await withDeadline(
-        () =>
-          source!.aggregate!(
+        run: async () => {
+          this.keys.set(id, key);
+          this.store.patch(id, {
+            kind: 'record',
+            allSummary: { status: 'loading', values: {}, error: null },
+          });
+          if (!current()) throw new Error('汇总请求已失效');
+          const sourceId = this.store.definition(session.positionId).sourceId;
+          if (!sourceId) throw new Error('查询定义缺少数据源');
+          source ??= await this.host.resolveSource(sourceId);
+          if (!current()) throw new Error('汇总请求已失效');
+          if (!source.aggregate)
+            throw new Error('数据源未提供 aggregate，无法汇总所有记录');
+          return source.aggregate(
             createRecordSummaryQuery(session.appliedFilter!, metrics),
             undefined,
             controller,
-          ),
-        Math.max(1, deadline - Date.now()),
-        controller,
-      );
+          );
+        },
+      }).completion;
       if (!current()) return;
-      release();
       this.store.patch(id, {
         kind: 'record',
         allSummary: {
@@ -180,21 +178,19 @@ export class RecordSummaries {
       });
     } catch (error) {
       if (!current()) return;
-      release();
       this.store.patch(id, {
         kind: 'record',
         allSummary: { status: 'error', values: {}, error: message(error) },
       });
       throw error;
     } finally {
-      release();
       if (this.requests.get(id) === controller) this.requests.delete(id);
     }
   }
 
   async refresh(id?: string): Promise<void> {
     const session = this.store.recordSession(id);
-    id = session.instance.id;
+    id = session.positionId;
     const lifecycle = this.scope.version;
     const request = this.requests.get(id),
       key = this.keys.get(id);

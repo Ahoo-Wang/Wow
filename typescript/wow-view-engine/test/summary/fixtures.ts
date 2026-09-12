@@ -22,6 +22,7 @@ import type {
   RecordColumn,
   ViewDefinition,
   ViewInstance,
+  ViewEngineOptions,
 } from '../../src/contracts/viewModel.js';
 import { getRecordSummaryMetrics } from '../../src/record/recordPresentation.js';
 
@@ -49,7 +50,7 @@ export const definition: ViewDefinition = {
   ],
 };
 
-export function setup() {
+export function setup(limits?: ViewEngineOptions['limits']) {
   const instance: ViewInstance = {
     id: 'mine',
     definitionId: 'orders',
@@ -89,6 +90,7 @@ export function setup() {
     aggregate: vi.fn().mockResolvedValue([{ summary0: 30 }]),
   };
   const engine = new ViewEngine({
+    limits,
     definitionId: definition.id,
     definition,
     instances: { instances: [instance], defaultInstanceId: instance.id },

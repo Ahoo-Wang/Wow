@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { RequestRunner } from '../engine/RequestRunner.js';
 import type {
   AnalysisViewConfig,
   AnalysisCompilerRegistry,
@@ -32,8 +33,6 @@ import type { ViewHost } from '../contracts/ViewHost.js';
 import {
   assertConfigSize,
   validateRuntimeLimits,
-  withDeadline,
-  QueryBudget,
   RuntimeLimitError,
   reportDiagnostic,
   type RuntimeLimits,
@@ -44,7 +43,7 @@ import {
 export class AnalysisCommands {
   private readonly requests = new Map<
     string,
-    { controller: AbortController; release: () => void }
+    { controller: AbortController }
   >();
   constructor(
     private readonly store: SessionStore,
@@ -54,7 +53,11 @@ export class AnalysisCommands {
     private readonly compilers: AnalysisCompilerRegistry = {},
     private readonly limits: Readonly<RuntimeLimits> = validateRuntimeLimits(),
     private readonly onDiagnostic?: (event: RuntimeDiagnostic) => void,
-    private readonly budget = new QueryBudget(limits.maxConcurrentQueries),
+    private readonly runner = new RequestRunner({
+      maxConcurrent: limits.maxConcurrentQueries,
+      maxQueued: 48,
+      maxTimeoutMs: limits.queryTimeoutMs,
+    }),
   ) {}
 
   edit(
@@ -74,8 +77,8 @@ export class AnalysisCommands {
     });
   }
 
-  private compile(config: DeepReadonly<AnalysisViewConfig>) {
-    const definition = this.store.definition();
+  private compile(config: DeepReadonly<AnalysisViewConfig>, id: string) {
+    const definition = this.store.definition(id);
     return compileAnalysis(config, {
       fields: definition.fields,
       capability: definition.analysis!,
@@ -99,7 +102,7 @@ export class AnalysisCommands {
       return;
     const config = { ...session.instance.config, sort };
     assertConfigSize(config, this.limits.maxConfigBytes);
-    const compiled = this.compile(config);
+    const compiled = this.compile(config, id);
     if (!compiled.plan)
       throw new Error(compiled.errors.map(error => error.message).join('；'));
     this.edit(id, () => config);
@@ -108,7 +111,7 @@ export class AnalysisCommands {
 
   restore(id: string): void {
     const session = this.store.analysisSession(id);
-    this.work.assertWritable(session);
+    this.work.assertRestorable(session);
     this.store.patch(id, {
       kind: 'analysis',
       instance: session.baseline,
@@ -120,7 +123,7 @@ export class AnalysisCommands {
     const request = this.requests.get(id);
     if (!request) return;
     this.requests.delete(id);
-    request.release();
+    this.runner.cancel(`analysis:${id}`, request.controller);
     request.controller.abort();
     const session = this.store.find(id);
     if (!this.requests.has(id) && session?.kind === 'analysis')
@@ -165,7 +168,6 @@ export class AnalysisCommands {
         elapsedMs: performance.now() - started,
         ...(errorCode ? { errorCode } : {}),
       });
-    let release: () => void;
     const controller = new AbortController();
     try {
       assertConfigSize(session.instance.config, this.limits.maxConfigBytes);
@@ -177,28 +179,19 @@ export class AnalysisCommands {
       );
       throw error;
     }
-    const definition = this.store.definition();
-    const compiled = this.compile(session.instance.config);
+    const definition = this.store.definition(id);
+    const compiled = this.compile(session.instance.config, id);
     if (!compiled.plan) {
       diagnostic('failed', 'INVALID_CONFIG');
       throw new Error(compiled.errors.map(value => value.message).join('；'));
     }
     if (!analysisQueryPolicy({ ...session, compilation: compiled }, intent))
       return refused();
-    try {
-      release = this.budget.acquire(`analysis:${id}`, controller);
-    } catch (error) {
-      diagnostic(
-        'failed',
-        error instanceof RuntimeLimitError ? error.code : 'BUSY',
-      );
-      throw error;
-    }
     const plan = copy(compiled.plan),
       config = copy(session.instance.config);
     const lifecycle = this.scope.version;
     const generation = this.store.generation(id);
-    const request = { controller, release };
+    const request = { controller };
     const previous = this.requests.get(id);
     this.requests.set(id, request);
     const current = () =>
@@ -206,37 +199,51 @@ export class AnalysisCommands {
       this.store.generation(id) === generation &&
       this.requests.get(id) === request &&
       this.store.find(id)?.kind === 'analysis';
-    previous?.controller.abort();
     let accepted = false;
+    let reading: Promise<unknown>;
+    try {
+      reading = this.runner.submit({
+        key: `analysis:${id}`,
+        policy: 'reject',
+        timeoutMs: this.limits.queryTimeoutMs,
+        controller,
+        run: async () => {
+          if (!current())
+            throw new RuntimeLimitError('CANCELLED', '操作已取消');
+          this.store.patch(id, {
+            kind: 'analysis',
+            queryStatus: 'loading',
+            queryError: null,
+            pendingQuery: plan,
+            queryAttempt: plan,
+          });
+          accepted = true;
+          diagnostic('started');
+          if (!current())
+            throw new RuntimeLimitError('CANCELLED', '操作已取消');
+          if (!definition.sourceId) throw new Error('查询定义缺少数据源');
+          const source = await this.host.resolveSource(definition.sourceId);
+          if (!current() || controller.signal.aborted)
+            throw new RuntimeLimitError('CANCELLED', '操作已取消');
+          if (!source.aggregate)
+            throw new Error('数据源不支持 aggregate 分析查询');
+          return source.aggregate(copy(plan.query), undefined, controller);
+        },
+      }).completion;
+    } catch (error) {
+      if (this.requests.get(id) === request) {
+        if (previous) this.requests.set(id, previous);
+        else this.requests.delete(id);
+      }
+      diagnostic(
+        'failed',
+        error instanceof RuntimeLimitError ? error.code : 'QUERY_FAILED',
+      );
+      throw error;
+    }
     const completion = (async () => {
       try {
-        if (!current()) {
-          diagnostic('superseded');
-          return;
-        }
-        this.store.patch(id, {
-          kind: 'analysis',
-          queryStatus: 'loading',
-          queryError: null,
-          pendingQuery: plan,
-          queryAttempt: plan,
-        });
-        accepted = true;
-        diagnostic('started');
-        const rows = await withDeadline(
-          async () => {
-            if (!current())
-              throw new RuntimeLimitError('CANCELLED', '操作已取消');
-            const source = await this.host.resolveSource(definition.sourceId);
-            if (!current() || controller.signal.aborted)
-              throw new RuntimeLimitError('CANCELLED', '操作已取消');
-            if (!source.aggregate)
-              throw new Error('数据源不支持 aggregate 分析查询');
-            return source.aggregate(copy(plan.query), undefined, controller);
-          },
-          this.limits.queryTimeoutMs,
-          controller,
-        );
+        const rows = await reading;
         if (!current()) {
           diagnostic('superseded');
           return;
@@ -245,7 +252,6 @@ export class AnalysisCommands {
         if (!result.rows)
           throw new Error(result.errors.map(value => value.message).join('；'));
         this.requests.delete(id);
-        release();
         this.store.patch(id, {
           kind: 'analysis',
           queryStatus: 'success',
@@ -265,7 +271,6 @@ export class AnalysisCommands {
           return;
         }
         this.requests.delete(id);
-        release();
         this.store.patch(id, {
           kind: 'analysis',
           queryStatus: 'error',
@@ -280,8 +285,6 @@ export class AnalysisCommands {
           error instanceof RuntimeLimitError ? error.code : 'QUERY_FAILED',
         );
         throw error;
-      } finally {
-        release();
       }
     })();
     return { accepted, completion };

@@ -34,6 +34,7 @@ export function createAnalysisSession(
   return deriveAnalysisSession(
     {
       kind: 'analysis',
+      positionId: instance.id,
       editorEpoch: 0,
       compilation: { errors: [] },
       queryValid: false,

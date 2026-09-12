@@ -49,7 +49,7 @@ export class RecordEdits {
     const session = this.store.recordSession(id);
     if (!session.filterValid)
       throw new Error('筛选输入无效，请先修正或撤销修改');
-    const definition = this.store.definition();
+    const definition = this.store.definition(session.positionId);
     const compiled = compileFilterConfiguration(
       session.filterDraft,
       definition.fields,
@@ -64,7 +64,7 @@ export class RecordEdits {
       );
     const filters = copy(session.filterDraft);
     await this.queries.change(
-      session.instance.id,
+      session.positionId,
       () => {
         this.store.updateInstance(
           session,
@@ -102,7 +102,7 @@ export class RecordEdits {
     )
       return;
     const patch = { filterDraft: copy(draft), filterValid: nextValid };
-    const definition = this.store.definition();
+    const definition = this.store.definition(session.positionId);
     const compiled = compileFilterConfiguration(
       draft,
       definition.fields,
@@ -124,7 +124,7 @@ export class RecordEdits {
         { ...patch, filterBaseline: patch.filterDraft },
       );
     } else
-      this.store.patch(session.instance.id, {
+      this.store.patch(session.positionId, {
         kind: 'record',
         ...patch,
         instance: {
@@ -137,7 +137,7 @@ export class RecordEdits {
   setFilterValidity(valid: boolean, id?: string): void {
     if (typeof valid !== 'boolean') throw new Error('筛选有效性必须是布尔值');
     const session = this.store.recordSession(id);
-    this.setFilterDraft(session.filterDraft, session.instance.id, valid);
+    this.setFilterDraft(session.filterDraft, session.positionId, valid);
   }
 
   setFilterMode(mode: FilterMode, id?: string): void {
@@ -147,12 +147,12 @@ export class RecordEdits {
     if (mode === 'simple' && !isSimpleFilter(session.filterDraft.root))
       throw new Error('当前条件需要高级筛选模式');
     if (session.filterDraft.mode === mode) return;
-    this.setFilterDraft({ ...session.filterDraft, mode }, session.instance.id);
+    this.setFilterDraft({ ...session.filterDraft, mode }, session.positionId);
   }
 
   async setSort(sort: DeepReadonly<FieldSort[]>, id?: string): Promise<void> {
     const session = this.store.recordSession(id);
-    await this.queries.change(session.instance.id, () => {
+    await this.queries.change(session.positionId, () => {
       this.store.updateInstance(
         session,
         { ...session.instance, config: { ...session.instance.config, sort } },
@@ -164,18 +164,18 @@ export class RecordEdits {
   setLayout(layout: RecordPresentation['layout'], id?: string): void {
     const session = this.store.recordSession(id);
     const presentation = resolveRecordPresentation(
-      this.store.definition(),
+      this.store.definition(session.positionId),
       layout,
       session.instance.config.presentation,
     );
-    this.setPresentation(presentation, session.instance.id);
+    this.setPresentation(presentation, session.positionId);
   }
 
   setCardConfig(card: DeepReadonly<RecordCardConfig>, id?: string): void {
     const session = this.store.recordSession(id);
     this.setPresentation(
       { ...session.instance.config.presentation, card },
-      session.instance.id,
+      session.positionId,
     );
   }
 
@@ -183,7 +183,7 @@ export class RecordEdits {
     const session = this.store.recordSession(id);
     this.setPresentation(
       { ...session.instance.config.presentation, table: { columns } },
-      session.instance.id,
+      session.positionId,
     );
   }
 
@@ -192,7 +192,10 @@ export class RecordEdits {
     id: string,
   ): void {
     const session = this.store.recordSession(id);
-    validateRecordPresentation(presentation, this.store.definition());
+    validateRecordPresentation(
+      presentation,
+      this.store.definition(session.positionId),
+    );
     if (sameJsonState(session.instance.config.presentation, presentation))
       return;
     const key = this.summaries.key(session);
@@ -218,9 +221,9 @@ export class RecordEdits {
     if (!Number.isSafeInteger(index) || index < 1)
       throw new Error('页码必须是正整数');
     await this.queries.change(
-      session.instance.id,
+      session.positionId,
       () => {
-        this.store.patch(session.instance.id, { kind: 'record', page: index });
+        this.store.patch(session.positionId, { kind: 'record', page: index });
       },
       false,
       'scope',
@@ -229,7 +232,7 @@ export class RecordEdits {
 
   async setPageSize(size: number, id?: string): Promise<void> {
     const session = this.store.recordSession(id);
-    await this.queries.change(session.instance.id, () => {
+    await this.queries.change(session.positionId, () => {
       this.store.updateInstance(
         session,
         {
@@ -253,13 +256,13 @@ export class RecordEdits {
         session.instance.config
       ).pagination.mode === 'paged'
     )
-      return this.setPage(session.page + 1, session.instance.id);
+      return this.setPage(session.page + 1, session.positionId);
     if (session.queryStatus !== 'success' || session.nextCursor === null)
       return;
     await this.queries.change(
-      session.instance.id,
+      session.positionId,
       () => {
-        this.store.patch(session.instance.id, {
+        this.store.patch(session.positionId, {
           kind: 'record',
           page: session.page + 1,
           cursor: session.nextCursor,
@@ -274,14 +277,17 @@ export class RecordEdits {
     const session = this.store.recordSession(id);
     const available = new Set(
       session.rows.map(row =>
-        getRecordKey(row, this.store.definition().record!.rowKey),
+        getRecordKey(
+          row,
+          this.store.definition(session.positionId).record!.rowKey,
+        ),
       ),
     );
     if (!Array.isArray(keys) || keys.some(key => !available.has(key)))
       throw new Error('选中记录必须属于当前查询结果');
     if (session.refreshing && keys.length)
-      this.queries.cancel(session.instance.id);
-    this.store.patch(session.instance.id, {
+      this.queries.cancel(session.positionId);
+    this.store.patch(session.positionId, {
       kind: 'record',
       selectedRowKeys: [...new Set(keys)],
     });
@@ -291,7 +297,7 @@ export class RecordEdits {
     const session = this.store.recordSession(id);
     const filters = session.baseline.config.filters;
     const filterDraft = filters;
-    const definition = this.store.definition();
+    const definition = this.store.definition(session.positionId);
     const compiled = compileFilterConfiguration(
       filters,
       definition.fields,
@@ -300,9 +306,9 @@ export class RecordEdits {
       definition.timeZone,
     );
     await this.queries.change(
-      session.instance.id,
+      session.positionId,
       () => {
-        this.store.patch(session.instance.id, {
+        this.store.patch(session.positionId, {
           kind: 'record',
           instance: session.baseline,
           filterDraft,

@@ -42,6 +42,11 @@ export class ViewQueries {
     this.record.cancel(id);
     this.analysis.cancel(id);
   }
+  forget(id: string): void {
+    this.opened.delete(id);
+    this.record.forget(id);
+    this.analysis.cancel(id);
+  }
   change(
     id: string,
     update: () => void,

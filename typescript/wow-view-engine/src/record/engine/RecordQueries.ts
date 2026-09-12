@@ -16,11 +16,10 @@ import {
   RuntimeLimitError,
   type RuntimeDiagnostic,
   assertConfigSize,
-  withDeadline,
   validateRuntimeLimits,
-  QueryBudget,
   type RuntimeLimits,
 } from '../../lib/runtimeLimits.js';
+import { RequestRunner } from '../../engine/RequestRunner.js';
 import type { RecordQuerySource } from '../../contracts/viewModel.js';
 import type { ViewHost } from '../../contracts/ViewHost.js';
 import { validateRecordRows } from '../recordValidation.js';
@@ -33,7 +32,6 @@ import { copy, message } from '../../lib/snapshot.js';
 
 /** Owns record reads; pagination and UI edits only submit explicit query commands. */
 export class RecordQueries {
-  private readonly releases = new Map<string, () => void>();
   private readonly queries = new Map<string, AbortController>();
   private readonly intents = new Map<string, symbol>();
   private readonly consumedCursors = new Map<string, Set<string>>();
@@ -43,13 +41,17 @@ export class RecordQueries {
     private readonly host: ViewHost,
     private readonly summaries: RecordSummaries,
     private readonly limits: Readonly<RuntimeLimits> = validateRuntimeLimits(),
-    private readonly budget = new QueryBudget(limits.maxConcurrentQueries),
+    private readonly runner = new RequestRunner({
+      maxConcurrent: limits.maxConcurrentQueries,
+      maxQueued: 48,
+      maxTimeoutMs: limits.queryTimeoutMs,
+    }),
     private readonly onDiagnostic?: (event: RuntimeDiagnostic) => void,
   ) {}
   reset(): void {
-    this.releases.forEach(release => release());
-    this.releases.clear();
-    this.queries.forEach(controller => controller.abort());
+    this.queries.forEach((controller, id) =>
+      this.runner.cancel(`record:${id}`, controller),
+    );
     this.queries.clear();
     this.consumedCursors.clear();
     this.intents.clear();
@@ -60,18 +62,19 @@ export class RecordQueries {
     this.replaceController(id);
   }
 
-  private replaceController(
-    id: string,
-    next?: AbortController,
-    release?: () => void,
-  ): void {
-    this.releases.get(id)?.();
-    if (release) this.releases.set(id, release);
-    else this.releases.delete(id);
+  forget(id: string): void {
+    this.cancel(id);
+    this.intents.delete(id);
+    this.consumedCursors.delete(id);
+    this.summaries.invalidate(id);
+  }
+
+  private replaceController(id: string, next?: AbortController): void {
     this.intents.set(id, Symbol());
     const previous = this.queries.get(id);
     if (next) this.queries.set(id, next);
     else this.queries.delete(id);
+    if (previous && !next) this.runner.cancel(`record:${id}`, previous);
     previous?.abort();
     // Abort listeners may already have started a newer read.
     if (this.queries.get(id) !== next) return;
@@ -103,9 +106,14 @@ export class RecordQueries {
 
   private captureIntent(id: string): () => boolean {
     const intent = this.intents.get(id),
-      lifecycle = this.scope.version;
+      lifecycle = this.scope.version,
+      generation = this.store.isPosition(id)
+        ? this.store.generation(id)
+        : undefined;
     return () =>
-      this.scope.current(lifecycle) && this.intents.get(id) === intent;
+      this.scope.current(lifecycle) &&
+      (generation === undefined || this.store.generation(id) === generation) &&
+      this.intents.get(id) === intent;
   }
 
   /** Automatic follow-ups additionally require the instance to remain selected. */
@@ -155,71 +163,73 @@ export class RecordQueries {
       diagnostic('failed', 'RESOURCE_LIMIT');
       throw error;
     }
-    const definition = this.store.definition();
+    const definition = this.store.definition(session.positionId);
     const lifecycle = this.scope.version;
     const controller = new AbortController();
     const current = () =>
       this.scope.current(lifecycle) && this.queries.get(id) === controller;
-    let release: () => void;
+    let source: Awaited<ReturnType<ViewHost['resolveSource']>> | undefined;
+    let reading: Promise<
+      | Awaited<ReturnType<NonNullable<RecordQuerySource['paged']>>>
+      | Awaited<ReturnType<NonNullable<RecordQuerySource['cursor']>>>
+    >;
     try {
-      release = this.budget.acquire(`record:${id}`, controller);
-    } catch (error) {
-      diagnostic('failed', 'BUSY');
-      throw error;
-    }
-    const deadline = Date.now() + this.limits.queryTimeoutMs;
-    this.replaceController(id, controller, release);
-    if (!current()) {
-      diagnostic('superseded');
-      return;
-    }
-    this.store.patch(
-      id,
-      background
-        ? { kind: 'record', refreshing: true, queryError: null, queryAttempt }
-        : {
-            kind: 'record',
-            queryAttempt,
-            rows:
-              (mode === 'refresh' || mode === 'retry') &&
-              config.pagination.mode === 'paged'
-                ? session.rows
-                : [],
-            selectedRowKeys: [],
-            total:
-              (mode === 'refresh' || mode === 'retry') &&
-              config.pagination.mode === 'paged'
-                ? session.total
-                : null,
-            nextCursor: null,
-            queryError: null,
-            queryStatus: 'loading',
-            refreshing: false,
-          },
-    );
-    if (!background) this.summaries.sync(id, undefined, false);
-    try {
-      diagnostic('started');
-      if (!current()) return;
-      if (filter === null)
-        throw new Error('筛选组件配置无法编译，请先修正筛选');
-      const source = await withDeadline(
-        () => this.host.resolveSource(definition.sourceId),
-        Math.max(1, deadline - Date.now()),
+      reading = this.runner.submit({
+        key: `record:${id}`,
+        policy: 'reject',
+        timeoutMs: this.limits.queryTimeoutMs,
         controller,
-      );
-      if (!current()) return;
-      const { sort, pagination } = config;
-      if (!source || typeof source[pagination.mode] !== 'function')
-        throw new Error(`数据源不支持 ${pagination.mode} 分页查询`);
-      if (!background) this.summaries.sync(id, source);
-      if (!current()) return;
-      const result = await withDeadline<
-        | Awaited<ReturnType<NonNullable<RecordQuerySource['paged']>>>
-        | Awaited<ReturnType<NonNullable<RecordQuerySource['cursor']>>>
-      >(
-        () =>
-          pagination.mode === 'paged'
+        run: async () => {
+          this.replaceController(id, controller);
+          if (!current())
+            throw new RuntimeLimitError('CANCELLED', '操作已取消');
+          this.store.patch(
+            id,
+            background
+              ? {
+                  kind: 'record',
+                  refreshing: true,
+                  queryError: null,
+                  queryAttempt,
+                }
+              : {
+                  kind: 'record',
+                  queryAttempt,
+                  rows:
+                    (mode === 'refresh' || mode === 'retry') &&
+                    config.pagination.mode === 'paged'
+                      ? session.rows
+                      : [],
+                  selectedRowKeys: [],
+                  total:
+                    (mode === 'refresh' || mode === 'retry') &&
+                    config.pagination.mode === 'paged'
+                      ? session.total
+                      : null,
+                  nextCursor: null,
+                  queryError: null,
+                  queryStatus: 'loading',
+                  refreshing: false,
+                },
+          );
+          if (!background) this.summaries.sync(id, undefined, false);
+
+          diagnostic('started');
+          if (!current())
+            throw new RuntimeLimitError('CANCELLED', '操作已取消');
+          if (filter === null)
+            throw new Error('筛选组件配置无法编译，请先修正筛选');
+          if (!definition.sourceId) throw new Error('查询定义缺少数据源');
+          source = await this.host.resolveSource(definition.sourceId);
+          if (!current())
+            throw new RuntimeLimitError('CANCELLED', '操作已取消');
+          const { sort, pagination } = config;
+          if (!source || typeof source[pagination.mode] !== 'function')
+            throw new Error(`数据源不支持 ${pagination.mode} 分页查询`);
+          if (!background) this.summaries.sync(id, source);
+          if (!current())
+            throw new RuntimeLimitError('CANCELLED', '操作已取消');
+          return pagination.mode === 'paged'
             ? source.paged!(
                 cloneSnapshot<
                   Parameters<NonNullable<RecordQuerySource['paged']>>[0]
@@ -242,11 +252,20 @@ export class RecordQueries {
                 }),
                 undefined,
                 controller,
-              ),
-        Math.max(1, deadline - Date.now()),
-        controller,
+              );
+        },
+      }).completion;
+    } catch (error) {
+      diagnostic(
+        'failed',
+        error instanceof RuntimeLimitError ? error.code : 'QUERY_FAILED',
       );
-      if (!current()) return;
+      throw error;
+    }
+    try {
+      const result = await reading;
+      if (!current() || filter === null) return;
+      const { pagination } = config;
       if (!result || typeof result !== 'object' || Array.isArray(result))
         throw new Error('查询结果必须是分页对象');
       validateRecordRows(result.list, definition.record!.rowKey);
@@ -305,7 +324,6 @@ export class RecordQueries {
         if (session.cursor !== null) consumedCursors.add(session.cursor);
         this.consumedCursors.set(id, consumedCursors);
       }
-      release();
       this.store.patch(id, {
         kind: 'record',
         result: {
@@ -328,7 +346,6 @@ export class RecordQueries {
       diagnostic('succeeded');
     } catch (error) {
       if (!current()) return;
-      release();
       this.store.patch(id, {
         kind: 'record',
         queryStatus: 'error',
@@ -347,14 +364,13 @@ export class RecordQueries {
           ? 'cancelled'
           : 'superseded',
       );
-      release();
       if (this.queries.get(id) === controller) this.queries.delete(id);
     }
   }
 
   async retry(id?: string): Promise<void> {
     const session = this.store.recordSession(id);
-    await this.run(session.instance.id, 'retry');
+    await this.run(session.positionId, 'retry');
   }
 
   async refresh(
@@ -364,11 +380,11 @@ export class RecordQueries {
     const session = this.store.recordSession(id);
     if (options?.background) {
       if (getRecordRefreshBlockReason(session)) return;
-      await this.run(session.instance.id, 'background');
+      await this.run(session.positionId, 'background');
       return;
     }
     await this.change(
-      session.instance.id,
+      session.positionId,
       () => {
         if (
           (
@@ -377,7 +393,7 @@ export class RecordQueries {
             session.instance.config
           ).pagination.mode === 'cursor'
         )
-          this.store.patch(session.instance.id, {
+          this.store.patch(session.positionId, {
             kind: 'record',
             page: 1,
             cursor: null,

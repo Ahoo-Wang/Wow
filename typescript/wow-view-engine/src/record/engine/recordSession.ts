@@ -37,6 +37,7 @@ export function createRecordSession(
   const compiled = compileSessionFilter(filterDraft, definition, compilers);
   return {
     kind: 'record',
+    positionId: instance.id,
     editorEpoch: 0,
     editVersion: 0,
     validation: recordIssues(

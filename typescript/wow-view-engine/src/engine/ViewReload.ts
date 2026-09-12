@@ -76,6 +76,7 @@ export class ViewReload {
   ) {}
 
   canReloadInstance(id = this.store.getSnapshot().selectedInstanceId): boolean {
+    if (id && this.store.isPosition(id)) return false;
     if (
       this.scope.disposed ||
       !id ||

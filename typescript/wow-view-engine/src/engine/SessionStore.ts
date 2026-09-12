@@ -23,12 +23,14 @@ import type {
   ViewSession,
   ViewEngineState,
 } from '../contracts/viewModel.js';
+import { validateViewDefinition } from '../contracts/validation/definitionValidation.js';
 import { validateViewInstance } from '../contracts/validation/instanceValidation.js';
 import type { EngineScope } from './EngineScope.js';
 import { clearAnalysisResult } from '../analysis/analysisSession.js';
 import { clearRecordResult } from '../record/engine/recordSession.js';
 import { copy, freeze } from '../lib/snapshot.js';
-import { deriveSession } from './sessionState.js';
+import type { ViewDefinition, ViewInstance } from '../contracts/viewModel.js';
+import { createSession, deriveSession } from './sessionState.js';
 
 type CommonSessionFields = Omit<
   ViewSession,
@@ -69,8 +71,10 @@ export class SessionStore {
     sessions: Object.create(null),
     pendingCreates: Object.create(null),
   });
+  private readonly positions = new Map<string, ViewDefinition>();
   private readonly resultAccess = new Map<string, number>();
   private accessVersion = 0;
+  private nextGeneration = 0;
   private readonly generations = new Map<string, number>();
   generation(id: string): number {
     return this.generations.get(id) ?? 0;
@@ -93,6 +97,10 @@ export class SessionStore {
 
   publish(patch: Partial<ViewEngineState>): void {
     if (this.scope.disposed) return;
+    if (patch.status === 'loading') {
+      for (const id of this.positions.keys()) this.generations.delete(id);
+      this.positions.clear();
+    }
     const definition =
       patch.definition === undefined ? this.state.definition : patch.definition;
     if (definition) {
@@ -112,7 +120,7 @@ export class SessionStore {
                 ? session
                 : deriveSession(
                     session,
-                    definition,
+                    this.positions.get(id) ?? definition,
                     this.filterCompilers,
                     previous,
                     this.analysisCompilers,
@@ -126,7 +134,7 @@ export class SessionStore {
     }
     if (patch.sessions)
       for (const id of Object.keys(patch.sessions))
-        if (!this.find(id)) this.generations.set(id, this.generation(id) + 1);
+        if (!this.find(id)) this.generations.set(id, ++this.nextGeneration);
     let next = { ...this.state, ...patch };
     const sessions = { ...next.sessions };
     for (const id of this.resultAccess.keys())
@@ -143,7 +151,7 @@ export class SessionStore {
       if (!session.result) this.resultAccess.delete(id);
     }
     const retained = Object.keys(sessions).filter(
-      id => sessions[id].result !== null,
+      id => !this.positions.has(id) && sessions[id].result !== null,
     );
     const candidates = retained
       .filter(id => id !== next.selectedInstanceId)
@@ -179,7 +187,7 @@ export class SessionStore {
   patch(id: string, patch: SessionPatch): void {
     const session = this.find(id) ?? this.findPendingCreate(id);
     const target = this.find(id) ? 'sessions' : 'pendingCreates';
-    const definition = this.state.definition;
+    const definition = this.positions.get(id) ?? this.state.definition;
     if (!session || !definition || this.scope.disposed) return;
     let next: ViewSession;
     if (patch.kind === undefined) {
@@ -214,7 +222,12 @@ export class SessionStore {
       : undefined;
   }
 
-  definition(): NonNullable<ViewEngineState['definition']> {
+  definition(id?: string): NonNullable<ViewEngineState['definition']> {
+    const positionDefinition = id ? this.positions.get(id) : undefined;
+    if (positionDefinition) {
+      this.scope.assertReady();
+      return positionDefinition;
+    }
     this.scope.assertReady();
     if (!this.state.definition) throw new Error('视图定义尚未加载');
     return this.state.definition;
@@ -229,6 +242,8 @@ export class SessionStore {
 
   sessionForReload(id = this.state.selectedInstanceId): ViewSession {
     this.scope.assertReady();
+    if (id && this.isPosition(id))
+      throw new Error('运行位置不能通过实例管理接口重新加载');
     const session =
       id === null ? undefined : (this.find(id) ?? this.findPendingCreate(id));
     if (!session) throw new Error('请先选择有效的视图实例');
@@ -259,15 +274,52 @@ export class SessionStore {
     instance: RecordSession['instance'],
     patch: Omit<RecordSessionPatch, 'kind' | 'instance'> = {},
   ): void {
-    validateViewInstance(instance, this.definition(), session.instance.id);
-    this.patch(session.instance.id, {
+    validateViewInstance(
+      instance,
+      this.definition(session.positionId),
+      session.instance.id,
+    );
+    this.patch(session.positionId, {
       ...patch,
       kind: 'record',
       instance: copy(instance),
     });
   }
 
+  openPosition(instance: ViewInstance, definition: ViewDefinition): string {
+    this.scope.assertReady();
+    validateViewDefinition(definition);
+    validateViewInstance(instance, definition);
+    const id = `position:${crypto.randomUUID()}`;
+    const localDefinition = copy(definition);
+    const session = {
+      ...createSession(
+        copy(instance),
+        localDefinition,
+        this.filterCompilers,
+        this.analysisCompilers,
+      ),
+      positionId: id,
+    };
+    this.positions.set(id, localDefinition);
+    this.publish({ sessions: { ...this.state.sessions, [id]: session } });
+    return id;
+  }
+
+  isPosition(id: string): boolean {
+    return this.positions.has(id);
+  }
+  closePosition(id: string): void {
+    if (!this.positions.delete(id)) return;
+    const sessions = { ...this.state.sessions };
+    delete sessions[id];
+    this.generations.delete(id);
+    this.publish({ sessions });
+  }
   dispose(): void {
+    this.generations.clear();
+    this.resultAccess.clear();
+    this.positions.clear();
     this.listeners.clear();
   }
 }

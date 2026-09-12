@@ -23,6 +23,8 @@ import type {
 } from '../filter/filterModel.js';
 import type { DeepReadonly } from '../lib/types.js';
 import type {
+  ViewDefinition,
+  ViewInstance,
   RecordColumn,
   RecordKey,
   SaveAsScope,
@@ -35,10 +37,10 @@ import type {
 import type { ViewHost } from '../contracts/ViewHost.js';
 import {
   validateRuntimeLimits,
-  QueryBudget,
   beginDiagnostic,
   RuntimeLimitError,
 } from '../lib/runtimeLimits.js';
+import { RequestRunner } from './RequestRunner.js';
 import { AnalysisCommands } from '../analysis/AnalysisCommands.js';
 import type { RecordViewConfig } from '../contracts/viewModel.js';
 import { validateFilterJson } from '../filter/filterConfigurationValidation.js';
@@ -86,7 +88,11 @@ export class ViewEngine {
     this.host = options.host;
     this.onDiagnostic = options.onDiagnostic;
     const limits = validateRuntimeLimits(options.limits);
-    const budget = new QueryBudget(limits.maxConcurrentQueries);
+    const budget = new RequestRunner({
+      maxConcurrent: limits.maxConcurrentQueries,
+      maxQueued: 48,
+      maxTimeoutMs: limits.queryTimeoutMs,
+    });
     // Commands resolve the current host at invocation; UI consumes immutable snapshots.
     const host = new Proxy({} as ViewHost, {
       get: (_target, property) => {
@@ -459,6 +465,37 @@ export class ViewEngine {
     };
   }
 
+  openPosition(instance: ViewInstance, definition: ViewDefinition) {
+    const id = this.store.openPosition(instance, definition);
+    const identity = Object.freeze({
+      id,
+      instanceId: instance.id,
+      definitionId: definition.id,
+    });
+    const version = this.scope.version;
+    let closed = false;
+    const dispose = () => {
+      if (closed || !this.scope.current(version)) return;
+      closed = true;
+      // Invalidate bound commands before cancellation can notify observers.
+      this.store.closePosition(id);
+      this.viewQueries.forget(id);
+    };
+    const shared = { identity, subscribe: this.subscribe, dispose };
+    return instance.kind === 'record'
+      ? {
+          ...shared,
+          kind: 'record' as const,
+          getSnapshot: () => this.store.recordSession(id),
+          commands: this.record(id),
+        }
+      : {
+          ...shared,
+          kind: 'analysis' as const,
+          getSnapshot: () => this.store.analysisSession(id),
+          commands: this.analysis(id),
+        };
+  }
   load(): Promise<void> {
     return this.observe('load', false, () => this.loader.load());
   }
@@ -486,6 +523,8 @@ export class ViewEngine {
   }
 
   setTitle(title: string, id?: string): void {
+    if (id && this.store.isPosition(id))
+      throw new Error('运行位置不能通过实例管理接口改名');
     const session = this.store.session(id);
     if (isSystemSession(session)) throw new Error('系统视图不能编辑名称');
     if (typeof title !== 'string' || !title.trim())
@@ -499,11 +538,12 @@ export class ViewEngine {
   }
 
   async restore(id?: string): Promise<void> {
-    this.work.assertWritable(this.store.session(id));
-    if (this.store.session(id).conflict)
+    const session = this.store.session(id);
+    this.work.assertRestorable(session);
+    if (session.conflict)
       return Promise.reject(new Error('视图存在冲突，请明确选择使用最新版本'));
-    if (this.store.session(id).kind === 'analysis') {
-      this.analysisCommands.restore(this.store.session(id).instance.id);
+    if (session.kind === 'analysis') {
+      this.analysisCommands.restore(session.positionId);
       return Promise.resolve();
     }
     return this.edits.restore(id);

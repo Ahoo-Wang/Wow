@@ -32,7 +32,12 @@ export function permissionsFor(
   host: ViewHost,
   session?: ViewSession,
 ): ViewInstancePermissions {
-  if (!session || !host.permission?.getInstance) return deniedPermissions;
+  if (
+    !session ||
+    session.positionId !== session.instance.id ||
+    !host.permission?.getInstance
+  )
+    return deniedPermissions;
   try {
     const permissions = host.permission?.getInstance(
       cloneSnapshot<ViewInstance>(session.instance),

@@ -223,6 +223,7 @@ export interface RecordQuerySnapshot {
   cursor: string | null;
 }
 export interface RecordSession {
+  readonly positionId: string;
   readonly kind: 'record';
   /** Changes only when local editor buffers must be discarded. */
   readonly editorEpoch: number;
@@ -267,6 +268,7 @@ export interface RecordSession {
   readonly requiresReload: boolean;
 }
 export interface AnalysisSession {
+  readonly positionId: string;
   readonly kind: 'analysis';
   /** Changes only when local editor buffers must be discarded. */
   readonly editorEpoch: number;

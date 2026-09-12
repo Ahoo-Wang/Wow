@@ -177,12 +177,19 @@ export class InstanceWork {
     this.deleted.delete(id);
   }
 
+  assertRestorable(session: ViewSession): void {
+    if (session.positionId === session.instance.id)
+      this.assertWritable(session);
+  }
+
   assertWritable(
     session: ViewSession,
     replayingWrite = false,
     resolvingConflict = false,
   ): void {
     const id = session.instance.id;
+    if (session.positionId !== id)
+      throw new Error('运行位置不能通过实例管理接口写入，请编辑原视图');
     if (this.writeToken(id)) throw new Error('实例正在写入，请等待操作完成');
     if (this.reloadToken(id))
       throw new Error('实例正在重新加载，请等待加载完成');
