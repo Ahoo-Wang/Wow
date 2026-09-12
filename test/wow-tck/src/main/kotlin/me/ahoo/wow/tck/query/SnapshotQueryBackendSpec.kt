@@ -32,6 +32,7 @@ import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -1179,6 +1180,34 @@ abstract class SnapshotQueryBackendSpec {
         }.query(queryBackendBinding)
             .test()
             .assertNext { it.path("byName").longValue().assert().isEqualTo(1L) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should count records matched by literal match metric filters`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            count("contains") { "productName".containsText("Alpha") } // stateA "Alpha" + stateB "Alpha 2026" = 2
+            count("startsWith") { "productName".startsWithText("Alpha") } // 同上 = 2
+            count("endsWith") { "productName".endsWithText("2026") } // 仅 stateB "Alpha 2026" = 1
+            count("containsIgnoreCase") {
+                "productName".containsText("alpha", StringComparison.CASE_INSENSITIVE)
+            } // 大小写不敏感，同 contains = 2
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext {
+                it.assertWireEquals(
+                    mapOf(
+                        "contains" to 2L,
+                        "startsWith" to 2L,
+                        "endsWith" to 1L,
+                        "containsIgnoreCase" to 2L,
+                    ),
+                )
+            }
             .verifyComplete()
     }
 
