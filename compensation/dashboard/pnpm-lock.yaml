@@ -22,19 +22,19 @@ importers:
         version: 3.18.1(@ahoo-wang/fetcher@3.18.1)
       '@ahoo-wang/fetcher-react':
         specifier: ^3.18.1
-        version: 3.18.1(@ahoo-wang/fetcher-cosec@3.18.1(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1)))(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventstream@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1)))(@ahoo-wang/fetcher-wow@3.18.1(@ahoo-wang/fetcher-decorator@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventstream@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher@3.18.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 3.18.1(@ahoo-wang/fetcher-cosec@3.18.1(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1)))(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventstream@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1)))(@ahoo-wang/fetcher-wow@3.18.1(@ahoo-wang/fetcher-decorator@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventstream@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher@3.18.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@ahoo-wang/fetcher-wow':
         specifier: ^3.18.1
         version: 3.18.1(@ahoo-wang/fetcher-decorator@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventstream@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher@3.18.1)
       '@base-ui/react':
         specifier: ^1.8.0
-        version: 1.8.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 1.8.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@fontsource-variable/geist':
         specifier: ^5.3.0
         version: 5.3.0
       '@tanstack/react-table':
         specifier: ^8.21.3
-        version: 8.21.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 8.21.3(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -46,34 +46,34 @@ importers:
         version: 1.11.23
       lucide-react:
         specifier: ^1.44.0
-        version: 1.44.0(react@19.2.8)
+        version: 1.44.0(react@19.3.0)
       react:
-        specifier: ^19.2.8
-        version: 19.2.8
+        specifier: ^19.3.0
+        version: 19.3.0
       react-day-picker:
         specifier: ^10.0.1
-        version: 10.0.1(@types/react@19.2.18)(react@19.2.8)
+        version: 10.0.1(@types/react@19.3.0)(react@19.3.0)
       react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
+        specifier: ^19.3.0
+        version: 19.3.0(react@19.3.0)
       react-is:
         specifier: 19.3.0
         version: 19.3.0
       react-resizable-panels:
         specifier: ^4.12.4
-        version: 4.12.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 4.12.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react-router:
         specifier: ^8.3.1
-        version: 8.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 8.3.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react-syntax-highlighter:
         specifier: ^16.1.1
-        version: 16.1.1(react@19.2.8)
+        version: 16.1.1(react@19.3.0)
       recharts:
         specifier: 3.10.1
-        version: 3.10.1(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react-is@19.3.0)(react@19.2.8)(redux@5.0.1)
+        version: 3.10.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.3.0)(react@19.3.0)(redux@5.0.1)
       sonner:
         specifier: ^2.0.8
-        version: 2.0.8(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
@@ -107,16 +107,16 @@ importers:
         version: 6.9.1
       '@testing-library/react':
         specifier: ^16.3.3
-        version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@types/node':
         specifier: ^26.5.1
         version: 26.5.1
       '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
+        specifier: ^19.3.0
+        version: 19.3.0
       '@types/react-dom':
-        specifier: ^19.2.7
-        version: 19.2.7(@types/react@19.2.18)
+        specifier: ^19.3.0
+        version: 19.3.0(@types/react@19.3.0)
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
         version: 15.5.13
@@ -972,16 +972,16 @@ packages:
   '@types/prismjs@1.26.6':
     resolution: {integrity: sha512-vqlvI7qlMvcCBbVe0AKAb4f97//Hy0EBTaiW8AalRnG/xAN5zOiWWyrNqNXeq8+KAuvRewjCVY1+IPxk4RdNYw==}
 
-  '@types/react-dom@19.2.7':
-    resolution: {integrity: sha512-I8bPpDLcHBv1qiIiXDCy71Rt8eQDKJP0sMSWJphDdAcdqiJ1sGpZamavoEIRZmYzjia9LuEb2HlYdDpmoENpvQ==}
+  '@types/react-dom@19.3.0':
+    resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
     peerDependencies:
-      '@types/react': ^19.2.0
+      '@types/react': ^19.3.0
 
   '@types/react-syntax-highlighter@15.5.13':
     resolution: {integrity: sha512-uLGJ87j6Sz8UaBAooU0T6lWJ0dBmjZgN1PZTrj05TNql2/XpC6+4HhMT5syIdFUUt+FASfCeLLv4kBygNU+8qA==}
 
-  '@types/react@19.2.18':
-    resolution: {integrity: sha512-AnzbBERsrLKtk2XSfTbYRLjQPdy116Sty4q+T+Bp3IC4l6jNBvreVPAHmpq9qhXQM7CXZPjLVmGMw9sy+hxQ3w==}
+  '@types/react@19.3.0':
+    resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
 
   '@types/unist@2.0.11':
     resolution: {integrity: sha512-CmBKiL6NNo/OqgmMn95Fk9Whlp2mtvIv+KNpQKN2F4SjvrEesubTRWGYSg+BnWZOnlCaSTU1sMpsBOzgbYhnsA==}
@@ -2597,10 +2597,10 @@ packages:
       '@types/react':
         optional: true
 
-  react-dom@19.2.8:
-    resolution: {integrity: sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==}
+  react-dom@19.3.0:
+    resolution: {integrity: sha512-JDk8dgif51OjFoDE70+OT9ICyYr+69HlmihNwp1+Nsfbna3t5sIiCa9ZJktDmQ4/1b/rn26hIAR2uYXDMr5r0Q==}
     peerDependencies:
-      react: ^19.2.8
+      react: ^19.3.0
 
   react-is@17.0.2:
     resolution: {integrity: sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==}
@@ -2642,8 +2642,8 @@ packages:
     peerDependencies:
       react: '>= 0.14.0'
 
-  react@19.2.8:
-    resolution: {integrity: sha512-PWaYA1L/q9u2u7xYQi+Y3L3Yfnie7XyLeaJICV1MGD6LprsBxcAqGjYyr0eY3p+QdsA+x/Irkt4Qif8D63+Sbw==}
+  react@19.3.0:
+    resolution: {integrity: sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog==}
     engines: {node: '>=0.10.0'}
 
   recast@0.23.19:
@@ -2721,8 +2721,8 @@ packages:
     resolution: {integrity: sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA==}
     engines: {node: '>=v12.22.7'}
 
-  scheduler@0.27.0:
-    resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
+  scheduler@0.28.0:
+    resolution: {integrity: sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw==}
 
   semver@6.3.1:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
@@ -3231,7 +3231,7 @@ snapshots:
 
   '@ahoo-wang/fetcher-openapi@3.16.10': {}
 
-  '@ahoo-wang/fetcher-react@3.18.1(@ahoo-wang/fetcher-cosec@3.18.1(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1)))(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventstream@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1)))(@ahoo-wang/fetcher-wow@3.18.1(@ahoo-wang/fetcher-decorator@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventstream@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher@3.18.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@ahoo-wang/fetcher-react@3.18.1(@ahoo-wang/fetcher-cosec@3.18.1(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1)))(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventstream@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1)))(@ahoo-wang/fetcher-wow@3.18.1(@ahoo-wang/fetcher-decorator@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventstream@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher@3.18.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@ahoo-wang/fetcher': 3.18.1
       '@ahoo-wang/fetcher-cosec': 3.18.1(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1)))(@ahoo-wang/fetcher@3.18.1)
@@ -3241,8 +3241,8 @@ snapshots:
       '@ahoo-wang/fetcher-wow': 3.18.1(@ahoo-wang/fetcher-decorator@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher-eventstream@3.18.1(@ahoo-wang/fetcher@3.18.1))(@ahoo-wang/fetcher@3.18.1)
       dequal: 2.0.3
       immer: 11.1.18
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
   '@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.18.1))':
     dependencies:
@@ -3477,30 +3477,30 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@base-ui/react@1.8.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@base-ui/react@1.8.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@babel/runtime': 7.29.7
-      '@base-ui/utils': 0.4.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@floating-ui/react-dom': 2.1.9(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@base-ui/utils': 0.4.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@floating-ui/react-dom': 2.1.9(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@floating-ui/utils': 0.2.12
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
-      use-sync-external-store: 1.6.0(react@19.2.8)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
+      use-sync-external-store: 1.6.0(react@19.3.0)
     optionalDependencies:
       '@date-fns/tz': 1.5.0
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
       date-fns: 4.4.0
 
-  '@base-ui/utils@0.4.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@base-ui/utils@0.4.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@babel/runtime': 7.29.7
       '@floating-ui/utils': 0.2.12
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
       reselect: 5.3.0
-      use-sync-external-store: 1.6.0(react@19.2.8)
+      use-sync-external-store: 1.6.0(react@19.3.0)
     optionalDependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
 
   '@bcoe/v8-coverage@1.0.2': {}
 
@@ -3612,11 +3612,11 @@ snapshots:
       '@floating-ui/core': 1.8.0
       '@floating-ui/utils': 0.2.12
 
-  '@floating-ui/react-dom@2.1.9(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@floating-ui/react-dom@2.1.9(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@floating-ui/dom': 1.8.0
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
   '@floating-ui/utils@0.2.12': {}
 
@@ -3709,7 +3709,7 @@ snapshots:
     dependencies:
       playwright: 1.63.0
 
-  '@reduxjs/toolkit@2.12.0(react-redux@9.3.0(@types/react@19.2.18)(react@19.2.8)(redux@5.0.1))(react@19.2.8)':
+  '@reduxjs/toolkit@2.12.0(react-redux@9.3.0(@types/react@19.3.0)(react@19.3.0)(redux@5.0.1))(react@19.3.0)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@standard-schema/utils': 0.3.0
@@ -3718,8 +3718,8 @@ snapshots:
       redux-thunk: 3.1.0(redux@5.0.1)
       reselect: 5.3.0
     optionalDependencies:
-      react: 19.2.8
-      react-redux: 9.3.0(@types/react@19.2.18)(react@19.2.8)(redux@5.0.1)
+      react: 19.3.0
+      react-redux: 9.3.0(@types/react@19.3.0)(react@19.3.0)(redux@5.0.1)
 
   '@rolldown/binding-android-arm-eabi@1.2.8':
     optional: true
@@ -3853,11 +3853,11 @@ snapshots:
       tailwindcss: 4.3.3
       vite: 8.3.0(@types/node@26.5.1)(jiti@2.7.0)(yaml@2.9.0)
 
-  '@tanstack/react-table@8.21.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@tanstack/react-table@8.21.3(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@tanstack/table-core': 8.21.3
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
   '@tanstack/table-core@8.21.3': {}
 
@@ -3881,15 +3881,15 @@ snapshots:
       picocolors: 1.1.1
       redent: 3.0.0
 
-  '@testing-library/react@16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@testing-library/react@16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@babel/runtime': 7.29.7
       '@testing-library/dom': 10.4.1
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
     optionalDependencies:
-      '@types/react': 19.2.18
-      '@types/react-dom': 19.2.7(@types/react@19.2.18)
+      '@types/react': 19.3.0
+      '@types/react-dom': 19.3.0(@types/react@19.3.0)
 
   '@ts-morph/common@0.27.0':
     dependencies:
@@ -3952,15 +3952,15 @@ snapshots:
 
   '@types/prismjs@1.26.6': {}
 
-  '@types/react-dom@19.2.7(@types/react@19.2.18)':
+  '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
 
   '@types/react-syntax-highlighter@15.5.13':
     dependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
 
-  '@types/react@19.2.18':
+  '@types/react@19.3.0':
     dependencies:
       csstype: 3.2.3
 
@@ -5175,9 +5175,9 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@1.44.0(react@19.2.8):
+  lucide-react@1.44.0(react@19.3.0):
     dependencies:
-      react: 19.2.8
+      react: 19.3.0
 
   lz-string@1.5.0: {}
 
@@ -5463,55 +5463,55 @@ snapshots:
       iconv-lite: 0.7.3
       unpipe: 1.0.0
 
-  react-day-picker@10.0.1(@types/react@19.2.18)(react@19.2.8):
+  react-day-picker@10.0.1(@types/react@19.3.0)(react@19.3.0):
     dependencies:
       '@date-fns/tz': 1.5.0
       date-fns: 4.4.0
-      react: 19.2.8
+      react: 19.3.0
     optionalDependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
 
-  react-dom@19.2.8(react@19.2.8):
+  react-dom@19.3.0(react@19.3.0):
     dependencies:
-      react: 19.2.8
-      scheduler: 0.27.0
+      react: 19.3.0
+      scheduler: 0.28.0
 
   react-is@17.0.2: {}
 
   react-is@19.3.0: {}
 
-  react-redux@9.3.0(@types/react@19.2.18)(react@19.2.8)(redux@5.0.1):
+  react-redux@9.3.0(@types/react@19.3.0)(react@19.3.0)(redux@5.0.1):
     dependencies:
       '@types/use-sync-external-store': 0.0.6
-      react: 19.2.8
-      use-sync-external-store: 1.6.0(react@19.2.8)
+      react: 19.3.0
+      use-sync-external-store: 1.6.0(react@19.3.0)
     optionalDependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
       redux: 5.0.1
 
-  react-resizable-panels@4.12.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  react-resizable-panels@4.12.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
-  react-router@8.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  react-router@8.3.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
       cookie-es: 3.1.1
-      react: 19.2.8
+      react: 19.3.0
     optionalDependencies:
-      react-dom: 19.2.8(react@19.2.8)
+      react-dom: 19.3.0(react@19.3.0)
 
-  react-syntax-highlighter@16.1.1(react@19.2.8):
+  react-syntax-highlighter@16.1.1(react@19.3.0):
     dependencies:
       '@babel/runtime': 7.29.7
       highlight.js: 10.7.3
       highlightjs-vue: 1.0.0
       lowlight: 1.20.0
       prismjs: 1.30.0
-      react: 19.2.8
+      react: 19.3.0
       refractor: 5.0.0
 
-  react@19.2.8: {}
+  react@19.3.0: {}
 
   recast@0.23.19:
     dependencies:
@@ -5521,21 +5521,21 @@ snapshots:
       tiny-invariant: 1.3.3
       tslib: 2.8.1
 
-  recharts@3.10.1(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react-is@19.3.0)(react@19.2.8)(redux@5.0.1):
+  recharts@3.10.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.3.0)(react@19.3.0)(redux@5.0.1):
     dependencies:
-      '@reduxjs/toolkit': 2.12.0(react-redux@9.3.0(@types/react@19.2.18)(react@19.2.8)(redux@5.0.1))(react@19.2.8)
+      '@reduxjs/toolkit': 2.12.0(react-redux@9.3.0(@types/react@19.3.0)(react@19.3.0)(redux@5.0.1))(react@19.3.0)
       clsx: 2.1.1
       decimal.js-light: 2.5.1
       es-toolkit: 1.51.0
       eventemitter3: 5.0.4
       immer: 11.1.18
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
       react-is: 19.3.0
-      react-redux: 9.3.0(@types/react@19.2.18)(react@19.2.8)(redux@5.0.1)
+      react-redux: 9.3.0(@types/react@19.3.0)(react@19.3.0)(redux@5.0.1)
       reselect: 5.2.0
       tiny-invariant: 1.3.3
-      use-sync-external-store: 1.6.0(react@19.2.8)
+      use-sync-external-store: 1.6.0(react@19.3.0)
       victory-vendor: 37.3.6
     transitivePeerDependencies:
       - '@types/react'
@@ -5619,7 +5619,7 @@ snapshots:
     dependencies:
       xmlchars: 2.2.0
 
-  scheduler@0.27.0: {}
+  scheduler@0.28.0: {}
 
   semver@6.3.1: {}
 
@@ -5742,12 +5742,12 @@ snapshots:
       ip-address: 10.4.0
       smart-buffer: 4.2.0
 
-  sonner@2.0.8(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  sonner@2.0.8(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
     optionalDependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
 
   source-map-js@1.2.1: {}
 
@@ -5907,9 +5907,9 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  use-sync-external-store@1.6.0(react@19.2.8):
+  use-sync-external-store@1.6.0(react@19.3.0):
     dependencies:
-      react: 19.2.8
+      react: 19.3.0
 
   util-deprecate@1.0.2: {}
 
