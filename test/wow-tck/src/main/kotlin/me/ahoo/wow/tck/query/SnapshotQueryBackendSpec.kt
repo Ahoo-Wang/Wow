@@ -1712,7 +1712,8 @@ abstract class SnapshotQueryBackendSpec {
             .collectList()
             .test()
             .assertNext { rows ->
-                // 实际桶：2025-12-29 周（01-01/01-02/01-03 三行）、2026-01-26 周（02-01）、2026-02-02 周（02-02）
+                // 实际桶：2025-12-29 周（01-01/01-02/01-03 三天共 4 行，01-02T18:00Z 行归入 01-03 本地日）、
+                // 2026-01-26 周（02-01）、2026-02-02 周（02-02）
                 // 补齐：2026-01-05/01-12/01-19 三周
                 rows.assert().hasSize(6)
                 rows.map { it.path("week").longValue() }.assert().containsExactly(

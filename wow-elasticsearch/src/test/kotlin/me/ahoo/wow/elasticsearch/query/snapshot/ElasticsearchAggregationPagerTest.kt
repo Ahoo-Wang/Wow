@@ -827,6 +827,107 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
+    fun `dense metric sort should rank filled gaps against real buckets in the bounded top N`() {
+        stubPointInTime()
+        val day1 = Instant.parse("2026-01-01T00:00:00Z").toEpochMilli()
+        val day2 = day1 + DAY_MILLIS
+        val day3 = day1 + 2 * DAY_MILLIS
+        val day4 = day1 + 3 * DAY_MILLIS
+        val day5 = day1 + 4 * DAY_MILLIS
+        val day6 = day1 + 5 * DAY_MILLIS
+        val day7 = day1 + 6 * DAY_MILLIS
+        val day8 = day1 + 7 * DAY_MILLIS
+        every { client.search(any<SearchRequest>(), Map::class.java) } returnsMany listOf(
+            Mono.just(denseGroupResponse("pit-2", listOf(dayBucket(day1, 5), dayBucket(day3, 2)), afterDay = day3)),
+            Mono.just(denseGroupResponse("pit-3", listOf(dayBucket(day6, 4), dayBucket(day8, 7)), afterDay = day8)),
+            Mono.just(denseGroupResponse("pit-4", emptyList())),
+        )
+
+        pager(batchSize = 2).execute(denseMetricPlan(limit = 10))
+            .map { it.path("day").longValue() to it.path("count").longValue() }
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // fills (count=0) compete in the bounded top N exactly like real buckets: they rank
+                // below every real row under count DESC and order among themselves by the day ASC
+                // tiebreak — day2 fills within page 1, day4/day5 bridge the pages, day7 fills page 2
+                rows.assert().containsExactly(
+                    day8 to 7L,
+                    day1 to 5L,
+                    day6 to 4L,
+                    day3 to 2L,
+                    day2 to 0L,
+                    day4 to 0L,
+                    day5 to 0L,
+                    day7 to 0L,
+                )
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `dense metric sort should keep a filled gap row within a small limit`() {
+        stubPointInTime()
+        val day1 = Instant.parse("2026-01-01T00:00:00Z").toEpochMilli()
+        val day2 = day1 + DAY_MILLIS
+        val day3 = day1 + 2 * DAY_MILLIS
+        val day6 = day1 + 5 * DAY_MILLIS
+        val day8 = day1 + 7 * DAY_MILLIS
+        every { client.search(any<SearchRequest>(), Map::class.java) } returnsMany listOf(
+            Mono.just(denseGroupResponse("pit-2", listOf(dayBucket(day1, 5), dayBucket(day3, 2)), afterDay = day3)),
+            Mono.just(denseGroupResponse("pit-3", listOf(dayBucket(day6, 4), dayBucket(day8, 7)), afterDay = day8)),
+            Mono.just(denseGroupResponse("pit-4", emptyList())),
+        )
+
+        pager(batchSize = 2).execute(denseMetricPlan(limit = 5))
+            .map { it.path("day").longValue() to it.path("count").longValue() }
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // only 4 real buckets exist, yet the limit-5 result keeps 5 rows: the last slot
+                // stays occupied by the best fill (count=0, day ASC tiebreak) instead of truncating
+                // to the raw bucket count
+                rows.assert().containsExactly(
+                    day8 to 7L,
+                    day1 to 5L,
+                    day6 to 4L,
+                    day3 to 2L,
+                    day2 to 0L,
+                )
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `dense date histogram should bridge gaps across pages in descending order`() {
+        stubPointInTime()
+        val day1 = Instant.parse("2026-01-01T00:00:00Z").toEpochMilli()
+        val day2 = day1 + DAY_MILLIS
+        val day3 = day1 + 2 * DAY_MILLIS
+        val day4 = day1 + 3 * DAY_MILLIS
+        val day5 = day1 + 4 * DAY_MILLIS
+        val day6 = day1 + 5 * DAY_MILLIS
+        val day7 = day1 + 6 * DAY_MILLIS
+        val day8 = day1 + 7 * DAY_MILLIS
+        every { client.search(any<SearchRequest>(), Map::class.java) } returnsMany listOf(
+            Mono.just(denseGroupResponse("pit-2", listOf(dayBucket(day8, 7), dayBucket(day6, 4)), afterDay = day6)),
+            Mono.just(denseGroupResponse("pit-3", listOf(dayBucket(day3, 2), dayBucket(day1, 1)))),
+        )
+
+        pager(batchSize = 2).execute(densePlan(sortDesc = true))
+            .map { it.path("day").longValue() }
+            .collectList()
+            .test()
+            .assertNext { days ->
+                // day7 fills within page 1, day5/day4 bridge the page boundary, day2 fills page 2:
+                // the merged stream stays strictly descending and every gap key appears exactly once
+                days.assert().containsExactly(day8, day7, day6, day5, day4, day3, day2, day1)
+                days.zipWithNext().all { (left, right) -> left > right }.assert().isTrue()
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun `snapshot service with custom compiler should fail aggregation before Elasticsearch access`() {
         val compiler = mockk<AbstractElasticsearchFilterCompiler> {
             every { compile(any(), any()) } returns
@@ -918,6 +1019,18 @@ class ElasticsearchAggregationPagerTest {
             ),
         )
     }
+
+    /**
+     * Dense plan with a metric-first effective sort: "count" is a metric alias, so the compiler
+     * marks the plan metricSorted and the pager routes it through the bounded top-N accumulation.
+     */
+    private fun denseMetricPlan(limit: Int): ElasticsearchAggregationPlan = densePlan(limit).copy(
+        effectiveSort = listOf(
+            Sort(QueryField("count"), Sort.Direction.DESC),
+            Sort(QueryField("day"), Sort.Direction.ASC),
+        ),
+        metricSorted = true,
+    )
 
     private fun dayBucket(day: Long, count: Long): CompositeBucket = CompositeBucket.of {
         it.key("day", FieldValue.of(day)).docCount(count)
