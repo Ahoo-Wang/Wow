@@ -899,6 +899,28 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
+    fun `dense second histogram should stream gap fills on demand under a limit`() {
+        stubPointInTime()
+        val second1 = Instant.parse("2026-01-01T00:00:00Z").toEpochMilli()
+        // +1e9 seconds: the gap spans a billion SECOND buckets, far beyond any client heap, so an
+        // eagerly materialized gap would die with OutOfMemoryError before take(2) could run
+        val farSecond = second1 + 1_000_000_000_000L
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            denseGroupResponse("pit-2", listOf(dayBucket(second1, 2), dayBucket(farSecond, 5))),
+        )
+
+        pager().execute(densePlan(limit = 2, unit = AggregationDateUnit.SECOND))
+            .map { it.path("day").longValue() to it.path("count").longValue() }
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // the real bucket streams first; downstream demand stops gap generation after one fill
+                rows.assert().containsExactly(second1 to 2L, second1 + 1_000L to 0L)
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun `dense date histogram should bridge gaps across pages in descending order`() {
         stubPointInTime()
         val day1 = Instant.parse("2026-01-01T00:00:00Z").toEpochMilli()
@@ -989,6 +1011,7 @@ class ElasticsearchAggregationPagerTest {
     private fun densePlan(
         limit: Int = 100,
         sortDesc: Boolean = false,
+        unit: AggregationDateUnit = AggregationDateUnit.DAY,
     ): ElasticsearchAggregationPlan {
         val direction = if (sortDesc) Sort.Direction.DESC else Sort.Direction.ASC
         return ElasticsearchAggregationPlan(
@@ -1001,7 +1024,9 @@ class ElasticsearchAggregationPagerTest {
                     "day",
                     CompositeAggregationSource.of {
                         it.dateHistogram { dateHistogram ->
-                            dateHistogram.field("createdAt").calendarInterval { interval -> interval.time("day") }
+                            dateHistogram.field("createdAt").calendarInterval { interval ->
+                                interval.time(unit.name.lowercase())
+                            }
                         }
                     },
                 )
@@ -1014,7 +1039,7 @@ class ElasticsearchAggregationPagerTest {
             having = null,
             dense = DenseBucketPlan(
                 alias = "day",
-                grid = DenseDateGrid(AggregationDateUnit.DAY, ZoneId.of("UTC")),
+                grid = DenseDateGrid(unit, ZoneId.of("UTC")),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         )

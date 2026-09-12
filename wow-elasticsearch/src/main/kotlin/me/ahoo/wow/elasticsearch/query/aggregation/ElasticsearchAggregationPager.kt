@@ -30,6 +30,7 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchPointInTime
 import me.ahoo.wow.elasticsearch.query.requireComplete
 import me.ahoo.wow.elasticsearch.query.toObjectNode
 import me.ahoo.wow.query.aggregation.EmptyAggregationValues
+import org.reactivestreams.Publisher
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -90,16 +91,16 @@ internal class ElasticsearchAggregationPager(
                 }
             }
         val rows = if (plan.dense == null) {
-            pages.concatMapIterable({ it.rows }, 1)
+            pages.concatMap({ it.rows }, 1)
         } else {
             var previousKey: Long? = null
             pages.concatMap(
                 { page ->
-                    val gapRows = previousKey?.let { prev ->
+                    val bridgeGaps = previousKey?.let { prev ->
                         page.firstKey?.let { next -> fillGapRows(prev, next, plan) }
-                    }.orEmpty()
+                    } ?: Flux.empty<ObjectNode>()
                     page.lastKey?.let { previousKey = it }
-                    Flux.concat(Flux.fromIterable(gapRows), Flux.fromIterable(page.rows))
+                    Flux.concat(bridgeGaps, page.rows)
                 },
                 1,
             )
@@ -135,21 +136,35 @@ internal class ElasticsearchAggregationPager(
             val lastKey = buckets.lastOrNull()?.let(::bucketKey)
             // composite never emits empty buckets, so dense gaps between consecutive ACTUAL buckets
             // of one page are filled here against raw (pre-having) keys; grouped() bridges the gap
-            // between the previous page's last bucket and this page's first bucket
+            // between the previous page's last bucket and this page's first bucket. Fill rows stay
+            // lazy Flux segments: one gap may span more buckets than the client heap can hold, so
+            // generation must be bounded by downstream demand (take / top-N collection)
             var previousBucketKey: Long? = null
-            val rows = buckets.flatMap { bucket ->
+            val segments = ArrayList<Publisher<ObjectNode>>(buckets.size * 2)
+            var realRowCount = 0
+            buckets.forEach { bucket ->
                 val key = bucketKey(bucket)
-                val gapRows = previousBucketKey?.let { prev ->
-                    key?.let { next -> fillGapRows(prev, next, plan) }
-                }.orEmpty()
+                val previousKey = previousBucketKey
+                if (key != null && previousKey != null) {
+                    segments += fillGapRows(previousKey, key, plan)
+                }
                 if (key != null) {
                     previousBucketKey = key
                 }
-                gapRows + listOf(bucket.toRow(plan)).filter { row ->
-                    plan.having == null || row.matchesHaving(plan.having)
+                val row = bucket.toRow(plan)
+                if (plan.having == null || row.matchesHaving(plan.having)) {
+                    realRowCount++
+                    segments += Mono.just(row)
                 }
             }
-            AggregationPage(rows, composite.afterKey(), fetched + rows.size, firstKey, lastKey)
+            AggregationPage(
+                Flux.concat(segments),
+                realRowCount,
+                composite.afterKey(),
+                fetched + realRowCount,
+                firstKey,
+                lastKey
+            )
         }
     }
 
@@ -443,7 +458,8 @@ internal class ElasticsearchAggregationPager(
     }
 
     private data class AggregationPage(
-        val rows: List<ObjectNode>,
+        val rows: Flux<ObjectNode>,
+        val realRowCount: Int,
         val afterKey: Map<String, FieldValue>,
         val fetched: Int,
         val firstKey: Long? = null,
@@ -452,7 +468,10 @@ internal class ElasticsearchAggregationPager(
         fun shouldStop(plan: ElasticsearchAggregationPlan): Boolean {
             if (afterKey.isEmpty()) return true
             // a fully-filtered page is not bucket exhaustion; only an empty after key stops paging
-            if (plan.having == null && rows.isEmpty()) return true
+            if (plan.having == null && realRowCount == 0) return true
+            // fetched counts having-surviving REAL bucket rows: dense fill rows are streamed on
+            // demand and cannot be counted eagerly, so a dense group sort may keep paging until
+            // enough real buckets arrive — the client-side take(limit) still caps the output
             return !plan.metricSorted && fetched >= plan.limit
         }
     }
@@ -460,21 +479,29 @@ internal class ElasticsearchAggregationPager(
 
 /**
  * Client-side dense fill between two consecutive actual bucket keys: the gap rows follow each
- * metric's empty semantics and participate in having like any other row.
+ * metric's empty semantics and participate in having like any other row. Rows are generated on
+ * demand — a wide gap (e.g. two SECOND buckets a year apart) spans more buckets than the client
+ * heap can hold, so materialization stays bounded by downstream demand.
  */
 internal fun fillGapRows(
     fromKey: Long,
     toKey: Long,
     plan: ElasticsearchAggregationPlan,
-): List<ObjectNode> {
+): Flux<ObjectNode> {
     val dense = requireNotNull(plan.dense)
-    val rows = dense.grid.keysBetween(fromKey, toKey).map { key ->
-        val values = LinkedHashMap<String, Any?>()
-        values[dense.alias] = key
-        values.putAll(EmptyAggregationValues.values(dense.metrics))
-        values.toObjectNode()
-    }
-    return if (plan.having == null) rows else rows.filter { it.matchesHaving(plan.having) }
+    val grid = dense.grid
+    // Every fill row of one gap carries identical empty metrics: evaluate them once per gap and
+    // copy the template per row instead of re-evaluating derived expressions per row. Aliases are
+    // unique per AST validation, so the dense alias key cannot collide with a metric alias.
+    val emptyMetrics = EmptyAggregationValues.values(dense.metrics)
+    return Flux.fromStream { grid.gapIndices(fromKey, toKey).mapToObj(grid::keyOf) }
+        .map { key ->
+            val values = LinkedHashMap<String, Any?>(emptyMetrics.size + 1)
+            values[dense.alias] = key
+            values.putAll(emptyMetrics)
+            values.toObjectNode()
+        }
+        .filter { row -> plan.having == null || row.matchesHaving(plan.having) }
 }
 
 /**

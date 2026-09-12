@@ -22,6 +22,7 @@ import java.time.temporal.ChronoUnit
 import java.time.temporal.IsoFields
 import java.time.temporal.TemporalAdjusters
 import java.time.temporal.TemporalUnit
+import java.util.stream.LongStream
 
 /**
  * Timezone-safe bucket-index arithmetic for dense date histograms.
@@ -69,14 +70,22 @@ class DenseDateGrid(unit: AggregationDateUnit, private val timeZone: ZoneId) {
     fun keyOf(index: Long): Long = anchor.plus(index, stepUnit).toInstant().toEpochMilli()
 
     /** Grid keys strictly between the two bucket keys, emitted in stream direction. */
-    fun keysBetween(fromMillis: Long, toMillis: Long): List<Long> {
-        if (fromMillis == toMillis) return emptyList()
-        return if (fromMillis < toMillis) {
+    fun keysBetween(fromMillis: Long, toMillis: Long): List<Long> =
+        gapIndices(fromMillis, toMillis).mapToObj(::keyOf).toList()
+
+    /**
+     * Gap bucket indices strictly between the two instants' buckets, emitted in stream direction.
+     * The stream is lazy: callers facing a potentially huge gap (e.g. two SECOND buckets a year
+     * apart) consume it demand-driven instead of materializing every index.
+     */
+    fun gapIndices(fromMillis: Long, toMillis: Long): LongStream = when {
+        fromMillis < toMillis -> LongStream.range(indexOf(fromMillis) + 1, indexOf(toMillis))
+
+        fromMillis > toMillis -> {
             val toIndex = indexOf(toMillis)
-            ((indexOf(fromMillis) + 1) until toIndex).map(::keyOf)
-        } else {
-            val toIndex = indexOf(toMillis)
-            ((indexOf(fromMillis) - 1) downTo toIndex + 1).map(::keyOf)
+            LongStream.iterate(indexOf(fromMillis) - 1, { index -> index > toIndex }, { index -> index - 1 })
         }
+
+        else -> LongStream.empty()
     }
 }

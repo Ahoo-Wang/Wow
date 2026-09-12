@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.aggregation.DenseDateGrid
 import org.junit.jupiter.api.Test
+import reactor.kotlin.test.test
 import java.time.Instant
 import java.time.ZoneId
 
@@ -48,19 +49,25 @@ class ElasticsearchAggregationPagerTest {
         )
         val day1 = Instant.parse("2026-01-01T00:00:00Z").toEpochMilli()
         val day4 = Instant.parse("2026-01-04T00:00:00Z").toEpochMilli()
-        val rows = fillGapRows(day1, day4, plan)
-        rows.assert().hasSize(2)
-        rows.forEach { row ->
-            row.path("day").longValue().assert().isGreaterThan(day1).isLessThan(day4)
-            row.path("count").longValue().assert().isZero()
-            row.path("total").isNull.assert().isTrue()
-        }
-        val filtered = fillGapRows(
+        fillGapRows(day1, day4, plan)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.assert().hasSize(2)
+                rows.forEach { row ->
+                    row.path("day").longValue().assert().isGreaterThan(day1).isLessThan(day4)
+                    row.path("count").longValue().assert().isZero()
+                    row.path("total").isNull.assert().isTrue()
+                }
+            }
+            .verifyComplete()
+        fillGapRows(
             day1,
             day4,
-            plan.copy(having = HavingExpression.Condition("count", ComparisonOperator.GT, 0.0))
+            plan.copy(having = HavingExpression.Condition("count", ComparisonOperator.GT, 0.0)),
         )
-        filtered.assert().isEmpty()
+            .test()
+            .verifyComplete()
     }
 
     private fun basePlan(
