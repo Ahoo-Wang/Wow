@@ -248,6 +248,17 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
+    fun `search filters in metric filters are rejected`() {
+        val exception = assertThrows<QuerySchemaValidationException> {
+            compiler.compile(aggregation { count("hits") { "name" search "premium" } }, schema)
+        }
+        exception.message.assert().contains("do not support search filters")
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(aggregation { count("hits") { search("premium") } }, schema)
+        }
+    }
+
+    @Test
     fun `plan should compile metric filters into scoped queries`() {
         val plan = compiler.compile(
             aggregation {

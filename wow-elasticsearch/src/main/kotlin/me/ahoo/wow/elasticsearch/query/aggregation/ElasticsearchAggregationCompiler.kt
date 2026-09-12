@@ -562,8 +562,8 @@ internal class ElasticsearchAggregationCompiler(
 
 /**
  * Filter aggregations keep Elasticsearch's element-matching semantics over array fields while
- * MongoDB metric guards compare whole values, so array-valued fields and [ElementMatchFilter]
- * are rejected to mirror the MongoDB compiler's scalar-only metric filter contract.
+ * MongoDB metric guards compare whole values, so array-valued fields, [ElementMatchFilter],
+ * and [SearchFilter] are rejected to mirror the MongoDB compiler's scalar-only metric filter contract.
  */
 @Suppress("CyclomaticComplexMethod", "LongMethod")
 private fun FilterExpression.requireScalarMetricFilterFields(
@@ -582,7 +582,9 @@ private fun FilterExpression.requireScalarMetricFilterFields(
         is ElementMatchFilter -> throw QuerySchemaValidationException(
             "Elasticsearch metric filters cannot translate [ELEMENT_MATCH] into a filter aggregation.",
         )
-        is SearchFilter -> fields.forEach { it.requireScalarMetricFilterField(parent, schema) }
+        is SearchFilter -> throw QuerySchemaValidationException(
+            "Aggregation metric filters do not support search filters.",
+        )
         is RelativeTimeFilter -> field.requireScalarMetricFilterField(parent, schema)
         is EqualFilter -> field.requireScalarMetricFilterField(parent, schema)
         is NotEqualFilter -> field.requireScalarMetricFilterField(parent, schema)
