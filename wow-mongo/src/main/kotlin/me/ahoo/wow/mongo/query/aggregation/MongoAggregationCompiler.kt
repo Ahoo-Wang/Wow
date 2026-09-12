@@ -26,7 +26,9 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DerivedExpression
+import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
@@ -101,6 +103,7 @@ internal class MongoAggregationCompiler(
                 add(derivedProject(query, metric))
             }
         }
+        query.having?.let { add(Aggregates.match(it.toHavingDocument())) }
         query.effectiveSort().takeIf { it.isNotEmpty() }?.let { add(Aggregates.sort(it.toBson())) }
         add(Aggregates.limit(query.limit))
     }
@@ -425,6 +428,55 @@ internal class MongoAggregationCompiler(
             )
         }
     }
+
+    /**
+     * Compiles [HavingExpression] into the post-derivation `$match` filter over projected metric
+     * aliases. The BSON comparison total order ranks `null` below every number, so a bare
+     * `{alias: {$gt: v}}` would match `null` metric values — contradicting the null-fails
+     * semantics of the guarded projections. Every comparison condition (Condition, Between, In)
+     * therefore conjoins `$ne: null` with its operator. [HavingExpression.IsNull] is the only
+     * unguarded form: the first `$project` and every derived stage carry ALL metric aliases
+     * forward, so the alias always exists and `Document(metric, null)` is IS NULL while
+     * `Filters.ne(metric, null)` is NOT NULL.
+     */
+    private fun HavingExpression.toHavingDocument(): Bson = when (this) {
+        is HavingExpression.And -> Filters.and(operands.map { it.toHavingDocument() })
+        is HavingExpression.Or -> Filters.or(operands.map { it.toHavingDocument() })
+        is HavingExpression.IsNull -> if (negated) {
+            Filters.ne(metric, null)
+        } else {
+            Document(metric, null)
+        }
+        is HavingExpression.Condition ->
+            if (operator == ComparisonOperator.NE) {
+                // A Document cannot repeat `$ne`, so the value and the null guard collapse into
+                // one `$nin`: metric != value AND metric != null.
+                Document(metric, Document("\$nin", listOf(value, null)))
+            } else {
+                Document(
+                    metric,
+                    Document(operator.matchOperator, value).append("\$ne", null),
+                )
+            }
+        is HavingExpression.Between -> Document(
+            metric,
+            Document("\$gte", lower).append("\$lte", upper).append("\$ne", null),
+        )
+        is HavingExpression.In -> Document(
+            metric,
+            Document("\$in", values).append("\$ne", null),
+        )
+    }
+
+    private val ComparisonOperator.matchOperator: String
+        get() = when (this) {
+            ComparisonOperator.EQ -> "\$eq"
+            ComparisonOperator.NE -> "\$ne"
+            ComparisonOperator.GT -> "\$gt"
+            ComparisonOperator.GTE -> "\$gte"
+            ComparisonOperator.LT -> "\$lt"
+            ComparisonOperator.LTE -> "\$lte"
+        }
 
     private fun AggregationGroup.compile(
         parent: QueryField?,

@@ -689,6 +689,87 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `having compiles into a post-derivation match with null guards`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status")
+                count("lines")
+                sum("state.amount", "total")
+                derived("avgAmount") { ref("total") / ref("lines") }
+                having { ("avgAmount" gte 10.0) and ("total" gt 0.0) }
+                sort { "avgAmount".desc() }
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val matchIndex = pipeline.indexOfLast { it.containsKey("\$match") }
+        val projectIndex = pipeline.indexOfLast { it.containsKey("\$project") }
+        val sortIndex = pipeline.indexOfFirst { it.containsKey("\$sort") }
+        projectIndex.assert().isLessThan(matchIndex) // after the derived $project chain
+        matchIndex.assert().isLessThan(sortIndex) // before $sort
+
+        val having = pipeline[matchIndex].getDocument("\$match")
+        val and = having.getArray("\$and")
+        and.assert().hasSize(2)
+        and[0].asDocument().getDocument("avgAmount").let {
+            it.getDouble("\$gte").value.assert().isEqualTo(10.0)
+            it.containsKey("\$ne").assert().isTrue() // null guard
+        }
+        and[1].asDocument().getDocument("total").let {
+            it.getDouble("\$gt").value.assert().isEqualTo(0.0)
+            it.containsKey("\$ne").assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `having null checks and in-lists compile without numeric guards`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status")
+                count("lines")
+                sum("state.amount", "total")
+                having { ("total".isNull()) or ("total".isIn(listOf(40.0, 50.0))) }
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+        val or = pipeline.last { it.containsKey("\$match") }.getDocument("\$match").getArray("\$or")
+        requireNotNull(or[0].asDocument().get("total")).isNull.assert().isTrue() // IS NULL: no $ne guard
+        val inDoc = or[1].asDocument().getDocument("total")
+        inDoc.getArray("\$in").assert().hasSize(2)
+        inDoc.containsKey("\$ne").assert().isTrue()
+    }
+
+    @Test
+    fun `having ne conditions keep the comparison value beside the null guard`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status")
+                count("lines")
+                sum("state.amount", "total")
+                having { ("total" ne 5.0) }
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+        val having = pipeline.last { it.containsKey("\$match") }.getDocument("\$match")
+        val neDoc = having.getDocument("total")
+        val nin = neDoc.getArray("\$nin")
+        nin.assert().hasSize(2)
+        nin[0].asNumber().doubleValue().assert().isEqualTo(5.0)
+        nin[1].isNull.assert().isTrue()
+    }
+
+    @Test
+    fun `queries without having keep their pipeline shape`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation { count("count") },
+            schema(),
+        )
+        pipeline.map { it.toBsonDocument().keys.first() }.assert()
+            .containsExactly("\$match", "\$group", "\$project", "\$limit")
+        pipeline.filter { it.toBsonDocument().containsKey("\$match") }.assert().hasSize(1) // root filter only
+    }
+
+    @Test
     fun `plain field metric should normalize scalar or singleton values without conversion`() {
         val groupJson = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation { sum("state.amount", "total") },
