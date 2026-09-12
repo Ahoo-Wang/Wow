@@ -363,14 +363,22 @@ internal class MongoAggregationCompiler(
      * Compiles [derived] into its own `$project` stage: computed fields of one `$project`
      * document cannot reference each other, so declaration order becomes evaluation order
      * by staging every derived metric after the metrics it references. The stage carries
-     * the group aliases and every previously declared metric alias forward.
+     * the group aliases and every other declared metric alias forward — inclusion-mode
+     * `$project` drops unlisted fields, and later stages never restore them.
      */
     private fun derivedProject(query: AggregationQuery, derived: AggregationMetric.Derived): Bson {
         val projections = buildList {
             add(Projections.excludeId())
             query.groupBy.forEach { add(Projections.include(it.alias)) }
-            query.metrics.takeWhile { it !== derived }.forEach { add(Projections.include(it.alias)) }
-            add(Projections.computed(derived.alias, derived.expression.toDerivedDocument()))
+            query.metrics.forEach { metric ->
+                add(
+                    if (metric === derived) {
+                        Projections.computed(metric.alias, metric.expression.toDerivedDocument())
+                    } else {
+                        Projections.include(metric.alias)
+                    },
+                )
+            }
         }
         return Aggregates.project(Projections.fields(projections))
     }

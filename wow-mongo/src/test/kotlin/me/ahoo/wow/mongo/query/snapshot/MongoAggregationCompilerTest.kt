@@ -664,6 +664,31 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `metrics declared after a derived metric survive derived project stages`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                count("total")
+                derived("half") { ref("total") / constant(2.0) }
+                sum("state.amount", "amount")
+                count("paid")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val projects = pipeline.filter { it.containsKey("\$project") }
+        projects.assert().hasSize(2)
+        val derivedStage = projects[1].getDocument("\$project")
+        derivedStage.containsKey("total").assert().isTrue()
+        derivedStage.containsKey("half").assert().isTrue()
+        derivedStage.containsKey("amount").assert().isTrue()
+        derivedStage.containsKey("paid").assert().isTrue()
+        val keys = derivedStage.keys.toList()
+        keys.indexOf("total").assert().isLessThan(keys.indexOf("half"))
+        keys.indexOf("half").assert().isLessThan(keys.indexOf("amount"))
+        keys.indexOf("amount").assert().isLessThan(keys.indexOf("paid"))
+    }
+
+    @Test
     fun `plain field metric should normalize scalar or singleton values without conversion`() {
         val groupJson = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation { sum("state.amount", "total") },
