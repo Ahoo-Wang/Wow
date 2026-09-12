@@ -1250,6 +1250,34 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `and metric filters translate into and guards`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                count("both") {
+                    and {
+                        "state.status" eq "PAID"
+                        "state.status" eq "SHIPPED"
+                    }
+                }
+            },
+            statusFilterSchema,
+        ).map { it.toBsonDocument() }
+
+        pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+            .getDocument("both").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument(
+                "\$and",
+                BsonArray(
+                    listOf(
+                        BsonDocument("\$eq", BsonArray(listOf(BsonString("\$state.status"), BsonString("PAID")))),
+                        BsonDocument("\$eq", BsonArray(listOf(BsonString("\$state.status"), BsonString("SHIPPED")))),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun `map keyed collection metric filters are rejected as array fields`() {
         assertThrows<QuerySchemaValidationException> {
             MongoAggregationCompiler(SnapshotFilterCompiler).compile(

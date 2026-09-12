@@ -16,7 +16,6 @@ package me.ahoo.wow.mongo.query.aggregation
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import org.bson.BsonArray
 import org.bson.BsonDocument
-import org.bson.BsonNull
 import org.bson.BsonRegularExpression
 import org.bson.BsonValue
 import org.bson.Document
@@ -55,10 +54,6 @@ private fun toGuardCondition(entry: Map.Entry<String, BsonValue>): Any {
             ),
         )
 
-        path.startsWith("\$") -> throw QuerySchemaValidationException(
-            "MongoDB metric filters cannot translate operator [$path] into a guard condition.",
-        )
-
         else -> toGuardCondition(path, condition)
     }
 }
@@ -76,7 +71,6 @@ private fun toGuardCondition(path: String, condition: BsonValue): Any {
     return condition.asDocument().entries.single().let { (operator, value) -> toGuardCondition(path, operator, value) }
 }
 
-@Suppress("CyclomaticComplexMethod")
 private fun toGuardCondition(path: String, operator: String, value: BsonValue): Any = when (operator) {
     "\$ne" -> if (value.isNull) {
         Document("\$and", listOf(Document("\$ne", listOf(fieldRef(path), null)), isPresent(path)))
@@ -91,27 +85,6 @@ private fun toGuardCondition(path: String, operator: String, value: BsonValue): 
         isPresent(path)
     } else {
         Document("\$eq", listOf(typeOf(path), "missing"))
-    }
-
-    "\$size" -> {
-        val size = value.asNumber().intValue()
-        Document(
-            "\$eq",
-            listOf(
-                Document(
-                    "\$size",
-                    Document(
-                        "\$cond",
-                        listOf(
-                            Document("\$isArray", listOf(fieldRef(path))),
-                            fieldRef(path),
-                            BsonArray(List(size + 1) { BsonNull.VALUE }),
-                        ),
-                    ),
-                ),
-                size,
-            ),
-        )
     }
 
     else -> throw QuerySchemaValidationException(

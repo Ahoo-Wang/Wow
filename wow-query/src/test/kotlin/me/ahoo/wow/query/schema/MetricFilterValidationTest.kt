@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
@@ -40,6 +41,10 @@ class MetricFilterValidationTest {
             "notes" to QueryValueSchema(
                 QueryValueKind.UNION,
                 alternatives = listOf(scalarFixture(), arrayFixture(scalarFixture())),
+            ),
+            "flags" to QueryValueSchema(
+                QueryValueKind.UNION,
+                alternatives = listOf(scalarFixture(), scalarFixture()),
             ),
             "orders" to arrayFixture(
                 objectFixture(
@@ -60,6 +65,12 @@ class MetricFilterValidationTest {
         ContainsFilter(QueryField("status"), "PAID").requireScalarMetricFilterFields(null, schema)
         ContainsAllFilter(QueryField("status"), listOf(json("PAID")))
             .requireScalarMetricFilterFields(null, schema)
+        NotExistsFilter(QueryField("status")).requireScalarMetricFilterFields(null, schema)
+    }
+
+    @Test
+    fun `unions without an array alternative pass`() {
+        ExistsFilter(QueryField("flags")).requireScalarMetricFilterFields(null, schema)
     }
 
     @Test
