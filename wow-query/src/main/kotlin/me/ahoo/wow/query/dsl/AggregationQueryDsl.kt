@@ -72,8 +72,16 @@ class AggregationQueryDsl {
         metrics += AggregationMetric.Count(alias)
     }
 
+    fun count(alias: String, init: FilterDsl.() -> Unit) {
+        metrics += AggregationMetric.Count(alias, me.ahoo.wow.query.dsl.filter(init))
+    }
+
     fun any(field: String, alias: String) {
         metrics += AggregationMetric.Any(QueryField(field), alias)
+    }
+
+    fun any(field: String, alias: String, init: FilterDsl.() -> Unit) {
+        metrics += AggregationMetric.Any(QueryField(field), alias, me.ahoo.wow.query.dsl.filter(init))
     }
 
     fun field(name: String): AggregationExpression = AggregationExpression.Field(QueryField(name))
@@ -99,49 +107,101 @@ class AggregationQueryDsl {
 
     fun sum(field: String, alias: String) = sum(field(field), alias)
 
+    fun sum(field: String, alias: String, init: FilterDsl.() -> Unit) = sum(field(field), alias, init)
+
     fun avg(field: String, alias: String) = avg(field(field), alias)
+
+    fun avg(field: String, alias: String, init: FilterDsl.() -> Unit) = avg(field(field), alias, init)
 
     fun min(field: String, alias: String) = min(field(field), alias)
 
+    fun min(field: String, alias: String, init: FilterDsl.() -> Unit) = min(field(field), alias, init)
+
     fun max(field: String, alias: String) = max(field(field), alias)
+
+    fun max(field: String, alias: String, init: FilterDsl.() -> Unit) = max(field(field), alias, init)
 
     fun sum(expression: AggregationExpression, alias: String) =
         numeric(AggregationFunction.SUM, expression, alias)
 
+    fun sum(expression: AggregationExpression, alias: String, init: FilterDsl.() -> Unit) =
+        numeric(AggregationFunction.SUM, expression, alias, init)
+
     fun avg(expression: AggregationExpression, alias: String) =
         numeric(AggregationFunction.AVG, expression, alias)
+
+    fun avg(expression: AggregationExpression, alias: String, init: FilterDsl.() -> Unit) =
+        numeric(AggregationFunction.AVG, expression, alias, init)
 
     fun min(expression: AggregationExpression, alias: String) =
         numeric(AggregationFunction.MIN, expression, alias)
 
+    fun min(expression: AggregationExpression, alias: String, init: FilterDsl.() -> Unit) =
+        numeric(AggregationFunction.MIN, expression, alias, init)
+
     fun max(expression: AggregationExpression, alias: String) =
         numeric(AggregationFunction.MAX, expression, alias)
 
+    fun max(expression: AggregationExpression, alias: String, init: FilterDsl.() -> Unit) =
+        numeric(AggregationFunction.MAX, expression, alias, init)
+
     fun distinctCount(field: String, alias: String) = distinctCount(field(field), alias)
+
+    fun distinctCount(field: String, alias: String, init: FilterDsl.() -> Unit) =
+        distinctCount(field(field), alias, init)
 
     fun distinctCount(expression: AggregationExpression, alias: String) {
         metrics += AggregationMetric.DistinctCount(expression, alias)
     }
 
+    fun distinctCount(expression: AggregationExpression, alias: String, init: FilterDsl.() -> Unit) {
+        metrics += AggregationMetric.DistinctCount(expression, alias, me.ahoo.wow.query.dsl.filter(init))
+    }
+
     fun stddev(field: String, alias: String) = stddev(field(field), alias)
+
+    fun stddev(field: String, alias: String, init: FilterDsl.() -> Unit) =
+        stddev(field(field), alias, init)
 
     fun stddev(expression: AggregationExpression, alias: String) =
         numeric(AggregationFunction.STDDEV, expression, alias)
 
+    fun stddev(expression: AggregationExpression, alias: String, init: FilterDsl.() -> Unit) =
+        numeric(AggregationFunction.STDDEV, expression, alias, init)
+
     fun variance(field: String, alias: String) = variance(field(field), alias)
+
+    fun variance(field: String, alias: String, init: FilterDsl.() -> Unit) =
+        variance(field(field), alias, init)
 
     fun variance(expression: AggregationExpression, alias: String) =
         numeric(AggregationFunction.VARIANCE, expression, alias)
 
+    fun variance(expression: AggregationExpression, alias: String, init: FilterDsl.() -> Unit) =
+        numeric(AggregationFunction.VARIANCE, expression, alias, init)
+
     fun percentile(field: String, p: Double, alias: String) = percentile(field(field), p, alias)
+
+    fun percentile(field: String, p: Double, alias: String, init: FilterDsl.() -> Unit) =
+        percentile(field(field), p, alias, init)
 
     fun percentile(expression: AggregationExpression, p: Double, alias: String) {
         metrics += AggregationMetric.Percentile(expression, p, alias)
     }
 
+    fun percentile(expression: AggregationExpression, p: Double, alias: String, init: FilterDsl.() -> Unit) {
+        metrics += AggregationMetric.Percentile(expression, p, alias, me.ahoo.wow.query.dsl.filter(init))
+    }
+
     fun median(field: String, alias: String) = median(field(field), alias)
 
+    fun median(field: String, alias: String, init: FilterDsl.() -> Unit) =
+        median(field(field), alias, init)
+
     fun median(expression: AggregationExpression, alias: String) = percentile(expression, 50.0, alias)
+
+    fun median(expression: AggregationExpression, alias: String, init: FilterDsl.() -> Unit) =
+        percentile(expression, 50.0, alias, init)
 
     private fun numeric(
         function: AggregationFunction,
@@ -149,6 +209,15 @@ class AggregationQueryDsl {
         alias: String,
     ) {
         metrics += AggregationMetric.Numeric(function, expression, alias)
+    }
+
+    private fun numeric(
+        function: AggregationFunction,
+        expression: AggregationExpression,
+        alias: String,
+        init: FilterDsl.() -> Unit,
+    ) {
+        metrics += AggregationMetric.Numeric(function, expression, alias, me.ahoo.wow.query.dsl.filter(init))
     }
 
     fun sort(sort: List<Sort>) {

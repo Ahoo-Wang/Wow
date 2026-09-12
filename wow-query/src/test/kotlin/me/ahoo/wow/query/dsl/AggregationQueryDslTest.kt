@@ -20,6 +20,8 @@ import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.QueryField
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
@@ -156,5 +158,64 @@ class AggregationQueryDslTest {
                 "amtMedian",
             ),
         )
+    }
+
+    @Test
+    fun `aggregation DSL should apply metric filters`() {
+        val query = aggregation {
+            terms("status", "status")
+            count("paid") { "status" eq "PAID" }
+            sum("amount", "paidAmount") { "status" eq "PAID" }
+            distinctCount(field("customerId"), "customers") { "amount" gt 0 }
+            percentile("amount", 95.0, "p95") { "status" eq "PAID" }
+        }
+
+        query.metrics.filterIsInstance<AggregationMetric.Count>().single().filter.assert()
+            .isInstanceOf(EqualFilter::class.java)
+        query.metrics.filterIsInstance<AggregationMetric.Numeric>().single().filter.assert()
+            .isInstanceOf(EqualFilter::class.java)
+        query.metrics.filterIsInstance<AggregationMetric.DistinctCount>().single().filter.assert()
+            .isInstanceOf(GreaterThanFilter::class.java)
+        query.metrics.filterIsInstance<AggregationMetric.Percentile>().single().filter.assert()
+            .isInstanceOf(EqualFilter::class.java)
+    }
+
+    @Test
+    fun `aggregation DSL should apply metric filters to every metric overload`() {
+        val query = aggregation {
+            terms("status", "status")
+            any("productName", "anyName") { "status" eq "PAID" }
+            avg("amount", "avgAmount") { "status" eq "PAID" }
+            min("amount", "minAmount") { "status" eq "PAID" }
+            max("amount", "maxAmount") { "status" eq "PAID" }
+            stddev("amount", "stddevAmount") { "status" eq "PAID" }
+            variance("amount", "varianceAmount") { "status" eq "PAID" }
+            median("amount", "medianAmount") { "amount" gt 0 }
+            sum(field("amount"), "sumExprAmount") { "status" eq "PAID" }
+            avg(field("amount"), "avgExprAmount") { "status" eq "PAID" }
+            min(field("amount"), "minExprAmount") { "status" eq "PAID" }
+            max(field("amount"), "maxExprAmount") { "status" eq "PAID" }
+            stddev(field("amount"), "stddevExprAmount") { "status" eq "PAID" }
+            variance(field("amount"), "varianceExprAmount") { "status" eq "PAID" }
+            distinctCount("customerId", "fieldCustomers") { "amount" gt 0 }
+            percentile(field("amount"), 95.0, "exprP95") { "status" eq "PAID" }
+            median(field("amount"), "exprMedian") { "amount" gt 0 }
+        }
+
+        val metricsByAlias = query.metrics.associateBy { it.alias }
+        metricsByAlias.keys.assert().hasSize(16)
+        val greaterThanAliases = setOf("medianAmount", "fieldCustomers", "exprMedian")
+        metricsByAlias.values.forEach { metric ->
+            val expectedType = if (metric.alias in greaterThanAliases) {
+                GreaterThanFilter::class.java
+            } else {
+                EqualFilter::class.java
+            }
+            metric.filter.assert().isInstanceOf(expectedType)
+        }
+        query.metrics.filterIsInstance<AggregationMetric.Percentile>()
+            .map(AggregationMetric.Percentile::percentile)
+            .assert()
+            .containsExactly(50.0, 95.0, 50.0)
     }
 }
