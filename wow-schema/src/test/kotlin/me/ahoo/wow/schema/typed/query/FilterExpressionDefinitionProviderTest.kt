@@ -114,6 +114,37 @@ class FilterExpressionDefinitionProviderTest {
     }
 
     @Test
+    fun `recursive having expression should generate a finite schema with references`() {
+        val generator = SchemaGeneratorBuilder().build()
+        val schema = generator.generateSchema(AggregationQuery::class.java)
+        val definitions = schema.path("definitions")
+
+        definitions.path("wow.api.query.HavingExpression").path("anyOf").toList()
+            .map { it.path("\$ref").stringValue() }
+            .assert()
+            .containsExactly(
+                "#/definitions/wow.api.query.HavingExpression.Condition",
+                "#/definitions/wow.api.query.HavingExpression.Between",
+                "#/definitions/wow.api.query.HavingExpression.In",
+                "#/definitions/wow.api.query.HavingExpression.IsNull",
+                "#/definitions/wow.api.query.HavingExpression.And",
+                "#/definitions/wow.api.query.HavingExpression.Or",
+            )
+        val havingCondition = definitions.path("wow.api.query.HavingExpression.Condition")
+        havingCondition.path("properties").path("metric").path("type").stringValue()
+            .assert().isEqualTo("string")
+        havingCondition.path("properties").path("operator").path("\$ref").stringValue()
+            .assert().isEqualTo("#/definitions/wow.api.query.ComparisonOperator")
+
+        val havingAnd = definitions.path("wow.api.query.HavingExpression.And")
+        havingAnd.path("properties").path("operands").path("items").path("\$ref").stringValue()
+            .assert().isEqualTo("#/definitions/wow.api.query.HavingExpression")
+        val havingOr = definitions.path("wow.api.query.HavingExpression.Or")
+        havingOr.path("properties").path("operands").path("items").path("\$ref").stringValue()
+            .assert().isEqualTo("#/definitions/wow.api.query.HavingExpression")
+    }
+
+    @Test
     fun `recursive derived expression should generate a finite schema with references`() {
         val generator = SchemaGeneratorBuilder().build()
         val schema = generator.generateSchema(AggregationQuery::class.java)

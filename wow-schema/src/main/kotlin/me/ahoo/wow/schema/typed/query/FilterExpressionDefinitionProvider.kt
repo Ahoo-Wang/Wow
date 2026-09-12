@@ -27,6 +27,7 @@ import com.github.victools.jsonschema.generator.SchemaKeyword
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.schema.WowSchemaLoader
 import tools.jackson.databind.node.ArrayNode
@@ -74,6 +75,7 @@ object FilterExpressionDefinitionProvider : CustomDefinitionProviderV2, Module {
             FilterExpression::class.java,
             AggregationExpression::class.java,
             DerivedExpression::class.java,
+            HavingExpression::class.java,
             QuerySemanticType::class.java,
             -> emptyList()
 

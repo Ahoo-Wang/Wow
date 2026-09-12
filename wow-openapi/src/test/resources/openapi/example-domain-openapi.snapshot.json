@@ -5007,6 +5007,13 @@
             "maxItems" : 32,
             "type" : "array"
           },
+          "having" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.HavingExpression"
+            } ]
+          },
           "limit" : {
             "default" : 100,
             "format" : "int32",
@@ -5033,6 +5040,10 @@
         },
         "required" : [ "metrics" ],
         "type" : "object"
+      },
+      "wow.api.query.ComparisonOperator" : {
+        "enum" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE" ],
+        "type" : "string"
       },
       "wow.api.query.CursorQuery" : {
         "additionalProperties" : false,
@@ -6369,6 +6380,135 @@
           }
         },
         "title" : "Filter Expression"
+      },
+      "wow.api.query.HavingExpression" : {
+        "discriminator" : {
+          "mapping" : {
+            "AND" : "#/components/schemas/wow.api.query.HavingExpression.And",
+            "BETWEEN" : "#/components/schemas/wow.api.query.HavingExpression.Between",
+            "CONDITION" : "#/components/schemas/wow.api.query.HavingExpression.Condition",
+            "IN" : "#/components/schemas/wow.api.query.HavingExpression.In",
+            "IS_NULL" : "#/components/schemas/wow.api.query.HavingExpression.IsNull",
+            "OR" : "#/components/schemas/wow.api.query.HavingExpression.Or"
+          },
+          "propertyName" : "type"
+        },
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/wow.api.query.HavingExpression.And"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.HavingExpression.Between"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.HavingExpression.Condition"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.HavingExpression.In"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.HavingExpression.IsNull"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.HavingExpression.Or"
+        } ]
+      },
+      "wow.api.query.HavingExpression.And" : {
+        "properties" : {
+          "operands" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.HavingExpression"
+            },
+            "type" : "array"
+          },
+          "type" : {
+            "const" : "AND"
+          }
+        },
+        "required" : [ "operands", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.HavingExpression.Between" : {
+        "properties" : {
+          "lower" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "metric" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "BETWEEN"
+          },
+          "upper" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        },
+        "required" : [ "lower", "metric", "type", "upper" ],
+        "type" : "object"
+      },
+      "wow.api.query.HavingExpression.Condition" : {
+        "properties" : {
+          "metric" : {
+            "type" : "string"
+          },
+          "operator" : {
+            "$ref" : "#/components/schemas/wow.api.query.ComparisonOperator"
+          },
+          "type" : {
+            "const" : "CONDITION"
+          },
+          "value" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        },
+        "required" : [ "metric", "operator", "type", "value" ],
+        "type" : "object"
+      },
+      "wow.api.query.HavingExpression.In" : {
+        "properties" : {
+          "metric" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "IN"
+          },
+          "values" : {
+            "items" : {
+              "format" : "double",
+              "type" : "number"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "metric", "type", "values" ],
+        "type" : "object"
+      },
+      "wow.api.query.HavingExpression.IsNull" : {
+        "properties" : {
+          "metric" : {
+            "type" : "string"
+          },
+          "negated" : {
+            "type" : "boolean"
+          },
+          "type" : {
+            "const" : "IS_NULL"
+          }
+        },
+        "required" : [ "metric", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.HavingExpression.Or" : {
+        "properties" : {
+          "operands" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.HavingExpression"
+            },
+            "type" : "array"
+          },
+          "type" : {
+            "const" : "OR"
+          }
+        },
+        "required" : [ "operands", "type" ],
+        "type" : "object"
       },
       "wow.api.query.ListQuery" : {
         "additionalProperties" : false,
