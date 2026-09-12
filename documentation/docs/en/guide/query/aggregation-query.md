@@ -63,6 +63,7 @@ Every Metric also has a unique alias, used as a result-column name.
 | `DISTINCT_COUNT` | Counts the distinct non-null contribution values of an Expression as an integer; an empty set yields `0` |
 | `PERCENTILE` | Computes `PERCENTILE(p)` over a numeric Expression, `0 < p < 100`; the DSL's `median` equals `p=50` |
 | `ANY` | Selects one field value |
+| `DERIVED` | Computes arithmetic over declared metric results after aggregation (see [Derived Metrics](#derived-metrics)) |
 
 `ANY` is not a substitute for a deterministic group key: its selected non-null value is not guaranteed to be stable across executions or backends.
 
@@ -92,6 +93,55 @@ Versions and known boundaries:
 - metric filters on the MongoDB backend require server 5.0+ (`$not` inside the guard expression); the `PERCENTILE` metric itself still requires 7.0+. Older servers return their native error.
 - the `$gt`/`$lt` family in MongoDB guard expressions compares by the BSON total order rather than `$match` type bracketing, so counts over mixed-type data may run high; this is an edge case and does not promise bitwise cross-backend equality.
 - the HTTP query guard does not gate the metric filter construct itself as an expensive operator; operators inside a metric filter are subject to the same `wow.webflux.query.allow-expensive-operators` switch as root/element filters, and their filter value counts feed the same `wow.webflux.query.max-filter-values` cap as other filters.
+
+### Derived Metrics {#derived-metrics}
+
+A `DERIVED` metric computes arithmetic over the results of metrics declared in the same query, after aggregation finishes, producing one derived value per row (an AOV or an attainment ratio, for example). Its expression AST has only `METRIC_REF`, finite `CONSTANT`, and `BINARY`; the `BINARY` operators match the numeric expression set (`ADD`, `SUBTRACT`, `MULTIPLY`, `DIVIDE`) and can nest. The DSL is `derived(alias) { ... }`, with `ref(metric)` referencing a metric and `constant(value)` providing a constant:
+
+```kotlin
+aggregation {
+    terms("state.status", "status")
+    count("paid") { "status" eq "PAID" }
+    sum("amount", "paidAmount") { "status" eq "PAID" }
+    derived("paidAov") { ref("paidAmount") / ref("paid") }
+    sum("amount", "targetAmount")
+    derived("attainment") { ref("paidAmount") / ref("targetAmount") }
+    sort { "paidAov".desc() }
+}
+```
+
+`paidAov` divides two metric-filtered metrics into a paid AOV; `attainment` compares the paid amount against the target amount. A single derived metric has the following JSON shape, with `expression` reusing the recursive `DerivedExpression` schema:
+
+```json
+{
+  "type": "DERIVED",
+  "alias": "paidAov",
+  "expression": {
+    "type": "BINARY",
+    "operator": "DIVIDE",
+    "left": {"type": "METRIC_REF", "metric": "paidAmount"},
+    "right": {"type": "METRIC_REF", "metric": "paid"}
+  }
+}
+```
+
+Reference rules are enforced while constructing the `AggregationQuery`; violations throw `IllegalArgumentException`:
+
+- a `METRIC_REF` may reference only metrics declared before the derived metric in the same query (earlier derived metrics included); declaration order is evaluation order, so the reference graph is acyclic by construction. Unknown and group aliases are rejected;
+- referencing an `ANY` metric is rejected: its value is unstable across executions and backends;
+- constants must be finite; derived expressions share the numeric-expression depth cap of 8, and all derived expressions in one query share at most 256 nodes.
+
+Computation semantics:
+
+- null propagation: any null operand yields `null`; a reference to an empty-set `NUMERIC`/`PERCENTILE` (whose result is `null`) propagates `null` as well. `COUNT` references are never `null` (an empty set is `0`), but dividing by that `0` still yields `null`;
+- division by zero yields `null`, and the derived result must be finite;
+- a derived metric cannot carry a metric filter itself: filter is a record-level concept, and derived computes after aggregation. Its combination with the [Metric Filter](#metric-filter) is to reference filtered metrics — `paidAov` above is exactly "paid amount / paid count";
+- sort may reference a derived alias; the example sorts by `paidAov` descending.
+
+Implementation and guardrails:
+
+- MongoDB evaluates derived metrics in additional `$project` stages after the aggregation projection, one stage per derived metric in declaration order; Elasticsearch uses `bucket_script` pipeline aggregations inside the bucket. Neither adds storage version requirements (`$project` and `bucket_script` both predate the supported MongoDB 7.0 / Elasticsearch 9.x baselines);
+- the HTTP query guard treats derived metrics as arithmetic expressions: they are rejected when `wow.webflux.query.allow-expensive-operators=false`, consistent with the existing metric arithmetic gating.
 
 ### Numeric Contributions and Precision {#numeric-contributions}
 
