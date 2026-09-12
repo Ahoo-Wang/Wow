@@ -518,6 +518,16 @@ class QuerySchemaValidationTest {
     }
 
     @Test
+    fun `derived metrics need no schema capability`() {
+        val schema = boundSchemaFixture(objectFixture("status" to scalarFixture()))
+        val query = aggregation {
+            count("total")
+            derived("half") { ref("total") / constant(2.0) }
+        }
+        validateQuery(query, schema).assert().isSameAs(query)
+    }
+
+    @Test
     fun `masked values stay queryable but public cursor and aggregate admission reject them`() {
         val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
         val mask = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))

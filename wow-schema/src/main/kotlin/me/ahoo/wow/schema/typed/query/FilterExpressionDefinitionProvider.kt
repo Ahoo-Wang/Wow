@@ -25,6 +25,7 @@ import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.schema.WowSchemaLoader
@@ -72,6 +73,7 @@ object FilterExpressionDefinitionProvider : CustomDefinitionProviderV2, Module {
         when (scope.type.erasedType) {
             FilterExpression::class.java,
             AggregationExpression::class.java,
+            DerivedExpression::class.java,
             QuerySemanticType::class.java,
             -> emptyList()
 

@@ -16,7 +16,9 @@ package me.ahoo.wow.schema.typed.query
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.WowSchemaLoader
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
@@ -109,5 +111,31 @@ class FilterExpressionDefinitionProviderTest {
             )
             schema.validate(filter).assert().isEmpty()
         }
+    }
+
+    @Test
+    fun `recursive derived expression should generate a finite schema with references`() {
+        val generator = SchemaGeneratorBuilder().build()
+        val schema = generator.generateSchema(AggregationQuery::class.java)
+        val definitions = schema.path("definitions")
+
+        val derivedMetric = definitions.path("wow.api.query.AggregationMetric.Derived")
+        derivedMetric.path("properties").path("expression").path("\$ref").stringValue()
+            .assert().isEqualTo("#/definitions/wow.api.query.DerivedExpression")
+
+        val derivedExpression = definitions.path("wow.api.query.DerivedExpression")
+        derivedExpression.path("anyOf").toList()
+            .map { it.path("\$ref").stringValue() }
+            .assert()
+            .containsExactly(
+                "#/definitions/wow.api.query.DerivedExpression.MetricRef",
+                "#/definitions/wow.api.query.DerivedExpression.Constant",
+                "#/definitions/wow.api.query.DerivedExpression.Binary",
+            )
+        val derivedBinary = definitions.path("wow.api.query.DerivedExpression.Binary")
+        derivedBinary.path("properties").path("left").path("\$ref").stringValue()
+            .assert().isEqualTo("#/definitions/wow.api.query.DerivedExpression")
+        derivedBinary.path("properties").path("right").path("\$ref").stringValue()
+            .assert().isEqualTo("#/definitions/wow.api.query.DerivedExpression")
     }
 }

@@ -299,6 +299,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
             }
             when (metric) {
                 is AggregationMetric.Count -> Unit
+                is AggregationMetric.Derived -> Unit
                 is AggregationMetric.Any -> requireSchema(
                     aggregationField(
                         metric.field,

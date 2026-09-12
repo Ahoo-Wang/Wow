@@ -17,6 +17,7 @@ import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.search.ResponseBody
 import me.ahoo.wow.api.query.AggregationFunction
@@ -37,6 +38,16 @@ import kotlin.math.min
 
 private const val ROOT_AGGREGATION = "__wow_aggregation"
 private const val GROUP_AGGREGATION = "__wow_groups"
+
+/**
+ * A bucket_script pipeline requires a multi-bucket parent aggregation. Grouped queries nest the
+ * metrics under the composite [GROUP_AGGREGATION], but a summary (ungrouped) query would otherwise
+ * leave them under single-bucket scopes (`filter`/`nested`), which Elasticsearch rejects with
+ * "Expected a multi bucket aggregation". One catch-all `filters` bucket provides the required
+ * multi-bucket parent without changing any computed value.
+ */
+internal const val SUMMARY_BUCKET_AGGREGATION = "__wow_summary_bucket"
+internal const val SUMMARY_BUCKET_KEY = "_wow"
 
 internal class ElasticsearchAggregationPager(
     private val client: ReactiveElasticsearchClient,
@@ -141,7 +152,7 @@ internal class ElasticsearchAggregationPager(
         pageSize: Int,
     ): Aggregation {
         var aggregations = if (groupSources.isEmpty()) {
-            metricAggregations()
+            summaryMetricAggregations()
         } else {
             mapOf(GROUP_AGGREGATION to groupAggregation(afterKey, pageSize))
         }
@@ -223,13 +234,54 @@ internal class ElasticsearchAggregationPager(
                         builder.valueCount { it.field(metric.field) }
                     },
                 )
+
+                is ElasticsearchAggregationMetric.Derived -> put(
+                    metric.alias,
+                    Aggregation.of { builder ->
+                        builder.bucketScript { bucketScript ->
+                            bucketScript.bucketsPath { it.dict(metric.bucketsPath) }
+                                .script(metric.script)
+                        }
+                    },
+                )
             }
         }
+    }
+
+    /**
+     * Wraps summary (ungrouped) metric aggregations in one catch-all [SUMMARY_BUCKET_AGGREGATION]
+     * bucket whenever a derived metric requires a multi-bucket bucket_script parent.
+     */
+    private fun ElasticsearchAggregationPlan.summaryMetricAggregations(): Map<String, Aggregation> {
+        val aggregations = metricAggregations()
+        if (metrics.none { it is ElasticsearchAggregationMetric.Derived }) {
+            return aggregations
+        }
+        return mapOf(
+            SUMMARY_BUCKET_AGGREGATION to Aggregation.of { builder ->
+                builder.filters { filters ->
+                    filters.filters { buckets ->
+                        buckets.keyed(
+                            mapOf(SUMMARY_BUCKET_KEY to Query.of { it.matchAll { matchAll -> matchAll } }),
+                        )
+                    }
+                }.aggregations(aggregations)
+            },
+        )
     }
 
     private fun ResponseBody<Map<*, *>>.summary(plan: ElasticsearchAggregationPlan): ObjectNode {
         val scope = aggregations().getValue(ROOT_AGGREGATION).let { root ->
             if (plan.elements.isEmpty()) root.filter() else root.innermostScope(plan)
+        }
+        if (plan.groupSources.isEmpty() && plan.metrics.any { it is ElasticsearchAggregationMetric.Derived }) {
+            val bucket = scope.aggregations()
+                .getValue(SUMMARY_BUCKET_AGGREGATION)
+                .filters()
+                .buckets()
+                .keyed()
+                .getValue(SUMMARY_BUCKET_KEY)
+            return plan.toRow(bucket.docCount(), bucket.aggregations())
         }
         return plan.toRow(scope.docCount(), scope.aggregations())
     }
@@ -291,6 +343,12 @@ internal class ElasticsearchAggregationPager(
         is ElasticsearchAggregationMetric.DistinctCount ->
             aggregations.filtered(this).getValue(alias).cardinality().value()
         is ElasticsearchAggregationMetric.Percentile -> percentileValue(aggregations.filtered(this))
+
+        /**
+         * A skipped bucket_script (default gap_policy=skip: a referenced path is missing or null)
+         * is omitted from the response bucket, so the key itself may be absent — null either way.
+         */
+        is ElasticsearchAggregationMetric.Derived -> aggregations[alias]?.simpleValue()?.value()
     }
 
     private fun Aggregate.anyValue(alias: String): Any? = when {
@@ -443,7 +501,7 @@ private fun nestedAggregationName(index: Int): String = "__wow_element_$index"
 
 private fun filterAggregationName(index: Int): String = "__wow_element_filter_$index"
 
-private fun metricFilterAggregationName(alias: String): String = "__wow_metric_filter_$alias"
+internal fun metricFilterAggregationName(alias: String): String = "__wow_metric_filter_$alias"
 
 /**
  * Publishes a metric's aggregations directly, or nested under one filter aggregation

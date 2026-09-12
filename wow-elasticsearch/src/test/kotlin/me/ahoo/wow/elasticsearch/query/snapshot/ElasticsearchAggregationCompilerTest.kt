@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import co.elastic.clients.elasticsearch._types.Script
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import me.ahoo.test.asserts.assert
@@ -327,6 +328,11 @@ class ElasticsearchAggregationCompilerTest {
         ElasticsearchAggregationMetric.Numeric("sum", AggregationFunction.SUM, "amount").filter.assert().isNull()
         ElasticsearchAggregationMetric.DistinctCount("customers", "customerId").filter.assert().isNull()
         ElasticsearchAggregationMetric.Percentile("p95", "amount", 95.0).filter.assert().isNull()
+        ElasticsearchAggregationMetric.Derived(
+            "aov",
+            emptyMap(),
+            Script.of { it.source { s -> s.scriptString("null") } },
+        ).filter.assert().isNull()
     }
 
     @Test
@@ -455,6 +461,103 @@ class ElasticsearchAggregationCompilerTest {
             .assert().isEqualTo("orders.status")
 
         compiler.compile(aggregation { count("count") }, schema).metrics.single().filter.assert().isNull()
+    }
+
+    @Test
+    fun `derived metrics plan bucket scripts with guarded paths`() {
+        val plan = compiler.compile(
+            aggregation {
+                count("paid") { "deleted" eq false }
+                sum("amount", "paidAmount") { "deleted" eq false }
+                sum("amount", "totalAmount")
+                derived("aov") { ref("paidAmount") / ref("paid") }
+                derived("attainment") { ref("paidAmount") / ref("totalAmount") }
+            },
+            schema,
+        )
+        val derived = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Derived>()
+        derived.assert().hasSize(2)
+        val aov = derived[0]
+        // filtered Numeric: value via the metric filter wrapper, count via the wrapper's value count;
+        // wrapper traversal uses the '>' separator — a dotted path would look up a sibling literally
+        // named "__wow_metric_filter_paidAmount.paidAmount" and fail request validation;
+        // filtered Count: alias._count
+        aov.bucketsPath.assert().containsKey("v0").containsKey("c0").containsKey("v1")
+        aov.bucketsPath["v0"].assert().isEqualTo("__wow_metric_filter_paidAmount>paidAmount.value")
+        aov.bucketsPath["c0"].assert().isEqualTo("__wow_metric_filter_paidAmount>__wow_value_count_paidAmount.value")
+        aov.bucketsPath["v1"].assert().isEqualTo("paid._count")
+        requireNotNull(aov.script.source()).scriptString().assert()
+            // NaN sentinel: an empty-set sum is a value (0.0), not a gap, so the guard must stay
+            // in-double-arithmetic (Painless throws on null operands) and let NaN flow to the final wrap;
+            // casts use the Painless `(double)` form — Painless has no `as` cast operator
+            .contains("(((double) params.c0) == 0.0 ? Double.NaN : ((double) params.v0))")
+            .contains("((double) params.v1)")
+            .contains("Double.NaN")
+            .contains("Double.isFinite")
+            .doesNotContain("== 0.0 ? null")
+            .doesNotContain(" as double")
+        val attainment = derived[1]
+        attainment.bucketsPath["v0"].assert().isEqualTo("__wow_metric_filter_paidAmount>paidAmount.value")
+        attainment.bucketsPath["v2"].assert().isEqualTo("totalAmount.value") // unfiltered Numeric has no wrapper
+        attainment.bucketsPath["c2"].assert().isEqualTo("__wow_value_count_totalAmount.value")
+        requireNotNull(attainment.script.source()).scriptString().assert().contains("Double.isFinite")
+    }
+
+    @Test
+    fun `derived chains reference prior derived aliases`() {
+        val plan = compiler.compile(
+            aggregation {
+                count("total")
+                derived("half") { ref("total") / constant(2.0) }
+                derived("quarter") { ref("half") / constant(2.0) }
+            },
+            schema,
+        )
+        val quarter = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Derived>()[1]
+        quarter.bucketsPath.values.single().assert().isEqualTo("half.value")
+        requireNotNull(quarter.script.source()).scriptString().assert()
+            .contains("((double) params.v1)")
+            .contains("/ 2.0")
+    }
+
+    @Test
+    fun `derived metrics reference percentile distinct and deviation paths`() {
+        val plan = compiler.compile(
+            aggregation {
+                percentile("amount", 95.0, "p95")
+                distinctCount("customerId", "customers")
+                stddev("amount", "deviation")
+                variance("amount", "spread")
+                count("total")
+                derived("sharpness") { ref("p95") / ref("deviation") }
+                derived("spreadPerCustomer") { ref("spread") - ref("customers") }
+                derived("mixed") { (ref("total") + constant(1.0)) * constant(2.0) - constant(3.0) }
+            },
+            schema,
+        )
+        val derived = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Derived>()
+
+        val sharpness = derived[0]
+        sharpness.bucketsPath["v0"].assert().isEqualTo("p95[95.0]")
+        sharpness.bucketsPath["c0"].assert().isEqualTo("__wow_value_count_p95.value")
+        sharpness.bucketsPath["v1"].assert().isEqualTo("deviation.std_deviation_population")
+        sharpness.bucketsPath["c1"].assert().isEqualTo("__wow_value_count_deviation.value")
+        requireNotNull(sharpness.script.source()).scriptString().assert().contains("/ ")
+
+        val spreadPerCustomer = derived[1]
+        // 引用编号为编译级首现共享：sharpness 已占用 v0/c0、v1/c1
+        spreadPerCustomer.bucketsPath["v2"].assert().isEqualTo("spread.variance_population")
+        spreadPerCustomer.bucketsPath["c2"].assert().isEqualTo("__wow_value_count_spread.value")
+        spreadPerCustomer.bucketsPath["v3"].assert().isEqualTo("customers.value")
+        spreadPerCustomer.bucketsPath.assert().doesNotContainKey("c3") // cardinality 恒非 null，无需空语义守卫
+        requireNotNull(spreadPerCustomer.script.source()).scriptString().assert().contains(" - ")
+
+        val mixed = derived[2]
+        mixed.bucketsPath.values.single().assert().isEqualTo("_count")
+        requireNotNull(mixed.script.source()).scriptString().assert()
+            .contains(" + 1.0")
+            .contains(" * 2.0")
+            .contains(" - 3.0")
     }
 
     @Test

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.QueryField
@@ -217,5 +218,67 @@ class AggregationQueryDslTest {
             .map(AggregationMetric.Percentile::percentile)
             .assert()
             .containsExactly(50.0, 95.0, 50.0)
+    }
+
+    @Test
+    fun `aggregation DSL should build derived metrics from refs and operators`() {
+        val query = aggregation {
+            count("paid")
+            sum("amount", "paidAmount") { "status" eq "PAID" }
+            derived("aov") { ref("paidAmount") / ref("paid") }
+            derived("target") { constant(120.0) }
+            derived("attainment") { ref("paidAmount") / ref("target") }
+        }
+
+        val derived = query.metrics.filterIsInstance<AggregationMetric.Derived>()
+        derived.assert().hasSize(3)
+        val aov = derived[0].expression as DerivedExpression.Binary
+        aov.operator.assert().isEqualTo(AggregationExpressionOperator.DIVIDE)
+        (aov.left as DerivedExpression.MetricRef).metric.assert().isEqualTo("paidAmount")
+        (aov.right as DerivedExpression.MetricRef).metric.assert().isEqualTo("paid")
+        (derived[1].expression as DerivedExpression.Constant).value.assert().isEqualTo(120.0)
+        val attainment = derived[2].expression as DerivedExpression.Binary
+        (attainment.left as DerivedExpression.MetricRef).metric.assert().isEqualTo("paidAmount")
+        (attainment.right as DerivedExpression.MetricRef).metric.assert().isEqualTo("target")
+    }
+
+    @Test
+    fun `aggregation DSL should accept a prebuilt derived expression`() {
+        val expression = DerivedExpression.Binary(
+            AggregationExpressionOperator.SUBTRACT,
+            DerivedExpression.MetricRef("total"),
+            DerivedExpression.Constant(1.0),
+        )
+        val query = aggregation {
+            count("total")
+            derived("net", expression)
+        }
+
+        query.metrics.assert().containsExactly(
+            AggregationMetric.Count("total"),
+            AggregationMetric.Derived("net", expression),
+        )
+    }
+
+    @Test
+    fun `derived expression operators build binary nodes for every operator`() {
+        val query = aggregation {
+            count("a")
+            count("b")
+            derived("plus") { ref("a") + ref("b") }
+            derived("minus") { ref("a") - ref("b") }
+            derived("times") { ref("a") * ref("b") }
+            derived("div") { ref("a") / ref("b") }
+        }
+
+        val derived = query.metrics.filterIsInstance<AggregationMetric.Derived>()
+        derived.assert().hasSize(4)
+        val operators = derived.map { (it.expression as DerivedExpression.Binary).operator }
+        operators.assert().containsExactly(
+            AggregationExpressionOperator.ADD,
+            AggregationExpressionOperator.SUBTRACT,
+            AggregationExpressionOperator.MULTIPLY,
+            AggregationExpressionOperator.DIVIDE,
+        )
     }
 }

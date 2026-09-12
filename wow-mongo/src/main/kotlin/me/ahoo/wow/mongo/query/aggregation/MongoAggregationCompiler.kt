@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
@@ -46,6 +47,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 
+@Suppress("LargeClass")
 internal class MongoAggregationCompiler(
     private val filterCompiler: AbstractMongoFilterCompiler,
 ) {
@@ -94,6 +96,11 @@ internal class MongoAggregationCompiler(
 
         add(group(query, groupId, logicalParent, physicalParent, schema, now))
         add(project(query))
+        query.metrics.forEach { metric ->
+            if (metric is AggregationMetric.Derived) {
+                add(derivedProject(query, metric))
+            }
+        }
         query.effectiveSort().takeIf { it.isNotEmpty() }?.let { add(Aggregates.sort(it.toBson())) }
         add(Aggregates.limit(query.limit))
     }
@@ -189,6 +196,7 @@ internal class MongoAggregationCompiler(
                             ),
                         )
                     }
+                    is AggregationMetric.Derived -> Unit
                 }
             }
         }
@@ -247,16 +255,17 @@ internal class MongoAggregationCompiler(
             add(Projections.excludeId())
             query.groupBy.forEach { add(Projections.computed(it.alias, "\$_id.${it.alias}")) }
             query.metrics.forEach { metric ->
-                add(
-                    when (metric) {
-                        is AggregationMetric.Count -> Projections.include(metric.alias)
-                        is AggregationMetric.Any -> Projections.include(metric.alias)
-                        is AggregationMetric.Numeric -> {
-                            val accumulated: Any = if (metric.function == AggregationFunction.VARIANCE) {
-                                Document("\$pow", listOf("\$${metric.alias}", 2))
-                            } else {
-                                "\$${metric.alias}"
-                            }
+                when (metric) {
+                    is AggregationMetric.Derived -> Unit
+                    is AggregationMetric.Count -> add(Projections.include(metric.alias))
+                    is AggregationMetric.Any -> add(Projections.include(metric.alias))
+                    is AggregationMetric.Numeric -> {
+                        val accumulated: Any = if (metric.function == AggregationFunction.VARIANCE) {
+                            Document("\$pow", listOf("\$${metric.alias}", 2))
+                        } else {
+                            "\$${metric.alias}"
+                        }
+                        add(
                             Projections.computed(
                                 metric.alias,
                                 Document(
@@ -267,9 +276,11 @@ internal class MongoAggregationCompiler(
                                         accumulated,
                                     ),
                                 ),
-                            )
-                        }
-                        is AggregationMetric.Percentile -> Projections.computed(
+                            ),
+                        )
+                    }
+                    is AggregationMetric.Percentile -> add(
+                        Projections.computed(
                             metric.alias,
                             Document(
                                 "\$cond",
@@ -279,8 +290,10 @@ internal class MongoAggregationCompiler(
                                     Document("\$arrayElemAt", listOf("\$${metric.alias}", 0)),
                                 ),
                             ),
-                        )
-                        is AggregationMetric.DistinctCount -> Projections.computed(
+                        ),
+                    )
+                    is AggregationMetric.DistinctCount -> add(
+                        Projections.computed(
                             metric.alias,
                             Document(
                                 "\$size",
@@ -328,9 +341,9 @@ internal class MongoAggregationCompiler(
                                     ),
                                 ),
                             ),
-                        )
-                    },
-                )
+                        ),
+                    )
+                }
             }
         }
         return Aggregates.project(Projections.fields(projections))
@@ -344,6 +357,73 @@ internal class MongoAggregationCompiler(
         AggregationFunction.STDDEV,
         AggregationFunction.VARIANCE,
         -> BsonField(field, Document("\$stdDevPop", input))
+    }
+
+    /**
+     * Compiles [derived] into its own `$project` stage: computed fields of one `$project`
+     * document cannot reference each other, so declaration order becomes evaluation order
+     * by staging every derived metric after the metrics it references. The stage carries
+     * the group aliases and every other declared metric alias forward — inclusion-mode
+     * `$project` drops unlisted fields, and later stages never restore them.
+     */
+    private fun derivedProject(query: AggregationQuery, derived: AggregationMetric.Derived): Bson {
+        val projections = buildList {
+            add(Projections.excludeId())
+            query.groupBy.forEach { add(Projections.include(it.alias)) }
+            query.metrics.forEach { metric ->
+                add(
+                    if (metric === derived) {
+                        Projections.computed(metric.alias, metric.expression.toDerivedDocument())
+                    } else {
+                        Projections.include(metric.alias)
+                    },
+                )
+            }
+        }
+        return Aggregates.project(Projections.fields(projections))
+    }
+
+    /**
+     * Null propagation, divide-by-zero, and finiteness mirror the record-level [AggregationExpression]
+     * guards: referenced metrics have already been projected to their guarded final values by
+     * [project] or an earlier [derivedProject] stage.
+     */
+    private fun DerivedExpression.toDerivedDocument(): Any = when (this) {
+        is DerivedExpression.MetricRef -> "\$$metric"
+
+        /**
+         * A bare number is an include flag in `$project`, so constants must be pinned with `$literal`
+         * to evaluate as values in computed fields and `$let` variables.
+         */
+        is DerivedExpression.Constant -> Document("\$literal", value)
+        is DerivedExpression.Binary -> {
+            val leftValue = left.toDerivedDocument()
+            val rightValue = right.toDerivedDocument()
+            val conditions = mutableListOf<Any>(
+                Document("\$ne", listOf("\$\$left", null)),
+                Document("\$ne", listOf("\$\$right", null)),
+            )
+            if (operator == AggregationExpressionOperator.DIVIDE) {
+                conditions += Document("\$ne", listOf("\$\$right", 0.0))
+            }
+            finiteDouble(
+                Document(
+                    "\$let",
+                    Document("vars", Document("left", leftValue).append("right", rightValue))
+                        .append(
+                            "in",
+                            Document(
+                                "\$cond",
+                                listOf(
+                                    Document("\$and", conditions),
+                                    Document(operator.mongoOperator, listOf("\$\$left", "\$\$right")),
+                                    null,
+                                ),
+                            ),
+                        ),
+                ),
+            )
+        }
     }
 
     private fun AggregationGroup.compile(

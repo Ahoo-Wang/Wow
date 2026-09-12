@@ -280,6 +280,16 @@ class HttpQueryGuardTest {
     }
 
     @Test
+    fun `derived metrics count as arithmetic expressions`() {
+        val derived = aggregation {
+            count("total")
+            derived("half") { ref("total") / constant(2.0) }
+        }
+        expectRejected(QueryType.AGGREGATION, derived, guard(allowExpensiveOperators = false))
+        expectAllowed(QueryType.AGGREGATION, derived, guard(allowExpensiveOperators = true))
+    }
+
+    @Test
     fun timesOutTheWholeMonoAndIdleFluxPublisher() {
         StepVerifier.withVirtualTime {
             guard(idleTimeout = Duration.ofSeconds(1)).mono(QueryType.SINGLE, IdFilter("id")) {

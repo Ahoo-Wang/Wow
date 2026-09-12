@@ -220,6 +220,7 @@ class HttpQueryGuard(
         is AggregationMetric.Numeric -> expression !is AggregationExpression.Field
         is AggregationMetric.DistinctCount -> expression !is AggregationExpression.Field
         is AggregationMetric.Percentile -> expression !is AggregationExpression.Field
+        is AggregationMetric.Derived -> true
         is AggregationMetric.Count, is AggregationMetric.Any -> false
     }
 

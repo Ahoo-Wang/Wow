@@ -1,6 +1,6 @@
 ---
 title: Snapshot Aggregation
-description: Apply snapshot aggregation to root documents and collection elements through ten business scenarios.
+description: Apply snapshot aggregation to root documents and collection elements through eleven business scenarios.
 ---
 
 # Snapshot Aggregation
@@ -34,6 +34,7 @@ flowchart TB
     Root --> S7["7 Multidimensional analysis"]
     Root --> S9["9 Distinct customers and P95 amount"]
     Root --> S10["10 Funnel conditional counts"]
+    Root --> S11["11 Attainment and paid AOV"]
     Item --> S5["5 Line-item Top-N"]
     Item --> S6["6 Derived amount"]
     Item --> S8["8 ANY display field"]
@@ -539,6 +540,88 @@ val query = aggregation {
 ```
 
 Both metrics share the same counting unit and root filter; each metric filter applies to its own metric only, so `paidCount ≤ orderCount` always holds. Each funnel level is one independent filtered COUNT — append more levels instead of splitting the funnel into multiple queries. See [Metric Filter](./aggregation-query.md#metric-filter) for empty-match semantics, limits, and version requirements.
+
+## Scenario 11: Attainment Ratio and Paid AOV
+
+**Business question**
+
+In one result table, what is each order status's attainment ratio of paid amount against target amount, and which status has the highest paid AOV?
+
+**Counting unit**
+
+Root snapshot documents; `paid` and `paidAmount` count only snapshots with `state.status = PAID`, `targetAmount` sums every snapshot in the group, and the two derived metrics divide those results after aggregation finishes.
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    terms("state.status", "status")
+    count("paid") { "state.status" eq "PAID" }
+    sum("state.totalAmount", "paidAmount") { "state.status" eq "PAID" }
+    derived("paidAov") { ref("paidAmount") / ref("paid") }
+    sum("state.targetAmount", "targetAmount")
+    derived("attainment") { ref("paidAmount") / ref("targetAmount") }
+    sort { "paidAov".desc() }
+}
+```
+
+**HTTP JSON and result interpretation**
+
+```json
+{
+  "groupBy": [
+    {"type": "TERMS", "field": "state.status", "alias": "status"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "paid", "filter": {"op": "EQ", "field": "state.status", "value": "PAID"}},
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": {"type": "FIELD", "field": "state.totalAmount"},
+      "alias": "paidAmount",
+      "filter": {"op": "EQ", "field": "state.status", "value": "PAID"}
+    },
+    {
+      "type": "DERIVED",
+      "alias": "paidAov",
+      "expression": {
+        "type": "BINARY",
+        "operator": "DIVIDE",
+        "left": {"type": "METRIC_REF", "metric": "paidAmount"},
+        "right": {"type": "METRIC_REF", "metric": "paid"}
+      }
+    },
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": {"type": "FIELD", "field": "state.targetAmount"},
+      "alias": "targetAmount"
+    },
+    {
+      "type": "DERIVED",
+      "alias": "attainment",
+      "expression": {
+        "type": "BINARY",
+        "operator": "DIVIDE",
+        "left": {"type": "METRIC_REF", "metric": "paidAmount"},
+        "right": {"type": "METRIC_REF", "metric": "targetAmount"}
+      }
+    }
+  ],
+  "sort": [
+    {"field": "paidAov", "direction": "DESC"}
+  ]
+}
+```
+
+```json
+[
+  {"status": "PAID", "paid": 42, "paidAmount": 21420.0, "paidAov": 510.0, "targetAmount": 30000.0, "attainment": 0.714},
+  {"status": "FAILED", "paid": 0, "paidAmount": null, "paidAov": null, "targetAmount": 8000.0, "attainment": null}
+]
+```
+
+`paidAov = paidAmount / paid`, and `attainment = paidAmount / targetAmount`. The FAILED row demonstrates empty-set semantics: no PAID record exists in the group, so `paidAmount` is `null` on an empty set, and any null operand propagates `null` — both derived metrics are therefore `null` (dividing by `paid = 0` yields `null` as well). A derived metric cannot carry a metric filter itself; its combination with metric filtering is to reference filtered metrics, and sort can reference a derived alias directly. HTTP rejects derived metrics as arithmetic expressions when expensive operators are disabled. See [Derived Metrics](./aggregation-query.md#derived-metrics) for reference rules and semantics.
 
 ## Backend Capabilities and Stability Boundaries
 

@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
@@ -96,6 +97,14 @@ internal sealed interface ElasticsearchAggregationMetric {
         val percentile: Double,
         override val filter: Query? = null,
     ) : ElasticsearchAggregationMetric
+
+    data class Derived(
+        override val alias: String,
+        val bucketsPath: Map<String, String>,
+        val script: Script,
+    ) : ElasticsearchAggregationMetric {
+        override val filter: Query? = null
+    }
 }
 
 internal val ElasticsearchAggregationMetric.valueCountAlias: String
@@ -145,20 +154,51 @@ internal class ElasticsearchAggregationCompiler(
                 indexed.value.toSource(logicalParent, physicalParent, sort, indexed.index, schema, runtimeMappings)
             }
         }
-        val metrics = query.metrics.mapIndexed { index, metric ->
-            metric.toPlan(logicalParent, physicalParent, index, schema, runtimeMappings, now)
-        }
+        val metricPlans = compileMetrics(query, logicalParent, physicalParent, schema, runtimeMappings, now)
         val metricAliases = query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
         return ElasticsearchAggregationPlan(
             rootQuery = rootQuery,
             elements = elements,
             groupSources = groupSources,
-            metrics = metrics,
+            metrics = metricPlans,
             runtimeMappings = runtimeMappings,
             effectiveSort = effectiveSort,
             limit = query.limit,
             metricSorted = effectiveSort.any { it.field.path in metricAliases },
         )
+    }
+
+    /**
+     * Compiles the declared metrics in order. Declaration order (list iteration order) lets a
+     * [AggregationMetric.Derived] metric resolve the plans of metrics declared before it;
+     * referenced aliases keep one stable `vN`/`cN` param index across the whole compile.
+     */
+    private fun compileMetrics(
+        query: AggregationQuery,
+        logicalParent: QueryField?,
+        physicalParent: QueryField?,
+        schema: QueryModelSchema,
+        runtimeMappings: MutableMap<String, RuntimeField>,
+        now: Instant,
+    ): List<ElasticsearchAggregationMetric> {
+        val metricPlans = mutableListOf<ElasticsearchAggregationMetric>()
+        val priorByAlias = linkedMapOf<String, ElasticsearchAggregationMetric>()
+        val derivedRefIndexes = linkedMapOf<String, Int>()
+        query.metrics.forEachIndexed { index, metric ->
+            val plan = metric.toPlan(
+                logicalParent,
+                physicalParent,
+                index,
+                schema,
+                runtimeMappings,
+                now,
+                priorByAlias,
+                derivedRefIndexes,
+            )
+            metricPlans += plan
+            priorByAlias[metric.alias] = plan
+        }
+        return metricPlans
     }
 
     private fun AggregationGroup.toSource(
@@ -279,6 +319,8 @@ internal class ElasticsearchAggregationCompiler(
         schema: QueryModelSchema,
         runtimeMappings: MutableMap<String, RuntimeField>,
         now: Instant,
+        prior: Map<String, ElasticsearchAggregationMetric>,
+        derivedRefIndexes: MutableMap<String, Int>,
     ): ElasticsearchAggregationMetric {
         val filter = metricFilter(parent, physicalParent, schema, now)
         return when (this) {
@@ -325,6 +367,8 @@ internal class ElasticsearchAggregationCompiler(
                 runtimeMappings,
                 filter,
             )
+
+            is AggregationMetric.Derived -> toDerivedPlan(expression, prior, derivedRefIndexes)
         }
     }
 
@@ -394,6 +438,118 @@ internal class ElasticsearchAggregationCompiler(
             }
         }
         return ElasticsearchAggregationMetric.Percentile(alias, metricField, percentile, filter)
+    }
+
+    private fun AggregationMetric.Derived.toDerivedPlan(
+        expression: DerivedExpression,
+        prior: Map<String, ElasticsearchAggregationMetric>,
+        derivedRefIndexes: MutableMap<String, Int>,
+    ): ElasticsearchAggregationMetric.Derived {
+        val bucketsPath = linkedMapOf<String, String>()
+        val source = "def value = ${expression.toScript(prior, derivedRefIndexes, bucketsPath)}; " +
+            "value == null || !Double.isFinite(value) ? null : value"
+        return ElasticsearchAggregationMetric.Derived(
+            alias,
+            bucketsPath,
+            Script.of { it.source { s -> s.scriptString(source) } },
+        )
+    }
+
+    /**
+     * Serializes a derived expression to its bucket_script Painless body while registering the
+     * referenced sibling aggregations in [bucketsPath]. A [DerivedExpression.MetricRef] contributes
+     * a `vN` value entry and — for metrics whose empty-set semantics differ from a missing value —
+     * an additional `cN` value-count entry the script guards on.
+     *
+     * Guards use a NaN sentinel instead of null: Painless throws on null arithmetic operands, and an
+     * empty-set sum is a value (0.0), not a gap, so the count guard must stay in double arithmetic
+     * (`Double.NaN`). Every reference is cast `(double)` — Painless has no `as` cast operator, and
+     * plain `_count` paths arrive as Longs (Long/Long division is integer division). Division relies
+     * on IEEE semantics (x / 0.0 → ±Infinity) instead of an explicit zero guard, and the final
+     * `!Double.isFinite` wrap unifies NaN and ±Infinity to null.
+     */
+    private fun DerivedExpression.toScript(
+        prior: Map<String, ElasticsearchAggregationMetric>,
+        derivedRefIndexes: MutableMap<String, Int>,
+        bucketsPath: MutableMap<String, String>,
+    ): String = when (this) {
+        is DerivedExpression.MetricRef -> {
+            val target = prior.getValue(metric)
+            val (valuePath, countPath) = target.referencePaths()
+            val index = derivedRefIndexes.getOrPut(metric) { derivedRefIndexes.size }
+            bucketsPath["v$index"] = valuePath
+            if (countPath == null) {
+                "((double) params.v$index)"
+            } else {
+                bucketsPath["c$index"] = countPath
+                // empty-set guard: zero count -> NaN sentinel (null would throw in Painless arithmetic)
+                "(((double) params.c$index) == 0.0 ? Double.NaN : ((double) params.v$index))"
+            }
+        }
+
+        is DerivedExpression.Constant -> value.toString()
+
+        is DerivedExpression.Binary -> when (operator) {
+            AggregationExpressionOperator.ADD ->
+                "(${left.toScript(
+                    prior,
+                    derivedRefIndexes,
+                    bucketsPath
+                )} + ${right.toScript(prior, derivedRefIndexes, bucketsPath)})"
+            AggregationExpressionOperator.SUBTRACT ->
+                "(${left.toScript(
+                    prior,
+                    derivedRefIndexes,
+                    bucketsPath
+                )} - ${right.toScript(prior, derivedRefIndexes, bucketsPath)})"
+            AggregationExpressionOperator.MULTIPLY ->
+                "(${left.toScript(
+                    prior,
+                    derivedRefIndexes,
+                    bucketsPath
+                )} * ${right.toScript(prior, derivedRefIndexes, bucketsPath)})"
+            AggregationExpressionOperator.DIVIDE -> {
+                val leftScript = left.toScript(prior, derivedRefIndexes, bucketsPath)
+                val rightScript = right.toScript(prior, derivedRefIndexes, bucketsPath)
+                // all-double operands follow IEEE: x / 0.0 -> ±Infinity, unified to null by the final wrap
+                "($leftScript / $rightScript)"
+            }
+        }
+    }
+
+    /**
+     * Resolves (valuePath, countPath?) of a referenced metric plan; a non-null countPath means the
+     * script needs the empty-set guard. Filtered wrapper names are based on the referenced metric's
+     * own alias: [metricFilterAggregationName] with that alias. Metrics under that wrapper are
+     * referenced with the `>` separator — buckets_path resolves `a.b` against sibling aggregation
+     * *names* (a dot would look for a sibling literally named `a.b`), while `a>b` descends into the
+     * single-bucket wrapper [a]. Filtered Counts keep the filter aggregation named [alias] itself,
+     * so their doc_count is `alias._count`.
+     */
+    private fun ElasticsearchAggregationMetric.referencePaths(): Pair<String, String?> {
+        val scope = if (filter == null) "" else "${metricFilterAggregationName(alias)}>"
+        return when (this) {
+            is ElasticsearchAggregationMetric.Count ->
+                // unfiltered: the bucket's own doc_count; filtered: the doc_count of the filter aggregation named alias
+                (if (filter == null) "_count" else "$alias._count") to null
+
+            is ElasticsearchAggregationMetric.Numeric -> {
+                val value = when (function) {
+                    AggregationFunction.SUM, AggregationFunction.AVG,
+                    AggregationFunction.MIN, AggregationFunction.MAX,
+                    -> "$alias.value"
+
+                    AggregationFunction.STDDEV -> "$alias.std_deviation_population"
+                    AggregationFunction.VARIANCE -> "$alias.variance_population"
+                }
+                "$scope$value" to "$scope$valueCountAlias.value"
+            }
+
+            is ElasticsearchAggregationMetric.Percentile -> "$scope$alias[$percentile]" to "$scope$valueCountAlias.value"
+            is ElasticsearchAggregationMetric.DistinctCount -> "$scope$alias.value" to null // cardinality is never null (may be 0)
+            is ElasticsearchAggregationMetric.Derived -> "$alias.value" to null // prior bucket_script output; null -> gap -> skip
+            is ElasticsearchAggregationMetric.Any -> error("Derived metric cannot reference ANY metric [$alias].")
+        }
     }
 
     private inner class RuntimeExpressionCompiler(

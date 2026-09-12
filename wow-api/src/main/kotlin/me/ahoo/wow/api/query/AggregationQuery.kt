@@ -47,6 +47,7 @@ data class AggregationQuery(
         require(limit in 1..MAX_LIMIT) { "limit must be between 1 and $MAX_LIMIT." }
         require(groupBy.isNotEmpty() || sort.isEmpty()) { "sort requires at least one groupBy." }
         metrics.requireValidExpressions()
+        metrics.requireValidDerivedMetrics()
 
         val aliases = groupBy.map(AggregationGroup::alias) + metrics.map(AggregationMetric::alias)
         require(aliases.distinct().size == aliases.size) { "aggregation aliases must be unique." }
@@ -202,6 +203,7 @@ enum class AggregationExpressionOperator {
     JsonSubTypes.Type(AggregationMetric.Any::class, name = "ANY"),
     JsonSubTypes.Type(AggregationMetric.DistinctCount::class, name = "DISTINCT_COUNT"),
     JsonSubTypes.Type(AggregationMetric.Percentile::class, name = "PERCENTILE"),
+    JsonSubTypes.Type(AggregationMetric.Derived::class, name = "DERIVED"),
 )
 @Schema(
     oneOf = [
@@ -210,6 +212,7 @@ enum class AggregationExpressionOperator {
         AggregationMetric.Any::class,
         AggregationMetric.DistinctCount::class,
         AggregationMetric.Percentile::class,
+        AggregationMetric.Derived::class,
     ],
     discriminatorProperty = QueryProtocol.Polymorphic.TYPE,
 )
@@ -279,6 +282,48 @@ sealed interface AggregationMetric {
             }
         }
     }
+
+    data class Derived(
+        override val alias: String,
+        val expression: DerivedExpression,
+    ) : AggregationMetric {
+        @get:JsonInclude(JsonInclude.Include.CUSTOM, valueFilter = MatchAllFilterValueFilter::class)
+        override val filter: FilterExpression get() = MatchAllFilter
+
+        init {
+            requireAggregationAlias(alias)
+        }
+    }
+}
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = QueryProtocol.Polymorphic.TYPE)
+@JsonSubTypes(
+    JsonSubTypes.Type(DerivedExpression.MetricRef::class, name = "METRIC_REF"),
+    JsonSubTypes.Type(DerivedExpression.Constant::class, name = "CONSTANT"),
+    JsonSubTypes.Type(DerivedExpression.Binary::class, name = "BINARY"),
+)
+@Schema(
+    oneOf = [
+        DerivedExpression.MetricRef::class,
+        DerivedExpression.Constant::class,
+        DerivedExpression.Binary::class,
+    ],
+    discriminatorProperty = QueryProtocol.Polymorphic.TYPE,
+)
+sealed interface DerivedExpression {
+    data class MetricRef(val metric: String) : DerivedExpression
+
+    data class Constant(val value: Double) : DerivedExpression {
+        init {
+            require(value.isFinite()) { "derived constant must be finite." }
+        }
+    }
+
+    data class Binary(
+        val operator: AggregationExpressionOperator,
+        val left: DerivedExpression,
+        val right: DerivedExpression,
+    ) : DerivedExpression
 }
 
 enum class AggregationFunction {
@@ -324,7 +369,7 @@ private fun List<AggregationMetric>.requireValidExpressions() {
             is AggregationMetric.Numeric -> pending.addLast(PendingExpression(metric.expression, 1))
             is AggregationMetric.DistinctCount -> pending.addLast(PendingExpression(metric.expression, 1))
             is AggregationMetric.Percentile -> pending.addLast(PendingExpression(metric.expression, 1))
-            is AggregationMetric.Count, is AggregationMetric.Any -> Unit
+            is AggregationMetric.Count, is AggregationMetric.Any, is AggregationMetric.Derived -> Unit
         }
     }
     var nodes = 0
@@ -352,4 +397,55 @@ private fun List<AggregationMetric>.requireValidExpressions() {
             )
         }
     }
+}
+
+private data class PendingDerivedExpression(
+    val expression: DerivedExpression,
+    val depth: Int,
+)
+
+private fun List<AggregationMetric>.requireValidDerivedMetrics() {
+    val declared = LinkedHashMap<String, Boolean>()
+    var nodes = 0
+    forEach { metric ->
+        if (metric is AggregationMetric.Derived) {
+            nodes = metric.requireValidDerivedExpression(declared, nodes)
+        }
+        declared[metric.alias] = metric is AggregationMetric.Any
+    }
+}
+
+private fun AggregationMetric.Derived.requireValidDerivedExpression(declared: Map<String, Boolean>, visitedNodes: Int): Int {
+    val pending = ArrayDeque<PendingDerivedExpression>()
+    pending.addLast(PendingDerivedExpression(expression, 1))
+    var nodes = visitedNodes
+    while (pending.isNotEmpty()) {
+        val (current, depth) = pending.removeLast()
+        require(depth <= AggregationQuery.MAX_EXPRESSION_DEPTH) {
+            "derived expression depth must be at most ${AggregationQuery.MAX_EXPRESSION_DEPTH}."
+        }
+        nodes++
+        require(nodes <= AggregationQuery.MAX_EXPRESSION_NODES) {
+            "derived expressions must contain at most ${AggregationQuery.MAX_EXPRESSION_NODES} nodes."
+        }
+        when (current) {
+            is DerivedExpression.MetricRef -> {
+                val reference = current.metric
+                require(reference in declared) {
+                    "derived metric [$alias] must reference a metric declared before it, but was [$reference]."
+                }
+                require(!declared.getValue(reference)) {
+                    "derived metric [$alias] cannot reference ANY metric [$reference]."
+                }
+            }
+
+            is DerivedExpression.Constant -> Unit
+
+            is DerivedExpression.Binary -> {
+                pending.addLast(PendingDerivedExpression(current.left, depth + 1))
+                pending.addLast(PendingDerivedExpression(current.right, depth + 1))
+            }
+        }
+    }
+    return nodes
 }

@@ -63,6 +63,7 @@ flowchart LR
 | `DISTINCT_COUNT` | 统计 Expression 非空参与值的去重个数，结果为整数；空集为 `0` |
 | `PERCENTILE` | 对数值 Expression 计算 `PERCENTILE(p)`，`0 < p < 100`；DSL 的 `median` 等价 `p=50` |
 | `ANY` | 选择一个字段值 |
+| `DERIVED` | 聚合完成后对已声明 metric 的结果做算术运算（见[派生指标](#derived-metrics)） |
 
 `ANY` 不能替代确定性的 group key：所选的非 null 值不保证在不同执行或后端间稳定。
 
@@ -92,6 +93,55 @@ sum("total", "paidTotal") { "status" eq "PAID" }
 - MongoDB 后端使用 metric filter 需要服务端 5.0+（守卫表达式中的 `$not`）；`PERCENTILE` 指标本身仍需 7.0+。旧版本服务端返回其原生错误。
 - MongoDB 守卫表达式的 `$gt`/`$lt` 族比较遵循 BSON 全序而非 `$match` 的类型分档，类型混杂数据下计数可能偏多；这是边界情形，不构成后端间逐位一致的承诺。
 - HTTP 查询保护不把 metric filter 构造本身单独视为高成本操作符；metric filter 内的算子与根/element 过滤一样受 `wow.webflux.query.allow-expensive-operators` 昂贵算子开关约束，过滤值数与其他 filter 一起计入 `wow.webflux.query.max-filter-values` 上限。
+
+### 派生指标 {#derived-metrics}
+
+`DERIVED` Metric 在聚合完成后对同查询中已声明 metric 的结果做算术运算，为每行计算一个派生值（如客单价、达成率）。它的 Expression AST 只有 `METRIC_REF`、有限 `CONSTANT` 与 `BINARY`；`BINARY` 运算符与数值表达式一致（`ADD`、`SUBTRACT`、`MULTIPLY`、`DIVIDE`），可嵌套。DSL 为 `derived(alias) { ... }`，表达式内用 `ref(metric)` 引用 metric、`constant(value)` 给出常量：
+
+```kotlin
+aggregation {
+    terms("state.status", "status")
+    count("paid") { "status" eq "PAID" }
+    sum("amount", "paidAmount") { "status" eq "PAID" }
+    derived("paidAov") { ref("paidAmount") / ref("paid") }
+    sum("amount", "targetAmount")
+    derived("attainment") { ref("paidAmount") / ref("targetAmount") }
+    sort { "paidAov".desc() }
+}
+```
+
+`paidAov` 把两个带指标级过滤的 metric 相除，得到已支付客单价；`attainment` 把已支付金额与目标金额相比，得到达成率。单个派生指标的 JSON 形状如下，`expression` 递归复用 `DerivedExpression` schema：
+
+```json
+{
+  "type": "DERIVED",
+  "alias": "paidAov",
+  "expression": {
+    "type": "BINARY",
+    "operator": "DIVIDE",
+    "left": {"type": "METRIC_REF", "metric": "paidAmount"},
+    "right": {"type": "METRIC_REF", "metric": "paid"}
+  }
+}
+```
+
+引用规则在构造 `AggregationQuery` 时校验，违反即抛 `IllegalArgumentException`：
+
+- `METRIC_REF` 只能引用同一查询中先于该派生指标声明的 metric（含更早的派生指标）；声明序即求值序，引用图天然无环。未知别名与 group alias 一律拒绝；
+- 不能引用 `ANY` metric：其值跨执行与后端不稳定；
+- 常量必须有限；派生表达式与数值表达式共用 `depth ≤ 8` 的深度上限，同一查询的全部派生表达式共享至多 256 个节点。
+
+计算语义：
+
+- null 传播：任一操作数为 `null` 时结果为 `null`；引用空集的 `NUMERIC`/`PERCENTILE`（结果为 `null`）同样传播为 `null`。`COUNT` 引用不会为 `null`（空集为 `0`），但除以该 `0` 仍得到 `null`；
+- 除以零的结果为 `null`，派生结果必须有限；
+- 派生指标本身不能带 metric filter：filter 是记录级概念，派生在聚合之后计算。它与[指标级过滤](#metric-filter)的组合方式是引用带 filter 的 metric——上例 `paidAov` 即“已支付金额 / 已支付数量”。OpenAPI schema 为保持形状兼容仍在 `DERIVED` 上展示继承来的可选 `filter` 属性——反序列化时会忽略传入的取值，且 DSL 与构造器均无法设置它；
+- sort 可以引用派生 alias，上例即按 `paidAov` 降序。
+
+实现与护栏：
+
+- MongoDB 在聚合投影之后追加额外的 `$project` 阶段计算派生值，每个派生指标一个阶段，按声明顺序执行；Elasticsearch 在桶内使用 `bucket_script` 管道聚合。两者均无新增存储版本要求（`$project` 与 `bucket_script` 都早于受支持的 MongoDB 7.0 / Elasticsearch 9.x 基线）；
+- HTTP 查询保护把派生指标视为算术表达式：`wow.webflux.query.allow-expensive-operators=false` 时会被拒绝，与既有 metric 算术表达式门槛一致。
 
 ### 数值参与值与精度 {#numeric-contributions}
 

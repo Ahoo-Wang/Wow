@@ -517,6 +517,25 @@ abstract class EventStreamQueryBackendSpec {
                 row.path("first").longValue().assert().isEqualTo(1L)
             }.verifyComplete()
     }
+
+    @Test
+    fun aggregateDerivedEventRatios() {
+        val tenantId = generateGlobalId()
+        eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = tenantId))).block()
+        aggregation {
+            filter { tenantId(tenantId) }
+            expand("body")
+            count("all") // aggregateFilteredEventCounts 的 all 实测值 = 10
+            count("first") { "name" eq "mock_aggregate_created" } // = 1
+            derived("firstShare") { ref("first") / ref("all") } // 1 / 10 = 0.1
+        }.query(queryBackendBinding)
+            .test()
+            .assertNext { row ->
+                row.path("all").longValue().assert().isEqualTo(10L)
+                row.path("first").longValue().assert().isEqualTo(1L)
+                row.path("firstShare").doubleValue().assert().isEqualTo(0.1)
+            }.verifyComplete()
+    }
 }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =

@@ -1,6 +1,6 @@
 ---
 title: 快照聚合
-description: 用十个业务场景说明快照根文档与集合元素的聚合查询。
+description: 用十一个业务场景说明快照根文档与集合元素的聚合查询。
 ---
 
 # 快照聚合
@@ -34,6 +34,7 @@ flowchart TB
     Root --> S7["7 多维交叉分析"]
     Root --> S9["9 去重客户数与 P95 金额"]
     Root --> S10["10 漏斗多条件计数"]
+    Root --> S11["11 达成率与客单价"]
     Item --> S5["5 明细项 Top-N"]
     Item --> S6["6 派生金额"]
     Item --> S8["8 ANY 展示字段"]
@@ -539,6 +540,88 @@ val query = aggregation {
 ```
 
 两个指标共享同一统计单位与根过滤，metric filter 只作用于各自的指标，因此 `paidCount ≤ orderCount` 恒成立。漏斗的每一级都是一个带 filter 的独立 COUNT，需要更多层级时继续追加即可，不必拆成多次查询。metric filter 的空集语义、限制与版本要求见[指标级过滤](./aggregation-query.md#metric-filter)。
+
+## 场景 11：达成率与客单价
+
+**业务问题**
+
+同一张结果表中，各订单状态的已支付金额相对目标金额的达成率是多少？已支付客单价最高的状态是哪个？
+
+**统计单位**
+
+快照根文档；`paid` 与 `paidAmount` 只统计 `state.status = PAID` 的快照，`targetAmount` 统计组内全部快照，两个派生指标在聚合完成后对三者做商。
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    terms("state.status", "status")
+    count("paid") { "state.status" eq "PAID" }
+    sum("state.totalAmount", "paidAmount") { "state.status" eq "PAID" }
+    derived("paidAov") { ref("paidAmount") / ref("paid") }
+    sum("state.targetAmount", "targetAmount")
+    derived("attainment") { ref("paidAmount") / ref("targetAmount") }
+    sort { "paidAov".desc() }
+}
+```
+
+**HTTP JSON 与结果解读**
+
+```json
+{
+  "groupBy": [
+    {"type": "TERMS", "field": "state.status", "alias": "status"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "paid", "filter": {"op": "EQ", "field": "state.status", "value": "PAID"}},
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": {"type": "FIELD", "field": "state.totalAmount"},
+      "alias": "paidAmount",
+      "filter": {"op": "EQ", "field": "state.status", "value": "PAID"}
+    },
+    {
+      "type": "DERIVED",
+      "alias": "paidAov",
+      "expression": {
+        "type": "BINARY",
+        "operator": "DIVIDE",
+        "left": {"type": "METRIC_REF", "metric": "paidAmount"},
+        "right": {"type": "METRIC_REF", "metric": "paid"}
+      }
+    },
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": {"type": "FIELD", "field": "state.targetAmount"},
+      "alias": "targetAmount"
+    },
+    {
+      "type": "DERIVED",
+      "alias": "attainment",
+      "expression": {
+        "type": "BINARY",
+        "operator": "DIVIDE",
+        "left": {"type": "METRIC_REF", "metric": "paidAmount"},
+        "right": {"type": "METRIC_REF", "metric": "targetAmount"}
+      }
+    }
+  ],
+  "sort": [
+    {"field": "paidAov", "direction": "DESC"}
+  ]
+}
+```
+
+```json
+[
+  {"status": "PAID", "paid": 42, "paidAmount": 21420.0, "paidAov": 510.0, "targetAmount": 30000.0, "attainment": 0.714},
+  {"status": "FAILED", "paid": 0, "paidAmount": null, "paidAov": null, "targetAmount": 8000.0, "attainment": null}
+]
+```
+
+`paidAov = paidAmount / paid`，`attainment = paidAmount / targetAmount`。FAILED 行演示空集语义：`paidAmount` 在组内无 PAID 记录、空集为 `null`，任一操作数为 `null` 即传播为 `null`，因此两个派生指标都是 `null`（除以 `paid = 0` 同样得到 `null`）。派生指标本身不能带 metric filter，它与指标级过滤的组合方式是引用带 filter 的 metric；sort 可以直接引用派生 alias。HTTP 禁用高成本操作符时会拒绝派生指标这类算术表达式。引用规则与语义详见[派生指标](./aggregation-query.md#derived-metrics)。
 
 ## 后端能力与稳定性边界
 

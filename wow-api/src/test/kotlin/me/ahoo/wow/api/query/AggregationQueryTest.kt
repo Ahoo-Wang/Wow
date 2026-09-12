@@ -498,4 +498,99 @@ class AggregationQueryTest {
             .doesNotContain("\"alias\":\"total\",\"filter\"")
             .doesNotContain("\"alias\":\"sumAmount\",\"filter\"")
     }
+
+    @Test
+    fun `derived metrics should round trip with expression subtypes`() {
+        val json = """
+            {
+              "metrics": [
+                {"type": "COUNT", "alias": "paid"},
+                {"type": "NUMERIC", "function": "SUM", "expression": {"field": "amount"}, "alias": "x"},
+                {"type": "DERIVED", "alias": "aov",
+                 "expression": {"type": "BINARY", "operator": "DIVIDE",
+                   "left": {"type": "METRIC_REF", "metric": "paid"},
+                   "right": {"type": "CONSTANT", "value": 2.0}}}
+              ]
+            }
+        """.trimIndent()
+
+        val query = configuredMapper.readValue(json, AggregationQuery::class.java)
+        val derived = query.metrics.filterIsInstance<AggregationMetric.Derived>().single()
+
+        derived.expression.assert().isEqualTo(
+            DerivedExpression.Binary(
+                AggregationExpressionOperator.DIVIDE,
+                DerivedExpression.MetricRef("paid"),
+                DerivedExpression.Constant(2.0),
+            ),
+        )
+        derived.filter.assert().isEqualTo(MatchAllFilter)
+        val wire = configuredMapper.writeValueAsString(query)
+        wire.assert().contains("\"type\":\"DERIVED\"")
+        wire.substring(wire.indexOf("DERIVED")).assert().doesNotContain("\"filter\"")
+    }
+
+    @Test
+    fun `derived references must be declared earlier`() {
+        fun derivedOf(vararg metrics: AggregationMetric) = AggregationQuery(metrics = metrics.toList())
+        val paid = AggregationMetric.Count("paid")
+        val aov = AggregationMetric.Derived(
+            "aov",
+            DerivedExpression.Binary(
+                AggregationExpressionOperator.ADD,
+                DerivedExpression.MetricRef("paid"),
+                DerivedExpression.Constant(1.0),
+            ),
+        )
+
+        assertThrows<IllegalArgumentException> { derivedOf(aov, paid) }.message.assert()
+            .contains("must reference a metric declared before it")
+        assertThrows<IllegalArgumentException> {
+            derivedOf(paid, AggregationMetric.Derived("x", DerivedExpression.MetricRef("unknown")))
+        }.message.assert().contains("unknown")
+
+        derivedOf(paid, AggregationMetric.Derived("x", DerivedExpression.MetricRef("paid")))
+    }
+
+    @Test
+    fun `derived references to any metrics and group aliases are rejected`() {
+        val any = AggregationMetric.Any(QueryField("status"), "sample")
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(QueryField("status"), "status")),
+                metrics = listOf(any, AggregationMetric.Derived("x", DerivedExpression.MetricRef("sample"))),
+            )
+        }.message.assert().contains("cannot reference ANY metric")
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(QueryField("status"), "status")),
+                metrics = listOf(
+                    AggregationMetric.Count("total"),
+                    AggregationMetric.Derived("x", DerivedExpression.MetricRef("status")),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `derived expressions are depth and node bounded`() {
+        fun nest(depth: Int): DerivedExpression =
+            (1 until depth).fold(DerivedExpression.Constant(1.0) as DerivedExpression) { acc, _ ->
+                DerivedExpression.Binary(AggregationExpressionOperator.ADD, acc, DerivedExpression.Constant(1.0))
+            }
+
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(metrics = listOf(AggregationMetric.Count("c"), AggregationMetric.Derived("d", nest(9))))
+        }.message.assert().contains("depth")
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                metrics = List(AggregationQuery.MAX_METRICS) { index ->
+                    AggregationMetric.Derived("d$index", nest(AggregationQuery.MAX_EXPRESSION_DEPTH))
+                },
+            )
+        }.message.assert().contains("at most ${AggregationQuery.MAX_EXPRESSION_NODES} nodes")
+        assertThrows<IllegalArgumentException> {
+            DerivedExpression.Constant(Double.POSITIVE_INFINITY)
+        }
+    }
 }
