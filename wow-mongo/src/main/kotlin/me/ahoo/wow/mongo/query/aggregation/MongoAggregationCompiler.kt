@@ -16,9 +16,12 @@ package me.ahoo.wow.mongo.query.aggregation
 import com.mongodb.client.model.Accumulators
 import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.BsonField
+import com.mongodb.client.model.Field
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
+import com.mongodb.client.model.densify.DensifyOptions
+import com.mongodb.client.model.densify.DensifyRange
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
@@ -36,6 +39,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
+import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.distinctCountCapability
@@ -47,6 +51,7 @@ import org.bson.conversions.Bson
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.Date
 import java.util.concurrent.TimeUnit
 
 @Suppress("LargeClass")
@@ -85,10 +90,13 @@ internal class MongoAggregationCompiler(
             }
         }
 
+        val denseGroup = query.groupBy.singleOrNull()?.let { it as? AggregationGroup.DateHistogram }?.takeIf { it.dense }
+        val denseGrid = denseGroup?.let { DenseDateGrid(it.unit, ZoneId.of(it.timeZone)) }
+
         val groupId = query.groupBy.takeIf { it.isNotEmpty() }?.let { groups ->
             val id = Document()
             val filters = groups.mapNotNull { group ->
-                val (filter, expression) = group.compile(logicalParent, physicalParent, schema)
+                val (filter, expression) = group.compile(logicalParent, physicalParent, schema, denseGrid)
                 id[group.alias] = expression
                 filter
             }
@@ -99,7 +107,10 @@ internal class MongoAggregationCompiler(
         }
 
         add(group(query, groupId, logicalParent, physicalParent, schema, now))
-        add(project(query))
+        if (denseGroup != null && denseGrid != null) {
+            addAll(denseStages(denseGroup))
+        }
+        add(project(query, denseGroup, denseGrid))
         query.metrics.forEach { metric ->
             if (metric is AggregationMetric.Derived) {
                 add(derivedProject(query, metric))
@@ -254,15 +265,37 @@ internal class MongoAggregationCompiler(
         Document("\$and", listOf(this, contributes))
     }
 
+    /**
+     * Compiles the fill projection right after `$group`. Every metric projection reads the
+     * accumulated value through `$ifNull` with its empty-semantics fallback — a no-op rewrite on
+     * grouped documents, which always carry the accumulated fields, that gives `$densify`-synthetic
+     * documents the empty value of their metric. A dense date histogram additionally inverts its
+     * bucket index back into the display key with `$dateAdd(timezone)`, mirroring [DenseDateGrid.keyOf].
+     */
     @Suppress("LongMethod")
-    private fun project(query: AggregationQuery): Bson {
+    private fun project(
+        query: AggregationQuery,
+        denseGroup: AggregationGroup.DateHistogram?,
+        denseGrid: DenseDateGrid?,
+    ): Bson {
+        val denseKey = denseGroup?.let { group -> denseGrid?.let { grid -> denseKeyProjection(group, grid) } }
         val projections = buildList {
             add(Projections.excludeId())
-            query.groupBy.forEach { add(Projections.computed(it.alias, "\$_id.${it.alias}")) }
+            query.groupBy.forEach { group ->
+                add(
+                    if (group === denseGroup && denseKey != null) {
+                        Projections.computed(group.alias, denseKey)
+                    } else {
+                        Projections.computed(group.alias, "\$_id.${group.alias}")
+                    },
+                )
+            }
             query.metrics.forEach { metric ->
                 when (metric) {
                     is AggregationMetric.Derived -> Unit
-                    is AggregationMetric.Count -> add(Projections.include(metric.alias))
+                    is AggregationMetric.Count -> add(
+                        Projections.computed(metric.alias, Document("\$ifNull", listOf("\$${metric.alias}", 0L))),
+                    )
                     is AggregationMetric.Any -> add(Projections.include(metric.alias))
                     is AggregationMetric.Numeric -> {
                         val accumulated: Any = if (metric.function == AggregationFunction.VARIANCE) {
@@ -276,7 +309,10 @@ internal class MongoAggregationCompiler(
                                 Document(
                                     "\$cond",
                                     listOf(
-                                        Document("\$eq", listOf("\$${metric.countAlias}", 0)),
+                                        Document(
+                                            "\$eq",
+                                            listOf(Document("\$ifNull", listOf("\$${metric.countAlias}", 0L)), 0),
+                                        ),
                                         null,
                                         accumulated,
                                     ),
@@ -290,9 +326,15 @@ internal class MongoAggregationCompiler(
                             Document(
                                 "\$cond",
                                 listOf(
-                                    Document("\$eq", listOf("\$${metric.countAlias}", 0)),
+                                    Document(
+                                        "\$eq",
+                                        listOf(Document("\$ifNull", listOf("\$${metric.countAlias}", 0L)), 0),
+                                    ),
                                     null,
-                                    Document("\$arrayElemAt", listOf("\$${metric.alias}", 0)),
+                                    Document(
+                                        "\$arrayElemAt",
+                                        listOf(Document("\$ifNull", listOf("\$${metric.alias}", emptyList<Any>())), 0),
+                                    ),
                                 ),
                             ),
                         ),
@@ -311,7 +353,13 @@ internal class MongoAggregationCompiler(
                                                 "input",
                                                 Document(
                                                     "\$reduce",
-                                                    Document("input", "\$${metric.alias}")
+                                                    Document(
+                                                        "input",
+                                                        Document(
+                                                            "\$ifNull",
+                                                            listOf("\$${metric.alias}", emptyList<Any>())
+                                                        ),
+                                                    )
                                                         .append("initialValue", emptyList<Any>())
                                                         .append(
                                                             "in",
@@ -346,13 +394,38 @@ internal class MongoAggregationCompiler(
                                     ),
                                 ),
                             ),
-                        ),
+                        )
                     )
                 }
             }
         }
         return Aggregates.project(Projections.fields(projections))
     }
+
+    /**
+     * Stages that carry the grouped bucket index through numeric densification: the index moves
+     * out of `_id` onto the alias, then `$densify` fills every missing integer between the data
+     * min and max (`bounds: "full"` keeps the window interior-gap-only).
+     */
+    private fun denseStages(denseGroup: AggregationGroup.DateHistogram): List<Bson> = listOf(
+        Aggregates.set(Field(denseGroup.alias, "\$_id.${denseGroup.alias}")),
+        Aggregates.densify(
+            denseGroup.alias,
+            DensifyRange.fullRangeWithStep(1L),
+            DensifyOptions.densifyOptions(),
+        ),
+    )
+
+    private fun denseKeyProjection(group: AggregationGroup.DateHistogram, grid: DenseDateGrid): Document = Document(
+        "\$toLong",
+        Document(
+            "\$dateAdd",
+            Document("startDate", Date.from(grid.anchor.toInstant()))
+                .append("unit", group.unit.name.lowercase())
+                .append("amount", "\$${group.alias}")
+                .append("timezone", mongoTimeZone(group.timeZone)),
+        ),
+    )
 
     private fun AggregationFunction.accumulate(field: String, input: Any): BsonField = when (this) {
         AggregationFunction.SUM -> Accumulators.sum(field, input)
@@ -488,6 +561,7 @@ internal class MongoAggregationCompiler(
         parent: QueryField?,
         physicalParent: String?,
         schema: QueryModelSchema,
+        denseGrid: DenseDateGrid?,
     ): Pair<Bson?, Any> = when (this) {
         is AggregationGroup.Terms -> {
             val path = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS)
@@ -521,8 +595,22 @@ internal class MongoAggregationCompiler(
                 .append("unit", unit.name.lowercase())
                 .append("timezone", mongoTimeZone(timeZone))
                 .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") }
-            Filters.expr(Document("\$ne", listOf(input, null))) to
-                Document("\$toLong", Document("\$dateTrunc", truncation))
+            if (denseGrid != null) {
+                // `$densify` has no timezone option, so dense histograms group by the integer
+                // bucket index (`$dateDiff` from the [DenseDateGrid.anchor]) and densify numerically;
+                // the index is inverted back into the display key by [denseKeyProjection].
+                Filters.expr(Document("\$ne", listOf(input, null))) to Document(
+                    "\$dateDiff",
+                    Document("startDate", Date.from(denseGrid.anchor.toInstant()))
+                        .append("endDate", Document("\$dateTrunc", truncation))
+                        .append("unit", unit.name.lowercase())
+                        .append("timezone", mongoTimeZone(timeZone))
+                        .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") },
+                )
+            } else {
+                Filters.expr(Document("\$ne", listOf(input, null))) to
+                    Document("\$toLong", Document("\$dateTrunc", truncation))
+            }
         }
     }
 

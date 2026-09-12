@@ -550,6 +550,63 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `dense date histogram groups by bucket index and densifies numerically`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day", dense = true)
+                count("count")
+                sum("state.amount", "total")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+        val index = group.getDocument("_id").getDocument("day")
+        index.containsKey("\$dateDiff").assert().isTrue()
+        index.getDocument("\$dateDiff").assert().isNotNull()
+        val dateDiff = index.getDocument("\$dateDiff")
+        dateDiff.containsKey("startDate").assert().isTrue()
+        dateDiff.getString("unit").value.assert().isEqualTo("day")
+        dateDiff.getString("timezone").value.assert().isEqualTo("UTC")
+        dateDiff.getDocument("endDate").containsKey("\$dateTrunc").assert().isTrue()
+
+        val set = pipeline.single { it.containsKey("\$set") }.getDocument("\$set")
+        set.assert().isEqualTo(BsonDocument("day", BsonString("\$_id.day")))
+
+        val densify = pipeline.single { it.containsKey("\$densify") }.getDocument("\$densify")
+        densify.getString("field").value.assert().isEqualTo("day")
+        densify.getDocument("range").assert().isEqualTo(
+            BsonDocument("step", BsonInt64(1)).append("bounds", BsonString("full")),
+        )
+
+        val project = pipeline.single { it.containsKey("\$project") }.getDocument("\$project")
+        val dateAdd = project.getDocument("day").getDocument("\$toLong").getDocument("\$dateAdd")
+        dateAdd.getString("unit").value.assert().isEqualTo("day")
+        // The brief names this parameter "quantity", but $dateAdd's MongoDB contract is "amount"
+        // (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateadd/).
+        dateAdd.getString("amount").value.assert().isEqualTo("\$day")
+        dateAdd.getString("timezone").value.assert().isEqualTo("UTC")
+        project.getDocument("count").assert().isEqualTo(
+            BsonDocument("\$ifNull", BsonArray(listOf(BsonString("\$count"), BsonInt64(0)))),
+        )
+    }
+
+    @Test
+    fun `non dense date histogram keeps the toLong truncation key`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        pipeline.none { it.containsKey("\$densify") || it.containsKey("\$set") }.assert().isTrue()
+        val group = pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("_id").getDocument("day").containsKey("\$toLong").assert().isTrue()
+    }
+
+    @Test
     fun `summary compiler should retain contribution counts`() {
         val query = aggregation { sum("state.amount", "total") }
 
@@ -979,7 +1036,9 @@ class MongoAggregationCompilerTest {
         val cond = project.getDocument("p95").getArray("\$cond")
         cond.get(1).isNull.assert().isTrue()
         val arrayElemAt = cond.get(2).asDocument().getArray("\$arrayElemAt")
-        arrayElemAt.get(0).asString().value.assert().isEqualTo("\$p95")
+        arrayElemAt.get(0).asDocument().assert().isEqualTo(
+            BsonDocument("\$ifNull", BsonArray(listOf(BsonString("\$p95"), BsonArray()))), // densify fill guard
+        )
         arrayElemAt.get(1).asInt32().value.assert().isEqualTo(0)
     }
 
