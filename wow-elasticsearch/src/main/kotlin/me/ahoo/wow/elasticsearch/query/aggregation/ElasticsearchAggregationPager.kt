@@ -99,7 +99,8 @@ internal class ElasticsearchAggregationPager(
     }
 
     private fun ElasticsearchAggregationPlan.pageSize(fetched: Int): Int {
-        val bucketWidth = 1 + metrics.count { it is ElasticsearchAggregationMetric.Any }
+        val bucketWidth = 1 + metrics.count { it is ElasticsearchAggregationMetric.Any } +
+            metrics.count { it.filter != null }
         val pageCapacity = (batchSize / bucketWidth).coerceAtLeast(1)
         return if (metricSorted) pageCapacity else min(pageCapacity, limit - fetched)
     }

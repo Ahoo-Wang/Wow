@@ -1042,6 +1042,81 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `dollar prefixed string operands are compared as literals`() {
+        val rangeStringSchema = schema(
+            field(
+                "state.productName",
+                QueryCapability.RANGE,
+                "state.productName",
+                additionalCapabilities = setOf(QueryCapability.EXACT_MATCH),
+            ),
+        )
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                count("pending") { "state.productName" eq "\$pending" }
+                count("notPending") { "state.productName" ne "\$pending" }
+                count("pendingList") { "state.productName" isIn listOf("\$pending", "Alpha") }
+                count("missingList") { "state.productName" notIn listOf("\$pending") }
+                count("above") { "state.productName" gt "\$pending" }
+            },
+            rangeStringSchema,
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("pending").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument("\$eq", BsonArray(listOf(BsonString("\$state.productName"), literalString("\$pending")))),
+        )
+        group.getDocument("notPending").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument("\$ne", BsonArray(listOf(BsonString("\$state.productName"), literalString("\$pending")))),
+        )
+        group.getDocument("pendingList").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument(
+                "\$in",
+                BsonArray(
+                    listOf(
+                        BsonString("\$state.productName"),
+                        BsonArray(listOf(literalString("\$pending"), BsonString("Alpha"))),
+                    ),
+                ),
+            ),
+        )
+        group.getDocument("missingList").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument(
+                "\$not",
+                BsonArray(
+                    listOf(
+                        BsonDocument(
+                            "\$in",
+                            BsonArray(
+                                listOf(
+                                    BsonString("\$state.productName"),
+                                    BsonArray(listOf(literalString("\$pending"))),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        group.getDocument("above").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument("\$gt", BsonArray(listOf(BsonString("\$state.productName"), literalString("\$pending")))),
+        )
+    }
+
+    @Test
+    fun `dollar prefixed literal match values stay escaped regex patterns`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation { count("startsWith") { "state.productName".startsWithText("\$pending") } },
+            guardFilterSchema,
+        ).map { it.toBsonDocument() }
+
+        pipeline.first { it.containsKey("\$group") }.getDocument("\$group")
+            .getDocument("startsWith").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            regexMatchGuard("^\\\$pending"),
+        )
+    }
+
+    @Test
     fun `element scoped metric filters compile guards relative to their element`() {
         val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
             aggregation {
@@ -1175,35 +1250,39 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
-    fun `map keyed collection metric filters translate size guards`() {
+    fun `map keyed collection metric filters are rejected as array fields`() {
+        assertThrows<QuerySchemaValidationException> {
+            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+                aggregation { count("empty") { "state.labels.foo".isEmptyCollection() } },
+                mapCollectionSchema,
+            )
+        }.message.assert().isEqualTo(
+            "Aggregation metric filter field [state.labels.foo] must be scalar; array fields are not supported in metric filters.",
+        )
+    }
+
+    @Test
+    fun `map keyed array metric filter fields are rejected`() {
+        assertThrows<QuerySchemaValidationException> {
+            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+                aggregation { count("labeled") { "state.labels.foo" eq "premium" } },
+                mapCollectionSchema,
+            )
+        }.message.assert().isEqualTo(
+            "Aggregation metric filter field [state.labels.foo] must be scalar; array fields are not supported in metric filters.",
+        )
+    }
+
+    @Test
+    fun `map keyed scalar metric filter fields keep equality guards`() {
         val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
-            aggregation { count("empty") { "state.labels.foo".isEmptyCollection() } },
+            aggregation { count("prod") { "state.env.stage" eq "prod" } },
             mapCollectionSchema,
         ).map { it.toBsonDocument() }
 
         pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
-            .getDocument("empty").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
-            BsonDocument(
-                "\$eq",
-                BsonArray(
-                    listOf(
-                        BsonDocument(
-                            "\$size",
-                            BsonDocument(
-                                "\$cond",
-                                BsonArray(
-                                    listOf(
-                                        BsonDocument("\$isArray", BsonArray(listOf(BsonString("\$state.labels.foo")))),
-                                        BsonString("\$state.labels.foo"),
-                                        BsonArray(listOf(BsonNull.VALUE)),
-                                    ),
-                                ),
-                            ),
-                        ),
-                        BsonInt32(0),
-                    ),
-                ),
-            ),
+            .getDocument("prod").getDocument("\$sum").getArray("\$cond")[0].asDocument().assert().isEqualTo(
+            BsonDocument("\$eq", BsonArray(listOf(BsonString("\$state.env.stage"), BsonString("prod")))),
         )
     }
 
@@ -1215,7 +1294,7 @@ class MongoAggregationCompilerTest {
                 mapCollectionSchema,
             )
         }.message.assert().isEqualTo(
-            "MongoDB metric filters cannot translate [\$elemMatch] into a guard condition.",
+            "Aggregation metric filter field [state.groups.foo] must be scalar; array fields are not supported in metric filters.",
         )
     }
 
@@ -1349,10 +1428,30 @@ private val paidStatusGuard = BsonDocument(
     BsonArray(listOf(BsonString("\$state.status"), BsonString("PAID"))),
 )
 
+private fun literalString(value: String): BsonDocument = BsonDocument("\$literal", BsonString(value))
+
 private fun regexMatchGuard(pattern: String, options: String? = null): BsonDocument {
-    val condition = BsonDocument("input", BsonString("\$state.productName")).append("regex", BsonString(pattern))
+    val condition = BsonDocument("input", BsonString("\$state.productName"))
+        .append("regex", BsonString(pattern))
     options?.let { condition.append("options", BsonString(it)) }
-    return BsonDocument("\$regexMatch", condition)
+    return BsonDocument(
+        "\$cond",
+        BsonArray(
+            listOf(
+                BsonDocument(
+                    "\$eq",
+                    BsonArray(
+                        listOf(
+                            BsonDocument("\$type", BsonString("\$state.productName")),
+                            BsonString("string"),
+                        ),
+                    ),
+                ),
+                BsonDocument("\$regexMatch", condition),
+                BsonBoolean(false),
+            ),
+        ),
+    )
 }
 
 private val guardFilterSchema = schema(
@@ -1367,7 +1466,7 @@ private val guardFilterSchema = schema(
 /**
  * A map-of-lists schema: concrete map keys resolve to array values whose physical paths
  * carry [me.ahoo.wow.query.schema.QueryPathSegment.Key] templates, so metric filters over
- * them are not rejected by the plain array-field guard.
+ * them must be rejected by the scalar-field walk like any other array field.
  */
 private val mapCollectionSchema = run {
     fun template(segments: List<QueryPathSegment>) = QueryPathTemplate(segments)
@@ -1375,6 +1474,13 @@ private val mapCollectionSchema = run {
         listOf(
             QueryPathSegment.Property("state"),
             QueryPathSegment.Property("labels"),
+            QueryPathSegment.Key(0),
+        ),
+    )
+    val envKey = template(
+        listOf(
+            QueryPathSegment.Property("state"),
+            QueryPathSegment.Property("env"),
             QueryPathSegment.Key(0),
         ),
     )
@@ -1416,6 +1522,13 @@ private val mapCollectionSchema = run {
                                 ),
                             ),
                         ),
+                        "env" to QueryValueSchema(
+                            QueryValueKind.OBJECT,
+                            additionalProperties = QueryValueSchema(
+                                QueryValueKind.SCALAR,
+                                valueTypes = setOf(QueryValueType.STRING),
+                            ),
+                        ),
                         "groups" to QueryValueSchema(
                             QueryValueKind.OBJECT,
                             additionalProperties = QueryValueSchema(
@@ -1441,7 +1554,8 @@ private val mapCollectionSchema = run {
         emptySet(),
         definition,
         mapOf(
-            labelsKey to bindings(labelsKey, setOf(QueryCapability.PRESENCE)),
+            labelsKey to bindings(labelsKey, setOf(QueryCapability.PRESENCE, QueryCapability.EXACT_MATCH)),
+            envKey to bindings(envKey, setOf(QueryCapability.EXACT_MATCH)),
             groupsKey to bindings(groupsKey, setOf(QueryCapability.ELEMENT_SCOPE, QueryCapability.PRESENCE)),
             groupName to bindings(groupName, setOf(QueryCapability.EXACT_MATCH)),
         ),

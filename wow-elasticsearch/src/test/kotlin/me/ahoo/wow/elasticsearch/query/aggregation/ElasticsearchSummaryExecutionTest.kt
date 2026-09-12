@@ -46,6 +46,7 @@ class ElasticsearchSummaryExecutionTest {
         val staticFailure = IllegalArgumentException("invalid static metric")
         val metric = mockk<ElasticsearchAggregationMetric.Numeric> {
             every { alias } returns "total"
+            every { filter } returns null
             every { function } throws staticFailure
         }
         val plan = compile(

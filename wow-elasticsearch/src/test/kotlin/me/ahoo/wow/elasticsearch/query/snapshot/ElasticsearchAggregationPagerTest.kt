@@ -85,6 +85,7 @@ private fun ReactiveElasticsearchClient.verifyNoPointInTimeCalls() {
     verify(exactly = 0) { closePointInTime(any<ClosePointInTimeRequest>()) }
 }
 
+@Suppress("LargeClass")
 class ElasticsearchAggregationPagerTest {
     private val client = mockk<ReactiveElasticsearchClient>()
 
@@ -441,6 +442,28 @@ class ElasticsearchAggregationPagerTest {
 
         pager(batchSize = 10).execute(plan).test().verifyComplete()
 
+        requests.single().aggregations().values.single().composite().size().assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `filtered metrics should bound composite page size by filter wrappers`() {
+        val requests = mutableListOf<SearchRequest>()
+        stubPointInTime()
+        every { client.search(capture(requests), Map::class.java) } returns Mono.just(
+            groupResponse("pit-2", emptyList()),
+        )
+        val plan = compileAggregation(
+            aggregation {
+                terms("state.productId", "product")
+                count("active") { "deleted" eq false }
+                sum("state.amount", "total") { "deleted" eq false }
+                sort { "total".desc() }
+            },
+        )
+
+        pager(batchSize = 10).execute(plan).test().verifyComplete()
+
+        // each filtered metric adds one filter-aggregation bucket per composite bucket
         requests.single().aggregations().values.single().composite().size().assert().isEqualTo(3)
     }
 

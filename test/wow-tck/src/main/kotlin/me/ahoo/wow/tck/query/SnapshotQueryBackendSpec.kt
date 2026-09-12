@@ -1185,7 +1185,8 @@ abstract class SnapshotQueryBackendSpec {
 
     @Test
     fun `aggregation should count records matched by literal match metric filters`() {
-        saveAggregationStates(*aggregationStates().toTypedArray())
+        // 含 aggregationAnyNullState：其 alpha 行 productName 为显式 null，regex 守卫必须视为不匹配而不是报错
+        saveAggregationStates(*(aggregationStates() + aggregationAnyNullState()).toTypedArray())
         aggregation {
             filter { deletion(DeletionState.ACTIVE) }
             expand("state.orders")

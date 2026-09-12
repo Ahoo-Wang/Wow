@@ -90,8 +90,8 @@ The following limits are shared by both backends and enforced at compile time:
 Versions and known boundaries:
 
 - metric filters on the MongoDB backend require server 5.0+ (`$not` inside the guard expression); the `PERCENTILE` metric itself still requires 7.0+. Older servers return their native error.
-- the `$gt`/`$lt` family in MongoDB guard expressions compares by the BSON total order rather than `$match` type bracketing, so counts over mixed-type data may run high; `$regex` raises an error on non-string input instead of silently not matching. Both are edge cases and do not promise bitwise cross-backend equality.
-- the HTTP query guard does not treat metric filters as expensive operators; their filter value counts feed the same `wow.webflux.query.max-filter-values` cap as other filters.
+- the `$gt`/`$lt` family in MongoDB guard expressions compares by the BSON total order rather than `$match` type bracketing, so counts over mixed-type data may run high; this is an edge case and does not promise bitwise cross-backend equality.
+- the HTTP query guard does not gate the metric filter construct itself as an expensive operator; operators inside a metric filter are subject to the same `wow.webflux.query.allow-expensive-operators` switch as root/element filters, and their filter value counts feed the same `wow.webflux.query.max-filter-values` cap as other filters.
 
 ### Numeric Contributions and Precision {#numeric-contributions}
 
