@@ -730,12 +730,6 @@ export default function DashboardView() {
             <SectionMeta section={snapshot.retries} />
             {snapshot.retries.loading && !snapshot.retries.data ? (
               <Skeleton className="h-24 w-full" />
-            ) : snapshot.retries.data?.truncated ? (
-              <Alert>
-                <AlertDescription>
-                  {t("Retry distribution is truncated and is not charted.")}
-                </AlertDescription>
-              </Alert>
             ) : snapshot.retries.data ? (
               <RetryDistributionChart
                 data={snapshot.retries.data.buckets.map(({ count, key }) => ({

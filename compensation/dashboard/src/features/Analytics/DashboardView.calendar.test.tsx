@@ -53,7 +53,7 @@ beforeEach(() => {
     },
     pressure: { data: [], loading: false },
     recoverability: { data: [], loading: false },
-    retries: { data: { buckets: [], truncated: false }, loading: false },
+    retries: { data: { buckets: [] }, loading: false },
   });
   mocks.useEventTrend.mockReturnValue({ data: [], loading: false });
 });

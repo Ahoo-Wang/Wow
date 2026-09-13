@@ -12,8 +12,8 @@
  */
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AggregationDateUnit } from "@ahoo-wang/fetcher-wow";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PressureClusterRow, TrendWindow } from "./analyticsQueries.ts";
 import { useSnapshotAnalytics } from "./useSnapshotAnalytics.ts";
 
@@ -42,37 +42,30 @@ function isQuery(
   return query?.groupBy?.some((groupBy) => groupBy.alias === alias);
 }
 
-const activeFilter = {
-  op: "IN",
-  field: "state.status",
-  values: ["FAILED", "PREPARED"],
-};
-
-function stockCountKind(query: { filter?: unknown } | undefined) {
-  if (JSON.stringify(query?.filter) === JSON.stringify(activeFilter)) {
-    return "activeTotal";
-  }
-  const filter = query?.filter as
-    { op?: string; operands?: Array<{ op?: string }> } | undefined;
-  if (filter?.op !== "AND" || !filter.operands) {
-    return undefined;
-  }
-  const hasActiveFilter = filter.operands.some(
-    (operand) => JSON.stringify(operand) === JSON.stringify(activeFilter),
-  );
-  if (!hasActiveFilter) {
-    return undefined;
-  }
-  const hasLowerBound = filter.operands.some(({ op }) => op === "GTE");
-  const hasUpperBound = filter.operands.some(({ op }) => op === "LT");
-  if (hasLowerBound && hasUpperBound) {
-    return "selectedInRange";
-  }
-  if (hasLowerBound) {
-    return "newerThanRange";
-  }
-  return hasUpperBound ? "olderThanRange" : undefined;
+function hasMetric(query: unknown, alias: string) {
+  const metrics = (query as { metrics?: Array<{ alias?: string }> } | undefined)
+    ?.metrics;
+  return metrics?.some((metric) => metric.alias === alias) ?? false;
 }
+
+const isSummaryQuery = (query: unknown) => hasMetric(query, "actionableNow");
+const isRetryQuery = (query: unknown) => hasMetric(query, "sixPlus");
+
+function summaryRow(count: number) {
+  return {
+    actionableNow: count,
+    activeTotal: count,
+    newerThanRange: 0,
+    olderThanRange: 0,
+    selectedInRange: count,
+    timedOut: count,
+    unrecoverable: count,
+  };
+}
+
+const retryRow = (zero: number) => [
+  { oneToTwo: 0, sixPlus: 0, threeToFive: 0, zero },
+];
 
 const initialWindow: TrendWindow = {
   buckets: Array.from({ length: 7 }, (_, index) =>
@@ -93,21 +86,6 @@ const nextWindow: TrendWindow = {
   unit: AggregationDateUnit.DAY,
 };
 
-function summaryRows(
-  query: { filter?: unknown; groupBy?: Array<{ alias?: string }> },
-  count: number,
-) {
-  const stockCount = stockCountKind(query);
-  return [
-    {
-      count:
-        stockCount === "newerThanRange" || stockCount === "olderThanRange"
-          ? 0
-          : count,
-    },
-  ];
-}
-
 describe("useSnapshotAnalytics", () => {
   beforeEach(() => {
     vi.spyOn(Date, "now").mockReturnValue(
@@ -118,18 +96,21 @@ describe("useSnapshotAnalytics", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it("starts ten snapshot requests and waits for top clusters before status mix", async () => {
+  it("starts four snapshot requests and waits for top clusters before status mix", async () => {
     const pressure = deferred<PressureClusterRow[]>();
     mocks.aggregate.mockImplementation((query) => {
       if (isQuery(query, "errorCode")) {
         return pressure.promise;
       }
-      return Promise.resolve(summaryRows(query, 1));
+      if (isRetryQuery(query)) {
+        return Promise.resolve(retryRow(0));
+      }
+      return Promise.resolve([summaryRow(1)]);
     });
 
     renderHook(() => useSnapshotAnalytics(initialWindow, 0));
 
-    expect(mocks.aggregate).toHaveBeenCalledTimes(10);
+    expect(mocks.aggregate).toHaveBeenCalledTimes(4);
     pressure.resolve([
       {
         errorCode: "TEST",
@@ -142,10 +123,10 @@ describe("useSnapshotAnalytics", () => {
         nextRetryAt: 2_000,
       },
     ]);
-    await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(11));
+    await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(5));
   });
 
-  it("settles independent sections while the stock pair remains deferred", async () => {
+  it("settles independent sections while recoverability remains deferred", async () => {
     const recoverability = deferred<unknown[]>();
     mocks.aggregate.mockImplementation((query) => {
       if (isQuery(query, "errorCode")) {
@@ -154,10 +135,10 @@ describe("useSnapshotAnalytics", () => {
       if (isQuery(query, "recoverable")) {
         return recoverability.promise;
       }
-      if (isQuery(query, "retries")) {
-        return Promise.resolve([{ count: 2, retries: 0 }]);
+      if (isRetryQuery(query)) {
+        return Promise.resolve(retryRow(2));
       }
-      return Promise.resolve(summaryRows(query, 3));
+      return Promise.resolve([summaryRow(3)]);
     });
 
     const { result } = renderHook(() => useSnapshotAnalytics(initialWindow, 0));
@@ -169,7 +150,7 @@ describe("useSnapshotAnalytics", () => {
       });
       expect(result.current.retries).toMatchObject({ loading: false });
     });
-    expect(result.current.summary).toEqual({ loading: true });
+    expect(result.current.summary).toEqual({ loading: true, error: undefined });
     expect(result.current.recoverability).toEqual({ loading: true });
 
     recoverability.resolve([]);
@@ -191,32 +172,39 @@ describe("useSnapshotAnalytics", () => {
         data: [],
         loading: false,
       });
+      expect(result.current.retries.data).toEqual({
+        buckets: [
+          { key: "0", count: 2 },
+          { key: "1–2", count: 0 },
+          { key: "3–5", count: 0 },
+          { key: "6+", count: 0 },
+        ],
+      });
     });
   });
 
-  it("derives stock partitions from four count responses", async () => {
+  it("derives stock partitions from one summary response", async () => {
     mocks.aggregate.mockImplementation((query) => {
-      const stockCount = stockCountKind(query);
-      if (stockCount === "activeTotal") {
-        return Promise.resolve([{ count: 15 }]);
-      }
-      if (stockCount === "selectedInRange") {
-        return Promise.resolve([{ count: 5 }]);
-      }
-      if (stockCount === "newerThanRange") {
-        return Promise.resolve([{ count: 7 }]);
-      }
-      if (stockCount === "olderThanRange") {
-        return Promise.resolve([{ count: 3 }]);
-      }
-      if (
-        isQuery(query, "errorCode") ||
-        isQuery(query, "recoverable") ||
-        isQuery(query, "retries")
-      ) {
+      if (isQuery(query, "errorCode") || isQuery(query, "recoverable")) {
         return Promise.resolve([]);
       }
-      return Promise.resolve(summaryRows(query, 1));
+      if (isRetryQuery(query)) {
+        return Promise.resolve(retryRow(0));
+      }
+      if (isSummaryQuery(query)) {
+        return Promise.resolve([
+          {
+            actionableNow: 1,
+            activeTotal: 15,
+            newerThanRange: 7,
+            olderThanRange: 3,
+            selectedInRange: 5,
+            timedOut: 1,
+            unrecoverable: 1,
+          },
+        ]);
+      }
+      return Promise.resolve([summaryRow(1)]);
     });
 
     const { result } = renderHook(() => useSnapshotAnalytics(initialWindow, 0));
@@ -232,26 +220,28 @@ describe("useSnapshotAnalytics", () => {
     );
   });
 
-  it("marks stock unavailable when concurrent counts are inconsistent", async () => {
+  it("marks stock unavailable when partitions are inconsistent", async () => {
     mocks.aggregate.mockImplementation((query) => {
-      const stockCount = stockCountKind(query);
-      if (stockCount === "activeTotal") {
-        return Promise.resolve([{ count: 10 }]);
-      }
-      if (stockCount === "selectedInRange") {
-        return Promise.resolve([{ count: 8 }]);
-      }
-      if (stockCount === "newerThanRange") {
-        return Promise.resolve([{ count: 4 }]);
-      }
-      if (
-        isQuery(query, "errorCode") ||
-        isQuery(query, "recoverable") ||
-        isQuery(query, "retries")
-      ) {
+      if (isQuery(query, "errorCode") || isQuery(query, "recoverable")) {
         return Promise.resolve([]);
       }
-      return Promise.resolve(summaryRows(query, 1));
+      if (isRetryQuery(query)) {
+        return Promise.resolve(retryRow(0));
+      }
+      if (isSummaryQuery(query)) {
+        return Promise.resolve([
+          {
+            actionableNow: 1,
+            activeTotal: 10,
+            newerThanRange: 4,
+            olderThanRange: 0,
+            selectedInRange: 8,
+            timedOut: 1,
+            unrecoverable: 1,
+          },
+        ]);
+      }
+      return Promise.resolve([summaryRow(1)]);
     });
 
     const { result } = renderHook(() => useSnapshotAnalytics(initialWindow, 0));
@@ -263,25 +253,26 @@ describe("useSnapshotAnalytics", () => {
 
   it("marks stock unavailable when total exceeds the partition counts", async () => {
     mocks.aggregate.mockImplementation((query) => {
-      const stockCount = stockCountKind(query);
-      if (stockCount === "activeTotal") {
-        return Promise.resolve([{ count: 1 }]);
-      }
-      if (
-        stockCount === "selectedInRange" ||
-        stockCount === "newerThanRange" ||
-        stockCount === "olderThanRange"
-      ) {
-        return Promise.resolve([{ count: 0 }]);
-      }
-      if (
-        isQuery(query, "errorCode") ||
-        isQuery(query, "recoverable") ||
-        isQuery(query, "retries")
-      ) {
+      if (isQuery(query, "errorCode") || isQuery(query, "recoverable")) {
         return Promise.resolve([]);
       }
-      return Promise.resolve(summaryRows(query, 0));
+      if (isRetryQuery(query)) {
+        return Promise.resolve(retryRow(0));
+      }
+      if (isSummaryQuery(query)) {
+        return Promise.resolve([
+          {
+            actionableNow: 0,
+            activeTotal: 1,
+            newerThanRange: 0,
+            olderThanRange: 0,
+            selectedInRange: 0,
+            timedOut: 0,
+            unrecoverable: 0,
+          },
+        ]);
+      }
+      return Promise.resolve([summaryRow(0)]);
     });
 
     const { result } = renderHook(() => useSnapshotAnalytics(initialWindow, 0));
@@ -299,14 +290,13 @@ describe("useSnapshotAnalytics", () => {
 
   it("hides data from the previous window while the new window loads", async () => {
     mocks.aggregate.mockImplementation((query) => {
-      if (
-        isQuery(query, "errorCode") ||
-        isQuery(query, "recoverable") ||
-        isQuery(query, "retries")
-      ) {
+      if (isQuery(query, "errorCode") || isQuery(query, "recoverable")) {
         return Promise.resolve([]);
       }
-      return Promise.resolve(summaryRows(query, 1));
+      if (isRetryQuery(query)) {
+        return Promise.resolve(retryRow(0));
+      }
+      return Promise.resolve([summaryRow(1)]);
     });
     const { result, rerender } = renderHook(
       ({ window }: { window: TrendWindow }) => useSnapshotAnalytics(window, 0),
@@ -330,7 +320,7 @@ describe("useSnapshotAnalytics", () => {
     const refreshedSummary = deferred<unknown[]>();
     const refreshedRecoverability = deferred<unknown[]>();
     mocks.aggregate.mockImplementation((query) => {
-      if (isQuery(query, "errorCode") || isQuery(query, "retries")) {
+      if (isQuery(query, "errorCode") || isRetryQuery(query)) {
         return Promise.resolve([]);
       }
       if (isQuery(query, "recoverable")) {
@@ -339,10 +329,8 @@ describe("useSnapshotAnalytics", () => {
           : refreshedRecoverability.promise;
       }
       return refresh === 0
-        ? Promise.resolve(summaryRows(query, 1))
-        : refreshedSummary.promise.then(([row]) =>
-            summaryRows(query, (row as { count: number }).count),
-          );
+        ? Promise.resolve([summaryRow(1)])
+        : refreshedSummary.promise;
     });
 
     const { result, rerender } = renderHook(
@@ -356,7 +344,7 @@ describe("useSnapshotAnalytics", () => {
     refresh = 1;
     rerender({ token: 1 });
     await act(async () => {
-      refreshedSummary.resolve([{ count: 2 }]);
+      refreshedSummary.resolve([summaryRow(2)]);
       await refreshedSummary.promise;
       await Promise.resolve();
     });
@@ -383,10 +371,11 @@ describe("useSnapshotAnalytics", () => {
     });
   });
 
-  it("aborts the old window and starts ten requests with the applied window", async () => {
+  it("aborts the old window and starts four requests with the applied window", async () => {
     const controllers: AbortController[] = [];
     const queries: Array<{
       filter: unknown;
+      metrics?: Array<{ alias?: string }>;
     }> = [];
     mocks.aggregate.mockImplementation((query, _attributes, controller) => {
       if (!controller) {
@@ -410,40 +399,36 @@ describe("useSnapshotAnalytics", () => {
       await Promise.resolve();
     });
 
-    expect(mocks.aggregate).toHaveBeenCalledTimes(20);
-    expect(controllers.slice(0, 10).every(({ signal }) => signal.aborted)).toBe(
+    expect(mocks.aggregate).toHaveBeenCalledTimes(8);
+    expect(controllers.slice(0, 4).every(({ signal }) => signal.aborted)).toBe(
       true,
     );
     const fullyWindowedQueries = queries.filter((query) => {
-      const serializedFilter = JSON.stringify(query.filter);
+      const serializedFilter = JSON.stringify(query.filter ?? null);
       return (
         serializedFilter.includes('"op":"GTE"') &&
         serializedFilter.includes('"op":"LT"')
       );
     });
-    expect(fullyWindowedQueries).toHaveLength(14);
-    expect(
-      queries.filter(
-        (query) =>
-          JSON.stringify(query.filter).includes('"state.executeAt"') &&
-          !fullyWindowedQueries.includes(query),
-      ),
-    ).toHaveLength(4);
-    expect(
-      queries.filter(
-        (query) => !JSON.stringify(query.filter).includes('"state.executeAt"'),
-      ),
-    ).toHaveLength(2);
-    expect(JSON.stringify(fullyWindowedQueries.slice(0, 7))).toContain(
+    expect(fullyWindowedQueries).toHaveLength(6);
+    const summaryQueries = queries.filter(isSummaryQuery);
+    expect(summaryQueries).toHaveLength(2);
+    summaryQueries.forEach((query) => {
+      expect(JSON.stringify(query.metrics)).toContain('"state.executeAt"');
+      expect(JSON.stringify(query.filter ?? null)).not.toContain(
+        '"state.executeAt"',
+      );
+    });
+    expect(JSON.stringify(summaryQueries[0].metrics)).toContain(
       String(initialWindow.start),
     );
-    expect(JSON.stringify(fullyWindowedQueries.slice(7))).toContain(
+    expect(JSON.stringify(summaryQueries[1].metrics)).toContain(
       String(nextWindow.start),
     );
   });
 
   it("does not let settled stale requests overwrite refreshed sections", async () => {
-    const firstLoads = Array.from({ length: 10 }, () => deferred<unknown[]>());
+    const firstLoads = Array.from({ length: 4 }, () => deferred<unknown[]>());
     let firstCall = 0;
     let refresh = 0;
     mocks.aggregate.mockImplementation((query) => {
@@ -456,17 +441,17 @@ describe("useSnapshotAnalytics", () => {
       if (isQuery(query, "recoverable")) {
         return Promise.resolve([{ count: 2, recoverable: "true" }]);
       }
-      if (isQuery(query, "retries")) {
-        return Promise.resolve([{ count: 2, retries: 0 }]);
+      if (isRetryQuery(query)) {
+        return Promise.resolve(retryRow(2));
       }
-      return Promise.resolve(summaryRows(query, 2));
+      return Promise.resolve([summaryRow(2)]);
     });
 
     const { result, rerender } = renderHook(
       ({ token }) => useSnapshotAnalytics(initialWindow, token),
       { initialProps: { token: 0 } },
     );
-    expect(mocks.aggregate).toHaveBeenCalledTimes(10);
+    expect(mocks.aggregate).toHaveBeenCalledTimes(4);
 
     refresh = 1;
     await act(async () => {
@@ -478,16 +463,10 @@ describe("useSnapshotAnalytics", () => {
     );
 
     await act(async () => {
-      firstLoads[0].resolve([{ count: 1 }]);
-      firstLoads[1].resolve([{ count: 1 }]);
-      firstLoads[2].resolve([{ count: 1 }]);
-      firstLoads[3].resolve([{ count: 1 }]);
-      firstLoads[4].resolve([{ count: 1 }]);
-      firstLoads[5].resolve([{ count: 0 }]);
-      firstLoads[6].resolve([{ count: 0 }]);
-      firstLoads[7].resolve([]);
-      firstLoads[8].resolve([{ count: 1, recoverable: "true" }]);
-      firstLoads[9].resolve([{ count: 1, retries: 0 }]);
+      firstLoads[0].resolve([summaryRow(1)]);
+      firstLoads[1].resolve([]);
+      firstLoads[2].resolve([{ count: 1, recoverable: "true" }]);
+      firstLoads[3].resolve(retryRow(1));
       await Promise.all(firstLoads.map(({ promise }) => promise));
     });
 
@@ -510,7 +489,6 @@ describe("useSnapshotAnalytics", () => {
         count: 2,
         key: "0",
       });
-      expect(result.current.retries.data?.truncated).toBe(false);
       expect(result.current.retries.loading).toBe(false);
       expect(result.current.retries.error).toBeUndefined();
     });
@@ -525,12 +503,12 @@ describe("useSnapshotAnalytics", () => {
       if (isQuery(query, "recoverable")) {
         return Promise.resolve([{ count: refresh + 1, recoverable: "true" }]);
       }
-      if (isQuery(query, "retries")) {
+      if (isRetryQuery(query)) {
         return refresh === 0
-          ? Promise.resolve([{ count: 1, retries: 0 }])
+          ? Promise.resolve(retryRow(1))
           : Promise.reject(new Error("retry data unavailable"));
       }
-      return Promise.resolve(summaryRows(query, refresh + 1));
+      return Promise.resolve([summaryRow(refresh + 1)]);
     });
 
     const { result, rerender } = renderHook(
@@ -572,16 +550,16 @@ describe("useSnapshotAnalytics", () => {
       if (isQuery(query, "errorCode")) {
         return Promise.resolve([]);
       }
-      if (isQuery(query, "retries") && refresh === 1) {
+      if (isRetryQuery(query) && refresh === 1) {
         return Promise.reject(new DOMException("cancelled", "AbortError"));
       }
-      if (isQuery(query, "retries")) {
-        return Promise.resolve([{ count: 1, retries: 0 }]);
+      if (isRetryQuery(query)) {
+        return Promise.resolve(retryRow(1));
       }
       if (isQuery(query, "recoverable")) {
         return Promise.resolve([{ count: 1, recoverable: "true" }]);
       }
-      return Promise.resolve(summaryRows(query, 1));
+      return Promise.resolve([summaryRow(1)]);
     });
 
     const { result, rerender } = renderHook(

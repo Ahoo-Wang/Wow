@@ -16,14 +16,14 @@ import { describe, expect, it } from "vitest";
 import { ExecutionFailedStatus } from "../../generated";
 import { RetryConditions } from "../Failed/RetryConditions.ts";
 import {
-  bucketRetryRows,
   createEventTrendQueries,
   createPressureQuery,
   createPressureStatusQuery,
   createRecoverabilityQuery,
-  createRetryHistogramQuery,
-  createSnapshotSummaryQueries,
+  createRetryDistributionQuery,
+  createSnapshotSummaryQuery,
   createTrendWindow,
+  mapRetryDistribution,
   mergeTrendRows,
   mergePressureRows,
 } from "./analyticsQueries.ts";
@@ -56,103 +56,92 @@ describe("analyticsQueries", () => {
     });
   }
 
-  it("builds all summary counts from one captured now", () => {
+  it("builds all summary counts into one filtered-metric query", () => {
     const now = 1_787_932_800_000;
-    const queries = createSnapshotSummaryQueries(now, snapshotWindow);
+    const query = createSnapshotSummaryQuery(now, snapshotWindow);
 
-    expect(JSON.stringify(queries.actionableNow.filter)).toContain(
+    expect(query.groupBy).toBeUndefined();
+    expect(query.filter).toBeUndefined();
+    expect(query.metrics.map(({ alias }) => alias)).toEqual([
+      "actionableNow",
+      "timedOut",
+      "unrecoverable",
+      "activeTotal",
+      "selectedInRange",
+      "newerThanRange",
+      "olderThanRange",
+    ]);
+    const filterFor = (alias: string): unknown => {
+      const metric = query.metrics.find(({ alias: name }) => name === alias);
+      expect(metric?.type).toBe("COUNT");
+      return (metric as { filter?: unknown }).filter;
+    };
+    expect(JSON.stringify(filterFor("actionableNow"))).toContain(
       JSON.stringify(RetryConditions.nextRetryCondition(now)),
     );
-    expect(JSON.stringify(queries.timedOut.filter)).toContain(
+    expect(JSON.stringify(filterFor("timedOut"))).toContain(
       JSON.stringify({
         op: "LTE",
         field: "state.retryState.timeoutAt",
         value: now,
       }),
     );
-    expect(JSON.stringify(queries.unrecoverable.filter)).toContain(
+    expect(JSON.stringify(filterFor("unrecoverable"))).toContain(
       JSON.stringify(RetryConditions.unrecoverableCondition),
-    );
-    [queries.actionableNow, queries.timedOut, queries.unrecoverable].forEach(
-      expectSnapshotWindow,
     );
     const activeFilter = {
       op: "IN",
       field: "state.status",
       values: [ExecutionFailedStatus.FAILED, ExecutionFailedStatus.PREPARED],
     };
-    expect(queries).toMatchObject({
-      activeTotal: {
-        filter: activeFilter,
-        metrics: [{ type: "COUNT", alias: "count" }],
-      },
-      selectedInRange: {
-        filter: {
-          op: "AND",
-          operands: [
-            {
-              op: "GTE",
-              field: "state.executeAt",
-              value: snapshotWindow.start,
-            },
-            {
-              op: "LT",
-              field: "state.executeAt",
-              value: snapshotWindow.end,
-            },
-            activeFilter,
-          ],
-        },
-        metrics: [{ type: "COUNT", alias: "count" }],
-      },
-      newerThanRange: {
-        filter: {
-          op: "AND",
-          operands: [
-            {
-              op: "GTE",
-              field: "state.executeAt",
-              value: snapshotWindow.end,
-            },
-            activeFilter,
-          ],
-        },
-        metrics: [{ type: "COUNT", alias: "count" }],
-      },
-      olderThanRange: {
-        filter: {
-          op: "AND",
-          operands: [
-            {
-              op: "LT",
-              field: "state.executeAt",
-              value: snapshotWindow.start,
-            },
-            activeFilter,
-          ],
-        },
-        metrics: [{ type: "COUNT", alias: "count" }],
-      },
-    });
-    expect(queries).not.toHaveProperty("stockPartitions");
     [
-      queries.activeTotal,
-      queries.selectedInRange,
-      queries.newerThanRange,
-      queries.olderThanRange,
-    ].forEach((query) => expect(query.groupBy).toBeUndefined());
-    expect(queries.actionableNow.metrics).toEqual([
-      { type: "COUNT", alias: "count" },
-    ]);
-    expect(queries.timedOut.metrics).toEqual([
-      { type: "COUNT", alias: "count" },
-    ]);
-    expect(queries.unrecoverable.metrics).toEqual([
-      { type: "COUNT", alias: "count" },
-    ]);
+      "actionableNow",
+      "timedOut",
+      "unrecoverable",
+      "selectedInRange",
+    ].forEach((alias) => expectSnapshotWindow({ filter: filterFor(alias) }));
+    expect(filterFor("activeTotal")).toEqual(activeFilter);
+    expect(filterFor("selectedInRange")).toEqual({
+      op: "AND",
+      operands: [
+        {
+          op: "GTE",
+          field: "state.executeAt",
+          value: snapshotWindow.start,
+        },
+        {
+          op: "LT",
+          field: "state.executeAt",
+          value: snapshotWindow.end,
+        },
+        activeFilter,
+      ],
+    });
+    expect(filterFor("newerThanRange")).toEqual({
+      op: "AND",
+      operands: [
+        {
+          op: "GTE",
+          field: "state.executeAt",
+          value: snapshotWindow.end,
+        },
+        activeFilter,
+      ],
+    });
+    expect(filterFor("olderThanRange")).toEqual({
+      op: "AND",
+      operands: [
+        {
+          op: "LT",
+          field: "state.executeAt",
+          value: snapshotWindow.start,
+        },
+        activeFilter,
+      ],
+    });
   });
 
-  it("applies one executeAt window to all seven Snapshot queries", () => {
+  it("applies one executeAt window across the snapshot queries", () => {
     const keys = [
       {
         errorCode: "TEST_TIMEOUT",
@@ -162,26 +151,29 @@ describe("analyticsQueries", () => {
         functionKind: "EVENT",
       },
     ];
-    const summary = createSnapshotSummaryQueries(
+    const summary = createSnapshotSummaryQuery(
       1_787_932_800_000,
       snapshotWindow,
     );
     const queries = [
-      summary.actionableNow,
-      summary.timedOut,
-      summary.unrecoverable,
       createPressureQuery(snapshotWindow),
       createPressureStatusQuery(keys, snapshotWindow),
       createRecoverabilityQuery(snapshotWindow),
-      createRetryHistogramQuery(snapshotWindow),
+      createRetryDistributionQuery(snapshotWindow),
     ];
 
-    expect(queries).toHaveLength(7);
     queries.forEach(expectSnapshotWindow);
+    expect(JSON.stringify(queries[0].filter)).toContain('"state.status"');
+    expect(JSON.stringify(queries[1].filter)).toContain('"TEST_TIMEOUT"');
+    expect(JSON.stringify(queries[2].filter)).toContain('"state.status"');
     expect(JSON.stringify(queries[3].filter)).toContain('"state.status"');
-    expect(JSON.stringify(queries[4].filter)).toContain('"TEST_TIMEOUT"');
-    expect(JSON.stringify(queries[5].filter)).toContain('"state.status"');
-    expect(JSON.stringify(queries[6].filter)).toContain('"state.status"');
+    const metricFilter = (alias: string): unknown => {
+      const metric = summary.metrics.find(({ alias: name }) => name === alias);
+      return (metric as { filter?: unknown }).filter;
+    };
+    ["actionableNow", "timedOut", "unrecoverable", "selectedInRange"].forEach(
+      (alias) => expectSnapshotWindow({ filter: metricFilter(alias) }),
+    );
   });
 
   it("groups pressure by error and the complete function identity", () => {
@@ -367,8 +359,8 @@ describe("analyticsQueries", () => {
     });
   });
 
-  it("builds a bounded retry histogram for active snapshots", () => {
-    const query = createRetryHistogramQuery(snapshotWindow);
+  it("counts approved retry buckets with filtered metrics", () => {
+    const query = createRetryDistributionQuery(snapshotWindow);
     expect(JSON.stringify(query.filter)).toContain(
       JSON.stringify({
         op: "IN",
@@ -376,17 +368,41 @@ describe("analyticsQueries", () => {
         values: ["FAILED", "PREPARED"],
       }),
     );
+    expectSnapshotWindow(query);
+    expect(query.groupBy).toBeUndefined();
     expect(query).toMatchObject({
-      groupBy: [
+      metrics: [
         {
-          type: "HISTOGRAM",
-          field: "state.retryState.retries",
-          interval: 1,
-          alias: "retries",
+          type: "COUNT",
+          alias: "zero",
+          filter: { op: "EQ", field: "state.retryState.retries", value: 0 },
+        },
+        {
+          type: "COUNT",
+          alias: "oneToTwo",
+          filter: {
+            op: "BETWEEN",
+            field: "state.retryState.retries",
+            lowerBound: 1,
+            upperBound: 2,
+          },
+        },
+        {
+          type: "COUNT",
+          alias: "threeToFive",
+          filter: {
+            op: "BETWEEN",
+            field: "state.retryState.retries",
+            lowerBound: 3,
+            upperBound: 5,
+          },
+        },
+        {
+          type: "COUNT",
+          alias: "sixPlus",
+          filter: { op: "GTE", field: "state.retryState.retries", value: 6 },
         },
       ],
-      metrics: [{ type: "COUNT", alias: "count" }],
-      limit: 1_000,
     });
   });
 
@@ -431,32 +447,25 @@ describe("analyticsQueries", () => {
     });
   });
 
-  it("refuses a retry distribution that reaches the aggregation limit", () => {
-    const rows = Array.from({ length: 1_000 }, (_, retries) => ({
-      retries,
-      count: 1,
-    }));
-
-    expect(bucketRetryRows(rows)).toEqual({ buckets: [], truncated: true });
-  });
-
-  it("buckets retry counts at the approved boundaries", () => {
+  it("maps filtered counts onto the approved retry buckets", () => {
     expect(
-      bucketRetryRows([
-        { retries: 0, count: 5 },
-        { retries: 1, count: 4 },
-        { retries: 2, count: 3 },
-        { retries: 3, count: 2 },
-        { retries: 5, count: 1 },
-        { retries: 6, count: 7 },
-      ]),
+      mapRetryDistribution({ oneToTwo: 7, sixPlus: 7, threeToFive: 3, zero: 5 }),
     ).toEqual({
-      truncated: false,
       buckets: [
         { key: "0", count: 5 },
         { key: "1–2", count: 7 },
         { key: "3–5", count: 3 },
         { key: "6+", count: 7 },
+      ],
+    });
+    expect(
+      mapRetryDistribution({ oneToTwo: 0, sixPlus: 0, threeToFive: 0, zero: 0 }),
+    ).toEqual({
+      buckets: [
+        { key: "0", count: 0 },
+        { key: "1–2", count: 0 },
+        { key: "3–5", count: 0 },
+        { key: "6+", count: 0 },
       ],
     });
   });
@@ -532,6 +541,7 @@ describe("analyticsQueries", () => {
           alias: "bucket",
           unit: "DAY",
           timeZone: "Asia/Shanghai",
+          dense: true,
         },
       ],
       metrics: [{ type: "COUNT", alias: "streamCount" }],
