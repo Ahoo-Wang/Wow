@@ -19,6 +19,8 @@ import {
   EventStreamQueryClient,
   EventStreamQueryEndpointPaths,
   aggregation,
+  HavingExpressionType,
+  ComparisonOperator,
   cursorQuery,
   filter,
   type AggregationQuery,
@@ -37,7 +39,13 @@ describe('EventStreamQueryEndpointPaths', () => {
   const query: AggregationQuery<RootFields, EventFields> = {
     elements: [aggregation.element('body')],
     groupBy: [aggregation.terms('name', 'eventType')],
-    metrics: [aggregation.count('count')],
+    metrics: [aggregation.count('count', filter.eq('name', 'OrderPaid'))],
+    having: {
+      type: HavingExpressionType.CONDITION,
+      metric: 'count',
+      operator: ComparisonOperator.GTE,
+      value: 1,
+    },
   };
 
   it('should have correct endpoint path values', () => {

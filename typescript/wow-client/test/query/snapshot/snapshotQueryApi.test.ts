@@ -18,6 +18,8 @@ import type { SnapshotQueryApi } from '../../../src';
 import {
   SnapshotQueryEndpointPaths,
   aggregation,
+  HavingExpressionType,
+  ComparisonOperator,
   cursorQuery,
   filter,
   SnapshotQueryClient,
@@ -36,8 +38,21 @@ describe('SnapshotQueryEndpointPaths', () => {
   };
   const query: AggregationQuery<RootFields, ItemFields> = {
     filter: filter.eq('state.status', 'PAID'),
-    groupBy: [aggregation.terms('productId', 'product')],
-    metrics: [aggregation.sum(aggregation.field('amount'), 'total')],
+    groupBy: [aggregation.terms('productId', 'product', 'Unknown')],
+    metrics: [
+      aggregation.sum(
+        aggregation.field('amount'),
+        'total',
+        filter.gt('amount', 0),
+      ),
+      aggregation.percentile(aggregation.field('amount'), 95, 'p95'),
+    ],
+    having: {
+      type: HavingExpressionType.CONDITION,
+      metric: 'total',
+      operator: ComparisonOperator.GT,
+      value: 100,
+    },
   };
 
   it('should have correct endpoint path values', () => {
