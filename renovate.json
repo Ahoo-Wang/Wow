@@ -44,6 +44,13 @@
       "dependencyDashboardApproval": false
     },
     {
+      "description": "Hold npm updates for 24 hours so Renovate's pnpm-12 artifact updates never see sub-24h lockfile entries.",
+      "matchDatasources": [
+        "npm"
+      ],
+      "minimumReleaseAge": "24 hours"
+    },
+    {
       "description": "Group GitHub Actions updates.",
       "matchManagers": [
         "github-actions"
