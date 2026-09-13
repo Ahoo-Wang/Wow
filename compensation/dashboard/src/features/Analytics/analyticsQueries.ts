@@ -21,6 +21,7 @@ import {
 } from "@ahoo-wang/fetcher-wow";
 import type {
   AggregationQuery,
+  CountAggregationMetric,
   FilterExpression,
   RecoverableType,
 } from "@ahoo-wang/fetcher-wow";
@@ -255,7 +256,8 @@ const clusterId = (key: PressureClusterKey) =>
     key.functionKind,
   ]);
 
-const countMetric = () => aggregation.count("count");
+const countMetric = (): CountAggregationMetric<ExecutionFailedAggregatedFields> =>
+  aggregation.count("count");
 const withSnapshotWindow = (
   window: TrendWindow,
   expression: FilterExpression<ExecutionFailedAggregatedFields>,
