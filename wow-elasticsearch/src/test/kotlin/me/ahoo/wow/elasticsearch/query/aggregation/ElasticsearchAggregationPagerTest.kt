@@ -70,6 +70,39 @@ class ElasticsearchAggregationPagerTest {
             .verifyComplete()
     }
 
+    @Test
+    fun `dense gap rows that satisfy having pass through`() {
+        val dayGrid = DenseDateGrid(AggregationDateUnit.DAY, ZoneId.of("UTC"))
+        val plan = basePlan(
+            dense = DenseBucketPlan(
+                alias = "day",
+                grid = dayGrid,
+                metrics = listOf(
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Field(QueryField("amount")),
+                        "total",
+                    ),
+                ),
+            ),
+            // empty semantics leave value metrics null, so IS NULL matches every fill row
+            having = HavingExpression.IsNull("total"),
+        )
+        val day1 = Instant.parse("2026-01-01T00:00:00Z").toEpochMilli()
+        val day4 = Instant.parse("2026-01-04T00:00:00Z").toEpochMilli()
+        fillGapRows(day1, day4, plan)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.assert().hasSize(2)
+                rows.forEach { row ->
+                    row.path("day").longValue().assert().isGreaterThan(day1).isLessThan(day4)
+                    row.path("total").isNull.assert().isTrue()
+                }
+            }
+            .verifyComplete()
+    }
+
     private fun basePlan(
         dense: DenseBucketPlan? = null,
         having: HavingExpression? = null,

@@ -51,6 +51,15 @@ class DenseDateGridTest {
     }
 
     @Test
+    fun `equal instants should yield an empty gap stream`() {
+        // The same bucket on both ends is not a gap, in either stream direction.
+        val grid = DenseDateGrid(AggregationDateUnit.DAY, utc)
+        val day = millis("2026-01-02T00:00:00Z")
+        grid.keysBetween(day, day).assert().isEmpty()
+        grid.gapIndices(day, day).count().assert().isZero()
+    }
+
+    @Test
     fun `shanghai month grid should align local month starts`() {
         val zone = ZoneId.of("Asia/Shanghai")
         val grid = DenseDateGrid(AggregationDateUnit.MONTH, zone)

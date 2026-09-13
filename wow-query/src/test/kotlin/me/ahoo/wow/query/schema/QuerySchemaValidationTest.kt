@@ -16,6 +16,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -62,6 +63,7 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.jvm.javaField
 
+@Suppress("LargeClass")
 class QuerySchemaValidationTest {
     @Test
     fun `unavailable full projection fails reads while explicit fields count and aggregation remain independent`() {
@@ -451,6 +453,24 @@ class QuerySchemaValidationTest {
         assertThrows<QuerySchemaValidationException> {
             validateQuery(termsWithMissingKey("label"), schema)
         }
+    }
+
+    @Test
+    fun `histogram and date histogram groups skip the terms missing key predicate`() {
+        val schema = boundSchemaFixture(
+            objectFixture(
+                "amount" to scalarFixture(QueryValueType.DECIMAL),
+                "createdAt" to scalarFixture(QueryValueType.INTEGER, temporal = Temporal.Date),
+            )
+        )
+        val query = aggregation {
+            histogram("amount", 10.0, "amountRange")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day")
+            count("count")
+        }
+        // Neither grouped field is a single-valued string: the missingKey predicate applies to
+        // TERMS groups only, so both groups must validate on their own capabilities.
+        validateQuery(query, schema).assert().isSameAs(query)
     }
 
     @Test

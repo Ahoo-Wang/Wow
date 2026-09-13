@@ -84,6 +84,30 @@ class EmptyAggregationValuesTest {
         values["overflow"].assert().isNull()
     }
 
+    @Test
+    fun `derived metrics evaluate every operator and propagate a null right operand`() {
+        val values = EmptyAggregationValues.values(
+            listOf(
+                AggregationMetric.Count("count"),
+                AggregationMetric.Numeric(
+                    AggregationFunction.SUM,
+                    AggregationExpression.Field(QueryField("amount")),
+                    "total",
+                ),
+                AggregationMetric.Derived("countPlusOne", add(ref("count"), constant(1.0))),
+                AggregationMetric.Derived("difference", subtract(constant(2.0), ref("count"))),
+                AggregationMetric.Derived("ratio", div(constant(6.0), constant(3.0))),
+                AggregationMetric.Derived("plusRightNull", add(constant(1.0), ref("total"))),
+            ),
+        )
+        values["countPlusOne"].assert().isEqualTo(1.0)
+        values["difference"].assert().isEqualTo(2.0)
+        // A non-zero divisor divides through instead of collapsing to null.
+        values["ratio"].assert().isEqualTo(2.0)
+        // Only the RIGHT operand is null here: the expression still nullifies.
+        values["plusRightNull"].assert().isNull()
+    }
+
     private fun div(metric: String) = DerivedExpression.Binary(
         AggregationExpressionOperator.DIVIDE,
         DerivedExpression.MetricRef(metric),
@@ -101,6 +125,28 @@ class EmptyAggregationValuesTest {
         DerivedExpression.MetricRef(metric),
         DerivedExpression.Constant(1.0),
     )
+
+    private fun div(left: DerivedExpression, right: DerivedExpression) = DerivedExpression.Binary(
+        AggregationExpressionOperator.DIVIDE,
+        left,
+        right,
+    )
+
+    private fun add(left: DerivedExpression, right: DerivedExpression) = DerivedExpression.Binary(
+        AggregationExpressionOperator.ADD,
+        left,
+        right,
+    )
+
+    private fun subtract(left: DerivedExpression, right: DerivedExpression) = DerivedExpression.Binary(
+        AggregationExpressionOperator.SUBTRACT,
+        left,
+        right,
+    )
+
+    private fun ref(metric: String) = DerivedExpression.MetricRef(metric)
+
+    private fun constant(value: Double) = DerivedExpression.Constant(value)
 
     private fun doubleOverflow() = DerivedExpression.Binary(
         AggregationExpressionOperator.MULTIPLY,
