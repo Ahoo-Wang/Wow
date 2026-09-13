@@ -14,34 +14,26 @@
 package me.ahoo.wow.elasticsearch.query.aggregation
 
 import co.elastic.clients.elasticsearch._types.FieldValue
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.search.ResponseBody
 import me.ahoo.wow.api.query.AggregationFunction
-import me.ahoo.wow.api.query.ComparisonOperator
-import me.ahoo.wow.api.query.HavingExpression
-import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchPointInTime
 import me.ahoo.wow.elasticsearch.query.requireComplete
-import me.ahoo.wow.elasticsearch.query.toObjectNode
-import me.ahoo.wow.query.aggregation.EmptyAggregationValues
 import org.reactivestreams.Publisher
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
-import java.util.PriorityQueue
 import kotlin.math.min
 
-private const val ROOT_AGGREGATION = "__wow_aggregation"
-private const val GROUP_AGGREGATION = "__wow_groups"
+internal const val ROOT_AGGREGATION = "__wow_aggregation"
+internal const val GROUP_AGGREGATION = "__wow_groups"
 
 /**
  * A bucket_script pipeline requires a multi-bucket parent aggregation. Grouped queries nest the
@@ -329,134 +321,6 @@ internal class ElasticsearchAggregationPager(
         )
     }
 
-    private fun ResponseBody<Map<*, *>>.summary(plan: ElasticsearchAggregationPlan): ObjectNode {
-        val scope = aggregations().getValue(ROOT_AGGREGATION).let { root ->
-            if (plan.elements.isEmpty()) root.filter() else root.innermostScope(plan)
-        }
-        if (plan.groupSources.isEmpty() && plan.metrics.any { it is ElasticsearchAggregationMetric.Derived }) {
-            val bucket = scope.aggregations()
-                .getValue(SUMMARY_BUCKET_AGGREGATION)
-                .filters()
-                .buckets()
-                .keyed()
-                .getValue(SUMMARY_BUCKET_KEY)
-            return plan.toRow(bucket.docCount(), bucket.aggregations())
-        }
-        return plan.toRow(scope.docCount(), scope.aggregations())
-    }
-
-    private fun ResponseBody<Map<*, *>>.innermost(plan: ElasticsearchAggregationPlan): Map<String, Aggregate> {
-        if (plan.elements.isEmpty()) {
-            return mapOf(GROUP_AGGREGATION to aggregations().getValue(ROOT_AGGREGATION))
-        }
-        var aggregations = aggregations()
-        plan.elements.indices.forEach { index ->
-            val nested = aggregations.getValue(if (index == 0) ROOT_AGGREGATION else nestedAggregationName(index))
-                .nested()
-            val filter = nested.aggregations().getValue(filterAggregationName(index)).filter()
-            aggregations = filter.aggregations()
-        }
-        return aggregations
-    }
-
-    private fun Aggregate.innermostScope(
-        plan: ElasticsearchAggregationPlan,
-    ): co.elastic.clients.elasticsearch._types.aggregations.FilterAggregate {
-        var aggregations = nested().aggregations()
-        var scope: co.elastic.clients.elasticsearch._types.aggregations.FilterAggregate? = null
-        plan.elements.indices.forEach { index ->
-            scope = aggregations.getValue(filterAggregationName(index)).filter()
-            aggregations = scope!!.aggregations()
-            if (index + 1 < plan.elements.size) {
-                aggregations = aggregations.getValue(nestedAggregationName(index + 1)).nested().aggregations()
-            }
-        }
-        return requireNotNull(scope)
-    }
-
-    private fun CompositeBucket.toRow(plan: ElasticsearchAggregationPlan): ObjectNode {
-        val row = key().mapValuesTo(linkedMapOf()) { (_, value) -> value.nativeValue() }
-        plan.metrics.forEach { metric -> row[metric.alias] = metric.value(docCount(), aggregations()) }
-        return row.toObjectNode()
-    }
-
-    private fun ElasticsearchAggregationPlan.toRow(
-        docCount: Long,
-        aggregations: Map<String, Aggregate>,
-    ): ObjectNode = metrics.associateTo(linkedMapOf()) { metric ->
-        metric.alias to metric.value(docCount, aggregations)
-    }.toObjectNode()
-
-    private fun ElasticsearchAggregationMetric.value(
-        docCount: Long,
-        aggregations: Map<String, Aggregate>,
-    ): Any? = when (this) {
-        is ElasticsearchAggregationMetric.Count -> if (filter == null) {
-            docCount
-        } else {
-            aggregations.getValue(alias).filter().docCount()
-        }
-
-        is ElasticsearchAggregationMetric.Any -> aggregations.filtered(this).getValue(alias).anyValue(alias)
-        is ElasticsearchAggregationMetric.Numeric -> numericValue(aggregations.filtered(this))
-        is ElasticsearchAggregationMetric.DistinctCount ->
-            aggregations.filtered(this).getValue(alias).cardinality().value()
-        is ElasticsearchAggregationMetric.Percentile -> percentileValue(aggregations.filtered(this))
-
-        /**
-         * A skipped bucket_script (default gap_policy=skip: a referenced path is missing or null)
-         * is omitted from the response bucket, so the key itself may be absent — null either way.
-         */
-        is ElasticsearchAggregationMetric.Derived -> aggregations[alias]?.simpleValue()?.value()
-    }
-
-    private fun Aggregate.anyValue(alias: String): Any? = when {
-        isSterms -> sterms().buckets().array().firstOrNull()?.key()?.nativeValue()
-        isLterms -> lterms().buckets().array().firstOrNull()?.let {
-            it.keyAsString()?.toBooleanStrictOrNull() ?: it.key()
-        }
-        isDterms -> dterms().buckets().array().firstOrNull()?.key()
-        isUmterms -> null
-        else -> error("Aggregation ANY metric [$alias] returned unsupported Elasticsearch aggregate [${_kind()}].")
-    }
-
-    private fun ElasticsearchAggregationMetric.Numeric.numericValue(
-        aggregations: Map<String, Aggregate>,
-    ): Double? {
-        if (aggregations.getValue(valueCountAlias).valueCount().value() == 0.0) return null
-        val value = when (function) {
-            AggregationFunction.SUM -> aggregations.getValue(alias).sum().value()
-            AggregationFunction.AVG -> aggregations.getValue(alias).avg().value()
-            AggregationFunction.MIN -> aggregations.getValue(alias).min().value()
-            AggregationFunction.MAX -> aggregations.getValue(alias).max().value()
-            AggregationFunction.STDDEV -> aggregations.getValue(alias).extendedStats().stdDeviationPopulation()
-            AggregationFunction.VARIANCE -> aggregations.getValue(alias).extendedStats().variancePopulation()
-        }
-        require(value != null && value.isFinite()) { "Aggregation metric [$alias] must be finite." }
-        return value
-    }
-
-    private fun ElasticsearchAggregationMetric.Percentile.percentileValue(
-        aggregations: Map<String, Aggregate>,
-    ): Double? {
-        if (aggregations.getValue(valueCountAlias).valueCount().value() == 0.0) return null
-        val entry = aggregations.getValue(alias).tdigestPercentiles().values().array()
-            .firstOrNull { it.key() == percentile }
-            ?: error("Aggregation metric [$alias] is missing percentile [$percentile].")
-        val value = entry.value()
-        require(value != null && value.isFinite()) { "Aggregation metric [$alias] must be finite." }
-        return value
-    }
-
-    private fun FieldValue.nativeValue(): Any? = when {
-        isString -> stringValue()
-        isLong -> longValue()
-        isDouble -> doubleValue()
-        isBoolean -> booleanValue()
-        isNull -> null
-        else -> error("Unsupported Elasticsearch aggregation key [${_kind()}].")
-    }
-
     private class AggregationPage(
         val rows: Flux<ObjectNode>,
         private val realRowCount: Int,
@@ -477,162 +341,9 @@ internal class ElasticsearchAggregationPager(
     }
 }
 
-/**
- * Client-side dense fill between two consecutive actual bucket keys: the gap rows follow each
- * metric's empty semantics and participate in having like any other row. Rows are generated on
- * demand — a wide gap (e.g. two SECOND buckets a year apart) spans more buckets than the client
- * heap can hold, so materialization stays bounded by downstream demand.
- */
-internal fun fillGapRows(
-    fromKey: Long,
-    toKey: Long,
-    plan: ElasticsearchAggregationPlan,
-): Flux<ObjectNode> {
-    val dense = requireNotNull(plan.dense)
-    val grid = dense.grid
-    // Every fill row of one gap carries identical empty metrics: evaluate them once per gap and
-    // copy the template per row instead of re-evaluating derived expressions per row. Aliases are
-    // unique per AST validation, so the dense alias key cannot collide with a metric alias.
-    val emptyMetrics = EmptyAggregationValues.values(dense.metrics)
-    return Flux.fromStream { grid.gapIndices(fromKey, toKey).mapToObj(grid::keyOf) }
-        .map { key ->
-            val values = LinkedHashMap<String, Any?>(emptyMetrics.size + 1)
-            values[dense.alias] = key
-            values.putAll(emptyMetrics)
-            values.toObjectNode()
-        }
-        .filter { row -> plan.having == null || row.matchesHaving(plan.having) }
-}
+internal fun nestedAggregationName(index: Int): String = "__wow_element_$index"
 
-/**
- * Evaluates a HAVING expression client-side against a produced aggregation row (Elasticsearch has
- * no bucket_selector under composite aggregations). Null-fails semantics: a missing or JSON-null
- * metric alias makes every comparison false; [HavingExpression.IsNull] captures exactly those rows.
- */
-private fun ObjectNode.matchesHaving(having: HavingExpression): Boolean = when (having) {
-    is HavingExpression.And -> having.operands.all { matchesHaving(it) }
-    is HavingExpression.Or -> having.operands.any { matchesHaving(it) }
-    is HavingExpression.IsNull -> isNullMetric(having.metric) != having.negated
-    is HavingExpression.Condition -> metricDouble(having.metric)
-        ?.let { compare(it, having.operator, having.value) } == true
-
-    is HavingExpression.Between -> metricDouble(having.metric)
-        ?.let { it >= having.lower && it <= having.upper } == true
-
-    is HavingExpression.In -> metricDouble(having.metric)
-        ?.let { value -> having.values.any { it == value } } == true
-}
-
-private fun ObjectNode.isNullMetric(metric: String): Boolean {
-    val value = get(metric)
-    return value == null || value.isNull
-}
-
-private fun ObjectNode.metricDouble(metric: String): Double? {
-    val value = get(metric) ?: return null
-    if (value.isNull) return null
-    return value.asDouble()
-}
-
-private fun compare(left: Double, operator: ComparisonOperator, right: Double): Boolean = when (operator) {
-    ComparisonOperator.EQ -> left == right
-    ComparisonOperator.NE -> left != right
-    ComparisonOperator.GT -> left > right
-    ComparisonOperator.GTE -> left >= right
-    ComparisonOperator.LT -> left < right
-    ComparisonOperator.LTE -> left <= right
-}
-
-internal fun selectTopRows(
-    rows: Iterable<ObjectNode>,
-    sort: List<Sort>,
-    limit: Int,
-): List<ObjectNode> = BoundedTopRows(sort, limit).apply { rows.forEach(::add) }.result()
-
-private class BoundedTopRows(
-    sort: List<Sort>,
-    private val limit: Int,
-    private val groupAliases: List<String> = emptyList(),
-) {
-    private val groupIndexes = groupAliases.withIndex().associate { (index, alias) -> alias to index }
-    private val currentGroupOrder = LongArray(groupAliases.size)
-    private var previous: ObjectNode? = null
-    private var sequence = 0L
-    private val comparator = rankedRowComparator(sort, groupIndexes)
-    private val rows = PriorityQueue(comparator.reversed())
-
-    fun add(row: ObjectNode) {
-        previous?.let { previous ->
-            val firstDifference = groupAliases.indexOfFirst { previous[it] != row[it] }
-            if (firstDifference >= 0) {
-                currentGroupOrder.fill(sequence, firstDifference)
-            }
-        }
-        previous = row
-        val rankedRow = RankedRow(row, currentGroupOrder.copyOf())
-        sequence++
-        if (rows.size < limit) {
-            rows += rankedRow
-        } else if (comparator.compare(rankedRow, rows.peek()) < 0) {
-            rows.poll()
-            rows += rankedRow
-        }
-    }
-
-    fun result(): List<ObjectNode> = rows.sortedWith(comparator).map(RankedRow::row)
-}
-
-private data class RankedRow(
-    val row: ObjectNode,
-    val groupOrder: LongArray,
-)
-
-private fun rankedRowComparator(
-    sort: List<Sort>,
-    groupIndexes: Map<String, Int>,
-): Comparator<RankedRow> = Comparator { left, right ->
-    sort.firstNotNullOfOrNull { field ->
-        val comparison = groupIndexes[field.field.path]?.let { index ->
-            left.groupOrder[index].compareTo(right.groupOrder[index])
-        } ?: compareValues(left.row[field.field.path], right.row[field.field.path])
-            .let { if (field.direction == Sort.Direction.ASC) it else -it }
-        comparison.takeIf { it != 0 }
-    } ?: 0
-}
-
-private fun compareValues(left: JsonNode?, right: JsonNode?): Int {
-    val leftValue = left.toSortValue()
-    val rightValue = right.toSortValue()
-    return when {
-        leftValue === rightValue -> 0
-        leftValue == null -> -1
-        rightValue == null -> 1
-        leftValue is Long && rightValue is Long -> leftValue.compareTo(rightValue)
-        leftValue is Number && rightValue is Number -> leftValue.toDouble().compareTo(rightValue.toDouble())
-        leftValue is String && rightValue is String -> leftValue.compareTo(rightValue)
-        leftValue is Boolean && rightValue is Boolean -> leftValue.compareTo(rightValue)
-        else -> incomparableValues(left, right)
-    }
-}
-
-private fun JsonNode?.toSortValue(): Any? = when {
-    this == null || isNull -> null
-    isIntegralNumber -> longValue()
-    isNumber -> doubleValue()
-    isString -> stringValue()
-    isBoolean -> booleanValue()
-    else -> this
-}
-
-private fun incomparableValues(left: JsonNode?, right: JsonNode?): Nothing =
-    error(
-        "Aggregation sort values must have comparable types, " +
-            "but were [${left?.nodeType}] and [${right?.nodeType}].",
-    )
-
-private fun nestedAggregationName(index: Int): String = "__wow_element_$index"
-
-private fun filterAggregationName(index: Int): String = "__wow_element_filter_$index"
+internal fun filterAggregationName(index: Int): String = "__wow_element_filter_$index"
 
 internal fun metricFilterAggregationName(alias: String): String = "__wow_metric_filter_$alias"
 
@@ -657,9 +368,4 @@ private fun MutableMap<String, Aggregation>.putMetricAggregations(
             builder
         },
     )
-}
-
-private fun Map<String, Aggregate>.filtered(metric: ElasticsearchAggregationMetric): Map<String, Aggregate> {
-    val filter = metric.filter ?: return this
-    return getValue(metricFilterAggregationName(metric.alias)).filter().aggregations()
 }
