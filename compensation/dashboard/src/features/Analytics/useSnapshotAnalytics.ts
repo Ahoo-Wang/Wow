@@ -14,12 +14,12 @@
 import { useEffect, useState } from "react";
 import { aggregateExecutionFailedSnapshots } from "../../services";
 import {
-  bucketRetryRows,
   createPressureQuery,
   createPressureStatusQuery,
   createRecoverabilityQuery,
-  createRetryHistogramQuery,
-  createSnapshotSummaryQueries,
+  createRetryDistributionQuery,
+  createSnapshotSummaryQuery,
+  mapRetryDistribution,
   mergePressureRows,
   trendWindowKey,
 } from "./analyticsQueries.ts";
@@ -29,8 +29,9 @@ import type {
   PressureStatusRow,
   RecoverabilityRow,
   RetryDistribution,
-  RetryHistogramRow,
+  RetryDistributionRow,
   SnapshotSummary,
+  SnapshotSummaryRow,
   TrendWindow,
 } from "./analyticsQueries.ts";
 
@@ -46,10 +47,6 @@ export interface SnapshotAnalyticsResult {
   recoverability: AnalyticsSection<RecoverabilityRow[]>;
   retries: AnalyticsSection<RetryDistribution>;
   summary: AnalyticsSection<SnapshotSummary>;
-}
-
-interface CountRow {
-  count: number;
 }
 
 interface SnapshotAnalyticsState {
@@ -187,67 +184,16 @@ async function loadSummary(
   window: TrendWindow,
   abortController: AbortController,
 ): Promise<SnapshotSummary> {
-  const queries = createSnapshotSummaryQueries(now, window);
-  const [
-    actionableNow,
-    timedOut,
-    unrecoverable,
-    activeTotal,
-    selectedInRange,
-    newerThanRange,
-    olderThanRange,
-  ] = await Promise.all([
-    aggregateExecutionFailedSnapshots<CountRow>(
-      queries.actionableNow,
-      undefined,
-      abortController,
-    ),
-    aggregateExecutionFailedSnapshots<CountRow>(
-      queries.timedOut,
-      undefined,
-      abortController,
-    ),
-    aggregateExecutionFailedSnapshots<CountRow>(
-      queries.unrecoverable,
-      undefined,
-      abortController,
-    ),
-    aggregateExecutionFailedSnapshots<CountRow>(
-      queries.activeTotal,
-      undefined,
-      abortController,
-    ),
-    aggregateExecutionFailedSnapshots<CountRow>(
-      queries.selectedInRange,
-      undefined,
-      abortController,
-    ),
-    aggregateExecutionFailedSnapshots<CountRow>(
-      queries.newerThanRange,
-      undefined,
-      abortController,
-    ),
-    aggregateExecutionFailedSnapshots<CountRow>(
-      queries.olderThanRange,
-      undefined,
-      abortController,
-    ),
-  ]);
-  const activeTotalCount = activeTotal[0]?.count ?? 0;
-  const selectedInRangeCount = selectedInRange[0]?.count ?? 0;
-  const newerThanRangeCount = newerThanRange[0]?.count ?? 0;
-  const olderThanRangeCount = olderThanRange[0]?.count ?? 0;
+  const [row] = await aggregateExecutionFailedSnapshots<SnapshotSummaryRow>(
+    createSnapshotSummaryQuery(now, window),
+    undefined,
+    abortController,
+  );
   const partitionedCount =
-    olderThanRangeCount + selectedInRangeCount + newerThanRangeCount;
+    row.olderThanRange + row.selectedInRange + row.newerThanRange;
   return {
-    actionableNow: actionableNow[0]?.count ?? 0,
-    activeTotal: activeTotalCount,
-    newerThanRange: newerThanRangeCount,
-    olderThanRange: olderThanRangeCount,
-    selectedInRange: selectedInRangeCount,
-    stockTruncated: partitionedCount !== activeTotalCount,
-    timedOut: timedOut[0]?.count ?? 0,
-    unrecoverable: unrecoverable[0]?.count ?? 0,
+    ...row,
+    stockTruncated: partitionedCount !== row.activeTotal,
   };
 }
 
@@ -286,12 +232,12 @@ async function loadRetries(
   window: TrendWindow,
   abortController: AbortController,
 ): Promise<RetryDistribution> {
-  const rows = await aggregateExecutionFailedSnapshots<RetryHistogramRow>(
-    createRetryHistogramQuery(window),
+  const [row] = await aggregateExecutionFailedSnapshots<RetryDistributionRow>(
+    createRetryDistributionQuery(window),
     undefined,
     abortController,
   );
-  return bucketRetryRows(rows);
+  return mapRetryDistribution(row);
 }
 
 function markSnapshotLoading(

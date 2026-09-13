@@ -114,7 +114,7 @@ beforeEach(() => {
     pressure: { data: [], loading: false, updatedAt: 1_787_932_800_000 },
     recoverability: { data: [], loading: false, updatedAt: 1_787_932_800_000 },
     retries: {
-      data: { buckets: [], truncated: false },
+      data: { buckets: [] },
       loading: false,
       updatedAt: 1_787_932_800_000,
     },
@@ -565,7 +565,7 @@ describe("DashboardView", () => {
     };
     mocks.snapshotResult.recoverability = { data: [], loading: false };
     mocks.snapshotResult.retries = {
-      data: { buckets: [], truncated: false },
+      data: { buckets: [] },
       loading: false,
     };
     mocks.eventResult = { data: [], loading: true };
@@ -740,18 +740,14 @@ describe("DashboardView", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps empty pressure table accessible and does not draw truncated retry data", () => {
+  it("keeps empty pressure table accessible and charts the retry distribution", () => {
     mocks.snapshotResult.retries.data = {
       buckets: [{ key: "0", count: 3 }],
-      truncated: true,
     };
     render(<DashboardView />);
 
     expect(screen.getByText("No active failure clusters")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Retry distribution is truncated/),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Retry distribution")).not.toBeInTheDocument();
+    expect(screen.getByText("Retry distribution")).toBeInTheDocument();
   });
 
   it("maps all recoverability enum values to visible labels and counts", () => {

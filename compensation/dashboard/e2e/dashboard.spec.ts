@@ -16,46 +16,11 @@ import { expect, test, type Page } from "@playwright/test";
 type AggregationQueryBody = {
   filter?: unknown;
   groupBy?: Array<{ alias: string }>;
+  metrics?: Array<{ alias: string }>;
 };
 
-const activeStockFilter = {
-  op: "IN",
-  field: "state.status",
-  values: ["FAILED", "PREPARED"],
-};
-
-function stockCountKind(query: AggregationQueryBody) {
-  if (query.groupBy?.length) {
-    return undefined;
-  }
-  if (JSON.stringify(query.filter) === JSON.stringify(activeStockFilter)) {
-    return "activeTotal";
-  }
-  const root = query.filter as
-    | { op?: string; operands?: Array<{ field?: string; op?: string }> }
-    | undefined;
-  if (root?.op !== "AND" || !root.operands) {
-    return undefined;
-  }
-  const hasActiveFilter = root.operands.some(
-    (operand) => JSON.stringify(operand) === JSON.stringify(activeStockFilter),
-  );
-  if (!hasActiveFilter) {
-    return undefined;
-  }
-  const hasLowerBound = root.operands.some(
-    ({ field, op }) => field === "state.executeAt" && op === "GTE",
-  );
-  const hasUpperBound = root.operands.some(
-    ({ field, op }) => field === "state.executeAt" && op === "LT",
-  );
-  if (hasLowerBound && hasUpperBound) {
-    return "selectedInRange";
-  }
-  if (hasLowerBound) {
-    return "newerThanRange";
-  }
-  return hasUpperBound ? "olderThanRange" : undefined;
+function metricAliases(query: AggregationQueryBody) {
+  return query.metrics?.map(({ alias }) => alias) ?? [];
 }
 
 function queryWindow(query: AggregationQueryBody, field: string) {
@@ -217,7 +182,6 @@ async function mockAnalyticsAggregations(
         });
         return;
       }
-      const serializedFilter = JSON.stringify(query.filter ?? {});
       let rows: Array<Record<string, unknown>>;
 
       if (aliases.includes("errorCode") && aliases.includes("status")) {
@@ -278,25 +242,20 @@ async function mockAnalyticsAggregations(
           { recoverable: "UNKNOWN", count: 10 },
           { recoverable: "UNRECOVERABLE", count: 10 },
         ];
-      } else if (aliases.includes("retries")) {
+      } else if (metricAliases(query).includes("actionableNow")) {
         rows = [
-          { retries: 0, count: 5 },
-          { retries: 1, count: 4 },
-          { retries: 3, count: 2 },
-          { retries: 6, count: 1 },
+          {
+            actionableNow: 128,
+            activeTotal: 1_000,
+            newerThanRange: 0,
+            olderThanRange: 680,
+            selectedInRange: 320,
+            timedOut: 34,
+            unrecoverable: 9,
+          },
         ];
-      } else if (stockCountKind(query) === "activeTotal") {
-        rows = [{ count: 1_000 }];
-      } else if (stockCountKind(query) === "selectedInRange") {
-        rows = [{ count: 320 }];
-      } else if (stockCountKind(query) === "newerThanRange") {
-        rows = [{ count: 0 }];
-      } else if (stockCountKind(query) === "olderThanRange") {
-        rows = [{ count: 680 }];
-      } else if (serializedFilter.includes("nextRetryAt")) {
-        rows = [{ count: 128 }];
-      } else if (serializedFilter.includes("timeoutAt")) {
-        rows = [{ count: 34 }];
+      } else if (metricAliases(query).includes("sixPlus")) {
+        rows = [{ oneToTwo: 4, sixPlus: 1, threeToFive: 2, zero: 5 }];
       } else {
         rows = [{ count: 9 }];
       }
@@ -591,7 +550,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
   await expect(
     page.getByRole("heading", { name: "FLOW / Compensation effectiveness" }),
   ).toBeVisible();
-  await expect.poll(() => snapshotRequests).toBe(11);
+  await expect.poll(() => snapshotRequests).toBe(5);
   await expect.poll(() => eventRequests).toBe(4);
   const timeRange = page.getByRole("button", { name: /^Time range:/ });
   await expect(timeRange).toContainText("–");
@@ -630,34 +589,40 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     ).toBeGreaterThanOrEqual(14);
   }
   await page.getByRole("button", { name: "Today", exact: true }).click();
-  await expect.poll(() => snapshotRequests).toBe(22);
+  await expect.poll(() => snapshotRequests).toBe(10);
   await expect.poll(() => eventRequests).toBe(8);
   await page.getByRole("button", { name: "Refresh dashboard" }).click();
-  await expect.poll(() => snapshotRequests).toBe(33);
+  await expect.poll(() => snapshotRequests).toBe(15);
   await expect.poll(() => eventRequests).toBe(12);
 
   const appliedWindows: Array<{ end: number; start: number }> = [];
   for (const batch of [0, 1, 2]) {
     const batchSnapshotQueries = snapshotQueries.slice(
-      batch * 11,
-      batch * 11 + 11,
+      batch * 5,
+      batch * 5 + 5,
     );
-    const stockCountSnapshots = batchSnapshotQueries.filter((query) =>
-      stockCountKind(query),
+    const summaryQueries = batchSnapshotQueries.filter((query) =>
+      metricAliases(query).includes("actionableNow"),
     );
+    expect(summaryQueries).toHaveLength(1);
+    expect(
+      summaryQueries[0].metrics?.map(({ alias }) => alias).sort(),
+    ).toEqual([
+      "actionableNow",
+      "activeTotal",
+      "newerThanRange",
+      "olderThanRange",
+      "selectedInRange",
+      "timedOut",
+      "unrecoverable",
+    ]);
     const snapshotWindows = batchSnapshotQueries.map((query) =>
       queryWindow(query, "state.executeAt"),
     );
     const fullyWindowedSnapshots = snapshotWindows.filter(
       ({ end, start }) => Number.isFinite(start) && Number.isFinite(end),
     );
-    expect(fullyWindowedSnapshots).toHaveLength(8);
-    expect(stockCountSnapshots.map(stockCountKind).sort()).toEqual([
-      "activeTotal",
-      "newerThanRange",
-      "olderThanRange",
-      "selectedInRange",
-    ]);
+    expect(fullyWindowedSnapshots).toHaveLength(4);
     const eventWindows = eventQueries
       .slice(batch * 4, batch * 4 + 4)
       .map((query) => queryWindow(query, "createTime"));
@@ -975,22 +940,26 @@ test("keeps zero-valued dashboard bars visually empty", async ({
         await route.fulfill({ json: [] });
         return;
       }
-      const stockCount = stockCountKind(query);
-      if (stockCount === "activeTotal" || stockCount === "olderThanRange") {
-        await route.fulfill({ json: [{ count: 680 }] });
+      if (metricAliases(query).includes("actionableNow")) {
+        await route.fulfill({
+          json: [
+            {
+              actionableNow: 0,
+              activeTotal: 680,
+              newerThanRange: 0,
+              olderThanRange: 680,
+              selectedInRange: 0,
+              timedOut: 0,
+              unrecoverable: 0,
+            },
+          ],
+        });
         return;
       }
-      if (stockCount === "selectedInRange" || stockCount === "newerThanRange") {
-        await route.fulfill({ json: [{ count: 0 }] });
-        return;
-      }
-      const serializedFilter = JSON.stringify(query.filter);
-      if (
-        aliases.length === 0 &&
-        serializedFilter.includes('"op":"GTE"') &&
-        serializedFilter.includes('"op":"LT"')
-      ) {
-        await route.fulfill({ json: [{ count: 0 }] });
+      if (metricAliases(query).includes("sixPlus")) {
+        await route.fulfill({
+          json: [{ oneToTwo: 0, sixPlus: 0, threeToFive: 0, zero: 0 }],
+        });
         return;
       }
       await route.fallback();

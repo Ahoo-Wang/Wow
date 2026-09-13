@@ -298,7 +298,6 @@ const zhCN = {
   "Compensation activity unavailable.": "补偿活动数据不可用。",
   "Current health for selected execution range": "所选执行时间范围的当前健康状况",
   "Recoverability composition": "可恢复性构成",
-  "Retry distribution is truncated and is not charted.": "重试分布数据已截断，因此不绘制图表。",
   "Failure concentration · Top cluster {percentage}": "失败集中度 · 首位集群 {percentage}",
   "Current failure pressure — Top 5 clusters": "当前失败压力 — 前 5 个集群",
   "{count} cluster": "{count} 个集群",

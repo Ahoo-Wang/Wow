@@ -145,6 +145,7 @@ function createEventTrendQuery(
         unit: window.unit,
         alias: "bucket",
         timeZone: window.timeZone,
+        dense: true,
       }),
     ],
     metrics: [aggregation.count("streamCount")],
@@ -215,15 +216,18 @@ export interface PressureCluster extends PressureClusterRow {
   preparedCount: number;
 }
 
-export interface SnapshotSummary {
+export interface SnapshotSummaryRow {
   actionableNow: number;
   activeTotal: number;
   newerThanRange: number;
   olderThanRange: number;
   selectedInRange: number;
-  stockTruncated: boolean;
   timedOut: number;
   unrecoverable: number;
+}
+
+export interface SnapshotSummary extends SnapshotSummaryRow {
+  stockTruncated: boolean;
 }
 
 export interface RecoverabilityRow {
@@ -231,21 +235,21 @@ export interface RecoverabilityRow {
   count: number;
 }
 
-export interface RetryHistogramRow {
-  retries: number;
-  count: number;
+export interface RetryDistributionRow {
+  oneToTwo: number;
+  sixPlus: number;
+  threeToFive: number;
+  zero: number;
 }
 
 export interface RetryDistribution {
   buckets: Array<{ key: "0" | "1–2" | "3–5" | "6+"; count: number }>;
-  truncated: boolean;
 }
 
 const activeFilter = filter.isIn(ExecutionFailedAggregatedFields.STATE_STATUS, [
   ExecutionFailedStatus.FAILED,
   ExecutionFailedStatus.PREPARED,
 ]);
-const RETRY_HISTOGRAM_LIMIT = 1_000;
 
 const clusterId = (key: PressureClusterKey) =>
   JSON.stringify([
@@ -268,81 +272,69 @@ const withSnapshotWindow = (
     expression,
   ]);
 
-export function createSnapshotSummaryQueries(
+export function createSnapshotSummaryQuery(
   now: number,
   window: TrendWindow,
-): Record<
-  | "actionableNow"
-  | "activeTotal"
-  | "newerThanRange"
-  | "olderThanRange"
-  | "selectedInRange"
-  | "timedOut"
-  | "unrecoverable",
-  SnapshotAggregationQuery
-> {
+): SnapshotAggregationQuery {
   return {
-    actionableNow: {
-      filter: withSnapshotWindow(
-        window,
-        RetryConditions.nextRetryCondition(
-          now,
-        ) as FilterExpression<ExecutionFailedAggregatedFields>,
-      ),
-      metrics: [countMetric()],
-    },
-    activeTotal: {
-      filter: activeFilter,
-      metrics: [countMetric()],
-    },
-    selectedInRange: {
-      filter: withSnapshotWindow(window, activeFilter),
-      metrics: [countMetric()],
-    },
-    newerThanRange: {
-      filter: filter.and([
-        filter.gte(
-          ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
-          window.end,
-        ),
-        activeFilter,
-      ]),
-      metrics: [countMetric()],
-    },
-    olderThanRange: {
-      filter: filter.and([
-        filter.lt(
-          ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
-          window.start,
-        ),
-        activeFilter,
-      ]),
-      metrics: [countMetric()],
-    },
-    timedOut: {
-      filter: withSnapshotWindow(
-        window,
-        filter.and([
-          filter.eq(
-            ExecutionFailedAggregatedFields.STATE_STATUS,
-            ExecutionFailedStatus.PREPARED,
-          ),
-          filter.lte(
-            ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
+    filter: activeFilter,
+    metrics: [
+      aggregation.count(
+        "actionableNow",
+        withSnapshotWindow(
+          window,
+          RetryConditions.nextRetryCondition(
             now,
+          ) as FilterExpression<ExecutionFailedAggregatedFields>,
+        ),
+      ),
+      aggregation.count(
+        "timedOut",
+        withSnapshotWindow(
+          window,
+          filter.and([
+            filter.eq(
+              ExecutionFailedAggregatedFields.STATE_STATUS,
+              ExecutionFailedStatus.PREPARED,
+            ),
+            filter.lte(
+              ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
+              now,
+            ),
+          ]),
+        ),
+      ),
+      aggregation.count(
+        "unrecoverable",
+        withSnapshotWindow(
+          window,
+          RetryConditions.unrecoverableCondition as FilterExpression<ExecutionFailedAggregatedFields>,
+        ),
+      ),
+      aggregation.count("activeTotal", activeFilter),
+      aggregation.count("selectedInRange", withSnapshotWindow(window, activeFilter)),
+      aggregation.count(
+        "newerThanRange",
+        filter.and([
+          filter.gte(
+            ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
+            window.end,
           ),
+          activeFilter,
         ]),
       ),
-      metrics: [countMetric()],
-    },
-    unrecoverable: {
-      filter: withSnapshotWindow(
-        window,
-        RetryConditions.unrecoverableCondition as FilterExpression<ExecutionFailedAggregatedFields>,
+      aggregation.count(
+        "olderThanRange",
+        filter.and([
+          filter.lt(
+            ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
+            window.start,
+          ),
+          activeFilter,
+        ]),
       ),
-      metrics: [countMetric()],
-    },
-  } satisfies Record<string, SnapshotAggregationQuery>;
+    ],
+  };
 }
 
 export function createPressureQuery(
@@ -470,19 +462,29 @@ export function createRecoverabilityQuery(
   };
 }
 
-export function createRetryHistogramQuery(
+export function createRetryDistributionQuery(
   window: TrendWindow,
 ): SnapshotAggregationQuery {
+  const retries = ExecutionFailedAggregatedFields.STATE_RETRY_STATE_RETRIES;
   return {
     filter: withSnapshotWindow(window, activeFilter),
-    groupBy: [
-      aggregation.histogram(
-        ExecutionFailedAggregatedFields.STATE_RETRY_STATE_RETRIES,
-        { interval: 1, alias: "retries" },
-      ),
+    metrics: [
+      aggregation.count("zero", filter.eq(retries, 0)),
+      aggregation.count("oneToTwo", filter.between(retries, 1, 2)),
+      aggregation.count("threeToFive", filter.between(retries, 3, 5)),
+      aggregation.count("sixPlus", filter.gte(retries, 6)),
     ],
-    metrics: [countMetric()],
-    limit: RETRY_HISTOGRAM_LIMIT,
+  };
+}
+
+export function mapRetryDistribution(row: RetryDistributionRow): RetryDistribution {
+  return {
+    buckets: [
+      { key: "0", count: row.zero },
+      { key: "1–2", count: row.oneToTwo },
+      { key: "3–5", count: row.threeToFive },
+      { key: "6+", count: row.sixPlus },
+    ],
   };
 }
 
@@ -507,22 +509,4 @@ export function mergePressureRows(
       preparedCount: clusterCounts?.[ExecutionFailedStatus.PREPARED] ?? 0,
     };
   });
-}
-
-export function bucketRetryRows(rows: RetryHistogramRow[]): RetryDistribution {
-  if (rows.length >= RETRY_HISTOGRAM_LIMIT) {
-    return { buckets: [], truncated: true };
-  }
-  const buckets: RetryDistribution["buckets"] = [
-    { key: "0", count: 0 },
-    { key: "1–2", count: 0 },
-    { key: "3–5", count: 0 },
-    { key: "6+", count: 0 },
-  ];
-  for (const row of rows) {
-    const bucket =
-      row.retries === 0 ? 0 : row.retries <= 2 ? 1 : row.retries <= 5 ? 2 : 3;
-    buckets[bucket].count += row.count;
-  }
-  return { buckets, truncated: false };
 }
