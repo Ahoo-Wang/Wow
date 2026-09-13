@@ -78,6 +78,13 @@ Result truncation is expressed uniformly through `sort` + `limit`; there is no s
 - Metric sorting: a global top-N — every bucket is necessarily scanned for correctness, and `limit` is the truncation.
 - For the `having` case see [HAVING](#having): `limit` means the number of rows after filtering.
 
+### String Field Aggregability on Elasticsearch {#es-string-aggregability}
+
+The Elasticsearch backend derives capabilities from the **actual index mapping**. Dynamically inferred string mappings (`text` + a `keyword` sub-field with `ignore_above: 256`) are length-limited — values above the limit never enter the `keyword` sub-field. Running a `TERMS` group-by, an `ANY` metric, or an exact match on such a field would **silently drop buckets** for over-long values, so schema validation rejects it up front (the field "does not support AGGREGATE_TERMS/EXACT_MATCH") instead of returning incomplete results. MongoDB has no such concept and admits the field from the logical schema — this is an intentional semantic difference between the backends, not a defect.
+
+- String fields that need aggregation or exact matching should declare an **explicit `keyword` mapping** (without `ignore_above`), like the function-name field in the snapshot metadata.
+- Restricted strings whose values are fully declared by enumeration (proving every value fits the limit) are unaffected.
+
 ## Metrics
 
 Every Metric also has a unique alias, used as a result-column name.
