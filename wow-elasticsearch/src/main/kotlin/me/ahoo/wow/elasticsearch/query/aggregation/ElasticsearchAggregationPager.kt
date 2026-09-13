@@ -457,13 +457,13 @@ internal class ElasticsearchAggregationPager(
         else -> error("Unsupported Elasticsearch aggregation key [${_kind()}].")
     }
 
-    private data class AggregationPage(
+    private class AggregationPage(
         val rows: Flux<ObjectNode>,
-        val realRowCount: Int,
+        private val realRowCount: Int,
         val afterKey: Map<String, FieldValue>,
         val fetched: Int,
-        val firstKey: Long? = null,
-        val lastKey: Long? = null,
+        val firstKey: Long?,
+        val lastKey: Long?,
     ) {
         fun shouldStop(plan: ElasticsearchAggregationPlan): Boolean {
             if (afterKey.isEmpty()) return true

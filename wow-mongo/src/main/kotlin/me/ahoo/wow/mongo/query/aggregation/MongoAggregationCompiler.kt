@@ -90,13 +90,13 @@ internal class MongoAggregationCompiler(
             }
         }
 
-        val denseGroup = query.groupBy.singleOrNull()?.let { it as? AggregationGroup.DateHistogram }?.takeIf { it.dense }
-        val denseGrid = denseGroup?.let { DenseDateGrid(it.unit, ZoneId.of(it.timeZone)) }
+        val dense = query.groupBy.singleOrNull()?.let { it as? AggregationGroup.DateHistogram }?.takeIf { it.dense }
+            ?.let { DenseHistogramFill(it, DenseDateGrid(it.unit, ZoneId.of(it.timeZone))) }
 
         val groupId = query.groupBy.takeIf { it.isNotEmpty() }?.let { groups ->
             val id = Document()
             val filters = groups.mapNotNull { group ->
-                val (filter, expression) = group.compile(logicalParent, physicalParent, schema, denseGrid)
+                val (filter, expression) = group.compile(logicalParent, physicalParent, schema, dense?.grid)
                 id[group.alias] = expression
                 filter
             }
@@ -107,10 +107,10 @@ internal class MongoAggregationCompiler(
         }
 
         add(group(query, groupId, logicalParent, physicalParent, schema, now))
-        if (denseGroup != null && denseGrid != null) {
-            addAll(denseStages(denseGroup, denseGrid))
+        if (dense != null) {
+            addAll(denseStages(dense))
         }
-        add(project(query, denseGroup, denseGrid))
+        add(project(query, dense))
         query.metrics.forEach { metric ->
             if (metric is AggregationMetric.Derived) {
                 add(derivedProject(query, metric))
@@ -276,20 +276,17 @@ internal class MongoAggregationCompiler(
     @Suppress("LongMethod")
     private fun project(
         query: AggregationQuery,
-        denseGroup: AggregationGroup.DateHistogram?,
-        denseGrid: DenseDateGrid?,
+        dense: DenseHistogramFill?,
     ): Bson {
-        val denseKey = denseGroup?.let { group -> denseGrid?.let { grid -> denseKeyProjection(group, grid) } }
         val projections = buildList {
             add(Projections.excludeId())
-            query.groupBy.forEach { group ->
-                add(
-                    if (group === denseGroup && denseKey != null) {
-                        Projections.computed(group.alias, denseKey)
-                    } else {
-                        Projections.computed(group.alias, "\$_id.${group.alias}")
-                    },
-                )
+            if (dense == null) {
+                query.groupBy.forEach { group ->
+                    add(Projections.computed(group.alias, "\$_id.${group.alias}"))
+                }
+            } else {
+                // dense exists only when groupBy is exactly the single dense date histogram
+                add(Projections.computed(dense.group.alias, denseKeyProjection(dense.group, dense.grid)))
             }
             query.metrics.forEach { metric ->
                 when (metric) {
@@ -404,19 +401,26 @@ internal class MongoAggregationCompiler(
     }
 
     /**
+     * The single dense date histogram of [AggregationQuery.groupBy] together with its grid: the
+     * pair exists exactly when groupBy is that one dense histogram, so later stages never
+     * null-check or identity-match the two halves against each other.
+     */
+    private class DenseHistogramFill(val group: AggregationGroup.DateHistogram, val grid: DenseDateGrid)
+
+    /**
      * Stages that carry the grouped bucket index through numeric densification: the index moves
      * out of `_id` onto the alias, then `$densify` fills every missing integer between the data
      * min and max (`bounds: "full"` keeps the window interior-gap-only). The closing `$match`
      * drops densify-synthetic documents whose index does not round-trip — see [denseRoundTripMatch].
      */
-    private fun denseStages(denseGroup: AggregationGroup.DateHistogram, grid: DenseDateGrid): List<Bson> = listOf(
-        Aggregates.set(Field(denseGroup.alias, "\$_id.${denseGroup.alias}")),
+    private fun denseStages(dense: DenseHistogramFill): List<Bson> = listOf(
+        Aggregates.set(Field(dense.group.alias, "\$_id.${dense.group.alias}")),
         Aggregates.densify(
-            denseGroup.alias,
+            dense.group.alias,
             DensifyRange.fullRangeWithStep(1L),
             DensifyOptions.densifyOptions(),
         ),
-        Aggregates.match(denseRoundTripMatch(denseGroup, grid)),
+        Aggregates.match(denseRoundTripMatch(dense.group, dense.grid)),
     )
 
     /**
