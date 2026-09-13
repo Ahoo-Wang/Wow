@@ -38,6 +38,10 @@ __pycache__/
 
 # Superpowers
 docs/superpowers/
+.superpowers/
+
+# Mimosa security scan scratch
+.mimosa/
 
 # Benchmark generated outputs
 wow-benchmarks/results/jmh/
