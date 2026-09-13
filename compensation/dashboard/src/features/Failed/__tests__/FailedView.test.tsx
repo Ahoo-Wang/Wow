@@ -337,6 +337,28 @@ describe("FailedView", () => {
     }
   });
 
+  it("exposes the carried window with a way to clear it without dropping other params", () => {
+    mocks.search = "id=e2e-1&start=1787328000000&end=1787932800000";
+    render(
+      <FailedView
+        category={FindCategory.NextRetry}
+        window={{ end: 1_787_932_800_000, start: 1_787_328_000_000 }}
+      />,
+    );
+
+    expect(screen.getByText("Time range filter")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear time range filter" }),
+    );
+
+    expect(mocks.setSearchParams).toHaveBeenCalledTimes(1);
+    const [next] = mocks.setSearchParams.mock.calls[0] as [URLSearchParams];
+    expect(next.get("start")).toBeNull();
+    expect(next.get("end")).toBeNull();
+    expect(next.get("id")).toBe("e2e-1");
+  });
+
   it("leaves the queue unwindowed when the link carries no range", () => {
     render(<FailedView category={FindCategory.NextRetry} />);
 

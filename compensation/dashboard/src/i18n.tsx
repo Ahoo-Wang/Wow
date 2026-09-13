@@ -287,6 +287,7 @@ const zhCN = {
   "Actionable now": "当前可操作",
   "{label}: {count}, open the due-for-retry queue": "{label}：{count} 条，打开已到重试时间的队列",
   "Invalid time range filter.": "时间范围过滤条件无效。",
+  "Time range filter": "时间范围过滤",
   "Clear time range filter": "清除时间范围过滤",
   "Timed out": "已超时",
   "Backlog exposure unavailable.": "积压暴露数据不可用。",

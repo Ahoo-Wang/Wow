@@ -60,6 +60,10 @@ export function parseExecutionWindow(
   if (rawStart === null || rawEnd === null) {
     return null;
   }
+  // Number("") and Number(" ") are 0, which would smuggle the Unix epoch past the bounds check.
+  if (rawStart.trim() === "" || rawEnd.trim() === "") {
+    return null;
+  }
   const start = Number(rawStart);
   const end = Number(rawEnd);
   if (!isValidBound(start) || !isValidBound(end) || end <= start) {

@@ -43,6 +43,8 @@ describe("executionWindow", () => {
     ["non numeric", "start=abc&end=1787932800000"],
     ["fractional", "start=1787328000000.5&end=1787932800000"],
     ["negative start", "start=-1&end=1787932800000"],
+    ["empty start", "start=&end=1787932800000"],
+    ["whitespace start", "start=%20&end=1787932800000"],
     ["empty window", "start=1787328000000&end=1787328000000"],
     ["inverted window", "start=1787932800000&end=1787328000000"],
   ])("rejects a malformed window (%s)", (_label, query) => {
