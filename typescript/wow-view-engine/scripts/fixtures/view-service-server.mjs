@@ -62,10 +62,15 @@ export async function startViewService({
     delayedReads: 0,
     mutations: 0,
   };
-  const hostFor = account =>
+  const hostFor = (account, supportedFormats) =>
     new Host({
       definition,
       instances,
+      supportedFormats,
+      definitionPermissions: () => ({
+        createPersonal: true,
+        createShared: account.writer,
+      }),
       store: values,
       serviceKey: account.service,
       scopeKey: account.user,
@@ -89,7 +94,7 @@ export async function startViewService({
     response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     response.setHeader(
       'Access-Control-Allow-Headers',
-      'authorization, content-type, idempotency-key, if-match',
+      'authorization, content-type, idempotency-key, if-match, x-view-formats',
     );
     response.setHeader(
       'Access-Control-Allow-Methods',
@@ -138,7 +143,15 @@ export async function startViewService({
       const token = request.headers.authorization?.replace(/^Bearer\s+/i, '');
       const account = accounts.get(token);
       if (!account) throw new ServiceError('UNAUTHENTICATED', '服务端会话无效');
-      host = hostFor(account);
+      host = hostFor(account, {
+        record: true,
+        analysis: true,
+        ...(request.headers['x-view-formats']
+          ?.split(',')
+          .includes('dashboard@1')
+          ? { dashboard: 1 }
+          : {}),
+      });
       const path = new URL(request.url, 'http://localhost').pathname
         .split('/')
         .filter(Boolean)

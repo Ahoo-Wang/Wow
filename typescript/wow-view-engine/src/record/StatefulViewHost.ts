@@ -26,6 +26,10 @@ import { validateViewInstance } from '../contracts/validation/instanceValidation
 import { readInstanceList } from '../contracts/validation/instanceValidation.js';
 import {
   ViewServiceError,
+  LEGACY_VIEW_FORMATS,
+  projectSupportedInstance,
+  requireSupportedInstance,
+  type SupportedViewFormats,
   type ViewDeleteResult,
   encodeViewResourceId,
   type ViewCreateContext,
@@ -48,6 +52,11 @@ export interface StatefulViewHostOptions {
   resolveSource: ViewHost['resolveSource'];
   instancePermissions?: NonNullable<ViewHost['permission']>['getInstance'];
   canReorder?: () => boolean;
+  definitionPermissions?: () => {
+    createPersonal: boolean;
+    createShared: boolean;
+  };
+  supportedFormats?: SupportedViewFormats;
   permissionsRevision?: () => number;
 }
 export interface ViewStateChange<T> {
@@ -80,12 +89,18 @@ export abstract class StatefulViewHost implements ViewHost {
       return this.transaction(
         state => {
           const visible = this.ordered(state, this.options.scopeKey);
+          const instances = visible
+            .map(item => projectSupportedInstance(this.dto(item), this.formats))
+            .filter((item): item is ViewInstance => item !== null);
+          const defaultId = this.resolveDefault(
+            state.users[this.options.scopeKey].defaultInstanceId,
+            visible,
+          );
           return {
-            instances: visible.map(item => this.dto(item)),
-            defaultInstanceId: this.resolveDefault(
-              state.users[this.options.scopeKey].defaultInstanceId,
-              visible,
-            ),
+            instances,
+            defaultInstanceId: instances.some(item => item.id === defaultId)
+              ? defaultId
+              : null,
           };
         },
         false,
@@ -94,7 +109,11 @@ export abstract class StatefulViewHost implements ViewHost {
     },
     load: async (id: string, signal?: AbortSignal): Promise<ViewInstance> => {
       return this.transaction(
-        state => this.dto(this.find(state, id)),
+        state =>
+          requireSupportedInstance(
+            this.dto(this.find(state, id)),
+            this.formats,
+          ),
         false,
         signal,
       );
@@ -124,7 +143,7 @@ export abstract class StatefulViewHost implements ViewHost {
           revision: crypto.randomUUID(),
         };
         state.instances[state.instances.indexOf(previous)] = saved;
-        return this.dto(saved);
+        return requireSupportedInstance(this.dto(saved), this.formats);
       }, true);
     },
     create: async (
@@ -150,6 +169,7 @@ export abstract class StatefulViewHost implements ViewHost {
             revision: crypto.randomUUID(),
           };
           this.validate(candidate);
+          requireSupportedInstance(candidate, this.formats);
           if (
             candidate.scope.type === 'public' &&
             candidate.scope.source === 'system'
@@ -158,7 +178,14 @@ export abstract class StatefulViewHost implements ViewHost {
               'FORBIDDEN',
               '系统视图只能通过初始配置提供',
             );
-          const allowed = this.permission.getInstance(candidate);
+          const allowed =
+            candidate.kind === 'dashboard'
+              ? {
+                  saveAsPersonal:
+                    this.permission.getDefinition().createPersonal,
+                  saveAsShared: this.permission.getDefinition().createShared,
+                }
+              : this.permission.getInstance(candidate);
           if (
             !(candidate.scope.type === 'personal'
               ? allowed.saveAsPersonal
@@ -176,7 +203,7 @@ export abstract class StatefulViewHost implements ViewHost {
                 'CONFLICT',
                 'requestId 已用于不同的创建内容',
               );
-            return receipt.result;
+            return requireSupportedInstance(receipt.result, this.formats);
           }
           state.instances.push({
             ...candidate,
@@ -189,7 +216,7 @@ export abstract class StatefulViewHost implements ViewHost {
             ...state.creates,
             [receiptKey]: { input: copy(body), result: candidate },
           };
-          return candidate;
+          return requireSupportedInstance(candidate, this.formats);
         },
         true,
         context.signal,
@@ -209,7 +236,7 @@ export abstract class StatefulViewHost implements ViewHost {
         };
         this.validate(next);
         state.instances[state.instances.indexOf(previous)] = next;
-        return this.dto(next);
+        return requireSupportedInstance(this.dto(next), this.formats);
       }, true);
     },
     delete: async (id: string, revision: string): Promise<ViewDeleteResult> => {
@@ -236,7 +263,10 @@ export abstract class StatefulViewHost implements ViewHost {
           defaultInstance:
             defaultId === null
               ? null
-              : this.dto(visible.find(item => item.id === defaultId)!),
+              : projectSupportedInstance(
+                  this.dto(visible.find(item => item.id === defaultId)!),
+                  this.formats,
+                ),
         };
       }, true);
     },
@@ -265,7 +295,15 @@ export abstract class StatefulViewHost implements ViewHost {
       };
     },
     getDefinition: () => {
-      return { reorder: this.options.canReorder?.() ?? true };
+      return {
+        reorder: this.options.canReorder?.() ?? true,
+        createPersonal:
+          this.formats.dashboard === 1 &&
+          this.options.definitionPermissions?.().createPersonal === true,
+        createShared:
+          this.formats.dashboard === 1 &&
+          this.options.definitionPermissions?.().createShared === true,
+      };
     },
     subscribe: (listener: () => void): (() => void) => {
       this.permissionListeners.add(listener);
@@ -282,12 +320,16 @@ export abstract class StatefulViewHost implements ViewHost {
         state => ({
           revision: this.options.permissionsRevision?.() ?? 0,
           instances: Object.fromEntries(
-            this.visible(state).map(item => [
-              item.id,
-              this.permission.getInstance(this.dto(item)),
-            ]),
+            this.visible(state)
+              .filter(
+                item => projectSupportedInstance(item, this.formats) !== null,
+              )
+              .map(item => [
+                item.id,
+                this.permission.getInstance(this.dto(item)),
+              ]),
           ),
-          reorder: this.permission.getDefinition().reorder,
+          ...this.permission.getDefinition(),
         }),
         false,
         signal,
@@ -305,7 +347,8 @@ export abstract class StatefulViewHost implements ViewHost {
     ): Promise<void> => {
       this.assertDefinition(id);
       await this.transaction(state => {
-        if (instanceId !== null) this.find(state, instanceId);
+        if (instanceId !== null)
+          requireSupportedInstance(this.find(state, instanceId), this.formats);
         state.users[this.options.scopeKey].defaultInstanceId = instanceId;
       }, true);
     },
@@ -314,7 +357,10 @@ export abstract class StatefulViewHost implements ViewHost {
       await this.transaction(state => {
         if (!this.permission.getDefinition().reorder)
           throw new ViewServiceError('FORBIDDEN', '没有视图排序权限');
-        const visible = this.visible(state);
+        const ordered = this.ordered(state, this.options.scopeKey);
+        const visible = ordered.filter(
+          item => projectSupportedInstance(item, this.formats) !== null,
+        );
         if (
           !Array.isArray(instanceIds) ||
           instanceIds.some(id => typeof id !== 'string') ||
@@ -332,11 +378,17 @@ export abstract class StatefulViewHost implements ViewHost {
             'CONFLICT',
             '排序必须包含所有当前可见视图，请重新加载',
           );
-        state.users[this.options.scopeKey].order = [...instanceIds];
+        let index = 0;
+        state.users[this.options.scopeKey].order = ordered.map(item =>
+          projectSupportedInstance(item, this.formats) !== null
+            ? instanceIds[index++]
+            : item.id,
+        );
       }, true);
     },
   };
   readonly storageKey: string;
+  private readonly formats: SupportedViewFormats;
   private readonly storedDefinition: ViewDefinition;
   private readonly initial: ViewInstanceList;
   private readonly options: StatefulViewHostOptions;
@@ -364,6 +416,9 @@ export abstract class StatefulViewHost implements ViewHost {
       throw new ViewServiceError('INVALID_ARGUMENT', message(error));
     }
     this.options = { ...options };
+    this.formats = Object.freeze({
+      ...(options.supportedFormats ?? LEGACY_VIEW_FORMATS),
+    });
     this.storageKey = `fve:views:${JSON.stringify([options.serviceKey, this.storedDefinition.id])}`;
   }
 
@@ -437,6 +492,7 @@ export abstract class StatefulViewHost implements ViewHost {
     action: 'save' | 'rename' | 'delete',
   ): StoredInstance {
     const instance = this.find(state, id);
+    requireSupportedInstance(instance, this.formats);
     if (!this.permission.getInstance(this.dto(instance))[action])
       throw new ViewServiceError(
         'FORBIDDEN',

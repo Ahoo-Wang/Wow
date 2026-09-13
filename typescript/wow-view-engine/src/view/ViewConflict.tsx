@@ -137,6 +137,11 @@ export function ViewConflict({
                           列 · {instance.config.sort.length} 项排序
                         </p>
                       </>
+                    ) : instance.kind === 'dashboard' ? (
+                      <p>
+                        {instance.config.panels.length} 个面板 ·{' '}
+                        {instance.config.filters.length} 项全局筛选
+                      </p>
                     ) : (
                       <>
                         <p>

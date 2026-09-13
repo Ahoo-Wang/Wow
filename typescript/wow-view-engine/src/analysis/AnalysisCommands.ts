@@ -21,10 +21,11 @@ import {
   hasUnrunAnalysisQuery,
   type AnalysisQueryIntent,
 } from './analysisQueryPolicy.js';
-import { compileAnalysis } from './analysisCompiler.js';
+import { compileScopedAnalysis } from './analysisSession.js';
 import { validateAnalysisResult } from './analysisResult.js';
 import type { DeepReadonly } from '../lib/types.js';
-import { copy } from '../lib/snapshot.js';
+import { copy, message } from '../lib/snapshot.js';
+import type { AnalysisSession } from '../contracts/viewModel.js';
 import { validateFilterJson } from '../filter/filterConfigurationValidation.js';
 import type { SessionStore } from '../engine/SessionStore.js';
 import type { EngineScope } from '../engine/EngineScope.js';
@@ -34,7 +35,7 @@ import {
   assertConfigSize,
   validateRuntimeLimits,
   RuntimeLimitError,
-  reportDiagnostic,
+  beginDiagnostic,
   type RuntimeLimits,
   type RuntimeDiagnostic,
 } from '../lib/runtimeLimits.js';
@@ -79,14 +80,18 @@ export class AnalysisCommands {
 
   private compile(config: DeepReadonly<AnalysisViewConfig>, id: string) {
     const definition = this.store.definition(id);
-    return compileAnalysis(config, {
-      fields: definition.fields,
-      capability: definition.analysis!,
-      timeZone: definition.timeZone,
-      allowedOperators: definition.allowedOperators,
-      filterCompilers: this.store.filterCompilers,
-      compilers: this.compilers,
-    });
+    return compileScopedAnalysis(
+      config,
+      {
+        fields: definition.fields,
+        capability: definition.analysis!,
+        timeZone: definition.timeZone,
+        allowedOperators: definition.allowedOperators,
+        filterCompilers: this.store.filterCompilers,
+        compilers: this.compilers,
+      },
+      this.store.analysisSession(id).scopeFilter,
+    );
   }
 
   async setSort(
@@ -146,6 +151,19 @@ export class AnalysisCommands {
     await this.start(id, intent).completion;
   }
 
+  private publishRejected(
+    id: string,
+    session: AnalysisSession,
+    error: unknown,
+  ): void {
+    if (this.requests.has(id) || this.store.find(id) !== session) return;
+    this.store.patch(id, {
+      kind: 'analysis',
+      queryStatus: 'error',
+      queryError: message(error),
+    });
+  }
+
   start(
     id: string,
     intent: AnalysisQueryIntent = 'manual',
@@ -154,25 +172,13 @@ export class AnalysisCommands {
     const session = this.store.analysisSession(id);
     if (intent !== 'manual' && !analysisQueryPolicy(session, intent))
       return refused();
-    const started = performance.now();
-    const operationId = crypto.randomUUID();
-    const diagnostic = (
-      phase: RuntimeDiagnostic['phase'],
-      errorCode?: string,
-    ) =>
-      reportDiagnostic(this.onDiagnostic, {
-        operationId,
-        kind: 'analysis',
-        operation: 'query',
-        phase,
-        elapsedMs: performance.now() - started,
-        ...(errorCode ? { errorCode } : {}),
-      });
+    const diagnostic = beginDiagnostic(this.onDiagnostic, 'analysis', 'query');
     const controller = new AbortController();
     try {
       assertConfigSize(session.instance.config, this.limits.maxConfigBytes);
       if (!session.filterValid) throw new Error('筛选输入无效');
     } catch (error) {
+      this.publishRejected(id, session, error);
       diagnostic(
         'failed',
         error instanceof RuntimeLimitError ? error.code : 'INVALID_CONFIG',
@@ -182,8 +188,12 @@ export class AnalysisCommands {
     const definition = this.store.definition(id);
     const compiled = this.compile(session.instance.config, id);
     if (!compiled.plan) {
+      const error = new Error(
+        compiled.errors.map(value => value.message).join('；'),
+      );
+      this.publishRejected(id, session, error);
       diagnostic('failed', 'INVALID_CONFIG');
-      throw new Error(compiled.errors.map(value => value.message).join('；'));
+      throw error;
     }
     if (!analysisQueryPolicy({ ...session, compilation: compiled }, intent))
       return refused();
@@ -204,9 +214,21 @@ export class AnalysisCommands {
     try {
       reading = this.runner.submit({
         key: `analysis:${id}`,
-        policy: 'reject',
+        policy: session.queryPolicy ?? 'reject',
         timeoutMs: this.limits.queryTimeoutMs,
         controller,
+        onAccepted: waiting => {
+          accepted = true;
+          if (waiting) diagnostic('queued');
+          if (waiting && current())
+            this.store.patch(id, {
+              kind: 'analysis',
+              queryStatus: 'waiting',
+              queryError: null,
+              pendingQuery: plan,
+              queryAttempt: plan,
+            });
+        },
         run: async () => {
           if (!current())
             throw new RuntimeLimitError('CANCELLED', '操作已取消');
@@ -222,7 +244,12 @@ export class AnalysisCommands {
           if (!current())
             throw new RuntimeLimitError('CANCELLED', '操作已取消');
           if (!definition.sourceId) throw new Error('查询定义缺少数据源');
-          const source = await this.host.resolveSource(definition.sourceId);
+          const positionSource = this.store.source(id);
+          const source =
+            typeof positionSource === 'function'
+              ? await positionSource(controller)
+              : (positionSource ??
+                (await this.host.resolveSource(definition.sourceId)));
           if (!current() || controller.signal.aborted)
             throw new RuntimeLimitError('CANCELLED', '操作已取消');
           if (!source.aggregate)
@@ -235,6 +262,7 @@ export class AnalysisCommands {
         if (previous) this.requests.set(id, previous);
         else this.requests.delete(id);
       }
+      this.publishRejected(id, session, error);
       diagnostic(
         'failed',
         error instanceof RuntimeLimitError ? error.code : 'QUERY_FAILED',
@@ -251,7 +279,6 @@ export class AnalysisCommands {
         const result = validateAnalysisResult(rows, plan);
         if (!result.rows)
           throw new Error(result.errors.map(value => value.message).join('；'));
-        this.requests.delete(id);
         this.store.patch(id, {
           kind: 'analysis',
           queryStatus: 'success',
@@ -264,6 +291,7 @@ export class AnalysisCommands {
             receivedAt: Date.now(),
           },
         });
+        if (this.requests.get(id) === request) this.requests.delete(id);
         diagnostic('succeeded');
       } catch (error) {
         if (!current()) {

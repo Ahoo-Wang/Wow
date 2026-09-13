@@ -20,7 +20,11 @@ import {
   type RuntimeLimits,
 } from '../../lib/runtimeLimits.js';
 import { RequestRunner } from '../../engine/RequestRunner.js';
-import type { RecordQuerySource } from '../../contracts/viewModel.js';
+import { sameFilterQuery } from '../../filter/filterTree.js';
+import type {
+  RecordQuerySource,
+  RecordSession,
+} from '../../contracts/viewModel.js';
 import type { ViewHost } from '../../contracts/ViewHost.js';
 import { validateRecordRows } from '../recordValidation.js';
 import { getRecordRefreshBlockReason } from '../recordRefreshPolicy.js';
@@ -81,12 +85,17 @@ export class RecordQueries {
     const session = this.store.find(id);
     if (
       session?.kind === 'record' &&
-      (session.queryStatus === 'loading' || session.refreshing)
+      (session.queryStatus === 'loading' ||
+        session.queryStatus === 'waiting' ||
+        session.refreshing)
     )
       this.store.patch(id, {
         kind: 'record',
         refreshing: false,
-        ...(session.queryStatus === 'loading' ? { queryStatus: 'idle' } : {}),
+        ...(session.queryStatus === 'loading' ||
+        session.queryStatus === 'waiting'
+          ? { queryStatus: 'idle' }
+          : {}),
       });
   }
 
@@ -136,6 +145,19 @@ export class RecordQueries {
     };
   }
 
+  private publishRejected(
+    id: string,
+    session: RecordSession,
+    error: unknown,
+  ): void {
+    if (this.queries.has(id) || this.store.find(id) !== session) return;
+    this.store.patch(id, {
+      kind: 'record',
+      queryStatus: 'error',
+      queryError: message(error),
+    });
+  }
+
   async run(
     id: string,
     mode: 'query' | 'refresh' | 'background' | 'scope' | 'retry' = 'query',
@@ -143,7 +165,9 @@ export class RecordQueries {
     const background = mode === 'background';
     const session = this.store.recordSession(id);
     const prior =
-      mode === 'query'
+      mode === 'query' ||
+      (session.scopeFilter &&
+        !sameFilterQuery(session.result?.filter, session.appliedFilter))
         ? null
         : mode === 'retry'
           ? session.queryAttempt
@@ -160,6 +184,7 @@ export class RecordQueries {
     try {
       assertConfigSize(config, this.limits.maxConfigBytes);
     } catch (error) {
+      this.publishRejected(id, session, error);
       diagnostic('failed', 'RESOURCE_LIMIT');
       throw error;
     }
@@ -176,11 +201,23 @@ export class RecordQueries {
     try {
       reading = this.runner.submit({
         key: `record:${id}`,
-        policy: 'reject',
+        policy: session.queryPolicy ?? 'reject',
         timeoutMs: this.limits.queryTimeoutMs,
         controller,
-        run: async () => {
+        onAccepted: waiting => {
+          if (waiting) diagnostic('queued');
           this.replaceController(id, controller);
+          if (waiting && current())
+            this.store.patch(id, {
+              kind: 'record',
+              queryStatus: 'waiting',
+              queryError: null,
+              queryAttempt,
+              selectedRowKeys: [],
+              refreshing: false,
+            });
+        },
+        run: async () => {
           if (!current())
             throw new RuntimeLimitError('CANCELLED', '操作已取消');
           this.store.patch(
@@ -220,7 +257,12 @@ export class RecordQueries {
           if (filter === null)
             throw new Error('筛选组件配置无法编译，请先修正筛选');
           if (!definition.sourceId) throw new Error('查询定义缺少数据源');
-          source = await this.host.resolveSource(definition.sourceId);
+          const positionSource = this.store.source(id);
+          source =
+            typeof positionSource === 'function'
+              ? await positionSource(controller)
+              : (positionSource ??
+                (await this.host.resolveSource(definition.sourceId)));
           if (!current())
             throw new RuntimeLimitError('CANCELLED', '操作已取消');
           const { sort, pagination } = config;
@@ -256,6 +298,7 @@ export class RecordQueries {
         },
       }).completion;
     } catch (error) {
+      this.publishRejected(id, session, error);
       diagnostic(
         'failed',
         error instanceof RuntimeLimitError ? error.code : 'QUERY_FAILED',

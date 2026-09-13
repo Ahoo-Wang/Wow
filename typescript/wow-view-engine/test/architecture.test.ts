@@ -38,11 +38,12 @@ it('keeps the public core runtime independent of browser UI libraries and global
   expect(browserGlobalsIn(graph)).toEqual([]);
 });
 
+// Transpiling the entire source tree is a structural check, not a runtime latency budget.
 it('keeps both public runtime import graphs free of internal cycles', () => {
   expect(
     cyclesIn(graphFrom([join(root, 'index.ts'), join(root, 'react.ts')])),
   ).toEqual([]);
-});
+}, 15_000);
 
 it('distinguishes runtime imports and browser references from types, strings and local bindings', () => {
   const runtime = runtimeModule(

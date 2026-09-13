@@ -37,6 +37,12 @@ import type { FilterValidationError } from '../filter/filterModel.js';
 import type { RuntimeLimits, RuntimeDiagnostic } from '../lib/runtimeLimits.js';
 import type { ViewHost } from './ViewHost.js';
 
+import type {
+  DashboardViewInstance,
+  DashboardSession,
+  DashboardTransforms,
+} from '../dashboard/dashboardModel.js';
+
 export type RecordData = Record<string, unknown>;
 export type RecordKey = string | number;
 export type RendererReference = FilterEditorReference;
@@ -52,7 +58,8 @@ export interface ViewFieldDefinition extends FilterFieldDefinition {
 interface ViewDefinitionMetadata {
   id: string;
   title: string;
-  sourceId: string;
+  sourceId?: string;
+  dashboard?: true;
   timeZone?: string;
   fields: readonly ViewFieldDefinition[];
   allowedOperators?: readonly FilterOperator[];
@@ -60,8 +67,17 @@ interface ViewDefinitionMetadata {
 }
 export type ViewDefinition = ViewDefinitionMetadata &
   (
-    | { record: RecordCapability; analysis?: DeepReadonly<AnalysisCapability> }
-    | { record?: RecordCapability; analysis: DeepReadonly<AnalysisCapability> }
+    | {
+        sourceId: string;
+        record: RecordCapability;
+        analysis?: DeepReadonly<AnalysisCapability>;
+      }
+    | {
+        sourceId: string;
+        record?: RecordCapability;
+        analysis: DeepReadonly<AnalysisCapability>;
+      }
+    | { dashboard: true; record?: never; analysis?: never }
   );
 export interface RecordCapability {
   rowKey: string;
@@ -75,6 +91,7 @@ export interface RecordCapability {
 }
 export type RecordViewDefinition = ViewDefinition & {
   record: RecordCapability;
+  sourceId: string;
 };
 
 export type ViewScope =
@@ -143,7 +160,7 @@ export interface ViewInstanceMetadata {
   scope: ViewScope;
   revision: string;
 }
-/** This release implements record instances. Other view kinds add their own config contracts. */
+/** Record instances persist their own query and presentation configuration. */
 export interface RecordViewInstance extends ViewInstanceMetadata {
   kind: 'record';
   config: RecordViewConfig;
@@ -152,10 +169,12 @@ export interface AnalysisViewInstance extends ViewInstanceMetadata {
   kind: 'analysis';
   config: AnalysisViewConfig;
 }
-export type ViewInstance = RecordViewInstance | AnalysisViewInstance;
+export type ViewInstance =
+  RecordViewInstance | AnalysisViewInstance | DashboardViewInstance;
 export type ViewCreateInput =
   | Omit<RecordViewInstance, 'id' | 'revision'>
-  | Omit<AnalysisViewInstance, 'id' | 'revision'>;
+  | Omit<AnalysisViewInstance, 'id' | 'revision'>
+  | Omit<DashboardViewInstance, 'id' | 'revision'>;
 export interface ViewInstanceList {
   instances: ViewInstance[];
   defaultInstanceId: string | null;
@@ -171,6 +190,8 @@ export interface ViewInstancePermissions {
 }
 /** Immutable UI capabilities; subscribe through ViewEngine.subscribe. */
 export interface ViewCapabilities {
+  readonly createPersonal: boolean;
+  readonly createShared: boolean;
   readonly reorder: boolean;
   readonly setDefault: boolean;
   readonly instances: Readonly<
@@ -199,6 +220,7 @@ export type ViewSource = (
 export interface ViewEngineOptions {
   limits?: Partial<RuntimeLimits>;
   onDiagnostic?: (event: RuntimeDiagnostic) => void;
+  dashboardTransforms?: DashboardTransforms;
   analysisCompilers?: AnalysisCompilerRegistry;
   /** Headless filter capabilities fixed for this engine lifetime; ViewPage uses extensions.filters. */
   filterCompilers?: FilterCompilerRegistry;
@@ -213,8 +235,8 @@ export interface ViewInstanceConflict {
   readonly baseline: DeepReadonly<ViewInstance>;
   readonly remote: DeepReadonly<ViewInstance>;
   readonly local: DeepReadonly<ViewInstance>;
-  readonly filterDraft: DeepReadonly<FilterConfiguration>;
-  readonly filterValid: boolean;
+  readonly filterDraft?: DeepReadonly<FilterConfiguration>;
+  readonly filterValid?: boolean;
 }
 export interface RecordQuerySnapshot {
   config: RecordViewConfig;
@@ -225,6 +247,8 @@ export interface RecordQuerySnapshot {
 export interface RecordSession {
   readonly positionId: string;
   readonly kind: 'record';
+  readonly scopeFilter?: DeepReadonly<FilterExpression>;
+  readonly queryPolicy?: 'reject' | 'queue';
   /** Changes only when local editor buffers must be discarded. */
   readonly editorEpoch: number;
   readonly editVersion: number;
@@ -258,7 +282,7 @@ export interface RecordSession {
   readonly pageSummary: RecordSummaryResult;
   readonly allSummary: RecordSummaryResult;
   readonly selectedRowKeys: readonly RecordKey[];
-  readonly queryStatus: 'idle' | 'loading' | 'success' | 'error';
+  readonly queryStatus: 'idle' | 'waiting' | 'loading' | 'success' | 'error';
   /** A background read keeps the last successful rows usable. */
   readonly refreshing: boolean;
   readonly queryError: string | null;
@@ -270,6 +294,8 @@ export interface RecordSession {
 export interface AnalysisSession {
   readonly positionId: string;
   readonly kind: 'analysis';
+  readonly scopeFilter?: DeepReadonly<FilterExpression>;
+  readonly queryPolicy?: 'reject' | 'queue';
   /** Changes only when local editor buffers must be discarded. */
   readonly editorEpoch: number;
   /** Derived query admission; presentation-only errors do not block execution. */
@@ -291,14 +317,14 @@ export interface AnalysisSession {
     rows: AnalysisRow[];
     receivedAt: number;
   }> | null;
-  readonly queryStatus: 'idle' | 'loading' | 'success' | 'error';
+  readonly queryStatus: 'idle' | 'waiting' | 'loading' | 'success' | 'error';
   readonly queryError: string | null;
   readonly writeStatus: RecordSession['writeStatus'];
   readonly writeError: string | null;
   readonly requiresReload: boolean;
   readonly conflict?: ViewInstanceConflict;
 }
-export type ViewSession = RecordSession | AnalysisSession;
+export type ViewSession = RecordSession | AnalysisSession | DashboardSession;
 export interface ViewEngineState {
   readonly version: number;
   readonly status: 'idle' | 'loading' | 'ready' | 'error';
@@ -320,7 +346,7 @@ export interface RecordSummaryMetric {
   function: RecordSummaryFunction;
 }
 export interface RecordSummaryResult {
-  readonly status: 'idle' | 'loading' | 'success' | 'error';
+  readonly status: 'idle' | 'waiting' | 'loading' | 'success' | 'error';
   readonly values: Readonly<
     Record<
       string,

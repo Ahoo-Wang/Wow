@@ -29,6 +29,8 @@ export function RecordTableBody({
   refresh,
   selectable,
   querying,
+  actionsDisabled,
+  isCurrent,
   queryError,
   onQueryRetry,
   model,
@@ -42,6 +44,8 @@ export function RecordTableBody({
   | 'refresh'
   | 'selectable'
   | 'querying'
+  | 'actionsDisabled'
+  | 'isCurrent'
   | 'queryError'
   | 'onQueryRetry'
 > & { model: RecordTableModel; availableWidth: number }) {
@@ -106,6 +110,8 @@ export function RecordTableBody({
                   ]}
                 >
                   <RecordCell
+                    actionsDisabled={actionsDisabled}
+                    isCurrent={isCurrent}
                     column={column}
                     record={row.original}
                     rowKey={getRecordKey(

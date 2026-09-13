@@ -696,3 +696,42 @@ it('encodes valid resource IDs exactly once without changing the requested resou
     );
   }
 });
+
+it.each([false, true])(
+  'projects HTTP creation grants against negotiated dashboard support (%s)',
+  async supported => {
+    const transport = new HttpViewTransport({
+      baseUrl: server.baseUrl,
+      definitionId: definition.id,
+      headers: () => ({ Authorization: 'Bearer alice-token' }),
+      ...(supported
+        ? {
+            supportedFormats: {
+              record: true as const,
+              analysis: true as const,
+              dashboard: 1 as const,
+            },
+          }
+        : {}),
+    });
+    const authority = {
+      revision: 100,
+      instances: {},
+      reorder: true,
+      createPersonal: true,
+      createShared: true,
+    };
+    transport.permission.acceptSnapshot(authority);
+    vi.spyOn(transport, 'request').mockResolvedValue(authority);
+    for (let i = 0; i < 2; i++)
+      expect(await transport.permission.load(definition.id)).toMatchObject({
+        createPersonal: supported,
+        createShared: supported,
+      });
+    expect(transport.permission.getDefinition()).toEqual({
+      reorder: true,
+      createPersonal: supported,
+      createShared: supported,
+    });
+  },
+);

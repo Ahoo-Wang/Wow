@@ -111,6 +111,8 @@ export type FilterPanelProps = FilterPanelOptions &
       }
   );
 interface FilterPanelOptions {
+  /** Accessible name for multiple filter panels in a composed page. */
+  ariaLabel?: string;
   /** Shared by all date/time controls and compilation; defaults to local. */
   timeZone?: string;
   fields: readonly FilterFieldDefinition[];

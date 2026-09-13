@@ -24,7 +24,7 @@ export function analysisQueryPolicy(
 ): boolean {
   if (!session.queryValid || !session.compilation.plan) return false;
   if (
-    session.queryStatus === 'loading' &&
+    (session.queryStatus === 'loading' || session.queryStatus === 'waiting') &&
     sameJsonState(session.pendingQuery?.query, session.compilation.plan.query)
   )
     return false;

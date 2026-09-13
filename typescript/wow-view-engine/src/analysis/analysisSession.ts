@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { withQueryScope } from '../filter/filterScope.js';
 import type {
   AnalysisSession,
   AnalysisViewInstance,
@@ -20,7 +21,11 @@ import type { FilterCompilerRegistry } from '../filter/filterModel.js';
 import type { DeepReadonly } from '../lib/types.js';
 import { configSizeIssues } from '../engine/sessionValidationCache.js';
 import { compileAnalysis } from './analysisCompiler.js';
-import type { AnalysisCompilerRegistry } from './analysisModel.js';
+import type {
+  AnalysisCompilerRegistry,
+  AnalysisViewConfig,
+  AnalysisCompileContext,
+} from './analysisModel.js';
 import { validateAnalysisPresentation } from './analysisProjection.js';
 import { sameAnalysisQueryDraft } from './analysisQueryPolicy.js';
 
@@ -75,16 +80,21 @@ export function deriveAnalysisSession(
 ): AnalysisSession {
   const compiled =
     previous &&
+    previous.scopeFilter === session.scopeFilter &&
     sameAnalysisQueryDraft(previous.instance.config, session.instance.config)
       ? previous.compilation
-      : compileAnalysis(session.instance.config, {
-          fields: definition.fields,
-          capability: definition.analysis!,
-          timeZone: definition.timeZone,
-          allowedOperators: definition.allowedOperators,
-          filterCompilers,
-          compilers: analysisCompilers,
-        });
+      : compileScopedAnalysis(
+          session.instance.config,
+          {
+            fields: definition.fields,
+            capability: definition.analysis!,
+            timeZone: definition.timeZone,
+            allowedOperators: definition.allowedOperators,
+            filterCompilers,
+            compilers: analysisCompilers,
+          },
+          session.scopeFilter,
+        );
   const sizeIssues = configSizeIssues(session.instance.config, maxConfigBytes);
   return {
     ...session,
@@ -119,4 +129,23 @@ export function deriveAnalysisSession(
 
 export function clearAnalysisResult(session: AnalysisSession): AnalysisSession {
   return { ...session, result: null };
+}
+
+export function compileScopedAnalysis(
+  config: DeepReadonly<AnalysisViewConfig>,
+  context: AnalysisCompileContext,
+  scopeFilter?: AnalysisSession['scopeFilter'],
+) {
+  const compiled = compileAnalysis(config, context);
+  if (!compiled.plan || !scopeFilter) return compiled;
+  return {
+    ...compiled,
+    plan: {
+      ...compiled.plan,
+      query: {
+        ...compiled.plan.query,
+        filter: withQueryScope(compiled.plan.query.filter, scopeFilter)!,
+      },
+    },
+  };
 }

@@ -115,9 +115,12 @@ it('saves valid working filters while queries keep their previously applied scop
       ).disabled,
     ).toBe(true),
   );
-  expect(
-    screen.getByRole('status', { name: '保存状态' }).textContent,
-  ).toContain('视图已保存');
+  // Save is disabled during both the request and its completed state.
+  await waitFor(() =>
+    expect(
+      screen.getByRole('status', { name: '保存状态' }).textContent,
+    ).toContain('视图已保存'),
+  );
   expect(paged).toHaveBeenCalledTimes(1);
   expect(
     vi.mocked(host.instance!.save!).mock.calls[0][0].config.filters.root.props

@@ -14,5 +14,9 @@
 import type { RecordExtensions } from '../record/recordReactTypes.js';
 import type { AnalysisExtensions } from '../analysis/analysisReactTypes.js';
 
+import type { DashboardExtensions } from '../dashboard/dashboardReactTypes.js';
+
 /** Page-level composition; each view kind consumes only its own extensions. */
-export interface ViewExtensions extends RecordExtensions, AnalysisExtensions {}
+export interface ViewExtensions extends RecordExtensions, AnalysisExtensions {
+  dashboard?: DashboardExtensions;
+}

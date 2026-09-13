@@ -93,3 +93,44 @@ node packages/view-engine/scripts/verify-http-view-host.mjs --serve
 The fixture allows only the origin in `VIEW_ENGINE_E2E_BASE_URL` (default `http://127.0.0.1:6006`). Set it when using another Storybook address, including `http://localhost:6006`. Requests from other browser origins are rejected before preflight or mutations.
 
 The successful `DELETE /instances/{id}` envelope contains `ViewDeleteResult`: `{ defaultInstance: ViewInstance | null }`. The receipt comes from the deletion transaction; idempotent repeats also return the current user's authoritative default. Clients must retain this response body.
+
+### Cross-definition dashboards
+
+`HttpViewHost` is a definition-scoped client, not a global resource directory. `supportedFormats.dashboard` negotiates the stored format; it does not extend the routes to other definitions. For a cross-definition dashboard, configure one HTTP client per target definition and compose the existing public `ViewHost` at the application boundary. Import `ViewHost` and `ViewServiceError` from the core package. The example assumes `rootClient` and `ordersClient` are already configured.
+
+```ts
+// rootClient and ordersClient each use their own definitionId and transport.
+const definitions = new Map([
+  ['overview', rootClient],
+  ['orders', ordersClient],
+]);
+const owners = new Map([
+  ['dashboard', rootClient],
+  ['saved-orders', ordersClient],
+]);
+function clientFor(registry: ReadonlyMap<string, HttpViewHost>, id: string) {
+  const client = registry.get(id);
+  if (!client)
+    throw new ViewServiceError('NOT_FOUND', 'Resource not registered');
+  return client;
+}
+const host: ViewHost = {
+  definition: {
+    load: (id, signal) =>
+      clientFor(definitions, id).definition.load(id, signal),
+  },
+  instance: {
+    list: rootClient.instance.list,
+    load: (id, signal) => clientFor(owners, id).instance.load(id, signal),
+    create: rootClient.instance.create,
+    save: rootClient.instance.save,
+    rename: rootClient.instance.rename,
+    delete: rootClient.instance.delete,
+  },
+  preference: rootClient.preference,
+  permission: rootClient.permission,
+  resolveSource: rootClient.resolveSource,
+};
+```
+
+Recreate all clients and the composed host when the user/tenant access scope changes. Instance IDs must be unique within the composed host. Resolve ownership from the application's authorized resource directory; do not guess it from ID text or probe every definition. Forward cancellation signals, keep list/write/preference operations on the root client, and keep its permission snapshot separate from reference clients. The [real HTTP regression](../test/dashboard/httpCompatibility.test.ts) uses a pure dashboard definition and a separate record service, verifies panel queries and root-only saves, and checks that child grants do not overwrite root grants.

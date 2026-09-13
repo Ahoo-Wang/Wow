@@ -22,6 +22,7 @@ export interface ReadTask<T> {
   policy: 'reject' | 'queue';
   timeoutMs: number;
   controller?: AbortController;
+  onAccepted?(waiting: boolean): void;
   run(signal: AbortSignal): Promise<T>;
 }
 export interface ReadOperation<T> {
@@ -150,6 +151,13 @@ export class RequestRunner {
       ),
     );
     controller.signal.addEventListener('abort', entry.cancel, { once: true });
+    try {
+      task.onAccepted?.(mustWait);
+    } catch (error) {
+      entry.cancel();
+      void completion.catch(() => {});
+      throw error;
+    }
     previous?.cancel();
     if (controller.signal.aborted) entry.cancel();
     this.drain();

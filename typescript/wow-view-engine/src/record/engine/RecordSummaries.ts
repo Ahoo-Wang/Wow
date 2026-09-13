@@ -13,6 +13,9 @@
 
 import {
   validateRuntimeLimits,
+  beginDiagnostic,
+  RuntimeLimitError,
+  type RuntimeDiagnostic,
   type RuntimeLimits,
 } from '../../lib/runtimeLimits.js';
 import { RequestRunner } from '../../engine/RequestRunner.js';
@@ -48,6 +51,7 @@ export class RecordSummaries {
       maxQueued: 48,
       maxTimeoutMs: limits.queryTimeoutMs,
     }),
+    private readonly onDiagnostic?: (event: RuntimeDiagnostic) => void,
   ) {}
   hasPending(id: string): boolean {
     return this.requests.has(id);
@@ -92,8 +96,11 @@ export class RecordSummaries {
     );
     let pageSummary: RecordSummaryResult = EMPTY_RECORD_SUMMARY;
     if (metrics.length) {
-      if (session.queryStatus === 'loading')
-        pageSummary = { status: 'loading', values: {}, error: null };
+      if (
+        session.queryStatus === 'loading' ||
+        session.queryStatus === 'waiting'
+      )
+        pageSummary = { status: session.queryStatus, values: {}, error: null };
       else if (session.queryStatus === 'success') {
         try {
           pageSummary = {
@@ -134,6 +141,7 @@ export class RecordSummaries {
     if (!this.scope.current(lifecycle) || !this.store.find(id)) return;
     const latest = this.store.recordSession(id);
     if (this.key(latest) !== key || this.keys.get(id) === key) return;
+    const diagnostic = beginDiagnostic(this.onDiagnostic, 'record', 'summary');
     const controller = new AbortController();
     this.requests.set(id, controller);
     const current = () =>
@@ -144,11 +152,20 @@ export class RecordSummaries {
     try {
       const result = await this.runner.submit({
         key: `summary:${id}`,
-        policy: 'reject',
+        policy: session.queryPolicy ?? 'reject',
         timeoutMs: this.limits.queryTimeoutMs,
         controller,
-        run: async () => {
+        onAccepted: waiting => {
+          if (waiting) diagnostic('queued');
           this.keys.set(id, key);
+          if (waiting && current())
+            this.store.patch(id, {
+              kind: 'record',
+              allSummary: { status: 'waiting', values: {}, error: null },
+            });
+        },
+        run: async () => {
+          diagnostic('started');
           this.store.patch(id, {
             kind: 'record',
             allSummary: { status: 'loading', values: {}, error: null },
@@ -156,7 +173,13 @@ export class RecordSummaries {
           if (!current()) throw new Error('汇总请求已失效');
           const sourceId = this.store.definition(session.positionId).sourceId;
           if (!sourceId) throw new Error('查询定义缺少数据源');
-          source ??= await this.host.resolveSource(sourceId);
+          if (!source) {
+            const positionSource = this.store.source(id);
+            source =
+              typeof positionSource === 'function'
+                ? await positionSource(controller)
+                : (positionSource ?? (await this.host.resolveSource(sourceId)));
+          }
           if (!current()) throw new Error('汇总请求已失效');
           if (!source.aggregate)
             throw new Error('数据源未提供 aggregate，无法汇总所有记录');
@@ -176,14 +199,23 @@ export class RecordSummaries {
           error: null,
         },
       });
+      diagnostic('succeeded');
     } catch (error) {
-      if (!current()) return;
+      if (!current()) {
+        diagnostic('cancelled');
+        return;
+      }
+      diagnostic(
+        'failed',
+        error instanceof RuntimeLimitError ? error.code : 'QUERY_FAILED',
+      );
       this.store.patch(id, {
         kind: 'record',
         allSummary: { status: 'error', values: {}, error: message(error) },
       });
       throw error;
     } finally {
+      diagnostic('superseded');
       if (this.requests.get(id) === controller) this.requests.delete(id);
     }
   }

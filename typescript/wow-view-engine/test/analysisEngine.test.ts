@@ -689,7 +689,8 @@ it('retries initial opening after a shared query budget refuses admission', asyn
     await expect(engine.selectInstance('other')).rejects.toMatchObject({
       code: 'BUSY',
     });
-    expect(engine.getSnapshot().sessions.other.queryStatus).toBe('idle');
+    expect(engine.getSnapshot().sessions.other.queryStatus).toBe('error');
+    expect(engine.getSnapshot().sessions.other.queryError).toContain('并发');
     finish([{ orders: 2, total: 30 }]);
     await pending;
     await engine.selectInstance(instance.id);

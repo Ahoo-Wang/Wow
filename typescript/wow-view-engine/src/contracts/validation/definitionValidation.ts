@@ -200,9 +200,12 @@ export function validateViewDefinition(
   assertText(value.id, '定义 ID');
   encodeViewResourceId(value.id);
   assertText(value.title, '定义名称');
-  assertText(value.sourceId, '数据源 ID');
-  if (!value.record && !value.analysis)
-    throw new Error('定义至少需要 record 或 analysis 能力');
+  if (value.record || value.analysis || value.sourceId !== undefined)
+    assertText(value.sourceId, '数据源 ID');
+  if (value.dashboard !== undefined && value.dashboard !== true)
+    throw new Error('dashboard 能力必须为 true');
+  if (!value.record && !value.analysis && !value.dashboard)
+    throw new Error('定义至少需要 record 或 analysis 或 dashboard 能力');
   if (value.record !== undefined) {
     assertObject(value.record, '记录能力');
     assertPath(value.record.rowKey, '记录主键');

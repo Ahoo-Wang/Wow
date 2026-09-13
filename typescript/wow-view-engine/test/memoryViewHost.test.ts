@@ -570,3 +570,43 @@ it('normalizes a new users seeded default when the shared seed was already delet
       .defaultInstanceId,
   ).toBe(instance.id);
 });
+
+it.each([false, true])(
+  'gates dashboard creation grants by supported formats (dashboard: %s)',
+  async supported => {
+    const host = new MemoryViewHost({
+      ...options(),
+      definition: { ...definition, dashboard: true },
+      ...(supported
+        ? {
+            supportedFormats: {
+              record: true as const,
+              analysis: true as const,
+              dashboard: 1 as const,
+            },
+          }
+        : {}),
+      definitionPermissions: () => ({
+        createPersonal: true,
+        createShared: true,
+      }),
+    });
+    expect(host.permission.getDefinition()).toMatchObject({
+      createPersonal: supported,
+      createShared: supported,
+      reorder: true,
+    });
+    expect(await host.permission.load(definition.id)).toMatchObject({
+      createPersonal: supported,
+      createShared: supported,
+    });
+    const engine = new ViewEngine({ definitionId: definition.id, host });
+    await engine.load();
+    expect(engine.getCapabilitiesSnapshot()).toMatchObject({
+      createPersonal: supported,
+      createShared: supported,
+    });
+    expect(host.permission.getInstance(instance).saveAsPersonal).toBe(true);
+    engine.dispose();
+  },
+);

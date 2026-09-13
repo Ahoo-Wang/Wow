@@ -11,11 +11,17 @@
  * limitations under the License.
  */
 
+import {
+  DashboardRuntime,
+  type DashboardSnapshot,
+} from '../dashboard/DashboardRuntime.js';
+import type { DashboardTransforms } from '../dashboard/dashboardModel.js';
+import { createDashboardSession } from '../dashboard/dashboardSession.js';
 import type {
   RecordPresentation,
   RecordCardConfig,
 } from '../contracts/viewModel.js';
-import type { FieldSort } from '@ahoo-wang/fetcher-wow';
+import type { FieldSort, FilterExpression } from '@ahoo-wang/fetcher-wow';
 import type {
   FilterCompilerRegistry,
   FilterConfiguration,
@@ -24,6 +30,9 @@ import type {
 import type { DeepReadonly } from '../lib/types.js';
 import type {
   ViewDefinition,
+  RecordSession,
+  AnalysisSession,
+  ViewSource,
   ViewInstance,
   RecordColumn,
   RecordKey,
@@ -44,7 +53,10 @@ import { RequestRunner } from './RequestRunner.js';
 import { AnalysisCommands } from '../analysis/AnalysisCommands.js';
 import type { RecordViewConfig } from '../contracts/viewModel.js';
 import { validateFilterJson } from '../filter/filterConfigurationValidation.js';
-import { copy } from '../lib/snapshot.js';
+import { copy, sameJsonState } from '../lib/snapshot.js';
+import { withQueryScope } from '../filter/filterScope.js';
+import { compileFilterConfiguration } from '../filter/filterConfigurationCompiler.js';
+import { validateDashboardExpression } from '../dashboard/dashboardFilters.js';
 import type { AnalysisViewConfig } from '../analysis/analysisModel.js';
 import { freeze } from '../lib/snapshot.js';
 import { EngineScope } from './EngineScope.js';
@@ -60,6 +72,40 @@ import { ViewPersistence } from './ViewPersistence.js';
 import { ViewServiceError } from '../contracts/viewServiceContract.js';
 import { isSystemSession } from './sessionState.js';
 import { ViewManagement } from './ViewManagement.js';
+import { definitionPermissionsFor } from './instancePermissions.js';
+
+export interface ViewPositionOptions {
+  queryPolicy?: 'reject' | 'queue';
+  source?:
+    | ViewSource
+    | ((controller: AbortController) => ViewSource | Promise<ViewSource>);
+}
+interface PositionHandle {
+  readonly identity: Readonly<{
+    id: string;
+    instanceId: string;
+    definitionId: string;
+  }>;
+  readonly subscribe: (listener: () => void) => () => void;
+  readonly dispose: () => void;
+}
+export interface RecordViewPosition extends PositionHandle {
+  readonly kind: 'record';
+  readonly getSnapshot: () => RecordSession;
+  readonly commands: ReturnType<ViewEngine['record']>;
+}
+export interface AnalysisViewPosition extends PositionHandle {
+  readonly kind: 'analysis';
+  readonly getSnapshot: () => AnalysisSession;
+  readonly commands: ReturnType<ViewEngine['analysis']>;
+}
+export interface DashboardViewPosition extends PositionHandle {
+  readonly kind: 'dashboard';
+  readonly runtime: DashboardRuntime;
+  readonly getSnapshot: () => DashboardSnapshot;
+}
+export type DataViewPosition = RecordViewPosition | AnalysisViewPosition;
+export type ViewPosition = DataViewPosition | DashboardViewPosition;
 
 /** Fixed-scope public facade. Internal services own state, reads and durable writes. */
 export class ViewEngine {
@@ -83,6 +129,11 @@ export class ViewEngine {
   private readonly reload: ViewReload;
   private readonly persistence: ViewPersistence;
   private readonly management: ViewManagement;
+  private readonly dashboards = new Map<string, DashboardRuntime>();
+  private readonly dashboardTransforms: DashboardTransforms;
+  private readonly runtimeHost: ViewHost;
+  private selectedDashboard: string | null = null;
+  private synchronizingDashboards = false;
 
   constructor(options: ViewEngineOptions) {
     this.host = options.host;
@@ -103,6 +154,10 @@ export class ViewEngine {
           ? (value as (...args: unknown[]) => unknown).bind(current)
           : value;
       },
+    });
+    this.runtimeHost = host;
+    this.dashboardTransforms = Object.freeze({
+      ...options.dashboardTransforms,
     });
     this.filterCompilers = Object.freeze(
       Object.fromEntries(
@@ -157,6 +212,7 @@ export class ViewEngine {
       host,
       limits,
       budget,
+      options.onDiagnostic,
     );
     this.analysisCommands = new AnalysisCommands(
       this.store,
@@ -217,6 +273,76 @@ export class ViewEngine {
       options.definitionId,
     );
     this.observePermissions();
+    this.store.subscribe(() => this.syncDashboards());
+  }
+
+  dashboard(id: string): DashboardRuntime {
+    this.scope.assertReady();
+    let runtime = this.dashboards.get(id);
+    if (!runtime || runtime.isDisposed) {
+      runtime = new DashboardRuntime(
+        this,
+        id,
+        this.store,
+        this.runtimeHost,
+        this.dashboardTransforms,
+        updater => this.scope.update(updater),
+      );
+      this.dashboards.set(id, runtime);
+    }
+    return runtime;
+  }
+
+  private syncDashboards(): void {
+    if (this.synchronizingDashboards || this.scope.disposed) return;
+    this.synchronizingDashboards = true;
+    try {
+      const state = this.store.getSnapshot();
+      if (state.status === 'loading') {
+        for (const runtime of this.dashboards.values()) runtime.dispose();
+        this.dashboards.clear();
+        this.selectedDashboard = null;
+        return;
+      }
+      for (const [id, session] of Object.entries(state.sessions)) {
+        if (
+          session.kind !== 'dashboard' ||
+          !session.createdFromDraft ||
+          this.store.find(session.createdFromDraft)
+        )
+          continue;
+        const previousId = session.createdFromDraft;
+        const runtime = this.dashboards.get(previousId);
+        if (!runtime || this.dashboards.has(id)) continue;
+        this.dashboards.delete(previousId);
+        this.dashboards.set(id, runtime);
+        if (this.selectedDashboard === previousId) this.selectedDashboard = id;
+        runtime.adoptSavedDraft(id);
+      }
+      for (const [id, runtime] of this.dashboards) {
+        if (!this.store.find(id)) {
+          runtime.dispose();
+          this.dashboards.delete(id);
+        }
+      }
+      const id = state.selectedInstanceId;
+      const selected =
+        id && state.sessions[id]?.kind === 'dashboard' ? id : null;
+      if (
+        selected !== this.selectedDashboard ||
+        (selected && this.dashboards.get(selected)?.isDisposed)
+      ) {
+        if (this.selectedDashboard)
+          this.dashboards.get(this.selectedDashboard)?.suspend();
+        this.selectedDashboard = selected;
+        if (selected)
+          void this.dashboard(selected)
+            .resume()
+            .catch(error => console.error('仪表盘加载失败', error));
+      }
+    } finally {
+      this.synchronizingDashboards = false;
+    }
   }
 
   private async observe<T>(
@@ -281,7 +407,16 @@ export class ViewEngine {
   getCapabilitiesSnapshot = (): ViewCapabilities => {
     const state = this.store.getSnapshot();
     if (this.capabilities?.state === state) return this.capabilities.value;
+    const grants = definitionPermissionsFor(this.host);
     const value: ViewCapabilities = freeze({
+      createPersonal:
+        !!state.definition?.dashboard &&
+        !!this.host.instance?.create &&
+        grants?.createPersonal === true,
+      createShared:
+        !!state.definition?.dashboard &&
+        !!this.host.instance?.create &&
+        grants?.createShared === true,
       reorder: this.canReorderInstances(),
       setDefault: this.canSetDefaultInstance(),
       instances: Object.fromEntries(
@@ -289,6 +424,12 @@ export class ViewEngine {
           ...new Set([
             ...state.instanceIds,
             ...Object.keys(state.pendingCreates),
+            ...Object.entries(state.sessions)
+              .filter(
+                ([, session]) =>
+                  session.kind === 'dashboard' && !session.persisted,
+              )
+              .map(([id]) => id),
           ]),
         ].map(id => [
           id,
@@ -344,7 +485,7 @@ export class ViewEngine {
         assert();
         if (typeof valid !== 'boolean')
           throw new Error('筛选有效性必须是布尔值');
-        this.store.patch(id, { filterValid: valid });
+        this.store.patch(id, { kind: 'analysis', filterValid: valid });
       },
       setSort: async (sort: DeepReadonly<AnalysisViewConfig['sort']>) => {
         assert();
@@ -465,8 +606,18 @@ export class ViewEngine {
     };
   }
 
-  openPosition(instance: ViewInstance, definition: ViewDefinition) {
-    const id = this.store.openPosition(instance, definition);
+  /** Creates independent browsing state without selecting an instance or starting requests. */
+  openPosition<T extends ViewInstance>(
+    instance: T,
+    definition: ViewDefinition,
+    options?: ViewPositionOptions,
+  ): Extract<ViewPosition, { kind: T['kind'] }>;
+  openPosition(
+    instance: ViewInstance,
+    definition: ViewDefinition,
+    options: ViewPositionOptions = {},
+  ): ViewPosition {
+    const id = this.store.openPosition(instance, definition, options);
     const identity = Object.freeze({
       id,
       instanceId: instance.id,
@@ -481,6 +632,22 @@ export class ViewEngine {
       this.store.closePosition(id);
       this.viewQueries.forget(id);
     };
+    if (instance.kind === 'dashboard') {
+      try {
+        const runtime = this.dashboard(id);
+        return {
+          kind: 'dashboard',
+          identity,
+          runtime,
+          getSnapshot: runtime.getSnapshot,
+          subscribe: runtime.subscribe,
+          dispose,
+        };
+      } catch (error) {
+        dispose();
+        throw error;
+      }
+    }
     const shared = { identity, subscribe: this.subscribe, dispose };
     return instance.kind === 'record'
       ? {
@@ -496,6 +663,54 @@ export class ViewEngine {
           commands: this.analysis(id),
         };
   }
+  /** Changes only a runtime position's scope; execution remains an explicit command. */
+  setPositionScope(id: string, expression: FilterExpression): void {
+    if (!this.store.isPosition(id))
+      throw new Error('只允许设置运行位置的作用域');
+    const session = this.store.session(id);
+    const definition = this.store.definition(id);
+    const scopeFilter = validateDashboardExpression(expression, definition);
+    if (session.kind === 'dashboard') throw new Error('仪表盘不能嵌套');
+    if (sameJsonState(session.scopeFilter, scopeFilter)) return;
+    const own = compileFilterConfiguration(
+      session.kind === 'record'
+        ? session.filterBaseline
+        : session.instance.config.filters,
+      definition.fields,
+      definition.allowedOperators,
+      this.filterCompilers,
+      definition.timeZone,
+    );
+    if (own.errors.length || !own.expression)
+      throw new Error('引用筛选配置无效');
+    validateDashboardExpression(
+      withQueryScope(own.expression, scopeFilter),
+      definition,
+    );
+    this.viewQueries.cancel(id);
+    this.summaries.invalidate(id);
+    if (session.kind === 'record') {
+      const appliedFilter = withQueryScope(own.expression, scopeFilter);
+      this.store.patch(id, {
+        kind: 'record',
+        scopeFilter,
+        appliedFilter,
+        page: 1,
+        cursor: null,
+        nextCursor: null,
+        selectedRowKeys: [],
+        queryAttempt: null,
+      });
+    } else {
+      this.store.patch(id, {
+        kind: 'analysis',
+        scopeFilter,
+        pendingQuery: null,
+        queryAttempt: null,
+      });
+    }
+  }
+
   load(): Promise<void> {
     return this.observe('load', false, () => this.loader.load());
   }
@@ -513,13 +728,58 @@ export class ViewEngine {
   }
 
   overwriteInstance(review: ViewInstanceConflict, id?: string): Promise<void> {
-    return this.observe('overwrite', true, () =>
-      this.persistence.overwriteInstance(review, id),
-    );
+    return this.observe('overwrite', true, () => {
+      this.assertDashboardSavable(id);
+      return this.persistence.overwriteInstance(review, id);
+    });
   }
 
   canReloadInstance(id?: string): boolean {
     return this.reload.canReloadInstance(id);
+  }
+
+  /** Creates local editor state only; save() performs the first authoritative create. */
+  createDashboard(options: { title: string; scope: SaveAsScope }): string {
+    const definition = this.store.definition();
+    if (!definition.dashboard) throw new Error('定义未声明仪表盘能力');
+    if (typeof options.title !== 'string' || !options.title.trim())
+      throw new Error('实例名称不能为空');
+    if (!(
+      options.scope?.type === 'personal' ||
+      (options.scope?.type === 'public' && options.scope.source === 'shared')
+    ))
+      throw new Error('新建仅支持个人或共享范围');
+    if (!this.host.instance?.create) throw new Error('宿主未提供创建服务');
+    const grants = this.host.permission?.getDefinition?.();
+    if (
+      (options.scope.type === 'personal'
+        ? grants?.createPersonal
+        : grants?.createShared) !== true
+    )
+      throw new Error('宿主未允许此创建操作');
+    const id = `draft:${crypto.randomUUID()}`;
+    const instance = {
+      id,
+      definitionId: definition.id,
+      title: options.title,
+      kind: 'dashboard' as const,
+      scope: copy(options.scope),
+      revision: 'local-draft',
+      config: { schemaVersion: 1 as const, panels: [], filters: [] },
+    };
+    const session = {
+      ...createDashboardSession(instance),
+      persisted: false,
+      dirty: true,
+    };
+    const previous = this.store.getSnapshot().selectedInstanceId;
+    this.scope.advanceSelection();
+    if (previous) this.viewQueries.cancel(previous);
+    this.store.publish({
+      sessions: { ...this.store.getSnapshot().sessions, [id]: session },
+      selectedInstanceId: id,
+    });
+    return id;
   }
 
   setTitle(title: string, id?: string): void {
@@ -533,7 +793,9 @@ export class ViewEngine {
       session.instance.id,
       session.kind === 'record'
         ? { kind: 'record', instance: { ...session.instance, title } }
-        : { kind: 'analysis', instance: { ...session.instance, title } },
+        : session.kind === 'analysis'
+          ? { kind: 'analysis', instance: { ...session.instance, title } }
+          : { kind: 'dashboard', instance: { ...session.instance, title } },
     );
   }
 
@@ -542,6 +804,16 @@ export class ViewEngine {
     this.work.assertRestorable(session);
     if (session.conflict)
       return Promise.reject(new Error('视图存在冲突，请明确选择使用最新版本'));
+    if (session.kind === 'dashboard') {
+      this.store.patch(session.positionId, {
+        kind: 'dashboard',
+        instance: session.baseline,
+        writeError: null,
+        editorValidity: {},
+        editorEpoch: session.editorEpoch + 1,
+      });
+      return;
+    }
     if (session.kind === 'analysis') {
       this.analysisCommands.restore(session.positionId);
       return Promise.resolve();
@@ -586,21 +858,36 @@ export class ViewEngine {
   }
 
   save(id?: string): Promise<void> {
-    return this.observe('save', true, () => this.persistence.save(id));
+    return this.observe('save', true, () => {
+      this.assertDashboardSavable(id);
+      return this.persistence.save(id);
+    });
   }
 
   saveAs(
     options: { title: string; scope: SaveAsScope },
     id?: string,
   ): Promise<string | undefined> {
-    return this.observe('create', true, () =>
-      this.persistence.saveAs(options, id),
-    );
+    return this.observe('create', true, () => {
+      this.assertDashboardSavable(id);
+      return this.persistence.saveAs(options, id);
+    });
+  }
+
+  private assertDashboardSavable(id?: string): void {
+    const selected = id ?? this.store.getSnapshot().selectedInstanceId;
+    const session = selected ? this.store.find(selected) : undefined;
+    if (selected && this.store.isPosition(selected))
+      throw new Error('运行位置不能通过实例管理接口写入，请编辑原视图');
+    if (session?.kind === 'dashboard')
+      this.dashboard(session.positionId).assertSavable();
   }
 
   dispose(): void {
     if (this.scope.disposed) return;
     this.unsubscribePermissions?.();
+    for (const runtime of this.dashboards.values()) runtime.dispose();
+    this.dashboards.clear();
     this.scope.dispose();
     this.capabilities = undefined;
     this.loader.dispose();

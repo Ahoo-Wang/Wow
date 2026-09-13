@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { RecordActionGuard } from '../RecordActionGuard.js';
 import { EllipsisIcon } from 'lucide-react';
 import { Button } from '../../components/ui/button.js';
 import {
@@ -46,9 +47,17 @@ export function RecordCell({
   extensions,
   refresh,
   compact = false,
+  actionsDisabled,
+  isCurrent,
 }: Pick<
   RecordTableProps,
-  'definition' | 'instance' | 'appliedFilter' | 'extensions' | 'refresh'
+  | 'definition'
+  | 'instance'
+  | 'appliedFilter'
+  | 'extensions'
+  | 'refresh'
+  | 'actionsDisabled'
+  | 'isCurrent'
 > & {
   column: RecordColumn;
   record: RecordData;
@@ -74,16 +83,19 @@ export function RecordCell({
         </span>
       );
     const actions = (
-      <Renderer
-        definition={definition}
-        instance={instance}
-        filter={appliedFilter}
-        sort={instance.config.sort}
-        options={reference?.options}
-        refresh={refresh}
-        record={record}
-        rowKey={rowKey}
-      />
+      <RecordActionGuard disabled={actionsDisabled} isCurrent={isCurrent}>
+        <Renderer
+          isCurrent={isCurrent}
+          definition={definition}
+          instance={instance}
+          filter={appliedFilter}
+          sort={instance.config.sort}
+          options={reference?.options}
+          refresh={refresh}
+          record={record}
+          rowKey={rowKey}
+        />
+      </RecordActionGuard>
     );
     if (!compact) return actions;
     const label = `记录 ${rowKey} ${column.title ?? '操作'}`;

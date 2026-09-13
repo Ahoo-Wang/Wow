@@ -10,6 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { safeUrl } from '../../lib/safeUrl.js';
 
 import { cn } from '../../lib/utils.js';
 import { formatRecordValue } from '../recordValueFormat.js';
@@ -22,17 +23,6 @@ export interface LinkCellProps {
   newTab?: boolean;
   className?: string;
 }
-function safeHref(value: unknown): string | undefined {
-  if (typeof value !== 'string' || !value.trim()) return;
-  try {
-    const href = value.trim();
-    const url = new URL(href, 'https://view-engine.invalid/');
-    if (['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol))
-      return href;
-  } catch {
-    /* Invalid row data stays readable without navigation. */
-  }
-}
 export function LinkCell({
   value,
   text,
@@ -40,7 +30,7 @@ export function LinkCell({
   newTab = false,
   className,
 }: LinkCellProps) {
-  const target = safeHref(href === undefined ? value : href);
+  const target = safeUrl(href === undefined ? value : href);
   const display = text ?? formatRecordValue(value);
   if (!target)
     return <TextCell value={value} text={display} className={className} />;

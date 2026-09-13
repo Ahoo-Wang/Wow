@@ -52,7 +52,9 @@ export function getRecordPaginationPolicy(
         : session.nextCursor !== null),
     canPrevious: navigable && paged && page > 1,
     canChangePageSize:
-      session.queryStatus !== 'loading' && session.queryError === null,
+      session.queryStatus !== 'loading' &&
+      session.queryStatus !== 'waiting' &&
+      session.queryError === null,
   };
 }
 
@@ -65,10 +67,22 @@ export function bindRecordPagination(
   RecordPaginationRenderContext,
   'setPage' | 'setPageSize' | 'nextPage' | 'previousPage'
 > {
-  const current = () => {
-    const session = engine.getSnapshot().sessions[id];
-    return session?.kind === 'record' ? session : undefined;
-  };
+  return bindRecordPaginationCommands(
+    () => {
+      const session = engine.getSnapshot().sessions[id];
+      return session?.kind === 'record' ? session : undefined;
+    },
+    () => engine.record(id),
+  );
+}
+
+export function bindRecordPaginationCommands(
+  current: () => RecordSession | undefined,
+  commands: () => ReturnType<ViewEngine['record']>,
+): Pick<
+  RecordPaginationRenderContext,
+  'setPage' | 'setPageSize' | 'nextPage' | 'previousPage'
+> {
   return {
     setPage(index) {
       const session = current();
@@ -76,25 +90,19 @@ export function bindRecordPagination(
       const policy = getRecordPaginationPolicy(session);
       if (policy.mode !== 'paged') return resolved;
       if (!Number.isSafeInteger(index) || index < 1)
-        return engine
-          .record(id ?? engine.getSnapshot().selectedInstanceId!)
-          .setPage(index);
+        return commands().setPage(index);
       if (
         session.queryStatus !== 'success' ||
         session.queryError ||
         (policy.pageCount !== null && index > policy.pageCount)
       )
         return resolved;
-      return engine
-        .record(id ?? engine.getSnapshot().selectedInstanceId!)
-        .setPage(index);
+      return commands().setPage(index);
     },
     setPageSize(size) {
       const session = current();
       return session && getRecordPaginationPolicy(session).canChangePageSize
-        ? engine
-            .record(id ?? engine.getSnapshot().selectedInstanceId!)
-            .setPageSize(size)
+        ? commands().setPageSize(size)
         : resolved;
     },
     nextPage() {
@@ -103,20 +111,14 @@ export function bindRecordPagination(
       const policy = getRecordPaginationPolicy(session);
       if (!policy.canNext) return resolved;
       return policy.mode === 'paged'
-        ? engine
-            .record(id ?? engine.getSnapshot().selectedInstanceId!)
-            .setPage(policy.page + 1)
-        : engine
-            .record(id ?? engine.getSnapshot().selectedInstanceId!)
-            .nextPage();
+        ? commands().setPage(policy.page + 1)
+        : commands().nextPage();
     },
     previousPage() {
       const session = current();
       const policy = session && getRecordPaginationPolicy(session);
       return policy?.canPrevious
-        ? engine
-            .record(id ?? engine.getSnapshot().selectedInstanceId!)
-            .setPage(policy.page - 1)
+        ? commands().setPage(policy.page - 1)
         : resolved;
     },
   };

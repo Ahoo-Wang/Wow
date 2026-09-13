@@ -1,0 +1,243 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* Dashboard RGL adapter. Geometry stays in the library; styles stay inside the engine root. */
+.fve-root .fve-dashboard-grid {
+  container-type: inline-size;
+}
+
+.fve-root .fve-dashboard-grid .react-grid-layout {
+  position: relative;
+}
+
+.fve-root .fve-dashboard-grid[data-editing='true'] .react-grid-layout {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--fve-primary) 9%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--fve-primary) 9%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: calc((100% + 16px) / 12) 48px;
+}
+
+.fve-root .fve-dashboard-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fve-root .fve-dashboard-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border-radius: inherit;
+}
+
+.fve-root .fve-dashboard-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--fve-border);
+  flex-shrink: 0;
+}
+
+.fve-root .fve-dashboard-controls[hidden] {
+  display: none;
+}
+
+.fve-root .fve-dashboard-drag {
+  cursor: grab;
+}
+
+.fve-root .fve-dashboard-grid .react-grid-item {
+  transition:
+    transform 150ms ease,
+    width 150ms ease,
+    height 150ms ease;
+}
+
+.fve-root .fve-dashboard-grid .react-grid-item.resizing,
+.fve-root .fve-dashboard-grid .react-draggable-dragging {
+  transition: none;
+  z-index: 3;
+}
+
+.fve-root .fve-dashboard-grid .react-grid-placeholder {
+  border: 2px dashed var(--fve-primary);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--fve-primary) 12%, transparent);
+  opacity: 0.6;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.fve-root .fve-dashboard-grid .react-resizable-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 32px;
+  height: 32px;
+  cursor: se-resize;
+  touch-action: none;
+}
+
+.fve-root .fve-dashboard-grid .react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--fve-muted-foreground);
+  border-bottom: 2px solid var(--fve-muted-foreground);
+}
+
+.fve-root .fve-dashboard-grid .react-resizable-hide > .react-resizable-handle {
+  display: none;
+}
+
+@container (max-width: 639px) {
+  .fve-root .fve-dashboard-grid .react-grid-layout {
+    height: auto !important;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .fve-root .fve-dashboard-grid .react-grid-item {
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 320px;
+    transform: none !important;
+    top: auto !important;
+    left: auto !important;
+  }
+
+  .fve-root .fve-dashboard-body {
+    overflow: auto;
+    max-height: 640px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fve-root .fve-dashboard-grid .react-grid-item {
+    transition: none;
+  }
+}
+
+.fve-root .fve-dashboard-content {
+  padding: 20px;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+
+.fve-root .fve-dashboard-content h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.fve-root .fve-dashboard-content p,
+.fve-root .fve-dashboard-content ul,
+.fve-root .fve-dashboard-content ol,
+.fve-root .fve-dashboard-content pre,
+.fve-root .fve-dashboard-content blockquote {
+  margin-block: 12px;
+}
+
+.fve-root .fve-dashboard-content ul {
+  padding-left: 24px;
+  list-style: disc;
+}
+
+.fve-root .fve-dashboard-content ol {
+  padding-left: 24px;
+  list-style: decimal;
+}
+
+.fve-root .fve-dashboard-content a {
+  color: var(--fve-primary);
+  text-decoration: underline;
+}
+
+.fve-root .fve-dashboard-content pre {
+  overflow: auto;
+  padding: 12px;
+  background: var(--fve-muted);
+  border-radius: 6px;
+}
+
+.fve-root .fve-dashboard-content blockquote {
+  padding-left: 12px;
+  border-left: 3px solid var(--fve-border);
+}
+
+.fve-root .fve-dashboard-content img {
+  max-width: 100%;
+  max-height: 480px;
+  object-fit: contain;
+}
+
+.fve-root .fve-dashboard-content figcaption {
+  margin-top: 8px;
+  color: var(--fve-muted-foreground);
+  font-size: 0.875rem;
+}
+
+.fve-root .fve-dashboard-content h1,
+.fve-root .fve-dashboard-content h3,
+.fve-root .fve-dashboard-content h4,
+.fve-root .fve-dashboard-content h5,
+.fve-root .fve-dashboard-content h6 {
+  font-weight: 600;
+  margin-block: 12px;
+}
+
+.fve-root .fve-dashboard-content h1 {
+  font-size: 1.25rem;
+}
+
+.fve-root .fve-dashboard-content[data-kind='image'] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.fve-root .fve-dashboard-content[data-kind='image'] > h2 {
+  flex-shrink: 0;
+}
+
+.fve-root .fve-dashboard-content[data-kind='image'] > figure {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.fve-root .fve-dashboard-content[data-kind='image'] > figure > img {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+}
+
+.fve-root .fve-dashboard-content[data-kind='image'] figcaption {
+  flex-shrink: 0;
+}

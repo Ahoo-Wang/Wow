@@ -33,6 +33,7 @@ import {
   inheritEditingSession,
   instanceContent,
   baselinePatch,
+  withContent,
 } from './sessionState.js';
 import { reconcileWriteFailure, writeFailurePatch } from './writeRecovery.js';
 import { ViewServiceError } from '../contracts/viewServiceContract.js';
@@ -69,7 +70,16 @@ export class ViewPersistence {
   ) {}
 
   async save(id?: string): Promise<void> {
-    await this.write(undefined, id);
+    const session = this.store.session(id);
+    await this.write(
+      session.kind === 'dashboard' && !session.persisted
+        ? {
+            title: session.instance.title,
+            scope: session.instance.scope as SaveAsScope,
+          }
+        : undefined,
+      id,
+    );
   }
 
   async overwriteInstance(
@@ -316,6 +326,16 @@ export class ViewPersistence {
       this.store.filterCompilers,
       this.store.analysisCompilers,
     );
+    const creatingSource = this.store.session(id);
+    if (creatingSource.kind === 'dashboard' && !creatingSource.persisted)
+      created = inheritEditingSession(
+        saved,
+        creatingSource,
+        definition,
+        this.store.filterCompilers,
+        withContent(saved, creatingSource.instance),
+        this.store.analysisCompilers,
+      );
     if (
       this.store.getSnapshot().selectedInstanceId === id &&
       this.scope.selection === selection
@@ -337,7 +357,9 @@ export class ViewPersistence {
           this.store.session(id),
           definition,
           this.store.filterCompilers,
-          undefined,
+          creatingSource.kind === 'dashboard' && !creatingSource.persisted
+            ? withContent(saved, this.store.session(id).instance)
+            : undefined,
           this.store.analysisCompilers,
         );
     }
@@ -352,19 +374,27 @@ export class ViewPersistence {
       return WRITE_ABORT;
     }
 
+    const source = this.store.session(id);
+    const draft = source.kind === 'dashboard' && !source.persisted;
+    const remaining = { ...this.store.getSnapshot().sessions };
+    if (draft) delete remaining[id];
     this.work.finishWrite(id, token, () =>
       this.store.publish({
         instanceIds: [
           ...new Set([...this.store.getSnapshot().instanceIds, saved.id]),
         ],
         sessions: {
-          ...this.store.getSnapshot().sessions,
-          [id]: {
-            ...this.store.session(id),
-            writeStatus: 'idle',
-            writeError: null,
-            requiresReload: false,
-          },
+          ...remaining,
+          ...(!draft
+            ? {
+                [id]: {
+                  ...source,
+                  writeStatus: 'idle' as const,
+                  writeError: null,
+                  requiresReload: false,
+                },
+              }
+            : {}),
           // Cancellation notifies observers; an opened copy may now own newer edits.
           [saved.id]: this.store.find(saved.id) ?? created,
         },

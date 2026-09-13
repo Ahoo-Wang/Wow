@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { validateDashboardConfig } from '../../dashboard/dashboardValidation.js';
 import type { ViewDefinition, ViewInstance } from '../viewModel.js';
 import { encodeViewResourceId } from '../viewServiceContract.js';
 import { validateFilterJson } from '../../filter/filterConfigurationValidation.js';
@@ -32,7 +33,11 @@ export function validateViewInstance(
   if (value.definitionId !== definition.id)
     throw new Error('实例不属于当前视图定义');
   assertText(value.title, '实例名称');
-  if (value.kind !== 'record' && value.kind !== 'analysis')
+  if (
+    value.kind !== 'record' &&
+    value.kind !== 'analysis' &&
+    value.kind !== 'dashboard'
+  )
     throw new Error('视图类型无效');
   if (!definition[value.kind]) throw new Error('定义未声明此视图能力');
   assertObject(value.scope, '实例范围');
@@ -47,6 +52,13 @@ export function validateViewInstance(
   assertText(value.revision, '实例 revision');
   assertObject(value.config, '实例配置');
   const config = value.config;
+  if (value.kind === 'dashboard') {
+    validateDashboardConfig(config, semantic, Number.MAX_SAFE_INTEGER, {
+      maxPanels: Number.MAX_SAFE_INTEGER,
+      maxFilters: Number.MAX_SAFE_INTEGER,
+    });
+    return;
+  }
   validateFilterJson(config);
   if (value.kind === 'analysis') validateAnalysisConfiguration(config);
   else validateRecordConfiguration(config, definition, semantic);

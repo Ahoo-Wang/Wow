@@ -184,6 +184,7 @@ it('runs an analysis position independently of the selected record definition', 
     expect(position.getSnapshot().result?.rows).toEqual([{ n: 3 }]);
     expect(engine.getSnapshot().selectedInstanceId).toBe('mine');
     position.commands.edit(config => ({ ...config, limit: 50 }));
+    expect(position.getSnapshot().dirty).toBe(false);
     position.commands.restore();
     expect(position.getSnapshot().instance.config.limit).toBe(100);
     engine
@@ -281,6 +282,7 @@ it('restores a record position locally without writing its saved instance', asyn
   if (position.kind !== 'record') throw new Error('record expected');
   try {
     await position.commands.setPageSize(20);
+    expect(position.getSnapshot().dirty).toBe(false);
     await position.commands.restore();
     expect(position.getSnapshot().instance).toEqual(
       position.getSnapshot().baseline,

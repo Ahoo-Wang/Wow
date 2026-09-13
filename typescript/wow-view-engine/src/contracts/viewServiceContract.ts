@@ -17,6 +17,7 @@ import type {
 } from '../contracts/viewModel.js';
 
 export type ViewServiceErrorCode =
+  | 'UNSUPPORTED_FORMAT'
   | 'INVALID_ARGUMENT'
   | 'UNAUTHENTICATED'
   | 'FORBIDDEN'
@@ -50,6 +51,8 @@ export interface ViewPermissionSnapshot {
   revision: number;
   instances: Record<string, Required<ViewInstancePermissions>>;
   reorder: boolean;
+  createPersonal?: boolean;
+  createShared?: boolean;
 }
 /** Encode one resource ID without allowing URL normalization to change its resource. */
 export function encodeViewResourceId(value: unknown): string {
@@ -71,4 +74,36 @@ export function encodeViewResourceId(value: unknown): string {
       '视图资源 ID 包含无效 Unicode',
     );
   }
+}
+
+/** Compatibility declaration, independent of authorization; omitted means legacy clients. */
+export interface SupportedViewFormats {
+  record: true;
+  analysis: true;
+  dashboard?: 1;
+}
+export const LEGACY_VIEW_FORMATS: SupportedViewFormats = Object.freeze({
+  record: true,
+  analysis: true,
+});
+export function projectSupportedInstance(
+  instance: ViewInstance | null,
+  formats: SupportedViewFormats = LEGACY_VIEW_FORMATS,
+): ViewInstance | null {
+  return instance?.kind === 'dashboard' &&
+    (formats.dashboard !== 1 || instance.config.schemaVersion !== 1)
+    ? null
+    : instance;
+}
+export function requireSupportedInstance(
+  instance: ViewInstance,
+  formats: SupportedViewFormats = LEGACY_VIEW_FORMATS,
+): ViewInstance {
+  const projected = projectSupportedInstance(instance, formats);
+  if (!projected)
+    throw new ViewServiceError(
+      'UNSUPPORTED_FORMAT',
+      '客户端不支持此视图配置格式',
+    );
+  return projected;
 }

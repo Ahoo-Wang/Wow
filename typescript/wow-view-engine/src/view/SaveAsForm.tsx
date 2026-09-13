@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '../components/ui/button.js';
 import {
   DialogClose,
@@ -21,8 +21,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog.js';
 import { Input } from '../components/ui/input.js';
-import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group.js';
-import { cn } from '../lib/utils.js';
+import { ViewScopeField } from './ViewScopeField.js';
 import type { ViewEngine } from '../engine/ViewEngine.js';
 import type { ViewSession, SaveAsScope } from '../contracts/viewModel.js';
 
@@ -40,28 +39,16 @@ export function SaveAsForm({
   const permissions = useViewPermissions(engine, session.instance.id);
   const [title, setTitle] = useState(`${session.instance.title} 副本`);
   const [scope, setScope] = useState('personal');
-  const scopeId = useId();
   const [error, setError] = useState<string | null>(null);
   const writing = session.writeStatus !== 'idle';
-  const choices = [
-    {
-      value: 'personal',
-      label: '个人视图',
-      description: '仅自己可见，适合保存个人常用配置。',
-      disabled: !permissions.saveAsPersonal,
-    },
-    {
-      value: 'shared',
-      label: '公共视图',
-      description: '对有访问权限的用户可见，适合团队共享。',
-      disabled: !permissions.saveAsShared,
-    },
-  ];
   const target =
-    (
-      choices.find(item => item.value === scope && !item.disabled) ??
-      choices.find(item => !item.disabled)
-    )?.value ?? null;
+    scope === 'shared' && permissions.saveAsShared
+      ? 'shared'
+      : permissions.saveAsPersonal
+        ? 'personal'
+        : permissions.saveAsShared
+          ? 'shared'
+          : null;
   return (
     <form
       className="fve:flex fve:flex-col fve:gap-4"
@@ -101,56 +88,13 @@ export function SaveAsForm({
           disabled={writing}
         />
       </label>
-      <fieldset className="fve:m-0 fve:min-w-0 fve:border-0 fve:p-0 fve:text-sm">
-        <legend id={scopeId} className="fve:mb-3 fve:p-0 fve:font-medium">
-          可见范围
-        </legend>
-        <RadioGroup
-          aria-labelledby={scopeId}
-          value={target}
-          onValueChange={value => {
-            if (value) setScope(value);
-          }}
-          disabled={writing}
-          className="fve:gap-4"
-        >
-          {choices.map(choice => (
-            <label
-              key={choice.value}
-              htmlFor={`${scopeId}-${choice.value}`}
-              className={cn(
-                'fve:flex fve:cursor-pointer fve:items-start fve:gap-3',
-                (writing || choice.disabled) &&
-                  'fve:cursor-not-allowed fve:opacity-50',
-              )}
-            >
-              <RadioGroupItem
-                id={`${scopeId}-${choice.value}`}
-                value={choice.value}
-                aria-labelledby={`${scopeId}-${choice.value}-label`}
-                aria-describedby={`${scopeId}-${choice.value}-description`}
-                disabled={choice.disabled}
-                className="fve:mt-0.5"
-              />
-              <span className="fve:grid fve:gap-1">
-                <span
-                  id={`${scopeId}-${choice.value}-label`}
-                  className="fve:font-medium"
-                >
-                  {choice.label}
-                </span>
-                <span
-                  id={`${scopeId}-${choice.value}-description`}
-                  className="fve:text-muted-foreground"
-                >
-                  {choice.description}
-                  {choice.disabled && '（无创建权限）'}
-                </span>
-              </span>
-            </label>
-          ))}
-        </RadioGroup>
-      </fieldset>
+      <ViewScopeField
+        value={target}
+        onValueChange={setScope}
+        personal={permissions.saveAsPersonal}
+        shared={permissions.saveAsShared}
+        disabled={writing}
+      />
       {error && (
         <p role="alert" className="fve:text-sm fve:text-destructive">
           {error}

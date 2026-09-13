@@ -113,8 +113,19 @@ function verifyTypes(directory) {
   writeFileSync(
     probe,
     `
-    import { ViewEngine, compileBuiltinFilter, clearBuiltinFilterProps, type DeepReadonly, type ViewHost, type ViewInstance, type RecordViewInstance, type RecordQuerySource } from '${manifest.name}';
-    import { FilterPanel, ViewPage, useViewEngine, type CellRendererProps, type FilterEditorProps, type FilterExtensions } from '${manifest.name}/react';
+    import { ViewEngine, dashboardEditorKey, compileBuiltinFilter, clearBuiltinFilterProps, type DeepReadonly, type ViewHost, type ViewInstance, type RecordViewInstance, type RecordQuerySource } from '${manifest.name}';
+    import { EmbeddedView, type EmbeddedViewProps, FilterPanel, ViewPage, useViewEngine, type CellRendererProps, type FilterEditorProps, type FilterExtensions } from '${manifest.name}/react';
+    import type { DashboardConfig, DashboardTransform, ViewPosition, DataViewPosition } from '${manifest.name}';
+    import { DashboardView } from '${manifest.name}/react';
+    export const validityKey: string = dashboardEditorKey('filter:a', 'panel:b');
+    export const dashboard: DashboardConfig = {schemaVersion:1,panels:[
+      {kind:'markdown',id:'notes',title:'Notes',content:'# Hello',layout:{x:0,y:0,w:6,h:4}},
+      {kind:'link',id:'docs',title:'Docs',href:'/docs',layout:{x:6,y:0,w:6,h:4}},
+      {kind:'image',id:'logo',title:'Logo',src:'/logo.png',alt:'Logo',layout:{x:0,y:4,w:6,h:4}}
+    ],filters:[]};
+    import { FilterOperator } from '@ahoo-wang/fetcher-wow';
+    export const transform: DashboardTransform = () => ({op:FilterOperator.MATCH_ALL});
+    void DashboardView;
     import { OrderWorkbench } from './examples/react/sales-order/OrderWorkbench.js';
     import type { FilterOptionSource, FilterFieldDefinition, ViewDefinition } from '${manifest.name}';
     import { FilterRemoteSelect, FilterMultiSelect, FilterDateTimeRange } from '${manifest.name}/react';
@@ -172,6 +183,19 @@ function verifyTypes(directory) {
       return String(record.id);
     };
     export function Page() { const binding = useViewEngine({ definitionId: 'orders', scopeKey: 'user:tenant', host, extensions: { ...filters, cells: { custom: cell } } }); return <ViewPage {...binding} />; }
+    export function Home() {
+      const binding = useViewEngine({ definitionId: 'orders', scopeKey: 'user:tenant', host, instances: { instances: [], defaultInstanceId: null } });
+      return <EmbeddedView {...binding} instanceId="overview" onOpenView={identity => { const id: string = identity.instanceId; void id; }} />;
+    }
+    export function Browse(position: ViewPosition) {
+      if (position.kind === 'dashboard') return position.runtime.resume();
+      const data: DataViewPosition = position;
+      return data.kind === 'record' ? data.commands.refresh() : data.commands.run();
+    }
+    export const embeddedProps: EmbeddedViewProps = { engine: null, instanceId: 'overview' };
+    // @ts-expect-error Embedded browsing requires a saved instance identity.
+    export const invalidEmbedded: EmbeddedViewProps = { engine: null };
+
     // @ts-expect-error React filter definitions are registered only through extensions.filters.
     export const splitRegistration = useViewEngine({ definitionId: 'orders', scopeKey: 'user:tenant', host, filterCompilers: { custom: { compile: compileBuiltinFilter } } });
     export const example = OrderWorkbench;
@@ -245,7 +269,7 @@ function verifyTypes(directory) {
     nodeProbe,
     `
     import { compileAnalysis, type AnalysisViewConfig, type AnalysisCompileContext } from '${manifest.name}';
-    import { useViewEngine, ViewPage, type UseViewEngineOptions } from '${manifest.name}/react';
+    import { EmbeddedView, type EmbeddedViewProps, useViewEngine, ViewPage, type UseViewEngineOptions } from '${manifest.name}/react';
     declare const config: AnalysisViewConfig;
     declare const context: AnalysisCompileContext;
     declare const options: UseViewEngineOptions;
@@ -256,7 +280,8 @@ function verifyTypes(directory) {
     const invalid: Query = { metrics: [] };
     // @ts-expect-error Scope is required for lifecycle isolation.
     useViewEngine({ host: options.host, definitionId: options.definitionId });
-    void [binding, ViewPage, invalid];
+    const embedded: EmbeddedViewProps = { ...binding, instanceId: 'overview' };
+    void [binding, ViewPage, EmbeddedView, embedded, invalid];
   `,
   );
   const nodeProgram = ts.createProgram([nodeProbe], {
@@ -397,8 +422,13 @@ try {
     assert.equal(fileURLToPath(import.meta.resolve(${JSON.stringify(manifest.name)})), ${JSON.stringify(resolve(packed, manifest.exports['.'].import))});
     assert.equal(fileURLToPath(import.meta.resolve(${JSON.stringify(manifest.name + '/react')})), ${JSON.stringify(resolve(packed, manifest.exports['./react'].import))});
     assert.equal(typeof core.ViewEngine, 'function');
+    assert.notEqual(core.dashboardEditorKey('a:b', 'c'), core.dashboardEditorKey('a', 'b:c'));
+    assert.equal(core.dashboardEditorKey('a:b'), 'filter:a:b');
+    assert.equal(typeof react.DashboardView, 'function');
+    assert.equal(core.projectSupportedInstance({kind:'dashboard',config:{schemaVersion:1}}),null);
     assert.deepEqual(Object.keys(core).filter(name => name.startsWith('HttpView') || name === 'VIEW_SERVICE_STATUS'), [], 'Experimental HTTP API leaked into the package');
     assert.equal(typeof react.ViewPage, 'function');
+    assert.equal(typeof react.EmbeddedView, 'function');
     for (const name of ['FilterMultiSelect','FilterRemoteSelect','FilterTextValues','FilterDateTimeRange','TextCell','TagsCell','StatusCell','LinkCell','DateTimeCell','NumberCell']) assert.equal(typeof react[name], 'function', name);
     const configured = core.createFilterConfiguration({id:'selected',operator:'IN',field:'id',component:{name:'multi-select'},props:{values:[1],selectedOptions:[{value:1,label:'One'}]}});
     assert.deepEqual(core.compileFilterConfiguration(configured,[{field:'id',label:'ID',type:'number'}]).expression,{op:'IN',field:'id',values:[1]});

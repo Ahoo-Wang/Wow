@@ -122,3 +122,13 @@ export type {
 
 export { AnalysisPresentationEditor } from './analysis/AnalysisPresentationEditor.js';
 export type { AnalysisPresentationEditorProps } from './analysis/AnalysisPresentationEditor.js';
+
+export {
+  RecordContent,
+  type RecordContentProps,
+} from './record/RecordContent.js';
+
+export { DashboardView } from './dashboard/DashboardView.js';
+export type * from './dashboard/dashboardReactTypes.js';
+
+export { EmbeddedView, type EmbeddedViewProps } from './view/EmbeddedView.js';

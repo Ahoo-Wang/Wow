@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import { RecordActionGuard } from '../RecordActionGuard.js';
+import { sameFilterQuery } from '../../filter/filterTree.js';
 import { useMemo } from 'react';
 import type {
   RecordSession,
@@ -25,12 +27,14 @@ export function RecordActions({
   session,
   extensions,
   refresh,
+  isCurrent,
 }: {
   kind: 'global' | 'toolbar';
   definition: RecordViewDefinition;
   session: RecordSession;
   extensions?: RecordExtensions;
   refresh(): Promise<void>;
+  isCurrent?(): boolean;
 }) {
   const { id, definitionId, title, scope, revision } = session.instance;
   const config = session.result?.config ?? session.instance.config;
@@ -46,7 +50,10 @@ export function RecordActions({
     }),
     [id, definitionId, title, scope, revision, config],
   );
-  const querying = session.queryStatus === 'loading';
+  const querying =
+    session.queryStatus === 'loading' || session.queryStatus === 'waiting';
+  const filter = session.result?.filter ?? session.appliedFilter;
+  const disabled = !sameFilterQuery(filter, session.appliedFilter);
   const reference = definition.record.recordActions?.[kind];
   if (!reference) return null;
   const registry =
@@ -64,30 +71,33 @@ export function RecordActions({
       className="fve:flex fve:flex-wrap fve:items-center fve:gap-2"
     >
       {Actions ? (
-        <RecordRendererBoundary
-          label={label}
-          // Recovery follows render inputs, not event-handler identity.
-          resetKey={[
-            Actions,
-            definition,
-            instance,
-            session.appliedFilter,
-            reference.options,
-            session.selectedRowKeys,
-            querying,
-          ]}
-        >
-          <Actions
-            definition={definition}
-            instance={instance}
-            filter={session.appliedFilter}
-            sort={instance.config.sort}
-            selectedRowKeys={session.selectedRowKeys}
-            querying={querying}
-            options={reference.options}
-            refresh={refresh}
-          />
-        </RecordRendererBoundary>
+        <RecordActionGuard disabled={disabled} isCurrent={isCurrent}>
+          <RecordRendererBoundary
+            label={label}
+            // Recovery follows render inputs, not event-handler identity.
+            resetKey={[
+              Actions,
+              definition,
+              instance,
+              session.appliedFilter,
+              reference.options,
+              session.selectedRowKeys,
+              querying,
+            ]}
+          >
+            <Actions
+              definition={definition}
+              instance={instance}
+              filter={filter}
+              isCurrent={isCurrent}
+              sort={instance.config.sort}
+              selectedRowKeys={session.selectedRowKeys}
+              querying={querying}
+              options={reference.options}
+              refresh={refresh}
+            />
+          </RecordRendererBoundary>
+        </RecordActionGuard>
       ) : (
         <p role="alert" className="fve:text-sm fve:text-destructive">
           未注册{label}：{reference.name}

@@ -53,17 +53,19 @@
     "test:themes": "node scripts/verify-themes.mjs"
   },
   "dependencies": {
+    "@ahoo-wang/fetcher-react": "workspace:^",
+    "@ahoo-wang/fetcher-wow": "workspace:^",
     "@base-ui/react": "catalog:",
+    "@date-fns/tz": "catalog:",
     "@tanstack/react-table": "catalog:",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "lucide-react": "catalog:",
     "react-day-picker": "catalog:",
-    "tailwind-merge": "catalog:",
-    "@ahoo-wang/fetcher-wow": "workspace:^",
-    "@ahoo-wang/fetcher-react": "workspace:^",
-    "@date-fns/tz": "catalog:",
-    "recharts": "catalog:"
+    "react-grid-layout": "catalog:",
+    "react-markdown": "catalog:",
+    "recharts": "catalog:",
+    "tailwind-merge": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",

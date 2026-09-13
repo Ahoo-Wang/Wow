@@ -34,6 +34,8 @@ import type {
   AnalysisViewConfig,
 } from './analysisModel.js';
 export interface AnalysisTableProps {
+  /** Contextual name for embedded result and pagination landmarks. */
+  label?: string;
   plan: DeepReadonly<AnalysisPlan>;
   rows: DeepReadonly<readonly AnalysisRow[]>;
   sort: DeepReadonly<AnalysisViewConfig['sort']>;
@@ -47,6 +49,7 @@ export interface AnalysisTableProps {
   maxSort?: number;
 }
 export function AnalysisTable({
+  label,
   plan,
   rows,
   sort,
@@ -134,7 +137,7 @@ export function AnalysisTable({
   return (
     <section
       className="fve-root fve:flex fve:min-w-0 fve:flex-col fve:gap-2"
-      aria-label="分析结果"
+      aria-label={label ?? '分析结果'}
       aria-busy={querying}
     >
       <p role="status">
@@ -209,7 +212,7 @@ export function AnalysisTable({
       </Table>
       {rows.length > 100 && (
         <nav
-          aria-label="已返回结果分页"
+          aria-label={label ? `${label}已返回结果分页` : '已返回结果分页'}
           className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-2"
         >
           <p

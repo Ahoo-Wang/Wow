@@ -75,7 +75,7 @@ const source = `
   declare const state: ViewEngineState;
   declare const store: SessionStore;
   declare const analysis: AnalysisSession;
-  store.patch('mine', { filterValid: false });
+  store.patch('mine', { kind: 'record', filterValid: false });
   store.patch('mine', { kind: 'record', page: 2, instance: session.instance, baseline: session.baseline, result: session.result });
   store.patch('analysis', { kind: 'analysis', instance: analysis.instance, result: analysis.result });
   // @ts-expect-error kind-specific updates require a discriminator

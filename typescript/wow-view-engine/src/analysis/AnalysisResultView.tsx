@@ -57,7 +57,9 @@ const tablePresentation: AnalysisPresentation = {
 };
 
 interface AnalysisResultProps {
+  label?: string;
   active: boolean;
+  compact?: boolean;
   session: DeepReadonly<AnalysisSession>;
   definition: DeepReadonly<ViewDefinition>;
   compilers: FilterCompilerRegistry;
@@ -67,14 +69,16 @@ interface AnalysisResultProps {
   onRun(): void;
   onSortChange(sort: AnalysisViewConfig['sort']): void;
   onModeChange(mode: 'analysis' | 'table'): void;
-  onConfigure(): void;
-  onChoosePresentation(): void;
-  onOpenQuery(): void;
+  onConfigure?(): void;
+  onChoosePresentation?(): void;
+  onOpenQuery?(): void;
 }
 
 /** Executed-result projection and inspection never subscribe to the engine. */
 export function AnalysisResult({
+  label,
   active,
+  compact = false,
   session,
   definition,
   compilers,
@@ -89,7 +93,8 @@ export function AnalysisResult({
   onOpenQuery,
 }: AnalysisResultProps) {
   const { instance, result } = session;
-  const querying = session.queryStatus === 'loading';
+  const querying =
+    session.queryStatus === 'loading' || session.queryStatus === 'waiting';
   const stale = hasUnrunAnalysisQuery(session);
   const presentation =
     instance.config.presentation &&
@@ -112,6 +117,7 @@ export function AnalysisResult({
   const table =
     result && projected?.plan ? (
       <AnalysisTable
+        label={label}
         key={instance.id}
         plan={projected.plan}
         rows={result.rows}
@@ -127,39 +133,52 @@ export function AnalysisResult({
   return (
     <div
       aria-label="分析结果区"
-      className="fve:flex fve:min-w-0 fve:flex-col fve:gap-4 fve:rounded-xl fve:border fve:bg-background fve:p-4"
+      className={
+        compact
+          ? 'fve:flex fve:min-w-0 fve:flex-col fve:gap-4 fve:px-4 fve:pb-4'
+          : 'fve:flex fve:min-w-0 fve:flex-col fve:gap-4 fve:rounded-xl fve:border fve:bg-background fve:p-4'
+      }
     >
-      <div className="fve:flex fve:flex-col fve:gap-3">
-        <div className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-2">
-          <h2 className="fve:font-semibold">分析结果</h2>
-          <div className="fve:flex fve:items-center fve:gap-2">
-            {querying && <Badge variant="secondary">正在查询</Badge>}
-            {stale && <Badge variant="outline">配置尚未运行</Badge>}
-            {!session.queryValid && (
-              <Badge variant="outline">查询配置待修复</Badge>
-            )}
+      {(!compact ||
+        querying ||
+        stale ||
+        !session.queryValid ||
+        (session.queryError && result)) && (
+        <div className="fve:flex fve:flex-col fve:gap-3">
+          <div className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-2">
+            {!compact && <h2 className="fve:font-semibold">分析结果</h2>}
+            <div className="fve:flex fve:items-center fve:gap-2">
+              {querying && <Badge variant="secondary">正在查询</Badge>}
+              {stale && <Badge variant="outline">配置尚未运行</Badge>}
+              {!session.queryValid && (
+                <Badge variant="outline">查询配置待修复</Badge>
+              )}
+            </div>
           </div>
+          {!compact && result && (
+            <AnalysisResultSummary
+              result={result}
+              definition={definition}
+              compilers={compilers}
+            />
+          )}
+          {(stale || (session.queryError && result)) && (
+            <div className="fve:flex fve:flex-wrap fve:items-center fve:gap-2">
+              <p
+                role="status"
+                className="fve:text-sm fve:text-muted-foreground"
+              >
+                以下仍为上次成功结果。
+              </p>
+              {!session.queryError && (
+                <Button variant="outline" disabled={!canRun} onClick={onRun}>
+                  运行当前配置
+                </Button>
+              )}
+            </div>
+          )}
         </div>
-        {result && (
-          <AnalysisResultSummary
-            result={result}
-            definition={definition}
-            compilers={compilers}
-          />
-        )}
-        {(stale || (session.queryError && result)) && (
-          <div className="fve:flex fve:flex-wrap fve:items-center fve:gap-2">
-            <p role="status" className="fve:text-sm fve:text-muted-foreground">
-              以下仍为上次成功结果。
-            </p>
-            {!session.queryError && (
-              <Button variant="outline" disabled={!canRun} onClick={onRun}>
-                运行当前配置
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
+      )}
       {error && (
         <div
           role="alert"
@@ -237,22 +256,26 @@ export function AnalysisResult({
                     : '先配置查询并运行'
                 : '先选择报表展示方式'}
             </p>
-            <Button
-              variant="outline"
-              onClick={() =>
-                result
-                  ? onChoosePresentation()
+            {(onChoosePresentation ||
+              onOpenQuery ||
+              (session.queryStatus === 'success' && canRun)) && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  result
+                    ? onChoosePresentation?.()
+                    : session.queryStatus === 'success' && canRun
+                      ? onRun()
+                      : onOpenQuery?.()
+                }
+              >
+                {result
+                  ? '选择展示方式'
                   : session.queryStatus === 'success' && canRun
-                    ? onRun()
-                    : onOpenQuery()
-              }
-            >
-              {result
-                ? '选择展示方式'
-                : session.queryStatus === 'success' && canRun
-                  ? '重新运行查询'
-                  : '配置查询'}
-            </Button>
+                    ? '重新运行查询'
+                    : '配置查询'}
+              </Button>
+            )}
           </div>
         )}
       </AnalysisResultTabs>

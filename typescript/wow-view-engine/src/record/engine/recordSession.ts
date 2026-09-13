@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { withQueryScope } from '../../filter/filterScope.js';
 import type {
   RecordSession,
   RecordViewInstance,
@@ -91,7 +92,10 @@ export function deriveRecordSession(
   const filterPending =
     !session.filterValid ||
     compiled.errors.length > 0 ||
-    !sameFilterQuery(compiled.expression, session.appliedFilter);
+    !sameFilterQuery(
+      withQueryScope(compiled.expression, session.scopeFilter),
+      session.appliedFilter,
+    );
   let selectedRowKeys = session.selectedRowKeys;
   if (
     selectedRowKeys.length &&

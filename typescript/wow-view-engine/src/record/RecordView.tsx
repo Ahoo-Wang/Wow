@@ -13,7 +13,6 @@
 
 import {
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -22,41 +21,20 @@ import {
 } from 'react';
 import { FilterPanel } from '../filter/FilterPanel.js';
 import { cn } from '../lib/utils.js';
-import { RecordCardList } from './RecordCardList.js';
-import { RecordTable } from './RecordTable.js';
-import { RecordRegion } from './RecordRegion.js';
 import type { ViewEngine } from '../engine/ViewEngine.js';
 import { RecordAppliedFilters } from './page/RecordAppliedFilters.js';
 import { RecordGlobalToolbar } from './page/RecordGlobalToolbar.js';
-import { RecordPagination } from './page/RecordPagination.js';
-import { RecordToolbar } from './page/RecordToolbar.js';
-import {
-  bindRecordPagination,
-  getRecordPaginationPolicy,
-} from './page/recordPaginationPolicy.js';
-import type {
-  RecordPaginationRenderContext,
-  RecordTableProps,
-  RecordToolbarRenderContext,
-  RecordExtensions,
-  RecordCardRenderContext,
-} from './recordReactTypes.js';
+import { RecordContent } from './RecordContent.js';
 import {
   useViewExpansion,
   ViewExpansionContext,
 } from '../view/viewExpansion.js';
 import type {
-  ViewDefinition,
-  RecordViewDefinition,
-} from '../contracts/viewModel.js';
-import type { DeepReadonly } from '../lib/types.js';
-
-function hasRecordCapability(
-  definition: DeepReadonly<ViewDefinition> | null,
-): definition is DeepReadonly<RecordViewDefinition> {
-  return definition?.record !== undefined;
-}
-
+  RecordExtensions,
+  RecordToolbarRenderContext,
+  RecordCardRenderContext,
+  RecordPaginationRenderContext,
+} from './recordReactTypes.js';
 export interface RecordViewProps {
   engine: ViewEngine;
   extensions?: RecordExtensions;
@@ -83,8 +61,8 @@ export function RecordView({
   className,
   toolbarStart,
   renderToolbar,
-  renderPagination,
   renderCard,
+  renderPagination,
   configurationOpen,
   onConfigurationOpenChange,
 }: RecordViewProps) {
@@ -93,6 +71,14 @@ export function RecordView({
     engine.getSnapshot,
     engine.getSnapshot,
   );
+  const id = state.selectedInstanceId;
+  const current = id ? state.sessions[id] : undefined;
+  const session = current?.kind === 'record' ? current : undefined;
+  const definition = state.definition?.record
+    ? (state.definition as typeof state.definition & {
+        record: NonNullable<typeof state.definition.record>;
+      })
+    : null;
   const [localFiltersOpen, setLocalFiltersOpen] = useState(true);
   const filtersOpen = configurationOpen ?? localFiltersOpen;
   const setFiltersOpen = onConfigurationOpenChange ?? setLocalFiltersOpen;
@@ -100,58 +86,11 @@ export function RecordView({
     id: string;
     message: string;
   } | null>(null);
-  const id = state.selectedInstanceId;
-  const current = id ? state.sessions[id] : undefined;
-  const session = current?.kind === 'record' ? current : undefined;
-  const recordId = session?.instance.id;
   const editorEpoch = session?.editorEpoch;
   const filterCommands = useMemo(
-    () =>
-      recordId && editorEpoch !== undefined
-        ? engine.record(recordId)
-        : undefined,
-    [engine, recordId, editorEpoch],
+    () => (id && editorEpoch !== undefined ? engine.record(id) : undefined),
+    [engine, id, editorEpoch],
   );
-  const selectionCount = session?.selectedRowKeys.length ?? 0;
-  const {
-    id: instanceId,
-    definitionId,
-    title,
-    scope,
-    revision,
-  } = session?.instance ?? {};
-  const queryConfig = session?.result?.config ?? session?.instance.config;
-  const presentation = session?.instance.config.presentation;
-  // Keep live metadata without invalidating rendered records for query-only drafts.
-  const resultInstance = useMemo(
-    () =>
-      instanceId !== undefined && queryConfig && presentation
-        ? {
-            id: instanceId,
-            definitionId: definitionId!,
-            title: title!,
-            scope: scope!,
-            revision: revision!,
-            kind: 'record' as const,
-            config: { ...queryConfig, presentation },
-          }
-        : undefined,
-    [
-      instanceId,
-      definitionId,
-      title,
-      scope,
-      revision,
-      queryConfig,
-      presentation,
-    ],
-  );
-  useEffect(() => {
-    if (!selectable && id && selectionCount) engine.record(id).setSelection([]);
-  }, [engine, id, selectable, selectionCount]);
-  const definition = hasRecordCapability(state.definition)
-    ? state.definition
-    : null;
   const rootRef = useRef<HTMLElement>(null);
   const inheritedExpansion = useContext(ViewExpansionContext);
   const localExpansion = useViewExpansion(
@@ -180,63 +119,9 @@ export function RecordView({
     if (id && engine.getSnapshot().sessions[id])
       await engine.record(id).refresh();
   };
-  const tableHandlers: Required<
-    Pick<
-      RecordTableProps,
-      | 'onQueryRetry'
-      | 'onSummaryRetry'
-      | 'onSelectionChange'
-      | 'onColumnsChange'
-      | 'onSortChange'
-    >
-  > = {
-    onQueryRetry: () => run(() => engine.record(id!).retryQuery()),
-    onSummaryRetry: () => {
-      void engine
-        .record(id!)
-        .refreshSummary()
-        .catch(() => {});
-    },
-    onSelectionChange: keys => run(() => engine.record(id!).setSelection(keys)),
-    onColumnsChange: columns =>
-      run(() => engine.record(id!).setColumns(columns)),
-    onSortChange: sort => run(() => engine.record(id!).setSort(sort)),
-  };
-  if (!id || !session || !definition) return null;
-  const { instance } = session;
-  const querying = session.queryStatus === 'loading';
-  const paginationPolicy = getRecordPaginationPolicy(session);
-  const paginationOperations = bindRecordPagination(engine, id);
-  const tableOperations = {
-    setLayout(
-      layout: Parameters<ReturnType<ViewEngine['record']>['setLayout']>[0],
-    ) {
-      if (engine.getSnapshot().sessions[id])
-        engine.record(id).setLayout(layout);
-    },
-    setCardConfig(
-      card: Parameters<ReturnType<ViewEngine['record']>['setCardConfig']>[0],
-    ) {
-      if (engine.getSnapshot().sessions[id])
-        engine.record(id).setCardConfig(card);
-    },
-    clearSelection() {
-      if (engine.getSnapshot().sessions[id]) engine.record(id).setSelection([]);
-    },
-    setColumns(
-      columns: Parameters<ReturnType<ViewEngine['record']>['setColumns']>[0],
-    ) {
-      if (engine.getSnapshot().sessions[id])
-        engine.record(id).setColumns(columns);
-    },
-    refresh,
-  };
-  const Result =
-    instance.config.presentation.layout === 'table'
-      ? RecordTable
-      : RecordCardList;
-  const error =
-    !session.queryError && localError?.id === id ? localError.message : null;
+  if (!id || !session || !definition || !filterCommands) return null;
+  const querying =
+    session.queryStatus === 'loading' || session.queryStatus === 'waiting';
   return (
     <section
       ref={rootRef}
@@ -254,8 +139,8 @@ export function RecordView({
         timeZone={definition.timeZone}
         onApply={() => engine.record(id).applyFilter()}
         appliedValue={session.filterBaseline}
-        onChange={draft => filterCommands!.setFilterDraft(draft)}
-        onValidityChange={valid => filterCommands!.setFilterValidity(valid)}
+        onChange={draft => filterCommands.setFilterDraft(draft)}
+        onValidityChange={valid => filterCommands.setFilterValidity(valid)}
         allowedOperators={definition.allowedOperators}
         editors={definition.filterEditors}
         extensions={extensions}
@@ -279,7 +164,7 @@ export function RecordView({
             refresh={refresh}
             onRefresh={() => run(refresh)}
             onLayoutChange={layout =>
-              run(() => tableOperations.setLayout(layout))
+              run(() => engine.record(id).setLayout(layout))
             }
           />
         )}
@@ -290,81 +175,20 @@ export function RecordView({
         session={session}
         run={run}
       />
-      <RecordRegion
-        key={`toolbar-region:${id}`}
-        label="记录工具栏"
-        render={renderToolbar}
-        resetKey={[renderToolbar, definition, session]}
-        context={{
-          definition,
-          session,
-          defaultContent: (
-            <RecordToolbar
-              key={`toolbar:${id}`}
-              definition={definition}
-              session={session}
-              extensions={extensions}
-              selectable={selectable}
-              refresh={refresh}
-              onSelectionClear={() => run(tableOperations.clearSelection)}
-              onColumnsChange={tableHandlers.onColumnsChange}
-              onSortChange={tableHandlers.onSortChange}
-              onCardChange={
-                renderCard ? undefined : tableOperations.setCardConfig
-              }
-            />
-          ),
-          appliedFilter: session.appliedFilter,
-          querying,
-          selectedRowKeys: session.selectedRowKeys,
-          ...tableOperations,
+      <RecordContent
+        getSnapshot={() => {
+          const latest = engine.getSnapshot().sessions[id];
+          return latest?.kind === 'record' ? latest : undefined;
         }}
-      />
-      {error && (
-        <div
-          role="alert"
-          className="fve:mx-3 fve:mb-3 fve:flex fve:flex-wrap fve:items-center fve:gap-2 fve:rounded-lg fve:border fve:border-destructive/30 fve:p-3 fve:text-sm fve:text-destructive"
-        >
-          <span>{error}</span>
-        </div>
-      )}
-      <Result
-        renderCard={renderCard}
-        key={`${instance.config.presentation.layout}:${id}`}
-        className="fve:rounded-none fve:border-x-0 fve:border-b-0"
+        session={session}
         definition={definition}
-        instance={resultInstance!}
-        appliedFilter={session.appliedFilter}
-        rows={session.rows}
-        queryError={session.queryError}
-        {...tableHandlers}
-        pageSummary={session.pageSummary}
-        allSummary={session.allSummary}
+        commands={filterCommands}
         extensions={extensions}
-        querying={querying}
         selectable={selectable}
-        selectedRowKeys={session.selectedRowKeys}
-        refresh={refresh}
-      />
-      <RecordRegion
-        key={`pagination-region:${id}`}
-        label="分页"
-        render={renderPagination}
-        resetKey={[renderPagination, definition, session]}
-        context={{
-          definition,
-          session,
-          defaultContent: (
-            <RecordPagination
-              session={session}
-              policy={paginationPolicy}
-              operations={paginationOperations}
-              run={run}
-            />
-          ),
-          ...paginationPolicy,
-          ...paginationOperations,
-        }}
+        renderToolbar={renderToolbar}
+        renderCard={renderCard}
+        renderPagination={renderPagination}
+        error={localError?.id === id ? localError.message : null}
       />
     </section>
   );

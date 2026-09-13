@@ -85,3 +85,44 @@ node packages/view-engine/scripts/verify-http-view-host.mjs --serve
 夹具仅允许 `VIEW_ENGINE_E2E_BASE_URL` 的来源，默认 `http://127.0.0.1:6006`。使用其他 Storybook 地址（包括 `http://localhost:6006`）时需设置该变量；其他浏览器来源会在预检或写入前被拒绝。
 
 `DELETE /instances/{id}` 的成功 envelope 包含 `ViewDeleteResult`：`{ defaultInstance: ViewInstance | null }`。回执来自删除事务，重复删除也返回当前用户的权威默认项；客户端不能丢弃该响应体。
+
+### 跨定义仪表盘
+
+`HttpViewHost` 是按单一定义隔离的客户端，不是全局资源目录。`supportedFormats.dashboard` 协商保存格式，不会将路由扩展到其他定义。跨定义仪表盘应为目标定义配置对应 HTTP 客户端，并在应用接入层组合现有公共 `ViewHost`。从核心包导入 `ViewHost` 与 `ViewServiceError`；下例假设已分别配置好 `rootClient` 和 `ordersClient`。
+
+```ts
+// rootClient and ordersClient each use their own definitionId and transport.
+const definitions = new Map([
+  ['overview', rootClient],
+  ['orders', ordersClient],
+]);
+const owners = new Map([
+  ['dashboard', rootClient],
+  ['saved-orders', ordersClient],
+]);
+function clientFor(registry: ReadonlyMap<string, HttpViewHost>, id: string) {
+  const client = registry.get(id);
+  if (!client)
+    throw new ViewServiceError('NOT_FOUND', 'Resource not registered');
+  return client;
+}
+const host: ViewHost = {
+  definition: {
+    load: (id, signal) =>
+      clientFor(definitions, id).definition.load(id, signal),
+  },
+  instance: {
+    list: rootClient.instance.list,
+    load: (id, signal) => clientFor(owners, id).instance.load(id, signal),
+    create: rootClient.instance.create,
+    save: rootClient.instance.save,
+    rename: rootClient.instance.rename,
+    delete: rootClient.instance.delete,
+  },
+  preference: rootClient.preference,
+  permission: rootClient.permission,
+  resolveSource: rootClient.resolveSource,
+};
+```
+
+用户/租户访问范围变化时，重新创建所有客户端和组合宿主。组合宿主内的实例 ID 必须唯一。归属应由应用的已授权资源目录解析，不从 ID 文本猜测，也不逐一定义探测。转发取消信号，将列表、写入和偏好操作保留在根客户端，根权限快照与引用客户端保持独立。[真实 HTTP 回归](../test/dashboard/httpCompatibility.test.ts)使用纯仪表盘定义与独立记录服务，验证面板查询、仅保存根实例，以及子定义授权不会覆盖根授权。

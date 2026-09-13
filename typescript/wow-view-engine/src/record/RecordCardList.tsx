@@ -65,6 +65,8 @@ export function RecordCardList(props: RecordCardListProps) {
     instance,
     rows,
     querying,
+    actionsDisabled,
+    isCurrent,
     queryError,
     onQueryRetry,
     selectable,
@@ -154,6 +156,8 @@ export function RecordCardList(props: RecordCardListProps) {
               resetKey={[record, card, props.extensions, instance, definition]}
             >
               <RecordCell
+                actionsDisabled={actionsDisabled}
+                isCurrent={isCurrent}
                 {...props}
                 record={record}
                 rowKey={rowKey}

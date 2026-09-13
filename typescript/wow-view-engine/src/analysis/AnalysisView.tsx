@@ -206,11 +206,12 @@ function AnalysisInstanceView({
     setLocalError(null);
     const failed = () => {
       const current = engine.getSnapshot().sessions[actionId];
-      if (current?.queryError || current?.writeError) return;
+      const queryError =
+        current?.kind === 'analysis' ? current.queryError : null;
+      if (queryError || current?.writeError) return;
       setLocalError({
         id: actionId,
-        message:
-          current?.queryError || current?.writeError || '操作失败，请重试',
+        message: queryError || current?.writeError || '操作失败，请重试',
       });
     };
     try {

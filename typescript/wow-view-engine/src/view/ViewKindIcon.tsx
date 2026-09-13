@@ -10,15 +10,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { ChartColumnIcon, Table2Icon } from 'lucide-react';
+import { ChartColumnIcon, Table2Icon, LayoutDashboardIcon } from 'lucide-react';
 import type { ViewSession } from '../contracts/viewModel.js';
 
 export function ViewKindIcon({ kind }: { kind: ViewSession['kind'] }) {
-  const Icon = kind === 'analysis' ? ChartColumnIcon : Table2Icon;
+  const Icon =
+    kind === 'dashboard'
+      ? LayoutDashboardIcon
+      : kind === 'analysis'
+        ? ChartColumnIcon
+        : Table2Icon;
   return (
     <span
       aria-hidden="true"
-      title={kind === 'analysis' ? '分析视图' : '数据视图'}
+      title={
+        kind === 'dashboard'
+          ? '仪表盘'
+          : kind === 'analysis'
+            ? '分析视图'
+            : '数据视图'
+      }
       className="fve:inline-flex fve:shrink-0"
     >
       <Icon className="fve:size-4" />

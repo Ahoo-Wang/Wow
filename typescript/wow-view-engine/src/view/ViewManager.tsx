@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { CreateDashboardButton } from './CreateDashboardButton.js';
 import { useRef, useState } from 'react';
 import { Button } from '../components/ui/button.js';
 import {
@@ -89,23 +90,50 @@ export function ViewManager({
           {!groups.length && (
             <p className="fve:text-sm fve:text-muted-foreground">暂无视图</p>
           )}
-          {groups.map(group => (
-            <ViewManagerGroup
-              key={`${group.id}:${open}`}
-              engine={engine}
-              group={group}
-              busy={busy}
-              busyRef={busyRef}
-              execute={execute}
-              fallbackFocus={titleRef}
-              onDelete={(id, trigger) => {
-                deleteTrigger.current = trigger;
-                setError(null);
-                setConfirmId(id);
-              }}
-            />
-          ))}
+          {groups.map(group =>
+            group.id === 'draft' ? (
+              <section key={group.id} aria-label={group.label}>
+                <h3 className="fve:mb-2 fve:text-sm fve:font-medium">
+                  {group.label}
+                </h3>
+                {group.sessions.map(session => (
+                  <Button
+                    key={session.instance.id}
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() =>
+                      void execute(
+                        () => engine.selectInstance(session.instance.id),
+                        () => onOpenChange(false),
+                      )
+                    }
+                  >
+                    继续编辑：{session.instance.title}
+                  </Button>
+                ))}
+              </section>
+            ) : (
+              <ViewManagerGroup
+                key={`${group.id}:${open}`}
+                engine={engine}
+                group={group}
+                busy={busy}
+                busyRef={busyRef}
+                execute={execute}
+                fallbackFocus={titleRef}
+                onDelete={(id, trigger) => {
+                  deleteTrigger.current = trigger;
+                  setError(null);
+                  setConfirmId(id);
+                }}
+              />
+            ),
+          )}
         </div>
+        <CreateDashboardButton
+          engine={engine}
+          onCreated={() => onOpenChange(false)}
+        />
         <DialogFooter>
           <div className="fve:flex fve:justify-end">
             <DialogClose render={<Button variant="outline" disabled={busy} />}>

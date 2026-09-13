@@ -194,8 +194,14 @@ export class ViewLoader {
             ? '另存结果尚未核对，请重新加载核对'
             : '原视图已不在当前列表，另存结果仍需核对',
         };
-        if (loaded) sessions[id] = recovery;
-        else pendingCreates[id] = recovery;
+        const retained =
+          recovery.kind === 'dashboard' &&
+          request.source.kind === 'dashboard' &&
+          !request.source.persisted
+            ? { ...recovery, persisted: false }
+            : recovery;
+        if (loaded) sessions[id] = retained;
+        else pendingCreates[id] = retained;
       }
       if (
         typeof list.defaultInstanceId === 'string' &&

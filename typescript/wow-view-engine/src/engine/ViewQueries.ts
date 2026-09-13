@@ -67,19 +67,23 @@ export class ViewQueries {
       )
         return;
       const session = this.store.find(id);
-      if (!session) return;
+      if (!session || session.kind === 'dashboard') return;
       if (session.kind === 'record') {
         await record();
         return;
       }
-      // Revisiting a failed query is not an implicit retry, even if its first run was manual.
-      if (!refresh && session.queryStatus === 'error') return;
+      // A refused admission has no attempt; revisiting may still perform its first query.
+      if (!refresh && session.queryStatus === 'error' && session.queryAttempt)
+        return;
       const intent = refresh ? 'reload' : 'open';
       if (!analysisQueryPolicy(session, intent)) return;
       const generation = this.store.generation(id);
       if (!refresh && this.opened.get(id) === generation) return;
       const execution = this.analysis.start(id, intent);
-      if (execution.accepted && this.store.find(id)?.queryStatus !== 'idle')
+      if (
+        execution.accepted &&
+        this.store.analysisSession(id).queryStatus !== 'idle'
+      )
         this.opened.set(id, generation);
       await execution.completion;
     };

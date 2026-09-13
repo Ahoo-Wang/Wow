@@ -12,6 +12,11 @@
  */
 
 import {
+  createDashboardSession,
+  deriveDashboardSession,
+} from '../dashboard/dashboardSession.js';
+import type { DashboardViewInstance } from '../dashboard/dashboardModel.js';
+import {
   createAnalysisSession,
   deriveAnalysisSession,
 } from '../analysis/analysisSession.js';
@@ -39,6 +44,8 @@ export function createSession(
   analysisCompilers: AnalysisCompilerRegistry = {},
   maxConfigBytes?: number,
 ): ViewSession {
+  if (instance.kind === 'dashboard')
+    return createDashboardSession(instance, maxConfigBytes);
   if (instance.kind === 'analysis')
     return createAnalysisSession(
       instance,
@@ -88,6 +95,7 @@ export function deriveSession(
   previous?: ViewSession,
   analysisCompilers: AnalysisCompilerRegistry = {},
   maxConfigBytes?: number,
+  dashboardLimits?: { maxPanels?: number; maxFilters?: number },
 ): ViewSession {
   const editVersion = previous
     ? previous.editVersion +
@@ -95,7 +103,9 @@ export function deriveSession(
         !sameJsonState(
           instanceContent(previous.instance),
           instanceContent(session.instance),
-        ) || previous.filterValid !== session.filterValid,
+        ) ||
+          (previous.kind !== 'dashboard' && previous.filterValid) !==
+            (session.kind !== 'dashboard' && session.filterValid),
       )
     : session.editVersion;
   const dirty =
@@ -108,6 +118,14 @@ export function deriveSession(
           instanceContent(session.instance),
           instanceContent(session.baseline),
         );
+  if (session.kind === 'dashboard')
+    return deriveDashboardSession(
+      session,
+      editVersion,
+      dirty,
+      maxConfigBytes,
+      dashboardLimits,
+    );
   if (session.kind === 'analysis') {
     return deriveAnalysisSession(
       session,
@@ -152,7 +170,9 @@ export function rebaseSession(
   });
   const locallyEdited =
     !sameJsonState(editable(latest.instance), editable(latest.baseline)) ||
-    !latest.filterValid ||
+    (latest.kind === 'dashboard'
+      ? Object.values(latest.editorValidity).some(valid => !valid)
+      : !latest.filterValid) ||
     (latest.kind === 'record' &&
       !sameJsonState(latest.filterDraft, latest.filterBaseline));
   if (!locallyEdited)
@@ -180,14 +200,18 @@ export function rebaseSession(
             baseline: latest.baseline,
             remote: baseline,
             local: instance,
-            filterDraft:
-              latest.kind === 'record'
-                ? latest.filterDraft
-                : latest.instance.config.filters,
-            filterValid:
-              latest.kind === 'record'
-                ? latest.filterValid
-                : latest.validation.length === 0,
+            ...(latest.kind === 'dashboard'
+              ? {}
+              : {
+                  filterDraft:
+                    latest.kind === 'record'
+                      ? latest.filterDraft
+                      : latest.instance.config.filters,
+                  filterValid:
+                    latest.kind === 'record'
+                      ? latest.filterValid
+                      : latest.validation.length === 0,
+                }),
           }
         : undefined,
       writeError: null,
@@ -215,7 +239,13 @@ export function inheritEditingSession(
   return deriveSession(
     {
       ...createSession(baseline, definition, compilers, analysisCompilers),
+      ...(source.kind === 'dashboard' && !source.persisted
+        ? { createdFromDraft: source.positionId }
+        : {}),
       instance,
+      ...(source.kind === 'dashboard'
+        ? { editorValidity: source.editorValidity }
+        : {}),
       ...(source.kind === 'record'
         ? {
             filterDraft: source.filterDraft,
@@ -250,6 +280,10 @@ export function withContent(
   local: DeepReadonly<ViewInstance>,
 ): DeepReadonly<AnalysisViewInstance>;
 export function withContent(
+  baseline: DeepReadonly<DashboardViewInstance>,
+  local: DeepReadonly<ViewInstance>,
+): DeepReadonly<DashboardViewInstance>;
+export function withContent(
   baseline: DeepReadonly<ViewInstance>,
   local: DeepReadonly<ViewInstance>,
 ): DeepReadonly<ViewInstance>;
@@ -269,58 +303,37 @@ export function withContent(
       title: local.title,
       config: local.config,
     });
+  if (baseline.kind === 'dashboard' && local.kind === 'dashboard')
+    return structuredClone({
+      ...baseline,
+      title: local.title,
+      config: local.config,
+    });
   throw new Error('实例类型不能改变');
 }
 
-/** A persisted result replaces the baseline; the discriminated union keeps store.patch narrowing. */
-export function baselinePatch(
-  baseline: DeepReadonly<RecordViewInstance> | RecordViewInstance,
+/** A persisted result replaces the baseline without widening the discriminant. */
+type BaselinePatch<T extends ViewInstance> = T extends ViewInstance
+  ? { kind: T['kind']; baseline: DeepReadonly<T>; instance: DeepReadonly<T> }
+  : never;
+export function baselinePatch<T extends ViewInstance>(
+  baseline: DeepReadonly<T>,
   local: DeepReadonly<ViewInstance>,
-): {
-  kind: 'record';
-  baseline: DeepReadonly<RecordViewInstance>;
-  instance: DeepReadonly<RecordViewInstance>;
-};
-export function baselinePatch(
-  baseline: DeepReadonly<AnalysisViewInstance> | AnalysisViewInstance,
-  local: DeepReadonly<ViewInstance>,
-): {
-  kind: 'analysis';
-  baseline: DeepReadonly<AnalysisViewInstance>;
-  instance: DeepReadonly<AnalysisViewInstance>;
-};
+): BaselinePatch<T>;
 export function baselinePatch(
   baseline: DeepReadonly<ViewInstance>,
   local: DeepReadonly<ViewInstance>,
-):
-  | {
-      kind: 'record';
-      baseline: DeepReadonly<RecordViewInstance>;
-      instance: DeepReadonly<RecordViewInstance>;
-    }
-  | {
-      kind: 'analysis';
-      baseline: DeepReadonly<AnalysisViewInstance>;
-      instance: DeepReadonly<AnalysisViewInstance>;
-    };
-export function baselinePatch(
-  baseline: DeepReadonly<ViewInstance>,
-  local: DeepReadonly<ViewInstance>,
-):
-  | {
-      kind: 'record';
-      baseline: DeepReadonly<RecordViewInstance>;
-      instance: DeepReadonly<RecordViewInstance>;
-    }
-  | {
-      kind: 'analysis';
-      baseline: DeepReadonly<AnalysisViewInstance>;
-      instance: DeepReadonly<AnalysisViewInstance>;
-    } {
+): BaselinePatch<ViewInstance> {
   if (baseline.kind === 'record')
     return { kind: 'record', baseline, instance: withContent(baseline, local) };
+  if (baseline.kind === 'analysis')
+    return {
+      kind: 'analysis',
+      baseline,
+      instance: withContent(baseline, local),
+    };
   return {
-    kind: 'analysis',
+    kind: 'dashboard',
     baseline,
     instance: withContent(baseline, local),
   };

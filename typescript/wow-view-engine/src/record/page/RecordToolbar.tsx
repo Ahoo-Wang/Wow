@@ -31,6 +31,8 @@ export function RecordToolbar({
   session,
   extensions,
   selectable,
+  configurable = true,
+  isCurrent,
   refresh,
   onSelectionClear,
   onColumnsChange,
@@ -41,6 +43,8 @@ export function RecordToolbar({
   session: RecordSession;
   extensions?: RecordExtensions;
   selectable: boolean;
+  configurable?: boolean;
+  isCurrent?(): boolean;
   refresh(): Promise<void>;
   onSelectionClear(): void;
   onColumnsChange(columns: RecordColumn[]): void;
@@ -84,31 +88,35 @@ export function RecordToolbar({
       <div className="fve:ml-auto fve:flex fve:flex-wrap fve:items-center fve:gap-2">
         <RecordActions
           kind="toolbar"
+          isCurrent={isCurrent}
           definition={definition}
           session={session}
           extensions={extensions}
           refresh={refresh}
         />
-        <RecordSortSettings
-          definition={definition}
-          sort={instance.config.sort}
-          onChange={onSortChange}
-        />
-        {instance.config.presentation.layout === 'table' ? (
-          <RecordColumnSettings
-            key={id}
+        {configurable && (
+          <RecordSortSettings
             definition={definition}
-            columns={instance.config.presentation.table.columns}
-            onChange={onColumnsChange}
+            sort={instance.config.sort}
+            onChange={onSortChange}
           />
-        ) : onCardChange ? (
-          <RecordCardSettings
-            key={id}
-            definition={definition}
-            card={instance.config.presentation.card}
-            onChange={onCardChange}
-          />
-        ) : null}
+        )}
+        {configurable &&
+          (instance.config.presentation.layout === 'table' ? (
+            <RecordColumnSettings
+              key={id}
+              definition={definition}
+              columns={instance.config.presentation.table.columns}
+              onChange={onColumnsChange}
+            />
+          ) : onCardChange ? (
+            <RecordCardSettings
+              key={id}
+              definition={definition}
+              card={instance.config.presentation.card}
+              onChange={onCardChange}
+            />
+          ) : null)}
       </div>
     </div>
   );

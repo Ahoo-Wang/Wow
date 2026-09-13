@@ -16,6 +16,7 @@
 /* stylelint-disable import-notation -- Tailwind prefix() requires string imports. */
 @import 'tailwindcss/theme.css' layer(theme) prefix(fve);
 @import 'tailwindcss/utilities.css' layer(utilities) prefix(fve);
+@import './dashboard/dashboard.css';
 /* stylelint-enable import-notation */
 
 @source './';

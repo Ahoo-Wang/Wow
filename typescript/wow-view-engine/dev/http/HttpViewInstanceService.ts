@@ -11,6 +11,10 @@
  * limitations under the License.
  */
 
+import {
+  projectSupportedInstance,
+  requireSupportedInstance,
+} from '../../src/contracts/viewServiceContract.js';
 import { encodeViewResourceId } from './protocol.js';
 import type {
   ViewInstance,
@@ -30,17 +34,37 @@ export class HttpViewInstanceService implements ViewInstanceService {
     signal?: AbortSignal,
   ): Promise<ViewInstanceList> => {
     this.transport.assertDefinition(id);
-    return this.transport.request('/instances', 'GET', undefined, signal);
+    const list = await this.transport.request<ViewInstanceList>(
+      '/instances',
+      'GET',
+      undefined,
+      signal,
+    );
+    const instances = list.instances
+      .map(item =>
+        projectSupportedInstance(item, this.transport.supportedFormats),
+      )
+      .filter((item): item is ViewInstance => item !== null);
+    return {
+      instances,
+      defaultInstanceId: instances.some(
+        item => item.id === list.defaultInstanceId,
+      )
+        ? list.defaultInstanceId
+        : null,
+    };
   };
   readonly load = async (
     id: string,
     signal?: AbortSignal,
   ): Promise<ViewInstance> => {
-    return this.transport.request(
-      `/instances/${encodeViewResourceId(id)}`,
-      'GET',
-      undefined,
-      signal,
+    return this.supported(
+      this.transport.request<ViewInstance>(
+        `/instances/${encodeViewResourceId(id)}`,
+        'GET',
+        undefined,
+        signal,
+      ),
     );
   };
   readonly create = async (
@@ -51,23 +75,27 @@ export class HttpViewInstanceService implements ViewInstanceService {
       return Promise.reject(
         new ViewServiceError('INVALID_ARGUMENT', '创建必须提供 requestId'),
       );
-    return this.transport.request(
-      '/instances',
-      'POST',
-      instance,
-      context.signal,
-      {
-        'Idempotency-Key': context.requestId,
-      },
+    return this.supported(
+      this.transport.request<ViewInstance>(
+        '/instances',
+        'POST',
+        instance,
+        context.signal,
+        {
+          'Idempotency-Key': context.requestId,
+        },
+      ),
     );
   };
   readonly save = async (instance: ViewInstance): Promise<ViewInstance> => {
-    return this.transport.request(
-      `/instances/${encodeViewResourceId(instance.id)}`,
-      'PUT',
-      instance,
-      undefined,
-      this.transport.revision(instance.revision),
+    return this.supported(
+      this.transport.request<ViewInstance>(
+        `/instances/${encodeViewResourceId(instance.id)}`,
+        'PUT',
+        instance,
+        undefined,
+        this.transport.revision(instance.revision),
+      ),
     );
   };
   readonly rename = async (
@@ -75,24 +103,40 @@ export class HttpViewInstanceService implements ViewInstanceService {
     title: string,
     revision?: string,
   ): Promise<ViewInstance> => {
-    return this.transport.request(
-      `/instances/${encodeViewResourceId(id)}/name`,
-      'PATCH',
-      { title },
-      undefined,
-      this.transport.revision(revision),
+    return this.supported(
+      this.transport.request<ViewInstance>(
+        `/instances/${encodeViewResourceId(id)}/name`,
+        'PATCH',
+        { title },
+        undefined,
+        this.transport.revision(revision),
+      ),
     );
   };
   readonly delete = async (
     id: string,
     revision?: string,
   ): Promise<ViewDeleteResult> => {
-    return this.transport.request(
+    const result = await this.transport.request<ViewDeleteResult>(
       `/instances/${encodeViewResourceId(id)}`,
       'DELETE',
       undefined,
       undefined,
       this.transport.revision(revision),
     );
+    return {
+      defaultInstance: projectSupportedInstance(
+        result.defaultInstance,
+        this.transport.supportedFormats,
+      ),
+    };
   };
+  private async supported(
+    result: Promise<ViewInstance>,
+  ): Promise<ViewInstance> {
+    return requireSupportedInstance(
+      await result,
+      this.transport.supportedFormats,
+    );
+  }
 }

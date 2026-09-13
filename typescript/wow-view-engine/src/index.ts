@@ -31,6 +31,14 @@ export {
 export type * from './contracts/viewModel.js';
 export type * from './contracts/ViewHost.js';
 export { ViewEngine } from './engine/ViewEngine.js';
+export type {
+  ViewPosition,
+  DataViewPosition,
+  RecordViewPosition,
+  AnalysisViewPosition,
+  DashboardViewPosition,
+  ViewPositionOptions,
+} from './engine/ViewEngine.js';
 export { getRecordSummaryMetrics } from './record/recordPresentation.js';
 export {
   RECORD_SUMMARY_LABELS,
@@ -108,3 +116,28 @@ export { formatAnalysisValue } from './analysis/analysisFormatting.js';
 
 export { ANALYSIS_VISUALIZATIONS } from './analysis/analysisVisualizations.js';
 export type { AnalysisVisualizationType } from './analysis/analysisVisualizations.js';
+
+export type * from './dashboard/dashboardModel.js';
+export { dashboardEditorKey } from './dashboard/dashboardEditorKey.js';
+export { validateDashboardConfig } from './dashboard/dashboardValidation.js';
+
+export {
+  LEGACY_VIEW_FORMATS,
+  projectSupportedInstance,
+  requireSupportedInstance,
+} from './contracts/viewServiceContract.js';
+export type { SupportedViewFormats } from './contracts/viewServiceContract.js';
+
+export {
+  DashboardRuntime,
+  type DashboardSnapshot,
+  type DashboardPanelSnapshot,
+} from './dashboard/DashboardRuntime.js';
+export {
+  compileDashboardScope,
+  validateDashboardExpression,
+} from './dashboard/dashboardFilters.js';
+export type {
+  DashboardHost,
+  DashboardCandidate,
+} from './contracts/ViewHost.js';

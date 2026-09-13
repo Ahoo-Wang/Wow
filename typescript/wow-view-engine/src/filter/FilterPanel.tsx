@@ -48,7 +48,7 @@ export function FilterPanel(props: FilterPanelProps) {
           'fve-root fve:flex fve:min-w-0 fve:flex-col fve:gap-3',
           props.className,
         )}
-        aria-label="筛选器"
+        aria-label={props.ariaLabel ?? '筛选器'}
         onKeyDown={event => {
           if (
             !showQueryAction ||

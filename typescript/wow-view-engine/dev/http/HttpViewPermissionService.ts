@@ -41,7 +41,15 @@ export class HttpViewPermissionService implements ViewPermissionService {
         };
   };
   readonly getDefinition = () => {
-    return { reorder: this.permissionSnapshot.reorder };
+    return {
+      reorder: this.permissionSnapshot.reorder,
+      createPersonal:
+        this.transport.supportedFormats.dashboard === 1 &&
+        this.permissionSnapshot.createPersonal === true,
+      createShared:
+        this.transport.supportedFormats.dashboard === 1 &&
+        this.permissionSnapshot.createShared === true,
+    };
   };
   readonly subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -73,7 +81,7 @@ export class HttpViewPermissionService implements ViewPermissionService {
         'UNAVAILABLE',
         '权限响应已过期或与当前授权不一致，请重试',
       );
-    return copy(this.permissionSnapshot);
+    return copy({ ...this.permissionSnapshot, ...this.getDefinition() });
   };
   /** Clear cached grants after an HTTP session rejection; keep the authority version. */
   clear(): void {
@@ -97,6 +105,10 @@ export class HttpViewPermissionService implements ViewPermissionService {
       !Number.isSafeInteger(next.revision) ||
       next.revision < 0 ||
       typeof next.reorder !== 'boolean' ||
+      (next.createPersonal !== undefined &&
+        typeof next.createPersonal !== 'boolean') ||
+      (next.createShared !== undefined &&
+        typeof next.createShared !== 'boolean') ||
       !next.instances ||
       typeof next.instances !== 'object' ||
       Array.isArray(next.instances)

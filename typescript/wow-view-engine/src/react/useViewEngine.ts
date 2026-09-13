@@ -60,8 +60,26 @@ function capture(options: UseViewEngineOptions, identity: string) {
         ),
       )
     : undefined;
+  const dashboard = options.extensions?.dashboard
+    ? Object.freeze({
+        ...options.extensions.dashboard,
+        transforms: options.extensions.dashboard.transforms
+          ? Object.freeze(
+              Object.fromEntries(
+                Object.entries(options.extensions.dashboard.transforms).map(
+                  ([name, registration]) => [
+                    name,
+                    Object.freeze({ ...registration }),
+                  ],
+                ),
+              ),
+            )
+          : undefined,
+      })
+    : undefined;
   return {
     identity,
+    dashboard,
     filters,
     analysis,
     options: {
@@ -80,6 +98,9 @@ function capture(options: UseViewEngineOptions, identity: string) {
         : undefined,
       limits: options.limits ? { ...options.limits } : undefined,
       onDiagnostic: options.onDiagnostic,
+      dashboardTransforms: options.dashboardTransforms
+        ? Object.freeze({ ...options.dashboardTransforms })
+        : undefined,
     } satisfies ViewEngineOptions,
   };
 }
@@ -128,6 +149,7 @@ export function useViewEngine(
       ...options.extensions,
       filters: initial.filters,
       analysis: initial.analysis,
+      dashboard: initial.dashboard,
     },
     ...(!validScope
       ? { error: 'scopeKey 必须标识当前用户与访问范围' }

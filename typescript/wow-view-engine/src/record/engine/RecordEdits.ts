@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { withQueryScope } from '../../filter/filterScope.js';
 import type { FieldSort } from '@ahoo-wang/fetcher-wow';
 import type {
   FilterConfiguration,
@@ -78,7 +79,10 @@ export class RecordEdits {
             filterValid: true,
             page: 1,
             cursor: null,
-            appliedFilter: compiled.expression,
+            appliedFilter: withQueryScope(
+              compiled.expression,
+              session.scopeFilter,
+            ),
           },
         );
       },
@@ -113,7 +117,10 @@ export class RecordEdits {
     if (
       nextValid &&
       !compiled.errors.length &&
-      sameFilterQuery(compiled.expression, session.appliedFilter)
+      sameFilterQuery(
+        withQueryScope(compiled.expression, session.scopeFilter),
+        session.appliedFilter,
+      )
     ) {
       this.store.updateInstance(
         session,
@@ -314,7 +321,10 @@ export class RecordEdits {
           filterDraft,
           filterBaseline: filterDraft,
           filterValid: true,
-          appliedFilter: compiled.expression ?? null,
+          appliedFilter: withQueryScope(
+            compiled.expression,
+            session.scopeFilter,
+          ),
           page: 1,
           cursor: null,
           writeError: session.requiresReload ? session.writeError : null,

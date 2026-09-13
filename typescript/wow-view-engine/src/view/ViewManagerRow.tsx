@@ -111,7 +111,13 @@ export function ViewManagerRow({
   return (
     <li
       aria-label={title}
-      aria-description={session.kind === 'analysis' ? '分析视图' : '数据视图'}
+      aria-description={
+        session.kind === 'dashboard'
+          ? '仪表盘'
+          : session.kind === 'analysis'
+            ? '分析视图'
+            : '数据视图'
+      }
       className="fve:relative fve:flex fve:min-h-9 fve:items-center fve:gap-2 fve:data-dragging:opacity-50"
       data-dragging={dragging || undefined}
     >

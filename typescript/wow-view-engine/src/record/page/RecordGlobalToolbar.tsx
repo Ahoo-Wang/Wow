@@ -193,6 +193,15 @@ export function RecordGlobalToolbar({
         </Button>
         <RecordActions
           kind="global"
+          isCurrent={() => {
+            const latest = engine.getSnapshot().sessions[session.positionId];
+            return (
+              latest?.kind === 'record' &&
+              latest.result === session.result &&
+              latest.selectedRowKeys === session.selectedRowKeys &&
+              latest.appliedFilter === session.appliedFilter
+            );
+          }}
           definition={definition}
           session={session}
           extensions={extensions}

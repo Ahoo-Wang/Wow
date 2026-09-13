@@ -57,18 +57,24 @@ function ViewInstanceLabel({
 }
 
 export type InstanceGroup = {
-  id: 'personal' | 'public';
+  id: 'personal' | 'public' | 'draft';
   label: string;
   sessions: ViewSession[];
 };
 
 export function groupViewInstances(state: ViewEngineState): InstanceGroup[] {
-  return GROUPS.map(group => ({
+  const groups: InstanceGroup[] = GROUPS.map(group => ({
     ...group,
     sessions: state.instanceIds
       .map(id => state.sessions[id])
       .filter(session => session.instance.scope.type === group.id),
   })).filter(group => group.sessions.length);
+  const drafts = Object.values(state.sessions).filter(
+    session => session.kind === 'dashboard' && !session.persisted,
+  );
+  if (drafts.length)
+    groups.unshift({ id: 'draft', label: '未保存草稿', sessions: drafts });
+  return groups;
 }
 
 interface NavigationProps {
@@ -111,11 +117,13 @@ export function ViewInstanceSwitcher({
         ref={triggerRef}
         aria-label="选择视图实例"
         aria-description={
-          selected?.kind === 'analysis'
-            ? '分析视图'
-            : selected
-              ? '数据视图'
-              : undefined
+          selected?.kind === 'dashboard'
+            ? '仪表盘'
+            : selected?.kind === 'analysis'
+              ? '分析视图'
+              : selected
+                ? '数据视图'
+                : undefined
         }
       >
         <SelectValue placeholder="选择视图">
@@ -156,7 +164,11 @@ export function ViewInstanceSwitcher({
                 key={session.instance.id}
                 value={session.instance.id}
                 aria-description={
-                  session.kind === 'analysis' ? '分析视图' : '数据视图'
+                  session.kind === 'dashboard'
+                    ? '仪表盘'
+                    : session.kind === 'analysis'
+                      ? '分析视图'
+                      : '数据视图'
                 }
               >
                 <ViewInstanceLabel
@@ -231,7 +243,11 @@ export function ViewSidebar({
                 selectedId === session.instance.id ? 'page' : undefined
               }
               aria-description={
-                session.kind === 'analysis' ? '分析视图' : '数据视图'
+                session.kind === 'dashboard'
+                  ? '仪表盘'
+                  : session.kind === 'analysis'
+                    ? '分析视图'
+                    : '数据视图'
               }
               onClick={() => onSelect(session.instance.id)}
             >

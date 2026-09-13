@@ -52,7 +52,10 @@ export interface ViewPreferenceService {
 /** Synchronous UI policy projection plus explicit refresh and change notifications. */
 export interface ViewPermissionService {
   getInstance?(instance: ViewInstance): ViewInstancePermissions;
-  getDefinition?(): Pick<ViewPermissionSnapshot, 'reorder'>;
+  getDefinition?(): Pick<
+    ViewPermissionSnapshot,
+    'reorder' | 'createPersonal' | 'createShared'
+  >;
   /** Initialize this service's synchronous getters before resolving; awaited by engine.load(). */
   load?(
     definitionId: string,
@@ -62,8 +65,22 @@ export interface ViewPermissionService {
   refresh?(signal?: AbortSignal): Promise<void>;
   subscribe?(listener: () => void): () => void;
 }
+export interface DashboardCandidate {
+  id: string;
+  definitionId: string;
+  title: string;
+  kind: 'record' | 'analysis';
+}
+export interface DashboardHost {
+  search?(
+    input: { query: string; cursor?: string },
+    signal?: AbortSignal,
+  ): Promise<{ items: DashboardCandidate[]; nextCursor: string | null }>;
+  openOriginal?(reference: { instanceId: string; definitionId: string }): void;
+}
 /** Composition facade within one fixed access scope; each service is independently replaceable. */
 export interface ViewHost {
+  dashboard?: DashboardHost;
   definition?: ViewDefinitionService;
   instance?: ViewInstanceService;
   preference?: ViewPreferenceService;

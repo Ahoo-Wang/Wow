@@ -28,10 +28,33 @@ export const deniedPermissions = Object.freeze({
   rename: false,
 });
 
+/** Policy outages deny UI capabilities without interrupting rendering. */
+export function definitionPermissionsFor(host: ViewHost) {
+  try {
+    return host.permission?.getDefinition?.();
+  } catch {
+    return undefined;
+  }
+}
+
 export function permissionsFor(
   host: ViewHost,
   session?: ViewSession,
 ): ViewInstancePermissions {
+  if (session?.kind === 'dashboard' && !session.persisted) {
+    const grants = definitionPermissionsFor(host);
+    const available = typeof host.instance?.create === 'function';
+    return {
+      ...deniedPermissions,
+      save:
+        available &&
+        (session.instance.scope.type === 'personal'
+          ? grants?.createPersonal === true
+          : grants?.createShared === true),
+      saveAsPersonal: available && grants?.createPersonal === true,
+      saveAsShared: available && grants?.createShared === true,
+    };
+  }
   if (
     !session ||
     session.positionId !== session.instance.id ||

@@ -19,11 +19,13 @@ import type { RecordPaginationPolicy } from './recordPaginationPolicy.js';
 
 export function RecordPagination({
   session,
+  label = '记录分页',
   policy,
   operations,
   run,
 }: {
   session: RecordSession;
+  label?: string;
   policy: RecordPaginationPolicy;
   operations: {
     setPageSize(size: number): Promise<void>;
@@ -33,11 +35,12 @@ export function RecordPagination({
   run(action: () => void | Promise<void>): void;
 }) {
   if (session.queryError) return null;
-  const querying = session.queryStatus === 'loading';
+  const querying =
+    session.queryStatus === 'loading' || session.queryStatus === 'waiting';
   const paged = policy.mode === 'paged';
   return (
     <nav
-      aria-label="记录分页"
+      aria-label={label}
       data-slot="record-pagination"
       className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-[var(--fve-toolbar-gap)] fve:border-t fve:px-[var(--fve-toolbar-padding-x)] fve:py-[var(--fve-toolbar-padding-y)] fve:text-sm"
     >

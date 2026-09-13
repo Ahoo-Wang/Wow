@@ -13,6 +13,7 @@
 
 import {
   validateRuntimeLimits,
+  RuntimeLimitError,
   type RuntimeLimits,
 } from '../lib/runtimeLimits.js';
 import type { AnalysisCompilerRegistry } from '../analysis/analysisModel.js';
@@ -29,8 +30,15 @@ import type { EngineScope } from './EngineScope.js';
 import { clearAnalysisResult } from '../analysis/analysisSession.js';
 import { clearRecordResult } from '../record/engine/recordSession.js';
 import { copy, freeze } from '../lib/snapshot.js';
-import type { ViewDefinition, ViewInstance } from '../contracts/viewModel.js';
+import type {
+  ViewDefinition,
+  ViewInstance,
+  ViewSource,
+} from '../contracts/viewModel.js';
 import { createSession, deriveSession } from './sessionState.js';
+
+import { compileFilterConfiguration } from '../filter/filterConfigurationCompiler.js';
+import type { DashboardSession } from '../dashboard/dashboardModel.js';
 
 type CommonSessionFields = Omit<
   ViewSession,
@@ -39,7 +47,7 @@ type CommonSessionFields = Omit<
 type CommonSessionPatch = Partial<CommonSessionFields> & {
   [
     K in Exclude<
-      keyof RecordSession | keyof AnalysisSession,
+      keyof RecordSession | keyof AnalysisSession | keyof DashboardSession,
       keyof CommonSessionFields
     >
   ]?: never;
@@ -54,8 +62,14 @@ type AnalysisSessionPatch = { kind: 'analysis' } & Partial<
 > & {
     [K in Exclude<keyof RecordSession, keyof AnalysisSession>]?: never;
   };
+type DashboardSessionPatch = { kind: 'dashboard' } & Partial<
+  Omit<DashboardSession, 'kind'>
+>;
 type SessionPatch =
-  CommonSessionPatch | RecordSessionPatch | AnalysisSessionPatch;
+  | CommonSessionPatch
+  | RecordSessionPatch
+  | AnalysisSessionPatch
+  | DashboardSessionPatch;
 
 /** Sole owner of published immutable session state and subscriptions. */
 export class SessionStore {
@@ -71,7 +85,81 @@ export class SessionStore {
     sessions: Object.create(null),
     pendingCreates: Object.create(null),
   });
+  private readonly dashboardPositions = new Map<string, string>();
+  registerDashboardPosition(positionId: string, dashboardId: string): void {
+    if (
+      !this.positions.has(positionId) ||
+      this.find(dashboardId)?.kind !== 'dashboard'
+    )
+      throw new Error('仪表盘运行位置无效');
+    this.dashboardPositions.set(positionId, dashboardId);
+  }
+  private admitDashboardResult(
+    id: string,
+    result: RecordSession['result'] | AnalysisSession['result'],
+  ): void {
+    const dashboard = this.dashboardPositions.get(id);
+    if (!dashboard || !result) return;
+    let rows = 0,
+      bytes = 0;
+    for (const [position, owner] of this.dashboardPositions) {
+      if (owner !== dashboard) continue;
+      const session = this.find(position);
+      const retained =
+        position === id
+          ? result
+          : session?.kind !== 'dashboard'
+            ? session?.result
+            : undefined;
+      if (!retained) continue;
+      rows += retained.rows.length;
+      bytes += new TextEncoder().encode(JSON.stringify(retained)).byteLength;
+    }
+    if (
+      rows > this.limits.maxDashboardResultRows ||
+      bytes > this.limits.maxDashboardResultBytes
+    )
+      throw new RuntimeLimitError(
+        'RESOURCE_LIMIT',
+        '仪表盘结果超过保留预算，请减少面板或结果规模',
+      );
+  }
+  private readonly dashboardMetadata = new Map<string, number>();
+  reserveDashboardMetadata(id: string, bytes: number): void {
+    let total = bytes;
+    for (const [other, retained] of this.dashboardMetadata)
+      if (other !== id) total += retained;
+    if (total > this.limits.maxDashboardMetadataBytes)
+      throw new RuntimeLimitError(
+        'RESOURCE_LIMIT',
+        '仪表盘恢复元数据超出预算，请调整宿主接入规模',
+      );
+    this.dashboardMetadata.set(id, bytes);
+  }
+  transferDashboardOwnership(from: string, to: string): void {
+    for (const [position, dashboard] of this.dashboardPositions)
+      if (dashboard === from) this.dashboardPositions.set(position, to);
+    const bytes = this.dashboardMetadata.get(from);
+    this.dashboardMetadata.delete(from);
+    if (bytes !== undefined) this.dashboardMetadata.set(to, bytes);
+  }
+  releaseDashboardMetadata(id: string): void {
+    this.dashboardMetadata.delete(id);
+  }
   private readonly positions = new Map<string, ViewDefinition>();
+  private readonly positionSources = new Map<
+    string,
+    | ViewSource
+    | ((controller: AbortController) => ViewSource | Promise<ViewSource>)
+  >();
+  source(
+    id: string,
+  ):
+    | ViewSource
+    | ((controller: AbortController) => ViewSource | Promise<ViewSource>)
+    | undefined {
+    return this.positionSources.get(id);
+  }
   private readonly resultAccess = new Map<string, number>();
   private accessVersion = 0;
   private nextGeneration = 0;
@@ -100,6 +188,9 @@ export class SessionStore {
     if (patch.status === 'loading') {
       for (const id of this.positions.keys()) this.generations.delete(id);
       this.positions.clear();
+      this.dashboardMetadata.clear();
+      this.dashboardPositions.clear();
+      this.positionSources.clear();
     }
     const definition =
       patch.definition === undefined ? this.state.definition : patch.definition;
@@ -114,19 +205,46 @@ export class SessionStore {
               Object.prototype.hasOwnProperty.call(this.state[target], id)
                 ? this.state[target][id]
                 : undefined;
-            return [
-              id,
+            const localDefinition = this.positions.get(id) ?? definition;
+            let derived =
               session === previous
                 ? session
                 : deriveSession(
                     session,
-                    this.positions.get(id) ?? definition,
+                    localDefinition,
                     this.filterCompilers,
                     previous,
                     this.analysisCompilers,
                     this.limits.maxConfigBytes,
-                  ),
-            ];
+                    {
+                      maxPanels: this.limits.maxDashboardPanels,
+                      maxFilters: this.limits.maxDashboardFilters,
+                    },
+                  );
+            if (this.positions.has(id) && derived.dirty)
+              derived = { ...derived, dirty: false };
+            if (derived === previous) return [id, derived];
+            if (derived.kind === 'dashboard') {
+              const errors = derived.instance.config.filters.flatMap(
+                item =>
+                  compileFilterConfiguration(
+                    item.filters,
+                    localDefinition.fields,
+                    localDefinition.allowedOperators,
+                    this.filterCompilers,
+                    localDefinition.timeZone,
+                  ).errors,
+              );
+              if (errors.length)
+                return [
+                  id,
+                  {
+                    ...derived,
+                    validation: [...derived.validation, ...errors],
+                  },
+                ];
+            }
+            return [id, derived];
           }),
         );
         patch = { ...patch, [target]: finalized };
@@ -142,16 +260,25 @@ export class SessionStore {
         this.resultAccess.delete(id);
     for (const [id, session] of Object.entries(sessions)) {
       if (
+        session.kind !== 'dashboard' &&
         session.result &&
-        (session.result !== this.find(id)?.result ||
+        (session.result !==
+          (this.find(id)?.kind !== 'dashboard'
+            ? (this.find(id) as RecordSession | AnalysisSession | undefined)
+                ?.result
+            : null) ||
           (id === next.selectedInstanceId &&
             id !== this.state.selectedInstanceId))
       )
         this.resultAccess.set(id, ++this.accessVersion);
-      if (!session.result) this.resultAccess.delete(id);
+      if (session.kind === 'dashboard' || !session.result)
+        this.resultAccess.delete(id);
     }
     const retained = Object.keys(sessions).filter(
-      id => !this.positions.has(id) && sessions[id].result !== null,
+      id =>
+        !this.positions.has(id) &&
+        sessions[id].kind !== 'dashboard' &&
+        sessions[id].result !== null,
     );
     const candidates = retained
       .filter(id => id !== next.selectedInstanceId)
@@ -170,7 +297,9 @@ export class SessionStore {
       sessions[id] =
         session.kind === 'analysis'
           ? clearAnalysisResult(session)
-          : clearRecordResult(session);
+          : session.kind === 'record'
+            ? clearRecordResult(session)
+            : session;
     }
     if (retained.length > this.limits.maxRetainedResults)
       next = { ...next, sessions };
@@ -185,6 +314,8 @@ export class SessionStore {
   }
 
   patch(id: string, patch: SessionPatch): void {
+    if (patch.kind === 'record' || patch.kind === 'analysis')
+      this.admitDashboardResult(id, patch.result ?? null);
     const session = this.find(id) ?? this.findPendingCreate(id);
     const target = this.find(id) ? 'sessions' : 'pendingCreates';
     const definition = this.positions.get(id) ?? this.state.definition;
@@ -194,10 +325,14 @@ export class SessionStore {
       next =
         session.kind === 'record'
           ? { ...session, ...patch, kind: 'record' }
-          : { ...session, ...patch, kind: 'analysis' };
+          : session.kind === 'analysis'
+            ? { ...session, ...patch, kind: 'analysis' }
+            : { ...session, ...patch, kind: 'dashboard' };
     } else if (session.kind === 'record' && patch.kind === 'record') {
       next = { ...session, ...patch };
     } else if (session.kind === 'analysis' && patch.kind === 'analysis') {
+      next = { ...session, ...patch };
+    } else if (session.kind === 'dashboard' && patch.kind === 'dashboard') {
       next = { ...session, ...patch };
     } else {
       throw new Error('实例类型不能改变');
@@ -286,7 +421,16 @@ export class SessionStore {
     });
   }
 
-  openPosition(instance: ViewInstance, definition: ViewDefinition): string {
+  openPosition(
+    instance: ViewInstance,
+    definition: ViewDefinition,
+    options: {
+      queryPolicy?: 'reject' | 'queue';
+      source?:
+        | ViewSource
+        | ((controller: AbortController) => ViewSource | Promise<ViewSource>);
+    } = {},
+  ): string {
     this.scope.assertReady();
     validateViewDefinition(definition);
     validateViewInstance(instance, definition);
@@ -300,8 +444,10 @@ export class SessionStore {
         this.analysisCompilers,
       ),
       positionId: id,
+      queryPolicy: options.queryPolicy,
     };
     this.positions.set(id, localDefinition);
+    if (options.source) this.positionSources.set(id, options.source);
     this.publish({ sessions: { ...this.state.sessions, [id]: session } });
     return id;
   }
@@ -311,12 +457,17 @@ export class SessionStore {
   }
   closePosition(id: string): void {
     if (!this.positions.delete(id)) return;
+    this.positionSources.delete(id);
+    this.dashboardPositions.delete(id);
     const sessions = { ...this.state.sessions };
     delete sessions[id];
     this.generations.delete(id);
     this.publish({ sessions });
   }
   dispose(): void {
+    this.dashboardMetadata.clear();
+    this.dashboardPositions.clear();
+    this.positionSources.clear();
     this.generations.clear();
     this.resultAccess.clear();
     this.positions.clear();

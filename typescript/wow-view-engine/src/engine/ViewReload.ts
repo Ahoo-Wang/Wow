@@ -115,7 +115,7 @@ export class ViewReload {
         conflict: undefined,
       });
     };
-    if (session.kind === 'analysis' || restored.validation.length > 0) {
+    if (session.kind !== 'record' || restored.validation.length > 0) {
       this.queries.cancel(session.instance.id);
       update();
       return;
@@ -335,9 +335,26 @@ export class ViewReload {
       );
       return RELOAD_ABORT;
     }
+    const transferDraft =
+      source.kind === 'dashboard' &&
+      !source.persisted &&
+      !sameJsonState(
+        instanceContent(source.instance),
+        instanceContent(unverified.submitted),
+      );
+    if (
+      transferDraft &&
+      existing &&
+      (existing.dirty ||
+        existing.writeStatus !== 'idle' ||
+        existing.requiresReload)
+    )
+      throw new Error(
+        '两份视图都有未保存编辑，请先处理已加载视图再核对创建草稿',
+      );
     // Abort observers may have opened or edited the copy or the source.
     const created =
-      (existing
+      (existing && !transferDraft
         ? existing.baseline === existingBaseline &&
           existing.writeStatus === 'idle' &&
           !existing.requiresReload
@@ -357,7 +374,10 @@ export class ViewReload {
         this.store.filterCompilers,
         withContent(baseline, {
           ...source.instance,
-          title: unverified.submitted.title,
+          title:
+            source.kind === 'dashboard' && !source.persisted
+              ? source.instance.title
+              : unverified.submitted.title,
         }),
         this.store.analysisCompilers,
       );
@@ -370,6 +390,9 @@ export class ViewReload {
     const pendingCreates = { ...this.store.getSnapshot().pendingCreates };
     delete pendingCreates[id];
     const followUp = ctx.createFollowUp();
+    const remaining = { ...this.store.getSnapshot().sessions };
+    const draft = source.kind === 'dashboard' && !source.persisted;
+    if (draft) delete remaining[id];
     this.work.finishReload(id, controller, () =>
       this.store.publish({
         pendingCreates,
@@ -377,8 +400,8 @@ export class ViewReload {
           ...new Set([...this.store.getSnapshot().instanceIds, baseline.id]),
         ],
         sessions: {
-          ...this.store.getSnapshot().sessions,
-          ...(this.store.find(id)
+          ...remaining,
+          ...(!draft && this.store.find(id)
             ? {
                 [id]: {
                   ...source,

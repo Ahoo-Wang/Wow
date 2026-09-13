@@ -11,6 +11,10 @@
  * limitations under the License.
  */
 
+import {
+  LEGACY_VIEW_FORMATS,
+  type SupportedViewFormats,
+} from '../../src/contracts/viewServiceContract.js';
 import { encodeViewResourceId, VIEW_SERVICE_STATUS } from './protocol.js';
 import { copy } from '../../src/lib/snapshot.js';
 import { HttpViewPermissionService } from './HttpViewPermissionService.js';
@@ -26,10 +30,12 @@ export interface HttpViewTransportOptions {
   headers?: () => HeadersInit;
   fetch?: typeof fetch;
   timeoutMs?: number;
+  supportedFormats?: SupportedViewFormats;
 }
 /** REST transport only; runtime components and record clients remain application-owned. */
 export class HttpViewTransport {
   readonly permission: HttpViewPermissionService;
+  readonly supportedFormats: SupportedViewFormats;
 
   private readonly options: HttpViewTransportOptions;
   private readonly root: string;
@@ -62,6 +68,9 @@ export class HttpViewTransport {
       );
     this.root = `${root.href.replace(/\/$/, '')}/definitions/${encodeViewResourceId(options.definitionId)}`;
     this.options = { ...options };
+    this.supportedFormats = Object.freeze({
+      ...(options.supportedFormats ?? LEGACY_VIEW_FORMATS),
+    });
     this.permission = new HttpViewPermissionService(this);
   }
 
@@ -94,6 +103,12 @@ export class HttpViewTransport {
     const headers = new Headers(this.options.headers?.());
     headers.set('Accept', 'application/json');
     new Headers(extraHeaders).forEach((value, key) => headers.set(key, value));
+    headers.set(
+      'X-View-Formats',
+      this.supportedFormats.dashboard === 1
+        ? 'record,analysis,dashboard@1'
+        : 'record,analysis',
+    );
     if (body !== undefined) headers.set('Content-Type', 'application/json');
     const payload = body === undefined ? undefined : JSON.stringify(copy(body));
     let response: Response;

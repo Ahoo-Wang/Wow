@@ -60,6 +60,8 @@ export interface RecordPaginationRenderContext {
 }
 
 export interface RecordActionsContext {
+  /** Recheck before a deferred business write; false after scope/lifetime changes. */
+  readonly isCurrent?: () => boolean;
   readonly definition: DeepReadonly<RecordViewDefinition>;
   readonly instance: DeepReadonly<RecordViewInstance>;
   /** Applied query scope. Null means the component configuration has not compiled successfully. */
@@ -108,6 +110,8 @@ export interface RecordTableProps {
   rows: DeepReadonly<readonly RecordData[]>;
   extensions?: RecordExtensions;
   querying?: boolean;
+  actionsDisabled?: boolean;
+  isCurrent?(): boolean;
   /** Query failure is distinct from a successful empty result. Existing rows are retained. */
   queryError?: string | null;
   onQueryRetry?(): void;
@@ -146,6 +150,8 @@ export type RecordCardListProps = Pick<
   | 'definition'
   | 'instance'
   | 'appliedFilter'
+  | 'actionsDisabled'
+  | 'isCurrent'
   | 'rows'
   | 'extensions'
   | 'querying'

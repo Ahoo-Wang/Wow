@@ -18,13 +18,21 @@ export interface RuntimeLimits {
   maxConcurrentQueries: number;
   maxRetainedResults: number;
   maxConfigBytes: number;
+  maxDashboardPanels: number;
+  maxDashboardFilters: number;
+  maxDashboardResultRows: number;
+  maxDashboardResultBytes: number;
+  maxDashboardMetadataBytes: number;
 }
 export interface RuntimeDiagnostic {
   operationId: string;
   kind: 'record' | 'analysis' | 'shared';
   operation: string;
-  phase: 'started' | 'succeeded' | 'failed' | 'cancelled' | 'superseded';
+  phase:
+    'queued' | 'started' | 'succeeded' | 'failed' | 'cancelled' | 'superseded';
   elapsedMs: number;
+  waitingMs?: number;
+  executionMs?: number;
   errorCode?: string;
 }
 export class RuntimeLimitError extends Error {
@@ -46,6 +54,11 @@ export function validateRuntimeLimits(
     maxConcurrentQueries: 4,
     maxRetainedResults: 5,
     maxConfigBytes: 262144,
+    maxDashboardPanels: 12,
+    maxDashboardFilters: 32,
+    maxDashboardResultRows: 12000,
+    maxDashboardResultBytes: 16777216,
+    maxDashboardMetadataBytes: 122 * 1048576,
     ...Object.fromEntries(
       Object.entries(input).filter(([, value]) => value !== undefined),
     ),
@@ -146,15 +159,27 @@ export function beginDiagnostic(
   const operationId = crypto.randomUUID(),
     started = performance.now();
   let finished = false;
+  let queued = false;
+  let executionStart: number | undefined;
   return (phase, errorCode) => {
     if (finished) return;
-    if (phase !== 'started') finished = true;
+    const now = performance.now();
+    if (phase === 'queued') queued = true;
+    if (phase === 'started') executionStart = now;
+    if (phase !== 'started' && phase !== 'queued') finished = true;
     reportDiagnostic(callback, {
       operationId,
       kind,
       operation,
       phase,
-      elapsedMs: performance.now() - started,
+      elapsedMs: now - started,
+      ...(queued
+        ? {
+            waitingMs: (executionStart ?? now) - started,
+            executionMs:
+              executionStart === undefined ? 0 : now - executionStart,
+          }
+        : {}),
       ...(errorCode ? { errorCode } : {}),
     });
   };
