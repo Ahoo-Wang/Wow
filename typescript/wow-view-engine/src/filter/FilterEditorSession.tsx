@@ -11,11 +11,13 @@
  * limitations under the License.
  */
 
-import { Component, type ReactNode } from 'react';
+import { Component, useRef, type ReactNode } from 'react';
 import type {
   FilterComponentProps,
   FilterRegistration,
 } from './filterReactTypes.js';
+import { ErrorBoundary } from 'react-error-boundary';
+import { RenderCommit } from '../lib/RenderCommit.js';
 import { Button } from '../components/ui/button.js';
 import { message } from './filterPanelUtils.js';
 
@@ -107,70 +109,56 @@ export class EditorSession extends Component<
     );
   }
 }
-export class EditorBoundary extends Component<
-  Pick<FilterComponentProps, 'operator' | 'mode'> & {
-    disabled?: boolean;
-    session: object;
-    children: ReactNode;
-    editor: FilterRegistration['component'];
-    onError(message: string): void;
-    onRecover(message: string): void;
-    onFallback(): void;
-  }
-> {
-  state = {
-    editor: this.props.editor,
-    session: this.props.session,
-    operator: this.props.operator,
-    mode: this.props.mode,
-    error: undefined as string | undefined,
-  };
-  static getDerivedStateFromProps(
-    props: EditorBoundary['props'],
-    state: EditorBoundary['state'],
-  ) {
-    if (
-      props.session === state.session &&
-      props.editor === state.editor &&
-      props.operator === state.operator &&
-      props.mode === state.mode
-    )
-      return null;
-    return {
-      editor: props.editor,
-      session: props.session,
-      operator: props.operator,
-      mode: props.mode,
-      error: undefined,
-    };
-  }
-  static getDerivedStateFromError(error: unknown) {
-    return { error: message(error) };
-  }
-  componentDidCatch(error: unknown) {
-    this.props.onError(message(error));
-  }
-  componentDidUpdate(
-    _previousProps: EditorBoundary['props'],
-    previousState: EditorBoundary['state'],
-  ) {
-    if (previousState.error && !this.state.error)
-      this.props.onRecover(previousState.error);
-  }
-  render() {
-    const { disabled, onFallback } = this.props;
-    return this.state.error ? (
-      <Button
-        variant="outline"
-        disabled={disabled}
-        onClick={() => {
-          if (!disabled) onFallback();
+export function EditorBoundary({
+  children,
+  editor,
+  session,
+  operator,
+  mode,
+  disabled,
+  onError,
+  onRecover,
+  onFallback,
+}: Pick<FilterComponentProps, 'operator' | 'mode'> & {
+  disabled?: boolean;
+  session: object;
+  children: ReactNode;
+  editor: FilterRegistration['component'];
+  onError(message: string): void;
+  onRecover(message: string): void;
+  onFallback(): void;
+}) {
+  const failure = useRef<{ message: string } | null>(null);
+  return (
+    <ErrorBoundary
+      resetKeys={[editor, session, operator, mode]}
+      onError={error => {
+        failure.current = { message: message(error) };
+        onError(failure.current.message);
+      }}
+      fallback={
+        <Button
+          variant="outline"
+          disabled={disabled}
+          onClick={() => {
+            if (!disabled) onFallback();
+          }}
+        >
+          使用内置编辑器
+        </Button>
+      }
+    >
+      <RenderCommit
+        onCommit={() => {
+          const previous = failure.current;
+          if (previous) {
+            failure.current = null;
+            onRecover(previous.message);
+          }
         }}
       >
-        使用内置编辑器
-      </Button>
-    ) : (
-      this.props.children
-    );
-  }
+        {children}
+      </RenderCommit>
+    </ErrorBoundary>
+  );
 }

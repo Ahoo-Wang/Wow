@@ -66,7 +66,7 @@ export default defineConfig({
     },
     rolldownOptions: {
       external:
-        /^(react|react-dom|react-grid-layout|react-markdown|react-day-picker|@base-ui\/react|@ahoo-wang\/fetcher-wow|@ahoo-wang\/fetcher-react|@date-fns\/tz|@tanstack\/react-table|lucide-react|class-variance-authority|clsx|tailwind-merge|recharts)(\/|$)/,
+        /^(react-error-boundary|@dnd-kit\/react|@dnd-kit\/dom|react|react-dom|react-grid-layout|react-markdown|react-day-picker|@base-ui\/react|@ahoo-wang\/fetcher-wow|@ahoo-wang\/fetcher-react|@date-fns\/tz|@tanstack\/react-table|lucide-react|class-variance-authority|clsx|tailwind-merge|recharts)(\/|$)/,
     },
   },
 });

@@ -53,6 +53,7 @@
     "test:themes": "node scripts/verify-themes.mjs"
   },
   "dependencies": {
+    "react-error-boundary": "catalog:",
     "@ahoo-wang/fetcher-react": "workspace:^",
     "@ahoo-wang/fetcher-wow": "workspace:^",
     "@base-ui/react": "catalog:",

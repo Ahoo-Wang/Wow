@@ -10,7 +10,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, lazy, Suspense, useMemo, type ReactNode } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { lazy, Suspense, useMemo, type ReactNode } from 'react';
 import type {
   AnalysisSession,
   ViewDefinition,
@@ -34,21 +35,16 @@ const Chart = lazy(() =>
   })),
 );
 
-class ChartBoundary extends Component<
-  { children: ReactNode },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    return this.state.failed ? (
-      <p role="alert">图表暂时无法显示，请切换到下方“数据表”查看结果。</p>
-    ) : (
-      this.props.children
-    );
-  }
+function ChartBoundary({ children }: { children: ReactNode }) {
+  return (
+    <ErrorBoundary
+      fallback={
+        <p role="alert">图表暂时无法显示，请切换到下方“数据表”查看结果。</p>
+      }
+    >
+      {children}
+    </ErrorBoundary>
+  );
 }
 
 const tablePresentation: AnalysisPresentation = {

@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { useLayoutEffect } from 'react';
 import { dashboardEditorKey } from '../../src/dashboard/dashboardEditorKey.js';
 import {
   act,
@@ -1019,6 +1020,60 @@ it('keeps transform validity independent when filter and panel IDs contain colon
     target: { value: 'valid' },
   });
   expect(() => runtime.assertSavable()).not.toThrow();
+  cleanup();
+  engine.dispose();
+});
+
+it('does not clear invalid transformer input when rendering recovers', async () => {
+  let broken = true;
+  function Input({ onValidityChange }: DashboardTransformEditorProps) {
+    useLayoutEffect(() => onValidityChange(false), [onValidityChange]);
+    return <p>输入仍然无效</p>;
+  }
+  function Editor(props: DashboardTransformEditorProps) {
+    if (broken) throw new Error('render failed');
+    return <Input {...props} />;
+  }
+  const { engine } = dashboardSetup({
+    ...empty,
+    filters: [
+      {
+        ...globalFilter(),
+        bindings: [{ panelId: 'a', kind: 'transform', name: 'custom' }],
+      },
+    ],
+  });
+  await engine.load();
+  const runtime = engine.dashboard('dashboard');
+  render(
+    <DashboardView
+      runtime={runtime}
+      extensions={{
+        dashboard: { transforms: { custom: { label: '自定义', Editor } } },
+      }}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: '全局筛选设置' }));
+  const retry = await screen.findByRole('button', { name: '重试转换器编辑器' });
+  const validity: (boolean | undefined)[] = [];
+  const unsubscribe = runtime.subscribe(() =>
+    validity.push(
+      runtime.getSnapshot().session.editorValidity[
+        dashboardEditorKey('amount', 'a')
+      ],
+    ),
+  );
+  broken = false;
+  fireEvent.click(retry);
+  unsubscribe();
+  expect(validity).not.toContain(true);
+  expect(screen.getByText('输入仍然无效')).toBeTruthy();
+  expect(
+    runtime.getSnapshot().session.editorValidity[
+      dashboardEditorKey('amount', 'a')
+    ],
+  ).toBe(false);
+  await expect(engine.save('dashboard')).rejects.toThrow();
   cleanup();
   engine.dispose();
 });

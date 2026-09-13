@@ -11,25 +11,15 @@
  * limitations under the License.
  */
 
-import type { ReactNode } from 'react';
-import { ErrorBoundary } from 'react-error-boundary';
-
-interface Props {
+import { useLayoutEffect, type ReactNode } from 'react';
+/** Reports a successful commit, after descendant layout effects have run. */
+export function RenderCommit({
+  children,
+  onCommit,
+}: {
   children: ReactNode;
-  label: string;
-  resetKey?: unknown;
-}
-
-export function RecordRendererBoundary({ children, label, resetKey }: Props) {
-  return (
-    <ErrorBoundary
-      resetKeys={[
-        Array.isArray(resetKey),
-        ...(Array.isArray(resetKey) ? resetKey : [resetKey]),
-      ]}
-      fallback={<span role="alert">{label}渲染失败</span>}
-    >
-      {children}
-    </ErrorBoundary>
-  );
+  onCommit(): void;
+}) {
+  useLayoutEffect(onCommit, [onCommit]);
+  return children;
 }

@@ -14,7 +14,6 @@
 import { dashboardEditorKey } from './dashboardEditorKey.js';
 import {
   Component,
-  type ReactNode,
   type ComponentType,
   useEffect,
   useId,
@@ -23,6 +22,8 @@ import {
 } from 'react';
 import type { DashboardTransformEditorProps } from './dashboardReactTypes.js';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
+import { ErrorBoundary } from 'react-error-boundary';
+import { RenderCommit } from '../lib/RenderCommit.js';
 import { Button } from '../components/ui/button.js';
 import { Checkbox } from '../components/ui/checkbox.js';
 import { Input } from '../components/ui/input.js';
@@ -533,32 +534,17 @@ function BindingRow({
           {binding?.kind === 'transform' && Editor && (
             <TransformEditorBoundary
               key={binding.name}
-              onRecover={() => {
-                if (!registration?.hasOptions)
-                  runtime.setEditorValidity(
-                    dashboardEditorKey(item.id, panelId),
-                    true,
-                  );
-              }}
-              onError={() =>
+              editor={Editor}
+              hasOptions={registration?.hasOptions === true}
+              value={binding.options ?? {}}
+              onChange={options => run(() => update({ ...binding, options }))}
+              onValidityChange={valid =>
                 runtime.setEditorValidity(
                   dashboardEditorKey(item.id, panelId),
-                  false,
+                  valid,
                 )
               }
-            >
-              <TransformEditorSession
-                editor={Editor}
-                value={binding.options ?? {}}
-                onChange={options => run(() => update({ ...binding, options }))}
-                onValidityChange={valid =>
-                  runtime.setEditorValidity(
-                    dashboardEditorKey(item.id, panelId),
-                    valid,
-                  )
-                }
-              />
-            </TransformEditorBoundary>
+            />
           )}
           {!transforms.length && <p>宿主尚未提供可用转换器。</p>}
         </div>
@@ -615,40 +601,72 @@ class TransformEditorSession extends Component<
   }
 }
 
-class TransformEditorBoundary extends Component<
-  {
-    children: ReactNode;
-    onError(): void;
-    onRecover(): void;
-  },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
+function TransformEditorBoundary({
+  editor,
+  hasOptions,
+  value,
+  onChange,
+  onValidityChange,
+}: DashboardTransformEditorProps & {
+  editor: ComponentType<DashboardTransformEditorProps>;
+  hasOptions: boolean;
+}) {
+  const validity = useRef({
+    editor,
+    hasOptions,
+    input: undefined as boolean | undefined,
+    failed: false,
+  });
+  function current() {
+    if (
+      validity.current.editor !== editor ||
+      validity.current.hasOptions !== hasOptions
+    )
+      validity.current = {
+        editor,
+        hasOptions,
+        input: undefined,
+        failed: validity.current.failed,
+      };
+    return validity.current;
   }
-  componentDidCatch() {
-    this.props.onError();
-  }
-  componentDidUpdate(
-    _previousProps: TransformEditorBoundary['props'],
-    previousState: TransformEditorBoundary['state'],
-  ) {
-    if (previousState.failed && !this.state.failed) this.props.onRecover();
-  }
-  render() {
-    return this.state.failed ? (
-      <div role="alert">
-        转换器编辑器无法显示，请重试或选择其他绑定。
-        <Button
-          variant="outline"
-          onClick={() => this.setState({ failed: false })}
-        >
-          重试转换器编辑器
-        </Button>
-      </div>
-    ) : (
-      this.props.children
-    );
-  }
+  return (
+    <ErrorBoundary
+      resetKeys={[editor, hasOptions]}
+      onError={() => {
+        current().failed = true;
+        onValidityChange(false);
+      }}
+      fallbackRender={({ resetErrorBoundary }) => (
+        <div role="alert">
+          转换器编辑器无法显示，请重试或选择其他绑定。
+          <Button variant="outline" onClick={resetErrorBoundary}>
+            重试转换器编辑器
+          </Button>
+        </div>
+      )}
+    >
+      <RenderCommit
+        onCommit={() => {
+          const state = current();
+          if (state.failed) {
+            state.failed = false;
+            if (state.input !== undefined || !hasOptions)
+              onValidityChange(state.input ?? true);
+          }
+        }}
+      >
+        <TransformEditorSession
+          editor={editor}
+          value={value}
+          onChange={onChange}
+          onValidityChange={valid => {
+            const state = current();
+            state.input = valid;
+            if (!state.failed) onValidityChange(valid);
+          }}
+        />
+      </RenderCommit>
+    </ErrorBoundary>
+  );
 }

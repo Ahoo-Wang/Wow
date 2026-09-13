@@ -10,7 +10,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, createRef, lazy, Suspense } from 'react';
+import { useRef, useState, lazy, Suspense } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { RenderCommit } from '../lib/RenderCommit.js';
 import { Button } from '../components/ui/button.js';
 import type { DashboardLayoutProps } from './DashboardGrid.js';
 
@@ -22,93 +24,72 @@ const loadLayout = () =>
   );
 
 /** Keep data and saved/draft state available even when the optional grid cannot load. */
-export class DashboardLayoutBoundary extends Component<
-  DashboardLayoutProps & {
+export function DashboardLayoutBoundary(
+  props: DashboardLayoutProps & {
     onAvailabilityChange(available: boolean): void;
   },
-  { failed: boolean; Layout: ReturnType<typeof loadLayout> }
-> {
-  state = { failed: false, Layout: loadLayout() };
-  private readonly region = createRef<HTMLDivElement>();
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  componentDidMount() {
-    this.props.onAvailabilityChange(!this.state.failed);
-  }
-  componentDidCatch() {
-    this.props.onAvailabilityChange(false);
-  }
-  render() {
-    return (
-      <div
-        ref={this.region}
-        className="fve:flex fve:min-w-0 fve:flex-col fve:gap-4"
-        tabIndex={-1}
-        aria-label="仪表盘面板"
-        data-dashboard-layout-region=""
-      >
-        {this.renderLayout()}
-      </div>
-    );
-  }
-  private renderLayout() {
-    if (this.state.failed)
-      return (
-        <>
-          <div
-            role="alert"
-            className="fve:flex fve:flex-col fve:items-start fve:gap-2 fve:rounded-md fve:border fve:p-3"
-          >
-            <p>
-              交互布局暂不可用，已切换为简洁布局。可以继续查看面板和保存配置。
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                this.setState({ failed: false, Layout: loadLayout() }, () =>
-                  this.region.current?.focus(),
-                );
-                this.props.onAvailabilityChange(true);
-              }}
+) {
+  const [Layout, setLayout] = useState(loadLayout);
+  const region = useRef<HTMLDivElement>(null);
+  const { onAvailabilityChange, ...layout } = props;
+  return (
+    <div
+      ref={region}
+      className="fve:flex fve:min-w-0 fve:flex-col fve:gap-4"
+      tabIndex={-1}
+      aria-label="仪表盘面板"
+      data-dashboard-layout-region=""
+    >
+      <ErrorBoundary
+        onError={() => onAvailabilityChange(false)}
+        fallbackRender={({ resetErrorBoundary }) => (
+          <>
+            <div
+              role="alert"
+              className="fve:flex fve:flex-col fve:items-start fve:gap-2 fve:rounded-md fve:border fve:p-3"
             >
-              重试布局
-            </Button>
-            <p className="fve:text-xs fve:text-muted-foreground">
-              若重试仍失败，请先保存配置，再刷新页面。
-            </p>
-          </div>
-          <div className="fve:grid fve:gap-4" data-dashboard-fallback="">
-            {[...this.props.panels]
-              .sort(
-                (a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x,
-              )
-              .map((panel, index) => (
-                <section
-                  key={panel.id}
-                  data-dashboard-panel={panel.id}
-                  className="fve-dashboard-panel fve:min-w-0 fve:rounded-xl fve:border fve:bg-card fve:text-card-foreground fve:shadow-sm"
-                  aria-label={`面板 ${index + 1}：${this.props.title(panel.id)}`}
-                >
-                  {this.props.children(panel)}
-                </section>
-              ))}
-          </div>
-        </>
-      );
-    const { Layout } = this.state;
-    const { panels, enabled, onCommit, title, children } = this.props;
-    return (
-      <Suspense fallback={<p role="status">正在加载仪表盘布局…</p>}>
-        <Layout
-          panels={panels}
-          enabled={enabled}
-          onCommit={onCommit}
-          title={title}
-        >
-          {children}
-        </Layout>
-      </Suspense>
-    );
-  }
+              <p>
+                交互布局暂不可用，已切换为简洁布局。可以继续查看面板和保存配置。
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setLayout(loadLayout);
+                  resetErrorBoundary();
+                  region.current?.focus();
+                }}
+              >
+                重试布局
+              </Button>
+              <p className="fve:text-xs fve:text-muted-foreground">
+                若重试仍失败，请先保存配置，再刷新页面。
+              </p>
+            </div>
+            <div className="fve:grid fve:gap-4" data-dashboard-fallback="">
+              {[...props.panels]
+                .sort(
+                  (a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x,
+                )
+                .map((panel, index) => (
+                  <section
+                    key={panel.id}
+                    data-dashboard-panel={panel.id}
+                    className="fve-dashboard-panel fve:min-w-0 fve:rounded-xl fve:border fve:bg-card fve:text-card-foreground fve:shadow-sm"
+                    aria-label={`面板 ${index + 1}：${props.title(panel.id)}`}
+                  >
+                    {props.children(panel)}
+                  </section>
+                ))}
+            </div>
+          </>
+        )}
+      >
+        <RenderCommit onCommit={() => onAvailabilityChange(true)}>
+          <Suspense fallback={<p role="status">正在加载仪表盘布局…</p>}>
+            <Layout {...layout} />
+          </Suspense>
+        </RenderCommit>
+      </ErrorBoundary>
+    </div>
+  );
 }

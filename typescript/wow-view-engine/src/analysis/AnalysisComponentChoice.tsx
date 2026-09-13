@@ -11,33 +11,26 @@
  * limitations under the License.
  */
 
-import { Component, type ReactNode } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { type ReactNode } from 'react';
 import { Button } from '../components/ui/button.js';
 import { FilterSelect } from '../filter/FilterSelect.js';
 
-export class AnalysisEditorBoundary extends Component<
-  { children: ReactNode },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    return this.state.failed ? (
-      <div role="alert">
-        编辑器无法显示，请重试或切换类型。
-        <Button
-          variant="outline"
-          onClick={() => this.setState({ failed: false })}
-        >
-          重试编辑器
-        </Button>
-      </div>
-    ) : (
-      this.props.children
-    );
-  }
+export function AnalysisEditorBoundary({ children }: { children: ReactNode }) {
+  return (
+    <ErrorBoundary
+      fallbackRender={({ resetErrorBoundary }) => (
+        <div role="alert">
+          编辑器无法显示，请重试或切换类型。
+          <Button variant="outline" onClick={resetErrorBoundary}>
+            重试编辑器
+          </Button>
+        </div>
+      )}
+    >
+      {children}
+    </ErrorBoundary>
+  );
 }
 export function Choice({
   label,

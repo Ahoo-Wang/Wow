@@ -10,7 +10,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, useRef, useState, type ReactNode } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   RefreshCwIcon,
   MoreHorizontalIcon,
@@ -41,30 +42,23 @@ import type { FilterCompilerRegistry } from '../filter/filterModel.js';
 import type { ViewExtensions } from '../view/viewReactTypes.js';
 import type { DashboardPanelSnapshot } from './DashboardRuntime.js';
 
-export class DashboardPanelBoundary extends Component<
-  { children: ReactNode },
-  { error: boolean }
-> {
-  state = { error: false };
-  static getDerivedStateFromError() {
-    return { error: true };
-  }
-  render() {
-    return this.state.error ? (
-      <div role="alert" className="fve:p-4">
-        <p>面板内容无法显示。</p>
-        <Button
-          variant="outline"
-          onClick={() => this.setState({ error: false })}
-        >
-          重试显示面板
-        </Button>
-      </div>
-    ) : (
-      this.props.children
-    );
-  }
+export function DashboardPanelBoundary({ children }: { children: ReactNode }) {
+  return (
+    <ErrorBoundary
+      fallbackRender={({ resetErrorBoundary }) => (
+        <div role="alert" className="fve:p-4">
+          <p>面板内容无法显示。</p>
+          <Button variant="outline" onClick={resetErrorBoundary}>
+            重试显示面板
+          </Button>
+        </div>
+      )}
+    >
+      {children}
+    </ErrorBoundary>
+  );
 }
+
 export function DashboardPanelContent({
   panel,
   positionLabel,
