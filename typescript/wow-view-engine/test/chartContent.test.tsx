@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import {
   ChartContainer,
@@ -11,6 +11,11 @@ import {
   ChartLegendContent,
 } from '../src/components/ui/chart.js';
 afterEach(cleanup);
+beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+    new DOMRect(0, 0, 800, 600),
+  );
+});
 const Icon = () => <svg role="img" aria-label="销售图标" />;
 const config = {
   sales: { label: '销售额', color: 'red', icon: Icon },

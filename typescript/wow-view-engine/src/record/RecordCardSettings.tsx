@@ -30,8 +30,7 @@ import {
   SelectGroup,
   SelectItem,
 } from '../components/ui/select.js';
-import { useListOrder } from '../lib/useListOrder.js';
-import { cn } from '../lib/utils.js';
+import { ListOrder, ListOrderItem } from '../lib/ListOrder.js';
 import { cloneSnapshot } from '../lib/types.js';
 import type { RecordCardConfig } from '../contracts/viewModel.js';
 import type { RecordCardSettingsProps } from './recordReactTypes.js';
@@ -100,15 +99,7 @@ export function RecordCardSettings({
   const titles = fields.some(field => field.value === definition.record.rowKey)
     ? fields
     : [{ value: definition.record.rowKey, label: '记录主键' }, ...fields];
-  const order = useListOrder({
-    items: draft.fields,
-    onChange: fields => setDraft({ ...draft, fields }),
-    titleOf: field =>
-      field.title ??
-      definition.fields.find(item => item.field === field.field)?.label ??
-      field.field,
-    disabled,
-  });
+
   function apply() {
     if (disabled) return;
     setError(null);
@@ -125,7 +116,6 @@ export function RecordCardSettings({
       open={open}
       onOpenChange={open => {
         setOpen(open);
-        if (!open) order.endDrag();
         if (open) {
           setDraft(cloneSnapshot<RecordCardConfig>(card));
           setError(null);
@@ -173,73 +163,72 @@ export function RecordCardSettings({
             setDraft(next);
           }}
         />
-        <p id={order.instructionsId} className="fve:sr-only">
-          拖动调整顺序，或聚焦手柄后按上、下方向键移动。
-        </p>
-        <span role="status" aria-atomic="true" className="fve:sr-only">
-          {order.announcement}
-        </span>
-        <ol
-          {...order.listProps}
-          className="fve:m-0 fve:grid fve:list-none fve:gap-2 fve:p-0"
-          aria-label="摘要字段"
+        <ListOrder
+          items={draft.fields}
+          owner={definition}
+          disabled={disabled || !open}
+          titleOf={field =>
+            field.title ??
+            definition.fields.find(item => item.field === field.field)?.label ??
+            field.field
+          }
+          onChange={fields => setDraft({ ...draft, fields })}
         >
-          {draft.fields.map((field, index) => (
-            <li
-              key={field.id}
-              className="fve:relative fve:flex fve:items-center fve:gap-1 fve:data-dragging:opacity-50"
-              data-dragging={order.draggedId === field.id || undefined}
-            >
-              {(order.dropBoundary === index ||
-                (order.dropBoundary === draft.fields.length &&
-                  index === draft.fields.length - 1)) && (
-                <span
-                  aria-hidden="true"
-                  data-slot="card-drop-indicator"
-                  className={cn(
-                    'fve:pointer-events-none fve:absolute fve:inset-x-0 fve:border-t-2 fve:border-primary',
-                    order.dropBoundary === index
-                      ? 'fve:-top-1'
-                      : 'fve:-bottom-1',
-                  )}
-                />
-              )}
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                className="fve:cursor-grab fve:text-muted-foreground fve:active:cursor-grabbing"
-                aria-label={`拖动调整摘要 ${index + 1} 顺序`}
-                aria-describedby={order.instructionsId}
-                {...order.handleProps(index)}
+          <ol
+            className="fve:m-0 fve:grid fve:list-none fve:gap-2 fve:p-0"
+            aria-label="摘要字段"
+          >
+            {draft.fields.map((field, index) => (
+              <ListOrderItem
+                id={field.id}
+                key={field.id}
+                className="fve:relative fve:flex fve:items-center fve:gap-1"
               >
-                <GripVerticalIcon />
-              </Button>
-              <span className="fve:min-w-0 fve:flex-1 fve:break-words">
-                {field.title ??
-                  definition.fields.find(item => item.field === field.field)
-                    ?.label}
-              </span>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                aria-label={`移除摘要 ${index + 1}`}
-                disabled={disabled}
-                onClick={() => {
-                  if (disabled) return;
-                  setDraft({
-                    ...draft,
-                    fields: draft.fields.filter(item => item.id !== field.id),
-                  });
-                  addRef.current
-                    ?.querySelector<HTMLButtonElement>('button')
-                    ?.focus();
-                }}
-              >
-                <XIcon />
-              </Button>
-            </li>
-          ))}
-        </ol>
+                {bindings => (
+                  <>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      className="fve:cursor-grab fve:text-muted-foreground fve:active:cursor-grabbing"
+                      aria-label={`拖动调整摘要 ${index + 1} 顺序`}
+
+                      ref={bindings.handleRef}
+                      {...bindings.handleProps}
+                    >
+                      <GripVerticalIcon />
+                    </Button>
+                    <span className="fve:min-w-0 fve:flex-1 fve:break-words">
+                      {field.title ??
+                        definition.fields.find(
+                          item => item.field === field.field,
+                        )?.label}
+                    </span>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={`移除摘要 ${index + 1}`}
+                      disabled={disabled}
+                      onClick={() => {
+                        if (disabled) return;
+                        setDraft({
+                          ...draft,
+                          fields: draft.fields.filter(
+                            item => item.id !== field.id,
+                          ),
+                        });
+                        addRef.current
+                          ?.querySelector<HTMLButtonElement>('button')
+                          ?.focus();
+                      }}
+                    >
+                      <XIcon />
+                    </Button>
+                  </>
+                )}
+              </ListOrderItem>
+            ))}
+          </ol>
+        </ListOrder>
         <div ref={addRef}>
           <FieldChoice
             disabled={disabled}

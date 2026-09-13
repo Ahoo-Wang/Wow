@@ -24,13 +24,12 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type DragEvent,
   type RefObject,
 } from 'react';
 import { Badge } from '../components/ui/badge.js';
 import { Button } from '../components/ui/button.js';
 import { Input } from '../components/ui/input.js';
-import { cn } from '../lib/utils.js';
+import { ListOrderItem } from '../lib/ListOrder.js';
 import type { ViewEngine } from '../engine/ViewEngine.js';
 import type { ViewSession } from '../contracts/viewModel.js';
 import type { ExecuteViewManagerAction } from './useViewManagerAction.js';
@@ -46,13 +45,6 @@ export function ViewManagerRow({
   busy,
   execute,
   fallbackFocus,
-  movable,
-  instructions,
-  dragging,
-  dropEdge,
-  onDragStart,
-  onDragEnd,
-  onMove,
   onDelete,
 }: {
   engine: ViewEngine;
@@ -60,13 +52,6 @@ export function ViewManagerRow({
   busy: boolean;
   execute: ExecuteViewManagerAction;
   fallbackFocus: RefObject<HTMLElement | null>;
-  movable: boolean;
-  instructions: string;
-  dragging: boolean;
-  dropEdge: 'top' | 'bottom' | null;
-  onDragStart(event: DragEvent<HTMLButtonElement>): void;
-  onDragEnd(): void;
-  onMove(direction: -1 | 1, trigger: HTMLButtonElement): void;
   onDelete(trigger: HTMLButtonElement): void;
 }) {
   const { id, scope } = session.instance;
@@ -109,7 +94,8 @@ export function ViewManagerRow({
     void execute(() => engine.renameInstance(name ?? title, id), finishName);
   }
   return (
-    <li
+    <ListOrderItem
+      id={id}
       aria-label={title}
       aria-description={
         session.kind === 'dashboard'
@@ -118,148 +104,129 @@ export function ViewManagerRow({
             ? '分析视图'
             : '数据视图'
       }
-      className="fve:relative fve:flex fve:min-h-9 fve:items-center fve:gap-2 fve:data-dragging:opacity-50"
-      data-dragging={dragging || undefined}
+      className="fve:relative fve:flex fve:min-h-9 fve:items-center fve:gap-2"
     >
-      {dropEdge && (
-        <span
-          data-slot="view-drop-indicator"
-          aria-hidden="true"
-          className={cn(
-            'fve:pointer-events-none fve:absolute fve:inset-x-0 fve:border-t-2 fve:border-primary',
-            dropEdge === 'top' ? 'fve:-top-1' : 'fve:-bottom-1',
+      {({ handleRef, handleProps }) => (
+        <>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="fve:cursor-grab fve:active:cursor-grabbing"
+            aria-label={`拖动调整${title}顺序`}
+            ref={handleRef}
+            {...handleProps}
+          >
+            <GripVerticalIcon aria-hidden="true" />
+          </Button>
+          <ViewKindIcon kind={session.kind} />
+          {permissions.rename && name !== null ? (
+            <>
+              <Input
+                ref={nameInput}
+                aria-label={`${title}名称`}
+                value={name}
+                disabled={writing}
+                onChange={event => setName(event.target.value)}
+                onKeyDown={event => {
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    finishName();
+                  } else if (event.key === 'Enter' && name.trim()) {
+                    event.preventDefault();
+                    if (changed) rename();
+                    else finishName();
+                  }
+                }}
+              />
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`保存${title}名称`}
+                title="保存名称"
+                disabled={writing || !changed || !name.trim()}
+                onClick={rename}
+              >
+                <CheckIcon aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`取消编辑${title}名称`}
+                title="取消编辑"
+                disabled={writing}
+                onClick={finishName}
+              >
+                <XIcon aria-hidden="true" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <span className="fve:min-w-0 fve:flex-1 fve:break-words fve:text-sm">
+                {title}
+              </span>
+              {permissions.rename && (
+                <Button
+                  ref={editButton}
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`编辑${title}名称`}
+                  title="编辑名称"
+                  disabled={writing}
+                  onClick={() => {
+                    focusEditing.current = true;
+                    setName(title);
+                  }}
+                >
+                  <PencilIcon aria-hidden="true" />
+                </Button>
+              )}
+            </>
           )}
-        />
-      )}
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="fve:cursor-grab fve:active:cursor-grabbing"
-        aria-label={`拖动调整${title}顺序`}
-        aria-describedby={instructions}
-        draggable={movable}
-        disabled={!movable}
-        onDragStart={event => {
-          if (!movable) {
-            event.preventDefault();
-            return;
-          }
-          onDragStart(event);
-        }}
-        onDragEnd={onDragEnd}
-        onKeyDown={event => {
-          if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
-          event.preventDefault();
-          onMove(event.key === 'ArrowUp' ? -1 : 1, event.currentTarget);
-        }}
-      >
-        <GripVerticalIcon aria-hidden="true" />
-      </Button>
-      <ViewKindIcon kind={session.kind} />
-      {permissions.rename && name !== null ? (
-        <>
-          <Input
-            ref={nameInput}
-            aria-label={`${title}名称`}
-            value={name}
-            disabled={writing}
-            onChange={event => setName(event.target.value)}
-            onKeyDown={event => {
-              if (event.key === 'Escape') {
-                event.preventDefault();
-                event.stopPropagation();
-                finishName();
-              } else if (event.key === 'Enter' && name.trim()) {
-                event.preventDefault();
-                if (changed) rename();
-                else finishName();
-              }
-            }}
-          />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`保存${title}名称`}
-            title="保存名称"
-            disabled={writing || !changed || !name.trim()}
-            onClick={rename}
-          >
-            <CheckIcon aria-hidden="true" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`取消编辑${title}名称`}
-            title="取消编辑"
-            disabled={writing}
-            onClick={finishName}
-          >
-            <XIcon aria-hidden="true" />
-          </Button>
-        </>
-      ) : (
-        <>
-          <span className="fve:min-w-0 fve:flex-1 fve:break-words fve:text-sm">
-            {title}
-          </span>
-          {permissions.rename && (
+          {system && (
+            <span className="fve:inline-flex fve:h-5 fve:shrink-0 fve:items-center fve:rounded-4xl fve:border fve:border-border fve:px-2 fve:text-xs fve:font-medium">
+              系统
+            </span>
+          )}
+          {isDefault && <Badge variant="secondary">默认</Badge>}
+          {viewCapabilities.setDefault && (
             <Button
-              ref={editButton}
               variant="ghost"
               size="icon-sm"
-              aria-label={`编辑${title}名称`}
-              title="编辑名称"
+              aria-label={defaultLabel}
+              title={defaultLabel}
               disabled={writing}
-              onClick={() => {
-                focusEditing.current = true;
-                setName(title);
-              }}
+              focusableWhenDisabled
+              onClick={() =>
+                void execute(() =>
+                  engine.setDefaultInstance(isDefault ? null : id),
+                )
+              }
             >
-              <PencilIcon aria-hidden="true" />
+              <StarIcon
+                aria-hidden="true"
+                fill={isDefault ? 'currentColor' : 'none'}
+              />
+            </Button>
+          )}
+          {permissions.delete && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`删除${title}`}
+              title="删除视图"
+              disabled={
+                busy ||
+                session.writeStatus !== 'idle' ||
+                (session.requiresReload && !capabilities?.retryDelete)
+              }
+              onClick={event => onDelete(event.currentTarget)}
+            >
+              <Trash2Icon aria-hidden="true" />
             </Button>
           )}
         </>
       )}
-      {system && (
-        <span className="fve:inline-flex fve:h-5 fve:shrink-0 fve:items-center fve:rounded-4xl fve:border fve:border-border fve:px-2 fve:text-xs fve:font-medium">
-          系统
-        </span>
-      )}
-      {isDefault && <Badge variant="secondary">默认</Badge>}
-      {viewCapabilities.setDefault && (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={defaultLabel}
-          title={defaultLabel}
-          disabled={writing}
-          focusableWhenDisabled
-          onClick={() =>
-            void execute(() => engine.setDefaultInstance(isDefault ? null : id))
-          }
-        >
-          <StarIcon
-            aria-hidden="true"
-            fill={isDefault ? 'currentColor' : 'none'}
-          />
-        </Button>
-      )}
-      {permissions.delete && (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={`删除${title}`}
-          title="删除视图"
-          disabled={
-            busy ||
-            session.writeStatus !== 'idle' ||
-            (session.requiresReload && !capabilities?.retryDelete)
-          }
-          onClick={event => onDelete(event.currentTarget)}
-        >
-          <Trash2Icon aria-hidden="true" />
-        </Button>
-      )}
-    </li>
+    </ListOrderItem>
   );
 }

@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { keyboardOrder } from './fixtures/listOrder.js';
 import { useState } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -47,7 +48,7 @@ it('reorders active rules and removes them without persisting drag metadata', as
     name: '拖动调整金额排序优先级',
   });
   handle.focus();
-  fireEvent.keyDown(handle, { key: 'ArrowDown' });
+  await keyboardOrder(handle, 'ArrowDown');
   expect(onChange.mock.lastCall?.[0]).toEqual([
     { field: 'name', direction: 'DESC' },
     { field: 'amount', direction: 'ASC' },

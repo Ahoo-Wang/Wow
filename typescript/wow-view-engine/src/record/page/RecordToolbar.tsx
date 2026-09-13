@@ -96,6 +96,7 @@ export function RecordToolbar({
         />
         {configurable && (
           <RecordSortSettings
+            key={`sort:${id}:${session.editorEpoch}`}
             definition={definition}
             sort={instance.config.sort}
             onChange={onSortChange}
@@ -104,14 +105,14 @@ export function RecordToolbar({
         {configurable &&
           (instance.config.presentation.layout === 'table' ? (
             <RecordColumnSettings
-              key={id}
+              key={`columns:${id}:${session.editorEpoch}`}
               definition={definition}
               columns={instance.config.presentation.table.columns}
               onChange={onColumnsChange}
             />
           ) : onCardChange ? (
             <RecordCardSettings
-              key={id}
+              key={`card:${id}:${session.editorEpoch}`}
               definition={definition}
               card={instance.config.presentation.card}
               onChange={onCardChange}

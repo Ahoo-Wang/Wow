@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { keyboardOrder } from './fixtures/listOrder.js';
 import { useState } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import {
@@ -148,7 +149,7 @@ it('retains unknown components, supports removal and respects disabled', () => {
   ).toBe(true);
 });
 
-it('retains incomplete bucket input and reorders stable component identities', () => {
+it('retains incomplete bucket input and reorders stable component identities', async () => {
   const changed = vi.fn();
   const scoped: AnalysisCompileContext = {
     fields: [{ field: 'amount', label: '金额', type: 'number' }],
@@ -205,9 +206,7 @@ it('retains incomplete bucket input and reorders stable component identities', (
     target: { value: '1.5' },
   });
   expect(compileAnalysis(changed.mock.lastCall![0], scoped).errors).toEqual([]);
-  fireEvent.keyDown(control('button', { name: '排序指标 2' }), {
-    key: 'ArrowUp',
-  });
+  await keyboardOrder(control('button', { name: '排序指标 2' }), 'ArrowUp');
   expect(
     changed.mock.lastCall![0].metrics.map((item: { id: string }) => item.id),
   ).toEqual(['second', 'count']);
@@ -1418,4 +1417,36 @@ it('allocates display aliases across dimensions, measures and existing labels', 
   const config = changed.mock.lastCall![0];
   expect(config.dimensions[0].label.alias).toBe('product_label_3');
   expect(compileAnalysis(config, reviewContext).errors).toEqual([]);
+});
+
+it('cancels ordering when a kept-mounted editor becomes hidden', async () => {
+  const changed = vi.fn();
+  const value: AnalysisViewConfig = {
+    ...initial,
+    metrics: [
+      initial.metrics[0],
+      { ...initial.metrics[0], id: 'second', alias: 'second', title: '第二项' },
+    ],
+  };
+  const view = render(
+    <AnalysisEditor value={value} context={context} onChange={changed} />,
+  );
+  await keyboardOrder(
+    screen.getByRole('button', { name: '排序指标 1' }),
+    'ArrowDown',
+    false,
+    () => {
+      view.rerender(
+        <AnalysisEditor
+          value={value}
+          context={context}
+          onChange={changed}
+          visible={false}
+        />,
+      );
+    },
+  );
+  fireEvent.keyDown(document, { key: ' ', code: 'Space' });
+  expect(changed).not.toHaveBeenCalled();
+  expect(document.querySelector('[data-dnd-dragging]')).toBeNull();
 });

@@ -12,6 +12,7 @@
  */
 
 import type { StoryObj } from '@storybook/react-vite';
+import { keyboardOrder } from './listOrder.play.js';
 import { expect, userEvent, within, waitFor } from 'storybook/test';
 import displayMeta, {
   Cards,
@@ -225,7 +226,7 @@ export const SortRules: Story = {
     }
     const handle = page.getByRole('button', { name: '拖动调整售价排序优先级' });
     handle.focus();
-    await userEvent.keyboard('{ArrowDown}');
+    await keyboardOrder(handle, 'ArrowDown');
     await expect(
       canvas.getByRole('button', { name: '排序：库存 ↑、售价 ↑' }),
     ).toBeVisible();

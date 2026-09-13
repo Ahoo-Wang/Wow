@@ -222,9 +222,15 @@ try {
     item => item.title === '可恢复副本',
   );
   manager = await openManager();
-  await manager
-    .getByRole('button', { name: '拖动调整可恢复副本顺序', exact: true })
-    .press('ArrowUp');
+  const reorderHandle = manager.getByRole('button', {
+    name: '拖动调整可恢复副本顺序',
+    exact: true,
+  });
+  await reorderHandle.press('Space');
+  await page.waitForSelector('[data-dnd-dragging]');
+  await page.keyboard.press('ArrowUp');
+  await page.waitForSelector('[data-drop-target]');
+  await page.keyboard.press('Space');
   await page.waitForFunction(
     async ({ key, id }) =>
       (await window.readViewState(key)).users[

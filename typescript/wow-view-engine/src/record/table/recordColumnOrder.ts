@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-import { useListOrder } from '../../lib/useListOrder.js';
 import type { RecordColumn } from '../../contracts/viewModel.js';
 import {
   getRecordColumnPinning,
@@ -20,12 +19,10 @@ import {
 import type { RecordColumnSettingsProps } from '../recordReactTypes.js';
 
 /** Table-specific order and pinned-region constraints. */
-export function useRecordColumnOrder({
+export function getRecordColumnOrder({
   definition,
   columns: configuredColumns,
-  onChange,
-  disabled,
-}: RecordColumnSettingsProps) {
+}: Pick<RecordColumnSettingsProps, 'definition' | 'columns'>) {
   const columns = orderRecordColumns(
     configuredColumns,
     definition.record.rowKey,
@@ -44,15 +41,9 @@ export function useRecordColumnOrder({
         : '操作')
     );
   }
-  const order = useListOrder({
-    items: columns,
-    onChange,
-    disabled,
-    titleOf,
-    canMove: (column, other) =>
-      getRecordColumnPinning(column, definition.record.rowKey) ===
-        getRecordColumnPinning(other, definition.record.rowKey) &&
-      isLocked(column) === isLocked(other),
-  });
-  return { ...order, columns, isLocked, titleOf };
+  const canMove = (column: RecordColumn, other: RecordColumn) =>
+    getRecordColumnPinning(column, definition.record.rowKey) ===
+      getRecordColumnPinning(other, definition.record.rowKey) &&
+    isLocked(column) === isLocked(other);
+  return { columns, isLocked, titleOf, canMove };
 }

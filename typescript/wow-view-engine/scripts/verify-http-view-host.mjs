@@ -178,9 +178,15 @@ if (serveOnly) {
         .count(),
       0,
     );
-    await manager
-      .getByRole('button', { name: '拖动调整共享 HTTP 视图顺序', exact: true })
-      .press('ArrowUp');
+    const reorderHandle = manager.getByRole('button', {
+      name: '拖动调整共享 HTTP 视图顺序',
+      exact: true,
+    });
+    await reorderHandle.press('Space');
+    await bobPage.waitForSelector('[data-dnd-dragging]');
+    await bobPage.keyboard.press('ArrowUp');
+    await bobPage.waitForSelector('[data-drop-target]');
+    await bobPage.keyboard.press('Space');
     await waitUntil(
       async () =>
         (

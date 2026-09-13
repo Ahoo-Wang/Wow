@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { keyboardOrder } from './fixtures/listOrder.js';
 import { afterEach, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { RecordCardSettings } from '../src/record/RecordCardSettings.js';
@@ -115,14 +116,14 @@ it('reorders draft fields with the shared keyboard handle and applies once', asy
   const handle = await screen.findByRole('button', {
     name: '拖动调整摘要 1 顺序',
   });
-  expect((handle as HTMLButtonElement).draggable).toBe(true);
-  fireEvent.keyDown(handle, { key: 'ArrowDown' });
+  expect((handle as HTMLButtonElement).disabled).toBe(false);
+  await keyboardOrder(handle, 'ArrowDown');
   expect(onChange).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: '应用设置' }));
   expect(onChange.mock.calls[0][0].fields).toEqual([fields[1], fields[0]]);
 });
 
-it('drops a summary field at the indicated boundary', async () => {
+it('discards a reordered draft when the settings close without applying', async () => {
   const onChange = vi.fn();
   const fields = [
     { id: 'first', field: 'name' },
@@ -139,18 +140,12 @@ it('drops a summary field at the indicated boundary', async () => {
   const handle = await screen.findByRole('button', {
     name: '拖动调整摘要 1 顺序',
   });
-  const list = screen.getByRole('list', { name: '摘要字段' });
-  Array.from(list.children).forEach((row, index) => {
-    row.getBoundingClientRect = () =>
-      ({ top: index * 40, bottom: (index + 1) * 40, height: 40 }) as DOMRect;
-  });
-  const dataTransfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
-  fireEvent.dragStart(handle, { dataTransfer });
-  fireEvent.dragOver(list, { dataTransfer, clientY: 79 });
-  expect(list.querySelector('[data-slot="card-drop-indicator"]')).toBeTruthy();
-  fireEvent.drop(list, { dataTransfer, clientY: 79 });
-  fireEvent.click(screen.getByRole('button', { name: '应用设置' }));
-  expect(onChange.mock.calls[0][0].fields).toEqual([fields[1], fields[0]]);
+  await keyboardOrder(handle, 'ArrowDown');
+  fireEvent.click(screen.getByRole('button', { name: '取消' }));
+  expect(onChange).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '卡片设置' }));
+  fireEvent.click(await screen.findByRole('button', { name: '应用设置' }));
+  expect(onChange.mock.calls[0][0].fields).toEqual(fields);
 });
 
 async function choose(label: string, name: string) {

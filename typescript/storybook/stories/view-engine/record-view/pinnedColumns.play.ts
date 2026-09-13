@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { keyboardOrder, pointerOrder } from '../listOrder.play.js';
 import type { RecordViewPlay } from './demoTypes.js';
 import type { ViewInstance } from '@ahoo-wang/fetcher-view-engine';
 
@@ -113,24 +114,7 @@ export const playPinnedColumns: RecordViewPlay = async ({ canvasElement }) => {
   const amountItem = page
     .getByRole('checkbox', { name: /显示\s*订单金额/ })
     .closest('li')!;
-  const columnList = amountItem.parentElement!;
-  const dropY =
-    (amountItem.getBoundingClientRect().bottom +
-      amountItem.nextElementSibling!.getBoundingClientRect().top) /
-    2;
-  const dataTransfer = new DataTransfer();
-  await fireEvent.dragStart(customerHandle, { dataTransfer });
-  await fireEvent.dragOver(columnList, { dataTransfer, clientY: dropY });
-  const dropIndicator = columnList.querySelector(
-    '[data-slot="column-drop-indicator"]',
-  )!;
-  await expect(dropIndicator).toBeInTheDocument();
-  near(dropIndicator.getBoundingClientRect().top, dropY);
-  await expect(
-    canvas.queryByText('已编辑', { exact: true }),
-  ).not.toBeInTheDocument();
-  await fireEvent.drop(columnList, { dataTransfer, clientY: dropY });
-  await fireEvent.dragEnd(customerHandle, { dataTransfer });
+  await pointerOrder(customerHandle, amountItem);
   await expect(canvas.getByRole('button', { name: '保存' })).toBeEnabled();
   await expect(
     canvas
@@ -139,7 +123,7 @@ export const playPinnedColumns: RecordViewPlay = async ({ canvasElement }) => {
       .map(header => header.textContent),
   ).toEqual(['订单编号', '订单金额', '客户']);
   customerHandle.focus();
-  await userEvent.keyboard('{ArrowDown}');
+  await keyboardOrder(customerHandle, 'ArrowDown');
   await expect(customerHandle).toHaveFocus();
   await expect(
     canvas

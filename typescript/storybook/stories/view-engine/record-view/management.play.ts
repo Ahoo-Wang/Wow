@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { keyboardOrder, pointerOrder } from '../listOrder.play.js';
 import { ViewEngine } from '@ahoo-wang/fetcher-view-engine';
 import { createHost } from './createHost.js';
 import { definition } from './fixtures.js';
@@ -111,35 +112,19 @@ export const playManageViews: RecordViewPlay = async ({ canvasElement }) => {
     name: '拖动调整全部订单顺序',
   });
   handle.focus();
-  await userEvent.keyboard('{ArrowDown}');
+  await keyboardOrder(handle, 'ArrowDown');
   await waitFor(() => expect(labels()).toEqual(['团队重点订单', '全部订单']));
   await waitFor(() => expect(handle).toHaveFocus());
   const personalList = manager.getByRole('list', { name: '个人视图顺序' });
-  const dataTransfer = new DataTransfer();
-  await fireEvent.dragStart(handle, { dataTransfer });
-  await fireEvent.dragOver(personalList, {
-    dataTransfer,
-    clientY: personalList.getBoundingClientRect().top,
-  });
-  await expect(
-    personalList.querySelector('[data-slot="view-drop-indicator"]'),
-  ).not.toBeInTheDocument();
-  await fireEvent.drop(personalList, {
-    dataTransfer,
-    clientY: personalList.getBoundingClientRect().top,
-  });
-  await fireEvent.dragEnd(handle, { dataTransfer });
+  await pointerOrder(
+    handle,
+    within(personalList).getAllByRole('listitem')[0],
+    false,
+  );
   await expect(canvas.getByTestId('record-order-count')).toHaveTextContent(
     /^1$/,
   );
-  await fireEvent.dragStart(handle, { dataTransfer });
-  const top = publicList.getBoundingClientRect().top;
-  await fireEvent.dragOver(publicList, { dataTransfer, clientY: top });
-  await expect(
-    publicList.querySelector('[data-slot="view-drop-indicator"]'),
-  ).toBeInTheDocument();
-  await fireEvent.drop(publicList, { dataTransfer, clientY: top });
-  await fireEvent.dragEnd(handle, { dataTransfer });
+  await pointerOrder(handle, within(publicList).getAllByRole('listitem')[0]);
   await waitFor(() => expect(labels()).toEqual(['全部订单', '团队重点订单']));
   await expect(canvas.getByTestId('record-order-count')).toHaveTextContent(
     /^2$/,

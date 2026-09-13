@@ -11,17 +11,13 @@
  * limitations under the License.
  */
 
+import { keyboardOrder } from './fixtures/listOrder.js';
 import { useState } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { RecordColumnSettings } from '../src/record/RecordColumnSettings.js';
 import type { RecordColumn } from '../src/contracts/viewModel.js';
-import {
-  cleanupTable,
-  columns,
-  definition,
-  mockColumnLayout,
-} from './fixtures/recordTable.js';
+import { cleanupTable, columns, definition } from './fixtures/recordTable.js';
 
 afterEach(cleanupTable);
 
@@ -131,7 +127,7 @@ it('pins only beside one pinned neighbor and inherits that side', () => {
   expect(screen.queryByRole('spinbutton')).toBeNull();
 });
 
-it('changes column order and visibility without hiding the final column', () => {
+it('changes column order and visibility without hiding the final column', async () => {
   const onChange = vi.fn();
   function Example() {
     const [value, setValue] = useState(columns);
@@ -148,22 +144,8 @@ it('changes column order and visibility without hiding the final column', () => 
   }
   render(<Example />);
   fireEvent.click(screen.getByRole('button', { name: '列设置' }));
-  mockColumnLayout();
   const handle = screen.getByRole('button', { name: '拖动调整金额顺序' });
-  const target = screen
-    .getByRole('checkbox', { name: '显示名称' })
-    .closest('li')!;
-  const dataTransfer = {
-    setData: vi.fn(),
-    setDragImage: vi.fn(),
-    effectAllowed: '',
-    dropEffect: '',
-  };
-  fireEvent.dragStart(handle, { dataTransfer });
-  fireEvent.dragOver(target, { dataTransfer, clientY: 110 });
-  expect(onChange).not.toHaveBeenCalled();
-  fireEvent.drop(target, { dataTransfer, clientY: 110 });
-  fireEvent.dragEnd(handle, { dataTransfer });
+  await keyboardOrder(handle, 'ArrowUp');
   expect(onChange).toHaveBeenLastCalledWith([columns[1], columns[0]]);
   fireEvent.click(screen.getByRole('checkbox', { name: '显示名称' }));
   expect(

@@ -53,6 +53,8 @@
     "test:themes": "node scripts/verify-themes.mjs"
   },
   "dependencies": {
+    "@dnd-kit/react": "catalog:",
+    "@dnd-kit/dom": "catalog:",
     "react-error-boundary": "catalog:",
     "@ahoo-wang/fetcher-react": "workspace:^",
     "@ahoo-wang/fetcher-wow": "workspace:^",

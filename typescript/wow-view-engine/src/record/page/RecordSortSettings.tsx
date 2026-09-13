@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useRef } from 'react';
+import { useState, useRef } from 'react';
 import {
   ArrowDownUpIcon,
   ArrowUpIcon,
@@ -41,8 +41,7 @@ import {
   SelectContent,
   SelectItem,
 } from '../../components/ui/select.js';
-import { useListOrder } from '../../lib/useListOrder.js';
-import { cn } from '../../lib/utils.js';
+import { ListOrder, ListOrderItem } from '../../lib/ListOrder.js';
 import type { RecordViewDefinition } from '../../contracts/viewModel.js';
 
 /** Uses the same ordered sort configuration as table headers. */
@@ -57,17 +56,12 @@ export function RecordSortSettings({
   onChange(sort: FieldSort[]): void;
   disabled?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const fields = definition.fields.filter(field => field.sortable);
   const labelOf = (name: string) =>
     fields.find(field => field.field === name)?.label ?? name;
-  const order = useListOrder({
-    items: sort.map(item => ({ ...item, id: item.field })),
-    titleOf: item => labelOf(item.field),
-    disabled,
-    onChange: items =>
-      onChange(items.map(({ field, direction }) => ({ field, direction }))),
-  });
+
   if (!fields.length) return null;
   const available = fields.filter(
     field => !sort.some(item => item.field === field.field),
@@ -86,11 +80,7 @@ export function RecordSortSettings({
   }
   return (
     <TooltipProvider>
-      <Popover
-        onOpenChange={open => {
-          if (!open) order.endDrag();
-        }}
-      >
+      <Popover onOpenChange={setOpen}>
         <PopoverTrigger
           render={<Button variant="outline" size="sm" />}
           aria-label={summary ? `排序：${summary}` : '排序：默认'}
@@ -130,121 +120,118 @@ export function RecordSortSettings({
           <PopoverDescription className="fve:m-0">
             从上到下优先排序，拖动可调整。
           </PopoverDescription>
-          <p id={order.instructionsId} className="fve:sr-only">
-            拖动调整顺序，或聚焦手柄后按上、下方向键移动。
-          </p>
-          <span role="status" aria-atomic="true" className="fve:sr-only">
-            {order.announcement}
-          </span>
           {!sort.length && (
             <div className="fve:rounded-md fve:border fve:border-dashed fve:px-3 fve:py-5 fve:text-center fve:text-sm fve:text-muted-foreground">
               尚未设置排序
             </div>
           )}
-          <ol
-            {...order.listProps}
-            aria-label="排序规则"
-            className="fve:m-0 fve:grid fve:list-none fve:gap-2 fve:p-0"
+          <ListOrder
+            items={sort.map(item => ({ ...item, id: item.field }))}
+            owner={definition}
+            disabled={disabled || !open}
+            titleOf={item => labelOf(item.field)}
+            onChange={items =>
+              onChange(
+                items.map(({ field, direction }) => ({ field, direction })),
+              )
+            }
           >
-            {sort.map((item, index) => {
-              const field = fields.find(field => field.field === item.field);
-              const numeric = field?.type === 'number';
-              const date = field?.type === 'date' || field?.type === 'datetime';
-              const ascending = item.direction === SortDirection.ASC;
-              const direction = ascending
-                ? SortDirection.DESC
-                : SortDirection.ASC;
-              const ascendingLabel = numeric
-                ? '从低到高'
-                : date
-                  ? '从早到晚'
-                  : '正序';
-              const descendingLabel = numeric
-                ? '从高到低'
-                : date
-                  ? '从晚到早'
-                  : '倒序';
-              const hint = `${ascending ? ascendingLabel : descendingLabel}；点击切换为${ascending ? descendingLabel : ascendingLabel}`;
-              return (
-                <li
-                  key={item.field}
-                  data-dragging={order.draggedId === item.field || undefined}
-                  className="fve:relative fve:grid fve:grid-cols-[1.75rem_minmax(0,1fr)_1.75rem_1.75rem] fve:items-center fve:gap-1 fve:rounded-md fve:border fve:p-1 fve:data-dragging:opacity-50"
-                >
-                  {(order.dropBoundary === index ||
-                    (order.dropBoundary === sort.length &&
-                      index === sort.length - 1)) && (
-                    <span
-                      aria-hidden="true"
-                      data-slot="sort-drop-indicator"
-                      className={cn(
-                        'fve:pointer-events-none fve:absolute fve:inset-x-0 fve:border-t-2 fve:border-primary',
-                        order.dropBoundary === index
-                          ? 'fve:-top-1'
-                          : 'fve:-bottom-1',
-                      )}
-                    />
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="fve:cursor-grab fve:text-muted-foreground fve:active:cursor-grabbing"
-                    aria-label={`拖动调整${labelOf(item.field)}排序优先级`}
-                    aria-describedby={order.instructionsId}
-                    {...order.handleProps(index)}
+            <ol
+              aria-label="排序规则"
+              className="fve:m-0 fve:grid fve:list-none fve:gap-2 fve:p-0"
+            >
+              {sort.map(item => {
+                const field = fields.find(field => field.field === item.field);
+                const numeric = field?.type === 'number';
+                const date =
+                  field?.type === 'date' || field?.type === 'datetime';
+                const ascending = item.direction === SortDirection.ASC;
+                const direction = ascending
+                  ? SortDirection.DESC
+                  : SortDirection.ASC;
+                const ascendingLabel = numeric
+                  ? '从低到高'
+                  : date
+                    ? '从早到晚'
+                    : '正序';
+                const descendingLabel = numeric
+                  ? '从高到低'
+                  : date
+                    ? '从晚到早'
+                    : '倒序';
+                const hint = `${ascending ? ascendingLabel : descendingLabel}；点击切换为${ascending ? descendingLabel : ascendingLabel}`;
+                return (
+                  <ListOrderItem
+                    id={item.field}
+                    key={item.field}
+                    className="fve:relative fve:grid fve:grid-cols-[1.75rem_minmax(0,1fr)_1.75rem_1.75rem] fve:items-center fve:gap-1 fve:rounded-md fve:border fve:p-1"
                   >
-                    <GripVerticalIcon aria-hidden="true" />
-                  </Button>
-                  <span
-                    className="fve:truncate fve:text-sm"
-                    title={labelOf(item.field)}
-                  >
-                    {labelOf(item.field)}
-                  </span>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
+                    {bindings => (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="fve:cursor-grab fve:text-muted-foreground fve:active:cursor-grabbing"
+                          aria-label={`拖动调整${labelOf(item.field)}排序优先级`}
+
+                          ref={bindings.handleRef}
+                          {...bindings.handleProps}
+                        >
+                          <GripVerticalIcon aria-hidden="true" />
+                        </Button>
+                        <span
+                          className="fve:truncate fve:text-sm"
+                          title={labelOf(item.field)}
+                        >
+                          {labelOf(item.field)}
+                        </span>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                disabled={disabled}
+                              />
+                            }
+                            aria-label={`${labelOf(item.field)}排序：${ascending ? '升序' : '降序'}`}
+                            title={hint}
+                            onClick={() => {
+                              if (disabled) return;
+                              onChange(
+                                sort.map(current =>
+                                  current.field === item.field
+                                    ? { ...current, direction }
+                                    : current,
+                                ),
+                              );
+                            }}
+                          >
+                            {ascending ? (
+                              <ArrowUpIcon aria-hidden="true" />
+                            ) : (
+                              <ArrowDownIcon aria-hidden="true" />
+                            )}
+                          </TooltipTrigger>
+                          <TooltipContent>{hint}</TooltipContent>
+                        </Tooltip>
                         <Button
                           variant="ghost"
                           size="icon-sm"
                           disabled={disabled}
-                        />
-                      }
-                      aria-label={`${labelOf(item.field)}排序：${ascending ? '升序' : '降序'}`}
-                      title={hint}
-                      onClick={() => {
-                        if (disabled) return;
-                        onChange(
-                          sort.map(current =>
-                            current.field === item.field
-                              ? { ...current, direction }
-                              : current,
-                          ),
-                        );
-                      }}
-                    >
-                      {ascending ? (
-                        <ArrowUpIcon aria-hidden="true" />
-                      ) : (
-                        <ArrowDownIcon aria-hidden="true" />
-                      )}
-                    </TooltipTrigger>
-                    <TooltipContent>{hint}</TooltipContent>
-                  </Tooltip>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={disabled}
-                    aria-label={`移除${labelOf(item.field)}排序`}
-                    title="移除排序"
-                    onClick={() => remove(item.field)}
-                  >
-                    <XIcon aria-hidden="true" />
-                  </Button>
-                </li>
-              );
-            })}
-          </ol>
+                          aria-label={`移除${labelOf(item.field)}排序`}
+                          title="移除排序"
+                          onClick={() => remove(item.field)}
+                        >
+                          <XIcon aria-hidden="true" />
+                        </Button>
+                      </>
+                    )}
+                  </ListOrderItem>
+                );
+              })}
+            </ol>
+          </ListOrder>
           <Select
             value={null}
             items={available.map(field => ({

@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { keyboardOrder } from './fixtures/listOrder.js';
 import {
   act,
   cleanup,
@@ -61,18 +62,25 @@ it('retries group-local keyboard ordering while preserving drafts, selection and
     await openOrderedViews();
   await act(() => engine.setTitle('未保存的标题'));
   const saveOrder = vi.mocked(host.preference!.saveOrder!);
-  saveOrder.mockRejectedValueOnce(new Error('顺序保存失败'));
+  let rejectSave!: (error: Error) => void;
+  saveOrder.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, reject) => {
+        rejectSave = reject;
+      }),
+  );
   const handle = manager.getByRole('button', { name: '拖动调整我的订单顺序' });
   act(() => handle.focus());
-  fireEvent.keyDown(handle, { key: 'ArrowUp' });
+  await keyboardOrder(handle, 'ArrowUp');
   expect(saveOrder).not.toHaveBeenCalled();
-  fireEvent.keyDown(handle, { key: 'ArrowDown' });
+  await keyboardOrder(handle, 'ArrowDown');
   expect(
     (manager.getByRole('button', { name: '完成' }) as HTMLButtonElement)
       .disabled,
   ).toBe(true);
   fireEvent.keyDown(dialog, { key: 'Escape' });
   expect(screen.getByRole('dialog', { name: '管理视图' })).toBeTruthy();
+  await act(async () => rejectSave(new Error('顺序保存失败')));
   await manager.findByText('顺序保存失败');
   expect(
     within(personal)
@@ -80,8 +88,8 @@ it('retries group-local keyboard ordering while preserving drafts, selection and
       .map(item => item.getAttribute('aria-label')),
   ).toEqual(['我的订单', '第二个视图']);
   await waitFor(() => expect(document.activeElement).toBe(handle));
-  fireEvent.keyDown(handle, { key: 'ArrowDown' });
-  await manager.findByText('已移至个人视图第 2 项');
+  await keyboardOrder(handle, 'ArrowDown');
+  await manager.findByText(/已移至第 2 项/);
   expect(saveOrder).toHaveBeenLastCalledWith('orders', [
     'system',
     'second',
@@ -108,29 +116,23 @@ it('retries group-local keyboard ordering while preserving drafts, selection and
   engine.dispose();
 });
 
-it('only accepts drops within the dragged view group and clears its insertion marker', async () => {
-  const { engine, host, manager, personal, publicList } =
-    await openOrderedViews();
-  const handle = manager.getByRole('button', { name: '拖动调整我的订单顺序' });
-  const dataTransfer = { effectAllowed: '', dropEffect: '', setData: vi.fn() };
-  fireEvent.dragStart(handle, { dataTransfer });
-  fireEvent.dragOver(publicList, { dataTransfer, clientY: 1 });
-  expect(dataTransfer.dropEffect).toBe('none');
-  fireEvent.drop(publicList, { dataTransfer, clientY: 1 });
+it('isolates ordering permissions between groups', async () => {
+  const { engine, host, manager, publicList } = await openOrderedViews();
+  const locked = within(publicList).getByRole('button', {
+    name: '拖动调整系统视图顺序',
+  }) as HTMLButtonElement;
+  expect(locked.disabled).toBe(true);
+  await keyboardOrder(locked, 'ArrowUp');
   expect(host.preference!.saveOrder).not.toHaveBeenCalled();
-  fireEvent.dragEnd(handle);
-  fireEvent.dragStart(handle, { dataTransfer });
-  fireEvent.dragOver(personal, { dataTransfer, clientY: 1 });
-  expect(dataTransfer.dropEffect).toBe('move');
-  expect(
-    personal.querySelector('[data-slot="view-drop-indicator"]'),
-  ).toBeTruthy();
-  fireEvent.drop(personal, { dataTransfer, clientY: 1 });
-  await manager.findByText('已移至个人视图第 2 项');
-  expect(host.preference!.saveOrder).toHaveBeenCalledTimes(1);
-  expect(
-    personal.querySelector('[data-slot="view-drop-indicator"]'),
-  ).toBeNull();
-  expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', 'mine');
+  await keyboardOrder(
+    manager.getByRole('button', { name: '拖动调整第二个视图顺序' }),
+    'ArrowUp',
+  );
+  await waitFor(() =>
+    expect(host.preference!.saveOrder).toHaveBeenCalledExactlyOnceWith(
+      'orders',
+      ['second', 'mine', 'system'],
+    ),
+  );
   engine.dispose();
 });
