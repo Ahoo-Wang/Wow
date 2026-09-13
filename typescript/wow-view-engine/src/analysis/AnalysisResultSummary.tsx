@@ -60,6 +60,8 @@ export function AnalysisResultSummary({
               AVG: '平均值',
               MIN: '最小值',
               MAX: '最大值',
+              STDDEV: '标准差',
+              VARIANCE: '方差',
               COUNT: '计数',
               ANY: '代表值',
             };

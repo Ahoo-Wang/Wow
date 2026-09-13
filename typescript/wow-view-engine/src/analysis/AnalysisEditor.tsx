@@ -297,6 +297,8 @@ function ComponentList({
                                           AVG: '平均值',
                                           MIN: '最小值',
                                           MAX: '最大值',
+                                          STDDEV: '标准差',
+                                          VARIANCE: '方差',
                                         } as Record<string, string>
                                       )[item.props.function as string] ??
                                       '选择统计方式')
@@ -513,6 +515,8 @@ function ComponentList({
                                                 AVG: '平均值',
                                                 MIN: '最小值',
                                                 MAX: '最大值',
+                                                STDDEV: '标准差',
+                                                VARIANCE: '方差',
                                               } as Record<string, string>
                                             )[value] ?? value,
                                         }))}
