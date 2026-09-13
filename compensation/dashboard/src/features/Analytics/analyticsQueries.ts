@@ -277,6 +277,7 @@ export function createSnapshotSummaryQuery(
   window: TrendWindow,
 ): SnapshotAggregationQuery {
   return {
+    filter: activeFilter,
     metrics: [
       aggregation.count(
         "actionableNow",

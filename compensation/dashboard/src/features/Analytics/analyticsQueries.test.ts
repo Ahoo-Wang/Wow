@@ -61,7 +61,11 @@ describe("analyticsQueries", () => {
     const query = createSnapshotSummaryQuery(now, snapshotWindow);
 
     expect(query.groupBy).toBeUndefined();
-    expect(query.filter).toBeUndefined();
+    expect(query.filter).toEqual({
+      op: "IN",
+      field: "state.status",
+      values: [ExecutionFailedStatus.FAILED, ExecutionFailedStatus.PREPARED],
+    });
     expect(query.metrics.map(({ alias }) => alias)).toEqual([
       "actionableNow",
       "timedOut",
