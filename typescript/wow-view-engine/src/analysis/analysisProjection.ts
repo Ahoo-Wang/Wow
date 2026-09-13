@@ -170,13 +170,16 @@ export function projectAnalysis(
   )
     return fail('指标单位不兼容，请选择相同单位的指标或查看表格');
   if (
+    presentation.layout !== 'metric' &&
+    new Set(metrics.map(c => c.numberFormat?.style ?? 'decimal')).size > 1
+  )
+    return fail('指标显示格式不兼容，请选择相同格式的指标或查看表格');
+  if (
     presentation.stacked &&
     visualization.stacked &&
     metrics.some(
       c =>
-        c.aggregation !== AggregationFunction.SUM &&
-        c.aggregation !== 'COUNT' &&
-        c.format !== 'count',
+        c.aggregation !== AggregationFunction.SUM && c.aggregation !== 'COUNT',
     )
   )
     return fail('堆叠需要可相加的 SUM 或 COUNT 指标，请关闭堆叠或选择其他指标');
@@ -276,9 +279,7 @@ export function projectAnalysis(
     presentation.layout === 'pie' &&
     metrics.some(
       c =>
-        c.aggregation !== AggregationFunction.SUM &&
-        c.aggregation !== 'COUNT' &&
-        c.format !== 'count',
+        c.aggregation !== AggregationFunction.SUM && c.aggregation !== 'COUNT',
     )
   )
     return fail(

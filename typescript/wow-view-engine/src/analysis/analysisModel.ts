@@ -12,6 +12,9 @@
  */
 
 import type {
+  DerivedExpressionType,
+  HavingExpressionType,
+  ComparisonOperator,
   AggregationDateUnit,
   AggregationExpressionType,
   AggregationExpressionOperator,
@@ -42,6 +45,56 @@ export type AnalysisNumericExpression =
       left: AnalysisNumericExpression;
       right: AnalysisNumericExpression;
     };
+export interface AnalysisFeatures {
+  distinctCount?: boolean;
+  percentile?: boolean;
+  metricFilters?: boolean;
+  derived?: boolean;
+  having?: boolean;
+  missingKey?: boolean;
+  dense?: boolean;
+}
+export type AnalysisDerivedExpression =
+  | { type: DerivedExpressionType.METRIC_REF; metricId: string }
+  | { type: DerivedExpressionType.CONSTANT; value: number | string }
+  | {
+      type: DerivedExpressionType.BINARY;
+      operator: AggregationExpressionOperator;
+      left: AnalysisDerivedExpression;
+      right: AnalysisDerivedExpression;
+    };
+export type AnalysisHavingExpression =
+  | {
+      id: string;
+      type: HavingExpressionType.CONDITION;
+      metricId: string;
+      operator: ComparisonOperator;
+      value: number | string;
+    }
+  | {
+      id: string;
+      type: HavingExpressionType.BETWEEN;
+      metricId: string;
+      lower: number | string;
+      upper: number | string;
+    }
+  | {
+      id: string;
+      type: HavingExpressionType.IN;
+      metricId: string;
+      values: (number | string)[];
+    }
+  | {
+      id: string;
+      type: HavingExpressionType.IS_NULL;
+      metricId: string;
+      negated?: boolean;
+    }
+  | {
+      id: string;
+      type: HavingExpressionType.AND | HavingExpressionType.OR;
+      operands: AnalysisHavingExpression[];
+    };
 export interface AnalysisScopeDefinition {
   id: string;
   label: string;
@@ -55,6 +108,8 @@ export interface AnalysisComponentConfig {
   component: FilterEditorReference;
   field?: string;
   expression?: AnalysisNumericExpression;
+  derivedExpression?: AnalysisDerivedExpression;
+  filters?: FilterConfiguration;
   alias: string;
   title: string;
   props: FilterComponentProperties;
@@ -62,12 +117,15 @@ export interface AnalysisComponentConfig {
   label?: { field: string; alias: string; title: string };
 }
 export interface AnalysisCapability {
+  features?: AnalysisFeatures;
   fields: {
     field: string;
     groups: AggregationGroupType[];
     functions: AggregationFunction[];
     dateUnits?: AggregationDateUnit[];
     any?: boolean;
+    distinctCount?: boolean;
+    percentile?: boolean;
     unit?: string;
     numberFormat?: Intl.NumberFormatOptions & { locale?: string };
   }[];
@@ -84,6 +142,7 @@ export interface AnalysisCapability {
 }
 export interface AnalysisViewConfig {
   filters: FilterConfiguration;
+  having?: AnalysisHavingExpression;
   scope?: { id: string; filters: FilterConfiguration[] };
   dimensions: AnalysisComponentConfig[];
   metrics: AnalysisComponentConfig[];
@@ -122,7 +181,13 @@ export interface AnalysisResultColumn {
   valueType: 'string' | 'number' | 'boolean' | 'datetime';
   nullable: boolean;
   labelFor?: string;
-  aggregation?: 'COUNT' | 'ANY' | AggregationFunction;
+  aggregation?:
+    | 'COUNT'
+    | 'ANY'
+    | 'DISTINCT_COUNT'
+    | 'PERCENTILE'
+    | 'DERIVED'
+    | AggregationFunction;
   /** Display only: typed values remain the query and row identities. */
   options?: { value: string | number | boolean; label: string }[];
   numberFormat?: Intl.NumberFormatOptions & { locale?: string };

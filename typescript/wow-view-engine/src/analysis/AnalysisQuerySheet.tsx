@@ -176,6 +176,7 @@ function AnalysisQueryEditor({
             key={instance.id}
             value={instance.config}
             appliedValue={session.result?.config ?? session.baseline.config}
+            filterEditors={definition.filterEditors}
             context={context}
             errors={session.validation}
             visible={visible}

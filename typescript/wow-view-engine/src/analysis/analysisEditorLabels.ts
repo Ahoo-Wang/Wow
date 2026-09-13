@@ -11,9 +11,17 @@
  * limitations under the License.
  */
 
-import { AggregationGroupType as Group } from '@ahoo-wang/fetcher-wow';
+import {
+  AggregationGroupType as Group,
+  AggregationMetricType as Metric,
+} from '@ahoo-wang/fetcher-wow';
 import type { DeepReadonly } from '../lib/types.js';
-import type { AnalysisViewConfig } from './analysisModel.js';
+import { copy } from '../lib/snapshot.js';
+import type {
+  AnalysisViewConfig,
+  AnalysisComponentConfig,
+  AnalysisCompileContext,
+} from './analysisModel.js';
 
 export const groupNames: Record<Group, string> = {
   [Group.TERMS]: 'terms',
@@ -28,6 +36,9 @@ export const names: Record<string, string> = Object.assign(
     'date-histogram': '日期分桶',
     count: '记录数',
     numeric: '数值统计',
+    'distinct-count': '去重计数',
+    percentile: '百分位',
+    derived: '指标公式',
     any: '代表值',
   },
 );
@@ -48,4 +59,52 @@ export function analysisOutputs(value: DeepReadonly<AnalysisViewConfig>) {
     ...value.metrics,
     ...value.dimensions.flatMap(item => (item.label ? [item.label] : [])),
   ];
+}
+
+/** Resolve custom contribution types once for both reference pickers; compilers are pure. */
+export function referenceableAnalysisMetrics(
+  metrics: DeepReadonly<readonly AnalysisComponentConfig[]>,
+  context: AnalysisCompileContext,
+) {
+  return metrics.filter(item => {
+    if (
+      ['count', 'numeric', 'distinct-count', 'percentile', 'derived'].includes(
+        item.component.name,
+      )
+    )
+      return true;
+    if (names[item.component.name]) return false;
+    const compiler =
+      context.compilers &&
+      Object.prototype.hasOwnProperty.call(
+        context.compilers,
+        item.component.name,
+      )
+        ? context.compilers[item.component.name]
+        : undefined;
+    if (
+      !compiler ||
+      !Array.isArray(compiler.roles) ||
+      !compiler.roles.includes('metric')
+    )
+      return false;
+    try {
+      const output = compiler.compile(copy(item), {
+        ...context,
+        role: 'metric',
+      });
+      return (
+        output.alias === item.alias &&
+        [
+          Metric.COUNT,
+          Metric.NUMERIC,
+          Metric.DISTINCT_COUNT,
+          Metric.PERCENTILE,
+          Metric.DERIVED,
+        ].some(type => type === output.type)
+      );
+    } catch {
+      return false;
+    }
+  });
 }

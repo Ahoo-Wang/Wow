@@ -12,7 +12,9 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { extendedAggregate } from './analysisAggregationFixture.js';
 import displayMeta, {
+  ExtendedAggregation as DisplayExtended,
   Mixed as DisplayMixed,
   AnalysisOnly as DisplayAnalysisOnly,
 } from './Analysis.stories.js';
@@ -129,5 +131,56 @@ export const AnalysisOnly: Story = {
     await expect(
       await canvas.findByRole('button', { name: '保存', exact: true }),
     ).toBeVisible();
+  },
+};
+
+export const ExtendedAggregation: Story = {
+  ...DisplayExtended,
+  tags: ['!dev', '!autodocs', 'test'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement),
+      doc = within(canvasElement.ownerDocument.body);
+    await expect(
+      await canvas.findByRole('cell', { name: '75%', exact: true }),
+    ).toBeVisible();
+    await userEvent.click(
+      canvas.getByRole('button', { name: '配置查询', exact: true }),
+    );
+    const dialog = within(await doc.findByRole('dialog', { name: '配置查询' }));
+    await userEvent.click(dialog.getByRole('button', { name: '编辑指标 4' }));
+    const percentile = await doc.findByRole('textbox', {
+      name: '指标 4 百分位',
+    });
+    await userEvent.clear(percentile);
+    await userEvent.type(percentile, '95');
+    await userEvent.click(
+      doc.getByRole('button', { name: '完成编辑', exact: true }),
+    );
+    await expect(
+      dialog.getByRole('textbox', { name: '结果筛选 minimum 数值' }),
+    ).toHaveValue('100');
+    await userEvent.click(dialog.getByRole('button', { name: '运行并查看' }));
+    await expect(
+      await canvas.findByRole('cell', { name: '75%', exact: true }),
+    ).toBeVisible();
+    const query = extendedAggregate.mock.calls.at(-1)![0];
+    await expect(query.metrics.map(m => m.type)).toEqual([
+      'COUNT',
+      'COUNT',
+      'DISTINCT_COUNT',
+      'PERCENTILE',
+      'DERIVED',
+    ]);
+    await expect(query.metrics[1]).toHaveProperty('filter', {
+      op: 'EQ',
+      field: 'status',
+      value: 'PAID',
+    });
+    await expect(query.having).toEqual({
+      type: 'CONDITION',
+      metric: 'orders',
+      operator: 'GTE',
+      value: 100,
+    });
   },
 };

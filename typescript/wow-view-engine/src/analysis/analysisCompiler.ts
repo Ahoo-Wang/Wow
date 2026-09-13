@@ -11,6 +11,23 @@
  * limitations under the License.
  */
 
+import {
+  compileAnalysisExpression,
+  compileAnalysisValueExpression,
+  compileAnalysisDerivedExpression,
+  validateAnalysisDerivedExpression,
+  analysisNumber,
+  expressionUnit,
+  derivedUnit,
+  type AnalysisUnit,
+} from './analysisExpressions.js';
+export { compileAnalysisExpression } from './analysisExpressions.js';
+import { compileAnalysisHaving } from './analysisHaving.js';
+import {
+  analysisMetricFilterContext,
+  compileAnalysisMetricFilter,
+} from './analysisMetricFilter.js';
+import { sameJsonState } from '../lib/snapshot.js';
 import { effectiveSortAliases } from './analysisSort.js';
 import {
   ANALYSIS_LIMITS,
@@ -22,8 +39,6 @@ import {
   AggregationGroupType as Group,
   AggregationMetricType as Metric,
   AggregationExpressionType,
-  AggregationExpressionOperator,
-  type AggregationExpression,
   type AggregationElement,
   type ElementFilterExpression,
   AggregationFunction,
@@ -34,13 +49,15 @@ import {
   type AggregationQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { compileFilterConfiguration } from '../filter/filterConfigurationCompiler.js';
-import { validateFilterJson } from '../filter/filterConfigurationValidation.js';
+import {
+  FilterConfigurationError,
+  validateFilterJson,
+} from '../filter/filterConfigurationValidation.js';
 import { validateTimeZone } from '../lib/timeZone.js';
 import { copy, message } from '../lib/snapshot.js';
 import type { DeepReadonly } from '../lib/types.js';
 import type {
   AnalysisComponentConfig,
-  AnalysisNumericExpression,
   AnalysisCompileContext,
   AnalysisComponentCompileContext,
   AnalysisCompileResult,
@@ -64,101 +81,27 @@ export function analysisScopeContext(
   return {
     ...context,
     fields: scope.fields,
-    capability: { ...scope.capability, limits: context.capability.limits },
+    capability: {
+      ...scope.capability,
+      features: context.capability.features,
+      limits: context.capability.limits,
+    },
   };
 }
 
-/** Bounded numeric editor tree. Incomplete text is retained by config but rejected here. */
-export function compileAnalysisExpression(
-  expression: DeepReadonly<AnalysisNumericExpression>,
-  fn: AggregationFunction,
-  context: AnalysisCompileContext,
-): AggregationExpression {
-  let nodes = 0;
-  const visit = (
-    node: DeepReadonly<AnalysisNumericExpression>,
-    depth: number,
-  ): AggregationExpression => {
-    requireValue(
-      ++nodes <= 256 && depth <= 8 && node && typeof node === 'object',
-      '数值表达式过深或过大',
-    );
-    switch (node.type) {
-      case AggregationExpressionType.FIELD:
-        requireValue(
-          context.fields.some(
-            field => field.field === node.field && field.type === 'number',
-          ) &&
-            context.capability.fields.some(
-              field =>
-                field.field === node.field && field.functions.includes(fn),
-            ),
-          '表达式字段或函数未授权',
-        );
-        return aggregation.field(node.field);
-      case AggregationExpressionType.CONSTANT: {
-        const value =
-          typeof node.value === 'string' &&
-          /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(node.value)
-            ? Number(node.value)
-            : node.value;
-        requireValue(
-          typeof value === 'number' && Number.isFinite(value),
-          '数值常量无效',
-        );
-        return aggregation.constant(value);
-      }
-      case AggregationExpressionType.BINARY:
-        requireValue(
-          Object.values(AggregationExpressionOperator).includes(node.operator),
-          '数值运算符无效',
-        );
-        return {
-          type: node.type,
-          operator: node.operator,
-          left: visit(node.left, depth + 1),
-          right: visit(node.right, depth + 1),
-        };
-      default:
-        throw new TypeError('数值表达式类型无效');
-    }
-  };
-  requireValue(Object.values(AggregationFunction).includes(fn), '数值函数无效');
-  return visit(expression, 1);
-}
-
-function expressionUnit(
-  expression: AggregationExpression,
-  context: AnalysisCompileContext,
-): string | undefined {
-  if (expression.type === AggregationExpressionType.FIELD)
-    return context.capability.fields.find(
-      field => field.field === expression.field,
-    )?.unit;
-  if (expression.type === AggregationExpressionType.CONSTANT) return undefined;
-  const left = expressionUnit(expression.left, context),
-    right = expressionUnit(expression.right, context);
-  if (
-    expression.operator === AggregationExpressionOperator.ADD ||
-    expression.operator === AggregationExpressionOperator.SUBTRACT
-  )
-    return left === right ? left : undefined;
-  if (expression.operator === AggregationExpressionOperator.MULTIPLY)
-    return left && right ? `${left}·${right}` : (left ?? right);
-  return right
-    ? left === right
-      ? undefined
-      : `${left ?? '1'}/${right}`
-    : left;
-}
 function builtin(
   item: DeepReadonly<AnalysisComponentConfig>,
   context: AnalysisComponentCompileContext,
+  metricsById: ReadonlyMap<string, AggregationMetric>,
 ): AggregationGroup | AggregationMetric {
   const { field, alias, props } = item;
   switch (item.component.name) {
     case 'terms':
-      return aggregation.terms(field!, alias);
+      return aggregation.terms(
+        field!,
+        alias,
+        props.missingKey as string | undefined,
+      );
     case 'histogram':
       return aggregation.histogram(field!, {
         alias,
@@ -173,11 +116,33 @@ function builtin(
         alias,
         unit: props.unit as AggregationDateUnit,
         timeZone: context.timeZone,
+        dense: props.dense as boolean | undefined,
       });
     case 'any':
       return aggregation.any(field!, alias);
     case 'count':
       return aggregation.count(alias);
+    case 'distinct-count':
+    case 'percentile': {
+      const expression = item.expression ?? aggregation.field(field!);
+      return item.component.name === 'distinct-count'
+        ? aggregation.distinctCount(
+            expression as Parameters<typeof aggregation.distinctCount>[0],
+            alias,
+          )
+        : aggregation.percentile(
+            expression as Parameters<typeof aggregation.percentile>[0],
+            analysisNumber(props.percentile),
+            alias,
+          );
+    }
+    case 'derived':
+      return aggregation.derived(
+        compileAnalysisDerivedExpression(item.derivedExpression!, metricsById, {
+          nodes: 0,
+        }),
+        alias,
+      );
     case 'numeric': {
       const fn = props.function as AggregationFunction;
       requireValue(
@@ -301,6 +266,11 @@ export function compileAnalysis(
     const schema: AnalysisResultColumn[] = [];
     const groups: AggregationGroup[] = [];
     const metrics: AggregationMetric[] = [];
+    const metricsById = new Map<string, AggregationMetric>();
+    const metricsByAlias = new Map<string, AggregationMetric>();
+    const valueBudget = { nodes: 0 },
+      derivedBudget = { nodes: 0 };
+    const metricUnits = new Map<string, AnalysisUnit>();
     const compile = (
       item: DeepReadonly<AnalysisComponentConfig>,
       role: AnalysisResultColumn['role'],
@@ -333,7 +303,13 @@ export function compileAnalysis(
           role === 'dimension' || item.label === undefined,
           '显示字段只能绑定维度',
         );
-        const output = builtin(item, { ...scoped, role });
+        requireValue(
+          role === 'metric' ||
+            (item.filters === undefined &&
+              item.derivedExpression === undefined),
+          '分组不能设置指标条件或派生公式',
+        );
+        const output = builtin(item, { ...scoped, role }, metricsById);
         requireValue(
           output &&
             typeof output === 'object' &&
@@ -365,7 +341,17 @@ export function compileAnalysis(
             case Group.TERMS:
               requireValue(groupValueType, 'terms 需要标量字段');
               valueType = groupValueType;
-              result = aggregation.terms(output.field, item.alias);
+              requireValue(
+                output.missingKey === undefined ||
+                  (scoped.capability.features?.missingKey === true &&
+                    field.type === 'string'),
+                '缺失值归组未授权或不是字符串字段',
+              );
+              result = aggregation.terms(
+                output.field,
+                item.alias,
+                output.missingKey,
+              );
               break;
             case Group.HISTOGRAM:
               requireValue(groupValueType, 'histogram 需要数值字段');
@@ -383,10 +369,18 @@ export function compileAnalysis(
                 cap.dateUnits?.includes(output.unit),
                 '未授权的时间粒度',
               );
+              requireValue(
+                output.dense === undefined ||
+                  (scoped.capability.features?.dense === true &&
+                    typeof output.dense === 'boolean' &&
+                    (!output.dense || config.dimensions.length === 1)),
+                '日期补桶未授权或不是唯一日期维度',
+              );
               result = aggregation.dateHistogram(output.field, {
                 alias: item.alias,
                 unit: output.unit,
                 timeZone: context.timeZone,
+                dense: output.dense,
               });
               valueType = 'datetime';
               break;
@@ -395,6 +389,11 @@ export function compileAnalysis(
           }
           groups.push(result);
         } else {
+          requireValue(
+            output.type === Metric.DERIVED ||
+              item.derivedExpression === undefined,
+            '非派生指标不能设置派生公式',
+          );
           switch (output.type) {
             case Metric.COUNT:
               requireValue(
@@ -434,10 +433,11 @@ export function compileAnalysis(
                       output.expression.field === item.field,
                 '数值表达式未授权或字段绑定不一致',
               );
-              const expression = compileAnalysisExpression(
+              const expression = compileAnalysisValueExpression(
                 output.expression,
-                output.function,
+                { kind: 'numeric', function: output.function },
                 scoped,
+                valueBudget,
               );
               result = {
                 type: Metric.NUMERIC,
@@ -447,16 +447,173 @@ export function compileAnalysis(
               };
               break;
             }
+            case Metric.DISTINCT_COUNT:
+            case Metric.PERCENTILE: {
+              const key =
+                output.type === Metric.DISTINCT_COUNT
+                  ? 'distinctCount'
+                  : 'percentile';
+              requireValue(
+                scoped.capability.features?.[key] === true,
+                '指标能力未授权',
+              );
+              requireValue(
+                item.expression
+                  ? scoped.capability.expressions && item.field === undefined
+                  : output.expression?.type ===
+                      AggregationExpressionType.FIELD &&
+                      output.expression.field === item.field,
+                '数值表达式未授权或字段绑定不一致',
+              );
+              const expression = compileAnalysisValueExpression(
+                output.expression,
+                {
+                  kind:
+                    output.type === Metric.DISTINCT_COUNT
+                      ? 'distinct-count'
+                      : 'percentile',
+                },
+                scoped,
+                valueBudget,
+              );
+              result =
+                output.type === Metric.DISTINCT_COUNT
+                  ? aggregation.distinctCount(expression, item.alias)
+                  : aggregation.percentile(
+                      expression,
+                      output.percentile,
+                      item.alias,
+                    );
+              nullable = output.type !== Metric.DISTINCT_COUNT;
+              break;
+            }
+            case Metric.DERIVED:
+              requireValue(
+                scoped.capability.features?.derived === true &&
+                  item.field === undefined &&
+                  item.expression === undefined &&
+                  item.filters === undefined &&
+                  !('filter' in output),
+                '派生指标未授权或设置了记录过滤/字段',
+              );
+              result = aggregation.derived(
+                validateAnalysisDerivedExpression(
+                  output.expression,
+                  metricsByAlias,
+                  derivedBudget,
+                ),
+                item.alias,
+              );
+              break;
             default:
               throw new TypeError('组件未产生数值指标');
           }
+          if (result.type !== Metric.DERIVED) {
+            const supplied = 'filter' in output ? output.filter : undefined;
+            if (item.filters !== undefined || supplied !== undefined) {
+              requireValue(
+                scoped.capability.features?.metricFilters === true,
+                '指标筛选能力未授权',
+              );
+              const filterContext = analysisMetricFilterContext(
+                scoped,
+                !!config.scope,
+              );
+              const compiled =
+                item.filters === undefined
+                  ? undefined
+                  : compileFilterConfiguration(
+                      item.filters,
+                      filterContext.fields,
+                      filterContext.allowedOperators,
+                      filterContext.filterCompilers,
+                      filterContext.timeZone,
+                    );
+              requireValue(
+                !compiled?.errors.length,
+                compiled?.errors.map(error => error.message).join('；') ??
+                  '指标条件无效',
+              );
+              const normalized =
+                supplied === undefined
+                  ? undefined
+                  : compileAnalysisMetricFilter(
+                      supplied,
+                      scoped,
+                      !!config.scope,
+                    );
+              requireValue(
+                supplied === undefined ||
+                  !compiled ||
+                  sameJsonState(normalized, compiled.expression),
+                '组件指标条件与配置冲突',
+              );
+              const predicate = compiled?.expression ?? normalized;
+              requireValue(predicate !== undefined, '指标条件无效');
+              result = { ...result, filter: predicate };
+            }
+          }
           metrics.push(result);
+          metricsById.set(item.id, result);
+          metricsByAlias.set(result.alias, result);
         }
+        const valueExpression =
+          'expression' in result && result.type !== Metric.DERIVED
+            ? result.expression
+            : undefined;
         const formatField =
-          result.type === Metric.NUMERIC &&
-          result.expression.type === AggregationExpressionType.FIELD
-            ? result.expression.field
+          valueExpression?.type === AggregationExpressionType.FIELD
+            ? valueExpression.field
             : item.field;
+        let numberFormat: AnalysisResultColumn['numberFormat'] =
+          scoped.capability.fields.find(
+            field => field.field === formatField,
+          )?.numberFormat;
+        let unit: AnalysisUnit =
+          result.type === Metric.COUNT ? null : cap?.unit;
+        if (valueExpression)
+          unit =
+            result.type === Metric.DISTINCT_COUNT
+              ? null
+              : expressionUnit(valueExpression, scoped);
+        if (
+          result.type === Metric.COUNT ||
+          result.type === Metric.DISTINCT_COUNT
+        )
+          numberFormat = undefined;
+        if (
+          result.type === Metric.NUMERIC &&
+          result.function === AggregationFunction.VARIANCE
+        ) {
+          unit = unit ? `${unit}·${unit}` : unit;
+          if (numberFormat) {
+            numberFormat = { ...numberFormat };
+            delete numberFormat.style;
+            delete numberFormat.currency;
+            delete numberFormat.currencyDisplay;
+            delete numberFormat.currencySign;
+            delete numberFormat.unit;
+            delete numberFormat.unitDisplay;
+          }
+        }
+        if (result.type === Metric.DERIVED) {
+          unit = derivedUnit(result.expression, metricUnits);
+          requireValue(
+            item.props.displayFormat === undefined ||
+              item.props.displayFormat === 'number' ||
+              item.props.displayFormat === 'percent',
+            '派生指标展示格式无效',
+          );
+          requireValue(
+            item.props.displayFormat !== 'percent' || unit === null,
+            '只有已确认无量纲的指标才能显示为百分比',
+          );
+          numberFormat =
+            item.props.displayFormat === 'percent'
+              ? { style: 'percent', maximumFractionDigits: 2 }
+              : undefined;
+        }
+        if (role === 'metric') metricUnits.set(item.alias, unit);
         schema.push({
           id: item.id,
           alias: item.alias,
@@ -464,6 +621,8 @@ export function compileAnalysis(
           role,
           valueType,
           nullable,
+          numberFormat,
+          unit: unit ?? undefined,
           ...((role === 'dimension' || result.type === Metric.ANY) &&
           field?.options
             ? {
@@ -473,32 +632,29 @@ export function compileAnalysis(
                 })),
               }
             : {}),
-          numberFormat: scoped.capability.fields.find(
-            field => field.field === formatField,
-          )?.numberFormat,
-          ...(result.type === Metric.COUNT
-            ? { aggregation: 'COUNT' as const }
-            : result.type === Metric.ANY
-              ? { aggregation: 'ANY' as const, unit: cap?.unit }
-              : result.type === Metric.NUMERIC
-                ? {
-                    aggregation: result.function,
-                    unit: expressionUnit(result.expression, scoped),
-                  }
-                : {
-                    group: {
-                      type: result.type,
-                      ...(result.type === Group.HISTOGRAM
-                        ? { interval: result.interval }
-                        : result.type === Group.DATE_HISTOGRAM
-                          ? { unit: result.unit, timeZone: result.timeZone }
-                          : {}),
-                    },
-                    unit: cap?.unit,
-                  }),
+          ...(result.type === Group.TERMS ||
+          result.type === Group.HISTOGRAM ||
+          result.type === Group.DATE_HISTOGRAM
+            ? {
+                group: {
+                  type: result.type,
+                  ...(result.type === Group.HISTOGRAM
+                    ? { interval: result.interval }
+                    : result.type === Group.DATE_HISTOGRAM
+                      ? { unit: result.unit, timeZone: result.timeZone }
+                      : {}),
+                },
+              }
+            : {
+                aggregation:
+                  result.type === Metric.NUMERIC
+                    ? result.function
+                    : result.type,
+              }),
           ...(valueType === 'datetime'
             ? { format: 'datetime' }
-            : output.type === Metric.COUNT
+            : result.type === Metric.COUNT ||
+                result.type === Metric.DISTINCT_COUNT
               ? { format: 'count' }
               : {}),
         });
@@ -564,8 +720,31 @@ export function compileAnalysis(
       '有效排序数量超限',
     );
     if (errors.length) return { errors };
+    let having: AggregationQuery['having'];
+    if (config.having !== undefined) {
+      requireValue(
+        scoped.capability.features?.having === true && groups.length > 0,
+        '结果筛选未授权或缺少分组',
+      );
+      try {
+        having = compileAnalysisHaving(config.having, metricsById);
+      } catch (error) {
+        return {
+          errors: [
+            {
+              id:
+                error instanceof FilterConfigurationError
+                  ? error.id
+                  : (config.having.id ?? ''),
+              message: message(error),
+            },
+          ],
+        };
+      }
+    }
     const query: AggregationQuery = {
       filter: filterResult.expression,
+      ...(having === undefined ? {} : { having }),
       ...(elements.length ? { elements } : {}),
       metrics: metrics as AggregationQuery['metrics'],
       limit,

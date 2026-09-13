@@ -25,6 +25,11 @@ import {
   type ViewInstance,
 } from '@ahoo-wang/fetcher-view-engine';
 import { useViewEngine, ViewPage } from '@ahoo-wang/fetcher-view-engine/react';
+import {
+  extendedDefinition,
+  extendedInstance,
+  extendedAggregate,
+} from './analysisAggregationFixture.js';
 import { createOrderSource } from '../../packages/view-engine/examples/react/sales-order/querySource.js';
 
 const definition: ViewDefinition = {
@@ -171,4 +176,43 @@ export const Mixed: Story = { name: '订单记录与地区分析' };
 export const AnalysisOnly: Story = {
   name: '仅聚合数据源',
   args: { analysisOnly: true },
+};
+
+/** Fixed protocol fixture, not a browser implementation of aggregation. */
+function ExtendedOrderAnalysis() {
+  const [host] = useState(
+    () =>
+      new MemoryViewHost({
+        serviceKey: 'extended-analysis-example',
+        scopeKey: 'demo',
+        definition: extendedDefinition,
+        instances: {
+          instances: [extendedInstance],
+          defaultInstanceId: extendedInstance.id,
+        },
+        resolveSource: () => ({ aggregate: extendedAggregate }),
+        instancePermissions: () => ({
+          save: true,
+          saveAsPersonal: true,
+          saveAsShared: false,
+        }),
+      }),
+  );
+  const binding = useViewEngine({
+    scopeKey: 'demo',
+    definitionId: extendedDefinition.id,
+    host,
+  });
+  return (
+    <>
+      <p>
+        固定模拟响应：演示配置和协议，非真实订单统计。改变统计口径需要接入真实
+        Wow 数据源。
+      </p>
+      <ViewPage {...binding} />
+    </>
+  );
+}
+export const ExtendedAggregation: Story = {
+  render: () => <ExtendedOrderAnalysis />,
 };

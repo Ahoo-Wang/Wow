@@ -55,7 +55,9 @@ export function validateAnalysisResult(
               : typeof value === column.valueType;
         if (
           !valid ||
-          ((column.aggregation === 'COUNT' || column.format === 'count') &&
+          ((column.aggregation === 'COUNT' ||
+            column.aggregation === 'DISTINCT_COUNT' ||
+            (column.aggregation === undefined && column.format === 'count')) &&
             !(
               typeof value === 'number' &&
               Number.isSafeInteger(value) &&

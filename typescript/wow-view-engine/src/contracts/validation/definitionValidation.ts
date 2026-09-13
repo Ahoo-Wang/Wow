@@ -127,6 +127,24 @@ function validateAnalysisCapability(value: unknown, scoped = false) {
     throw new Error('分析能力无效');
   if (value.expressions !== undefined && typeof value.expressions !== 'boolean')
     throw new Error('表达式能力必须为布尔值');
+  if (value.features !== undefined) {
+    assertObject(value.features, '分析服务能力');
+    for (const [name, enabled] of Object.entries(value.features)) {
+      if (
+        ![
+          'distinctCount',
+          'percentile',
+          'metricFilters',
+          'derived',
+          'having',
+          'missingKey',
+          'dense',
+        ].includes(name) ||
+        (enabled !== undefined && typeof enabled !== 'boolean')
+      )
+        throw new Error('分析服务能力必须为布尔值');
+    }
+  }
   const paths = new Set<string>();
   for (const field of value.fields) {
     assertObject(field, '分析字段');
@@ -141,6 +159,9 @@ function validateAnalysisCapability(value: unknown, scoped = false) {
     );
     if (field.dateUnits !== undefined)
       enumList(field.dateUnits, Object.values(AggregationDateUnit), '时间粒度');
+    for (const name of ['distinctCount', 'percentile'])
+      if (field[name] !== undefined && typeof field[name] !== 'boolean')
+        throw new Error('指标能力必须为布尔值');
     if (field.any !== undefined && typeof field.any !== 'boolean')
       throw new Error('代表值能力必须为布尔值');
     if (field.unit !== undefined) assertText(field.unit, '指标单位');

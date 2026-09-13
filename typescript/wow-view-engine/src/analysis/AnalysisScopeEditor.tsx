@@ -28,6 +28,7 @@ export function AnalysisScopeEditor({
   disabled,
   extensions,
   filterContext,
+  filterEditors,
   onFilterValidityChange,
 }: AnalysisEditorProps) {
   const scope = context.capability.scopes?.find(
@@ -115,6 +116,7 @@ export function AnalysisScopeEditor({
               allowedOperators={context.allowedOperators}
               disabled={disabled}
               extensions={extensions}
+              editors={filterEditors}
               context={filterContext}
               onValidityChange={valid => {
                 const key = `${scope.id}:${index}:${value.scope?.filters[index]?.root.id ?? ''}`;

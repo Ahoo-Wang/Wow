@@ -18,18 +18,19 @@ import {
 import { effectiveSortAliases } from './analysisSort.js';
 import {
   analysisOutputs,
+  referenceableAnalysisMetrics,
   dateLabels,
   groupNames,
   names,
 } from './analysisEditorLabels.js';
 import { AnalysisEditorBoundary, Choice } from './AnalysisComponentChoice.js';
 import type { AggregationGroupType as Group } from '@ahoo-wang/fetcher-wow';
-import {
-  AggregationFunction,
-  AggregationExpressionType,
-} from '@ahoo-wang/fetcher-wow';
-import { useState, useRef, useLayoutEffect } from 'react';
-import type { FilterExtensions } from '../filter/filterReactTypes.js';
+import { DerivedExpressionType } from '@ahoo-wang/fetcher-wow';
+import { useState, useRef, useLayoutEffect, useEffect } from 'react';
+import type {
+  FilterExtensions,
+  FilterPanelProps,
+} from '../filter/filterReactTypes.js';
 import type { AnalysisExtensions } from './analysisReactTypes.js';
 import { ChevronDownIcon, GripVerticalIcon, PlusIcon } from 'lucide-react';
 import { Button } from '../components/ui/button.js';
@@ -41,11 +42,9 @@ import {
 } from '../components/ui/popover.js';
 import { Input } from '../components/ui/input.js';
 import { FilterSelect } from '../filter/FilterSelect.js';
-import {
-  analysisScopeContext,
-  compileAnalysisExpression,
-} from './analysisCompiler.js';
-import { AnalysisExpressionEditor } from './AnalysisExpressionEditor.js';
+import { analysisScopeContext } from './analysisCompiler.js';
+import { AnalysisMetricEditor } from './AnalysisMetricEditor.js';
+import { AnalysisHavingEditor } from './AnalysisHavingEditor.js';
 import { AnalysisScopeEditor } from './AnalysisScopeEditor.js';
 import { AnalysisSortEditor } from './AnalysisSortEditor.js';
 import { ListOrder, ListOrderItem } from '../lib/ListOrder.js';
@@ -59,7 +58,7 @@ import type {
 } from './analysisModel.js';
 export interface AnalysisEditorProps {
   value: DeepReadonly<AnalysisViewConfig>;
-  /** Last successfully applied configuration; used as the element filter undo baseline. */
+  /** Last successfully applied configuration; used as scope and metric filter undo baselines. */
   appliedValue?: DeepReadonly<AnalysisViewConfig>;
   context: AnalysisCompileContext;
   onChange(value: AnalysisViewConfig): void;
@@ -69,14 +68,23 @@ export interface AnalysisEditorProps {
   errors?: readonly FilterValidationError[];
   extensions?: AnalysisExtensions & FilterExtensions;
   filterContext?: unknown;
-  /** Combined validity of currently mounted element-scope filter editors. */
+  filterEditors?: FilterPanelProps['editors'];
+  /** Combined validity of scope and metric filter editors, retained while hidden. */
   onFilterValidityChange?(valid: boolean): void;
 }
 
 function ComponentList({
   kind,
   ...props
-}: AnalysisEditorProps & { kind: 'dimensions' | 'metrics' }) {
+}: AnalysisEditorProps & {
+  kind: 'dimensions' | 'metrics';
+  referenceMetrics?: DeepReadonly<readonly AnalysisComponentConfig[]>;
+  onMetricFilterValidityChange?(
+    id: string,
+    rootId: string,
+    valid: boolean,
+  ): void;
+}) {
   const { value, context, onChange, disabled, errors = [] } = props;
   const title = kind === 'dimensions' ? '维度' : '指标';
   const items = value[kind];
@@ -149,6 +157,15 @@ function ComponentList({
         ].map(group => groupNames[group])
       : [
           ...(context.capability.count ? ['count'] : []),
+          ...(context.capability.features?.distinctCount &&
+          context.capability.fields.some(f => f.distinctCount)
+            ? ['distinct-count']
+            : []),
+          ...(context.capability.features?.percentile &&
+          context.capability.fields.some(f => f.percentile)
+            ? ['percentile']
+            : []),
+          ...(context.capability.features?.derived ? ['derived'] : []),
           ...(context.capability.fields.some(field => field.any)
             ? ['any']
             : []),
@@ -212,6 +229,13 @@ function ComponentList({
                     ? registry[component].component
                     : undefined;
                 const capability = capabilityByField.get(item.field ?? '');
+                const canMissingKey =
+                  context.capability.features?.missingKey === true &&
+                  context.fields.find(field => field.field === item.field)
+                    ?.type === 'string';
+                const canEnableDense =
+                  context.capability.features?.dense === true &&
+                  value.dimensions.length === 1;
                 const readyToEdit = openedIds.has(item.id);
                 const fields = readyToEdit
                   ? context.fields.filter(field => {
@@ -320,15 +344,16 @@ function ComponentList({
                               align="start"
                               className={
                                 item.expression
-                                  ? 'fve:w-[42rem] fve:max-w-[calc(100vw-2rem)] fve:max-h-[75dvh] fve:overflow-y-auto fve:p-4'
-                                  : 'fve:w-80 fve:max-w-[calc(100vw-2rem)] fve:max-h-[75dvh] fve:overflow-y-auto fve:p-4'
+                                  ? 'fve:w-[42rem] fve:max-w-[calc(100vw-2rem)] fve:max-h-[min(75dvh,var(--available-height,75dvh))] fve:overflow-y-auto fve:p-4'
+                                  : 'fve:w-80 fve:max-w-[calc(100vw-2rem)] fve:max-h-[min(75dvh,var(--available-height,75dvh))] fve:overflow-y-auto fve:p-4'
                               }
                             >
                               {readyToEdit && (
                                 <>
                                   <PopoverTitle>{title}设置</PopoverTitle>
                                   <div className="fve:grid fve:grid-cols-1 fve:gap-3">
-                                    {component !== 'count' &&
+                                    {kind === 'dimensions' &&
+                                      component !== 'count' &&
                                       !item.expression &&
                                       !CustomEditor && (
                                         <Choice
@@ -427,10 +452,24 @@ function ComponentList({
                                         update(index, {
                                           component: { name },
                                           field:
-                                            name === 'count'
+                                            name === 'count' ||
+                                            name === 'derived'
                                               ? undefined
                                               : item.field,
                                           expression: undefined,
+                                          derivedExpression:
+                                            name === 'derived'
+                                              ? {
+                                                  type: DerivedExpressionType.CONSTANT,
+                                                  value: '',
+                                                }
+                                              : undefined,
+                                          filters:
+                                            name === 'derived' || !item.filters
+                                              ? undefined
+                                              : cloneSnapshot<AnalysisComponentConfig>(
+                                                  item,
+                                                ).filters,
                                           props: {},
                                         })
                                       }
@@ -441,94 +480,42 @@ function ComponentList({
                                         。请选择可用类型修复或删除。
                                       </p>
                                     )}
-                                    {component === 'numeric' &&
-                                      context.capability.expressions && (
-                                        <Choice
-                                          label={`${label} 输入`}
-                                          value={
-                                            item.expression
-                                              ? 'expression'
-                                              : 'field'
-                                          }
-                                          options={[
-                                            { value: 'field', label: '字段' },
-                                            {
-                                              value: 'expression',
-                                              label: '公式',
-                                            },
-                                          ]}
-                                          disabled={disabled}
-                                          onChange={mode =>
-                                            update(
-                                              index,
-                                              mode === 'expression'
-                                                ? {
-                                                    field: undefined,
-                                                    expression: {
-                                                      type: AggregationExpressionType.FIELD,
-                                                      field: item.field ?? '',
-                                                    },
-                                                  }
-                                                : {
-                                                    expression: undefined,
-                                                    field:
-                                                      item.expression?.type ===
-                                                      AggregationExpressionType.FIELD
-                                                        ? item.expression.field
-                                                        : undefined,
-                                                  },
-                                            )
-                                          }
-                                        />
-                                      )}
-                                    {component === 'numeric' && (
-                                      <Choice
-                                        label={`${label} 函数`}
-                                        value={
-                                          typeof item.props.function ===
-                                          'string'
-                                            ? item.props.function
+                                    {kind === 'metrics' && names[component] && (
+                                      <AnalysisMetricEditor
+                                        elementScope={value.scope !== undefined}
+                                        appliedValue={
+                                          props.appliedValue?.scope?.id ===
+                                          value.scope?.id
+                                            ? props.appliedValue?.metrics.find(
+                                                metric => metric.id === item.id,
+                                              )?.filters
                                             : undefined
                                         }
-                                        options={(item.expression
-                                          ? Object.values(
-                                              AggregationFunction,
-                                            ).filter(fn => {
-                                              try {
-                                                compileAnalysisExpression(
-                                                  item.expression!,
-                                                  fn,
-                                                  context,
-                                                );
-                                                return true;
-                                              } catch {
-                                                return false;
-                                              }
-                                            })
-                                          : (capability?.functions ?? [])
-                                        ).map(value => ({
-                                          value,
-                                          label:
-                                            (
-                                              {
-                                                SUM: '求和',
-                                                AVG: '平均值',
-                                                MIN: '最小值',
-                                                MAX: '最大值',
-                                                STDDEV: '标准差',
-                                                VARIANCE: '方差',
-                                              } as Record<string, string>
-                                            )[value] ?? value,
-                                        }))}
+                                        value={item}
+                                        context={context}
+                                        previousMetrics={(
+                                          props.referenceMetrics ?? []
+                                        ).filter(metric =>
+                                          value.metrics
+                                            .slice(0, index)
+                                            .some(
+                                              previous =>
+                                                previous.id === metric.id,
+                                            ),
+                                        )}
+                                        label={label}
                                         disabled={disabled}
-                                        onChange={fn =>
-                                          update(index, {
-                                            props: {
-                                              ...item.props,
-                                              function: fn,
-                                            },
-                                          })
+                                        extensions={props.extensions}
+                                        filterContext={props.filterContext}
+                                        editors={props.filterEditors}
+                                        onFilterValidityChange={valid =>
+                                          props.onMetricFilterValidityChange?.(
+                                            item.id,
+                                            item.filters?.root.id ?? '',
+                                            valid,
+                                          )
                                         }
+                                        onChange={next => update(index, next)}
                                       />
                                     )}
                                     {component === 'date-histogram' && (
@@ -577,6 +564,91 @@ function ComponentList({
                                         />
                                       </label>
                                     )}
+                                    {component === 'terms' &&
+                                      (canMissingKey ||
+                                        item.props.missingKey !==
+                                          undefined) && (
+                                        <>
+                                          <label>
+                                            缺失值归组
+                                            <Input
+                                              disabled={
+                                                disabled || !canMissingKey
+                                              }
+                                              aria-label={`${label} 缺失值归组`}
+                                              value={
+                                                typeof item.props.missingKey ===
+                                                'string'
+                                                  ? item.props.missingKey
+                                                  : ''
+                                              }
+                                              onChange={event => {
+                                                if (canMissingKey)
+                                                  update(index, {
+                                                    props: {
+                                                      ...item.props,
+                                                      missingKey:
+                                                        event.target.value ||
+                                                        undefined,
+                                                    },
+                                                  });
+                                              }}
+                                            />
+                                            <span>
+                                              与真实同名桶合并；仅支持字符串分组。
+                                            </span>
+                                          </label>
+                                          {!canMissingKey && (
+                                            <Button
+                                              variant="outline"
+                                              disabled={disabled}
+                                              aria-label={`清除${label} 缺失值归组`}
+                                              onClick={() =>
+                                                update(index, {
+                                                  props: {
+                                                    ...item.props,
+                                                    missingKey: undefined,
+                                                  },
+                                                })
+                                              }
+                                            >
+                                              清除缺失值归组
+                                            </Button>
+                                          )}
+                                        </>
+                                      )}
+                                    {component === 'date-histogram' &&
+                                      (context.capability.features?.dense ||
+                                        item.props.dense !== undefined) && (
+                                        <label>
+                                          <input
+                                            type="checkbox"
+                                            disabled={
+                                              disabled ||
+                                              (!canEnableDense &&
+                                                item.props.dense !== true)
+                                            }
+                                            aria-label={`${label} 补齐日期`}
+                                            checked={item.props.dense === true}
+                                            onChange={event => {
+                                              if (
+                                                event.target.checked &&
+                                                !canEnableDense
+                                              )
+                                                return;
+                                              update(index, {
+                                                props: {
+                                                  ...item.props,
+                                                  dense: event.target.checked
+                                                    ? true
+                                                    : undefined,
+                                                },
+                                              });
+                                            }}
+                                          />
+                                          补齐日期内部缺口（仅单维分组，结果筛选可能移除空桶）
+                                        </label>
+                                      )}
                                     <label className="fve:flex fve:min-w-0 fve:max-w-full fve:flex-col fve:gap-1">
                                       {title}名称
                                       <Input
@@ -662,22 +734,6 @@ function ComponentList({
                                       删除
                                     </Button>
                                   </div>
-                                  {component === 'numeric' &&
-                                    item.expression && (
-                                      <AnalysisExpressionEditor
-                                        value={item.expression}
-                                        context={context}
-                                        label={`${label} 公式`}
-                                        function={
-                                          item.props
-                                            .function as AggregationFunction
-                                        }
-                                        disabled={disabled}
-                                        onChange={expression =>
-                                          update(index, { expression })
-                                        }
-                                      />
-                                    )}
                                   {component === 'any' && (
                                     <p className="fve:text-xs fve:text-muted-foreground">
                                       代表值不保证固定，不能作为稳定分组或图表数值。
@@ -743,6 +799,22 @@ function ComponentList({
 export function AnalysisEditor(props: AnalysisEditorProps) {
   const { value, onChange, disabled = false, errors = [] } = props;
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const { onFilterValidityChange } = props;
+  const [scopeValid, setScopeValid] = useState(true);
+  const [metricValidity, setMetricValidity] = useState<Record<string, boolean>>(
+    {},
+  );
+  const filtersValid =
+    scopeValid &&
+    value.metrics.every(
+      item =>
+        !item.filters ||
+        metricValidity[JSON.stringify([item.id, item.filters.root.id])] !==
+          false,
+    );
+  useEffect(() => {
+    onFilterValidityChange?.(filtersValid);
+  }, [filtersValid, onFilterValidityChange]);
   const maxLimit =
     props.context.capability.limits?.maxLimit ?? ANALYSIS_LIMITS.maxLimit;
   const invalidLimit =
@@ -764,15 +836,48 @@ export function AnalysisEditor(props: AnalysisEditorProps) {
       capability: { fields: [], count: false },
     };
   }
+  const needsReferences =
+    context.capability.features?.derived ||
+    context.capability.features?.having ||
+    value.having ||
+    value.metrics.some(metric => metric.component.name === 'derived');
+  const referenceMetrics = needsReferences
+    ? referenceableAnalysisMetrics(value.metrics, context)
+    : [];
   return (
     <OverlayScope visible={props.visible !== false}>
       <section
         className="fve-root fve:@container/analysis-editor fve:flex fve:min-w-0 fve:flex-col fve:gap-2"
         aria-label="分析配置"
       >
-        <AnalysisScopeEditor key={value.scope?.id ?? 'root'} {...props} />
+        <AnalysisScopeEditor
+          key={value.scope?.id ?? 'root'}
+          {...props}
+          onFilterValidityChange={setScopeValid}
+        />
         <ComponentList {...props} context={context} kind="dimensions" />
-        <ComponentList {...props} context={context} kind="metrics" />
+        <ComponentList
+          {...props}
+          context={context}
+          kind="metrics"
+          referenceMetrics={referenceMetrics}
+          onMetricFilterValidityChange={(id, rootId, valid) =>
+            setMetricValidity(previous =>
+              previous[JSON.stringify([id, rootId])] === valid
+                ? previous
+                : { ...previous, [JSON.stringify([id, rootId])]: valid },
+            )
+          }
+        />
+        {(context.capability.features?.having || value.having) && (
+          <AnalysisHavingEditor
+            value={value.having}
+            metrics={referenceMetrics}
+            errors={errors}
+            disabled={disabled}
+            onChange={having => update({ having })}
+          />
+        )}
         <details
           className="fve:group fve:rounded-lg fve:border"
           open={advancedOpen || invalidLimit}

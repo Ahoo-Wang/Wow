@@ -373,3 +373,36 @@ it('rejects duplicate returned groups rather than silently overwriting their met
   );
   expect(projected.issues.join(';')).toContain('重复分组');
 });
+
+it.each(['line', 'area', 'bar'] as const)(
+  'rejects mixed percent and decimal shared axes in %s charts',
+  layout => {
+    const percent = {
+      ...m,
+      aggregation: 'DERIVED' as const,
+      numberFormat: { style: 'percent' as const },
+    };
+    const number = {
+      ...column('ratio', 'metric'),
+      aggregation: 'DERIVED' as const,
+    };
+    const rows = [{ 'a.b': 1, avg: 0.25, ratio: 0.5 }];
+    expect(
+      projectAnalysis(plan([x, percent, number]), rows, { layout, columns: [] })
+        .issues[0],
+    ).toMatch(/格式/);
+    expect(
+      projectAnalysis(
+        plan([x, percent, { ...number, numberFormat: { style: 'percent' } }]),
+        rows,
+        { layout, columns: [] },
+      ).issues,
+    ).toEqual([]);
+    expect(
+      projectAnalysis(plan([percent, number]), [{ avg: 0.25, ratio: 0.5 }], {
+        layout: 'metric',
+        columns: [],
+      }).issues,
+    ).toEqual([]);
+  },
+);

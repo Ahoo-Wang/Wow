@@ -23,10 +23,12 @@ import type { FilterFieldDefinition } from '../filter/filterModel.js';
 import { validateFilterJson } from '../filter/filterConfigurationValidation.js';
 import type {
   AnalysisCapability,
+  AnalysisFeatures,
   AnalysisScopeDefinition,
 } from './analysisModel.js';
 
 export interface WowAnalysisSchemaOptions {
+  features?: AnalysisFeatures;
   /** Keys are absolute logical paths, including parent element paths. */
   labels?: Readonly<Record<string, string>>;
   units?: Readonly<Record<string, string>>;
@@ -203,6 +205,8 @@ export function adaptWowAnalysisSchema(
         groups,
         functions,
         any,
+        distinctCount: any || functions.length > 0,
+        percentile: functions.length > 0,
         ...(groups.includes(Group.DATE_HISTOGRAM)
           ? { dateUnits: Object.values(AggregationDateUnit) }
           : {}),
@@ -241,6 +245,10 @@ export function adaptWowAnalysisSchema(
   return {
     model: envelope.model,
     fields: mapped.fields,
-    capability: { ...mapped.capability, scopes },
+    capability: {
+      ...mapped.capability,
+      scopes,
+      ...(options.features ? { features: { ...options.features } } : {}),
+    },
   };
 }
