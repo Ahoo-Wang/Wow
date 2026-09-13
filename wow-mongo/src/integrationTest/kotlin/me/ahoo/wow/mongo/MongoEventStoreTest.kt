@@ -13,6 +13,12 @@
 
 package me.ahoo.wow.mongo
 
+import com.mongodb.client.model.InsertManyOptions
+import com.mongodb.client.result.InsertManyResult
+import com.mongodb.reactivestreams.client.MongoCollection
+import com.mongodb.reactivestreams.client.MongoDatabase
+import io.mockk.every
+import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.command.DuplicateRequestIdException
@@ -20,20 +26,29 @@ import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
+import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
-import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.metrics.meteredForTck
+import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
+import org.bson.Document
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
+import reactor.test.publisher.TestPublisher
 import java.time.Duration
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class MongoEventStoreTest : EventStoreSpec() {
     @JvmField
@@ -56,8 +71,7 @@ class MongoEventStoreTest : EventStoreSpec() {
         val streams = (1..8).map { index ->
             generateEventStream(namedAggregate.aggregateId("batch-$index"))
         }
-        val options = MongoEventStoreBatchOptions(
-            enabled = true,
+        val options = BatchOptions(
             maxSize = streams.size,
             maxDelay = Duration.ofMillis(10),
         )
@@ -177,9 +191,66 @@ class MongoEventStoreTest : EventStoreSpec() {
         }
     }
 
-    private fun batchOptions(maxSize: Int): MongoEventStoreBatchOptions {
-        return MongoEventStoreBatchOptions(
-            enabled = true,
+    @Test
+    fun `confirmed collection write may receive timeout while another collection hangs`() {
+        val database = mongo.database()
+        val other = MaterializedNamedAggregate(namedAggregate.contextName, "hanging-aggregate")
+        EventStreamSchemaInitializer(database).initSchema(namedAggregate)
+        val first = MockDomainEventStreams.generateEventStream(
+            aggregateId = namedAggregate.aggregateId("confirmed-before-timeout"),
+            eventCount = 1,
+        )
+        val second = MockDomainEventStreams.generateEventStream(
+            aggregateId = other.aggregateId("hanging-before-timeout"),
+            eventCount = 1,
+        )
+        val routedDatabase = mockk<MongoDatabase>()
+        val acknowledgedCollection = mockk<MongoCollection<Document>>()
+        val hangingCollection = mockk<MongoCollection<Document>>()
+        val firstAcknowledged = CountDownLatch(1)
+        val hangingStarted = CountDownLatch(1)
+        val lateResult = TestPublisher.createNoncompliant<InsertManyResult>(
+            TestPublisher.Violation.DEFER_CANCELLATION
+        )
+        every { routedDatabase.getCollection(first.toEventStreamCollectionName()) } returns acknowledgedCollection
+        every { acknowledgedCollection.insertMany(any<List<Document>>(), any()) } answers {
+            Mono.from(database.getCollection(first.toEventStreamCollectionName()).insertMany(firstArg<List<Document>>(), secondArg<InsertManyOptions>()))
+                .doOnNext { firstAcknowledged.countDown() }
+        }
+        every { routedDatabase.getCollection(second.toEventStreamCollectionName()) } returns hangingCollection
+        every { hangingCollection.insertMany(any<List<Document>>(), any()) } returns
+            lateResult.mono().doOnSubscribe { hangingStarted.countDown() }
+        val appender = BatchMongoEventStreamAppender(
+            database = routedDatabase,
+            options = BatchOptions(maxSize = 2, maxDelay = Duration.ofHours(1)),
+            closeTimeout = Duration.ofMillis(50),
+        )
+        val notifications = AtomicInteger()
+        val firstResult = appender.append(first).doOnError { notifications.incrementAndGet() }.materialize().toFuture()
+        val secondResult = appender.append(second).doOnError { notifications.incrementAndGet() }.materialize().toFuture()
+        try {
+            hangingStarted.await(5, TimeUnit.SECONDS).assert().isTrue()
+            firstAcknowledged.await(5, TimeUnit.SECONDS).assert().isTrue()
+            Mono.from(database.getCollection(first.toEventStreamCollectionName()).countDocuments())
+                .block().assert().isEqualTo(1L)
+            firstResult.isDone.assert().isFalse()
+            secondResult.isDone.assert().isFalse()
+
+            val closeError = assertThrows<BatchCloseTimeoutException> { appender.close() }
+            firstResult.get(5, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(closeError)
+            secondResult.get(5, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(closeError)
+            lateResult.next(InsertManyResult.acknowledged(emptyMap())).complete()
+            notifications.get().assert().isEqualTo(2)
+            Mono.from(database.getCollection(first.toEventStreamCollectionName()).countDocuments())
+                .block().assert().isEqualTo(1L)
+        } finally {
+            lateResult.complete()
+            runCatching { appender.close() }
+        }
+    }
+
+    private fun batchOptions(maxSize: Int): BatchOptions {
+        return BatchOptions(
             maxSize = maxSize,
             maxDelay = Duration.ofMillis(10),
         )

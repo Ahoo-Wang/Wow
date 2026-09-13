@@ -25,6 +25,8 @@ import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -34,6 +36,243 @@ import java.util.concurrent.atomic.AtomicReference
  * Verifies shutdown lifecycle and result-callback coordination.
  */
 class BatchCoordinatorLifecycleTest {
+    @Test
+    fun `processor completing after installed failure should leave sealing to failure owner`() {
+        val writerResult = Sinks.one<List<BatchItemResult>>()
+        val coordinator = coordinator { writerResult.asMono() }
+        val item = coordinator.submit(1).toFuture()
+        val stopped = coordinator.stopGracefully().materialize().toFuture()
+        val lifecycle = BatchCoordinator::class.java.getDeclaredField("lifecycle").let {
+            it.isAccessible = true
+            it.get(coordinator) as BatchLifecycle
+        }
+        val dispatcher = BatchCoordinator::class.java.getDeclaredField("resultDispatcher").let {
+            it.isAccessible = true
+            it.get(coordinator) as BatchResultDispatcher
+        }
+        val resultLock = BatchResultDispatcher::class.java.getDeclaredField("lock").let {
+            it.isAccessible = true
+            it.get(dispatcher)
+        }
+        val processorTermination = BatchCoordinator::class.java.getDeclaredField("processorTermination").let {
+            it.isAccessible = true
+            it.get(coordinator) as CompletableFuture<*>
+        }
+        val error = IllegalStateException("failure installed before publication")
+        // Pause the failure owner immediately after installing failure, before publishing its snapshot.
+        lifecycle.fail(error).assert().isInstanceOf(BatchLifecycle.FailureTransition.Installed::class.java)
+        try {
+            writerResult.tryEmitValue(listOf(BatchItemResult.Success))
+            runCatching { processorTermination.get(1, TimeUnit.SECONDS) }.exceptionOrNull()
+                .assert().isInstanceOf(java.util.concurrent.ExecutionException::class.java)
+            synchronized(resultLock) {
+                BatchResultDispatcher::class.java.getDeclaredField("sealed").let {
+                    it.isAccessible = true
+                    it.getBoolean(dispatcher).assert().isFalse()
+                }
+            }
+            stopped.isDone.assert().isFalse()
+        } finally {
+            // Resume the failure owner's publication/seal phase; this item already settled successfully.
+            synchronized(resultLock) { dispatcher.seal() }
+            dispatcher.shutdown()
+        }
+        item.get(1, TimeUnit.SECONDS)
+        stopped.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(error)
+    }
+
+    @Test
+    fun `admission should not wait for the result publication gate`() {
+        val coordinator = coordinator { items -> Mono.just(items.map { BatchItemResult.Success }) }
+        val dispatcher = BatchCoordinator::class.java.getDeclaredField("resultDispatcher").let {
+            it.isAccessible = true
+            it.get(coordinator)
+        }
+        val resultLock = BatchResultDispatcher::class.java.getDeclaredField("lock").let {
+            it.isAccessible = true
+            it.get(dispatcher)
+        }
+        try {
+            synchronized(resultLock) {
+                CompletableFuture.runAsync { coordinator.submit(1).materialize().subscribe() }
+                    .get(1, TimeUnit.SECONDS)
+            }
+        } finally {
+            coordinator.close()
+        }
+    }
+
+    @Test
+    fun `timeout after processor completed should preserve settled success and terminal failure`() {
+        val callbackEntered = CountDownLatch(1)
+        val releaseCallback = CountDownLatch(1)
+        val coordinator = coordinator { items -> Mono.just(items.map { BatchItemResult.Success }) }
+        val first = coordinator.submit(1).doOnSuccess {
+            callbackEntered.countDown()
+            releaseCallback.await()
+        }.toFuture()
+        val second = coordinator.submit(2).toFuture()
+        try {
+            callbackEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+            second.get(1, TimeUnit.SECONDS)
+            val stopped = coordinator.stopGracefully().materialize().toFuture()
+            val error = assertThrows<BatchCloseTimeoutException> { coordinator.close(Duration.ofMillis(20)) }
+            assertThrows<BatchCloseTimeoutException> { coordinator.stop(Duration.ofSeconds(1)) }
+                .assert().isSameAs(error)
+            releaseCallback.countDown()
+            first.get(1, TimeUnit.SECONDS)
+            stopped.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(error)
+        } finally {
+            releaseCallback.countDown()
+        }
+    }
+
+    @Test
+    fun `notification saturation should reject new admission and recover after callbacks exit`() {
+        val callbacksEntered = CountDownLatch(4)
+        val releaseCallbacks = CountDownLatch(1)
+        val writesFinished = CountDownLatch(4)
+        val writerGate = Sinks.empty<Void>()
+        val callbackCount = AtomicInteger()
+        val coordinator = coordinator(maxPendingItems = 4) { items ->
+            Mono.just<List<BatchItemResult>>(
+                items.map { BatchItemResult.Success }
+            ).doFinally { writesFinished.countDown() }
+        }
+        val first = (1..4).map {
+            coordinator.submit(it).doOnSuccess {
+                callbackCount.incrementAndGet()
+                callbacksEntered.countDown()
+                releaseCallbacks.await()
+            }.toFuture()
+        }
+        try {
+            writerGate.tryEmitEmpty()
+            callbacksEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+            val queued = (5..8).map {
+                coordinator.submit(it).doOnSuccess { callbackCount.incrementAndGet() }.toFuture()
+            }
+            writesFinished.await(1, TimeUnit.SECONDS).assert().isTrue()
+            resultExecutor(coordinator).queue.size.assert().isEqualTo(4)
+            coordinator.submit(9).test().expectError(BatchOverflowException::class.java).verify()
+            val stopped = coordinator.stopGracefully().toFuture()
+            stopped.isDone.assert().isFalse()
+            releaseCallbacks.countDown()
+            (first + queued).forEach { it.get(1, TimeUnit.SECONDS) }
+            stopped.get(1, TimeUnit.SECONDS)
+            callbackCount.get().assert().isEqualTo(8)
+        } finally {
+            releaseCallbacks.countDown()
+            coordinator.close()
+        }
+    }
+
+    @Test
+    fun `subscription handshake may replay result after synchronous close`() {
+        val submitThread = Thread.currentThread()
+        val closed = AtomicBoolean()
+        val coordinator = coordinator { items -> Mono.just(items.map { BatchItemResult.Success }) }
+        coordinator.submit(1)
+            .doOnSubscribe {
+                coordinator.close(Duration.ofSeconds(1))
+                closed.set(true)
+            }.doOnSuccess {
+                closed.get().assert().isTrue()
+                Thread.currentThread().assert().isSameAs(submitThread)
+            }.test().verifyComplete()
+    }
+
+    @Test
+    fun `graceful close observer can wait for a thread acquiring lifecycle lock`() {
+        val writerResult = Sinks.one<List<BatchItemResult>>()
+        val coordinator = coordinator { writerResult.asMono() }
+        val item = coordinator.submit(1).toFuture()
+        val lifecycle = BatchCoordinator::class.java.getDeclaredField("lifecycle").let {
+            it.isAccessible = true
+            it.get(coordinator) as BatchLifecycle
+        }
+        val observed = coordinator.stopGracefully().doOnSuccess {
+            Thread.holdsLock(lifecycle.lock).assert().isFalse()
+            CompletableFuture.runAsync { synchronized(lifecycle.lock) {} }
+                .get(1, TimeUnit.SECONDS)
+        }.toFuture()
+        writerResult.tryEmitValue(listOf(BatchItemResult.Success))
+        observed.get(1, TimeUnit.SECONDS)
+        item.get(1, TimeUnit.SECONDS)
+    }
+
+    @Test
+    fun `executor failure should fail shutdown without emitting on the writer thread`() {
+        val emissions = AtomicInteger()
+        val coordinator = coordinator { items -> Mono.just(items.map { BatchItemResult.Success }) }
+        resultExecutor(coordinator).shutdown()
+        val first = coordinator.submit(1).doOnTerminate { emissions.incrementAndGet() }.subscribe()
+        val second = coordinator.submit(2).doOnTerminate { emissions.incrementAndGet() }.subscribe()
+        try {
+            val failure = coordinator.stopGracefully().materialize().block(Duration.ofSeconds(1))!!.throwable
+            failure.assert().isInstanceOf(RejectedExecutionException::class.java)
+            coordinator.submit(3).test().expectErrorMatches { it === failure }.verify()
+            emissions.get().assert().isEqualTo(0)
+            assertThrows<RejectedExecutionException> { coordinator.close() }.assert().isSameAs(failure)
+        } finally {
+            first.dispose()
+            second.dispose()
+        }
+    }
+
+    private fun resultExecutor(coordinator: BatchCoordinator<*>): ThreadPoolExecutor {
+        val dispatcher = BatchCoordinator::class.java.getDeclaredField("resultDispatcher").let {
+            it.isAccessible = true
+            it.get(coordinator)
+        }
+        return BatchResultDispatcher::class.java.getDeclaredField("executor").let {
+            it.isAccessible = true
+            it.get(dispatcher) as ThreadPoolExecutor
+        }
+    }
+
+    @Test
+    fun `failure callback may synchronously close without waiting for itself`() {
+        val writerSubscribed = CountDownLatch(1)
+        val callbackFinished = CountDownLatch(1)
+        val callbackError = AtomicReference<Throwable>()
+        val coordinator = coordinator(maxPendingItems = 2) {
+            writerSubscribed.countDown()
+            Mono.never()
+        }
+        val first = coordinator.submit(1).doOnError {
+            callbackError.set(runCatching { coordinator.close(Duration.ofSeconds(10)) }.exceptionOrNull())
+            callbackFinished.countDown()
+        }.materialize().toFuture()
+        coordinator.submit(2).materialize().toFuture()
+        writerSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+        val error = assertThrows<BatchCloseTimeoutException> { coordinator.close(Duration.ofMillis(20)) }
+        callbackFinished.await(1, TimeUnit.SECONDS).assert().isTrue()
+        callbackError.get().assert().isSameAs(error)
+        first.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(error)
+    }
+
+    @Test
+    fun `stop timeout should settle pending callers with the same terminal error`() {
+        val writerSubscribed = CountDownLatch(1)
+        val coordinator = coordinator(maxPendingItems = 2) {
+            writerSubscribed.countDown()
+            Mono.never()
+        }
+        val first = coordinator.submit(1).materialize().toFuture()
+        val second = coordinator.submit(2).materialize().toFuture()
+        try {
+            writerSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+            val error = assertThrows<BatchCloseTimeoutException> {
+                coordinator.stop(Duration.ofMillis(20))
+            }
+            first.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(error)
+            second.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(error)
+        } finally {
+            runCatching { coordinator.close(Duration.ofMillis(20)) }
+        }
+    }
+
     @Test
     fun `close should flush a partial batch`() {
         val coordinator = coordinator { items ->
@@ -358,6 +597,7 @@ class BatchCoordinatorLifecycleTest {
             factoryEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
 
             val closeResult = coordinator.stopGracefully().toFuture()
+            closeResult.get(1, TimeUnit.SECONDS)
             releaseFactory.countDown()
 
             submission.get(1, TimeUnit.SECONDS)!!.throwable

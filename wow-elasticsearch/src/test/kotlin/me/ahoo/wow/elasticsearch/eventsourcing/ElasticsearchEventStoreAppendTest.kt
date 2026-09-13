@@ -29,6 +29,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
+import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
+import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchOptions
+import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
@@ -129,11 +133,10 @@ class ElasticsearchEventStoreAppendTest {
         )
         val eventStore = ElasticsearchEventStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchEventStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofSeconds(1),
-                maxPendingAppends = 4,
+                maxPendingItems = 4,
             ),
         )
 
@@ -154,11 +157,10 @@ class ElasticsearchEventStoreAppendTest {
         every { client.bulk(any<BulkRequest>()) } returns Mono.error(failure)
         val eventStore = ElasticsearchEventStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchEventStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofSeconds(1),
-                maxPendingAppends = 2,
+                maxPendingItems = 2,
             ),
         )
 
@@ -187,11 +189,10 @@ class ElasticsearchEventStoreAppendTest {
         )
         val eventStore = ElasticsearchEventStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchEventStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 8,
                 maxDelay = Duration.ofSeconds(30),
-                maxPendingAppends = 8,
+                maxPendingItems = 8,
             ),
             metrics = WowMetrics(registry),
         )
@@ -215,11 +216,10 @@ class ElasticsearchEventStoreAppendTest {
     fun `append after close should be rejected`() {
         val eventStore = ElasticsearchEventStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchEventStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofMillis(1),
-                maxPendingAppends = 2,
+                maxPendingItems = 2,
             ),
         )
         eventStore.close()
@@ -227,8 +227,8 @@ class ElasticsearchEventStoreAppendTest {
         eventStore.append(eventStream("order-closed"))
             .test()
             .expectErrorMatches {
-                it is IllegalStateException &&
-                    it.message == "ElasticsearchEventStore is closed."
+                it is BatchClosedException &&
+                    it.message == "Batch coordinator[ElasticsearchEventStore] is closed."
             }
             .verify()
     }
@@ -261,11 +261,10 @@ class ElasticsearchEventStoreAppendTest {
         }
         val eventStore = ElasticsearchEventStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchEventStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 8,
                 maxDelay = Duration.ofMillis(2),
-                maxPendingAppends = 64,
+                maxPendingItems = 64,
             ),
         )
 
@@ -308,11 +307,10 @@ class ElasticsearchEventStoreAppendTest {
         val streams = eventStreamsInTwoLanes()
         val eventStore = ElasticsearchEventStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchEventStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofHours(1),
-                maxPendingAppends = 8,
+                maxPendingItems = 8,
                 laneCount = 2,
             ),
         )
@@ -333,17 +331,16 @@ class ElasticsearchEventStoreAppendTest {
     }
 
     @Test
-    fun `batch overflow and close timeout should map to EventStore errors`() {
+    fun `batch overflow and close timeout should propagate core batch errors`() {
         val requestStarted = CountDownLatch(1)
         every { client.bulk(any<BulkRequest>()) } returns Mono.defer {
             requestStarted.countDown()
             Mono.never()
         }
-        val options = ElasticsearchEventStoreBatchOptions(
-            enabled = true,
+        val options = BatchOptions(
             maxSize = 2,
             maxDelay = Duration.ofHours(1),
-            maxPendingAppends = 2,
+            maxPendingItems = 2,
         )
         val appender = BatchElasticsearchEventStreamAppender(
             elasticsearchClient = client,
@@ -358,19 +355,19 @@ class ElasticsearchEventStoreAppendTest {
         appender.append(eventStream("order-overflow"))
             .test()
             .expectErrorSatisfies { error ->
-                error.assert().isInstanceOf(ElasticsearchEventStoreBatchOverflowException::class.java)
-                (error as ElasticsearchEventStoreBatchOverflowException)
-                    .maxPendingAppends.assert().isEqualTo(2)
+                error.assert().isInstanceOf(BatchOverflowException::class.java)
+                (error as BatchOverflowException)
+                    .maxPendingItems.assert().isEqualTo(2)
             }
             .verify()
 
-        val closeError = assertThrows<ElasticsearchEventStoreBatchCloseTimeoutException> {
+        val closeError = assertThrows<BatchCloseTimeoutException> {
             appender.close()
         }
         closeError.timeout.assert().isEqualTo(Duration.ofMillis(10))
         first.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(closeError)
         second.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(closeError)
-        assertThrows<ElasticsearchEventStoreBatchCloseTimeoutException> {
+        assertThrows<BatchCloseTimeoutException> {
             appender.close()
         }.assert().isSameAs(closeError)
     }
@@ -381,7 +378,7 @@ class ElasticsearchEventStoreAppendTest {
             BatchElasticsearchEventStreamAppender(
                 elasticsearchClient = client,
                 refreshPolicy = co.elastic.clients.elasticsearch._types.Refresh.False,
-                options = ElasticsearchEventStoreBatchOptions(),
+                options = BatchOptions(),
                 closeTimeout = Duration.ZERO,
             )
         }
@@ -390,9 +387,9 @@ class ElasticsearchEventStoreAppendTest {
     @Test
     fun `batch options should validate capacity`() {
         assertThrows<IllegalArgumentException> {
-            ElasticsearchEventStoreBatchOptions(
+            BatchOptions(
                 maxSize = 2,
-                maxPendingAppends = 1,
+                maxPendingItems = 1,
             )
         }
     }

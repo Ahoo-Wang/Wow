@@ -206,14 +206,13 @@ class BatchCoordinatorMetricsTest {
     fun `keyed coordinator should tag physical writes with stable lanes`() =
         withMeterRegistry { registry ->
             val name = "metrics-keyed"
-            val coordinator = KeyedBatchCoordinator<Int, Int>(
+            val coordinator = BatchCoordinator<Int>(
                 name = name,
                 options = options(
                     maxSize = 2,
                     maxDelay = Duration.ofHours(1),
                     maxPendingItems = 4,
-                ),
-                laneCount = 2,
+                ).copy(laneCount = 2),
                 keySelector = { it },
                 writer = BatchWriter { items ->
                     Mono.just(items.map { BatchItemResult.Success })

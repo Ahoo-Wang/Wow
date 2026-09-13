@@ -15,18 +15,14 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
-import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchCoordinator
 import me.ahoo.wow.infra.batch.BatchOptions
-import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
-import me.ahoo.wow.infra.batch.KeyedBatchCoordinator
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import org.bson.Document
 import reactor.core.publisher.Mono
 import java.time.Duration
-import java.util.concurrent.atomic.AtomicReference
 
 internal data class MongoEventStreamAppend(
     val eventStream: DomainEventStream,
@@ -36,30 +32,19 @@ internal data class MongoEventStreamAppend(
 
 internal class BatchMongoEventStreamAppender(
     database: MongoDatabase,
-    private val options: MongoEventStoreBatchOptions,
+    options: BatchOptions,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
     metrics: WowMetrics = WowMetrics.NONE,
 ) : MongoEventStreamAppender {
-    private data class MappedCloseTimeout(
-        val source: BatchCloseTimeoutException,
-        val mapped: MongoEventStoreBatchCloseTimeoutException,
-    )
-
     init {
         require(!closeTimeout.isNegative && !closeTimeout.isZero) {
             "closeTimeout must be positive."
         }
     }
 
-    private val mappedCloseTimeout = AtomicReference<MappedCloseTimeout?>()
-    private val coordinator = KeyedBatchCoordinator(
+    private val coordinator = BatchCoordinator(
         name = MongoEventStore::class.simpleName!!,
-        options = BatchOptions(
-            maxSize = options.maxSize,
-            maxDelay = options.maxDelay,
-            maxPendingItems = options.maxPendingAppends,
-        ),
-        laneCount = options.laneCount,
+        options = options,
         keySelector = { append: MongoEventStreamAppend ->
             append.eventStream.aggregateId
         },
@@ -74,48 +59,11 @@ internal class BatchMongoEventStreamAppender(
                 document = eventStream.toDocument(),
                 collectionName = eventStream.toEventStreamCollectionName(),
             )
-        }.onErrorMap(::toMongoBatchError)
+        }
     }
 
-    @Suppress("TooGenericExceptionCaught")
     override fun close() {
-        try {
-            coordinator.close(closeTimeout)
-        } catch (error: Throwable) {
-            throw toMongoBatchError(error)
-        }
-    }
-
-    private fun toMongoBatchError(error: Throwable): Throwable {
-        return when (error) {
-            is BatchOverflowException ->
-                MongoEventStoreBatchOverflowException(options.maxPendingAppends)
-
-            is BatchClosedException ->
-                IllegalStateException("MongoEventStore is closed.")
-
-            is BatchCloseTimeoutException -> mapCloseTimeout(error)
-
-            else -> error
-        }
-    }
-
-    private fun mapCloseTimeout(
-        error: BatchCloseTimeoutException,
-    ): MongoEventStoreBatchCloseTimeoutException {
-        while (true) {
-            val current = mappedCloseTimeout.get()
-            if (current?.source === error) {
-                return current.mapped
-            }
-            val mapped = MappedCloseTimeout(
-                source = error,
-                mapped = MongoEventStoreBatchCloseTimeoutException(error.timeout),
-            )
-            if (mappedCloseTimeout.compareAndSet(current, mapped)) {
-                return mapped.mapped
-            }
-        }
+        coordinator.close(closeTimeout)
     }
 
     private companion object {

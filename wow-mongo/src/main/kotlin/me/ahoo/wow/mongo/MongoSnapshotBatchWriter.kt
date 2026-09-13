@@ -39,12 +39,14 @@ internal class MongoSnapshotBatchWriter(
         val coalesced = coalesce(batch)
         val collectionGroups = coalesced.groupBy(MongoSnapshotWrite::collectionName).values
         return Flux.fromIterable(collectionGroups)
-            .flatMap(::writeCollection)
-            .flatMapIterable { it }
-            .collectMap(
-                { it.first },
-                { it.second },
-            )
+            .flatMap { group -> writeCollection(group).map { results -> group to results } }
+            .reduceWith({ HashMap<SnapshotKey, BatchItemResult>(coalesced.size) }) { resultsByKey, (group, results) ->
+                check(results.size == group.size) {
+                    "MongoDB snapshot batch result count does not match its collection inputs."
+                }
+                group.forEachIndexed { index, write -> resultsByKey[write.toKey()] = results[index] }
+                resultsByKey
+            }
             .map { resultsByKey ->
                 batch.map { write ->
                     checkNotNull(resultsByKey[write.toKey()]) {
@@ -56,22 +58,15 @@ internal class MongoSnapshotBatchWriter(
     }
 
     private fun coalesce(batch: List<MongoSnapshotWrite>): List<MongoSnapshotWrite> {
-        return batch.groupBy { it.toKey() }
-            .values
-            .map { sameAggregate ->
-                sameAggregate.reduce { selected, candidate ->
-                    if (candidate.version >= selected.version) {
-                        candidate
-                    } else {
-                        selected
-                    }
-                }
-            }
+        return batch.groupingBy { it.toKey() }
+            .reduce { _, selected, candidate ->
+                if (candidate.version >= selected.version) candidate else selected
+            }.values.toList()
     }
 
     private fun writeCollection(
         batch: List<MongoSnapshotWrite>,
-    ): Mono<List<Pair<SnapshotKey, BatchItemResult>>> {
+    ): Mono<List<BatchItemResult>> {
         val models = batch.map { write ->
             UpdateOneModel<Document>(
                 Filters.eq(Documents.ID_FIELD, write.id),
@@ -87,13 +82,11 @@ internal class MongoSnapshotBatchWriter(
             check(result.hasConsistentUpdateMetadata(batch.size)) {
                 "MongoDB snapshot batch result does not account for every update."
             }
-            batch.map { it.toKey() to (BatchItemResult.Success as BatchItemResult) }
+            List<BatchItemResult>(batch.size) { BatchItemResult.Success }
         }.onErrorResume(MongoBulkWriteException::class.java) { error ->
-            batch.zip(resolveBulkWriteError(batch.size, error))
-                .map { (write, result) -> write.toKey() to result }
-                .toMono()
+            resolveBulkWriteError(batch.size, error).toMono()
         }.onErrorResume { error ->
-            batch.map { it.toKey() to BatchItemResult.Failure(error) }.toMono()
+            List<BatchItemResult>(batch.size) { BatchItemResult.Failure(error) }.toMono()
         }
     }
 

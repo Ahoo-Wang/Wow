@@ -30,7 +30,6 @@ import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.mongo.MongoDatabaseContextGuard
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoSnapshotStore
-import me.ahoo.wow.mongo.MongoSnapshotStoreBatchOptions
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.query.schema.QuerySchemaContext
@@ -98,7 +97,7 @@ class MongoEventSourcingAutoConfigurationTest {
                 metrics = metricsProvider,
             )
             snapshotStore.assert().isInstanceOf(MongoSnapshotStore::class.java)
-            snapshotStore.batchOptions.assert().isEqualTo(MongoSnapshotStoreBatchOptions())
+            snapshotStore.batchOptions.assert().isNull()
         }
     }
 
@@ -162,12 +161,12 @@ class MongoEventSourcingAutoConfigurationTest {
                 "${MongoProperties.PREFIX}.event-store-batch.enabled=true",
                 "${MongoProperties.PREFIX}.event-store-batch.max-size=64",
                 "${MongoProperties.PREFIX}.event-store-batch.max-delay=2ms",
-                "${MongoProperties.PREFIX}.event-store-batch.max-pending-appends=2048",
+                "${MongoProperties.PREFIX}.event-store-batch.max-pending-items=2048",
                 "${MongoProperties.PREFIX}.event-store-batch.lane-count=2",
                 "${MongoProperties.PREFIX}.snapshot-store-batch.enabled=true",
                 "${MongoProperties.PREFIX}.snapshot-store-batch.max-size=32",
                 "${MongoProperties.PREFIX}.snapshot-store-batch.max-delay=3ms",
-                "${MongoProperties.PREFIX}.snapshot-store-batch.max-pending-saves=1024",
+                "${MongoProperties.PREFIX}.snapshot-store-batch.max-pending-items=1024",
                 "${MongoProperties.PREFIX}.snapshot-store-batch.lane-count=3",
                 "wow.context-name=order-service",
             )
@@ -187,21 +186,21 @@ class MongoEventSourcingAutoConfigurationTest {
                     .hasSingleBean(SnapshotStoreBinding::class.java)
                     .hasSingleBean(MongoPrepareKeyFactory::class.java)
                 val eventStore = context.getBean(MongoEventStore::class.java)
-                eventStore.batchOptions.enabled.assert().isTrue()
-                eventStore.batchOptions.maxSize.assert().isEqualTo(64)
-                eventStore.batchOptions.maxDelay.assert().isEqualTo(java.time.Duration.ofMillis(2))
-                eventStore.batchOptions.maxPendingAppends.assert().isEqualTo(2048)
-                eventStore.batchOptions.laneCount.assert().isEqualTo(2)
+                val eventOptions = requireNotNull(eventStore.batchOptions)
+                eventOptions.maxSize.assert().isEqualTo(64)
+                eventOptions.maxDelay.assert().isEqualTo(java.time.Duration.ofMillis(2))
+                eventOptions.maxPendingItems.assert().isEqualTo(2048)
+                eventOptions.laneCount.assert().isEqualTo(2)
                 val eventBinding = context.getBean(EventStoreBinding::class.java)
                 eventBinding.storage.assert().isEqualTo(StorageType.MONGO)
                 eventBinding.eventStore.assert().isSameAs(eventStore)
 
                 val snapshotStore = context.getBean(MongoSnapshotStore::class.java)
-                snapshotStore.batchOptions.enabled.assert().isTrue()
-                snapshotStore.batchOptions.maxSize.assert().isEqualTo(32)
-                snapshotStore.batchOptions.maxDelay.assert().isEqualTo(java.time.Duration.ofMillis(3))
-                snapshotStore.batchOptions.maxPendingSaves.assert().isEqualTo(1024)
-                snapshotStore.batchOptions.laneCount.assert().isEqualTo(3)
+                val snapshotOptions = requireNotNull(snapshotStore.batchOptions)
+                snapshotOptions.maxSize.assert().isEqualTo(32)
+                snapshotOptions.maxDelay.assert().isEqualTo(java.time.Duration.ofMillis(3))
+                snapshotOptions.maxPendingItems.assert().isEqualTo(1024)
+                snapshotOptions.laneCount.assert().isEqualTo(3)
                 val snapshotBinding = context.getBean(SnapshotStoreBinding::class.java)
                 snapshotBinding.storage.assert().isEqualTo(StorageType.MONGO)
                 snapshotBinding.snapshotStore.assert().isSameAs(snapshotStore)

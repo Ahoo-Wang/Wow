@@ -65,7 +65,7 @@ open class MongoCommandWriteE2EBenchmark {
         )
         concurrentBatch = ConcurrentBatchWorkload(COMMANDS_PER_BATCH, concurrency)
         largeConcurrentBatch = ConcurrentBatchWorkload(LARGE_BATCH_COMMANDS, concurrency)
-        println("Mongo E2E database=${fixture.database.name} writeConcern=${fixture.database.writeConcern} batchEnabled=${eventStore.batchOptions.enabled}")
+        println("Mongo E2E database=${fixture.database.name} writeConcern=${fixture.database.writeConcern} batchEnabled=${eventStore.batchOptions != null}")
     }
 
     @TearDown(Level.Iteration)

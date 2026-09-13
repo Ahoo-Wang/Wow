@@ -18,6 +18,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.metrics.WowMetrics
 import org.springframework.data.elasticsearch.RestStatusException
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -25,11 +26,11 @@ import reactor.core.publisher.Mono
 
 class ElasticsearchSnapshotStore(
     private val elasticsearchClient: ReactiveElasticsearchClient,
-    val batchOptions: ElasticsearchSnapshotStoreBatchOptions = ElasticsearchSnapshotStoreBatchOptions(),
+    val batchOptions: BatchOptions? = null,
     private val refreshPolicy: Refresh = Refresh.True,
     metrics: WowMetrics = WowMetrics.NONE,
 ) : SnapshotStore {
-    private val saver: ElasticsearchSnapshotSaver = if (batchOptions.enabled) {
+    private val saver: ElasticsearchSnapshotSaver = if (batchOptions != null) {
         BatchElasticsearchSnapshotSaver(
             elasticsearchClient = elasticsearchClient,
             refreshPolicy = refreshPolicy,

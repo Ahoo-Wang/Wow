@@ -15,45 +15,30 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.Refresh
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
-import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchCoordinator
 import me.ahoo.wow.infra.batch.BatchOptions
-import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
-import me.ahoo.wow.infra.batch.KeyedBatchCoordinator
 import me.ahoo.wow.metrics.WowMetrics
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import java.time.Duration
-import java.util.concurrent.atomic.AtomicReference
 
 internal class BatchElasticsearchSnapshotSaver(
     elasticsearchClient: ReactiveElasticsearchClient,
     refreshPolicy: Refresh,
-    private val options: ElasticsearchSnapshotStoreBatchOptions,
+    options: BatchOptions,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
     metrics: WowMetrics = WowMetrics.NONE,
 ) : ElasticsearchSnapshotSaver {
-    private data class MappedCloseTimeout(
-        val source: BatchCloseTimeoutException,
-        val mapped: ElasticsearchSnapshotStoreBatchCloseTimeoutException,
-    )
-
     init {
         require(!closeTimeout.isNegative && !closeTimeout.isZero) {
             "closeTimeout must be positive."
         }
     }
 
-    private val mappedCloseTimeout = AtomicReference<MappedCloseTimeout?>()
-    private val coordinator = KeyedBatchCoordinator(
+    private val coordinator = BatchCoordinator(
         name = ElasticsearchSnapshotStore::class.simpleName!!,
-        options = BatchOptions(
-            maxSize = options.maxSize,
-            maxDelay = options.maxDelay,
-            maxPendingItems = options.maxPendingSaves,
-        ),
-        laneCount = options.laneCount,
+        options = options,
         keySelector = { write: ElasticsearchSnapshotWrite ->
             write.index to write.id
         },
@@ -69,48 +54,11 @@ internal class BatchElasticsearchSnapshotSaver(
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return coordinator.submit {
             snapshot.toElasticsearchSnapshotWrite()
-        }.onErrorMap(::toElasticsearchBatchError)
+        }
     }
 
-    @Suppress("TooGenericExceptionCaught")
     override fun close() {
-        try {
-            coordinator.close(closeTimeout)
-        } catch (error: Throwable) {
-            throw toElasticsearchBatchError(error)
-        }
-    }
-
-    private fun toElasticsearchBatchError(error: Throwable): Throwable {
-        return when (error) {
-            is BatchOverflowException ->
-                ElasticsearchSnapshotStoreBatchOverflowException(options.maxPendingSaves)
-
-            is BatchClosedException ->
-                IllegalStateException("ElasticsearchSnapshotStore is closed.")
-
-            is BatchCloseTimeoutException -> mapCloseTimeout(error)
-
-            else -> error
-        }
-    }
-
-    private fun mapCloseTimeout(
-        error: BatchCloseTimeoutException,
-    ): ElasticsearchSnapshotStoreBatchCloseTimeoutException {
-        while (true) {
-            val current = mappedCloseTimeout.get()
-            if (current?.source === error) {
-                return current.mapped
-            }
-            val mapped = MappedCloseTimeout(
-                source = error,
-                mapped = ElasticsearchSnapshotStoreBatchCloseTimeoutException(error.timeout),
-            )
-            if (mappedCloseTimeout.compareAndSet(current, mapped)) {
-                return mapped.mapped
-            }
-        }
+        coordinator.close(closeTimeout)
     }
 
     private companion object {

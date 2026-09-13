@@ -27,6 +27,7 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
+import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.event.MockDomainEventStreams
@@ -203,8 +204,7 @@ class MongoEventStoreBatchBulkErrorTest {
         } returns Mono.error(error)
         return MongoEventStore(
             database,
-            MongoEventStoreBatchOptions(
-                enabled = true,
+            BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofSeconds(10),
             ),

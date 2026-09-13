@@ -31,7 +31,7 @@ internal class BatchLane<T : Any>(
     options: BatchOptions,
     private val writer: BatchWriter<T>,
     scheduler: Scheduler,
-    private val resultDispatcher: BatchResultDispatcher,
+    private val settle: (List<BatchRequest<T>>, List<BatchItemResult>) -> Unit,
     private val metrics: BatchMetrics?,
     onError: (Throwable) -> Unit,
     onComplete: () -> Unit,
@@ -41,12 +41,10 @@ internal class BatchLane<T : Any>(
         .unicast()
         .onBackpressureBuffer<BatchRequest<T>>()
     private val processor: Disposable = requests.asFlux()
-        // Source delivery and timeout flushes must share one thread. Reactor's
-        // non-fair bufferTimeout can otherwise strand the final item when a
-        // concurrent timeout observes the timer index before the buffer update.
+        // Keep source delivery scheduled. Fair buffering retains individual items
+        // while the writer is busy and assembles the next batch when demand resumes.
         .publishOn(scheduler)
-        .bufferTimeout(options.maxSize, options.maxDelay, scheduler)
-        .onBackpressureBuffer(options.maxPendingItems)
+        .bufferTimeout(options.maxSize, options.maxDelay, scheduler, true)
         .concatMap(::writeBatch)
         .cancelOn(scheduler)
         .subscribe(
@@ -82,11 +80,11 @@ internal class BatchLane<T : Any>(
         return Mono.defer {
             writer.write(claimedBatch.map { it.value })
         }.switchIfEmpty(
-            Mono.error(
+            Mono.error {
                 BatchProtocolException(
                     "Batch writer[$name] completed without item results."
                 )
-            )
+            }
         ).flatMap { outcomes ->
             completeBatch(claimedBatch, outcomes, batchWrite)
         }.onErrorResume { error ->
@@ -121,10 +119,7 @@ internal class BatchLane<T : Any>(
             },
             failedItems = failedItems,
         )
-        claimedBatch.zip(outcomes).forEach { (item, outcome) ->
-            item.settle(outcome)
-        }
-        dispatchResults(claimedBatch)
+        settle(claimedBatch, outcomes)
         return Mono.empty()
     }
 
@@ -137,14 +132,7 @@ internal class BatchLane<T : Any>(
             outcome = BatchWriteOutcome.FAILED,
             failedItems = claimedBatch.size,
         )
-        claimedBatch.forEach { it.settleFailure(error) }
-        dispatchResults(claimedBatch)
+        settle(claimedBatch, List(claimedBatch.size) { BatchItemResult.Failure(error) })
         return Mono.empty()
-    }
-
-    private fun dispatchResults(batch: List<BatchRequest<T>>) {
-        batch.forEach { item ->
-            resultDispatcher.dispatch(item::signalSettled)
-        }
     }
 }

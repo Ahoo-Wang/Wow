@@ -25,6 +25,9 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
+import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.metrics.metered
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -74,8 +77,7 @@ class MongoEventStoreBatchCloseTest {
         } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
         val eventStore = MongoEventStore(
             database,
-            MongoEventStoreBatchOptions(
-                enabled = true,
+            BatchOptions(
                 maxSize = 8,
                 maxDelay = Duration.ofHours(1),
             ),
@@ -105,8 +107,7 @@ class MongoEventStoreBatchCloseTest {
         } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
         val eventStore: EventStore = MongoEventStore(
             database,
-            MongoEventStoreBatchOptions(
-                enabled = true,
+            BatchOptions(
                 maxSize = 8,
                 maxDelay = Duration.ofHours(1),
             )
@@ -131,7 +132,7 @@ class MongoEventStoreBatchCloseTest {
 
         StepVerifier.create(batcher.append(eventStream("order-after-close")))
             .expectErrorMatches {
-                it is IllegalStateException && it.message == "MongoEventStore is closed."
+                it is BatchClosedException && it.message == "Batch coordinator[MongoEventStore] is closed."
             }.verify()
     }
 
@@ -250,11 +251,10 @@ class MongoEventStoreBatchCloseTest {
         } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
         val batcher = BatchMongoEventStreamAppender(
             database = database,
-            options = MongoEventStoreBatchOptions(
-                enabled = true,
+            options = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofHours(1),
-                maxPendingAppends = 32,
+                maxPendingItems = 32,
             ),
         )
         val appends = (0 until 10).map { index ->
@@ -304,11 +304,10 @@ class MongoEventStoreBatchCloseTest {
         } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
         val batcher = BatchMongoEventStreamAppender(
             database = database,
-            options = MongoEventStoreBatchOptions(
-                enabled = true,
+            options = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofHours(1),
-                maxPendingAppends = 32,
+                maxPendingItems = 32,
             ),
             closeTimeout = Duration.ofMillis(250),
         )
@@ -355,8 +354,7 @@ class MongoEventStoreBatchCloseTest {
         } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
         val batcher = BatchMongoEventStreamAppender(
             database = database,
-            options = MongoEventStoreBatchOptions(
-                enabled = true,
+            options = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofHours(1),
             ),
@@ -372,7 +370,7 @@ class MongoEventStoreBatchCloseTest {
             val second = batcher.append(eventStream("order-2")).toFuture()
             resultCallbackStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
 
-            val closeError = assertThrows<MongoEventStoreBatchCloseTimeoutException> {
+            val closeError = assertThrows<BatchCloseTimeoutException> {
                 batcher.close()
             }
             first.isDone.assert().isFalse()
@@ -380,7 +378,7 @@ class MongoEventStoreBatchCloseTest {
 
             releaseResultCallback.countDown()
             CompletableFuture.allOf(first, second).get(1, TimeUnit.SECONDS)
-            assertThrows<MongoEventStoreBatchCloseTimeoutException> {
+            assertThrows<BatchCloseTimeoutException> {
                 batcher.close()
             }.assert().isSameAs(closeError)
         } finally {
@@ -454,12 +452,12 @@ class MongoEventStoreBatchCloseTest {
         val first = batcher.append(eventStream("order-1")).toFuture()
         val second = batcher.append(eventStream("order-2")).toFuture()
 
-        val closeError = assertThrows<MongoEventStoreBatchCloseTimeoutException> {
+        val closeError = assertThrows<BatchCloseTimeoutException> {
             batcher.close()
         }
         closeError.timeout.assert().isEqualTo(Duration.ofMillis(50))
         closeError.message.assert().isEqualTo(
-            "MongoEventStore batcher did not close within [PT0.05S]."
+            "Batch coordinator[MongoEventStore] did not close within [PT0.05S]."
         )
         assertTimeoutPreemptively(Duration.ofSeconds(1)) {
             assertThrows<CompletionException> {
@@ -469,9 +467,9 @@ class MongoEventStoreBatchCloseTest {
                 second.join()
             }.cause.assert().isSameAs(closeError)
             StepVerifier.create(batcher.append(eventStream("order-after-close")))
-                .expectError(MongoEventStoreBatchCloseTimeoutException::class.java)
+                .expectError(BatchCloseTimeoutException::class.java)
                 .verify()
-            assertThrows<MongoEventStoreBatchCloseTimeoutException> {
+            assertThrows<BatchCloseTimeoutException> {
                 batcher.close()
             }.assert().isSameAs(closeError)
         }
@@ -544,9 +542,8 @@ class MongoEventStoreBatchCloseTest {
         )
     }
 
-    private fun batchOptions(maxSize: Int): MongoEventStoreBatchOptions {
-        return MongoEventStoreBatchOptions(
-            enabled = true,
+    private fun batchOptions(maxSize: Int): BatchOptions {
+        return BatchOptions(
             maxSize = maxSize,
             maxDelay = Duration.ofMillis(10),
         )

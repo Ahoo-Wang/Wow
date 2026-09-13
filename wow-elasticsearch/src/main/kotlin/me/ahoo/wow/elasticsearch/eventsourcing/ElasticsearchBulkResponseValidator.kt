@@ -40,17 +40,16 @@ internal fun validateElasticsearchBulkResponse(
                 "does not match request item count[${expectedItems.size}]."
 
         else -> {
-            val mismatchedItem = expectedItems.zip(responseItems)
-                .withIndex()
-                .firstOrNull { (_, pair) ->
-                    val (expected, item) = pair
-                    item.operationType() != expected.operationType ||
-                        item.id() != expected.id
-                }
+            val mismatchedIndex = expectedItems.indices.firstOrNull { index ->
+                val expected = expectedItems[index]
+                val item = responseItems[index]
+                item.operationType() != expected.operationType || item.id() != expected.id
+            }
             when {
-                mismatchedItem != null -> {
-                    val (index, pair) = mismatchedItem
-                    val (expected, item) = pair
+                mismatchedIndex != null -> {
+                    val index = mismatchedIndex
+                    val expected = expectedItems[index]
+                    val item = responseItems[index]
                     "Elasticsearch bulk response item[$index] does not match its request: " +
                         "expected[${expected.operationType} " +
                         "${expected.indexExpression}/${expected.id}], " +

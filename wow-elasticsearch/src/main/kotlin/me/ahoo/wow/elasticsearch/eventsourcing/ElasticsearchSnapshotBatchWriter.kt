@@ -37,8 +37,11 @@ internal class ElasticsearchSnapshotBatchWriter(
         val coalesced = coalesce(batch)
         return versionGuardedWriter.write(coalesced)
             .map { results ->
-                val resultsByKey = coalesced.zip(results)
-                    .associate { (save, result) -> save.toKey() to result }
+                check(results.size == coalesced.size) {
+                    "Elasticsearch snapshot batch result count does not match its inputs."
+                }
+                val resultsByKey = HashMap<SnapshotKey, BatchItemResult>(coalesced.size)
+                coalesced.forEachIndexed { index, save -> resultsByKey[save.toKey()] = results[index] }
                 batch.map { save ->
                     checkNotNull(resultsByKey[save.toKey()]) {
                         "Elasticsearch snapshot batch writer did not produce a result for " +
@@ -51,17 +54,10 @@ internal class ElasticsearchSnapshotBatchWriter(
     private fun coalesce(
         batch: List<ElasticsearchSnapshotWrite>,
     ): List<ElasticsearchSnapshotWrite> {
-        return batch.groupBy { it.toKey() }
-            .values
-            .map { sameAggregate ->
-                sameAggregate.reduce { selected, candidate ->
-                    if (candidate.version >= selected.version) {
-                        candidate
-                    } else {
-                        selected
-                    }
-                }
-            }
+        return batch.groupingBy { it.toKey() }
+            .reduce { _, selected, candidate ->
+                if (candidate.version >= selected.version) candidate else selected
+            }.values.toList()
     }
 
     private fun ElasticsearchSnapshotWrite.toKey(): SnapshotKey {

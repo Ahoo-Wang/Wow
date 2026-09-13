@@ -31,20 +31,18 @@ internal class MongoEventStreamBatchWriter(
         return Flux.fromIterable(groups)
             .flatMap { indexedGroup ->
                 writeCollection(indexedGroup.map { it.value })
-                    .map { outcomes ->
-                        indexedGroup.zip(outcomes).map { (indexed, outcome) ->
-                            indexed.index to outcome
-                        }
-                    }
+                    .map { outcomes -> indexedGroup to outcomes }
             }
-            .flatMapIterable { it }
-            .collectMap(
-                { it.first },
-                { it.second },
-            )
-            .map { indexedResults ->
-                batch.indices.map { index ->
-                    checkNotNull(indexedResults[index]) {
+            .reduceWith({ arrayOfNulls<BatchItemResult>(batch.size) }) { results, (group, outcomes) ->
+                check(outcomes.size == group.size) {
+                    "MongoDB batch writer result count does not match its collection inputs."
+                }
+                group.forEachIndexed { index, input -> results[input.index] = outcomes[index] }
+                results
+            }
+            .map { results ->
+                results.mapIndexed { index, result ->
+                    checkNotNull(result) {
                         "MongoDB batch writer did not produce a result for input[$index]."
                     }
                 }

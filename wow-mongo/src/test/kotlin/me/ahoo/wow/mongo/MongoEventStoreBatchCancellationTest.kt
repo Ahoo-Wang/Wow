@@ -22,6 +22,8 @@ import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.infra.batch.BatchOptions
+import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.serialization.MessageRecords
@@ -60,7 +62,7 @@ class MongoEventStoreBatchCancellationTest {
                 Mono.just(InsertManyResult.acknowledged(emptyMap()))
             }
         }
-        val batcher = createBatcher(database, maxPendingAppends = 3)
+        val batcher = createBatcher(database, maxPendingItems = 3)
 
         try {
             val first = batcher.append(eventStream("order-1")).toFuture()
@@ -76,7 +78,7 @@ class MongoEventStoreBatchCancellationTest {
                 replacement.isCompletedExceptionally.assert().isFalse()
                 overflow.isCompletedExceptionally.assert().isTrue()
                 assertThrows<CompletionException>(overflow::join)
-                    .cause.assert().isInstanceOf(MongoEventStoreBatchOverflowException::class.java)
+                    .cause.assert().isInstanceOf(BatchOverflowException::class.java)
             } finally {
                 firstInsertResult.tryEmitValue(InsertManyResult.acknowledged(emptyMap()))
                     .assert().isEqualTo(Sinks.EmitResult.OK)
@@ -109,7 +111,7 @@ class MongoEventStoreBatchCancellationTest {
             writeStarted.countDown()
             insertResult.asMono()
         }
-        val batcher = createBatcher(database, maxPendingAppends = 2)
+        val batcher = createBatcher(database, maxPendingItems = 2)
 
         try {
             val cancelledInFlight = batcher.append(eventStream("order-in-flight-cancelled")).toFuture()
@@ -120,7 +122,7 @@ class MongoEventStoreBatchCancellationTest {
             val overflow = batcher.append(eventStream("order-overflow")).toFuture()
             overflow.isCompletedExceptionally.assert().isTrue()
             assertThrows<CompletionException>(overflow::join)
-                .cause.assert().isInstanceOf(MongoEventStoreBatchOverflowException::class.java)
+                .cause.assert().isInstanceOf(BatchOverflowException::class.java)
 
             insertResult.tryEmitValue(InsertManyResult.acknowledged(emptyMap()))
                 .assert().isEqualTo(Sinks.EmitResult.OK)
@@ -149,7 +151,7 @@ class MongoEventStoreBatchCancellationTest {
             writeStarted.countDown()
             insertResult.asMono()
         }
-        val batcher = createBatcher(database, maxPendingAppends = 3)
+        val batcher = createBatcher(database, maxPendingItems = 3)
 
         try {
             val first = batcher.append(eventStream("order-1")).toFuture()
@@ -164,7 +166,7 @@ class MongoEventStoreBatchCancellationTest {
             val overflow = batcher.append(eventStream("order-retained-overflow")).toFuture()
             overflow.isCompletedExceptionally.assert().isTrue()
             assertThrows<CompletionException>(overflow::join)
-                .cause.assert().isInstanceOf(MongoEventStoreBatchOverflowException::class.java)
+                .cause.assert().isInstanceOf(BatchOverflowException::class.java)
 
             insertResult.tryEmitValue(InsertManyResult.acknowledged(emptyMap()))
                 .assert().isEqualTo(Sinks.EmitResult.OK)
@@ -180,15 +182,14 @@ class MongoEventStoreBatchCancellationTest {
 
     private fun createBatcher(
         database: MongoDatabase,
-        maxPendingAppends: Int,
+        maxPendingItems: Int,
     ): BatchMongoEventStreamAppender {
         return BatchMongoEventStreamAppender(
             database = database,
-            options = MongoEventStoreBatchOptions(
-                enabled = true,
+            options = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofHours(1),
-                maxPendingAppends = maxPendingAppends,
+                maxPendingItems = maxPendingItems,
             ),
         )
     }

@@ -27,6 +27,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.exception.recoverable
+import me.ahoo.wow.infra.batch.BatchOptions
+import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
@@ -206,11 +208,10 @@ class MongoEventStoreBatchTest {
         }
         val eventStore = MongoEventStore(
             database = database,
-            batchOptions = MongoEventStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofHours(1),
-                maxPendingAppends = 8,
+                maxPendingItems = 8,
                 laneCount = 2,
             ),
         )
@@ -391,11 +392,10 @@ class MongoEventStoreBatchTest {
 
             BatchMongoEventStreamAppender(
                 database = database,
-                options = MongoEventStoreBatchOptions(
-                    enabled = true,
+                options = BatchOptions(
                     maxSize = 2,
                     maxDelay = Duration.ofHours(1),
-                    maxPendingAppends = 2,
+                    maxPendingItems = 2,
                 ),
             ).use { batcher ->
                 StepVerifier.create(batcher.append(invalidStream))
@@ -448,11 +448,10 @@ class MongoEventStoreBatchTest {
         val database = mockk<MongoDatabase>()
         val batcher = BatchMongoEventStreamAppender(
             database = database,
-            options = MongoEventStoreBatchOptions(
-                enabled = true,
+            options = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofHours(1),
-                maxPendingAppends = 2,
+                maxPendingItems = 2,
             ),
         )
 
@@ -472,11 +471,10 @@ class MongoEventStoreBatchTest {
         every {
             collection.insertMany(any<List<Document>>(), any())
         } returns insertResult.asMono()
-        val options = MongoEventStoreBatchOptions(
-            enabled = true,
+        val options = BatchOptions(
             maxSize = 2,
             maxDelay = Duration.ofHours(1),
-            maxPendingAppends = 2,
+            maxPendingItems = 2,
         )
 
         MongoEventStore(database, options).use { eventStore ->
@@ -485,11 +483,11 @@ class MongoEventStoreBatchTest {
 
             StepVerifier.create(eventStore.append(eventStream("order-overflow")))
                 .expectErrorSatisfies { error ->
-                    error.assert().isInstanceOf(MongoEventStoreBatchOverflowException::class.java)
-                    val overflow = error as MongoEventStoreBatchOverflowException
-                    overflow.maxPendingAppends.assert().isEqualTo(2)
+                    error.assert().isInstanceOf(BatchOverflowException::class.java)
+                    val overflow = error as BatchOverflowException
+                    overflow.maxPendingItems.assert().isEqualTo(2)
                     overflow.message.assert().isEqualTo(
-                        "MongoEventStore batch pending append capacity[2] has been exhausted."
+                        "Batch coordinator[MongoEventStore] pending capacity[2] has been exhausted."
                     )
                     overflow.recoverable.assert().isEqualTo(RecoverableType.RECOVERABLE)
                 }
@@ -521,11 +519,10 @@ class MongoEventStoreBatchTest {
         val pendingCapacity = 16
         val batcher = BatchMongoEventStreamAppender(
             database = database,
-            options = MongoEventStoreBatchOptions(
-                enabled = true,
+            options = BatchOptions(
                 maxSize = pendingCapacity,
                 maxDelay = Duration.ofHours(1),
-                maxPendingAppends = pendingCapacity,
+                maxPendingItems = pendingCapacity,
             ),
         )
         val executor = Executors.newFixedThreadPool(32)
@@ -551,7 +548,7 @@ class MongoEventStoreBatchTest {
             rejected.assert().hasSize(128 - pendingCapacity)
             rejected.forEach {
                 assertThrows<CompletionException>(it::join)
-                    .cause.assert().isInstanceOf(MongoEventStoreBatchOverflowException::class.java)
+                    .cause.assert().isInstanceOf(BatchOverflowException::class.java)
             }
 
             insertResult.tryEmitValue(InsertManyResult.acknowledged(emptyMap()))
@@ -577,9 +574,8 @@ class MongoEventStoreBatchTest {
         )
     }
 
-    private fun batchOptions(maxSize: Int): MongoEventStoreBatchOptions {
-        return MongoEventStoreBatchOptions(
-            enabled = true,
+    private fun batchOptions(maxSize: Int): BatchOptions {
+        return BatchOptions(
             maxSize = maxSize,
             maxDelay = Duration.ofMillis(10),
         )

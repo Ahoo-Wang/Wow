@@ -21,7 +21,7 @@ import me.ahoo.wow.benchmark.infrastructure.StorageBatchTuningOptions
 import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotIndexInitializer
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
-import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStoreBatchOptions
+import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_ID
 import me.ahoo.wow.infrastructure.elasticsearch.ElasticsearchBenchmarkFixture
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
@@ -87,8 +87,7 @@ open class BatchRegenerateAggregateSnapshotBenchmark {
             singleSnapshotStore = ElasticsearchSnapshotStore(elasticsearchFixture.client)
             batchSnapshotStore = ElasticsearchSnapshotStore(
                 elasticsearchClient = elasticsearchFixture.client,
-                batchOptions = ElasticsearchSnapshotStoreBatchOptions(
-                    enabled = true,
+                batchOptions = BatchOptions(
                     maxSize = parsedBatchOptions.maxSize,
                     maxDelay = parsedBatchOptions.maxDelay,
                     laneCount = laneCount,

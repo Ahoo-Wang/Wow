@@ -30,7 +30,7 @@ sealed interface BatchItemResult {
  * The emitted list must contain exactly one result for every input and preserve
  * input order. A terminal publisher failure marks every input in that batch as
  * failed without terminating the coordinator. A writer supplied to
- * [KeyedBatchCoordinator] may be invoked concurrently for different lanes and
+ * [BatchCoordinator] may be invoked concurrently for different lanes and
  * must therefore be concurrency-safe.
  */
 fun interface BatchWriter<T : Any> {

@@ -28,6 +28,7 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler
 import me.ahoo.wow.elasticsearch.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
+import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.filter
@@ -39,12 +40,12 @@ import reactor.core.publisher.Mono
 
 class ElasticsearchEventStore(
     private val elasticsearchClient: ReactiveElasticsearchClient,
-    val batchOptions: ElasticsearchEventStoreBatchOptions = ElasticsearchEventStoreBatchOptions(),
+    val batchOptions: BatchOptions? = null,
     private val refreshPolicy: Refresh = Refresh.True,
     private val batchSize: Int = DEFAULT_BATCH_SIZE,
     metrics: WowMetrics = WowMetrics.NONE,
 ) : AbstractEventStore() {
-    private val appender: ElasticsearchEventStreamAppender = if (batchOptions.enabled) {
+    private val appender: ElasticsearchEventStreamAppender = if (batchOptions != null) {
         BatchElasticsearchEventStreamAppender(
             elasticsearchClient = elasticsearchClient,
             refreshPolicy = refreshPolicy,
