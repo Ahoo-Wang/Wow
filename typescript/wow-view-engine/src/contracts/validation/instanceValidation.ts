@@ -45,7 +45,7 @@ export function validateViewInstance(
     value.scope.type !== 'personal' &&
     !(
       value.scope.type === 'public' &&
-      ['system', 'shared'].includes(String(value.scope.source))
+      (value.scope.source === 'system' || value.scope.source === 'shared')
     )
   )
     throw new Error('实例范围无效');

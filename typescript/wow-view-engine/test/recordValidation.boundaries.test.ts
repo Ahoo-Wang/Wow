@@ -51,6 +51,11 @@ it('accepts typed enum identities, nested fields and explicit operator editor bi
 
 it.each([
   [{ type: 'decimal' }, '字段类型不支持'],
+  [{ type: ['number'] }, '字段类型不支持'],
+  [
+    { fields: [{ field: 'amount', label: 'Amount', type: ['number'] }] },
+    '字段类型不支持',
+  ],
   [{ sortable: 'true' }, 'sortable'],
   [{ operators: 'EQ' }, '字段操作符'],
   [{ operators: ['UNKNOWN'] }, '字段操作符'],
@@ -95,6 +100,8 @@ it.each([
 
 it.each([
   [{ scope: { type: 'public', source: 'unknown' } }, '实例范围无效'],
+  [{ scope: { type: 'public', source: ['system'] } }, '实例范围无效'],
+  [{ scope: { type: 'public', source: ['shared'] } }, '实例范围无效'],
   [{ revision: 2 }, 'revision'],
 ])(
   'rejects malformed saved instance identity metadata %j',
@@ -127,6 +134,8 @@ it.each([
     '字段重复',
   ],
   [{ pagination: { mode: 'offset', size: 10 } }, '分页方式'],
+  [{ pagination: { mode: ['paged'], size: 10 } }, '分页方式'],
+  [{ pagination: { mode: ['cursor'], size: 10 } }, '分页方式'],
   [{ pagination: { mode: 'paged', size: 0 } }, '每页数量'],
   [{ pagination: { mode: 'paged', size: 1.5 } }, '每页数量'],
   [{ presentation: { layout: 'grid', table: { columns: [] } } }, '展示布局'],
@@ -202,6 +211,8 @@ it('keeps malformed host lists out of sessions and recovers after the host fixes
 it.each([
   { pagination: {} },
   { pagination: [] },
+  { pagination: { mode: ['paged'], size: 10 } },
+  { pagination: { mode: ['cursor'], size: 10 } },
   { presentation: {} },
   { presentation: { layout: 'table' } },
   { presentation: { layout: 'table', table: { columns: [null] } } },
@@ -244,29 +255,37 @@ it('retains unknown field references as semantic recovery issues', () => {
   );
 });
 
-it('does not publish or query a default record with missing layout discriminants', async () => {
-  const saved = instance();
-  const malformed = {
-    ...saved,
-    config: { ...saved.config, pagination: {}, presentation: {} },
-  };
-  const { engine, paged } = setup({
-    instances: undefined,
-    host: {
-      instance: {
-        list: async () => ({
-          instances: [malformed],
-          defaultInstanceId: saved.id,
-        }),
-      },
-    } as never,
-  });
-  try {
-    await expect(engine.load()).rejects.toThrow();
-    expect(engine.getSnapshot().status).toBe('error');
-    expect(engine.getSnapshot().sessions).toEqual({});
-    expect(paged).not.toHaveBeenCalled();
-  } finally {
-    engine.dispose();
-  }
-});
+it.each([
+  { pagination: {}, presentation: {} },
+  { pagination: { mode: ['paged'], size: 10 } },
+  { pagination: { mode: ['cursor'], size: 10 } },
+])(
+  'does not publish or query a default record with malformed layout discriminants: %j',
+  async patch => {
+    const saved = instance();
+    const malformed = {
+      ...saved,
+      config: { ...saved.config, ...patch },
+    };
+    const { engine, paged, cursor } = setup({
+      instances: undefined,
+      host: {
+        instance: {
+          list: async () => ({
+            instances: [malformed],
+            defaultInstanceId: saved.id,
+          }),
+        },
+      } as never,
+    });
+    try {
+      await expect(engine.load()).rejects.toThrow();
+      expect(engine.getSnapshot().status).toBe('error');
+      expect(engine.getSnapshot().sessions).toEqual({});
+      expect(paged).not.toHaveBeenCalled();
+      expect(cursor).not.toHaveBeenCalled();
+    } finally {
+      engine.dispose();
+    }
+  },
+);

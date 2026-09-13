@@ -46,11 +46,10 @@ function validateFields(value: unknown) {
     names.add(field.field);
     if (
       field.type !== undefined &&
-      !['string', 'number', 'boolean', 'date', 'datetime', 'array'].includes(
-        // 校验器故意对未知类型值做 ToString 以校验其字符串形态。
-        // eslint-disable-next-line @typescript-eslint/no-base-to-string
-        String(field.type),
-      )
+      (typeof field.type !== 'string' ||
+        !['string', 'number', 'boolean', 'date', 'datetime', 'array'].includes(
+          field.type,
+        ))
     )
       throw new Error('字段类型不支持');
     if (field.sortable !== undefined && typeof field.sortable !== 'boolean')

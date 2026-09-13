@@ -58,7 +58,8 @@ export function validateRecordConfiguration(
   }
   assertObject(config.pagination, '分页配置');
   if (
-    !['paged', 'cursor'].includes(String(config.pagination.mode)) ||
+    (config.pagination.mode !== 'paged' &&
+      config.pagination.mode !== 'cursor') ||
     !Number.isSafeInteger(config.pagination.size) ||
     Number(config.pagination.size) <= 0
   )
