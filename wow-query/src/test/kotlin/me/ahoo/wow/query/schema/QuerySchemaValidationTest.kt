@@ -16,6 +16,10 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.CursorQuery
@@ -59,6 +63,7 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.jvm.javaField
 
+@Suppress("LargeClass")
 class QuerySchemaValidationTest {
     @Test
     fun `unavailable full projection fails reads while explicit fields count and aggregation remain independent`() {
@@ -414,6 +419,58 @@ class QuerySchemaValidationTest {
                 schema
             )
         }
+    }
+
+    @Test
+    fun `terms missing key requires a single valued string field`() {
+        val schema = boundSchemaFixture(
+            objectFixture(
+                "name" to scalarFixture(QueryValueType.STRING),
+                "nickname" to QueryValueSchema(
+                    QueryValueKind.UNION,
+                    alternatives = listOf(scalarFixture(QueryValueType.STRING), QueryValueSchema(QueryValueKind.NULL))
+                ),
+                "label" to QueryValueSchema(
+                    QueryValueKind.UNION,
+                    alternatives = listOf(scalarFixture(QueryValueType.STRING), scalarFixture(QueryValueType.INTEGER))
+                ),
+                "amount" to scalarFixture(QueryValueType.DECIMAL),
+                "names" to arrayFixture(scalarFixture(QueryValueType.STRING)),
+            )
+        )
+        fun termsWithMissingKey(field: String) = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(QueryField(field), field, missingKey = "UNKNOWN")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        validateQuery(termsWithMissingKey("name"), schema).assert().isNotNull()
+        validateQuery(termsWithMissingKey("nickname"), schema).assert().isNotNull()
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(termsWithMissingKey("amount"), schema)
+        }.message.assert().isEqualTo("Field [amount] must be a single-valued string field to declare missingKey.")
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(termsWithMissingKey("names"), schema)
+        }
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(termsWithMissingKey("label"), schema)
+        }
+    }
+
+    @Test
+    fun `histogram and date histogram groups skip the terms missing key predicate`() {
+        val schema = boundSchemaFixture(
+            objectFixture(
+                "amount" to scalarFixture(QueryValueType.DECIMAL),
+                "createdAt" to scalarFixture(QueryValueType.INTEGER, temporal = Temporal.Date),
+            )
+        )
+        val query = aggregation {
+            histogram("amount", 10.0, "amountRange")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day")
+            count("count")
+        }
+        // Neither grouped field is a single-valued string: the missingKey predicate applies to
+        // TERMS groups only, so both groups must validate on their own capabilities.
+        validateQuery(query, schema).assert().isSameAs(query)
     }
 
     @Test

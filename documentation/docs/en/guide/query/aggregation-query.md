@@ -46,11 +46,37 @@ For example, `state.orders` → `lines` first expands root `state.orders`, then 
 
 | Type | Field | Additional arguments |
 | --- | --- | --- |
-| `TERMS` | `field` | None |
+| `TERMS` | `field` | Optional `missingKey` (defaults to `null`) |
 | `HISTOGRAM` | `field` | Positive, finite `interval` |
-| `DATE_HISTOGRAM` | `field` | `unit`, optional `timeZone` (defaults to `UTC`) |
+| `DATE_HISTOGRAM` | `field` | `unit`, optional `timeZone` (defaults to `UTC`), optional `dense` (defaults to `false`) |
 
 `DATE_HISTOGRAM` date units are `YEAR`, `QUARTER`, `MONTH`, `WEEK`, `DAY`, `HOUR`, `MINUTE`, and `SECOND`. Bucket boundaries, temporal values, and field capability come from the actual query entry and backend; the shared AST does not promise complete backend equivalence.
+
+### Dense Date Histograms {#dense}
+
+A `DATE_HISTOGRAM` group can declare `dense: true` to fill the time series into consecutive buckets:
+
+- The window runs **from the first actual bucket to the last actual bucket** and fills interior gaps only — nothing is added outside them; an empty result or a single bucket produces no filled rows.
+- Filled rows follow each metric's empty semantics: `COUNT`/`DISTINCT_COUNT` yield `0`, value metrics such as `SUM`/`AVG` yield `null`, and derived metrics evaluate over those values (null propagation; division by zero yields null).
+- Filled rows are ordinary rows: they participate in sorting (descending included), in `having` filtering, and count toward `limit`.
+- `dense` requires `DATE_HISTOGRAM` to be the only group dimension; storage requires MongoDB ≥ 5.1 (`$densify`/`$dateDiff`) — documented only, with no runtime version probing.
+- Cost model: the filled bucket count is window × granularity. A huge window with second-level granularity is an anti-pattern on both backends; choose the granularity your business needs.
+
+### Missing-Value Buckets {#missing-key}
+
+A `TERMS` group can declare `missingKey` (a string); records whose field is missing or null land in that sentinel-key bucket:
+
+- It is allowed only on **single-valued string fields** — nullable strings included, which is its canonical use case; multi-valued, numeric, and boolean fields are rejected at construction or schema validation.
+- The sentinel key shares the key space with real keys — a real value equal to the sentinel merges into the same bucket.
+- The sentinel sorts as a plain string lexicographically, identically on MongoDB and Elasticsearch; there is no new storage version requirement (Elasticsearch reuses the existing runtime fields, and MongoDB needs no new operators).
+
+### Truncation Semantics {#truncation}
+
+Result truncation is expressed uniformly through `sort` + `limit`; there is no separate `size` parameter:
+
+- Group sorting: pages in group order and stops once `limit` rows are collected.
+- Metric sorting: a global top-N — every bucket is necessarily scanned for correctness, and `limit` is the truncation.
+- For the `having` case see [HAVING](#having): `limit` means the number of rows after filtering.
 
 ## Metrics
 

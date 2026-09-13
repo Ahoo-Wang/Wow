@@ -30,6 +30,7 @@ import me.ahoo.wow.mongo.query.MongoTestField
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.mongo.query.mongoTestSchema
+import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
@@ -550,6 +551,207 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `dense date histogram groups by bucket index and densifies numerically`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day", dense = true)
+                count("count")
+                sum("state.amount", "total")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+        val index = group.getDocument("_id").getDocument("day")
+        index.containsKey("\$dateDiff").assert().isTrue()
+        index.getDocument("\$dateDiff").assert().isNotNull()
+        val dateDiff = index.getDocument("\$dateDiff")
+        dateDiff.containsKey("startDate").assert().isTrue()
+        dateDiff.getString("unit").value.assert().isEqualTo("day")
+        dateDiff.getString("timezone").value.assert().isEqualTo("UTC")
+        dateDiff.getDocument("endDate").containsKey("\$dateTrunc").assert().isTrue()
+
+        val set = pipeline.single { it.containsKey("\$set") }.getDocument("\$set")
+        set.assert().isEqualTo(BsonDocument("day", BsonString("\$_id.day")))
+
+        val densify = pipeline.single { it.containsKey("\$densify") }.getDocument("\$densify")
+        densify.getString("field").value.assert().isEqualTo("day")
+        densify.getDocument("range").assert().isEqualTo(
+            BsonDocument("step", BsonInt64(1)).append("bounds", BsonString("full")),
+        )
+
+        // A zone that skipped a whole local date (e.g. Pacific/Apia 2011-12-30) collapses the
+        // synthetic index onto the next real bucket under `$dateAdd`: densify-synthetic documents
+        // whose index does not round-trip must be dropped BEFORE the fill-aware `$project`
+        // inversion. Real documents always round-trip, so the stage is a no-op for them.
+        val densifyIndex = pipeline.indexOfFirst { it.containsKey("\$densify") }
+        val projectIndex = pipeline.indexOfFirst { it.containsKey("\$project") }
+        (densifyIndex < projectIndex).assert().isTrue()
+        val roundTrip = pipeline.subList(densifyIndex + 1, projectIndex)
+            .single { it.containsKey("\$match") }
+            .getDocument("\$match")
+            .getDocument("\$expr")
+            .getArray("\$eq")
+        val roundTripDiff = roundTrip[0].asDocument().getDocument("\$dateDiff")
+        roundTripDiff.getString("unit").value.assert().isEqualTo("day")
+        roundTripDiff.getString("timezone").value.assert().isEqualTo("UTC")
+        roundTripDiff.containsKey("startOfWeek").assert().isFalse()
+        val roundTripAdd = roundTripDiff.getDocument("endDate").getDocument("\$dateAdd")
+        roundTripAdd.getString("unit").value.assert().isEqualTo("day")
+        roundTripAdd.getString("amount").value.assert().isEqualTo("\$day")
+        roundTripAdd.getString("timezone").value.assert().isEqualTo("UTC")
+        roundTrip[1].asString().value.assert().isEqualTo("\$day")
+
+        val project = pipeline.single { it.containsKey("\$project") }.getDocument("\$project")
+        val dateAdd = project.getDocument("day").getDocument("\$toLong").getDocument("\$dateAdd")
+        dateAdd.getString("unit").value.assert().isEqualTo("day")
+        // The brief names this parameter "quantity", but $dateAdd's MongoDB contract is "amount"
+        // (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateadd/).
+        dateAdd.getString("amount").value.assert().isEqualTo("\$day")
+        dateAdd.getString("timezone").value.assert().isEqualTo("UTC")
+        project.getDocument("count").assert().isEqualTo(
+            BsonDocument("\$ifNull", BsonArray(listOf(BsonString("\$count"), BsonInt64(0)))),
+        )
+    }
+
+    @Test
+    fun `plain hour histogram truncates onto the local wall clock`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                dateHistogram("state.createdAt", AggregationDateUnit.HOUR, "hour", ZoneId.of("Australia/Lord_Howe"))
+                count("count")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        // MongoDB aligns `$dateTrunc(unit: hour)` to UTC hour boundaries — a +10:30 zone would
+        // key its buckets at local :30. Minute truncation is offset-safe (every real-world
+        // offset is whole minutes); subtracting the wall minute-of-hour lands exactly on the
+        // local hour, instant-identical to the old key in whole-hour zones.
+        val subtract = pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+            .getDocument("_id").getDocument("hour").getDocument("\$toLong").getDocument("\$dateSubtract")
+        subtract.getString("unit").value.assert().isEqualTo("minute")
+        val minuteTrunc = subtract.getDocument("startDate").getDocument("\$dateTrunc")
+        minuteTrunc.getString("unit").value.assert().isEqualTo("minute")
+        minuteTrunc.getString("timezone").value.assert().isEqualTo("Australia/Lord_Howe")
+        val wallMinute = subtract.getDocument("amount").getDocument("\$minute")
+        wallMinute.getString("timezone").value.assert().isEqualTo("Australia/Lord_Howe")
+        minuteTrunc.getDocument("date").assert().isEqualTo(wallMinute.getDocument("date"))
+        pipeline.joinToString { it.toJson() }.assert()
+            .doesNotContain("\"unit\": \"hour\"")
+            .doesNotContain("\$densify")
+    }
+
+    @Test
+    fun `dense hour histogram indexes and inverts wall clock hours`() {
+        val zone = ZoneId.of("Australia/Lord_Howe")
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                dateHistogram("state.createdAt", AggregationDateUnit.HOUR, "hour", zone, dense = true)
+                count("count")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        // Group index: calendar day difference * 24 + wall hour. Elapsed `$dateDiff(hour)`
+        // would truncate the zone's half-hour offset drift and key buckets at local :30.
+        val index = pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+            .getDocument("_id").getDocument("hour")
+        val add = index.getArray("\$add")
+        val multiply = add[0].asDocument().getArray("\$multiply")
+        val dayDiff = multiply[0].asDocument().getDocument("\$dateDiff")
+        dayDiff.getString("unit").value.assert().isEqualTo("day")
+        dayDiff.getString("timezone").value.assert().isEqualTo("Australia/Lord_Howe")
+        dayDiff.getDateTime("startDate").value.assert()
+            .isEqualTo(DenseDateGrid(AggregationDateUnit.HOUR, zone).anchor.toInstant().toEpochMilli())
+        multiply[1].asNumber().intValue().assert().isEqualTo(24)
+        val wallHour = dayDiff.getDocument("endDate")
+        wallHour.getDocument("\$dateSubtract").getString("unit").value.assert().isEqualTo("minute")
+        add[1].asDocument().getDocument("\$hour").getDocument("date").assert().isEqualTo(wallHour)
+
+        // Inversion: `$dateFromParts` rebuilds the display key in wall space.
+        val project = pipeline.single { it.containsKey("\$project") }.getDocument("\$project")
+        val fromParts = project.getDocument("hour").getDocument("\$toLong").getDocument("\$dateFromParts")
+        fromParts.getString("timezone").value.assert().isEqualTo("Australia/Lord_Howe")
+        val dayDate = fromParts.getDocument("year").getDocument("\$year").getDocument("date")
+        fromParts.getDocument("month").getDocument("\$month").getDocument("date").assert().isEqualTo(dayDate)
+        fromParts.getDocument("day").getDocument("\$dayOfMonth").getDocument("date").assert().isEqualTo(dayDate)
+        dayDate.getDocument("\$dateAdd").getString("unit").value.assert().isEqualTo("day")
+        dayDate.getDocument("\$dateAdd").getString("timezone").value.assert().isEqualTo("Australia/Lord_Howe")
+        val hourOfDay = fromParts.getDocument("hour").getArray("\$subtract")
+        hourOfDay[0].asString().value.assert().isEqualTo("\$hour")
+        val dayIndex = hourOfDay[1].asDocument().getArray("\$multiply")[0].asDocument()
+            .getDocument("\$floor").getArray("\$divide")
+        dayIndex[0].asString().value.assert().isEqualTo("\$hour")
+        dayIndex[1].asNumber().intValue().assert().isEqualTo(24)
+
+        // Round-trip guard: the wall index of the inverted key must equal the index itself,
+        // dropping DST-gap synthetic hours that `$dateFromParts` resolves forward.
+        val densifyIndex = pipeline.indexOfFirst { it.containsKey("\$densify") }
+        val projectIndex = pipeline.indexOfFirst { it.containsKey("\$project") }
+        val roundTrip = pipeline.subList(densifyIndex + 1, projectIndex)
+            .single { it.containsKey("\$match") }
+            .getDocument("\$match")
+            .getDocument("\$expr")
+            .getArray("\$eq")
+        roundTrip[1].asString().value.assert().isEqualTo("\$hour")
+        val guardAdd = roundTrip[0].asDocument().getArray("\$add")
+        val guardMultiply = guardAdd[0].asDocument().getArray("\$multiply")
+        val guardDiff = guardMultiply[0].asDocument().getDocument("\$dateDiff")
+        guardDiff.getString("unit").value.assert().isEqualTo("day")
+        guardMultiply[1].asNumber().intValue().assert().isEqualTo(24)
+        val guardKey = guardDiff.getDocument("endDate")
+        guardKey.containsKey("\$dateFromParts").assert().isTrue()
+        guardAdd[1].asDocument().getDocument("\$hour").getDocument("date").assert().isEqualTo(guardKey)
+    }
+
+    @Test
+    fun `dense week histogram keeps the elapsed unit index and dateAdd inversion`() {
+        // Non-hour dense units stay on `$dateDiff`/`$dateAdd` elapsed-unit arithmetic —
+        // the wall-clock rekeying is HOUR-only (DAY is locked by the sibling test above).
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                dateHistogram(
+                    "state.createdAt",
+                    AggregationDateUnit.WEEK,
+                    "week",
+                    ZoneId.of("Asia/Shanghai"),
+                    dense = true
+                )
+                count("count")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val index = pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+            .getDocument("_id").getDocument("week")
+        val dateDiff = index.getDocument("\$dateDiff")
+        dateDiff.getString("unit").value.assert().isEqualTo("week")
+        dateDiff.getString("startOfWeek").value.assert().isEqualTo("Monday")
+        dateDiff.getDocument("endDate").containsKey("\$dateTrunc").assert().isTrue()
+
+        val project = pipeline.single { it.containsKey("\$project") }.getDocument("\$project")
+        val dateAdd = project.getDocument("week").getDocument("\$toLong").getDocument("\$dateAdd")
+        dateAdd.getString("unit").value.assert().isEqualTo("week")
+        dateAdd.getString("amount").value.assert().isEqualTo("\$week")
+    }
+
+    @Test
+    fun `non dense date histogram keeps the toLong truncation key`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        pipeline.none { it.containsKey("\$densify") || it.containsKey("\$set") }.assert().isTrue()
+        val group = pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("_id").getDocument("day").containsKey("\$toLong").assert().isTrue()
+    }
+
+    @Test
     fun `summary compiler should retain contribution counts`() {
         val query = aggregation { sum("state.amount", "total") }
 
@@ -629,6 +831,62 @@ class MongoAggregationCompilerTest {
         pipeline.map { it.keys.first() }.assert()
             .containsExactly("\$match", "\$match", "\$group", "\$project", "\$sort", "\$limit")
         pipeline.filter { it.containsKey("\$project") }.assert().hasSize(1)
+    }
+
+    @Test
+    fun `terms missingKey drops the group guard and buckets by an ifNull sentinel key`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status", missingKey = "UNKNOWN")
+                count("count")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        pipeline.map { it.keys.first() }.assert()
+            .containsExactly("\$match", "\$group", "\$project", "\$sort", "\$limit")
+        pipeline.single { it.containsKey("\$group") }.getDocument("\$group").getDocument("_id").assert().isEqualTo(
+            BsonDocument(
+                "status",
+                BsonDocument("\$ifNull", BsonArray(listOf(BsonString("\$state.status"), BsonString("UNKNOWN")))),
+            ),
+        )
+    }
+
+    @Test
+    fun `terms without missingKey keeps the exists null guard`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status")
+                count("count")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        pipeline.map { it.keys.first() }.assert()
+            .containsExactly("\$match", "\$match", "\$group", "\$project", "\$sort", "\$limit")
+        pipeline[1].getDocument("\$match").toJson().assert()
+            .contains("\$exists")
+            .contains("\$ne")
+        pipeline.single { it.containsKey("\$group") }.getDocument("\$group").getDocument("_id")
+            .getString("status").value.assert().isEqualTo("\$state.status")
+    }
+
+    @Test
+    fun `a missingKey terms group keeps the guards of its sibling groups`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status", missingKey = "UNKNOWN")
+                histogram("state.amount", 10.0, "range")
+                count("count")
+            },
+            schema(),
+        ).map { it.toBsonDocument() }
+
+        val guard = pipeline[1].getDocument("\$match")
+        guard.toJson().assert()
+            .contains("state.amount")
+            .doesNotContain("state.status")
     }
 
     @Test
@@ -923,7 +1181,9 @@ class MongoAggregationCompilerTest {
         val cond = project.getDocument("p95").getArray("\$cond")
         cond.get(1).isNull.assert().isTrue()
         val arrayElemAt = cond.get(2).asDocument().getArray("\$arrayElemAt")
-        arrayElemAt.get(0).asString().value.assert().isEqualTo("\$p95")
+        arrayElemAt.get(0).asDocument().assert().isEqualTo(
+            BsonDocument("\$ifNull", BsonArray(listOf(BsonString("\$p95"), BsonArray()))), // densify fill guard
+        )
         arrayElemAt.get(1).asInt32().value.assert().isEqualTo(0)
     }
 

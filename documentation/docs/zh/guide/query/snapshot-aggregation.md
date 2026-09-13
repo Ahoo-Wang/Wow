@@ -1,6 +1,6 @@
 ---
 title: 快照聚合
-description: 用十二个业务场景说明快照根文档与集合元素的聚合查询。
+description: 用十四个业务场景说明快照根文档与集合元素的聚合查询。
 ---
 
 # 快照聚合
@@ -36,9 +36,11 @@ flowchart TB
     Root --> S10["10 漏斗多条件计数"]
     Root --> S11["11 达成率与客单价"]
     Root --> S12["12 达成率阈值筛选"]
+    Root --> S13["13 空桶补齐时间序列"]
     Item --> S5["5 明细项 Top-N"]
     Item --> S6["6 派生金额"]
     Item --> S8["8 ANY 展示字段"]
+    Item --> S14["14 缺失维度值分桶"]
 ```
 
 ## 场景 1：状态分类统计
@@ -695,6 +697,128 @@ val query = aggregation {
 ```
 
 having 在聚合完成后按每行的 metric 结果筛选分组，只保留“`attainment ≥ 0.8` 且 `paid > 10`”的状态；`sort` 与 `limit` 作用于筛选后的行，未达标的状态（如 `attainment = 0.5` 或 `paid ≤ 10`）不占用 `limit` 名额。null 判假：`paidAmount` 为 `null` 的组（如组内没有 PAID 记录）在任何比较下都不成立，需要捕获这些组时改用 `isNull()`。本例中这一语义尤为直接：两个 metric 都只保留 PAID 记录而查询按 `state.status` 分组，因此所有非 PAID 组的 `paid = 0`、`attainment = null`，必然被滤除——只有 `PAID` 行可能存活；若要度量非 PAID 组，应改按独立维度（商品、客户）分组。having 只能引用已声明的 metric alias（group alias 与未知名字被拒绝），不能引用 `ANY` metric；引用派生指标没有声明顺序限制。HTTP 护栏把 filter 与 having 节点计入同一份 `max-filter-nodes` 预算、比较取值计入 `max-filter-values`。成本取决于所需排序语义：metric 值 Top-N 必然扫描全部桶（having 不增加额外扫描），group 排序 + 高选择性 having 收满 `limit` 个存活行即提前终止，仅当存活行稀疏时才退化为全桶扫描。语义与规则详见 [HAVING](./aggregation-query.md#having)。
+
+## 场景 13：空桶补齐时间序列
+
+**业务问题**
+
+按天观察订单创建趋势时，没有订单的日期也必须在图表上占位——缺口日的指标是什么？
+
+**统计单位**
+
+快照根文档；每份当前订单快照按业务字段 `state.createdAt` 落入一天，`dense: true` 把首个到末个实际桶之间的日期补齐为连续序列。
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    dateHistogram(
+        "state.createdAt",
+        AggregationDateUnit.DAY,
+        "day",
+        dense = true,
+    )
+    count("count")
+    sum("state.totalAmount", "total")
+    derived("aov") { ref("total") / ref("count") }
+}
+```
+
+**HTTP JSON 与结果解读**
+
+```json
+{
+  "groupBy": [
+    {
+      "type": "DATE_HISTOGRAM",
+      "field": "state.createdAt",
+      "alias": "day",
+      "unit": "DAY",
+      "timeZone": "UTC",
+      "dense": true
+    }
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "count"},
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": {"type": "FIELD", "field": "state.totalAmount"},
+      "alias": "total"
+    },
+    {
+      "type": "DERIVED",
+      "alias": "aov",
+      "expression": {
+        "type": "BINARY",
+        "operator": "DIVIDE",
+        "left": {"type": "METRIC_REF", "metric": "total"},
+        "right": {"type": "METRIC_REF", "metric": "count"}
+      }
+    }
+  ]
+}
+```
+
+```json
+[
+  {"day": 1767225600000, "count": 1, "total": 10.0, "aov": 10.0},
+  {"day": 1767312000000, "count": 2, "total": 40.0, "aov": 20.0},
+  {"day": 1767398400000, "count": 1, "total": 30.0, "aov": 30.0},
+  {"day": 1767484800000, "count": 0, "total": null, "aov": null},
+  {"day": 1767571200000, "count": 0, "total": null, "aov": null},
+  {"day": 1769904000000, "count": 1, "total": null, "aov": null},
+  {"day": 1769990400000, "count": 1, "total": 50.0, "aov": 50.0}
+]
+```
+
+`day` 是 UTC 对齐的桶起点 epoch 毫秒。窗口从首个实际桶 `2026-01-01` 到末个实际桶 `2026-02-02`，仅补内部间隙：上例省略了 `2026-01-06..2026-01-31` 的中间补齐日，完整结果共 33 行，其中 28 行是补齐行。补齐行遵循空语义——`count` 为 `0`、`total` 为 `null`，派生指标 `aov` 对空值求值同样为 `null`；注意 `2026-02-01` 是 `count = 1` 的实际桶，它的 `total` 为 `null` 只因当天快照的金额无有效贡献，与补齐行的 `count = 0` 不同。补齐行参与排序、`having` 与 `limit`：`sort { "day".desc() }` 让补齐行按网格倒序落位，`having { "count" gte 1.0 }` 恰好滤除全部补齐行，`limit(5)` 会把补齐行计入名额。`dense` 要求 `DATE_HISTOGRAM` 是唯一分组维度；MongoDB 后端需要服务端 5.1+。语义详见[空桶补齐](./aggregation-query.md#dense)。
+
+## 场景 14：缺失维度值分桶
+
+**业务问题**
+
+按商品名统计订单项时，商品名缺失或为 null 的明细项如何在结果中占位，而不是凭空消失？
+
+**统计单位**
+
+展开后的订单项；`productName` 是可空的单值字符串，缺失或为 null 的订单项归入哨兵键 `__missing__` 桶。
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    expand("state.items")
+    terms("productName", "name", missingKey = "__missing__")
+    count("lineCount")
+}
+```
+
+**HTTP JSON 与结果解读**
+
+```json
+{
+  "elements": [
+    {"path": "state.items"}
+  ],
+  "groupBy": [
+    {"type": "TERMS", "field": "productName", "alias": "name", "missingKey": "__missing__"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "lineCount"}
+  ]
+}
+```
+
+```json
+[
+  {"name": "Alpha", "lineCount": 1},
+  {"name": "Alpha 2026", "lineCount": 1},
+  {"name": "__missing__", "lineCount": 4}
+]
+```
+
+`__missing__` 桶收拢示例中 6 个订单项里没有商品名的 4 个。哨兵以普通字符串参与字典序排序——`"Alpha" < "Alpha 2026" < "__missing__"`（`A` 为 `0x41`、`_` 为 `0x5F`），MongoDB 与 Elasticsearch 行为一致；哨兵没有固定的首位或末位语义，位置随字典序落定。哨兵与真实键共享键空间：若数据中确实存在与哨兵相同的商品名，两者合并为同一桶。`missingKey` 只能声明在单值字符串字段上——可空字符串正是典型场景；多值/数值/布尔字段在构造或 schema 校验时拒绝，`HISTOGRAM`/`DATE_HISTOGRAM` 不提供缺失桶。语义详见[缺失桶](./aggregation-query.md#missing-key)。
 
 ## 后端能力与稳定性边界
 

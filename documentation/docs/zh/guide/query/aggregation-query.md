@@ -46,11 +46,37 @@ flowchart LR
 
 | 类型 | 字段 | 额外参数 |
 | --- | --- | --- |
-| `TERMS` | `field` | 无 |
+| `TERMS` | `field` | 可选 `missingKey`（默认 `null`） |
 | `HISTOGRAM` | `field` | 正且有限的 `interval` |
-| `DATE_HISTOGRAM` | `field` | `unit`、可选 `timeZone`（默认 `UTC`） |
+| `DATE_HISTOGRAM` | `field` | `unit`、可选 `timeZone`（默认 `UTC`）、可选 `dense`（默认 `false`） |
 
 `DATE_HISTOGRAM` 的日期单位为 `YEAR`、`QUARTER`、`MONTH`、`WEEK`、`DAY`、`HOUR`、`MINUTE`、`SECOND`。桶边界、时间值与字段能力由实际查询入口及后端决定；公共 AST 不承诺它们在所有后端完全一致。
+
+### 空桶补齐（dense） {#dense}
+
+`DATE_HISTOGRAM` 分组可声明 `dense: true`，将时间序列补齐为连续桶：
+
+- 窗口为**首个实际桶到末个实际桶**，仅补内部间隙——首尾之外不补；空结果或单桶不产生补齐行。
+- 补齐行的指标遵循各指标的空语义：`COUNT`/`DISTINCT_COUNT` 为 `0`，`SUM`/`AVG` 等值指标为 `null`，派生指标按空值求值（null 传播、除零为 null）。
+- 补齐行是普通行：参与排序（含倒序）、参与 `having` 过滤、计入 `limit`。
+- `dense` 要求 `DATE_HISTOGRAM` 是唯一分组维度；存储要求 MongoDB ≥ 5.1（`$densify`/`$dateDiff`），仅文档注明，运行时不做版本探测。
+- 成本口径：补齐桶数 = 窗口 × 粒度。超大窗口配合秒级粒度在两端都是反模式，请按业务需要选择粒度。
+
+### 缺失桶（missingKey） {#missing-key}
+
+`TERMS` 分组可声明 `missingKey`（字符串），字段缺失或为 null 的记录归入该哨兵键桶：
+
+- 仅允许声明在**单值字符串字段**上，可空（NULLABLE）字符串同样支持——缺失值正是它的典型场景；多值/数值/布尔字段在构造或 schema 校验时拒绝。
+- 哨兵键与真实键共享同一键空间——若数据中存在与哨兵相同的真实值，两者合并为同一桶。
+- 哨兵以普通字符串参与字典序排序，MongoDB 与 Elasticsearch 行为一致；无新增存储版本要求（Elasticsearch 复用既有 runtime fields，MongoDB 无新算子）。
+
+### 截断语义（澄清） {#truncation}
+
+聚合结果截断统一由 `sort` + `limit` 表达，没有独立的 `size` 参数：
+
+- 分组排序：按分组序分页，收满 `limit` 行即停止。
+- 指标排序：全局 Top-N——为保证正确性必然扫描全部桶，`limit` 即截断。
+- `having` 场景见 [HAVING](#having)：`limit` 语义为过滤后的行数。
 
 ## Metric：指标
 

@@ -39,6 +39,7 @@ import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOrder
+import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
@@ -46,6 +47,7 @@ import me.ahoo.wow.query.schema.distinctCountCapability
 import me.ahoo.wow.query.schema.physicalField
 import me.ahoo.wow.query.schema.requireScalarMetricFilterFields
 import java.time.Instant
+import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
 internal data class ElasticsearchAggregationPlan(
@@ -58,6 +60,17 @@ internal data class ElasticsearchAggregationPlan(
     val limit: Int,
     val metricSorted: Boolean,
     val having: HavingExpression? = null,
+    val dense: DenseBucketPlan? = null,
+)
+
+/**
+ * Client-side dense fill plan for a sole dense date histogram group: [metrics] keeps the ORIGINAL
+ * API metrics so empty-value evaluation (declaration order, derived resolution) matches the query.
+ */
+internal data class DenseBucketPlan(
+    val alias: String,
+    val grid: DenseDateGrid,
+    val metrics: List<AggregationMetric>,
 )
 
 internal data class ElasticsearchAggregationElement(
@@ -158,6 +171,8 @@ internal class ElasticsearchAggregationCompiler(
         }
         val metricPlans = compileMetrics(query, logicalParent, physicalParent, schema, runtimeMappings, now)
         val metricAliases = query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
+        val dense = query.groupBy.singleOrNull()?.let { it as? AggregationGroup.DateHistogram }?.takeIf { it.dense }
+            ?.let { DenseBucketPlan(it.alias, DenseDateGrid(it.unit, ZoneId.of(it.timeZone)), query.metrics) }
         return ElasticsearchAggregationPlan(
             rootQuery = rootQuery,
             elements = elements,
@@ -168,6 +183,7 @@ internal class ElasticsearchAggregationCompiler(
             limit = query.limit,
             metricSorted = effectiveSort.any { it.field.path in metricAliases },
             having = query.having,
+            dense = dense,
         )
     }
 
@@ -213,10 +229,26 @@ internal class ElasticsearchAggregationCompiler(
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): NamedValue<CompositeAggregationSource> {
         val source = when (this) {
-            is AggregationGroup.Terms -> CompositeAggregationSource.of {
-                it.terms { terms ->
-                    terms.field(field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS))
-                        .order(sort.direction.toSortOrder())
+            is AggregationGroup.Terms -> {
+                val declaredMissingKey = missingKey
+                if (declaredMissingKey == null) {
+                    CompositeAggregationSource.of {
+                        it.terms { terms ->
+                            terms.field(field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS))
+                                .order(sort.direction.toSortOrder())
+                        }
+                    }
+                } else {
+                    val runtimeFieldName = "__wow_missing_terms_$index"
+                    runtimeMappings[runtimeFieldName] = missingKeyRuntimeField(
+                        field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS),
+                        declaredMissingKey,
+                    )
+                    CompositeAggregationSource.of {
+                        it.terms { terms ->
+                            terms.field(runtimeFieldName).order(sort.direction.toSortOrder())
+                        }
+                    }
                 }
             }
 
@@ -305,6 +337,39 @@ internal class ElasticsearchAggregationCompiler(
         """.trimIndent()
         return RuntimeField.of { runtime ->
             runtime.type(RuntimeFieldType.Date)
+                .script(
+                    Script.of { script ->
+                        script.lang(ScriptLanguage.Painless)
+                            .source { it.scriptString(source) }
+                            .params(params)
+                    },
+                )
+        }
+    }
+
+    /**
+     * Single-valued passthrough with a declared sentinel: the sentinel stays a plain string key so
+     * composite ordering matches MongoDB's `$ifNull` lexicographic position (composite
+     * `missing_bucket` orders its null key first, which would diverge).
+     */
+    private fun missingKeyRuntimeField(physicalPath: String, missingKey: String): RuntimeField {
+        val params = mapOf(
+            "field" to JsonData.of(physicalPath),
+            "missing" to JsonData.of(missingKey),
+        )
+        val source = """
+            String field = params.field;
+            if (doc.containsKey(field) && doc[field].size() == 1) {
+                def raw = doc[field].value;
+                if (raw != null) {
+                    emit(raw.toString());
+                    return;
+                }
+            }
+            emit(params.missing);
+        """.trimIndent()
+        return RuntimeField.of { runtime ->
+            runtime.type(RuntimeFieldType.Keyword)
                 .script(
                     Script.of { script ->
                         script.lang(ScriptLanguage.Painless)

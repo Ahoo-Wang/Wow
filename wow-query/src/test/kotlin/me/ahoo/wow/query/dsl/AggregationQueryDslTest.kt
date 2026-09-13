@@ -71,6 +71,30 @@ class AggregationQueryDslTest {
     }
 
     @Test
+    fun `group builders should expose bucket options`() {
+        val terms = aggregation {
+            terms("productId", "product", missingKey = "UNKNOWN")
+            count("count")
+        }
+        (terms.groupBy.single() as AggregationGroup.Terms).missingKey.assert().isEqualTo("UNKNOWN")
+
+        val days = aggregation {
+            dateHistogram(
+                "createdAt",
+                AggregationDateUnit.DAY,
+                "day",
+                timeZone = ZoneId.of("Asia/Shanghai"),
+                dense = true
+            )
+            count("count")
+        }
+        (days.groupBy.single() as AggregationGroup.DateHistogram).let { day ->
+            day.timeZone.assert().isEqualTo("Asia/Shanghai")
+            day.dense.assert().isTrue()
+        }
+    }
+
+    @Test
     fun `aggregation DSL should add an any metric without another group`() {
         val query = aggregation {
             terms("productId", "productId")

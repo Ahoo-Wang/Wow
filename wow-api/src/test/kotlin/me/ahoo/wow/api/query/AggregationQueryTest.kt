@@ -23,6 +23,7 @@ import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
 import java.time.DateTimeException
 
+@Suppress("LargeClass")
 class AggregationQueryTest {
     private val bareMapper = jsonMapper()
     private val configuredMapper = jsonMapper {
@@ -686,5 +687,80 @@ class AggregationQueryTest {
         )
 
         (query.having as HavingExpression.Condition).metric.assert().isEqualTo("half")
+    }
+
+    @Test
+    fun `terms should reject blank missing key`() {
+        val error = assertThrows<IllegalArgumentException> {
+            AggregationGroup.Terms(QueryField("productId"), "product", missingKey = " ")
+        }
+        error.message.assert().isEqualTo("terms missingKey must not be blank.")
+    }
+
+    @Test
+    fun `dense should require date histogram to be the only group by`() {
+        val error = assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                groupBy = listOf(
+                    AggregationGroup.DateHistogram(
+                        QueryField("createdAt"),
+                        "day",
+                        AggregationDateUnit.DAY,
+                        dense = true
+                    ),
+                    AggregationGroup.Terms(QueryField("productId"), "product"),
+                ),
+                metrics = listOf(AggregationMetric.Count("count")),
+            )
+        }
+        error.message.assert().isEqualTo("dense requires DATE_HISTOGRAM to be the only groupBy.")
+    }
+
+    @Test
+    fun `bucket options should keep wire shapes additive`() {
+        // 默认值省略：既有查询 JSON 字节不变（本断言是本任务的 wire 兼容红线）
+        configuredMapper.writeValueAsString(AggregationGroup.Terms(QueryField("productId"), "product"))
+            .assert().isEqualTo("""{"type":"TERMS","field":"productId","alias":"product"}""")
+        configuredMapper.writeValueAsString(
+            AggregationGroup.Terms(QueryField("productId"), "product", missingKey = "__missing__"),
+        ).assert().isEqualTo("""{"type":"TERMS","field":"productId","alias":"product","missingKey":"__missing__"}""")
+        configuredMapper.writeValueAsString(
+            AggregationGroup.DateHistogram(QueryField("createdAt"), "day", AggregationDateUnit.DAY),
+        ).assert().isEqualTo(
+            """{"type":"DATE_HISTOGRAM","field":"createdAt","alias":"day","unit":"DAY","timeZone":"UTC"}"""
+        )
+        configuredMapper.writeValueAsString(
+            AggregationGroup.DateHistogram(QueryField("createdAt"), "day", AggregationDateUnit.DAY, dense = true),
+        ).assert().isEqualTo(
+            """{"type":"DATE_HISTOGRAM","field":"createdAt","alias":"day","unit":"DAY","timeZone":"UTC","dense":true}""",
+        )
+    }
+
+    @Test
+    fun `bucket options should round trip through json`() {
+        val termsJson = """
+            {
+              "groupBy": [
+                {"type": "TERMS", "field": "productName", "alias": "name", "missingKey": "UNKNOWN"}
+              ],
+              "metrics": [{"type": "COUNT", "alias": "count"}]
+            }
+        """.trimIndent()
+        val denseJson = """
+            {
+              "groupBy": [
+                {"type": "DATE_HISTOGRAM", "field": "createdAt", "alias": "day", "unit": "MONTH",
+                 "timeZone": "Asia/Shanghai", "dense": true}
+              ],
+              "metrics": [{"type": "COUNT", "alias": "count"}]
+            }
+        """.trimIndent()
+        val termsQuery = configuredMapper.readValue(termsJson, AggregationQuery::class.java)
+        (termsQuery.groupBy[0] as AggregationGroup.Terms).missingKey.assert().isEqualTo("UNKNOWN")
+        val denseQuery = configuredMapper.readValue(denseJson, AggregationQuery::class.java)
+        (denseQuery.groupBy[0] as AggregationGroup.DateHistogram).let { dense ->
+            dense.timeZone.assert().isEqualTo("Asia/Shanghai")
+            dense.dense.assert().isTrue()
+        }
     }
 }

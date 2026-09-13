@@ -16,11 +16,9 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
-import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
@@ -34,6 +32,7 @@ import me.ahoo.wow.mongo.Documents.replacePrimaryKeyTo
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.aggregation.EmptyAggregationValues
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.physicalField
@@ -199,41 +198,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     private fun Any?.toTermsValue(alias: String): Any? =
         if (this is Decimal128) toFiniteDouble(alias) else this
 
-    private fun AggregationQuery.emptySummary(): Document {
-        val values = LinkedHashMap<String, Any?>()
-        metrics.forEach { metric ->
-            values[metric.alias] = when (metric) {
-                is AggregationMetric.Count, is AggregationMetric.DistinctCount -> 0L
-                is AggregationMetric.Any, is AggregationMetric.Numeric, is AggregationMetric.Percentile -> null
-                // Mirrors the pipeline's derived stages: evaluate in declaration order over the
-                // synthetic empty values so constant and count-based deriveds match Elasticsearch.
-                is AggregationMetric.Derived -> metric.expression.evaluateOver(values)
-            }
-        }
-        return Document(values)
-    }
-
-    private fun DerivedExpression.evaluateOver(values: Map<String, Any?>): Double? = when (this) {
-        is DerivedExpression.MetricRef -> (values[metric] as? Number)?.toDouble()
-
-        is DerivedExpression.Constant -> value
-
-        is DerivedExpression.Binary -> {
-            val leftValue = left.evaluateOver(values) ?: return null
-            val rightValue = right.evaluateOver(values) ?: return null
-            when (operator) {
-                AggregationExpressionOperator.ADD -> leftValue + rightValue
-                AggregationExpressionOperator.SUBTRACT -> leftValue - rightValue
-                AggregationExpressionOperator.MULTIPLY -> leftValue * rightValue
-                AggregationExpressionOperator.DIVIDE ->
-                    if (rightValue == 0.0) {
-                        return null
-                    } else {
-                        leftValue / rightValue
-                    }
-            }.takeIf { it.isFinite() }
-        }
-    }
+    private fun AggregationQuery.emptySummary(): Document = Document(EmptyAggregationValues.values(metrics))
 
     private fun Any?.toFiniteDouble(alias: String): Double? {
         val value = when (this) {

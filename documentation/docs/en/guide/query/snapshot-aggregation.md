@@ -1,6 +1,6 @@
 ---
 title: Snapshot Aggregation
-description: Apply snapshot aggregation to root documents and collection elements through twelve business scenarios.
+description: Apply snapshot aggregation to root documents and collection elements through fourteen business scenarios.
 ---
 
 # Snapshot Aggregation
@@ -36,9 +36,11 @@ flowchart TB
     Root --> S10["10 Funnel conditional counts"]
     Root --> S11["11 Attainment and paid AOV"]
     Root --> S12["12 Attainment-threshold filtering"]
+    Root --> S13["13 Dense time-series fill"]
     Item --> S5["5 Line-item Top-N"]
     Item --> S6["6 Derived amount"]
     Item --> S8["8 ANY display field"]
+    Item --> S14["14 Missing-value bucket"]
 ```
 
 ## Scenario 1: Status Breakdown
@@ -695,6 +697,128 @@ val query = aggregation {
 ```
 
 Having filters groups by their per-row metric results after aggregation, keeping only statuses with `attainment ≥ 0.8` and `paid > 10`; both `sort` and `limit` apply to the filtered rows, so non-qualifying statuses (for example `attainment = 0.5` or `paid ≤ 10`) do not consume `limit` slots. Null fails: a group whose `paidAmount` is `null` (no PAID record in the group) fails every comparison; switch to `isNull()` when those groups are the target. This bites hard here: both metrics keep only PAID records while the query groups by `state.status`, so every non-PAID group evaluates `paid = 0` and `attainment = null` and is dropped — only the `PAID` row can survive. Grouping by an independent dimension (product, customer) is the pattern to use when non-PAID groups should be measurable. Having may reference only declared metric aliases (group aliases and unknown names are rejected), never an `ANY` metric; referencing derived metrics has no declaration-order restriction. The HTTP guard counts filter and having nodes toward one shared `max-filter-nodes` budget and comparison values toward `max-filter-values`. Cost follows the required ordering: metric-value top-N inherently scans every bucket (having adds no extra scan), while group-alias sorting with a selective having stops early once `limit` survivors are collected and only degrades to a full scan when survivors are sparse. See [HAVING](./aggregation-query.md#having) for semantics and rules.
+
+## Scenario 13: Dense Time-Series Fill
+
+**Business question**
+
+When charting the daily order-creation trend, days without orders must still hold a place on the chart — what are the metric values on gap days?
+
+**Counting unit**
+
+Root snapshot documents; each current order snapshot enters one day according to the business field `state.createdAt`, and `dense: true` fills the dates between the first and last actual bucket into a consecutive series.
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    dateHistogram(
+        "state.createdAt",
+        AggregationDateUnit.DAY,
+        "day",
+        dense = true,
+    )
+    count("count")
+    sum("state.totalAmount", "total")
+    derived("aov") { ref("total") / ref("count") }
+}
+```
+
+**HTTP JSON and result interpretation**
+
+```json
+{
+  "groupBy": [
+    {
+      "type": "DATE_HISTOGRAM",
+      "field": "state.createdAt",
+      "alias": "day",
+      "unit": "DAY",
+      "timeZone": "UTC",
+      "dense": true
+    }
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "count"},
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": {"type": "FIELD", "field": "state.totalAmount"},
+      "alias": "total"
+    },
+    {
+      "type": "DERIVED",
+      "alias": "aov",
+      "expression": {
+        "type": "BINARY",
+        "operator": "DIVIDE",
+        "left": {"type": "METRIC_REF", "metric": "total"},
+        "right": {"type": "METRIC_REF", "metric": "count"}
+      }
+    }
+  ]
+}
+```
+
+```json
+[
+  {"day": 1767225600000, "count": 1, "total": 10.0, "aov": 10.0},
+  {"day": 1767312000000, "count": 2, "total": 40.0, "aov": 20.0},
+  {"day": 1767398400000, "count": 1, "total": 30.0, "aov": 30.0},
+  {"day": 1767484800000, "count": 0, "total": null, "aov": null},
+  {"day": 1767571200000, "count": 0, "total": null, "aov": null},
+  {"day": 1769904000000, "count": 1, "total": null, "aov": null},
+  {"day": 1769990400000, "count": 1, "total": 50.0, "aov": 50.0}
+]
+```
+
+`day` is the bucket-start epoch milliseconds aligned to `UTC`. The window runs from the first actual bucket `2026-01-01` to the last actual bucket `2026-02-02` and fills interior gaps only: the example elides the filled days `2026-01-06..2026-01-31`; the complete result has 33 rows, 28 of which are filled rows. Filled rows follow the empty semantics — `count` is `0` and `total` is `null`, and the derived `aov` evaluates over those values and is `null` as well. Note that `2026-02-01` is an actual bucket with `count = 1`; its `total` is `null` only because that day's snapshot contributed no valid amount, which differs from a filled row's `count = 0`. Filled rows participate in sorting, `having`, and `limit`: `sort { "day".desc() }` places filled rows in reverse grid order, `having { "count" gte 1.0 }` drops exactly the filled rows, and `limit(5)` counts filled rows toward its slots. `dense` requires `DATE_HISTOGRAM` to be the only group dimension; the MongoDB backend requires server 5.1+. See [Dense Date Histograms](./aggregation-query.md#dense) for the semantics.
+
+## Scenario 14: Missing-Value Bucket
+
+**Business question**
+
+When counting order items by product name, how do items whose product name is missing or null keep a place in the result instead of disappearing?
+
+**Counting unit**
+
+Expanded order items; `productName` is a nullable single-valued string, and items where it is missing or null land in the sentinel-key `__missing__` bucket.
+
+**Kotlin DSL**
+
+```kotlin
+val query = aggregation {
+    expand("state.items")
+    terms("productName", "name", missingKey = "__missing__")
+    count("lineCount")
+}
+```
+
+**HTTP JSON and result interpretation**
+
+```json
+{
+  "elements": [
+    {"path": "state.items"}
+  ],
+  "groupBy": [
+    {"type": "TERMS", "field": "productName", "alias": "name", "missingKey": "__missing__"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "lineCount"}
+  ]
+}
+```
+
+```json
+[
+  {"name": "Alpha", "lineCount": 1},
+  {"name": "Alpha 2026", "lineCount": 1},
+  {"name": "__missing__", "lineCount": 4}
+]
+```
+
+The `__missing__` bucket collects the 4 of the example's 6 order items that carry no product name. The sentinel sorts as a plain string lexicographically — `"Alpha" < "Alpha 2026" < "__missing__"` (`A` is `0x41` and `_` is `0x5F`) — identically on MongoDB and Elasticsearch; the sentinel has no fixed first or last position and lands wherever the lexicographic order places it. The sentinel shares the key space with real keys: if the data really contains a product name equal to the sentinel, both merge into one bucket. `missingKey` may be declared only on single-valued string fields — nullable strings are the canonical case; multi-valued, numeric, and boolean fields are rejected at construction or schema validation, and `HISTOGRAM`/`DATE_HISTOGRAM` offer no missing bucket. See [Missing-Value Buckets](./aggregation-query.md#missing-key) for the semantics.
 
 ## Backend Capabilities and Stability Boundaries
 

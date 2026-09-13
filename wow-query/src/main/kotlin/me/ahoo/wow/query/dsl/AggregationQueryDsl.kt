@@ -55,8 +55,8 @@ class AggregationQueryDsl {
         AggregationElement(QueryField(path), me.ahoo.wow.query.dsl.filter(block)),
     )
 
-    fun terms(field: String, alias: String) {
-        groups += AggregationGroup.Terms(QueryField(field), alias)
+    fun terms(field: String, alias: String, missingKey: String? = null) {
+        groups += AggregationGroup.Terms(QueryField(field), alias, missingKey)
     }
 
     fun histogram(field: String, interval: Double, alias: String) {
@@ -68,8 +68,9 @@ class AggregationQueryDsl {
         unit: AggregationDateUnit,
         alias: String,
         timeZone: ZoneId = ZoneOffset.UTC,
+        dense: Boolean = false,
     ) {
-        groups += AggregationGroup.DateHistogram(QueryField(field), alias, unit, timeZone.id)
+        groups += AggregationGroup.DateHistogram(QueryField(field), alias, unit, timeZone.id, dense)
     }
 
     fun count(alias: String) {

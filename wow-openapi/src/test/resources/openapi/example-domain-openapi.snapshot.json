@@ -4782,6 +4782,9 @@
           "alias" : {
             "type" : "string"
           },
+          "dense" : {
+            "type" : "boolean"
+          },
           "field" : {
             "$ref" : "#/components/schemas/wow.api.query.QueryField"
           },
@@ -4825,6 +4828,13 @@
           },
           "field" : {
             "$ref" : "#/components/schemas/wow.api.query.QueryField"
+          },
+          "missingKey" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "type" : {
             "const" : "TERMS"

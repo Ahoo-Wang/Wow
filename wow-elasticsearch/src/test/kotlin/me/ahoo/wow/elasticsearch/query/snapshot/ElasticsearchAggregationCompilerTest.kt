@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.HavingExpression
@@ -40,6 +41,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.TimeUnit
 
+@Suppress("LargeClass")
 class ElasticsearchAggregationCompilerTest {
     private val compiler = ElasticsearchAggregationCompiler(SnapshotFilterCompiler)
     private val scalar = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.INTEGER))
@@ -175,6 +177,63 @@ class ElasticsearchAggregationCompilerTest {
         assertThrows<QuerySchemaValidationException> {
             compiler.compile(aggregation { any("name.keyword", "sample") }, schema)
         }
+    }
+
+    @Test
+    fun `terms missingKey routes the source through a keyword runtime field`() {
+        val plan = compiler.compile(
+            aggregation {
+                terms("name", "name", missingKey = "UNKNOWN")
+                count("count")
+            },
+            schema,
+        )
+        val runtime = plan.runtimeMappings.getValue("__wow_missing_terms_0")
+        runtime.type().assert().isEqualTo(RuntimeFieldType.Keyword)
+        val script = requireNotNull(runtime.script())
+        script.params().values.map { it.to(Any::class.java) }.assert().contains("name.keyword", "UNKNOWN")
+        requireNotNull(script.source()).scriptString().assert()
+            .contains("doc.containsKey")
+            .contains("size() == 1")
+            .contains("emit(")
+            .contains("params.missing")
+        plan.groupSources.single().value().terms().field().assert().isEqualTo("__wow_missing_terms_0")
+    }
+
+    @Test
+    fun `dense date histogram should carry the dense bucket plan`() {
+        val plan = compiler.compile(
+            aggregation {
+                dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+                count("count")
+            },
+            schema,
+        )
+        val dense = requireNotNull(plan.dense)
+        dense.alias.assert().isEqualTo("day")
+        // the plan carries the ORIGINAL API metrics so empty-value evaluation sees declaration order
+        dense.metrics.assert().containsExactly(AggregationMetric.Count("count"))
+        compiler.compile(
+            aggregation {
+                dateHistogram("createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
+            schema,
+        ).dense.assert().isNull()
+    }
+
+    @Test
+    fun `terms without missingKey keeps the physical field`() {
+        val plan = compiler.compile(
+            aggregation {
+                terms("name", "name")
+                count("count")
+            },
+            schema,
+        )
+        plan.groupSources.single().value().terms().field().assert().isEqualTo("name.keyword")
+        plan.runtimeMappings.containsKey("__wow_missing_terms_0").assert().isFalse()
+        plan.runtimeMappings.assert().isEmpty()
     }
 
     @Test

@@ -77,6 +77,8 @@ import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.ceil
@@ -1547,6 +1549,263 @@ abstract class SnapshotQueryBackendSpec {
             .verify()
     }
 
+    @Test
+    fun `aggregation dense day histogram should fill interior gaps with empty metric semantics`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            count("count")
+            sum("amount", "total")
+            derived("aov") { ref("total") / ref("count") }
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // 5 个实际桶（01-01/01-02/01-03/02-01/02-02）+ 28 个补齐日（01-04..01-31）
+                rows.assert().hasSize(33)
+                rows.first().path("day").longValue().assert()
+                    .isEqualTo(Instant.parse("2026-01-01T00:00:00Z").toEpochMilli())
+                rows.last().path("day").longValue().assert()
+                    .isEqualTo(Instant.parse("2026-02-02T00:00:00Z").toEpochMilli())
+                val gapRow = rows.first { it.path("day").longValue() == Instant.parse("2026-01-04T00:00:00Z").toEpochMilli() }
+                gapRow.path("count").longValue().assert().isZero()
+                gapRow.path("total").isNull.assert().isTrue()
+                gapRow.path("aov").isNull.assert().isTrue()
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense should not fill a single bucket`() {
+        saveAggregationStates(aggregationAnyNullState()) // 单行 line：2026-01-04
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            count("count")
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows -> rows.assert().hasSize(1) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense should let having drop filled rows`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            count("count")
+            having { "count" gte 1.0 } // 补齐行 count=0 判假
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows -> rows.assert().hasSize(5) } // 仅实际桶
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense should let having match exactly the filled rows`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            count("count")
+            having { "count" eq 0.0 }
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.assert().hasSize(28)
+                rows.first().path("day").longValue().assert()
+                    .isEqualTo(Instant.parse("2026-01-04T00:00:00Z").toEpochMilli())
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense should place filled rows in descending order`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            count("count")
+            sort { "day".desc() }
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.take(3).map { it.path("day").longValue() }.assert().containsExactly(
+                    Instant.parse("2026-02-02T00:00:00Z").toEpochMilli(),
+                    Instant.parse("2026-02-01T00:00:00Z").toEpochMilli(),
+                    Instant.parse("2026-01-31T00:00:00Z").toEpochMilli(), // 首个补齐日
+                )
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense should count filled rows toward the limit`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            count("count")
+            limit(5) // 01-01/01-02/01-03 为实际桶，01-04/01-05 为补齐行
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.assert().hasSize(5)
+                rows[3].path("count").longValue().assert().isZero()
+                rows[4].path("count").longValue().assert().isZero()
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense fill rows should carry ANY metrics as explicit JSON null`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
+            any("productName", "name")
+            count("count")
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // 5 个实际桶 + 28 个补齐日，与上方 dense DAY 场景一致
+                rows.assert().hasSize(33)
+                val gapRow = rows.first { it.path("day").longValue() == Instant.parse("2026-01-04T00:00:00Z").toEpochMilli() }
+                // ANY 在补齐行上必须是显式 JSON null（键存在且值为 null），而不是省略键
+                gapRow.path("name").isNull.assert().isTrue()
+                gapRow.path("count").longValue().assert().isZero()
+                // 至少一个实际桶的 ANY 值非空：stateA 的 01-01 行 productName 为 "Alpha"
+                rows.map { it.path("name").textValue() }.filterNotNull().assert().contains("Alpha")
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation terms missingKey should bucket missing values into the sentinel key`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productName", "name", missingKey = "__missing__")
+            count("count")
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // productName 有值：alpha 行 "Alpha"、B 的 alpha 行 "Alpha 2026"；缺省 4 行
+                // 字典序："Alpha" < "Alpha 2026" < "__missing__"（'A'=0x41 < '_'=0x5F）
+                rows.map { it.path("name").textValue() }.assert()
+                    .containsExactly("Alpha", "Alpha 2026", "__missing__")
+                rows[2].path("count").longValue().assert().isEqualTo(4L)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense week histogram should align local week starts in a non utc zone`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        val zone = ZoneId.of("Asia/Shanghai")
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.WEEK, "week", timeZone = zone, dense = true)
+            count("count")
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // 实际桶：2025-12-29 周（01-01/01-02/01-03 三天共 4 行，01-02T18:00Z 行归入 01-03 本地日）、
+                // 2026-01-26 周（02-01）、2026-02-02 周（02-02）
+                // 补齐：2026-01-05/01-12/01-19 三周
+                rows.assert().hasSize(6)
+                rows.map { it.path("week").longValue() }.assert().containsExactly(
+                    ZonedDateTime.of(2025, 12, 29, 0, 0, 0, 0, zone).toInstant().toEpochMilli(),
+                    ZonedDateTime.of(2026, 1, 5, 0, 0, 0, 0, zone).toInstant().toEpochMilli(),
+                    ZonedDateTime.of(2026, 1, 12, 0, 0, 0, 0, zone).toInstant().toEpochMilli(),
+                    ZonedDateTime.of(2026, 1, 19, 0, 0, 0, 0, zone).toInstant().toEpochMilli(),
+                    ZonedDateTime.of(2026, 1, 26, 0, 0, 0, 0, zone).toInstant().toEpochMilli(),
+                    ZonedDateTime.of(2026, 2, 2, 0, 0, 0, 0, zone).toInstant().toEpochMilli(),
+                )
+                rows[1].path("count").longValue().assert().isZero()
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense day histogram should skip a local date the zone never had`() {
+        // Pacific/Apia 于 2011-12-30 跳变（-10:00 直达 +14:00）：本地 2011-12-30 从未存在，
+        // 两个实际桶（本地 12-29 与 12-31）在日历索引上相隔 2，但它们是连续的“存在日”，
+        // 中间不得产生任何补齐行——更不得让坍缩索引复制 12-31 的键。
+        val zone = ZoneId.of("Pacific/Apia")
+        val day29 = ZonedDateTime.of(2011, 12, 29, 0, 0, 0, 0, zone).toInstant().toEpochMilli()
+        val day31 = ZonedDateTime.of(2011, 12, 31, 0, 0, 0, 0, zone).toInstant().toEpochMilli()
+        saveAggregationStates(apiaSkippedDateState())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", timeZone = zone, dense = true)
+            count("count")
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.assert().hasSize(2)
+                rows.map { it.path("day").longValue() }.assert().containsExactly(day29, day31)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation dense hour histogram should fill local wall clock hours in a half hour offset zone`() {
+        // Australia/Lord_Howe（7 月标准时 +10:30，1970 锚点却为 +10:00）：锚点起的流逝小时算术会把
+        // 0.5 小时偏移漂移截断成 local :30 键。真实桶为本地 03:00 与 05:00，补齐行必须是本地
+        // 04:00 的边界键——小时网格必须锚定在本地墙钟整点上。
+        val zone = ZoneId.of("Australia/Lord_Howe")
+        val hour3 = ZonedDateTime.of(2026, 7, 2, 3, 0, 0, 0, zone).toInstant().toEpochMilli()
+        val hour4 = ZonedDateTime.of(2026, 7, 2, 4, 0, 0, 0, zone).toInstant().toEpochMilli()
+        val hour5 = ZonedDateTime.of(2026, 7, 2, 5, 0, 0, 0, zone).toInstant().toEpochMilli()
+        saveAggregationStates(lordHoweHourState())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            dateHistogram("createdAt", AggregationDateUnit.HOUR, "hour", timeZone = zone, dense = true)
+            count("count")
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.assert().hasSize(3)
+                rows.map { it.path("hour").longValue() }.assert().containsExactly(hour3, hour4, hour5)
+            }
+            .verifyComplete()
+    }
+
     private fun saveAggregationStates(vararg states: MockStateAggregate) {
         states.forEachIndexed { index, state ->
             snapshotStore.save(
@@ -1672,6 +1931,67 @@ abstract class SnapshotQueryBackendSpec {
                             createdAt = Instant.parse("2026-01-04T10:00:00Z"),
                             discounts = emptyList(),
                             productName = null,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    /**
+     * 两行 line 分别落在 Pacific/Apia 跳变（2011-12-30 被整日跳过）两侧的两个真实本地日：
+     * 2011-12-29T10:00:00Z = 本地 2011-12-29T00:00-10:00；2011-12-30T12:00:00Z = 本地 2011-12-31T02:00+14:00。
+     */
+    private fun apiaSkippedDateState(): MockStateAggregate =
+        MockStateAggregate(
+            id = "aggregation-apia",
+            orders = listOf(
+                MockOrder(
+                    status = "PAID",
+                    lines = listOf(
+                        MockLine(
+                            productId = "before-skip",
+                            quantity = 1,
+                            amount = 10.0,
+                            createdAt = Instant.parse("2011-12-29T10:00:00Z"),
+                            discounts = emptyList(),
+                        ),
+                        MockLine(
+                            productId = "after-skip",
+                            quantity = 2,
+                            amount = 20.0,
+                            createdAt = Instant.parse("2011-12-30T12:00:00Z"),
+                            discounts = emptyList(),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    /**
+     * 两行 line 分别落在 Lord Howe 本地 2026-07-02 的 03:00 与 05:00（标准时 +10:30）：
+     * 2026-07-01T16:30:00Z = 本地 03:00+10:30；2026-07-01T18:30:00Z = 本地 05:00+10:30，
+     * 中间的本地 04:00 桶（2026-07-01T17:30:00Z）应由 dense 补齐。7 月无区转换边沿。
+     */
+    private fun lordHoweHourState(): MockStateAggregate =
+        MockStateAggregate(
+            id = "aggregation-lord-howe",
+            orders = listOf(
+                MockOrder(
+                    status = "PAID",
+                    lines = listOf(
+                        MockLine(
+                            productId = "hour-03",
+                            quantity = 1,
+                            amount = 10.0,
+                            createdAt = Instant.parse("2026-07-01T16:30:00Z"),
+                            discounts = emptyList(),
+                        ),
+                        MockLine(
+                            productId = "hour-05",
+                            quantity = 2,
+                            amount = 20.0,
+                            createdAt = Instant.parse("2026-07-01T18:30:00Z"),
+                            discounts = emptyList(),
                         ),
                     ),
                 ),

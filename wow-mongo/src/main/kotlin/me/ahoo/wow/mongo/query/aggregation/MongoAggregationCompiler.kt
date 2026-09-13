@@ -16,9 +16,12 @@ package me.ahoo.wow.mongo.query.aggregation
 import com.mongodb.client.model.Accumulators
 import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.BsonField
+import com.mongodb.client.model.Field
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
+import com.mongodb.client.model.densify.DensifyOptions
+import com.mongodb.client.model.densify.DensifyRange
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
@@ -36,6 +39,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
+import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.distinctCountCapability
@@ -47,6 +51,7 @@ import org.bson.conversions.Bson
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.Date
 import java.util.concurrent.TimeUnit
 
 @Suppress("LargeClass")
@@ -85,19 +90,27 @@ internal class MongoAggregationCompiler(
             }
         }
 
+        val dense = query.groupBy.singleOrNull()?.let { it as? AggregationGroup.DateHistogram }?.takeIf { it.dense }
+            ?.let { DenseHistogramFill(it, DenseDateGrid(it.unit, ZoneId.of(it.timeZone))) }
+
         val groupId = query.groupBy.takeIf { it.isNotEmpty() }?.let { groups ->
             val id = Document()
-            val filters = groups.map { group ->
-                val (filter, expression) = group.compile(logicalParent, physicalParent, schema)
+            val filters = groups.mapNotNull { group ->
+                val (filter, expression) = group.compile(logicalParent, physicalParent, schema, dense?.grid)
                 id[group.alias] = expression
                 filter
             }
-            add(Aggregates.match(Filters.and(filters)))
+            if (filters.isNotEmpty()) {
+                add(Aggregates.match(Filters.and(filters)))
+            }
             id
         }
 
         add(group(query, groupId, logicalParent, physicalParent, schema, now))
-        add(project(query))
+        if (dense != null) {
+            addAll(denseStages(dense))
+        }
+        add(project(query, dense))
         query.metrics.forEach { metric ->
             if (metric is AggregationMetric.Derived) {
                 add(derivedProject(query, metric))
@@ -252,15 +265,35 @@ internal class MongoAggregationCompiler(
         Document("\$and", listOf(this, contributes))
     }
 
+    /**
+     * Compiles the fill projection right after `$group`. Every metric projection reads the
+     * accumulated value through `$ifNull` with its empty-semantics fallback — a no-op rewrite on
+     * grouped documents, which always carry the accumulated fields, that gives `$densify`-synthetic
+     * documents the empty value of their metric. A dense date histogram additionally inverts its
+     * bucket index back into the display key with `$dateAdd(timezone)` — `$dateFromParts(timezone)`
+     * for HOUR, keeping the grid on the local wall clock — mirroring [DenseDateGrid.keyOf].
+     */
     @Suppress("LongMethod")
-    private fun project(query: AggregationQuery): Bson {
+    private fun project(
+        query: AggregationQuery,
+        dense: DenseHistogramFill?,
+    ): Bson {
         val projections = buildList {
             add(Projections.excludeId())
-            query.groupBy.forEach { add(Projections.computed(it.alias, "\$_id.${it.alias}")) }
+            if (dense == null) {
+                query.groupBy.forEach { group ->
+                    add(Projections.computed(group.alias, "\$_id.${group.alias}"))
+                }
+            } else {
+                // dense exists only when groupBy is exactly the single dense date histogram
+                add(Projections.computed(dense.group.alias, denseKeyProjection(dense.group, dense.grid)))
+            }
             query.metrics.forEach { metric ->
                 when (metric) {
                     is AggregationMetric.Derived -> Unit
-                    is AggregationMetric.Count -> add(Projections.include(metric.alias))
+                    is AggregationMetric.Count -> add(
+                        Projections.computed(metric.alias, Document("\$ifNull", listOf("\$${metric.alias}", 0L))),
+                    )
                     is AggregationMetric.Any -> add(Projections.include(metric.alias))
                     is AggregationMetric.Numeric -> {
                         val accumulated: Any = if (metric.function == AggregationFunction.VARIANCE) {
@@ -274,7 +307,10 @@ internal class MongoAggregationCompiler(
                                 Document(
                                     "\$cond",
                                     listOf(
-                                        Document("\$eq", listOf("\$${metric.countAlias}", 0)),
+                                        Document(
+                                            "\$eq",
+                                            listOf(Document("\$ifNull", listOf("\$${metric.countAlias}", 0L)), 0),
+                                        ),
                                         null,
                                         accumulated,
                                     ),
@@ -288,9 +324,15 @@ internal class MongoAggregationCompiler(
                             Document(
                                 "\$cond",
                                 listOf(
-                                    Document("\$eq", listOf("\$${metric.countAlias}", 0)),
+                                    Document(
+                                        "\$eq",
+                                        listOf(Document("\$ifNull", listOf("\$${metric.countAlias}", 0L)), 0),
+                                    ),
                                     null,
-                                    Document("\$arrayElemAt", listOf("\$${metric.alias}", 0)),
+                                    Document(
+                                        "\$arrayElemAt",
+                                        listOf(Document("\$ifNull", listOf("\$${metric.alias}", emptyList<Any>())), 0),
+                                    ),
                                 ),
                             ),
                         ),
@@ -309,7 +351,13 @@ internal class MongoAggregationCompiler(
                                                 "input",
                                                 Document(
                                                     "\$reduce",
-                                                    Document("input", "\$${metric.alias}")
+                                                    Document(
+                                                        "input",
+                                                        Document(
+                                                            "\$ifNull",
+                                                            listOf("\$${metric.alias}", emptyList<Any>())
+                                                        ),
+                                                    )
                                                         .append("initialValue", emptyList<Any>())
                                                         .append(
                                                             "in",
@@ -344,13 +392,89 @@ internal class MongoAggregationCompiler(
                                     ),
                                 ),
                             ),
-                        ),
+                        )
                     )
                 }
             }
         }
         return Aggregates.project(Projections.fields(projections))
     }
+
+    /**
+     * The single dense date histogram of [AggregationQuery.groupBy] together with its grid: the
+     * pair exists exactly when groupBy is that one dense histogram, so later stages never
+     * null-check or identity-match the two halves against each other.
+     */
+    private class DenseHistogramFill(val group: AggregationGroup.DateHistogram, val grid: DenseDateGrid)
+
+    /**
+     * Stages that carry the grouped bucket index through numeric densification: the index moves
+     * out of `_id` onto the alias, then `$densify` fills every missing integer between the data
+     * min and max (`bounds: "full"` keeps the window interior-gap-only). The closing `$match`
+     * drops densify-synthetic documents whose index does not round-trip — see [denseRoundTripMatch].
+     */
+    private fun denseStages(dense: DenseHistogramFill): List<Bson> = listOf(
+        Aggregates.set(Field(dense.group.alias, "\$_id.${dense.group.alias}")),
+        Aggregates.densify(
+            dense.group.alias,
+            DensifyRange.fullRangeWithStep(1L),
+            DensifyOptions.densifyOptions(),
+        ),
+        Aggregates.match(denseRoundTripMatch(dense.group, dense.grid)),
+    )
+
+    /**
+     * A grid point must be an EXISTING local time: a zone that skipped a whole local date (e.g.
+     * Pacific/Apia 2011-12-30) collapses the synthetic index onto the NEXT real bucket under
+     * `$dateAdd`, so the fill-aware `$project` inversion would emit a duplicate of that bucket's
+     * key. Synthetic documents whose index does not round-trip are therefore dropped BEFORE the
+     * inversion. Real documents always round-trip — their index derives from `$dateTrunc` of an
+     * existing local time — so the stage is a no-op for them. Dense HOUR grids round-trip through
+     * the wall-clock [denseHourKey] inversion and [wallHourIndex], dropping wall hours skipped
+     * whole by a DST gap. `$dateAdd` takes no `startOfWeek` parameter; `$dateDiff` counts week
+     * boundaries on it, so WEEK passes Monday explicitly.
+     */
+    private fun denseRoundTripMatch(group: AggregationGroup.DateHistogram, grid: DenseDateGrid): Bson {
+        if (group.unit == AggregationDateUnit.HOUR) {
+            val key = denseHourKey(group, grid, "\$${group.alias}")
+            return Filters.expr(
+                Document(
+                    "\$eq",
+                    listOf(
+                        wallHourIndex(Date.from(grid.anchor.toInstant()), key, mongoTimeZone(group.timeZone)),
+                        "\$${group.alias}",
+                    ),
+                ),
+            )
+        }
+        val dateDiff = Document(
+            "\$dateDiff",
+            Document("startDate", Date.from(grid.anchor.toInstant()))
+                .append("endDate", denseDateAdd(group, grid, "\$${group.alias}"))
+                .append("unit", group.unit.name.lowercase())
+                .append("timezone", mongoTimeZone(group.timeZone))
+                .apply { if (group.unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") }
+        )
+        return Filters.expr(Document("\$eq", listOf(dateDiff, "\$${group.alias}")))
+    }
+
+    private fun denseKeyProjection(group: AggregationGroup.DateHistogram, grid: DenseDateGrid): Document = Document(
+        "\$toLong",
+        if (group.unit == AggregationDateUnit.HOUR) {
+            denseHourKey(group, grid, "\$${group.alias}")
+        } else {
+            denseDateAdd(group, grid, "\$${group.alias}")
+        },
+    )
+
+    private fun denseDateAdd(group: AggregationGroup.DateHistogram, grid: DenseDateGrid, amount: Any): Document =
+        Document(
+            "\$dateAdd",
+            Document("startDate", Date.from(grid.anchor.toInstant()))
+                .append("unit", group.unit.name.lowercase())
+                .append("amount", amount)
+                .append("timezone", mongoTimeZone(group.timeZone)),
+        )
 
     private fun AggregationFunction.accumulate(field: String, input: Any): BsonField = when (this) {
         AggregationFunction.SUM -> Accumulators.sum(field, input)
@@ -486,10 +610,15 @@ internal class MongoAggregationCompiler(
         parent: QueryField?,
         physicalParent: String?,
         schema: QueryModelSchema,
-    ): Pair<Bson, Any> = when (this) {
+        denseGrid: DenseDateGrid?,
+    ): Pair<Bson?, Any> = when (this) {
         is AggregationGroup.Terms -> {
             val path = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS)
-            Filters.and(Filters.exists(path), Filters.ne(path, null)) to "\$$path"
+            if (missingKey == null) {
+                Filters.and(Filters.exists(path), Filters.ne(path, null)) to "\$$path"
+            } else {
+                null to Document("\$ifNull", listOf("\$$path", missingKey))
+            }
         }
         is AggregationGroup.Histogram -> {
             val path = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC)
@@ -511,13 +640,110 @@ internal class MongoAggregationCompiler(
 
         is AggregationGroup.DateHistogram -> {
             val input = dateInput(parent, physicalParent, schema)
+            val zone = mongoTimeZone(timeZone)
             val truncation = Document("date", input)
                 .append("unit", unit.name.lowercase())
-                .append("timezone", mongoTimeZone(timeZone))
+                .append("timezone", zone)
                 .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") }
-            Filters.expr(Document("\$ne", listOf(input, null))) to
-                Document("\$toLong", Document("\$dateTrunc", truncation))
+            if (denseGrid != null) {
+                // `$densify` has no timezone option, so dense histograms group by the integer
+                // bucket index from the [DenseDateGrid.anchor] and densify numerically; the index
+                // is inverted back into the display key by [denseKeyProjection].
+                Filters.expr(Document("\$ne", listOf(input, null))) to if (unit == AggregationDateUnit.HOUR) {
+                    wallHourIndex(Date.from(denseGrid.anchor.toInstant()), wallHourTruncation(input, zone), zone)
+                } else {
+                    Document(
+                        "\$dateDiff",
+                        Document("startDate", Date.from(denseGrid.anchor.toInstant()))
+                            .append("endDate", Document("\$dateTrunc", truncation))
+                            .append("unit", unit.name.lowercase())
+                            .append("timezone", zone)
+                            .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") },
+                    )
+                }
+            } else {
+                val key = if (unit == AggregationDateUnit.HOUR) {
+                    wallHourTruncation(input, zone)
+                } else {
+                    Document("\$dateTrunc", truncation)
+                }
+                Filters.expr(Document("\$ne", listOf(input, null))) to Document("\$toLong", key)
+            }
         }
+    }
+
+    /**
+     * Truncates [input] onto the LOCAL wall-clock hour grid. MongoDB aligns `$dateTrunc`
+     * (unit `hour`) to UTC hour boundaries, so a zone with a sub-hour offset (e.g.
+     * Australia/Lord_Howe, +10:30) would key its buckets at local :30 instead of the wall
+     * hour — diverging the Elasticsearch `calendar_interval` semantics. Every real-world
+     * zone offset is a whole number of minutes, so minute truncation is offset-safe;
+     * subtracting the wall minute-of-hour then lands exactly on the local hour. For
+     * whole-hour offsets the result is instant-identical to `$dateTrunc` (unit `hour`).
+     */
+    private fun wallHourTruncation(input: Any, zone: String): Document = Document(
+        "\$dateSubtract",
+        Document(
+            "startDate",
+            Document("\$dateTrunc", Document("date", input).append("unit", "minute").append("timezone", zone)),
+        )
+            .append("unit", "minute")
+            .append("amount", Document("\$minute", Document("date", input).append("timezone", zone))),
+    )
+
+    /**
+     * Wall-clock bucket index for dense HOUR histograms: calendar day difference times 24
+     * plus the wall hour of [wallHour]. Elapsed `$dateDiff` (unit `hour`) arithmetic would
+     * truncate sub-hour zone-offset shifts and drift the index onto local :30 keys — the
+     * day difference is date-based and `$hour` reads the wall clock, so the composite is
+     * unique per wall hour, mirroring [DenseDateGrid.indexOf].
+     */
+    private fun wallHourIndex(anchor: Date, wallHour: Any, zone: String): Document = Document(
+        "\$add",
+        listOf(
+            Document(
+                "\$multiply",
+                listOf(
+                    Document(
+                        "\$dateDiff",
+                        Document("startDate", anchor)
+                            .append("endDate", wallHour)
+                            .append("unit", "day")
+                            .append("timezone", zone),
+                    ),
+                    24,
+                ),
+            ),
+            Document("\$hour", Document("date", wallHour).append("timezone", zone)),
+        ),
+    )
+
+    /**
+     * Inverts a dense HOUR bucket [index] back into its display key in WALL space: the index
+     * splits into day/hour parts, `$dateAdd` (unit `day`) steps whole calendar days from the
+     * anchor, and `$dateFromParts` rebuilds the local wall time. A wall hour skipped whole by
+     * a DST gap resolves FORWARD onto the next real bucket and is dropped by the
+     * [denseRoundTripMatch] stage — mirroring [DenseDateGrid]'s round-trip skip.
+     */
+    private fun denseHourKey(group: AggregationGroup.DateHistogram, grid: DenseDateGrid, index: Any): Document {
+        val zone = mongoTimeZone(group.timeZone)
+        val dayIndex = Document("\$floor", Document("\$divide", listOf(index, 24)))
+        val hourOfDay = Document("\$subtract", listOf(index, Document("\$multiply", listOf(dayIndex, 24))))
+        val dayDate = Document(
+            "\$dateAdd",
+            Document("startDate", Date.from(grid.anchor.toInstant()))
+                .append("unit", "day")
+                .append("amount", dayIndex)
+                .append("timezone", zone),
+        )
+        return Document(
+            "\$dateFromParts",
+            Document("year", Document("\$year", Document("date", dayDate).append("timezone", zone)))
+                .append("month", Document("\$month", Document("date", dayDate).append("timezone", zone)))
+                .append("day", Document("\$dayOfMonth", Document("date", dayDate).append("timezone", zone)))
+                .append("hour", hourOfDay)
+                .append("timezone", zone),
+        )
     }
 
     private fun numericParticipation(
