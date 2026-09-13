@@ -12,15 +12,16 @@
  */
 
 import { dashboardEditorKey } from './dashboardEditorKey.js';
+import {
+  DashboardPanelRuntime,
+  type DashboardPanelSnapshot,
+} from './DashboardPanelRuntime.js';
+export type { DashboardPanelSnapshot } from './DashboardPanelRuntime.js';
 import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
-import type { ViewEngine, DataViewPosition } from '../engine/ViewEngine.js';
+import type { ViewEngine } from '../engine/ViewEngine.js';
 import type { SessionStore } from '../engine/SessionStore.js';
 import type { DashboardCandidate, ViewHost } from '../contracts/ViewHost.js';
-import type {
-  ViewDefinition,
-  ViewInstance,
-  ViewSource,
-} from '../contracts/viewModel.js';
+import type { ViewDefinition } from '../contracts/viewModel.js';
 import type { DeepReadonly } from '../lib/types.js';
 import type {
   FilterConfiguration,
@@ -31,12 +32,7 @@ import { withQueryScope } from '../filter/filterScope.js';
 import { copy, sameJsonState, message } from '../lib/snapshot.js';
 import { RequestRunner } from '../engine/RequestRunner.js';
 import { RuntimeLimitError } from '../lib/runtimeLimits.js';
-import {
-  ViewServiceError,
-  encodeViewResourceId,
-} from '../contracts/viewServiceContract.js';
-import { validateViewDefinition } from '../contracts/validation/definitionValidation.js';
-import { validateViewInstance } from '../contracts/validation/instanceValidation.js';
+import { encodeViewResourceId } from '../contracts/viewServiceContract.js';
 import { validateDashboardConfig } from './dashboardValidation.js';
 import {
   compileDashboardScope,
@@ -44,26 +40,10 @@ import {
 } from './dashboardFilters.js';
 import type {
   DashboardConfig,
-  DashboardViewPanel,
   DashboardSession,
   DashboardTransforms,
 } from './dashboardModel.js';
 
-export interface DashboardPanelSnapshot {
-  readonly panelId: string;
-  readonly status: 'loading' | 'ready' | 'blocked' | 'error' | 'suspended';
-  readonly loading: boolean;
-  readonly blocked: boolean;
-  readonly error: string | null;
-  readonly instance?: DeepReadonly<
-    Exclude<ViewInstance, { kind: 'dashboard' }>
-  >;
-  readonly definition?: DeepReadonly<ViewDefinition>;
-  readonly position?: DataViewPosition;
-  readonly scopeVersion: number;
-  readonly referenceVersion: number;
-  readonly filterId?: string;
-}
 export interface DashboardSnapshot {
   readonly session: DashboardSession;
   readonly config: DeepReadonly<DashboardConfig>;
@@ -75,25 +55,6 @@ export interface DashboardSnapshot {
   readonly error: string | null;
   readonly panels: Readonly<Record<string, DashboardPanelSnapshot>>;
 }
-interface PanelState {
-  panel: DeepReadonly<DashboardViewPanel>;
-  retainedBytes?: number;
-  definitionBytes?: number;
-  retained?: DeepReadonly<Exclude<ViewInstance, { kind: 'dashboard' }>>;
-  instance?: DashboardPanelSnapshot['instance'];
-  definition?: DashboardPanelSnapshot['definition'];
-  source?: (controller: AbortController) => Promise<ViewSource>;
-  position?: DataViewPosition;
-  scope?: FilterExpression;
-  scopeVersion: number;
-  referenceVersion: number;
-  generation: number;
-  status: DashboardPanelSnapshot['status'];
-  error: string | null;
-  filterId?: string;
-  loading?: Promise<void>;
-}
-
 class BindingError extends Error {
   constructor(
     readonly filterId: string,
@@ -115,7 +76,7 @@ export class DashboardRuntime {
   private observedCanOpenOriginal = false;
   private observedState: ReturnType<SessionStore['getSnapshot']>;
   private temporaryValidity: Record<string, boolean> = {};
-  private readonly panels = new Map<string, PanelState>();
+  private readonly panels = new Map<string, DashboardPanelRuntime>();
   private readonly listeners = new Set<() => void>();
   private readonly loads: RequestRunner;
   private readonly unsubscribe: () => void;
@@ -156,7 +117,7 @@ export class DashboardRuntime {
   private reserveMetadata(
     config = this.config,
     applied = this.applied,
-    candidate?: { entry: PanelState; bytes: number },
+    candidate?: { entry: DashboardPanelRuntime; bytes: number },
   ): void {
     let bytes =
       this.jsonBytes(config) +
@@ -166,15 +127,13 @@ export class DashboardRuntime {
         !config.panels.some(
           panel =>
             panel.kind === 'view' &&
-            panel.id === entry.panel.id &&
-            panel.instanceId === entry.panel.instanceId,
+            panel.id === entry.id &&
+            panel.instanceId === entry.instanceId,
         )
       )
         continue;
       bytes +=
-        candidate?.entry === entry
-          ? candidate.bytes
-          : (entry.retainedBytes ?? 0) + (entry.definitionBytes ?? 0);
+        candidate?.entry === entry ? candidate.bytes : entry.metadataBytes;
     }
     this.store.reserveDashboardMetadata(this.id, bytes);
   }
@@ -287,7 +246,7 @@ export class DashboardRuntime {
   }
   openOriginal(panelId: string): void {
     this.assert();
-    const panel = this.panels.get(panelId);
+    const panel = this.panels.get(panelId)?.getSnapshot();
     if (
       !this.active ||
       !panel?.instance ||
@@ -382,38 +341,7 @@ export class DashboardRuntime {
     this.observedCanDiscover = this.canDiscover;
     this.observedCanOpenOriginal = this.canOpenOriginal;
     const panels = Object.fromEntries(
-      [...this.panels].map(([id, entry]) => {
-        const session = entry.position
-          ? this.store.find(entry.position.identity.id)
-          : undefined;
-        const queryLoading =
-          session &&
-          session.kind !== 'dashboard' &&
-          (session.queryStatus === 'loading' ||
-            session.queryStatus === 'waiting');
-        const queryError =
-          session &&
-          session.kind !== 'dashboard' &&
-          session.queryStatus === 'error'
-            ? session.queryError
-            : null;
-        return [
-          id,
-          Object.freeze({
-            panelId: id,
-            status: queryError ? ('error' as const) : entry.status,
-            loading: entry.status === 'loading' || !!queryLoading,
-            blocked: entry.status === 'blocked',
-            error: entry.error,
-            instance: entry.instance,
-            definition: entry.definition,
-            position: entry.position,
-            scopeVersion: entry.scopeVersion,
-            referenceVersion: entry.referenceVersion,
-            filterId: entry.filterId,
-          }),
-        ];
-      }),
+      [...this.panels].map(([id, entry]) => [id, entry.getSnapshot()]),
     );
     this.snapshot = Object.freeze({
       session:
@@ -620,16 +548,6 @@ export class DashboardRuntime {
         this.publish();
       });
   }
-  private close(entry: PanelState): void {
-    entry.generation++;
-    for (const stage of ['instance', 'definition'])
-      this.loads.cancel(`panel:${entry.panel.id}:${stage}`);
-    entry.loading = undefined;
-    const position = entry.position;
-    entry.position = undefined;
-    entry.source = undefined;
-    position?.dispose();
-  }
   private reconciledApplied(
     config: DeepReadonly<DashboardConfig>,
   ): DeepReadonly<DashboardConfig> {
@@ -639,7 +557,7 @@ export class DashboardRuntime {
       if (
         !panel ||
         panel.kind !== 'view' ||
-        panel.instanceId !== entry.panel.instanceId
+        panel.instanceId !== entry.instanceId
       ) {
         applied = copy({
           ...applied,
@@ -665,185 +583,54 @@ export class DashboardRuntime {
       if (
         !panel ||
         panel.kind !== 'view' ||
-        panel.instanceId !== entry.panel.instanceId
+        panel.instanceId !== entry.instanceId
       ) {
         this.panels.delete(id);
-        this.close(entry);
+        entry.dispose();
       }
     }
     for (const panel of this.config.panels) {
-      if (panel.kind !== 'view') continue;
-      const entry = this.panels.get(panel.id);
-      if (entry) entry.panel = panel;
-      else
-        this.panels.set(panel.id, {
-          panel,
-          generation: 0,
-          referenceVersion: 0,
-          scopeVersion: 0,
-          status: 'suspended',
-          error: null,
-        });
-    }
-  }
-  private current(entry: PanelState, generation: number): boolean {
-    return (
-      !this.disposed &&
-      this.active &&
-      this.panels.get(entry.panel.id) === entry &&
-      entry.generation === generation
-    );
-  }
-  private block(entry: PanelState, error: unknown, denied = false): void {
-    this.close(entry);
-    entry.scope = undefined;
-    entry.scopeVersion++;
-    entry.status = 'blocked';
-    entry.error = message(error);
-    entry.filterId = error instanceof BindingError ? error.filterId : undefined;
-    if (denied) {
-      entry.instance = entry.retained = entry.definition = undefined;
-      entry.retainedBytes = entry.definitionBytes = 0;
-      this.reserveMetadata();
-    }
-    this.publish();
-  }
-  private async load(entry: PanelState, reload = false): Promise<void> {
-    if (entry.loading) return entry.loading;
-    const generation = ++entry.generation;
-    entry.status = 'loading';
-    entry.error = null;
-    const request = <T>(
-      stage: string,
-      run: (signal: AbortSignal) => Promise<T> | T,
-    ) =>
-      this.loads.submit({
-        key: `panel:${entry.panel.id}:${stage}`,
-        policy: 'queue',
-        timeoutMs: this.store.limits.loadTimeoutMs,
-        run: async signal => {
-          if (!this.current(entry, generation))
-            throw new Error('引用加载已取消');
-          return run(signal);
+      if (panel.kind !== 'view' || this.panels.has(panel.id)) continue;
+      const entry = new DashboardPanelRuntime(
+        panel.id,
+        panel.instanceId,
+        this.engine,
+        this.store,
+        this.host,
+        this.loads,
+        {
+          isActive: () => this.active && !this.disposed,
+          publish: () => this.publish(),
+          reserveMetadata: bytes =>
+            this.reserveMetadata(this.config, this.applied, { entry, bytes }),
         },
-      }).completion;
-    const operation = Promise.resolve().then(async () => {
-      if (!this.current(entry, generation)) return;
-      if (!this.host.instance?.load || !this.host.definition?.load)
-        throw new Error('宿主未提供引用加载服务');
-      const loaded = await request('instance', signal =>
-        this.host.instance!.load!(entry.panel.instanceId, signal),
       );
-      if (!this.current(entry, generation)) return;
-      if (loaded.id !== entry.panel.instanceId || loaded.kind === 'dashboard')
-        throw new Error('引用身份无效或仪表盘嵌套');
-      const definition = await request('definition', signal =>
-        this.host.definition!.load!(loaded.definitionId, signal),
-      );
-      if (!this.current(entry, generation)) return;
-      if (definition.id !== loaded.definitionId)
-        throw new Error('引用定义身份无效');
-      validateViewDefinition(definition);
-      validateViewInstance(loaded, definition, entry.panel.instanceId);
-      const instance = reload || !entry.retained ? loaded : entry.retained;
-      validateViewInstance(instance, definition, entry.panel.instanceId);
-      if (!definition.sourceId) throw new Error('引用缺少查询源');
-      const retainedBytes = this.jsonBytes(instance),
-        definitionBytes = this.jsonBytes(definition);
-      this.reserveMetadata(this.config, this.applied, {
-        entry,
-        bytes: retainedBytes + definitionBytes,
-      });
-      entry.retainedBytes = retainedBytes;
-      entry.definitionBytes = definitionBytes;
-      if (reload || !entry.retained) entry.referenceVersion++;
-      entry.instance = entry.retained = copy(instance);
-      entry.definition = copy(definition);
-      entry.source = async controller => {
-        let source: ViewSource;
-        try {
-          source = await this.host.resolveSource(definition.sourceId!);
-        } catch (error) {
-          if (
-            !controller.signal.aborted &&
-            this.current(entry, generation) &&
-            error instanceof ViewServiceError &&
-            error.code === 'FORBIDDEN'
-          )
-            this.block(entry, error, true);
-          throw error;
-        }
-        return new Proxy(source, {
-          get: (target, key) => {
-            const value: unknown = Reflect.get(target, key, target);
-            if (typeof value !== 'function') return value;
-            return (...args: unknown[]) =>
-              Promise.resolve()
-                .then(() =>
-                  (value as (...args: unknown[]) => unknown).apply(
-                    target,
-                    args,
-                  ),
-                )
-                .catch((error: unknown) => {
-                  if (
-                    !(
-                      args[2] instanceof AbortController &&
-                      args[2].signal.aborted
-                    ) &&
-                    this.current(entry, generation) &&
-                    error instanceof ViewServiceError &&
-                    error.code === 'FORBIDDEN'
-                  )
-                    this.block(entry, error, true);
-                  throw error;
-                });
-          },
-        });
-      };
-      entry.status = 'ready';
-    });
-    entry.loading = operation
-      .catch((error: unknown) => {
-        if (this.current(entry, generation))
-          this.block(
-            entry,
-            error,
-            error instanceof ViewServiceError && error.code === 'FORBIDDEN',
-          );
-      })
-      .finally(() => {
-        if (entry.generation === generation) entry.loading = undefined;
-        if (!this.disposed) this.publish();
-      });
-    this.publish();
-    return entry.loading;
+      this.panels.set(panel.id, entry);
+    }
   }
   private scope(
-    entry: PanelState,
+    entry: DashboardPanelRuntime,
     config: DeepReadonly<DashboardConfig>,
   ): FilterExpression {
-    if (!entry.instance || !entry.definition)
-      throw new Error(entry.error ?? '引用尚未加载');
-    if (
-      !config.panels.some(
-        panel =>
-          panel.kind === 'view' &&
-          panel.id === entry.panel.id &&
-          panel.instanceId === entry.panel.instanceId,
-      )
-    )
-      throw new Error('面板等待配置并查询');
+    const { instance, definition, error } = entry.getSnapshot();
+    if (!instance || !definition) throw new Error(error ?? '引用尚未加载');
+    const panel = config.panels.find(
+      panel =>
+        panel.kind === 'view' &&
+        panel.id === entry.id &&
+        panel.instanceId === entry.instanceId,
+    );
+    if (!panel || panel.kind !== 'view') throw new Error('面板等待配置并查询');
     const expressions = config.filters
-      .filter(item => !item.excludedPanelIds.includes(entry.panel.id))
+      .filter(item => !item.excludedPanelIds.includes(entry.id))
       .map(item => {
         try {
           return compileDashboardScope(
             item,
-            entry.panel,
+            panel,
             this.store.definition(this.id),
-            entry.definition!,
-            entry.instance!,
+            definition,
+            instance,
             this.transforms,
             this.engine.filterCompilers,
           );
@@ -857,49 +644,29 @@ export class DashboardRuntime {
         : expressions.length
           ? filter.and(expressions)
           : filter.matchAll();
-    validateDashboardExpression(expression, entry.definition);
+    validateDashboardExpression(expression, definition);
     const own = compileFilterConfiguration(
-      entry.instance.config.filters,
-      entry.definition.fields,
-      entry.definition.allowedOperators,
+      instance.config.filters,
+      definition.fields,
+      definition.allowedOperators,
       this.engine.filterCompilers,
-      entry.definition.timeZone,
+      definition.timeZone,
     );
     if (own.errors.length || !own.expression)
       throw new Error('引用筛选配置无效');
     validateDashboardExpression(
       withQueryScope(own.expression, expression),
-      entry.definition,
+      definition,
     );
     return expression;
   }
-  private async execute(entry: PanelState): Promise<void> {
-    const position = entry.position;
-    if (!position || !this.active || this.disposed) return;
-    entry.error = null;
-    this.publish();
-    if (!this.active || this.disposed || entry.position !== position) return;
-    try {
-      if (position.kind === 'record') await position.commands.refresh();
-      else await position.commands.run();
-    } catch (error) {
-      // Published query errors belong to the result; unexpected failures must reach the caller.
-      if (
-        entry.position === position &&
-        this.active &&
-        !this.disposed &&
-        position.getSnapshot().queryStatus !== 'error'
-      )
-        throw error;
-    }
-  }
-
   private async commit(
     config: DeepReadonly<DashboardConfig>,
     apply: boolean,
+    entries = [...this.panels.values()],
   ): Promise<void> {
     const lifetime = this.lifetime;
-    const decisions = [...this.panels.values()].map(entry => {
+    const decisions = entries.map(entry => {
       try {
         return { entry, expression: this.scope(entry, config) };
       } catch (error) {
@@ -909,59 +676,25 @@ export class DashboardRuntime {
     if (apply) this.reserveMetadata(this.config, config);
     this.batching = true;
     if (apply) this.applied = config;
-    const changed: PanelState[] = [];
+    const changed: DashboardPanelRuntime[] = [];
     for (const decision of decisions) {
       if (!this.active || this.disposed || lifetime !== this.lifetime) break;
       const { entry } = decision;
-      const generation = entry.generation;
-      if (this.panels.get(entry.panel.id) !== entry) continue;
+      if (this.panels.get(entry.id) !== entry) continue;
       if (!decision.expression) {
-        this.block(entry, decision.error);
+        entry.block(
+          decision.error,
+          decision.error instanceof BindingError
+            ? decision.error.filterId
+            : undefined,
+        );
         continue;
       }
-      const unchanged =
-        entry.position && sameJsonState(entry.scope, decision.expression);
-      if (unchanged) continue;
-      try {
-        if (!entry.position) {
-          if (!entry.instance || !entry.definition || !entry.source) continue;
-          const opened = this.engine.openPosition(
-            copy(entry.instance) as Exclude<
-              ViewInstance,
-              { kind: 'dashboard' }
-            >,
-            copy(entry.definition),
-            { queryPolicy: 'queue', source: entry.source },
-          );
-          if (!this.current(entry, generation) || lifetime !== this.lifetime) {
-            opened.dispose();
-            break;
-          }
-          entry.position = opened;
-        }
-        this.store.registerDashboardPosition(
-          entry.position.identity.id,
-          this.id,
-        );
-        this.engine.setPositionScope(
-          entry.position.identity.id,
-          decision.expression,
-        );
-        if (!this.current(entry, generation) || lifetime !== this.lifetime)
-          break;
-        entry.scope = decision.expression;
-        entry.scopeVersion++;
-        entry.status = 'ready';
-        entry.error = null;
-        entry.filterId = undefined;
-        changed.push(entry);
-      } catch (error) {
-        this.block(entry, error);
-      }
+      if (entry.applyScope(decision.expression, this.id)) changed.push(entry);
     }
     this.batching = false;
     this.publish();
-    await Promise.all(changed.map(entry => this.execute(entry)));
+    await Promise.all(changed.map(entry => entry.refresh()));
   }
   private async prepare(): Promise<void> {
     if (!this.active || this.disposed) return;
@@ -969,11 +702,8 @@ export class DashboardRuntime {
     const preparation = ++this.preparing;
     await Promise.all(
       [...this.panels.values()]
-        .filter(
-          entry =>
-            !entry.position && !entry.source && entry.status !== 'blocked',
-        )
-        .map(entry => this.load(entry)),
+        .filter(entry => entry.needsPreparation)
+        .map(entry => entry.load()),
     );
     if (
       !this.active ||
@@ -986,7 +716,7 @@ export class DashboardRuntime {
     const issues = this.validation(this.applied, false);
     if (issues.length) {
       this.error = issues.map(issue => issue.message).join('；');
-      for (const entry of this.panels.values()) this.block(entry, this.error);
+      for (const entry of this.panels.values()) entry.block(this.error);
       return;
     }
     await this.commit(this.applied, false);
@@ -1010,8 +740,10 @@ export class DashboardRuntime {
         )
           throw new Error(`缺少筛选转换器：${binding.name}`);
       }
-    for (const entry of this.panels.values())
-      if (entry.instance && entry.definition) this.scope(entry, config);
+    for (const entry of this.panels.values()) {
+      const { instance, definition } = entry.getSnapshot();
+      if (instance && definition) this.scope(entry, config);
+    }
   }
   async apply(): Promise<void> {
     this.assert();
@@ -1033,11 +765,7 @@ export class DashboardRuntime {
       this.publish();
       return;
     }
-    await Promise.all(
-      [...this.panels.values()]
-        .filter(entry => !entry.source)
-        .map(entry => this.load(entry)),
-    );
+    await Promise.all([...this.panels.values()].map(entry => entry.load()));
     if (!this.active || this.disposed || this.applying !== transaction) return;
     this.committing = false;
     await this.commit(config, true);
@@ -1046,27 +774,18 @@ export class DashboardRuntime {
     this.assert();
     const entries = panelId
       ? [this.panels.get(panelId)].filter(
-          (entry): entry is PanelState => !!entry,
+          (entry): entry is DashboardPanelRuntime => !!entry,
         )
       : [...this.panels.values()];
-    await Promise.all(entries.map(entry => this.execute(entry)));
+    await Promise.all(entries.map(entry => entry.refresh()));
   }
   async reloadReference(panelId: string): Promise<void> {
     this.assert();
     const entry = this.panels.get(panelId);
     if (!entry) throw new Error('面板不存在');
-    this.close(entry);
-    entry.instance = entry.definition = entry.retained = undefined;
-    entry.retainedBytes = entry.definitionBytes = 0;
-    this.reserveMetadata();
-    entry.scope = undefined;
-    if (!this.active) {
-      entry.status = 'suspended';
-      this.publish();
-      return;
-    }
-    await this.load(entry, true);
-    if (this.active && !this.disposed) await this.commit(this.applied, false);
+    await entry.reloadReference(() =>
+      this.commit(this.applied, false, [entry]),
+    );
   }
   suspend(): void {
     if (this.disposed || !this.active) return;
@@ -1074,12 +793,7 @@ export class DashboardRuntime {
     ++this.lifetime;
     this.loads.cancel('search');
     ++this.applying;
-    for (const entry of this.panels.values()) {
-      this.close(entry);
-      entry.status = 'suspended';
-      entry.instance = entry.definition = undefined;
-      entry.definitionBytes = 0;
-    }
+    for (const entry of this.panels.values()) entry.suspend();
     this.reserveMetadata();
     this.publish();
   }
@@ -1096,6 +810,7 @@ export class DashboardRuntime {
     this.disposed = true;
     this.unsubscribe();
     this.loads.dispose();
+    for (const entry of this.panels.values()) entry.dispose();
     this.panels.clear();
     this.store.releaseDashboardMetadata(this.id);
     this.listeners.clear();

@@ -336,3 +336,76 @@ it('ignores a cancelled source resolver FORBIDDEN after a replacement scope succ
   expect(position.getSnapshot().queryStatus).toBe('success');
   engine.dispose();
 });
+
+it.each([
+  ['instance', false],
+  ['instance', true],
+  ['definition', false],
+  ['definition', true],
+] as const)(
+  'isolates a same-ID replacement from obsolete %s completion (denied: %s)',
+  async (stage, denied) => {
+    const oldInstance = deferred<ReturnType<typeof instance>>();
+    const oldDefinition = deferred<typeof definition>();
+    let oldSignal: AbortSignal | undefined;
+    const load = vi.fn(async (id: string, signal?: AbortSignal) => {
+      if (id === 'child' && stage === 'instance') {
+        oldSignal = signal;
+        return oldInstance.promise;
+      }
+      return { ...instance(id), definitionId: id };
+    });
+    const loadDefinition = vi.fn(async (id: string, signal?: AbortSignal) => {
+      if (id === 'child') {
+        oldSignal = signal;
+        return oldDefinition.promise;
+      }
+      return { ...definition, id };
+    });
+    const { engine, paged } = dashboardSetup(
+      { ...configured(), filters: [] },
+      {
+        instance: { load, save: async value => value },
+        definition: { load: loadDefinition },
+      },
+    );
+    try {
+      await engine.load();
+      const runtime = engine.dashboard('dashboard');
+      await vi.waitFor(() =>
+        expect(
+          stage === 'instance' ? load : loadDefinition,
+        ).toHaveBeenCalledOnce(),
+      );
+      expect(oldSignal?.aborted).toBe(false);
+      runtime.edit(config => ({
+        ...config,
+        panels: config.panels.map(panel => ({ ...panel, instanceId: 'other' })),
+      }));
+      expect(oldSignal?.aborted).toBe(true);
+      await vi.waitFor(() => expect(paged).toHaveBeenCalledOnce());
+      const position = runtime.getSnapshot().panels.a.position!;
+      const gate = stage === 'instance' ? oldInstance : oldDefinition;
+      if (denied)
+        gate.reject(new ViewServiceError('FORBIDDEN', 'obsolete owner'));
+      else if (stage === 'instance')
+        oldInstance.resolve({ ...instance('child'), definitionId: 'child' });
+      else oldDefinition.resolve({ ...definition, id: 'child' });
+      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(runtime.getSnapshot().panels.a).toMatchObject({
+        status: 'ready',
+        instance: { id: 'other' },
+        position,
+      });
+      expect(position.getSnapshot().queryStatus).toBe('success');
+      expect(
+        Object.keys(engine.getSnapshot().sessions).filter(id =>
+          id.startsWith('position:'),
+        ),
+      ).toEqual([position.identity.id]);
+      expect(paged).toHaveBeenCalledOnce();
+    } finally {
+      engine.dispose();
+    }
+  },
+);
