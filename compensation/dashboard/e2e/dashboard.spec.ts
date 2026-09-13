@@ -682,7 +682,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     for (const name of [
       "STOCK / Backlog exposure",
       "FLOW / Compensation effectiveness",
-      "Failure inflow (new failures)",
+      "Daily trend",
       "Outcome flow (total in selected range)",
       "Recoverability composition",
       "Retry distribution",
@@ -859,10 +859,10 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
       firstPressureCard.containerRight,
     );
     await page
-      .getByRole("heading", { name: "Failure inflow (new failures)" })
+      .getByRole("heading", { name: "Daily trend" })
       .scrollIntoViewIfNeeded();
     await expect(
-      page.getByRole("heading", { name: "Failure inflow (new failures)" }),
+      page.getByRole("heading", { name: "Daily trend" }),
     ).toBeVisible();
   }
   expect(consoleErrors).toEqual([]);
@@ -882,9 +882,7 @@ test("separates multi-day failure inflow from outcome flow", async ({
 
   const activity = page.getByRole("region", { name: "Compensation activity" });
   await expect(
-    activity.getByRole("heading", {
-      name: "Failure inflow (new failures) — daily trend",
-    }),
+    activity.getByRole("heading", { name: "Daily trend" }),
   ).toBeVisible();
   await expect(
     activity.getByRole("heading", {
@@ -1260,6 +1258,9 @@ test("isolates one failed analytics region", async ({ page }) => {
     page.getByRole("heading", {
       name: "Failure inflow (new failures) — daily trend",
     }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole("heading", { name: "Daily trend" }),
   ).toBeVisible();
 });
 

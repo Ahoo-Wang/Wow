@@ -677,13 +677,20 @@ table.sr-only {
 .dashboard-series-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px 14px;
   margin-top: 6px;
   color: var(--muted-foreground);
   font-size: 14px;
 }
 
-.dashboard-series-label > span,
+.dashboard-series-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dashboard-series-chip > span,
 .dashboard-outcome-flow-label > span {
   width: 8px;
   height: 8px;

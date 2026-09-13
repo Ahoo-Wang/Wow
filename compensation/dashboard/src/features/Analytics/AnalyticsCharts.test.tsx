@@ -149,15 +149,19 @@ describe("AnalyticsCharts", () => {
     );
 
     expect(
-      screen.getByRole("heading", {
-        name: "Failure inflow (new failures) — daily trend",
-      }),
+      screen.getByRole("heading", { name: "Daily trend" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
         name: "Outcome flow (total in selected range)",
       }),
     ).toBeInTheDocument();
+    expect(document.querySelectorAll(".recharts-line")).toHaveLength(4);
+    const legend = document.querySelector(".dashboard-series-label");
+    expect(legend?.textContent).toContain("New failures");
+    expect(legend?.textContent).toContain("Prepared");
+    expect(legend?.textContent).toContain("Retried failed");
+    expect(legend?.textContent).toContain("Succeeded");
     expect(
       screen.getByRole("img", {
         name: "Outcome flow: Prepared 18, Retried failed 12, Succeeded 6",
@@ -182,7 +186,7 @@ describe("AnalyticsCharts", () => {
     render(<CompensationTrendChart points={[trendPointFixture()]} />);
 
     expect(
-      screen.getByRole("heading", { name: "Failure inflow (new failures)" }),
+      screen.getByRole("heading", { name: "Daily trend" }),
     ).toBeInTheDocument();
     expect(screen.getByText("12 new failures")).toBeInTheDocument();
     expect(

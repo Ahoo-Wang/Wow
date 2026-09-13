@@ -201,16 +201,21 @@ export function CompensationTrendChart({
       className="dashboard-activity-chart"
     >
       <section className="dashboard-failure-inflow">
-        <h3>
-          {t("Failure inflow (new failures)")}
-          {points.length > 1 ? t(" — daily trend") : ""}
-        </h3>
+        <h3>{t("Daily trend")}</h3>
         <p className="dashboard-series-label">
-          <span
-            aria-hidden="true"
-            style={{ backgroundColor: trendConfig.newFailures.color }}
-          />
-          {t("New failures")}
+          {(
+            Object.keys(localizedTrendConfig) as Array<
+              keyof typeof localizedTrendConfig
+            >
+          ).map((seriesKey) => (
+            <span className="dashboard-series-chip" key={seriesKey}>
+              <span
+                aria-hidden="true"
+                style={{ backgroundColor: trendConfig[seriesKey].color }}
+              />
+              {localizedTrendConfig[seriesKey].label}
+            </span>
+          ))}
         </p>
         {points.length > 1 ? (
           <ChartContainer
@@ -232,7 +237,12 @@ export function CompensationTrendChart({
                   formatDate(bucket, "MM-DD", locale)
                 }
               />
-              <YAxis allowDecimals={false} axisLine={false} tickLine={false} />
+              <YAxis
+                allowDecimals={false}
+                axisLine={false}
+                tickLine={false}
+                width={40}
+              />
               <ChartTooltip
                 content={
                   <ChartTooltipContent
@@ -251,6 +261,30 @@ export function CompensationTrendChart({
                 dot={{ r: 2.5 }}
                 name={localizedTrendConfig.newFailures.label}
                 stroke={trendConfig.newFailures.color}
+                strokeWidth={2}
+                type="monotone"
+              />
+              <Line
+                dataKey="prepared"
+                dot={false}
+                name={localizedTrendConfig.prepared.label}
+                stroke={trendConfig.prepared.color}
+                strokeWidth={2}
+                type="monotone"
+              />
+              <Line
+                dataKey="retriedFailed"
+                dot={false}
+                name={localizedTrendConfig.retriedFailed.label}
+                stroke={trendConfig.retriedFailed.color}
+                strokeWidth={2}
+                type="monotone"
+              />
+              <Line
+                dataKey="succeeded"
+                dot={false}
+                name={localizedTrendConfig.succeeded.label}
+                stroke={trendConfig.succeeded.color}
                 strokeWidth={2}
                 type="monotone"
               />
