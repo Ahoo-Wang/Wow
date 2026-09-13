@@ -34,6 +34,16 @@
       "dependencyDashboardApproval": true
     },
     {
+      "description": "Create major updates for first-party Ahoo-Wang packages without dashboard approval.",
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "/^@ahoo-wang\\//"
+      ],
+      "dependencyDashboardApproval": false
+    },
+    {
       "description": "Group GitHub Actions updates.",
       "matchManagers": [
         "github-actions"
