@@ -20,6 +20,7 @@ import {
   type ChartConfig,
 } from "../../components/ui/chart.tsx";
 import { formatDate } from "../../utils/dates.ts";
+import { formatCompactNumber } from "../../utils/numbers.ts";
 import { summarizeTrend, type TrendPoint } from "./analyticsQueries.ts";
 import { useI18n } from "@/i18n.tsx";
 
@@ -154,11 +155,42 @@ export function RetryDistributionChart({
 }
 
 const trendConfig = {
-  newFailures: { color: "var(--chart-1)", label: "New failures" },
-  prepared: { color: "var(--chart-2)", label: "Prepared" },
-  retriedFailed: { color: "var(--chart-3)", label: "Retried failed" },
-  succeeded: { color: "var(--chart-4)", label: "Succeeded" },
-} satisfies ChartConfig;
+  newFailures: { color: "var(--chart-1)", dash: undefined, label: "New failures" },
+  prepared: { color: "var(--chart-2)", dash: "6 3", label: "Prepared" },
+  retriedFailed: { color: "var(--chart-3)", dash: "2 2", label: "Retried failed" },
+  succeeded: { color: "var(--chart-4)", dash: "9 3 2 3", label: "Succeeded" },
+} satisfies Record<
+  string,
+  { color: string; dash?: string; label: string }
+>;
+
+type TrendSeriesKey = keyof typeof trendConfig;
+
+const TREND_SERIES = Object.keys(trendConfig) as TrendSeriesKey[];
+
+function TrendLegend({ config }: { config: ChartConfig }) {
+  return (
+    <p className="dashboard-series-label">
+      {TREND_SERIES.map((seriesKey) => (
+        <span className="dashboard-series-chip" key={seriesKey}>
+          <svg aria-hidden="true" width="18" height="8" viewBox="0 0 18 8">
+            <line
+              data-series={seriesKey}
+              x1="0"
+              y1="4"
+              x2="18"
+              y2="4"
+              stroke={trendConfig[seriesKey].color}
+              strokeDasharray={trendConfig[seriesKey].dash}
+              strokeWidth="2"
+            />
+          </svg>
+          {config[seriesKey]?.label ?? trendConfig[seriesKey].label}
+        </span>
+      ))}
+    </p>
+  );
+}
 
 export function CompensationTrendChart({
   points,
@@ -202,21 +234,7 @@ export function CompensationTrendChart({
     >
       <section className="dashboard-failure-inflow">
         <h3>{t("Daily trend")}</h3>
-        <p className="dashboard-series-label">
-          {(
-            Object.keys(localizedTrendConfig) as Array<
-              keyof typeof localizedTrendConfig
-            >
-          ).map((seriesKey) => (
-            <span className="dashboard-series-chip" key={seriesKey}>
-              <span
-                aria-hidden="true"
-                style={{ backgroundColor: trendConfig[seriesKey].color }}
-              />
-              {localizedTrendConfig[seriesKey].label}
-            </span>
-          ))}
-        </p>
+        <TrendLegend config={localizedTrendConfig} />
         {points.length > 1 ? (
           <ChartContainer
             config={localizedTrendConfig}
@@ -241,7 +259,10 @@ export function CompensationTrendChart({
                 allowDecimals={false}
                 axisLine={false}
                 tickLine={false}
-                width={40}
+                tickFormatter={(value: number) =>
+                  formatCompactNumber(value, locale)
+                }
+                width={48}
               />
               <ChartTooltip
                 content={
@@ -256,38 +277,18 @@ export function CompensationTrendChart({
                   />
                 }
               />
-              <Line
-                dataKey="newFailures"
-                dot={{ r: 2.5 }}
-                name={localizedTrendConfig.newFailures.label}
-                stroke={trendConfig.newFailures.color}
-                strokeWidth={2}
-                type="monotone"
-              />
-              <Line
-                dataKey="prepared"
-                dot={false}
-                name={localizedTrendConfig.prepared.label}
-                stroke={trendConfig.prepared.color}
-                strokeWidth={2}
-                type="monotone"
-              />
-              <Line
-                dataKey="retriedFailed"
-                dot={false}
-                name={localizedTrendConfig.retriedFailed.label}
-                stroke={trendConfig.retriedFailed.color}
-                strokeWidth={2}
-                type="monotone"
-              />
-              <Line
-                dataKey="succeeded"
-                dot={false}
-                name={localizedTrendConfig.succeeded.label}
-                stroke={trendConfig.succeeded.color}
-                strokeWidth={2}
-                type="monotone"
-              />
+              {TREND_SERIES.map((seriesKey, index) => (
+                <Line
+                  dataKey={seriesKey}
+                  dot={index === 0 ? { r: 2.5 } : false}
+                  key={seriesKey}
+                  name={localizedTrendConfig[seriesKey].label}
+                  stroke={trendConfig[seriesKey].color}
+                  strokeDasharray={trendConfig[seriesKey].dash}
+                  strokeWidth={2}
+                  type="monotone"
+                />
+              ))}
             </LineChart>
           </ChartContainer>
         ) : (

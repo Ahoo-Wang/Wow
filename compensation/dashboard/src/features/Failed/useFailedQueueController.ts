@@ -30,12 +30,17 @@ import { RetryConditions } from "./RetryConditions.ts";
 import { clearExecutionSelection, selectExecution } from "./selection.ts";
 
 import { clusterCondition, type ClusterScope } from "./clusterScope.ts";
+import {
+  executionWindowCondition,
+  type ExecutionWindow,
+} from "./executionWindow.ts";
 
 type QueryTransition = "replace" | "pagination" | "refresh";
 
 interface UseFailedQueueControllerOptions {
   category: FindCategory;
   scope?: ClusterScope | null;
+  executionWindow?: ExecutionWindow | null;
   desktop: boolean;
   refreshPaused: boolean;
 }
@@ -77,6 +82,7 @@ function isAbortError(error: Error): boolean {
 export function useFailedQueueController({
   category,
   scope,
+  executionWindow,
   desktop,
   refreshPaused,
 }: UseFailedQueueControllerOptions): FailedQueueController {
@@ -84,11 +90,14 @@ export function useFailedQueueController({
   const categoryCondition = useCallback(
     (now: number) => {
       const condition = RetryConditions.categoryToCondition(category, now);
-      return scope
+      const scoped = scope
         ? filter.and([condition, clusterCondition(scope)])
         : condition;
+      return executionWindow
+        ? filter.and([scoped, executionWindowCondition(executionWindow)])
+        : scoped;
     },
-    [category, scope],
+    [category, scope, executionWindow],
   );
   const selectedId = searchParams.get("id");
   const [searchFilter, setSearchFilter] = useState<FilterExpression>(() =>

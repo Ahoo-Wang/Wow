@@ -244,12 +244,18 @@ describe("DashboardView", () => {
         name: "Selected active coverage",
       }),
     ).toHaveAttribute("aria-valuenow", "3.2");
-    const actionableLink = within(stock).getByRole("link", { name: "12" });
-    expect(actionableLink).toHaveAttribute("href", "/next-retry");
+    const actionableLink = within(stock).getByRole("link", {
+      name: /Actionable now: 12, open the due-for-retry queue/,
+    });
+    expect(actionableLink).toHaveAttribute(
+      "href",
+      expect.stringContaining("/next-retry?start="),
+    );
+    expect(actionableLink.getAttribute("href")).toContain("&end=");
     expect(actionableLink).toHaveClass("text-destructive");
-    const timedOutLink = within(stock).getByRole("link", { name: "3" });
-    expect(timedOutLink).toHaveAttribute("href", "/to-retry");
-    expect(timedOutLink).toHaveClass("text-destructive");
+    expect(
+      within(stock).queryByRole("link", { name: "3" }),
+    ).not.toBeInTheDocument();
 
     const flow = screen.getByRole("region", {
       name: "Compensation effectiveness",

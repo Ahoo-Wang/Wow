@@ -156,12 +156,26 @@ describe("AnalyticsCharts", () => {
         name: "Outcome flow (total in selected range)",
       }),
     ).toBeInTheDocument();
-    expect(document.querySelectorAll(".recharts-line")).toHaveLength(4);
+    const lines = [
+      ...document.querySelectorAll(".recharts-line .recharts-curve"),
+    ];
+    expect(lines).toHaveLength(4);
+    expect(
+      new Set(lines.map((line) => line.getAttribute("stroke"))).size,
+    ).toBe(4);
     const legend = document.querySelector(".dashboard-series-label");
     expect(legend?.textContent).toContain("New failures");
     expect(legend?.textContent).toContain("Prepared");
     expect(legend?.textContent).toContain("Retried failed");
     expect(legend?.textContent).toContain("Succeeded");
+    // Series must stay distinguishable without color: the legend swatches carry one distinct
+    // stroke pattern per series, mirroring the line configuration (recharts rewrites the curve
+    // dasharray during animation, so the legend is the stable DOM contract here).
+    expect(
+      [...document.querySelectorAll(".dashboard-series-label line")].map(
+        (line) => line.getAttribute("stroke-dasharray"),
+      ),
+    ).toEqual([null, "6 3", "2 2", "9 3 2 3"]);
     expect(
       screen.getByRole("img", {
         name: "Outcome flow: Prepared 18, Retried failed 12, Succeeded 6",

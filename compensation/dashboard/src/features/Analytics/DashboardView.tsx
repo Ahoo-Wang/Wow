@@ -13,6 +13,7 @@
 
 import dayjs from "dayjs";
 import { createClusterHref } from "../Failed/clusterScope.ts";
+import { createExecutionWindowHref } from "../Failed/executionWindow.ts";
 import {
   ArrowUpRight,
   CalendarDays,
@@ -586,10 +587,17 @@ export default function DashboardView() {
                     <dt>{t("Actionable now")}</dt>
                     <dd>
                       <Link
+                        aria-label={t(
+                          "{label}: {count}, open the due-for-retry queue",
+                          {
+                            count: actionableNowCount.toLocaleString(),
+                            label: t("Actionable now"),
+                          },
+                        )}
                         className={`underline-offset-2 hover:underline ${
                           actionableNowCount > 0 ? "text-destructive" : ""
                         }`.trimEnd()}
-                        to="/next-retry"
+                        to={createExecutionWindowHref("/next-retry", window)}
                       >
                         {actionableNowCount.toLocaleString()}
                       </Link>
@@ -597,16 +605,7 @@ export default function DashboardView() {
                   </div>
                   <div>
                     <dt>{t("Timed out")}</dt>
-                    <dd>
-                      <Link
-                        className={`underline-offset-2 hover:underline ${
-                          timedOutCount > 0 ? "text-destructive" : ""
-                        }`.trimEnd()}
-                        to="/to-retry"
-                      >
-                        {timedOutCount.toLocaleString()}
-                      </Link>
-                    </dd>
+                    <dd>{timedOutCount.toLocaleString()}</dd>
                   </div>
                 </dl>
               </>
