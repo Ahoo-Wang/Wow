@@ -35,6 +35,8 @@
 | `MongoAggregationExpressions.kt` | `numericParticipation`（749–770）、`distinctCountInput`（772–782）、`toMongoExpression`（784–842）、`mongoOperator`（844–850）、`finiteDouble`（852–873）、`epochDate`（905–940）、`toEpochMillis`（942–950）、`floorDivide`（952–955）、`multiplyToLong`（957–960）、`numericInput`（962–982）、`scalarOrSingleton`（984–991）、`convert`（993–999）、`QueryField.resolve`（1001–1014）、`List<Sort>.toBson`（1016–1023） | 全部 → internal 顶层（`resolve` 是最广引用者，同包直用） |
 | `MongoHavingDocuments.kt` | `toHavingDocument`（556–589）、`numericHavingMatch`（591–597）、`matchOperator`（599–607） | → internal 顶层 |
 
+注：`countAlias` 经预检裁定 1 搬至 `MongoAggregationExpressions.kt`（成员扩展类外不可调用）。
+
 ### B. wow-elasticsearch：`ElasticsearchAggregationCompiler.kt`（750 行）→ 4 个文件
 
 包：`me.ahoo.wow.elasticsearch.query.aggregation`。唯一构造态 `filterCompiler` 留在编译器（`compile`/`metricFilter`）。
@@ -65,36 +67,36 @@
 
 **Files:** Create 分支 `refactor/aggregation-compiler-split`（worktree）；Modify `documentation/designs/2026-09-12-aggregation-reporting-epic-design.md`；本计划入库为首提交。
 
-- [ ] 建 worktree 分支（main `0da88a0c5` 基）
-- [ ] Epic 文档收官决策修订：状态行与分期表 Phase 5「触发式推进」→「明确不做」、Phase 6「挂起」→「明确不做」；「Phase 5-6 收官决策」节首段改为最终定论（触发条件与重启条件表述改为“经维护者 2026-09-13 最终确认：明确不做”），维护注记 2 的前提句（“若重启 Phase 5/6…先做”）改为“收官防腐已随本决策执行（见 #<本 PR>）”；原提纲留档不动
-- [ ] 提交 `docs(design): finalize phase 5-6 as not-planned and schedule the anti-corrosion split`
+- [x] 建 worktree 分支（main `0da88a0c5` 基）
+- [x] Epic 文档收官决策修订：状态行与分期表 Phase 5「触发式推进」→「明确不做」、Phase 6「挂起」→「明确不做」；「Phase 5-6 收官决策」节首段改为最终定论（触发条件与重启条件表述改为“经维护者 2026-09-13 最终确认：明确不做”），维护注记 2 的前提句（“若重启 Phase 5/6…先做”）改为“收官防腐已随本决策执行（见 #<本 PR>）”；原提纲留档不动
+- [x] 提交 `docs(design): finalize phase 5-6 as not-planned and schedule the anti-corrosion split`
 
 ### Task 2: Mongo 编译器拆分（A 表）
 
-- [ ] 按映射表搬移 4 个新文件；**删除** `@Suppress("LargeClass")`；搬移后逐一核对：函数体零改动、`LongMethod` 注解随 `group`/`project` 保留、`DenseHistogramFill`/`denseStages` 留守
-- [ ] 验证：`./gradlew :wow-mongo:test :wow-mongo:check`（含 detekt）全绿——结构测试即行为锁，期望零修改
-- [ ] 提交 `refactor(mongo): mechanically split the aggregation compiler by concern`
+- [x] 按映射表搬移 4 个新文件；**删除** `@Suppress("LargeClass")`；搬移后逐一核对：函数体零改动、`LongMethod` 注解随 `group`/`project` 保留、`DenseHistogramFill`/`denseStages` 留守
+- [x] 验证：`./gradlew :wow-mongo:test :wow-mongo:check`（含 detekt）全绿——结构测试即行为锁，期望零修改
+- [x] 提交 `refactor(mongo): mechanically split the aggregation compiler by concern`
 
 ### Task 3: ES 编译器拆分（B 表）
 
-- [ ] 按映射表搬移 3 个新文件；`RuntimeExpressionCompiler` 由 `private inner` 改顶层 `private` class（对外层 `QueryField.resolve` 的引用改为同包 internal 扩展调用，函数体不动）
-- [ ] 验证：`./gradlew :wow-elasticsearch:test :wow-elasticsearch:check` 全绿
-- [ ] 提交 `refactor(elasticsearch): split aggregation plan types, sources and scripts`
+- [x] 按映射表搬移 3 个新文件；`RuntimeExpressionCompiler` 由 `private inner` 改顶层 `private` class（对外层 `QueryField.resolve` 的引用改为同包 internal 扩展调用，函数体不动）
+- [x] 验证：`./gradlew :wow-elasticsearch:test :wow-elasticsearch:check` 全绿
+- [x] 提交 `refactor(elasticsearch): split aggregation plan types, sources and scripts`
 
 ### Task 4: ES pager 拆分（C 表）
 
-- [ ] 按映射表搬移 3 个新文件；`BoundedTopRows`/`matchesHaving` → internal，其余文件内 private；`selectTopRows`/`fillGapRows` 保持 internal（测试引用不变）
-- [ ] 验证：`./gradlew :wow-elasticsearch:test :wow-elasticsearch:check` 全绿（两个 pager 测试类不修改）
-- [ ] 提交 `refactor(elasticsearch): split aggregation pager responses, having and ranking`
+- [x] 按映射表搬移 3 个新文件；`BoundedTopRows`/`matchesHaving` → internal，其余文件内 private；`selectTopRows`/`fillGapRows` 保持 internal（测试引用不变）
+- [x] 验证：`./gradlew :wow-elasticsearch:test :wow-elasticsearch:check` 全绿（两个 pager 测试类不修改）
+- [x] 提交 `refactor(elasticsearch): split aggregation pager responses, having and ranking`
 
 ### Task 5: 安全网 + PR
 
-- [ ] OpenAPI 快照空 diff：`./gradlew :wow-openapi:test -Dwow.snapshot.update=true` → `git status wow-openapi/` **必须无变化**
-- [ ] detekt 全仓 + `:wow-api:check :wow-query:check :wow-mongo:check :wow-elasticsearch:check :wow-webflux:check`
-- [ ] `./gradlew allLocalTest allContractTest --stacktrace`
-- [ ] `./gradlew :wow-mongo:integrationTest :wow-elasticsearch:integrationTest --stacktrace`（双后端 TCK，Docker）
-- [ ] `./gradlew :wow-benchmarks:test :wow-benchmarks:benchmarkSmoke --stacktrace`
-- [ ] 确认全仓库无生产 `@Suppress("LargeClass")` 残留（grep）
+- [x] OpenAPI 快照空 diff：`./gradlew :wow-openapi:test -Dwow.snapshot.update=true` → `git status wow-openapi/` **必须无变化**
+- [x] detekt 全仓 + `:wow-api:check :wow-query:check :wow-mongo:check :wow-elasticsearch:check :wow-webflux:check`
+- [x] `./gradlew allLocalTest allContractTest --stacktrace`
+- [x] `./gradlew :wow-mongo:integrationTest :wow-elasticsearch:integrationTest --stacktrace`（双后端 TCK，Docker）
+- [x] `./gradlew :wow-benchmarks:test :wow-benchmarks:benchmarkSmoke --stacktrace`
+- [x] 确认全仓库无生产 `@Suppress("LargeClass")` 残留（grep）
 - [ ] 推分支、开 PR（标题 `refactor(query): mechanically split aggregation compiler and pager hotspots`）
 
 ## Self-Review 记录
