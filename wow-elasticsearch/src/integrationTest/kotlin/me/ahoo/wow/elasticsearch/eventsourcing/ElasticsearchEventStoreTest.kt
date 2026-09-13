@@ -21,6 +21,7 @@ import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
@@ -121,8 +122,7 @@ class ElasticsearchEventStoreTest : EventStoreSpec() {
 
         ElasticsearchEventStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchEventStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofSeconds(1),
             ),
@@ -181,8 +181,7 @@ class ElasticsearchEventStoreTest : EventStoreSpec() {
 
         ElasticsearchEventStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchEventStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofSeconds(1),
             ),

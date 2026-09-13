@@ -21,7 +21,7 @@ import me.ahoo.wow.benchmark.infrastructure.StorageBatchTuningOptions
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.MongoEventStore
-import me.ahoo.wow.mongo.MongoEventStoreBatchOptions
+import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.mongo.toDocument
 import org.bson.Document
 import org.openjdk.jmh.annotations.Benchmark
@@ -59,8 +59,7 @@ open class MongoEventStoreAppendBenchmark {
         directEventStore = MongoEventStore(fixture.database)
         batchEventStore = MongoEventStore(
             database = fixture.database,
-            batchOptions = MongoEventStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = parsedBatchOptions.maxSize,
                 maxDelay = parsedBatchOptions.maxDelay,
             ),

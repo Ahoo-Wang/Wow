@@ -25,7 +25,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-class KeyedBatchCoordinatorTest {
+class BatchCoordinatorLaneTest {
     @Test
     fun `same lane batches should be written serially`() {
         val firstBatchStarted = CountDownLatch(1)
@@ -160,14 +160,13 @@ class KeyedBatchCoordinatorTest {
     @Test
     fun `key selector failure should only fail the current submission`() {
         val selectorFailure = IllegalStateException("selector failed")
-        val coordinator = KeyedBatchCoordinator(
+        val coordinator = BatchCoordinator(
             name = "selector-failure",
             options = options(
                 maxSize = 2,
                 maxDelay = Duration.ofHours(1),
                 maxPendingItems = 2,
-            ),
-            laneCount = 2,
+            ).copy(laneCount = 2),
             keySelector = { item: KeyedItem ->
                 if (item.id == 2) {
                     throw selectorFailure
@@ -195,51 +194,15 @@ class KeyedBatchCoordinatorTest {
         }
     }
 
-    @Test
-    fun `lane count should be positive`() {
-        val error = assertThrows<IllegalArgumentException> {
-            KeyedBatchCoordinator(
-                name = "invalid-lanes",
-                options = options(),
-                laneCount = 0,
-                keySelector = KeyedItem::key,
-                writer = BatchWriter { items ->
-                    Mono.just(items.successResults())
-                },
-            )
-        }
-
-        error.message.assert().isEqualTo("laneCount must be greater than zero.")
-    }
-
-    @Test
-    fun `lane count should not exceed pending item capacity`() {
-        val error = assertThrows<IllegalArgumentException> {
-            KeyedBatchCoordinator(
-                name = "excessive-lanes",
-                options = options(maxPendingItems = 8),
-                laneCount = 9,
-                keySelector = KeyedItem::key,
-                writer = BatchWriter { items ->
-                    Mono.just(items.successResults())
-                },
-            )
-        }
-
-        error.message.assert()
-            .isEqualTo("laneCount must be less than or equal to maxPendingItems.")
-    }
-
     private fun coordinator(
         maxSize: Int = 2,
         maxDelay: Duration = Duration.ofSeconds(1),
         maxPendingItems: Int = 8,
         writer: (List<KeyedItem>) -> Mono<List<BatchItemResult>>,
-    ): KeyedBatchCoordinator<KeyedItem, Int> {
-        return KeyedBatchCoordinator(
+    ): BatchCoordinator<KeyedItem> {
+        return BatchCoordinator(
             name = "keyed-test",
-            options = options(maxSize, maxDelay, maxPendingItems),
-            laneCount = 2,
+            options = options(maxSize, maxDelay, maxPendingItems).copy(laneCount = 2),
             keySelector = KeyedItem::key,
             writer = BatchWriter(writer),
         )

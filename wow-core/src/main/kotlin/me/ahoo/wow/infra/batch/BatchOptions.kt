@@ -16,14 +16,14 @@ package me.ahoo.wow.infra.batch
 import java.time.Duration
 
 /**
- * Storage-independent limits for [BatchCoordinator] and [KeyedBatchCoordinator].
+ * Storage-independent limits for [BatchCoordinator].
  *
  * Enabling batching is deliberately not part of this type. The component that
  * owns a coordinator decides whether to compose a direct or batched writer.
  */
 data class BatchOptions(
-    val maxSize: Int,
-    val maxDelay: Duration,
+    val maxSize: Int = DEFAULT_MAX_SIZE,
+    val maxDelay: Duration = DEFAULT_MAX_DELAY,
     /**
      * Bounds both live submissions and physical queue slots.
      *
@@ -33,11 +33,16 @@ data class BatchOptions(
      * new submission even when fewer than `maxPendingItems` live callers remain;
      * this keeps the internal Reactor queue bounded.
      */
-    val maxPendingItems: Int,
+    val maxPendingItems: Int = DEFAULT_MAX_PENDING_ITEMS,
+    val laneCount: Int = DEFAULT_LANE_COUNT,
 ) {
     init {
         require(maxSize > 1) {
             "maxSize must be greater than 1."
+        }
+        // Reactor fair buffering computes its prefetch as maxSize << 2.
+        require(maxSize <= Int.MAX_VALUE / 4) {
+            "maxSize must not exceed Int.MAX_VALUE / 4."
         }
         require(!maxDelay.isNegative && !maxDelay.isZero) {
             "maxDelay must be positive."
@@ -45,5 +50,15 @@ data class BatchOptions(
         require(maxPendingItems >= maxSize) {
             "maxPendingItems must be greater than or equal to maxSize."
         }
+        require(laneCount in 1..maxPendingItems) {
+            "laneCount must be between 1 and maxPendingItems."
+        }
+    }
+
+    companion object {
+        const val DEFAULT_MAX_SIZE: Int = 128
+        val DEFAULT_MAX_DELAY: Duration = Duration.ofMillis(1)
+        const val DEFAULT_MAX_PENDING_ITEMS: Int = 4096
+        const val DEFAULT_LANE_COUNT: Int = 1
     }
 }

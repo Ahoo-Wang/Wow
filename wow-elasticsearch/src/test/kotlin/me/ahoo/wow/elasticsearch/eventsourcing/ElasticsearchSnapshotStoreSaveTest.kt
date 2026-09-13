@@ -28,6 +28,10 @@ import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
+import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchOptions
+import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
@@ -117,11 +121,10 @@ class ElasticsearchSnapshotStoreSaveTest {
         )
         val store = ElasticsearchSnapshotStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofSeconds(1),
-                maxPendingSaves = 4,
+                maxPendingItems = 4,
             ),
         )
 
@@ -142,11 +145,10 @@ class ElasticsearchSnapshotStoreSaveTest {
         every { client.bulk(any<BulkRequest>()) } returns Mono.error(failure)
         val store = ElasticsearchSnapshotStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofSeconds(1),
-                maxPendingSaves = 2,
+                maxPendingItems = 2,
             ),
         )
 
@@ -189,11 +191,10 @@ class ElasticsearchSnapshotStoreSaveTest {
         }
         val store = ElasticsearchSnapshotStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofHours(1),
-                maxPendingSaves = 8,
+                maxPendingItems = 8,
                 laneCount = 2,
             ),
         )
@@ -227,11 +228,10 @@ class ElasticsearchSnapshotStoreSaveTest {
         )
         val store = ElasticsearchSnapshotStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 8,
                 maxDelay = Duration.ofSeconds(30),
-                maxPendingSaves = 8,
+                maxPendingItems = 8,
             ),
         )
         val result = store.save(snapshot).materialize().toFuture()
@@ -246,11 +246,10 @@ class ElasticsearchSnapshotStoreSaveTest {
     fun `save after close should be rejected`() {
         val store = ElasticsearchSnapshotStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofMillis(1),
-                maxPendingSaves = 2,
+                maxPendingItems = 2,
             ),
         )
         store.close()
@@ -258,8 +257,8 @@ class ElasticsearchSnapshotStoreSaveTest {
         store.save(snapshot(id = "order-closed", version = 2))
             .test()
             .expectErrorMatches {
-                it is IllegalStateException &&
-                    it.message == "ElasticsearchSnapshotStore is closed."
+                it is BatchClosedException &&
+                    it.message == "Batch coordinator[ElasticsearchSnapshotStore] is closed."
             }
             .verify()
     }
@@ -271,11 +270,10 @@ class ElasticsearchSnapshotStoreSaveTest {
             requestStarted.countDown()
             Mono.never()
         }
-        val options = ElasticsearchSnapshotStoreBatchOptions(
-            enabled = true,
+        val options = BatchOptions(
             maxSize = 2,
             maxDelay = Duration.ofHours(1),
-            maxPendingSaves = 2,
+            maxPendingItems = 2,
         )
         val saver = BatchElasticsearchSnapshotSaver(
             elasticsearchClient = client,
@@ -290,19 +288,19 @@ class ElasticsearchSnapshotStoreSaveTest {
         saver.save(snapshot("order-overflow", 1))
             .test()
             .expectErrorSatisfies { error ->
-                error.assert().isInstanceOf(ElasticsearchSnapshotStoreBatchOverflowException::class.java)
-                (error as ElasticsearchSnapshotStoreBatchOverflowException)
-                    .maxPendingSaves.assert().isEqualTo(2)
+                error.assert().isInstanceOf(BatchOverflowException::class.java)
+                (error as BatchOverflowException)
+                    .maxPendingItems.assert().isEqualTo(2)
             }
             .verify()
 
-        val closeError = assertThrows<ElasticsearchSnapshotStoreBatchCloseTimeoutException> {
+        val closeError = assertThrows<BatchCloseTimeoutException> {
             saver.close()
         }
         closeError.timeout.assert().isEqualTo(Duration.ofMillis(10))
         first.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(closeError)
         second.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(closeError)
-        assertThrows<ElasticsearchSnapshotStoreBatchCloseTimeoutException> {
+        assertThrows<BatchCloseTimeoutException> {
             saver.close()
         }.assert().isSameAs(closeError)
     }
@@ -313,7 +311,7 @@ class ElasticsearchSnapshotStoreSaveTest {
             BatchElasticsearchSnapshotSaver(
                 elasticsearchClient = client,
                 refreshPolicy = co.elastic.clients.elasticsearch._types.Refresh.False,
-                options = ElasticsearchSnapshotStoreBatchOptions(),
+                options = BatchOptions(),
                 closeTimeout = Duration.ZERO,
             )
         }

@@ -33,30 +33,37 @@ import java.util.concurrent.atomic.AtomicInteger
  * storage-independent reactive batches.
  *
  * Each internal batch lane owns buffering and serial writes. The internal admission controller owns the
- * global capacity shared by lanes, and the result dispatcher isolates
- * per-item subscriber callbacks.
+ * global capacity shared by lanes. Equal keys map to the same serial lane;
+ * different lanes may invoke the writer concurrently. This does not impose
+ * item order within a native batch. The key selector must be stable and
+ * non-blocking; single-lane coordinators do not invoke it.
+ *
+ * Accepted results are actively emitted only by owned result tasks. A terminal
+ * signal stored before the subscription handshake finishes may subsequently
+ * replay on the subscriber thread; caller-provided scheduling is also outside
+ * this coordinator's control.
  */
 class BatchCoordinator<T : Any>(
     val name: String,
     val options: BatchOptions,
     private val writer: BatchWriter<T>,
-    private val laneCount: Int = 1,
-    private val laneSelector: (T) -> Int = { 0 },
+    private val keySelector: (T) -> Any = { Unit },
     metrics: WowMetrics = WowMetrics.NONE,
 ) : GracefullyStoppable {
     init {
         require(name.isNotBlank()) {
             "name must not be blank."
         }
-        require(laneCount > 0) {
-            "laneCount must be greater than zero."
-        }
     }
 
+    private val laneCount = options.laneCount
     private val batchMetrics = BatchMetrics(name, metrics)
     private val enabledMetrics = batchMetrics.takeIf(BatchMetrics::isEnabled)
     private val admission = BatchAdmission<T>(options.maxPendingItems, enabledMetrics)
     private val lifecycle = BatchLifecycle(name)
+
+    // Never acquire this gate while holding the admission/lifecycle gate, or vice versa.
+    private val resultLock = Any()
     private val processorTermination = CompletableFuture<Unit>()
     private val termination = CompletableFuture<Unit>()
     private val remainingLanes = AtomicInteger(laneCount)
@@ -69,6 +76,7 @@ class BatchCoordinator<T : Any>(
         resultDispatcher = BatchResultDispatcher(
             name = name,
             maxPendingItems = options.maxPendingItems,
+            lock = resultLock,
             onTerminated = ::completeResultDrain,
         )
         lanes = Array(laneCount) { lane ->
@@ -78,7 +86,7 @@ class BatchCoordinator<T : Any>(
                 options = options,
                 writer = writer,
                 scheduler = batchScheduler,
-                resultDispatcher = resultDispatcher,
+                settle = ::settleBatch,
                 metrics = enabledMetrics,
                 onError = { failLifecycle(it) },
                 onComplete = ::completeLane,
@@ -88,6 +96,13 @@ class BatchCoordinator<T : Any>(
 
     fun submit(item: T): Mono<Void> = submit { item }
 
+    /**
+     * Reserves capacity before invoking the factory, once per subscription.
+     * Only successful enqueue accepts a request. The factory runs on the
+     * submitting thread and must be finite, non-blocking and free of storage I/O.
+     * Closing does not wait for a factory that has not yet enqueued its item;
+     * when that factory returns, its reservation is released and enqueue fails.
+     */
     @Suppress("TooGenericExceptionCaught")
     fun submit(itemFactory: () -> T): Mono<Void> {
         return Mono.defer {
@@ -117,7 +132,12 @@ class BatchCoordinator<T : Any>(
                 return@defer Mono.error(error)
             }
             val emitResult = lifecycle.emitIfOpen {
-                lanes[lane].emit(request)
+                admission.accept(request)
+                lanes[lane].emit(request).also {
+                    if (it.isFailure) {
+                        request.discardAdmission()
+                    }
+                }
             }
             if (emitResult.isFailure) {
                 request.discardAdmission()
@@ -128,6 +148,12 @@ class BatchCoordinator<T : Any>(
         }
     }
 
+    /**
+     * Closes admission and flushes remaining windows. Completion waits for
+     * accepted writes and owned notification tasks, including their synchronous
+     * callbacks, but not late signal replay or caller-scheduled asynchronous work.
+     * Cancelling an observer does not cancel the shared shutdown process.
+     */
     override fun stopGracefully(): Mono<Void> {
         initiateClose()
         return Mono.fromFuture(termination, true).then()
@@ -137,15 +163,18 @@ class BatchCoordinator<T : Any>(
         close(DEFAULT_CLOSE_TIMEOUT)
     }
 
+    override fun stop() = close()
+
+    override fun stop(timeout: Duration) = close(timeout)
+
+    @Suppress("ThrowsCount")
     fun close(timeout: Duration) {
         require(!timeout.isNegative && !timeout.isZero) {
             "timeout must be positive."
         }
         initiateClose()
-        val closeTermination = if (
-            resultDispatcher.isDispatchingResult &&
-            !lifecycle.isFailed
-        ) {
+        lifecycle.failureCause?.let { throw it }
+        val closeTermination = if (resultDispatcher.isDispatchingResult) {
             processorTermination
         } else {
             termination
@@ -167,27 +196,26 @@ class BatchCoordinator<T : Any>(
         if (laneCount == 1) {
             return 0
         }
-        val lane = laneSelector(item)
-        check(lane in 0..<laneCount) {
-            "Batch lane selector[$name] returned $lane outside [0, $laneCount)."
+        return Math.floorMod(keySelector(item).hashCode(), laneCount)
+    }
+
+    private fun settleBatch(requests: List<BatchRequest<T>>, outcomes: List<BatchItemResult>) {
+        try {
+            synchronized(resultLock) {
+                requests.forEachIndexed { index, request ->
+                    request.settle(outcomes[index])
+                    resultDispatcher.publish(request)
+                }
+            }
+        } catch (error: RejectedExecutionException) {
+            failLifecycle(error)
         }
-        return lane
     }
 
-    private fun dispatchPendingFailures(error: Throwable) {
-        admission.pendingSnapshot()
-            .filter {
-                it.settleFailureIfUnsettled(error)
-            }.forEach { item ->
-                resultDispatcher.dispatch(item::signalSettled)
-            }
-    }
-
-    private fun failPendingAfterResultDispatcherTermination(error: Throwable) {
-        admission.pendingSnapshot().forEach { item ->
-            if (item.settleFailureIfUnsettled(error)) {
-                item.signalSettled()
-            }
+    private fun dispatchPendingFailures(requests: List<BatchRequest<T>>, error: Throwable) {
+        requests.forEach { request ->
+            request.settleFailureIfUnsettled(error)
+            resultDispatcher.publish(request)
         }
     }
 
@@ -206,22 +234,19 @@ class BatchCoordinator<T : Any>(
 
     private fun completeProcessor() {
         batchScheduler.dispose()
-        when (val completion = lifecycle.processorCompleted()) {
-            BatchLifecycle.ProcessorCompletion.DrainResults -> {
-                processorTermination.complete(Unit)
-            }
-
-            BatchLifecycle.ProcessorCompletion.Closed -> {
-                processorTermination.complete(Unit)
-                termination.complete(Unit)
-            }
-
-            is BatchLifecycle.ProcessorCompletion.Failed -> {
-                processorTermination.completeExceptionally(completion.cause)
-                termination.completeExceptionally(completion.cause)
-            }
+        val completion = lifecycle.processorCompleted()
+        // A failure owner may still be publishing its accepted snapshot. It alone may seal it.
+        val shutdown = completion !is BatchLifecycle.ProcessorCompletion.Failed && synchronized(resultLock) {
+            resultDispatcher.seal()
         }
-        resultDispatcher.shutdown()
+        when (completion) {
+            is BatchLifecycle.ProcessorCompletion.Failed ->
+                processorTermination.completeExceptionally(completion.cause)
+            else -> processorTermination.complete(Unit)
+        }
+        if (shutdown) {
+            resultDispatcher.shutdown()
+        }
     }
 
     private fun completeResultDrain() {
@@ -233,10 +258,7 @@ class BatchCoordinator<T : Any>(
 
             is BatchLifecycle.ResultDrainCompletion.Failed -> {
                 batchMetrics.closeCompleted(failed = true)
-                disposeLanes()
-                processorTermination.completeExceptionally(completion.cause)
                 termination.completeExceptionally(completion.cause)
-                failPendingAfterResultDispatcherTermination(completion.cause)
             }
         }
     }
@@ -269,21 +291,32 @@ class BatchCoordinator<T : Any>(
     }
 
     private fun failLifecycle(error: Throwable): Throwable? {
-        return when (val transition = lifecycle.fail(error)) {
-            BatchLifecycle.FailureTransition.Closed -> {
-                termination.complete(Unit)
-                null
+        var pending = emptyList<BatchRequest<T>>()
+        val transition = synchronized(lifecycle.lock) {
+            lifecycle.fail(error).also { transition ->
+                if (transition is BatchLifecycle.FailureTransition.Installed) {
+                    pending = admission.pendingSnapshot()
+                }
             }
-
+        }
+        return when (transition) {
+            BatchLifecycle.FailureTransition.Closed -> null
             is BatchLifecycle.FailureTransition.Existing -> transition.cause
             is BatchLifecycle.FailureTransition.Installed -> {
+                val shutdown = synchronized(resultLock) {
+                    try {
+                        dispatchPendingFailures(pending, transition.cause)
+                    } catch (_: RejectedExecutionException) {
+                        // A broken executor cannot guarantee delivery. Preserve the terminal failure.
+                    }
+                    resultDispatcher.seal()
+                }
                 batchMetrics.coordinatorFailed()
                 disposeLanes()
-                dispatchPendingFailures(transition.cause)
-                resultDispatcher.shutdown()
                 processorTermination.completeExceptionally(transition.cause)
-                batchMetrics.closeCompleted(failed = true)
-                termination.completeExceptionally(transition.cause)
+                if (shutdown) {
+                    resultDispatcher.shutdown()
+                }
                 transition.cause
             }
         }

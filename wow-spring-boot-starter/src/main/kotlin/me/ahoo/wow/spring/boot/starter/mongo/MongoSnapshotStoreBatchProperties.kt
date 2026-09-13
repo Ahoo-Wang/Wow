@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.mongo
 
-import me.ahoo.wow.mongo.MongoSnapshotStoreBatchOptions
+import me.ahoo.wow.infra.batch.BatchOptions
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
 import java.time.Duration
@@ -21,18 +21,20 @@ import java.time.Duration
 @ConfigurationProperties(prefix = MongoSnapshotStoreBatchProperties.PREFIX)
 class MongoSnapshotStoreBatchProperties(
     @DefaultValue("false") val enabled: Boolean = false,
-    @DefaultValue("128") val maxSize: Int = MongoSnapshotStoreBatchOptions.DEFAULT_MAX_SIZE,
-    @DefaultValue("1ms") val maxDelay: Duration = MongoSnapshotStoreBatchOptions.DEFAULT_MAX_DELAY,
+    @DefaultValue("128") val maxSize: Int = BatchOptions.DEFAULT_MAX_SIZE,
+    @DefaultValue("1ms") val maxDelay: Duration = BatchOptions.DEFAULT_MAX_DELAY,
     @DefaultValue("4096")
-    val maxPendingSaves: Int = MongoSnapshotStoreBatchOptions.DEFAULT_MAX_PENDING_SAVES,
-    @DefaultValue("1") val laneCount: Int = MongoSnapshotStoreBatchOptions.DEFAULT_LANE_COUNT,
+    val maxPendingItems: Int = BatchOptions.DEFAULT_MAX_PENDING_ITEMS,
+    @DefaultValue("1") val laneCount: Int = BatchOptions.DEFAULT_LANE_COUNT,
 ) {
-    fun toOptions(): MongoSnapshotStoreBatchOptions {
-        return MongoSnapshotStoreBatchOptions(
-            enabled = enabled,
+    fun toOptions(): BatchOptions? {
+        if (!enabled) {
+            return null
+        }
+        return BatchOptions(
             maxSize = maxSize,
             maxDelay = maxDelay,
-            maxPendingSaves = maxPendingSaves,
+            maxPendingItems = maxPendingItems,
             laneCount = laneCount,
         )
     }

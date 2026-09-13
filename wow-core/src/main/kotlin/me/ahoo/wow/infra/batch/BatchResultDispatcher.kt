@@ -19,63 +19,92 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-/**
- * Isolates subscriber callbacks from batch lanes and reports when every
- * accepted result callback has drained.
- */
+/** Publishes each request once, with a bounded queue and no caller-runs fallback. */
 internal class BatchResultDispatcher(
     name: String,
     maxPendingItems: Int,
+    private val lock: Any,
     private val onTerminated: () -> Unit,
 ) {
     private val dispatchContext = ThreadLocal<Boolean>()
     private val threadCount = RESULT_DISPATCHER_THREADS.coerceAtMost(maxPendingItems)
-    private val executor = object : ThreadPoolExecutor(
+    private val executor = ThreadPoolExecutor(
         threadCount,
         threadCount,
         0,
         TimeUnit.MILLISECONDS,
         ArrayBlockingQueue(maxPendingItems),
         { runnable ->
-            Thread(
-                runnable,
-                "$name-batch-result-${RESULT_THREAD_SEQUENCE.incrementAndGet()}"
-            ).apply {
+            Thread(runnable, "$name-batch-result-${RESULT_THREAD_SEQUENCE.incrementAndGet()}").apply {
                 isDaemon = true
             }
-        }
-    ) {
-        override fun terminated() {
-            onTerminated()
-        }
-    }
+        },
+    )
+    private var sealed = false
+
+    @Volatile
+    private var shutdownCalled = false
+    private val outstanding = AtomicInteger()
+    private var drainClaimed = false
 
     val isDispatchingResult: Boolean
         get() = dispatchContext.get() == true
 
-    fun dispatch(signal: () -> Unit) {
-        val contextualSignal = Runnable {
-            val previousContext = dispatchContext.get()
-            dispatchContext.set(true)
-            try {
-                signal()
-            } finally {
-                if (previousContext == null) {
+    /** The caller holds the result lock across settlement, publication and sealing. */
+    fun publish(request: BatchRequest<*>) {
+        if (sealed || !request.claimNotification()) {
+            return
+        }
+        outstanding.incrementAndGet()
+        try {
+            executor.execute {
+                dispatchContext.set(true)
+                try {
+                    request.signalSettled()
+                } finally {
                     dispatchContext.remove()
-                } else {
-                    dispatchContext.set(previousContext)
+                    val drained = outstanding.decrementAndGet() == 0 && shutdownCalled && synchronized(lock) {
+                        claimDrain()
+                    }
+                    if (drained) {
+                        onTerminated()
+                    }
                 }
             }
-        }
-        try {
-            executor.execute(contextualSignal)
-        } catch (_: RejectedExecutionException) {
-            contextualSignal.run()
+        } catch (error: RejectedExecutionException) {
+            outstanding.decrementAndGet()
+            request.releaseNotification()
+            throw error
         }
     }
 
+    /** Called under the result lock; grants the lock-free shutdown action to one caller. */
+    fun seal(): Boolean {
+        if (sealed) {
+            return false
+        }
+        sealed = true
+        return true
+    }
+
+    /** Called outside the result lock by the caller that sealed publication. */
     fun shutdown() {
         executor.shutdown()
+        val drained = synchronized(lock) {
+            shutdownCalled = true
+            claimDrain()
+        }
+        if (drained) {
+            onTerminated()
+        }
+    }
+
+    private fun claimDrain(): Boolean {
+        if (!shutdownCalled || outstanding.get() != 0 || drainClaimed) {
+            return false
+        }
+        drainClaimed = true
+        return true
     }
 
     private companion object {

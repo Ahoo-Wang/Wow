@@ -32,7 +32,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.MongoSnapshotStore
-import me.ahoo.wow.mongo.MongoSnapshotStoreBatchOptions
+import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.toDocument
 import me.ahoo.wow.serialization.MessageRecords
@@ -74,8 +74,7 @@ open class MongoSnapshotStoreSaveBenchmark {
         directSnapshotStore = MongoSnapshotStore(fixture.database)
         batchSnapshotStore = MongoSnapshotStore(
             database = fixture.database,
-            batchOptions = MongoSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = parsedBatchOptions.maxSize,
                 maxDelay = parsedBatchOptions.maxDelay,
             ),

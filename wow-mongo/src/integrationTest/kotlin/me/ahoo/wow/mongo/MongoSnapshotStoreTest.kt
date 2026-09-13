@@ -20,6 +20,7 @@ import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
@@ -94,8 +95,7 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
 
         MongoSnapshotStore(
             database = database,
-            batchOptions = MongoSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofSeconds(1),
             ),
@@ -133,8 +133,7 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
 
         MongoSnapshotStore(
             database = database,
-            batchOptions = MongoSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofSeconds(1),
             ),
@@ -172,8 +171,7 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
 
         MongoSnapshotStore(
             database = database,
-            batchOptions = MongoSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofSeconds(1),
             ),

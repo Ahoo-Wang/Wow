@@ -73,8 +73,8 @@ internal class ElasticsearchEventStreamBatchWriter(
                     responseItems = responseItems,
                     responseErrors = response.errors(),
                 )
-                batch.zip(responseItems).map { (append, item) ->
-                    item.toBatchItemResult(append.eventStream)
+                batch.mapIndexed { index, append ->
+                    responseItems[index].toBatchItemResult(append.eventStream)
                 }
             }
     }

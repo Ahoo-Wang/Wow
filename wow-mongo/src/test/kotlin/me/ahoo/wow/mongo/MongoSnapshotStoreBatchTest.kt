@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo
 
+import com.mongodb.MongoClientSettings
 import com.mongodb.bulk.BulkWriteInsert
 import com.mongodb.bulk.BulkWriteResult
 import com.mongodb.bulk.BulkWriteUpsert
@@ -29,6 +30,11 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
+import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchItemResult
+import me.ahoo.wow.infra.batch.BatchOptions
+import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
@@ -111,6 +117,63 @@ class MongoSnapshotStoreBatchTest {
     }
 
     @Test
+    fun `same snapshot version should keep the last content across interleaved keys`() {
+        val writes = slot<List<WriteModel<Document>>>()
+        every { database.getCollection(any<String>()) } returns collection
+        every { collection.bulkWrite(capture(writes), any<BulkWriteOptions>()) } returns
+            Mono.just(acknowledgedUpdateResult(2))
+        fun write(id: String, version: Int, marker: String) = MongoSnapshotWrite(
+            collectionName = "order.snapshot",
+            id = id,
+            version = version,
+            document = Document("_id", id).append("version", version).append("marker", marker),
+        )
+        val last = write("same-order", 7, "last")
+        MongoSnapshotBatchWriter(database).write(
+            listOf(write("same-order", 7, "first"), write("other-order", 3, "other"), last)
+        ).test()
+            .assertNext { results ->
+                results.assert().hasSize(3)
+                results.all { it === BatchItemResult.Success }.assert().isTrue()
+            }
+            .verifyComplete()
+
+        writes.captured.assert().hasSize(2)
+        val selected = writes.captured.first() as UpdateOneModel<Document>
+        val codecRegistry = MongoClientSettings.getDefaultCodecRegistry()
+        selected.updatePipeline!!.single().toBsonDocument(Document::class.java, codecRegistry).assert()
+            .isEqualTo(
+                versionGuardedSnapshotReplacement(last.document).single()
+                    .toBsonDocument(Document::class.java, codecRegistry)
+            )
+    }
+
+    @Test
+    fun `collection results should expand by key after out of order completion`() {
+        val failedCollection = mockk<MongoCollection<Document>>()
+        val firstResult = Sinks.one<BulkWriteResult>()
+        val failure = IllegalStateException("other collection unavailable")
+        every { database.getCollection("first.snapshot") } returns collection
+        every { database.getCollection("second.snapshot") } returns failedCollection
+        every { collection.bulkWrite(any<List<WriteModel<Document>>>(), any<BulkWriteOptions>()) } returns
+            firstResult.asMono()
+        every { failedCollection.bulkWrite(any<List<WriteModel<Document>>>(), any<BulkWriteOptions>()) } returns
+            Mono.error(failure)
+        val first = MongoSnapshotWrite("first.snapshot", "same-id", 1, Document("version", 1))
+        val second = first.copy(collectionName = "second.snapshot")
+        val result = MongoSnapshotBatchWriter(database).write(listOf(first, second, first))
+            .toFuture()
+
+        result.isDone.assert().isFalse()
+        firstResult.tryEmitValue(acknowledgedUpdateResult(1)).isSuccess.assert().isTrue()
+        val outcomes = result.get(1, TimeUnit.SECONDS)!!
+        outcomes.assert().hasSize(3)
+        outcomes[0].assert().isSameAs(BatchItemResult.Success)
+        (outcomes[1] as BatchItemResult.Failure).error.assert().isSameAs(failure)
+        outcomes[2].assert().isSameAs(BatchItemResult.Success)
+    }
+
+    @Test
     fun `request failure should reach every caller unchanged`() {
         val failure = IllegalStateException("bulk unavailable")
         every { database.getCollection(any<String>()) } returns collection
@@ -161,7 +224,7 @@ class MongoSnapshotStoreBatchTest {
         val store = batchStore(
             maxSize = 2,
             maxDelay = Duration.ofHours(1),
-            maxPendingSaves = 8,
+            maxPendingItems = 8,
             laneCount = 2,
         )
         val result = Flux.range(1, 4)
@@ -197,7 +260,7 @@ class MongoSnapshotStoreBatchTest {
         val store = batchStore(
             maxSize = 8,
             maxDelay = Duration.ofSeconds(30),
-            maxPendingSaves = 8,
+            maxPendingItems = 8,
         )
         val result = store.save(snapshot(id = "order-close", version = 4))
             .materialize()
@@ -219,14 +282,14 @@ class MongoSnapshotStoreBatchTest {
         store.save(snapshot(id = "order-closed", version = 2))
             .test()
             .expectErrorMatches {
-                it is IllegalStateException &&
-                    it.message == "MongoSnapshotStore is closed."
+                it is BatchClosedException &&
+                    it.message == "Batch coordinator[MongoSnapshotStore] is closed."
             }
             .verify()
     }
 
     @Test
-    fun `overflow and close timeout should map to snapshot store errors`() {
+    fun `overflow and close timeout should propagate core batch errors`() {
         val requestStarted = CountDownLatch(1)
         every { database.getCollection(any<String>()) } returns collection
         every {
@@ -235,11 +298,10 @@ class MongoSnapshotStoreBatchTest {
             requestStarted.countDown()
             Mono.never()
         }
-        val options = MongoSnapshotStoreBatchOptions(
-            enabled = true,
+        val options = BatchOptions(
             maxSize = 2,
             maxDelay = Duration.ofHours(1),
-            maxPendingSaves = 2,
+            maxPendingItems = 2,
         )
         val saver = BatchMongoSnapshotSaver(
             database = database,
@@ -253,19 +315,19 @@ class MongoSnapshotStoreBatchTest {
         saver.save(snapshot("order-overflow", 1))
             .test()
             .expectErrorSatisfies { error ->
-                error.assert().isInstanceOf(MongoSnapshotStoreBatchOverflowException::class.java)
-                (error as MongoSnapshotStoreBatchOverflowException)
-                    .maxPendingSaves.assert().isEqualTo(2)
+                error.assert().isInstanceOf(BatchOverflowException::class.java)
+                (error as BatchOverflowException)
+                    .maxPendingItems.assert().isEqualTo(2)
             }
             .verify()
 
-        val closeError = assertThrows<MongoSnapshotStoreBatchCloseTimeoutException> {
+        val closeError = assertThrows<BatchCloseTimeoutException> {
             saver.close()
         }
         closeError.timeout.assert().isEqualTo(Duration.ofMillis(10))
         first.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(closeError)
         second.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(closeError)
-        assertThrows<MongoSnapshotStoreBatchCloseTimeoutException> {
+        assertThrows<BatchCloseTimeoutException> {
             saver.close()
         }.assert().isSameAs(closeError)
     }
@@ -275,7 +337,7 @@ class MongoSnapshotStoreBatchTest {
         assertThrows<IllegalArgumentException> {
             BatchMongoSnapshotSaver(
                 database = database,
-                options = MongoSnapshotStoreBatchOptions(),
+                options = BatchOptions(),
                 closeTimeout = Duration.ZERO,
             )
         }
@@ -284,16 +346,15 @@ class MongoSnapshotStoreBatchTest {
     private fun batchStore(
         maxSize: Int,
         maxDelay: Duration = Duration.ofSeconds(1),
-        maxPendingSaves: Int = maxSize,
+        maxPendingItems: Int = maxSize,
         laneCount: Int = 1,
     ): MongoSnapshotStore {
         return MongoSnapshotStore(
             database = database,
-            batchOptions = MongoSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = maxSize,
                 maxDelay = maxDelay,
-                maxPendingSaves = maxPendingSaves,
+                maxPendingItems = maxPendingItems,
                 laneCount = laneCount,
             ),
         )

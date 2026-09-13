@@ -16,46 +16,31 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 import co.elastic.clients.elasticsearch._types.Refresh
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
-import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchCoordinator
 import me.ahoo.wow.infra.batch.BatchOptions
-import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
-import me.ahoo.wow.infra.batch.KeyedBatchCoordinator
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.serialization.toLinkedHashMap
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import java.time.Duration
-import java.util.concurrent.atomic.AtomicReference
 
 internal class BatchElasticsearchEventStreamAppender(
     elasticsearchClient: ReactiveElasticsearchClient,
     refreshPolicy: Refresh,
-    private val options: ElasticsearchEventStoreBatchOptions,
+    options: BatchOptions,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
     metrics: WowMetrics = WowMetrics.NONE,
 ) : ElasticsearchEventStreamAppender {
-    private data class MappedCloseTimeout(
-        val source: BatchCloseTimeoutException,
-        val mapped: ElasticsearchEventStoreBatchCloseTimeoutException,
-    )
-
     init {
         require(!closeTimeout.isNegative && !closeTimeout.isZero) {
             "closeTimeout must be positive."
         }
     }
 
-    private val mappedCloseTimeout = AtomicReference<MappedCloseTimeout?>()
-    private val coordinator = KeyedBatchCoordinator(
+    private val coordinator = BatchCoordinator(
         name = ElasticsearchEventStore::class.simpleName!!,
-        options = BatchOptions(
-            maxSize = options.maxSize,
-            maxDelay = options.maxDelay,
-            maxPendingItems = options.maxPendingAppends,
-        ),
-        laneCount = options.laneCount,
+        options = options,
         keySelector = { append: ElasticsearchEventStreamAppend ->
             append.eventStream.aggregateId
         },
@@ -77,48 +62,11 @@ internal class BatchElasticsearchEventStreamAppender(
                 document = eventStream.toLinkedHashMap(),
                 routing = eventStream.aggregateId.id,
             )
-        }.onErrorMap(::toElasticsearchBatchError)
+        }
     }
 
-    @Suppress("TooGenericExceptionCaught")
     override fun close() {
-        try {
-            coordinator.close(closeTimeout)
-        } catch (error: Throwable) {
-            throw toElasticsearchBatchError(error)
-        }
-    }
-
-    private fun toElasticsearchBatchError(error: Throwable): Throwable {
-        return when (error) {
-            is BatchOverflowException ->
-                ElasticsearchEventStoreBatchOverflowException(options.maxPendingAppends)
-
-            is BatchClosedException ->
-                IllegalStateException("ElasticsearchEventStore is closed.")
-
-            is BatchCloseTimeoutException -> mapCloseTimeout(error)
-
-            else -> error
-        }
-    }
-
-    private fun mapCloseTimeout(
-        error: BatchCloseTimeoutException,
-    ): ElasticsearchEventStoreBatchCloseTimeoutException {
-        while (true) {
-            val current = mappedCloseTimeout.get()
-            if (current?.source === error) {
-                return current.mapped
-            }
-            val mapped = MappedCloseTimeout(
-                source = error,
-                mapped = ElasticsearchEventStoreBatchCloseTimeoutException(error.timeout),
-            )
-            if (mappedCloseTimeout.compareAndSet(current, mapped)) {
-                return mapped.mapped
-            }
-        }
+        coordinator.close(closeTimeout)
     }
 
     private companion object {

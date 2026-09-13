@@ -29,6 +29,7 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
+import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -200,11 +201,10 @@ class MongoSnapshotStoreBatchBulkErrorTest {
         } returns Mono.error(error)
         return MongoSnapshotStore(
             database = database,
-            batchOptions = MongoSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = maxSize,
                 maxDelay = Duration.ofSeconds(1),
-                maxPendingSaves = maxSize,
+                maxPendingItems = maxSize,
             ),
         )
     }

@@ -20,6 +20,8 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
+import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.event.MockDomainEventStreams
@@ -60,7 +62,7 @@ class MongoEventStoreBatchSettledResultTest {
             fixture.resultCallbacksStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
             fixture.blockedWriteSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
 
-            val closeError = assertThrows<MongoEventStoreBatchCloseTimeoutException> {
+            val closeError = assertThrows<BatchCloseTimeoutException> {
                 fixture.batcher.close()
             }
             settledAppends[8].isDone.assert().isFalse()
@@ -84,11 +86,10 @@ class MongoEventStoreBatchSettledResultTest {
         val fixture = SaturatedResultFixture(
             batcher = BatchMongoEventStreamAppender(
                 database = database,
-                options = MongoEventStoreBatchOptions(
-                    enabled = true,
+                options = BatchOptions(
                     maxSize = 2,
                     maxDelay = Duration.ofHours(1),
-                    maxPendingAppends = 32,
+                    maxPendingItems = 32,
                 ),
                 closeTimeout = Duration.ofMillis(50),
             ),

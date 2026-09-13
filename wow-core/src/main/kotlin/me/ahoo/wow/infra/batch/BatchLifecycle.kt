@@ -55,7 +55,7 @@ internal class BatchLifecycle(
         data class Installed(val cause: Throwable) : FailureTransition
     }
 
-    private val lock = Any()
+    val lock = Any()
 
     @Volatile
     private var state: State = State.Open

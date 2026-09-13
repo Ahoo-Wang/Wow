@@ -45,7 +45,7 @@ class MongoEventStoreDirectAppendTest {
             Mono.just(InsertOneResult.acknowledged(null))
         val eventStore = MongoEventStore(
             database = database,
-            batchOptions = MongoEventStoreBatchOptions(enabled = false),
+            batchOptions = null,
         )
 
         StepVerifier.create(eventStore.append(eventStream("order-direct")))

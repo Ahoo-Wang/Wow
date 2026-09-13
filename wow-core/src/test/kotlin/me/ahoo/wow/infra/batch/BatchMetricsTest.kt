@@ -14,13 +14,19 @@
 package me.ahoo.wow.infra.batch
 
 import io.micrometer.core.instrument.Meter
+import io.micrometer.core.instrument.Tag
+import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.config.MeterFilter
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import io.mockk.spyk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.metrics.WowMetrics
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 class BatchMetricsTest {
     @Test
@@ -122,6 +128,67 @@ class BatchMetricsTest {
         assertThrows<LinkageError> {
             metrics.admissionRejected(BatchAdmissionRejectionReason.LIVE_ITEMS_EXHAUSTED)
         }.assert().isSameAs(failure)
+    }
+
+    @Test
+    fun `hot path should reuse meters and keep lane window outcome counts separate`() {
+        val registry = spyk(SimpleMeterRegistry())
+        val metrics = BatchMetrics("reuse", WowMetrics(registry))
+        registry.meters.assert().isEmpty()
+
+        repeat(2) {
+            repeat(2) { lane ->
+                metrics.requestDequeued(lane, metrics.markEnqueued())
+                BatchWindowType.entries.forEach { window ->
+                    BatchWriteOutcome.entries.forEach { outcome ->
+                        metrics.batchWriteStarted(lane, 3, 2, window).complete(outcome, 1)
+                    }
+                }
+            }
+        }
+
+        verify(exactly = 2) { registry.timer("wow.batch.queue.wait", any<Tags>()) }
+        verify(exactly = 16) { registry.timer("wow.batch.write", any<Tags>()) }
+        verify(exactly = 48) { registry.summary("wow.batch.write.items", any<Iterable<Tag>>()) }
+        registry.find("wow.batch.queue.wait").timers().forEach { it.count().assert().isEqualTo(2) }
+        registry.find("wow.batch.write").timers().forEach { it.count().assert().isEqualTo(2) }
+        mapOf("buffered" to 6.0, "written" to 4.0, "failed" to 2.0).forEach { (kind, total) ->
+            registry.find("wow.batch.write.items").tag("kind", kind).summaries().forEach {
+                it.count().assert().isEqualTo(2)
+                it.totalAmount().assert().isEqualTo(total)
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["*", "wow.batch.write.items"])
+    fun `hot path registration failures should be isolated and retried`(failingMeter: String) {
+        var fail = true
+        val registry = SimpleMeterRegistry().apply {
+            config().meterFilter(object : MeterFilter {
+                override fun map(id: Meter.Id): Meter.Id {
+                    if (fail && (failingMeter == "*" || id.name == failingMeter)) {
+                        throw IllegalStateException("registry unavailable")
+                    }
+                    return id
+                }
+            })
+        }
+        val metrics = BatchMetrics("retry", WowMetrics(registry))
+        repeat(2) {
+            assertDoesNotThrow {
+                metrics.requestDequeued(0, metrics.markEnqueued())
+                metrics.batchWriteStarted(0, 2, 2, BatchWindowType.FULL)
+                    .complete(BatchWriteOutcome.SUCCESS, 0)
+            }
+            fail = false
+        }
+        registry.get("wow.batch.queue.wait").timer().count().assert()
+            .isEqualTo(if (failingMeter == "*") 1L else 2L)
+        registry.get("wow.batch.write").timer().count().assert().isEqualTo(1)
+        registry.find("wow.batch.write.items").summaries().forEach {
+            it.count().assert().isEqualTo(1)
+        }
     }
 
     private fun throwingRegistry(failure: Throwable): SimpleMeterRegistry =

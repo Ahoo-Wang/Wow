@@ -60,7 +60,11 @@ internal class BatchAdmission<T : Any>(
                 metrics = currentMetrics,
             )
         }
-        return request.also(pending::add)
+        return request
+    }
+
+    fun accept(request: BatchRequest<T>) {
+        pending.add(request)
     }
 
     fun releaseUntracked() {
@@ -71,9 +75,8 @@ internal class BatchAdmission<T : Any>(
     fun pendingSnapshot(): List<BatchRequest<T>> = pending.toList()
 
     private fun releaseAdmission(request: BatchRequest<T>) {
-        if (pending.remove(request)) {
-            availableItems.release()
-        }
+        pending.remove(request)
+        availableItems.release()
     }
 
     private fun releaseQueueSlot() {

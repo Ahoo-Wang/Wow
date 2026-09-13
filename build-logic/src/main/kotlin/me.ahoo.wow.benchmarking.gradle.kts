@@ -5899,7 +5899,7 @@ val quickMongoBatchCoordinatorConcurrencyComparison = BenchmarkParameterComparis
     sectionTitle = "Coordinator Lane Comparison",
     introduction =
         "JMH uses four worker threads and 128 independent event streams per invocation. One production " +
-            "MongoEventStore routes each aggregate key through its KeyedBatchCoordinator to one serial lane. " +
+            "MongoEventStore routes each aggregate key through its BatchCoordinator to one serial lane. " +
             "Different lanes may write concurrently. Because every stream has a distinct aggregate, this " +
             "workload exercises production key routing but leaves repeated-key ordering to functional tests.",
     parameterName = "coordinatorLanes",
@@ -10322,7 +10322,7 @@ tasks.register("generateQuickMongoBatchCoordinatorConcurrencyReport") {
                 "--no-parallel --no-daemon",
             description = "This bounded diagnostic estimates the performance available from partitioned " +
                 "coordinator concurrency at `batchOptions=$mongoBatchQuickCandidateOptions`. It compares " +
-                "one, two, and four serial lanes in one production KeyedBatchCoordinator with four JMH worker " +
+                "one, two, and four serial lanes in one production BatchCoordinator with four JMH worker " +
                 "threads. The JMH parameter changes the measured Store configuration but does not change the " +
                 "production default.",
             includeInfrastructureRuntime = true,

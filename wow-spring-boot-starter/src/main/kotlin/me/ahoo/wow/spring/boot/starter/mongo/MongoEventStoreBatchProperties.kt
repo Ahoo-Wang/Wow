@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.mongo
 
-import me.ahoo.wow.mongo.MongoEventStoreBatchOptions
+import me.ahoo.wow.infra.batch.BatchOptions
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
 import java.time.Duration
@@ -21,18 +21,20 @@ import java.time.Duration
 @ConfigurationProperties(prefix = MongoEventStoreBatchProperties.PREFIX)
 class MongoEventStoreBatchProperties(
     @DefaultValue("false") val enabled: Boolean = false,
-    @DefaultValue("128") val maxSize: Int = MongoEventStoreBatchOptions.DEFAULT_MAX_SIZE,
-    @DefaultValue("1ms") val maxDelay: Duration = MongoEventStoreBatchOptions.DEFAULT_MAX_DELAY,
+    @DefaultValue("128") val maxSize: Int = BatchOptions.DEFAULT_MAX_SIZE,
+    @DefaultValue("1ms") val maxDelay: Duration = BatchOptions.DEFAULT_MAX_DELAY,
     @DefaultValue("4096")
-    val maxPendingAppends: Int = MongoEventStoreBatchOptions.DEFAULT_MAX_PENDING_APPENDS,
-    @DefaultValue("1") val laneCount: Int = MongoEventStoreBatchOptions.DEFAULT_LANE_COUNT,
+    val maxPendingItems: Int = BatchOptions.DEFAULT_MAX_PENDING_ITEMS,
+    @DefaultValue("1") val laneCount: Int = BatchOptions.DEFAULT_LANE_COUNT,
 ) {
-    fun toOptions(): MongoEventStoreBatchOptions {
-        return MongoEventStoreBatchOptions(
-            enabled = enabled,
+    fun toOptions(): BatchOptions? {
+        if (!enabled) {
+            return null
+        }
+        return BatchOptions(
             maxSize = maxSize,
             maxDelay = maxDelay,
-            maxPendingAppends = maxPendingAppends,
+            maxPendingItems = maxPendingItems,
             laneCount = laneCount,
         )
     }

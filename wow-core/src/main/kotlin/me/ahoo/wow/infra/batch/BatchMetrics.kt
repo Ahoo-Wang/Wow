@@ -18,6 +18,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.Exceptions
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -53,6 +54,7 @@ internal class BatchMetrics(
 ) {
     private val registry = metrics.meterRegistry
     val isEnabled: Boolean = registry != null
+    private val lanes = ConcurrentHashMap<Int, LaneMeters>()
     private val coordinatorTags = Tags.of(COORDINATOR_TAG, coordinatorName)
     private val closeStartedAt = AtomicLong(NOT_STARTED)
     private val closeCompleted = AtomicBoolean()
@@ -75,10 +77,7 @@ internal class BatchMetrics(
     ) {
         val registry = registry ?: return
         recordSafely {
-            registry.timer(
-                QUEUE_WAIT,
-                coordinatorTags.and(LANE_TAG, lane.toString()),
-            ).record(elapsedSince(enqueuedAt), TimeUnit.NANOSECONDS)
+            laneMeters(registry, lane).queueWait.record(elapsedSince(enqueuedAt), TimeUnit.NANOSECONDS)
         }
     }
 
@@ -152,19 +151,36 @@ internal class BatchMetrics(
         failedItems: Int,
     ) {
         recordSafely {
-            val tags = coordinatorTags
-                .and(LANE_TAG, lane.toString())
-                .and(WINDOW_TAG, windowType.metricValue)
-                .and(OUTCOME_TAG, outcome.metricValue)
-            registry.timer(BATCH_WRITE, tags)
-                .record(durationNanos, TimeUnit.NANOSECONDS)
-            registry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, BUFFERED_VALUE))
-                .record(bufferedItems.toDouble())
-            registry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, WRITTEN_VALUE))
-                .record(writtenItems.toDouble())
-            registry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, FAILED_VALUE))
-                .record(failedItems.toDouble())
+            val meters = laneMeters(registry, lane).write(windowType, outcome)
+            meters.duration.record(durationNanos, TimeUnit.NANOSECONDS)
+            meters.buffered.record(bufferedItems.toDouble())
+            meters.written.record(writtenItems.toDouble())
+            meters.failed.record(failedItems.toDouble())
         }
+    }
+
+    private fun laneMeters(registry: MeterRegistry, lane: Int): LaneMeters =
+        lanes[lane] ?: lanes.computeIfAbsent(lane) {
+            LaneMeters(registry, coordinatorTags.and(LANE_TAG, lane.toString()))
+        }
+
+    private class LaneMeters(private val registry: MeterRegistry, private val tags: Tags) {
+        val queueWait by lazy { registry.timer(QUEUE_WAIT, tags) }
+        private val writes = ConcurrentHashMap<Int, WriteMeters>()
+
+        fun write(window: BatchWindowType, outcome: BatchWriteOutcome): WriteMeters {
+            val key = window.ordinal * BatchWriteOutcome.entries.size + outcome.ordinal
+            return writes[key] ?: writes.computeIfAbsent(key) {
+                WriteMeters(registry, tags.and(WINDOW_TAG, window.metricValue).and(OUTCOME_TAG, outcome.metricValue))
+            }
+        }
+    }
+
+    private class WriteMeters(registry: MeterRegistry, tags: Tags) {
+        val duration = registry.timer(BATCH_WRITE, tags)
+        val buffered = registry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, BUFFERED_VALUE))
+        val written = registry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, WRITTEN_VALUE))
+        val failed = registry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, FAILED_VALUE))
     }
 
     private fun elapsedSince(startedAt: Long): Long =

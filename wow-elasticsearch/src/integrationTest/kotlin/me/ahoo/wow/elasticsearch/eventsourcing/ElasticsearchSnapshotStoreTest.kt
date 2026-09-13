@@ -23,6 +23,7 @@ import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
@@ -85,8 +86,7 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
 
         ElasticsearchSnapshotStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofSeconds(1),
             ),
@@ -146,8 +146,7 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
 
         ElasticsearchSnapshotStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofSeconds(1),
             ),
@@ -187,8 +186,7 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
 
         ElasticsearchSnapshotStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofSeconds(1),
             ),
@@ -218,8 +216,7 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
 
         ElasticsearchSnapshotStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofMillis(5),
             ),
@@ -316,8 +313,7 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         client.initSnapshotTemplate()
         val newer = snapshot(id = generateGlobalId(), version = 3)
         val older = snapshot(id = newer.aggregateId.id, version = 2)
-        val options = ElasticsearchSnapshotStoreBatchOptions(
-            enabled = true,
+        val options = BatchOptions(
             maxSize = 2,
             maxDelay = Duration.ofMillis(5),
         )
@@ -354,8 +350,7 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
 
         ElasticsearchSnapshotStore(
             elasticsearchClient = client,
-            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
-                enabled = true,
+            batchOptions = BatchOptions(
                 maxSize = 2,
                 maxDelay = Duration.ofMillis(5),
             ),

@@ -44,6 +44,21 @@ internal open class BatchRequest<T : Any>(
     val result: Sinks.Empty<Void> = Sinks.empty()
     private val state = AtomicReference<State>(State.Queued)
 
+    // Accessed only while holding the coordinator result lock.
+    private var notificationClaimed = false
+
+    fun claimNotification(): Boolean {
+        if (notificationClaimed || state.get() !is State.Settled) {
+            return false
+        }
+        notificationClaimed = true
+        return true
+    }
+
+    fun releaseNotification() {
+        notificationClaimed = false
+    }
+
     fun claim(lane: Int = 0): Boolean {
         while (true) {
             when (state.get()) {

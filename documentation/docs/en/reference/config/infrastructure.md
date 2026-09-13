@@ -69,15 +69,17 @@ Both batchers are disabled by default. When enabled, they collect concurrent wri
 | `wow.mongo.event-store-batch.enabled` | `false` |
 | `wow.mongo.event-store-batch.max-size` | `128` |
 | `wow.mongo.event-store-batch.max-delay` | `1ms` |
-| `wow.mongo.event-store-batch.max-pending-appends` | `4096` |
+| `wow.mongo.event-store-batch.max-pending-items` | `4096` |
 | `wow.mongo.event-store-batch.lane-count` | `1` |
 | `wow.mongo.snapshot-store-batch.enabled` | `false` |
 | `wow.mongo.snapshot-store-batch.max-size` | `128` |
 | `wow.mongo.snapshot-store-batch.max-delay` | `1ms` |
-| `wow.mongo.snapshot-store-batch.max-pending-saves` | `4096` |
+| `wow.mongo.snapshot-store-batch.max-pending-items` | `4096` |
 | `wow.mongo.snapshot-store-batch.lane-count` | `1` |
 
-`max-size` must exceed `1`, `max-delay` must be positive, a pending limit must be at least `max-size`, and `lane-count` must be positive. Writes for one aggregate stay on one lane. Increase lanes only with throughput evidence. `auto-init-schema=true` owns Wow schema initialization; it does not replace database backup, sharding design, or business-query index verification.
+`max-size` must be between `2` and `536870911` (the Reactor prefetch bound), `max-delay` must be positive, a pending limit must be at least `max-size`, and `lane-count` must be between `1` and `max-pending-items`. Writes for one aggregate stay on one lane. A busy writer leaves items queued for demand-aware batching; when it becomes ready, queued items are combined up to `max-size`, and a partial batch may flush immediately without waiting another `max-delay`. Increase lanes only with throughput evidence. `auto-init-schema=true` owns Wow schema initialization; it does not replace database backup, sharding design, or business-query index verification.
+
+All four MongoDB/Elasticsearch Store constructors share `me.ahoo.wow.infra.batch.BatchOptions`; `batchOptions = null` disables batching. Spring keeps `enabled=false` as its default. The capacity field is `max-pending-items`; the former `max-pending-appends` and `max-pending-saves` fields are no longer supported. Batch overflow, closed and close-timeout errors use the shared core exception types.
 
 ## Redis
 
@@ -129,12 +131,12 @@ spring:
 | `wow.elasticsearch.event-store-batch.enabled` | `false` |
 | `wow.elasticsearch.event-store-batch.max-size` | `128` |
 | `wow.elasticsearch.event-store-batch.max-delay` | `1ms` |
-| `wow.elasticsearch.event-store-batch.max-pending-appends` | `4096` |
+| `wow.elasticsearch.event-store-batch.max-pending-items` | `4096` |
 | `wow.elasticsearch.event-store-batch.lane-count` | `1` |
 | `wow.elasticsearch.snapshot-store-batch.enabled` | `false` |
 | `wow.elasticsearch.snapshot-store-batch.max-size` | `128` |
 | `wow.elasticsearch.snapshot-store-batch.max-delay` | `1ms` |
-| `wow.elasticsearch.snapshot-store-batch.max-pending-saves` | `4096` |
+| `wow.elasticsearch.snapshot-store-batch.max-pending-items` | `4096` |
 | `wow.elasticsearch.snapshot-store-batch.lane-count` | `1` |
 
 Batch validation matches MongoDB. EventStore batching uses Bulk `create`. Both direct and batch SnapshotStore paths use an atomic `_source.version` guarded update so an older snapshot cannot overwrite a newer one. With `auto-init-template=true`, a failed, empty, or unacknowledged template request fails startup. Disable it only when an external platform explicitly owns templates, and retain template version and validation evidence.

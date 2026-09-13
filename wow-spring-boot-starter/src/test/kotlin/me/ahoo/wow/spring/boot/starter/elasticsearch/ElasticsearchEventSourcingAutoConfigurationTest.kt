@@ -26,9 +26,7 @@ import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotIndexInitializer
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
-import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStoreBatchOptions
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
-import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStoreBatchOptions
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryBackendFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackendFactory
@@ -94,7 +92,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
         autoConfiguration.elasticsearchEventStore(elasticsearchClient, indexTemplateInitializer, metricsProvider)
             .use { eventStore ->
                 eventStore.batchOptions.assert()
-                    .isEqualTo(ElasticsearchEventStoreBatchOptions())
+                    .isNull()
             }
         autoConfiguration.elasticsearchSnapshotStore(
             elasticsearchClient,
@@ -104,7 +102,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
         )
             .use { snapshotStore ->
                 snapshotStore.batchOptions.assert()
-                    .isEqualTo(ElasticsearchSnapshotStoreBatchOptions())
+                    .isNull()
             }
     }
 
@@ -346,12 +344,12 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                 "${ElasticsearchProperties.PREFIX}.event-store-batch.enabled=true",
                 "${ElasticsearchProperties.PREFIX}.event-store-batch.max-size=64",
                 "${ElasticsearchProperties.PREFIX}.event-store-batch.max-delay=2ms",
-                "${ElasticsearchProperties.PREFIX}.event-store-batch.max-pending-appends=2048",
+                "${ElasticsearchProperties.PREFIX}.event-store-batch.max-pending-items=2048",
                 "${ElasticsearchProperties.PREFIX}.event-store-batch.lane-count=2",
                 "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.enabled=true",
                 "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-size=32",
                 "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-delay=3ms",
-                "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-pending-saves=1024",
+                "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-pending-items=1024",
                 "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.lane-count=3",
                 "${ElasticsearchQueryProperties.PREFIX}.batch-size=512",
                 "${ElasticsearchQueryProperties.PREFIX}.keep-alive=5m",
@@ -406,18 +404,16 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
     }
 
     private fun assertBatchOptions(context: AssertableApplicationContext) {
-        val eventOptions = context.getBean(ElasticsearchEventStore::class.java).batchOptions
-        eventOptions.enabled.assert().isTrue()
+        val eventOptions = requireNotNull(context.getBean(ElasticsearchEventStore::class.java).batchOptions)
         eventOptions.maxSize.assert().isEqualTo(64)
         eventOptions.maxDelay.assert().isEqualTo(java.time.Duration.ofMillis(2))
-        eventOptions.maxPendingAppends.assert().isEqualTo(2048)
+        eventOptions.maxPendingItems.assert().isEqualTo(2048)
         eventOptions.laneCount.assert().isEqualTo(2)
 
-        val snapshotOptions = context.getBean(ElasticsearchSnapshotStore::class.java).batchOptions
-        snapshotOptions.enabled.assert().isTrue()
+        val snapshotOptions = requireNotNull(context.getBean(ElasticsearchSnapshotStore::class.java).batchOptions)
         snapshotOptions.maxSize.assert().isEqualTo(32)
         snapshotOptions.maxDelay.assert().isEqualTo(java.time.Duration.ofMillis(3))
-        snapshotOptions.maxPendingSaves.assert().isEqualTo(1024)
+        snapshotOptions.maxPendingItems.assert().isEqualTo(1024)
         snapshotOptions.laneCount.assert().isEqualTo(3)
     }
 

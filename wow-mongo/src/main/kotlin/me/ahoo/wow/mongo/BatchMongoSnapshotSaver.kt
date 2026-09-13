@@ -15,43 +15,28 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
-import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchCoordinator
 import me.ahoo.wow.infra.batch.BatchOptions
-import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
-import me.ahoo.wow.infra.batch.KeyedBatchCoordinator
 import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Mono
 import java.time.Duration
-import java.util.concurrent.atomic.AtomicReference
 
 internal class BatchMongoSnapshotSaver(
     database: MongoDatabase,
-    private val options: MongoSnapshotStoreBatchOptions,
+    options: BatchOptions,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
     metrics: WowMetrics = WowMetrics.NONE,
 ) : MongoSnapshotSaver {
-    private data class MappedCloseTimeout(
-        val source: BatchCloseTimeoutException,
-        val mapped: MongoSnapshotStoreBatchCloseTimeoutException,
-    )
-
     init {
         require(!closeTimeout.isNegative && !closeTimeout.isZero) {
             "closeTimeout must be positive."
         }
     }
 
-    private val mappedCloseTimeout = AtomicReference<MappedCloseTimeout?>()
-    private val coordinator = KeyedBatchCoordinator(
+    private val coordinator = BatchCoordinator(
         name = MongoSnapshotStore::class.simpleName!!,
-        options = BatchOptions(
-            maxSize = options.maxSize,
-            maxDelay = options.maxDelay,
-            maxPendingItems = options.maxPendingSaves,
-        ),
-        laneCount = options.laneCount,
+        options = options,
         keySelector = { write: MongoSnapshotWrite ->
             write.collectionName to write.id
         },
@@ -62,48 +47,11 @@ internal class BatchMongoSnapshotSaver(
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return coordinator.submit {
             snapshot.toMongoSnapshotWrite()
-        }.onErrorMap(::toMongoSnapshotBatchError)
+        }
     }
 
-    @Suppress("TooGenericExceptionCaught")
     override fun close() {
-        try {
-            coordinator.close(closeTimeout)
-        } catch (error: Throwable) {
-            throw toMongoSnapshotBatchError(error)
-        }
-    }
-
-    private fun toMongoSnapshotBatchError(error: Throwable): Throwable {
-        return when (error) {
-            is BatchOverflowException ->
-                MongoSnapshotStoreBatchOverflowException(options.maxPendingSaves)
-
-            is BatchClosedException ->
-                IllegalStateException("MongoSnapshotStore is closed.")
-
-            is BatchCloseTimeoutException -> mapCloseTimeout(error)
-
-            else -> error
-        }
-    }
-
-    private fun mapCloseTimeout(
-        error: BatchCloseTimeoutException,
-    ): MongoSnapshotStoreBatchCloseTimeoutException {
-        while (true) {
-            val current = mappedCloseTimeout.get()
-            if (current?.source === error) {
-                return current.mapped
-            }
-            val mapped = MappedCloseTimeout(
-                source = error,
-                mapped = MongoSnapshotStoreBatchCloseTimeoutException(error.timeout),
-            )
-            if (mappedCloseTimeout.compareAndSet(current, mapped)) {
-                return mapped.mapped
-            }
-        }
+        coordinator.close(closeTimeout)
     }
 
     private companion object {
