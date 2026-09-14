@@ -18,7 +18,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = StorageRoutingProperties.PREFIX)
 data class StorageRoutingProperties(
-    val aggregates: Map<String, AggregateStorageRouteProperties> = emptyMap()
+    var aggregates: Map<String, AggregateStorageRouteProperties> = emptyMap()
 ) {
     companion object {
         const val PREFIX = "${EventSourcingProperties.PREFIX}.storage-routing"
@@ -27,11 +27,11 @@ data class StorageRoutingProperties(
 }
 
 data class AggregateStorageRouteProperties(
-    val event: StorageChannelRouteProperties? = null,
-    val snapshot: StorageChannelRouteProperties? = null
+    var event: StorageChannelRouteProperties? = null,
+    var snapshot: StorageChannelRouteProperties? = null
 )
 
 data class StorageChannelRouteProperties(
-    val storage: StorageType? = null,
-    val binding: String? = null
+    var storage: StorageType? = null,
+    var binding: String? = null
 )

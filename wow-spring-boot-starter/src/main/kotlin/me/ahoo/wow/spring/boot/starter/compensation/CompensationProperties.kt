@@ -16,11 +16,10 @@ package me.ahoo.wow.spring.boot.starter.compensation
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = CompensationProperties.PREFIX)
 class CompensationProperties(
-    @DefaultValue("true") override var enabled: Boolean = true
+    override var enabled: Boolean = true
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}compensation"

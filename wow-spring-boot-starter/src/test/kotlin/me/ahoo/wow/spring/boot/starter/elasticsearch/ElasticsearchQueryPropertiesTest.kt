@@ -15,6 +15,9 @@ package me.ahoo.wow.spring.boot.starter.elasticsearch
 
 import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.springframework.boot.context.properties.bind.Binder
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import java.time.Duration
 
 class ElasticsearchQueryPropertiesTest {
@@ -28,6 +31,24 @@ class ElasticsearchQueryPropertiesTest {
         }
         assertThrownBy<IllegalArgumentException> {
             ElasticsearchQueryProperties(keepAlive = Duration.ZERO)
+        }
+    }
+
+    @Test
+    fun `should reject invalid query settings when bound`() {
+        assertThrows<Exception> {
+            Binder(
+                MapConfigurationPropertySource(
+                    mapOf("${ElasticsearchQueryProperties.PREFIX}.batch-size" to "0")
+                )
+            ).bindOrCreate(ElasticsearchQueryProperties.PREFIX, ElasticsearchQueryProperties::class.java)
+        }
+        assertThrows<Exception> {
+            Binder(
+                MapConfigurationPropertySource(
+                    mapOf("${ElasticsearchQueryProperties.PREFIX}.keep-alive" to "0ms")
+                )
+            ).bindOrCreate(ElasticsearchQueryProperties.PREFIX, ElasticsearchQueryProperties::class.java)
         }
     }
 }

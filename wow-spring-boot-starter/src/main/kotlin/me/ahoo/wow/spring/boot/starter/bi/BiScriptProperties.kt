@@ -28,21 +28,21 @@ import java.time.Duration
 
 @ConfigurationProperties(prefix = BiScriptProperties.PREFIX)
 data class BiScriptProperties(
-    @DefaultValue("true") val enabled: Boolean = true,
-    val database: String? = null,
-    val consumerDatabase: String? = null,
+    var enabled: Boolean = true,
+    var database: String? = null,
+    var consumerDatabase: String? = null,
     @NestedConfigurationProperty
-    val topology: BiScriptTopologyProperties = BiScriptTopologyProperties(),
-    val timezone: String? = null,
-    val kafkaBootstrapServers: String? = null,
-    val topicPrefix: String? = null,
-    val consumerGroupNamespace: String? = null,
-    val kafkaOffsetStorage: KafkaOffsetStorage? = null,
-    val kafkaKeeperPathPrefix: String? = null,
-    val maxExpansionDepth: Int? = null,
-    val unsupportedTypeStrategy: UnsupportedTypeStrategy? = null,
+    var topology: BiScriptTopologyProperties = BiScriptTopologyProperties(),
+    var timezone: String? = null,
+    var kafkaBootstrapServers: String? = null,
+    var topicPrefix: String? = null,
+    var consumerGroupNamespace: String? = null,
+    var kafkaOffsetStorage: KafkaOffsetStorage? = null,
+    var kafkaKeeperPathPrefix: String? = null,
+    var maxExpansionDepth: Int? = null,
+    var unsupportedTypeStrategy: UnsupportedTypeStrategy? = null,
     @NestedConfigurationProperty
-    val inspector: BiDeploymentInspectorProperties = BiDeploymentInspectorProperties(),
+    var inspector: BiDeploymentInspectorProperties = BiDeploymentInspectorProperties(),
 ) {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}bi.script"
@@ -50,10 +50,10 @@ data class BiScriptProperties(
 }
 
 data class BiDeploymentInspectorProperties(
-    @DefaultValue("NO_OP") val type: BiDeploymentInspectorType = BiDeploymentInspectorType.NO_OP,
-    @DefaultValue("30s") val timeout: Duration = Duration.ofSeconds(30),
+    @DefaultValue("NO_OP") var type: BiDeploymentInspectorType = BiDeploymentInspectorType.NO_OP,
+    @DefaultValue("30s") var timeout: Duration = Duration.ofSeconds(30),
     @NestedConfigurationProperty
-    val clickhouse: BiClickHouseInspectorProperties = BiClickHouseInspectorProperties(),
+    var clickhouse: BiClickHouseInspectorProperties = BiClickHouseInspectorProperties(),
 )
 
 enum class BiDeploymentInspectorType {
@@ -62,16 +62,16 @@ enum class BiDeploymentInspectorType {
 }
 
 data class BiClickHouseInspectorProperties(
-    val endpoints: List<URI> = emptyList(),
-    @DefaultValue("default") val username: String = "default",
-    @DefaultValue("") val password: String = "",
-    @DefaultValue("true") val connectionPoolEnabled: Boolean = true,
-    @DefaultValue("3s") val connectionTimeout: Duration = Duration.ofSeconds(3),
-    @DefaultValue("10s") val connectionRequestTimeout: Duration = Duration.ofSeconds(10),
-    @DefaultValue("10s") val socketTimeout: Duration = Duration.ofSeconds(10),
-    @DefaultValue("10s") val executionTimeout: Duration = Duration.ofSeconds(10),
-    @DefaultValue("10") val maxConnections: Int = 10,
-    @DefaultValue("0") val maxRetries: Int = 0,
+    var endpoints: List<URI> = emptyList(),
+    @DefaultValue("default") var username: String = "default",
+    @DefaultValue("") var password: String = "",
+    @DefaultValue("true") var connectionPoolEnabled: Boolean = true,
+    @DefaultValue("3s") var connectionTimeout: Duration = Duration.ofSeconds(3),
+    @DefaultValue("10s") var connectionRequestTimeout: Duration = Duration.ofSeconds(10),
+    @DefaultValue("10s") var socketTimeout: Duration = Duration.ofSeconds(10),
+    @DefaultValue("10s") var executionTimeout: Duration = Duration.ofSeconds(10),
+    @DefaultValue("10") var maxConnections: Int = 10,
+    @DefaultValue("0") var maxRetries: Int = 0,
 ) {
     override fun toString(): String =
         "BiClickHouseInspectorProperties(" +
@@ -101,9 +101,9 @@ internal fun BiClickHouseInspectorProperties.toClientOptions(): ClickHouseClient
 )
 
 data class BiScriptTopologyProperties(
-    @DefaultValue("CLUSTER") val mode: BiScriptTopologyMode = BiScriptTopologyMode.CLUSTER,
+    @DefaultValue("CLUSTER") var mode: BiScriptTopologyMode = BiScriptTopologyMode.CLUSTER,
     @NestedConfigurationProperty
-    val cluster: BiScriptClusterProperties? = null,
+    var cluster: BiScriptClusterProperties? = null,
 )
 
 enum class BiScriptTopologyMode {
@@ -112,8 +112,8 @@ enum class BiScriptTopologyMode {
 }
 
 data class BiScriptClusterProperties(
-    val name: String? = null,
-    val installation: String? = null,
+    var name: String? = null,
+    var installation: String? = null,
 )
 
 internal fun BiScriptProperties.toBiScriptOptions(kafkaProperties: KafkaProperties?): BiScriptOptions {

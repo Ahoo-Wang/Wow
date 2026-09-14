@@ -15,17 +15,15 @@ package me.ahoo.wow.spring.boot.starter.elasticsearch
 
 import me.ahoo.wow.infra.batch.BatchOptions
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.bind.DefaultValue
 import java.time.Duration
 
 @ConfigurationProperties(prefix = ElasticsearchEventStoreBatchProperties.PREFIX)
 class ElasticsearchEventStoreBatchProperties(
-    @DefaultValue("false") val enabled: Boolean = false,
-    @DefaultValue("128") val maxSize: Int = BatchOptions.DEFAULT_MAX_SIZE,
-    @DefaultValue("1ms") val maxDelay: Duration = BatchOptions.DEFAULT_MAX_DELAY,
-    @DefaultValue("4096")
-    val maxPendingItems: Int = BatchOptions.DEFAULT_MAX_PENDING_ITEMS,
-    @DefaultValue("1") val laneCount: Int = BatchOptions.DEFAULT_LANE_COUNT,
+    var enabled: Boolean = false,
+    var maxSize: Int = BatchOptions.DEFAULT_MAX_SIZE,
+    var maxDelay: Duration = BatchOptions.DEFAULT_MAX_DELAY,
+    var maxPendingItems: Int = BatchOptions.DEFAULT_MAX_PENDING_ITEMS,
+    var laneCount: Int = BatchOptions.DEFAULT_LANE_COUNT,
 ) {
     fun toOptions(): BatchOptions? {
         if (!enabled) {

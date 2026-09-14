@@ -16,12 +16,11 @@ package me.ahoo.wow.spring.boot.starter.elasticsearch
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = ElasticsearchProperties.PREFIX)
 class ElasticsearchProperties(
-    @DefaultValue("true") override val enabled: Boolean = true,
-    @DefaultValue("true") var autoInitTemplate: Boolean = true,
+    override var enabled: Boolean = true,
+    var autoInitTemplate: Boolean = true,
     var compatibilityVersion: Int? = null,
 ) : EnabledCapable {
     companion object {

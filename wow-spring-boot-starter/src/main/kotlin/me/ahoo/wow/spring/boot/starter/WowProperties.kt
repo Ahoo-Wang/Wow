@@ -16,7 +16,6 @@ package me.ahoo.wow.spring.boot.starter
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.bind.DefaultValue
 import java.time.Duration
 
 const val ENABLED_SUFFIX_KEY = ".enabled"
@@ -25,10 +24,8 @@ internal val DEFAULT_SHUTDOWN_QUIET_PERIOD: Duration = Duration.ofSeconds(1)
 
 @ConfigurationProperties(prefix = Wow.WOW)
 class WowProperties(
-    @DefaultValue("true") override var enabled: Boolean = true,
+    override var enabled: Boolean = true,
     var contextName: String? = null,
-    @DefaultValue("60s")
     var shutdownTimeout: Duration = DEFAULT_SHUTDOWN_TIMEOUT,
-    @DefaultValue("1s")
     var shutdownQuietPeriod: Duration = DEFAULT_SHUTDOWN_QUIET_PERIOD,
 ) : EnabledCapable

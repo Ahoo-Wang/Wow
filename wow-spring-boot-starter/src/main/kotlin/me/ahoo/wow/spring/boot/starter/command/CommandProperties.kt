@@ -42,8 +42,8 @@ class IdempotencyProperties(
     }
 
     data class BloomFilter(
-        val ttl: Duration = Duration.ofMinutes(1),
-        val expectedInsertions: Long = 1_000_000,
-        val fpp: Double = 0.00001
+        var ttl: Duration = Duration.ofMinutes(1),
+        var expectedInsertions: Long = 1_000_000,
+        var fpp: Double = 0.00001
     )
 }
