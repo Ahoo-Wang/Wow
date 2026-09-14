@@ -16,10 +16,9 @@ package me.ahoo.wow.spring.boot.starter.redis
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = RedisProperties.PREFIX)
-class RedisProperties(@DefaultValue("true") override var enabled: Boolean = true) : EnabledCapable {
+class RedisProperties(override var enabled: Boolean = true) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}redis"
     }

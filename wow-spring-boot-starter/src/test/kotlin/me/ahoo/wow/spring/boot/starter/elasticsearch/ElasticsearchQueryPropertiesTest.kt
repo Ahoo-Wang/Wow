@@ -14,7 +14,11 @@
 package me.ahoo.wow.spring.boot.starter.elasticsearch
 
 import me.ahoo.test.asserts.assertThrownBy
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.context.annotation.Configuration
 import java.time.Duration
 
 class ElasticsearchQueryPropertiesTest {
@@ -30,4 +34,30 @@ class ElasticsearchQueryPropertiesTest {
             ElasticsearchQueryProperties(keepAlive = Duration.ZERO)
         }
     }
+
+    @Test
+    fun `should reject invalid query settings through configuration properties binding`() {
+        listOf(
+            "${ElasticsearchQueryProperties.PREFIX}.batch-size=0" to "batchSize must be between 1 and 10000.",
+            "${ElasticsearchQueryProperties.PREFIX}.keep-alive=0ms" to "keepAlive must be greater than or equal to 1ms.",
+        ).forEach { (property, expectedMessage) ->
+            ApplicationContextRunner()
+                .withPropertyValues(property)
+                .withUserConfiguration(ConfigurationPropertiesConfiguration::class.java)
+                .run { context ->
+                    val startupFailure = context.startupFailure
+                    assertTrue(
+                        startupFailure?.let { failure ->
+                            generateSequence(failure) { it.cause }
+                                .any { it.message?.contains(expectedMessage) == true }
+                        } == true,
+                        "Expected binding to reject [$property] with [$expectedMessage], but was [$startupFailure]",
+                    )
+                }
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @EnableConfigurationProperties(ElasticsearchQueryProperties::class)
+    private class ConfigurationPropertiesConfiguration
 }

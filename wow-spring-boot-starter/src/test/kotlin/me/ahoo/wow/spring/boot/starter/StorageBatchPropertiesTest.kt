@@ -19,13 +19,22 @@ import me.ahoo.wow.spring.boot.starter.elasticsearch.ElasticsearchEventStoreBatc
 import me.ahoo.wow.spring.boot.starter.elasticsearch.ElasticsearchSnapshotStoreBatchProperties
 import me.ahoo.wow.spring.boot.starter.mongo.MongoEventStoreBatchProperties
 import me.ahoo.wow.spring.boot.starter.mongo.MongoSnapshotStoreBatchProperties
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.boot.context.properties.bind.Binder
+import org.springframework.boot.context.properties.bind.ConstructorBinding
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import java.time.Duration
 
 class StorageBatchPropertiesTest {
+    private val propertyTypes = listOf(
+        MongoEventStoreBatchProperties::class.java,
+        MongoSnapshotStoreBatchProperties::class.java,
+        ElasticsearchEventStoreBatchProperties::class.java,
+        ElasticsearchSnapshotStoreBatchProperties::class.java,
+    )
+
     private val bindings: Map<String, (Binder) -> BatchOptions?> = mapOf(
         MongoEventStoreBatchProperties.PREFIX to { binder ->
             binder.bindOrCreate(MongoEventStoreBatchProperties.PREFIX, MongoEventStoreBatchProperties::class.java).toOptions()
@@ -40,6 +49,23 @@ class StorageBatchPropertiesTest {
             binder.bindOrCreate(ElasticsearchSnapshotStoreBatchProperties.PREFIX, ElasticsearchSnapshotStoreBatchProperties::class.java).toOptions()
         },
     )
+
+    @Test
+    fun `all storage batch properties should use JavaBean binding`() {
+        propertyTypes.forEach { propertyType ->
+            val constructor = propertyType.getDeclaredConstructor()
+            assertTrue(
+                constructor.parameterCount == 0,
+                "${propertyType.name} must have a no-args constructor",
+            )
+            assertTrue(
+                propertyType.declaredConstructors.none {
+                    it.isAnnotationPresent(ConstructorBinding::class.java)
+                },
+                "${propertyType.name} must not declare @ConstructorBinding",
+            )
+        }
+    }
 
     @Test
     fun `all stores should disable batching by default and share enabled defaults`() {

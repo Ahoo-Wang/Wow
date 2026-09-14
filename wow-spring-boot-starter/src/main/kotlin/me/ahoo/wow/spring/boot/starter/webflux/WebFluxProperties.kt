@@ -26,7 +26,7 @@ import java.time.Duration
 class WebFluxProperties
 @Autowired(required = false)
 constructor(
-    @DefaultValue("true") override var enabled: Boolean = true,
+    override var enabled: Boolean = true,
     var globalError: GlobalError = GlobalError(),
     var batch: Batch = Batch(),
 ) : EnabledCapable {

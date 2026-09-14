@@ -15,15 +15,14 @@ package me.ahoo.wow.spring.boot.starter.redis
 
 import me.ahoo.wow.redis.bus.RedisStreamRecoveryOptions
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.bind.DefaultValue
 import java.time.Duration
 
 @ConfigurationProperties(prefix = RedisStreamRecoveryProperties.PREFIX)
 class RedisStreamRecoveryProperties(
-    @DefaultValue("true") var enabled: Boolean = true,
-    @DefaultValue("5m") var minIdleTime: Duration = Duration.ofMinutes(5),
-    @DefaultValue("30s") var interval: Duration = Duration.ofSeconds(30),
-    @DefaultValue("100") var batchSize: Long = 100,
+    var enabled: Boolean = true,
+    var minIdleTime: Duration = Duration.ofMinutes(5),
+    var interval: Duration = Duration.ofSeconds(30),
+    var batchSize: Long = 100,
 ) {
     fun toOptions(): RedisStreamRecoveryOptions {
         return RedisStreamRecoveryOptions(

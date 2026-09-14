@@ -35,10 +35,10 @@ class KafkaProperties(
     /**
      * common properties
      */
-    val properties: Map<String, String> = mapOf(),
-    val producer: Map<String, String> = mapOf(),
-    val consumer: Map<String, String> = mapOf(),
-    @NestedConfigurationProperty val receiver: KafkaReceiverProperties = KafkaReceiverProperties(),
+    var properties: Map<String, String> = mapOf(),
+    var producer: Map<String, String> = mapOf(),
+    var consumer: Map<String, String> = mapOf(),
+    @NestedConfigurationProperty var receiver: KafkaReceiverProperties = KafkaReceiverProperties(),
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}kafka"

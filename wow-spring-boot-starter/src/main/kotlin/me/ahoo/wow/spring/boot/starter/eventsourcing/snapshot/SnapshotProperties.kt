@@ -18,11 +18,10 @@ import me.ahoo.wow.eventsourcing.snapshot.DEFAULT_VERSION_OFFSET
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = SnapshotProperties.PREFIX)
 data class SnapshotProperties(
-    @DefaultValue("true") override var enabled: Boolean = true,
+    override var enabled: Boolean = true,
     var strategy: Strategy = Strategy.ALL,
     var versionOffset: Int = DEFAULT_VERSION_OFFSET,
     var storage: StorageType = StorageType.MONGO
