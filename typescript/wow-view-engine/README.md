@@ -1,10 +1,53 @@
 # Fetcher View Engine
 
-View Engine owns further data-view development. `@ahoo-wang/fetcher-viewer` is deprecated and in maintenance mode, with no new features; use this package for new projects. The packages use different models and APIs, so migration requires adaptation.
+**View Engine is a configurable, composable data view engine for business applications.** It describes data scope, organization and presentation as reusable configurations, provides record, analysis and dashboard views, and coordinates editing, query execution, results and persistence.
+
+Its goal is to help users organize and understand data around their tasks while letting developers reuse common data-page behavior. Frequently used views can be saved, and supported presentation changes can be configured, reducing repeated setup and page development.
 
 [Task guides](../../wiki/guides/view-engine/index.md) · [API reference](../../wiki/reference/view-engine/index.md) · [Shared runnable example](../../wiki/examples/view-engine.md)
 
-Independent `@ahoo-wang/fetcher-view-engine` package with headless Wow filter compilation and validation, a complete `FilterPanel`, structured value editors, and shadcn/Base UI controls. It also provides a headless ViewEngine and a complete RecordView page with host-managed definitions, instances and persistence. Record table/card views, analysis tables/charts and dashboards share the same engine, with isolated embedded browsing for all three kinds.
+## From business tasks to data views
+
+The same order data can support different jobs:
+
+| Business task                          | How views help                                                                                        |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Find orders that need attention today  | Filter the data scope and browse details in a table or cards                                          |
+| Compare pending work across warehouses | Group by warehouse, count orders and present an analysis table or chart                               |
+| Review overall operations              | Combine record or analysis views in a dashboard and apply global conditions through explicit mappings |
+| Repeat the same daily workflow         | Save filters, sorting, display fields and analysis configuration for reuse                            |
+
+A view describes a way of observing data. **Saving a view preserves its configuration, not a data snapshot**; subsequent results depend on the data and the user's access scope at execution time.
+
+## Core capabilities
+
+Record, analysis and dashboard are the three view kinds. Structured filtering is their shared expression capability; persistence and embedding support reuse across views.
+
+- **Structured filtering**: express data scope, retain editable conditions and inputs, and constrain queries through compilation and validation.
+- **Record views**: browse details as tables or cards, with field configuration, sorting, pagination, selection and summaries.
+- **Analysis views**: choose dimensions and metrics within declared source capabilities, then compare and understand results through tables or charts.
+- **Dashboard composition**: arrange views and explanatory content, configure panel layouts and global filter relationships. Data panels retain independent queries; composition does not require a single combined query.
+- **Persistence and reuse**: save, reopen, save as and manage personal or shared views through host services, preserving useful ways of working.
+- **Independent embedding**: reuse saved views across pages, with browsing state owned by each embedded position.
+
+## Making configurations executable
+
+`@ahoo-wang/fetcher-view-engine` separates view contracts, a React-independent core runtime and React interaction components. Applications can use complete views or integrate through public commands, snapshots and component composition. The default UI uses shadcn/Base UI, with explicit integration points for business extensions.
+
+- **Bounded configuration**: definitions declare available fields and query capabilities; compilation and validation check their combinations. Configuration uses capabilities already supplied by the host.
+- **Explicit state ownership**: saved baselines, working drafts, applied queries and successful results are managed separately, with query coordination and cancellation handled by the runtime.
+- **Clear operation semantics**: saving configuration and running queries are separate operations. Conditions being edited are distinct from those behind current results, and presentation changes should preserve result meaning.
+- **Reusable behavior**: editing, loading, queries, persistence and failure recovery are coordinated centrally, reducing duplicated state and workflow logic across business pages.
+
+This design aims to help users obtain information faster, let product teams configure supported changes, and reduce repetitive integration code for developers. Progress is measured by tasks completed through configuration and behavior reuse, and by clear, reliable state during failures and navigation.
+
+## Responsibilities of the host application
+
+The business application supplies data and field definitions, query capabilities, data sources, view persistence, authorization decisions and business actions. The engine handles view configuration, execution coordination and interaction on top of these capabilities. New business metrics, domain rules and workflows such as approvals remain application responsibilities.
+
+View Engine focuses on data views. It does not provide a database or computation backend, permission-policy management, workflow orchestration, arbitrary-page low-code tooling or unrestricted BI modeling. Shared views can reuse established metric definitions; the host remains responsible for their business meaning and source-data correctness.
+
+View Engine owns further data-view development. `@ahoo-wang/fetcher-viewer` is deprecated and in maintenance mode, with no new features; use this package for new projects. The packages use different models and APIs, so migration requires adaptation.
 
 ## Module responsibilities
 
