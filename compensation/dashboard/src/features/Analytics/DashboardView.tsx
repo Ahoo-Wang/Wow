@@ -13,6 +13,7 @@
 
 import dayjs from "dayjs";
 import { createClusterHref } from "../Failed/clusterScope.ts";
+import { createExecutionWindowHref } from "../Failed/executionWindow.ts";
 import {
   ArrowUpRight,
   CalendarDays,
@@ -20,6 +21,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
 import { ExchangeError } from "@ahoo-wang/fetcher";
 import { RecoverableType } from "@ahoo-wang/fetcher-wow";
 import type { DateRange } from "react-day-picker";
@@ -355,6 +357,8 @@ export default function DashboardView() {
     scopeInsightsReady && snapshot.summary.data
       ? snapshot.summary.data.newerThanRange
       : 0;
+  const actionableNowCount = snapshot.summary.data?.actionableNow ?? 0;
+  const timedOutCount = snapshot.summary.data?.timedOut ?? 0;
   const pressureInsightsReady =
     Boolean(snapshot.pressure.data?.length) &&
     Boolean(selectedActive) &&
@@ -582,12 +586,26 @@ export default function DashboardView() {
                   <div>
                     <dt>{t("Actionable now")}</dt>
                     <dd>
-                      {snapshot.summary.data.actionableNow.toLocaleString()}
+                      <Link
+                        aria-label={t(
+                          "{label}: {count}, open the due-for-retry queue",
+                          {
+                            count: actionableNowCount.toLocaleString(),
+                            label: t("Actionable now"),
+                          },
+                        )}
+                        className={`underline-offset-2 hover:underline ${
+                          actionableNowCount > 0 ? "text-destructive" : ""
+                        }`.trimEnd()}
+                        to={createExecutionWindowHref("/next-retry", window)}
+                      >
+                        {actionableNowCount.toLocaleString()}
+                      </Link>
                     </dd>
                   </div>
                   <div>
                     <dt>{t("Timed out")}</dt>
-                    <dd>{snapshot.summary.data.timedOut.toLocaleString()}</dd>
+                    <dd>{timedOutCount.toLocaleString()}</dd>
                   </div>
                 </dl>
               </>

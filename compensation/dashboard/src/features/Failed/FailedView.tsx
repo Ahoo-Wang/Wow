@@ -21,8 +21,13 @@ import { FailedWorkspace } from "./FailedWorkspace.tsx";
 import type { FindCategory } from "./FindCategory.ts";
 import { useFailedQueueController } from "./useFailedQueueController.ts";
 import { useSearchParams } from "react-router";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { parseClusterScope, type ClusterScope } from "./clusterScope.ts";
+import {
+  parseExecutionWindow,
+  type ExecutionWindow,
+} from "./executionWindow.ts";
+import { NavItemPaths, NavItems } from "@/routes/constants.tsx";
 import { formatDate } from "@/utils/dates.ts";
 import { useI18n } from "@/i18n.tsx";
 
@@ -68,6 +73,7 @@ export default function FailedView({ category }: FailedViewProps) {
   const [params] = useSearchParams();
   const rawScope = params.get("cluster");
   const scope = useMemo(() => parseClusterScope(rawScope), [rawScope]);
+  const window = useMemo(() => parseExecutionWindow(params), [params]);
   const { t } = useI18n();
   if (scope === undefined) {
     return (
@@ -79,19 +85,48 @@ export default function FailedView({ category }: FailedViewProps) {
       </div>
     );
   }
-  return <FailedQueue key={rawScope ?? ""} category={category} scope={scope} />;
+  if (window === null) {
+    return (
+      <div role="alert" className="p-6">
+        {t("Invalid time range filter.")}{" "}
+        <a className="underline" href={NavItems.find((item) => item.category === category)?.path ?? NavItemPaths.Active}>
+          {t("Clear time range filter")}
+        </a>
+      </div>
+    );
+  }
+  return (
+    <FailedQueue
+      key={`${rawScope ?? ""}:${params.get("start") ?? ""}:${params.get("end") ?? ""}`}
+      category={category}
+      scope={scope}
+      window={window}
+    />
+  );
 }
 
 export function FailedQueue({
   category,
   scope,
-}: FailedViewProps & { scope?: ClusterScope | null }) {
+  window,
+}: FailedViewProps & {
+  scope?: ClusterScope | null;
+  window?: ExecutionWindow | null;
+}) {
   const { t, locale } = useI18n();
   const desktop = useMediaQuery("(min-width: 960px)");
   const { isOpen: isDrawerOpen } = useGlobalDrawer();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const clearWindow = useCallback(() => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("start");
+    next.delete("end");
+    setSearchParams(next);
+  }, [searchParams, setSearchParams]);
   const controller = useFailedQueueController({
     category,
     scope,
+    executionWindow: window,
     desktop,
     refreshPaused: isDrawerOpen,
   });
@@ -120,6 +155,22 @@ export function FailedQueue({
           >
             {t("Clear cluster filter")}
           </a>
+        </div>
+      ) : null}
+      {window ? (
+        <div className="border-b bg-muted/40 px-5 py-3 text-xs">
+          <p className="font-medium">{t("Time range filter")}</p>
+          <p className="mt-1">
+            {formatDate(window.start, undefined, locale)} –{" "}
+            {formatDate(window.end - 1, undefined, locale)}
+          </p>
+          <button
+            className="mt-2 inline-block underline underline-offset-4"
+            onClick={clearWindow}
+            type="button"
+          >
+            {t("Clear time range filter")}
+          </button>
         </div>
       ) : null}
       <FailedSearch

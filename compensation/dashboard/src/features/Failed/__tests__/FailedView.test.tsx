@@ -320,6 +320,55 @@ describe("FailedView", () => {
     }
   });
 
+  it("scopes the queue to the execution window carried by the dashboard link", () => {
+    const window = { end: 1_787_932_800_000, start: 1_787_328_000_000 };
+    render(<FailedView category={FindCategory.NextRetry} window={window} />);
+
+    const initialQuery = (mocks.hookOptions as { query: { filter?: unknown } })
+      .query;
+    const serialized = JSON.stringify(initialQuery.filter);
+    expect(serialized).toContain('"field":"state.executeAt"');
+    expect(serialized).toContain(String(window.start));
+    expect(serialized).toContain(String(window.end));
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    for (const [query] of mocks.setQuery.mock.calls) {
+      expect(JSON.stringify(query.filter)).toContain(String(window.start));
+    }
+  });
+
+  it("exposes the carried window with a way to clear it without dropping other params", () => {
+    mocks.search = "id=e2e-1&start=1787328000000&end=1787932800000";
+    render(
+      <FailedView
+        category={FindCategory.NextRetry}
+        window={{ end: 1_787_932_800_000, start: 1_787_328_000_000 }}
+      />,
+    );
+
+    expect(screen.getByText("Time range filter")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear time range filter" }),
+    );
+
+    expect(mocks.setSearchParams).toHaveBeenCalledTimes(1);
+    const [next] = mocks.setSearchParams.mock.calls[0] as [URLSearchParams];
+    expect(next.get("start")).toBeNull();
+    expect(next.get("end")).toBeNull();
+    expect(next.get("id")).toBe("e2e-1");
+  });
+
+  it("leaves the queue unwindowed when the link carries no range", () => {
+    render(<FailedView category={FindCategory.NextRetry} />);
+
+    const initialQuery = (mocks.hookOptions as { query: { filter?: unknown } })
+      .query;
+    expect(JSON.stringify(initialQuery.filter)).not.toContain(
+      '"field":"state.executeAt"',
+    );
+  });
+
   it("queries through the service boundary without binding the view to an API URL", async () => {
     render(<FailedView category={FindCategory.ToRetry} />);
 

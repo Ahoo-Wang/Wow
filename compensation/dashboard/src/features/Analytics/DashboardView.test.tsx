@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { AggregationDateUnit, RecoverableType } from "@ahoo-wang/fetcher-wow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrendPoint } from "./analyticsQueries.ts";
@@ -8,6 +9,13 @@ import type {
 } from "./useSnapshotAnalytics.ts";
 import DashboardView from "./DashboardView.tsx";
 import { I18nProvider } from "@/i18n.tsx";
+
+const view = () => (
+  <MemoryRouter>
+    <DashboardView />
+  </MemoryRouter>
+);
+const renderView = () => render(view());
 
 const mocks = vi.hoisted(() => ({
   eventResult: undefined as unknown as AnalyticsSection<TrendPoint[]>,
@@ -148,7 +156,7 @@ describe("DashboardView", () => {
   });
 
   it("composes the dashboard from shadcn cards", () => {
-    render(<DashboardView />);
+    renderView();
 
     expect(document.querySelectorAll("[data-slot='card']")).toHaveLength(4);
     expect(
@@ -219,7 +227,7 @@ describe("DashboardView", () => {
       },
     ];
 
-    render(<DashboardView />);
+    renderView();
 
     const stock = screen.getByRole("region", { name: "Backlog exposure" });
     expect(
@@ -236,6 +244,18 @@ describe("DashboardView", () => {
         name: "Selected active coverage",
       }),
     ).toHaveAttribute("aria-valuenow", "3.2");
+    const actionableLink = within(stock).getByRole("link", {
+      name: /Actionable now: 12, open the due-for-retry queue/,
+    });
+    expect(actionableLink).toHaveAttribute(
+      "href",
+      expect.stringContaining("/next-retry?start="),
+    );
+    expect(actionableLink.getAttribute("href")).toContain("&end=");
+    expect(actionableLink).toHaveClass("text-destructive");
+    expect(
+      within(stock).queryByRole("link", { name: "3" }),
+    ).not.toBeInTheDocument();
 
     const flow = screen.getByRole("region", {
       name: "Compensation effectiveness",
@@ -285,7 +305,7 @@ describe("DashboardView", () => {
       },
     ];
 
-    render(<DashboardView />);
+    renderView();
 
     expect(
       within(
@@ -320,7 +340,7 @@ describe("DashboardView", () => {
       updatedAt: 2,
     };
 
-    render(<DashboardView />);
+    renderView();
 
     expect(
       screen.queryByRole("progressbar", { name: "Selected active coverage" }),
@@ -329,7 +349,7 @@ describe("DashboardView", () => {
   });
 
   it("groups the quick date presets without changing their behavior", () => {
-    render(<DashboardView />);
+    renderView();
     fireEvent.click(screen.getByRole("button", { name: /^Time range:/ }));
 
     const presets = screen.getByRole("group", { name: "Date range presets" });
@@ -346,7 +366,7 @@ describe("DashboardView", () => {
     mocks.snapshotResult.recoverability.error = new Error(
       "snapshot unavailable",
     );
-    render(<DashboardView />);
+    renderView();
 
     const alerts = screen.getAllByRole("alert");
     expect(alerts).toHaveLength(1);
@@ -362,7 +382,7 @@ describe("DashboardView", () => {
       error: new Error("trend unavailable"),
       loading: false,
     };
-    render(<DashboardView />);
+    renderView();
 
     const flow = screen.getByRole("region", {
       name: "Compensation effectiveness",
@@ -387,7 +407,7 @@ describe("DashboardView", () => {
     mocks.snapshotResult.recoverability.data = [
       { recoverable: RecoverableType.UNRECOVERABLE, count: 25 },
     ];
-    render(<DashboardView />);
+    renderView();
 
     const stock = screen.getByRole("region", { name: "Backlog exposure" });
     expect(within(stock).getByText("60 older")).toBeInTheDocument();
@@ -401,7 +421,7 @@ describe("DashboardView", () => {
     mocks.snapshotResult.recoverability.data = [
       { recoverable: RecoverableType.UNRECOVERABLE, count: 200 },
     ];
-    render(<DashboardView />);
+    renderView();
 
     expect(screen.getByText("128")).toBeInTheDocument();
     expect(
@@ -488,7 +508,7 @@ describe("DashboardView", () => {
   ] as const)(
     "applies %s immediately and closes the date picker",
     (label, days, start) => {
-      render(<DashboardView />);
+      renderView();
 
       fireEvent.click(screen.getByRole("button", { name: /^Time range:/ }));
       fireEvent.click(screen.getByRole("button", { name: label }));
@@ -509,7 +529,7 @@ describe("DashboardView", () => {
 
   it("refreshes both facts with one token and preserves regional errors", () => {
     mocks.snapshotResult.summary.error = new Error("snapshot unavailable");
-    render(<DashboardView />);
+    renderView();
 
     expect(screen.getByRole("alert")).toHaveTextContent("snapshot unavailable");
     fireEvent.click(screen.getByRole("button", { name: "Refresh dashboard" }));
@@ -529,7 +549,7 @@ describe("DashboardView", () => {
       retries: { loading: true },
     };
     mocks.eventResult = { loading: true };
-    const { rerender } = render(<DashboardView />);
+    const { rerender } = renderView();
 
     expect(
       screen.getByRole("status", { name: "Loading dashboard" }),
@@ -569,7 +589,7 @@ describe("DashboardView", () => {
       loading: false,
     };
     mocks.eventResult = { data: [], loading: true };
-    rerender(<DashboardView />);
+    rerender(view());
 
     expect(
       screen.queryByRole("status", { name: "Loading dashboard" }),
@@ -600,7 +620,7 @@ describe("DashboardView", () => {
       { recoverable: RecoverableType.UNRECOVERABLE, count: 25 },
     ];
 
-    render(<DashboardView />);
+    renderView();
 
     const stock = screen.getByRole("region", { name: "Backlog exposure" });
     expect(
@@ -626,7 +646,7 @@ describe("DashboardView", () => {
     };
     mocks.snapshotResult.recoverability.data = [];
 
-    render(<DashboardView />);
+    renderView();
 
     const stock = screen.getByRole("region", { name: "Backlog exposure" });
     expect(
@@ -658,7 +678,7 @@ describe("DashboardView", () => {
       },
     ];
 
-    render(<DashboardView />);
+    renderView();
 
     expect(
       screen.getByRole("heading", {
@@ -706,7 +726,7 @@ describe("DashboardView", () => {
       },
     ];
 
-    render(<DashboardView />);
+    renderView();
 
     expect(
       within(screen.getByRole("region", { name: "Backlog exposure" })).getByText(
@@ -733,7 +753,7 @@ describe("DashboardView", () => {
     mocks.snapshotResult.retries.updatedAt = oldestUpdatedAt + 60_000;
     mocks.eventResult.updatedAt = oldestUpdatedAt + 60_000;
 
-    render(<DashboardView />);
+    renderView();
 
     expect(
       screen.getByText("Updated 2026-08-29 00:00:00"),
@@ -744,7 +764,7 @@ describe("DashboardView", () => {
     mocks.snapshotResult.retries.data = {
       buckets: [{ key: "0", count: 3 }],
     };
-    render(<DashboardView />);
+    renderView();
 
     expect(screen.getByText("No active failure clusters")).toBeInTheDocument();
     expect(screen.getByText("Retry distribution")).toBeInTheDocument();
@@ -757,7 +777,7 @@ describe("DashboardView", () => {
       { recoverable: RecoverableType.UNRECOVERABLE, count: 2 },
     ];
 
-    render(<DashboardView />);
+    renderView();
 
     expect(screen.getByText("Recoverable: 7")).toHaveAttribute(
       "data-color",
@@ -800,7 +820,7 @@ describe("DashboardView", () => {
         processorName: "PaymentProcessor",
       },
     ];
-    render(<DashboardView />);
+    renderView();
 
     const pressureTable = screen.getByRole("table", {
       name: "Current failure pressure",
@@ -839,7 +859,7 @@ describe("DashboardView", () => {
         processorName: "PaymentProcessor",
       },
     ];
-    render(<DashboardView />);
+    renderView();
 
     expect(screen.queryByText("Swipe to view more")).not.toBeInTheDocument();
     const firstRowCells = Array.from(
@@ -859,7 +879,7 @@ describe("DashboardView", () => {
   });
 
   it("keeps stock, flow, activity, health, then pressure in reading order", () => {
-    render(<DashboardView />);
+    renderView();
 
     const content = document.body.textContent ?? "";
     expect(screen.getAllByText(/Updated /)).toHaveLength(1);
