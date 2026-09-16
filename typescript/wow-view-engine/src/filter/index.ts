@@ -19,6 +19,7 @@
  * resolved against an injected moment rather than the system clock.
  */
 export * from './compile.js';
+export * from './configBase.js';
 export * from './describe.js';
 export * from './fieldKind.js';
 export * from './kinds/index.js';

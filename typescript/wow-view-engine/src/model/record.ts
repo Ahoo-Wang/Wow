@@ -28,6 +28,13 @@ export type RecordLayout = 'table' | 'card';
 /** Which paging protocol the source offers; declared by the definition. */
 export type PagingMode = 'paged' | 'cursor';
 
+/**
+ * Where to read from. The definition's paging mode decides which member is
+ * available, and a cursor of `null` asks for the first page.
+ */
+export type RecordPageTarget<P extends PagingMode = PagingMode> =
+  P extends 'paged' ? { index: number } : { cursor: string | null };
+
 export interface RecordSort {
   field: string;
   direction: SortDirection;

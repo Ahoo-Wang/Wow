@@ -1,0 +1,554 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import {
+  AggregationMetricType,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/fetcher-wow';
+import { describe, expect, it } from 'vitest';
+import {
+  builtinFieldKinds,
+  compileRecord,
+  compileSummaries,
+  defaultRecordConfig,
+  FIRST_PAGE,
+  projectRecord,
+  projectSummaries,
+  recordCapabilityOf,
+  summaryAlias,
+  validateRecord,
+  type DataViewDefinition,
+  type Issue,
+  type RecordViewConfig,
+} from '../src/index.js';
+
+const context = { now: new Date('2026-09-16T10:30:00.000Z'), timeZone: 'UTC' };
+
+function definition(
+  overrides: Partial<DataViewDefinition> = {},
+): DataViewDefinition {
+  return {
+    id: 'orders',
+    title: 'Orders',
+    kind: 'data',
+    source: 'orders',
+    fields: [
+      { name: 'id', label: 'Order', kind: 'string' },
+      {
+        name: 'amount',
+        label: 'Amount',
+        kind: 'number',
+        summary: ['SUM', 'AVG'],
+        numberFormat: { style: 'currency', currency: 'CNY' },
+      },
+      { name: 'warehouse', label: 'Warehouse', kind: 'string', cell: 'badge' },
+      {
+        name: 'createdAt',
+        label: 'Created',
+        kind: 'datetime',
+        sortable: true,
+      },
+    ],
+    record: { rowKey: 'id', paging: 'paged', layouts: ['table', 'card'] },
+    ...overrides,
+  };
+}
+
+function config(overrides: Partial<RecordViewConfig> = {}): RecordViewConfig {
+  return {
+    filter: { op: 'and', children: [] },
+    filterMode: 'simple',
+    refresh: { interval: null },
+    kind: 'record',
+    sort: [],
+    pageSize: 20,
+    layout: 'table',
+    table: { columns: [{ field: 'id' }, { field: 'amount' }] },
+    card: { title: 'id', fields: ['amount'] },
+    ...overrides,
+  };
+}
+
+const codes = (issues: Issue[]) =>
+  issues.filter(i => i.severity === 'error').map(i => i.code);
+
+describe('defaultRecordConfig', () => {
+  it('builds a complete config from the declared capability', () => {
+    const built = defaultRecordConfig(definition());
+    expect(built).toMatchObject({
+      kind: 'record',
+      layout: 'table',
+      pageSize: 20,
+      card: { title: 'id' },
+    });
+    expect(built.table.columns.map(column => column.field)).toEqual([
+      'id',
+      'amount',
+      'warehouse',
+      'createdAt',
+    ]);
+    expect(validateRecord(definition(), built, builtinFieldKinds)).toEqual([]);
+  });
+
+  it('prefers the definition defaults and stays inside the page limit', () => {
+    const def = definition({
+      record: {
+        rowKey: 'id',
+        paging: 'cursor',
+        layouts: ['card'],
+        defaults: {
+          pageSize: 1000,
+          layout: 'card',
+          sort: [{ field: 'createdAt', direction: 'DESC' }],
+        },
+      },
+    });
+    const built = defaultRecordConfig(def);
+    expect(built.layout).toBe('card');
+    expect(built.pageSize).toBe(200);
+    expect(built.sort).toEqual([{ field: 'createdAt', direction: 'DESC' }]);
+  });
+
+  it('refuses a definition without the capability it needs', () => {
+    const def = definition({ record: undefined });
+    expect(() => defaultRecordConfig(def)).toThrow(/no record capability/);
+    expect(recordCapabilityOf(def)).toBeUndefined();
+    expect(
+      recordCapabilityOf({ id: 'd', title: 'D', kind: 'dashboard' }),
+    ).toBeUndefined();
+  });
+});
+
+describe('validateRecord', () => {
+  it('admits a config that matches its definition', () => {
+    expect(validateRecord(definition(), config(), builtinFieldKinds)).toEqual(
+      [],
+    );
+  });
+
+  it('reports a layout the capability does not offer', () => {
+    const def = definition({
+      record: { rowKey: 'id', paging: 'paged', layouts: ['table'] },
+    });
+    expect(
+      codes(validateRecord(def, config({ layout: 'card' }), builtinFieldKinds)),
+    ).toEqual(['record.layout.unsupported']);
+  });
+
+  it('bounds the page size', () => {
+    expect(
+      codes(
+        validateRecord(
+          definition(),
+          config({ pageSize: 0 }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['record.pageSize.not-positive']);
+    expect(
+      codes(
+        validateRecord(
+          definition(),
+          config({ pageSize: 5000 }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['record.pageSize.too-large']);
+  });
+
+  it('sorts only by fields the definition marks sortable', () => {
+    expect(
+      codes(
+        validateRecord(
+          definition(),
+          config({ sort: [{ field: 'amount', direction: 'ASC' }] }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['record.sort.not-sortable']);
+
+    expect(
+      codes(
+        validateRecord(
+          definition(),
+          config({ sort: [{ field: 'gone', direction: 'ASC' }] }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['record.field.unknown']);
+  });
+
+  it('bounds the sort fields of a cursor source with the Wow limit', () => {
+    const def = definition({
+      record: { rowKey: 'id', paging: 'cursor', layouts: ['table'] },
+    });
+    const sort = Array.from({ length: 33 }, () => ({
+      field: 'createdAt',
+      direction: 'ASC' as const,
+    }));
+    expect(
+      codes(validateRecord(def, config({ sort }), builtinFieldKinds)),
+    ).toContain('record.sort.too-many');
+  });
+
+  it('reports columns and card fields that no longer exist', () => {
+    const issues = validateRecord(
+      definition(),
+      config({
+        table: { columns: [{ field: 'gone' }] },
+        card: { title: 'missing', fields: ['amount', 'other'], image: 'nope' },
+      }),
+      builtinFieldKinds,
+    );
+    expect(codes(issues)).toEqual([
+      'record.field.unknown',
+      'record.field.unknown',
+      'record.field.unknown',
+      'record.field.unknown',
+    ]);
+    expect(issues[0].path).toEqual(['table', 'columns', 0, 'field']);
+  });
+
+  it('allows only the summary functions the field declares', () => {
+    expect(
+      codes(
+        validateRecord(
+          definition(),
+          config({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual([]);
+    expect(
+      codes(
+        validateRecord(
+          definition(),
+          config({ summaries: [{ field: 'amount', fn: 'MAX' }] }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['record.summary.unsupported']);
+    expect(
+      codes(
+        validateRecord(
+          definition(),
+          config({ summaries: [{ field: 'gone', fn: 'SUM' }] }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['record.field.unknown']);
+  });
+
+  it('checks the shared config base too', () => {
+    expect(
+      codes(
+        validateRecord(
+          definition(),
+          config({ refresh: { interval: 1 } }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['config.refresh.too-short']);
+    expect(
+      codes(
+        validateRecord(
+          definition(),
+          config({ refresh: { interval: 999_999 } }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['config.refresh.too-long']);
+    expect(
+      codes(
+        validateRecord(
+          definition(),
+          config({ refresh: { interval: 1.5 } }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['config.refresh.not-an-integer']);
+
+    // An OR tree still runs; only the simple editor cannot show it.
+    const advanced = validateRecord(
+      definition(),
+      config({
+        filter: {
+          op: 'or',
+          children: [{ field: 'id', operator: 'EQ', value: 'A' }],
+        },
+      }),
+      builtinFieldKinds,
+    );
+    expect(codes(advanced)).toEqual([]);
+    expect(advanced.map(i => i.code)).toEqual(['config.filterMode.not-simple']);
+  });
+
+  it('reports a definition without the record capability', () => {
+    expect(
+      codes(
+        validateRecord(
+          definition({ record: undefined }),
+          config(),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['record.capability.missing']);
+  });
+});
+
+describe('compileRecord', () => {
+  it('compiles a paged query that starts at page one', () => {
+    const query = compileRecord(
+      definition(),
+      config({ sort: [{ field: 'createdAt', direction: 'DESC' }] }),
+      builtinFieldKinds,
+      context,
+      FIRST_PAGE.paged,
+    );
+    expect(query).toMatchObject({
+      filter: { op: FilterOperator.MATCH_ALL },
+      sort: [{ field: 'createdAt', direction: SortDirection.DESC }],
+      pagination: { index: 1, size: 20 },
+    });
+  });
+
+  it('compiles a cursor query whose first page is a null cursor', () => {
+    const query = compileRecord(
+      definition(),
+      config(),
+      builtinFieldKinds,
+      context,
+      FIRST_PAGE.cursor,
+    );
+    expect(query).toMatchObject({ size: 20, cursor: null });
+
+    const next = compileRecord(
+      definition(),
+      config(),
+      builtinFieldKinds,
+      context,
+      { cursor: 'c1' },
+    );
+    expect(next).toMatchObject({ cursor: 'c1' });
+  });
+
+  it('carries the applied filter into the query', () => {
+    const query = compileRecord(
+      definition(),
+      config({
+        filter: {
+          op: 'and',
+          children: [{ field: 'id', operator: 'EQ', value: 'A1' }],
+        },
+      }),
+      builtinFieldKinds,
+      context,
+      { index: 2 },
+    );
+    expect(query).toMatchObject({
+      filter: { op: FilterOperator.EQ, field: 'id', value: 'A1' },
+      pagination: { index: 2 },
+    });
+  });
+});
+
+describe('compileSummaries', () => {
+  it('returns null when the config asks for none', () => {
+    expect(
+      compileSummaries(definition(), config(), builtinFieldKinds, context),
+    ).toBeNull();
+  });
+
+  it('builds one ungrouped aggregation with an alias per cell', () => {
+    const query = compileSummaries(
+      definition(),
+      config({
+        summaries: [
+          { field: 'amount', fn: 'SUM' },
+          { field: 'amount', fn: 'AVG' },
+          { field: 'id', fn: 'COUNT' },
+        ],
+      }),
+      builtinFieldKinds,
+      context,
+    );
+    expect(query?.groupBy).toBeUndefined();
+    expect(query?.metrics.map(metric => metric.alias)).toEqual([
+      'amount_sum',
+      'amount_avg',
+      'id_count',
+    ]);
+    expect(query?.metrics[2].type).toBe(AggregationMetricType.COUNT);
+  });
+
+  it('keeps an alias to a single segment', () => {
+    expect(summaryAlias('address.city', 'MAX')).toBe('address_city_max');
+  });
+});
+
+describe('projectRecord', () => {
+  const rows = [
+    { id: 'A1', amount: 10, warehouse: 'SH' },
+    { id: 'A2', amount: 30, warehouse: 'BJ' },
+  ];
+
+  it('resolves column semantics and the row key', () => {
+    const view = projectRecord(definition(), config(), {
+      total: 2,
+      list: rows,
+    });
+    expect(view.columns).toEqual([
+      {
+        field: 'id',
+        label: 'Order',
+        kind: 'string',
+        cell: 'string',
+        width: undefined,
+        pinned: undefined,
+        sortable: false,
+        numberFormat: undefined,
+      },
+      {
+        field: 'amount',
+        label: 'Amount',
+        kind: 'number',
+        cell: 'number',
+        width: undefined,
+        pinned: undefined,
+        sortable: false,
+        numberFormat: { style: 'currency', currency: 'CNY' },
+      },
+    ]);
+    expect(view.rows.map(row => row.key)).toEqual(['A1', 'A2']);
+    expect(view.paging).toEqual({ mode: 'paged', index: 1, total: 2 });
+  });
+
+  it('uses the renderer key a field declares', () => {
+    const view = projectRecord(
+      definition(),
+      config({ table: { columns: [{ field: 'warehouse', width: 120 }] } }),
+      { total: 0, list: [] },
+    );
+    expect(view.columns[0]).toMatchObject({ cell: 'badge', width: 120 });
+  });
+
+  it('drops a column whose field has disappeared', () => {
+    const view = projectRecord(
+      definition(),
+      config({ table: { columns: [{ field: 'gone' }, { field: 'id' }] } }),
+      { total: 0, list: [] },
+    );
+    expect(view.columns.map(column => column.field)).toEqual(['id']);
+  });
+
+  it('reports the cursor of a cursor page', () => {
+    const view = projectRecord(definition(), config(), {
+      list: rows,
+      nextCursor: 'c2',
+    });
+    expect(view.paging).toEqual({ mode: 'cursor', nextCursor: 'c2' });
+  });
+
+  it('reads a nested row key', () => {
+    const def = definition({
+      record: { rowKey: 'meta.id', paging: 'paged', layouts: ['table'] },
+    });
+    const view = projectRecord(def, config(), {
+      total: 1,
+      list: [{ meta: { id: 'N1' } }],
+    });
+    expect(view.rows[0].key).toBe('N1');
+  });
+
+  it('refuses a definition without the record capability', () => {
+    expect(() =>
+      projectRecord(definition({ record: undefined }), config(), {
+        total: 0,
+        list: [],
+      }),
+    ).toThrow(/no record capability/);
+  });
+});
+
+describe('projectSummaries', () => {
+  const withSummaries = config({
+    summaries: [
+      { field: 'amount', fn: 'SUM' },
+      { field: 'amount', fn: 'AVG' },
+      { field: 'id', fn: 'COUNT' },
+    ],
+  });
+
+  it('computes page totals from the rows on screen', () => {
+    const row = projectSummaries(definition(), withSummaries, {
+      scope: 'page',
+      rows: [{ amount: 10 }, { amount: 30 }, { amount: null }],
+    });
+    expect(row.scope).toBe('page');
+    expect(row.cells.map(cell => cell.value)).toEqual([40, 20, 3]);
+    expect(row.cells[0].label).toBe('Amount');
+    expect(row.cells[0].numberFormat).toEqual({
+      style: 'currency',
+      currency: 'CNY',
+    });
+  });
+
+  it('reads range totals back by alias', () => {
+    const row = projectSummaries(definition(), withSummaries, {
+      scope: 'total',
+      result: [{ amount_sum: 400, amount_avg: 20, id_count: 20 }],
+    });
+    expect(row.scope).toBe('total');
+    expect(row.cells.map(cell => cell.value)).toEqual([400, 20, 20]);
+  });
+
+  it('reports a missing number rather than inventing one', () => {
+    expect(
+      projectSummaries(definition(), withSummaries, {
+        scope: 'total',
+        result: [],
+      }).cells.map(cell => cell.value),
+    ).toEqual([null, null, null]);
+
+    expect(
+      projectSummaries(definition(), withSummaries, {
+        scope: 'page',
+        rows: [{ amount: 'x' }],
+      }).cells.map(cell => cell.value),
+    ).toEqual([null, null, 1]);
+  });
+
+  it('handles min and max and a field the definition lost', () => {
+    const row = projectSummaries(
+      definition(),
+      config({
+        summaries: [
+          { field: 'amount', fn: 'MIN' },
+          { field: 'amount', fn: 'MAX' },
+          { field: 'gone', fn: 'SUM' },
+        ],
+      }),
+      { scope: 'page', rows: [{ amount: 5 }, { amount: 9 }] },
+    );
+    expect(row.cells.map(cell => cell.value)).toEqual([5, 9, null]);
+    expect(row.cells[2].label).toBe('gone');
+  });
+
+  it('returns an empty row when the config asks for no summary', () => {
+    expect(
+      projectSummaries(definition(), config(), { scope: 'page', rows: [] })
+        .cells,
+    ).toEqual([]);
+  });
+});
