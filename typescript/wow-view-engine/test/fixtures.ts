@@ -11,10 +11,15 @@
  * limitations under the License.
  */
 
-import { AggregationMetricType } from '@ahoo-wang/fetcher-wow';
+import {
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+} from '@ahoo-wang/fetcher-wow';
 import { vi } from 'vitest';
 import type {
   AnalysisViewConfig,
+  DataViewConfig,
   DataViewDefinition,
   RecordViewConfig,
   RuntimeEnvironment,
@@ -46,8 +51,12 @@ export function ordersDefinition(
     analysis: {
       count: true,
       fields: [
-        { field: 'warehouse', groups: ['TERMS'], functions: [] },
-        { field: 'amount', groups: [], functions: ['SUM'] },
+        {
+          field: 'warehouse',
+          groups: [AggregationGroupType.TERMS],
+          functions: [],
+        },
+        { field: 'amount', groups: [], functions: [AggregationFunction.SUM] },
       ],
     },
     views: [
@@ -103,6 +112,13 @@ export function analysisConfig(
     },
     ...overrides,
   };
+}
+
+/** Narrows a data view's config to the record kind, or fails the test. */
+export function requireRecordConfig(config: DataViewConfig): RecordViewConfig {
+  if (config.kind !== 'record')
+    throw new Error(`expected a record config, got ${config.kind}`);
+  return config;
 }
 
 export const ROWS = [

@@ -35,7 +35,7 @@
     "build": "vite build",
     "test": "vitest run --coverage && pnpm test:type",
     "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:type",
-    "test:type": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.headless.json",
+    "test:type": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.headless.json && tsc -p tsconfig.test.json",
     "lint": "eslint . --fix",
     "lint:check": "eslint . --max-warnings 0",
     "clean": "rm -rf dist"

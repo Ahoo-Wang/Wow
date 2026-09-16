@@ -36,14 +36,15 @@ import {
   type FilterOperatorName,
   type RecordViewConfig,
   type ViewConfig,
+  type ViewConfigBase,
   type ViewDefinition,
   type ViewInstance,
 } from '../src/index.js';
 
-const filterBase = {
+const filterBase: Pick<ViewConfigBase, 'filter' | 'filterMode'> = {
   filter: { op: 'and', children: [] },
   filterMode: 'simple',
-} as const;
+};
 
 describe('model constants', () => {
   it('describes every view kind, scope and chart type exactly once', () => {

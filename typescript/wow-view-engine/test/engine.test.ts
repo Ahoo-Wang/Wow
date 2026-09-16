@@ -31,6 +31,7 @@ import {
   analysisConfig,
   ordersDefinition,
   recordConfig,
+  requireRecordConfig,
   testEnvironment,
   testSource,
 } from './fixtures.js';
@@ -428,7 +429,7 @@ describe('ViewEngine list commands', () => {
     expect(engine.openRuntimes()).toEqual([]);
     await expect(store.list('orders')).resolves.toEqual([]);
     runtime.edit({ pageSize: 10 });
-    expect(runtime.getSnapshot().draft.pageSize).toBe(20);
+    expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(20);
   });
 
   it('refuses to delete a system view', async () => {
@@ -539,7 +540,7 @@ describe('ViewEngine write outcomes', () => {
     const reloaded = await engine.resolveConflict(runtime, 'reload');
 
     expect(reloaded).toEqual(remote);
-    expect(runtime.getSnapshot().draft.pageSize).toBe(50);
+    expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(50);
     expect(runtime.getSnapshot().write).toBeNull();
     expect(engine.pendingWrites().size).toBe(0);
   });
@@ -679,7 +680,7 @@ describe('ViewEngine write outcomes', () => {
       kind: 'rejected',
       issue: { code: 'view.write.invalid' },
     });
-    expect(runtime.getSnapshot().draft.pageSize).toBe(50);
+    expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(50);
   });
 
   it('abandons an outcome and leaves the draft alone', async () => {
@@ -695,7 +696,7 @@ describe('ViewEngine write outcomes', () => {
 
     expect(engine.pendingWrites().size).toBe(0);
     expect(runtime.getSnapshot().write).toBeNull();
-    expect(runtime.getSnapshot().draft.pageSize).toBe(50);
+    expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(50);
   });
 
   it('retries a first save under its original request id', async () => {
@@ -784,7 +785,7 @@ describe('ViewEngine wiring', () => {
 
     expect(engine.openRuntimes()).toEqual([]);
     runtime.edit({ pageSize: 10 });
-    expect(runtime.getSnapshot().draft.pageSize).toBe(20);
+    expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(20);
   });
 
   it('mints an idempotency key of its own by default', () => {

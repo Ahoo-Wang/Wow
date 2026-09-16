@@ -32,6 +32,7 @@ import {
   deferred,
   ordersDefinition,
   recordConfig,
+  requireRecordConfig,
   ROWS,
   testEnvironment,
   testSource,
@@ -129,8 +130,8 @@ describe('DataViewRuntime state', () => {
     runtime.edit({ pageSize: 0 });
     const state = runtime.getSnapshot();
 
-    expect(state.draft.pageSize).toBe(0);
-    expect(state.applied.pageSize).toBe(20);
+    expect(requireRecordConfig(state.draft).pageSize).toBe(0);
+    expect(requireRecordConfig(state.applied).pageSize).toBe(20);
     expect(state.dirty).toBe(true);
     expect(state.issues.map(found => found.severity)).toContain('error');
   });
@@ -589,7 +590,7 @@ describe('DataViewRuntime lifecycle', () => {
     });
 
     const state = runtime.getSnapshot();
-    expect(state.draft.pageSize).toBe(50);
+    expect(requireRecordConfig(state.draft).pageSize).toBe(50);
     expect(state.dirty).toBe(false);
     expect(state.saved?.revision).toBe('4');
   });
