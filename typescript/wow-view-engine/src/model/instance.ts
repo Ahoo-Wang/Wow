@@ -45,6 +45,12 @@ export const CODE_REVISION = 'code';
 /** What a list returns: enough to render the sidebar, without the config. */
 export type ViewInstanceSummary = Omit<ViewInstance, 'config'>;
 
+/** What a list shows: an instance without the config it holds. */
+export function toSummary(instance: ViewInstance): ViewInstanceSummary {
+  const { id, definitionId, title, scope, revision } = instance;
+  return { id, definitionId, title, scope, revision };
+}
+
 /** One user's ordering and default view for one definition. */
 export interface ViewPreferences {
   /** Explicitly ordered instance ids; unlisted ones follow in server order. */

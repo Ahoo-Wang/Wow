@@ -66,6 +66,33 @@ export const SYSTEM_INSTANCE_ID_PREFIX = 'system';
 /** Separator of the composed `system:<definition>:<view>` instance id. */
 export const SYSTEM_INSTANCE_ID_SEPARATOR = ':';
 
+/**
+ * Instance id of a code-declared system view. Neither part may contain the
+ * separator, which `validateDefinition` enforces, so the composition is
+ * unambiguous and can be taken apart again.
+ */
+export function systemInstanceId(definitionId: string, viewId: string): string {
+  return [SYSTEM_INSTANCE_ID_PREFIX, definitionId, viewId].join(
+    SYSTEM_INSTANCE_ID_SEPARATOR,
+  );
+}
+
+/** Reads back a composed id, or `null` when the id belongs to a store. */
+export function parseSystemInstanceId(
+  id: string,
+): { definitionId: string; viewId: string } | null {
+  const parts = id.split(SYSTEM_INSTANCE_ID_SEPARATOR);
+  if (parts.length !== 3 || parts[0] !== SYSTEM_INSTANCE_ID_PREFIX) return null;
+  return { definitionId: parts[1], viewId: parts[2] };
+}
+
+/** True for any id in the namespace a `ViewStore` must not issue. */
+export function isSystemInstanceId(id: string): boolean {
+  return id.startsWith(
+    `${SYSTEM_INSTANCE_ID_PREFIX}${SYSTEM_INSTANCE_ID_SEPARATOR}`,
+  );
+}
+
 export interface RecordCapability {
   /** Field holding each row's identity. */
   rowKey: string;

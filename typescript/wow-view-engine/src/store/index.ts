@@ -12,20 +12,9 @@
  */
 
 /**
- * Types and constants only: the three facts of `docs/design.md` §1 say
- * definitions are code, configs are data and runtime state is transient, so
- * this layer describes the first two and depends on nothing else.
+ * Persistence is one port with eight methods. A business application
+ * implements it against its own API; this package ships only the in-memory
+ * one, because a view store belongs next to the data it describes.
  */
-export * from './analysis.js';
-export * from './chart.js';
-export * from './config.js';
-export * from './dashboard.js';
-export * from './definition.js';
-export * from './field.js';
-export * from './filter.js';
-export * from './instance.js';
-export * from './issue.js';
-export * from './json.js';
-export * from './limits.js';
-export * from './record.js';
-export * from './storeError.js';
+export * from './MemoryViewStore.js';
+export * from './ViewStore.js';

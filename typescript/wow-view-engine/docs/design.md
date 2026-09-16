@@ -587,7 +587,9 @@ export type WriteState = { requestId: string; payload: WritePayload } & (
   | { kind: 'unknown' }
 );
 
-/** 原样保留的写入正文，覆盖与重试都用它，不从当前草稿重新推导。 */
+/** 原样保留的写入正文，覆盖与重试都用它，不从当前草稿重新推导。
+ *  正文自带 `id` 与期望 `revision`：重试是同一次逻辑写入，因此沿用同一期望；
+ *  只有"覆盖"把期望推进到冲突报告的 `revision`，并生成新的 requestId。 */
 export type WritePayload =
   | { action: 'preferences'; definitionId: string; next: ViewPreferences }
   | {
@@ -596,9 +598,9 @@ export type WritePayload =
       /** 'first-save' 把源 runtime 绑定到新实例，'save-as' 保持源 runtime 不变。 */
       intent: 'first-save' | 'save-as';
     }
-  | { action: 'save'; config: ViewConfig }
-  | { action: 'rename'; title: string }
-  | { action: 'delete' };
+  | { action: 'save'; id: string; revision: string; config: ViewConfig }
+  | { action: 'rename'; id: string; revision: string; title: string }
+  | { action: 'delete'; id: string; revision: string };
 
 export type WriteAction = WritePayload['action'];
 
@@ -633,23 +635,34 @@ export interface ViewEngine {
   readonly store: ViewStore;
   readonly environment: RuntimeEnvironment; // 时钟、计时器、可见性；由创建方注入
   definitions: ReadonlyMap<string, ViewDefinition>;
-  resolveSource(key: string): ViewSource;   // Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'>
-  resolveOptions(key: string): OptionSource;   // FieldDefinition.remote 的候选来源
+  resolveSource(key: string): ViewSource; // Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'>
+  resolveOptions(key: string): OptionSource; // FieldDefinition.remote 的候选来源
 
-  open(instanceId: string): Promise<AnyViewRuntime>;              // store.get → validate → runtime；按 runtime.kind 收窄
-  create<C extends ViewConfig>(definitionId: string, input: { title: string; scope: 'personal' | 'shared'; config: C }): RuntimeFor<C>; // 未保存的新视图；config 必填，由 default*Config / emptyDashboardConfig 生成
-  save(runtime: ViewRuntime): Promise<ViewInstance>;               // saved ? store.save : store.create
+  open(instanceId: string): Promise<AnyViewRuntime>; // store.get → validate → runtime；按 runtime.kind 收窄
+  create<C extends ViewConfig>(
+    definitionId: string,
+    input: { title: string; scope: 'personal' | 'shared'; config: C },
+  ): RuntimeFor<C>; // 未保存的新视图；config 必填，由 default*Config / emptyDashboardConfig 生成
+  save(runtime: ViewRuntime): Promise<ViewInstance>; // saved ? store.save : store.create
   saveAs(runtime, input: { title; scope }): Promise<ViewInstance>;
   rename(id: string, title: string): Promise<ViewInstance>;
   delete(id: string): Promise<void>;
-  reorder / setDefault(...): Promise<ViewPreferences>;
-  retryWrite(target: ViewRuntime | WriteHandle): Promise<ViewInstance | void>;  // 复用原 requestId 与原正文重放；创建意图返回新实例
-  abandonWrite(target: ViewRuntime | WriteHandle): void;                        // 清除写入状态，草稿保留
-  resolveConflict(target: ViewRuntime | WriteHandle, choice: 'reload' | 'overwrite'): Promise<ViewInstance | void>;
-  pendingWrites(): ReadonlyMap<string, WriteState>;               // 未结清的写入，按 WriteHandle 索引；含列表命令
+  reorder(definitionId: string, order: string[]): Promise<ViewPreferences>;
+  setDefault(
+    definitionId: string,
+    instanceId: string | null,
+  ): Promise<ViewPreferences>;
+  resolveDefault(summaries, preferences, explicit?): string | null; // 第 7.3 节的解析规则
+  retryWrite(target: ViewRuntime | WriteHandle): Promise<ViewInstance | void>; // 复用原 requestId 与原正文重放；创建意图返回新实例
+  abandonWrite(target: ViewRuntime | WriteHandle): void; // 清除写入状态，草稿保留
+  resolveConflict(
+    target: ViewRuntime | WriteHandle,
+    choice: 'reload' | 'overwrite',
+  ): Promise<ViewInstance | void>;
+  pendingWrites(): ReadonlyMap<string, WriteState>; // 未结清的写入，按 WriteHandle 索引；含列表命令
   list(definitionId: string): Promise<ViewInstanceSummary[]>; // 代码声明的系统视图 + store.list()
   preferences(definitionId: string): Promise<ViewPreferences>;
-  permissions(definitionId: string): ViewPermissions;             // store 同步提供，缺省全允许
+  permissions(definitionId: string): ViewPermissions; // store 同步提供，缺省全允许
 }
 ```
 
@@ -693,7 +706,7 @@ export interface RuntimeEnvironment {
 
 | 命令                                             | store 调用                                                         | 前置检查                                                                      | 成功后                                                                                   |
 | ------------------------------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `create(definitionId, { title, scope, config })` | 无                                                                 | 定义存在；标题非空；`scope` 对应的创建许可                                    | 返回 `saved = null` 的 runtime；不进入列表                                               |
+| `create(definitionId, { title, scope, config })` | 无                                                                 | 定义存在；标题非空；`scope` 对应的创建许可                                    | 返回 `saved = null` 的 runtime 并立即执行；不进入列表                                    |
 | `save(runtime)`，`saved = null`                  | `store.create({ definitionId, title, scope, config: draft }, ctx)` | `issues` 无 error；按 `runtime.scope` 检查 `createPersonal` 或 `createShared` | `runtime.markSaved(instance)`；列表刷新                                                  |
 | `save(runtime)`，`saved != null`                 | `store.save(id, draft, saved.revision, ctx)`                       | 无 error；`saved.scope != 'system'`；`permissions.instance(id).save`          | `markSaved(instance)`；`dirty = false`                                                   |
 | `saveAs(runtime, { title, scope })`              | `store.create(draftAsNew, ctx)`                                    | 无 error；标题非空；对应 scope 的创建许可                                     | 返回新实例并刷新列表；源 runtime 的 `saved` 与 `draft` 都不变；不自动打开，UI 提供"打开" |
@@ -810,8 +823,12 @@ export interface WriteContext {
 }
 export class ViewStoreError extends Error {
   code: 'CONFLICT' | 'NOT_FOUND' | 'FORBIDDEN' | 'UNAVAILABLE' | 'INVALID';
+  /** 冲突时服务端持有的状态；缺省时 Engine 自行回读一次。 */
+  remote?: ViewInstance | ViewPreferences;
 }
 ```
+
+`ViewStoreError` 与其判定函数放在 `model/`：端口两侧都要说这门语言，运行时据此分类写入结局，却不能依赖任何 store 实现（分层规则第 4 条要求 `runtime → store` 只取端口类型）。判定按结构而非 `instanceof`，因此第二份包副本或自行构造该形状的适配器同样被识别。
 
 一致性策略两条：
 
@@ -905,17 +922,17 @@ Wow 已将 `Condition`、`ConditionOptions`、`PagedQuery`、`ListQuery`、`Sing
 
 自下而上，每步独立 PR、独立可用：
 
-| 步  | 交付                                                      | 搬迁                                                                       |
-| --- | --------------------------------------------------------- | -------------------------------------------------------------------------- |
-| 1   | `model/`、架构测试、本文                                  | 全新                                                                       |
-| 2   | `filter/` 内核与 FieldKind 注册表                         | 先搬测试改为新类型，再搬实现；只有"改 import 即可编译"的文件才搬，否则重写 |
-| 3   | `record/`、`analysis/` 内核                               | 同上；analysisCompiler、analysisProjection、recordValidation 为主要来源    |
-| 4   | `runtime/`、`store/` 端口、Memory                         | 全新；旧 engine 测试中描述行为的用例改写为 ViewRuntime 测试                |
-| 5   | `/react` 最小钩子 + 朴素表格示例                          | 全新；**闭环一在此跑通，之后才进入视觉工作**                               |
-| 6   | `/ui` Record 工作台：FilterPanel、RecordTable、列表、保存 | shadcn 组件与主题 CSS 直接搬；复合视图重写                                 |
-| 7   | Analysis 编辑器与图表                                     | 内核已就位，UI 重写                                                        |
-| 8   | `dashboard/` 内核、DashboardRuntime、DashboardGrid        | 内核搬，运行时重写                                                         |
-| 9   | Storybook 状态集；README 双语；`verify-package`           | 一个用 fetcher 实现 `ViewStore` 的示例放在 examples，作为端口的第二消费者  |
+| 步   | 交付                                                      | 搬迁                                                                       |
+| ---- | --------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 1 ✅ | `model/`、架构测试、本文                                  | 全新                                                                       |
+| 2 ✅ | `filter/` 内核与 FieldKind 注册表                         | 先搬测试改为新类型，再搬实现；只有"改 import 即可编译"的文件才搬，否则重写 |
+| 3 ✅ | `record/`、`analysis/` 内核                               | 同上；analysisCompiler、analysisProjection、recordValidation 为主要来源    |
+| 4 ✅ | `runtime/`、`store/` 端口、Memory                         | 全新；旧 engine 测试中描述行为的用例改写为 ViewRuntime 测试                |
+| 5    | `/react` 最小钩子 + 朴素表格示例                          | 全新；**闭环一在此跑通，之后才进入视觉工作**                               |
+| 6    | `/ui` Record 工作台：FilterPanel、RecordTable、列表、保存 | shadcn 组件与主题 CSS 直接搬；复合视图重写                                 |
+| 7    | Analysis 编辑器与图表                                     | 内核已就位，UI 重写                                                        |
+| 8    | `dashboard/` 内核、DashboardRuntime、DashboardGrid        | 内核搬，运行时重写                                                         |
+| 9    | Storybook 状态集；README 双语；`verify-package`           | 一个用 fetcher 实现 `ViewStore` 的示例放在 examples，作为端口的第二消费者  |
 
 不搬迁清单：旧 `contracts/`、`engine/`、`StatefulViewHost`、三个 `*View.tsx`、`AnalysisEditor.tsx`、`view/` 目录。
 

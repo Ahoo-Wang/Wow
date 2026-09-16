@@ -12,20 +12,16 @@
  */
 
 /**
- * Types and constants only: the three facts of `docs/design.md` §1 say
- * definitions are code, configs are data and runtime state is transient, so
- * this layer describes the first two and depends on nothing else.
+ * Transient state: what is open, what is in flight, what came back.
+ *
+ * This is the only layer with a clock, a timer and a queue, and it reaches all
+ * three through an injected `RuntimeEnvironment`, so the kernels below it stay
+ * pure and the React layer above it only subscribes.
  */
-export * from './analysis.js';
-export * from './chart.js';
-export * from './config.js';
-export * from './dashboard.js';
-export * from './definition.js';
-export * from './field.js';
-export * from './filter.js';
-export * from './instance.js';
-export * from './issue.js';
-export * from './json.js';
-export * from './limits.js';
-export * from './record.js';
-export * from './storeError.js';
+export * from './environment.js';
+export * from './execute.js';
+export * from './requestRunner.js';
+export * from './source.js';
+export * from './viewEngine.js';
+export * from './viewRuntime.js';
+export * from './write.js';

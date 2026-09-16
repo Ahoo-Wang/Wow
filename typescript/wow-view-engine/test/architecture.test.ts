@@ -101,8 +101,8 @@ const wowSrc = resolve(src, '../../wow/src');
  */
 const HEADLESS_DEPENDENCIES: Record<string, readonly Location[]> = {
   [WOW]: ['root', 'model', 'filter', 'record', 'analysis', 'runtime'],
-  '@date-fns/tz': ['filter', 'record', 'analysis', 'runtime', 'ui'],
   dayjs: ['filter', 'record', 'analysis', 'runtime', 'ui'],
+  dequal: ['runtime'],
   '@ahoo-wang/fetcher-react': ['react', 'ui'],
 };
 

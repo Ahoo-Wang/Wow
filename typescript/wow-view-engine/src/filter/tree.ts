@@ -37,6 +37,24 @@ export function clearFilter(): FilterTree {
   return emptyFilter();
 }
 
+/**
+ * ANDs several trees into one, dropping the empty ones. A tree that is
+ * already a plain AND group is flattened rather than nested, so merging an
+ * injected scope keeps the depth budget intact.
+ *
+ * The runtime uses it for `setScopeFilter`, and the dashboard kernel for the
+ * global filter it maps onto each panel.
+ */
+export function mergeFilters(
+  ...trees: (FilterTree | null | undefined)[]
+): FilterTree {
+  const children = trees.flatMap(tree => {
+    if (!tree || isEmptyFilter(tree)) return [];
+    return tree.op === 'and' ? tree.children : [tree];
+  });
+  return { op: 'and', children };
+}
+
 /** True when the tree holds no leaf at any depth. */
 export function isEmptyFilter(tree: FilterTree): boolean {
   return countLeaves(tree) === 0;

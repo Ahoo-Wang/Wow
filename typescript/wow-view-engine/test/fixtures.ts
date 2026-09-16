@@ -1,0 +1,196 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { AggregationMetricType } from '@ahoo-wang/fetcher-wow';
+import { vi } from 'vitest';
+import type {
+  AnalysisViewConfig,
+  DataViewDefinition,
+  RecordViewConfig,
+  RuntimeEnvironment,
+  ViewSource,
+} from '../src/index.js';
+
+export const NOW = new Date('2026-09-16T10:30:00.000Z');
+
+export function ordersDefinition(
+  overrides: Partial<DataViewDefinition> = {},
+): DataViewDefinition {
+  return {
+    id: 'orders',
+    title: 'Orders',
+    kind: 'data',
+    source: 'orders',
+    fields: [
+      { name: 'id', label: 'Order', kind: 'string' },
+      { name: 'warehouse', label: 'Warehouse', kind: 'string' },
+      {
+        name: 'amount',
+        label: 'Amount',
+        kind: 'number',
+        summary: ['SUM'],
+        sortable: true,
+      },
+    ],
+    record: { rowKey: 'id', paging: 'paged', layouts: ['table', 'card'] },
+    analysis: {
+      count: true,
+      fields: [
+        { field: 'warehouse', groups: ['TERMS'], functions: [] },
+        { field: 'amount', groups: [], functions: ['SUM'] },
+      ],
+    },
+    views: [
+      {
+        id: 'all',
+        title: 'All orders',
+        config: recordConfig(),
+      },
+    ],
+    ...overrides,
+  };
+}
+
+export function recordConfig(
+  overrides: Partial<RecordViewConfig> = {},
+): RecordViewConfig {
+  return {
+    filter: { op: 'and', children: [] },
+    filterMode: 'simple',
+    refresh: { interval: null },
+    kind: 'record',
+    sort: [],
+    pageSize: 20,
+    layout: 'table',
+    table: { columns: [{ field: 'id' }, { field: 'amount' }] },
+    card: { title: 'id', fields: ['amount'] },
+    ...overrides,
+  };
+}
+
+export function analysisConfig(
+  overrides: Partial<AnalysisViewConfig> = {},
+): AnalysisViewConfig {
+  return {
+    filter: { op: 'and', children: [] },
+    filterMode: 'simple',
+    refresh: { interval: null },
+    kind: 'analysis',
+    groups: [{ alias: 'warehouse', field: 'warehouse', type: 'TERMS' }],
+    metrics: [
+      {
+        alias: 'orders',
+        type: `${AggregationMetricType.COUNT}`,
+      },
+    ],
+    sort: [],
+    limit: 100,
+    layout: 'table',
+    table: { columns: [] },
+    chart: {
+      type: 'bar',
+      cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+    },
+    ...overrides,
+  };
+}
+
+export const ROWS = [
+  { id: 'o-1', warehouse: 'CN', amount: 10 },
+  { id: 'o-2', warehouse: 'CN', amount: 20 },
+];
+
+/** A `ViewSource` whose three methods are spies with sensible defaults. */
+export function testSource(overrides: Partial<ViewSource> = {}): ViewSource {
+  return {
+    paged: vi.fn(() => Promise.resolve({ total: 2, list: [...ROWS] })),
+    cursor: vi.fn(() =>
+      Promise.resolve({ nextCursor: 'cursor-2', list: [...ROWS] }),
+    ),
+    aggregate: vi.fn(() =>
+      Promise.resolve([{ warehouse: 'CN', orders: 2, amount_sum: 30 }]),
+    ),
+    ...overrides,
+  };
+}
+
+export interface TestEnvironment {
+  environment: RuntimeEnvironment;
+  /** Fires every timer whose delay has elapsed, oldest first. */
+  advance(ms: number): void;
+  setVisible(visible: boolean): void;
+  readonly timers: number;
+}
+
+/** Time, timers and visibility under the test's control rather than the host's. */
+export function testEnvironment(start: Date = NOW): TestEnvironment {
+  let clock = start.getTime();
+  let visible = true;
+  const listeners = new Set<() => void>();
+  const pending = new Map<number, { due: number; callback: () => void }>();
+  let handle = 0;
+
+  const environment: RuntimeEnvironment = {
+    now: () => new Date(clock),
+    timeZone: 'UTC',
+    setTimeout: (callback, ms) => {
+      handle += 1;
+      pending.set(handle, { due: clock + ms, callback });
+      return handle;
+    },
+    clearTimeout: id => {
+      pending.delete(id as number);
+    },
+    visibility: {
+      isVisible: () => visible,
+      subscribe: listener => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    },
+  };
+
+  return {
+    environment,
+    advance(ms) {
+      clock += ms;
+      for (const [id, timer] of [...pending]) {
+        if (timer.due > clock) continue;
+        pending.delete(id);
+        timer.callback();
+      }
+    },
+    setVisible(next) {
+      visible = next;
+      for (const listener of [...listeners]) listener();
+    },
+    get timers() {
+      return pending.size;
+    },
+  };
+}
+
+/** A promise a test settles by hand, for superseding and queueing. */
+export function deferred<T>(): {
+  promise: Promise<T>;
+  resolve(value: T): void;
+  reject(reason: unknown): void;
+} {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
