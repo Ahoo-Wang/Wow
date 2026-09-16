@@ -30,7 +30,17 @@ export const reactLintConfig = {
 };
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', 'coverage/**'] },
+  {
+    // src/ui/components 与 src/ui/lib 是 shadcn 注册表源码，由 `shadcn add --diff`
+    // 升级；本地改写会让此后每次升级都变成整文件冲突。
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'coverage/**',
+      'src/ui/components/**',
+      'src/ui/lib/**',
+    ],
+  },
   {
     // test/、dev/、examples/ 不在 tsconfig 项目内，保持非类型检查规则。
     files: [

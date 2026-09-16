@@ -37,6 +37,10 @@ export default defineConfig(({ mode }) => ({
     restoreMocks: true,
     coverage: {
       include: ['src/**/*.{ts,tsx}'],
+      // `src/ui/components` and `src/ui/lib` are vendored from the shadcn
+      // registry and updated with `shadcn add --diff`, so they are upstream's
+      // to test; what this package owns is the composition above them.
+      exclude: ['src/ui/components/**', 'src/ui/lib/**', 'src/styles.ts'],
       thresholds: {
         statements: 95,
         branches: 91,

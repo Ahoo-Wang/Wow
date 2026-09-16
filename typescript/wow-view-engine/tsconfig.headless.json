@@ -15,5 +15,6 @@
     "src/dashboard",
     "src/runtime",
     "src/store"
-  ]
+  ],
+  "exclude": ["src/styles.ts"]
 }

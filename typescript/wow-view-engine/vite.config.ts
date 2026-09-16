@@ -15,13 +15,16 @@ import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
+import tailwindcss from '@tailwindcss/vite';
 import dts from 'unplugin-dts/vite';
 
-// Rewrite in progress (docs/design.md): the root and `/react` entries exist.
-// The `/ui` entry, Tailwind and the theme CSS pipeline return with their steps.
+// Rewrite in progress (docs/design.md): the root, `/react` and `/ui` entries
+// exist, with the theme shipped as a separate `/styles.css` an application
+// imports explicitly.
 export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   plugins: [
+    tailwindcss(),
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     dts({ tsconfigPath: './tsconfig.json' }),
@@ -30,7 +33,12 @@ export default defineConfig({
     cssTarget: 'esnext',
     sourcemap: true,
     lib: {
-      entry: { index: 'src/index.ts', react: 'src/react/index.ts' },
+      entry: {
+        index: 'src/index.ts',
+        react: 'src/react/index.ts',
+        ui: 'src/ui/index.ts',
+        styles: 'src/styles.ts',
+      },
       formats: ['es'],
       fileName: (_format, entry) => `${entry}.js`,
       cssFileName: 'styles',

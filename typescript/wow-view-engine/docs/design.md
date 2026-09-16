@@ -865,7 +865,9 @@ useSaveCommands(engine, runtime): { save; saveAs; rename; delete; retry; abandon
 
 排序与列的改动立即 `edit` 后 `apply`：表格渲染的列与行来自上一次成功结果，由内核按执行时的配置投影，因此不重跑就看不到改动；筛选则等提交。
 
-`ui/` 用 shadcn + Base UI 实现默认视觉：`FilterPanel`、`RecordTable`（TanStack 适配）、`RecordCards`、`AnalysisEditor`、`AnalysisChart`（recharts 适配，覆盖 bar／line／area／combo／pie／scatter）、`Heatmap`（自绘网格）、`Funnel`、`MetricCard`、`DashboardGrid`（react-grid-layout 适配）、内容面板 `MarkdownPanel`（react-markdown，不启用原始 HTML）、`ImagePanel`（加载失败显示占位）、`LinksPanel`（外链带 `rel="noopener"`）、`Workbench`（侧栏列表 + 视图 + 保存动作）、`EmbeddedView`。每个默认组件只消费对应控制器，不直接调用 runtime 以外的对象。独立筛选器与值编辑器不需要 Engine。
+`ui/` 用 shadcn + Base UI 实现默认视觉。落地约定：注册表组件原样落在 `ui/components/`，由 `shadcn add --diff` 升级，因此不启用 Tailwind 前缀——前缀会让每个文件都要手改并从此无法跟随上游；隔离改由 `.fve-root` 边界承担，全部 token 与 base 规则都挂在它上面，`ViewSurface` 渲染它，宿主页面不受影响。`cn` 取自同名包（shadcn 2026-09 起的约定），不再自写 `clsx + tailwind-merge`。主题以独立入口 `/styles.css` 交付，应用显式导入。组件清单：`FilterPanel`、`RecordTable`、`RecordCards`、`AnalysisEditor`、`AnalysisChart`（recharts 适配，覆盖 bar／line／area／combo／pie／scatter）、`Heatmap`（自绘网格）、`Funnel`、`MetricCard`、`DashboardGrid`（react-grid-layout 适配）、内容面板 `MarkdownPanel`（react-markdown，不启用原始 HTML）、`ImagePanel`（加载失败显示占位）、`LinksPanel`（外链带 `rel="noopener"`）、`Workbench`（侧栏列表 + 视图 + 保存动作）、`EmbeddedView`。每个默认组件只消费对应控制器，不直接调用 runtime 以外的对象。独立筛选器与值编辑器不需要 Engine。
+
+`RecordTable` 暂不接 TanStack：控制器已经是表格模型，列语义、排序、选择与分页都从它来，再叠一层只是把同一份状态写两遍。等列宽拖拽与列序拖拽真的要做时再引入，那时它提供的才是新能力。注册表组件是上游源码：覆盖率、Prettier、ESLint 与 Codacy 都排除 `ui/components` 与 `ui/lib`，它们保持与上游逐字一致，否则每次 `shadcn add --diff` 都会变成整文件冲突；本包测的、也负责的是其上的组合。
 
 ## 10. 扩展点
 
@@ -932,7 +934,7 @@ Wow 已将 `Condition`、`ConditionOptions`、`PagedQuery`、`ListQuery`、`Sing
 | 3 ✅ | `record/`、`analysis/` 内核                               | 同上；analysisCompiler、analysisProjection、recordValidation 为主要来源    |
 | 4 ✅ | `runtime/`、`store/` 端口、Memory                         | 全新；旧 engine 测试中描述行为的用例改写为 ViewRuntime 测试                |
 | 5 ✅ | `/react` 最小钩子 + 朴素表格示例                          | 全新；**闭环一在此跑通，之后才进入视觉工作**                               |
-| 6    | `/ui` Record 工作台：FilterPanel、RecordTable、列表、保存 | shadcn 组件与主题 CSS 直接搬；复合视图重写                                 |
+| 6 ✅ | `/ui` Record 工作台：FilterPanel、RecordTable、列表、保存 | shadcn 组件与主题 CSS 直接搬；复合视图重写                                 |
 | 7    | Analysis 编辑器与图表                                     | 内核已就位，UI 重写                                                        |
 | 8    | `dashboard/` 内核、DashboardRuntime、DashboardGrid        | 内核搬，运行时重写                                                         |
 | 9    | Storybook 状态集；README 双语；`verify-package`           | 一个用 fetcher 实现 `ViewStore` 的示例放在 examples，作为端口的第二消费者  |

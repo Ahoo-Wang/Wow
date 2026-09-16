@@ -18,13 +18,11 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import type { Issue, ViewConfig } from '../model/index.js';
+import type { Issue } from '../model/index.js';
 import {
   ViewEngine,
   type AnyViewRuntime,
   type ViewEngineOptions,
-  type ViewRuntime,
-  type ViewRuntimeState,
 } from '../runtime/index.js';
 import { browserRuntimeEnvironment } from './environment.js';
 import { toIssue } from './issues.js';
@@ -57,17 +55,38 @@ export function useViewEngine(options: ViewEngineOptions): ViewEngine {
  * Subscribes to a runtime. The runtime commits state before it notifies and
  * returns the same object while nothing changes, which is exactly what
  * `useSyncExternalStore` asks of a store.
+ *
+ * The parameter is the store shape rather than `ViewRuntime<C>`, so the
+ * discriminated union `open` returns is accepted as it is and the snapshot
+ * type follows from the runtime that was passed.
  */
-export function useViewRuntime<C extends ViewConfig>(
-  runtime: ViewRuntime<C> | null,
-): ViewRuntimeState<C> | null {
+export function useViewRuntime<R extends ViewRuntimeStore<unknown>>(
+  runtime: R | null,
+): SnapshotOf<R> | null {
   const subscribe = useCallback(
     (listener: () => void) => runtime?.subscribe(listener) ?? NO_OP,
     [runtime],
   );
-  const snapshot = useCallback(() => runtime?.getSnapshot() ?? null, [runtime]);
+  const snapshot = useCallback(
+    // The conditional type cannot be proven inside the generic; what makes it
+    // true is that the value comes from this runtime's own `getSnapshot`.
+    () => (runtime?.getSnapshot() ?? null) as SnapshotOf<R> | null,
+    [runtime],
+  );
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
+
+/** What `useViewRuntime` needs: any runtime satisfies it. */
+export interface ViewRuntimeStore<S> {
+  subscribe(listener: () => void): () => void;
+  getSnapshot(): S;
+}
+
+/**
+ * The snapshot a runtime hands out. It distributes, so passing the union
+ * `open` returns gives back the union of their states rather than one member.
+ */
+export type SnapshotOf<R> = R extends { getSnapshot(): infer S } ? S : never;
 
 export interface OpenViewState {
   runtime: AnyViewRuntime | null;

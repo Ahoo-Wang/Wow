@@ -14,6 +14,7 @@
 import type { FilterExpression } from '@ahoo-wang/fetcher-wow';
 import type {
   FieldDefinition,
+  FilterValue,
   FieldKindId,
   FieldOption,
   FilterLeaf,
@@ -133,6 +134,17 @@ export function operatorsOf(
  */
 export function readValue<T>(value: unknown): T {
   return value as T;
+}
+
+/**
+ * Stores a value a kind produced, the mirror of `readValue`.
+ *
+ * A kind owns the shape of its values and declares it as an interface, which
+ * TypeScript does not consider assignable to a JSON index signature even when
+ * every field is JSON. Admission still runs on the way back in.
+ */
+export function writeValue<T>(value: T): FilterValue {
+  return value as FilterValue;
 }
 
 export function issue(
