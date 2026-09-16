@@ -526,6 +526,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   readonly id: string; // runtimeId，与 instanceId 分离
   readonly kind: C['kind']; // 判别字段，供调用方收窄
   readonly definition: ViewDefinition;
+  readonly kinds: FieldKindRegistry; // 准入所用的注册表，筛选编辑器据此编辑
   getSnapshot(): ViewRuntimeState<C>;
   subscribe(listener: () => void): () => void;
 
@@ -848,19 +849,21 @@ export class ViewStoreError extends Error {
 `react/` 只依赖运行时与纯内核：
 
 ```ts
-useViewEngine(options): ViewEngine                      // 生命周期归属应用或调用方
-useViewRuntime(runtime): ViewRuntimeState               // useSyncExternalStore
-useOpenView(engine, instanceId): { runtime | null; loading; error }
-useViewList(engine, definitionId): { items; preferences; reload }
+useViewEngine(options): ViewEngine                      // 建一个并在卸载时释放；需要更长生命周期由应用自建后传入
+useViewRuntime(runtime): ViewRuntimeState | null        // useSyncExternalStore
+useOpenView(engine, instanceId): { runtime | null; loading; error }   // 拥有所开 runtime：换 id 或卸载即释放
+useViewList(engine, definitionId): { items; preferences; permissions; defaultInstanceId; loading; error; preferencesError; reload }
 
-useFilterEditor(runtime | standalone): FilterController // 节点增删改、模式、清空、提交；Enter 提交排除 IME 与内部弹层
+useFilterEditor(runtime): FilterController              // 按路径增删改、模式、清空、提交；Enter 提交排除 IME 与内部弹层由 UI 层处理
 useRecordTable(runtime): RecordTableController          // 列语义、排序、列宽列序、选择、分页；无 TanStack 类型
 useAnalysisEditor(runtime): AnalysisController
 useDashboard(runtime): DashboardController
-useSaveCommands(engine, runtime): { save; saveAs; rename; delete; state }
+useSaveCommands(engine, runtime): { save; saveAs; rename; delete; retry; abandon; resolveConflict; can; state }
 ```
 
-控制器输出只读状态与动作函数，不输出 JSX、类名与供应商类型。受控值合同统一：是否受控由值属性决定，回调只通知，一次逻辑交互最多一次通知。
+控制器输出只读状态与动作函数，不输出 JSX、类名与供应商类型。受控值合同统一：是否受控由值属性决定，回调只通知，一次逻辑交互最多一次通知。命令一律以状态兑现而不是抛出：`useSaveCommands` 的每个动作都 resolve，结局落在 `state.error` 与 `state.write`，因此点击处理器不需要 try/catch。加载态由"手上的答案属于哪一次请求"推出而不是在 effect 里同步 setState，这也是 React Compiler 规则要求的形状。
+
+排序与列的改动立即 `edit` 后 `apply`：表格渲染的列与行来自上一次成功结果，由内核按执行时的配置投影，因此不重跑就看不到改动；筛选则等提交。
 
 `ui/` 用 shadcn + Base UI 实现默认视觉：`FilterPanel`、`RecordTable`（TanStack 适配）、`RecordCards`、`AnalysisEditor`、`AnalysisChart`（recharts 适配，覆盖 bar／line／area／combo／pie／scatter）、`Heatmap`（自绘网格）、`Funnel`、`MetricCard`、`DashboardGrid`（react-grid-layout 适配）、内容面板 `MarkdownPanel`（react-markdown，不启用原始 HTML）、`ImagePanel`（加载失败显示占位）、`LinksPanel`（外链带 `rel="noopener"`）、`Workbench`（侧栏列表 + 视图 + 保存动作）、`EmbeddedView`。每个默认组件只消费对应控制器，不直接调用 runtime 以外的对象。独立筛选器与值编辑器不需要 Engine。
 
@@ -928,7 +931,7 @@ Wow 已将 `Condition`、`ConditionOptions`、`PagedQuery`、`ListQuery`、`Sing
 | 2 ✅ | `filter/` 内核与 FieldKind 注册表                         | 先搬测试改为新类型，再搬实现；只有"改 import 即可编译"的文件才搬，否则重写 |
 | 3 ✅ | `record/`、`analysis/` 内核                               | 同上；analysisCompiler、analysisProjection、recordValidation 为主要来源    |
 | 4 ✅ | `runtime/`、`store/` 端口、Memory                         | 全新；旧 engine 测试中描述行为的用例改写为 ViewRuntime 测试                |
-| 5    | `/react` 最小钩子 + 朴素表格示例                          | 全新；**闭环一在此跑通，之后才进入视觉工作**                               |
+| 5 ✅ | `/react` 最小钩子 + 朴素表格示例                          | 全新；**闭环一在此跑通，之后才进入视觉工作**                               |
 | 6    | `/ui` Record 工作台：FilterPanel、RecordTable、列表、保存 | shadcn 组件与主题 CSS 直接搬；复合视图重写                                 |
 | 7    | Analysis 编辑器与图表                                     | 内核已就位，UI 重写                                                        |
 | 8    | `dashboard/` 内核、DashboardRuntime、DashboardGrid        | 内核搬，运行时重写                                                         |
@@ -936,7 +939,7 @@ Wow 已将 `Condition`、`ConditionOptions`、`PagedQuery`、`ListQuery`、`Sing
 
 不搬迁清单：旧 `contracts/`、`engine/`、`StatefulViewHost`、三个 `*View.tsx`、`AnalysisEditor.tsx`、`view/` 目录。
 
-闭环一定义：用户从默认订单视图筛选待出库记录，调整列与排序，保存为个人视图，重开后恢复配置但不恢复选择与页码，数据变化后刷新得到新数据。第 5 步以此为退出条件。
+闭环一定义：用户从默认订单视图筛选待出库记录，调整列与排序，保存为个人视图，重开后恢复配置但不恢复选择与页码，数据变化后刷新得到新数据。第 5 步以此为退出条件，由 `test/closedLoop.test.tsx` 驱动 `examples/PlainRecordWorkbench.tsx` 逐条验证，因此退出条件是可执行的而不是口头的。
 
 ## 14. 后续方向
 

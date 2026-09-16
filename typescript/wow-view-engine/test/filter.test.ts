@@ -19,12 +19,18 @@ import {
   createFieldKindRegistry,
   describeFilter,
   emptyFilter,
+  insertAt,
   isSimpleTree,
+  mergeFilters,
+  nodeAt,
+  removeAt,
   resolveDateTimeRange,
+  updateAt,
   validateFilter,
   withFieldKinds,
   type FieldDefinition,
   type FieldKind,
+  type FilterLeaf,
   type FilterTree,
 } from '../src/index.js';
 
@@ -468,5 +474,81 @@ describe('the field kind registry', () => {
 
   it('builds a registry from scratch', () => {
     expect(createFieldKindRegistry([]).size).toBe(0);
+  });
+});
+
+describe('tree editing', () => {
+  const leaf = (field: string, value: string): FilterLeaf => ({
+    field,
+    operator: `${FilterOperator.EQ}`,
+    value,
+  });
+
+  const nested: FilterTree = {
+    op: 'and',
+    children: [
+      leaf('id', 'a'),
+      { op: 'or', children: [leaf('id', 'b'), leaf('id', 'c')] },
+    ],
+  };
+
+  it('addresses a node by its path', () => {
+    expect(nodeAt(nested, [])).toBe(nested);
+    expect(nodeAt(nested, [0])).toMatchObject({ value: 'a' });
+    expect(nodeAt(nested, [1, 1])).toMatchObject({ value: 'c' });
+    expect(nodeAt(nested, [9])).toBeNull();
+    // A leaf has no children to descend into.
+    expect(nodeAt(nested, [0, 0])).toBeNull();
+  });
+
+  it('replaces a node deep in the tree without touching its siblings', () => {
+    const next = updateAt(nested, [1, 0], node => ({
+      ...(node as FilterLeaf),
+      value: 'changed',
+    }));
+
+    expect(nodeAt(next, [1, 0])).toMatchObject({ value: 'changed' });
+    expect(nodeAt(next, [1, 1])).toBe(nodeAt(nested, [1, 1]));
+    expect(nodeAt(next, [0])).toBe(nodeAt(nested, [0]));
+    expect(nested).toEqual(nested);
+  });
+
+  it('leaves the tree alone for a path that leads nowhere', () => {
+    expect(updateAt(nested, [], () => null)).toBe(nested);
+    expect(updateAt(nested, [9], () => null)).toEqual(nested);
+    // Descending through a leaf is not a path.
+    expect(updateAt(nested, [0, 0], () => null)).toEqual(nested);
+  });
+
+  it('removes a node at any depth', () => {
+    expect(removeAt(nested, [1, 0])).toMatchObject({
+      children: [{ value: 'a' }, { children: [{ value: 'c' }] }],
+    });
+    expect(removeAt(nested, [0]).children).toHaveLength(1);
+  });
+
+  it('appends to the root or to a nested group', () => {
+    expect(insertAt(nested, [], leaf('id', 'd')).children).toHaveLength(3);
+    expect(
+      nodeAt(insertAt(nested, [1], leaf('id', 'd')), [1, 2]),
+    ).toMatchObject({ value: 'd' });
+    // A leaf is not a group, so there is nothing to append to.
+    expect(insertAt(nested, [0], leaf('id', 'd'))).toEqual(nested);
+  });
+
+  it('merges trees by AND, flattening and dropping the empty ones', () => {
+    const merged = mergeFilters(
+      { op: 'and', children: [leaf('id', 'a')] },
+      emptyFilter(),
+      null,
+      { op: 'or', children: [leaf('id', 'b')] },
+    );
+
+    expect(merged.op).toBe('and');
+    expect(merged.children).toEqual([
+      leaf('id', 'a'),
+      { op: 'or', children: [leaf('id', 'b')] },
+    ]);
+    expect(mergeFilters()).toEqual(emptyFilter());
   });
 });

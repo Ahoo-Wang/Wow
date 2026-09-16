@@ -103,8 +103,13 @@ export class MemoryViewStore implements ViewStore {
         new ViewStoreError('INVALID', 'System views are declared in code'),
       );
 
-    this.sequence += 1;
-    const id = `${input.definitionId}-${this.sequence}`;
+    // Seeded instances occupy ids too, so the counter walks past anything
+    // already taken rather than overwriting it.
+    let id: string;
+    do {
+      this.sequence += 1;
+      id = `${input.definitionId}-${this.sequence}`;
+    } while (this.instances.has(id));
     if (isSystemInstanceId(id))
       return Promise.reject(
         new ViewStoreError('INVALID', `Reserved id namespace: ${id}`),

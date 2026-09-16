@@ -55,6 +55,83 @@ export function mergeFilters(
   return { op: 'and', children };
 }
 
+/**
+ * Where a node sits: child indexes from the root outwards, so `[1, 0]` is the
+ * first child of the second child. The root group itself is `[]`.
+ */
+export type FilterPath = number[];
+
+/** The node at a path, or `null` when the path leads nowhere. */
+export function nodeAt(tree: FilterTree, path: FilterPath): FilterNode | null {
+  let node: FilterNode = tree;
+  for (const index of path) {
+    if (!isFilterGroup(node)) return null;
+    const child: FilterNode | undefined = node.children[index];
+    if (!child) return null;
+    node = child;
+  }
+  return node;
+}
+
+/**
+ * Replaces the node at a path, or removes it when `update` returns `null`.
+ * Everything outside the path keeps its identity, so an editor re-renders only
+ * the branch it touched. The root cannot be replaced: `[]` returns the tree.
+ */
+export function updateAt(
+  tree: FilterTree,
+  path: FilterPath,
+  update: (node: FilterNode) => FilterNode | null,
+): FilterTree {
+  if (path.length === 0) return tree;
+  return { ...tree, children: updateChildren(tree.children, path, update) };
+}
+
+/** Removes the node at a path. */
+export function removeAt(tree: FilterTree, path: FilterPath): FilterTree {
+  return updateAt(tree, path, () => null);
+}
+
+/** Appends a node to the group at `parent`; `[]` is the root group. */
+export function insertAt(
+  tree: FilterTree,
+  parent: FilterPath,
+  node: FilterNode,
+): FilterTree {
+  if (parent.length === 0)
+    return { ...tree, children: [...tree.children, node] };
+  return updateAt(tree, parent, current =>
+    isFilterGroup(current)
+      ? { ...current, children: [...current.children, node] }
+      : current,
+  );
+}
+
+function updateChildren(
+  children: FilterNode[],
+  path: FilterPath,
+  update: (node: FilterNode) => FilterNode | null,
+): FilterNode[] {
+  const [index, ...rest] = path;
+  const current = children[index];
+  if (!current) return children;
+
+  if (rest.length === 0) {
+    const next = update(current);
+    return next === null
+      ? [...children.slice(0, index), ...children.slice(index + 1)]
+      : [...children.slice(0, index), next, ...children.slice(index + 1)];
+  }
+  if (!isFilterGroup(current)) return children;
+
+  // Depth is bounded by `RuntimeLimits.maxFilterDepth`, checked on admission.
+  return [
+    ...children.slice(0, index),
+    { ...current, children: updateChildren(current.children, rest, update) },
+    ...children.slice(index + 1),
+  ];
+}
+
 /** True when the tree holds no leaf at any depth. */
 export function isEmptyFilter(tree: FilterTree): boolean {
   return countLeaves(tree) === 0;

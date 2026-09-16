@@ -73,6 +73,23 @@ describe('MemoryViewStore', () => {
     await expect(store.get('orders-1')).resolves.toEqual(created);
   });
 
+  it('never issues an id a seeded instance already holds', async () => {
+    const store = new MemoryViewStore({ instances: [instance()] });
+
+    const created = await store.create(
+      {
+        definitionId: 'orders',
+        title: 'Second',
+        scope: 'personal',
+        config: recordConfig(),
+      },
+      ctx,
+    );
+
+    expect(created.id).toBe('orders-2');
+    await expect(store.list('orders')).resolves.toHaveLength(2);
+  });
+
   it('refuses to create a system view', async () => {
     const store = new MemoryViewStore();
     await expect(

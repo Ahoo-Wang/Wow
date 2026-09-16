@@ -39,6 +39,7 @@ export function ordersDefinition(
     fields: [
       { name: 'id', label: 'Order', kind: 'string' },
       { name: 'warehouse', label: 'Warehouse', kind: 'string' },
+      { name: 'status', label: 'Status', kind: 'string' },
       {
         name: 'amount',
         label: 'Amount',
@@ -122,8 +123,8 @@ export function requireRecordConfig(config: DataViewConfig): RecordViewConfig {
 }
 
 export const ROWS = [
-  { id: 'o-1', warehouse: 'CN', amount: 10 },
-  { id: 'o-2', warehouse: 'CN', amount: 20 },
+  { id: 'o-1', warehouse: 'CN', amount: 10, status: 'PENDING' },
+  { id: 'o-2', warehouse: 'CN', amount: 20, status: 'SHIPPED' },
 ];
 
 /** A `ViewSource` whose three methods are spies with sensible defaults. */

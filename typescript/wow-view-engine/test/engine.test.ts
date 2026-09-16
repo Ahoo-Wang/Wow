@@ -777,6 +777,35 @@ describe('ViewEngine wiring', () => {
     expect(withOptions.resolveOptions('orders')).toBeDefined();
   });
 
+  it('closes one runtime and stops holding it', async () => {
+    const { engine } = harness();
+    const runtime = await engine.open('orders-1');
+
+    engine.close(runtime);
+
+    expect(runtime.disposed).toBe(true);
+    expect(engine.openRuntimes()).toEqual([]);
+    // Closing twice, or closing one it never owned, is not an error.
+    engine.close(runtime);
+  });
+
+  it('forgets a runtime a caller disposed behind its back', async () => {
+    const { engine, store } = harness();
+    const runtime = await engine.open('orders-1');
+    await store.save('orders-1', recordConfig({ pageSize: 30 }), '1', {
+      requestId: 'other',
+    });
+
+    runtime.dispose();
+
+    // The stale revision of a dead runtime must not become the one a rename
+    // writes against, so the registry drops it before answering.
+    expect(engine.openRuntimes()).toEqual([]);
+    await expect(engine.rename('orders-1', 'Renamed')).resolves.toMatchObject({
+      revision: '3',
+    });
+  });
+
   it('disposes every runtime it opened', async () => {
     const { engine } = harness();
     const runtime = await engine.open('orders-1');

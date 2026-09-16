@@ -61,6 +61,8 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   readonly id: string;
   readonly kind: C['kind'];
   readonly definition: DataViewDefinition;
+  /** The registry admission used, which an editor must edit against. */
+  readonly kinds: FieldKindRegistry;
   getSnapshot(): ViewRuntimeState<C>;
   subscribe(listener: () => void): () => void;
   /** Changes the draft only, synchronously. */
@@ -74,6 +76,8 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   /** An outer condition ANDed onto the applied filter; never touches the draft. */
   setScopeFilter(tree: FilterTree | null): Issue[];
   dispose(): void;
+  /** True once disposed: every command is a no-op from then on. */
+  readonly disposed: boolean;
 }
 
 /** Paging and selection belong to Record alone. */
@@ -158,6 +162,7 @@ export class DataViewRuntime<
   readonly id: string;
   readonly kind: C['kind'];
   readonly definition: DataViewDefinition;
+  readonly kinds: FieldKindRegistry;
 
   private readonly listeners = new Set<() => void>();
   private readonly context: KernelContext;
@@ -171,12 +176,13 @@ export class DataViewRuntime<
   private requestSeq = 0;
   private timer: unknown;
   private timerDelay: number | null = null;
-  private disposed = false;
+  private stopped = false;
 
   constructor(options: ViewRuntimeOptions<C>) {
     this.id = options.id;
     this.kind = options.config.kind;
     this.definition = options.definition;
+    this.kinds = options.kinds;
     this.runner = options.runner;
     this.environment = options.environment;
     this.context = {
@@ -208,6 +214,10 @@ export class DataViewRuntime<
     );
   }
 
+  get disposed(): boolean {
+    return this.stopped;
+  }
+
   getSnapshot(): ViewRuntimeState<C> {
     return this.state;
   }
@@ -220,7 +230,7 @@ export class DataViewRuntime<
   }
 
   edit(patch: Partial<C>): void {
-    if (this.disposed) return;
+    if (this.stopped) return;
     const draft = { ...this.state.draft, ...patch };
     this.setState({
       draft,
@@ -230,28 +240,28 @@ export class DataViewRuntime<
   }
 
   apply(): void {
-    if (this.disposed || hasError(this.state.issues)) return;
+    if (this.stopped || hasError(this.state.issues)) return;
     this.pageTarget = firstPageOf(this.definition);
     this.setState({ applied: this.state.draft, selection: [] });
     this.execute({ keepSelection: false });
   }
 
   refresh(): void {
-    if (this.disposed || hasError(this.state.issues)) return;
+    if (this.stopped || hasError(this.state.issues)) return;
     // A refresh returns to the first page; the selection keeps whatever rows survive.
     this.pageTarget = firstPageOf(this.definition);
     this.execute({ keepSelection: true });
   }
 
   page(target: RecordPageTarget): void {
-    if (this.disposed) return;
+    if (this.stopped) return;
     this.pageTarget = target;
     this.setState({ selection: [] });
     this.execute({ keepSelection: false });
   }
 
   select(keys: RecordKey[]): void {
-    if (this.disposed) return;
+    if (this.stopped) return;
     const available = this.resultKeys();
     const selection = available
       ? keys.filter(key => available.has(key))
@@ -260,12 +270,12 @@ export class DataViewRuntime<
   }
 
   setEditing(active: boolean): void {
-    if (this.disposed || this.state.editing === active) return;
+    if (this.stopped || this.state.editing === active) return;
     this.setState({ editing: active });
   }
 
   setScopeFilter(tree: FilterTree | null): Issue[] {
-    if (this.disposed) return [];
+    if (this.stopped) return [];
     const merged = {
       ...this.state.applied,
       filter: mergeFilters(this.state.applied.filter, tree),
@@ -283,7 +293,7 @@ export class DataViewRuntime<
 
   /** Called by `ViewEngine` once a write has been confirmed by the store. */
   markSaved(instance: ViewInstance): void {
-    if (this.disposed) return;
+    if (this.stopped) return;
     this.setState({
       saved: instance,
       title: instance.title,
@@ -295,7 +305,7 @@ export class DataViewRuntime<
 
   /** Replaces the draft with the store's state, used by "reload" on a conflict. */
   adoptSaved(instance: ViewInstance): void {
-    if (this.disposed) return;
+    if (this.stopped) return;
     const draft = instance.config as C;
     this.setState({
       saved: instance,
@@ -310,13 +320,13 @@ export class DataViewRuntime<
 
   /** Called by `ViewEngine` with the outcome of a write it dispatched. */
   setWrite(write: WriteState | null): void {
-    if (this.disposed) return;
+    if (this.stopped) return;
     this.setState({ write });
   }
 
   dispose(): void {
-    if (this.disposed) return;
-    this.disposed = true;
+    if (this.stopped) return;
+    this.stopped = true;
     this.stopTimer();
     this.unwatchVisibility();
     this.runner.cancel(this.id);
@@ -396,7 +406,7 @@ export class DataViewRuntime<
   }
 
   private isCurrent(requestId: string): boolean {
-    return !this.disposed && this.state.query.requestId === requestId;
+    return !this.stopped && this.state.query.requestId === requestId;
   }
 
   private setState(patch: Partial<ViewRuntimeState<C>>): void {
@@ -430,7 +440,7 @@ export class DataViewRuntime<
   private refreshDelay(): number | null {
     const interval = this.state.applied.refresh.interval;
     if (
-      this.disposed ||
+      this.stopped ||
       interval === null ||
       this.state.editing ||
       this.state.query.status === 'loading' ||

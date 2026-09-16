@@ -17,8 +17,8 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
 import dts from 'unplugin-dts/vite';
 
-// Rewrite in progress (docs/design.md): only the root entry exists. The `/react`
-// and `/ui` entries, Tailwind and the theme CSS pipeline return with their steps.
+// Rewrite in progress (docs/design.md): the root and `/react` entries exist.
+// The `/ui` entry, Tailwind and the theme CSS pipeline return with their steps.
 export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   plugins: [
@@ -30,7 +30,7 @@ export default defineConfig({
     cssTarget: 'esnext',
     sourcemap: true,
     lib: {
-      entry: { index: 'src/index.ts' },
+      entry: { index: 'src/index.ts', react: 'src/react/index.ts' },
       formats: ['es'],
       fileName: (_format, entry) => `${entry}.js`,
       cssFileName: 'styles',

@@ -391,7 +391,23 @@ export class ViewEngine {
 
   /** Open runtimes, for a workbench that tracks its own tabs. */
   openRuntimes(): readonly ViewRuntime[] {
+    this.prune();
     return [...this.runtimes];
+  }
+
+  /**
+   * Closes one open view: disposes it and drops it from the registry.
+   *
+   * A caller that only calls `runtime.dispose()` leaves the engine holding a
+   * dead runtime, which then answers `locate` with a revision nobody can write
+   * against, so this is the way to let one go.
+   */
+  close(runtime: ViewRuntime): void {
+    if (isDataViewRuntime(runtime) && this.runtimes.has(runtime)) {
+      this.forget(runtime);
+      return;
+    }
+    runtime.dispose();
   }
 
   dispose(): void {
@@ -648,6 +664,7 @@ export class ViewEngine {
       throw new ViewCommandError(
         issue('view.system.read-only', [], { action }),
       );
+    this.prune();
     const runtime = [...this.runtimes].find(
       entry => entry.getSnapshot().saved?.id === id,
     );
@@ -679,6 +696,12 @@ export class ViewEngine {
   private forget(runtime: DataViewRuntime): void {
     runtime.dispose();
     this.runtimes.delete(runtime);
+  }
+
+  /** Drops runtimes a caller disposed directly, which the registry cannot see. */
+  private prune(): void {
+    for (const runtime of [...this.runtimes])
+      if (runtime.disposed) this.runtimes.delete(runtime);
   }
 
   private newRequestId(): string {
