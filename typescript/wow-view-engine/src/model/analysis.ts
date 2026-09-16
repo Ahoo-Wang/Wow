@@ -15,6 +15,7 @@ import type {
   AggregationDateUnit,
   AggregationExpressionOperator,
   AggregationFunction,
+  AggregationGroupType,
   DerivedExpression,
   HavingExpression,
 } from '@ahoo-wang/fetcher-wow';
@@ -23,6 +24,16 @@ import type { ChartSpec } from './chart.js';
 import type { FilterTree } from './filter.js';
 import type { LiteralEnums } from './json.js';
 import type { SortDirection } from './record.js';
+
+/**
+ * The Wow aggregation enums as the string literals a config stores. Naming
+ * them here keeps the protocol in this layer: everything above reaches for
+ * these rather than for `@ahoo-wang/fetcher-wow`.
+ */
+export type AnalysisGroupType = `${AggregationGroupType}`;
+export type AnalysisFunction = `${AggregationFunction}`;
+export type AnalysisDateUnit = `${AggregationDateUnit}`;
+export type AnalysisExpressionOperator = `${AggregationExpressionOperator}`;
 
 /**
  * Isomorphic to Wow's `AggregationGroup`: fields are validated against the
@@ -35,7 +46,7 @@ export type AnalysisGroup =
       type: 'DATE_HISTOGRAM';
       field: string;
       alias: string;
-      unit: `${AggregationDateUnit}`;
+      unit: AnalysisDateUnit;
       timeZone?: string;
       dense?: boolean;
     };
@@ -46,7 +57,7 @@ export type AnalysisExpression =
   | { type: 'CONSTANT'; value: number }
   | {
       type: 'BINARY';
-      operator: `${AggregationExpressionOperator}`;
+      operator: AnalysisExpressionOperator;
       left: AnalysisExpression;
       right: AnalysisExpression;
     };
@@ -60,7 +71,7 @@ export type AnalysisMetric =
   | {
       type: 'NUMERIC';
       alias: string;
-      function: `${AggregationFunction}`;
+      function: AnalysisFunction;
       expression: AnalysisExpression;
       filter?: FilterTree;
     }

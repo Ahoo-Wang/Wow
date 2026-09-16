@@ -19,6 +19,10 @@
  *
  * Styles ship separately as `@ahoo-wang/fetcher-view-engine/styles.css`.
  */
+export * from './AnalysisChart.js';
+export * from './AnalysisEditor.js';
+export * from './AnalysisTable.js';
+export * from './AnalysisWorkbench.js';
 export * from './FilterPanel.js';
 export * from './FilterValueEditor.js';
 export * from './RecordCards.js';

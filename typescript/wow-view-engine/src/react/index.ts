@@ -20,6 +20,7 @@
  */
 export * from './environment.js';
 export * from './issues.js';
+export * from './useAnalysisEditor.js';
 export * from './useFilterEditor.js';
 export * from './useRecordTable.js';
 export * from './useSaveCommands.js';

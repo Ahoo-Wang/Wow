@@ -409,9 +409,15 @@ describe('save actions', () => {
 });
 
 describe('FilterValueEditor', () => {
+  const CANDIDATES = [
+    { value: 'CN', label: 'China' },
+    { value: 'JP', label: 'Japan' },
+  ];
+
   function editor(
     descriptor: EditorDescriptor,
     value: FilterValue = null,
+    options: typeof CANDIDATES | null = CANDIDATES,
   ): { changes: FilterValue[] } {
     const changes: FilterValue[] = [];
     render(
@@ -420,6 +426,7 @@ describe('FilterValueEditor', () => {
           editor={descriptor}
           value={value}
           label="amount"
+          options={options ?? undefined}
           onChange={next => changes.push(next)}
         />
       </ViewSurface>,
@@ -493,8 +500,25 @@ describe('FilterValueEditor', () => {
     expect(changes).toEqual(['JP']);
   });
 
+  it('uses the candidates a remote editor was given', async () => {
+    const user = userEvent.setup();
+    const { changes } = editor(
+      { input: 'remote', remote: 'warehouses', multiple: true },
+      [],
+    );
+
+    await user.click(screen.getByLabelText('amount'));
+    await user.click(await screen.findByRole('option', { name: 'China' }));
+
+    expect(changes).toEqual([['CN']]);
+  });
+
   it('falls back to typed entry when no remote candidates are given', () => {
-    const { changes } = editor({ input: 'remote', remote: 'warehouses' }, '');
+    const { changes } = editor(
+      { input: 'remote', remote: 'warehouses' },
+      '',
+      null,
+    );
 
     fireEvent.change(screen.getByLabelText('amount'), {
       target: { value: 'w-1' },
