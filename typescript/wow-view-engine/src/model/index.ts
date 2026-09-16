@@ -12,13 +12,19 @@
  */
 
 /**
- * Root entry of `@ahoo-wang/fetcher-view-engine`.
- *
- * The package is being rebuilt from an empty tree following `docs/design.md`.
- * This entry grows layer by layer in the order fixed there: `model`, `filter`,
- * `record` / `analysis` / `dashboard`, `runtime`, `store`. The `/react` and `/ui`
- * entries are added by their own delivery steps. Dependency rules between the
- * layers are enforced by `test/architecture.test.ts` from the first commit.
+ * Types and constants only: the three facts of `docs/design.md` §1 say
+ * definitions are code, configs are data and runtime state is transient, so
+ * this layer describes the first two and depends on nothing else.
  */
-export * from './model/index.js';
-export * from './filter/index.js';
+export * from './analysis.js';
+export * from './chart.js';
+export * from './config.js';
+export * from './dashboard.js';
+export * from './definition.js';
+export * from './field.js';
+export * from './filter.js';
+export * from './instance.js';
+export * from './issue.js';
+export * from './json.js';
+export * from './limits.js';
+export * from './record.js';

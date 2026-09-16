@@ -1,0 +1,168 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Charts are stored per family: the sub-object of the current `type` is
+ * required and the others are kept, so switching families loses nothing.
+ * Every reference is a group or metric alias; no charting library types.
+ */
+export interface ChartSpec {
+  type: ChartType;
+  /** Shared by bar, line, area and combo. */
+  cartesian?: CartesianSpec;
+  pie?: PieSpec;
+  heatmap?: HeatmapSpec;
+  scatter?: ScatterSpec;
+  funnel?: FunnelSpec;
+  metric?: MetricCardSpec;
+  legend?: 'auto' | 'top' | 'bottom' | 'right' | 'none';
+  labels?: boolean;
+  /** Series alias or category value to colour; the theme fills in the rest. */
+  colors?: Record<string, string>;
+}
+
+export type ChartType =
+  | 'bar'
+  | 'line'
+  | 'area'
+  | 'combo'
+  | 'pie'
+  | 'heatmap'
+  | 'scatter'
+  | 'funnel'
+  | 'metric';
+
+export const CHART_TYPES: readonly ChartType[] = [
+  'bar',
+  'line',
+  'area',
+  'combo',
+  'pie',
+  'heatmap',
+  'scatter',
+  'funnel',
+  'metric',
+];
+
+/** Which sub-object each chart type requires. */
+export const CHART_FAMILY: Readonly<Record<ChartType, keyof ChartSpec>> =
+  Object.freeze({
+    bar: 'cartesian',
+    line: 'cartesian',
+    area: 'cartesian',
+    combo: 'cartesian',
+    pie: 'pie',
+    heatmap: 'heatmap',
+    scatter: 'scatter',
+    funnel: 'funnel',
+    metric: 'metric',
+  });
+
+export interface CartesianSeries {
+  /** Metric alias. */
+  metric: string;
+  /** Required per series when the chart type is `combo`. */
+  type?: 'bar' | 'line' | 'area';
+  axis?: 'left' | 'right';
+  /** Series sharing a stack name are stacked. */
+  stack?: string;
+  smooth?: boolean;
+}
+
+export interface CartesianSpec {
+  /** Group alias. */
+  x: string;
+  /** Second group alias, pivoting one metric into a series per value. */
+  splitBy?: string;
+  series: CartesianSeries[];
+  orientation?: 'vertical' | 'horizontal';
+  yAxis?: { left?: AxisSpec; right?: AxisSpec };
+  referenceLines?: ReferenceLine[];
+}
+
+export interface AxisSpec {
+  label?: string;
+  min?: number;
+  max?: number;
+  format?: ValueFormat;
+}
+
+export interface ReferenceLine {
+  axis: 'left' | 'right';
+  value: number;
+  label?: string;
+}
+
+export type ValueFormat = 'auto' | 'percent' | 'compact';
+
+export interface PieSpec {
+  /** Group alias. */
+  category: string;
+  /** Metric alias. */
+  value: string;
+  donut?: boolean;
+  /** Merges the remainder into "other"; additive metrics only. */
+  maxSlices?: number;
+}
+
+export interface HeatmapSpec {
+  /** Group alias. */
+  x: string;
+  /** Another group alias. */
+  y: string;
+  /** Metric alias. */
+  value: string;
+  scale?: 'linear' | 'log';
+}
+
+export interface ScatterSpec {
+  /** Group alias; one point per value. */
+  category: string;
+  /** Metric aliases. */
+  x: string;
+  y: string;
+  size?: string;
+}
+
+/**
+ * Stages come either from one filtered metric each, or from the values of a
+ * single group with an explicit business order.
+ */
+export interface FunnelSpec {
+  stages: FunnelStages;
+  conversion?: 'previous' | 'first' | 'none';
+  orientation?: 'vertical' | 'horizontal';
+}
+
+export type FunnelStages =
+  | { from: 'metrics'; items: { metric: string; label?: string }[] }
+  | {
+      from: 'group';
+      category: string;
+      value: string;
+      /** Business order of the stages, taken from the group values. */
+      order: string[];
+      /** Accumulate into "reached at least this stage"; defaults to true. */
+      cumulative?: boolean;
+    };
+
+export interface MetricCardSpec {
+  /** Metric alias. */
+  metric: string;
+  compare?: { metric: string; mode: 'delta' | 'percent' };
+  /** Rendered as progress towards this value. */
+  target?: number;
+  /** Sparkline; requires exactly one DATE_HISTOGRAM group with this alias. */
+  trend?: { x: string };
+  format?: ValueFormat;
+}

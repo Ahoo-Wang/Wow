@@ -11,14 +11,17 @@
  * limitations under the License.
  */
 
+/** Any value a saved configuration may hold: configs are plain JSON. */
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 /**
- * Root entry of `@ahoo-wang/fetcher-view-engine`.
- *
- * The package is being rebuilt from an empty tree following `docs/design.md`.
- * This entry grows layer by layer in the order fixed there: `model`, `filter`,
- * `record` / `analysis` / `dashboard`, `runtime`, `store`. The `/react` and `/ui`
- * entries are added by their own delivery steps. Dependency rules between the
- * layers are enforced by `test/architecture.test.ts` from the first commit.
+ * Replaces enum members with their string values and leaves everything else
+ * untouched, so a Wow protocol type can be reused in a configuration without
+ * dragging its enums into stored data.
  */
-export * from './model/index.js';
-export * from './filter/index.js';
+export type LiteralEnums<T> = T extends string
+  ? `${T}`
+  : T extends object
+    ? { [K in keyof T]: LiteralEnums<T[K]> }
+    : T;

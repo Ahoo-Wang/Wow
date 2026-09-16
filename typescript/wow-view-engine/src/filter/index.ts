@@ -12,13 +12,17 @@
  */
 
 /**
- * Root entry of `@ahoo-wang/fetcher-view-engine`.
+ * The filter kernel: pure functions over a stored tree, plus the `FieldKind`
+ * registry that makes field types the one axis an application extends.
  *
- * The package is being rebuilt from an empty tree following `docs/design.md`.
- * This entry grows layer by layer in the order fixed there: `model`, `filter`,
- * `record` / `analysis` / `dashboard`, `runtime`, `store`. The `/react` and `/ui`
- * entries are added by their own delivery steps. Dependency rules between the
- * layers are enforced by `test/architecture.test.ts` from the first commit.
+ * Nothing here touches React, the DOM or the network, and relative dates are
+ * resolved against an injected moment rather than the system clock.
  */
-export * from './model/index.js';
-export * from './filter/index.js';
+export * from './compile.js';
+export * from './describe.js';
+export * from './fieldKind.js';
+export * from './kinds/index.js';
+export * from './time.js';
+export * from './tree.js';
+export * from './validate.js';
+export * from './values.js';
