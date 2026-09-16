@@ -17,25 +17,22 @@ Storybook 是可运行的接入文档，也承载浏览器交互回归。导航�
 
 修改全局 fetch 或 Viewer 默认注册器的示例使用独立 iframe，并通过 `beforeEach` 返回清理函数。共享夹具的数据可以复用，可变状态不能跨场景共享。未知来源的请求交给原始 fetch；受控失败只作用于示例 API。
 
-View Engine 接入示例继续解析公共构建产物。`view-engine/development/` 保存开发验证入口：LocalStorage 使用独立范围并允许重置，HTTP 实验需要单独启动服务，不进入默认测试或普通文档。
+View Engine 正在重写（见 `packages/view-engine/docs/design.md`），其故事随 Record 工作台一起回归。
 
 ## 检查命令
 
 ```bash
 pnpm test:storybook
 pnpm build-storybook
-pnpm exec eslint stories .storybook scripts/verify-storybook*.mjs --max-warnings 0
-pnpm lint:view-engine
+pnpm lint:stories
 ```
 
-`build-storybook` 包含静态索引检查：验证首页地址、回归标签和 HTTP 实验边界。
+`build-storybook` 包含静态索引检查：验证首页地址与回归标签。
 
-先运行 `pnpm storybook`，再运行以下真实浏览器检查；均使用独立的无头浏览器：
+先运行 `pnpm storybook`，再运行以下真实浏览器检查；使用独立的无头浏览器：
 
 ```bash
 node scripts/verify-storybook-browser.mjs
-node packages/view-engine/scripts/verify-view-host.mjs
-node packages/view-engine/scripts/verify-http-view-host.mjs
 ```
 
 文档浏览器检查也可接收服务地址：`node scripts/verify-storybook-browser.mjs http://127.0.0.1:6006`。

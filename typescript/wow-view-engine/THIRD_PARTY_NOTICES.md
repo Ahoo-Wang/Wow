@@ -1,6 +1,6 @@
 # Third-party notices
 
-The components in `src/components/ui/`, the popup/item styles in `FilterSearchSelect`, and the system badge styles in `ViewPage` and `ViewManager` are adapted from shadcn/ui's `base-nova` registry using the shadcn CLI. Local changes include prefixed utilities, scoped theme tokens, local utilities, and theme propagation to Select portals.
+The default UI of this package (`src/ui/`, delivered by the `/ui` entry) adapts components from shadcn/ui's `base-nova` registry using the shadcn CLI, with prefixed utilities and scoped theme tokens. The rewrite in progress reintroduces them in the `/ui` delivery step described in `docs/design.md`; the license below applies to that code.
 
 Source: https://github.com/shadcn-ui/ui
 

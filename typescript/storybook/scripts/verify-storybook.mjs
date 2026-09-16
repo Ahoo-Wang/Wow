@@ -35,29 +35,6 @@ for (const id of targets)
 const stories = Object.values(index.entries).filter(
   entry => entry.type === 'story',
 );
-const viewEngineGroups = new Set([
-  '入门与业务流程',
-  '真实 API 接入',
-  '引擎与宿主',
-  '数据视图',
-  '分析视图',
-  '仪表盘视图',
-  '查询与筛选',
-  '扩展与组件',
-]);
-for (const entry of stories.filter(
-  entry => entry.title.startsWith('View Engine/') && entry.tags.includes('dev'),
-)) {
-  const parts = entry.title.split('/');
-  assert.ok(
-    viewEngineGroups.has(parts[1]),
-    `${entry.id}: ungrouped View Engine chapter`,
-  );
-  assert.ok(
-    parts.length >= 3 && parts.length <= 4,
-    `${entry.id}: unexpected navigation depth`,
-  );
-}
 const regression = stories.filter(entry =>
   entry.importPath.endsWith('.test.stories.tsx'),
 );
@@ -72,15 +49,6 @@ for (const entry of regression) {
     `${entry.id}: regression exposed in documentation`,
   );
 }
-const experiment = index.entries['development-http-service--http-view-service'];
-assert.ok(experiment, 'HTTP experiment must remain directly accessible');
-assert.ok(
-  !experiment.tags.includes('test') && !experiment.tags.includes('autodocs'),
-);
-assert.ok(
-  !index.entries['development-http-service--docs'],
-  'HTTP experiment must not mount in ordinary docs',
-);
 console.log(
-  `Verified ${targets.size} navigation targets, ${regression.length} regression stories and isolated HTTP experiment.`,
+  `Verified ${targets.size} navigation targets and ${regression.length} regression stories.`,
 );

@@ -19,6 +19,13 @@ import { defineConfig } from 'vitest/config';
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 
+// Local runs use Chromium; CI sets the full acceptance matrix. Vitest reports
+// every instance, so a failure in one browser does not hide the others.
+const browsers = (process.env.STORYBOOK_BROWSERS ?? 'chromium')
+  .split(',')
+  .map(name => name.trim())
+  .filter(Boolean);
+
 export default defineConfig({
   optimizeDeps: {
     include: ['@ant-design/icons', 'dayjs', 'immer', 'react/compiler-runtime'],
@@ -40,10 +47,10 @@ export default defineConfig({
             headless: true,
             provider: playwright({
               launchOptions: {
-                channel: process.env.VIEW_ENGINE_BROWSER_CHANNEL || undefined,
+                channel: process.env.STORYBOOK_BROWSER_CHANNEL || undefined,
               },
             }),
-            instances: [{ browser: 'chromium' }],
+            instances: browsers.map(browser => ({ browser })),
           },
         },
       },

@@ -1,7 +1,7 @@
 {
   "name": "@ahoo-wang/fetcher-view-engine",
   "version": "5.0.0",
-  "description": "Wow view engine core contracts and composable React view components built with shadcn/ui and Base UI.",
+  "description": "Configurable data view engine for Wow-based business applications: definitions in code, view configs as data, records, analyses and dashboards. Rewrite in progress, see docs/design.md.",
   "type": "module",
   "license": "Apache-2.0",
   "author": "Ahoo-Wang",
@@ -19,21 +19,11 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./react": {
-      "types": "./dist/react.d.ts",
-      "import": "./dist/react.js"
-    },
-    "./styles.css": "./dist/styles.css",
-    "./themes/neutral.css": "./dist/themes/neutral.css",
-    "./themes/blue.css": "./dist/themes/blue.css",
-    "./themes/violet.css": "./dist/themes/violet.css",
-    "./themes/green.css": "./dist/themes/green.css",
-    "./themes/orange.css": "./dist/themes/orange.css",
-    "./themes/shadcn.css": "./dist/themes/shadcn.css"
+    }
   },
   "files": [
     "dist",
+    "docs/design.md",
     "README.md",
     "README.zh-CN.md",
     "THIRD_PARTY_NOTICES.md"
@@ -43,14 +33,12 @@
   ],
   "scripts": {
     "build": "vite build",
-    "test": "vitest run --coverage && pnpm test:compiled && pnpm test:type",
-    "test:compiled": "vitest run --mode compiled",
-    "test:type": "tsc --noEmit -p tsconfig.json && node scripts/verify-extension-contracts.mjs",
+    "test": "vitest run --coverage && pnpm test:type",
+    "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:type",
+    "test:type": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.headless.json",
     "lint": "eslint . --fix",
     "lint:check": "eslint . --max-warnings 0",
-    "clean": "rm -rf dist",
-    "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:compiled && pnpm test:type",
-    "test:themes": "node scripts/verify-themes.mjs"
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "@dnd-kit/react": "catalog:",

@@ -12,54 +12,25 @@
  */
 
 import { fileURLToPath, URL } from 'node:url';
-import { readFileSync, readdirSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
-import tailwindcss from '@tailwindcss/vite';
 import dts from 'unplugin-dts/vite';
 
+// Rewrite in progress (docs/design.md): only the root entry exists. The `/react`
+// and `/ui` entries, Tailwind and the theme CSS pipeline return with their steps.
 export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   plugins: [
     react(),
     babel({ presets: [reactCompilerPreset()] }),
-    tailwindcss(),
     dts({ tsconfigPath: './tsconfig.json' }),
-    {
-      name: 'view-engine-css-namespace',
-      enforce: 'post',
-      generateBundle: {
-        order: 'post',
-        handler(_options, bundle) {
-          const themes = new URL('./src/themes/', import.meta.url);
-          for (const name of readdirSync(themes).filter(name =>
-            name.endsWith('.css'),
-          )) {
-            this.emitFile({
-              type: 'asset',
-              fileName: `themes/${name}`,
-              source: readFileSync(new URL(name, themes), 'utf8'),
-            });
-          }
-          for (const asset of Object.values(bundle)) {
-            if (asset.type === 'asset' && asset.fileName.endsWith('.css')) {
-              const css =
-                typeof asset.source === 'string'
-                  ? asset.source
-                  : new TextDecoder().decode(asset.source);
-              asset.source = css.replaceAll('--tw-', '--fve-tw-');
-            }
-          }
-        },
-      },
-    },
   ],
   build: {
     cssTarget: 'esnext',
     sourcemap: true,
     lib: {
-      entry: { index: 'src/index.ts', react: 'src/react.ts' },
+      entry: { index: 'src/index.ts' },
       formats: ['es'],
       fileName: (_format, entry) => `${entry}.js`,
       cssFileName: 'styles',

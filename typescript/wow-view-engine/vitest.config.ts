@@ -29,16 +29,10 @@ export default defineConfig(({ mode }) => ({
         find: '@',
         replacement: fileURLToPath(new URL('./src', import.meta.url)),
       },
-      // Development adapters use the public contract; unit tests exercise its current source.
-      {
-        find: /^@ahoo-wang\/fetcher-view-engine$/,
-        replacement: fileURLToPath(new URL('./src/index.ts', import.meta.url)),
-      },
     ],
   },
   test: {
     environment: 'jsdom',
-    setupFiles: ['./test/setup.ts'],
     clearMocks: true,
     restoreMocks: true,
     coverage: {
