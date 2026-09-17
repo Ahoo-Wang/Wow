@@ -68,40 +68,48 @@ import type { ViewDefinition } from '@ahoo-wang/fetcher-view-engine';
 
 export const orders: ViewDefinition = {
   id: 'orders',
-  title: '订单',
+  title: 'Orders',
   kind: 'data',
   source: 'orders',
   fields: [
-    { name: 'id', label: '订单号', kind: 'string' },
+    { name: 'id', label: 'Order', kind: 'string' },
     {
       name: 'status',
-      label: '状态',
+      label: 'Status',
       kind: 'enum',
       options: [
         { value: 'PENDING', label: '待出库' },
-        { value: 'SHIPPED', label: '已发货' },
+        { value: 'SHIPPED', label: '已出库' },
       ],
     },
-    { name: 'warehouse', label: '仓库', kind: 'string' },
-    { name: 'amount', label: '金额', kind: 'number', summary: ['SUM', 'AVG'] },
-    { name: 'createdAt', label: '创建时间', kind: 'datetime', sortable: true },
+    { name: 'warehouse', label: 'Warehouse', kind: 'string' },
+    {
+      name: 'amount',
+      label: 'Amount',
+      kind: 'number',
+      summary: ['SUM', 'AVG'],
+    },
+    { name: 'createdAt', label: 'Created', kind: 'datetime', sortable: true },
   ],
   record: { rowKey: 'id', paging: 'paged', layouts: ['table', 'card'] },
-  // 系统视图：开发或运维配置的基础视图，随定义部署，所有用户可见、只读、可另存
+  // 系统视图：开发或运维配置的基础视图，随定义部署，所有用户可见，只读，可另存
   views: [
     {
       id: 'pending',
-      title: '待出库',
+      title: 'Pending',
       config: {
         kind: 'record',
         filter: {
           op: 'and',
-          children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+          // enum 是封闭集合，因此提供 IN 与 NOT_IN 而不是 EQ：
+          // 一个条件即表达“取其中之一”，两者互换时保留已选项。
+          children: [{ field: 'status', operator: 'IN', value: ['PENDING'] }],
         },
         filterMode: 'simple',
         refresh: { interval: null },
         sort: [{ field: 'createdAt', direction: 'DESC' }],
         pageSize: 20,
+        summaries: [{ field: 'amount', fn: 'SUM' }],
         layout: 'table',
         table: {
           columns: [
@@ -120,12 +128,9 @@ export const orders: ViewDefinition = {
 ### 2. 创建引擎
 
 ```ts
-import {
-  createViewEngine,
-  MemoryViewStore,
-} from '@ahoo-wang/fetcher-view-engine';
+import { MemoryViewStore, ViewEngine } from '@ahoo-wang/fetcher-view-engine';
 
-const engine = createViewEngine({
+const engine = new ViewEngine({
   definitions: [orders],
   store: new MemoryViewStore(),
   // 来自 @ahoo-wang/fetcher-wow 的 Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'>
@@ -137,10 +142,10 @@ const engine = createViewEngine({
 
 ```tsx
 import '@ahoo-wang/fetcher-view-engine/styles.css';
-import { Workbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import { RecordWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 
 export function OrdersPage() {
-  return <Workbench engine={engine} definitionId="orders" />;
+  return <RecordWorkbench engine={engine} definitionId="orders" />;
 }
 ```
 
@@ -217,12 +222,12 @@ const view = projectRecord(orders, config, page);
 
 ## 入口
 
-| 入口                             | 导出                                                                                                                                                                                                       |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                          |
-| `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useDashboard`、`useSaveCommands`                                                              |
-| `/ui`                            | `RecordWorkbench`、`AnalysisWorkbench`、`DashboardWorkbench`、`FilterPanel`、`RecordTable`、`RecordCards`、`AnalysisEditor`、`AnalysisChart`、`DashboardGrid`、`MarkdownPanel`、`ImagePanel`、`LinksPanel` |
-| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，`scripts/verify-package.mjs` 在每次构建时核对这一点。                                                                                                          |
+| 入口                             | 导出                                                                                                                                                                                                                       |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                                          |
+| `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useDashboard`、`useSaveCommands`                                                                              |
+| `/ui`                            | `RecordWorkbench`、`AnalysisWorkbench`、`DashboardWorkbench`、`FilterPanel`、`RecordTable`、`RecordCards`、`AnalysisEditor`、`AnalysisChart`、`DashboardGrid`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`EmbeddedView` |
+| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，`scripts/verify-package.mjs` 在每次构建时核对这一点。                                                                                                                          |
 
 ## 持久化
 

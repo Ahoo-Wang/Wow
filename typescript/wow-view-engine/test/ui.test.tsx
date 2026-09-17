@@ -30,13 +30,19 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
-import type { EditorDescriptor, FilterValue } from '../src/index.js';
+import type { PagedList } from '@ahoo-wang/fetcher-wow';
+import type {
+  EditorDescriptor,
+  FilterValue,
+  RecordData,
+} from '../src/index.js';
 import type {
   RecordTableController,
   ViewListState,
 } from '../src/react/index.js';
 import { useFilterEditor } from '../src/react/index.js';
 import {
+  EmbeddedView,
   FilterPanel,
   FilterValueEditor,
   RecordCards,
@@ -46,7 +52,16 @@ import {
   ViewList,
   ViewSurface,
 } from '../src/ui/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  dashboardConfig,
+  deferred,
+  ROWS,
+  ordersDefinition,
+  overviewDefinition,
+  recordConfig,
+  testSource,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -89,6 +104,215 @@ describe('RecordWorkbench', () => {
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
     expect(screen.getByRole('button', { name: /Apply/ })).toBeDefined();
     expect(screen.getByRole('navigation', { name: 'Views' })).toBeDefined();
+  });
+
+  it('shows an analysis view as its saved layout', async () => {
+    const analysis: ViewInstance = {
+      ...mine,
+      config: analysisConfig({ layout: 'table' }),
+    };
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [analysis] }),
+      resolveSource: () => testSource(),
+    });
+
+    render(<EmbeddedView engine={engine} instanceId="orders-1" />);
+
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+    expect(screen.queryByRole('button', { name: /Run/ })).toBeNull();
+  });
+
+  it('shows a dashboard as its grid of panels', async () => {
+    const panelled: ViewInstance = {
+      id: 'overview-1',
+      definitionId: 'overview',
+      title: 'Overview',
+      scope: 'personal',
+      revision: '1',
+      config: dashboardConfig({
+        panels: [
+          {
+            id: 'rows',
+            kind: 'markdown',
+            title: 'Note',
+            content: '# Weekly review',
+            layout: { x: 0, y: 0, w: 6, h: 2 },
+          },
+        ],
+      }),
+    };
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition(), overviewDefinition()],
+      store: new MemoryViewStore({ instances: [panelled] }),
+      resolveSource: () => testSource(),
+    });
+
+    render(<EmbeddedView engine={engine} instanceId="overview-1" />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: 'Weekly review' }),
+      ).toBeTruthy(),
+    );
+  });
+
+  it('reports a failed query inside the embed', async () => {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [mine] }),
+      resolveSource: () =>
+        testSource({ paged: () => Promise.reject(new Error('down')) }),
+    });
+
+    render(<EmbeddedView engine={engine} instanceId="orders-1" />);
+
+    await waitFor(() => expect(screen.getByText(/query failed/i)).toBeTruthy());
+  });
+
+  /**
+   * The condition has to reach the runtime before its opening query, not after
+   * it. An order page embedding "this customer's shipments" that lets one
+   * unscoped query out has already asked the server for everyone else's.
+   */
+  it('lets no unscoped query out when a scope is given', async () => {
+    const { engine, source } = setup();
+
+    render(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        scopeFilter={{
+          op: 'and',
+          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        }}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(vi.mocked(source.paged).mock.calls.length).toBeGreaterThan(0),
+    );
+
+    for (const [query] of vi.mocked(source.paged).mock.calls)
+      expect(JSON.stringify(query.filter)).toContain('CN');
+  });
+
+  it('runs nothing when the host condition is not admissible', async () => {
+    const { engine, source } = setup();
+
+    render(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        scopeFilter={{
+          op: 'and',
+          children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText(/needs fixing/i)).toBeTruthy());
+    // Widening to every record would be the worst possible reading of a
+    // condition the definition rejected.
+    expect(vi.mocked(source.paged)).not.toHaveBeenCalled();
+  });
+
+  it('reports a saved config the definition no longer admits', async () => {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({
+        instances: [{ ...mine, config: recordConfig({ pageSize: 0 }) }],
+      }),
+      resolveSource: () => testSource(),
+    });
+
+    render(<EmbeddedView engine={engine} instanceId="orders-1" />);
+
+    // Not an empty table, and not a skeleton that never resolves.
+    await waitFor(() => expect(screen.getByText(/needs fixing/i)).toBeTruthy());
+  });
+
+  it('honours the card layout the view was saved with', async () => {
+    const cards: ViewInstance = {
+      ...mine,
+      config: recordConfig({ layout: 'card' }),
+    };
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [cards] }),
+      resolveSource: () => testSource(),
+    });
+
+    const { container } = render(
+      <EmbeddedView engine={engine} instanceId="orders-1" />,
+    );
+
+    // An embed shows what was saved; it offers no layout switch of its own.
+    await waitFor(() =>
+      expect(
+        container.querySelector('[data-slot="record-cards"]'),
+      ).not.toBeNull(),
+    );
+    expect(container.querySelector('table')).toBeNull();
+  });
+
+  /**
+   * The states a reader actually meets when a source is slow or down. They
+   * are easy to skip past with `waitFor`, and then the first time anyone sees
+   * them is in production.
+   */
+  it('shows a placeholder while the first rows are still coming', async () => {
+    const pending = deferred<PagedList<RecordData>>();
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [mine] }),
+      resolveSource: () => testSource({ paged: () => pending.promise }),
+    });
+
+    const { container } = render(
+      <EmbeddedView engine={engine} instanceId="orders-1" />,
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-slot="skeleton"]')).not.toBeNull(),
+    );
+
+    pending.resolve({ total: 2, list: [...ROWS] });
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+  });
+
+  it('shows an analysis as a chart when that is what was saved', async () => {
+    const charted: ViewInstance = {
+      ...mine,
+      config: analysisConfig({ layout: 'chart' }),
+    };
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [charted] }),
+      resolveSource: () => testSource(),
+    });
+
+    const { container } = render(
+      <EmbeddedView engine={engine} instanceId="orders-1" />,
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-slot="chart"]')).not.toBeNull(),
+    );
+  });
+
+  it('reports a failed analysis query', async () => {
+    const charted: ViewInstance = { ...mine, config: analysisConfig() };
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [charted] }),
+      resolveSource: () =>
+        testSource({ aggregate: () => Promise.reject(new Error('down')) }),
+    });
+
+    render(<EmbeddedView engine={engine} instanceId="orders-1" />);
+
+    await waitFor(() => expect(screen.getByText(/query failed/i)).toBeTruthy());
   });
 
   it('reports a view it cannot open', async () => {
@@ -1257,6 +1481,224 @@ describe('FilterPanel tree editing', () => {
     );
     expect(screen.getByRole('button', { name: 'Simple' }).ariaPressed).toBe(
       'false',
+    );
+  });
+});
+
+describe('the summary row', () => {
+  const withSummary: ViewInstance = {
+    ...mine,
+    config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+  };
+
+  function setupSummary(source: ViewSource = testSource()) {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [withSummary] }),
+      resolveSource: () => source,
+    });
+    return render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+  }
+
+  it('shows the total the aggregation returned', async () => {
+    const { container } = setupSummary();
+
+    const footer = await waitFor(() => {
+      const found = container.querySelector('tfoot');
+      expect(found).not.toBeNull();
+      return found as HTMLElement;
+    });
+
+    expect(footer.dataset.scope).toBe('total');
+    expect(footer.textContent).toContain('30');
+  });
+
+  /**
+   * A failed summary query costs the summary, not the page. What it must not
+   * cost is the reader's ability to tell the two numbers apart: the sum of the
+   * rows on screen presented as the sum over everything is the one mistake
+   * this row could make.
+   */
+  it('shows every function configured for one field', async () => {
+    const both: ViewInstance = {
+      ...mine,
+      config: recordConfig({
+        summaries: [
+          { field: 'amount', fn: 'SUM' },
+          { field: 'amount', fn: 'AVG' },
+        ],
+      }),
+    };
+    // The shared fixture allows only SUM on `amount`; this view asks for two.
+    const definition = ordersDefinition();
+    const engine = new ViewEngine({
+      definitions: [
+        {
+          ...definition,
+          fields: definition.fields.map(field =>
+            field.name === 'amount'
+              ? { ...field, summary: ['SUM' as const, 'AVG' as const] }
+              : field,
+          ),
+        },
+      ],
+      store: new MemoryViewStore({ instances: [both] }),
+      resolveSource: () => testSource(),
+    });
+    const { container } = render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+
+    const footer = await waitFor(() => {
+      const found = container.querySelector('tfoot');
+      expect(found).not.toBeNull();
+      return found as HTMLElement;
+    });
+
+    // Keying the cells by field would keep only the last one configured.
+    expect(footer.textContent).toContain('SUM');
+    expect(footer.textContent).toContain('AVG');
+  });
+
+  it('says so when it fell back to the rows on screen', async () => {
+    const { container } = setupSummary(
+      testSource({ aggregate: () => Promise.reject(new Error('down')) }),
+    );
+
+    const footer = await waitFor(() => {
+      const found = container.querySelector('tfoot');
+      expect(found).not.toBeNull();
+      return found as HTMLElement;
+    });
+
+    expect(footer.dataset.scope).toBe('page');
+    expect(footer.textContent).toContain('This page');
+  });
+});
+
+describe('EmbeddedView', () => {
+  it('shows the result and none of the workbench chrome', async () => {
+    const { engine } = setup();
+
+    render(<EmbeddedView engine={engine} instanceId="orders-1" />);
+
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    // What a business page embeds is the answer, not a second application:
+    // no view list, no condition editor, no save commands.
+    expect(screen.queryByRole('button', { name: /Apply/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Save/ })).toBeNull();
+  });
+
+  it('runs the host condition without touching the saved config', async () => {
+    const { engine, source } = setup();
+
+    render(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        scopeFilter={{
+          op: 'and',
+          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    await waitFor(() =>
+      expect(
+        vi
+          .mocked(source.paged)
+          .mock.calls.some(([query]) =>
+            JSON.stringify(query.filter).includes('CN'),
+          ),
+      ).toBe(true),
+    );
+
+    const runtime = engine.openRuntimes()[0];
+    expect(runtime.getSnapshot().dirty).toBe(false);
+  });
+
+  it('shows an analysis view as its saved layout', async () => {
+    const analysis: ViewInstance = {
+      ...mine,
+      config: analysisConfig({ layout: 'table' }),
+    };
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [analysis] }),
+      resolveSource: () => testSource(),
+    });
+
+    render(<EmbeddedView engine={engine} instanceId="orders-1" />);
+
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+    expect(screen.queryByRole('button', { name: /Run/ })).toBeNull();
+  });
+
+  it('shows a dashboard as its grid of panels', async () => {
+    const panelled: ViewInstance = {
+      id: 'overview-1',
+      definitionId: 'overview',
+      title: 'Overview',
+      scope: 'personal',
+      revision: '1',
+      config: dashboardConfig({
+        panels: [
+          {
+            id: 'rows',
+            kind: 'markdown',
+            title: 'Note',
+            content: '# Weekly review',
+            layout: { x: 0, y: 0, w: 6, h: 2 },
+          },
+        ],
+      }),
+    };
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition(), overviewDefinition()],
+      store: new MemoryViewStore({ instances: [panelled] }),
+      resolveSource: () => testSource(),
+    });
+
+    render(<EmbeddedView engine={engine} instanceId="overview-1" />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: 'Weekly review' }),
+      ).toBeTruthy(),
+    );
+  });
+
+  it('reports a failed query inside the embed', async () => {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [mine] }),
+      resolveSource: () =>
+        testSource({ paged: () => Promise.reject(new Error('down')) }),
+    });
+
+    render(<EmbeddedView engine={engine} instanceId="orders-1" />);
+
+    await waitFor(() => expect(screen.getByText(/query failed/i)).toBeTruthy());
+  });
+
+  it('reports a view it cannot open', async () => {
+    const { engine } = setup();
+
+    render(<EmbeddedView engine={engine} instanceId="gone" />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/could not be opened/i)).toBeDefined(),
     );
   });
 });

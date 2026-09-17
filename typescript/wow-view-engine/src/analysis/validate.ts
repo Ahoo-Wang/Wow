@@ -171,6 +171,12 @@ function validateGroups(
             unit: group.unit,
           }),
         );
+      // Only the blank check, which is Wow's own. This zone is passed through
+      // to the server and never resolved here, so the browser's zone table has
+      // no standing over it: a name the backend knows, or a fixed offset, must
+      // not be refused because this client's ICU is trimmed or out of date. A
+      // filter value is the opposite case — it is resolved here against dayjs,
+      // so an unknown zone there is an error.
       if (group.timeZone !== undefined && group.timeZone.trim() === '')
         issues.push(
           issue('analysis.group.blank-time-zone', [...path, 'timeZone']),

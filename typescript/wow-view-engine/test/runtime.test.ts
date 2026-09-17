@@ -641,6 +641,33 @@ describe('DataViewRuntime lifecycle', () => {
   });
 });
 
+describe('RequestRunner', () => {
+  /**
+   * A task that throws before returning a promise would otherwise unwind
+   * through `pump` with its slot still counted, and the scheduler would run
+   * one fewer query for the rest of the engine's life — a leak that gets
+   * worse with every occurrence and never recovers.
+   */
+  it('keeps its slot when a task throws synchronously', async () => {
+    const runner = new RequestRunner({
+      ...DEFAULT_RUNTIME_LIMITS,
+      maxConcurrentQueries: 1,
+    });
+
+    await expect(
+      runner.run('a', () => {
+        throw new Error('bad source');
+      }),
+    ).rejects.toThrow('bad source');
+
+    expect(runner.active).toBe(0);
+    // The slot is free, so the next request still runs.
+    await expect(runner.run('b', () => Promise.resolve('ok'))).resolves.toBe(
+      'ok',
+    );
+  });
+});
+
 describe('ViewSource', () => {
   it('is satisfied by a Wow query client as it is', () => {
     // The assignment is the assertion: three of `QueryApi`'s methods, with the

@@ -31,6 +31,7 @@ import {
 import { Separator } from './components/separator.js';
 import { Spinner } from './components/spinner.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
+import { useViewMessages } from './MessagesProvider.js';
 
 export interface RecordToolbarProps {
   table: RecordTableController;
@@ -47,6 +48,7 @@ export interface RecordToolbarProps {
  * they leave no trace in the saved config.
  */
 export function RecordToolbar({ table, fields, children }: RecordToolbarProps) {
+  const messages = useViewMessages();
   const visible = new Set(table.columnFields);
 
   return (
@@ -64,8 +66,12 @@ export function RecordToolbar({ table, fields, children }: RecordToolbarProps) {
         size="sm"
         aria-label="Layout"
       >
-        <ToggleGroupItem value="table">Table</ToggleGroupItem>
-        <ToggleGroupItem value="card">Cards</ToggleGroupItem>
+        <ToggleGroupItem value="table">
+          {messages.label('label.layout.table')}
+        </ToggleGroupItem>
+        <ToggleGroupItem value="card">
+          {messages.label('label.layout.cards')}
+        </ToggleGroupItem>
       </ToggleGroup>
 
       <DropdownMenu>

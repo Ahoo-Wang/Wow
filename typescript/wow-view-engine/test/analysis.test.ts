@@ -282,6 +282,24 @@ describe('validateAnalysis', () => {
         ],
       }),
     ).toEqual(['analysis.group.blank-time-zone']);
+    // Anything else is the server's call. This zone is passed straight
+    // through to Wow and never resolved here, so gating it on the browser's
+    // zone table would refuse names a backend knows — and refuse them only on
+    // the clients whose ICU happens to be trimmed or out of date.
+    for (const timeZone of ['+08:00', 'Etc/GMT-8', 'Asia/Rangoon', 'Mars/Base'])
+      expect(
+        check({
+          groups: [
+            {
+              type: 'DATE_HISTOGRAM',
+              field: 'createdAt',
+              alias: 'wh',
+              unit: 'MONTH',
+              timeZone,
+            },
+          ],
+        }),
+      ).toEqual([]);
     expect(
       check({
         groups: [

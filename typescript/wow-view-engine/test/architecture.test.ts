@@ -103,7 +103,6 @@ const HEADLESS_DEPENDENCIES: Record<string, readonly Location[]> = {
   [WOW]: ['root', 'model', 'filter', 'record', 'analysis', 'runtime'],
   dayjs: ['filter', 'record', 'analysis', 'runtime', 'ui'],
   dequal: ['runtime'],
-  '@ahoo-wang/fetcher-react': ['react', 'ui'],
 };
 
 const manifest = JSON.parse(
@@ -420,6 +419,27 @@ describe('architecture', () => {
     ]);
     expect(
       Object.keys(HEADLESS_DEPENDENCIES).filter(name => !declared.has(name)),
+    ).toEqual([]);
+  });
+
+  /**
+   * The mirror of the rule below it. A dependency nothing imports is still
+   * installed by everyone who installs this package, and the ones that
+   * accumulate here are the ones a plan named before the code needed them —
+   * `@tanstack/react-table` sat in the manifest while the design said, in
+   * as many words, that the table does not use it yet.
+   */
+  it('declares only packages something imports', () => {
+    const imported = new Set(
+      files.flatMap(file => file.imports.map(({ specifier }) => specifier)),
+    );
+    const used = (name: string) =>
+      [...imported].some(
+        specifier => specifier === name || specifier.startsWith(`${name}/`),
+      );
+
+    expect(
+      Object.keys(manifest.dependencies ?? {}).filter(name => !used(name)),
     ).toEqual([]);
   });
 

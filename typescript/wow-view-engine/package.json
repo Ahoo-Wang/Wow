@@ -51,20 +51,14 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@ahoo-wang/fetcher-react": "workspace:^",
     "@ahoo-wang/fetcher-wow": "workspace:^",
     "@base-ui/react": "catalog:",
-    "@dnd-kit/dom": "catalog:",
-    "@dnd-kit/react": "catalog:",
-    "@tanstack/react-table": "catalog:",
     "class-variance-authority": "catalog:",
     "cn": "catalog:",
-    "date-fns": "^4.4.0",
     "dayjs": "catalog:",
     "dequal": "catalog:",
     "lucide-react": "catalog:",
     "react-day-picker": "^10.0.1",
-    "react-error-boundary": "catalog:",
     "react-grid-layout": "catalog:",
     "react-markdown": "catalog:",
     "recharts": "catalog:"

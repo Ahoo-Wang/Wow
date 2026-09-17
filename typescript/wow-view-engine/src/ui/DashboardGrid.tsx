@@ -163,14 +163,24 @@ export function DashboardPanel({ panel, editable }: DashboardPanelProps) {
 }
 
 function PanelBody({ panel }: { panel: DashboardPanelView }) {
+  // A panel the dashboard could not open, or one admission refused, says so
+  // and leaves the rest alone. Content panels come through here too: a link
+  // whose scheme was rejected must not reach the document because the rest of
+  // the dashboard happened to be fine.
+  if (panel.broken)
+    return <Unavailable issue={firstError(panel) ?? panel.issues[0]} />;
   if (panel.panel.kind !== 'view') return <ContentPanel panel={panel.panel} />;
-  // A panel the dashboard could not open says so and leaves the rest alone.
   if (!panel.runtime) return <Unavailable issue={panel.issues[0]} />;
   return panel.runtime.kind === 'record' ? (
     <RecordPanel runtime={panel.runtime as RecordViewRuntime} />
   ) : (
     <AnalysisPanel runtime={panel.runtime} />
   );
+}
+
+/** The reason a panel is out, preferred over a warning that came with it. */
+function firstError(panel: DashboardPanelView): Issue | undefined {
+  return panel.issues.find(found => found.severity === 'error');
 }
 
 function Unavailable({ issue }: { issue: Issue | undefined }) {

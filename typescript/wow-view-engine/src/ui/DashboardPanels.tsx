@@ -15,6 +15,7 @@ import { useState } from 'react';
 import Markdown from 'react-markdown';
 import { ExternalLinkIcon, ImageOffIcon } from 'lucide-react';
 import type { DashboardContentPanel } from '../model/index.js';
+import { isSafeContentUrl } from '../dashboard/index.js';
 import { useViewMessages } from './MessagesProvider.js';
 
 export interface ContentPanelProps {
@@ -24,11 +25,14 @@ export interface ContentPanelProps {
 /**
  * The static panels: a note, a picture, a list of links.
  *
- * `validateDashboard` has already refused anything but http, https, mailto
- * and relative paths, so what is left for these components is that a valid
- * URL still says nothing about the resource behind it: markdown renders
- * without raw HTML, an image that fails to load shows a placeholder instead
- * of a broken frame, and every link opens with `rel="noopener noreferrer"`.
+ * `validateDashboard` refuses anything but http, https, mailto and relative
+ * paths, and the grid keeps a panel it refused off the screen. These
+ * components check again anyway: they are exported on their own, so a host may
+ * render one from a config nothing admitted, and a guard that only runs
+ * somewhere else is not a guard. A URL that passes still says nothing about
+ * the resource behind it, so markdown renders without raw HTML, an image that
+ * fails to load shows a placeholder rather than a broken frame, and every link
+ * opens with `rel="noopener noreferrer"`.
  */
 export function ContentPanel({ panel }: ContentPanelProps) {
   switch (panel.kind) {
@@ -80,7 +84,7 @@ export function ImagePanel({
   const [failed, setFailed] = useState(false);
   const messages = useViewMessages();
 
-  if (failed)
+  if (failed || !isSafeContentUrl(src))
     return (
       <div
         data-slot="image-panel-placeholder"
@@ -107,7 +111,8 @@ export function ImagePanel({
     />
   );
 
-  return href ? (
+  // An unsafe destination costs the link, not the picture.
+  return href && isSafeContentUrl(href) ? (
     <a href={href} target="_blank" rel="noopener noreferrer" className="h-full">
       {image}
     </a>
@@ -125,15 +130,19 @@ export function LinksPanel({ items }: LinksPanelProps) {
     <ul data-slot="links-panel" className="flex flex-col gap-2 overflow-auto">
       {items.map(item => (
         <li key={`${item.href}:${item.label}`}>
-          <a
-            href={item.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-sm underline-offset-4 hover:underline"
-          >
-            {item.label}
-            <ExternalLinkIcon className="size-3" aria-hidden />
-          </a>
+          {isSafeContentUrl(item.href) ? (
+            <a
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-sm underline-offset-4 hover:underline"
+            >
+              {item.label}
+              <ExternalLinkIcon className="size-3" aria-hidden />
+            </a>
+          ) : (
+            <span className="text-muted-foreground text-sm">{item.label}</span>
+          )}
           {item.description && (
             <p className="text-muted-foreground text-xs">{item.description}</p>
           )}

@@ -81,6 +81,7 @@ export function SaveActions({
   const [copyOpen, setCopyOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const messages = useViewMessages();
 
   /**
    * A recovered write lands like the original one would have: a recovered
@@ -129,35 +130,35 @@ export function SaveActions({
         ) : (
           <SaveIcon data-icon="inline-start" />
         )}
-        Save
+        {messages.label('label.save.save')}
       </Button>
 
       <Button
         variant="outline"
         size="sm"
-        disabled={!commands.can.saveAs}
+        disabled={!commands.can.saveAs || commands.state.pending}
         onClick={() => setCopyOpen(true)}
       >
-        Save as
+        {messages.label('label.save.save-as')}
       </Button>
 
       <Button
         variant="outline"
         size="sm"
-        disabled={!commands.can.rename}
+        disabled={!commands.can.rename || commands.state.pending}
         onClick={() => setRenameOpen(true)}
       >
-        Rename
+        {messages.label('label.save.rename')}
       </Button>
 
       <Button
         variant="outline"
         size="sm"
-        disabled={!commands.can.delete}
+        disabled={!commands.can.delete || commands.state.pending}
         onClick={() => setDeleteOpen(true)}
       >
         <TrashIcon data-icon="inline-start" />
-        Delete
+        {messages.label('label.save.delete')}
       </Button>
 
       <TitleDialog
@@ -192,14 +193,14 @@ export function SaveActions({
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete this view?</DialogTitle>
+            <DialogTitle>{messages.label('label.delete.confirm')}</DialogTitle>
             <DialogDescription>
-              It disappears for everyone who can see it. This cannot be undone.
+              {messages.label('label.delete.consequence')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>
-              Keep it
+              {messages.label('label.delete.keep')}
             </DialogClose>
             <Button
               variant="destructive"
@@ -208,7 +209,7 @@ export function SaveActions({
                 setDeleteOpen(false);
               }}
             >
-              Delete
+              {messages.label('label.save.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -239,7 +240,7 @@ function WriteOutcome({
       <Alert variant="destructive" className="w-full">
         <AlertTitle>{messages.label('label.write.conflict')}</AlertTitle>
         <AlertDescription>
-          Take their version and lose your edits, or write yours over theirs.
+          {messages.label('label.conflict.choice')}
         </AlertDescription>
         <AlertAction>
           <Button
@@ -255,7 +256,7 @@ function WriteOutcome({
                 );
             }}
           >
-            Take theirs
+            {messages.label('label.conflict.theirs')}
           </Button>
           <Button
             size="sm"
@@ -268,7 +269,7 @@ function WriteOutcome({
                 );
             }}
           >
-            Keep mine
+            {messages.label('label.conflict.mine')}
           </Button>
         </AlertAction>
       </Alert>
@@ -280,12 +281,11 @@ function WriteOutcome({
       <Alert className="w-full">
         <AlertTitle>{messages.label('label.write.unknown')}</AlertTitle>
         <AlertDescription>
-          It may well have been saved. Retrying asks again for the same write
-          rather than making a second one.
+          {messages.label('label.unknown.consequence')}
         </AlertDescription>
         <AlertAction>
           <Button variant="outline" size="sm" onClick={commands.abandon}>
-            Leave it
+            {messages.label('label.unknown.leave')}
           </Button>
           <Button
             size="sm"
@@ -298,7 +298,7 @@ function WriteOutcome({
                 );
             }}
           >
-            Retry
+            {messages.label('label.unknown.retry')}
           </Button>
         </AlertAction>
       </Alert>
@@ -340,6 +340,7 @@ function TitleDialog({
 }) {
   const [title, setTitle] = useState(initialTitle);
   const [scope, setScope] = useState<Exclude<ViewScope, 'system'>>('personal');
+  const messages = useViewMessages();
 
   return (
     <Dialog
@@ -356,7 +357,9 @@ function TitleDialog({
         </DialogHeader>
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="view-title">Title</FieldLabel>
+            <FieldLabel htmlFor="view-title">
+              {messages.label('label.save.title')}
+            </FieldLabel>
             <Input
               id="view-title"
               value={title}
@@ -366,7 +369,9 @@ function TitleDialog({
           </Field>
           {withScope && (
             <Field>
-              <FieldLabel htmlFor="view-scope">Who can see it</FieldLabel>
+              <FieldLabel htmlFor="view-scope">
+                {messages.label('label.save.audience')}
+              </FieldLabel>
               <Select
                 items={SCOPES}
                 value={scope}

@@ -14,7 +14,7 @@
 import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
 import type { FieldKindId } from '../../model/index.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
-import { resolveDateTimeRange } from '../time.js';
+import { isValidTimeZone, resolveDateTimeRange } from '../time.js';
 import { isDateTimeFilterValue, type DateTimeFilterValue } from '../values.js';
 import {
   compilePresence,
@@ -69,6 +69,14 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
           Date.parse(value.to) < Date.parse(value.from)
         )
           return [issue('filter.value.inverted-range', path)];
+        // A zone no runtime knows makes the compiler throw rather than
+        // produce a query, so it is refused here where it can be reported.
+        if (value.timeZone !== undefined && !isValidTimeZone(value.timeZone))
+          return [
+            issue('filter.value.unknown-time-zone', path, {
+              timeZone: value.timeZone,
+            }),
+          ];
       }
       return [];
     },
@@ -78,9 +86,9 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
       if (presence) return presence;
 
       const value = readValue<DateTimeFilterValue>(leaf.value);
-      const zone =
-        value.type === 'absolute' && value.timeZone ? value.timeZone : timeZone;
-      const range = resolveDateTimeRange(value, now, zone);
+      // A condition's own zone is applied inside; what arrives here is the
+      // runtime's, used for everything relative to the evaluation moment.
+      const range = resolveDateTimeRange(value, now, timeZone);
 
       if (leaf.operator === 'GTE') return filter.gte(field.name, range.from);
       if (leaf.operator === 'LTE')

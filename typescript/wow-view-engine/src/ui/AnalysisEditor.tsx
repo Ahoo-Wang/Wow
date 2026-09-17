@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from './components/select.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
+import { useViewMessages } from './MessagesProvider.js';
 
 export interface AnalysisEditorProps {
   analysis: AnalysisEditorController;
@@ -52,6 +53,7 @@ export interface AnalysisEditorProps {
  * be built by clicking.
  */
 export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
+  const messages = useViewMessages();
   const groupable = analysis.fields.filter(field => field.groups.length > 0);
   const measurable = analysis.fields.filter(
     field =>
@@ -69,7 +71,7 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
     >
       <div className="flex flex-wrap items-center gap-2">
         <AddMenu
-          label="Add group"
+          label={messages.label('label.filter.add-group')}
           disabled={disabled}
           fields={groupable}
           onPick={field =>
@@ -102,8 +104,12 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
           size="sm"
           aria-label="Analysis layout"
         >
-          <ToggleGroupItem value="table">Table</ToggleGroupItem>
-          <ToggleGroupItem value="chart">Chart</ToggleGroupItem>
+          <ToggleGroupItem value="table">
+            {messages.label('label.layout.table')}
+          </ToggleGroupItem>
+          <ToggleGroupItem value="chart">
+            {messages.label('label.layout.chart')}
+          </ToggleGroupItem>
         </ToggleGroup>
 
         <ChartTypeSelect analysis={analysis} disabled={disabled} />
@@ -174,6 +180,8 @@ function AddMenu({
   onPick(field: AnalysisFieldOption): void;
   onCount?(): void;
 }) {
+  const messages = useViewMessages();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -185,7 +193,9 @@ function AddMenu({
       <DropdownMenuContent align="start">
         <DropdownMenuGroup>
           {countable === true && onCount && (
-            <DropdownMenuItem onClick={onCount}>Row count</DropdownMenuItem>
+            <DropdownMenuItem onClick={onCount}>
+              {messages.label('label.analysis.row-count')}
+            </DropdownMenuItem>
           )}
           {fields.map(field => (
             <DropdownMenuItem key={field.field} onClick={() => onPick(field)}>

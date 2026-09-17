@@ -214,6 +214,44 @@ describe('DashboardGrid', () => {
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
   });
 
+  /**
+   * The panels come from `applied`, which for a dashboard read out of a store
+   * is whatever that store held — including a config admission refused. One
+   * bad panel must be the only thing that goes missing, and it must go missing
+   * rather than render.
+   */
+  it('keeps a panel admission refused off the screen', async () => {
+    const { controller } = await openDashboard(
+      dashboardConfig({
+        panels: [
+          panel({ title: 'Waiting to ship' }),
+          {
+            id: 'links',
+            kind: 'links',
+            title: 'Elsewhere',
+            layout: { x: 6, y: 0, w: 6, h: 4 },
+            items: [{ label: 'Payroll', href: 'javascript:alert(1)' }],
+          } as DashboardPanel,
+        ],
+      }),
+    );
+
+    render(
+      <ViewSurface>
+        <DashboardGrid dashboard={controller()} />
+      </ViewSurface>,
+    );
+
+    // The healthy panel still runs.
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+    // The refused one reports itself instead of rendering its link.
+    expect(screen.getByText('Elsewhere')).toBeTruthy();
+    expect(screen.queryByText('Payroll')).toBeNull();
+    expect(
+      screen.getByText(/Only http, https, mailto and relative links/i),
+    ).toBeTruthy();
+  });
+
   it('falls back to the panel id when it has no title', async () => {
     const { controller } = await openDashboard(
       dashboardConfig({ panels: [panel()] }),
@@ -376,6 +414,40 @@ describe('DashboardGrid', () => {
 });
 
 describe('content panels', () => {
+  /**
+   * These components are exported on their own, so a host can render one from
+   * a config that no `validateDashboard` ever saw. The scheme guard therefore
+   * runs here too, and not only during admission.
+   */
+  it.each(['javascript:alert(1)', 'data:text/html,<script>', 'vbscript:x'])(
+    'refuses to load an image from %s',
+    src => {
+      render(<ImagePanel src={src} alt="Chart" />);
+
+      expect(screen.queryByRole('img')).toBeNull();
+      expect(screen.getByText('Chart')).toBeTruthy();
+    },
+  );
+
+  it('keeps an unsafe destination out of the document', () => {
+    render(
+      <LinksPanel items={[{ label: 'Payroll', href: 'vbscript:msgbox(1)' }]} />,
+    );
+
+    // The label stays — the reader still sees what was meant to be there.
+    expect(screen.getByText('Payroll')).toBeTruthy();
+    expect(screen.getByText('Payroll').closest('a')).toBeNull();
+  });
+
+  it('shows an image whose href is unsafe, without the link', () => {
+    render(
+      <ImagePanel src="/chart.png" alt="Chart" href="javascript:alert(1)" />,
+    );
+
+    expect(screen.getByRole('img')).toBeTruthy();
+    expect(screen.getByRole('img').closest('a')).toBeNull();
+  });
+
   it('renders markdown without raw HTML', () => {
     render(<MarkdownPanel content={'# Title\n\n<b>bold</b>'} />);
 

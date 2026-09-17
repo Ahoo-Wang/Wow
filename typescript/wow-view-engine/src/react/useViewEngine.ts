@@ -15,10 +15,11 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from 'react';
-import type { Issue } from '../model/index.js';
+import type { FilterTree, Issue } from '../model/index.js';
 import {
   ViewEngine,
   type AnyViewRuntime,
@@ -116,12 +117,25 @@ const NOT_OPENED: OpenedView = {
  * Loading is derived rather than stored. As long as the answer on hand belongs
  * to a different request, this one is still in flight, so the effect sets
  * state only when a response arrives.
+ *
+ * A `scopeFilter` is in force from the opening query: the engine admits it
+ * with the config, so a host that scopes a view never lets an unscoped query
+ * leave. It is read when the view opens and then followed, so a caller may
+ * pass a fresh object every render without reopening anything.
  */
 export function useOpenView(
   engine: ViewEngine,
   instanceId: string | null,
+  scopeFilter: FilterTree | null = null,
 ): OpenViewState {
   const [opened, setOpened] = useState<OpenedView>(NOT_OPENED);
+  // Read at open time, so a new object identity does not reopen the view.
+  // Kept fresh by the effect below rather than during render, and declared
+  // before the opening effect so a reopen sees the current condition.
+  const latestScope = useRef(scopeFilter);
+  useEffect(() => {
+    latestScope.current = scopeFilter;
+  }, [scopeFilter]);
 
   useEffect(() => {
     // Only `null` means "nothing to open". Any string, empty included, is an
@@ -131,7 +145,7 @@ export function useOpenView(
     let runtime: AnyViewRuntime | null = null;
     let cancelled = false;
 
-    void engine.open(instanceId).then(
+    void engine.open(instanceId, { scopeFilter: latestScope.current }).then(
       result => {
         if (cancelled) {
           engine.close(result);
@@ -163,6 +177,13 @@ export function useOpenView(
       if (runtime) engine.close(runtime);
     };
   }, [engine, instanceId]);
+
+  // Later changes are injected; `setScopeFilter` ignores an identical tree,
+  // so this is quiet until the host actually narrows or widens the view.
+  const runtime = opened.instanceId === instanceId ? opened.runtime : null;
+  useEffect(() => {
+    runtime?.setScopeFilter(scopeFilter);
+  }, [runtime, scopeFilter]);
 
   const answered =
     opened.instanceId === instanceId &&

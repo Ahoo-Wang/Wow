@@ -14,7 +14,11 @@
 import type * as React from 'react';
 import { ArrowDownIcon, ArrowUpIcon, InboxIcon } from 'lucide-react';
 import type { NumberFormat, RecordData, RecordKey } from '../model/index.js';
-import type { RecordColumnView } from '../record/index.js';
+import type {
+  RecordColumnView,
+  SummaryCell,
+  SummaryRow,
+} from '../record/index.js';
 import type { RecordTableController } from '../react/index.js';
 import { Checkbox } from './components/checkbox.js';
 import {
@@ -25,10 +29,12 @@ import {
   EmptyTitle,
 } from './components/empty.js';
 import { Skeleton } from './components/skeleton.js';
+import { useViewMessages } from './MessagesProvider.js';
 import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -151,8 +157,64 @@ export function RecordTable({
                 </TableRow>
               ))}
         </TableBody>
+        {table.summaries && (
+          <SummaryFooter summaries={table.summaries} columns={table.columns} />
+        )}
       </Table>
     </div>
+  );
+}
+
+/**
+ * The summary row.
+ *
+ * Its scope is part of the number, not a detail: a `total` comes from its own
+ * aggregation over everything the conditions match, while a `page` is the
+ * visible rows added up, which is what is left when that query fails. An
+ * average over twenty rows presented as the average over forty thousand is
+ * the one mistake this row could make, so the row says which it is.
+ */
+function SummaryFooter({
+  summaries,
+  columns,
+}: {
+  summaries: SummaryRow;
+  columns: readonly RecordColumnView[];
+}) {
+  const messages = useViewMessages();
+  // A field may carry several functions — `amount` summed and averaged — and
+  // the kernel projects a cell for each, so they are grouped rather than
+  // keyed, which would keep only the last one configured.
+  const byField = new Map<string, SummaryCell[]>();
+  for (const cell of summaries.cells)
+    byField.set(cell.field, [...(byField.get(cell.field) ?? []), cell]);
+
+  return (
+    <TableFooter data-scope={summaries.scope}>
+      <TableRow>
+        <TableCell className="text-muted-foreground text-xs font-normal">
+          {messages.label(`label.summary.${summaries.scope}`)}
+        </TableCell>
+        {columns.map(column => (
+          <TableCell key={column.field}>
+            {(byField.get(column.field) ?? []).map(cell => (
+              <span
+                key={cell.fn}
+                className="block whitespace-nowrap"
+                title={`${cell.fn} of ${cell.label}`}
+              >
+                <span className="text-muted-foreground mr-1 text-xs">
+                  {cell.fn}
+                </span>
+                {cell.value === null
+                  ? messages.label('label.summary.unavailable')
+                  : formatNumber(cell.value, cell.numberFormat)}
+              </span>
+            ))}
+          </TableCell>
+        ))}
+      </TableRow>
+    </TableFooter>
   );
 }
 

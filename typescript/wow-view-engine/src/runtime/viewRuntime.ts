@@ -254,7 +254,19 @@ export class DataViewRuntime<
       scope: options.scope,
       draft: options.config,
       applied: options.config,
-      issues: validateDataConfig(this.context, options.config),
+      // An injected condition is in force from the first query, so it is
+      // admitted with the config rather than after it. Without this, a host
+      // that scopes a view to one customer would have its opening query go
+      // out unscoped, and an inadmissible condition would never be reported.
+      issues: validateDataConfig(
+        this.context,
+        this.scopeFilter
+          ? {
+              ...options.config,
+              filter: mergeFilters(options.config.filter, this.scopeFilter),
+            }
+          : options.config,
+      ),
       dirty: saved === null,
       query: IDLE,
       result: null,
@@ -303,8 +315,15 @@ export class DataViewRuntime<
     this.execute({ keepSelection: false });
   }
 
+  /**
+   * Re-runs what was applied, which was admitted before it ran. An invalid
+   * draft therefore does not block it: the editor may be mid-edit and wrong,
+   * while the results on screen answer a question that was legal when asked.
+   * Auto-refresh still pauses on an invalid draft — see `refreshDelay` — but a
+   * user pressing Refresh has asked for exactly this.
+   */
   refresh(): void {
-    if (this.stopped || hasError(this.state.issues)) return;
+    if (this.stopped) return;
     // A refresh returns to the first page; the selection keeps whatever rows survive.
     this.pageTarget = firstPageOf(this.context.definition);
     this.execute({ keepSelection: true });

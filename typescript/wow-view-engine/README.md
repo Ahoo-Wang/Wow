@@ -102,12 +102,16 @@ export const orders: ViewDefinition = {
         kind: 'record',
         filter: {
           op: 'and',
-          children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+          // `enum` is a closed set, so it offers IN and NOT_IN rather than EQ:
+          // one condition covers "any of these", and switching between the two
+          // keeps the selection.
+          children: [{ field: 'status', operator: 'IN', value: ['PENDING'] }],
         },
         filterMode: 'simple',
         refresh: { interval: null },
         sort: [{ field: 'createdAt', direction: 'DESC' }],
         pageSize: 20,
+        summaries: [{ field: 'amount', fn: 'SUM' }],
         layout: 'table',
         table: {
           columns: [
@@ -126,12 +130,9 @@ export const orders: ViewDefinition = {
 ### 2. Create an engine
 
 ```ts
-import {
-  createViewEngine,
-  MemoryViewStore,
-} from '@ahoo-wang/fetcher-view-engine';
+import { MemoryViewStore, ViewEngine } from '@ahoo-wang/fetcher-view-engine';
 
-const engine = createViewEngine({
+const engine = new ViewEngine({
   definitions: [orders],
   store: new MemoryViewStore(),
   // Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'> from @ahoo-wang/fetcher-wow
@@ -143,10 +144,10 @@ const engine = createViewEngine({
 
 ```tsx
 import '@ahoo-wang/fetcher-view-engine/styles.css';
-import { Workbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import { RecordWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 
 export function OrdersPage() {
-  return <Workbench engine={engine} definitionId="orders" />;
+  return <RecordWorkbench engine={engine} definitionId="orders" />;
 }
 ```
 
@@ -223,12 +224,12 @@ Details in [docs/design.md](docs/design.md) §7.
 
 ## Entries
 
-| Entry                            | Exports                                                                                                                                                                                                    |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                 |
-| `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useDashboard`, `useSaveCommands`                                                              |
-| `/ui`                            | `RecordWorkbench`, `AnalysisWorkbench`, `DashboardWorkbench`, `FilterPanel`, `RecordTable`, `RecordCards`, `AnalysisEditor`, `AnalysisChart`, `DashboardGrid`, `MarkdownPanel`, `ImagePanel`, `LinksPanel` |
-| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, which `scripts/verify-package.mjs` checks on every build.                                                                                |
+| Entry                            | Exports                                                                                                                                                                                                                    |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                                 |
+| `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useDashboard`, `useSaveCommands`                                                                              |
+| `/ui`                            | `RecordWorkbench`, `AnalysisWorkbench`, `DashboardWorkbench`, `FilterPanel`, `RecordTable`, `RecordCards`, `AnalysisEditor`, `AnalysisChart`, `DashboardGrid`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `EmbeddedView` |
+| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, which `scripts/verify-package.mjs` checks on every build.                                                                                                |
 
 ## Persistence
 

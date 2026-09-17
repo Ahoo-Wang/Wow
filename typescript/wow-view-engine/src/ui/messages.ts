@@ -85,6 +85,46 @@ export function formatIssues(
  */
 export const defaultMessages: ViewMessages = Object.freeze({
   // Labels the default components write themselves.
+  //
+  // The save commands first. Conflict and delete carry the most weight of anything
+  // this package says, so they are the last copy that should be stranded in
+  // JSX where no application can reword or translate it.
+  'label.save.save': 'Save',
+  'label.save.save-as': 'Save as',
+  'label.save.rename': 'Rename',
+  'label.save.delete': 'Delete',
+  'label.save.title': 'Title',
+  'label.save.audience': 'Who can see it',
+  'label.delete.confirm': 'Delete this view?',
+  'label.delete.consequence':
+    'It disappears for everyone who can see it. This cannot be undone.',
+  'label.delete.keep': 'Keep it',
+  'label.conflict.choice':
+    'Take their version and lose your edits, or write yours over theirs.',
+  'label.conflict.theirs': 'Take theirs',
+  'label.conflict.mine': 'Keep mine',
+  'label.unknown.consequence':
+    'It may well have been saved. Retrying asks again for the same write rather than making a second one.',
+  'label.unknown.leave': 'Leave it',
+  'label.unknown.retry': 'Retry',
+
+  // Layout and mode switches.
+  'label.layout.table': 'Table',
+  'label.layout.chart': 'Chart',
+  'label.layout.cards': 'Cards',
+  'label.filter.simple': 'Simple',
+  'label.filter.advanced': 'Advanced',
+  'label.filter.all-of': 'All of',
+  'label.filter.any-of': 'Any of',
+  'label.filter.add-group': 'Add group',
+  'label.analysis.row-count': 'Row count',
+
+  // A summary's scope belongs on screen: a total comes from its own query
+  // over everything the conditions match, a page total only from the rows
+  // in front of you, and the two are not interchangeable.
+  'label.summary.total': 'Total',
+  'label.summary.page': 'This page',
+  'label.summary.unavailable': '—',
   'label.view.unopenable': 'This view could not be opened',
   'label.view.needs-fixing': 'This view needs fixing before it runs',
   'label.view.none': 'No view yet',
@@ -123,6 +163,8 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'filter.value.inverted-range': 'The range starts after it ends.',
   'filter.value.required': 'This condition needs a value.',
   'filter.value.unknown-option': '{values} is no longer an option.',
+  'filter.value.unknown-time-zone':
+    '{timeZone} is not a time zone this browser knows.',
   'filter.value.unparsable-date': 'That date cannot be read.',
 
   // Shared config.
@@ -311,6 +353,8 @@ export const defaultMessages: ViewMessages = Object.freeze({
     'Someone else saved first, and their version could not be read.',
   'view.write.not-a-conflict': 'That write is {kind}, not a conflict.',
   'view.write.not-pending': 'That write is already settled.',
+  'view.write.in-flight':
+    'This view is already being saved; wait for that to finish.',
   'view.write.conflict': 'Someone else saved this view first.',
   'view.write.forbidden': 'You may not write to this view.',
   'view.write.invalid': 'The server refused this write.',

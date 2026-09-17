@@ -95,8 +95,12 @@ export function FilterPanel({
           size="sm"
           aria-label="Filter mode"
         >
-          <ToggleGroupItem value="simple">Simple</ToggleGroupItem>
-          <ToggleGroupItem value="advanced">Advanced</ToggleGroupItem>
+          <ToggleGroupItem value="simple">
+            {messages.label('label.filter.simple')}
+          </ToggleGroupItem>
+          <ToggleGroupItem value="advanced">
+            {messages.label('label.filter.advanced')}
+          </ToggleGroupItem>
         </ToggleGroup>
 
         <AddCondition filter={filter} parent={[]} disabled={disabled} />
@@ -109,7 +113,7 @@ export function FilterPanel({
             onClick={() => filter.addGroup('or')}
           >
             <PlusIcon data-icon="inline-start" />
-            Add group
+            {messages.label('label.filter.add-group')}
           </Button>
         )}
 
@@ -191,6 +195,7 @@ function GroupBlock({
   optionsFor?: (remote: string) => FieldOption[] | undefined;
 }) {
   const nested = path.length > 0;
+  const messages = useViewMessages();
 
   return (
     <div
@@ -213,8 +218,12 @@ function GroupBlock({
             nested ? `Group operator ${path.join('.')}` : 'Group operator'
           }
         >
-          <ToggleGroupItem value="and">All of</ToggleGroupItem>
-          <ToggleGroupItem value="or">Any of</ToggleGroupItem>
+          <ToggleGroupItem value="and">
+            {messages.label('label.filter.all-of')}
+          </ToggleGroupItem>
+          <ToggleGroupItem value="or">
+            {messages.label('label.filter.any-of')}
+          </ToggleGroupItem>
         </ToggleGroup>
 
         {nested && (
@@ -266,7 +275,7 @@ function GroupBlock({
           onClick={() => filter.addGroup('and', path)}
         >
           <PlusIcon data-icon="inline-start" />
-          Add group
+          {messages.label('label.filter.add-group')}
         </Button>
       </div>
     </div>

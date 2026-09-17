@@ -699,6 +699,60 @@ describe('useFilterEditor', () => {
     expect(result.current.filter.count).toBe(0);
   });
 
+  it('reseeds a value the new operator cannot hold', async () => {
+    const result = await openEditor();
+
+    // `amount` starts at `EQ 0`. `BETWEEN` needs two bounds, so carrying the
+    // scalar across would mark the row invalid on a switch the user made on
+    // purpose, and block apply on a mistake they did not make.
+    act(() => result.current.filter.addLeaf('amount'));
+    expect(result.current.filter.issues).toEqual([]);
+
+    act(() =>
+      result.current.filter.updateLeaf([0], {
+        operator: `${FilterOperator.BETWEEN}`,
+      }),
+    );
+
+    expect(result.current.filter.tree.children[0]).toEqual({
+      field: 'amount',
+      operator: `${FilterOperator.BETWEEN}`,
+      value: [0, 0],
+    });
+    expect(result.current.filter.issues).toEqual([]);
+  });
+
+  it('keeps a value the new operator still admits', async () => {
+    const result = await openEditor();
+
+    act(() => result.current.filter.addLeaf('amount'));
+    act(() => result.current.filter.updateLeaf([0], { value: 5 }));
+    act(() =>
+      result.current.filter.updateLeaf([0], {
+        operator: `${FilterOperator.GTE}`,
+      }),
+    );
+
+    // Both operators take one number, so what the user typed survives.
+    expect(result.current.filter.tree.children[0]).toMatchObject({ value: 5 });
+  });
+
+  it('lets a patch that carries its own value through untouched', async () => {
+    const result = await openEditor();
+
+    act(() => result.current.filter.addLeaf('amount'));
+    act(() =>
+      result.current.filter.updateLeaf([0], {
+        operator: `${FilterOperator.BETWEEN}`,
+        value: [1, 9],
+      }),
+    );
+
+    expect(result.current.filter.tree.children[0]).toMatchObject({
+      value: [1, 9],
+    });
+  });
+
   it('nests a group, which leaves simple mode behind', async () => {
     const result = await openEditor();
 

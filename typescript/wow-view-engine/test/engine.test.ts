@@ -479,6 +479,96 @@ describe('ViewEngine list commands', () => {
   });
 });
 
+/**
+ * One write at a time per target. A double-clicked Save button is the reason:
+ * both attempts carry the same expectation, so without a guard the second one
+ * either invents a conflict or creates a second instance.
+ */
+describe('ViewEngine write re-entrancy', () => {
+  it('refuses a second save while the first is in flight', async () => {
+    const { engine } = harness();
+    const runtime = engine.create('orders', {
+      title: 'Twice',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+
+    const [first, second] = await Promise.allSettled([
+      engine.save(runtime),
+      engine.save(runtime),
+    ]);
+
+    expect(first.status).toBe('fulfilled');
+    expect(second.status).toBe('rejected');
+    expect(
+      isViewCommandError(second.status === 'rejected' ? second.reason : null),
+    ).toBe(true);
+  });
+
+  it('creates one instance, not two, for a double first save', async () => {
+    const { engine, store } = harness({ instances: [] });
+    const runtime = engine.create('orders', {
+      title: 'Twice',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+
+    await Promise.allSettled([engine.save(runtime), engine.save(runtime)]);
+
+    expect(await store.list('orders')).toHaveLength(1);
+    expect(runtime.getSnapshot().saved).not.toBeNull();
+  });
+
+  it('raises no conflict against the user own second click', async () => {
+    const { engine } = harness();
+    const runtime = engine.create('orders', {
+      title: 'T',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+    await engine.save(runtime);
+
+    runtime.edit({ pageSize: 30 });
+    await Promise.allSettled([engine.save(runtime), engine.save(runtime)]);
+
+    // The refused one never reached the store, so there is nothing to resolve.
+    expect(runtime.getSnapshot().write).toBeNull();
+  });
+
+  it('lets the next write through once the first has settled', async () => {
+    const { engine } = harness();
+    const runtime = engine.create('orders', {
+      title: 'T',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+
+    const first = await engine.save(runtime);
+    runtime.edit({ pageSize: 30 });
+    const second = await engine.save(runtime);
+
+    expect(second.revision).not.toBe(first.revision);
+  });
+
+  it('leaves another runtime free to write at the same time', async () => {
+    const { engine } = harness();
+    const one = engine.create('orders', {
+      title: 'One',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+    const two = engine.create('orders', {
+      title: 'Two',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+
+    const both = await Promise.allSettled([engine.save(one), engine.save(two)]);
+
+    expect(both.map(entry => entry.status)).toEqual(['fulfilled', 'fulfilled']);
+  });
+});
+
 describe('ViewEngine write outcomes', () => {
   it('records a conflict with the state the store holds', async () => {
     const { engine, store } = harness();

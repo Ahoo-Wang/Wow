@@ -32,6 +32,7 @@ import {
   removeAt,
   updateAt,
   type EditorDescriptor,
+  type FieldKindRegistry,
   type FilterPath,
   type FilterSummaryItem,
 } from '../filter/index.js';
@@ -147,12 +148,14 @@ export function useFilterEditor(
   const updateLeaf = useCallback(
     (path: FilterPath, patch: Partial<FilterLeaf>) => {
       change(current =>
-        updateAt(current, path, node =>
-          'children' in node ? node : { ...node, ...patch },
-        ),
+        updateAt(current, path, node => {
+          if ('children' in node) return node;
+          const next = { ...node, ...patch };
+          return reseedValue(node, next, patch, byName, kinds);
+        }),
       );
     },
-    [change],
+    [byName, kinds, change],
   );
 
   const addGroup = useCallback(
@@ -243,5 +246,47 @@ export function useFilterEditor(
       },
       [byName, kinds, tree],
     ),
+  };
+}
+
+/**
+ * Keeps a leaf's value usable when its operator changes.
+ *
+ * Each operator implies a value shape — `EQ` takes one number, `BETWEEN` two,
+ * `IN` a list — so carrying the old value across a switch would mark the row
+ * invalid the moment the user picked a different operator, and block apply on
+ * a mistake they did not make. The kind decides: a value its new operator
+ * still admits is left alone, so `GT` to `GTE` keeps what was typed, and only
+ * a value the new operator rejects is replaced by that operator's empty one.
+ *
+ * A patch that carries its own value is the editor writing what the user
+ * typed, and is never second-guessed.
+ */
+function reseedValue(
+  previous: FilterLeaf,
+  next: FilterLeaf,
+  patch: Partial<FilterLeaf>,
+  byName: ReadonlyMap<string, FieldDefinition>,
+  kinds: FieldKindRegistry | undefined,
+): FilterLeaf {
+  if (patch.operator === undefined || patch.operator === previous.operator)
+    return next;
+  if ('value' in patch) return next;
+
+  const field = byName.get(next.field);
+  const kind = field && kinds?.get(field.kind);
+  if (!field || !kind) return next;
+
+  const admitted = kind.validate({
+    value: next.value,
+    operator: next.operator,
+    field,
+    path: [],
+  });
+  if (!admitted.some(found => found.severity === 'error')) return next;
+
+  return {
+    ...next,
+    value: kind.emptyValue(next.operator, field) as FilterLeaf['value'],
   };
 }

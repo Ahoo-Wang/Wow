@@ -131,10 +131,17 @@ export class RequestRunner {
       const entry = this.queue.shift()!;
       entry.started = true;
       this.running += 1;
-      entry.task(entry.controller).then(
-        value => this.settle(entry, () => entry.resolve(value)),
-        error => this.settle(entry, () => entry.reject(error)),
-      );
+      // A task that throws before returning a promise would otherwise unwind
+      // through `pump` with the slot still counted, and the scheduler would
+      // run one fewer query for the rest of the engine's life.
+      try {
+        entry.task(entry.controller).then(
+          value => this.settle(entry, () => entry.resolve(value)),
+          error => this.settle(entry, () => entry.reject(error)),
+        );
+      } catch (error) {
+        this.settle(entry, () => entry.reject(error));
+      }
     }
   }
 

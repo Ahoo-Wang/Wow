@@ -160,3 +160,58 @@ function Probe() {
   const messages = useViewMessages();
   return <p>{messages.label('label.dashboard.empty')}</p>;
 }
+
+/**
+ * The other half of the catalogue's job.
+ *
+ * The test above keeps issue codes covered, which is why none of them reach
+ * the screen raw. It says nothing about the sentences a component writes
+ * itself, and those drifted into JSX exactly where the wording carries the
+ * most weight: the conflict dialog and the delete confirmation. A catalogue
+ * nothing is obliged to use is a catalogue an application cannot translate.
+ */
+describe('components write no copy of their own', () => {
+  /** Files whose text is upstream shadcn source, kept verbatim on purpose. */
+  const VENDOR = /\/(components|lib)\//;
+
+  function compositionFiles(): string[] {
+    const found: string[] = [];
+    const walk = (directory: string): void => {
+      for (const entry of readdirSync(directory)) {
+        const path = join(directory, entry);
+        if (statSync(path).isDirectory()) {
+          walk(path);
+          continue;
+        }
+        if (path.endsWith('.tsx') && !VENDOR.test(path)) found.push(path);
+      }
+    };
+    walk(join(src, 'ui'));
+    return found;
+  }
+
+  /** Comments carry prose by design; only what renders is at issue. */
+  function withoutComments(source: string): string {
+    return source
+      .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+  }
+
+  it.each(compositionFiles())('%s renders no bare sentence', path => {
+    const source = withoutComments(readFileSync(path, 'utf8'));
+    const offenders: string[] = [];
+
+    for (const line of source.split('\n')) {
+      const text = line.trim();
+      // JSX text is a line that is neither markup nor code: no tag, no brace,
+      // no string quote. Two words or more is a sentence, not a symbol.
+      if (/[<>{}`'"=]/.test(text)) continue;
+      if (!/^[A-Z][A-Za-z]/.test(text)) continue;
+      if (text.split(/\s+/).length < 2) continue;
+      offenders.push(text);
+    }
+
+    expect(offenders).toEqual([]);
+  });
+});

@@ -100,6 +100,8 @@ export interface DashboardRuntimeOptions {
   environment: RuntimeEnvironment;
   resolve: PanelResolver;
   createPanelRuntime: PanelRuntimeFactory;
+  /** An outer condition in force from the first execution, as for a data view. */
+  scopeFilter?: FilterTree | null;
 }
 
 const IDLE: ViewQueryState = { status: 'idle' };
@@ -135,7 +137,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   >();
 
   private state: DashboardRuntimeState;
-  private scopeFilter: FilterTree | null = null;
+  private scopeFilter: FilterTree | null;
   private timer: unknown;
   private timerDelay: number | null = null;
   private stopped = false;
@@ -146,6 +148,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.definition = options.definition;
     this.kinds = options.kinds;
     this.environment = options.environment;
+    this.scopeFilter = options.scopeFilter ?? null;
 
     const saved = options.saved ?? null;
     this.state = {
@@ -221,9 +224,14 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.sync({ applied: this.state.draft });
   }
 
-  /** One clock for every panel; a referenced view's own interval is ignored. */
+  /**
+   * One clock for every panel; a referenced view's own interval is ignored.
+   *
+   * Like a data view's, this re-runs what was applied, so an invalid draft
+   * does not block it: the children that exist are the ones `sync` admitted.
+   */
   refresh(): void {
-    if (this.stopped || hasError(this.state.issues)) return;
+    if (this.stopped) return;
     for (const child of this.children.values()) child.runtime.refresh();
   }
 

@@ -389,6 +389,69 @@ describe('relative and preset dates', () => {
   });
 });
 
+/**
+ * An absolute value is the one place a stored string still needs reading, and
+ * for a while its `timeZone` was stored, validated and then ignored: two
+ * conditions differing only by zone compiled to the same query.
+ */
+describe('absolute dates and their zone', () => {
+  const between = (from: string, to: string, timeZone?: string) =>
+    compileFilter(
+      fields,
+      tree({
+        field: 'createdAt',
+        operator: `${FilterOperator.BETWEEN}`,
+        value: {
+          type: 'absolute',
+          from,
+          to,
+          ...(timeZone ? { timeZone } : {}),
+        },
+      }),
+      builtinFieldKinds,
+      context,
+    );
+
+  it('reads a wall-clock string in the zone the condition names', () => {
+    const tokyo = between('2026-01-01', '2026-01-02', 'Asia/Tokyo');
+
+    // Midnight in Tokyo is 15:00 the previous day in UTC.
+    expect(tokyo).toMatchObject({
+      lowerBound: '2025-12-31T15:00:00.000Z',
+      upperBound: '2026-01-01T15:00:00.000Z',
+    });
+    expect(tokyo).not.toEqual(between('2026-01-01', '2026-01-02'));
+  });
+
+  it('falls back to the runtime zone when the condition names none', () => {
+    expect(between('2026-01-01', '2026-01-02')).toMatchObject({
+      lowerBound: '2026-01-01T00:00:00.000Z',
+    });
+  });
+
+  it('leaves an instant that carries its own offset alone', () => {
+    // `...Z` already names one moment; resolving it again would move it.
+    expect(
+      between('2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z', 'Asia/Tokyo'),
+    ).toMatchObject({ lowerBound: '2026-01-01T00:00:00Z' });
+  });
+
+  it('refuses a zone no runtime can resolve', () => {
+    const found = validateFilter(
+      fields,
+      tree({
+        field: 'createdAt',
+        operator: `${FilterOperator.GTE}`,
+        value: { type: 'absolute', from: '2026-01-01', timeZone: 'Not/AZone' },
+      }),
+      builtinFieldKinds,
+    );
+
+    // Without this the compiler throws a RangeError where a query was due.
+    expect(errors(found)).toEqual(['filter.value.unknown-time-zone']);
+  });
+});
+
 describe('describeFilter', () => {
   it('summarises applied conditions with the field label', () => {
     const items = describeFilter(

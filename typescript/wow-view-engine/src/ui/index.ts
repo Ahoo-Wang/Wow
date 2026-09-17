@@ -26,6 +26,7 @@ export * from './AnalysisWorkbench.js';
 export * from './DashboardGrid.js';
 export * from './DashboardPanels.js';
 export * from './DashboardWorkbench.js';
+export * from './EmbeddedView.js';
 export * from './FilterPanel.js';
 export * from './messages.js';
 export * from './MessagesProvider.js';

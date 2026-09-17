@@ -19,8 +19,13 @@ import type {
   IssuePath,
 } from '../model/index.js';
 
+/**
+ * Trees arrive from a store, so this asks what the node actually is rather
+ * than whether a property happens to be present: a leaf carrying a stray
+ * `children` of the wrong shape would otherwise be walked as a group.
+ */
 export function isFilterGroup(node: FilterNode): node is FilterGroup {
-  return (node as FilterGroup).children !== undefined;
+  return Array.isArray((node as FilterGroup).children);
 }
 
 export function isFilterLeaf(node: FilterNode): node is FilterLeaf {

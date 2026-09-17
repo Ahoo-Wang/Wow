@@ -84,15 +84,51 @@ function bounds(from: Dayjs, to: Dayjs): InstantRange {
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
+/**
+ * An instant that already names its own offset, as `...Z` or `...+09:00`.
+ * Such a string means one moment whatever zone is in force, so resolving it
+ * against a zone would be wrong rather than merely unnecessary.
+ */
+const EXPLICIT_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+
+/**
+ * A wall-clock string read in a zone.
+ *
+ * `2026-01-01` and `2026-01-01T09:00` name a time on a clock, not a moment:
+ * which moment depends on whose clock. That is what `timeZone` answers, and
+ * leaving it unapplied was how a per-condition zone came to be stored,
+ * validated and then quietly ignored.
+ */
+function instantIn(text: string, timeZone: string): string {
+  if (EXPLICIT_OFFSET.test(text)) return text;
+  const read = dayjs.tz(text, timeZone);
+  // An unparsable string is the validator's to report, not this function's to
+  // guess at; passing it through keeps compilation total.
+  return read.isValid() ? read.toISOString() : text;
+}
+
+/** Whether a runtime can resolve this zone; an unknown one makes dayjs throw. */
+export function isValidTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function resolveDateTimeRange(
   value: DateTimeFilterValue,
   now: Date,
   timeZone: string,
 ): InstantRange {
   if (value.type === 'absolute') {
+    // A condition may pin its own zone; otherwise the runtime's applies.
+    const zone = value.timeZone ?? timeZone;
+    const from = instantIn(value.from, zone);
     return value.to === undefined
-      ? { from: value.from }
-      : { from: value.from, to: value.to };
+      ? { from }
+      : { from, to: instantIn(value.to, zone) };
   }
 
   const reference = dayjs(now).tz(timeZone);

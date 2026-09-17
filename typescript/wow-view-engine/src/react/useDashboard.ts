@@ -112,7 +112,13 @@ function toView(panel: DashboardPanelState): DashboardPanelView {
     layout: panel.panel.layout,
     runtime: panel.runtime,
     issues: panel.issues,
-    broken: panel.runtime === null && panel.panel.kind === 'view',
+    // A data panel with no runtime cannot query, and any panel carrying an
+    // error was refused by `validateDashboard` — a content panel included,
+    // whose markdown, image or link the grid would otherwise render as
+    // though nothing were wrong with it.
+    broken:
+      (panel.runtime === null && panel.panel.kind === 'view') ||
+      panel.issues.some(found => found.severity === 'error'),
   };
 }
 

@@ -98,6 +98,16 @@ export interface ViewEngineOptions {
   onIssue?(issue: Issue): void;
 }
 
+export interface OpenOptions {
+  /**
+   * An outer condition in force from the first query, in the view's own field
+   * names. It is admitted with the config rather than after it, so a host that
+   * scopes a view — an order page showing one customer's shipments — never
+   * lets an unscoped query leave, and never shows rows outside its scope.
+   */
+  scopeFilter?: FilterTree | null;
+}
+
 /** What a write command is addressed to: an open view, or a handle. */
 export type WriteTarget = ViewRuntime | WriteHandle;
 
@@ -140,6 +150,8 @@ export class ViewEngine {
   private readonly runner: RequestRunner;
   private readonly runtimes = new Set<ManagedViewRuntime>();
   private readonly writes = new Map<string, WriteState>();
+  /** Write targets with a request in flight; see `dispatch`. */
+  private readonly inFlight = new Set<string>();
   private readonly owners = new Map<string, ManagedViewRuntime>();
   private readonly preferencesCache = new Map<string, ViewPreferences>();
   /** `validateDefinition` per registered definition, computed once. */
@@ -220,9 +232,12 @@ export class ViewEngine {
   }
 
   /** Opens a saved view, or a code-declared one without touching the store. */
-  async open(instanceId: string): Promise<AnyViewRuntime> {
+  async open(
+    instanceId: string,
+    options: OpenOptions = {},
+  ): Promise<AnyViewRuntime> {
     const instance = await this.readInstance(instanceId);
-    const runtime = this.attach(instance);
+    const runtime = this.attach(instance, options.scopeFilter ?? null);
     // A dashboard is judged against the instances it references, so it waits
     // for them before its first apply rather than opening into empty frames.
     if (runtime instanceof DashboardViewRuntime) await runtime.ready();
@@ -464,24 +479,33 @@ export class ViewEngine {
     this.runner.cancelAll();
   }
 
-  private attach(instance: ViewInstance): ManagedViewRuntime {
+  private attach(
+    instance: ViewInstance,
+    scopeFilter: FilterTree | null = null,
+  ): ManagedViewRuntime {
     const definition = this.requireDefinition(instance.definitionId);
-    return this.build(definition, instance.config, {
-      title: instance.title,
-      scope: instance.scope,
-      saved: instance,
-    });
+    return this.build(
+      definition,
+      instance.config,
+      {
+        title: instance.title,
+        scope: instance.scope,
+        saved: instance,
+      },
+      scopeFilter,
+    );
   }
 
   private build(
     definition: ViewDefinition,
     config: ViewConfig,
     identity: RuntimeIdentity,
+    scopeFilter: FilterTree | null = null,
   ): ManagedViewRuntime {
     const runtime =
       config.kind === 'dashboard'
-        ? this.buildDashboard(definition, config, identity)
-        : this.buildData(definition, config, identity);
+        ? this.buildDashboard(definition, config, identity, scopeFilter)
+        : this.buildData(definition, config, identity, scopeFilter);
     this.runtimes.add(runtime);
     return runtime;
   }
@@ -490,6 +514,7 @@ export class ViewEngine {
     definition: ViewDefinition,
     config: DataViewConfig,
     identity: RuntimeIdentity,
+    scopeFilter: FilterTree | null = null,
   ): DataViewRuntime {
     if (definition.kind !== 'data' || !capabilityOf(definition, config))
       throw new ViewCommandError(
@@ -511,6 +536,7 @@ export class ViewEngine {
       environment: this.environment,
       source: this.resolveSource(definition.source),
       runner: this.runner,
+      scopeFilter,
     });
   }
 
@@ -518,6 +544,7 @@ export class ViewEngine {
     definition: ViewDefinition,
     config: DashboardViewConfig,
     identity: RuntimeIdentity,
+    scopeFilter: FilterTree | null = null,
   ): DashboardViewRuntime {
     // A dashboard config belongs to a dashboard definition: the catalogue
     // entry it is listed under, which declares no fields of its own.
@@ -541,6 +568,7 @@ export class ViewEngine {
       environment: this.environment,
       resolve: this.resolvePanel,
       createPanelRuntime: this.createPanelRuntime,
+      scopeFilter,
     });
   }
 
@@ -634,6 +662,19 @@ export class ViewEngine {
     requestId: string,
     runtime: ManagedViewRuntime | undefined,
   ): Promise<ViewInstance | ViewPreferences | void> {
+    // One write at a time per target. Two saves of one view would carry the
+    // same expected revision, so the second reports a conflict the user caused
+    // by clicking twice; two first saves would each create, leaving a duplicate
+    // instance and a runtime bound to only one of them. The idempotent
+    // `requestId` cannot help, because each command mints its own: it dedupes
+    // a retry of one write, not two writes that mean the same thing.
+    const key = writeKey(payload, runtime);
+    if (this.inFlight.has(key))
+      throw new ViewCommandError(
+        issue('view.write.in-flight', [], { action: payload.action }),
+      );
+    this.inFlight.add(key);
+
     const context: WriteContext = { requestId };
     if (runtime) this.owners.set(requestId, runtime);
     try {
@@ -646,6 +687,8 @@ export class ViewEngine {
       this.writes.set(requestId, state);
       runtime?.setWrite(state);
       throw new ViewWriteError(state);
+    } finally {
+      this.inFlight.delete(key);
     }
   }
 
@@ -724,7 +767,13 @@ export class ViewEngine {
     payload: WritePayload,
   ): Promise<WriteState> {
     if (!isViewStoreError(error))
-      // The request left and nothing came back: neither failure nor success.
+      // Anything that does not speak the port's language is treated as an
+      // unknown outcome rather than a failure. It may well be a bug in the
+      // adapter that will fail again on retry, and saying "unknown" about it
+      // is then misleading — but the other mistake is worse: a write that
+      // reached the server, reported as failed, is a view the user saves a
+      // second time. Only the store can tell these apart, and it does so by
+      // raising a `ViewStoreError`.
       return { kind: 'unknown', requestId, payload };
 
     switch (error.code) {
@@ -920,6 +969,26 @@ function capabilityOf(definition: ViewDefinition, config: ViewConfig): boolean {
   return config.kind === 'record'
     ? definition.record !== undefined
     : definition.analysis !== undefined;
+}
+
+/**
+ * What a write contends for. A runtime is its own target — the design allows
+ * one in-flight write per open view, whatever the command — and a write with
+ * no runtime behind it contends for the instance or the preferences it names.
+ */
+function writeKey(
+  payload: WritePayload,
+  runtime: ManagedViewRuntime | undefined,
+): string {
+  if (runtime) return `runtime:${runtime.id}`;
+  switch (payload.action) {
+    case 'preferences':
+      return `preferences:${payload.definitionId}`;
+    case 'create':
+      return `create:${payload.input.definitionId}:${payload.input.title}`;
+    default:
+      return `instance:${payload.id}`;
+  }
 }
 
 function withRevision(
