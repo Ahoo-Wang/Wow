@@ -452,6 +452,80 @@ describe('absolute dates and their zone', () => {
   });
 });
 
+/**
+ * Wow's logical operators are AND, OR and NOR, and a group is the only place
+ * a configuration can say "none of these": a leaf negates through its own
+ * operator, and a group has no operator to negate with.
+ */
+describe('nor groups', () => {
+  const norTree = (...children: FilterTree['children']): FilterTree => ({
+    op: 'nor',
+    children,
+  });
+  const order = (value: string) => ({
+    field: 'id',
+    operator: `${FilterOperator.EQ}` as const,
+    value,
+  });
+
+  it('is admitted like the other two', () => {
+    expect(
+      errors(validateFilter(fields, norTree(order('o-1')), builtinFieldKinds)),
+    ).toEqual([]);
+  });
+
+  it('compiles to a NOR expression', () => {
+    expect(
+      compileFilter(
+        fields,
+        norTree(order('o-1'), order('o-2')),
+        builtinFieldKinds,
+        context,
+      ),
+    ).toMatchObject({
+      op: FilterOperator.NOR,
+      operands: [
+        { op: FilterOperator.EQ, field: 'id', value: 'o-1' },
+        { op: FilterOperator.EQ, field: 'id', value: 'o-2' },
+      ],
+    });
+  });
+
+  it('keeps its wrapper around a single child', () => {
+    // An `and` or an `or` of one is that one condition, but a `nor` of one is
+    // its negation: collapsing it would compile to exactly what it excludes.
+    expect(
+      compileFilter(fields, norTree(order('o-1')), builtinFieldKinds, context),
+    ).toMatchObject({
+      op: FilterOperator.NOR,
+      operands: [{ op: FilterOperator.EQ, field: 'id', value: 'o-1' }],
+    });
+  });
+
+  it('carries no condition when it is empty', () => {
+    expect(
+      compileFilter(fields, norTree(), builtinFieldKinds, context),
+    ).toEqual({ op: FilterOperator.MATCH_ALL });
+  });
+
+  it('is not a simple tree', () => {
+    // Simple mode shows one AND group of leaves; a negation is not that.
+    expect(isSimpleTree(norTree(order('o-1')))).toBe(false);
+  });
+
+  it('still refuses an operator that is none of the three', () => {
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          { op: 'xor' as never, children: [order('o-1')] },
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['filter.group.unknown-operator']);
+  });
+});
+
 describe('describeFilter', () => {
   it('summarises applied conditions with the field label', () => {
     const items = describeFilter(

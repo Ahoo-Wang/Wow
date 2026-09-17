@@ -84,7 +84,13 @@ function compileGroup(
     // Empty groups carry no condition; Wow rejects empty AND/OR operands.
     if (compiled) operands.push(compiled);
   }
+  // An empty group carries no condition, whatever its operator: `and` and
+  // `or` over nothing are vacuous, and so is "none of nothing".
   if (operands.length === 0) return null;
-  if (operands.length === 1) return operands[0];
+  // A lone operand is its own conjunction and its own disjunction — but not
+  // its own negation, so `nor` keeps its wrapper or it would compile to the
+  // exact condition it was meant to exclude.
+  if (operands.length === 1 && group.op !== 'nor') return operands[0];
+  if (group.op === 'nor') return filter.nor(operands);
   return group.op === 'or' ? filter.or(operands) : filter.and(operands);
 }

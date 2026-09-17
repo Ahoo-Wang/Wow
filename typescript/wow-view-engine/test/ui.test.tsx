@@ -1312,6 +1312,23 @@ describe('FilterPanel tree editing', () => {
     expect(filter().tree.op).toBe('or');
   });
 
+  it('offers "none of" and writes it to the tree', () => {
+    const { filter } = panel();
+    act(() => {
+      filter().setMode('advanced');
+      filter().addLeaf('warehouse');
+    });
+    const root = document.querySelector(
+      '[aria-label="Group operator"]',
+    ) as HTMLElement;
+
+    fireEvent.click(within(root).getByRole('button', { name: 'None of' }));
+
+    // Wow's third logical operator; a group is the only place a config can
+    // say "none of these".
+    expect(filter().tree.op).toBe('nor');
+  });
+
   it('disables the group operator with the rest of the panel', () => {
     const { filter } = panel(true);
     act(() => filter().setMode('advanced'));

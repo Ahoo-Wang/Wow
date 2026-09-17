@@ -116,6 +116,7 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.filter.advanced': 'Advanced',
   'label.filter.all-of': 'All of',
   'label.filter.any-of': 'Any of',
+  'label.filter.none-of': 'None of',
   'label.filter.add-group': 'Add group',
   'label.analysis.row-count': 'Row count',
 

@@ -209,7 +209,8 @@ function GroupBlock({
           value={[group.op]}
           onValueChange={value => {
             const next = value[0];
-            if (next === 'and' || next === 'or') filter.updateGroup(path, next);
+            if (next === 'and' || next === 'or' || next === 'nor')
+              filter.updateGroup(path, next);
           }}
           variant="outline"
           size="sm"
@@ -223,6 +224,9 @@ function GroupBlock({
           </ToggleGroupItem>
           <ToggleGroupItem value="or">
             {messages.label('label.filter.any-of')}
+          </ToggleGroupItem>
+          <ToggleGroupItem value="nor">
+            {messages.label('label.filter.none-of')}
           </ToggleGroupItem>
         </ToggleGroup>
 

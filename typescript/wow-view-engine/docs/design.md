@@ -346,7 +346,7 @@ export type DashboardContentPanel = DashboardPanelBase &
 // ---- Filter 树，三类共享 ----
 export type FilterTree = FilterGroup; // 深度与节点数受 RuntimeLimits.maxFilterDepth / maxFilterNodes 约束
 export interface FilterGroup {
-  op: 'and' | 'or';
+  op: 'and' | 'or' | 'nor'; // 与 Wow 的三个逻辑操作符同值
   children: FilterNode[];
 }
 export interface FilterLeaf {

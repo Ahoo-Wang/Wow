@@ -26,8 +26,16 @@ export type FilterOperatorName = `${FilterOperator}`;
  */
 export type FilterTree = FilterGroup;
 
+/**
+ * How a group combines its children, as the same three Wow spells `AND`,
+ * `OR` and `NOR`. `nor` means none of the children match, which is the only
+ * way to express a negation here: leaves negate through their operator, and a
+ * group has no operator of its own to negate with.
+ */
+export type FilterGroupOperator = 'and' | 'or' | 'nor';
+
 export interface FilterGroup {
-  op: 'and' | 'or';
+  op: FilterGroupOperator;
   children: FilterNode[];
 }
 

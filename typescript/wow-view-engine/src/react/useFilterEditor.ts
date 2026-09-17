@@ -14,6 +14,7 @@
 import { useCallback, useMemo } from 'react';
 import type {
   FieldDefinition,
+  FilterGroupOperator,
   FilterLeaf,
   FilterMode,
   FilterNode,
@@ -55,9 +56,9 @@ export interface FilterEditorController {
   setMode(mode: FilterMode): void;
   addLeaf(field: string, parent?: FilterPath): void;
   updateLeaf(path: FilterPath, patch: Partial<FilterLeaf>): void;
-  addGroup(op: 'and' | 'or', parent?: FilterPath): void;
-  /** Flips a group between AND and OR, keeping its children in place. */
-  updateGroup(path: FilterPath, op: 'and' | 'or'): void;
+  addGroup(op: FilterGroupOperator, parent?: FilterPath): void;
+  /** Changes how a group combines, keeping its children in place. */
+  updateGroup(path: FilterPath, op: FilterGroupOperator): void;
   remove(path: FilterPath): void;
   clear(): void;
   /** Applies the draft, which is what runs the query. */
@@ -159,14 +160,14 @@ export function useFilterEditor(
   );
 
   const addGroup = useCallback(
-    (op: 'and' | 'or', parent: FilterPath = ROOT) => {
+    (op: FilterGroupOperator, parent: FilterPath = ROOT) => {
       change(current => insertAt(current, parent, { op, children: [] }));
     },
     [change],
   );
 
   const updateGroup = useCallback(
-    (path: FilterPath, op: 'and' | 'or') => {
+    (path: FilterPath, op: FilterGroupOperator) => {
       // `updateAt` leaves the root alone by design, so the root's operator is
       // written directly: a tree may be one big OR.
       if (path.length === 0) {

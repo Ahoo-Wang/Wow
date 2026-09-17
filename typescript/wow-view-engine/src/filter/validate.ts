@@ -14,12 +14,16 @@
 import {
   DEFAULT_RUNTIME_LIMITS,
   type FieldDefinition,
+  type FilterGroupOperator,
   type FilterTree,
   type Issue,
   type RuntimeLimits,
 } from '../model/index.js';
 import { issue, operatorsOf, type FieldKindRegistry } from './fieldKind.js';
 import { isFilterGroup, isFilterLeaf, walkFilter } from './tree.js';
+
+/** The operators a group may carry; a tree from a store may say anything. */
+const GROUP_OPERATORS: readonly FilterGroupOperator[] = ['and', 'or', 'nor'];
 
 export interface ValidateFilterOptions {
   limits?: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>;
@@ -48,7 +52,7 @@ export function validateFilter(
 
   for (const { node, path } of walkFilter(tree)) {
     if (isFilterGroup(node)) {
-      if (node.op !== 'and' && node.op !== 'or')
+      if (!GROUP_OPERATORS.includes(node.op))
         issues.push(issue('filter.group.unknown-operator', path));
       continue;
     }
