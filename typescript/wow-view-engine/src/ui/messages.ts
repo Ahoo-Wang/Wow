@@ -160,6 +160,8 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'analysis.count.undeclared': 'This dataset does not offer a row count.',
   'analysis.derived.unknown-metric':
     'The derived metric refers to {metric}, which is not declared before it.',
+  'analysis.distinctCount.undeclared':
+    '{field} does not offer distinct counts.',
   'analysis.element.undeclared': 'The nested path {path} is not available.',
   'analysis.elements.too-many': 'Too many nested paths for this dataset.',
   'analysis.expression.divide-by-zero': 'This expression divides by zero.',
@@ -207,14 +209,14 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'chart.metric.trend-needs-one-date-group':
     'A trend needs exactly one date grouping.',
   'chart.metric.unknown': '{alias} is not a metric of this analysis.',
-  'chart.scatter.same-metrics': 'A scatter plot needs two different metrics.',
-  'chart.series.not-additive':
+  'chart.pie.maxSlices-not-additive':
     'Merging the smallest slices needs an additive metric.',
-  'chart.split.same-as-x': 'The split cannot repeat the horizontal axis.',
-  'chart.split.single-series': 'A split chart shows exactly one metric.',
-  'chart.reference-line.axis-empty':
+  'chart.pie.maxSlices-too-small': 'Keep at least two slices.',
+  'chart.referenceLine.empty-axis':
     'A reference line needs a series on its axis.',
-  'chart.slices.too-few': 'Keep at least two slices.',
+  'chart.scatter.same-metrics': 'A scatter plot needs two different metrics.',
+  'chart.splitBy.needs-one-series': 'A split chart shows exactly one metric.',
+  'chart.splitBy.same-as-x': 'The split cannot repeat the horizontal axis.',
   'chart.type.unknown': 'This chart type is not available.',
 
   // Dashboard kernel.

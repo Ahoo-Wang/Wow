@@ -33,7 +33,9 @@ const src = join(dirname(fileURLToPath(import.meta.url)), '../src');
 /** Every issue code raised anywhere in the package, as written in the source. */
 function raisedCodes(): string[] {
   const codes = new Set<string>();
-  const pattern = /issue\(\s*['`]([a-z][a-z0-9.-]*)['`]/g;
+  // Codes carry camelCase segments (chart.splitBy, analysis.distinctCount),
+  // so the class must not stop at lowercase.
+  const pattern = /issue\(\s*['`]([A-Za-z][A-Za-z0-9.-]*)['`]/g;
 
   const walk = (directory: string): void => {
     for (const entry of readdirSync(directory)) {
