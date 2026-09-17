@@ -120,6 +120,26 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.filter.add-group': 'Add group',
   'label.analysis.row-count': 'Row count',
 
+  // Operator names a component would otherwise derive from the enum. Only the
+  // ones whose derived spelling is unreadable need an entry; the rest fall
+  // back, so this list stays short and an application can still name any of
+  // them by adding a key.
+  'label.operator.ID': 'is',
+  'label.operator.IDS': 'is any of',
+  'label.operator.AGGREGATE_ID': 'is',
+  'label.operator.AGGREGATE_IDS': 'is any of',
+  'label.operator.TENANT_ID': 'is',
+  'label.operator.OWNER_ID': 'is',
+  'label.operator.SPACE_ID': 'is',
+  'label.operator.IS_EMPTY_STRING': 'is blank',
+  'label.operator.IS_NOT_EMPTY_STRING': 'is not blank',
+  'label.operator.IS_NULL': 'is empty',
+  'label.operator.IS_NOT_NULL': 'is not empty',
+  'label.operator.NOT_EXISTS': 'does not exist',
+  'label.operator.NOT_IN': 'is none of',
+  'label.operator.STARTS_WITH': 'starts with',
+  'label.operator.ENDS_WITH': 'ends with',
+
   // A summary's scope belongs on screen: a total comes from its own query
   // over everything the conditions match, a page total only from the rows
   // in front of you, and the two are not interchangeable.
@@ -154,6 +174,9 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'filter.tree.too-many-nodes': 'The conditions exceed {max} entries.',
   'filter.value.expected-boolean': 'Choose yes or no.',
   'filter.value.expected-date': 'Enter a date.',
+  'filter.value.expected-id': 'Enter an id, or pick a candidate.',
+  'filter.value.expected-id-list': 'Enter one or more ids.',
+  'filter.value.expects-one': 'This condition takes a single value.',
   'filter.value.expected-number': 'Enter a number.',
   'filter.value.expected-number-list': 'Enter one or more numbers.',
   'filter.value.expected-number-range': 'Enter a range of two numbers.',

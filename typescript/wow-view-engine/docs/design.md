@@ -899,7 +899,7 @@ export interface FieldKind {
 }
 ```
 
-内置 kind：string、number、boolean、date、datetime、enum、reference，各自拥有第 3 节列出的值类型。自定义 kind 由应用注册到 `FieldKindRegistry`，自行定义值的形状；缺少对应 React 渲染器时 UI 显示不可编辑并给出 Issue，编译不受影响。
+内置 kind：string、number、boolean、date、datetime、enum、reference，各自拥有第 3 节列出的值类型；另有五个由 Wow 元数据过滤支撑的 kind：documentId（`ID`／`IDS`）、aggregateId（`AGGREGATE_ID`／`AGGREGATE_IDS`）、tenantId、ownerId、spaceId。元数据过滤不带字段名（`{ op, value }`），因此这些 kind 的 `FieldDefinition.name` 只是编辑器、标签与 Issue 路径的句柄，不进入查询；约定写作 `@ownerId` 这类带 `@` 的名字，但不依赖它。某个元数据字段算不算合法筛选条件取决于"谁在看"——租户内的用户按所有者或工作空间收窄，平台运维按租户收窄——这个判断属于定义，定义是代码、随应用部署，所以引擎提供 kind，由每份定义决定视图能用哪些。它们不提供 presence 操作符：`IS_NULL` 一类是带字段名的，混进来会让同一个叶子的 `name` 在不同操作符下时而是路径时而是标签。自定义 kind 由应用注册到 `FieldKindRegistry`，自行定义值的形状；缺少对应 React 渲染器时 UI 显示不可编辑并给出 Issue，编译不受影响。
 
 ## 11. 与 Wow 协议的对应
 

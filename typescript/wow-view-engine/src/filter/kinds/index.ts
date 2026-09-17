@@ -15,6 +15,7 @@ import { createFieldKindRegistry, type FieldKind } from '../fieldKind.js';
 import { booleanFieldKind } from './boolean.js';
 import { dateFieldKind, dateTimeFieldKind } from './dateTime.js';
 import { enumFieldKind } from './enum.js';
+import { METADATA_FIELD_KINDS } from './metadata.js';
 import { numberFieldKind } from './number.js';
 import { referenceFieldKind } from './reference.js';
 import { stringFieldKind } from './string.js';
@@ -22,6 +23,7 @@ import { stringFieldKind } from './string.js';
 export * from './boolean.js';
 export * from './dateTime.js';
 export * from './enum.js';
+export * from './metadata.js';
 export * from './number.js';
 export * from './presence.js';
 export * from './reference.js';
@@ -36,6 +38,7 @@ export const BUILTIN_FIELD_KINDS: readonly FieldKind[] = [
   dateTimeFieldKind,
   enumFieldKind,
   referenceFieldKind,
+  ...METADATA_FIELD_KINDS,
 ];
 
 /** Ready-to-use registry; extend it with `withFieldKinds`. */

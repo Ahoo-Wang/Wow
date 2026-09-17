@@ -56,7 +56,13 @@ export function useMessages(): ViewMessages {
 
 /** What a component needs: a label by key, an issue or a list as a sentence. */
 export interface MessageFormatters {
-  label(key: string, params?: Issue['params']): string;
+  /**
+   * Wording by key. `fallback` is for text a component can derive itself:
+   * an operator reads acceptably as `between` without a catalogue entry and
+   * not at all as `ids`, so the catalogue names the ones worth naming and the
+   * rest fall back rather than printing their key.
+   */
+  label(key: string, params?: Issue['params'], fallback?: string): string;
   issue(found: Issue): string;
   issues(found: readonly Issue[]): string;
 }
@@ -65,7 +71,10 @@ export function useViewMessages(): MessageFormatters {
   const messages = useMessages();
   return useMemo(
     () => ({
-      label: (key, params) => formatMessage(messages, key, params),
+      label: (key, params, fallback) => {
+        const found = formatMessage(messages, key, params);
+        return found === key && fallback !== undefined ? fallback : found;
+      },
       issue: found => formatIssue(messages, found),
       issues: found => formatIssues(messages, found),
     }),

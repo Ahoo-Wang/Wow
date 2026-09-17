@@ -1329,6 +1329,20 @@ describe('FilterPanel tree editing', () => {
     expect(filter().tree.op).toBe('nor');
   });
 
+  it('names an operator the catalogue spells out, and derives the rest', () => {
+    const { filter } = panel();
+    act(() => filter().addLeaf('warehouse'));
+
+    const options = screen.getByRole('combobox', {
+      name: /Warehouse operator/i,
+    });
+
+    // `EQ` reads fine derived; `NOT_IN` as "not in" does not, so it has an
+    // entry. Neither should ever render as its key.
+    expect(options.textContent).not.toContain('label.operator');
+    expect(filter().operatorsFor('warehouse')).toContain('NOT_IN');
+  });
+
   it('disables the group operator with the rest of the panel', () => {
     const { filter } = panel(true);
     act(() => filter().setMode('advanced'));

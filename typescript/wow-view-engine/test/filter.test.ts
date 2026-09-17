@@ -13,6 +13,7 @@
 
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
+import { METADATA_FIELD_KIND_IDS } from '../src/model/index.js';
 import {
   builtinFieldKinds,
   compileFilter,
@@ -567,16 +568,19 @@ describe('describeFilter', () => {
 });
 
 describe('the field kind registry', () => {
-  it('ships the seven built-in kinds', () => {
-    expect([...builtinFieldKinds.keys()].sort()).toEqual([
-      'boolean',
-      'date',
-      'datetime',
-      'enum',
-      'number',
-      'reference',
-      'string',
-    ]);
+  it('ships the document-field kinds and the metadata kinds', () => {
+    expect([...builtinFieldKinds.keys()].sort()).toEqual(
+      [
+        'boolean',
+        'date',
+        'datetime',
+        'enum',
+        'number',
+        'reference',
+        'string',
+        ...METADATA_FIELD_KIND_IDS,
+      ].sort(),
+    );
   });
 
   it('takes a custom kind without the kernel knowing anything about it', () => {

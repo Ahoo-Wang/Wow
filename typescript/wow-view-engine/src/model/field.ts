@@ -20,7 +20,34 @@ import type { FilterOperatorName } from './filter.js';
 export type FieldKindId = BuiltinFieldKindId | (string & {});
 
 export type BuiltinFieldKindId =
-  'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'enum' | 'reference';
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'datetime'
+  | 'enum'
+  | 'reference'
+  | MetadataFieldKindId;
+
+/**
+ * Kinds backed by Wow's metadata filters rather than by a document field.
+ *
+ * Whether one of these is a legitimate condition depends on who is looking: a
+ * user narrows to their own documents by owner or to a workspace by space, a
+ * platform operator narrows to a tenant. That judgement belongs to the
+ * definition, which is code and ships per application, so the engine offers
+ * the kinds and lets each definition decide which of them a view may use.
+ */
+export type MetadataFieldKindId =
+  'documentId' | 'aggregateId' | 'tenantId' | 'ownerId' | 'spaceId';
+
+export const METADATA_FIELD_KIND_IDS: readonly MetadataFieldKindId[] = [
+  'documentId',
+  'aggregateId',
+  'tenantId',
+  'ownerId',
+  'spaceId',
+];
 
 export const BUILTIN_FIELD_KIND_IDS: readonly BuiltinFieldKindId[] = [
   'string',
@@ -30,6 +57,7 @@ export const BUILTIN_FIELD_KIND_IDS: readonly BuiltinFieldKindId[] = [
   'datetime',
   'enum',
   'reference',
+  ...METADATA_FIELD_KIND_IDS,
 ];
 
 /**

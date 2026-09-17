@@ -335,10 +335,18 @@ function FilterLeafRow({
   disabled?: boolean;
   optionsFor?: (remote: string) => FieldOption[] | undefined;
 }) {
+  const messages = useViewMessages();
   const field = filter.fields.find(entry => entry.name === leaf.field);
   const label = field?.label ?? leaf.field;
   const operators = filter.operatorsFor(leaf.field).map(operator => ({
-    label: operator.split('_').join(' ').toLowerCase(),
+    // The catalogue names the ones worth naming; the rest keep the derived
+    // spelling, which reads well enough for `EQ` and `BETWEEN` and not at all
+    // for `IDS` or `OWNER_ID`.
+    label: messages.label(
+      `label.operator.${operator}`,
+      undefined,
+      operator.split('_').join(' ').toLowerCase(),
+    ),
     value: operator,
   }));
   const editor = filter.editorFor(path);
