@@ -326,6 +326,8 @@ export const defaultMessages: ViewMessages = Object.freeze({
   // Definition admission.
   'definition.analysis.default-limit-too-large':
     'The default row limit exceeds the maximum.',
+  'definition.analysis.element-field-unknown':
+    '{path} declares no field named {field}.',
   'definition.analysis.element-undeclared':
     'The analysis expands {path}, which is not a field holding elements.',
   'definition.analysis.element-path-invalid':

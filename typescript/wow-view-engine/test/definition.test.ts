@@ -256,6 +256,72 @@ describe('validateDefinition capabilities', () => {
     expect(found).toEqual(['definition.analysis.element-undeclared']);
   });
 
+  it('refuses an aggregation over a name the element never declared', () => {
+    // The root fields always had this check and the element ones did not, so
+    // an aggregation could name nothing and reach a view as a metric with no
+    // field behind it.
+    expect(
+      codes(
+        ordersDefinition({
+          fields: [
+            {
+              name: 'items',
+              label: 'Items',
+              kind: 'array',
+              elements: [{ name: 'sku', label: 'SKU', kind: 'string' }],
+            },
+          ],
+          record: undefined,
+          analysis: {
+            count: true,
+            fields: [],
+            elements: [
+              {
+                path: 'items',
+                aggregations: [{ field: 'gone', groups: [], functions: [] }],
+              },
+            ],
+          },
+          views: [],
+        }),
+      ),
+    ).toEqual(['definition.analysis.element-field-unknown']);
+  });
+
+  it('reports the qualified spelling as the mistake it now is', () => {
+    // `qualify` no longer accepts both spellings, so writing the full path
+    // where a relative name belongs is caught here rather than composing
+    // `items.items.sku` and matching nothing.
+    expect(
+      codes(
+        ordersDefinition({
+          fields: [
+            {
+              name: 'items',
+              label: 'Items',
+              kind: 'array',
+              elements: [{ name: 'sku', label: 'SKU', kind: 'string' }],
+            },
+          ],
+          record: undefined,
+          analysis: {
+            count: true,
+            fields: [],
+            elements: [
+              {
+                path: 'items',
+                aggregations: [
+                  { field: 'items.sku', groups: [], functions: [] },
+                ],
+              },
+            ],
+          },
+          views: [],
+        }),
+      ),
+    ).toEqual(['definition.analysis.element-field-unknown']);
+  });
+
   it('refuses an analysis expanding a field that holds no elements', () => {
     expect(
       codes(

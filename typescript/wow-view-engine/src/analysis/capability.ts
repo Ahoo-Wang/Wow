@@ -67,9 +67,19 @@ export function analysisScope(
   return { fields, aggregations, declaredPaths };
 }
 
-/** Element fields are written with their path, which keeps them unambiguous. */
+/**
+ * An element field's full path, from the array it sits in and its own name.
+ *
+ * It always prefixes. It used to leave a name alone when that name already
+ * began with the path, which accepted both spellings of the same reference
+ * and so papered over a convention that had never been decided — and made
+ * `items.sku` mean one thing at the root of an element and another inside a
+ * nested object that happened to share the array's name. A declaration names
+ * what it holds relative to itself; composing the path is this function's
+ * job alone.
+ */
 export function qualify(path: string, field: string): string {
-  return field.startsWith(`${path}.`) ? field : `${path}.${field}`;
+  return `${path}.${field}`;
 }
 
 export function analysisCapabilityOf(

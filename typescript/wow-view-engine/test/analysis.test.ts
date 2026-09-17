@@ -691,9 +691,14 @@ describe('element scope', () => {
     },
   });
 
-  it('qualifies element fields with their path', () => {
+  it('qualifies element fields with their path, always', () => {
     expect(qualify('items', 'sku')).toBe('items.sku');
-    expect(qualify('items', 'items.sku')).toBe('items.sku');
+    // A declaration names what it holds relative to itself. Leaving a name
+    // that already begins with the path alone accepted two spellings of one
+    // reference, and made `items.sku` mean one thing at the root of an
+    // element and another inside a nested object sharing the array's name.
+    expect(qualify('items', 'items.sku')).toBe('items.items.sku');
+    expect(qualify('items', 'address.city')).toBe('items.address.city');
   });
 
   it('exposes element fields only once the element is configured', () => {

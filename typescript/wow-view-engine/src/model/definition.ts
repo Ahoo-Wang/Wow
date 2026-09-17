@@ -127,7 +127,12 @@ export interface AnalysisElementCapability {
 
 /** How one field may be aggregated; shared by root and element fields. */
 export interface AggregationFieldCapability {
-  /** Element fields are referenced as `path.field`. */
+  /**
+   * The field this aggregates, named as its declaration names it: a root
+   * field by its own name, an element field by its name within the element.
+   * A *config* refers to an element field as `path.field`, because it points
+   * at one from outside; a capability sits beside the path already.
+   */
   field: string;
   groups: AggregationGroupType[];
   functions: AggregationFunction[];

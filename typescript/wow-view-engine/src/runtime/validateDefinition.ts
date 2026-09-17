@@ -196,12 +196,34 @@ function validateAnalysisCapability(definition: DataViewDefinition): Issue[] {
     const at: IssuePath = ['analysis', 'elements', index];
     // The path names a declared element; its fields are checked where they
     // are declared, so all this has to establish is that it names one.
-    if (!expandable.has(element.path))
+    if (!expandable.has(element.path)) {
       issues.push(
         issue('definition.analysis.element-undeclared', [...at, 'path'], {
           path: element.path,
         }),
       );
+      return;
+    }
+
+    // The same check the root fields get, which they had and these did not:
+    // an aggregation over a name the element never declared resolves to
+    // nothing, and a view built on it offers a metric with no field behind it.
+    const held = new Set(
+      (
+        definition.fields.find(field => field.name === element.path)
+          ?.elements ?? []
+      ).map(field => field.name),
+    );
+    element.aggregations.forEach((entry, at2) => {
+      if (!held.has(entry.field))
+        issues.push(
+          issue(
+            'definition.analysis.element-field-unknown',
+            [...at, 'aggregations', at2, 'field'],
+            { path: element.path, field: entry.field },
+          ),
+        );
+    });
   });
 
   // `defaultAnalysisConfig` walks a fixed priority to find one metric. A
