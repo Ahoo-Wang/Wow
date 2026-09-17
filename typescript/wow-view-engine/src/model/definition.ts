@@ -115,9 +115,13 @@ export interface AnalysisCapability {
   limits?: AnalysisLimits;
 }
 
+/**
+ * How an element's fields may be aggregated. The path names a field that
+ * declares `elements`; what those elements hold is declared there, and only
+ * the aggregation capability is analysis's to state.
+ */
 export interface AnalysisElementCapability {
   path: string;
-  fields: FieldDefinition[];
   aggregations: AggregationFieldCapability[];
 }
 

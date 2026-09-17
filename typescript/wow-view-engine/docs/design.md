@@ -70,6 +70,10 @@ export interface FieldDefinition {
   summary?: SummaryFunction[]; // 允许的汇总函数
   cell?: string; // 单元格渲染器键，缺省按 kind
   editor?: string; // 筛选编辑器键，缺省由 kind、operator 与 value.type 推出
+  // 数组字段的元素持有什么。它属于字段本身：items 就是那个数组，这些是它装的东西。
+  // 声明在别处就得用路径字符串回指，而路径可以指向不存在的字段——那一整类悬空引用
+  // 在这里根本写不出来。元素名字自成作用域，可与根字段重名，引用一律写 `field.element`。
+  elements?: FieldDefinition[];
 }
 
 export interface RecordCapability {
@@ -83,12 +87,9 @@ export interface RecordCapability {
 export interface AnalysisCapability {
   count: boolean;
   fields: AggregationFieldCapability[];
-  // 可展开的数组路径：元素字段的定义与其聚合能力，与根字段同构
-  elements?: {
-    path: string;
-    fields: FieldDefinition[];
-    aggregations: AggregationFieldCapability[];
-  }[];
+  // 可展开的数组路径：path 指向一个声明了 elements 的字段，
+  // 元素持有什么由那个字段说，这里只说哪些数组本分析可以展开、如何聚合
+  elements?: { path: string; aggregations: AggregationFieldCapability[] }[];
   expressions?: boolean; // 允许 BINARY 表达式与 DERIVED 指标
   having?: boolean;
   limits?: {

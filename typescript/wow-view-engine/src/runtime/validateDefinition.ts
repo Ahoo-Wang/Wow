@@ -70,7 +70,7 @@ export function validateDefinition(
   if (definition.kind === 'data') {
     issues.push(...validateFields(definition.fields, kinds, ['fields']));
     issues.push(...validateRecordCapability(definition));
-    issues.push(...validateAnalysisCapability(definition, kinds));
+    issues.push(...validateAnalysisCapability(definition));
   }
 
   issues.push(...validateSystemViews(definition, kinds, limits));
@@ -129,6 +129,15 @@ function validateFields(
           { field: field.name, value: String(field.stringComparison) },
         ),
       );
+
+    // An element's names are its own scope: they may repeat a root field's,
+    // because every reference to one is written `field.element`. Checking
+    // them here is what makes a nested declaration self-contained — there is
+    // no path to dangle and no second place to keep in step.
+    if (field.elements !== undefined)
+      issues.push(
+        ...validateFields(field.elements, kinds, [...at, 'elements']),
+      );
   });
 
   return issues;
@@ -157,15 +166,18 @@ function validateRecordCapability(definition: DataViewDefinition): Issue[] {
   return issues;
 }
 
-function validateAnalysisCapability(
-  definition: DataViewDefinition,
-  kinds: FieldKindRegistry,
-): Issue[] {
+function validateAnalysisCapability(definition: DataViewDefinition): Issue[] {
   const capability: AnalysisCapability | undefined = definition.analysis;
   if (!capability) return [];
 
   const issues: Issue[] = [];
   const names = new Set(definition.fields.map(field => field.name));
+  // A path may be expanded only if some field actually holds elements.
+  const expandable = new Set(
+    definition.fields
+      .filter(field => field.elements !== undefined)
+      .map(field => field.name),
+  );
 
   capability.fields.forEach((entry, index) => {
     if (!names.has(entry.field))
@@ -182,15 +194,14 @@ function validateAnalysisCapability(
 
   (capability.elements ?? []).forEach((element, index) => {
     const at: IssuePath = ['analysis', 'elements', index];
-    if (!isFieldName(element.path))
+    // The path names a declared element; its fields are checked where they
+    // are declared, so all this has to establish is that it names one.
+    if (!expandable.has(element.path))
       issues.push(
-        issue('definition.analysis.element-path-invalid', [...at, 'path'], {
+        issue('definition.analysis.element-undeclared', [...at, 'path'], {
           path: element.path,
         }),
       );
-    // An element's fields are their own scope: a name may repeat a root one,
-    // because a config always writes an element field as `path.field`.
-    issues.push(...validateFields(element.fields, kinds, [...at, 'fields']));
   });
 
   // `defaultAnalysisConfig` walks a fixed priority to find one metric. A

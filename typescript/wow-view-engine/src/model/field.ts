@@ -125,6 +125,18 @@ export interface FieldDefinition {
   /** Filter editor key; defaults to the one implied by kind, operator and value. */
   editor?: string;
   /**
+   * For an array of objects, what each of its elements holds.
+   *
+   * It belongs to the field because it describes that field: `items` is the
+   * array, and these are what it contains. Declared anywhere else it would be
+   * linked back by a path string, which can name a field that does not exist —
+   * a whole class of dangling reference that simply cannot be written here.
+   *
+   * An element's names are its own scope and may repeat a root field's,
+   * because every reference to one is written `field.element`.
+   */
+  elements?: FieldDefinition[];
+  /**
    * How `CONTAINS`, `STARTS_WITH` and `ENDS_WITH` compare text on this field.
    *
    * The default is case-insensitive, because somebody filtering a list by
