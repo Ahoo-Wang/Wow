@@ -248,6 +248,10 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'analysis.distinctCount.undeclared':
     '{field} does not offer distinct counts.',
   'analysis.element.undeclared': 'The nested path {path} is not available.',
+  'analysis.elementFilter.empty':
+    'This filter has no conditions, so every entry is expanded.',
+  'analysis.elementFilter.incomplete':
+    'Give {field} a value, or every entry is expanded.',
   'analysis.elements.too-many': 'Too many nested paths for this dataset.',
   'analysis.expression.divide-by-zero': 'This expression divides by zero.',
   'analysis.expression.malformed': 'This metric has no usable expression.',
@@ -270,6 +274,12 @@ export const defaultMessages: ViewMessages = Object.freeze({
     'The filter refers to {metric}, which is not a usable metric.',
   'analysis.limit.not-positive': 'The row limit must be a positive number.',
   'analysis.limit.too-large': 'The row limit cannot exceed {max}.',
+  'analysis.metricFilter.empty':
+    'This filter has no conditions, so the metric covers every record.',
+  'analysis.metricFilter.incomplete':
+    'Give {field} a value, or the metric covers every record.',
+  'analysis.metricFilter.not-scalar':
+    '{field} has no single value for a metric filter to test.',
   'analysis.metrics.too-many': 'Too many metrics for this dataset.',
   'analysis.percentile.out-of-range':
     'A percentile must be between 0 and 100, exclusive.',

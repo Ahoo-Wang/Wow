@@ -74,6 +74,7 @@ export const elementMatchFieldKind: FieldKind = {
   // absent as well as empty, and those are different answers.
   operators: ['ELEMENT_MATCH', 'IS_EMPTY', ...PRESENCE_OPERATORS],
   defaultOperator: 'ELEMENT_MATCH',
+  scalar: false,
 
   emptyValue() {
     return emptyFilter();

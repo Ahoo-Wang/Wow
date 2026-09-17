@@ -24,6 +24,7 @@ import {
   analysisScope,
   builtinFieldKinds,
   compileAnalysis,
+  emptyFilter,
   compileAnalysisTotals,
   defaultAnalysisConfig,
   projectAnalysis,
@@ -32,7 +33,12 @@ import {
   validateAnalysis,
   type AnalysisCapability,
   type AnalysisViewConfig,
+  withFieldKinds,
+  DEFAULT_RUNTIME_LIMITS,
   type DataViewDefinition,
+  type FilterOperatorName,
+  type FilterTree,
+  type FilterValue,
   type Issue,
 } from '../src/index.js';
 
@@ -691,6 +697,183 @@ describe('element scope', () => {
     },
   });
 
+  // An element filter gates which entries the expansion lets through. It has
+  // no editor either, so the same rule as a metric's filter applies: having
+  // written one, it must actually narrow something.
+  it('refuses an element filter with no conditions', () => {
+    expect(
+      codes(
+        validateAnalysis(
+          withElements,
+          config({ elements: [{ path: 'items', filter: emptyFilter() }] }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['analysis.elementFilter.empty']);
+  });
+
+  it('refuses an element condition with no value', () => {
+    expect(
+      codes(
+        validateAnalysis(
+          withElements,
+          config({
+            elements: [
+              {
+                path: 'items',
+                filter: {
+                  op: 'and',
+                  children: [{ field: 'items.sku', operator: 'EQ', value: '' }],
+                },
+              },
+            ],
+          }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['analysis.elementFilter.incomplete']);
+  });
+
+  it('paths an empty element filter at the filter itself', () => {
+    expect(
+      validateAnalysis(
+        withElements,
+        config({ elements: [{ path: 'items', filter: emptyFilter() }] }),
+        builtinFieldKinds,
+      ).map(found => found.path),
+    ).toContainEqual(['elements', 0, 'filter']);
+  });
+
+  it('admits an element filter that names a value', () => {
+    expect(
+      codes(
+        validateAnalysis(
+          withElements,
+          config({
+            elements: [
+              {
+                path: 'items',
+                filter: {
+                  op: 'and',
+                  children: [
+                    { field: 'items.sku', operator: 'EQ', value: 'A-1' },
+                  ],
+                },
+              },
+            ],
+          }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it('leaves an element without a filter alone', () => {
+    // No filter at all is how "expand every entry" is said; only a filter
+    // that was written and says nothing is wrong.
+    expect(
+      codes(
+        validateAnalysis(
+          withElements,
+          config({ elements: [{ path: 'items' }] }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it('admits a multi-valued element field, which a metric filter refuses', () => {
+    // The scalar rule belongs to metric position, where the filter has one
+    // record's value to test. An element filter is an ordinary filter over
+    // the element's own fields and carries no such restriction.
+    const nested = definition({
+      fields: [
+        ...definition().fields,
+        {
+          name: 'items',
+          label: 'Items',
+          kind: 'array',
+          elements: [
+            { name: 'sku', label: 'SKU', kind: 'string' },
+            {
+              name: 'tags',
+              label: 'Tags',
+              kind: 'array',
+              elements: [{ name: 'name', label: 'Name', kind: 'string' }],
+            },
+          ],
+        },
+      ],
+      analysis: {
+        ...capability,
+        elements: [
+          {
+            path: 'items',
+            aggregations: [
+              {
+                field: 'sku',
+                groups: [AggregationGroupType.TERMS],
+                functions: [],
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const onTags: FilterTree = {
+      op: 'and',
+      children: [{ field: 'items.tags', operator: 'IN', value: ['red'] }],
+    };
+
+    expect(
+      codes(
+        validateAnalysis(
+          nested,
+          config({ elements: [{ path: 'items', filter: onTags }] }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual([]);
+    expect(
+      codes(
+        validateAnalysis(
+          nested,
+          config({
+            elements: [{ path: 'items' }],
+            metrics: [{ type: 'COUNT', alias: 'orders', filter: onTags }],
+          }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['analysis.metricFilter.not-scalar']);
+  });
+
+  it('honours a caller that widened the tree limits', () => {
+    // An element filter is a filter like any other, so it spends the budget
+    // the caller set rather than the default one.
+    const deep = (depth: number): FilterTree =>
+      depth <= 1
+        ? {
+            op: 'and',
+            children: [{ field: 'items.sku', operator: 'EQ', value: 'x' }],
+          }
+        : { op: 'and', children: [deep(depth - 1)] };
+    const overrides = { elements: [{ path: 'items', filter: deep(12) }] };
+
+    expect(
+      codes(
+        validateAnalysis(withElements, config(overrides), builtinFieldKinds),
+      ),
+    ).toEqual(['filter.tree.too-deep']);
+    expect(
+      codes(
+        validateAnalysis(withElements, config(overrides), builtinFieldKinds, {
+          limits: { ...DEFAULT_RUNTIME_LIMITS, maxFilterDepth: 16 },
+        }),
+      ),
+    ).toEqual([]);
+  });
+
   it('qualifies element fields with their path, always', () => {
     expect(qualify('items', 'sku')).toBe('items.sku');
     // A declaration names what it holds relative to itself. Leaving a name
@@ -973,5 +1156,292 @@ describe('projectAnalysis', () => {
       label: 'Amount',
       numberFormat: { style: 'currency', currency: 'CNY' },
     });
+  });
+});
+
+/**
+ * A metric's own filter reaches `compileAnalysis` either way, and nothing was
+ * admitting it: an unknown field went all the way to `compileFilter`, which
+ * answers that by throwing. Wow also allows less here than at the root,
+ * because a metric filter decides per record whether that record counts, so
+ * it has one record's value to work with.
+ */
+describe('metric filters', () => {
+  const wide = () =>
+    definition({
+      fields: [
+        ...definition().fields,
+        {
+          name: 'items',
+          label: 'Items',
+          kind: 'array',
+          elements: [{ name: 'sku', label: 'SKU', kind: 'string' }],
+        },
+        {
+          name: 'lines',
+          label: 'Lines',
+          kind: 'elementMatch',
+          elements: [{ name: 'status', label: 'Status', kind: 'string' }],
+        },
+        { name: '@search', label: 'Search', kind: 'search' },
+        { name: '@ownerId', label: 'Created by', kind: 'ownerId' },
+      ],
+    });
+
+  const withFilter = (filter: FilterTree) =>
+    validateAnalysis(
+      wide(),
+      config({ metrics: [{ type: 'COUNT', alias: 'orders', filter }] }),
+      builtinFieldKinds,
+    );
+
+  const leaf = (
+    field: string,
+    operator: FilterOperatorName,
+    value: FilterValue,
+  ): FilterTree => ({ op: 'and', children: [{ field, operator, value }] });
+
+  it('admits a filter that names a real field', () => {
+    expect(codes(withFilter(leaf('warehouse', 'EQ', 'WH-1')))).toEqual([]);
+  });
+
+  it('reports a field that does not exist', () => {
+    // This used to reach compileFilter, which answers an unknown field by
+    // throwing rather than by reporting it.
+    expect(codes(withFilter(leaf('ghost', 'EQ', 'x')))).toEqual([
+      'filter.field.unknown',
+    ]);
+  });
+
+  it('reports a value the field cannot take', () => {
+    expect(codes(withFilter(leaf('amount', 'EQ', 'not-a-number')))).toEqual([
+      'filter.value.expected-number',
+    ]);
+  });
+
+  it('paths an issue under the metric that carries the filter', () => {
+    const issues = validateAnalysis(
+      wide(),
+      config({
+        metrics: [
+          { type: 'COUNT', alias: 'orders' },
+          {
+            type: 'COUNT',
+            alias: 'other',
+            filter: leaf('ghost', 'EQ', 'x'),
+          },
+        ],
+        sort: [],
+        chart: {
+          type: 'bar',
+          cartesian: { x: 'wh', series: [{ metric: 'orders' }] },
+        },
+      }),
+      builtinFieldKinds,
+    );
+
+    expect(issues.map(found => found.path)).toContainEqual([
+      'metrics',
+      1,
+      'filter',
+      'children',
+      0,
+    ]);
+  });
+
+  it.each([
+    ['items', 'IN', ['a'] as FilterValue],
+    ['lines', 'ELEMENT_MATCH', { op: 'and', children: [] } as FilterValue],
+  ])('refuses %s, which holds several values', (field, operator, value) => {
+    // No single value to test, so the question is "does some entry match",
+    // which is an element question rather than a whole-record one.
+    expect(
+      codes(withFilter(leaf(field, operator as FilterOperatorName, value))),
+    ).toEqual(['analysis.metricFilter.not-scalar']);
+  });
+
+  it('refuses a search, which matches text rather than a value', () => {
+    expect(codes(withFilter(leaf('@search', 'SEARCH', 'premium')))).toEqual([
+      'analysis.metricFilter.not-scalar',
+    ]);
+  });
+
+  it('asks the registry rather than the kind id', () => {
+    // `withFieldKinds` lets an app replace a built-in kind, so a replacement
+    // that does test one value must be usable here.
+    const scalarSearch = withFieldKinds(builtinFieldKinds, [
+      { ...builtinFieldKinds.get('search')!, scalar: true },
+    ]);
+
+    expect(
+      codes(
+        validateAnalysis(
+          wide(),
+          config({
+            metrics: [
+              {
+                type: 'COUNT',
+                alias: 'orders',
+                filter: leaf('@search', 'SEARCH', 'premium'),
+              },
+            ],
+          }),
+          scalarSearch,
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it('refuses a custom kind that says it tests no single value', () => {
+    const custom = withFieldKinds(builtinFieldKinds, [
+      { ...builtinFieldKinds.get('string')!, scalar: false },
+    ]);
+
+    expect(
+      codes(
+        validateAnalysis(
+          wide(),
+          config({
+            metrics: [
+              {
+                type: 'COUNT',
+                alias: 'orders',
+                filter: leaf('warehouse', 'EQ', 'WH-1'),
+              },
+            ],
+          }),
+          custom,
+        ),
+      ),
+    ).toEqual(['analysis.metricFilter.not-scalar']);
+  });
+
+  it('honours a caller that widened the tree limits', () => {
+    // The root filter and a metric filter must agree on the budget.
+    const deep = (depth: number): FilterTree =>
+      depth <= 1
+        ? {
+            op: 'and',
+            children: [{ field: 'warehouse', operator: 'EQ', value: 'x' }],
+          }
+        : { op: 'and', children: [deep(depth - 1)] };
+
+    const overrides = {
+      metrics: [
+        { type: 'COUNT' as const, alias: 'orders', filter: deep(12) },
+      ] as AnalysisViewConfig['metrics'],
+    };
+
+    expect(
+      codes(validateAnalysis(wide(), config(overrides), builtinFieldKinds)),
+    ).toEqual(['filter.tree.too-deep']);
+    expect(
+      codes(
+        validateAnalysis(wide(), config(overrides), builtinFieldKinds, {
+          limits: { ...DEFAULT_RUNTIME_LIMITS, maxFilterDepth: 16 },
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it('admits a metadata filter, unlike an element predicate', () => {
+    // An element has no owner, but a metric filter is looking at a whole
+    // record and that is exactly what OWNER_ID asks about.
+    expect(codes(withFilter(leaf('@ownerId', 'OWNER_ID', 'u-1')))).toEqual([]);
+  });
+
+  it('refuses a condition with no value', () => {
+    // Not the rule the filter panel follows. An empty condition is dropped at
+    // compile, so the metric would silently count every record instead of the
+    // subset the filter was meant to name.
+    expect(codes(withFilter(leaf('warehouse', 'EQ', '')))).toEqual([
+      'analysis.metricFilter.incomplete',
+    ]);
+  });
+
+  it.each([
+    ['no children at all', { op: 'and', children: [] } as FilterTree],
+    [
+      'nothing but empty groups',
+      {
+        op: 'and',
+        children: [{ op: 'or', children: [] }],
+      } as FilterTree,
+    ],
+  ])('refuses a filter with %s', (_name, tree) => {
+    // It compiles to MATCH_ALL, so the metric covers every record — the same
+    // silent widening as an empty condition, through another door.
+    expect(codes(withFilter(tree))).toEqual(['analysis.metricFilter.empty']);
+  });
+
+  it('paths an empty filter at the filter itself', () => {
+    const issues = validateAnalysis(
+      wide(),
+      config({
+        metrics: [
+          {
+            type: 'COUNT',
+            alias: 'orders',
+            filter: { op: 'and', children: [] },
+          },
+        ],
+      }),
+      builtinFieldKinds,
+    );
+
+    expect(issues.map(found => found.path)).toContainEqual([
+      'metrics',
+      0,
+      'filter',
+    ]);
+  });
+
+  it('says nothing about a value the operator does not take', () => {
+    // IS_NULL carries no value, so there is nothing to fill in.
+    expect(codes(withFilter(leaf('warehouse', 'IS_NULL', null)))).toEqual([]);
+  });
+
+  it('reports the kind before the empty value, never both', () => {
+    expect(codes(withFilter(leaf('items', 'IN', [])))).toEqual([
+      'analysis.metricFilter.not-scalar',
+    ]);
+  });
+
+  it('ignores a stale filter left on a DERIVED metric', () => {
+    // `compileMetric` never emits one, so refusing the config would block it
+    // over a property that changes nothing.
+    const stale = {
+      type: 'DERIVED',
+      alias: 'share',
+      expression: { type: 'METRIC_REF', metric: 'orders' },
+      filter: leaf('ghost', 'EQ', 'x'),
+    } as unknown as AnalysisViewConfig['metrics'][number];
+
+    expect(
+      codes(
+        validateAnalysis(
+          wide(),
+          config({ metrics: [{ type: 'COUNT', alias: 'orders' }, stale] }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it('stops at the budget rather than walking the tree again', () => {
+    // The budget exists so a tree from a store cannot cost unbounded work; a
+    // second walk would spend exactly what it refused.
+    const wide_ = (leaves: number): FilterTree => ({
+      op: 'and',
+      children: Array.from({ length: leaves }, () => ({
+        field: 'items',
+        operator: 'IN' as FilterOperatorName,
+        value: [] as FilterValue,
+      })),
+    });
+
+    expect(codes(withFilter(wide_(400)))).toEqual([
+      'filter.tree.too-many-nodes',
+    ]);
   });
 });

@@ -52,6 +52,7 @@ export const arrayFieldKind: FieldKind = {
     ...PRESENCE_OPERATORS,
   ],
   defaultOperator: 'IN',
+  scalar: false,
 
   emptyValue() {
     return [] satisfies ArrayFilterValue;

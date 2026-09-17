@@ -35,6 +35,7 @@ export const searchFieldKind: FieldKind = {
   id: 'search',
   operators: ['SEARCH'],
   defaultOperator: 'SEARCH',
+  scalar: false,
 
   emptyValue() {
     return '';

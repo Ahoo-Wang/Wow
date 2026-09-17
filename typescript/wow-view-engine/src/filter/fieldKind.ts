@@ -61,6 +61,18 @@ export interface FieldKind {
    * budget walks it with everything else.
    */
   nested?(value: unknown, field: FieldDefinition): NestedTree | null;
+  /**
+   * Whether a leaf of this kind tests one value of the record.
+   *
+   * Defaults to true. `array` and `elementMatch` compile to conditions over
+   * the entries of a collection, and `search` compiles to a full-text match
+   * across the record, so none of the three has a single value to test. Wow
+   * refuses all three wherever a filter has to be a whole-value predicate —
+   * a metric's own filter — so a kind that compiles to one of those shapes
+   * must say so here, or it passes that check and is refused by the server
+   * instead.
+   */
+  scalar?: boolean;
   /** Reports why a value cannot be used; an empty array admits it. */
   validate(context: FieldKindValidateContext): Issue[];
   /** Maps one admitted leaf onto the Wow protocol. */
