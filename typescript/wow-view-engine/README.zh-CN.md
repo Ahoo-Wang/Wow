@@ -272,6 +272,16 @@ interface ViewStore {
 
 本包提供 `MemoryViewStore`，用于测试、示例与只查询不持久化的场景。业务应用用自己的 fetcher 针对自己的 API 实现 `ViewStore`，HTTP 状态码到 `ViewStoreError.code` 的映射在应用侧完成。授权、可见性过滤与去重是服务端职责，`permissions` 只决定按钮可用性。
 
+### 措辞
+
+模型只带 `code` 与 `params`，措辞归 `/ui`。`defaultMessages` 给每个 issue 一句英文，`ViewSurface` 的 `messages` 按 key 覆盖它——改写与本地化是同一个入口：
+
+```tsx
+<ViewSurface messages={{ 'label.query.failed': '查询失败' }}>
+```
+
+找不到的 key 会沿点号回退到最长的已知前缀，再退回 key 本身，因此不会渲染空白。新增 issue code 却没有对应措辞时，测试会失败。
+
 ## 扩展点
 
 | 变化轴   | 机制                                                                                                                   |
@@ -290,6 +300,8 @@ interface ViewStore {
 model → filter → record | analysis | dashboard → runtime → react → ui
 store → model
 ```
+
+`validateDefinition` 在引擎注册定义时校验一次：字段名是否符合 Wow 查询语法、id 是否唯一且不含 `:`、能力是否足以让 `default*Config` 构造出合法配置、每个系统视图是否通过它自己的内核。含 error 的定义仍留在注册表里，但在使用处被拒绝——代码里的错误因此表现为一条可读的 issue，而不是用户打开视图时的 `TypeError`。
 
 六条依赖规则由架构测试强制：`model` 不引入任何目录；`filter` 只引入 `model`；`record`、`analysis`、`dashboard` 只引入 `model` 与 `filter`；`runtime` 不引入 `react` 与 `ui`；`store` 只引入 `model`；`react` 不引入 `ui`。`store` 及以下不含 React 与 DOM。只使用 Wow 未弃用的、基于 `FilterExpression` 的查询 API。
 

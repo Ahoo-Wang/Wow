@@ -23,6 +23,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from './components/empty.js';
+import { useViewMessages } from './MessagesProvider.js';
 import { Skeleton } from './components/skeleton.js';
 import {
   Tooltip,
@@ -55,6 +56,7 @@ const SCOPE_LABEL: Record<ViewScope, string> = {
  * travels with the definition rather than with the data.
  */
 export function ViewList({ list, currentId, onOpen }: ViewListProps) {
+  const messages = useViewMessages();
   if (list.loading) {
     return (
       <div data-slot="view-list" className="flex flex-col gap-2">
@@ -72,7 +74,7 @@ export function ViewList({ list, currentId, onOpen }: ViewListProps) {
           <EmptyMedia variant="icon">
             <LayersIcon />
           </EmptyMedia>
-          <EmptyTitle>No view yet</EmptyTitle>
+          <EmptyTitle>{messages.label('label.view.none')}</EmptyTitle>
           <EmptyDescription>
             {list.error
               ? 'The list could not be loaded.'

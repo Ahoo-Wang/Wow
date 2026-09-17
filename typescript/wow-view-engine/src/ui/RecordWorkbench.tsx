@@ -30,6 +30,7 @@ import { RecordCards } from './RecordCards.js';
 import { RecordTable } from './RecordTable.js';
 import { RecordToolbar } from './RecordToolbar.js';
 import { SaveActions } from './SaveActions.js';
+import { useViewMessages } from './MessagesProvider.js';
 import { ViewSurface } from './ViewSurface.js';
 import { ViewList } from './ViewList.js';
 
@@ -68,6 +69,7 @@ export function RecordWorkbench({
   const table = useRecordTable(record);
   const filter = useFilterEditor(runtime);
   const commands = useSaveCommands(engine, runtime);
+  const messages = useViewMessages();
 
   const fields = runtime?.fields ?? [];
   const errors = (state?.issues ?? []).filter(
@@ -89,8 +91,8 @@ export function RecordWorkbench({
       <main className="flex min-w-0 flex-1 flex-col gap-3 p-3">
         {opened.error && (
           <Alert variant="destructive">
-            <AlertTitle>This view could not be opened</AlertTitle>
-            <AlertDescription>{opened.error.code}</AlertDescription>
+            <AlertTitle>{messages.label('label.view.unopenable')}</AlertTitle>
+            <AlertDescription>{messages.issue(opened.error)}</AlertDescription>
           </Alert>
         )}
 
@@ -106,10 +108,10 @@ export function RecordWorkbench({
 
             {errors.length > 0 && (
               <Alert variant="destructive">
-                <AlertTitle>This view needs fixing before it runs</AlertTitle>
-                <AlertDescription>
-                  {errors.map(found => found.code).join(', ')}
-                </AlertDescription>
+                <AlertTitle>
+                  {messages.label('label.view.needs-fixing')}
+                </AlertTitle>
+                <AlertDescription>{messages.issues(errors)}</AlertDescription>
               </Alert>
             )}
 
@@ -124,8 +126,10 @@ export function RecordWorkbench({
 
             {table.error && (
               <Alert variant="destructive">
-                <AlertTitle>The query failed</AlertTitle>
-                <AlertDescription>{table.error.code}</AlertDescription>
+                <AlertTitle>{messages.label('label.query.failed')}</AlertTitle>
+                <AlertDescription>
+                  {messages.issue(table.error)}
+                </AlertDescription>
               </Alert>
             )}
 

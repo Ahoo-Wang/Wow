@@ -99,7 +99,7 @@ describe('RecordWorkbench', () => {
 
     await waitFor(() =>
       expect(screen.getByRole('alert').textContent).toContain(
-        'view.open.failed',
+        'This view no longer exists.',
       ),
     );
   });
@@ -121,7 +121,7 @@ describe('RecordWorkbench', () => {
 
     await waitFor(() =>
       expect(screen.getByRole('alert').textContent).toContain(
-        'runtime.query.failed',
+        'The source answered: gateway down',
       ),
     );
   });
@@ -361,7 +361,8 @@ describe('save actions', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
 
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('view.write.forbidden');
+    // The code is the lookup key; what reaches the user is a sentence.
+    expect(alert.textContent).toContain('You may not write to this view.');
     expect(alert.textContent).toContain('not yours');
   });
 

@@ -660,6 +660,9 @@ describe('useFilterEditor', () => {
         },
       ],
       record: { rowKey: 'id', paging: 'paged', layouts: ['table'] },
+      // The capability has to match the fields above: `validateDefinition`
+      // refuses an analysis over a field the definition does not declare.
+      analysis: { count: true, fields: [] },
       views: [],
     });
     const engine = new ViewEngine({

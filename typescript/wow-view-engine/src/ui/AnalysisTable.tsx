@@ -12,6 +12,7 @@
  */
 
 import { SigmaIcon } from 'lucide-react';
+import { useViewMessages } from './MessagesProvider.js';
 import type { AnalysisView } from '../analysis/index.js';
 import type { NumberFormat } from '../model/index.js';
 import {
@@ -39,6 +40,7 @@ export interface AnalysisTableProps {
  * from its own ungrouped query rather than from summing what is on screen.
  */
 export function AnalysisTable({ view }: AnalysisTableProps) {
+  const messages = useViewMessages();
   if (view.rows.length === 0) {
     return (
       <Empty>
@@ -46,7 +48,7 @@ export function AnalysisTable({ view }: AnalysisTableProps) {
           <EmptyMedia variant="icon">
             <SigmaIcon />
           </EmptyMedia>
-          <EmptyTitle>Nothing to aggregate</EmptyTitle>
+          <EmptyTitle>{messages.label('label.analysis.empty')}</EmptyTitle>
         </EmptyHeader>
       </Empty>
     );

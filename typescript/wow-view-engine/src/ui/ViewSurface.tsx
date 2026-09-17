@@ -14,10 +14,14 @@
 import type * as React from 'react';
 import { cn } from 'cn';
 import { TooltipProvider } from './components/tooltip.js';
+import { MessagesProvider } from './MessagesProvider.js';
+import type { ViewMessages } from './messages.js';
 
 export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
   /** Follows the host when left out; set it to pin an embedded view. */
   theme?: 'light' | 'dark';
+  /** Wording, merged over the defaults; this is also where translation goes. */
+  messages?: ViewMessages;
 }
 
 /**
@@ -31,6 +35,7 @@ export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
 export function ViewSurface({
   className,
   theme,
+  messages,
   children,
   ...props
 }: ViewSurfaceProps) {
@@ -41,7 +46,9 @@ export function ViewSurface({
       className={cn('fve-root flex min-h-0 flex-col gap-3', className)}
       {...props}
     >
-      <TooltipProvider>{children}</TooltipProvider>
+      <MessagesProvider messages={messages}>
+        <TooltipProvider>{children}</TooltipProvider>
+      </MessagesProvider>
     </div>
   );
 }

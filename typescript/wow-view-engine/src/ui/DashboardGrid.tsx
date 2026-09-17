@@ -20,6 +20,7 @@ import {
   UnplugIcon,
 } from 'lucide-react';
 import type { AnalysisView } from '../analysis/index.js';
+import type { Issue } from '../model/index.js';
 import type {
   DashboardController,
   DashboardPanelView,
@@ -33,6 +34,7 @@ import type { DataViewRuntime, RecordViewRuntime } from '../runtime/index.js';
 import { AnalysisChart } from './AnalysisChart.js';
 import { AnalysisTable } from './AnalysisTable.js';
 import { ContentPanel } from './DashboardPanels.js';
+import { useViewMessages } from './MessagesProvider.js';
 import { Card, CardContent, CardHeader, CardTitle } from './components/card.js';
 import {
   Empty,
@@ -67,6 +69,7 @@ export function DashboardGrid({
   className,
 }: DashboardGridProps) {
   const { ref, width } = useContainerWidth();
+  const messages = useViewMessages();
 
   if (dashboard.panels.length === 0)
     return (
@@ -75,9 +78,9 @@ export function DashboardGrid({
           <EmptyMedia variant="icon">
             <LayoutDashboardIcon />
           </EmptyMedia>
-          <EmptyTitle>No panels yet</EmptyTitle>
+          <EmptyTitle>{messages.label('label.dashboard.empty')}</EmptyTitle>
           <EmptyDescription>
-            Add a saved record or analysis view to see it here.
+            {messages.label('label.dashboard.empty-hint')}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -124,6 +127,7 @@ export interface DashboardPanelProps {
 
 /** One framed panel: a title, a grip when the layout is editable, a body. */
 export function DashboardPanel({ panel, editable }: DashboardPanelProps) {
+  const messages = useViewMessages();
   return (
     <Card
       data-slot="dashboard-panel"
@@ -141,7 +145,7 @@ export function DashboardPanel({ panel, editable }: DashboardPanelProps) {
           {editable && (
             <span
               data-slot="panel-grip"
-              title="Move panel"
+              title={messages.label('label.panel.move')}
               aria-hidden="true"
               className="text-muted-foreground cursor-move"
             >
@@ -161,7 +165,7 @@ export function DashboardPanel({ panel, editable }: DashboardPanelProps) {
 function PanelBody({ panel }: { panel: DashboardPanelView }) {
   if (panel.panel.kind !== 'view') return <ContentPanel panel={panel.panel} />;
   // A panel the dashboard could not open says so and leaves the rest alone.
-  if (!panel.runtime) return <Unavailable code={panel.issues[0]?.code} />;
+  if (!panel.runtime) return <Unavailable issue={panel.issues[0]} />;
   return panel.runtime.kind === 'record' ? (
     <RecordPanel runtime={panel.runtime as RecordViewRuntime} />
   ) : (
@@ -169,16 +173,19 @@ function PanelBody({ panel }: { panel: DashboardPanelView }) {
   );
 }
 
-function Unavailable({ code }: { code: string | undefined }) {
+function Unavailable({ issue }: { issue: Issue | undefined }) {
+  const messages = useViewMessages();
   return (
     <Empty data-slot="panel-unavailable" className="p-4">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <UnplugIcon />
         </EmptyMedia>
-        <EmptyTitle>This panel is unavailable</EmptyTitle>
+        <EmptyTitle>{messages.label('label.panel.unavailable')}</EmptyTitle>
         <EmptyDescription>
-          {code ?? 'The view it shows could not be opened.'}
+          {issue
+            ? messages.issue(issue)
+            : messages.label('label.panel.unavailable-hint')}
         </EmptyDescription>
       </EmptyHeader>
     </Empty>

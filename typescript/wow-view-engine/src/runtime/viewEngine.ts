@@ -62,6 +62,10 @@ import {
   type PanelRuntimeFactory,
 } from './dashboardRuntime.js';
 import {
+  isUsableDefinition,
+  validateDefinition,
+} from './validateDefinition.js';
+import {
   ViewCommandError,
   ViewWriteError,
   type WriteHandle,
@@ -138,6 +142,8 @@ export class ViewEngine {
   private readonly writes = new Map<string, WriteState>();
   private readonly owners = new Map<string, ManagedViewRuntime>();
   private readonly preferencesCache = new Map<string, ViewPreferences>();
+  /** `validateDefinition` per registered definition, computed once. */
+  private readonly definitionFindings = new Map<string, Issue[]>();
   private readonly summaries = new Map<string, ViewInstanceSummary>();
   private readonly newId: () => string;
   private sequence = 0;
@@ -153,6 +159,22 @@ export class ViewEngine {
     );
     this.runner = new RequestRunner(this.limits);
     this.newId = options.newId ?? (() => crypto.randomUUID());
+
+    // Definitions are code, so they are judged once, here, rather than on
+    // every open. One that fails is kept but refused at the point of use:
+    // that beats a blank registry, and beats a crash at application start.
+    for (const definition of options.definitions) {
+      const found = validateDefinition(definition, this.kinds, {
+        limits: this.limits,
+      });
+      this.definitionFindings.set(definition.id, found);
+      for (const entry of found) this.report(entry);
+    }
+  }
+
+  /** What `validateDefinition` said about one definition, for a host to show. */
+  definitionIssues(definitionId: string): Issue[] {
+    return this.definitionFindings.get(definitionId) ?? [];
   }
 
   resolveSource(key: string): ViewSource {
@@ -820,6 +842,16 @@ export class ViewEngine {
     if (!definition)
       throw new ViewCommandError(
         issue('view.definition.not-found', [], { id }),
+      );
+    // A definition that failed admission cannot produce a usable view: its
+    // defaults, its system views or its compiled queries would throw instead.
+    const found = this.definitionFindings.get(id) ?? [];
+    if (!isUsableDefinition(found))
+      throw new ViewCommandError(
+        issue('view.definition.invalid', [], {
+          id,
+          issues: found.filter(entry => entry.severity === 'error').length,
+        }),
       );
     return definition;
   }

@@ -27,6 +27,8 @@ export * from './DashboardGrid.js';
 export * from './DashboardPanels.js';
 export * from './DashboardWorkbench.js';
 export * from './FilterPanel.js';
+export * from './messages.js';
+export * from './MessagesProvider.js';
 export * from './FilterValueEditor.js';
 export * from './RecordCards.js';
 export * from './RecordTable.js';

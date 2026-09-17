@@ -31,6 +31,7 @@ import { SaveActions } from './SaveActions.js';
 import { Separator } from './components/separator.js';
 import { Skeleton } from './components/skeleton.js';
 import { ViewList } from './ViewList.js';
+import { useViewMessages } from './MessagesProvider.js';
 import { ViewSurface } from './ViewSurface.js';
 
 export interface DashboardWorkbenchProps {
@@ -72,6 +73,7 @@ export function DashboardWorkbench({
   const dashboard = useDashboard(board);
   const filter = useFilterEditor(runtime);
   const commands = useSaveCommands(engine, runtime);
+  const messages = useViewMessages();
 
   const errors = (state?.issues ?? []).filter(
     found => found.severity === 'error',
@@ -92,8 +94,8 @@ export function DashboardWorkbench({
       <main className="flex min-w-0 flex-1 flex-col gap-3 p-3">
         {opened.error && (
           <Alert variant="destructive">
-            <AlertTitle>This view could not be opened</AlertTitle>
-            <AlertDescription>{opened.error.code}</AlertDescription>
+            <AlertTitle>{messages.label('label.view.unopenable')}</AlertTitle>
+            <AlertDescription>{messages.issue(opened.error)}</AlertDescription>
           </Alert>
         )}
 
@@ -110,11 +112,9 @@ export function DashboardWorkbench({
             {errors.length > 0 && (
               <Alert variant="destructive">
                 <AlertTitle>
-                  This dashboard needs fixing before it runs
+                  {messages.label('label.dashboard.needs-fixing')}
                 </AlertTitle>
-                <AlertDescription>
-                  {errors.map(found => found.code).join(', ')}
-                </AlertDescription>
+                <AlertDescription>{messages.issues(errors)}</AlertDescription>
               </Alert>
             )}
 

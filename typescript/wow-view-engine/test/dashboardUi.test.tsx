@@ -530,7 +530,7 @@ describe('DashboardWorkbench', () => {
 
     await waitFor(() =>
       expect(screen.getByRole('alert').textContent).toContain(
-        'dashboard.field.name-invalid',
+        'not a field is not a usable field name.',
       ),
     );
     // Nothing ran: an error blocks the apply that would have created panels.
@@ -550,7 +550,7 @@ describe('DashboardWorkbench', () => {
 
     await waitFor(() =>
       expect(screen.getByRole('alert').textContent).toContain(
-        'view.open.failed',
+        'This view no longer exists.',
       ),
     );
   });

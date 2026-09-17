@@ -650,7 +650,7 @@ describe('AnalysisWorkbench', () => {
         screen
           .getAllByRole('alert')
           .some(alert =>
-            (alert.textContent ?? '').includes('runtime.query.failed'),
+            (alert.textContent ?? '').includes('The source answered'),
           ),
       ).toBe(true),
     );

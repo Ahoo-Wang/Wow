@@ -15,6 +15,7 @@ import { useState } from 'react';
 import Markdown from 'react-markdown';
 import { ExternalLinkIcon, ImageOffIcon } from 'lucide-react';
 import type { DashboardContentPanel } from '../model/index.js';
+import { useViewMessages } from './MessagesProvider.js';
 
 export interface ContentPanelProps {
   panel: DashboardContentPanel;
@@ -77,6 +78,7 @@ export function ImagePanel({
   href,
 }: ImagePanelProps) {
   const [failed, setFailed] = useState(false);
+  const messages = useViewMessages();
 
   if (failed)
     return (
@@ -85,7 +87,7 @@ export function ImagePanel({
         className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 text-xs"
       >
         <ImageOffIcon className="size-6" aria-hidden />
-        <span>{alt ?? 'This image could not be loaded'}</span>
+        <span>{alt ?? messages.label('label.image.failed')}</span>
       </div>
     );
 

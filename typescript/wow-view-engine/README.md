@@ -278,6 +278,16 @@ Two rules make it consistent:
 
 The package ships `MemoryViewStore` for tests, examples and query-only use. Business applications implement `ViewStore` against their own API with their own fetcher; mapping HTTP status codes to `ViewStoreError.code` belongs there. Authorization, visibility filtering and deduplication are server responsibilities; `permissions` only drives button availability.
 
+### Wording
+
+The model carries `code` and `params` and no copy, so `/ui` owns the words. `defaultMessages` gives every issue an English sentence, and `ViewSurface` takes a `messages` map that is merged over it — the same seam serves rewording and translation:
+
+```tsx
+<ViewSurface messages={{ 'label.query.failed': '查询失败' }}>
+```
+
+An unknown key falls back along the dots and then to the key itself, so a gap shows up rather than rendering blank. A test fails when a new issue code has no entry.
+
 ## Extension points
 
 | Axis        | Mechanism                                                                                                                                                                  |
@@ -296,6 +306,8 @@ Built-in kinds: `string`, `number`, `boolean`, `date`, `datetime`, `enum`, `refe
 model → filter → record | analysis | dashboard → runtime → react → ui
 store → model
 ```
+
+`validateDefinition` admits a definition once, where the engine registers it: field names against Wow's query syntax, unique ids free of `:`, capabilities that `default*Config` can actually build from, and every system view through its own kernel. A definition with an error stays in the registry but is refused at the point of use, so a mistake in code surfaces as a reported issue rather than as a `TypeError` when a user opens a view.
 
 Six dependency rules are enforced by architecture tests: `model` imports nothing; `filter` imports only `model`; `record`, `analysis` and `dashboard` import only `model` and `filter`; `runtime` never imports `react` or `ui`; `store` imports only `model`; `react` never imports `ui`. Everything up to `store` is free of React and DOM. Only the non-deprecated `FilterExpression` based Wow APIs are used.
 

@@ -22,6 +22,7 @@ import {
   AlertTitle,
 } from './components/alert.js';
 import { Button } from './components/button.js';
+import { useViewMessages } from './MessagesProvider.js';
 import {
   Dialog,
   DialogClose,
@@ -178,11 +179,12 @@ export function SaveActions({
 
 function WriteOutcome({ commands }: { commands: SaveCommands }) {
   const { write, error } = commands.state;
+  const messages = useViewMessages();
 
   if (write?.kind === 'conflict') {
     return (
       <Alert variant="destructive" className="w-full">
-        <AlertTitle>Someone else saved this view first</AlertTitle>
+        <AlertTitle>{messages.label('label.write.conflict')}</AlertTitle>
         <AlertDescription>
           Take their version and lose your edits, or write yours over theirs.
         </AlertDescription>
@@ -208,7 +210,7 @@ function WriteOutcome({ commands }: { commands: SaveCommands }) {
   if (write?.kind === 'unknown') {
     return (
       <Alert className="w-full">
-        <AlertTitle>The result never came back</AlertTitle>
+        <AlertTitle>{messages.label('label.write.unknown')}</AlertTitle>
         <AlertDescription>
           It may well have been saved. Retrying asks again for the same write
           rather than making a second one.
@@ -230,9 +232,10 @@ function WriteOutcome({ commands }: { commands: SaveCommands }) {
 }
 
 function IssueAlert({ issue }: { issue: Issue }) {
+  const messages = useViewMessages();
   return (
     <Alert variant="destructive" className="w-full">
-      <AlertTitle>{issue.code}</AlertTitle>
+      <AlertTitle>{messages.issue(issue)}</AlertTitle>
       {issue.params?.reason !== undefined && (
         <AlertDescription>{String(issue.params.reason)}</AlertDescription>
       )}

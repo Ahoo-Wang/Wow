@@ -32,6 +32,7 @@ import { Skeleton } from './components/skeleton.js';
 import { FilterPanel } from './FilterPanel.js';
 import { SaveActions } from './SaveActions.js';
 import { ViewList } from './ViewList.js';
+import { useViewMessages } from './MessagesProvider.js';
 import { ViewSurface } from './ViewSurface.js';
 
 export interface AnalysisWorkbenchProps {
@@ -65,6 +66,7 @@ export function AnalysisWorkbench({
   const analysis = useAnalysisEditor(runtime);
   const filter = useFilterEditor(runtime);
   const commands = useSaveCommands(engine, runtime);
+  const messages = useViewMessages();
 
   const data = state?.result?.data;
   const view: AnalysisView | null =
@@ -89,8 +91,8 @@ export function AnalysisWorkbench({
       <main className="flex min-w-0 flex-1 flex-col gap-3 p-3">
         {opened.error && (
           <Alert variant="destructive">
-            <AlertTitle>This view could not be opened</AlertTitle>
-            <AlertDescription>{opened.error.code}</AlertDescription>
+            <AlertTitle>{messages.label('label.view.unopenable')}</AlertTitle>
+            <AlertDescription>{messages.issue(opened.error)}</AlertDescription>
           </Alert>
         )}
 
@@ -107,10 +109,10 @@ export function AnalysisWorkbench({
 
             {errors.length > 0 && (
               <Alert variant="destructive">
-                <AlertTitle>This view needs fixing before it runs</AlertTitle>
-                <AlertDescription>
-                  {errors.map(found => found.code).join(', ')}
-                </AlertDescription>
+                <AlertTitle>
+                  {messages.label('label.view.needs-fixing')}
+                </AlertTitle>
+                <AlertDescription>{messages.issues(errors)}</AlertDescription>
               </Alert>
             )}
 
@@ -123,8 +125,10 @@ export function AnalysisWorkbench({
 
             {state?.query.status === 'error' && state.query.error && (
               <Alert variant="destructive">
-                <AlertTitle>The query failed</AlertTitle>
-                <AlertDescription>{state.query.error.code}</AlertDescription>
+                <AlertTitle>{messages.label('label.query.failed')}</AlertTitle>
+                <AlertDescription>
+                  {messages.issue(state.query.error)}
+                </AlertDescription>
               </Alert>
             )}
 
