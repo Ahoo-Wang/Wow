@@ -12,6 +12,7 @@
  */
 
 import {
+  isFieldlessKind,
   DEFAULT_RUNTIME_LIMITS,
   type DataViewDefinition,
   type RecordCapability,
@@ -47,7 +48,11 @@ export function defaultRecordConfig(
       `Definition ${definition.id} declares no record capability`,
     );
 
-  const names = definition.fields.map(field => field.name);
+  // A field-less kind's name is a handle for the editor, not a path into a
+  // row, so a column on one would be empty for every record ever shown.
+  const names = definition.fields
+    .filter(field => !isFieldlessKind(field.kind))
+    .map(field => field.name);
   const defaults = capability.defaults ?? {};
   const pageSize = Math.min(
     defaults.pageSize ?? DEFAULT_PAGE_SIZE,

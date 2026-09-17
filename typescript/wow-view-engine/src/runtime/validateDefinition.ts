@@ -14,7 +14,9 @@
 import {
   DEFAULT_RUNTIME_LIMITS,
   SYSTEM_INSTANCE_ID_SEPARATOR,
+  isFieldlessKind,
   isFieldName,
+  SEARCH_MODES,
   STRING_COMPARISONS,
   type AnalysisCapability,
   type DataViewDefinition,
@@ -89,6 +91,14 @@ function validateFields(
 ): Issue[] {
   const issues: Issue[] = [];
   const seen = new Set<string>();
+  // Every document field at this level, not the ones seen so far: a search
+  // may name a field declared after it, and the order of a list is nobody's
+  // contract.
+  const documentFields = new Set(
+    fields
+      .filter(field => !isFieldlessKind(field.kind))
+      .map(field => field.name),
+  );
 
   fields.forEach((field, index) => {
     const at: IssuePath = [...path, index];
@@ -127,6 +137,35 @@ function validateFields(
           'definition.field.string-comparison-invalid',
           [...at, 'stringComparison'],
           { field: field.name, value: String(field.stringComparison) },
+        ),
+      );
+
+    // `filter.search` refuses an unknown mode by throwing, and a field it
+    // cannot read by throwing too — both while compiling a query rather than
+    // while reading the definition.
+    if (
+      field.searchMode !== undefined &&
+      !SEARCH_MODES.includes(field.searchMode)
+    )
+      issues.push(
+        issue('definition.field.search-mode-invalid', [...at, 'searchMode'], {
+          field: field.name,
+          value: String(field.searchMode),
+        }),
+      );
+
+    // A handle is not a path, so searching one would ask the backend for a
+    // document field that does not exist. Naming it is as wrong as naming
+    // nothing, and for the same reason.
+    const missing = (field.searchFields ?? []).filter(
+      name => !documentFields.has(name),
+    );
+    if (missing.length > 0)
+      issues.push(
+        issue(
+          'definition.field.search-fields-unknown',
+          [...at, 'searchFields'],
+          { field: field.name, missing: missing.join(', ') },
         ),
       );
 

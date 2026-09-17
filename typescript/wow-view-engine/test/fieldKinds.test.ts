@@ -13,7 +13,7 @@
 
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
-import { METADATA_FIELD_KIND_IDS } from '../src/model/index.js';
+import { FIELDLESS_FIELD_KIND_IDS } from '../src/model/index.js';
 import {
   booleanFieldKind,
   clearFilter,
@@ -102,21 +102,24 @@ describe('presence operators', () => {
     expect(describePresence('EQ')).toBeNull();
   });
 
-  it('are withheld by exactly the metadata kinds', () => {
+  it('are withheld by exactly the kinds that name no field', () => {
+    // The rule is not "metadata": it is that `IS_NULL` carries a field name
+    // and these kinds' names are handles for the editor. Search joined them
+    // for the same reason, which is why the list says what it means.
     const without = [...builtinFieldKinds.values()]
       .filter(kind => !kind.operators.includes('IS_NULL'))
       .map(kind => kind.id)
       .sort();
 
-    expect(without).toEqual([...METADATA_FIELD_KIND_IDS].sort());
+    expect(without).toEqual([...FIELDLESS_FIELD_KIND_IDS].sort());
   });
 
   it('are offered by every kind that names a document field', () => {
     for (const kind of builtinFieldKinds.values()) {
-      // The metadata kinds are the exception, and deliberately: `IS_NULL`
+      // The field-less kinds are the exception, and deliberately: `IS_NULL`
       // carries a field name while their own `name` is a label, so one leaf
       // would mean two different things depending on its operator.
-      if (METADATA_FIELD_KIND_IDS.includes(kind.id as never)) continue;
+      if (FIELDLESS_FIELD_KIND_IDS.includes(kind.id)) continue;
       expect(kind.operators).toContain('IS_NULL');
       expect(
         kind.validate({

@@ -16,11 +16,21 @@ import {
   type ElementFilterExpression,
   type FilterExpression,
 } from '@ahoo-wang/fetcher-wow';
-import type { FieldDefinition, FilterTree } from '../../model/index.js';
+import {
+  isFieldlessKind,
+  type FieldDefinition,
+  type FilterTree,
+  type Issue,
+} from '../../model/index.js';
 import { compileFilter, type FilterCompileContext } from '../compile.js';
 import { describeFilter } from '../describe.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
-import { countLeaves, emptyFilter } from '../tree.js';
+import {
+  countLeaves,
+  emptyFilter,
+  isFilterGroup,
+  walkFilter,
+} from '../tree.js';
 import { validateFilter } from '../validate.js';
 import {
   compilePresence,
@@ -96,10 +106,11 @@ export const elementMatchFieldKind: FieldKind = {
     // The predicate is admitted against the element's fields, so a condition
     // naming a root field — or one the element does not declare — is reported
     // here rather than compiled into a predicate Wow cannot answer.
-    return validateFilter(elementFields(field), value, kinds).map(found => ({
-      ...found,
-      path: [...path, ...found.path],
-    }));
+    const scoped = elementFields(field);
+    return [
+      ...validateFilter(scoped, value, kinds),
+      ...rootFilters(value, scoped),
+    ].map(found => ({ ...found, path: [...path, ...found.path] }));
   },
 
   compile({ leaf, field, kinds, now, timeZone }): FilterExpression {
@@ -143,6 +154,36 @@ export const elementMatchFieldKind: FieldKind = {
       : `${field.label} has an entry where ${inner.join(' and ')}`;
   },
 };
+
+/**
+ * Conditions inside a predicate that Wow calls root filters.
+ *
+ * Search and the metadata filters name no field, so they cannot be asked of
+ * one entry — `ElementMatchFilter` refuses them in its constructor, and a
+ * definition the engine called usable would throw the moment the condition
+ * ran.
+ *
+ * One tree is enough to walk. A nested element match is a leaf here, and its
+ * own `validate` asks the same question of its own predicate, so the
+ * recursion Wow performs happens a level at a time on the way down.
+ */
+function rootFilters(
+  tree: FilterTree,
+  fields: readonly FieldDefinition[],
+): Issue[] {
+  const byName = new Map(fields.map(field => [field.name, field]));
+  const issues: Issue[] = [];
+
+  for (const { node, path } of walkFilter(tree)) {
+    if (isFilterGroup(node)) continue;
+    const field = byName.get(node.field);
+    if (!field || !isFieldlessKind(field.kind)) continue;
+    issues.push(
+      issue('filter.element.root-filter', path, { field: field.name }),
+    );
+  }
+  return issues;
+}
 
 function isTree(value: unknown): value is FilterTree {
   return (

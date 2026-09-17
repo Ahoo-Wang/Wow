@@ -14,6 +14,7 @@
 import { MAX_CURSOR_SORT_FIELDS } from '@ahoo-wang/fetcher-wow';
 import {
   DEFAULT_RUNTIME_LIMITS,
+  isFieldlessKind,
   type DataViewDefinition,
   type FieldDefinition,
   type Issue,
@@ -119,15 +120,17 @@ function validateColumns(
   config: RecordViewConfig,
   fields: ReadonlyMap<string, FieldDefinition>,
 ): Issue[] {
-  return config.table.columns.flatMap((column, index) =>
-    fields.has(column.field)
-      ? []
-      : [
-          issue('record.field.unknown', ['table', 'columns', index, 'field'], {
-            field: column.field,
-          }),
-        ],
-  );
+  return config.table.columns.flatMap((column, index) => {
+    const at: IssuePath = ['table', 'columns', index, 'field'];
+    const field = fields.get(column.field);
+    if (!field)
+      return [issue('record.field.unknown', at, { field: column.field })];
+    // A field-less kind's name is a handle for the editor, so a column on one
+    // reads nothing from a row and would be empty for every record shown.
+    return isFieldlessKind(field.kind)
+      ? [issue('record.field.not-a-column', at, { field: column.field })]
+      : [];
+  });
 }
 
 function validateCard(

@@ -17,7 +17,7 @@ import {
   Columns3Icon,
   RefreshCwIcon,
 } from 'lucide-react';
-import type { FieldDefinition } from '../model/index.js';
+import { isFieldlessKind, type FieldDefinition } from '../model/index.js';
 import type { RecordTableController } from '../react/index.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
@@ -81,21 +81,23 @@ export function RecordToolbar({ table, fields, children }: RecordToolbarProps) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuGroup>
-            {fields.map(field => (
-              <DropdownMenuCheckboxItem
-                key={field.name}
-                checked={visible.has(field.name)}
-                onCheckedChange={() =>
-                  table.setColumns(
-                    visible.has(field.name)
-                      ? table.columnFields.filter(name => name !== field.name)
-                      : [...table.columnFields, field.name],
-                  )
-                }
-              >
-                {field.label}
-              </DropdownMenuCheckboxItem>
-            ))}
+            {fields
+              .filter(field => !isFieldlessKind(field.kind))
+              .map(field => (
+                <DropdownMenuCheckboxItem
+                  key={field.name}
+                  checked={visible.has(field.name)}
+                  onCheckedChange={() =>
+                    table.setColumns(
+                      visible.has(field.name)
+                        ? table.columnFields.filter(name => name !== field.name)
+                        : [...table.columnFields, field.name],
+                    )
+                  }
+                >
+                  {field.label}
+                </DropdownMenuCheckboxItem>
+              ))}
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>

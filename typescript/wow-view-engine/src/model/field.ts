@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { StringComparison } from '@ahoo-wang/fetcher-wow';
+import type { SearchMode, StringComparison } from '@ahoo-wang/fetcher-wow';
 import type { FilterOperatorName } from './filter.js';
 
 /**
@@ -30,6 +30,7 @@ export type BuiltinFieldKindId =
   | 'reference'
   | 'array'
   | 'elementMatch'
+  | 'search'
   | MetadataFieldKindId;
 
 /**
@@ -43,6 +44,32 @@ export type BuiltinFieldKindId =
  */
 export type MetadataFieldKindId =
   'documentId' | 'aggregateId' | 'tenantId' | 'ownerId' | 'spaceId';
+
+/**
+ * Kinds whose `name` is a handle for the editor and the label rather than a
+ * path into a document. They compile to a filter that names no field, so the
+ * presence questions — which do carry one — are not theirs to answer.
+ */
+export const FIELDLESS_FIELD_KIND_IDS: readonly FieldKindId[] = [
+  'documentId',
+  'aggregateId',
+  'tenantId',
+  'ownerId',
+  'spaceId',
+  'search',
+];
+
+/**
+ * Whether a kind's `name` is a handle rather than a path into a document.
+ *
+ * Three things follow from it and each one is a place the two were confused:
+ * the presence operators do not apply, the field is not a record column, and
+ * Wow refuses such a filter inside an element predicate — it calls them root
+ * filters, and its list is exactly this one.
+ */
+export function isFieldlessKind(kind: FieldKindId): boolean {
+  return FIELDLESS_FIELD_KIND_IDS.includes(kind);
+}
 
 export const METADATA_FIELD_KIND_IDS: readonly MetadataFieldKindId[] = [
   'documentId',
@@ -62,6 +89,7 @@ export const BUILTIN_FIELD_KIND_IDS: readonly BuiltinFieldKindId[] = [
   'reference',
   'array',
   'elementMatch',
+  'search',
   ...METADATA_FIELD_KIND_IDS,
 ];
 
@@ -149,7 +177,25 @@ export interface FieldDefinition {
    * option, so neither does this.
    */
   stringComparison?: StringComparisonName;
+  /**
+   * For a `search` field, which fields the query looks in. Omitted, it looks
+   * wherever the backend indexes — which is what a search box usually means.
+   */
+  searchFields?: string[];
+  /**
+   * For a `search` field, whether the query is a set of words or one phrase.
+   * Like `stringComparison`, how matching works is a property of the field;
+   * the value is only what the user typed.
+   */
+  searchMode?: SearchModeName;
 }
+
+/** Wow's `SearchMode`, as the literal a definition writes. */
+export type SearchModeName = `${SearchMode}`;
+
+export const SEARCH_MODES: readonly SearchModeName[] = ['TERMS', 'PHRASE'];
+
+export const DEFAULT_SEARCH_MODE: SearchModeName = 'TERMS';
 
 /** Wow's `StringComparison`, as the literal a definition writes. */
 export type StringComparisonName = `${StringComparison}`;

@@ -20,6 +20,7 @@ import { enumFieldKind } from './enum.js';
 import { METADATA_FIELD_KINDS } from './metadata.js';
 import { numberFieldKind } from './number.js';
 import { referenceFieldKind } from './reference.js';
+import { searchFieldKind } from './search.js';
 import { stringFieldKind } from './string.js';
 
 export * from './boolean.js';
@@ -31,6 +32,7 @@ export * from './metadata.js';
 export * from './number.js';
 export * from './presence.js';
 export * from './reference.js';
+export * from './search.js';
 export * from './string.js';
 
 /** The kinds this package ships, in the order `FieldKindId` lists them. */
@@ -44,6 +46,7 @@ export const BUILTIN_FIELD_KINDS: readonly FieldKind[] = [
   referenceFieldKind,
   arrayFieldKind,
   elementMatchFieldKind,
+  searchFieldKind,
   ...METADATA_FIELD_KINDS,
 ];
 
