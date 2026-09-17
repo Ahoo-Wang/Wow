@@ -99,6 +99,7 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.write.conflict': 'Someone else saved this view first',
   'label.write.unknown': 'The result never came back',
   'label.image.failed': 'This image could not be loaded',
+  'label.filter.too-large': 'This filter is too large to edit here.',
   'label.panel.move': 'Move panel',
 
   // Filter kernel.

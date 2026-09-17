@@ -12,6 +12,7 @@
  */
 
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -34,7 +35,9 @@ import type {
   RecordTableController,
   ViewListState,
 } from '../src/react/index.js';
+import { useFilterEditor } from '../src/react/index.js';
 import {
+  FilterPanel,
   FilterValueEditor,
   RecordCards,
   RecordTable,
@@ -1015,5 +1018,245 @@ describe('ViewList on its own', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Ours/ }));
     expect(opened).toHaveBeenCalledWith('b');
+  });
+});
+
+describe('FilterPanel tree editing', () => {
+  interface PanelHarness {
+    filter(): ReturnType<typeof useFilterEditor>;
+  }
+
+  function panel(disabled = false): PanelHarness {
+    const { engine } = setup();
+    const runtime = engine.create('orders', {
+      title: 'Scratch',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+    // The panel must re-render with the controller on every runtime commit,
+    // so both live inside one component rather than two renders.
+    let latest: ReturnType<typeof useFilterEditor> | null = null;
+    function Probe() {
+      const filter = useFilterEditor(runtime);
+      latest = filter;
+      return <FilterPanel filter={filter} disabled={disabled} />;
+    }
+    render(<Probe />);
+    return { filter: () => latest as ReturnType<typeof useFilterEditor> };
+  }
+
+  it('shows a tree whole, groups and their leaves included', () => {
+    const { filter } = panel();
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().addGroup('or');
+      filter().addLeaf('status', [1]);
+    });
+
+    // The nested condition stays visible and editable rather than dropped.
+    expect(screen.getByLabelText('warehouse value')).toBeDefined();
+    expect(screen.getByLabelText('status value')).toBeDefined();
+    expect(screen.getByRole('group', { name: 'Any of' })).toBeDefined();
+  });
+
+  it('flips a group between all and any', () => {
+    const { filter } = panel();
+    act(() => filter().addGroup('and'));
+    // The root stays `All of`; the toggle inside the nested group is the one
+    // that flips, and both render an "Any of" button of their own.
+    const toggles = document.querySelector(
+      '[aria-label="Group operator 0"]',
+    ) as HTMLElement;
+
+    fireEvent.click(within(toggles).getByRole('button', { name: 'Any of' }));
+
+    expect(filter().tree.children[0]).toMatchObject({ op: 'or' });
+  });
+
+  it('flips the root group too, not only the nested ones', () => {
+    const { filter } = panel();
+    act(() => {
+      filter().setMode('advanced');
+      filter().addLeaf('warehouse');
+    });
+    const root = document.querySelector(
+      '[aria-label="Group operator"]',
+    ) as HTMLElement;
+
+    fireEvent.click(within(root).getByRole('button', { name: 'Any of' }));
+
+    expect(filter().tree.op).toBe('or');
+  });
+
+  it('disables the group operator with the rest of the panel', () => {
+    const { filter } = panel(true);
+    act(() => filter().setMode('advanced'));
+    const root = document.querySelector(
+      '[aria-label="Group operator"]',
+    ) as HTMLElement;
+    // The panel freezes the tree while a query runs; the operator toggle is
+    // part of the tree.
+    expect(
+      within(root).getByRole('button', { name: 'Any of' }).ariaDisabled,
+    ).toBe('true');
+  });
+
+  it('adds a condition inside the group it was asked for', async () => {
+    const { filter } = panel();
+    act(() => filter().addGroup('or'));
+    const group = screen.getByRole('group', { name: 'Any of' });
+
+    fireEvent.click(
+      within(group).getByRole('button', {
+        name: 'Add condition in this group',
+      }),
+    );
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Warehouse' }));
+
+    expect(filter().tree.children[0]).toMatchObject({
+      op: 'or',
+      children: [{ field: 'warehouse' }],
+    });
+  });
+
+  it('removes a group with everything in it', () => {
+    const { filter } = panel();
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().addGroup('or');
+      filter().addLeaf('status', [1]);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove group' }));
+
+    expect(filter().tree.children).toHaveLength(1);
+    expect(filter().tree.children[0]).toMatchObject({ field: 'warehouse' });
+  });
+
+  it('shows a notice instead of rendering an over-budget tree', () => {
+    // A stored tree can exceed the depth budget; the validator reports it as
+    // an error, and recursing into it anyway would build as many DOM nodes
+    // as the store saw fit to save.
+    const deep: { op: 'and'; children: unknown[] } = {
+      op: 'and',
+      children: [],
+    };
+    let node = deep;
+    for (let depth = 0; depth < 5_000; depth += 1) {
+      const child = { op: 'and' as const, children: [] as unknown[] };
+      node.children.push(child);
+      node = child;
+    }
+    const { engine } = setup();
+    const runtime = engine.create('orders', {
+      title: 'Deep',
+      scope: 'personal',
+      config: recordConfig({ filter: deep as never }),
+    });
+    let latest: ReturnType<typeof useFilterEditor> | null = null;
+    function Probe() {
+      const filter = useFilterEditor(runtime);
+      latest = filter;
+      return <FilterPanel filter={filter} />;
+    }
+
+    expect(() => render(<Probe />)).not.toThrow();
+    const editor = latest as ReturnType<typeof useFilterEditor> | null;
+    expect(
+      editor?.issues.some(found => found.code === 'filter.tree.too-deep'),
+    ).toBe(true);
+    expect(
+      screen.getByText('This filter is too large to edit here.'),
+    ).toBeDefined();
+  });
+
+  it('skips the applied summary of an over-budget tree', () => {
+    // Opening a saved over-wide view leaves the oversized tree as `applied`
+    // too (apply is refused), and summarising it would walk every leaf and
+    // render one badge per condition.
+    const wide = {
+      op: 'and' as const,
+      children: Array.from({ length: 5_000 }, () => ({
+        field: 'warehouse',
+        operator: 'EQ',
+        value: 'CN',
+      })),
+    };
+    const { engine } = setup();
+    const runtime = engine.create('orders', {
+      title: 'Wide',
+      scope: 'personal',
+      config: recordConfig({ filter: wide as never }),
+    });
+    let latest: ReturnType<typeof useFilterEditor> | null = null;
+    function Probe() {
+      const filter = useFilterEditor(runtime);
+      latest = filter;
+      return <FilterPanel filter={filter} />;
+    }
+
+    render(<Probe />);
+
+    const editor = latest as ReturnType<typeof useFilterEditor> | null;
+    expect(editor?.applied).toEqual([]);
+    expect(document.querySelectorAll('[data-slot="badge"]').length).toBe(0);
+  });
+
+  it('keeps Clear as the way out of an over-budget tree', () => {
+    // Nine empty groups hit the depth budget; with no leaf, Clear would be
+    // the only undo, and disabling it would leave the tree stuck.
+    const deep: { op: 'and'; children: unknown[] } = {
+      op: 'and',
+      children: [],
+    };
+    let node = deep;
+    for (let depth = 0; depth < 12; depth += 1) {
+      const child = { op: 'and' as const, children: [] as unknown[] };
+      node.children.push(child);
+      node = child;
+    }
+    const { engine } = setup();
+    const runtime = engine.create('orders', {
+      title: 'Deep',
+      scope: 'personal',
+      config: recordConfig({ filter: deep as never }),
+    });
+    function Probe() {
+      return <FilterPanel filter={useFilterEditor(runtime)} />;
+    }
+    render(<Probe />);
+
+    expect(
+      (screen.getByRole('button', { name: 'Clear' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+  });
+
+  it('shows the effective mode when a simple config holds an advanced tree', () => {
+    const { engine } = setup();
+    const runtime = engine.create('orders', {
+      title: 'Mixed',
+      scope: 'personal',
+      config: recordConfig({
+        filterMode: 'simple',
+        filter: {
+          op: 'or',
+          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        },
+      }),
+    });
+    function Probe() {
+      return <FilterPanel filter={useFilterEditor(runtime)} />;
+    }
+    render(<Probe />);
+
+    // The tree needs the advanced editor; the mode toggle says so rather
+    // than claiming Simple over a group editor.
+    expect(screen.getByRole('button', { name: 'Advanced' }).ariaPressed).toBe(
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Simple' }).ariaPressed).toBe(
+      'false',
+    );
   });
 });

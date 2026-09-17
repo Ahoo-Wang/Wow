@@ -117,7 +117,14 @@ export function useSaveCommands(
       try {
         return await command();
       } catch (caught) {
-        setProgress({ runtime, pending: false, error: toIssue(caught, code) });
+        const failure = toIssue(caught, code);
+        // A workbench reuses this hook across views; another view's command
+        // may have taken the slot while this one was in flight.
+        setProgress(current =>
+          current.runtime === runtime
+            ? { runtime, pending: false, error: failure }
+            : current,
+        );
         return fallback;
       } finally {
         // A command that outlived its view leaves the next view's state alone.
@@ -203,6 +210,8 @@ export function useSaveCommands(
 
   const abandon = useCallback(() => {
     if (!runtime) return;
+    // Abandoning is the user acting now, not an old callback arriving late,
+    // so its outcome takes the slot however it is held.
     try {
       engine.abandonWrite(runtime);
       setProgress({ runtime, pending: false, error: null });

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { FilterOperator } from '@ahoo-wang/fetcher-wow';
+import { AggregationGroupType, FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -21,6 +21,7 @@ import {
   ViewStoreError,
   ViewWriteError,
   issue,
+  type DataViewDefinition,
   type RecordViewRuntime,
   type ViewInstance,
   type ViewPreferences,
@@ -39,6 +40,8 @@ import {
   useViewRuntime,
 } from '../src/react/index.js';
 import {
+  deferred,
+  analysisConfig,
   ordersDefinition,
   recordConfig,
   requireRecordConfig,
@@ -61,13 +64,14 @@ function engineWith(
     instances?: ViewInstance[];
     source?: ViewSource;
     store?: MemoryViewStore;
+    definitions?: DataViewDefinition[];
   } = {},
 ): { engine: ViewEngine; store: MemoryViewStore } {
   const store =
     options.store ??
     new MemoryViewStore({ instances: options.instances ?? [mine] });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    definitions: options.definitions ?? [ordersDefinition()],
     store,
     resolveSource: () => options.source ?? testSource(),
   });
@@ -429,6 +433,85 @@ describe('useSaveCommands', () => {
     expect(result.current.commands.state.pending).toBe(false);
   });
 
+  it("keeps the current view pending while another view's command settles", async () => {
+    const { engine } = engineWith();
+    const a = await engine.open('orders-1');
+    const b = engine.create('orders', {
+      title: 'Draft',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+
+    const aFailed = deferred<void>();
+    vi.spyOn(engine, 'save').mockImplementation(async runtime => {
+      if (runtime === a) {
+        await aFailed.promise;
+        throw new ViewCommandError(issue('view.config.invalid', []));
+      }
+      // B's write never settles within the test.
+      return new Promise<ViewInstance>(() => {});
+    });
+
+    // A workbench reuses this hook across views: A's save is in flight when
+    // the user switches to B and saves there.
+    const { result, rerender } = renderHook(
+      ({ runtime }: { runtime: typeof a }) => useSaveCommands(engine, runtime),
+      { initialProps: { runtime: a } },
+    );
+
+    act(() => {
+      void result.current.save();
+    });
+    rerender({ runtime: b });
+    act(() => {
+      void result.current.save();
+    });
+    expect(result.current.state.pending).toBe(true);
+
+    await act(async () => {
+      aFailed.reject(new Error('A failed'));
+      await Promise.resolve();
+    });
+
+    // B's write is still in flight, so its buttons stay disabled.
+    expect(result.current.state.pending).toBe(true);
+  });
+
+  it("lets the current view's abandon take the progress slot", async () => {
+    const { engine } = engineWith();
+    const a = await engine.open('orders-1');
+    const b = engine.create('orders', {
+      title: 'Draft',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+
+    // A leaves a failure in the shared slot; the workbench switches to B.
+    vi.spyOn(engine, 'save').mockRejectedValueOnce(
+      new ViewCommandError(issue('view.config.invalid', [])),
+    );
+    const { result, rerender } = renderHook(
+      ({ runtime }: { runtime: typeof a }) => useSaveCommands(engine, runtime),
+      { initialProps: { runtime: a } },
+    );
+    await act(async () => {
+      await result.current.save();
+    });
+    rerender({ runtime: b });
+
+    // Abandoning is the user acting now, not an old callback arriving late:
+    // even a refusal belongs to B, over A's leftover failure.
+    vi.spyOn(engine, 'abandonWrite').mockImplementationOnce(() => {
+      throw new ViewCommandError(issue('view.write.not-pending', []));
+    });
+    act(() => {
+      result.current.abandon();
+    });
+
+    // The refusal shows as itself: toIssue keeps a command error's own code.
+    expect(result.current.state.error?.code).toBe('view.write.not-pending');
+  });
+
   it('exposes an unresolved write and its recovery actions', async () => {
     const { engine, store, result } = await openMine();
     vi.spyOn(store, 'save').mockRejectedValueOnce(
@@ -650,6 +733,58 @@ describe('useFilterEditor', () => {
     ).toBe(true);
     // The page size error belongs to the view, not to this editor.
     expect(codes.some(code => code.startsWith('record.'))).toBe(false);
+  });
+
+  it('keeps element-scoped filter issues out of this editor', async () => {
+    // An element's own filter is validated in its own field scope and its
+    // findings are addressed under ['elements', i, 'filter', …]; carrying them
+    // by code alone would let them mark top-level conditions as invalid.
+    const elemented = ordersDefinition({
+      analysis: {
+        count: true,
+        fields: [
+          {
+            field: 'warehouse',
+            groups: [AggregationGroupType.TERMS],
+            functions: [],
+          },
+        ],
+        elements: [
+          {
+            path: 'items',
+            fields: [{ name: 'sku', label: 'SKU', kind: 'string' }],
+            aggregations: [{ field: 'sku', groups: [], functions: [] }],
+          },
+        ],
+      },
+    });
+    const { engine } = engineWith({
+      definitions: [elemented],
+      instances: [
+        {
+          ...mine,
+          config: analysisConfig({
+            elements: [
+              {
+                path: 'items',
+                filter: {
+                  op: 'and',
+                  children: [{ field: 'ghost', operator: 'EQ', value: 'x' }],
+                },
+              },
+            ],
+          }),
+        },
+      ],
+    });
+    const { result } = renderHook(() => {
+      const opened = useOpenView(engine, 'orders-1');
+      return { opened, filter: useFilterEditor(opened.runtime) };
+    });
+    await waitFor(() => expect(result.current.opened.runtime).not.toBeNull());
+
+    const codes = result.current.filter.issues.map(found => found.code);
+    expect(codes).not.toContain('filter.field.unknown');
   });
 
   it('starts a condition on an operator the field allows', async () => {

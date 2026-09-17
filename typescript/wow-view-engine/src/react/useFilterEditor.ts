@@ -55,6 +55,8 @@ export interface FilterEditorController {
   addLeaf(field: string, parent?: FilterPath): void;
   updateLeaf(path: FilterPath, patch: Partial<FilterLeaf>): void;
   addGroup(op: 'and' | 'or', parent?: FilterPath): void;
+  /** Flips a group between AND and OR, keeping its children in place. */
+  updateGroup(path: FilterPath, op: 'and' | 'or'): void;
   remove(path: FilterPath): void;
   clear(): void;
   /** Applies the draft, which is what runs the query. */
@@ -91,6 +93,13 @@ export function useFilterEditor(
   );
   const kinds = runtime?.kinds;
   const tree = state?.draft.filter ?? EMPTY_TREE;
+  // The budget findings of this filter alone: the issue filter below keeps
+  // element- and panel-scoped trees out, so a hit here is the top-level one.
+  const overBudget = (state?.issues ?? []).some(
+    found =>
+      found.code === 'filter.tree.too-deep' ||
+      found.code === 'filter.tree.too-many-nodes',
+  );
 
   const byName = useMemo(
     () => new Map(fields.map(field => [field.name, field])),
@@ -153,23 +162,48 @@ export function useFilterEditor(
     [change],
   );
 
+  const updateGroup = useCallback(
+    (path: FilterPath, op: 'and' | 'or') => {
+      // `updateAt` leaves the root alone by design, so the root's operator is
+      // written directly: a tree may be one big OR.
+      if (path.length === 0) {
+        change(current => (current.op === op ? current : { ...current, op }));
+        return;
+      }
+      change(current =>
+        updateAt(current, path, node =>
+          'children' in node ? { ...node, op } : node,
+        ),
+      );
+    },
+    [change],
+  );
+
   return {
     tree,
     mode: state?.draft.filterMode ?? 'simple',
     fields,
     // `validateFilter` addresses a node by its path (`[0]`, `[1, 0]`), so the
-    // code is what says an Issue belongs to the filter at all.
+    // code is what says an Issue belongs to the filter at all — and the path
+    // is what says it belongs to *this* filter: an element's or a dashboard
+    // panel's own filter is validated in its own scope and re-pathed under
+    // ['elements', …] or ['panels', …], which would otherwise mark top-level
+    // conditions as invalid.
     issues: (state?.issues ?? []).filter(
       found =>
-        found.code.startsWith('filter.') ||
-        found.code.startsWith('config.filterMode.'),
+        found.code.startsWith('config.filterMode.') ||
+        (found.code.startsWith('filter.') &&
+          (found.path.length === 0 || found.path[0] === 'children')),
     ),
+    // An over-budget draft also blocked apply, so what was applied last is
+    // the oversized tree itself; summarising it would walk every leaf and
+    // render one line per condition. The findings say so instead.
     applied: useMemo(
       () =>
-        state && kinds
-          ? describeFilter(fields, state.applied.filter, kinds)
-          : [],
-      [state, fields, kinds],
+        overBudget || !state || !kinds
+          ? []
+          : describeFilter(fields, state.applied.filter, kinds),
+      [overBudget, state, fields, kinds],
     ),
     count: countLeaves(tree),
     simple: isSimpleTree(tree),
@@ -180,6 +214,7 @@ export function useFilterEditor(
     addLeaf,
     updateLeaf,
     addGroup,
+    updateGroup,
     remove: useCallback(
       (path: FilterPath) => change(current => removeAt(current, path)),
       [change],
