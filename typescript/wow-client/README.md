@@ -46,6 +46,8 @@ const carts = await snapshots.listState(
 - Array-first `FilterExpression` builders with early validation.
 - Single, list, paged, cursor, count, and stream query contracts.
 - Projection, sorting, nested aggregation, modeling, ABAC, and metadata types.
+- `aggregation.query()` admits a whole aggregation against the same rules
+  Wow enforces on arrival, so a bad query fails where it was built.
 
 ## Documentation
 

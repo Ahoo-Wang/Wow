@@ -46,6 +46,8 @@ const carts = await snapshots.listState(
 - 提前校验的数组优先 `FilterExpression` 构建器。
 - 单条、列表、分页、游标、计数与流查询契约。
 - 投影、排序、嵌套聚合、建模、ABAC 与元数据类型。
+- `aggregation.query()` 按 Wow 服务端同样的规则校验整个聚合查询，
+  让错误在构建处暴露，而不是等到请求被拒。
 
 ## 文档
 

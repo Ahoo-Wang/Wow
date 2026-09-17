@@ -512,8 +512,21 @@ export interface FilterCapable<FIELDS extends string = string> {
   filter: FilterExpression<FIELDS>;
 }
 
-function validateElementPredicate(predicate: FilterExpression): void {
-  switch (predicate.op) {
+/**
+ * Refuses the filters that only a whole record can answer.
+ *
+ * The metadata filters, `DELETION` and `SEARCH` ask about the record — its id,
+ * its owner, whether it is deleted, its text — and an element is not a record.
+ * Wow calls them root filters and refuses them in both places a filter is
+ * scoped to an element: an `ELEMENT_MATCH` predicate and an aggregation
+ * element's own filter. `subject` names which one, so the complaint points at
+ * the call that made it.
+ */
+export function requireElementScopedFilter(
+  expression: FilterExpression,
+  subject: string,
+): void {
+  switch (expression.op) {
     case FilterOperator.ID:
     case FilterOperator.IDS:
     case FilterOperator.AGGREGATE_ID:
@@ -523,17 +536,17 @@ function validateElementPredicate(predicate: FilterExpression): void {
     case FilterOperator.SPACE_ID:
     case FilterOperator.DELETION:
     case FilterOperator.SEARCH:
-      throw new TypeError(
-        'ELEMENT_MATCH predicate cannot contain root filters.',
-      );
+      throw new TypeError(`${subject} cannot contain root filters.`);
     case FilterOperator.AND:
     case FilterOperator.OR:
     case FilterOperator.NOR:
-      requireNonEmpty(`${predicate.op} operands`, predicate.operands);
-      predicate.operands.forEach(validateElementPredicate);
+      requireNonEmpty(`${expression.op} operands`, expression.operands);
+      expression.operands.forEach(operand =>
+        requireElementScopedFilter(operand, subject),
+      );
       break;
     case FilterOperator.ELEMENT_MATCH:
-      validateElementPredicate(predicate.predicate);
+      requireElementScopedFilter(expression.predicate, subject);
       break;
   }
 }
@@ -813,7 +826,7 @@ export const filter = {
     field: FIELDS,
     predicate: ElementFilterExpression<ELEMENT_FIELDS>,
   ): ElementMatchFilter<FIELDS, ELEMENT_FIELDS> {
-    validateElementPredicate(predicate);
+    requireElementScopedFilter(predicate, 'ELEMENT_MATCH predicate');
     return {
       op: FilterOperator.ELEMENT_MATCH,
       field: queryField(field),
