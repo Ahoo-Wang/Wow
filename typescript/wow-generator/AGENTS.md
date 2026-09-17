@@ -12,7 +12,7 @@ pnpm --filter fetcher-generator build
 pnpm --filter fetcher-generator test
 
 # Run a single test file
-pnpm --filter fetcher-generator vitest run test/index.test.ts
+pnpm --filter fetcher-generator exec vitest run test/index.test.ts
 
 # Lint
 pnpm --filter fetcher-generator lint
