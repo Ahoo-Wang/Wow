@@ -19,7 +19,12 @@ import {
   type Issue,
   type RuntimeLimits,
 } from '../model/index.js';
-import { issue, operatorsOf, type FieldKindRegistry } from './fieldKind.js';
+import {
+  isBlankLeafValue,
+  issue,
+  operatorsOf,
+  type FieldKindRegistry,
+} from './fieldKind.js';
 import { isFilterGroup, isFilterLeaf, walkFilter } from './tree.js';
 
 /** The operators a group may carry; a tree from a store may say anything. */
@@ -82,6 +87,11 @@ export function validateFilter(
       );
       continue;
     }
+
+    // A condition the user has not finished writing is not a mistake, so it
+    // is left alone here and dropped at compile time. Without this, picking a
+    // field would report an error before the user could say anything.
+    if (isBlankLeafValue(node.value, node.operator, field, kind)) continue;
 
     issues.push(
       ...kind.validate({

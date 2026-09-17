@@ -18,7 +18,7 @@ import type {
   FilterNode,
   FilterTree,
 } from '../model/index.js';
-import type { FieldKindRegistry } from './fieldKind.js';
+import { isBlankLeafValue, type FieldKindRegistry } from './fieldKind.js';
 import { isFilterGroup } from './tree.js';
 
 /**
@@ -63,6 +63,11 @@ function compileNode(
   const kind = kinds.get(field.kind);
   if (!kind)
     throw new Error(`Filter uses an unregistered field kind: ${field.kind}`);
+
+  // An unfinished condition narrows nothing. Returning null drops it the way
+  // an empty group is dropped, so a half-written row never reaches the server
+  // as `amount = 0` or "created today".
+  if (isBlankLeafValue(node.value, node.operator, field, kind)) return null;
 
   return kind.compile({
     leaf: node,

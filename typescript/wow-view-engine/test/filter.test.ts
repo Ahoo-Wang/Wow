@@ -458,6 +458,108 @@ describe('absolute dates and their zone', () => {
  * a configuration can say "none of these": a leaf negates through its own
  * operator, and a group has no operator to negate with.
  */
+/**
+ * A condition the user has not finished writing is an ordinary state of an
+ * editor, not a mistake. Before this, picking a field either reported an
+ * error before the user could say anything — string, enum — or silently
+ * applied a condition nobody asked for: `amount = 0`, `paid = true`,
+ * "created today".
+ */
+describe('unfinished conditions', () => {
+  const leaf = (field: string, operator: string, value: unknown) =>
+    tree({ field, operator, value } as never);
+
+  it.each([
+    ['id', `${FilterOperator.EQ}`, ''],
+    ['id', `${FilterOperator.IN}`, []],
+    ['amount', `${FilterOperator.EQ}`, null],
+    ['amount', `${FilterOperator.BETWEEN}`, null],
+    ['paid', `${FilterOperator.EQ}`, null],
+    ['createdAt', `${FilterOperator.BETWEEN}`, null],
+  ])('admits %s left unfilled', (field, operator, value) => {
+    expect(
+      errors(
+        validateFilter(fields, leaf(field, operator, value), builtinFieldKinds),
+      ),
+    ).toEqual([]);
+  });
+
+  it('keeps an unfilled condition out of the query', () => {
+    // Not `amount = 0`, and not an error either: simply not yet a condition.
+    expect(
+      compileFilter(
+        fields,
+        leaf('amount', `${FilterOperator.EQ}`, null),
+        builtinFieldKinds,
+        context,
+      ),
+    ).toEqual({ op: FilterOperator.MATCH_ALL });
+  });
+
+  it('runs the conditions that are finished alongside one that is not', () => {
+    const mixed = tree(
+      { field: 'id', operator: `${FilterOperator.EQ}`, value: 'o-1' },
+      {
+        field: 'amount',
+        operator: `${FilterOperator.EQ}`,
+        value: null,
+      } as never,
+    );
+
+    expect(
+      compileFilter(fields, mixed, builtinFieldKinds, context),
+    ).toMatchObject({
+      op: FilterOperator.EQ,
+      field: 'id',
+      value: 'o-1',
+    });
+  });
+
+  it('leaves an unfilled condition out of the applied summary', () => {
+    const mixed = tree(
+      { field: 'id', operator: `${FilterOperator.EQ}`, value: 'o-1' },
+      {
+        field: 'amount',
+        operator: `${FilterOperator.EQ}`,
+        value: null,
+      } as never,
+    );
+
+    expect(
+      describeFilter(fields, mixed, builtinFieldKinds).map(item => item.field),
+    ).toEqual(['id']);
+  });
+
+  it('still refuses a value the kind cannot read', () => {
+    // Unfilled is not the same as wrong, and only one of them is forgiven.
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          leaf('id', `${FilterOperator.EQ}`, 7),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['filter.value.expected-string']);
+  });
+
+  it('never treats a presence condition as unfilled', () => {
+    // `IS_NULL` is the whole condition; dropping it for looking empty would
+    // delete what the user asked for.
+    const presence = leaf('id', `${FilterOperator.IS_NULL}`, null);
+
+    expect(errors(validateFilter(fields, presence, builtinFieldKinds))).toEqual(
+      [],
+    );
+    expect(
+      compileFilter(fields, presence, builtinFieldKinds, context),
+    ).toMatchObject({
+      op: FilterOperator.IS_NULL,
+      field: 'id',
+    });
+  });
+});
+
 describe('nor groups', () => {
   const norTree = (...children: FilterTree['children']): FilterTree => ({
     op: 'nor',

@@ -258,7 +258,7 @@ describe('metadata field kinds', () => {
     ).toEqual(['filter.value.expects-one']);
   });
 
-  it.each([['not-a-list'], [[1, 2]], [{ items: [] }]])(
+  it.each([['not-a-list'], [[1, 2]]])(
     'refuses %s where a list of ids was due',
     value => {
       expect(

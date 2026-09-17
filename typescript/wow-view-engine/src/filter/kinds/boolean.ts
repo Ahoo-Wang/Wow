@@ -26,7 +26,9 @@ export const booleanFieldKind: FieldKind = {
   defaultOperator: 'EQ',
 
   emptyValue() {
-    return true;
+    // Not `true`: a row that appears already answering its own question
+    // would filter the list before the user chose anything.
+    return null;
   },
 
   validate({ value, operator, path }) {

@@ -36,8 +36,19 @@ export interface FieldKind {
   /** Operators this kind supports, in the order an editor should offer them. */
   operators: FilterOperatorName[];
   defaultOperator: FilterOperatorName;
-  /** The value to start from when a leaf switches to this operator. */
+  /**
+   * The value a leaf starts from, which is normally "nothing yet". A picked
+   * field is a question the user has not finished asking, so the starting
+   * value must not narrow anything: seeding a number with `0` would silently
+   * apply `amount = 0` the moment the row appeared.
+   */
   emptyValue(operator: FilterOperatorName, field: FieldDefinition): unknown;
+  /**
+   * Whether this value still counts as unsupplied. The registry's default
+   * covers `null`, `''` and `[]`; a kind whose empty shape is its own — a
+   * reference holding no items — says so here.
+   */
+  isBlank?(value: unknown, operator: FilterOperatorName): boolean;
   /** Reports why a value cannot be used; an empty array admits it. */
   validate(context: FieldKindValidateContext): Issue[];
   /** Maps one admitted leaf onto the Wow protocol. */
@@ -145,6 +156,47 @@ export function readValue<T>(value: unknown): T {
  */
 export function writeValue<T>(value: T): FilterValue {
   return value as FilterValue;
+}
+
+/**
+ * Whether a leaf is still waiting to be filled in.
+ *
+ * An unfinished condition is an ordinary state of an editor, not a mistake:
+ * the user picked a field and has not yet said what to compare it to. Such a
+ * leaf is neither validated against its kind nor compiled into the query, so
+ * adding a row narrows nothing and blocks nothing until it says something.
+ *
+ * Presence operators are never blank — `IS_NULL` is the whole condition, and
+ * the value beside it is not read at all.
+ */
+/**
+ * Whether a leaf is still waiting to be filled in.
+ *
+ * An unfinished condition is an ordinary state of an editor, not a mistake:
+ * the user picked a field and has not yet said what to compare it to. Such a
+ * leaf is neither validated against its kind nor compiled into the query, so
+ * adding a row narrows nothing and blocks nothing until it says something.
+ *
+ * An operator that needs no input is never blank. `IS_NULL` is the whole
+ * condition and the value beside it is never read, so dropping it for looking
+ * empty would delete the condition. The kind already declares which operators
+ * those are by describing their editor as `none`, which is a better answer
+ * than a list here could be, because a custom kind gets it right too.
+ */
+export function isBlankLeafValue(
+  value: unknown,
+  operator: FilterOperatorName,
+  field: FieldDefinition,
+  kind: FieldKind,
+): boolean {
+  if (kind.editor(operator, field).input === 'none') return false;
+  if (kind.isBlank) return kind.isBlank(value, operator);
+  return (
+    value === null ||
+    value === undefined ||
+    value === '' ||
+    (Array.isArray(value) && value.length === 0)
+  );
 }
 
 export function issue(

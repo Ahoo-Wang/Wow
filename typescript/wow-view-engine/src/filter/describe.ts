@@ -17,7 +17,11 @@ import type {
   FilterTree,
   IssuePath,
 } from '../model/index.js';
-import type { FieldKind, FieldKindRegistry } from './fieldKind.js';
+import {
+  isBlankLeafValue,
+  type FieldKind,
+  type FieldKindRegistry,
+} from './fieldKind.js';
 import { isFilterLeaf, walkFilter } from './tree.js';
 
 /** One applied condition, for the summary bar above a result. */
@@ -54,6 +58,14 @@ export function describeFilter(
     if (!isFilterLeaf(node)) continue;
     const field = byName.get(node.field);
     const kind = field ? kinds.get(field.kind) : undefined;
+    // A condition that was never finished did not reach the query, so it is
+    // not one of the conditions in force.
+    if (
+      field &&
+      kind &&
+      isBlankLeafValue(node.value, node.operator, field, kind)
+    )
+      continue;
     const described =
       field && kind ? describeLeaf(kind, node, field) : undefined;
     if (!field || described === undefined) {

@@ -95,6 +95,11 @@ function createSingleMetadataKind(
       return field.remote ? { items: [] } : '';
     },
 
+    /** A picked-candidate value is an object, so it says so itself. */
+    isBlank(value) {
+      return isReferenceFilterValue(value) && value.items.length === 0;
+    },
+
     validate({ value, path }) {
       return validateSingle(value, path);
     },
@@ -137,6 +142,10 @@ function createIdMetadataKind(
 
     emptyValue(operator) {
       return operator === multiple ? [] : '';
+    },
+
+    isBlank(value) {
+      return isReferenceFilterValue(value) && value.items.length === 0;
     },
 
     validate({ value, operator, path }) {

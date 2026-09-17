@@ -38,6 +38,11 @@ export const referenceFieldKind: FieldKind = {
     return { items: [] } satisfies ReferenceFilterValue;
   },
 
+  /** Its empty shape is an object, which no general rule would recognise. */
+  isBlank(value) {
+    return isReferenceFilterValue(value) && value.items.length === 0;
+  },
+
   validate({ value, operator, field, path }) {
     if (isPresenceOperator(operator)) return [];
     if (!isReferenceFilterValue(value))

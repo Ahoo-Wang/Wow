@@ -509,6 +509,8 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 
 配置来自持久化端口，不可假设结构可信：`validateFilter` 以迭代遍历先检查 `RuntimeLimits.maxFilterDepth`（缺省 8）与 `maxFilterNodes`（缺省 256），超限立即报 error 并停止遍历，其余内核只处理已通过准入的树，因此递归不会耗尽调用栈。
 
+**未填写的条件不是错误。** 用户选好字段、还没说要比什么，这是编辑器的正常中间态：这样的叶子不按 kind 校验，也不进入编译，因此加一行条件既不收窄结果也不阻塞 apply。`FieldKind.emptyValue` 因此返回"尚未填写"而不是某个可用默认值——给数字播种 `0`、给日期播种"今天"，会在用户还没表达任何意图时就把列表筛掉。判断由 `isBlankLeafValue` 统一做：缺省认 `null`、`''` 与空数组，值形状自成一体的 kind（reference 的 `{ items: [] }`）用可选的 `isBlank` 自述。不需要输入的操作符（`IS_NULL` 一类，kind 把其编辑器声明为 `none`）永远不算未填写，否则条件会被当成空值丢掉。
+
 `FieldKindRegistry` 是 filter 的核心扩展点，见第 10 节。相对时间条件在 `compile*` 中依据注入的 `ctx.now` 求值，纯内核不读系统时钟。
 
 `validateRecord` 的规则：`layout` 在 `RecordCapability.layouts` 之内；`table.columns`、`card.title`／`fields`／`image` 引用的字段都必须存在；`pageSize` 为不超过 `RuntimeLimits.maxPageSize` 的正整数；`sort[].field` 必须存在且 `sortable` 为 true，游标模式下 `sort.length` 不超过 Wow 的 `MAX_CURSOR_SORT_FIELDS`（32）；每个 `summaries[]` 的函数必须出现在该字段的 `summary` 集合中。

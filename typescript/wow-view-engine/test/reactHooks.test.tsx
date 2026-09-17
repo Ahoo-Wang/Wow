@@ -714,10 +714,12 @@ describe('useFilterEditor', () => {
       }),
     );
 
+    // Back to unfilled rather than to `[0, 0]`, which would be a condition
+    // the user never asked for.
     expect(result.current.filter.tree.children[0]).toEqual({
       field: 'amount',
       operator: `${FilterOperator.BETWEEN}`,
-      value: [0, 0],
+      value: null,
     });
     expect(result.current.filter.issues).toEqual([]);
   });
@@ -772,9 +774,10 @@ describe('useFilterEditor', () => {
   it('reports the filter issues the validator produced, and only those', async () => {
     const result = await openEditor();
 
-    // A condition with no value yet is an error, and it is the reason submit
-    // does nothing, so the editor has to be able to say so.
+    // A value the kind cannot read is an error and the editor has to say so.
+    // An *unfilled* one is not — see the tests below.
     act(() => result.current.filter.addLeaf('warehouse'));
+    act(() => result.current.filter.updateLeaf([0], { value: 7 as never }));
     act(() => result.current.opened.runtime?.edit({ pageSize: 0 }));
 
     const codes = result.current.filter.issues.map(found => found.code);

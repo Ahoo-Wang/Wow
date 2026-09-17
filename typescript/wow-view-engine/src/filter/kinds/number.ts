@@ -41,9 +41,10 @@ export const numberFieldKind: FieldKind = {
   defaultOperator: 'EQ',
 
   emptyValue(operator) {
-    if (operator === 'BETWEEN') return [0, 0] satisfies NumberRange;
     if (MULTI_VALUE.includes(operator)) return [];
-    return 0;
+    // `0` and `[0, 0]` are real conditions, and a row the user has only just
+    // added has not asked for either.
+    return null;
   },
 
   validate({ value, operator, path }) {

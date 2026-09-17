@@ -52,7 +52,9 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
     defaultOperator: 'BETWEEN',
 
     emptyValue() {
-      return { type: 'preset', preset: 'today' } satisfies DateTimeFilterValue;
+      // Not today: seeding a window would cut the list to one day the moment
+      // the user picked a date field.
+      return null;
     },
 
     validate({ value, operator, path }) {

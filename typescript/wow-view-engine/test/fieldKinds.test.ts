@@ -125,7 +125,9 @@ describe('presence operators', () => {
 describe('string kind', () => {
   const kind = stringFieldKind;
 
-  it('starts from an empty value that suits the operator', () => {
+  it('starts unfilled, whatever the operator', () => {
+    // A row the user has only just added has not asked anything yet, so its
+    // starting value must not narrow the list.
     expect(kind.emptyValue('EQ', field())).toBe('');
     expect(kind.emptyValue('IN', field())).toEqual([]);
   });
@@ -182,10 +184,12 @@ describe('number kind', () => {
   const kind = numberFieldKind;
   const def = field({ kind: 'number' });
 
-  it('starts from an empty value that suits the operator', () => {
-    expect(kind.emptyValue('EQ', def)).toBe(0);
+  it('starts unfilled rather than at zero', () => {
+    // `0` and `[0, 0]` are conditions in their own right; seeding either
+    // would filter the list to them the moment the row appeared.
+    expect(kind.emptyValue('EQ', def)).toBeNull();
+    expect(kind.emptyValue('BETWEEN', def)).toBeNull();
     expect(kind.emptyValue('IN', def)).toEqual([]);
-    expect(kind.emptyValue('BETWEEN', def)).toEqual([0, 0]);
   });
 
   it('rejects an inverted range, a non-number and an empty list', () => {
@@ -243,7 +247,7 @@ describe('boolean kind', () => {
   const def = field({ kind: 'boolean' });
 
   it('accepts only a boolean', () => {
-    expect(kind.emptyValue('EQ', def)).toBe(true);
+    expect(kind.emptyValue('EQ', def)).toBeNull();
     expect(codes(kind, true, 'EQ', def)).toEqual([]);
     expect(codes(kind, 'true', 'EQ', def)).toEqual([
       'filter.value.expected-boolean',
@@ -347,11 +351,10 @@ describe('reference kind', () => {
 describe('date kinds', () => {
   const def = field({ kind: 'datetime' });
 
-  it('default to a preset, which is what a saved view should reopen with', () => {
-    expect(dateTimeFieldKind.emptyValue('BETWEEN', def)).toEqual({
-      type: 'preset',
-      preset: 'today',
-    });
+  it('start unfilled rather than at today', () => {
+    // Seeding a window would cut the list to a single day as soon as a date
+    // field was picked, which nobody asked for.
+    expect(dateTimeFieldKind.emptyValue('BETWEEN', def)).toBeNull();
   });
 
   it('rejects an unparsable or inverted absolute range', () => {
