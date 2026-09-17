@@ -70,7 +70,7 @@ export function validateAnalysis(
   issues.push(...validateGroups(config, scope));
   issues.push(...validateMetrics(config, capability, scope));
   issues.push(...validateAliases(config));
-  issues.push(...validateHaving(config));
+  issues.push(...validateHaving(config, capability));
   issues.push(...validateSortAndColumns(config));
   issues.push(...validateLimits(config, capability, limits));
   issues.push(...validateChart(config));
@@ -218,7 +218,7 @@ function expressionIssues(
     issues.push(issue('analysis.expressions.undeclared', path));
   if (
     expression.operator === 'DIVIDE' &&
-    expression.right.type === 'CONSTANT' &&
+    expression.right?.type === 'CONSTANT' &&
     expression.right.value === 0
   )
     issues.push(
@@ -248,11 +248,24 @@ function isExpression(value: AnalysisExpression | undefined): boolean {
   return type === 'FIELD' || type === 'CONSTANT' || type === 'BINARY';
 }
 
+/** The derived counterpart: one side going missing is a finding, not a crash. */
+function isDerivedExpression(
+  value: AnalysisDerivedExpression | undefined,
+): value is AnalysisDerivedExpression {
+  const type = (value as { type?: unknown } | undefined)?.type;
+  return type === 'METRIC_REF' || type === 'CONSTANT' || type === 'BINARY';
+}
+
 function derivedIssues(
-  expression: AnalysisDerivedExpression,
+  expression: AnalysisDerivedExpression | undefined,
   available: ReadonlySet<string>,
   path: IssuePath,
 ): Issue[] {
+  // A DERIVED expression arrives from a store like any other part of the
+  // config, so it is admitted before it is walked.
+  if (!isDerivedExpression(expression))
+    return [issue('analysis.expression.malformed', path)];
+
   if (expression.type === 'METRIC_REF')
     return available.has(expression.metric)
       ? []
@@ -391,18 +404,35 @@ function validateMetrics(
   return issues;
 }
 
-function validateHaving(config: AnalysisViewConfig): Issue[] {
+function validateHaving(
+  config: AnalysisViewConfig,
+  capability: NonNullable<DataViewDefinition['analysis']>,
+): Issue[] {
   if (!config.having) return [];
+  // Having is a declared capability like expressions; an undeclared one is
+  // refused before its shape is even walked.
+  if (capability.having !== true)
+    return [issue('analysis.having.undeclared', ['having'])];
+
   const { nonAnyMetrics } = aliasesOf(config);
 
   const walk = (
     expression: AnalysisHavingExpression,
     path: IssuePath,
   ): Issue[] => {
-    if ('operands' in expression)
+    // A having arrives from a store: a number, or a null inside a group's
+    // operands, is a finding at its own depth rather than a crash.
+    if (typeof expression !== 'object' || expression === null)
+      return [issue('analysis.having.malformed', path)];
+    if ('operands' in expression) {
+      // A group whose operands are not an array cannot be walked; report it
+      // rather than crash on a shape this version does not know.
+      if (!Array.isArray(expression.operands))
+        return [issue('analysis.having.malformed', path)];
       return expression.operands.flatMap((operand, index) =>
         walk(operand, [...path, 'operands', index]),
       );
+    }
     return nonAnyMetrics.has(expression.metric)
       ? []
       : [

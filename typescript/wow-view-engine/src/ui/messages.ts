@@ -176,6 +176,9 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'analysis.group.unit-unsupported': 'The {unit} unit is not available here.',
   'analysis.group.unsupported': '{field} cannot be grouped by {type}.',
   'analysis.groups.too-many': 'Too many groupings for this dataset.',
+  'analysis.having.malformed': 'This result filter has no usable shape.',
+  'analysis.having.undeclared':
+    'This dataset does not offer filtering the result.',
   'analysis.having.unknown-metric':
     'The filter refers to {metric}, which is not a usable metric.',
   'analysis.limit.not-positive': 'The row limit must be a positive number.',

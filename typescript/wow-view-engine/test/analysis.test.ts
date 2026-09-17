@@ -399,6 +399,25 @@ describe('validateAnalysis', () => {
       }),
     ).toEqual(['analysis.expression.malformed']);
 
+    // The same contract covers a BINARY whose sides went missing: the DIVIDE
+    // check must not dereference a right side that is not there.
+    expect(
+      check({
+        metrics: [
+          {
+            type: 'NUMERIC',
+            alias: 'orders',
+            function: 'SUM',
+            expression: {
+              type: 'BINARY',
+              operator: 'DIVIDE',
+              left: { type: 'FIELD', field: 'amount' },
+            } as never,
+          },
+        ],
+      }),
+    ).toEqual(['analysis.expression.malformed']);
+
     expect(
       codes(
         validateAnalysis(
@@ -460,6 +479,46 @@ describe('validateAnalysis', () => {
     expect(backward).toEqual([]);
   });
 
+  it('reports a DERIVED expression a config from a store may hold', () => {
+    // No expression at all, or one missing a side, is a finding rather than a
+    // crash: `derivedIssues` walks whatever the store returned.
+    expect(
+      check({
+        metrics: [
+          { type: 'COUNT', alias: 'orders' },
+          { type: 'DERIVED', alias: 'broken' } as never,
+        ],
+        sort: [],
+        chart: {
+          type: 'bar',
+          cartesian: { x: 'wh', series: [{ metric: 'broken' }] },
+        },
+      }),
+    ).toEqual(['analysis.expression.malformed']);
+
+    expect(
+      check({
+        metrics: [
+          { type: 'COUNT', alias: 'orders' },
+          {
+            type: 'DERIVED',
+            alias: 'broken',
+            expression: {
+              type: 'BINARY',
+              operator: 'ADD',
+              left: { type: 'METRIC_REF', metric: 'orders' },
+            } as never,
+          },
+        ],
+        sort: [],
+        chart: {
+          type: 'bar',
+          cartesian: { x: 'wh', series: [{ metric: 'broken' }] },
+        },
+      }),
+    ).toEqual(['analysis.expression.malformed']);
+  });
+
   it('lets having reach only non-ANY metrics', () => {
     expect(
       check({
@@ -492,6 +551,44 @@ describe('validateAnalysis', () => {
         },
       }),
     ).toEqual([]);
+  });
+
+  it('refuses a having the capability never declared', () => {
+    expect(
+      codes(
+        validateAnalysis(
+          definition({ analysis: { ...capability, having: false } }),
+          config({
+            having: {
+              type: 'CONDITION',
+              metric: 'orders',
+              operator: 'GT',
+              value: 1,
+            },
+          }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['analysis.having.undeclared']);
+  });
+
+  it('reports a having of a shape this version does not know', () => {
+    expect(
+      check({
+        having: { type: 'AND', operands: undefined } as never,
+      }),
+    ).toEqual(['analysis.having.malformed']);
+
+    // Not even a plain number reaches the walk, and a null inside a group's
+    // operands is a finding at that depth rather than a crash.
+    expect(check({ having: 42 as never })).toEqual([
+      'analysis.having.malformed',
+    ]);
+    expect(
+      check({
+        having: { type: 'AND', operands: [null] } as never,
+      }),
+    ).toEqual(['analysis.having.malformed']);
   });
 
   it('bounds the limit and the counts', () => {
