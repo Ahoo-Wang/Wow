@@ -1,0 +1,142 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { useState } from 'react';
+import Markdown from 'react-markdown';
+import { ExternalLinkIcon, ImageOffIcon } from 'lucide-react';
+import type { DashboardContentPanel } from '../model/index.js';
+
+export interface ContentPanelProps {
+  panel: DashboardContentPanel;
+}
+
+/**
+ * The static panels: a note, a picture, a list of links.
+ *
+ * `validateDashboard` has already refused anything but http, https, mailto
+ * and relative paths, so what is left for these components is that a valid
+ * URL still says nothing about the resource behind it: markdown renders
+ * without raw HTML, an image that fails to load shows a placeholder instead
+ * of a broken frame, and every link opens with `rel="noopener noreferrer"`.
+ */
+export function ContentPanel({ panel }: ContentPanelProps) {
+  switch (panel.kind) {
+    case 'markdown':
+      return <MarkdownPanel content={panel.content} />;
+    case 'image':
+      return (
+        <ImagePanel
+          src={panel.src}
+          alt={panel.alt}
+          fit={panel.fit}
+          href={panel.href}
+        />
+      );
+    default:
+      return <LinksPanel items={panel.items} />;
+  }
+}
+
+export interface MarkdownPanelProps {
+  content: string;
+}
+
+/** Markdown with raw HTML left off, which is the whole point of using it. */
+export function MarkdownPanel({ content }: MarkdownPanelProps) {
+  return (
+    <div
+      data-slot="markdown-panel"
+      className="prose-sm flex h-full flex-col gap-2 overflow-auto text-sm [&_a]:underline [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-sm [&_h2]:font-semibold [&_ul]:list-disc [&_ul]:pl-4"
+    >
+      <Markdown>{content}</Markdown>
+    </div>
+  );
+}
+
+export interface ImagePanelProps {
+  src: string;
+  alt?: string;
+  fit?: 'contain' | 'cover';
+  href?: string;
+}
+
+export function ImagePanel({
+  src,
+  alt,
+  fit = 'contain',
+  href,
+}: ImagePanelProps) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed)
+    return (
+      <div
+        data-slot="image-panel-placeholder"
+        className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 text-xs"
+      >
+        <ImageOffIcon className="size-6" aria-hidden />
+        <span>{alt ?? 'This image could not be loaded'}</span>
+      </div>
+    );
+
+  const image = (
+    <img
+      data-slot="image-panel"
+      src={src}
+      alt={alt ?? ''}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className={
+        fit === 'cover'
+          ? 'h-full w-full object-cover'
+          : 'h-full w-full object-contain'
+      }
+    />
+  );
+
+  return href ? (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="h-full">
+      {image}
+    </a>
+  ) : (
+    image
+  );
+}
+
+export interface LinksPanelProps {
+  items: readonly { label: string; href: string; description?: string }[];
+}
+
+export function LinksPanel({ items }: LinksPanelProps) {
+  return (
+    <ul data-slot="links-panel" className="flex flex-col gap-2 overflow-auto">
+      {items.map(item => (
+        <li key={`${item.href}:${item.label}`}>
+          <a
+            href={item.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-sm underline-offset-4 hover:underline"
+          >
+            {item.label}
+            <ExternalLinkIcon className="size-3" aria-hidden />
+          </a>
+          {item.description && (
+            <p className="text-muted-foreground text-xs">{item.description}</p>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}

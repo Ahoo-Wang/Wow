@@ -31,6 +31,18 @@ export interface DashboardPanelBase {
   layout: PanelLayout;
 }
 
+/**
+ * Columns of the dashboard grid. A panel's `x + w` stays within it, otherwise
+ * the layout adapter would wrap or drop the panel instead of placing it.
+ */
+export const DASHBOARD_GRID_COLUMNS = 12;
+
+/** Characters one markdown panel may hold; a config arrives from a store. */
+export const MAX_MARKDOWN_LENGTH = 20_000;
+
+/** Links one links panel may hold. */
+export const MAX_PANEL_LINKS = 50;
+
 /** Grid geometry; coordinates are non-negative and sizes positive integers. */
 export interface PanelLayout {
   x: number;

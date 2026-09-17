@@ -13,6 +13,9 @@
 
 import {
   DEFAULT_RUNTIME_LIMITS,
+  type DashboardViewConfig,
+  type DataViewDefinition,
+  type FilterTree,
   isSystemInstanceId,
   isViewStoreError,
   parseSystemInstanceId,
@@ -49,9 +52,15 @@ import type { DataViewConfig } from './execute.js';
 import {
   DataViewRuntime,
   type AnyViewRuntime,
+  type ManagedViewRuntime,
   type RuntimeFor,
   type ViewRuntime,
 } from './viewRuntime.js';
+import {
+  DashboardViewRuntime,
+  type PanelResolver,
+  type PanelRuntimeFactory,
+} from './dashboardRuntime.js';
 import {
   ViewCommandError,
   ViewWriteError,
@@ -90,6 +99,13 @@ export type WriteTarget = ViewRuntime | WriteHandle;
 
 export type ConflictChoice = 'reload' | 'overwrite';
 
+/** Who a runtime is, apart from the config it holds. */
+interface RuntimeIdentity {
+  title: string;
+  scope: ViewScope;
+  saved: ViewInstance | null;
+}
+
 export interface CreateInput<C extends ViewConfig> {
   title: string;
   scope: Exclude<ViewScope, 'system'>;
@@ -104,9 +120,10 @@ export interface CreateInput<C extends ViewConfig> {
  * behave the same, and every non-success outcome lands in the same three
  * recovery actions: `retryWrite`, `abandonWrite`, `resolveConflict`.
  *
- * Dashboards need child runtimes and the dashboard kernel, which arrive in
- * their own delivery step; opening one reports `runtime.dashboard.unsupported`
- * until then.
+ * A dashboard is opened by the same commands as a data view. What differs is
+ * that it composes other instances, so the engine hands it the two things it
+ * cannot reach itself: how to read a referenced instance, and how to build a
+ * child runtime for it.
  */
 export class ViewEngine {
   readonly store: ViewStore;
@@ -117,9 +134,9 @@ export class ViewEngine {
 
   private readonly options: ViewEngineOptions;
   private readonly runner: RequestRunner;
-  private readonly runtimes = new Set<DataViewRuntime>();
+  private readonly runtimes = new Set<ManagedViewRuntime>();
   private readonly writes = new Map<string, WriteState>();
-  private readonly owners = new Map<string, DataViewRuntime>();
+  private readonly owners = new Map<string, ManagedViewRuntime>();
   private readonly preferencesCache = new Map<string, ViewPreferences>();
   private readonly summaries = new Map<string, ViewInstanceSummary>();
   private readonly newId: () => string;
@@ -182,19 +199,27 @@ export class ViewEngine {
 
   /** Opens a saved view, or a code-declared one without touching the store. */
   async open(instanceId: string): Promise<AnyViewRuntime> {
-    const declared = parseSystemInstanceId(instanceId);
-    const instance = declared
-      ? this.systemInstance(declared.definitionId, declared.viewId)
-      : await this.store.get(instanceId);
+    const instance = await this.readInstance(instanceId);
     const runtime = this.attach(instance);
+    // A dashboard is judged against the instances it references, so it waits
+    // for them before its first apply rather than opening into empty frames.
+    if (runtime instanceof DashboardViewRuntime) await runtime.ready();
     runtime.apply();
     return runtime as AnyViewRuntime;
   }
 
+  /** One instance, from the definition's code or from the store. */
+  private async readInstance(instanceId: string): Promise<ViewInstance> {
+    const declared = parseSystemInstanceId(instanceId);
+    return declared
+      ? this.systemInstance(declared.definitionId, declared.viewId)
+      : this.store.get(instanceId);
+  }
+
   /**
    * An unsaved view. It carries a complete config from the start, produced by
-   * `defaultRecordConfig` or `defaultAnalysisConfig`, and executes at once so
-   * the user sees data rather than an empty frame.
+   * `defaultRecordConfig`, `defaultAnalysisConfig` or `emptyDashboardConfig`,
+   * and executes at once so the user sees data rather than an empty frame.
    */
   create<C extends ViewConfig>(
     definitionId: string,
@@ -219,7 +244,7 @@ export class ViewEngine {
   async save(runtime: ViewRuntime): Promise<ViewInstance> {
     const target = this.requireRuntime(runtime);
     const state = target.getSnapshot();
-    this.requireValid(state.issues);
+    this.requireValid(target.issuesAt(state.scope));
 
     if (!state.saved) {
       const input = {
@@ -258,7 +283,8 @@ export class ViewEngine {
   ): Promise<ViewInstance> {
     const target = this.requireRuntime(runtime);
     const state = target.getSnapshot();
-    this.requireValid(state.issues);
+    // Judged at the scope it is going to, not the one it came from.
+    this.requireValid(target.issuesAt(input.scope));
     this.requireTitle(input.title);
     this.requireCreatePermission(target.definition.id, input.scope);
 
@@ -403,7 +429,7 @@ export class ViewEngine {
    * against, so this is the way to let one go.
    */
   close(runtime: ViewRuntime): void {
-    if (isDataViewRuntime(runtime) && this.runtimes.has(runtime)) {
+    if (isManagedRuntime(runtime) && this.runtimes.has(runtime)) {
       this.forget(runtime);
       return;
     }
@@ -416,7 +442,7 @@ export class ViewEngine {
     this.runner.cancelAll();
   }
 
-  private attach(instance: ViewInstance): DataViewRuntime {
+  private attach(instance: ViewInstance): ManagedViewRuntime {
     const definition = this.requireDefinition(instance.definitionId);
     return this.build(definition, instance.config, {
       title: instance.title,
@@ -428,15 +454,22 @@ export class ViewEngine {
   private build(
     definition: ViewDefinition,
     config: ViewConfig,
-    identity: { title: string; scope: ViewScope; saved: ViewInstance | null },
+    identity: RuntimeIdentity,
+  ): ManagedViewRuntime {
+    const runtime =
+      config.kind === 'dashboard'
+        ? this.buildDashboard(definition, config, identity)
+        : this.buildData(definition, config, identity);
+    this.runtimes.add(runtime);
+    return runtime;
+  }
+
+  private buildData(
+    definition: ViewDefinition,
+    config: DataViewConfig,
+    identity: RuntimeIdentity,
   ): DataViewRuntime {
-    if (definition.kind !== 'data' || config.kind === 'dashboard')
-      throw new ViewCommandError(
-        issue('runtime.dashboard.unsupported', [], {
-          definition: definition.id,
-        }),
-      );
-    if (!capabilityOf(definition, config))
+    if (definition.kind !== 'data' || !capabilityOf(definition, config))
       throw new ViewCommandError(
         issue('runtime.kind.not-declared', [], {
           definition: definition.id,
@@ -444,8 +477,8 @@ export class ViewEngine {
         }),
       );
 
-    const runtime = new DataViewRuntime<DataViewConfig>({
-      id: `runtime-${(this.sequence += 1)}`,
+    return new DataViewRuntime<DataViewConfig>({
+      id: this.newRuntimeId(),
       definition,
       config,
       title: identity.title,
@@ -457,8 +490,78 @@ export class ViewEngine {
       source: this.resolveSource(definition.source),
       runner: this.runner,
     });
-    this.runtimes.add(runtime);
-    return runtime;
+  }
+
+  private buildDashboard(
+    definition: ViewDefinition,
+    config: DashboardViewConfig,
+    identity: RuntimeIdentity,
+  ): DashboardViewRuntime {
+    // A dashboard config belongs to a dashboard definition: the catalogue
+    // entry it is listed under, which declares no fields of its own.
+    if (definition.kind !== 'dashboard')
+      throw new ViewCommandError(
+        issue('runtime.kind.not-declared', [], {
+          definition: definition.id,
+          kind: config.kind,
+        }),
+      );
+
+    return new DashboardViewRuntime({
+      id: this.newRuntimeId(),
+      definition,
+      config,
+      title: identity.title,
+      scope: identity.scope,
+      saved: identity.saved,
+      kinds: this.kinds,
+      limits: this.limits,
+      environment: this.environment,
+      resolve: this.resolvePanel,
+      createPanelRuntime: this.createPanelRuntime,
+    });
+  }
+
+  /** What a panel references: the instance and the definition behind it. */
+  private readonly resolvePanel: PanelResolver = async instanceId => {
+    const instance = await this.readInstance(instanceId);
+    return {
+      instance,
+      definition: this.requireDefinition(instance.definitionId),
+    };
+  };
+
+  /**
+   * One panel's child runtime. It is owned by its dashboard rather than by
+   * the engine: it is not saved, renamed or deleted through a command, and it
+   * runs no timer of its own, because the dashboard times every panel.
+   */
+  private readonly createPanelRuntime: PanelRuntimeFactory = (
+    reference,
+    scopeFilter: FilterTree | null,
+  ) => {
+    const { instance, definition } = reference;
+    return new DataViewRuntime<DataViewConfig>({
+      id: this.newRuntimeId(),
+      // `validateDashboard` admitted this panel, so the reference is a data
+      // view of a data definition by the time a runtime is built for it.
+      definition: definition as DataViewDefinition,
+      config: instance.config as DataViewConfig,
+      title: instance.title,
+      scope: instance.scope,
+      saved: instance,
+      kinds: this.kinds,
+      limits: this.limits,
+      environment: this.environment,
+      source: this.resolveSource((definition as DataViewDefinition).source),
+      runner: this.runner,
+      scopeFilter,
+      autoRefresh: false,
+    });
+  };
+
+  private newRuntimeId(): string {
+    return `runtime-${(this.sequence += 1)}`;
   }
 
   private systemInstance(definitionId: string, viewId: string): ViewInstance {
@@ -507,7 +610,7 @@ export class ViewEngine {
   private async dispatch(
     payload: WritePayload,
     requestId: string,
-    runtime: DataViewRuntime | undefined,
+    runtime: ManagedViewRuntime | undefined,
   ): Promise<ViewInstance | ViewPreferences | void> {
     const context: WriteContext = { requestId };
     if (runtime) this.owners.set(requestId, runtime);
@@ -532,7 +635,7 @@ export class ViewEngine {
   private applyEffect(
     payload: WritePayload,
     result: ViewInstance | ViewPreferences | void,
-    runtime: DataViewRuntime | undefined,
+    runtime: ManagedViewRuntime | undefined,
   ): void {
     switch (payload.action) {
       case 'create': {
@@ -644,7 +747,7 @@ export class ViewEngine {
 
   private async reload(
     state: Extract<WriteState, { kind: 'conflict' }>,
-    runtime: DataViewRuntime | undefined,
+    runtime: ManagedViewRuntime | undefined,
   ): Promise<ViewInstance | ViewPreferences | void> {
     if (state.payload.action === 'preferences')
       return this.preferences(state.payload.definitionId);
@@ -658,7 +761,7 @@ export class ViewEngine {
   private async locate(
     id: string,
     action: keyof InstancePermissions,
-  ): Promise<{ revision: string; runtime: DataViewRuntime | undefined }> {
+  ): Promise<{ revision: string; runtime: ManagedViewRuntime | undefined }> {
     // A code-declared view is not in any store, and no store write can reach it.
     if (parseSystemInstanceId(id))
       throw new ViewCommandError(
@@ -693,7 +796,7 @@ export class ViewEngine {
     this.owners.delete(requestId);
   }
 
-  private forget(runtime: DataViewRuntime): void {
+  private forget(runtime: ManagedViewRuntime): void {
     runtime.dispose();
     this.runtimes.delete(runtime);
   }
@@ -721,8 +824,8 @@ export class ViewEngine {
     return definition;
   }
 
-  private requireRuntime(runtime: ViewRuntime): DataViewRuntime {
-    if (!isDataViewRuntime(runtime) || !this.runtimes.has(runtime))
+  private requireRuntime(runtime: ViewRuntime): ManagedViewRuntime {
+    if (!isManagedRuntime(runtime) || !this.runtimes.has(runtime))
       throw new ViewCommandError(issue('view.runtime.not-owned', []));
     return runtime;
   }
@@ -769,8 +872,11 @@ export class ViewEngine {
   }
 }
 
-function isDataViewRuntime(runtime: ViewRuntime): runtime is DataViewRuntime {
-  return runtime instanceof DataViewRuntime;
+function isManagedRuntime(runtime: ViewRuntime): runtime is ManagedViewRuntime {
+  return (
+    runtime instanceof DataViewRuntime ||
+    runtime instanceof DashboardViewRuntime
+  );
 }
 
 function isRuntime(target: WriteTarget): target is ViewRuntime {

@@ -23,6 +23,13 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
+
+/*
+ * The grid adapter's own geometry, from the library that computes it. Every
+ * rule matches a `.react-grid-*` class that only `DashboardGrid` renders, and
+ * it renders inside `.fve-root`, so the host page stays untouched.
+ */
+@import 'react-grid-layout/css/styles.css';
 /* stylelint-enable import-notation */
 
 /* Only this package is scanned, so the shipped stylesheet holds only what it uses. */
@@ -155,5 +162,10 @@
 
   .fve-root {
     @apply bg-background text-foreground;
+  }
+
+  /* Upstream paints the drop placeholder red; the theme owns that colour. */
+  .fve-root .react-grid-item.react-grid-placeholder {
+    @apply bg-primary;
   }
 }

@@ -32,6 +32,20 @@ export const BUILTIN_FIELD_KIND_IDS: readonly BuiltinFieldKindId[] = [
   'reference',
 ];
 
+/**
+ * Wow's query field syntax: segments separated by dots, each an identifier
+ * optionally prefixed with `@`, or an array index.
+ *
+ * A name outside it reaches the compiler as a `TypeError` rather than as an
+ * Issue, so every layer that accepts a field name from data checks it first.
+ */
+export const FIELD_NAME_PATTERN =
+  /^@?[A-Za-z_][A-Za-z0-9_-]*(\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$/;
+
+export function isFieldName(name: string): boolean {
+  return FIELD_NAME_PATTERN.test(name);
+}
+
 /** A selectable value: static for `enum`, resolved for `reference`. */
 export interface FieldOption {
   value: string | number;

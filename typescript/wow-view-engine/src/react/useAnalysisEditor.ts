@@ -94,7 +94,10 @@ export function useAnalysisEditor(
   const draft = state?.draft;
   const config = draft && draft.kind === 'analysis' ? draft : undefined;
 
-  const definition = runtime?.definition;
+  // A dashboard runtime has no fields and no capabilities; the controller
+  // then reports an empty scope rather than editing something that is not there.
+  const owner = runtime?.definition;
+  const definition = owner?.kind === 'data' ? owner : undefined;
   const capability = definition?.analysis;
   const scope = useMemo<AnalysisScope | null>(
     () =>

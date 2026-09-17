@@ -54,7 +54,7 @@ SOFTWARE.
 
 ## React-Grid-Layout — MIT License
 
-Dashboard layout uses React-Grid-Layout as a runtime dependency. Scoped adapter styles are maintained locally. Source: https://github.com/react-grid-layout/react-grid-layout
+Dashboard layout uses React-Grid-Layout as a runtime dependency, and its stylesheet is bundled into this package's own `styles.css`. Source: https://github.com/react-grid-layout/react-grid-layout
 
 The MIT License (MIT)
 

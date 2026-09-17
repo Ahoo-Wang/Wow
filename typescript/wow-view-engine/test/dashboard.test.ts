@@ -1,0 +1,576 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { describe, expect, it } from 'vitest';
+import {
+  builtinFieldKinds,
+  coversScope,
+  DEFAULT_RUNTIME_LIMITS,
+  emptyDashboardConfig,
+  isContentPanel,
+  isSafeContentUrl,
+  isViewPanel,
+  mapGlobalFilter,
+  mergeGlobalFilter,
+  validateDashboard,
+  type DashboardPanel,
+  type DashboardViewConfig,
+  type FilterTree,
+  type Issue,
+  type PanelReference,
+  type ViewScope,
+} from '../src/index.js';
+import {
+  analysisConfig,
+  dashboardConfig,
+  panelReference,
+  recordConfig,
+} from './fixtures.js';
+
+const kinds = builtinFieldKinds;
+
+function codes(issues: readonly Issue[]): string[] {
+  return issues.map(found => found.code);
+}
+
+function errors(issues: readonly Issue[]): Issue[] {
+  return issues.filter(found => found.severity === 'error');
+}
+
+function viewPanel(overrides: Partial<DashboardPanel> = {}): DashboardPanel {
+  return {
+    id: 'orders',
+    kind: 'view',
+    instanceId: 'pending',
+    bindings: [],
+    layout: { x: 0, y: 0, w: 6, h: 4 },
+    ...overrides,
+  } as DashboardPanel;
+}
+
+function refs(
+  entries: Record<string, PanelReference> = { pending: panelReference() },
+): ReadonlyMap<string, PanelReference> {
+  return new Map(Object.entries(entries));
+}
+
+function validate(
+  config: DashboardViewConfig,
+  scope: ViewScope = 'personal',
+  references = refs(),
+): Issue[] {
+  return validateDashboard(config, scope, references, kinds);
+}
+
+/** A global filter on `region`, bound onto the panel's `warehouse`. */
+const REGION_FILTER: FilterTree = {
+  op: 'and',
+  children: [{ field: 'region', operator: 'EQ', value: 'CN' }],
+};
+
+const REGION_FIELD = { name: 'region', label: 'Region', kind: 'string' };
+
+describe('emptyDashboardConfig', () => {
+  it('is complete and valid without a definition', () => {
+    const config = emptyDashboardConfig();
+
+    expect(config.panels).toEqual([]);
+    expect(config.fields).toEqual([]);
+    expect(validate(config)).toEqual([]);
+  });
+});
+
+describe('panel predicates', () => {
+  it('separate data panels from static ones', () => {
+    const view = viewPanel();
+    const markdown = viewPanel({ kind: 'markdown', content: 'hi' });
+
+    expect(isViewPanel(view)).toBe(true);
+    expect(isContentPanel(view)).toBe(false);
+    expect(isViewPanel(markdown)).toBe(false);
+    expect(isContentPanel(markdown)).toBe(true);
+  });
+});
+
+describe('mapGlobalFilter', () => {
+  it('renames bound leaves and keeps operator, value and shape', () => {
+    const tree: FilterTree = {
+      op: 'or',
+      children: [
+        { field: 'region', operator: 'EQ', value: 'CN' },
+        {
+          op: 'and',
+          children: [{ field: 'region', operator: 'IN', value: ['EU'] }],
+        },
+      ],
+    };
+
+    expect(
+      mapGlobalFilter(tree, [
+        { globalField: 'region', panelField: 'warehouse' },
+      ]),
+    ).toEqual({
+      op: 'or',
+      children: [
+        { field: 'warehouse', operator: 'EQ', value: 'CN' },
+        {
+          op: 'and',
+          children: [{ field: 'warehouse', operator: 'IN', value: ['EU'] }],
+        },
+      ],
+    });
+  });
+
+  it('leaves an unbound field under its global name for the panel to reject', () => {
+    const mapped = mapGlobalFilter(REGION_FILTER, []);
+
+    expect(mapped).toEqual(REGION_FILTER);
+  });
+});
+
+describe('mergeGlobalFilter', () => {
+  it('ANDs the panel filter with the mapped global one, flattened', () => {
+    const panelFilter: FilterTree = {
+      op: 'and',
+      children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+    };
+
+    expect(
+      mergeGlobalFilter(panelFilter, REGION_FILTER, [
+        { globalField: 'region', panelField: 'warehouse' },
+      ]),
+    ).toEqual({
+      op: 'and',
+      children: [
+        { field: 'status', operator: 'EQ', value: 'PENDING' },
+        { field: 'warehouse', operator: 'EQ', value: 'CN' },
+      ],
+    });
+  });
+
+  it('is the panel filter alone when the dashboard has no condition', () => {
+    const panelFilter: FilterTree = {
+      op: 'and',
+      children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+    };
+
+    expect(
+      mergeGlobalFilter(panelFilter, { op: 'and', children: [] }, []),
+    ).toEqual(panelFilter);
+  });
+});
+
+describe('validateDashboard global fields', () => {
+  it('rejects an empty, malformed or duplicated field name', () => {
+    const config = dashboardConfig({
+      fields: [
+        { name: ' ', label: 'Blank', kind: 'string' },
+        { name: 'a b', label: 'Spaced', kind: 'string' },
+        REGION_FIELD,
+        { name: 'region', label: 'Region again', kind: 'string' },
+      ],
+    });
+
+    expect(codes(validate(config))).toEqual([
+      'dashboard.field.name-empty',
+      'dashboard.field.name-invalid',
+      'dashboard.field.duplicate',
+    ]);
+  });
+
+  it('accepts a nested field path', () => {
+    const config = dashboardConfig({
+      fields: [{ name: 'address.city', label: 'City', kind: 'string' }],
+    });
+
+    expect(validate(config)).toEqual([]);
+  });
+
+  it('judges the global filter against its own fields', () => {
+    const config = dashboardConfig({ filter: REGION_FILTER });
+
+    expect(codes(validate(config))).toContain('filter.field.unknown');
+  });
+});
+
+describe('validateDashboard panels', () => {
+  it('reports too many panels before looking at any of them', () => {
+    const panels = Array.from(
+      { length: DEFAULT_RUNTIME_LIMITS.maxDashboardPanels + 1 },
+      () => viewPanel({ id: 'same', instanceId: 'missing' }),
+    );
+
+    // One issue, not one per panel: nothing past the budget is inspected.
+    expect(codes(validate(dashboardConfig({ panels })))).toEqual([
+      'dashboard.panels.too-many',
+    ]);
+  });
+
+  it('rejects an empty or duplicated panel id', () => {
+    const config = dashboardConfig({
+      panels: [
+        viewPanel({ id: '' }),
+        viewPanel(),
+        viewPanel({ layout: { x: 6, y: 0, w: 6, h: 4 } }),
+      ],
+    });
+
+    expect(codes(validate(config))).toEqual([
+      'dashboard.panel.id-empty',
+      'dashboard.panel.id-duplicate',
+    ]);
+  });
+
+  it('rejects a layout that is not whole, positive and inside the grid', () => {
+    const config = dashboardConfig({
+      panels: [
+        viewPanel({ id: 'a', layout: { x: -1, y: 0.5, w: 6, h: 4 } }),
+        viewPanel({ id: 'b', layout: { x: 0, y: 0, w: 0, h: Infinity } }),
+        viewPanel({ id: 'c', layout: { x: 8, y: 0, w: 6, h: 4 } }),
+      ],
+    });
+
+    expect(codes(validate(config))).toEqual([
+      'dashboard.layout.invalid',
+      'dashboard.layout.invalid',
+      'dashboard.layout.invalid',
+      'dashboard.layout.invalid',
+      'dashboard.layout.out-of-grid',
+    ]);
+  });
+
+  it('takes the grid width from the options', () => {
+    const config = dashboardConfig({
+      panels: [viewPanel({ layout: { x: 0, y: 0, w: 6, h: 4 } })],
+    });
+
+    expect(
+      codes(
+        validateDashboard(config, 'personal', refs(), kinds, { columns: 4 }),
+      ),
+    ).toEqual(['dashboard.layout.out-of-grid']);
+  });
+
+  it('reports a missing layout rather than reading through it', () => {
+    const config = dashboardConfig({
+      panels: [viewPanel({ layout: undefined as never })],
+    });
+
+    expect(codes(validate(config))).toEqual(['dashboard.layout.missing']);
+  });
+
+  it('reports an unknown panel kind', () => {
+    const config = dashboardConfig({
+      panels: [viewPanel({ kind: 'iframe' } as never)],
+    });
+
+    expect(codes(validate(config))).toEqual(['dashboard.panel.unknown-kind']);
+  });
+});
+
+describe('validateDashboard references', () => {
+  it('reports only the unavailable panel and keeps judging the rest', () => {
+    const config = dashboardConfig({
+      panels: [
+        viewPanel({ id: 'gone', instanceId: 'deleted' }),
+        viewPanel({ id: 'here', layout: { x: 6, y: 0, w: 6, h: 4 } }),
+      ],
+    });
+
+    const issues = validate(config);
+
+    expect(codes(issues)).toEqual(['dashboard.panel.unavailable']);
+    expect(issues[0].path).toEqual(['panels', 0, 'instanceId']);
+  });
+
+  it('refuses a reference that is not a record or an analysis', () => {
+    const config = dashboardConfig({ panels: [viewPanel()] });
+    const nested = panelReference({ config: emptyDashboardConfig() });
+
+    expect(
+      codes(validate(config, 'personal', refs({ pending: nested }))),
+    ).toEqual(['dashboard.panel.kind-unsupported']);
+  });
+
+  it('accepts an analysis reference', () => {
+    const config = dashboardConfig({ panels: [viewPanel()] });
+    const analysis = panelReference({ config: analysisConfig() });
+
+    expect(validate(config, 'personal', refs({ pending: analysis }))).toEqual(
+      [],
+    );
+  });
+
+  it('lets a personal dashboard reference a personal view', () => {
+    const config = dashboardConfig({ panels: [viewPanel()] });
+    const personal = panelReference({ scope: 'personal' });
+
+    expect(validate(config, 'personal', refs({ pending: personal }))).toEqual(
+      [],
+    );
+  });
+
+  it('refuses a personal reference from a shared dashboard', () => {
+    const config = dashboardConfig({ panels: [viewPanel()] });
+    const personal = panelReference({ scope: 'personal' });
+
+    expect(
+      codes(validate(config, 'shared', refs({ pending: personal }))),
+    ).toEqual(['dashboard.panel.scope-too-narrow']);
+  });
+
+  it('answers scope coverage directly', () => {
+    expect(coversScope('personal', 'personal')).toBe(true);
+    expect(coversScope('shared', 'shared')).toBe(true);
+    expect(coversScope('system', 'personal')).toBe(false);
+  });
+});
+
+describe('validateDashboard bindings', () => {
+  function bound(config: Partial<DashboardViewConfig> = {}) {
+    return dashboardConfig({
+      fields: [REGION_FIELD],
+      filter: REGION_FILTER,
+      panels: [
+        viewPanel({
+          bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        }),
+      ],
+      ...config,
+    });
+  }
+
+  it('accepts a complete binding of every field the filter mentions', () => {
+    expect(validate(bound())).toEqual([]);
+  });
+
+  it('rejects a binding whose global or panel field does not exist', () => {
+    const config = bound({
+      panels: [
+        viewPanel({
+          bindings: [
+            { globalField: 'nope', panelField: 'warehouse' },
+            { globalField: 'region', panelField: 'nope' },
+          ],
+        }),
+      ],
+    });
+
+    expect(codes(validate(config))).toEqual([
+      'dashboard.binding.global-unknown',
+      'dashboard.binding.panel-unknown',
+    ]);
+  });
+
+  it('rejects two bindings of the same global field', () => {
+    const config = bound({
+      panels: [
+        viewPanel({
+          bindings: [
+            { globalField: 'region', panelField: 'warehouse' },
+            { globalField: 'region', panelField: 'status' },
+          ],
+        }),
+      ],
+    });
+
+    expect(codes(validate(config))).toEqual([
+      'dashboard.binding.global-duplicate',
+    ]);
+  });
+
+  it('rejects a binding onto a field of another kind', () => {
+    const config = bound({
+      panels: [
+        viewPanel({
+          bindings: [{ globalField: 'region', panelField: 'amount' }],
+        }),
+      ],
+    });
+
+    expect(codes(validate(config))).toEqual([
+      'dashboard.binding.kind-mismatch',
+    ]);
+  });
+
+  it('refuses a panel that binds only part of the global filter', () => {
+    const config = bound({
+      fields: [
+        REGION_FIELD,
+        { name: 'product', label: 'Product', kind: 'string' },
+      ],
+      filter: {
+        op: 'or',
+        children: [
+          { field: 'region', operator: 'EQ', value: 'CN' },
+          { field: 'product', operator: 'EQ', value: 'X' },
+        ],
+      },
+      filterMode: 'advanced',
+    });
+
+    // Dropping one branch of an OR would narrow the condition instead of
+    // translating it, so a partial mapping is not accepted at all.
+    expect(codes(validate(config))).toEqual(['dashboard.binding.missing']);
+  });
+
+  it('judges the mapped tree against the panel definition', () => {
+    const config = bound({
+      fields: [{ name: 'region', label: 'Region', kind: 'number' }],
+      panels: [
+        viewPanel({
+          bindings: [{ globalField: 'region', panelField: 'amount' }],
+        }),
+      ],
+      filter: {
+        op: 'and',
+        children: [{ field: 'region', operator: 'EQ', value: 7 }],
+      },
+    });
+
+    expect(validate(config)).toEqual([]);
+  });
+
+  it('re-checks the budget on the merged tree', () => {
+    const panelFilter: FilterTree = {
+      op: 'and',
+      children: [
+        { field: 'status', operator: 'EQ', value: 'A' },
+        { field: 'status', operator: 'EQ', value: 'B' },
+      ],
+    };
+    const reference = panelReference({
+      config: recordConfig({ filter: panelFilter }),
+    });
+    const config = bound();
+
+    // Two trees that each fit can still exceed the budget once ANDed.
+    const issues = validateDashboard(
+      config,
+      'personal',
+      refs({ pending: reference }),
+      kinds,
+      { limits: { ...DEFAULT_RUNTIME_LIMITS, maxFilterNodes: 3 } },
+    );
+
+    expect(codes(issues)).toEqual(['filter.tree.too-many-nodes']);
+    expect(issues[0].path).toEqual(['panels', 0, 'filter']);
+  });
+
+  it('does not judge the merged tree while a binding is broken', () => {
+    const config = bound({
+      panels: [viewPanel({ bindings: [] })],
+    });
+
+    expect(codes(validate(config))).toEqual(['dashboard.binding.missing']);
+  });
+});
+
+describe('validateDashboard content panels', () => {
+  function content(panel: DashboardPanel): Issue[] {
+    return validate(dashboardConfig({ panels: [panel] }));
+  }
+
+  it('accepts markdown within the length limit', () => {
+    expect(
+      content(viewPanel({ kind: 'markdown', content: '# Weekly review' })),
+    ).toEqual([]);
+  });
+
+  it('rejects markdown beyond it', () => {
+    expect(
+      codes(
+        content(viewPanel({ kind: 'markdown', content: 'x'.repeat(20_001) })),
+      ),
+    ).toEqual(['dashboard.markdown.too-long']);
+  });
+
+  it('accepts http, https, mailto and relative URLs', () => {
+    for (const src of [
+      'https://example.com/a.png',
+      'http://example.com/a.png',
+      '/assets/a.png',
+      'assets/a.png',
+    ])
+      expect(content(viewPanel({ kind: 'image', src }))).toEqual([]);
+
+    expect(
+      content(
+        viewPanel({
+          kind: 'links',
+          items: [{ label: 'Mail', href: 'mailto:ops@example.com' }],
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it('rejects any other scheme, for src and href alike', () => {
+    const panel = viewPanel({
+      kind: 'image',
+      src: 'javascript:alert(1)',
+      href: 'data:text/html,<script></script>',
+    });
+
+    expect(codes(content(panel))).toEqual([
+      'dashboard.url.unsupported-scheme',
+      'dashboard.url.unsupported-scheme',
+    ]);
+  });
+
+  it('rejects a link without a label and one with an unusable href', () => {
+    const panel = viewPanel({
+      kind: 'links',
+      items: [{ label: ' ', href: 'vbscript:x' }],
+    });
+
+    expect(codes(content(panel))).toEqual([
+      'dashboard.link.label-empty',
+      'dashboard.url.unsupported-scheme',
+    ]);
+  });
+
+  it('rejects more links than one panel may hold', () => {
+    const items = Array.from({ length: 51 }, (_unused, index) => ({
+      label: `Link ${index}`,
+      href: '/a',
+    }));
+
+    expect(codes(content(viewPanel({ kind: 'links', items })))).toEqual([
+      'dashboard.links.too-many',
+    ]);
+  });
+
+  it('never creates a child runtime concern: content panels take no bindings', () => {
+    const config = dashboardConfig({
+      fields: [REGION_FIELD],
+      filter: REGION_FILTER,
+      panels: [viewPanel({ kind: 'markdown', content: 'note' })],
+    });
+
+    // The global filter is unbound here and that is fine: nothing queries.
+    expect(errors(validate(config))).toEqual([]);
+  });
+});
+
+describe('isSafeContentUrl', () => {
+  it('refuses blank, scheme-relative and control-character URLs', () => {
+    expect(isSafeContentUrl('  ')).toBe(false);
+    expect(isSafeContentUrl('//evil.example.com/a.png')).toBe(false);
+    expect(isSafeContentUrl('java\nscript:alert(1)')).toBe(false);
+  });
+
+  it('is case-insensitive about the scheme', () => {
+    expect(isSafeContentUrl('HTTPS://example.com')).toBe(true);
+    expect(isSafeContentUrl('JavaScript:alert(1)')).toBe(false);
+  });
+});

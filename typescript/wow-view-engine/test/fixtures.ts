@@ -19,10 +19,14 @@ import {
 import { vi } from 'vitest';
 import type {
   AnalysisViewConfig,
-  DataViewConfig,
+  DashboardDefinition,
+  DashboardViewConfig,
   DataViewDefinition,
+  PanelReference,
   RecordViewConfig,
   RuntimeEnvironment,
+  ViewConfig,
+  ViewInstance,
   ViewSource,
 } from '../src/index.js';
 
@@ -115,8 +119,59 @@ export function analysisConfig(
   };
 }
 
-/** Narrows a data view's config to the record kind, or fails the test. */
-export function requireRecordConfig(config: DataViewConfig): RecordViewConfig {
+export function overviewDefinition(
+  overrides: Partial<DashboardDefinition> = {},
+): DashboardDefinition {
+  return {
+    id: 'overview',
+    title: 'Overview',
+    kind: 'dashboard',
+    ...overrides,
+  };
+}
+
+export function dashboardConfig(
+  overrides: Partial<DashboardViewConfig> = {},
+): DashboardViewConfig {
+  return {
+    filter: { op: 'and', children: [] },
+    filterMode: 'simple',
+    refresh: { interval: null },
+    kind: 'dashboard',
+    fields: [],
+    panels: [],
+    ...overrides,
+  };
+}
+
+/** A saved record instance, the usual target of a dashboard panel. */
+export function savedInstance(
+  overrides: Partial<ViewInstance> = {},
+): ViewInstance {
+  return {
+    id: 'pending',
+    definitionId: 'orders',
+    title: 'Pending orders',
+    scope: 'shared',
+    revision: 'r1',
+    config: recordConfig(),
+    ...overrides,
+  };
+}
+
+/** What `validateDashboard` is given for one referenced instance. */
+export function panelReference(
+  instance: Partial<ViewInstance> = {},
+  definition: Partial<DataViewDefinition> = {},
+): PanelReference {
+  return {
+    instance: savedInstance(instance),
+    definition: ordersDefinition(definition),
+  };
+}
+
+/** Narrows an open view's config to the record kind, or fails the test. */
+export function requireRecordConfig(config: ViewConfig): RecordViewConfig {
   if (config.kind !== 'record')
     throw new Error(`expected a record config, got ${config.kind}`);
   return config;

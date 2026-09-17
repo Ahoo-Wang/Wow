@@ -42,8 +42,8 @@ export interface FilterEditorController {
   /** The tree being edited, which is the draft's, never the applied one. */
   tree: FilterTree;
   mode: FilterMode;
-  /** Fields the definition offers, in declaration order. */
-  fields: FieldDefinition[];
+  /** Fields the view offers, in declaration order. */
+  fields: readonly FieldDefinition[];
   /** Issues about the filter only; the rest of the config is not this editor's. */
   issues: Issue[];
   /** Conditions currently in force, for a summary bar. */
@@ -67,6 +67,8 @@ export interface FilterEditorController {
 }
 
 const ROOT: FilterPath = [];
+/** Stable identity for "no runtime yet", so the memo below stays quiet. */
+const EMPTY_FIELDS: readonly FieldDefinition[] = [];
 /** Stable identity for "no runtime yet"; every edit produces a new tree. */
 const EMPTY_TREE: FilterTree = { op: 'and', children: [] };
 
@@ -80,7 +82,13 @@ export function useFilterEditor(
   runtime: ViewRuntime | null,
 ): FilterEditorController {
   const state = useViewRuntime(runtime);
-  const fields = useMemo(() => runtime?.definition.fields ?? [], [runtime]);
+  // A dashboard's fields come from its draft rather than from a definition,
+  // so this follows the state and not the runtime's identity.
+  const fields = useMemo(
+    () => runtime?.fields ?? EMPTY_FIELDS,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `fields` is a getter over `state`
+    [runtime, state],
+  );
   const kinds = runtime?.kinds;
   const tree = state?.draft.filter ?? EMPTY_TREE;
 

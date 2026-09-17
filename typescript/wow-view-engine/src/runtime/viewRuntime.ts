@@ -15,7 +15,10 @@ import { dequal } from 'dequal';
 import {
   MAX_TIMER_DELAY_MS,
   type AnalysisViewConfig,
+  type DashboardDefinition,
+  type DashboardViewConfig,
   type DataViewDefinition,
+  type FieldDefinition,
   type FilterTree,
   type Issue,
   type PagingMode,
@@ -47,6 +50,7 @@ import {
   type KernelContext,
 } from './execute.js';
 import type { WriteState } from './write.js';
+import type { DashboardRuntime } from './dashboardRuntime.js';
 
 /**
  * One open view. A small store with `subscribe` and `getSnapshot`, so React
@@ -60,7 +64,13 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   /** Runtime identity, distinct from the instance id: an unsaved view has one too. */
   readonly id: string;
   readonly kind: C['kind'];
-  readonly definition: DataViewDefinition;
+  readonly definition: DefinitionFor<C>;
+  /**
+   * Fields the filter editor edits against: a data view's own, a dashboard's
+   * declared global ones. A dashboard's set follows its draft, so read this
+   * on every render rather than once per runtime.
+   */
+  readonly fields: readonly FieldDefinition[];
   /** The registry admission used, which an editor must edit against. */
   readonly kinds: FieldKindRegistry;
   getSnapshot(): ViewRuntimeState<C>;
@@ -80,6 +90,14 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   readonly disposed: boolean;
 }
 
+/**
+ * The definition a config belongs to. A dashboard owns no data, so its
+ * definition is a catalogue entry with no fields and no capabilities.
+ */
+export type DefinitionFor<C extends ViewConfig> = C extends DashboardViewConfig
+  ? DashboardDefinition
+  : DataViewDefinition;
+
 /** Paging and selection belong to Record alone. */
 export interface RecordViewRuntime<
   P extends PagingMode = PagingMode,
@@ -90,7 +108,29 @@ export interface RecordViewRuntime<
 
 /** What opening an instance returns; narrow it by `runtime.kind`. */
 export type AnyViewRuntime =
-  RecordViewRuntime | ViewRuntime<AnalysisViewConfig>;
+  RecordViewRuntime | ViewRuntime<AnalysisViewConfig> | DashboardRuntime;
+
+/**
+ * What `ViewEngine` needs beyond the public contract: admission at the scope
+ * a write is headed for, and the three ways an outcome reaches an open view.
+ * Both runtime classes implement it, which is how the engine stays
+ * indifferent to the kind.
+ */
+export interface ManagedViewRuntime<
+  C extends ViewConfig = ViewConfig,
+> extends ViewRuntime<C> {
+  /**
+   * Admission of the draft as it would stand at a target scope, which is what
+   * "save as shared" has to ask: a dashboard may reference views the people it
+   * would be shared with cannot read.
+   */
+  issuesAt(scope: ViewScope): Issue[];
+  /** Advances the saved baseline once the store has confirmed a write. */
+  markSaved(instance: ViewInstance): void;
+  /** Replaces the draft with the store's state, for "reload" on a conflict. */
+  adoptSaved(instance: ViewInstance): void;
+  setWrite(write: WriteState | null): void;
+}
 
 /** Keeps the narrow type through `create`, which knows its config statically. */
 export type RuntimeFor<C extends ViewConfig> = C extends RecordViewConfig
@@ -142,11 +182,19 @@ export interface ViewRuntimeOptions<C extends DataViewConfig> {
   environment: RuntimeEnvironment;
   source: ViewSource;
   runner: RequestRunner;
+  /** An outer condition in force from the first execution on. */
+  scopeFilter?: FilterTree | null;
+  /**
+   * False inside a dashboard, which times the refresh of every panel itself
+   * rather than letting each one run a timer of its own.
+   */
+  autoRefresh?: boolean;
 }
 
 const IDLE: ViewQueryState = { status: 'idle' };
 
-function hasError(issues: readonly Issue[]): boolean {
+/** An `error` blocks apply and every write; a `warning` only reports. */
+export function hasError(issues: readonly Issue[]): boolean {
   return issues.some(entry => entry.severity === 'error');
 }
 
@@ -158,10 +206,10 @@ function hasError(issues: readonly Issue[]): boolean {
  */
 export class DataViewRuntime<
   C extends DataViewConfig = DataViewConfig,
-> implements ViewRuntime<C> {
+> implements ManagedViewRuntime<C> {
   readonly id: string;
   readonly kind: C['kind'];
-  readonly definition: DataViewDefinition;
+  readonly definition: DefinitionFor<C>;
   readonly kinds: FieldKindRegistry;
 
   private readonly listeners = new Set<() => void>();
@@ -169,6 +217,7 @@ export class DataViewRuntime<
   private readonly runner: RequestRunner;
   private readonly environment: RuntimeEnvironment;
   private readonly unwatchVisibility: () => void;
+  private readonly autoRefresh: boolean;
 
   private state: ViewRuntimeState<C>;
   private scopeFilter: FilterTree | null = null;
@@ -181,10 +230,14 @@ export class DataViewRuntime<
   constructor(options: ViewRuntimeOptions<C>) {
     this.id = options.id;
     this.kind = options.config.kind;
-    this.definition = options.definition;
+    // `C extends DataViewConfig` makes `DefinitionFor<C>` a data definition,
+    // which the compiler cannot prove while `C` is still a parameter.
+    this.definition = options.definition as DefinitionFor<C>;
     this.kinds = options.kinds;
     this.runner = options.runner;
     this.environment = options.environment;
+    this.autoRefresh = options.autoRefresh ?? true;
+    this.scopeFilter = options.scopeFilter ?? null;
     this.context = {
       definition: options.definition,
       kinds: options.kinds,
@@ -218,6 +271,10 @@ export class DataViewRuntime<
     return this.stopped;
   }
 
+  get fields(): readonly FieldDefinition[] {
+    return this.context.definition.fields;
+  }
+
   getSnapshot(): ViewRuntimeState<C> {
     return this.state;
   }
@@ -241,7 +298,7 @@ export class DataViewRuntime<
 
   apply(): void {
     if (this.stopped || hasError(this.state.issues)) return;
-    this.pageTarget = firstPageOf(this.definition);
+    this.pageTarget = firstPageOf(this.context.definition);
     this.setState({ applied: this.state.draft, selection: [] });
     this.execute({ keepSelection: false });
   }
@@ -249,7 +306,7 @@ export class DataViewRuntime<
   refresh(): void {
     if (this.stopped || hasError(this.state.issues)) return;
     // A refresh returns to the first page; the selection keeps whatever rows survive.
-    this.pageTarget = firstPageOf(this.definition);
+    this.pageTarget = firstPageOf(this.context.definition);
     this.execute({ keepSelection: true });
   }
 
@@ -276,6 +333,9 @@ export class DataViewRuntime<
 
   setScopeFilter(tree: FilterTree | null): Issue[] {
     if (this.stopped) return [];
+    // Re-injecting the same condition changes nothing, and a dashboard does
+    // exactly that whenever a layout edit is applied.
+    if (dequal(tree ?? null, this.scopeFilter)) return [];
     const merged = {
       ...this.state.applied,
       filter: mergeFilters(this.state.applied.filter, tree),
@@ -285,10 +345,15 @@ export class DataViewRuntime<
     if (hasError(issues)) return issues;
 
     this.scopeFilter = tree;
-    this.pageTarget = firstPageOf(this.definition);
+    this.pageTarget = firstPageOf(this.context.definition);
     this.setState({ selection: [] });
     this.execute({ keepSelection: false });
     return issues;
+  }
+
+  /** A record or an analysis config means the same thing in every scope. */
+  issuesAt(): Issue[] {
+    return this.state.issues;
   }
 
   /** Called by `ViewEngine` once a write has been confirmed by the store. */
@@ -441,6 +506,7 @@ export class DataViewRuntime<
     const interval = this.state.applied.refresh.interval;
     if (
       this.stopped ||
+      !this.autoRefresh ||
       interval === null ||
       this.state.editing ||
       this.state.query.status === 'loading' ||

@@ -1,0 +1,520 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { dequal } from 'dequal';
+import {
+  MAX_TIMER_DELAY_MS,
+  type DashboardDefinition,
+  type DashboardPanel,
+  type DashboardViewConfig,
+  type DashboardViewPanel,
+  type FieldDefinition,
+  type FilterTree,
+  type Issue,
+  type RuntimeLimits,
+  type ViewInstance,
+  type ViewScope,
+} from '../model/index.js';
+import { mergeFilters, type FieldKindRegistry } from '../filter/index.js';
+import {
+  isViewPanel,
+  mapGlobalFilter,
+  validateDashboard,
+  type PanelReference,
+} from '../dashboard/index.js';
+import type { RuntimeEnvironment } from './environment.js';
+import type { WriteState } from './write.js';
+import {
+  hasError,
+  type DataViewRuntime,
+  type ManagedViewRuntime,
+  type ViewQueryState,
+  type ViewRuntime,
+  type ViewRuntimeState,
+} from './viewRuntime.js';
+
+/** Loads what a panel references; rejects when it is gone or unreadable. */
+export type PanelResolver = (instanceId: string) => Promise<PanelReference>;
+
+/** Builds the child runtime of one data panel, with its scope already in force. */
+export type PanelRuntimeFactory = (
+  reference: PanelReference,
+  scopeFilter: FilterTree | null,
+) => DataViewRuntime;
+
+/** One panel as the grid renders it. */
+export interface DashboardPanelState {
+  id: string;
+  panel: DashboardPanel;
+  /**
+   * The child runtime of a data panel, once its reference has been loaded and
+   * admitted. `null` for a content panel and for one that cannot run.
+   */
+  runtime: DataViewRuntime | null;
+  /** Issues about this panel alone; the dashboard around it still works. */
+  issues: Issue[];
+}
+
+export interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewConfig> {
+  /**
+   * The applied panels. Loading, errors and data are each panel's own: a
+   * dashboard has no single query state to report.
+   */
+  panels: DashboardPanelState[];
+  /** True while a panel reference is still being loaded. */
+  resolving: boolean;
+}
+
+/**
+ * The public face of a dashboard runtime: a view runtime whose snapshot also
+ * carries the panels. `open` narrows to it by `kind`, so a caller reaches the
+ * panels without knowing the class behind them.
+ */
+export interface DashboardRuntime extends ViewRuntime<DashboardViewConfig> {
+  getSnapshot(): DashboardRuntimeState;
+  /** Resolves once every panel reference has been loaded or refused. */
+  ready(): Promise<void>;
+  /** The child runtime of one panel, for a host that drives a panel itself. */
+  panelRuntime(panelId: string): DataViewRuntime | null;
+}
+
+export interface DashboardRuntimeOptions {
+  id: string;
+  definition: DashboardDefinition;
+  config: DashboardViewConfig;
+  title: string;
+  scope: ViewScope;
+  saved?: ViewInstance | null;
+  kinds: FieldKindRegistry;
+  limits: RuntimeLimits;
+  environment: RuntimeEnvironment;
+  resolve: PanelResolver;
+  createPanelRuntime: PanelRuntimeFactory;
+}
+
+const IDLE: ViewQueryState = { status: 'idle' };
+
+/**
+ * The runtime of a dashboard: N child runtimes and one global filter.
+ *
+ * What it adds over a data view is composition, and its rules follow from
+ * that. The global filter reaches a panel as an injected scope, so the
+ * referenced view never becomes dirty and a dashboard's condition is never
+ * saved back into it. Every panel keeps its own loading, error and result,
+ * because one slow or broken panel must not decide what the others show. And
+ * the timer lives here rather than in the children: a referenced view's own
+ * refresh interval is ignored inside a dashboard, so there is one clock.
+ */
+export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewConfig> {
+  readonly id: string;
+  readonly kind = 'dashboard' as const;
+  readonly definition: DashboardDefinition;
+  readonly kinds: FieldKindRegistry;
+
+  private readonly listeners = new Set<() => void>();
+  private readonly options: DashboardRuntimeOptions;
+  private readonly environment: RuntimeEnvironment;
+  private readonly unwatchVisibility: () => void;
+  /** Resolved references by instance id; `null` once known to be unreadable. */
+  private readonly references = new Map<string, PanelReference | null>();
+  private readonly pending = new Map<string, Promise<void>>();
+  /** Child runtimes by panel id, with the subscription that watches each. */
+  private readonly children = new Map<
+    string,
+    { runtime: DataViewRuntime; unsubscribe: () => void }
+  >();
+
+  private state: DashboardRuntimeState;
+  private scopeFilter: FilterTree | null = null;
+  private timer: unknown;
+  private timerDelay: number | null = null;
+  private stopped = false;
+
+  constructor(options: DashboardRuntimeOptions) {
+    this.options = options;
+    this.id = options.id;
+    this.definition = options.definition;
+    this.kinds = options.kinds;
+    this.environment = options.environment;
+
+    const saved = options.saved ?? null;
+    this.state = {
+      saved,
+      title: options.title,
+      scope: options.scope,
+      draft: options.config,
+      applied: options.config,
+      issues: this.validate(options.config, options.scope),
+      dirty: saved === null,
+      query: IDLE,
+      result: null,
+      selection: [],
+      write: null,
+      editing: false,
+      panels: [],
+      resolving: false,
+    };
+    this.unwatchVisibility = options.environment.visibility.subscribe(() =>
+      this.syncTimer(),
+    );
+    this.load(options.config);
+  }
+
+  get disposed(): boolean {
+    return this.stopped;
+  }
+
+  /** A dashboard declares its own filter fields; there is no definition to ask. */
+  get fields(): readonly FieldDefinition[] {
+    return this.state.draft.fields;
+  }
+
+  getSnapshot(): DashboardRuntimeState {
+    return this.state;
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  /**
+   * Resolves once every reference the current config needs has been loaded or
+   * found unreadable, so `open` can hand back a dashboard that is ready to
+   * run rather than one that fills in a moment later.
+   */
+  async ready(): Promise<void> {
+    // A reference that arrives may add panels of its own to load, so this
+    // drains rather than awaiting one round.
+    while (this.pending.size > 0) await Promise.all([...this.pending.values()]);
+  }
+
+  edit(patch: Partial<DashboardViewConfig>): void {
+    if (this.stopped) return;
+    const draft = { ...this.state.draft, ...patch };
+    this.setState({
+      draft,
+      issues: this.validate(draft, this.state.scope),
+      dirty: this.isDirty(draft, this.state.saved),
+    });
+    // New panels need their references before the draft can be judged fully.
+    this.load(draft);
+  }
+
+  /** Promotes the draft and brings the panels in line with it. */
+  apply(): void {
+    if (this.stopped || hasError(this.state.issues)) return;
+    // Promotion and the panels that follow from it commit together, so a
+    // subscriber is notified once and never sees the two disagree.
+    this.sync({ applied: this.state.draft });
+  }
+
+  /** One clock for every panel; a referenced view's own interval is ignored. */
+  refresh(): void {
+    if (this.stopped || hasError(this.state.issues)) return;
+    for (const child of this.children.values()) child.runtime.refresh();
+  }
+
+  setEditing(active: boolean): void {
+    if (this.stopped || this.state.editing === active) return;
+    this.setState({ editing: active });
+  }
+
+  /**
+   * An outer condition, in the dashboard's own field names. It is admitted
+   * exactly like a user's own: the merged global filter must still map onto
+   * every panel, so an embedding host cannot quietly break one.
+   */
+  setScopeFilter(tree: FilterTree | null): Issue[] {
+    if (this.stopped) return [];
+    if (dequal(tree ?? null, this.scopeFilter)) return [];
+    const merged: DashboardViewConfig = {
+      ...this.state.applied,
+      filter: mergeFilters(this.state.applied.filter, tree),
+    };
+    const issues = this.validate(merged, this.state.scope);
+    if (hasError(issues)) return issues;
+
+    this.scopeFilter = tree;
+    this.sync();
+    return issues;
+  }
+
+  /**
+   * What the draft would be judged as at another scope. Sharing a dashboard
+   * widens who sees it, and a panel on a personal view would be blank for
+   * them, so the target scope decides rather than the current one.
+   */
+  issuesAt(scope: ViewScope): Issue[] {
+    return scope === this.state.scope
+      ? this.state.issues
+      : this.validate(this.state.draft, scope);
+  }
+
+  markSaved(instance: ViewInstance): void {
+    if (this.stopped) return;
+    this.setState({
+      saved: instance,
+      title: instance.title,
+      scope: instance.scope,
+      dirty: this.isDirty(this.state.draft, instance),
+      write: null,
+    });
+  }
+
+  adoptSaved(instance: ViewInstance): void {
+    if (this.stopped) return;
+    const draft = instance.config as DashboardViewConfig;
+    this.setState({
+      saved: instance,
+      title: instance.title,
+      scope: instance.scope,
+      draft,
+      issues: this.validate(draft, instance.scope),
+      dirty: false,
+      write: null,
+    });
+    this.load(draft);
+  }
+
+  setWrite(write: WriteState | null): void {
+    if (this.stopped) return;
+    this.setState({ write });
+  }
+
+  dispose(): void {
+    if (this.stopped) return;
+    this.stopped = true;
+    this.stopTimer();
+    this.unwatchVisibility();
+    for (const child of this.children.values()) {
+      child.unsubscribe();
+      child.runtime.dispose();
+    }
+    this.children.clear();
+    this.listeners.clear();
+  }
+
+  /** The child runtime of one panel, for a host that drives a panel itself. */
+  panelRuntime(panelId: string): DataViewRuntime | null {
+    return this.children.get(panelId)?.runtime ?? null;
+  }
+
+  private validate(config: DashboardViewConfig, scope: ViewScope): Issue[] {
+    return validateDashboard(config, scope, this.references, this.kinds, {
+      limits: this.options.limits,
+    });
+  }
+
+  private isDirty(
+    draft: DashboardViewConfig,
+    saved: ViewInstance | null,
+  ): boolean {
+    return saved === null || !dequal(draft, saved.config);
+  }
+
+  /** Loads the references a config needs and revalidates as each arrives. */
+  private load(config: DashboardViewConfig): void {
+    const wanted = new Set(
+      config.panels
+        .filter(isViewPanel)
+        .map(panel => panel.instanceId)
+        .filter(id => !this.references.has(id) && !this.pending.has(id)),
+    );
+    if (wanted.size === 0) return;
+
+    for (const id of wanted) {
+      // A rejection is an answer too: the instance was deleted, or this user
+      // may not read it, and only that one panel is affected.
+      const loading = this.options.resolve(id).then(
+        reference => this.resolved(id, reference),
+        () => this.resolved(id, null),
+      );
+      this.pending.set(id, loading);
+    }
+    this.setState({ resolving: true });
+  }
+
+  private resolved(id: string, reference: PanelReference | null): void {
+    this.pending.delete(id);
+    if (this.stopped) return;
+    this.references.set(id, reference);
+    this.sync({
+      issues: this.validate(this.state.draft, this.state.scope),
+      resolving: this.pending.size > 0,
+    });
+  }
+
+  /**
+   * Brings the child runtimes in line with the applied panels: one per data
+   * panel that can run, none for the rest, and the current scope in each.
+   */
+  private sync(patch: Partial<DashboardRuntimeState> = {}): void {
+    if (this.stopped) return;
+    const applied = patch.applied ?? this.state.applied;
+    const issues = this.validate(applied, this.state.scope);
+    const panels: DashboardPanelState[] = [];
+    const live = new Set<string>();
+    // A problem with the dashboard itself stops every panel, which is the
+    // same rule `apply` follows; a panel's own problem stops only that one.
+    // The check belongs here because a reference arriving also gets us here,
+    // and a view waiting to be fixed must not start querying behind that.
+    const blocked = hasError(
+      issues.filter(found => found.path[0] !== 'panels'),
+    );
+
+    applied.panels.forEach((panel, index) => {
+      const own = issues.filter(
+        found => found.path[0] === 'panels' && found.path[1] === index,
+      );
+      const runtime =
+        isViewPanel(panel) && !blocked
+          ? this.syncPanel(panel, applied, own)
+          : null;
+      if (runtime) live.add(panel.id);
+      panels.push({ id: panel.id, panel, runtime, issues: own });
+    });
+
+    for (const [panelId, child] of [...this.children])
+      if (!live.has(panelId)) {
+        child.unsubscribe();
+        child.runtime.dispose();
+        this.children.delete(panelId);
+      }
+
+    // A re-sync that changes nothing keeps the previous array, so a grid
+    // bound with `useSyncExternalStore` does not re-render on every apply.
+    this.setState({
+      ...patch,
+      panels: samePanels(this.state.panels, panels)
+        ? this.state.panels
+        : panels,
+    });
+  }
+
+  private syncPanel(
+    panel: DashboardViewPanel,
+    applied: DashboardViewConfig,
+    issues: readonly Issue[],
+  ): DataViewRuntime | null {
+    const reference = this.references.get(panel.instanceId);
+    // A panel with a problem of its own does not query; the others still do.
+    if (!reference || hasError(issues)) return null;
+
+    const scope = mapGlobalFilter(
+      mergeFilters(applied.filter, this.scopeFilter),
+      panel.bindings,
+    );
+    const existing = this.children.get(panel.id);
+    if (existing) {
+      if (holds(existing.runtime, reference)) {
+        existing.runtime.setScopeFilter(scope);
+        return existing.runtime;
+      }
+      // The panel points somewhere else now, or the instance was reloaded.
+      existing.unsubscribe();
+      existing.runtime.dispose();
+    }
+
+    const runtime = this.options.createPanelRuntime(reference, scope);
+    // The dashboard's timer waits on its panels, so it watches them. The UI
+    // subscribes to each child itself and is not notified from here.
+    const unsubscribe = runtime.subscribe(() => this.syncTimer());
+    this.children.set(panel.id, { runtime, unsubscribe });
+    runtime.apply();
+    return runtime;
+  }
+
+  private setState(patch: Partial<DashboardRuntimeState>): void {
+    this.state = { ...this.state, ...patch };
+    this.syncTimer();
+    // Commit first, notify second: a listener always reads the new snapshot.
+    for (const listener of [...this.listeners]) listener();
+  }
+
+  /**
+   * One timer for the whole dashboard, held for the same four reasons a data
+   * view holds its own, with "a request in flight" meaning any panel's.
+   */
+  private syncTimer(): void {
+    const delay = this.refreshDelay();
+    if (delay === null) {
+      this.stopTimer();
+      return;
+    }
+    if (this.timer !== undefined && this.timerDelay === delay) return;
+    this.stopTimer();
+    this.timerDelay = delay;
+    this.timer = this.environment.setTimeout(() => {
+      this.timer = undefined;
+      this.timerDelay = null;
+      this.refresh();
+    }, delay);
+  }
+
+  private refreshDelay(): number | null {
+    const interval = this.state.applied.refresh.interval;
+    if (
+      this.stopped ||
+      interval === null ||
+      this.state.editing ||
+      this.loading() ||
+      hasError(this.state.issues) ||
+      !this.environment.visibility.isVisible()
+    )
+      return null;
+    return Math.min(interval * 1000, MAX_TIMER_DELAY_MS);
+  }
+
+  private loading(): boolean {
+    for (const child of this.children.values())
+      if (child.runtime.getSnapshot().query.status === 'loading') return true;
+    return false;
+  }
+
+  private stopTimer(): void {
+    if (this.timer === undefined) return;
+    this.environment.clearTimeout(this.timer);
+    this.timer = undefined;
+    this.timerDelay = null;
+  }
+}
+
+/** Whether a child runtime still stands for exactly this reference. */
+function holds(runtime: DataViewRuntime, reference: PanelReference): boolean {
+  const saved = runtime.getSnapshot().saved;
+  return (
+    saved?.id === reference.instance.id &&
+    saved.revision === reference.instance.revision
+  );
+}
+
+function samePanels(
+  previous: readonly DashboardPanelState[],
+  next: readonly DashboardPanelState[],
+): boolean {
+  return (
+    previous.length === next.length &&
+    previous.every((panel, index) => {
+      const other = next[index];
+      return (
+        panel.id === other.id &&
+        panel.panel === other.panel &&
+        panel.runtime === other.runtime &&
+        dequal(panel.issues, other.issues)
+      );
+    })
+  );
+}

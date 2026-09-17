@@ -14,6 +14,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ViewWriteError } from '../src/index.js';
 import {
+  emptyDashboardConfig,
   isViewCommandError,
   isViewWriteError,
   MemoryViewStore,
@@ -30,6 +31,7 @@ import {
 import {
   analysisConfig,
   ordersDefinition,
+  overviewDefinition,
   recordConfig,
   requireRecordConfig,
   testEnvironment,
@@ -228,32 +230,38 @@ describe('ViewEngine opening', () => {
     );
   });
 
-  it('reports a dashboard as not yet supported', async () => {
-    const dashboard: ViewDefinition = {
-      id: 'board',
-      title: 'Board',
-      kind: 'dashboard',
-    };
+  it('opens a dashboard against its own definition', async () => {
     const { engine } = harness({
-      definitions: [ordersDefinition(), dashboard],
+      definitions: [ordersDefinition(), overviewDefinition()],
       instances: [
         {
           ...mine,
-          definitionId: 'board',
-          config: {
-            kind: 'dashboard',
-            filter: { op: 'and', children: [] },
-            filterMode: 'simple',
-            refresh: { interval: null },
-            fields: [],
-            panels: [],
-          },
+          definitionId: 'overview',
+          config: emptyDashboardConfig(),
         },
       ],
     });
 
+    const runtime = await engine.open('orders-1');
+
+    expect(runtime.kind).toBe('dashboard');
+    expect(runtime.getSnapshot().dirty).toBe(false);
+  });
+
+  it('refuses a dashboard config under a data definition, and the reverse', async () => {
+    const { engine } = harness({
+      definitions: [ordersDefinition(), overviewDefinition()],
+      instances: [
+        { ...mine, config: emptyDashboardConfig() },
+        { ...mine, id: 'orders-2', definitionId: 'overview' },
+      ],
+    });
+
     expect((await refused(engine.open('orders-1'))).code).toBe(
-      'runtime.dashboard.unsupported',
+      'runtime.kind.not-declared',
+    );
+    expect((await refused(engine.open('orders-2'))).code).toBe(
+      'runtime.kind.not-declared',
     );
   });
 });

@@ -11,18 +11,24 @@
  * limitations under the License.
  */
 
+import type { DashboardViewConfig } from '../model/index.js';
+import { emptyFilter } from '../filter/index.js';
+
 /**
- * Transient state: what is open, what is in flight, what came back.
+ * A complete starting config, the dashboard counterpart of the two
+ * `default*Config` functions.
  *
- * This is the only layer with a clock, a timer and a queue, and it reaches all
- * three through an injected `RuntimeEnvironment`, so the kernels below it stay
- * pure and the React layer above it only subscribes.
+ * It takes no definition: a dashboard owns no data, so there is nothing to
+ * read from a capability. An empty dashboard is valid, and the user fills it
+ * by adding panels.
  */
-export * from './dashboardRuntime.js';
-export * from './environment.js';
-export * from './execute.js';
-export * from './requestRunner.js';
-export * from './source.js';
-export * from './viewEngine.js';
-export * from './viewRuntime.js';
-export * from './write.js';
+export function emptyDashboardConfig(): DashboardViewConfig {
+  return {
+    filter: emptyFilter(),
+    filterMode: 'simple',
+    refresh: { interval: null },
+    kind: 'dashboard',
+    fields: [],
+    panels: [],
+  };
+}

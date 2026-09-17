@@ -12,17 +12,15 @@
  */
 
 /**
- * Transient state: what is open, what is in flight, what came back.
+ * The dashboard kernel: admission, panel binding resolution and the global
+ * filter merge.
  *
- * This is the only layer with a clock, a timer and a queue, and it reaches all
- * three through an injected `RuntimeEnvironment`, so the kernels below it stay
- * pure and the React layer above it only subscribes.
+ * It owns no data of its own. A dashboard composes instances of the other two
+ * kinds, so what this layer decides is whether a composition holds together —
+ * the references exist, they are visible where the dashboard is, and the
+ * global filter maps onto every one of them without losing its meaning.
  */
-export * from './dashboardRuntime.js';
-export * from './environment.js';
-export * from './execute.js';
-export * from './requestRunner.js';
-export * from './source.js';
-export * from './viewEngine.js';
-export * from './viewRuntime.js';
-export * from './write.js';
+export * from './defaults.js';
+export * from './merge.js';
+export * from './panels.js';
+export * from './validate.js';
