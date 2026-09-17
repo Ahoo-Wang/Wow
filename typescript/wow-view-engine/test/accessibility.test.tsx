@@ -1,0 +1,165 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { cleanup, render, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import axe from 'axe-core';
+import {
+  MemoryViewStore,
+  ViewEngine,
+  type ViewInstance,
+} from '../src/index.js';
+import {
+  AnalysisWorkbench,
+  DashboardWorkbench,
+  RecordWorkbench,
+  ViewSurface,
+} from '../src/ui/index.js';
+import {
+  analysisConfig,
+  dashboardConfig,
+  ordersDefinition,
+  overviewDefinition,
+  recordConfig,
+  testSource,
+} from './fixtures.js';
+
+/**
+ * Axe over the three default workbenches.
+ *
+ * Storybook runs the same engine against every story in a real browser, which
+ * is the thorough check; this one runs in jsdom beside the unit tests, so a
+ * rule a component breaks is reported by `pnpm test` rather than by CI twenty
+ * minutes later. jsdom computes no layout, so the rules that need geometry —
+ * colour contrast above all — are out of its reach and stay Storybook's.
+ */
+afterEach(cleanup);
+
+const pendingOrders: ViewInstance = {
+  id: 'pending',
+  definitionId: 'orders',
+  title: 'Pending',
+  scope: 'shared',
+  revision: '1',
+  config: recordConfig(),
+};
+
+const warehouseTotals: ViewInstance = {
+  id: 'totals',
+  definitionId: 'orders',
+  title: 'Totals',
+  scope: 'shared',
+  revision: '1',
+  config: analysisConfig({
+    layout: 'table',
+    table: { columns: [], totals: true },
+  }),
+};
+
+const overview: ViewInstance = {
+  id: 'overview-1',
+  definitionId: 'overview',
+  title: 'Overview',
+  scope: 'personal',
+  revision: '1',
+  config: dashboardConfig({
+    fields: [{ name: 'region', label: 'Region', kind: 'string' }],
+    panels: [
+      {
+        id: 'rows',
+        kind: 'view',
+        title: 'Rows',
+        instanceId: 'pending',
+        bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        layout: { x: 0, y: 0, w: 6, h: 4 },
+      },
+      {
+        id: 'note',
+        kind: 'markdown',
+        title: 'Note',
+        content: '# Weekly review',
+        layout: { x: 6, y: 0, w: 6, h: 2 },
+      },
+    ],
+  }),
+};
+
+function engineWith(instances: ViewInstance[]): ViewEngine {
+  return new ViewEngine({
+    definitions: [ordersDefinition(), overviewDefinition()],
+    store: new MemoryViewStore({ instances }),
+    resolveSource: () => testSource(),
+  });
+}
+
+/** Rule ids that were violated, with how many nodes each one covers. */
+async function violations(node: HTMLElement): Promise<string[]> {
+  const result = await axe.run(node, { resultTypes: ['violations'] });
+  return result.violations.map(
+    found => `${found.id} (${found.nodes.length} node(s))`,
+  );
+}
+
+describe('the default workbenches pass axe', () => {
+  it('record', async () => {
+    const { container } = render(
+      <ViewSurface>
+        <RecordWorkbench
+          engine={engineWith([pendingOrders])}
+          definitionId="orders"
+          instanceId="pending"
+        />
+      </ViewSurface>,
+    );
+    await waitFor(() => expect(container.querySelector('table')).toBeTruthy());
+
+    expect(await violations(container)).toEqual([]);
+  });
+
+  it('analysis', async () => {
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisWorkbench
+          engine={engineWith([warehouseTotals])}
+          definitionId="orders"
+          instanceId="totals"
+        />
+      </ViewSurface>,
+    );
+    await waitFor(() => expect(container.querySelector('table')).toBeTruthy());
+
+    expect(await violations(container)).toEqual([]);
+  });
+
+  it('dashboard, with the layout open for editing', async () => {
+    const { container } = render(
+      <ViewSurface>
+        <DashboardWorkbench
+          engine={engineWith([pendingOrders, overview])}
+          definitionId="overview"
+          instanceId="overview-1"
+          editable
+        />
+      </ViewSurface>,
+    );
+    await waitFor(() =>
+      expect(
+        container.querySelector('[data-slot="dashboard-panel"]'),
+      ).toBeTruthy(),
+    );
+
+    // The drag grip is the reason this test exists: an `aria-label` on a bare
+    // span is a prohibited attribute, and only a browser or axe reports it.
+    expect(await violations(container)).toEqual([]);
+  });
+});

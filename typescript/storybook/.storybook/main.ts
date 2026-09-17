@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'module';
 import type { StorybookConfig } from '@storybook/react-vite';
 import { mergeConfig } from 'vite';
+import tailwindcss from '@tailwindcss/vite';
 
 const require = createRequire(import.meta.url);
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -18,6 +19,7 @@ const workspaceAliases = Object.fromEntries(
     'openapi',
     'react',
     'storage',
+    'view-engine',
     'viewer',
     'wow',
   ].map(directory => [
@@ -56,12 +58,31 @@ const config: StorybookConfig = {
   },
   viteFinal: config =>
     mergeConfig(config, {
+      // View Engine's theme is a Tailwind stylesheet; the plugin that builds
+      // the package builds it here too, so the stories show the real thing.
+      plugins: [tailwindcss()],
       server: { watch: { ignored: ['**/coverage/**'] } },
       resolve: {
         alias: {
           '@ahoo-wang/fetcher-react/core': join(
             projectRoot,
             'packages/react/src/core/index.ts',
+          ),
+          // The vendored shadcn components import each other through the
+          // `@/ui/...` alias the registry writes; only View Engine uses it.
+          '@/ui': join(projectRoot, 'packages/view-engine/src/ui'),
+          // Subpath entries resolve to source like the roots above them.
+          '@ahoo-wang/fetcher-view-engine/styles.css': join(
+            projectRoot,
+            'packages/view-engine/src/styles.css',
+          ),
+          '@ahoo-wang/fetcher-view-engine/react': join(
+            projectRoot,
+            'packages/view-engine/src/react/index.ts',
+          ),
+          '@ahoo-wang/fetcher-view-engine/ui': join(
+            projectRoot,
+            'packages/view-engine/src/ui/index.ts',
           ),
           ...workspaceAliases,
         },

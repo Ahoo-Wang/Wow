@@ -11,8 +11,13 @@
  * limitations under the License.
  */
 
-import type { FieldDefinition, FilterTree, IssuePath } from '../model/index.js';
-import type { FieldKindRegistry } from './fieldKind.js';
+import type {
+  FieldDefinition,
+  FilterLeaf,
+  FilterTree,
+  IssuePath,
+} from '../model/index.js';
+import type { FieldKind, FieldKindRegistry } from './fieldKind.js';
 import { isFilterLeaf, walkFilter } from './tree.js';
 
 /** One applied condition, for the summary bar above a result. */
@@ -31,6 +36,11 @@ export interface FilterSummaryItem {
 /**
  * Summarises the applied conditions. It reports a leaf whose field or kind has
  * disappeared instead of hiding it, so a view that needs fixing says so.
+ *
+ * The same holds for a leaf the kind cannot read: a saved config arrives from
+ * a store and may hold a value its field no longer admits, and a summary bar
+ * that threw would take the whole view down with it rather than showing which
+ * condition needs fixing.
  */
 export function describeFilter(
   fields: readonly FieldDefinition[],
@@ -44,7 +54,9 @@ export function describeFilter(
     if (!isFilterLeaf(node)) continue;
     const field = byName.get(node.field);
     const kind = field ? kinds.get(field.kind) : undefined;
-    if (!field || !kind) {
+    const described =
+      field && kind ? describeLeaf(kind, node, field) : undefined;
+    if (!field || described === undefined) {
       items.push({
         path,
         field: node.field,
@@ -58,10 +70,27 @@ export function describeFilter(
       path,
       field: field.name,
       label: field.label,
-      text: kind.describe({ leaf: node, field }),
+      text: described,
       unresolved: false,
     });
   }
 
   return items;
+}
+
+/**
+ * A kind describes an admitted leaf; this one may not have been admitted.
+ * A kind is an extension point, so what it does with a value it cannot read is
+ * not this layer's to predict — only to survive.
+ */
+function describeLeaf(
+  kind: FieldKind,
+  leaf: FilterLeaf,
+  field: FieldDefinition,
+): string | undefined {
+  try {
+    return kind.describe({ leaf, field });
+  } catch {
+    return undefined;
+  }
 }

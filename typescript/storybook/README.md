@@ -17,7 +17,7 @@ Storybook 是可运行的接入文档，也承载浏览器交互回归。导航�
 
 修改全局 fetch 或 Viewer 默认注册器的示例使用独立 iframe，并通过 `beforeEach` 返回清理函数。共享夹具的数据可以复用，可变状态不能跨场景共享。未知来源的请求交给原始 fetch；受控失败只作用于示例 API。
 
-View Engine 正在重写（见 `packages/view-engine/docs/design.md`），其故事随 Record 工作台一起回归。
+View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析视图与仪表盘视图，每个故事只呈现一种状态：有数据、空结果、加载中、查询失败、待修复、面板不可用。状态由 `fixtures.ts` 里的假数据源决定，引擎与存储每次挂载都新建，因此保存、改名与删除是真写入，也不会跨场景残留。
 
 ## 检查命令
 

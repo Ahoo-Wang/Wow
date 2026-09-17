@@ -414,6 +414,19 @@ describe('describeFilter', () => {
     );
     expect(items[0]).toMatchObject({ field: 'gone', unresolved: true });
   });
+
+  it('marks a leaf the kind cannot read rather than throwing', () => {
+    // A stored value the field no longer admits: `status` is an enum, whose
+    // operators take a list. Summarising it must not take the view down.
+    const items = describeFilter(
+      fields,
+      tree({ field: 'status', operator: 'EQ', value: 'PENDING' }),
+      builtinFieldKinds,
+    );
+
+    expect(items[0]).toMatchObject({ field: 'status', unresolved: true });
+    expect(items[0].text).toContain('EQ');
+  });
 });
 
 describe('the field kind registry', () => {

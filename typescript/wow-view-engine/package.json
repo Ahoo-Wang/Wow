@@ -1,7 +1,7 @@
 {
   "name": "@ahoo-wang/fetcher-view-engine",
   "version": "5.0.0",
-  "description": "Configurable data view engine for Wow-based business applications: definitions in code, view configs as data, records, analyses and dashboards. Rewrite in progress, see docs/design.md.",
+  "description": "Configurable data view engine for Wow-based business applications: definitions in code, view configs as data, records, analyses and dashboards.",
   "type": "module",
   "license": "Apache-2.0",
   "author": "Ahoo-Wang",
@@ -41,10 +41,11 @@
     "**/*.css"
   ],
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && pnpm test:package",
     "test": "vitest run --coverage && pnpm test:type",
     "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:type",
     "test:type": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.headless.json && tsc -p tsconfig.test.json",
+    "test:package": "node scripts/verify-package.mjs",
     "lint": "eslint . --fix",
     "lint:check": "eslint . --max-warnings 0",
     "clean": "rm -rf dist"
@@ -92,6 +93,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "@vitest/coverage-v8": "catalog:",
+    "axe-core": "catalog:",
     "babel-plugin-react-compiler": "catalog:",
     "eslint": "catalog:",
     "eslint-plugin-react-hooks": "catalog:",

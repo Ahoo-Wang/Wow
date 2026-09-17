@@ -131,10 +131,18 @@ export function DashboardPanel({ panel, editable }: DashboardPanelProps) {
     >
       <CardHeader className="px-3">
         <CardTitle className="flex items-center gap-1 text-sm">
+          {/*
+            Decorative on purpose. Dragging is a pointer gesture with no
+            keyboard equivalent yet, and naming the grip for a screen reader
+            would announce an affordance its user cannot reach. The title
+            serves the pointer; when keyboard moving exists, this becomes a
+            real control with a real action behind it.
+          */}
           {editable && (
             <span
               data-slot="panel-grip"
-              aria-label="Move panel"
+              title="Move panel"
+              aria-hidden="true"
               className="text-muted-foreground cursor-move"
             >
               <GripVerticalIcon className="size-4" />

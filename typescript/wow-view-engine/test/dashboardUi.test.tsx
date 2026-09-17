@@ -262,12 +262,17 @@ describe('DashboardGrid', () => {
     const { controller } = await openDashboard(
       dashboardConfig({ panels: [panel()] }),
     );
+    const grip = () => document.querySelector('[data-slot="panel-grip"]');
 
     const { rerender } = render(<DashboardGrid dashboard={controller()} />);
-    expect(screen.queryByLabelText('Move panel')).toBeNull();
+    expect(grip()).toBeNull();
 
     rerender(<DashboardGrid dashboard={controller()} editable />);
-    expect(screen.getByLabelText('Move panel')).toBeTruthy();
+    // Hidden from assistive technology: the drag it starts is pointer-only,
+    // so announcing it would offer an affordance nobody can take up.
+    expect(grip()?.getAttribute('aria-hidden')).toBe('true');
+    expect(grip()?.getAttribute('title')).toBe('Move panel');
+    expect(screen.queryByLabelText('Move panel')).toBeNull();
   });
 
   it('shows a skeleton until a panel has data', async () => {

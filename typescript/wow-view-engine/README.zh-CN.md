@@ -1,6 +1,6 @@
 # Fetcher View Engine
 
-> **状态：重写进行中。** 本 README 描述 [docs/design.md](docs/design.md) 定义的目标形态。下文的公开 API 是设计目标；交付顺序与任一时刻的实现进度见设计文档第 13 节。旧实现以 git tag `view-engine-legacy`（`a064fc1a`）冻结，仅作参考。
+> **状态：[docs/design.md](docs/design.md) 定义的重写已交付**，第九步即最后一步已完成。Record、Analysis、Dashboard 三种视图，以及下文的 `/react` 控制器与 `/ui` 组件均已在包内。旧实现以 git tag `view-engine-legacy`（`a064fc1a`）冻结，仅作参考。
 
 **Fetcher View Engine 是面向 Wow 业务应用的数据视图引擎。** 业务应用用代码声明一份数据"能被怎样观察"：字段、类型、操作符、可用的分组与指标。用户在界面上决定"这一次怎样观察"：筛选、列、排序、分组、图表、面板组合。引擎把这种观察方式编译成 Wow 查询、执行、渲染，并把有价值的观察方式保存下来供下次直接打开。
 
@@ -217,12 +217,12 @@ const view = projectRecord(orders, config, page);
 
 ## 入口
 
-| 入口                             | 导出                                                                                                                                                                      |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                         |
-| `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useDashboard`、`useSaveCommands`                             |
-| `/ui`                            | `Workbench`、`FilterPanel`、`RecordTable`、`RecordCards`、`AnalysisEditor`、`AnalysisChart`、`DashboardGrid`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`EmbeddedView` |
-| `/styles.css`、`/themes/*`       | 默认样式与主题。显式导入；JS 入口不会自动引入 CSS。                                                                                                                       |
+| 入口                             | 导出                                                                                                                                                                                                       |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                          |
+| `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useDashboard`、`useSaveCommands`                                                              |
+| `/ui`                            | `RecordWorkbench`、`AnalysisWorkbench`、`DashboardWorkbench`、`FilterPanel`、`RecordTable`、`RecordCards`、`AnalysisEditor`、`AnalysisChart`、`DashboardGrid`、`MarkdownPanel`、`ImagePanel`、`LinksPanel` |
+| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，`scripts/verify-package.mjs` 在每次构建时核对这一点。                                                                                                          |
 
 ## 持久化
 
@@ -300,9 +300,14 @@ store → model
 ## 开发
 
 ```bash
-pnpm --filter @ahoo-wang/fetcher-view-engine test
-pnpm --filter @ahoo-wang/fetcher-view-engine build
-pnpm storybook
+pnpm --filter @ahoo-wang/fetcher-view-engine test          # 单元测试、覆盖率与三个 tsc 工程
+pnpm --filter @ahoo-wang/fetcher-view-engine build         # 构建，并核对发布出去的入口
+pnpm --filter @ahoo-wang/fetcher-view-engine test:package  # 入口可导入、核心入口无 DOM 类型、JS 不引入 CSS
+pnpm storybook                                             # 每个界面的每种状态，见导航「View Engine」
 ```
+
+`examples/` 下是两个只依赖公开合同、不依赖内部实现的消费者：
+`PlainRecordWorkbench.tsx` 用无样式 HTML 跑通整个闭环，
+`FetcherViewStore.ts` 用 `@ahoo-wang/fetcher` 把 `ViewStore` 端口实现在 HTTP 上。
 
 `@ahoo-wang/fetcher-viewer` 已弃用，新项目使用本包。两者模型与 API 不同。

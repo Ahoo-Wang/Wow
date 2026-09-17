@@ -192,6 +192,13 @@ function expressionIssues(
   path: IssuePath,
   expressionsAllowed: boolean,
 ): Issue[] {
+  // A config arrives from a store, so a metric may carry no expression at all
+  // or one of a shape this version does not know. Both are findings, not
+  // crashes: the kernel's contract is a definition and a config in, a result
+  // or an Issue out.
+  if (!isExpression(expression))
+    return [issue('analysis.expression.malformed', path)];
+
   if (expression.type === 'FIELD')
     return scope.aggregations.has(expression.field)
       ? []
@@ -233,6 +240,12 @@ function expressionIssues(
     ),
   );
   return issues;
+}
+
+/** Whether a value can be read as one of the three expression shapes. */
+function isExpression(value: AnalysisExpression | undefined): boolean {
+  const type = (value as { type?: unknown } | undefined)?.type;
+  return type === 'FIELD' || type === 'CONSTANT' || type === 'BINARY';
 }
 
 function derivedIssues(
@@ -287,7 +300,7 @@ function validateMetrics(
             expressionsAllowed,
           ),
         );
-        if (metric.expression.type === 'FIELD') {
+        if (metric.expression?.type === 'FIELD') {
           const entry = declared(metric.expression.field);
           if (entry && !entry.functions.includes(metric.function as never))
             issues.push(
@@ -322,7 +335,7 @@ function validateMetrics(
             expressionsAllowed,
           ),
         );
-        if (metric.expression.type === 'FIELD') {
+        if (metric.expression?.type === 'FIELD') {
           const entry = declared(metric.expression.field);
           if (entry && !entry.distinctCount)
             issues.push(
@@ -342,7 +355,7 @@ function validateMetrics(
             expressionsAllowed,
           ),
         );
-        if (metric.expression.type === 'FIELD') {
+        if (metric.expression?.type === 'FIELD') {
           const entry = declared(metric.expression.field);
           if (entry && !entry.percentile)
             issues.push(

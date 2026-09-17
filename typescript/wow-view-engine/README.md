@@ -1,6 +1,6 @@
 # Fetcher View Engine
 
-> **Status: rewrite in progress.** This README describes the target package defined in [docs/design.md](docs/design.md). The public API below is the design target; delivery order and what is implemented at any point are tracked in design §13. The previous implementation is frozen at the git tag `view-engine-legacy` (`a064fc1a`) for reference only.
+> **Status: the rewrite defined in [docs/design.md](docs/design.md) is delivered**, through its ninth and last step. Record, Analysis and Dashboard views, the `/react` controllers and the `/ui` components below are all in the package. The previous implementation is frozen at the git tag `view-engine-legacy` (`a064fc1a`) for reference only.
 
 **Fetcher View Engine is a data view engine for Wow-based business applications.** The application declares in code _how a dataset can be observed_: fields, kinds, operators, available groupings and metrics. Users decide in the UI _how to observe it this time_: filters, columns, sorting, groupings, charts, panel composition. The engine compiles that way of observing into Wow queries, runs them, renders the result, and saves the ways worth keeping so they can be reopened with one click.
 
@@ -223,12 +223,12 @@ Details in [docs/design.md](docs/design.md) §7.
 
 ## Entries
 
-| Entry                            | Exports                                                                                                                                                                   |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                |
-| `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useDashboard`, `useSaveCommands`                             |
-| `/ui`                            | `Workbench`, `FilterPanel`, `RecordTable`, `RecordCards`, `AnalysisEditor`, `AnalysisChart`, `DashboardGrid`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `EmbeddedView` |
-| `/styles.css`, `/themes/*`       | Default styles and themes. Import explicitly; JS entries never import CSS.                                                                                                |
+| Entry                            | Exports                                                                                                                                                                                                    |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                 |
+| `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useDashboard`, `useSaveCommands`                                                              |
+| `/ui`                            | `RecordWorkbench`, `AnalysisWorkbench`, `DashboardWorkbench`, `FilterPanel`, `RecordTable`, `RecordCards`, `AnalysisEditor`, `AnalysisChart`, `DashboardGrid`, `MarkdownPanel`, `ImagePanel`, `LinksPanel` |
+| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, which `scripts/verify-package.mjs` checks on every build.                                                                                |
 
 ## Persistence
 
@@ -306,9 +306,15 @@ View-kind plugins, a definition CRUD backend, write-receipt reconciliation or re
 ## Development
 
 ```bash
-pnpm --filter @ahoo-wang/fetcher-view-engine test
-pnpm --filter @ahoo-wang/fetcher-view-engine build
-pnpm storybook
+pnpm --filter @ahoo-wang/fetcher-view-engine test          # unit tests, coverage and three tsc projects
+pnpm --filter @ahoo-wang/fetcher-view-engine build         # build, then verify the published entries
+pnpm --filter @ahoo-wang/fetcher-view-engine test:package  # entries, DOM-free types, no CSS from JS
+pnpm storybook                                             # every state of every surface, under "View Engine"
 ```
+
+`examples/` holds two consumers written against the public contracts rather
+than against the internals: `PlainRecordWorkbench.tsx` drives the whole loop
+with unstyled HTML, and `FetcherViewStore.ts` implements the `ViewStore` port
+over HTTP with `@ahoo-wang/fetcher`.
 
 `@ahoo-wang/fetcher-viewer` is deprecated in favor of this package. The two use different models and APIs.

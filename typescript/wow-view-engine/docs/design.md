@@ -939,7 +939,7 @@ Wow 已将 `Condition`、`ConditionOptions`、`PagedQuery`、`ListQuery`、`Sing
 | 6 ✅ | `/ui` Record 工作台：FilterPanel、RecordTable、列表、保存 | shadcn 组件与主题 CSS 直接搬；复合视图重写                                 |
 | 7 ✅ | Analysis 编辑器与图表                                     | 内核已就位，UI 重写                                                        |
 | 8 ✅ | `dashboard/` 内核、DashboardRuntime、DashboardGrid        | 内核搬，运行时重写                                                         |
-| 9    | Storybook 状态集；README 双语；`verify-package`           | 一个用 fetcher 实现 `ViewStore` 的示例放在 examples，作为端口的第二消费者  |
+| 9 ✅ | Storybook 状态集；README 双语；`verify-package`           | 一个用 fetcher 实现 `ViewStore` 的示例放在 examples，作为端口的第二消费者  |
 
 不搬迁清单：旧 `contracts/`、`engine/`、`StatefulViewHost`、三个 `*View.tsx`、`AnalysisEditor.tsx`、`view/` 目录。
 

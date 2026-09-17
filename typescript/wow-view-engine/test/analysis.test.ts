@@ -377,6 +377,28 @@ describe('validateAnalysis', () => {
       }),
     ).toEqual(['analysis.constant.not-finite']);
 
+    // A config arrives from a store: a metric with no expression, or one of a
+    // shape this version does not know, is a finding rather than a crash.
+    expect(
+      check({
+        metrics: [
+          { type: 'NUMERIC', alias: 'orders', function: 'SUM' } as never,
+        ],
+      }),
+    ).toEqual(['analysis.expression.malformed']);
+    expect(
+      check({
+        metrics: [
+          {
+            type: 'NUMERIC',
+            alias: 'orders',
+            function: 'SUM',
+            expression: { type: 'LAMBDA' },
+          } as never,
+        ],
+      }),
+    ).toEqual(['analysis.expression.malformed']);
+
     expect(
       codes(
         validateAnalysis(
