@@ -19,8 +19,11 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * Dependency rules from docs/design.md §4, checked on the TypeScript AST so that
- * multi-line, type-only, re-exported and dynamic imports are all seen. Layers
- * absent from `src/` pass trivially, so the rules hold from the empty tree on.
+ * multi-line, type-only, re-exported and dynamic imports are all seen. A dynamic
+ * import counts only where its specifier is constant — a string literal or a
+ * template without substitutions; one built from a variable, `import(target)`,
+ * is not recorded and would slip past these rules. Layers absent from `src/`
+ * pass trivially, so the rules hold from the empty tree on.
  *
  * Freedom from DOM globals in the headless layers is enforced by the compiler:
  * `tsconfig.headless.json` type-checks them without the `DOM` library (see the
