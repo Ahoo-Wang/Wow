@@ -28,6 +28,7 @@ export type BuiltinFieldKindId =
   | 'datetime'
   | 'enum'
   | 'reference'
+  | 'array'
   | MetadataFieldKindId;
 
 /**
@@ -58,6 +59,7 @@ export const BUILTIN_FIELD_KIND_IDS: readonly BuiltinFieldKindId[] = [
   'datetime',
   'enum',
   'reference',
+  'array',
   ...METADATA_FIELD_KIND_IDS,
 ];
 

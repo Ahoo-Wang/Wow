@@ -873,6 +873,7 @@ describe('the field kind registry', () => {
         'number',
         'reference',
         'string',
+        'array',
         ...METADATA_FIELD_KIND_IDS,
       ].sort(),
     );

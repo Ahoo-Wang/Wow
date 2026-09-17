@@ -136,7 +136,10 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.operator.IS_NULL': 'is empty',
   'label.operator.IS_NOT_NULL': 'is not empty',
   'label.operator.NOT_EXISTS': 'does not exist',
+  'label.operator.IN': 'is any of',
   'label.operator.NOT_IN': 'is none of',
+  'label.operator.CONTAINS_ALL': 'has all of',
+  'label.operator.IS_EMPTY': 'has no entries',
   'label.operator.STARTS_WITH': 'starts with',
   'label.operator.ENDS_WITH': 'ends with',
 
@@ -177,6 +180,7 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'filter.value.expected-id': 'Enter an id, or pick a candidate.',
   'filter.value.expected-id-list': 'Enter one or more ids.',
   'filter.value.expects-one': 'This condition takes a single value.',
+  'filter.value.expected-entry-list': 'Choose or enter one or more entries.',
   'filter.value.expected-number': 'Enter a number.',
   'filter.value.expected-number-list': 'Enter one or more numbers.',
   'filter.value.expected-number-range': 'Enter a range of two numbers.',

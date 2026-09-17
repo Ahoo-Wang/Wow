@@ -12,6 +12,7 @@
  */
 
 import { createFieldKindRegistry, type FieldKind } from '../fieldKind.js';
+import { arrayFieldKind } from './array.js';
 import { booleanFieldKind } from './boolean.js';
 import { dateFieldKind, dateTimeFieldKind } from './dateTime.js';
 import { enumFieldKind } from './enum.js';
@@ -22,6 +23,7 @@ import { stringFieldKind } from './string.js';
 
 export * from './boolean.js';
 export * from './dateTime.js';
+export * from './array.js';
 export * from './enum.js';
 export * from './metadata.js';
 export * from './number.js';
@@ -38,6 +40,7 @@ export const BUILTIN_FIELD_KINDS: readonly FieldKind[] = [
   dateTimeFieldKind,
   enumFieldKind,
   referenceFieldKind,
+  arrayFieldKind,
   ...METADATA_FIELD_KINDS,
 ];
 
