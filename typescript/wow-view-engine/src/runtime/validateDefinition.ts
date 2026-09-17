@@ -15,6 +15,7 @@ import {
   DEFAULT_RUNTIME_LIMITS,
   SYSTEM_INSTANCE_ID_SEPARATOR,
   isFieldName,
+  STRING_COMPARISONS,
   type AnalysisCapability,
   type DataViewDefinition,
   type FieldDefinition,
@@ -113,6 +114,20 @@ function validateFields(
           field: field.name,
           kind: field.kind,
         }),
+      );
+
+    // Wow refuses an unknown comparison by throwing, and it would throw while
+    // compiling a query rather than while reading the definition.
+    if (
+      field.stringComparison !== undefined &&
+      !STRING_COMPARISONS.includes(field.stringComparison)
+    )
+      issues.push(
+        issue(
+          'definition.field.string-comparison-invalid',
+          [...at, 'stringComparison'],
+          { field: field.name, value: String(field.stringComparison) },
+        ),
       );
   });
 

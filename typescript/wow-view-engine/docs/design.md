@@ -66,6 +66,7 @@ export interface FieldDefinition {
   sortable?: boolean;
   group?: string; // 添加筛选时的分组
   numberFormat?: Intl.NumberFormatOptions & { locale?: string };
+  stringComparison?: 'CASE_SENSITIVE' | 'CASE_INSENSITIVE'; // CONTAINS／STARTS_WITH／ENDS_WITH 的比较方式，缺省不区分大小写
   summary?: SummaryFunction[]; // 允许的汇总函数
   cell?: string; // 单元格渲染器键，缺省按 kind
   editor?: string; // 筛选编辑器键，缺省由 kind、operator 与 value.type 推出
@@ -380,16 +381,28 @@ type DateTimeFilterValue =
       type: 'relative';
       amount: number;
       unit: 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
+      // 窗口落在此刻的哪一侧；不写即过去。"最近 7 天"问已经发生了什么，
+      // "未来 7 天"问什么将要到期，两者都是业务常问。
+      direction?: 'past' | 'future';
     }
   | {
       type: 'preset';
       preset:
         | 'today'
         | 'yesterday'
+        | 'tomorrow'
         | 'thisWeek'
+        | 'lastWeek'
+        | 'nextWeek'
         | 'thisMonth'
+        | 'lastMonth'
+        | 'nextMonth'
         | 'thisQuarter'
-        | 'thisYear';
+        | 'lastQuarter'
+        | 'nextQuarter'
+        | 'thisYear'
+        | 'lastYear'
+        | 'nextYear';
     };
 
 // ---- 实例与偏好 ----

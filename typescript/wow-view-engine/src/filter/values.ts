@@ -49,12 +49,25 @@ export interface AbsoluteDateTimeValue {
   timeZone?: string;
 }
 
-/** "The last 7 days": a window ending at the evaluation moment. */
+/**
+ * A window measured from the evaluation moment: "the last 7 days", or "the
+ * next 7 days". Both are ordinary business questions — one asks what
+ * happened, the other what is due — and only the direction differs.
+ */
 export interface RelativeDateTimeValue {
   type: 'relative';
   amount: number;
   unit: RelativeDateUnit;
+  /** Which side of now the window lies on; the past when unsaid. */
+  direction?: RelativeDateDirection;
 }
+
+export type RelativeDateDirection = 'past' | 'future';
+
+export const RELATIVE_DATE_DIRECTIONS: readonly RelativeDateDirection[] = [
+  'past',
+  'future',
+];
 
 export type RelativeDateUnit =
   'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
@@ -74,16 +87,44 @@ export interface PresetDateTimeValue {
   preset: DateTimePreset;
 }
 
+/**
+ * Named calendar windows, in three directions. The set was previously only
+ * the current period plus yesterday, which left "last month" as inexpressible
+ * as "next week" — both of them ordinary things to ask a business system.
+ */
 export type DateTimePreset =
-  'today' | 'yesterday' | 'thisWeek' | 'thisMonth' | 'thisQuarter' | 'thisYear';
+  | 'today'
+  | 'yesterday'
+  | 'tomorrow'
+  | 'thisWeek'
+  | 'lastWeek'
+  | 'nextWeek'
+  | 'thisMonth'
+  | 'lastMonth'
+  | 'nextMonth'
+  | 'thisQuarter'
+  | 'lastQuarter'
+  | 'nextQuarter'
+  | 'thisYear'
+  | 'lastYear'
+  | 'nextYear';
 
 export const DATE_TIME_PRESETS: readonly DateTimePreset[] = [
   'today',
   'yesterday',
+  'tomorrow',
   'thisWeek',
+  'lastWeek',
+  'nextWeek',
   'thisMonth',
+  'lastMonth',
+  'nextMonth',
   'thisQuarter',
+  'lastQuarter',
+  'nextQuarter',
   'thisYear',
+  'lastYear',
+  'nextYear',
 ];
 
 export function isPlainObject(
@@ -137,7 +178,11 @@ export function isDateTimeFilterValue(
         isFiniteNumber(value.amount) &&
         Number.isInteger(value.amount) &&
         value.amount > 0 &&
-        RELATIVE_DATE_UNITS.includes(value.unit as RelativeDateUnit)
+        RELATIVE_DATE_UNITS.includes(value.unit as RelativeDateUnit) &&
+        (value.direction === undefined ||
+          RELATIVE_DATE_DIRECTIONS.includes(
+            value.direction as RelativeDateDirection,
+          ))
       );
     case 'preset':
       return DATE_TIME_PRESETS.includes(value.preset as DateTimePreset);

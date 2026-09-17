@@ -17,6 +17,7 @@ import type { FieldOption, FilterValue } from '../model/index.js';
 import {
   DATE_TIME_PRESETS,
   RELATIVE_DATE_UNITS,
+  type RelativeDateDirection,
   writeValue,
   type AbsoluteDateTimeValue,
   type DateTimeFilterValue,
@@ -354,10 +355,21 @@ function OptionValue({
 
 type DateShape = DateTimeFilterValue['type'];
 
+/** `relative` no longer means backwards, so the shape no longer says it. */
 const DATE_SHAPES: { label: string; value: DateShape }[] = [
   { label: 'On a date', value: 'absolute' },
-  { label: 'In the last', value: 'relative' },
+  { label: 'Relative', value: 'relative' },
   { label: 'A period', value: 'preset' },
+];
+
+/**
+ * Which side of now a relative window lies on. It reads as the sentence the
+ * row makes — "in the last 7 days", "in the next 7 days" — so the direction
+ * carries the wording and the shape above stays neutral.
+ */
+const DATE_DIRECTIONS: { label: string; value: RelativeDateDirection }[] = [
+  { label: 'In the last', value: 'past' },
+  { label: 'In the next', value: 'future' },
 ];
 
 function DateValue({
@@ -393,6 +405,20 @@ function DateValue({
       )}
       {current.type === 'relative' && (
         <div className="flex items-center gap-2">
+          <ChoiceValue
+            label={`${label} direction`}
+            disabled={disabled}
+            value={current.direction ?? 'past'}
+            items={DATE_DIRECTIONS}
+            onChange={next =>
+              onChange(
+                writeValue({
+                  ...current,
+                  direction: next as RelativeDateDirection,
+                }),
+              )
+            }
+          />
           <Input
             type="number"
             aria-label={`${label} amount`}

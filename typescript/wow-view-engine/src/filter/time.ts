@@ -16,7 +16,11 @@ import isoWeek from 'dayjs/plugin/isoWeek';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
-import type { DateTimeFilterValue, RelativeDateTimeValue } from './values.js';
+import type {
+  DateTimeFilterValue,
+  DateTimePreset,
+  RelativeDateTimeValue,
+} from './values.js';
 
 // Zones, week starts, quarters and month lengths are what a date library is
 // for; these four plugins cover every window the presets and relative values
@@ -38,47 +42,74 @@ export interface InstantRange {
   to?: string;
 }
 
-/** Quarters are expressed in months, which every dayjs build understands. */
-function startOfRelativeWindow(
+/**
+ * Where a relative window starts and ends.
+ *
+ * A past window runs from `amount` units ago to now; a future one from now to
+ * `amount` units ahead. Quarters are expressed in months, which every dayjs
+ * build understands.
+ */
+function relativeWindow(
   reference: Dayjs,
   value: RelativeDateTimeValue,
-): Dayjs {
-  switch (value.unit) {
-    case 'hour':
-      return reference.subtract(value.amount, 'hour');
-    case 'day':
-      return reference.subtract(value.amount, 'day');
-    case 'week':
-      return reference.subtract(value.amount, 'week');
-    case 'month':
-      return reference.subtract(value.amount, 'month');
-    case 'quarter':
-      return reference.subtract(value.amount * 3, 'month');
-    case 'year':
-      return reference.subtract(value.amount, 'year');
-  }
+): InstantRange {
+  const months = value.unit === 'quarter' ? value.amount * 3 : value.amount;
+  const unit = value.unit === 'quarter' ? 'month' : value.unit;
+  const offset =
+    value.direction === 'future'
+      ? reference.add(months, unit)
+      : reference.subtract(months, unit);
+  return value.direction === 'future'
+    ? bounds(reference, offset)
+    : bounds(offset, reference);
 }
 
+/** A named calendar window: which period, and how far from this one. */
 function period(reference: Dayjs, value: DateTimeFilterValue): InstantRange {
   if (value.type !== 'preset') throw new Error('not a preset value');
-  switch (value.preset) {
-    case 'today':
-      return bounds(reference.startOf('day'), reference.endOf('day'));
-    case 'yesterday': {
-      const day = reference.subtract(1, 'day');
-      return bounds(day.startOf('day'), day.endOf('day'));
-    }
-    case 'thisWeek':
-      // ISO weeks start on Monday, independent of the runtime locale.
-      return bounds(reference.startOf('isoWeek'), reference.endOf('isoWeek'));
-    case 'thisMonth':
-      return bounds(reference.startOf('month'), reference.endOf('month'));
-    case 'thisQuarter':
-      return bounds(reference.startOf('quarter'), reference.endOf('quarter'));
-    case 'thisYear':
-      return bounds(reference.startOf('year'), reference.endOf('year'));
-  }
+  const { unit, shift } = PERIODS[value.preset];
+  const at = shift === 0 ? reference : shiftBy(reference, unit, shift);
+  // `isoWeek` comes from a plugin and types as its own overload, so it is
+  // narrowed here rather than widening every other unit to match it.
+  return unit === 'isoWeek'
+    ? bounds(at.startOf('isoWeek'), at.endOf('isoWeek'))
+    : bounds(at.startOf(unit), at.endOf(unit));
 }
+
+/**
+ * Steps a whole period. `isoWeek` starts on Monday independent of the runtime
+ * locale, and dayjs shifts it as a plain week; a quarter it counts in months.
+ * Landing anywhere inside the neighbouring period is enough, because the
+ * caller takes that period's bounds.
+ */
+function shiftBy(reference: Dayjs, unit: PeriodUnit, shift: number): Dayjs {
+  if (unit === 'quarter') return reference.add(shift * 3, 'month');
+  if (unit === 'isoWeek') return reference.add(shift, 'week');
+  return reference.add(shift, unit);
+}
+
+/** Each preset as a period and an offset from the current one. */
+const PERIODS: Readonly<
+  Record<DateTimePreset, { unit: PeriodUnit; shift: number }>
+> = {
+  today: { unit: 'day', shift: 0 },
+  yesterday: { unit: 'day', shift: -1 },
+  tomorrow: { unit: 'day', shift: 1 },
+  thisWeek: { unit: 'isoWeek', shift: 0 },
+  lastWeek: { unit: 'isoWeek', shift: -1 },
+  nextWeek: { unit: 'isoWeek', shift: 1 },
+  thisMonth: { unit: 'month', shift: 0 },
+  lastMonth: { unit: 'month', shift: -1 },
+  nextMonth: { unit: 'month', shift: 1 },
+  thisQuarter: { unit: 'quarter', shift: 0 },
+  lastQuarter: { unit: 'quarter', shift: -1 },
+  nextQuarter: { unit: 'quarter', shift: 1 },
+  thisYear: { unit: 'year', shift: 0 },
+  lastYear: { unit: 'year', shift: -1 },
+  nextYear: { unit: 'year', shift: 1 },
+};
+
+type PeriodUnit = 'day' | 'isoWeek' | 'month' | 'quarter' | 'year';
 
 function bounds(from: Dayjs, to: Dayjs): InstantRange {
   return { from: from.toISOString(), to: to.toISOString() };
@@ -132,8 +163,6 @@ export function resolveDateTimeRange(
   }
 
   const reference = dayjs(now).tz(timeZone);
-  if (value.type === 'relative') {
-    return bounds(startOfRelativeWindow(reference, value), reference);
-  }
+  if (value.type === 'relative') return relativeWindow(reference, value);
   return period(reference, value);
 }

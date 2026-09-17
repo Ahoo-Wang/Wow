@@ -331,6 +331,8 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'definition.analysis.no-metric':
     'The analysis capability offers no metric to start from.',
   'definition.field.duplicate': 'The field {field} is declared twice.',
+  'definition.field.string-comparison-invalid':
+    '{field} declares an unknown text comparison: {value}.',
   'definition.field.kind-unregistered':
     '{field} uses the unregistered type {kind}.',
   'definition.field.name-invalid': '{field} is not a usable field name.',

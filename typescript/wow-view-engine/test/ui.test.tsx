@@ -1010,9 +1010,8 @@ describe('FilterValueEditor', () => {
 
     const user = userEvent.setup();
     await user.click(screen.getByLabelText('amount kind'));
-    await user.click(
-      await screen.findByRole('option', { name: 'In the last' }),
-    );
+    // The shape is neutral now; the direction beside it carries the wording.
+    await user.click(await screen.findByRole('option', { name: 'Relative' }));
     expect(last(changes)).toMatchObject({ type: 'relative', unit: 'day' });
 
     cleanup();
@@ -1029,6 +1028,41 @@ describe('FilterValueEditor', () => {
     await user.click(screen.getByLabelText('amount kind'));
     await user.click(await screen.findByRole('option', { name: 'A period' }));
     expect(last(relative.changes)).toMatchObject({ preset: 'today' });
+  });
+
+  it('asks a relative window which way it runs', async () => {
+    // The kernel could express "the next 7 days" while this editor could
+    // only ever write a backwards window, which left the feature unreachable.
+    const { changes } = editor({ input: 'relativeDate' }, {
+      type: 'relative',
+      amount: 7,
+      unit: 'day',
+    } as unknown as FilterValue);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText('amount direction'));
+    await user.click(
+      await screen.findByRole('option', { name: 'In the next' }),
+    );
+
+    expect(last(changes)).toMatchObject({
+      type: 'relative',
+      amount: 7,
+      unit: 'day',
+      direction: 'future',
+    });
+  });
+
+  it('opens a window with no direction as the past one', () => {
+    editor({ input: 'relativeDate' }, {
+      type: 'relative',
+      amount: 7,
+      unit: 'day',
+    } as unknown as FilterValue);
+
+    expect(screen.getByLabelText('amount direction').textContent).toContain(
+      'In the last',
+    );
   });
 
   it('picks a day from the calendar', async () => {

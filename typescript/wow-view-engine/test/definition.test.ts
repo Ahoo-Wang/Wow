@@ -440,4 +440,49 @@ describe('ViewEngine and an unusable definition', () => {
 
     expect(onIssue).not.toHaveBeenCalled();
   });
+  it('refuses a text comparison Wow does not know', () => {
+    // `filter.contains` throws on an unknown comparison, and it would throw
+    // while compiling a query rather than while reading the definition.
+    const found = validateDefinition(
+      ordersDefinition({
+        fields: [
+          {
+            name: 'sku',
+            label: 'SKU',
+            kind: 'string',
+            stringComparison: 'LOOSE' as never,
+          },
+        ],
+        record: { rowKey: 'sku', paging: 'paged', layouts: ['table'] },
+        analysis: undefined,
+        views: [],
+      }),
+      builtinFieldKinds,
+    );
+
+    expect(found.map(entry => entry.code)).toContain(
+      'definition.field.string-comparison-invalid',
+    );
+  });
+
+  it('admits the two comparisons it does know', () => {
+    for (const stringComparison of [
+      'CASE_SENSITIVE',
+      'CASE_INSENSITIVE',
+    ] as const) {
+      expect(
+        validateDefinition(
+          ordersDefinition({
+            fields: [
+              { name: 'sku', label: 'SKU', kind: 'string', stringComparison },
+            ],
+            record: { rowKey: 'sku', paging: 'paged', layouts: ['table'] },
+            analysis: undefined,
+            views: [],
+          }),
+          builtinFieldKinds,
+        ),
+      ).toEqual([]);
+    }
+  });
 });

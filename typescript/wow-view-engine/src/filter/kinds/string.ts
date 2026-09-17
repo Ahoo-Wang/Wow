@@ -11,8 +11,15 @@
  * limitations under the License.
  */
 
-import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
-import type { FilterOperatorName } from '../../model/index.js';
+import {
+  filter,
+  type FilterExpression,
+  type StringComparison,
+} from '@ahoo-wang/fetcher-wow';
+import {
+  DEFAULT_STRING_COMPARISON,
+  type FilterOperatorName,
+} from '../../model/index.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
 import { isNonEmptyString } from '../values.js';
 import {
@@ -67,6 +74,10 @@ export const stringFieldKind: FieldKind = {
     if (presence) return presence;
 
     const name = field.name;
+    // Text matching is a search, so it ignores case unless the definition
+    // says the field's case carries meaning.
+    const comparison = (field.stringComparison ??
+      DEFAULT_STRING_COMPARISON) as StringComparison;
     switch (leaf.operator) {
       case 'IS_EMPTY_STRING':
         return filter.isEmptyString(name);
@@ -79,11 +90,11 @@ export const stringFieldKind: FieldKind = {
       case 'NE':
         return filter.ne(name, leaf.value as string);
       case 'CONTAINS':
-        return filter.contains(name, leaf.value as string);
+        return filter.contains(name, leaf.value as string, comparison);
       case 'STARTS_WITH':
-        return filter.startsWith(name, leaf.value as string);
+        return filter.startsWith(name, leaf.value as string, comparison);
       case 'ENDS_WITH':
-        return filter.endsWith(name, leaf.value as string);
+        return filter.endsWith(name, leaf.value as string, comparison);
       default:
         return filter.eq(name, leaf.value as string);
     }

@@ -34,9 +34,13 @@ function describeValue(value: DateTimeFilterValue): string {
         ? `from ${value.from}`
         : `${value.from} ~ ${value.to}`;
     case 'relative':
-      return `last ${value.amount} ${value.unit}`;
+      // Reading "last 7 day" beside a query that ran forwards would be worse
+      // than saying nothing: the summary bar is where a user checks what is
+      // actually in force.
+      return `${value.direction === 'future' ? 'next' : 'last'} ${value.amount} ${value.unit}`;
     case 'preset':
-      return value.preset;
+      // `nextQuarter` is a key, not a phrase, and there are fifteen of them.
+      return value.preset.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
   }
 }
 

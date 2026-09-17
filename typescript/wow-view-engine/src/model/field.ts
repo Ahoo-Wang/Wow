@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { StringComparison } from '@ahoo-wang/fetcher-wow';
 import type { FilterOperatorName } from './filter.js';
 
 /**
@@ -121,4 +122,26 @@ export interface FieldDefinition {
   cell?: string;
   /** Filter editor key; defaults to the one implied by kind, operator and value. */
   editor?: string;
+  /**
+   * How `CONTAINS`, `STARTS_WITH` and `ENDS_WITH` compare text on this field.
+   *
+   * The default is case-insensitive, because somebody filtering a list by
+   * typing `beijing` means to find `Beijing`. A field where case carries
+   * meaning — a product code, a signature, anything the user is matching
+   * exactly rather than searching — pins itself to `CASE_SENSITIVE` here.
+   * Wow attaches this to text matching only: `EQ` and `IN` have no such
+   * option, so neither does this.
+   */
+  stringComparison?: StringComparisonName;
 }
+
+/** Wow's `StringComparison`, as the literal a definition writes. */
+export type StringComparisonName = `${StringComparison}`;
+
+export const DEFAULT_STRING_COMPARISON: StringComparisonName =
+  'CASE_INSENSITIVE';
+
+export const STRING_COMPARISONS: readonly StringComparisonName[] = [
+  'CASE_SENSITIVE',
+  'CASE_INSENSITIVE',
+];

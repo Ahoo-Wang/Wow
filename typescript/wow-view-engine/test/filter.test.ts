@@ -11,12 +11,16 @@
  * limitations under the License.
  */
 
-import { FilterOperator } from '@ahoo-wang/fetcher-wow';
+import { FilterOperator, StringComparison } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
-import { METADATA_FIELD_KIND_IDS } from '../src/model/index.js';
+import {
+  METADATA_FIELD_KIND_IDS,
+  type FilterOperatorName,
+} from '../src/model/index.js';
 import {
   builtinFieldKinds,
   compileFilter,
+  DATE_TIME_PRESETS,
   createFieldKindRegistry,
   describeFilter,
   emptyFilter,
@@ -395,6 +399,195 @@ describe('relative and preset dates', () => {
  * for a while its `timeZone` was stored, validated and then ignored: two
  * conditions differing only by zone compiled to the same query.
  */
+/**
+ * Text matching is a search, not an exact match, so it ignores case unless a
+ * field says its case carries meaning. Before this, `filter.contains` was
+ * called without the third argument and Wow's default made every text filter
+ * case-sensitive, with no way to change it.
+ */
+describe('text comparison', () => {
+  const contains = (fieldName: string, over: FieldDefinition[] = fields) =>
+    compileFilter(
+      over,
+      tree({
+        field: fieldName,
+        operator: `${FilterOperator.CONTAINS}`,
+        value: 'cn',
+      }),
+      builtinFieldKinds,
+      context,
+    );
+
+  it('ignores case by default', () => {
+    expect(contains('id')).toMatchObject({
+      stringComparison: StringComparison.CASE_INSENSITIVE,
+    });
+  });
+
+  it('respects a field that pins itself to exact case', () => {
+    const cased: FieldDefinition[] = [
+      {
+        name: 'sku',
+        label: 'SKU',
+        kind: 'string',
+        stringComparison: 'CASE_SENSITIVE',
+      },
+    ];
+
+    expect(contains('sku', cased)).toMatchObject({
+      stringComparison: StringComparison.CASE_SENSITIVE,
+    });
+  });
+
+  const textOperators: [FilterOperatorName][] = [
+    [`${FilterOperator.STARTS_WITH}`],
+    [`${FilterOperator.ENDS_WITH}`],
+  ];
+
+  it.each(textOperators)('applies to %s as well', operator => {
+    expect(
+      compileFilter(
+        fields,
+        tree({ field: 'id', operator, value: 'cn' }),
+        builtinFieldKinds,
+        context,
+      ),
+    ).toMatchObject({ stringComparison: StringComparison.CASE_INSENSITIVE });
+  });
+});
+
+/**
+ * A window measured from now, in either direction. "The last 7 days" asks
+ * what happened; "the next 7 days" asks what is due, and only the second was
+ * inexpressible — `amount` had to be positive and the window always ran
+ * backwards.
+ */
+describe('relative windows and named periods', () => {
+  const resolve = (value: unknown) =>
+    compileFilter(
+      fields,
+      tree({
+        field: 'createdAt',
+        operator: `${FilterOperator.BETWEEN}`,
+        value: value as never,
+      }),
+      builtinFieldKinds,
+      context,
+    ) as { lowerBound: string; upperBound: string };
+
+  it('runs a relative window backwards by default', () => {
+    const past = resolve({ type: 'relative', amount: 7, unit: 'day' });
+
+    expect(past.upperBound).toBe(context.now.toISOString());
+    expect(Date.parse(past.lowerBound)).toBeLessThan(context.now.getTime());
+  });
+
+  it('runs it forwards when the condition says so', () => {
+    const future = resolve({
+      type: 'relative',
+      amount: 7,
+      unit: 'day',
+      direction: 'future',
+    });
+
+    expect(future.lowerBound).toBe(context.now.toISOString());
+    expect(Date.parse(future.upperBound)).toBeGreaterThan(
+      context.now.getTime(),
+    );
+  });
+
+  it('refuses a direction it does not know', () => {
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          tree({
+            field: 'createdAt',
+            operator: `${FilterOperator.BETWEEN}`,
+            value: {
+              type: 'relative',
+              amount: 7,
+              unit: 'day',
+              direction: 'sideways',
+            } as never,
+          }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['filter.value.expected-date']);
+  });
+
+  it.each(DATE_TIME_PRESETS)('resolves the %s period', preset => {
+    const window = resolve({ type: 'preset', preset });
+
+    // Every named period is a real window, and none of them is inverted.
+    expect(Date.parse(window.lowerBound)).toBeLessThan(
+      Date.parse(window.upperBound),
+    );
+  });
+
+  it('places last, this and next in order', () => {
+    const last = resolve({ type: 'preset', preset: 'lastMonth' });
+    const current = resolve({ type: 'preset', preset: 'thisMonth' });
+    const next = resolve({ type: 'preset', preset: 'nextMonth' });
+
+    expect(Date.parse(last.upperBound)).toBeLessThan(
+      Date.parse(current.lowerBound),
+    );
+    expect(Date.parse(current.upperBound)).toBeLessThan(
+      Date.parse(next.lowerBound),
+    );
+  });
+
+  it.each([
+    [undefined, 'last 7 day'],
+    ['past', 'last 7 day'],
+    ['future', 'next 7 day'],
+  ])('summarises a %s window as %s', (direction, want) => {
+    // A forward window described as "last" would contradict the query that
+    // actually ran, in the one place a user checks what is in force.
+    expect(
+      describeFilter(
+        fields,
+        tree({
+          field: 'createdAt',
+          operator: `${FilterOperator.BETWEEN}`,
+          value: {
+            type: 'relative',
+            amount: 7,
+            unit: 'day',
+            ...(direction === undefined ? {} : { direction }),
+          } as never,
+        }),
+        builtinFieldKinds,
+      )[0].text,
+    ).toContain(want);
+  });
+
+  it('summarises a period as words rather than as its key', () => {
+    expect(
+      describeFilter(
+        fields,
+        tree({
+          field: 'createdAt',
+          operator: `${FilterOperator.BETWEEN}`,
+          value: { type: 'preset', preset: 'nextQuarter' } as never,
+        }),
+        builtinFieldKinds,
+      )[0].text,
+    ).toContain('next quarter');
+  });
+
+  it('keeps a quarter three months wide either side of this one', () => {
+    const last = resolve({ type: 'preset', preset: 'lastQuarter' });
+    const next = resolve({ type: 'preset', preset: 'nextQuarter' });
+
+    // September 2026 sits in Q3, so its neighbours are Q2 and Q4.
+    expect(last.lowerBound.slice(0, 7)).toBe('2026-04');
+    expect(next.lowerBound.slice(0, 7)).toBe('2026-10');
+  });
+});
+
 describe('absolute dates and their zone', () => {
   const between = (from: string, to: string, timeZone?: string) =>
     compileFilter(
