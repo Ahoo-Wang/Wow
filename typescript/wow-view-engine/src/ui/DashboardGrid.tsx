@@ -194,6 +194,8 @@ function Unavailable({ issue }: { issue: Issue | undefined }) {
 
 function RecordPanel({ runtime }: { runtime: RecordViewRuntime }) {
   const table = useRecordTable(runtime);
+  if (table.status === 'error')
+    return <PanelFailed error={table.error ?? undefined} />;
   if (table.loading && table.rows.length === 0)
     return <Skeleton className="h-24 w-full" />;
   return <RecordTable table={table} />;
@@ -206,11 +208,31 @@ function AnalysisPanel({ runtime }: { runtime: DataViewRuntime }) {
   const view: AnalysisView | null =
     data?.kind === 'analysis' ? data.view : null;
 
+  if (state?.query.status === 'error')
+    return <PanelFailed error={state.query.error} />;
   if (!view) return <Skeleton className="h-24 w-full" />;
   return view.chart ? (
     <AnalysisChart data={view.chart} spec={analysis.chart} className="h-full" />
   ) : (
     <AnalysisTable view={view} />
+  );
+}
+
+/** One panel's failed query: reported here, while the others keep running. */
+function PanelFailed({ error }: { error: Issue | undefined }) {
+  const messages = useViewMessages();
+  return (
+    <Empty data-slot="panel-failed" className="p-4">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <UnplugIcon />
+        </EmptyMedia>
+        <EmptyTitle>{messages.label('label.query.failed')}</EmptyTitle>
+        <EmptyDescription>
+          {error ? messages.issue(error) : undefined}
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 }
 

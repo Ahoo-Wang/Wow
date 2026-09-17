@@ -14,6 +14,7 @@
 import { useState } from 'react';
 import { SaveIcon, TrashIcon } from 'lucide-react';
 import type { Issue, ViewInstance, ViewScope } from '../model/index.js';
+import type { WriteAction } from '../runtime/index.js';
 import type { SaveCommands } from '../react/index.js';
 import {
   Alert,
@@ -49,7 +50,11 @@ export interface SaveActionsProps {
   title: string;
   /** Called with the instance a save produced, so a host can open it. */
   onSaved?(instance: ViewInstance): void;
+  /** Called with the renamed instance, so a host can refresh its list. */
+  onRenamed?(instance: ViewInstance): void;
   onDeleted?(): void;
+  /** Called when a recovered write (retry, overwrite, reload) landed. */
+  onRecovered?(action: WriteAction): void;
 }
 
 const SCOPES: { label: string; value: Exclude<ViewScope, 'system'> }[] = [
@@ -69,11 +74,46 @@ export function SaveActions({
   commands,
   title,
   onSaved,
+  onRenamed,
   onDeleted,
+  onRecovered,
 }: SaveActionsProps) {
   const [copyOpen, setCopyOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  /**
+   * A recovered write lands like the original one would have: a recovered
+   * create or save opens what it made, a rename keeps the instance current,
+   * a delete lets the view go. Every landing also reports through
+   * onRecovered, which is where a host that wires nothing else stays fresh.
+   * A reload is not a landing: the server's state was adopted, so nothing is
+   * opened or let go of — the list may still have moved.
+   */
+  const notify = (
+    action: WriteAction | undefined,
+    instance: ViewInstance | null,
+    reloaded = false,
+  ) => {
+    if (!action) return;
+    if (reloaded) {
+      onRecovered?.(action);
+      return;
+    }
+    switch (action) {
+      case 'delete':
+        onDeleted?.();
+        onRecovered?.(action);
+        return;
+      case 'rename':
+        if (instance) onRenamed?.(instance);
+        onRecovered?.(action);
+        return;
+      default:
+        if (instance) onSaved?.(instance);
+        onRecovered?.(action);
+    }
+  };
 
   return (
     <div data-slot="save-actions" className="flex flex-wrap items-center gap-2">
@@ -142,7 +182,9 @@ export function SaveActions({
         description="Only the title changes; the conditions stay."
         initialTitle={title}
         onSubmit={next => {
-          void commands.rename(next);
+          void commands
+            .rename(next)
+            .then(instance => instance && onRenamed?.(instance));
           setRenameOpen(false);
         }}
       />
@@ -172,12 +214,23 @@ export function SaveActions({
         </DialogContent>
       </Dialog>
 
-      <WriteOutcome commands={commands} />
+      <WriteOutcome commands={commands} notify={notify} />
     </div>
   );
 }
 
-function WriteOutcome({ commands }: { commands: SaveCommands }) {
+function WriteOutcome({
+  commands,
+  notify,
+}: {
+  commands: SaveCommands;
+  /** Reports a recovered write, by the action it carried and what it made. */
+  notify(
+    action: WriteAction | undefined,
+    instance: ViewInstance | null,
+    reloaded?: boolean,
+  ): void;
+}) {
   const { write, error } = commands.state;
   const messages = useViewMessages();
 
@@ -192,13 +245,28 @@ function WriteOutcome({ commands }: { commands: SaveCommands }) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => void commands.resolveConflict('reload')}
+            onClick={() => {
+              const action = write.payload.action;
+              void commands
+                .resolveConflict('reload')
+                .then(
+                  result =>
+                    result.landed && notify(action, result.instance, true),
+                );
+            }}
           >
             Take theirs
           </Button>
           <Button
             size="sm"
-            onClick={() => void commands.resolveConflict('overwrite')}
+            onClick={() => {
+              const action = write.payload.action;
+              void commands
+                .resolveConflict('overwrite')
+                .then(
+                  result => result.landed && notify(action, result.instance),
+                );
+            }}
           >
             Keep mine
           </Button>
@@ -219,7 +287,17 @@ function WriteOutcome({ commands }: { commands: SaveCommands }) {
           <Button variant="outline" size="sm" onClick={commands.abandon}>
             Leave it
           </Button>
-          <Button size="sm" onClick={() => void commands.retry()}>
+          <Button
+            size="sm"
+            onClick={() => {
+              const action = write.payload.action;
+              void commands
+                .retry()
+                .then(
+                  result => result.landed && notify(action, result.instance),
+                );
+            }}
+          >
             Retry
           </Button>
         </AlertAction>

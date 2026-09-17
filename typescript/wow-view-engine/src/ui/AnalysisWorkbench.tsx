@@ -119,8 +119,18 @@ export function AnalysisWorkbench({
             <SaveActions
               commands={commands}
               title={state?.title ?? ''}
-              onSaved={saved => setChosen(saved.id)}
+              onSaved={saved => {
+                setChosen(saved.id);
+                list.reload();
+              }}
+              onRenamed={instance => {
+                // Pin the view before the reload: a workbench riding on the
+                // default would otherwise close its runtime and lose the draft.
+                setChosen(instance.id);
+                list.reload();
+              }}
               onDeleted={() => setChosen(null)}
+              onRecovered={() => list.reload()}
             />
 
             {state?.query.status === 'error' && state.query.error && (

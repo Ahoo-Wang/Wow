@@ -19,6 +19,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -38,6 +39,7 @@ import {
   RecordCards,
   RecordTable,
   RecordWorkbench,
+  SaveActions,
   ViewList,
   ViewSurface,
 } from '../src/ui/index.js';
@@ -261,6 +263,22 @@ describe('RecordWorkbench interaction', () => {
       expect(vi.mocked(source.paged).mock.calls.length).toBe(before + 1),
     );
   });
+
+  it('refreshes the list once a save-as lands in the store', async () => {
+    await open();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Title'), {
+      target: { value: 'My copy' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    // The copy joins the sidebar rather than waiting for a remount.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'My copy' })).toBeDefined(),
+    );
+  });
 });
 
 describe('save actions', () => {
@@ -407,6 +425,192 @@ describe('save actions', () => {
       expect((await store.get('orders-1')).revision).toBe('2'),
     );
   });
+
+  it('lets go of the view once a recovered delete lands', async () => {
+    const { store } = await open();
+    vi.spyOn(store, 'delete').mockRejectedValueOnce(new Error('socket closed'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Delete',
+      }),
+    );
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('never came back');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    // The store has it now; the workbench follows: the view stops rendering
+    // and the list drops the entry once its reload lands.
+    await waitFor(
+      () => {
+        expect(screen.queryByRole('table')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Mine' })).toBeNull();
+      },
+      { timeout: 3000 },
+    );
+  });
+
+  it('keeps the view open when a delete conflict ends in a reload', async () => {
+    // Another view is the default, so a `chosen` of null would reopen that
+    // one instead: the reload must not decide the user had left this view.
+    const other: ViewInstance = { ...mine, id: 'other-1', title: 'Other' };
+    const store = new MemoryViewStore({ instances: [other, mine] });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    // The server moved on; taking their version adopts the existing
+    // instance, it does not delete it.
+    const moved = await store.save(
+      'orders-1',
+      recordConfig({ pageSize: 30 }),
+      '1',
+      { requestId: 'other' },
+    );
+    vi.spyOn(store, 'delete').mockImplementationOnce(() =>
+      Promise.reject(new ViewStoreError('CONFLICT', 'moved', moved)),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Delete',
+      }),
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Take theirs' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Mine' }).ariaCurrent).toBe(
+        'true',
+      ),
+    );
+    expect(screen.getByRole('table')).toBeDefined();
+  });
+
+  it('opens the copy once a recovered save-as lands', async () => {
+    const { store } = await open();
+    vi.spyOn(store, 'create').mockRejectedValueOnce(new Error('socket closed'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Title'), {
+      target: { value: 'My copy' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    // The recovery lands like the original save-as: the copy joins the list
+    // and becomes the open view.
+    await waitFor(
+      () =>
+        expect(
+          screen.getByRole('button', { name: 'My copy' }).ariaCurrent,
+        ).toBe('true'),
+      { timeout: 3000 },
+    );
+  });
+
+  it('keeps unsaved edits across a rename of the default view', async () => {
+    // The default has to be the personal view: the first list entry is the
+    // code-declared system view, which nobody may rename.
+    const store = new MemoryViewStore({
+      instances: [mine],
+      preferences: {
+        orders: { order: [], defaultInstanceId: 'orders-1', revision: '0' },
+      },
+    });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    // No explicit instance: the workbench rides on the default view, so
+    // `chosen` is null and a list reload must not close the runtime.
+    render(<RecordWorkbench engine={engine} definitionId="orders" />);
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    fireEvent.click(screen.getByRole('button', { name: /Columns/ }));
+    fireEvent.click(
+      await screen.findByRole('menuitemcheckbox', { name: 'Warehouse' }),
+    );
+    // The header count includes the select-all column.
+    await waitFor(() =>
+      expect(screen.getAllByRole('columnheader')).toHaveLength(4),
+    );
+    // The column menu stays open after a checkbox pick; close it before the
+    // next toolbar click, which the open menu would swallow.
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Title'), {
+      target: { value: 'Renamed' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    // The rename refreshed the list; the unsaved column edit survived it.
+    await waitFor(async () =>
+      expect((await store.get('orders-1')).title).toBe('Renamed'),
+    );
+    expect(screen.getAllByRole('columnheader')).toHaveLength(4);
+  });
+
+  it('tells onRecovered about a recovered delete too', async () => {
+    // A host may wire only the generic callback and keep its list fresh
+    // there; a recovered delete is still a recovered write.
+    const onDeleted = vi.fn();
+    const onRecovered = vi.fn();
+    const commands = {
+      can: { save: true, saveAs: true, rename: true, delete: true },
+      state: {
+        pending: false,
+        error: null,
+        dirty: false,
+        write: {
+          kind: 'unknown',
+          requestId: 'r1',
+          payload: { action: 'delete', id: 'orders-1', revision: '1' },
+        },
+      },
+      save: vi.fn(),
+      saveAs: vi.fn(),
+      rename: vi.fn(),
+      delete: vi.fn(),
+      retry: vi.fn().mockResolvedValue({ landed: true, instance: null }),
+      abandon: vi.fn(),
+      resolveConflict: vi.fn(),
+    };
+    render(
+      <ViewSurface>
+        <SaveActions
+          commands={commands as never}
+          title="Mine"
+          onDeleted={onDeleted}
+          onRecovered={onRecovered}
+        />
+      </ViewSurface>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => expect(onDeleted).toHaveBeenCalled());
+    await waitFor(() => expect(onRecovered).toHaveBeenCalledWith('delete'));
+  });
 });
 
 describe('FilterValueEditor', () => {
@@ -417,22 +621,38 @@ describe('FilterValueEditor', () => {
 
   function editor(
     descriptor: EditorDescriptor,
-    value: FilterValue = null,
+    initial: FilterValue = null,
     options: typeof CANDIDATES | null = CANDIDATES,
-  ): { changes: FilterValue[] } {
+  ): { changes: FilterValue[]; replace(next: FilterValue): void } {
     const changes: FilterValue[] = [];
-    render(
-      <ViewSurface>
-        <FilterValueEditor
-          editor={descriptor}
-          value={value}
-          label="amount"
-          options={options ?? undefined}
-          onChange={next => changes.push(next)}
-        />
-      </ViewSurface>,
-    );
-    return { changes };
+    // A host like the filter panel feeds the editor the value it emitted —
+    // the same reference — and may later replace the value wholesale.
+    function Host({ forced }: { forced: FilterValue | null }) {
+      const [current, setCurrent] = useState<FilterValue>(initial);
+      if (forced !== null && forced !== current) {
+        // A replacement wins over whatever was being typed.
+        setCurrent(forced);
+      }
+      return (
+        <ViewSurface>
+          <FilterValueEditor
+            editor={descriptor}
+            value={current}
+            label="amount"
+            options={options ?? undefined}
+            onChange={next => {
+              changes.push(next);
+              setCurrent(next);
+            }}
+          />
+        </ViewSurface>
+      );
+    }
+    const view = render(<Host forced={null} />);
+    return {
+      changes,
+      replace: (next: FilterValue) => view.rerender(<Host forced={next} />),
+    };
   }
 
   it('renders nothing for an operator that takes no value', () => {
@@ -455,6 +675,33 @@ describe('FilterValueEditor', () => {
     });
 
     expect(changes).toEqual([['a', 'b']]);
+  });
+
+  it('keeps the trailing comma while a second list value is typed', () => {
+    const { changes } = editor({ input: 'text', multiple: true }, ['a']);
+    const input = screen.getByLabelText('amount') as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: 'a,' } });
+    // The comma is the separator being typed; eating it re-derives the text
+    // from the parsed list and makes a second value impossible to enter.
+    expect(input.value).toBe('a,');
+    expect(changes).toEqual([['a']]);
+
+    fireEvent.change(input, { target: { value: 'a, b' } });
+    expect(changes).toEqual([['a'], ['a', 'b']]);
+  });
+
+  it('adopts a value the host replaced with an equal list', () => {
+    const { replace } = editor({ input: 'text', multiple: true }, ['a']);
+    const input = screen.getByLabelText('amount') as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: 'a,' } });
+    expect(input.value).toBe('a,');
+
+    // A host that rebuilds its config — a conflict reload, a reset — supplies
+    // a fresh list with the same items; the half-typed draft must not survive.
+    replace(['a']);
+    expect(input.value).toBe('a');
   });
 
   it('collects one number and a range of two', () => {

@@ -112,24 +112,39 @@ function Cartesian({
   spec?: ChartSpec;
   className?: string;
 }) {
+  // A pivot names its series by raw group values, and the style element
+  // interpolates config keys into custom properties: only an identifier is
+  // safe there, so every data-valued key is exchanged for a synthetic one
+  // while the original stays the label.
+  const safeKeys = useMemo(() => {
+    const map = new Map<string, string>();
+    data.series.forEach((series, index) => map.set(series.key, `s${index}`));
+    return map;
+  }, [data]);
+
   const rows = useMemo(
     () =>
       data.points.map(point => ({
         x: labelOf(point.x),
-        ...point.values,
+        ...Object.fromEntries(
+          Object.entries(point.values).map(([key, value]) => [
+            safeKeys.get(key) ?? key,
+            value,
+          ]),
+        ),
       })),
-    [data],
+    [data, safeKeys],
   );
 
   const config = useMemo<ChartConfig>(
     () =>
       Object.fromEntries(
         data.series.map((series, index) => [
-          series.key,
+          safeKeys.get(series.key) ?? series.key,
           { label: series.key, color: color(index) },
         ]),
       ),
-    [data],
+    [data, safeKeys],
   );
 
   const horizontal = spec?.cartesian?.orientation === 'horizontal';
@@ -168,7 +183,11 @@ function Cartesian({
           <ChartLegend content={<ChartLegendContent />} />
         )}
         {data.series.map(series =>
-          mark(series.key, bySeries.get(series.metric), data.chart),
+          mark(
+            safeKeys.get(series.key) ?? series.key,
+            bySeries.get(series.metric),
+            data.chart,
+          ),
         )}
         {(spec?.cartesian?.referenceLines ?? []).map(line => (
           <ReferenceLine
@@ -233,13 +252,16 @@ function PieSlices({
   spec?: ChartSpec;
   className?: string;
 }) {
-  const rows = data.slices.map(slice => ({
+  // Same rule as the cartesian series: a category value becomes an identifier
+  // before it can reach the style element, and stays a label.
+  const rows = data.slices.map((slice, index) => ({
+    key: `p${index}`,
     name: slice.other === true ? 'Other' : labelOf(slice.category),
     value: slice.value,
   }));
   const config = Object.fromEntries(
     rows.map((row, index) => [
-      row.name,
+      row.key,
       { label: row.name, color: color(index) },
     ]),
   ) satisfies ChartConfig;
@@ -250,18 +272,18 @@ function PieSlices({
       className={cn('min-h-52 w-full', className)}
     >
       <PieChart>
-        <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+        <ChartTooltip content={<ChartTooltipContent nameKey="key" />} />
         <Pie
           data={rows}
           dataKey="value"
-          nameKey="name"
+          nameKey="key"
           innerRadius={spec?.pie?.donut === true ? '55%' : 0}
         >
           {rows.map((row, index) => (
-            <Cell key={row.name} fill={color(index)} />
+            <Cell key={row.key} fill={color(index)} />
           ))}
         </Pie>
-        <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+        <ChartLegend content={<ChartLegendContent nameKey="key" />} />
       </PieChart>
     </ChartContainer>
   );

@@ -227,6 +227,35 @@ describe('AnalysisChart', () => {
     expect(container.querySelector('[data-slot="chart"]')).not.toBeNull();
   });
 
+  it('maps a data-valued series key to a synthetic one before CSS sees it', () => {
+    // A pivot names its series by raw group values, which the style element
+    // interpolates into custom properties; anything but an identifier breaks
+    // the rule or breaks out of it.
+    const hostile = 'a} *{background:url(//evil/)}';
+    const { container } = chartOf({
+      type: 'cartesian',
+      chart: 'bar',
+      points: [{ x: 'CN', values: { [hostile]: 2 } }],
+      series: [{ key: hostile, metric: 'orders' }],
+    });
+
+    const css = container.querySelector('style')?.textContent ?? '';
+    expect(css).not.toContain(hostile);
+    // The series keeps its colour: the config carries a synthetic key.
+    expect(css).toContain('--color-s0');
+  });
+
+  it('maps a pie category to a synthetic key before CSS sees it', () => {
+    const hostile = 'x} *{color:red}';
+    const { container } = chartOf({
+      type: 'pie',
+      slices: [{ category: hostile, value: 2 }],
+    });
+
+    const css = container.querySelector('style')?.textContent ?? '';
+    expect(css).not.toContain(hostile);
+  });
+
   it('draws a pie and a donut', () => {
     const { container } = chartOf({
       type: 'pie',

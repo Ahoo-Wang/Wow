@@ -289,6 +289,43 @@ describe('DashboardGrid', () => {
     expect(document.querySelector('[data-slot="skeleton"]')).toBeTruthy();
   });
 
+  it('says so when a panel query fails, instead of loading forever', async () => {
+    const broken = testSource({
+      paged: () => Promise.reject(new Error('boom')),
+    });
+    const { controller } = await openDashboard(
+      dashboardConfig({ panels: [panel()] }),
+      [pending],
+      broken,
+    );
+
+    render(<DashboardGrid dashboard={controller()} />);
+
+    await waitFor(() =>
+      expect(screen.getByText('The query failed')).toBeTruthy(),
+    );
+    // The failure replaced the loading skeleton rather than joining it.
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('says so when an analysis panel query fails', async () => {
+    const broken = testSource({
+      aggregate: () => Promise.reject(new Error('boom')),
+    });
+    const { controller } = await openDashboard(
+      dashboardConfig({ panels: [panel()] }),
+      [{ ...pending, config: analysisConfig({ layout: 'chart' }) }],
+      broken,
+    );
+
+    render(<DashboardGrid dashboard={controller()} />);
+
+    await waitFor(() =>
+      expect(screen.getByText('The query failed')).toBeTruthy(),
+    );
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeNull();
+  });
+
   it('follows the container width once it can be measured', async () => {
     const observers: ResizeObserverStub[] = [];
     vi.stubGlobal(
