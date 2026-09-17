@@ -1,0 +1,309 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { FilterOperator } from '@ahoo-wang/fetcher-wow';
+import { describe, expect, it } from 'vitest';
+import {
+  builtinFieldKinds,
+  compileFilter,
+  describeFilter,
+  elementFields,
+  validateFilter,
+} from '../src/filter/index.js';
+import type {
+  FieldDefinition,
+  FilterOperatorName,
+  FilterTree,
+  FilterValue,
+} from '../src/model/index.js';
+
+/**
+ * A condition whose value is a condition.
+ *
+ * The distinction it exists for: `items.sku` and `items.qty` written side by
+ * side at the top level are satisfied by any entries, one matching each.
+ * Inside an element match they must be satisfied by the same entry.
+ */
+const fields: FieldDefinition[] = [
+  { name: 'warehouse', label: 'Warehouse', kind: 'string' },
+  {
+    name: 'items',
+    label: 'Items',
+    kind: 'elementMatch',
+    elements: [
+      { name: 'sku', label: 'SKU', kind: 'string' },
+      { name: 'qty', label: 'Qty', kind: 'number' },
+    ],
+  },
+  { name: 'bare', label: 'Bare', kind: 'elementMatch' },
+];
+
+const context = { now: new Date('2026-09-17T00:00:00Z'), timeZone: 'UTC' };
+
+function outer(
+  operator: FilterOperatorName,
+  value: FilterValue,
+  field = 'items',
+): FilterTree {
+  return { op: 'and', children: [{ field, operator, value }] };
+}
+
+const predicate = (...children: FilterTree['children']): FilterTree => ({
+  op: 'and',
+  children,
+});
+
+function errors(issues: { severity: string; code: string }[]): string[] {
+  return issues.filter(i => i.severity === 'error').map(i => i.code);
+}
+
+function compile(tree: FilterTree) {
+  return compileFilter(fields, tree, builtinFieldKinds, context);
+}
+
+describe('element fields', () => {
+  it('are named as a condition names them', () => {
+    // A declaration writes the relative name; a condition points at one from
+    // outside, so it writes the full path.
+    expect(elementFields(fields[1]).map(field => field.name)).toEqual([
+      'items.sku',
+      'items.qty',
+    ]);
+  });
+
+  it('are empty for an array that declares none', () => {
+    expect(elementFields(fields[2])).toEqual([]);
+  });
+});
+
+describe('the elementMatch kind', () => {
+  it('compiles a predicate onto the array', () => {
+    expect(
+      compile(
+        outer(
+          'ELEMENT_MATCH',
+          predicate(
+            { field: 'items.sku', operator: 'EQ', value: 'A' },
+            { field: 'items.qty', operator: 'GT', value: 2 },
+          ) as never,
+        ),
+      ),
+    ).toEqual({
+      op: FilterOperator.ELEMENT_MATCH,
+      field: 'items',
+      predicate: {
+        op: FilterOperator.AND,
+        operands: [
+          { op: FilterOperator.EQ, field: 'items.sku', value: 'A' },
+          { op: FilterOperator.GT, field: 'items.qty', value: 2 },
+        ],
+      },
+    });
+  });
+
+  it('asks whether there are entries at all', () => {
+    expect(compile(outer('IS_EMPTY', null))).toEqual({
+      op: FilterOperator.IS_EMPTY,
+      field: 'items',
+    });
+  });
+
+  it('answers the presence questions, which name a real path', () => {
+    // Unlike a metadata kind, this field's name is the array's own path.
+    expect(compile(outer('IS_NULL', null))).toEqual({
+      op: FilterOperator.IS_NULL,
+      field: 'items',
+    });
+  });
+
+  it('admits a predicate against the entry fields', () => {
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          outer(
+            'ELEMENT_MATCH',
+            predicate({
+              field: 'items.sku',
+              operator: 'EQ',
+              value: 'A',
+            }) as never,
+          ),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it('refuses a condition on a field the entries do not hold', () => {
+    // `warehouse` belongs to the order, not to a line.
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          outer(
+            'ELEMENT_MATCH',
+            predicate({
+              field: 'warehouse',
+              operator: 'EQ',
+              value: 'CN',
+            }) as never,
+          ),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['filter.field.unknown']);
+  });
+
+  it('refuses a value that is not a condition', () => {
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          outer('ELEMENT_MATCH', 'nonsense'),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['filter.value.expected-predicate']);
+  });
+
+  it('refuses an array that declares no entry fields', () => {
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          outer(
+            'ELEMENT_MATCH',
+            predicate({ field: 'x', operator: 'EQ', value: 1 }) as never,
+            'bare',
+          ),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['filter.field.holds-no-elements']);
+  });
+
+  it('treats an empty predicate as a question not yet asked', () => {
+    const empty = outer('ELEMENT_MATCH', predicate() as never);
+
+    expect(errors(validateFilter(fields, empty, builtinFieldKinds))).toEqual(
+      [],
+    );
+    expect(compile(empty)).toEqual({ op: FilterOperator.MATCH_ALL });
+    // It never reached the query, so it is not a condition in force.
+    expect(describeFilter(fields, empty, builtinFieldKinds)).toEqual([]);
+  });
+
+  it('starts from an empty condition', () => {
+    expect(
+      builtinFieldKinds
+        .get('elementMatch')!
+        .emptyValue('ELEMENT_MATCH', fields[1]),
+    ).toEqual({ op: 'and', children: [] });
+  });
+
+  it('asks the editor for a condition rather than a value', () => {
+    const kind = builtinFieldKinds.get('elementMatch')!;
+
+    expect(kind.editor('ELEMENT_MATCH', fields[1])).toEqual({
+      input: 'predicate',
+    });
+    expect(kind.editor('IS_EMPTY', fields[1])).toEqual({ input: 'none' });
+    expect(kind.editor('IS_NULL', fields[1])).toEqual({ input: 'none' });
+  });
+
+  it.each([
+    [
+      'ELEMENT_MATCH',
+      predicate({ field: 'items.sku', operator: 'EQ', value: 'A' }),
+      'Items has an entry where SKU EQ A',
+    ],
+    ['IS_EMPTY', null, 'Items has no entries'],
+    ['IS_NULL', null, 'Items is empty'],
+  ] as [FilterOperatorName, FilterValue, string][])(
+    'summarises %s',
+    (operator, value, want) => {
+      expect(
+        describeFilter(fields, outer(operator, value), builtinFieldKinds).map(
+          item => item.text,
+        ),
+      ).toEqual([want]);
+    },
+  );
+});
+
+/**
+ * One budget covers the nesting. A tree hidden inside a value would be a
+ * second dimension nobody counted, which is the exact thing the limits exist
+ * to prevent.
+ */
+describe('the budget reaches into a predicate', () => {
+  it('counts nested depth', () => {
+    let deep: FilterTree = predicate({
+      field: 'items.sku',
+      operator: 'EQ',
+      value: 'A',
+    });
+    for (let index = 0; index < 10; index += 1)
+      deep = { op: 'and', children: [deep] };
+
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          outer('ELEMENT_MATCH', deep as never),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['filter.tree.too-deep']);
+  });
+
+  it('counts nested nodes against the same total', () => {
+    const many = predicate(
+      ...Array.from({ length: 300 }, () => ({
+        field: 'items.sku',
+        operator: 'EQ' as FilterOperatorName,
+        value: 'A',
+      })),
+    );
+
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          outer('ELEMENT_MATCH', many as never),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['filter.tree.too-many-nodes']);
+  });
+
+  it('leaves a predicate within budget alone', () => {
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          outer(
+            'ELEMENT_MATCH',
+            predicate({
+              field: 'items.qty',
+              operator: 'GT',
+              value: 1,
+            }) as never,
+          ),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual([]);
+  });
+});

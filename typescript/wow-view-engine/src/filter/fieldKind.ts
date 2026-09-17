@@ -19,6 +19,7 @@ import type {
   FieldOption,
   FilterLeaf,
   FilterOperatorName,
+  FilterTree,
   Issue,
   IssuePath,
 } from '../model/index.js';
@@ -49,6 +50,17 @@ export interface FieldKind {
    * reference holding no items — says so here.
    */
   isBlank?(value: unknown, operator: FilterOperatorName): boolean;
+  /**
+   * The tree this value holds, for a kind whose value is a condition rather
+   * than a scalar.
+   *
+   * Declaring it is what keeps the budget honest. `maxFilterDepth` and
+   * `maxFilterNodes` exist because a tree arrives from a store and must not
+   * exhaust the stack; a tree hidden inside a value would be a second
+   * dimension nobody counted, so a kind that holds one says so and the
+   * budget walks it with everything else.
+   */
+  nested?(value: unknown, field: FieldDefinition): NestedTree | null;
   /** Reports why a value cannot be used; an empty array admits it. */
   validate(context: FieldKindValidateContext): Issue[];
   /** Maps one admitted leaf onto the Wow protocol. */
@@ -63,10 +75,22 @@ export interface FieldKind {
   describe(context: FieldKindDescribeContext): string;
 }
 
+/** A tree held inside a leaf's value, and the fields it is written against. */
+export interface NestedTree {
+  tree: FilterTree;
+  fields: readonly FieldDefinition[];
+}
+
 export interface FieldKindValidateContext {
   value: unknown;
   operator: FilterOperatorName;
   field: FieldDefinition;
+  /**
+   * The registry in play, for a kind whose value is itself a condition. It
+   * is passed rather than imported so a predicate admits custom kinds on the
+   * same terms as the tree around it.
+   */
+  kinds: FieldKindRegistry;
   /** Location of the leaf, so an issue points at the offending node. */
   path: IssuePath;
 }
@@ -74,6 +98,8 @@ export interface FieldKindValidateContext {
 export interface FieldKindCompileContext {
   leaf: FilterLeaf;
   field: FieldDefinition;
+  /** The registry in play; see `FieldKindValidateContext`. */
+  kinds: FieldKindRegistry;
   /** Evaluation moment and zone; the kernel never reads the system clock. */
   now: Date;
   timeZone: string;
@@ -82,6 +108,8 @@ export interface FieldKindCompileContext {
 export interface FieldKindDescribeContext {
   leaf: FilterLeaf;
   field: FieldDefinition;
+  /** The registry in play; see `FieldKindValidateContext`. */
+  kinds: FieldKindRegistry;
 }
 
 /** Shape of the input an editor should render; never a component name. */
@@ -95,7 +123,9 @@ export interface EditorDescriptor {
     | 'remote'
     | 'date'
     | 'dateRange'
-    | 'relativeDate';
+    | 'relativeDate'
+    /** Not a value: a condition, built with the same editor as the outer one. */
+    | 'predicate';
   /** The input collects several values, e.g. for `IN`. */
   multiple?: boolean;
   /** Two bounds rather than one value, e.g. for `BETWEEN`. */

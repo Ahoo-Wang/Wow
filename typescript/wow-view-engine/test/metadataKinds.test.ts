@@ -283,12 +283,14 @@ describe('metadata field kinds', () => {
       kind.describe({
         leaf: { field: '@ownerId', operator: 'OWNER_ID', value: 7 },
         field,
+        kinds: builtinFieldKinds,
       }),
     ).toBe('Created by 7');
     expect(
       kind.describe({
         leaf: { field: '@ownerId', operator: 'OWNER_ID', value: { a: 1 } },
         field,
+        kinds: builtinFieldKinds,
       }),
     ).toBe('Created by ');
   });

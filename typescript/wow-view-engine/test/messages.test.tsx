@@ -205,8 +205,10 @@ describe('components write no copy of their own', () => {
     for (const line of source.split('\n')) {
       const text = line.trim();
       // JSX text is a line that is neither markup nor code: no tag, no brace,
-      // no string quote. Two words or more is a sentence, not a symbol.
-      if (/[<>{}`'"=]/.test(text)) continue;
+      // no string quote, and none of the punctuation a call or a type
+      // annotation carries — `Array.isArray(x)` starts with a capital and has
+      // two words too. Two words or more is a sentence, not a symbol.
+      if (/[<>{}`'"=();]/.test(text)) continue;
       if (!/^[A-Z][A-Za-z]/.test(text)) continue;
       if (text.split(/\s+/).length < 2) continue;
       offenders.push(text);

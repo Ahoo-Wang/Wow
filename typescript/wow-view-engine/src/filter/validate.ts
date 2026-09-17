@@ -14,6 +14,7 @@
 import {
   DEFAULT_RUNTIME_LIMITS,
   type FieldDefinition,
+  type IssuePath,
   type FilterGroupOperator,
   type FilterTree,
   type Issue,
@@ -49,7 +50,7 @@ export function validateFilter(
   options: ValidateFilterOptions = {},
 ): Issue[] {
   const limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
-  const budget = checkBudget(tree, limits);
+  const budget = checkBudget(tree, fields, kinds, limits);
   if (budget.length > 0) return budget;
 
   const byName = new Map(fields.map(field => [field.name, field]));
@@ -98,6 +99,7 @@ export function validateFilter(
         value: node.value,
         operator: node.operator,
         field,
+        kinds,
         path,
       }),
     );
@@ -106,23 +108,66 @@ export function validateFilter(
   return issues;
 }
 
+/**
+ * The whole tree's budget, nested trees included.
+ *
+ * One budget covers the nesting rather than one per level: the limits are
+ * there so a tree from a store cannot exhaust the stack, and a per-level
+ * budget would let a leaf carry a full tree that carries a full tree, which
+ * is the same unbounded growth counted differently. Depth continues through
+ * a nested root, so nesting costs depth as plainly as a group does.
+ */
 function checkBudget(
   tree: FilterTree,
+  fields: readonly FieldDefinition[],
+  kinds: FieldKindRegistry,
   limits: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>,
 ): Issue[] {
-  let nodes = 0;
-  for (const { depth, path } of walkFilter(tree)) {
-    nodes += 1;
-    if (depth > limits.maxFilterDepth)
+  const counted = { nodes: 0 };
+  return walkBudget(tree, fields, kinds, limits, counted, 0, []);
+}
+
+function walkBudget(
+  tree: FilterTree,
+  fields: readonly FieldDefinition[],
+  kinds: FieldKindRegistry,
+  limits: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>,
+  counted: { nodes: number },
+  depthOffset: number,
+  prefix: IssuePath,
+): Issue[] {
+  const byName = new Map(fields.map(field => [field.name, field]));
+
+  for (const { node, path, depth } of walkFilter(tree)) {
+    counted.nodes += 1;
+    const at = [...prefix, ...path];
+    if (depth + depthOffset > limits.maxFilterDepth)
       return [
-        issue('filter.tree.too-deep', path, { max: limits.maxFilterDepth }),
+        issue('filter.tree.too-deep', at, { max: limits.maxFilterDepth }),
       ];
-    if (nodes > limits.maxFilterNodes)
+    if (counted.nodes > limits.maxFilterNodes)
       return [
         issue('filter.tree.too-many-nodes', [], {
           max: limits.maxFilterNodes,
         }),
       ];
+
+    if (!isFilterLeaf(node)) continue;
+    const field = byName.get(node.field);
+    const kind = field ? kinds.get(field.kind) : undefined;
+    const nested = kind?.nested?.(node.value, field as FieldDefinition);
+    if (!nested) continue;
+
+    const found = walkBudget(
+      nested.tree,
+      nested.fields,
+      kinds,
+      limits,
+      counted,
+      depth + depthOffset,
+      at,
+    );
+    if (found.length > 0) return found;
   }
   return [];
 }

@@ -67,7 +67,7 @@ export function describeFilter(
     )
       continue;
     const described =
-      field && kind ? describeLeaf(kind, node, field) : undefined;
+      field && kind ? describeLeaf(kind, node, field, kinds) : undefined;
     if (!field || described === undefined) {
       items.push({
         path,
@@ -99,9 +99,10 @@ function describeLeaf(
   kind: FieldKind,
   leaf: FilterLeaf,
   field: FieldDefinition,
+  kinds: FieldKindRegistry,
 ): string | undefined {
   try {
-    return kind.describe({ leaf, field });
+    return kind.describe({ leaf, field, kinds });
   } catch {
     return undefined;
   }

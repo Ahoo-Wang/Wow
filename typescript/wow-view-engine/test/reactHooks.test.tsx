@@ -15,6 +15,7 @@ import { AggregationGroupType, FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  builtinFieldKinds,
   MemoryViewStore,
   ViewCommandError,
   ViewEngine,
@@ -22,6 +23,7 @@ import {
   ViewWriteError,
   issue,
   type DataViewDefinition,
+  type FilterTree,
   type RecordViewRuntime,
   type ViewInstance,
   type ViewPreferences,
@@ -31,6 +33,7 @@ import {
   browserRuntimeEnvironment,
   documentVisibility,
   toIssue,
+  treeController,
   useFilterEditor,
   useOpenView,
   useRecordTable,
@@ -915,6 +918,86 @@ describe('useFilterEditor', () => {
 
     act(() => result.current.filter.blur());
     expect(result.current.opened.runtime?.getSnapshot().editing).toBe(false);
+  });
+});
+
+/**
+ * The tree-editing half of the controller, over any tree rather than a
+ * runtime's draft. It is what lets a condition holding a condition render
+ * through the same components as the filter around it.
+ */
+describe('treeController', () => {
+  const fields = [
+    { name: 'sku', label: 'SKU', kind: 'string' as const },
+    { name: 'qty', label: 'Qty', kind: 'number' as const },
+  ];
+
+  function controller(tree: FilterTree = { op: 'and', children: [] }) {
+    let current = tree;
+    const build = () =>
+      treeController({
+        tree: current,
+        fields,
+        kinds: builtinFieldKinds,
+        issues: [],
+        onChange: next => {
+          current = next;
+        },
+      });
+    return {
+      act: (run: (c: ReturnType<typeof build>) => void) => run(build()),
+      tree: () => current,
+    };
+  }
+
+  it('adds, edits and removes without holding state', () => {
+    const own = controller();
+
+    own.act(c => c.addLeaf('sku'));
+    expect(own.tree().children).toHaveLength(1);
+
+    own.act(c => c.updateLeaf([0], { value: 'A' }));
+    expect(own.tree().children[0]).toMatchObject({ field: 'sku', value: 'A' });
+
+    own.act(c => c.remove([0]));
+    expect(own.tree().children).toEqual([]);
+  });
+
+  it('nests a group and changes how it combines', () => {
+    const own = controller();
+
+    own.act(c => c.addGroup('or'));
+    own.act(c => c.addLeaf('qty', [0]));
+    expect(own.tree().children[0]).toMatchObject({ op: 'or' });
+
+    own.act(c => c.updateGroup([0], 'nor'));
+    expect(own.tree().children[0]).toMatchObject({ op: 'nor' });
+
+    // `updateAt` leaves the root alone, so the root is written directly.
+    own.act(c => c.updateGroup([], 'or'));
+    expect(own.tree().op).toBe('or');
+  });
+
+  it('answers what a field offers and what edits it', () => {
+    const own = controller({
+      op: 'and',
+      children: [{ field: 'sku', operator: 'EQ', value: 'A' }],
+    });
+
+    own.act(c => {
+      expect(c.operatorsFor('sku')).toContain('CONTAINS');
+      expect(c.operatorsFor('gone')).toEqual([]);
+      expect(c.editorFor([0])).toMatchObject({ input: 'text' });
+      expect(c.editorFor([9])).toBeNull();
+    });
+  });
+
+  it('ignores a field the caller does not offer', () => {
+    const own = controller();
+
+    own.act(c => c.addLeaf('gone'));
+
+    expect(own.tree().children).toEqual([]);
   });
 });
 

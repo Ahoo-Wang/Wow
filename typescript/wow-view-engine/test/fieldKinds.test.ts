@@ -59,7 +59,13 @@ function leaf(operator: FilterOperatorName, value: unknown): FilterLeaf {
 }
 
 function compile(kind: FieldKind, one: FilterLeaf, def = field()) {
-  return kind.compile({ leaf: one, field: def, now, timeZone });
+  return kind.compile({
+    leaf: one,
+    field: def,
+    kinds: builtinFieldKinds,
+    now,
+    timeZone,
+  });
 }
 
 function codes(
@@ -69,7 +75,13 @@ function codes(
   def = field(),
 ) {
   return kind
-    .validate({ value, operator, field: def, path: [] })
+    .validate({
+      value,
+      operator,
+      field: def,
+      kinds: builtinFieldKinds,
+      path: [],
+    })
     .map(i => i.code);
 }
 
@@ -111,12 +123,17 @@ describe('presence operators', () => {
           value: null,
           operator: 'IS_NULL',
           field: field(),
+          kinds: builtinFieldKinds,
           path: [],
         }),
       ).toEqual([]);
       expect(kind.editor('IS_NULL', field())).toEqual({ input: 'none' });
       expect(
-        kind.describe({ leaf: leaf('IS_NULL', null), field: field() }),
+        kind.describe({
+          leaf: leaf('IS_NULL', null),
+          field: field(),
+          kinds: builtinFieldKinds,
+        }),
       ).toContain('Value');
     }
   });
@@ -172,11 +189,19 @@ describe('string kind', () => {
     });
     expect(kind.editor('IS_EMPTY_STRING', field())).toEqual({ input: 'none' });
     expect(
-      kind.describe({ leaf: leaf('IN', ['A', 'B']), field: field() }),
+      kind.describe({
+        leaf: leaf('IN', ['A', 'B']),
+        field: field(),
+        kinds: builtinFieldKinds,
+      }),
     ).toBe('Value IN A, B');
-    expect(kind.describe({ leaf: leaf('EQ', 'A'), field: field() })).toBe(
-      'Value EQ A',
-    );
+    expect(
+      kind.describe({
+        leaf: leaf('EQ', 'A'),
+        field: field(),
+        kinds: builtinFieldKinds,
+      }),
+    ).toBe('Value EQ A');
   });
 });
 
@@ -230,15 +255,27 @@ describe('number kind', () => {
       range: true,
     });
     expect(kind.editor('IN', def)).toEqual({ input: 'number', multiple: true });
-    expect(kind.describe({ leaf: leaf('BETWEEN', [1, 2]), field: def })).toBe(
-      'Value 1 ~ 2',
-    );
-    expect(kind.describe({ leaf: leaf('IN', [1, 2]), field: def })).toBe(
-      'Value IN 1, 2',
-    );
-    expect(kind.describe({ leaf: leaf('GT', 1), field: def })).toBe(
-      'Value GT 1',
-    );
+    expect(
+      kind.describe({
+        leaf: leaf('BETWEEN', [1, 2]),
+        field: def,
+        kinds: builtinFieldKinds,
+      }),
+    ).toBe('Value 1 ~ 2');
+    expect(
+      kind.describe({
+        leaf: leaf('IN', [1, 2]),
+        field: def,
+        kinds: builtinFieldKinds,
+      }),
+    ).toBe('Value IN 1, 2');
+    expect(
+      kind.describe({
+        leaf: leaf('GT', 1),
+        field: def,
+        kinds: builtinFieldKinds,
+      }),
+    ).toBe('Value GT 1');
   });
 });
 
@@ -263,9 +300,13 @@ describe('boolean kind', () => {
       op: FilterOperator.NE,
     });
     expect(kind.editor('EQ', def)).toEqual({ input: 'boolean' });
-    expect(kind.describe({ leaf: leaf('EQ', true), field: def })).toBe(
-      'Value EQ true',
-    );
+    expect(
+      kind.describe({
+        leaf: leaf('EQ', true),
+        field: def,
+        kinds: builtinFieldKinds,
+      }),
+    ).toBe('Value EQ true');
   });
 });
 
@@ -305,9 +346,13 @@ describe('enum kind', () => {
       multiple: true,
       options: def.options,
     });
-    expect(kind.describe({ leaf: leaf('IN', ['A', 2, 'Z']), field: def })).toBe(
-      'Value IN Alpha, Two, Z',
-    );
+    expect(
+      kind.describe({
+        leaf: leaf('IN', ['A', 2, 'Z']),
+        field: def,
+        kinds: builtinFieldKinds,
+      }),
+    ).toBe('Value IN Alpha, Two, Z');
   });
 });
 
@@ -342,9 +387,13 @@ describe('reference kind', () => {
       input: 'remote',
       remote: 'customers',
     });
-    expect(kind.describe({ leaf: leaf('IN', value), field: def })).toBe(
-      'Value IN ACME',
-    );
+    expect(
+      kind.describe({
+        leaf: leaf('IN', value),
+        field: def,
+        kinds: builtinFieldKinds,
+      }),
+    ).toBe('Value IN ACME');
   });
 });
 
@@ -441,7 +490,11 @@ describe('date kinds', () => {
 
   it('describes each value variant', () => {
     const describe_ = (value: unknown) =>
-      dateTimeFieldKind.describe({ leaf: leaf('BETWEEN', value), field: def });
+      dateTimeFieldKind.describe({
+        leaf: leaf('BETWEEN', value),
+        field: def,
+        kinds: builtinFieldKinds,
+      });
     expect(describe_({ type: 'preset', preset: 'today' })).toBe('Value today');
     expect(describe_({ type: 'relative', amount: 7, unit: 'day' })).toBe(
       'Value last 7 day',

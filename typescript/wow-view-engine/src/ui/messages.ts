@@ -180,6 +180,10 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'filter.value.expected-id': 'Enter an id, or pick a candidate.',
   'filter.value.expected-id-list': 'Enter one or more ids.',
   'filter.value.expects-one': 'This condition takes a single value.',
+  'filter.value.expected-predicate': 'Describe what an entry must match.',
+  'filter.field.holds-no-elements':
+    '{field} holds no entries to match against.',
+  'label.operator.ELEMENT_MATCH': 'has an entry where',
   'filter.value.expected-entry-list': 'Choose or enter one or more entries.',
   'filter.value.expected-number': 'Enter a number.',
   'filter.value.expected-number-list': 'Enter one or more numbers.',

@@ -11,15 +11,22 @@
  * limitations under the License.
  */
 
+import { useMemo } from 'react';
 import { FilterIcon, PlusIcon, XIcon } from 'lucide-react';
 import type {
   FieldOption,
   FilterGroup,
   FilterLeaf,
+  FilterTree,
+  Issue,
   IssuePath,
 } from '../model/index.js';
-import type { FilterPath } from '../filter/index.js';
-import type { FilterEditorController } from '../react/index.js';
+import { elementFields, writeValue, type FilterPath } from '../filter/index.js';
+import {
+  treeController,
+  type FilterEditorController,
+  type FilterTreeController,
+} from '../react/index.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import {
@@ -187,12 +194,20 @@ function GroupBlock({
   path,
   disabled,
   optionsFor,
+  scope,
 }: {
-  filter: FilterEditorController;
+  filter: FilterTreeController;
   group: FilterGroup;
   path: FilterPath;
   disabled?: boolean;
   optionsFor?: (remote: string) => FieldOption[] | undefined;
+  /**
+   * What this group is a group of, for the controls' accessible names. A
+   * predicate renders a second root group on the same screen as the view's
+   * own, and two controls called "Group operator" are two controls a screen
+   * reader cannot tell apart.
+   */
+  scope?: string;
 }) {
   const nested = path.length > 0;
   const messages = useViewMessages();
@@ -215,9 +230,10 @@ function GroupBlock({
           variant="outline"
           size="sm"
           disabled={disabled}
-          aria-label={
-            nested ? `Group operator ${path.join('.')}` : 'Group operator'
-          }
+          aria-label={within(
+            scope,
+            nested ? `Group operator ${path.join('.')}` : 'Group operator',
+          )}
         >
           <ToggleGroupItem value="and">
             {messages.label('label.filter.all-of')}
@@ -252,6 +268,7 @@ function GroupBlock({
             path={[...path, index]}
             disabled={disabled}
             optionsFor={optionsFor}
+            scope={scope}
           />
         ) : (
           <FilterLeafRow
@@ -270,7 +287,7 @@ function GroupBlock({
           filter={filter}
           parent={path}
           disabled={disabled}
-          label="Add condition in this group"
+          label={within(scope, 'Add condition in this group')}
         />
         <Button
           variant="ghost"
@@ -293,7 +310,7 @@ function AddCondition({
   disabled,
   label = 'Add condition',
 }: {
-  filter: FilterEditorController;
+  filter: FilterTreeController;
   parent: FilterPath;
   disabled?: boolean;
   label?: string;
@@ -329,7 +346,7 @@ function FilterLeafRow({
   disabled,
   optionsFor,
 }: {
-  filter: FilterEditorController;
+  filter: FilterTreeController;
   leaf: FilterLeaf;
   path: FilterPath;
   disabled?: boolean;
@@ -387,15 +404,25 @@ function FilterLeafRow({
         </SelectContent>
       </Select>
 
-      {editor && (
-        <FilterValueEditor
-          editor={editor}
-          value={leaf.value}
-          label={`${leaf.field} value`}
+      {editor?.input === 'predicate' ? (
+        <NestedPredicate
+          filter={filter}
+          leaf={leaf}
+          path={path}
           disabled={disabled}
-          options={editor.remote ? optionsFor?.(editor.remote) : undefined}
-          onChange={value => filter.updateLeaf(path, { value })}
+          optionsFor={optionsFor}
         />
+      ) : (
+        editor && (
+          <FilterValueEditor
+            editor={editor}
+            value={leaf.value}
+            label={`${leaf.field} value`}
+            disabled={disabled}
+            options={editor.remote ? optionsFor?.(editor.remote) : undefined}
+            onChange={value => filter.updateLeaf(path, { value })}
+          />
+        )
       )}
 
       <Button
@@ -409,6 +436,88 @@ function FilterLeafRow({
       </Button>
     </Field>
   );
+}
+
+/**
+ * One control's accessible name, told apart by what it belongs to.
+ *
+ * A predicate renders a second root group on the same screen as the view's
+ * own, so without this two controls would answer to "Group operator" and a
+ * screen reader could not say which filter either one edits.
+ */
+function within(scope: string | undefined, name: string): string {
+  return scope ? `${scope} ${name}` : name;
+}
+
+/**
+ * A condition whose value is itself a condition, on the fields of an array's
+ * elements.
+ *
+ * It renders the same group the outer filter renders, because it is the same
+ * thing: `treeController` writes each change straight back into the leaf that
+ * carries the tree. Two conditions written side by side outside this block
+ * are satisfied by any entries, one each; inside it they must be satisfied by
+ * the same entry.
+ */
+function NestedPredicate({
+  filter,
+  leaf,
+  path,
+  disabled,
+  optionsFor,
+}: {
+  filter: FilterTreeController;
+  leaf: FilterLeaf;
+  path: FilterPath;
+  disabled?: boolean;
+  optionsFor?: (remote: string) => FieldOption[] | undefined;
+}) {
+  const field = filter.fields.find(entry => entry.name === leaf.field);
+  const nested = useMemo(
+    () =>
+      treeController({
+        tree: asTree(leaf.value),
+        fields: field ? elementFields(field) : [],
+        kinds: filter.kinds,
+        // The kind reports a predicate's findings under the leaf that holds
+        // it, so they are rebased here to address the nested tree instead.
+        issues: rebase(filter.issues, path),
+        onChange: tree => filter.updateLeaf(path, { value: writeValue(tree) }),
+      }),
+    [filter, leaf.value, path, field],
+  );
+
+  return (
+    <div className="border-muted min-w-0 flex-1 border-l-2 pl-2">
+      <GroupBlock
+        filter={nested}
+        group={nested.tree}
+        path={[]}
+        disabled={disabled}
+        optionsFor={optionsFor}
+        scope={field?.label ?? leaf.field}
+      />
+    </div>
+  );
+}
+
+/** A leaf's value read as the tree it holds; an unfinished one is empty. */
+function asTree(value: unknown): FilterTree {
+  return value !== null &&
+    typeof value === 'object' &&
+    Array.isArray((value as FilterTree).children)
+    ? (value as FilterTree)
+    : { op: 'and', children: [] };
+}
+
+/** Findings under one leaf, addressed against the tree that leaf carries. */
+function rebase(issues: readonly Issue[], path: FilterPath): Issue[] {
+  const prefix = path.flatMap(index => ['children', index]);
+  return issues.flatMap(found => {
+    const own = found.path.slice(0, prefix.length);
+    if (own.join('.') !== prefix.join('.')) return [];
+    return [{ ...found, path: found.path.slice(prefix.length) }];
+  });
 }
 
 /** The node indexes of an issue path, comparable against a `FilterPath`. */

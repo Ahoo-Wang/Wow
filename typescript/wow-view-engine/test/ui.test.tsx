@@ -33,6 +33,7 @@ import {
 import type { PagedList } from '@ahoo-wang/fetcher-wow';
 import type {
   EditorDescriptor,
+  FilterTree,
   FilterValue,
   RecordData,
 } from '../src/index.js';
@@ -1284,8 +1285,35 @@ describe('FilterPanel tree editing', () => {
     filter(): ReturnType<typeof useFilterEditor>;
   }
 
-  function panel(disabled = false): PanelHarness {
-    const { engine } = setup();
+  /** A definition whose `items` array declares what its entries hold. */
+  function withItems() {
+    const base = ordersDefinition();
+    return {
+      ...base,
+      fields: [
+        ...base.fields,
+        {
+          name: 'items',
+          label: 'Items',
+          kind: 'elementMatch' as const,
+          elements: [
+            { name: 'sku', label: 'SKU', kind: 'string' as const },
+            { name: 'qty', label: 'Qty', kind: 'number' as const },
+          ],
+        },
+      ],
+    };
+  }
+
+  function panel(
+    disabled = false,
+    definition = ordersDefinition(),
+  ): PanelHarness {
+    const engine = new ViewEngine({
+      definitions: [definition],
+      store: new MemoryViewStore({ instances: [mine] }),
+      resolveSource: () => testSource(),
+    });
     const runtime = engine.create('orders', {
       title: 'Scratch',
       scope: 'personal',
@@ -1375,6 +1403,83 @@ describe('FilterPanel tree editing', () => {
     // entry. Neither should ever render as its key.
     expect(options.textContent).not.toContain('label.operator');
     expect(filter().operatorsFor('warehouse')).toContain('NOT_IN');
+  });
+
+  /**
+   * A condition whose value is a condition. The kernel could express it and
+   * the editor could not, which is the shape of mistake this package has made
+   * before — a pipeline computing something nothing renders.
+   */
+  it('builds a condition inside an element match', async () => {
+    const { filter } = panel(false, withItems());
+    const user = userEvent.setup();
+
+    act(() => filter().addLeaf('items'));
+
+    // The row renders the same group builder the outer filter uses, over the
+    // fields the entries declare rather than the view's own. Its controls
+    // carry the field's name so they are not two "Group operator"s.
+    await waitFor(() =>
+      expect(screen.getByLabelText('Items Group operator')).toBeTruthy(),
+    );
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Items Add condition in this group',
+      }),
+    );
+    await user.click(await screen.findByRole('menuitem', { name: 'SKU' }));
+
+    const predicate = filter().tree.children[0] as unknown as {
+      value: FilterTree;
+    };
+    expect(predicate.value.children[0]).toMatchObject({ field: 'items.sku' });
+  });
+
+  it('offers the entry fields, not the view fields', async () => {
+    const { filter } = panel(false, withItems());
+    const user = userEvent.setup();
+
+    act(() => filter().addLeaf('items'));
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Items Add condition in this group',
+      }),
+    );
+
+    // `warehouse` belongs to the order, not to a line, and a predicate that
+    // named it would compile into something Wow cannot answer.
+    expect(await screen.findByRole('menuitem', { name: 'SKU' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Warehouse' })).toBeNull();
+  });
+
+  it('marks the row inside a predicate that is wrong, not the one holding it', async () => {
+    const { filter } = panel(false, withItems());
+    const user = userEvent.setup();
+
+    act(() => filter().addLeaf('items'));
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Items Add condition in this group',
+      }),
+    );
+    await user.click(await screen.findByRole('menuitem', { name: 'Qty' }));
+
+    // A number field given text: the kind reports it under the leaf that
+    // carries the predicate, and the row inside is what has to light up.
+    act(() =>
+      filter().updateLeaf([0], {
+        value: {
+          op: 'and',
+          children: [{ field: 'items.qty', operator: 'EQ', value: 'x' }],
+        } as never,
+      }),
+    );
+
+    await waitFor(() => {
+      const invalid = document.querySelectorAll('[data-invalid]');
+      expect(invalid.length).toBe(1);
+      expect(invalid[0].textContent).toContain('Qty');
+    });
   });
 
   it('disables the group operator with the rest of the panel', () => {

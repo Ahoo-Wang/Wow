@@ -72,6 +72,7 @@ function compileNode(
   return kind.compile({
     leaf: node,
     field,
+    kinds,
     now: context.now,
     timeZone: context.timeZone,
   });

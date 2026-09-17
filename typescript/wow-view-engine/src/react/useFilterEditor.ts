@@ -40,34 +40,25 @@ import {
 import type { ViewRuntime } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
-export interface FilterEditorController {
-  /** The tree being edited, which is the draft's, never the applied one. */
-  tree: FilterTree;
+/**
+ * One view's filter editor: a tree to edit, plus the things that belong to
+ * the view around it — which mode it shows, what is currently applied, and
+ * when to run.
+ */
+export interface FilterEditorController extends FilterTreeController {
   mode: FilterMode;
-  /** Fields the view offers, in declaration order. */
-  fields: readonly FieldDefinition[];
-  /** Issues about the filter only; the rest of the config is not this editor's. */
-  issues: Issue[];
   /** Conditions currently in force, for a summary bar. */
   applied: FilterSummaryItem[];
   count: number;
   /** False when the tree needs the advanced editor to be shown faithfully. */
   simple: boolean;
   setMode(mode: FilterMode): void;
-  addLeaf(field: string, parent?: FilterPath): void;
-  updateLeaf(path: FilterPath, patch: Partial<FilterLeaf>): void;
-  addGroup(op: FilterGroupOperator, parent?: FilterPath): void;
-  /** Changes how a group combines, keeping its children in place. */
-  updateGroup(path: FilterPath, op: FilterGroupOperator): void;
-  remove(path: FilterPath): void;
   clear(): void;
   /** Applies the draft, which is what runs the query. */
   submit(): void;
   /** Auto-refresh pauses between these two, so typing is never interrupted. */
   focus(): void;
   blur(): void;
-  operatorsFor(field: string): FilterOperatorName[];
-  editorFor(path: FilterPath): EditorDescriptor | null;
 }
 
 const ROOT: FilterPath = [];
@@ -187,6 +178,7 @@ export function useFilterEditor(
     tree,
     mode: state?.draft.filterMode ?? 'simple',
     fields,
+    kinds,
     // `validateFilter` addresses a node by its path (`[0]`, `[1, 0]`), so the
     // code is what says an Issue belongs to the filter at all — and the path
     // is what says it belongs to *this* filter: an element's or a dashboard
@@ -275,13 +267,15 @@ function reseedValue(
   if ('value' in patch) return next;
 
   const field = byName.get(next.field);
-  const kind = field && kinds?.get(field.kind);
-  if (!field || !kind) return next;
+  if (!field || !kinds) return next;
+  const kind = kinds.get(field.kind);
+  if (!kind) return next;
 
   const admitted = kind.validate({
     value: next.value,
     operator: next.operator,
     field,
+    kinds,
     path: [],
   });
   if (!admitted.some(found => found.severity === 'error')) return next;
@@ -289,5 +283,116 @@ function reseedValue(
   return {
     ...next,
     value: kind.emptyValue(next.operator, field) as FilterLeaf['value'],
+  };
+}
+
+/**
+ * The part of the controller that edits a tree, and nothing about the view
+ * around it.
+ *
+ * `useFilterEditor` is one implementation, bound to a runtime's draft. A
+ * condition that holds a condition — an element match — is another, bound to
+ * a leaf's value, and the two render through the same components because the
+ * thing being edited is the same thing.
+ */
+export interface FilterTreeController {
+  tree: FilterTree;
+  fields: readonly FieldDefinition[];
+  /** The registry admission used, so a nested editor admits by the same one. */
+  kinds: FieldKindRegistry | undefined;
+  issues: Issue[];
+  addLeaf(field: string, parent?: FilterPath): void;
+  updateLeaf(path: FilterPath, patch: Partial<FilterLeaf>): void;
+  addGroup(op: FilterGroupOperator, parent?: FilterPath): void;
+  updateGroup(path: FilterPath, op: FilterGroupOperator): void;
+  remove(path: FilterPath): void;
+  operatorsFor(field: string): FilterOperatorName[];
+  editorFor(path: FilterPath): EditorDescriptor | null;
+}
+
+export interface TreeControllerInput {
+  tree: FilterTree;
+  fields: readonly FieldDefinition[];
+  kinds: FieldKindRegistry | undefined;
+  /** Issues already rebased onto this tree. */
+  issues: Issue[];
+  onChange(tree: FilterTree): void;
+}
+
+/**
+ * A controller over any tree. It holds no state: every action produces the
+ * next tree and hands it to `onChange`, which is what lets a nested one write
+ * straight back into the leaf that carries it.
+ */
+export function treeController(
+  input: TreeControllerInput,
+): FilterTreeController {
+  const { tree, fields, kinds, issues, onChange } = input;
+  const byName = new Map(fields.map(field => [field.name, field]));
+  const change = (update: (current: FilterTree) => FilterTree) =>
+    onChange(update(tree));
+
+  return {
+    tree,
+    fields,
+    kinds,
+    issues,
+    addLeaf(field, parent = ROOT) {
+      const definition = byName.get(field);
+      const kind = definition && kinds?.get(definition.kind);
+      if (!definition || !kind) return;
+      const allowed = operatorsOf(definition, kind);
+      const operator = allowed.includes(kind.defaultOperator)
+        ? kind.defaultOperator
+        : allowed[0];
+      if (!operator) return;
+      change(current =>
+        insertAt(current, parent, {
+          field,
+          operator,
+          value: kind.emptyValue(operator, definition) as FilterLeaf['value'],
+        }),
+      );
+    },
+    updateLeaf(path, patch) {
+      change(current =>
+        updateAt(current, path, node => {
+          if ('children' in node) return node;
+          const next = { ...node, ...patch };
+          return reseedValue(node, next, patch, byName, kinds);
+        }),
+      );
+    },
+    addGroup(op, parent = ROOT) {
+      change(current => insertAt(current, parent, { op, children: [] }));
+    },
+    updateGroup(path, op) {
+      if (path.length === 0) {
+        change(current => (current.op === op ? current : { ...current, op }));
+        return;
+      }
+      change(current =>
+        updateAt(current, path, node =>
+          'children' in node ? { ...node, op } : node,
+        ),
+      );
+    },
+    remove(path) {
+      change(current => removeAt(current, path));
+    },
+    operatorsFor(field) {
+      const definition = byName.get(field);
+      const kind = definition && kinds?.get(definition.kind);
+      return definition && kind ? operatorsOf(definition, kind) : [];
+    },
+    editorFor(path) {
+      const node = nodeAt(tree, path);
+      if (!node || 'children' in node) return null;
+      const definition = byName.get(node.field);
+      const kind = definition && kinds?.get(definition.kind);
+      return kind && definition
+        ? kind.editor(node.operator, definition, node.value)
+        : null;
+    },
   };
 }

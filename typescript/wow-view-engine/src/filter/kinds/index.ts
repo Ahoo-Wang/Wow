@@ -15,6 +15,7 @@ import { createFieldKindRegistry, type FieldKind } from '../fieldKind.js';
 import { arrayFieldKind } from './array.js';
 import { booleanFieldKind } from './boolean.js';
 import { dateFieldKind, dateTimeFieldKind } from './dateTime.js';
+import { elementMatchFieldKind } from './elementMatch.js';
 import { enumFieldKind } from './enum.js';
 import { METADATA_FIELD_KINDS } from './metadata.js';
 import { numberFieldKind } from './number.js';
@@ -24,6 +25,7 @@ import { stringFieldKind } from './string.js';
 export * from './boolean.js';
 export * from './dateTime.js';
 export * from './array.js';
+export * from './elementMatch.js';
 export * from './enum.js';
 export * from './metadata.js';
 export * from './number.js';
@@ -41,6 +43,7 @@ export const BUILTIN_FIELD_KINDS: readonly FieldKind[] = [
   enumFieldKind,
   referenceFieldKind,
   arrayFieldKind,
+  elementMatchFieldKind,
   ...METADATA_FIELD_KINDS,
 ];
 
