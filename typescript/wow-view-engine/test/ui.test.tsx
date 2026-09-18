@@ -1758,17 +1758,10 @@ describe('FilterPanel tree editing', () => {
   it('lists the fields of the picker by the groups the definition declares', async () => {
     const grouped = ordersDefinition({
       fieldGroups: [
-        { id: 'state', label: 'State' },
-        { id: 'money', label: 'Money' },
+        { id: 'state', label: 'State', fields: ['status'] },
+        { id: 'money', label: 'Money', fields: ['amount'] },
       ],
     });
-    grouped.fields = grouped.fields.map(field =>
-      field.name === 'amount'
-        ? { ...field, group: 'money' }
-        : field.name === 'status'
-          ? { ...field, group: 'state' }
-          : field,
-    );
     panel(false, grouped);
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));

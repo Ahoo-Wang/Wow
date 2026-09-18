@@ -36,9 +36,11 @@ export interface DataViewDefinition {
   source: string;
   fields: FieldDefinition[];
   /**
-   * The groups a picker lists fields under, in this order. A field names
-   * one by `group`; naming one not declared here is a definition error, so
-   * a typo is caught at admission rather than shown as a group of its own.
+   * The groups a picker lists fields under, in this order, each naming the
+   * fields it holds. A field no group names is listed before them all. A
+   * group naming a field the definition does not declare, or one another
+   * group already names, is a definition error, so a typo is caught at
+   * admission rather than shown as a field gone missing.
    */
   fieldGroups?: FieldGroupDefinition[];
   record?: RecordCapability;
@@ -47,10 +49,12 @@ export interface DataViewDefinition {
   views?: SystemView[];
 }
 
-/** One group of a field picker: a stable id the fields name, and a label. */
+/** One group of a field picker: a stable id, a label, and its fields in order. */
 export interface FieldGroupDefinition {
   id: string;
   label: string;
+  /** Names of the definition's root fields, in the order the picker lists them. */
+  fields: string[];
 }
 
 /** Dashboards own no data; the definition is their catalogue entry. */

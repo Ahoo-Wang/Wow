@@ -503,9 +503,11 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'definition.analysis.no-metric':
     'The analysis capability offers no metric to start from.',
   'definition.field.duplicate': 'The field {field} is declared twice.',
-  'definition.field.group-unknown':
-    '{field} names the group {group}, which the definition does not declare.',
   'definition.fieldGroup.duplicate': 'The group {group} is declared twice.',
+  'definition.fieldGroup.field-duplicate':
+    'The group {group} lists {field}, which is already listed under another group.',
+  'definition.fieldGroup.field-unknown':
+    'The group {group} lists {field}, which the definition does not declare.',
   'definition.fieldGroup.invalid': 'A field group needs an id and a label.',
   'definition.field.string-comparison-invalid':
     '{field} declares an unknown text comparison: {value}.',

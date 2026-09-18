@@ -94,6 +94,7 @@ export function RecordToolbar({
           <GroupedMenu
             items={fields.filter(field => !isFieldlessKind(field.kind))}
             groups={fieldGroups ?? []}
+            itemKey={field => field.name}
             render={field => (
               <DropdownMenuCheckboxItem
                 key={field.name}

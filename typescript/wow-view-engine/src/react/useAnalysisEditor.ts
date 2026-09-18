@@ -34,8 +34,6 @@ import { useViewRuntime } from './useViewEngine.js';
 export interface AnalysisFieldOption {
   field: string;
   label: string;
-  /** The picker group the definition puts this field in, if any. */
-  group?: string;
   /** Group types this field offers; empty when it cannot be grouped. */
   groups: AnalysisGroupType[];
   /** Aggregation functions it offers; empty when it cannot be measured. */
@@ -138,7 +136,6 @@ export function useAnalysisEditor(
       const aggregation = scope.aggregations.get(field.name);
       return {
         field: field.name,
-        group: field.group,
         label: field.label,
         groups: aggregation?.groups ?? [],
         functions: aggregation?.functions ?? [],

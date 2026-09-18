@@ -58,7 +58,7 @@ interface PickerGroup {
  * A menu did this until fields had groups; a list long enough to need
  * groups is long enough to need a search.
  */
-export function FieldPicker<T extends { group?: string }>({
+export function FieldPicker<T>({
   items,
   groups,
   extras,
@@ -80,15 +80,17 @@ export function FieldPicker<T extends { group?: string }>({
   onPick(item: T): void;
 }) {
   const messages = useViewMessages();
-  const grouped: PickerGroup[] = fieldGroups(items, groups).map(entry => ({
-    value: entry.group?.id ?? '',
-    label: entry.group?.label,
-    items: entry.items.map(item => ({
-      key: itemKey(item),
-      label: itemLabel(item),
-      pick: () => onPick(item),
-    })),
-  }));
+  const grouped: PickerGroup[] = fieldGroups(items, groups, itemKey).map(
+    entry => ({
+      value: entry.group?.id ?? '',
+      label: entry.group?.label,
+      items: entry.items.map(item => ({
+        key: itemKey(item),
+        label: itemLabel(item),
+        pick: () => onPick(item),
+      })),
+    }),
+  );
   if (extras && extras.entries.length > 0)
     grouped.push({
       value: '\u0000extras',
@@ -146,18 +148,20 @@ export function FieldPicker<T extends { group?: string }>({
  * fields, so a user finds a field in the same place whether adding a
  * condition, a column or a grouping.
  */
-export function GroupedMenu<T extends { group?: string }>({
+export function GroupedMenu<T>({
   items,
   groups,
+  itemKey,
   render,
 }: {
   items: readonly T[];
   groups: readonly FieldGroupDefinition[];
+  itemKey(item: T): string;
   render(item: T): ReactNode;
 }) {
   return (
     <>
-      {fieldGroups(items, groups).map((entry, index) => (
+      {fieldGroups(items, groups, itemKey).map((entry, index) => (
         <DropdownMenuGroup key={entry.group?.id ?? ''}>
           {index > 0 && <DropdownMenuSeparator />}
           {entry.group !== undefined && (

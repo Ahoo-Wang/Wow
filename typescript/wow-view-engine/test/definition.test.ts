@@ -33,14 +33,30 @@ import {
 } from './fixtures.js';
 
 describe('field groups', () => {
-  it('refuses a field naming a group the definition does not declare', () => {
+  it('refuses a group listing a field the definition does not declare', () => {
     const definition = ordersDefinition({
-      fieldGroups: [{ id: 'money', label: 'Money' }],
+      fieldGroups: [{ id: 'money', label: 'Money', fields: ['ammount'] }],
     });
-    definition.fields = definition.fields.map(field =>
-      field.name === 'amount' ? { ...field, group: 'monney' } : field,
-    );
-    expect(codes(definition)).toEqual(['definition.field.group-unknown']);
+    expect(codes(definition)).toEqual(['definition.fieldGroup.field-unknown']);
+  });
+
+  it('refuses a field listed twice, in one group or across two', () => {
+    const definition = ordersDefinition({
+      fieldGroups: [
+        { id: 'money', label: 'Money', fields: ['amount', 'amount'] },
+        { id: 'state', label: 'State', fields: ['status', 'amount'] },
+      ],
+    });
+    expect(issues(definition).map(found => [found.code, found.path])).toEqual([
+      [
+        'definition.fieldGroup.field-duplicate',
+        ['fieldGroups', 0, 'fields', 1],
+      ],
+      [
+        'definition.fieldGroup.field-duplicate',
+        ['fieldGroups', 1, 'fields', 1],
+      ],
+    ]);
   });
 
   it('refuses a group declared twice, or without an id or a label', () => {
@@ -48,9 +64,9 @@ describe('field groups', () => {
       codes(
         ordersDefinition({
           fieldGroups: [
-            { id: 'money', label: 'Money' },
-            { id: 'money', label: 'Again' },
-            { id: '', label: 'Nameless' },
+            { id: 'money', label: 'Money', fields: ['amount'] },
+            { id: 'money', label: 'Again', fields: [] },
+            { id: '', label: 'Nameless', fields: ['nobody'] },
           ],
         }),
       ),
@@ -60,16 +76,20 @@ describe('field groups', () => {
     ]);
   });
 
-  it('accepts fields under declared groups', () => {
+  it('accepts groups of declared fields, and fields outside any group', () => {
     const definition = ordersDefinition({
-      fieldGroups: [{ id: 'money', label: 'Money' }],
+      fieldGroups: [
+        { id: 'money', label: 'Money', fields: ['amount'] },
+        { id: 'state', label: 'State', fields: ['status', 'warehouse'] },
+      ],
     });
-    definition.fields = definition.fields.map(field =>
-      field.name === 'amount' ? { ...field, group: 'money' } : field,
-    );
     expect(codes(definition)).toEqual([]);
   });
 });
+
+function issues(definition: ViewDefinition): Issue[] {
+  return validateDefinition(definition, builtinFieldKinds);
+}
 
 function codes(definition: ViewDefinition): string[] {
   return validateDefinition(definition, builtinFieldKinds).map(

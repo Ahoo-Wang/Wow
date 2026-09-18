@@ -224,6 +224,7 @@ function AddMenu({
         <GroupedMenu
           items={fields}
           groups={groups}
+          itemKey={field => field.field}
           render={field => (
             <DropdownMenuItem key={field.field} onClick={() => onPick(field)}>
               {field.label}

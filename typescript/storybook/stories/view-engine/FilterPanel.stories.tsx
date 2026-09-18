@@ -32,25 +32,16 @@ import '@ahoo-wang/fetcher-view-engine/styles.css';
  * so the editor has every shape of condition to show: a plain one, a group,
  * and one that holds a tree.
  */
-const GROUP_OF: Record<string, string> = {
-  warehouse: 'basics',
-  status: 'basics',
-  amount: 'money',
-  createdAt: 'time',
-};
-
 const withItems: DataViewDefinition = {
   ...ordersDefinition,
   // The picker lists fields under these, in this order.
   fieldGroups: [
-    { id: 'basics', label: '基础信息' },
-    { id: 'money', label: '金额' },
-    { id: 'time', label: '时间' },
+    { id: 'basics', label: '基础信息', fields: ['warehouse', 'status'] },
+    { id: 'money', label: '金额', fields: ['amount'] },
+    { id: 'time', label: '时间', fields: ['createdAt'] },
   ],
   fields: [
-    ...ordersDefinition.fields.map(field =>
-      GROUP_OF[field.name] ? { ...field, group: GROUP_OF[field.name] } : field,
-    ),
+    ...ordersDefinition.fields,
     {
       name: 'items',
       label: '商品行',

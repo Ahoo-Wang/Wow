@@ -1006,21 +1006,23 @@ describe('nor groups', () => {
 
 describe('fieldGroups', () => {
   const catalogue = [
-    { id: 'money', label: 'Money' },
-    { id: 'time', label: 'Time' },
-    { id: 'unused', label: 'Unused' },
+    { id: 'money', label: 'Money', fields: ['amount', 'currency'] },
+    { id: 'time', label: 'Time', fields: ['createdAt'] },
+    { id: 'unused', label: 'Unused', fields: ['nobody'] },
   ];
+  const name = (item: { name: string }) => item.name;
 
-  it('lists the ungrouped fields first, then the declared groups in their order', () => {
+  it('lists the ungrouped fields first, then each group in its own order', () => {
     const grouped = fieldGroups(
       [
         { name: 'id' },
-        { name: 'createdAt', group: 'time' },
-        { name: 'amount', group: 'money' },
+        { name: 'createdAt' },
+        { name: 'currency' },
         { name: 'status' },
-        { name: 'currency', group: 'money' },
+        { name: 'amount' },
       ],
       catalogue,
+      name,
     );
     expect(
       grouped.map(entry => [
@@ -1034,25 +1036,25 @@ describe('fieldGroups', () => {
     ]);
   });
 
-  it('lists a field naming an undeclared group as ungrouped', () => {
-    // Admission reports the definition; the picker does not invent a group.
+  it('keeps a field where it was listed first', () => {
+    // Admission reports the definition; the picker does not list it twice.
+    const twice = [
+      { id: 'a', label: 'A', fields: ['x', 'x'] },
+      { id: 'b', label: 'B', fields: ['x'] },
+    ];
     expect(
-      fieldGroups([{ name: 'a', group: 'typo' }], catalogue).map(
-        entry => entry.group,
-      ),
-    ).toEqual([undefined]);
+      fieldGroups([{ name: 'x' }], twice, name).map(entry => [
+        entry.group?.id,
+        entry.items.length,
+      ]),
+    ).toEqual([['a', 1]]);
   });
 
   it('is one nameless group without a catalogue', () => {
-    expect(fieldGroups([{ name: 'a', group: 'money' }, { name: 'b' }])).toEqual(
-      [
-        {
-          group: undefined,
-          items: [{ name: 'a', group: 'money' }, { name: 'b' }],
-        },
-      ],
-    );
-    expect(fieldGroups([], catalogue)).toEqual([]);
+    expect(fieldGroups([{ name: 'a' }, { name: 'b' }], [], name)).toEqual([
+      { group: undefined, items: [{ name: 'a' }, { name: 'b' }] },
+    ]);
+    expect(fieldGroups([], catalogue, name)).toEqual([]);
   });
 });
 

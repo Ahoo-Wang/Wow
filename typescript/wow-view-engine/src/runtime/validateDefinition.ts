@@ -87,12 +87,15 @@ export function isUsableDefinition(issues: readonly Issue[]): boolean {
 
 /**
  * The picker groups: each declared once with an id and a label, and every
- * field's `group` one of them. A group nobody declared would otherwise show
- * up as a group of its own, and a typo would look like a design.
+ * field it lists declared by the definition and listed by no other group. A
+ * group listing a field nobody declared would otherwise show nothing for it,
+ * and a typo would look like a design.
  */
 function validateFieldGroups(definition: DataViewDefinition): Issue[] {
   const issues: Issue[] = [];
   const ids = new Set<string>();
+  const declared = new Set(definition.fields.map(field => field.name));
+  const listed = new Set<string>();
   (definition.fieldGroups ?? []).forEach((group, index) => {
     const at: IssuePath = ['fieldGroups', index];
     if (group.id.trim().length === 0 || group.label.trim().length === 0) {
@@ -106,15 +109,24 @@ function validateFieldGroups(definition: DataViewDefinition): Issue[] {
         }),
       );
     ids.add(group.id);
-  });
-  definition.fields.forEach((field, index) => {
-    if (field.group !== undefined && !ids.has(field.group))
-      issues.push(
-        issue('definition.field.group-unknown', ['fields', index, 'group'], {
-          field: field.name,
-          group: field.group,
-        }),
-      );
+    group.fields.forEach((field, position) => {
+      const where: IssuePath = [...at, 'fields', position];
+      if (!declared.has(field))
+        issues.push(
+          issue('definition.fieldGroup.field-unknown', where, {
+            group: group.id,
+            field,
+          }),
+        );
+      else if (listed.has(field))
+        issues.push(
+          issue('definition.fieldGroup.field-duplicate', where, {
+            group: group.id,
+            field,
+          }),
+        );
+      listed.add(field);
+    });
   });
   return issues;
 }

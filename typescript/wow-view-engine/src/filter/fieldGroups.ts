@@ -20,29 +20,43 @@ export interface FieldGroup<T> {
 }
 
 /**
- * Fields as a picker lists them: the ones outside any group first, then each
- * declared group in the definition's order, each keeping the field list's
- * order inside. A group with no field is not shown, and a field naming a
- * group the definition does not declare is listed as ungrouped — admission
- * reports that as a definition error, so it is never the picker's to guess.
+ * Fields as a picker lists them: the ones no group lists first, in the
+ * field list's order, then each declared group in the definition's order,
+ * each in its own `fields` order. A picker often lists a subset — the fields
+ * not yet a condition, the ones a column can show — so a group none of the
+ * items belong to is not shown. A field two groups list, or one group lists
+ * twice, is kept where it was listed first; admission reports that as a
+ * definition error, so it is never the picker's to guess.
  */
-export function fieldGroups<T extends { group?: string }>(
+export function fieldGroups<T>(
   items: readonly T[],
-  groups: readonly FieldGroupDefinition[] = [],
+  groups: readonly FieldGroupDefinition[],
+  key: (item: T) => string,
 ): FieldGroup<T>[] {
-  const declared = new Map(groups.map(group => [group.id, group]));
-  const members = new Map<string, T[]>(groups.map(group => [group.id, []]));
+  const groupOf = new Map<string, FieldGroupDefinition>();
+  for (const group of groups)
+    for (const field of group.fields)
+      if (!groupOf.has(field)) groupOf.set(field, group);
+
+  const grouped = new Map<string, T>();
   const ungrouped: T[] = [];
   for (const item of items) {
-    const group =
-      item.group === undefined ? undefined : declared.get(item.group);
-    if (group) members.get(group.id)?.push(item);
+    const name = key(item);
+    if (groupOf.has(name)) grouped.set(name, item);
     else ungrouped.push(item);
   }
+
   const listed: FieldGroup<T>[] = [];
   if (ungrouped.length > 0) listed.push({ group: undefined, items: ungrouped });
   for (const group of groups) {
-    const own = members.get(group.id) ?? [];
+    const own: T[] = [];
+    for (const field of group.fields) {
+      const item = grouped.get(field);
+      if (item !== undefined && groupOf.get(field) === group) {
+        own.push(item);
+        grouped.delete(field);
+      }
+    }
     if (own.length > 0) listed.push({ group, items: own });
   }
   return listed;
