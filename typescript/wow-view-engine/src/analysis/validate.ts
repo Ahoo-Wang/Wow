@@ -397,7 +397,7 @@ function saysNothingIssues(
       issues.push(
         issue('analysis.metricFilter.not-scalar', path, { field: field.name }),
       );
-    else if (isBlankLeafValue(node.value, node.operator, field, kind))
+    else if (isBlankLeafValue(node.value, node.operator, field, kind, kinds))
       issues.push(issue(codes.incomplete, path, { field: field.name }));
   }
   return issues;
@@ -554,6 +554,10 @@ function validateHaving(
   // refused before its shape is even walked.
   if (capability.having !== true)
     return [issue('analysis.having.undeclared', ['having'])];
+  // Having filters the grouped rows, so it needs rows to filter: an ungrouped
+  // aggregation is one row, and Wow refuses a having over it.
+  if (config.groups.length === 0)
+    return [issue('analysis.having.requires-group', ['having'])];
 
   const { nonAnyMetrics } = aliasesOf(config);
 
@@ -591,6 +595,10 @@ function validateSortAndColumns(config: AnalysisViewConfig): Issue[] {
   const known = new Set([...groups, ...metrics]);
   const issues: Issue[] = [];
 
+  // One row cannot be ordered: Wow refuses a sort without a groupBy, so a
+  // config that carries one is caught here rather than by the server.
+  if (config.sort.length > 0 && groups.size === 0)
+    issues.push(issue('analysis.sort.requires-group', ['sort']));
   config.sort.forEach((sort, index) => {
     if (!known.has(sort.alias))
       issues.push(

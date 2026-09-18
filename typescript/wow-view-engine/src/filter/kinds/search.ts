@@ -45,7 +45,7 @@ export const searchFieldKind: FieldKind = {
    * Whitespace is nothing typed. Wow refuses a blank query by throwing, and
    * spaces would otherwise pass the general emptiness rule and reach it.
    */
-  isBlank(value) {
+  isBlank({ value }) {
     // Only a string can be blank. Something that is not text at all is wrong
     // rather than unfinished, and forgiving it here would let it through to
     // `filter.search`, which answers a non-string by throwing.

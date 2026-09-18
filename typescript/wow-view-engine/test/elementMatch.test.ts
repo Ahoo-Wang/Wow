@@ -204,6 +204,103 @@ describe('the elementMatch kind', () => {
     expect(describeFilter(fields, empty, builtinFieldKinds)).toEqual([]);
   });
 
+  it('treats a predicate whose only condition is unfilled the same way', () => {
+    // A row was added inside the match and no value typed yet. Counting the
+    // leaves would call that a question; `compileFilter` would then drop the
+    // blank leaf and answer MATCH_ALL, and `ELEMENT_MATCH` over MATCH_ALL
+    // narrows the result to "the array is non-empty", which nobody asked.
+    const unfilled = predicate(
+      { field: 'items.sku', operator: 'EQ', value: '' },
+      {
+        op: 'or',
+        children: [{ field: 'items.qty', operator: 'GT', value: null }],
+      },
+    );
+    const alone = outer('ELEMENT_MATCH', unfilled as never);
+    expect(errors(validateFilter(fields, alone, builtinFieldKinds))).toEqual(
+      [],
+    );
+    expect(compile(alone)).toEqual({ op: FilterOperator.MATCH_ALL });
+    expect(describeFilter(fields, alone, builtinFieldKinds)).toEqual([]);
+
+    // Beside a real condition, the tree compiles and reads as if the match
+    // were not there at all.
+    const beside: FilterTree = {
+      op: 'and',
+      children: [
+        { field: 'warehouse', operator: 'EQ', value: 'SH' },
+        { field: 'items', operator: 'ELEMENT_MATCH', value: unfilled as never },
+      ],
+    };
+    const without: FilterTree = { op: 'and', children: [beside.children[0]] };
+    expect(errors(validateFilter(fields, beside, builtinFieldKinds))).toEqual(
+      [],
+    );
+    expect(compile(beside)).toEqual(compile(without));
+    expect(compile(beside)).toEqual({
+      op: FilterOperator.EQ,
+      field: 'warehouse',
+      value: 'SH',
+    });
+    expect(
+      describeFilter(fields, beside, builtinFieldKinds).map(item => item.text),
+    ).toEqual(
+      describeFilter(fields, without, builtinFieldKinds).map(i => i.text),
+    );
+  });
+
+  it('forgives only an unfilled condition, never a wrong one', () => {
+    // A blank value on a field the entries do not hold, on an operator the
+    // field does not offer, or on a kind nobody registered is a finding, and
+    // calling the predicate blank would hide it.
+    const cases: [FilterTree['children'][number], string][] = [
+      [
+        { field: 'items.gone', operator: 'EQ', value: '' },
+        'filter.field.unknown',
+      ],
+      [
+        { field: 'items.qty', operator: 'CONTAINS', value: '' },
+        'filter.operator.unsupported',
+      ],
+    ];
+    for (const [leaf, code] of cases) {
+      expect(
+        errors(
+          validateFilter(
+            fields,
+            outer('ELEMENT_MATCH', predicate(leaf) as never),
+            builtinFieldKinds,
+          ),
+        ),
+      ).toEqual([code]);
+    }
+
+    const mystery: FieldDefinition[] = [
+      {
+        name: 'items',
+        label: 'Items',
+        kind: 'elementMatch',
+        elements: [{ name: 'tag', label: 'Tag', kind: 'mystery' }],
+      },
+    ];
+    expect(
+      errors(
+        validateFilter(
+          mystery,
+          outer(
+            'ELEMENT_MATCH',
+            predicate({
+              field: 'items.tag',
+              operator: 'EQ',
+              value: '',
+            }) as never,
+          ),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['filter.kind.unregistered']);
+  });
+
   it('starts from an empty condition', () => {
     expect(
       builtinFieldKinds

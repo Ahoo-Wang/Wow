@@ -380,7 +380,7 @@ function DateValue({
   range,
   withTime,
 }: ValueProps & { range: boolean; withTime: boolean }) {
-  const current = asDateValue(value);
+  const current = asDateValue(value, withTime);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -390,7 +390,7 @@ function DateValue({
         value={current.type}
         items={DATE_SHAPES}
         onChange={next =>
-          onChange(writeValue(emptyDateValue(next as DateShape)))
+          onChange(writeValue(emptyDateValue(next as DateShape, withTime)))
         }
       />
       {current.type === 'absolute' && (
@@ -505,8 +505,10 @@ function AbsoluteDate({
               onChange(
                 writeValue({
                   ...value,
-                  from: toIso(selected?.from) ?? value.from,
-                  to: toIso(selected?.to),
+                  from: selected?.from
+                    ? storeDate(selected.from, withTime)
+                    : value.from,
+                  to: selected?.to && storeDate(selected.to, withTime),
                 }),
               )
             }
@@ -518,7 +520,10 @@ function AbsoluteDate({
             selected={from}
             onSelect={selected =>
               onChange(
-                writeValue({ ...value, from: toIso(selected) ?? value.from }),
+                writeValue({
+                  ...value,
+                  from: selected ? storeDate(selected, withTime) : value.from,
+                }),
               )
             }
           />
@@ -528,29 +533,57 @@ function AbsoluteDate({
   );
 }
 
-function asDateValue(value: FilterValue): DateTimeFilterValue {
+function asDateValue(
+  value: FilterValue,
+  withTime: boolean,
+): DateTimeFilterValue {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     const shape = (value as { type?: unknown }).type;
     if (shape === 'absolute' || shape === 'relative' || shape === 'preset')
       return value as unknown as DateTimeFilterValue;
   }
-  return emptyDateValue('absolute');
+  return emptyDateValue('absolute', withTime);
 }
 
-function emptyDateValue(shape: DateShape): DateTimeFilterValue {
+function emptyDateValue(
+  shape: DateShape,
+  withTime: boolean,
+): DateTimeFilterValue {
   if (shape === 'relative') return { type: 'relative', amount: 7, unit: 'day' };
   if (shape === 'preset') return { type: 'preset', preset: 'today' };
-  return { type: 'absolute', from: new Date().toISOString() };
+  // The UI may read the clock; the kernel never does.
+  return { type: 'absolute', from: storeDate(new Date(), withTime) };
 }
 
-function parseDate(iso?: string): Date | undefined {
-  if (!iso) return undefined;
-  const parsed = new Date(iso);
+/** A calendar day as stored: `2026-01-31`, no time of day, no offset. */
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * A stored bound, as a `Date` for the calendar. A date-only string is the
+ * local day it names, read field by field: `new Date('2026-01-31')` reads it
+ * as UTC midnight, which west of Greenwich is the evening of the 30th.
+ */
+function parseDate(text?: string): Date | undefined {
+  if (!text) return undefined;
+  const day = DATE_ONLY.exec(text);
+  const parsed = day
+    ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3]))
+    : new Date(text);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
-function toIso(date?: Date): string | undefined {
-  return date ? date.toISOString() : undefined;
+/**
+ * A calendar pick, as stored. With a time of day it is a moment and keeps
+ * its instant; without one it is the day the user pointed at, stored as
+ * `YYYY-MM-DD` from the local calendar fields so the kernel resolves it in
+ * the runtime's or the condition's zone. `toISOString()` would pin local
+ * midnight to UTC with a `Z`, which the kernel rightly takes as one fixed
+ * moment — no zone ever applied, and a range's last day fell off the end.
+ */
+function storeDate(date: Date, withTime: boolean): string {
+  if (withTime) return date.toISOString();
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 function formatDate(date: Date | undefined, withTime: boolean): string {

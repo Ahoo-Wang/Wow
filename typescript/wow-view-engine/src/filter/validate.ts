@@ -92,7 +92,8 @@ export function validateFilter(
     // A condition the user has not finished writing is not a mistake, so it
     // is left alone here and dropped at compile time. Without this, picking a
     // field would report an error before the user could say anything.
-    if (isBlankLeafValue(node.value, node.operator, field, kind)) continue;
+    if (isBlankLeafValue(node.value, node.operator, field, kind, kinds))
+      continue;
 
     issues.push(
       ...kind.validate({
@@ -170,6 +171,35 @@ function walkBudget(
     if (found.length > 0) return found;
   }
   return [];
+}
+
+/**
+ * True when the tree says nothing: it has no condition, or every condition it
+ * has is still waiting to be filled in.
+ *
+ * This is the same judgement `validateFilter` and `compileFilter` make leaf by
+ * leaf, asked of the whole tree, so a kind whose value is a tree can answer
+ * `isBlank` with it and stay consistent with the tree around it. A leaf that
+ * is wrong rather than unfilled — an unknown field, an unregistered kind, an
+ * operator the field does not offer — is not blank, because forgiving it here
+ * would hide the finding `validateFilter` owes.
+ */
+export function isBlankFilter(
+  fields: readonly FieldDefinition[],
+  tree: FilterTree,
+  kinds: FieldKindRegistry,
+): boolean {
+  const byName = new Map(fields.map(field => [field.name, field]));
+  for (const { node } of walkFilter(tree)) {
+    if (!isFilterLeaf(node)) continue;
+    const field = byName.get(node.field);
+    const kind = field ? kinds.get(field.kind) : undefined;
+    if (!field || !kind) return false;
+    if (!operatorsOf(field, kind).includes(node.operator)) return false;
+    if (!isBlankLeafValue(node.value, node.operator, field, kind, kinds))
+      return false;
+  }
+  return true;
 }
 
 /** True when every leaf of the tree is usable as it stands. */

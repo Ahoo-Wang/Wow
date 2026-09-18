@@ -67,7 +67,8 @@ function compileNode(
   // An unfinished condition narrows nothing. Returning null drops it the way
   // an empty group is dropped, so a half-written row never reaches the server
   // as `amount = 0` or "created today".
-  if (isBlankLeafValue(node.value, node.operator, field, kind)) return null;
+  if (isBlankLeafValue(node.value, node.operator, field, kind, kinds))
+    return null;
 
   return kind.compile({
     leaf: node,

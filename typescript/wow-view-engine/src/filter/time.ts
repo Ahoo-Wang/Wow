@@ -19,6 +19,7 @@ import utc from 'dayjs/plugin/utc';
 import type {
   DateTimeFilterValue,
   DateTimePreset,
+  PresetDateTimeValue,
   RelativeDateTimeValue,
 } from './values.js';
 
@@ -42,6 +43,16 @@ export interface InstantRange {
   to?: string;
 }
 
+/** A window with both bounds, which every relative and preset value has. */
+type ClosedInstantRange = Required<InstantRange>;
+
+/**
+ * Which side of a range a bound stands on. A string that names a whole day
+ * is a different instant on each side — its first millisecond as a lower
+ * bound, its last as an upper one — and only the side asking can tell which.
+ */
+export type RangeEdge = 'start' | 'end';
+
 /**
  * Where a relative window starts and ends.
  *
@@ -52,7 +63,7 @@ export interface InstantRange {
 function relativeWindow(
   reference: Dayjs,
   value: RelativeDateTimeValue,
-): InstantRange {
+): ClosedInstantRange {
   const months = value.unit === 'quarter' ? value.amount * 3 : value.amount;
   const unit = value.unit === 'quarter' ? 'month' : value.unit;
   const offset =
@@ -65,8 +76,10 @@ function relativeWindow(
 }
 
 /** A named calendar window: which period, and how far from this one. */
-function period(reference: Dayjs, value: DateTimeFilterValue): InstantRange {
-  if (value.type !== 'preset') throw new Error('not a preset value');
+function period(
+  reference: Dayjs,
+  value: PresetDateTimeValue,
+): ClosedInstantRange {
   const { unit, shift } = PERIODS[value.preset];
   const at = shift === 0 ? reference : shiftBy(reference, unit, shift);
   // `isoWeek` comes from a plugin and types as its own overload, so it is
@@ -111,7 +124,7 @@ const PERIODS: Readonly<
 
 type PeriodUnit = 'day' | 'isoWeek' | 'month' | 'quarter' | 'year';
 
-function bounds(from: Dayjs, to: Dayjs): InstantRange {
+function bounds(from: Dayjs, to: Dayjs): ClosedInstantRange {
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
@@ -123,19 +136,32 @@ function bounds(from: Dayjs, to: Dayjs): InstantRange {
 const EXPLICIT_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/i;
 
 /**
+ * A calendar day and nothing more: `2026-01-31`. Its dashes sit between the
+ * fields, never before a trailing `HH:MM`, so it is not an offset.
+ */
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
  * A wall-clock string read in a zone.
  *
  * `2026-01-01` and `2026-01-01T09:00` name a time on a clock, not a moment:
  * which moment depends on whose clock. That is what `timeZone` answers, and
  * leaving it unapplied was how a per-condition zone came to be stored,
  * validated and then quietly ignored.
+ *
+ * A date alone names the whole day, so on the `end` edge it is that day's
+ * last millisecond: `to: 2026-01-31` used to resolve to the day's first
+ * instant, and a range said to run through the 31st stopped before it began.
+ * A string with a time of day is one instant on either edge.
  */
-function instantIn(text: string, timeZone: string): string {
+function instantIn(text: string, timeZone: string, edge: RangeEdge): string {
   if (EXPLICIT_OFFSET.test(text)) return text;
   const read = dayjs.tz(text, timeZone);
   // An unparsable string is the validator's to report, not this function's to
   // guess at; passing it through keeps compilation total.
-  return read.isValid() ? read.toISOString() : text;
+  if (!read.isValid()) return text;
+  const wholeDay = edge === 'end' && DATE_ONLY.test(text);
+  return (wholeDay ? read.endOf('day') : read).toISOString();
 }
 
 /** Whether a runtime can resolve this zone; an unknown one makes dayjs throw. */
@@ -148,21 +174,53 @@ export function isValidTimeZone(timeZone: string): boolean {
   }
 }
 
+/** The window a relative or preset value names at the injected moment. */
+function windowAt(
+  value: RelativeDateTimeValue | PresetDateTimeValue,
+  now: Date,
+  timeZone: string,
+): ClosedInstantRange {
+  const reference = dayjs(now).tz(timeZone);
+  return value.type === 'relative'
+    ? relativeWindow(reference, value)
+    : period(reference, value);
+}
+
+/**
+ * The range a value names: `from` on its start edge, `to` on its end edge,
+ * so a date-only `to` reaches the end of that day. An absolute value without
+ * `to` stays open-ended.
+ */
 export function resolveDateTimeRange(
   value: DateTimeFilterValue,
   now: Date,
   timeZone: string,
 ): InstantRange {
-  if (value.type === 'absolute') {
-    // A condition may pin its own zone; otherwise the runtime's applies.
-    const zone = value.timeZone ?? timeZone;
-    const from = instantIn(value.from, zone);
-    return value.to === undefined
-      ? { from }
-      : { from, to: instantIn(value.to, zone) };
-  }
+  if (value.type !== 'absolute') return windowAt(value, now, timeZone);
+  // A condition may pin its own zone; otherwise the runtime's applies.
+  const zone = value.timeZone ?? timeZone;
+  const from = instantIn(value.from, zone, 'start');
+  return value.to === undefined
+    ? { from }
+    : { from, to: instantIn(value.to, zone, 'end') };
+}
 
-  const reference = dayjs(now).tz(timeZone);
-  if (value.type === 'relative') return relativeWindow(reference, value);
-  return period(reference, value);
+/**
+ * One instant of a value, for the operators that take a single bound: `GTE`
+ * asks for the start edge, `LTE` for the end. An absolute value with only
+ * `from` stands on `from` for both — read at the end edge, a date-only `from`
+ * is the end of its day, which is what "on or before the 31st" means.
+ */
+export function resolveDateTimeBound(
+  value: DateTimeFilterValue,
+  now: Date,
+  timeZone: string,
+  edge: RangeEdge,
+): string {
+  if (value.type !== 'absolute')
+    return windowAt(value, now, timeZone)[edge === 'start' ? 'from' : 'to'];
+  const zone = value.timeZone ?? timeZone;
+  return edge === 'start'
+    ? instantIn(value.from, zone, 'start')
+    : instantIn(value.to ?? value.from, zone, 'end');
 }

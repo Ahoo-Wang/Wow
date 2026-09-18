@@ -39,7 +39,7 @@ export const referenceFieldKind: FieldKind = {
   },
 
   /** Its empty shape is an object, which no general rule would recognise. */
-  isBlank(value) {
+  isBlank({ value }) {
     return isReferenceFilterValue(value) && value.items.length === 0;
   },
 

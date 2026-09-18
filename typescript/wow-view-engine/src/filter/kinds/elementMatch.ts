@@ -25,13 +25,8 @@ import {
 import { compileFilter, type FilterCompileContext } from '../compile.js';
 import { describeFilter } from '../describe.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
-import {
-  countLeaves,
-  emptyFilter,
-  isFilterGroup,
-  walkFilter,
-} from '../tree.js';
-import { validateFilter } from '../validate.js';
+import { emptyFilter, isFilterGroup, walkFilter } from '../tree.js';
+import { isBlankFilter, validateFilter } from '../validate.js';
 import {
   compilePresence,
   describePresence,
@@ -81,13 +76,18 @@ export const elementMatchFieldKind: FieldKind = {
   },
 
   /**
-   * An empty predicate asks nothing, exactly as an empty group does. A value
-   * that is not a condition at all is a different thing: unfilled is not the
-   * same as wrong, and only emptiness is forgiven.
+   * A predicate that says nothing asks nothing, exactly as an empty group
+   * does — and it says nothing whether it holds no condition or only
+   * conditions that are themselves still unfilled. Counting leaves would call
+   * the second case a question, and `compileFilter` would then drop the blank
+   * leaf and answer `MATCH_ALL`, so the match would narrow the result to
+   * "the array is non-empty" without anyone having asked that. A value that
+   * is not a condition at all is a different thing: unfilled is not the same
+   * as wrong, and only emptiness is forgiven.
    */
-  isBlank(value, operator) {
+  isBlank({ value, operator, field, kinds }) {
     if (operator !== 'ELEMENT_MATCH') return false;
-    return isTree(value) && countLeaves(value) === 0;
+    return isTree(value) && isBlankFilter(elementFields(field), value, kinds);
   },
 
   /** The budget counts this tree with the outer one; see `checkBudget`. */

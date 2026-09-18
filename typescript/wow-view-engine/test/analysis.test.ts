@@ -18,6 +18,7 @@ import {
   AggregationMetricType,
   FilterOperator,
   SortDirection,
+  aggregation,
 } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
 import {
@@ -195,6 +196,36 @@ describe('defaultAnalysisConfig', () => {
       }),
     );
     expect(built.limit).toBe(500);
+  });
+
+  it('sorts nothing when there is nothing to group by', () => {
+    // An ungrouped aggregation is one row, and Wow refuses to order it:
+    // `aggregation.query` throws `sort requires at least one groupBy`. The
+    // default is the first thing a user sees, so it must pass that gate.
+    const ungrouped = definition({
+      analysis: {
+        count: true,
+        fields: [{ field: 'amount', groups: [], functions: [] }],
+      },
+    });
+    const built = defaultAnalysisConfig(ungrouped);
+    expect(built.groups).toEqual([]);
+    expect(built.sort).toEqual([]);
+    expect(validateAnalysis(ungrouped, built, builtinFieldKinds)).toEqual([]);
+    expect(() =>
+      aggregation.query(
+        compileAnalysis(ungrouped, built, builtinFieldKinds, context),
+      ),
+    ).not.toThrow();
+
+    // With a group the rows are ordered by the metric, which Wow accepts.
+    const grouped = defaultAnalysisConfig(definition());
+    expect(grouped.sort).toEqual([{ alias: 'count', direction: 'DESC' }]);
+    expect(() =>
+      aggregation.query(
+        compileAnalysis(definition(), grouped, builtinFieldKinds, context),
+      ),
+    ).not.toThrow();
   });
 
   it('refuses a definition it cannot build from', () => {
@@ -644,6 +675,57 @@ describe('validateAnalysis', () => {
     expect(
       check({ table: { columns: [{ alias: 'wh' }, { alias: 'wh' }] } }),
     ).toEqual(['analysis.column.duplicate']);
+  });
+
+  it('refuses a sort or a having without a group', () => {
+    // An ungrouped aggregation is one row. Wow throws on a sort or a having
+    // over it, so a stored config carrying either must fail admission here
+    // rather than at the server.
+    const ungrouped: Partial<AnalysisViewConfig> = {
+      groups: [],
+      layout: 'table',
+      chart: { type: 'metric', metric: { metric: 'orders' } },
+    };
+    expect(check({ ...ungrouped, sort: [] })).toEqual([]);
+
+    const sorted = validateAnalysis(
+      definition(),
+      config({ ...ungrouped, sort: [{ alias: 'orders', direction: 'DESC' }] }),
+      builtinFieldKinds,
+    );
+    expect(sorted).toEqual([
+      {
+        code: 'analysis.sort.requires-group',
+        severity: 'error',
+        path: ['sort'],
+      },
+    ]);
+    // The alias is still checked, so both findings reach the user at once.
+    expect(
+      check({ ...ungrouped, sort: [{ alias: 'gone', direction: 'ASC' }] }),
+    ).toEqual(['analysis.sort.requires-group', 'analysis.sort.unknown-alias']);
+
+    const having = validateAnalysis(
+      definition(),
+      config({
+        ...ungrouped,
+        sort: [],
+        having: {
+          type: 'CONDITION',
+          metric: 'orders',
+          operator: 'GT',
+          value: 1,
+        },
+      }),
+      builtinFieldKinds,
+    );
+    expect(having).toEqual([
+      {
+        code: 'analysis.having.requires-group',
+        severity: 'error',
+        path: ['having'],
+      },
+    ]);
   });
 
   it('reports an element path the capability never declared', () => {

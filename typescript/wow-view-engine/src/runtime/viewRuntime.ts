@@ -79,7 +79,11 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   edit(patch: Partial<C>): void;
   /** Promotes a valid draft to `applied` and executes it. */
   apply(): void;
-  /** Re-runs `applied` from the first page. */
+  /**
+   * Re-runs `applied` from the first page. A no-op while `applied` was never
+   * admitted: a view opened on a config the definition refuses waits for a
+   * fix, and no command runs it as it stands.
+   */
   refresh(): void;
   /** Called when an editor takes or loses focus; pauses auto-refresh. */
   setEditing(active: boolean): void;
@@ -159,7 +163,12 @@ export interface ViewRuntimeState<C> {
   scope: ViewScope;
   draft: C;
   applied: C;
-  /** `validate(draft)`; an `error` blocks `apply` and every write. */
+  /**
+   * Admission of the draft as it would run: with the injected scope filter
+   * ANDed in, because that is the config `apply` executes. An `error` blocks
+   * `apply` and every write. The scope is appended after the draft's own
+   * conditions, so a path into the draft's tree is unchanged by it.
+   */
   issues: Issue[];
   dirty: boolean;
   query: ViewQueryState;
@@ -221,6 +230,13 @@ export class DataViewRuntime<
 
   private state: ViewRuntimeState<C>;
   private scopeFilter: FilterTree | null = null;
+  /**
+   * Whether `applied` merged with the scope passed admission. `apply` and
+   * `setScopeFilter` only promote what did, so this is false only for the
+   * config a runtime opened on, and it keeps `refresh` and `page` from running
+   * what `apply` would refuse.
+   */
+  private appliedAdmitted: boolean;
   private pageTarget: RecordPageTarget | undefined;
   private requestSeq = 0;
   private timer: unknown;
@@ -248,25 +264,19 @@ export class DataViewRuntime<
 
     const saved = options.saved ?? null;
     this.pageTarget = firstPageOf(options.definition);
+    // An injected condition is in force from the first query, so it is
+    // admitted with the config rather than after it. Without this, a host
+    // that scopes a view to one customer would have its opening query go
+    // out unscoped, and an inadmissible condition would never be reported.
+    const issues = this.admit(options.config);
+    this.appliedAdmitted = !hasError(issues);
     this.state = {
       saved,
       title: options.title,
       scope: options.scope,
       draft: options.config,
       applied: options.config,
-      // An injected condition is in force from the first query, so it is
-      // admitted with the config rather than after it. Without this, a host
-      // that scopes a view to one customer would have its opening query go
-      // out unscoped, and an inadmissible condition would never be reported.
-      issues: validateDataConfig(
-        this.context,
-        this.scopeFilter
-          ? {
-              ...options.config,
-              filter: mergeFilters(options.config.filter, this.scopeFilter),
-            }
-          : options.config,
-      ),
+      issues,
       dirty: saved === null,
       query: IDLE,
       result: null,
@@ -303,13 +313,14 @@ export class DataViewRuntime<
     const draft = { ...this.state.draft, ...patch };
     this.setState({
       draft,
-      issues: validateDataConfig(this.context, draft),
+      issues: this.admit(draft),
       dirty: this.isDirty(draft, this.state.saved),
     });
   }
 
   apply(): void {
     if (this.stopped || hasError(this.state.issues)) return;
+    this.appliedAdmitted = true;
     this.pageTarget = firstPageOf(this.context.definition);
     this.setState({ applied: this.state.draft, selection: [] });
     this.execute({ keepSelection: false });
@@ -323,14 +334,14 @@ export class DataViewRuntime<
    * user pressing Refresh has asked for exactly this.
    */
   refresh(): void {
-    if (this.stopped) return;
+    if (this.stopped || !this.appliedAdmitted) return;
     // A refresh returns to the first page; the selection keeps whatever rows survive.
     this.pageTarget = firstPageOf(this.context.definition);
     this.execute({ keepSelection: true });
   }
 
   page(target: RecordPageTarget): void {
-    if (this.stopped) return;
+    if (this.stopped || !this.appliedAdmitted) return;
     this.pageTarget = target;
     this.setState({ selection: [] });
     this.execute({ keepSelection: false });
@@ -355,17 +366,15 @@ export class DataViewRuntime<
     // Re-injecting the same condition changes nothing, and a dashboard does
     // exactly that whenever a layout edit is applied.
     if (dequal(tree ?? null, this.scopeFilter)) return [];
-    const merged = {
-      ...this.state.applied,
-      filter: mergeFilters(this.state.applied.filter, tree),
-    } as C;
-    const issues = validateDataConfig(this.context, merged);
+    const issues = this.admit(this.state.applied, tree);
     // An injected condition is admitted exactly like a user's own.
     if (hasError(issues)) return issues;
 
     this.scopeFilter = tree;
+    this.appliedAdmitted = true;
     this.pageTarget = firstPageOf(this.context.definition);
-    this.setState({ selection: [] });
+    // The draft is judged with the scope too, so its issues move with it.
+    this.setState({ issues: this.admit(this.state.draft), selection: [] });
     this.execute({ keepSelection: false });
     return issues;
   }
@@ -396,7 +405,7 @@ export class DataViewRuntime<
       title: instance.title,
       scope: instance.scope,
       draft,
-      issues: validateDataConfig(this.context, draft),
+      issues: this.admit(draft),
       dirty: false,
       write: null,
     });
@@ -429,12 +438,26 @@ export class DataViewRuntime<
     return new Set(data.view.rows.map(row => row.key));
   }
 
+  /** A config as it would run: the scope filter ANDed after its own. */
+  private withScope(config: C, scope: FilterTree | null): C {
+    if (!scope) return config;
+    return { ...config, filter: mergeFilters(config.filter, scope) };
+  }
+
+  /**
+   * Admission of a config together with the scope it would run under. Every
+   * judgement in this class goes through here, so the draft, the applied
+   * config and an injected condition are all held to one rule.
+   */
+  private admit(
+    config: C,
+    scope: FilterTree | null = this.scopeFilter,
+  ): Issue[] {
+    return validateDataConfig(this.context, this.withScope(config, scope));
+  }
+
   private effectiveConfig(): C {
-    if (!this.scopeFilter) return this.state.applied;
-    return {
-      ...this.state.applied,
-      filter: mergeFilters(this.state.applied.filter, this.scopeFilter),
-    };
+    return this.withScope(this.state.applied, this.scopeFilter);
   }
 
   private execute(options: { keepSelection: boolean }): void {

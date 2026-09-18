@@ -91,6 +91,9 @@ function defaultGroup(
 /**
  * A complete starting config. Grouping is optional, because Wow accepts an
  * ungrouped aggregation and some definitions declare no groupable field.
+ *
+ * An ungrouped aggregation is one row, so there is nothing to sort: Wow
+ * refuses a `sort` without a `groupBy`, and the default must not carry one.
  */
 export function defaultAnalysisConfig(
   definition: DataViewDefinition,
@@ -117,7 +120,7 @@ export function defaultAnalysisConfig(
     kind: 'analysis',
     groups,
     metrics: [metric],
-    sort: [{ alias: metric.alias, direction: 'DESC' }],
+    sort: groups.length > 0 ? [{ alias: metric.alias, direction: 'DESC' }] : [],
     limit,
     layout: groups.length > 0 ? 'chart' : 'table',
     table: { columns: [] },

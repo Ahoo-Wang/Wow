@@ -295,17 +295,65 @@ describe('metadata field kinds', () => {
     ).toBe('Created by ');
   });
 
-  it('refuses an empty id list', () => {
+  it('treats an empty id list as not yet filled in', () => {
+    // Adding a row and choosing IDS puts `[]` in it. That is a question not
+    // yet asked, not a mistake: it must neither block apply nor reach the
+    // query.
+    const leaf = { field: '@id', operator: 'IDS' as const, value: [] };
     expect(
-      errors(
-        validateFilter(
-          fields,
-          tree({ field: '@id', operator: 'IDS', value: [] }),
-          builtinFieldKinds,
-        ),
-      ),
-    ).toEqual(['filter.value.required']);
+      errors(validateFilter(fields, tree(leaf), builtinFieldKinds)),
+    ).toEqual([]);
+    expect(compile(leaf)).toEqual({ op: FilterOperator.MATCH_ALL });
+    expect(describeFilter(fields, tree(leaf), builtinFieldKinds)).toEqual([]);
   });
+
+  /**
+   * Every metadata kind's own starting value, for every operator it offers:
+   * `''` for a typed id, `[]` for a list of them, `{ items: [] }` where a
+   * picker was declared. A kind's `isBlank` replaces the default rule, so a
+   * kind that starts from three shapes must recognise all three, or the row
+   * is reported as an error the moment it is added.
+   */
+  const starting = fields.flatMap(field => {
+    const kind = builtinFieldKinds.get(field.kind)!;
+    return kind.operators.map(
+      operator =>
+        [field.name, operator, kind.emptyValue(operator, field)] as [
+          string,
+          FilterOperatorName,
+          FilterValue,
+        ],
+    );
+  });
+
+  it.each(starting)(
+    'starts %s %s from a value that is not yet a condition',
+    (field, operator, value) => {
+      const leaf = { field, operator, value };
+      expect(
+        errors(validateFilter(fields, tree(leaf), builtinFieldKinds)),
+      ).toEqual([]);
+      expect(compile(leaf)).toEqual({ op: FilterOperator.MATCH_ALL });
+      expect(describeFilter(fields, tree(leaf), builtinFieldKinds)).toEqual([]);
+    },
+  );
+
+  it.each([
+    ['@tenantId', 'TENANT_ID', '   '],
+    ['@ownerId', 'OWNER_ID', null],
+    ['@id', 'ID', null],
+  ] as [string, FilterOperatorName, FilterValue][])(
+    'reads %s %s %j as nothing typed',
+    (field, operator, value) => {
+      // Whitespace is nothing typed, as it is for a search; and a config from
+      // a store may hold `null` where the editor would have written `''`.
+      const leaf = { field, operator, value };
+      expect(
+        errors(validateFilter(fields, tree(leaf), builtinFieldKinds)),
+      ).toEqual([]);
+      expect(compile(leaf)).toEqual({ op: FilterOperator.MATCH_ALL });
+    },
+  );
 
   it('offers no plural operator where Wow has none', () => {
     for (const name of ['@tenantId', '@ownerId', '@spaceId']) {

@@ -14,15 +14,21 @@
 import { FilterOperator, type FilterPagedQuery } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  builtinFieldKinds,
   DashboardViewRuntime,
+  DataViewRuntime,
+  DEFAULT_RUNTIME_LIMITS,
   isViewCommandError,
   MemoryViewStore,
+  RequestRunner,
   ViewEngine,
   emptyDashboardConfig,
   type DashboardPanel,
   type DashboardViewConfig,
   type FilterTree,
   type Issue,
+  type PanelReference,
+  type RuntimeLimits,
   type ViewInstance,
   type ViewScope,
   type ViewSource,
@@ -90,7 +96,10 @@ interface Harness {
   engine: ViewEngine;
   source: ViewSource;
   clock: TestEnvironment;
-  open(config?: DashboardViewConfig): Promise<DashboardViewRuntime>;
+  open(
+    config?: DashboardViewConfig,
+    scopeFilter?: FilterTree,
+  ): Promise<DashboardViewRuntime>;
 }
 
 function harness(
@@ -98,6 +107,7 @@ function harness(
     instances?: ViewInstance[];
     scope?: ViewScope;
     source?: ViewSource;
+    limits?: Partial<RuntimeLimits>;
   } = {},
 ): Harness {
   const clock = testEnvironment();
@@ -110,13 +120,14 @@ function harness(
     store,
     resolveSource: () => source,
     environment: clock.environment,
+    limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits },
   });
 
   return {
     engine,
     source,
     clock,
-    async open(config = boundConfig()) {
+    async open(config = boundConfig(), scopeFilter?: FilterTree) {
       const instance = await store.create(
         {
           definitionId: 'overview',
@@ -126,7 +137,7 @@ function harness(
         },
         { requestId: 'r' },
       );
-      const runtime = await engine.open(instance.id);
+      const runtime = await engine.open(instance.id, { scopeFilter });
       await flush();
       // `open` narrows to the `DashboardRuntime` contract; the tests below
       // also drive the write commands the engine calls on the class.
@@ -427,6 +438,169 @@ describe('DashboardViewRuntime scope filter', () => {
     await flush();
 
     expect(pagedQueries(board.source)).toHaveLength(2);
+  });
+});
+
+describe('DashboardViewRuntime admission', () => {
+  it('stops every panel when the dashboard holds too many', async () => {
+    const board = await harness({ limits: { maxDashboardPanels: 1 } });
+    const runtime = await board.open(
+      dashboardConfig({
+        panels: [
+          panel({ id: 'a' }),
+          panel({ id: 'b', layout: { x: 0, y: 4, w: 6, h: 4 } }),
+        ],
+      }),
+    );
+
+    // The limit is a rule about the whole, so it holds every panel back, not
+    // none of them: it used to sit between "the dashboard" and "a panel".
+    expect(codes(runtime.getSnapshot().issues)).toContain(
+      'dashboard.panels.too-many',
+    );
+    expect(runtime.getSnapshot().panels.map(entry => entry.runtime)).toEqual([
+      null,
+      null,
+    ]);
+    expect(board.source.paged).not.toHaveBeenCalled();
+  });
+
+  it('judges an injected condition with the config from the start', async () => {
+    const board = await harness();
+    const runtime = await board.open(boundConfig(), {
+      op: 'and',
+      children: [{ field: 'unbound', operator: 'EQ', value: 'x' }],
+    });
+
+    expect(codes(runtime.getSnapshot().issues)).toContain(
+      'filter.field.unknown',
+    );
+    expect(board.source.paged).not.toHaveBeenCalled();
+  });
+
+  it('keeps judging the draft with the injected condition after an edit', async () => {
+    const board = await harness();
+    const runtime = await board.open(boundConfig(), {
+      op: 'and',
+      children: [{ field: 'unbound', operator: 'EQ', value: 'x' }],
+    });
+
+    runtime.edit({ refresh: { interval: null } });
+    runtime.apply();
+    await flush();
+
+    expect(codes(runtime.getSnapshot().issues)).toContain(
+      'filter.field.unknown',
+    );
+    expect(board.source.paged).not.toHaveBeenCalled();
+  });
+});
+
+describe('DashboardViewRuntime child refusal', () => {
+  const STATE_FIELD = { name: 'state', label: 'State', kind: 'string' };
+  const bound = panel({
+    bindings: [
+      { globalField: 'region', panelField: 'warehouse' },
+      { globalField: 'state', panelField: 'status' },
+    ],
+  });
+
+  /**
+   * A dashboard whose children are narrower than the reference the dashboard
+   * judges: they know no `status`. What the dashboard admits, they may still
+   * refuse, which is the case the panel has to report rather than hide.
+   */
+  function narrow(config: DashboardViewConfig) {
+    const clock = testEnvironment();
+    const source = testSource();
+    const reference: PanelReference = {
+      instance: pending(),
+      definition: ordersDefinition(),
+    };
+    const runtime = new DashboardViewRuntime({
+      id: 'dashboard-1',
+      definition: overviewDefinition(),
+      config,
+      title: 'Overview',
+      scope: 'personal',
+      kinds: builtinFieldKinds,
+      limits: DEFAULT_RUNTIME_LIMITS,
+      environment: clock.environment,
+      resolve: () => Promise.resolve(reference),
+      createPanelRuntime: (found, scopeFilter) =>
+        new DataViewRuntime({
+          id: 'child',
+          definition: ordersDefinition({
+            fields: ordersDefinition().fields.filter(
+              field => field.name !== 'status',
+            ),
+          }),
+          config: found.instance.config as never,
+          title: found.instance.title,
+          scope: found.instance.scope,
+          saved: found.instance,
+          kinds: builtinFieldKinds,
+          limits: DEFAULT_RUNTIME_LIMITS,
+          environment: clock.environment,
+          source,
+          runner: new RequestRunner(),
+          scopeFilter,
+          autoRefresh: false,
+        }),
+    });
+    return { runtime, source };
+  }
+
+  const stateFilter: FilterTree = {
+    op: 'and',
+    children: [{ field: 'state', operator: 'EQ', value: 'PAID' }],
+  };
+
+  it('reports a refused scope on the panel and does not run it', async () => {
+    const { runtime, source } = narrow(
+      dashboardConfig({
+        fields: [REGION_FIELD, STATE_FIELD],
+        filter: stateFilter,
+        panels: [bound],
+      }),
+    );
+    await runtime.ready();
+    runtime.apply();
+    await flush();
+
+    const [state] = runtime.getSnapshot().panels;
+    expect(state.runtime).toBeNull();
+    expect(state.issues).toMatchObject([
+      { code: 'filter.field.unknown', path: ['panels', 0, 'children', 0] },
+    ]);
+    expect(source.paged).not.toHaveBeenCalled();
+  });
+
+  it('stops a running child that refuses a new scope, rather than keeping the old one', async () => {
+    const { runtime, source } = narrow(
+      dashboardConfig({
+        fields: [REGION_FIELD, STATE_FIELD],
+        filter: REGION_FILTER,
+        panels: [bound],
+      }),
+    );
+    await runtime.ready();
+    runtime.apply();
+    await flush();
+    const child = runtime.panelRuntime('orders');
+    expect(child).not.toBeNull();
+    expect(source.paged).toHaveBeenCalledTimes(1);
+
+    runtime.edit({ filter: stateFilter });
+    runtime.apply();
+    await flush();
+
+    expect(child?.disposed).toBe(true);
+    expect(runtime.panelRuntime('orders')).toBeNull();
+    expect(codes(runtime.getSnapshot().panels[0].issues)).toContain(
+      'filter.field.unknown',
+    );
+    expect(source.paged).toHaveBeenCalledTimes(1);
   });
 });
 

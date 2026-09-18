@@ -673,6 +673,7 @@ export class ViewEngine {
       throw new ViewCommandError(
         issue('view.write.in-flight', [], { action: payload.action }),
       );
+    this.requireNoUnknownWrite(key, requestId);
     this.inFlight.add(key);
 
     const context: WriteContext = { requestId };
@@ -859,6 +860,25 @@ export class ViewEngine {
     if (!requestId || !state)
       throw new ViewCommandError(issue('view.write.not-pending', []));
     return { requestId, state };
+  }
+
+  /**
+   * An unknown outcome is a write that may have landed. Sending another to
+   * the same target before it is retried or abandoned is how a first save
+   * ends up as two instances, so a new intent waits; only the replay of the
+   * unknown write itself, under its own `requestId`, goes through.
+   */
+  private requireNoUnknownWrite(key: string, requestId: string): void {
+    for (const [pendingId, pending] of this.writes) {
+      if (pendingId === requestId || pending.kind !== 'unknown') continue;
+      if (writeKey(pending.payload, this.owners.get(pendingId)) !== key)
+        continue;
+      throw new ViewCommandError(
+        issue('view.write.unknown-pending', [], {
+          action: pending.payload.action,
+        }),
+      );
+    }
   }
 
   private settle(requestId: string): void {

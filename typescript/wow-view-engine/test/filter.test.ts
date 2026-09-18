@@ -29,6 +29,7 @@ import {
   mergeFilters,
   nodeAt,
   removeAt,
+  resolveDateTimeBound,
   resolveDateTimeRange,
   updateAt,
   validateFilter,
@@ -609,10 +610,11 @@ describe('absolute dates and their zone', () => {
   it('reads a wall-clock string in the zone the condition names', () => {
     const tokyo = between('2026-01-01', '2026-01-02', 'Asia/Tokyo');
 
-    // Midnight in Tokyo is 15:00 the previous day in UTC.
+    // Midnight in Tokyo is 15:00 the previous day in UTC, and a day named
+    // as the upper bound runs to its last millisecond.
     expect(tokyo).toMatchObject({
       lowerBound: '2025-12-31T15:00:00.000Z',
-      upperBound: '2026-01-01T15:00:00.000Z',
+      upperBound: '2026-01-02T14:59:59.999Z',
     });
     expect(tokyo).not.toEqual(between('2026-01-01', '2026-01-02'));
   });
@@ -643,6 +645,110 @@ describe('absolute dates and their zone', () => {
 
     // Without this the compiler throws a RangeError where a query was due.
     expect(errors(found)).toEqual(['filter.value.unknown-time-zone']);
+  });
+});
+
+/**
+ * A bound written as a calendar day means the whole day. Resolving `to:
+ * 2026-01-31` to that day's first instant made `BETWEEN 01-01..01-31` stop
+ * before the 31st began, and `LTE 01-31` exclude the very day it named.
+ */
+describe('a calendar day as a bound', () => {
+  const dayFields: FieldDefinition[] = [
+    { name: 'orderedOn', label: 'Ordered', kind: 'date' },
+  ];
+  const shanghai = { ...context, timeZone: 'Asia/Shanghai' };
+  const compileDay = (
+    operator: FilterOperatorName,
+    value: Record<string, unknown>,
+  ) =>
+    compileFilter(
+      dayFields,
+      tree({
+        field: 'orderedOn',
+        operator,
+        value: { type: 'absolute', ...value },
+      }),
+      builtinFieldKinds,
+      shanghai,
+    );
+
+  it('runs a range through the last millisecond of its final day', () => {
+    expect(
+      compileDay('BETWEEN', { from: '2026-01-01', to: '2026-01-31' }),
+    ).toEqual({
+      op: FilterOperator.BETWEEN,
+      field: 'orderedOn',
+      lowerBound: '2025-12-31T16:00:00.000Z',
+      upperBound: '2026-01-31T15:59:59.999Z',
+    });
+  });
+
+  it('takes "on or before a day" to the end of it, and "on or after" to its start', () => {
+    expect(compileDay('LTE', { from: '2026-01-31' })).toMatchObject({
+      op: FilterOperator.LTE,
+      value: '2026-01-31T15:59:59.999Z',
+    });
+    expect(compileDay('GTE', { from: '2026-01-31' })).toMatchObject({
+      op: FilterOperator.GTE,
+      value: '2026-01-30T16:00:00.000Z',
+    });
+  });
+
+  it('keeps a bound with a time of day at that time', () => {
+    expect(
+      compileDay('BETWEEN', { from: '2026-01-01', to: '2026-01-31T09:00' }),
+    ).toMatchObject({ upperBound: '2026-01-31T01:00:00.000Z' });
+    expect(compileDay('LTE', { from: '2026-01-31T09:00' })).toMatchObject({
+      value: '2026-01-31T01:00:00.000Z',
+    });
+  });
+
+  it('leaves a bound that names its own offset untouched', () => {
+    expect(
+      compileDay('BETWEEN', {
+        from: '2026-01-01',
+        to: '2026-01-31T00:00:00+08:00',
+      }),
+    ).toMatchObject({ upperBound: '2026-01-31T00:00:00+08:00' });
+    expect(
+      compileDay('LTE', { from: '2026-01-31T00:00:00-05:00' }),
+    ).toMatchObject({ value: '2026-01-31T00:00:00-05:00' });
+  });
+
+  it('does not mistake the dashes of a plain date for an offset', () => {
+    // Had `-01-31` matched as an offset, the day would have passed through
+    // as-is instead of being read in the zone and widened to its end.
+    const value = { type: 'absolute' as const, from: '2026-01-31' };
+    expect(resolveDateTimeRange(value, context.now, 'Asia/Shanghai')).toEqual({
+      from: '2026-01-30T16:00:00.000Z',
+    });
+    expect(
+      resolveDateTimeBound(value, context.now, 'Asia/Shanghai', 'end'),
+    ).toBe('2026-01-31T15:59:59.999Z');
+  });
+
+  it("still lets the condition's own zone win over the runtime's", () => {
+    expect(
+      compileDay('BETWEEN', {
+        from: '2026-01-01',
+        to: '2026-01-31',
+        timeZone: 'Asia/Tokyo',
+      }),
+    ).toMatchObject({
+      lowerBound: '2025-12-31T15:00:00.000Z',
+      upperBound: '2026-01-31T14:59:59.999Z',
+    });
+  });
+
+  it('gives a relative or preset value the edge asked for', () => {
+    const today = { type: 'preset' as const, preset: 'today' as const };
+    expect(resolveDateTimeBound(today, context.now, 'UTC', 'start')).toBe(
+      '2026-09-16T00:00:00.000Z',
+    );
+    expect(resolveDateTimeBound(today, context.now, 'UTC', 'end')).toBe(
+      '2026-09-16T23:59:59.999Z',
+    );
   });
 });
 

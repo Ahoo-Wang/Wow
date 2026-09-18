@@ -22,6 +22,7 @@ import {
   firstPageOf,
   type DataViewConfig,
   type DataViewDefinition,
+  type FilterTree,
   type ProjectedRecord,
   type RecordData,
   type ViewInstance,
@@ -57,6 +58,7 @@ function harness(
     source?: ViewSource;
     saved?: ViewInstance | null;
     runner?: RequestRunner;
+    scopeFilter?: FilterTree | null;
   } = {},
 ): Harness {
   const clock = testEnvironment();
@@ -74,6 +76,7 @@ function harness(
     environment: clock.environment,
     source,
     runner: options.runner ?? new RequestRunner(),
+    scopeFilter: options.scopeFilter,
   });
   return { runtime, source, clock };
 }
@@ -475,6 +478,97 @@ describe('DataViewRuntime scope filter', () => {
     await flush();
 
     expect(runtime.getSnapshot().result?.config.filter.children).toEqual([]);
+  });
+});
+
+describe('DataViewRuntime admission', () => {
+  const unknownField: FilterTree = {
+    op: 'and',
+    children: [{ field: 'nope', operator: `${FilterOperator.EQ}`, value: 'x' }],
+  };
+
+  it('runs no command on a config that was never admitted', async () => {
+    // A stored view whose config the definition now refuses: it waits for a
+    // fix, and neither Refresh nor a page turn runs it as it stands.
+    const { runtime, source } = harness({
+      config: recordConfig({ pageSize: 5000 }),
+      saved: savedInstance,
+    });
+
+    runtime.apply();
+    runtime.refresh();
+    runtime.page({ index: 2 });
+    await flush();
+
+    expect(runtime.getSnapshot().issues.map(found => found.code)).toContain(
+      'record.pageSize.too-large',
+    );
+    expect(runtime.getSnapshot().query.status).toBe('idle');
+    expect(source.paged).not.toHaveBeenCalled();
+  });
+
+  it('runs again once a fixed draft has been applied', async () => {
+    const { runtime, source } = harness({
+      config: recordConfig({ pageSize: 5000 }),
+      saved: savedInstance,
+    });
+
+    runtime.edit({ pageSize: 20 });
+    runtime.apply();
+    await flush();
+    runtime.refresh();
+    await flush();
+
+    expect(source.paged).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps judging the draft with the injected scope after an edit', async () => {
+    const { runtime, source } = harness({ scopeFilter: unknownField });
+    expect(runtime.getSnapshot().issues.map(found => found.code)).toContain(
+      'filter.field.unknown',
+    );
+
+    // An edit of anything used to recompute the issues from the draft alone,
+    // which let `apply` run the merged, inadmissible condition.
+    runtime.edit({ pageSize: 10 });
+    runtime.apply();
+    await flush();
+
+    expect(runtime.getSnapshot().issues.map(found => found.code)).toContain(
+      'filter.field.unknown',
+    );
+    expect(source.paged).not.toHaveBeenCalled();
+  });
+
+  it('rejudges the draft when the scope is cleared or replaced', async () => {
+    const { runtime, source } = harness({ scopeFilter: unknownField });
+
+    expect(runtime.setScopeFilter(null)).toEqual([]);
+    await flush();
+
+    expect(runtime.getSnapshot().issues).toEqual([]);
+    expect(source.paged).toHaveBeenCalledTimes(1);
+    runtime.apply();
+    await flush();
+    expect(source.paged).toHaveBeenCalledTimes(2);
+  });
+
+  it('addresses the draft own nodes unchanged when a scope is in force', () => {
+    const scope: FilterTree = {
+      op: 'and',
+      children: [
+        { field: 'warehouse', operator: `${FilterOperator.EQ}`, value: 'CN' },
+      ],
+    };
+    const { runtime } = harness({ scopeFilter: scope });
+
+    runtime.edit({ filter: unknownField });
+
+    // The scope is appended after the draft's conditions, so the path into
+    // the draft's tree is what an editor expects: its first child.
+    expect(runtime.getSnapshot().issues).toMatchObject([
+      { code: 'filter.field.unknown', path: ['children', 0] },
+    ]);
   });
 });
 

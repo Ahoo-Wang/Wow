@@ -797,6 +797,97 @@ describe('ViewEngine write outcomes', () => {
     expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(50);
   });
 
+  it('refuses a new write to a view whose last one is still unknown', async () => {
+    const { engine, store } = harness({ instances: [] });
+    const runtime = engine.create('orders', {
+      title: 'New',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+    vi.spyOn(store, 'create').mockRejectedValueOnce(
+      new ViewStoreError('UNAVAILABLE', 'timeout'),
+    );
+    await failedWrite(engine.save(runtime));
+
+    // The first save may have landed. A second one, under a new requestId,
+    // is exactly what the server cannot deduplicate: two instances.
+    expect((await refused(engine.save(runtime))).code).toBe(
+      'view.write.unknown-pending',
+    );
+    expect(
+      (await refused(engine.saveAs(runtime, { title: 'B', scope: 'personal' })))
+        .code,
+    ).toBe('view.write.unknown-pending');
+
+    await engine.retryWrite(runtime);
+
+    expect(await store.list('orders')).toHaveLength(1);
+    expect(engine.pendingWrites().size).toBe(0);
+    await expect(engine.save(runtime)).resolves.toBeDefined();
+  });
+
+  it('lets a new write follow an abandoned unknown outcome', async () => {
+    const { engine, store } = harness();
+    const runtime = await engine.open('orders-1');
+    runtime.edit({ pageSize: 50 });
+    vi.spyOn(store, 'save').mockRejectedValueOnce(
+      new ViewStoreError('UNAVAILABLE', 'timeout'),
+    );
+    await failedWrite(engine.save(runtime));
+
+    engine.abandonWrite(runtime);
+
+    await expect(engine.save(runtime)).resolves.toMatchObject({
+      revision: '2',
+    });
+  });
+
+  it('holds a list command to the same rule, by instance', async () => {
+    const { engine, store } = harness();
+    vi.spyOn(store, 'rename').mockRejectedValueOnce(
+      new ViewStoreError('UNAVAILABLE', 'timeout'),
+    );
+    const failure = await failedWrite(engine.rename('orders-1', 'A'));
+
+    expect((await refused(engine.rename('orders-1', 'B'))).code).toBe(
+      'view.write.unknown-pending',
+    );
+    expect((await refused(engine.delete('orders-1'))).code).toBe(
+      'view.write.unknown-pending',
+    );
+
+    await engine.retryWrite(failure.handle);
+
+    expect((await store.get('orders-1')).title).toBe('A');
+  });
+
+  it('does not hold a rejected or a conflicting outcome against a new intent', async () => {
+    const { engine, store } = harness();
+    const runtime = await engine.open('orders-1');
+    runtime.edit({ pageSize: 50 });
+    vi.spyOn(store, 'save').mockRejectedValueOnce(
+      new ViewStoreError('INVALID', 'no'),
+    );
+    await failedWrite(engine.save(runtime));
+
+    // A refusal is an answer; the user edits and saves again as a new intent.
+    await expect(engine.save(runtime)).resolves.toBeDefined();
+
+    vi.spyOn(store, 'save').mockRejectedValueOnce(
+      new ViewStoreError('CONFLICT', 'someone else', {
+        ...mine,
+        revision: '9',
+      }),
+    );
+    runtime.edit({ pageSize: 60 });
+    await failedWrite(engine.save(runtime));
+
+    // A conflict offers "save as" among its choices, so it does not block one.
+    await expect(
+      engine.saveAs(runtime, { title: 'Copy', scope: 'personal' }),
+    ).resolves.toBeDefined();
+  });
+
   it('retries a first save under its original request id', async () => {
     const { engine, store } = harness({ instances: [] });
     const runtime = engine.create('orders', {

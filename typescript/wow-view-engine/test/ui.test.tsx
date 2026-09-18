@@ -1066,18 +1066,94 @@ describe('FilterValueEditor', () => {
     );
   });
 
-  it('picks a day from the calendar', async () => {
-    const { changes } = editor({ input: 'date' }, {
+  /**
+   * A day picked without a time of day is a calendar day, stored as
+   * `YYYY-MM-DD`. Storing `toISOString()` pinned local midnight to UTC with a
+   * `Z`, which the kernel treats as one fixed moment: no runtime or condition
+   * zone was ever applied, and a range lost its last day.
+   */
+  it('picks a day from the calendar and stores the day, not an instant', async () => {
+    const { changes } = editor({ input: 'date', withTime: false }, {
       type: 'absolute',
-      from: '2026-09-16T00:00:00.000Z',
+      from: '2026-09-16',
     } as unknown as FilterValue);
+
+    // Shown as the day it names, whatever zone the browser is in.
+    expect(screen.getByLabelText('amount').textContent).toContain(
+      new Date(2026, 8, 16).toLocaleDateString(),
+    );
 
     const user = userEvent.setup();
     await user.click(screen.getByLabelText('amount'));
     const day = await screen.findByRole('button', { name: /September 20/ });
     await user.click(day);
 
-    expect(last(changes)).toMatchObject({ type: 'absolute' });
+    expect(last(changes)).toEqual({ type: 'absolute', from: '2026-09-20' });
+  });
+
+  it('stores both ends of a day range as days', async () => {
+    const { changes } = editor(
+      { input: 'dateRange', range: true, withTime: false },
+      { type: 'absolute', from: '2026-09-16' } as unknown as FilterValue,
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText('amount'));
+    await user.click(
+      await screen.findByRole('button', { name: /September 20/ }),
+    );
+
+    expect(last(changes)).toEqual({
+      type: 'absolute',
+      from: '2026-09-16',
+      to: '2026-09-20',
+    });
+  });
+
+  it('stores a moment when the editor carries a time of day', async () => {
+    const { changes } = editor({ input: 'date', withTime: true }, {
+      type: 'absolute',
+      from: '2026-09-16T00:00:00.000Z',
+    } as unknown as FilterValue);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText('amount'));
+    await user.click(
+      await screen.findByRole('button', { name: /September 20/ }),
+    );
+
+    // A real moment the user picked: local midnight of that day, as an
+    // instant the kernel will not move.
+    expect(last(changes)).toEqual({
+      type: 'absolute',
+      from: new Date(2026, 8, 20).toISOString(),
+    });
+  });
+
+  it('seeds a fresh absolute value in the shape the editor stores', async () => {
+    const relative = {
+      type: 'relative',
+      amount: 7,
+      unit: 'day',
+    } as unknown as FilterValue;
+    const user = userEvent.setup();
+
+    const day = editor({ input: 'date', withTime: false }, relative);
+    await user.click(screen.getByLabelText('amount kind'));
+    await user.click(await screen.findByRole('option', { name: 'On a date' }));
+    expect(last(day.changes)).toMatchObject({
+      type: 'absolute',
+      from: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    });
+
+    cleanup();
+    const moment = editor({ input: 'date', withTime: true }, relative);
+    await user.click(screen.getByLabelText('amount kind'));
+    await user.click(await screen.findByRole('option', { name: 'On a date' }));
+    expect(last(moment.changes)).toMatchObject({
+      type: 'absolute',
+      from: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/),
+    });
   });
 });
 

@@ -62,18 +62,34 @@ function idOf(value: unknown): string {
 }
 
 /**
+ * Whether a metadata value is still waiting to be filled in.
+ *
+ * A kind's `isBlank` replaces the registry's default rule rather than adding
+ * to it, and these kinds start from three shapes — `''` for a typed id, `[]`
+ * for a list of them, `{ items: [] }` for a picker — so all three must be
+ * recognised here, or a freshly added row would be reported as an error the
+ * moment it appeared. Whitespace is nothing typed, as it is for a search.
+ */
+function isBlankMetadataValue(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string') return value.trim().length === 0;
+  if (Array.isArray(value)) return value.length === 0;
+  return isReferenceFilterValue(value) && value.items.length === 0;
+}
+
+/**
  * Accepts what either editor produces: text typed straight in, or one picked
  * candidate carrying the label to show it by. A pasted tenant id and a chosen
  * owner are the same condition to the server, and only the editor differs.
+ *
+ * A blank value never arrives here: it is unfinished, not wrong.
  */
 function validateSingle(value: unknown, path: (string | number)[]) {
   if (isNonEmptyString(value)) return [];
-  if (isReferenceFilterValue(value)) {
-    if (value.items.length === 0) return [issue('filter.value.required', path)];
-    if (value.items.length > 1)
-      return [issue('filter.value.expects-one', path)];
-    return [];
-  }
+  if (isReferenceFilterValue(value))
+    return value.items.length > 1
+      ? [issue('filter.value.expects-one', path)]
+      : [];
   return [issue('filter.value.expected-id', path)];
 }
 
@@ -95,9 +111,8 @@ function createSingleMetadataKind(
       return field.remote ? { items: [] } : '';
     },
 
-    /** A picked-candidate value is an object, so it says so itself. */
-    isBlank(value) {
-      return isReferenceFilterValue(value) && value.items.length === 0;
+    isBlank({ value }) {
+      return isBlankMetadataValue(value);
     },
 
     validate({ value, path }) {
@@ -144,16 +159,16 @@ function createIdMetadataKind(
       return operator === multiple ? [] : '';
     },
 
-    isBlank(value) {
-      return isReferenceFilterValue(value) && value.items.length === 0;
+    isBlank({ value }) {
+      return isBlankMetadataValue(value);
     },
 
     validate({ value, operator, path }) {
       if (operator !== multiple) return validateSingle(value, path);
-      if (!Array.isArray(value) || !value.every(isNonEmptyString))
-        return [issue('filter.value.expected-id-list', path)];
-      if (value.length === 0) return [issue('filter.value.required', path)];
-      return [];
+      // An empty list never arrives here: it is unfinished, not wrong.
+      return Array.isArray(value) && value.every(isNonEmptyString)
+        ? []
+        : [issue('filter.value.expected-id-list', path)];
     },
 
     compile({ leaf }) {

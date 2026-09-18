@@ -14,7 +14,11 @@
 import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
 import type { FieldKindId } from '../../model/index.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
-import { isValidTimeZone, resolveDateTimeRange } from '../time.js';
+import {
+  isValidTimeZone,
+  resolveDateTimeBound,
+  resolveDateTimeRange,
+} from '../time.js';
 import { isDateTimeFilterValue, type DateTimeFilterValue } from '../values.js';
 import {
   compilePresence,
@@ -94,11 +98,19 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
       const value = readValue<DateTimeFilterValue>(leaf.value);
       // A condition's own zone is applied inside; what arrives here is the
       // runtime's, used for everything relative to the evaluation moment.
-      const range = resolveDateTimeRange(value, now, timeZone);
-
-      if (leaf.operator === 'GTE') return filter.gte(field.name, range.from);
+      // A single bound is asked for by edge, so "on or before the 31st"
+      // reaches the end of that day rather than stopping at its start.
+      if (leaf.operator === 'GTE')
+        return filter.gte(
+          field.name,
+          resolveDateTimeBound(value, now, timeZone, 'start'),
+        );
       if (leaf.operator === 'LTE')
-        return filter.lte(field.name, range.to ?? range.from);
+        return filter.lte(
+          field.name,
+          resolveDateTimeBound(value, now, timeZone, 'end'),
+        );
+      const range = resolveDateTimeRange(value, now, timeZone);
       return range.to === undefined
         ? filter.gte(field.name, range.from)
         : filter.between(field.name, range.from, range.to);

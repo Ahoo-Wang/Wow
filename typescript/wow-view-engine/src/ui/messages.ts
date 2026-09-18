@@ -268,6 +268,8 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'analysis.group.unsupported': '{field} cannot be grouped by {type}.',
   'analysis.groups.too-many': 'Too many groupings for this dataset.',
   'analysis.having.malformed': 'This result filter has no usable shape.',
+  'analysis.having.requires-group':
+    'Filtering the result needs at least one grouping.',
   'analysis.having.undeclared':
     'This dataset does not offer filtering the result.',
   'analysis.having.unknown-metric':
@@ -284,6 +286,7 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'analysis.percentile.out-of-range':
     'A percentile must be between 0 and 100, exclusive.',
   'analysis.percentile.undeclared': '{field} does not offer percentiles.',
+  'analysis.sort.requires-group': 'Sorting needs at least one grouping.',
   'analysis.sort.unknown-alias':
     'Sorting refers to {alias}, which is not shown.',
 
@@ -413,6 +416,8 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'view.write.not-pending': 'That write is already settled.',
   'view.write.in-flight':
     'This view is already being saved; wait for that to finish.',
+  'view.write.unknown-pending':
+    'The last {action} has not been confirmed yet. Retry it or abandon it before writing again.',
   'view.write.conflict': 'Someone else saved this view first.',
   'view.write.forbidden': 'You may not write to this view.',
   'view.write.invalid': 'The server refused this write.',

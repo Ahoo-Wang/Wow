@@ -63,7 +63,7 @@ export function describeFilter(
     if (
       field &&
       kind &&
-      isBlankLeafValue(node.value, node.operator, field, kind)
+      isBlankLeafValue(node.value, node.operator, field, kind, kinds)
     )
       continue;
     const described =

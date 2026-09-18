@@ -47,9 +47,11 @@ export interface FieldKind {
   /**
    * Whether this value still counts as unsupplied. The registry's default
    * covers `null`, `''` and `[]`; a kind whose empty shape is its own — a
-   * reference holding no items — says so here.
+   * reference holding no items, a predicate whose every condition is itself
+   * unfilled — says so here. It replaces the default rather than extending
+   * it, so a kind that also starts from `''` or `[]` must recognise those too.
    */
-  isBlank?(value: unknown, operator: FilterOperatorName): boolean;
+  isBlank?(context: FieldKindBlankContext): boolean;
   /**
    * The tree this value holds, for a kind whose value is a condition rather
    * than a scalar.
@@ -91,6 +93,17 @@ export interface FieldKind {
 export interface NestedTree {
   tree: FilterTree;
   fields: readonly FieldDefinition[];
+}
+
+export interface FieldKindBlankContext {
+  value: unknown;
+  operator: FilterOperatorName;
+  field: FieldDefinition;
+  /**
+   * The registry in play, for a kind whose value is itself a condition: its
+   * blankness is that of the conditions it holds, judged by their own kinds.
+   */
+  kinds: FieldKindRegistry;
 }
 
 export interface FieldKindValidateContext {
@@ -230,9 +243,10 @@ export function isBlankLeafValue(
   operator: FilterOperatorName,
   field: FieldDefinition,
   kind: FieldKind,
+  kinds: FieldKindRegistry,
 ): boolean {
   if (kind.editor(operator, field).input === 'none') return false;
-  if (kind.isBlank) return kind.isBlank(value, operator);
+  if (kind.isBlank) return kind.isBlank({ value, operator, field, kinds });
   return (
     value === null ||
     value === undefined ||
