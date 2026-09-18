@@ -27,7 +27,8 @@ interface IListQuery : Queryable<IListQuery> {
     /**
      * The maximum number of items to return in the query result.
      * Must be >= 0. A value of 0 returns unlimited results on the query gateway;
-     * over HTTP the server replaces 0 with its configured default list size.
+     * over HTTP the server replaces 0 with its configured default list size,
+     * unless list caps are disabled.
      */
     @get:Schema(defaultValue = "100", minimum = "0")
     val limit: Int

@@ -79,14 +79,15 @@ class HttpQueryGuardTest {
 
     @Test
     fun rejectsInvalidConfiguration() {
-        listOf(-1, -1, -1, -1, -1).forEachIndexed { index, value ->
+        listOf(-1, -1, -1, -1, -1, -1).forEachIndexed { index, value ->
             assertThrows<IllegalArgumentException> {
                 HttpQueryGuard(
                     maxListSize = if (index == 0) value else 1,
-                    maxPageSize = if (index == 1) value else 1,
-                    maxPageWindow = if (index == 2) value.toLong() else 1,
-                    maxFilterNodes = if (index == 3) value else 1,
-                    maxFilterValues = if (index == 4) value else 1,
+                    defaultListSize = if (index == 1) value else 1,
+                    maxPageSize = if (index == 2) value else 1,
+                    maxPageWindow = if (index == 3) value.toLong() else 1,
+                    maxFilterNodes = if (index == 4) value else 1,
+                    maxFilterValues = if (index == 5) value else 1,
                 )
             }
         }
@@ -520,6 +521,28 @@ class HttpQueryGuardTest {
 
         exchange.response.statusCode.assert().isEqualTo(HttpStatus.OK)
         verify(exactly = 1) { gateway.dynamicList(match { it.limit == 100 }) }
+    }
+
+    @Test
+    fun rejectsNegativeListQueryLimitThroughHandler() {
+        val gateway = mockk<QueryGateway<Any>>()
+        val handler = ListQueryHandlerFunction(
+            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+            queryGateway = gateway,
+            queryRequestScope = QueryRequestScope { _, _ -> MatchAllFilter },
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            guard = guard(),
+            rewriteResult = { it },
+        )
+        val response = handler.handle(
+            MockServerRequest.builder().body(ListQuery(MatchAllFilter, limit = -1).toMono()),
+        ).block()!!
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+
+        response.writeTo(exchange, SERVER_RESPONSE_CONTEXT).block()
+
+        exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
+        verify(exactly = 0) { gateway.dynamicList(any()) }
     }
 
     @Test
