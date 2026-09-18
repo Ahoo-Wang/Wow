@@ -153,13 +153,32 @@ export function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
 }
 
+/**
+ * A string that still says something once trimmed. Whitespace is nothing
+ * typed, so wherever a blank value is "not asked yet" a whitespace one is too.
+ */
+export function isNonBlankString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+/**
+ * The shape of a `BETWEEN` value: two finite numbers, in whichever order they
+ * were typed.
+ *
+ * Order is a separate question deliberately. Folding it in here made `[5, 1]`
+ * report "enter a range of two numbers" — which it is — where a date saying
+ * the same thing reports that the range starts after it ends. Two bounds the
+ * user can see and one message they can act on.
+ */
 export function isNumberRange(value: unknown): value is NumberRange {
   return (
-    Array.isArray(value) &&
-    value.length === 2 &&
-    value.every(isFiniteNumber) &&
-    value[0] <= value[1]
+    Array.isArray(value) && value.length === 2 && value.every(isFiniteNumber)
   );
+}
+
+/** Whether a range's lower bound really is the lower one. */
+export function isOrderedRange(range: NumberRange): boolean {
+  return range[0] <= range[1];
 }
 
 export function isReferenceFilterValue(

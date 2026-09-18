@@ -82,8 +82,21 @@ export function qualify(path: string, field: string): string {
   return `${path}.${field}`;
 }
 
-export function analysisCapabilityOf(
-  definition: DataViewDefinition,
-): AnalysisCapability | undefined {
-  return definition.analysis;
+/**
+ * The fields an element's own predicate may name: the ones that element
+ * holds, which are exactly the scope fields under its path.
+ *
+ * Admission and compilation both need this list and must agree on it — a
+ * filter admitted against one set of fields and compiled against another is
+ * how a `compileFilter` throw gets past a validator — so the prefix rule is
+ * written once, here, rather than spelled out at each end.
+ */
+export function elementScopeFields(
+  scope: AnalysisScope,
+  path: string,
+): FieldDefinition[] {
+  const prefix = qualify(path, '');
+  return [...scope.fields.values()].filter(field =>
+    field.name.startsWith(prefix),
+  );
 }

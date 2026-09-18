@@ -237,8 +237,58 @@ describe('MemoryViewStore', () => {
     await store.setPreferences('orders', emptyPreferences(), ctx);
 
     await expect(
-      store.setPreferences('orders', emptyPreferences(), ctx),
+      store.setPreferences('orders', emptyPreferences(), {
+        requestId: 'req-2',
+      }),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('replays preferences under the same requestId instead of conflicting', async () => {
+    const store = new MemoryViewStore();
+
+    // The answer to the first attempt was lost, so the caller sends the same
+    // logical write again; it is not a second writer to conflict with.
+    const first = await store.setPreferences('orders', emptyPreferences(), ctx);
+    const replayed = await store.setPreferences(
+      'orders',
+      emptyPreferences(),
+      ctx,
+    );
+
+    expect(replayed).toEqual(first);
+    await expect(store.getPreferences('orders')).resolves.toMatchObject({
+      revision: '1',
+    });
+  });
+
+  it('refuses to delete a system view', async () => {
+    const store = new MemoryViewStore({
+      instances: [instance({ scope: 'system' })],
+    });
+
+    await expect(store.delete('orders-1', '1', ctx)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+    await expect(store.list('orders')).resolves.toHaveLength(1);
+  });
+
+  it('hands out copies, so a caller cannot edit what is stored', async () => {
+    const store = new MemoryViewStore();
+    const config = recordConfig();
+    const created = await store.create(
+      { definitionId: 'orders', title: 'Mine', scope: 'personal', config },
+      ctx,
+    );
+
+    // Both the config that went in and the instance that came back.
+    (config as { pageSize: number }).pageSize = 999;
+    (created.config as { pageSize: number }).pageSize = 888;
+    const read = await store.get('orders-1');
+    (read.config as { pageSize: number }).pageSize = 777;
+
+    await expect(store.get('orders-1')).resolves.toMatchObject({
+      config: { pageSize: recordConfig().pageSize },
+    });
   });
 
   it('answers permissions only when the caller declared them', () => {

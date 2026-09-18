@@ -29,6 +29,7 @@ import {
   type Issue,
   type PanelReference,
   type RuntimeLimits,
+  type ViewDefinition,
   type ViewInstance,
   type ViewScope,
   type ViewSource,
@@ -105,8 +106,10 @@ interface Harness {
 function harness(
   options: {
     instances?: ViewInstance[];
+    definitions?: ViewDefinition[];
     scope?: ViewScope;
     source?: ViewSource;
+    resolveSource?: (key: string) => ViewSource;
     limits?: Partial<RuntimeLimits>;
   } = {},
 ): Harness {
@@ -116,9 +119,12 @@ function harness(
     instances: options.instances ?? [pending()],
   });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    definitions: options.definitions ?? [
+      ordersDefinition(),
+      overviewDefinition(),
+    ],
     store,
-    resolveSource: () => source,
+    resolveSource: options.resolveSource ?? (() => source),
     environment: clock.environment,
     limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits },
   });
@@ -266,6 +272,52 @@ describe('DashboardViewRuntime unavailable references', () => {
 
     expect(state.issues).toEqual([]);
     expect(state.resolving).toBe(false);
+  });
+
+  it('reports a panel added by an edit that cannot be put to work', async () => {
+    const source = testSource();
+    const board = await harness({
+      definitions: [
+        ordersDefinition(),
+        ordersDefinition({ id: 'broken', source: 'missing' }),
+        overviewDefinition(),
+      ],
+      instances: [
+        pending(),
+        pending({ id: 'broken-1', definitionId: 'broken' }),
+      ],
+      // The host resolves the definition's source key, and this one is not a
+      // key it knows.
+      resolveSource: key => {
+        if (key === 'missing') throw new Error(`no source: ${key}`);
+        return source;
+      },
+      source,
+    });
+    const runtime = await board.open(dashboardConfig({ panels: [panel()] }));
+
+    runtime.edit({
+      panels: [
+        panel(),
+        panel({
+          id: 'broken',
+          instanceId: 'broken-1',
+          layout: { x: 6, y: 0, w: 6, h: 4 },
+        }),
+      ],
+    });
+    runtime.apply();
+    await flush();
+    const state = runtime.getSnapshot();
+
+    // Nothing awaits a load an edit starts, so the failure is reported here
+    // rather than escaping as an unhandled rejection.
+    expect(codes(state.panels[1].issues)).toEqual(['dashboard.panel.failed']);
+    expect(state.panels[1].issues[0].params).toMatchObject({
+      reason: 'no source: missing',
+    });
+    expect(state.panels[1].runtime).toBeNull();
+    expect(state.panels[0].runtime?.getSnapshot().query.status).toBe('success');
   });
 
   it('does not run a panel whose own config is in error', async () => {

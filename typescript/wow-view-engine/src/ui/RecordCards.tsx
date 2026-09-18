@@ -17,28 +17,42 @@ import type { RecordTableController } from '../react/index.js';
 import { recordValue } from '../record/index.js';
 import { Checkbox } from './components/checkbox.js';
 import { Card, CardContent, CardHeader, CardTitle } from './components/card.js';
+import { cn } from 'cn';
 
 export interface RecordCardsProps {
   table: RecordTableController;
-  /** Field shown as each card's title; the row key when left out. */
-  title?: string;
   renderValue?(value: unknown): React.ReactNode;
 }
 
 /**
- * The same result as cards. Which layout is showing is part of the saved
- * config, and both keep their own settings, so switching back and forth
- * loses nothing.
+ * Class per column count, written out rather than interpolated: Tailwind
+ * scans the source for whole class names, and a built name reaches no
+ * stylesheet.
+ */
+const GRID: Record<1 | 2 | 3 | 4, string> = {
+  1: 'grid-cols-1',
+  2: 'sm:grid-cols-2',
+  3: 'sm:grid-cols-2 lg:grid-cols-3',
+  4: 'sm:grid-cols-2 lg:grid-cols-4',
+};
+
+/**
+ * The same result as cards, drawn from the card half of the saved config.
+ *
+ * Which layout is showing is part of that config and both halves are stored,
+ * so switching back and forth loses nothing — and a card is not the table
+ * narrowed: its title, its body fields and its image are its own.
  */
 export function RecordCards({
   table,
-  title,
   renderValue = defaultValue,
 }: RecordCardsProps) {
+  const card = table.card;
+
   return (
     <div
       data-slot="record-cards"
-      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+      className={cn('grid gap-3', GRID[card.columns ?? 3])}
     >
       {table.rows.map(row => (
         <Card key={String(row.key)}>
@@ -49,17 +63,20 @@ export function RecordCards({
                 checked={table.isSelected(row.key)}
                 onCheckedChange={() => table.toggle(row.key)}
               />
-              {cardTitle(row.data, row.key, title)}
+              {cardTitle(row.data, row.key, card.title)}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-1">
-            {table.columns.map(column => (
-              <div key={column.field} className="flex items-baseline gap-2">
+            {card.image && (
+              <CardImage src={recordValue(row.data, card.image)} />
+            )}
+            {card.fields.map(field => (
+              <div key={field.field} className="flex items-baseline gap-2">
                 <span className="text-muted-foreground text-xs">
-                  {column.label}
+                  {field.label}
                 </span>
                 <span className="truncate text-sm">
-                  {renderValue(recordValue(row.data, column.field))}
+                  {renderValue(recordValue(row.data, field.field))}
                 </span>
               </div>
             ))}
@@ -70,10 +87,22 @@ export function RecordCards({
   );
 }
 
+/**
+ * A row's image, when it holds one. The alt text is empty on purpose: the
+ * card's title already names the record, and repeating it would make a
+ * screen reader say it twice.
+ */
+function CardImage({ src }: { src: unknown }) {
+  if (typeof src !== 'string' || src.length === 0) return null;
+  return (
+    <img src={src} alt="" className="h-32 w-full rounded-md object-cover" />
+  );
+}
+
 function cardTitle(
   row: RecordData,
   key: RecordKey,
-  field?: string,
+  field: string,
 ): React.ReactNode {
   const value = field ? recordValue(row, field) : key;
   return defaultValue(value) ?? String(key);

@@ -14,7 +14,12 @@
 import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
 import type { FilterOperatorName } from '../../model/index.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
-import { isFiniteNumber, isNumberRange, type NumberRange } from '../values.js';
+import {
+  isFiniteNumber,
+  isNumberRange,
+  isOrderedRange,
+  type NumberRange,
+} from '../values.js';
 import {
   compilePresence,
   describePresence,
@@ -53,6 +58,10 @@ export const numberFieldKind: FieldKind = {
     if (operator === 'BETWEEN') {
       if (!isNumberRange(value))
         return [issue('filter.value.expected-number-range', path)];
+      // Two numbers the wrong way round is the same mistake a date range
+      // makes, and it reads as the same sentence.
+      if (!isOrderedRange(value))
+        return [issue('filter.value.inverted-range', path)];
       return [];
     }
 
@@ -103,16 +112,20 @@ export const numberFieldKind: FieldKind = {
     return { input: 'number', multiple: MULTI_VALUE.includes(operator) };
   },
 
+  // A summary line describes what is in force, and a value this kind cannot
+  // read is not in force. Saying only the field's name is honest; "Qty o ~ o"
+  // — which is what a string spread into two bounds reads as — is not.
   describe({ leaf, field }) {
     const presence = describePresence(leaf.operator);
     if (presence) return `${field.label} ${presence}`;
     if (leaf.operator === 'BETWEEN') {
-      const [lower, upper] = leaf.value as NumberRange;
+      if (!isNumberRange(leaf.value)) return field.label;
+      const [lower, upper] = leaf.value;
       return `${field.label} ${lower} ~ ${upper}`;
     }
-    const value = Array.isArray(leaf.value)
-      ? readValue<number[]>(leaf.value).join(', ')
-      : readValue<number>(leaf.value);
-    return `${field.label} ${leaf.operator} ${value}`;
+    if (Array.isArray(leaf.value))
+      return `${field.label} ${leaf.operator} ${readValue<number[]>(leaf.value).join(', ')}`;
+    if (!isFiniteNumber(leaf.value)) return field.label;
+    return `${field.label} ${leaf.operator} ${leaf.value}`;
   },
 };

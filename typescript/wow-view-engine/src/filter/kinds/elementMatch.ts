@@ -19,12 +19,18 @@ import {
 import {
   isFieldlessKind,
   type FieldDefinition,
+  type FilterGroupOperator,
   type FilterTree,
   type Issue,
 } from '../../model/index.js';
 import { compileFilter, type FilterCompileContext } from '../compile.js';
 import { describeFilter } from '../describe.js';
-import { issue, readValue, type FieldKind } from '../fieldKind.js';
+import {
+  issue,
+  readValue,
+  type FieldKind,
+  type FieldKindRegistry,
+} from '../fieldKind.js';
 import { emptyFilter, isFilterGroup, walkFilter } from '../tree.js';
 import { isBlankFilter, validateFilter } from '../validate.js';
 import {
@@ -90,13 +96,21 @@ export const elementMatchFieldKind: FieldKind = {
     return isTree(value) && isBlankFilter(elementFields(field), value, kinds);
   },
 
-  /** The budget counts this tree with the outer one; see `checkBudget`. */
-  nested(value, field) {
+  /**
+   * The budget counts this tree with the outer one; see `checkShape`.
+   *
+   * Gated on the operator exactly as `isBlank` and `validate` are. A leaf
+   * keeps its value when the operator changes, so a predicate left behind
+   * under `IS_EMPTY` is not asked anything — answering with it would charge
+   * the budget for a tree no pass ever validates.
+   */
+  nested(value, field, operator) {
+    if (operator !== 'ELEMENT_MATCH') return null;
     if (!isTree(value)) return null;
     return { tree: value, fields: elementFields(field) };
   },
 
-  validate({ value, operator, field, kinds, path }) {
+  validate({ value, operator, field, kinds, path, limits }) {
     if (operator !== 'ELEMENT_MATCH') return [];
     if (!isTree(value)) return [issue('filter.value.expected-predicate', path)];
     if (field.elements === undefined)
@@ -106,11 +120,18 @@ export const elementMatchFieldKind: FieldKind = {
 
     // The predicate is admitted against the element's fields, so a condition
     // naming a root field — or one the element does not declare — is reported
-    // here rather than compiled into a predicate Wow cannot answer.
+    // here rather than compiled into a predicate Wow cannot answer. It is
+    // admitted under the caller's budget rather than the default one, because
+    // this predicate is part of the filter around it; and `checkShape` has
+    // already walked it through `nested`, so walking it again would charge
+    // its nodes a second time against that one total.
     const scoped = elementFields(field);
     return [
-      ...validateFilter(scoped, value, kinds),
-      ...rootFilters(value, scoped),
+      ...validateFilter(scoped, value, kinds, {
+        ...(limits ? { limits } : {}),
+        shapeChecked: true,
+      }),
+      ...rootFilters(value, scoped, kinds),
     ].map(found => ({ ...found, path: [...path, ...found.path] }));
   },
 
@@ -145,14 +166,22 @@ export const elementMatchFieldKind: FieldKind = {
     if (presence) return `${field.label} ${presence}`;
     if (leaf.operator === 'IS_EMPTY') return `${field.label} has no entries`;
 
+    // A value that is not a condition describes nothing: reading it as an
+    // empty predicate would announce "has any entry", a condition nobody
+    // wrote and the query does not carry.
+    const value = leaf.value;
+    if (!isTree(value)) return field.label;
+
     const inner = describeFilter(
       elementFields(field),
-      readValue<FilterTree>(leaf.value),
+      readValue<FilterTree>(value),
       kinds,
     ).map(item => item.text);
+    // The predicate's own operator, as `describeFilter` reads a group's:
+    // joining an `or` with "and" states the opposite of what is in force.
     return inner.length === 0
       ? `${field.label} has any entry`
-      : `${field.label} has an entry where ${inner.join(' and ')}`;
+      : `${field.label} has an entry where ${inner.join(joinWord(value.op))}`;
   },
 };
 
@@ -171,6 +200,7 @@ export const elementMatchFieldKind: FieldKind = {
 function rootFilters(
   tree: FilterTree,
   fields: readonly FieldDefinition[],
+  kinds: FieldKindRegistry,
 ): Issue[] {
   const byName = new Map(fields.map(field => [field.name, field]));
   const issues: Issue[] = [];
@@ -178,12 +208,20 @@ function rootFilters(
   for (const { node, path } of walkFilter(tree)) {
     if (isFilterGroup(node)) continue;
     const field = byName.get(node.field);
-    if (!field || !isFieldlessKind(field.kind)) continue;
+    // The registered kind answers this, not a list of built-in ids: a custom
+    // kind that compiles to `SEARCH` or a metadata filter is a root filter
+    // too, and slipping into a predicate makes Wow throw.
+    if (!field || !isFieldlessKind(field.kind, kinds.get(field.kind))) continue;
     issues.push(
       issue('filter.element.root-filter', path, { field: field.name }),
     );
   }
   return issues;
+}
+
+/** How a group's own operator reads between its conditions. */
+function joinWord(op: FilterGroupOperator): string {
+  return op === 'or' ? ' or ' : op === 'nor' ? ' nor ' : ' and ';
 }
 
 function isTree(value: unknown): value is FilterTree {

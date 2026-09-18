@@ -44,7 +44,11 @@ import {
   type FieldKindRegistry,
   type FilterCompileContext,
 } from '../filter/index.js';
-import { analysisScope } from './capability.js';
+import {
+  analysisScope,
+  elementScopeFields,
+  type AnalysisScope,
+} from './capability.js';
 
 /**
  * Compilation is a mapping, not a translation: the configuration is
@@ -110,7 +114,7 @@ function baseQuery(
     ...(config.elements && config.elements.length > 0
       ? {
           elements: config.elements.map(element =>
-            compileElement(element, fields, kinds, context),
+            compileElement(element, scope, kinds, context),
           ),
         }
       : {}),
@@ -120,23 +124,19 @@ function baseQuery(
 
 function compileElement(
   element: NonNullable<AnalysisViewConfig['elements']>[number],
-  fields: ReturnType<typeof analysisScope>['fields'] extends Map<
-    string,
-    infer F
-  >
-    ? F[]
-    : never,
+  scope: AnalysisScope,
   kinds: FieldKindRegistry,
   context: FilterCompileContext,
 ): AggregationElement {
   if (!element.filter) return { path: element.path };
-  // An element filter is scoped to that element's own fields.
-  const scoped = fields.filter(field =>
-    field.name.startsWith(`${element.path}.`),
-  );
   return {
     path: element.path,
-    filter: compileFilter(scoped, element.filter, kinds, context) as never,
+    filter: compileFilter(
+      elementScopeFields(scope, element.path),
+      element.filter,
+      kinds,
+      context,
+    ) as never,
   };
 }
 

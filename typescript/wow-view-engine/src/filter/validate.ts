@@ -38,6 +38,18 @@ const GROUP_OPERATORS: readonly FilterGroupOperator[] = ['and', 'or', 'nor'];
 
 export interface ValidateFilterOptions {
   limits?: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>;
+  /**
+   * The caller already walked this tree's shape and budget, so skip that
+   * pass.
+   *
+   * Only a nested tree sets it, and only because `checkShape` descends
+   * through `FieldKind.nested` and has therefore already counted every node
+   * of it against the one total. Walking it again would charge the same
+   * nodes twice — a predicate near the limit would be refused for a size it
+   * does not have — and would report a malformed entry a second time under a
+   * second path.
+   */
+  shapeChecked?: boolean;
 }
 
 /**
@@ -56,8 +68,10 @@ export function validateFilter(
   options: ValidateFilterOptions = {},
 ): Issue[] {
   const limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
-  const shape = checkShape(tree, fields, kinds, limits);
-  if (shape.length > 0) return shape;
+  if (!options.shapeChecked) {
+    const shape = checkShape(tree, fields, kinds, limits);
+    if (shape.length > 0) return shape;
+  }
 
   const byName = new Map(fields.map(field => [field.name, field]));
   const issues: Issue[] = [];
@@ -108,6 +122,7 @@ export function validateFilter(
         field,
         kinds,
         path,
+        limits,
       }),
     );
   }
@@ -182,7 +197,11 @@ function walkShape(
     if (!isFilterLeaf(node)) continue;
     const field = byName.get(node.field);
     const kind = field ? kinds.get(field.kind) : undefined;
-    const nested = kind?.nested?.(node.value, field as FieldDefinition);
+    const nested = kind?.nested?.(
+      node.value,
+      field as FieldDefinition,
+      node.operator,
+    );
     if (!nested) continue;
 
     const budget = walkShape(nested.tree, nested.fields, kinds, limits, {
@@ -235,5 +254,3 @@ export function isExecutableFilter(
     found => found.severity === 'error',
   );
 }
-
-export { isFilterLeaf };

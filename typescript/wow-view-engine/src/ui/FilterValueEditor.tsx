@@ -41,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './components/select.js';
+import { useViewMessages } from './MessagesProvider.js';
 
 export interface FilterValueEditorProps {
   /** What the field's kind says this operator needs. */
@@ -86,15 +87,11 @@ export function FilterValueEditor({
 
     case 'boolean':
       return (
-        <ChoiceValue
+        <BooleanValue
+          value={value}
+          onChange={onChange}
           label={label}
           disabled={disabled}
-          value={value === true ? 'true' : 'false'}
-          items={[
-            { label: 'True', value: 'true' },
-            { label: 'False', value: 'false' },
-          ]}
-          onChange={next => onChange(next === 'true')}
         />
       );
 
@@ -210,6 +207,76 @@ function TextValue({
   );
 }
 
+/**
+ * A number field that lets a half-typed number stay half typed.
+ *
+ * Parsing every keystroke straight into the condition is what made an emptied
+ * field read as "equals 0" — `Number('')` — and a half-typed one as `NaN`,
+ * which no kind admits. The raw text stays here until it parses; an emptied
+ * field is reported as `null`, which is what a kind calls "not asked yet".
+ */
+export function NumberInput({
+  value,
+  onNumber,
+  label,
+  disabled,
+  className,
+}: {
+  /** The number in force, if there is one. */
+  value: unknown;
+  /** Called only when the text parses; `null` once the field is empty. */
+  onNumber(value: number | null): void;
+  label: string;
+  disabled?: boolean;
+  className?: string;
+}) {
+  // The draft stands while the value in force is either the one it produced
+  // or the one it was written over. The second case is a caller that refused
+  // it — a row limit has no blank — and the field still has to clear.
+  const [draft, setDraft] = useState<{
+    text: string;
+    was: unknown;
+    becomes: unknown;
+  } | null>(null);
+  const text =
+    draft !== null &&
+    (Object.is(value, draft.becomes) || Object.is(value, draft.was))
+      ? draft.text
+      : numberText(value);
+
+  return (
+    <Input
+      type="number"
+      aria-label={label}
+      className={className}
+      disabled={disabled}
+      value={text}
+      onChange={event => {
+        const typed = event.target.value;
+        const parsed = parseNumber(typed);
+        setDraft({
+          text: typed,
+          was: value,
+          becomes: parsed === undefined ? value : parsed,
+        });
+        if (parsed !== undefined) onNumber(parsed);
+      }}
+    />
+  );
+}
+
+/** `undefined` while the text is not a number yet, `null` once it is empty. */
+function parseNumber(text: string): number | null | undefined {
+  if (text.trim().length === 0) return null;
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+/** One end of a range, as a number or as nothing. */
+function numberOrBlank(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 function NumberValue({
   value,
   onChange,
@@ -220,19 +287,26 @@ function NumberValue({
 }: ValueProps & { range: boolean; multiple: boolean }) {
   if (range || multiple) {
     const parts = Array.isArray(value) ? value : [];
+    const ends = [numberOrBlank(parts[0]), numberOrBlank(parts[1])];
     return (
       <div className="flex items-center gap-2">
         {[0, 1].map(index => (
-          <Input
+          <NumberInput
             key={index}
-            type="number"
-            aria-label={`${label} ${index === 0 ? 'from' : 'to'}`}
+            label={`${label} ${index === 0 ? 'from' : 'to'}`}
             disabled={disabled}
-            value={numberText(parts[index])}
-            onChange={event => {
-              const next = [...parts];
-              next[index] = Number(event.target.value);
-              onChange(next);
+            value={ends[index]}
+            onNumber={next => {
+              const written = index === 0 ? [next, ends[1]] : [ends[0], next];
+              // Two empty ends are the kind's blank value, not a range
+              // between nothing and nothing.
+              onChange(
+                written.every(end => end === null)
+                  ? multiple
+                    ? []
+                    : null
+                  : written,
+              );
             }}
           />
         ))}
@@ -241,12 +315,11 @@ function NumberValue({
   }
 
   return (
-    <Input
-      type="number"
-      aria-label={label}
+    <NumberInput
+      label={label}
       disabled={disabled}
-      value={numberText(value)}
-      onChange={event => onChange(Number(event.target.value))}
+      value={value}
+      onNumber={onChange}
     />
   );
 }
@@ -271,17 +344,44 @@ function numberText(value: unknown): string {
     : '';
 }
 
+/**
+ * Yes or no, and neither.
+ *
+ * A blank leaf used to show "False", so a row the user had only just added
+ * read as a condition already narrowing the list — and picking False, which
+ * is what it looked like they had, changed nothing and fired no event.
+ */
+function BooleanValue({ value, onChange, label, disabled }: ValueProps) {
+  const messages = useViewMessages();
+  return (
+    <ChoiceValue
+      label={label}
+      disabled={disabled}
+      value={typeof value === 'boolean' ? String(value) : null}
+      placeholder={messages.label('label.filter.choose')}
+      items={[
+        { label: 'True', value: 'true' },
+        { label: 'False', value: 'false' },
+      ]}
+      onChange={next => onChange(next === 'true')}
+    />
+  );
+}
+
 function ChoiceValue({
   label,
   disabled,
   value,
   items,
+  placeholder,
   onChange,
 }: {
   label: string;
   disabled?: boolean;
-  value: string;
+  /** `null` shows the placeholder: nothing has been chosen yet. */
+  value: string | null;
   items: { label: string; value: string }[];
+  placeholder?: string;
   onChange(value: string): void;
 }) {
   return (
@@ -292,7 +392,7 @@ function ChoiceValue({
       onValueChange={next => onChange(String(next))}
     >
       <SelectTrigger aria-label={label} size="sm">
-        <SelectValue />
+        <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
@@ -380,7 +480,13 @@ function DateValue({
   range,
   withTime,
 }: ValueProps & { range: boolean; withTime: boolean }) {
-  const current = asDateValue(value, withTime);
+  const stored = readDateValue(value);
+  // Which shape a blank row is in. Emptying the amount of "in the last 7
+  // days" blanks the leaf, and without this the editor would jump back to
+  // the calendar under the user's hands.
+  const [shape, setShape] = useState<DateShape>(stored?.type ?? 'absolute');
+  if (stored !== null && stored.type !== shape) setShape(stored.type);
+  const current = stored ?? emptyDateValue(shape, withTime);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -419,15 +525,16 @@ function DateValue({
               )
             }
           />
-          <Input
-            type="number"
-            aria-label={`${label} amount`}
+          <NumberInput
+            label={`${label} amount`}
             disabled={disabled}
             className="w-20"
-            value={String(current.amount)}
-            onChange={event =>
+            value={current.amount}
+            onNumber={next =>
+              // An emptied amount is a row still being written, not a window
+              // of zero days: the leaf goes blank and compiles to nothing.
               onChange(
-                writeValue({ ...current, amount: Number(event.target.value) }),
+                next === null ? null : writeValue({ ...current, amount: next }),
               )
             }
           />
@@ -533,16 +640,14 @@ function AbsoluteDate({
   );
 }
 
-function asDateValue(
-  value: FilterValue,
-  withTime: boolean,
-): DateTimeFilterValue {
+/** The value as one of the three date shapes, or `null` while it is blank. */
+function readDateValue(value: FilterValue): DateTimeFilterValue | null {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     const shape = (value as { type?: unknown }).type;
     if (shape === 'absolute' || shape === 'relative' || shape === 'preset')
       return value as unknown as DateTimeFilterValue;
   }
-  return emptyDateValue('absolute', withTime);
+  return null;
 }
 
 function emptyDateValue(

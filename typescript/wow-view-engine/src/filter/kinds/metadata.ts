@@ -18,7 +18,7 @@ import type {
 } from '../../model/index.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
 import {
-  isNonEmptyString,
+  isNonBlankString,
   isReferenceFilterValue,
   type ReferenceFilterValue,
 } from '../values.js';
@@ -85,11 +85,20 @@ function isBlankMetadataValue(value: unknown): boolean {
  * A blank value never arrives here: it is unfinished, not wrong.
  */
 function validateSingle(value: unknown, path: (string | number)[]) {
-  if (isNonEmptyString(value)) return [];
-  if (isReferenceFilterValue(value))
-    return value.items.length > 1
-      ? [issue('filter.value.expects-one', path)]
+  if (typeof value === 'string')
+    return isNonBlankString(value)
+      ? []
+      : [issue('filter.value.expected-id', path)];
+  if (isReferenceFilterValue(value)) {
+    if (value.items.length > 1)
+      return [issue('filter.value.expects-one', path)];
+    // A picked candidate carries its id, and spaces are no more an id here
+    // than they are when one is typed.
+    const id = value.items[0]?.id;
+    return typeof id === 'string' && !isNonBlankString(id)
+      ? [issue('filter.value.expected-id', path)]
       : [];
+  }
   return [issue('filter.value.expected-id', path)];
 }
 
@@ -110,6 +119,8 @@ function createSingleMetadataKind(
     emptyValue(_operator, field) {
       return field.remote ? { items: [] } : '';
     },
+
+    fieldless: true,
 
     isBlank({ value }) {
       return isBlankMetadataValue(value);
@@ -133,7 +144,11 @@ function createSingleMetadataKind(
     },
 
     describe({ leaf, field }) {
-      return `${field.label} ${shown(leaf.value)}`;
+      // `shown` answers '' for a value no editor here produces, and a label
+      // with nothing after it is the honest reading of a value with nothing
+      // in it this kind can read.
+      const text = shown(leaf.value);
+      return text === '' ? field.label : `${field.label} ${text}`;
     },
   };
 }
@@ -159,14 +174,18 @@ function createIdMetadataKind(
       return operator === multiple ? [] : '';
     },
 
+    fieldless: true,
+
     isBlank({ value }) {
       return isBlankMetadataValue(value);
     },
 
     validate({ value, operator, path }) {
       if (operator !== multiple) return validateSingle(value, path);
-      // An empty list never arrives here: it is unfinished, not wrong.
-      return Array.isArray(value) && value.every(isNonEmptyString)
+      // An empty list never arrives here: it is unfinished, not wrong. One
+      // whitespace entry inside a list is: the list was finished, and that
+      // entry is not an id Wow can look anything up by.
+      return Array.isArray(value) && value.every(isNonBlankString)
         ? []
         : [issue('filter.value.expected-id-list', path)];
     },
@@ -182,7 +201,11 @@ function createIdMetadataKind(
     },
 
     describe({ leaf, field }) {
-      return `${field.label} ${shown(leaf.value)}`;
+      // `shown` answers '' for a value no editor here produces, and a label
+      // with nothing after it is the honest reading of a value with nothing
+      // in it this kind can read.
+      const text = shown(leaf.value);
+      return text === '' ? field.label : `${field.label} ${text}`;
     },
   };
 }

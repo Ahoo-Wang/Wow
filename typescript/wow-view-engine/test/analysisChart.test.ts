@@ -426,7 +426,9 @@ describe('shapeChart', () => {
     ) as CartesianData;
     expect(data.type).toBe('cartesian');
     expect(data.points).toHaveLength(2);
-    expect(data.series).toEqual([{ key: 'orders', metric: 'orders' }]);
+    expect(data.series).toEqual([
+      { key: 'orders', label: 'orders', metric: 'orders' },
+    ]);
   });
 
   it('pivots a second dimension into one series per value', () => {
@@ -451,10 +453,31 @@ describe('shapeChart', () => {
     });
   });
 
-  it('names a pivot series even for an odd split value', () => {
+  it('keeps a plain string split value as its own series key', () => {
+    const data = shapeChart(
+      config(
+        {
+          type: 'line',
+          cartesian: {
+            x: 'month',
+            splitBy: 'wh',
+            series: [{ metric: 'orders' }],
+          },
+        },
+        [GROUPS.month, GROUPS.wh],
+      ),
+      [{ wh: 'SH', month: '2026-08', orders: 1 }],
+    ) as CartesianData;
+    // The key doubles as the legend label, so a group value stays readable.
+    expect(data.series.map(series => series.key)).toEqual(['SH']);
+  });
+
+  it('names a pivot series apart for split values that print alike', () => {
     const odd: RecordData[] = [
       { wh: null, month: '2026-08', orders: 1 },
-      { wh: 7, month: '2026-08', orders: 2 },
+      { wh: '', month: '2026-08', orders: 2 },
+      { wh: 7, month: '2026-08', orders: 3 },
+      { wh: '7', month: '2026-08', orders: 4 },
     ];
     const data = shapeChart(
       config(
@@ -470,7 +493,68 @@ describe('shapeChart', () => {
       ),
       odd,
     ) as CartesianData;
-    expect(data.series.map(series => series.key)).toEqual(['', '7']);
+    // Four values, four series: none of them overwrites another.
+    expect(data.series.map(series => series.key)).toEqual([
+      '\u0001n',
+      '',
+      '\u0001d7',
+      '7',
+    ]);
+    expect(data.points[0].values).toEqual({
+      '\u0001n': 1,
+      '': 2,
+      '\u0001d7': 3,
+      '7': 4,
+    });
+  });
+
+  it('tells apart split values of every other shape', () => {
+    const odd: RecordData[] = [
+      { wh: true, month: '2026-08', orders: 1 },
+      { wh: { id: 1 }, month: '2026-08', orders: 2 },
+      // A string that holds the tag character doubles it, so it can never be
+      // read as the tagged key of some other type.
+      { wh: '\u0001b', month: '2026-08', orders: 3 },
+    ];
+    const data = shapeChart(
+      config(
+        {
+          type: 'line',
+          cartesian: {
+            x: 'month',
+            splitBy: 'wh',
+            series: [{ metric: 'orders' }],
+          },
+        },
+        [GROUPS.month, GROUPS.wh],
+      ),
+      odd,
+    ) as CartesianData;
+    expect(data.series.map(series => series.key)).toEqual([
+      '\u0001btrue',
+      '\u0001j{"id":1}',
+      '\u0001\u0001b',
+    ]);
+    // The key is for the points; a legend shows the value as it prints.
+    expect(data.series.map(series => series.label)).toEqual([
+      'true',
+      '{"id":1}',
+      '\u0001b',
+    ]);
+  });
+
+  it('keeps a heatmap cell of null apart from one of the empty string', () => {
+    const data = shapeChart(
+      config(
+        { type: 'heatmap', heatmap: { x: 'month', y: 'wh', value: 'orders' } },
+        [GROUPS.month, GROUPS.wh],
+      ),
+      [
+        { wh: null, month: '2026-08', orders: 1 },
+        { wh: '', month: '2026-08', orders: 2 },
+      ],
+    ) as HeatmapData;
+    expect(data.cells).toEqual([[1], [2]]);
   });
 
   it('merges the pie remainder into one slice', () => {

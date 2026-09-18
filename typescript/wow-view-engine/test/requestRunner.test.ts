@@ -133,6 +133,45 @@ describe('RequestRunner', () => {
     await expect(second).resolves.toBe('second');
   });
 
+  it('keeps the started request alive when a full queue refuses its successor', async () => {
+    const runner = new RequestRunner(
+      limits({ maxConcurrentQueries: 1, maxQueuedQueries: 1 }),
+    );
+    const gate = deferred<string>();
+    let aborted = false;
+
+    const running = runner.run('view', controller => {
+      controller.signal.addEventListener('abort', () => {
+        aborted = true;
+      });
+      return gate.promise;
+    });
+    runner.run('other', () => Promise.resolve('queued')).catch(() => undefined);
+
+    const refused = runner.run('view', () => Promise.resolve('never'));
+
+    await expect(refused).rejects.toBeInstanceOf(RequestQueueFullError);
+    expect(aborted).toBe(false);
+    gate.resolve('first');
+    await expect(running).resolves.toBe('first');
+  });
+
+  it('admits a successor over a full queue when it supersedes a queued request', async () => {
+    const runner = new RequestRunner(
+      limits({ maxConcurrentQueries: 1, maxQueuedQueries: 1 }),
+    );
+    const gate = deferred<string>();
+    const blocking = runner.run('a', () => gate.promise);
+
+    const first = runner.run('b', () => Promise.resolve('first'));
+    const second = runner.run('b', () => Promise.resolve('second'));
+
+    await expect(first).rejects.toSatisfy(isRequestSuperseded);
+    gate.resolve('a');
+    await blocking;
+    await expect(second).resolves.toBe('second');
+  });
+
   it('aborts a request that has already started', async () => {
     const runner = new RequestRunner();
     const gate = deferred<string>();

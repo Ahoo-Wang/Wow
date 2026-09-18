@@ -18,7 +18,9 @@ import {
   compileFilter,
   describeFilter,
   elementFields,
+  searchFieldKind,
   validateFilter,
+  withFieldKinds,
 } from '../src/filter/index.js';
 import type {
   FieldDefinition,
@@ -319,6 +321,70 @@ describe('the elementMatch kind', () => {
     expect(kind.editor('IS_NULL', fields[1])).toEqual({ input: 'none' });
   });
 
+  it("summarises a predicate with the predicate's own operator", () => {
+    // Joining an `or` with "and" states the opposite of what is in force.
+    const either: FilterTree = {
+      op: 'or',
+      children: [
+        { field: 'items.sku', operator: 'EQ', value: 'A' },
+        { field: 'items.qty', operator: 'GT', value: 2 },
+      ],
+    };
+
+    expect(
+      describeFilter(
+        fields,
+        outer('ELEMENT_MATCH', either as never),
+        builtinFieldKinds,
+      ).map(item => item.text),
+    ).toEqual(['Items has an entry where SKU EQ A or Qty GT 2']);
+  });
+
+  it('names the field alone for a value that is not a condition', () => {
+    // Reading a non-tree as an empty predicate announced "has any entry" —
+    // a condition nobody wrote and the query does not carry.
+    expect(
+      describeFilter(
+        fields,
+        outer('ELEMENT_MATCH', 'nonsense'),
+        builtinFieldKinds,
+      ).map(item => item.text),
+    ).toEqual(['Items']);
+  });
+
+  it('refuses a custom kind that compiles to a root filter', () => {
+    // The rule is Wow's, and it is about what the kind compiles to, not about
+    // which ids this package happens to ship.
+    const kinds = withFieldKinds(builtinFieldKinds, [
+      { ...searchFieldKind, id: 'fullText' },
+    ]);
+    const custom: FieldDefinition[] = [
+      {
+        name: 'items',
+        label: 'Items',
+        kind: 'elementMatch',
+        elements: [{ name: 'text', label: 'Text', kind: 'fullText' }],
+      },
+    ];
+
+    expect(
+      errors(
+        validateFilter(
+          custom,
+          outer(
+            'ELEMENT_MATCH',
+            predicate({
+              field: 'items.text',
+              operator: 'SEARCH',
+              value: 'widget',
+            }) as never,
+          ),
+          kinds,
+        ),
+      ),
+    ).toEqual(['filter.element.root-filter']);
+  });
+
   it.each([
     [
       'ELEMENT_MATCH',
@@ -383,6 +449,52 @@ describe('the budget reaches into a predicate', () => {
         ),
       ),
     ).toEqual(['filter.tree.too-many-nodes']);
+  });
+
+  it("counts it against the caller's budget, not the default one", () => {
+    // The nested pass used to run with `DEFAULT_RUNTIME_LIMITS`, so a filter
+    // its caller had given room for was refused for a size it did not have.
+    const many = predicate(
+      ...Array.from({ length: 300 }, () => ({
+        field: 'items.sku',
+        operator: 'EQ' as FilterOperatorName,
+        value: 'A',
+      })),
+    );
+
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          outer('ELEMENT_MATCH', many as never),
+          builtinFieldKinds,
+          { limits: { maxFilterDepth: 8, maxFilterNodes: 1000 } },
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it('leaves a tree the operator never asks anything with uncounted', () => {
+    // A leaf keeps its value when the operator changes, so a predicate left
+    // behind under `IS_EMPTY` is not a question. It used to be charged to the
+    // budget all the same, and refused for a depth nothing would validate.
+    let deep: FilterTree = predicate({
+      field: 'items.sku',
+      operator: 'EQ',
+      value: 'A',
+    });
+    for (let index = 0; index < 10; index += 1)
+      deep = { op: 'and', children: [deep] };
+
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          outer('IS_EMPTY', deep as never),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual([]);
   });
 
   it('leaves a predicate within budget alone', () => {

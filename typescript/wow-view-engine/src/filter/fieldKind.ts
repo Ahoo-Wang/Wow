@@ -22,6 +22,7 @@ import type {
   FilterTree,
   Issue,
   IssuePath,
+  RuntimeLimits,
 } from '../model/index.js';
 
 /**
@@ -61,8 +62,18 @@ export interface FieldKind {
    * exhaust the stack; a tree hidden inside a value would be a second
    * dimension nobody counted, so a kind that holds one says so and the
    * budget walks it with everything else.
+   *
+   * The operator is passed because a stored leaf keeps its old value when the
+   * operator changes: a predicate left behind under `IS_EMPTY` is not a tree
+   * this leaf asks anything with, and a kind that answers with it anyway has
+   * the budget charged for a tree nothing ever validates. A kind gates this
+   * on the operator exactly as its `isBlank` and `validate` do.
    */
-  nested?(value: unknown, field: FieldDefinition): NestedTree | null;
+  nested?(
+    value: unknown,
+    field: FieldDefinition,
+    operator: FilterOperatorName,
+  ): NestedTree | null;
   /**
    * Whether a leaf of this kind tests one value of the record.
    *
@@ -75,6 +86,18 @@ export interface FieldKind {
    * instead.
    */
   scalar?: boolean;
+  /**
+   * Whether this kind's `name` is a handle for the editor rather than a path
+   * into the document.
+   *
+   * Wow calls the filters that name no field root filters — `SEARCH` and the
+   * metadata ones — and refuses them inside an element predicate, so a kind
+   * that compiles to one must say so or the server rejects a condition the
+   * engine called usable. `FIELDLESS_FIELD_KIND_IDS` names the built-ins;
+   * this flag is how a custom kind joins them, and it is what
+   * `isFieldlessKind` reads whenever the registry has resolved the kind.
+   */
+  fieldless?: true;
   /** Reports why a value cannot be used; an empty array admits it. */
   validate(context: FieldKindValidateContext): Issue[];
   /** Maps one admitted leaf onto the Wow protocol. */
@@ -118,6 +141,14 @@ export interface FieldKindValidateContext {
   kinds: FieldKindRegistry;
   /** Location of the leaf, so an issue points at the offending node. */
   path: IssuePath;
+  /**
+   * The budget the caller admitted the tree under, for a kind whose value is
+   * itself a condition. Without it a nested predicate would be judged against
+   * `DEFAULT_RUNTIME_LIMITS` while the tree around it was judged against the
+   * caller's, so one filter would answer to two budgets. It is optional
+   * because an editor may ask a kind about one leaf outside any walk.
+   */
+  limits?: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>;
 }
 
 export interface FieldKindCompileContext {
@@ -213,17 +244,6 @@ export function writeValue<T>(value: T): FilterValue {
   return value as FilterValue;
 }
 
-/**
- * Whether a leaf is still waiting to be filled in.
- *
- * An unfinished condition is an ordinary state of an editor, not a mistake:
- * the user picked a field and has not yet said what to compare it to. Such a
- * leaf is neither validated against its kind nor compiled into the query, so
- * adding a row narrows nothing and blocks nothing until it says something.
- *
- * Presence operators are never blank — `IS_NULL` is the whole condition, and
- * the value beside it is not read at all.
- */
 /**
  * Whether a leaf is still waiting to be filled in.
  *

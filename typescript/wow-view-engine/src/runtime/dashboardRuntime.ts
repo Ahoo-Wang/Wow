@@ -28,6 +28,7 @@ import {
 import {
   isFilterGroup,
   isPlainObject,
+  issue,
   mergeFilters,
   type FieldKindRegistry,
 } from '../filter/index.js';
@@ -135,6 +136,8 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   private readonly unwatchVisibility: () => void;
   /** Resolved references by instance id; `null` once known to be unreadable. */
   private readonly references = new Map<string, PanelReference | null>();
+  /** Why a resolved reference could not be brought into service, by id. */
+  private readonly failures = new Map<string, string>();
   private readonly pending = new Map<string, Promise<void>>();
   /** Child runtimes by panel id, with the subscription that watches each. */
   private readonly children = new Map<
@@ -179,7 +182,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.unwatchVisibility = options.environment.visibility.subscribe(() =>
       this.syncTimer(),
     );
-    this.load(options.config);
+    this.load(options.config, true);
   }
 
   get disposed(): boolean {
@@ -371,8 +374,16 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     return saved === null || !dequal(draft, saved.config);
   }
 
-  /** Loads the references a config needs and revalidates as each arrives. */
-  private load(config: DashboardViewConfig): void {
+  /**
+   * Loads the references a config needs and revalidates as each arrives.
+   *
+   * `awaited` says whether anyone is waiting on the outcome. `ready()` waits
+   * on what the constructor starts, so a load that cannot be brought into
+   * service at all refuses the opening. A load `edit` or `adoptSaved` starts
+   * has no such caller: letting it reject would leave an unhandled rejection
+   * and no trace on screen, so its failure becomes this panel's issue.
+   */
+  private load(config: DashboardViewConfig, awaited = false): void {
     const wanted = new Set(
       panelsOf(config)
         .filter(isViewPanel)
@@ -388,7 +399,10 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
         reference => this.resolved(id, reference),
         () => this.resolved(id, null),
       );
-      this.pending.set(id, loading);
+      this.pending.set(
+        id,
+        awaited ? loading : loading.catch(error => this.failed(id, error)),
+      );
     }
     this.setState({ resolving: true });
   }
@@ -397,6 +411,21 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.pending.delete(id);
     if (this.stopped) return;
     this.references.set(id, reference);
+    this.sync({
+      issues: this.admit(this.state.draft, this.state.scope),
+      resolving: this.pending.size > 0,
+    });
+  }
+
+  /**
+   * A reference that arrived but could not be put to work — its definition
+   * names a source the host does not resolve, say. Admission cannot see this,
+   * so it is remembered here and reported against the panel that asked for
+   * it, and the panel stops trying rather than throwing on every sync.
+   */
+  private failed(id: string, error: unknown): void {
+    if (this.stopped) return;
+    this.failures.set(id, reasonOf(error));
     this.sync({
       issues: this.admit(this.state.draft, this.state.scope),
       resolving: this.pending.size > 0,
@@ -459,6 +488,19 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     applied: DashboardViewConfig,
     own: Issue[],
   ): { runtime: DataViewRuntime | null; issues: Issue[] } {
+    const failure = this.failures.get(panel.instanceId);
+    if (failure !== undefined)
+      return {
+        runtime: null,
+        issues: [
+          ...own,
+          issue('dashboard.panel.failed', ['panels', index, 'instanceId'], {
+            instance: panel.instanceId,
+            reason: failure,
+          }),
+        ],
+      };
+
     const reference = this.references.get(panel.instanceId);
     // A panel with a problem of its own does not query; the others still do.
     if (!reference || hasError(own)) return { runtime: null, issues: own };
@@ -567,6 +609,11 @@ function panelsOf(config: DashboardViewConfig): readonly DashboardPanel[] {
 function panelOf(found: Issue): number | null {
   const [head, index] = found.path;
   return head === 'panels' && typeof index === 'number' ? index : null;
+}
+
+/** What a thrown value says for itself; not everything thrown is an `Error`. */
+function reasonOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 /** A child's issues, addressed from the dashboard's config. */

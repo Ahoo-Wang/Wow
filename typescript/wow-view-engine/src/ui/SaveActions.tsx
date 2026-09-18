@@ -15,7 +15,7 @@ import { useState } from 'react';
 import { SaveIcon, TrashIcon } from 'lucide-react';
 import type { Issue, ViewInstance, ViewScope } from '../model/index.js';
 import type { WriteAction } from '../runtime/index.js';
-import type { SaveCommands } from '../react/index.js';
+import type { SaveAbilities, SaveCommands } from '../react/index.js';
 import {
   Alert,
   AlertAction,
@@ -57,10 +57,19 @@ export interface SaveActionsProps {
   onRecovered?(action: WriteAction): void;
 }
 
-const SCOPES: { label: string; value: Exclude<ViewScope, 'system'> }[] = [
+type SaveScope = Exclude<ViewScope, 'system'>;
+
+const SCOPES: { label: string; value: SaveScope }[] = [
   { label: 'Only me', value: 'personal' },
   { label: 'Everyone', value: 'shared' },
 ];
+
+/** The scopes this user may create in, in the order they are offered. */
+function scopesOf(can: SaveAbilities): { label: string; value: SaveScope }[] {
+  return SCOPES.filter(scope =>
+    scope.value === 'personal' ? can.createPersonal : can.createShared,
+  );
+}
 
 /**
  * Save, save as, rename and delete, plus the recovery a write needs when it
@@ -167,7 +176,7 @@ export function SaveActions({
         heading="Save as a new view"
         description="The view you are looking at stays as it is."
         initialTitle={`${title} copy`}
-        withScope
+        scopes={scopesOf(commands.can)}
         onSubmit={(next, scope) => {
           void commands
             .saveAs({ title: next, scope })
@@ -327,7 +336,7 @@ function TitleDialog({
   heading,
   description,
   initialTitle,
-  withScope,
+  scopes,
   onSubmit,
 }: {
   open: boolean;
@@ -335,12 +344,20 @@ function TitleDialog({
   heading: string;
   description: string;
   initialTitle: string;
-  withScope?: boolean;
-  onSubmit(title: string, scope: Exclude<ViewScope, 'system'>): void;
+  /** Audiences to offer; a rename asks for none and passes nothing. */
+  scopes?: { label: string; value: SaveScope }[];
+  onSubmit(title: string, scope: SaveScope): void;
 }) {
   const [title, setTitle] = useState(initialTitle);
-  const [scope, setScope] = useState<Exclude<ViewScope, 'system'>>('personal');
+  // Null until the user picks: the default is the first scope on offer, and
+  // what is on offer follows the permissions, which arrive with the view.
+  const [picked, setPicked] = useState<SaveScope | null>(null);
   const messages = useViewMessages();
+  const offered = scopes ?? [];
+  const scope =
+    picked !== null && offered.some(item => item.value === picked)
+      ? picked
+      : (offered[0]?.value ?? 'personal');
 
   return (
     <Dialog
@@ -367,17 +384,17 @@ function TitleDialog({
               onChange={event => setTitle(event.target.value)}
             />
           </Field>
-          {withScope && (
+          {offered.length > 0 && (
             <Field>
               <FieldLabel htmlFor="view-scope">
                 {messages.label('label.save.audience')}
               </FieldLabel>
               <Select
-                items={SCOPES}
+                items={offered}
                 value={scope}
                 onValueChange={value => {
                   if (value === 'personal' || value === 'shared')
-                    setScope(value);
+                    setPicked(value);
                 }}
               >
                 <SelectTrigger id="view-scope">
@@ -385,7 +402,7 @@ function TitleDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {SCOPES.map(item => (
+                    {offered.map(item => (
                       <SelectItem key={item.value} value={item.value}>
                         {item.label}
                       </SelectItem>

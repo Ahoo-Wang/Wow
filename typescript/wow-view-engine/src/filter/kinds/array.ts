@@ -12,9 +12,8 @@
  */
 
 import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
-import type { FieldOption } from '../../model/index.js';
-import { issue, readValue, type FieldKind } from '../fieldKind.js';
-import { isFiniteNumber } from '../values.js';
+import { readValue, type FieldKind } from '../fieldKind.js';
+import { labelOf, validateOptionValues } from './options.js';
 import {
   compilePresence,
   describePresence,
@@ -24,12 +23,6 @@ import {
 
 /** What one entry of an array field may be. */
 export type ArrayFilterValue = (string | number)[];
-
-function labelOf(options: FieldOption[] | undefined, value: string | number) {
-  return (
-    options?.find(option => option.value === value)?.label ?? String(value)
-  );
-}
 
 /**
  * A field holding several values at once: tags, categories, labels.
@@ -60,26 +53,13 @@ export const arrayFieldKind: FieldKind = {
 
   validate({ value, operator, field, path }) {
     if (isPresenceOperator(operator) || operator === 'IS_EMPTY') return [];
-
-    if (
-      !Array.isArray(value) ||
-      !value.every(item => typeof item === 'string' || isFiniteNumber(item))
-    )
-      return [issue('filter.value.expected-entry-list', path)];
-    if (value.length === 0) return [issue('filter.value.required', path)];
-
     // A declared candidate set is closed, exactly as it is for `enum`.
-    const declared = field.options;
-    if (!declared) return [];
-    const allowed = new Set(declared.map(option => option.value));
-    const unknown = value.filter(item => !allowed.has(item));
-    return unknown.length === 0
-      ? []
-      : [
-          issue('filter.value.unknown-option', path, {
-            values: unknown.join(', '),
-          }),
-        ];
+    return validateOptionValues(
+      value,
+      field,
+      path,
+      'filter.value.expected-entry-list',
+    );
   },
 
   compile({ leaf, field }): FilterExpression {
@@ -116,6 +96,8 @@ export const arrayFieldKind: FieldKind = {
     const presence = describePresence(leaf.operator);
     if (presence) return `${field.label} ${presence}`;
     if (leaf.operator === 'IS_EMPTY') return `${field.label} has no entries`;
+    // Entries this kind cannot read are no condition to report.
+    if (!Array.isArray(leaf.value)) return field.label;
 
     const entries = readValue<ArrayFilterValue>(leaf.value).map(entry =>
       labelOf(field.options, entry),

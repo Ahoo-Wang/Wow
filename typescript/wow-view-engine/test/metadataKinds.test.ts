@@ -292,7 +292,36 @@ describe('metadata field kinds', () => {
         field,
         kinds: builtinFieldKinds,
       }),
-    ).toBe('Created by ');
+    ).toBe('Created by');
+  });
+
+  it('refuses an id that is only whitespace', () => {
+    // A typed blank is unfinished, not wrong, and never reaches validation.
+    // One that arrives inside a picked candidate, or inside a finished list,
+    // is an id Wow can look nothing up by.
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          tree({
+            field: '@ownerPicked',
+            operator: 'OWNER_ID',
+            value: { items: [{ id: '   ', label: 'Ada' }] },
+          }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['filter.value.expected-id']);
+
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          tree({ field: '@id', operator: 'IDS', value: ['o-1', '  '] }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['filter.value.expected-id-list']);
   });
 
   it('treats an empty id list as not yet filled in', () => {

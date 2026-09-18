@@ -79,6 +79,19 @@ export function EmbeddedView({
           <AlertDescription>{messages.issue(opened.error)}</AlertDescription>
         </Alert>
       )}
+      {/*
+        A refused narrowing leaves the wider result running, which is the one
+        outcome this must never show in silence: the page asked for one
+        customer's shipments and would otherwise quietly list everyone's.
+      */}
+      {opened.scopeIssues.length > 0 && (
+        <Alert variant="destructive">
+          <AlertTitle>{messages.label('label.scope.refused')}</AlertTitle>
+          <AlertDescription>
+            {messages.issues(opened.scopeIssues)}
+          </AlertDescription>
+        </Alert>
+      )}
       {opened.loading && <Skeleton className="h-24 w-full" />}
       {runtime && <EmbeddedBody runtime={runtime} />}
     </ViewSurface>

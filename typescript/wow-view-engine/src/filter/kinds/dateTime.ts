@@ -166,6 +166,9 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
     describe({ leaf, field }) {
       const presence = describePresence(leaf.operator);
       if (presence) return `${field.label} ${presence}`;
+      // A window this kind cannot read has no phrase; `describeWindow` would
+      // fall off its switch and print `undefined` beside the field's name.
+      if (!isDateTimeFilterValue(leaf.value)) return field.label;
       const value = readValue<DateTimeFilterValue>(leaf.value);
       const text =
         leaf.operator === 'GTE' || leaf.operator === 'LTE'

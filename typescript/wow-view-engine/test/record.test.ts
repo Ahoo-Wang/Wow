@@ -221,6 +221,53 @@ describe('validateRecord', () => {
     expect(issues[0].path).toEqual(['table', 'columns', 0, 'field']);
   });
 
+  it('refuses a column, a sort field and a summary cell listed twice', () => {
+    const issues = validateRecord(
+      definition(),
+      config({
+        sort: [
+          { field: 'createdAt', direction: 'ASC' },
+          { field: 'createdAt', direction: 'DESC' },
+        ],
+        table: { columns: [{ field: 'id' }, { field: 'id' }] },
+        summaries: [
+          { field: 'amount', fn: 'SUM' },
+          { field: 'amount', fn: 'SUM' },
+        ],
+      }),
+      builtinFieldKinds,
+    );
+    expect(codes(issues)).toEqual([
+      'record.sort.duplicate',
+      'record.column.duplicate',
+      'record.summary.duplicate',
+    ]);
+    // Reported at the repeat, so the first entry is the one that stands.
+    expect(issues.map(found => found.path)).toEqual([
+      ['sort', 1, 'field'],
+      ['table', 'columns', 1, 'field'],
+      ['summaries', 1],
+    ]);
+  });
+
+  it('refuses a field-less kind on a card as well as in a column', () => {
+    const def = definition({
+      fields: [
+        ...definition().fields,
+        { name: 'q', label: 'Search', kind: 'search' },
+      ],
+    });
+    expect(
+      codes(
+        validateRecord(
+          def,
+          config({ card: { title: 'q', fields: ['q'] } }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['record.field.not-a-column', 'record.field.not-a-column']);
+  });
+
   it('allows only the summary functions the field declares', () => {
     expect(
       codes(
@@ -451,9 +498,14 @@ describe('compileRecord', () => {
     });
   });
 
+  const cursorDefinition = () =>
+    definition({
+      record: { rowKey: 'id', paging: 'cursor', layouts: ['table'] },
+    });
+
   it('compiles a cursor query whose first page is a null cursor', () => {
     const query = compileRecord(
-      definition(),
+      cursorDefinition(),
       config(),
       builtinFieldKinds,
       context,
@@ -462,13 +514,45 @@ describe('compileRecord', () => {
     expect(query).toMatchObject({ size: 20, cursor: null });
 
     const next = compileRecord(
-      definition(),
+      cursorDefinition(),
       config(),
       builtinFieldKinds,
       context,
       { cursor: 'c1' },
     );
     expect(next).toMatchObject({ cursor: 'c1' });
+  });
+
+  it('takes the paging mode from the capability, not from the target', () => {
+    // A cursor target against a paged source used to compile a cursor query
+    // the source cannot answer, silently; the mode is the definition's.
+    expect(() =>
+      compileRecord(
+        definition(),
+        config(),
+        builtinFieldKinds,
+        context,
+        FIRST_PAGE.cursor,
+      ),
+    ).toThrow(/pages by index/);
+    expect(() =>
+      compileRecord(
+        cursorDefinition(),
+        config(),
+        builtinFieldKinds,
+        context,
+        FIRST_PAGE.paged,
+      ),
+    ).toThrow(/pages by cursor/);
+    expect(() =>
+      compileRecord(
+        definition({ record: undefined }),
+        config(),
+        builtinFieldKinds,
+        context,
+        FIRST_PAGE.paged,
+      ),
+    ).toThrow(/no record capability/);
   });
 
   it('carries the applied filter into the query', () => {
@@ -520,8 +604,11 @@ describe('compileSummaries', () => {
     expect(query?.metrics[2].type).toBe(AggregationMetricType.COUNT);
   });
 
-  it('keeps an alias to a single segment', () => {
+  it('keeps an alias to a single segment, without merging two fields', () => {
     expect(summaryAlias('address.city', 'MAX')).toBe('address_city_max');
+    // `a.b` and `a_b` are two fields, so they must not share one alias: the
+    // second cell would otherwise read back the first one's number.
+    expect(summaryAlias('address_city', 'MAX')).toBe('address__city_max');
   });
 });
 

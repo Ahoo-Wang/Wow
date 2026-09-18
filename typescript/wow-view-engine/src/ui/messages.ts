@@ -118,6 +118,7 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.filter.any-of': 'Any of',
   'label.filter.none-of': 'None of',
   'label.filter.add-group': 'Add group',
+  'label.filter.choose': 'Choose',
   'label.analysis.row-count': 'Row count',
 
   // Operator names a component would otherwise derive from the enum. Only the
@@ -159,6 +160,7 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.panel.unavailable': 'This panel is unavailable',
   'label.panel.unavailable-hint': 'The view it shows could not be opened.',
   'label.query.failed': 'The query failed',
+  'label.scope.refused': 'This page could not narrow this view',
   'label.analysis.empty': 'Nothing to aggregate',
   'label.write.conflict': 'Someone else saved this view first',
   'label.write.unknown': 'The result never came back',
@@ -228,21 +230,25 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'record.capability.missing':
     '{definition} does not offer a record view any more.',
   'record.card.invalid': 'The card settings could not be read.',
+  'record.column.duplicate': 'The column {field} is listed twice.',
   'record.field.not-a-column':
     '{field} is a search or metadata handle, not something a row holds.',
   'record.field.unknown': 'The column {field} no longer exists.',
   'record.layout.unsupported': 'The {layout} layout is not available here.',
   'record.pageSize.not-positive': 'The page size must be a positive number.',
   'record.pageSize.too-large': 'The page size cannot exceed {max}.',
+  'record.sort.duplicate': 'The sort already orders by {field}.',
   'record.sort.invalid': 'The sort settings could not be read.',
   'record.sort.not-sortable': '{field} cannot be sorted on.',
   'record.sort.too-many': 'A cursor view sorts on at most {max} fields.',
   'record.summaries.invalid': 'The summary settings could not be read.',
+  'record.summary.duplicate': 'The {fn} summary of {field} is listed twice.',
   'record.summary.unsupported': '{field} does not offer the {fn} summary.',
   'record.table.invalid': 'The table settings could not be read.',
 
   // Analysis kernel.
   'analysis.alias.duplicate': 'The name {alias} is used twice.',
+  'analysis.alias.invalid': '{alias} is not a usable name.',
   'analysis.alias.not-a-segment': '{alias} cannot contain a dot.',
   'analysis.alias.reserved': '{alias} uses a reserved prefix.',
   'analysis.any.undeclared': '{field} cannot be shown as a sample value.',
@@ -275,6 +281,8 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'analysis.group.blank-missing-key':
     'The placeholder for missing values is empty.',
   'analysis.group.blank-time-zone': 'The time zone is empty.',
+  'analysis.group.dense-not-alone':
+    'A gap-filling date grouping must be the only grouping.',
   'analysis.group.interval-not-positive':
     'A histogram interval must be greater than zero.',
   'analysis.group.unit-unsupported': 'The {unit} unit is not available here.',
@@ -304,7 +312,9 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'analysis.percentile.out-of-range':
     'A percentile must be between 0 and 100, exclusive.',
   'analysis.percentile.undeclared': '{field} does not offer percentiles.',
+  'analysis.sort.duplicate': 'The sort already orders by {alias}.',
   'analysis.sort.requires-group': 'Sorting needs at least one grouping.',
+  'analysis.sort.too-many': 'A result sorts on at most {max} columns.',
   'analysis.sort.unknown-alias':
     'Sorting refers to {alias}, which is not shown.',
 
@@ -358,6 +368,7 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'dashboard.link.label-empty': 'A link needs a label.',
   'dashboard.links.too-many': 'A links panel holds at most {max} links.',
   'dashboard.markdown.too-long': 'A note holds at most {max} characters.',
+  'dashboard.panel.failed': 'This panel could not be shown: {reason}',
   'dashboard.panel.id-duplicate': 'Two panels share the id {id}.',
   'dashboard.panel.id-empty': 'A panel needs an id.',
   'dashboard.panel.kind-unsupported':

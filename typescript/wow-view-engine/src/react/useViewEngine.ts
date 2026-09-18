@@ -93,21 +93,35 @@ export interface OpenViewState {
   runtime: AnyViewRuntime | null;
   loading: boolean;
   error: Issue | null;
+  /**
+   * What the runtime refused of the `scopeFilter` last injected. A host that
+   * narrows to a field the definition does not admit keeps the wider result,
+   * so the refusal has to reach the screen rather than be dropped here.
+   */
+  scopeIssues: Issue[];
 }
 
-/** What the last completed open produced, and which request it answered. */
-interface OpenedView extends OpenViewState {
+/**
+ * What the last completed open produced, and which request it answered.
+ * Loading is not in here: it is derived from whether this answer belongs to
+ * the request on hand.
+ */
+interface OpenedView {
   engine: ViewEngine | null;
   instanceId: string | null;
+  runtime: AnyViewRuntime | null;
+  error: Issue | null;
 }
 
 const NOT_OPENED: OpenedView = {
   engine: null,
   instanceId: null,
   runtime: null,
-  loading: false,
   error: null,
 };
+
+/** Stable identity for "nothing was refused", so the memo below stays still. */
+const NO_ISSUES: Issue[] = [];
 
 /** How many times a disposal forced a reopen, and the last runtime that did. */
 interface Reopen {
@@ -169,13 +183,7 @@ export function useOpenView(
           return;
         }
         runtime = result;
-        setOpened({
-          engine,
-          instanceId,
-          runtime: result,
-          loading: false,
-          error: null,
-        });
+        setOpened({ engine, instanceId, runtime: result, error: null });
       },
       (error: unknown) => {
         if (cancelled) return;
@@ -183,7 +191,6 @@ export function useOpenView(
           engine,
           instanceId,
           runtime: null,
-          loading: false,
           error: toIssue(error, 'view.open.failed'),
         });
       },
@@ -198,9 +205,14 @@ export function useOpenView(
   // Later changes are injected; `setScopeFilter` ignores an identical tree,
   // so this is quiet until the host actually narrows or widens the view.
   const runtime = opened.instanceId === instanceId ? opened.runtime : null;
+  // What that injection refused. A refused condition leaves the previous one
+  // running, which is the outcome a scoped view must never show in silence,
+  // so the issues are kept and handed to the caller.
+  const refusals = useState(issueStore)[0];
   useEffect(() => {
-    runtime?.setScopeFilter(scopeFilter);
-  }, [runtime, scopeFilter]);
+    refusals.set(runtime?.setScopeFilter(scopeFilter) ?? NO_ISSUES);
+  }, [refusals, runtime, scopeFilter]);
+  const scopeIssues = useSyncExternalStore(refusals.subscribe, refusals.get);
 
   // A runtime is disposed without a notification — `dispose` drops its
   // listeners — so the subscription alone would never fire. The snapshot is
@@ -225,8 +237,58 @@ export function useOpenView(
   return useMemo(
     () =>
       answered
-        ? { runtime: opened.runtime, loading: false, error: opened.error }
-        : { runtime: null, loading: instanceId !== null, error: null },
-    [answered, opened.runtime, opened.error, instanceId],
+        ? {
+            runtime: opened.runtime,
+            loading: false,
+            error: opened.error,
+            scopeIssues,
+          }
+        : {
+            runtime: null,
+            loading: instanceId !== null,
+            error: null,
+            scopeIssues: NO_ISSUES,
+          },
+    [answered, opened.runtime, opened.error, instanceId, scopeIssues],
+  );
+}
+
+/**
+ * The one value the effect above produces, as a store React reads.
+ *
+ * A refusal is made by a command, which belongs in an effect, and shown on
+ * screen, which needs a render. `setState` from an effect body is the
+ * cascading-render pattern `react-hooks` refuses; a store the effect writes
+ * and `useSyncExternalStore` subscribes to is the shape it points at instead
+ * — and the shape every runtime in this package already has.
+ */
+function issueStore() {
+  let issues: Issue[] = NO_ISSUES;
+  const listeners = new Set<() => void>();
+  return {
+    get: (): Issue[] => issues,
+    set(next: Issue[]): void {
+      if (sameIssues(issues, next)) return;
+      issues = next;
+      for (const listener of [...listeners]) listener();
+    },
+    subscribe(listener: () => void): () => void {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
+
+/**
+ * Whether two refusals say the same thing. Admission builds fresh issues
+ * every time, so identity alone would notify on every injection — and with a
+ * host that passes a new condition object each render, that is a render loop.
+ */
+function sameIssues(left: readonly Issue[], right: readonly Issue[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((found, at) => found.code === right[at].code)
   );
 }

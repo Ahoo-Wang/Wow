@@ -36,8 +36,12 @@ export interface CartesianData {
   chart: ChartType;
   /** One entry per x value, already pivoted when `splitBy` is configured. */
   points: { x: unknown; values: Record<string, number | null> }[];
-  /** Series key per drawn line or bar; a pivot names them by group value. */
-  series: { key: string; metric: string }[];
+  /**
+   * One entry per drawn line or bar. `key` is the record key of the points'
+   * values and is injective over group values, so it may carry a type tag;
+   * `label` is what a legend shows, the value as it prints.
+   */
+  series: { key: string; label: string; metric: string }[];
 }
 
 export interface PieSlice {
@@ -85,18 +89,52 @@ export interface MetricCardData {
   trend?: { x: unknown; value: number | null }[];
 }
 
-/** A split value names its series; anything unprintable becomes an empty key. */
-function seriesKey(value: unknown): string {
+/**
+ * A split value's identity as a string key.
+ *
+ * Two values a query kept apart must stay apart here: `null` and `''` are two
+ * series, `1` and `'1'` are two heatmap cells, and a key that merged them let
+ * whichever row came second overwrite the first — wrong numbers, no warning.
+ * So only a string is its own key, and everything else carries a type tag. A
+ * string that holds the tag character doubles it, which is what keeps the two
+ * alphabets from meeting: a tagged key's second character is a type letter,
+ * an escaped string's is the tag again.
+ *
+ * A string is left alone rather than tagged too, because this key is also the
+ * legend label of a cartesian pivot series, and a group value is a string in
+ * every case that reaches a chart legend.
+ */
+const TYPE_TAG = '\u0001';
+
+/** A group value as a legend prints it; nothing and null print as empty. */
+function printed(value: unknown): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean')
-    return value.toString();
+    return String(value);
   return JSON.stringify(value) ?? '';
 }
 
-/** Composite key of a heatmap cell; the separator cannot occur in a key. */
+function seriesKey(value: unknown): string {
+  if (typeof value === 'string')
+    return value.includes(TYPE_TAG)
+      ? value.split(TYPE_TAG).join(`${TYPE_TAG}${TYPE_TAG}`)
+      : value;
+  if (value === null) return `${TYPE_TAG}n`;
+  if (value === undefined) return `${TYPE_TAG}u`;
+  if (typeof value === 'number') return `${TYPE_TAG}d${value}`;
+  if (typeof value === 'boolean') return `${TYPE_TAG}b${value}`;
+  return `${TYPE_TAG}j${JSON.stringify(value) ?? ''}`;
+}
+
+/**
+ * Composite key of a heatmap cell. The row key is length-prefixed rather than
+ * separated by a character, because no character is barred from a group value
+ * and a separator one of them held would split the pair somewhere else.
+ */
 function cellKey(y: unknown, x: unknown): string {
-  return `${seriesKey(y)}\u0000${seriesKey(x)}`;
+  const row = seriesKey(y);
+  return `${row.length}:${row}${seriesKey(x)}`;
 }
 
 function num(row: RecordData, alias: string): number | null {
@@ -139,18 +177,19 @@ function cartesian(
   rows: readonly RecordData[],
 ): CartesianData {
   const byX = new Map<unknown, Record<string, number | null>>();
-  const seriesKeys = new Map<string, string>();
+  const seriesKeys = new Map<string, { label: string; metric: string }>();
 
   for (const row of rows) {
     const x = row[spec.x];
     const values = byX.get(x) ?? {};
     for (const series of spec.series) {
       // A pivot names each series by the split value; otherwise by the metric.
-      const key =
-        spec.splitBy === undefined
-          ? series.metric
-          : seriesKey(row[spec.splitBy]);
-      seriesKeys.set(key, series.metric);
+      const split = spec.splitBy === undefined ? undefined : row[spec.splitBy];
+      const key = spec.splitBy === undefined ? series.metric : seriesKey(split);
+      seriesKeys.set(key, {
+        label: spec.splitBy === undefined ? series.metric : printed(split),
+        metric: series.metric,
+      });
       values[key] = num(row, series.metric);
     }
     byX.set(x, values);
@@ -160,7 +199,7 @@ function cartesian(
     type: 'cartesian',
     chart: type,
     points: [...byX].map(([x, values]) => ({ x, values })),
-    series: [...seriesKeys].map(([key, metric]) => ({ key, metric })),
+    series: [...seriesKeys].map(([key, entry]) => ({ key, ...entry })),
   };
 }
 
@@ -256,9 +295,11 @@ function stagesFromGroup(
       num(row, stages.value) ?? 0,
     );
 
+  // The configured order names group values, so it is read through the same
+  // key: a stage written as `1` is the string `1`, never the number.
   const ordered = stages.order.map(key => ({
     label: key,
-    value: byCategory.get(key) ?? 0,
+    value: byCategory.get(seriesKey(key)) ?? 0,
   }));
   if (stages.cumulative === false) return ordered;
 

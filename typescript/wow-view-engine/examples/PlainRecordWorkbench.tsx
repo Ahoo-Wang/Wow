@@ -19,6 +19,7 @@ import {
   useRecordTable,
   useSaveCommands,
   useViewList,
+  useViewRuntime,
 } from '../src/react/index.js';
 
 /**
@@ -48,6 +49,9 @@ export function PlainRecordWorkbench({
     engine,
     chosen ?? list.defaultInstanceId,
   );
+  // Subscribed rather than read during render: `getSnapshot()` off a runtime
+  // in the middle of rendering is a value React never hears about changing.
+  const state = useViewRuntime(runtime);
   const record = runtime?.kind === 'record' ? runtime : null;
   const table = useRecordTable(record as RecordViewRuntime | null);
   const filter = useFilterEditor(runtime);
@@ -60,7 +64,7 @@ export function PlainRecordWorkbench({
           <button
             key={item.id}
             type="button"
-            aria-current={item.id === runtime?.getSnapshot().saved?.id}
+            aria-current={item.id === state?.saved?.id}
             onClick={() => setChosen(item.id)}
           >
             {item.title}

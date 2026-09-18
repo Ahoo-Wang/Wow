@@ -148,9 +148,7 @@ export function RecordToolbar({ table, fields, children }: RecordToolbarProps) {
           variant="outline"
           size="icon-sm"
           aria-label="Next page"
-          disabled={
-            table.paging?.mode === 'cursor' && table.paging.nextCursor === null
-          }
+          disabled={!table.hasNext}
           onClick={table.next}
         >
           <ChevronRightIcon />

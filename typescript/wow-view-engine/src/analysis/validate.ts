@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { AGGREGATION_LIMITS } from '@ahoo-wang/fetcher-wow';
 import {
   DEFAULT_RUNTIME_LIMITS,
   type AnalysisDerivedExpression,
@@ -35,11 +36,25 @@ import {
   walkFilter,
   type FieldKindRegistry,
 } from '../filter/index.js';
-import { analysisScope, type AnalysisScope } from './capability.js';
+import {
+  analysisScope,
+  elementScopeFields,
+  type AnalysisScope,
+} from './capability.js';
 import { validateChart } from './validateChart.js';
 
 /** Wow reserves this prefix and accepts single-segment aliases only. */
 const RESERVED_ALIAS_PREFIX = '__wow';
+
+/**
+ * One segment of Wow's query-field syntax, which is all an alias may be.
+ *
+ * `aggregationAlias` runs the alias through the same admission a field path
+ * gets and then refuses a dot, so a name like `orders total` or `2024` never
+ * reaches the server as an alias — it reaches `aggregation.sum` as a
+ * `TypeError`, which is a crash rather than something the editor can point at.
+ */
+const ALIAS_PATTERN = /^@?[A-Za-z_][A-Za-z0-9_-]*$/;
 
 export interface ValidateAnalysisOptions {
   limits?: RuntimeLimits;
@@ -148,6 +163,8 @@ function validateAliases(config: AnalysisViewConfig): Issue[] {
   const check = (alias: string, path: IssuePath) => {
     if (alias.includes('.'))
       issues.push(issue('analysis.alias.not-a-segment', path, { alias }));
+    else if (!ALIAS_PATTERN.test(alias))
+      issues.push(issue('analysis.alias.invalid', path, { alias }));
     if (alias.startsWith(RESERVED_ALIAS_PREFIX))
       issues.push(issue('analysis.alias.reserved', path, { alias }));
     if (seen.has(alias))
@@ -179,14 +196,14 @@ function validateElements(
         }),
       ];
     if (!element.filter) return [];
-    // An element filter is scoped to that element's own fields.
-    const fields = [...scope.fields.values()].filter(field =>
-      field.name.startsWith(`${element.path}.`),
+    return queryFilterIssues(
+      element.filter,
+      elementScopeFields(scope, element.path),
+      kinds,
+      limits,
+      'element',
+      [...path, 'filter'],
     );
-    return queryFilterIssues(element.filter, fields, kinds, limits, 'element', [
-      ...path,
-      'filter',
-    ]);
   });
 }
 
@@ -224,6 +241,13 @@ function validateGroups(
           issue('analysis.group.unit-unsupported', [...path, 'unit'], {
             unit: group.unit,
           }),
+        );
+      // A DATE_HISTOGRAM fills in every bucket its range implies rather than
+      // only the ones that have rows, and a second dimension would multiply
+      // that filling out across each of its own keys. Wow refuses it.
+      if (group.dense === true && config.groups.length !== 1)
+        issues.push(
+          issue('analysis.group.dense-not-alone', [...path, 'dense']),
         );
       // Only the blank check, which is Wow's own. This zone is passed through
       // to the server and never resolved here, so the browser's zone table has
@@ -800,13 +824,20 @@ function validateSortAndColumns(config: AnalysisViewConfig): Issue[] {
   // config that carries one is caught here rather than by the server.
   if (config.sort.length > 0 && groups.size === 0)
     issues.push(issue('analysis.sort.requires-group', ['sort']));
+  const sorted = new Set<string>();
   config.sort.forEach((sort, index) => {
+    const path: IssuePath = ['sort', index, 'alias'];
     if (!known.has(sort.alias))
       issues.push(
-        issue('analysis.sort.unknown-alias', ['sort', index, 'alias'], {
-          alias: sort.alias,
-        }),
+        issue('analysis.sort.unknown-alias', path, { alias: sort.alias }),
       );
+    // One column cannot be ordered twice; Wow refuses `sort fields must be
+    // unique.` and the second entry never had any effect anyway.
+    if (sorted.has(sort.alias))
+      issues.push(
+        issue('analysis.sort.duplicate', path, { alias: sort.alias }),
+      );
+    sorted.add(sort.alias);
   });
 
   const seen = new Set<string>();
@@ -841,34 +872,53 @@ function validateLimits(
     const max = Math.min(
       declared.maxLimit ?? Number.POSITIVE_INFINITY,
       limits.maxAnalysisRows,
+      AGGREGATION_LIMITS.MAX_LIMIT,
     );
     if (config.limit > max)
       issues.push(issue('analysis.limit.too-large', ['limit'], { max }));
   }
 
+  // Wow's own sizes always apply: a capability that declares no limits does
+  // not lift them, it only means it lowers none of them. Without this the
+  // ceiling was the capability's alone, so an undeclared one let a config
+  // through to be refused by `aggregation.query()` instead.
   const count = (
     value: number,
-    max: number | undefined,
+    declaredMax: number | undefined,
+    ceiling: number,
     code: string,
     path: IssuePath,
   ) => {
-    if (max !== undefined && value > max)
-      issues.push(issue(code, path, { max }));
+    const max = Math.min(declaredMax ?? Number.POSITIVE_INFINITY, ceiling);
+    if (value > max) issues.push(issue(code, path, { max }));
   };
-  count(config.groups.length, declared.maxGroups, 'analysis.groups.too-many', [
-    'groups',
-  ]);
+  count(
+    config.groups.length,
+    declared.maxGroups,
+    AGGREGATION_LIMITS.MAX_GROUPS,
+    'analysis.groups.too-many',
+    ['groups'],
+  );
   count(
     config.metrics.length,
     declared.maxMetrics,
+    AGGREGATION_LIMITS.MAX_METRICS,
     'analysis.metrics.too-many',
     ['metrics'],
   );
   count(
     (config.elements ?? []).length,
     declared.maxElements,
+    AGGREGATION_LIMITS.MAX_ELEMENTS,
     'analysis.elements.too-many',
     ['elements'],
+  );
+  count(
+    config.sort.length,
+    undefined,
+    AGGREGATION_LIMITS.MAX_SORT_FIELDS,
+    'analysis.sort.too-many',
+    ['sort'],
   );
 
   return issues;

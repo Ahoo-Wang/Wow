@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useMemo, type FocusEvent } from 'react';
+import type { FocusEvent } from 'react';
 import { FilterIcon, PlusIcon, XIcon } from 'lucide-react';
 import type {
   FieldOption,
@@ -504,19 +504,18 @@ function NestedPredicate({
   optionsFor?: (remote: string) => FieldOption[] | undefined;
 }) {
   const field = filter.fields.find(entry => entry.name === leaf.field);
-  const nested = useMemo(
-    () =>
-      treeController({
-        tree: asTree(leaf.value),
-        fields: field ? elementFields(field) : [],
-        kinds: filter.kinds,
-        // The kind reports a predicate's findings under the leaf that holds
-        // it, so they are rebased here to address the nested tree instead.
-        issues: rebase(filter.issues, path),
-        onChange: tree => filter.updateLeaf(path, { value: writeValue(tree) }),
-      }),
-    [filter, leaf.value, path, field],
-  );
+  // Built on every render rather than memoised: `filter` and `path` are fresh
+  // each time, so a memo keyed on them memoised nothing and only hid that a
+  // controller is a plain object over the values already in hand.
+  const nested = treeController({
+    tree: asTree(leaf.value),
+    fields: field ? elementFields(field) : [],
+    kinds: filter.kinds,
+    // The kind reports a predicate's findings under the leaf that holds it,
+    // so they are rebased here to address the nested tree instead.
+    issues: rebase(filter.issues, path),
+    onChange: tree => filter.updateLeaf(path, { value: writeValue(tree) }),
+  });
 
   return (
     <div className="border-muted min-w-0 flex-1 border-l-2 pl-2">

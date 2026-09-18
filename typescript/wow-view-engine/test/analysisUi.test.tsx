@@ -211,7 +211,7 @@ describe('AnalysisChart', () => {
       { x: 'CN', values: { orders: 2 } },
       { x: 'JP', values: { orders: 1 } },
     ],
-    series: [{ key: 'orders', metric: 'orders' }],
+    series: [{ key: 'orders', label: 'orders', metric: 'orders' }],
   };
 
   it('draws every cartesian variant', () => {
@@ -242,6 +242,71 @@ describe('AnalysisChart', () => {
     expect(container.querySelector('[data-slot="chart"]')).not.toBeNull();
   });
 
+  /**
+   * A reference line was drawn at `y` whatever the orientation, so on a chart
+   * laid out horizontally — where the numbers run along X — it landed on the
+   * categories and marked a threshold nobody set.
+   */
+  it('puts a reference line on the numeric axis, whichever way the chart runs', () => {
+    const withOrientation = (orientation: 'vertical' | 'horizontal') => ({
+      type: 'bar' as const,
+      cartesian: {
+        x: 'warehouse',
+        series: [{ metric: 'orders' }],
+        orientation,
+        referenceLines: [{ axis: 'left' as const, value: 2 }],
+      },
+    });
+    const bounds = (container: HTMLElement) => {
+      const line = container.querySelector('.recharts-reference-line-line');
+      return {
+        vertical: line?.getAttribute('x1') === line?.getAttribute('x2'),
+      };
+    };
+
+    const upright = render(
+      <ViewSurface>
+        <AnalysisChart data={cartesian} spec={withOrientation('vertical')} />
+      </ViewSurface>,
+    );
+    expect(bounds(upright.container).vertical).toBe(false);
+    cleanup();
+
+    const sideways = render(
+      <ViewSurface>
+        <AnalysisChart data={cartesian} spec={withOrientation('horizontal')} />
+      </ViewSurface>,
+    );
+    expect(bounds(sideways.container).vertical).toBe(true);
+  });
+
+  /**
+   * `axis`, `yAxis.left/right` and a line's own `axis` were stored, validated
+   * and then never read: every series was measured against one automatic
+   * scale, so a rate beside a count was a flat line at the bottom.
+   */
+  it('gives a right-hand series an axis of its own, with its bounds and format', () => {
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart
+          data={cartesian}
+          spec={{
+            type: 'bar',
+            cartesian: {
+              x: 'warehouse',
+              series: [{ metric: 'orders', axis: 'right' }],
+              yAxis: { right: { min: 0, max: 10, format: 'percent' } },
+            },
+          }}
+        />
+      </ViewSurface>,
+    );
+
+    expect(container.querySelectorAll('.recharts-yAxis')).toHaveLength(2);
+    // The bounds the spec pinned, printed the way it asked for.
+    expect(screen.getByText('900%')).toBeDefined();
+  });
+
   it('maps a data-valued series key to a synthetic one before CSS sees it', () => {
     // A pivot names its series by raw group values, which the style element
     // interpolates into custom properties; anything but an identifier breaks
@@ -251,7 +316,7 @@ describe('AnalysisChart', () => {
       type: 'cartesian',
       chart: 'bar',
       points: [{ x: 'CN', values: { [hostile]: 2 } }],
-      series: [{ key: hostile, metric: 'orders' }],
+      series: [{ key: hostile, label: hostile, metric: 'orders' }],
     });
 
     const css = container.querySelector('style')?.textContent ?? '';
@@ -367,6 +432,35 @@ describe('AnalysisChart', () => {
 
     expect(screen.getByText('1,200')).toBeDefined();
     expect(screen.getByText('+200')).toBeDefined();
+  });
+
+  /**
+   * `deltaOf` divides for `mode: 'percent'`, so the comparison is a ratio.
+   * Printed as it stood, a quarter more than last week read as "+0.25".
+   */
+  it('reads a percent comparison as a percentage', () => {
+    render(
+      <ViewSurface>
+        <AnalysisChart
+          data={{
+            type: 'metric',
+            value: 0.4,
+            compare: { value: 0.32, delta: 0.25 },
+          }}
+          spec={{
+            type: 'metric',
+            metric: {
+              metric: 'rate',
+              compare: { metric: 'previous', mode: 'percent' },
+              format: 'percent',
+            },
+          }}
+        />
+      </ViewSurface>,
+    );
+
+    expect(screen.getByText('40%')).toBeDefined();
+    expect(screen.getByText('+25%')).toBeDefined();
   });
 
   it('says so when a metric has no value at all', () => {
@@ -516,12 +610,12 @@ describe('AnalysisEditor defaults', () => {
 
     await add(/Add group/, 'Created');
     expect(
-      (await screen.findByLabelText('createdAt_2 grouping')).textContent,
+      (await screen.findByLabelText('createdAt_1 grouping')).textContent,
     ).toContain('date histogram');
 
     await add(/Add group/, 'Amount');
     expect(
-      (await screen.findByLabelText('amount_3 grouping')).textContent,
+      (await screen.findByLabelText('amount_1 grouping')).textContent,
     ).toContain('histogram');
   });
 
@@ -531,15 +625,15 @@ describe('AnalysisEditor defaults', () => {
     // A field with functions gets a NUMERIC metric, which is the only shape
     // that offers a function to choose.
     await add(/Add metric/, 'Amount');
-    expect(await screen.findByLabelText('amount_2 function')).toBeDefined();
+    expect(await screen.findByLabelText('amount_1 function')).toBeDefined();
 
     await add(/Add metric/, 'Customer');
-    await screen.findByRole('button', { name: 'Remove metric customer_3' });
-    expect(screen.queryByLabelText('customer_3 function')).toBeNull();
+    await screen.findByRole('button', { name: 'Remove metric customer_1' });
+    expect(screen.queryByLabelText('customer_1 function')).toBeNull();
 
     await add(/Add metric/, 'Note');
-    await screen.findByRole('button', { name: 'Remove metric note_4' });
-    expect(screen.queryByLabelText('note_4 function')).toBeNull();
+    await screen.findByRole('button', { name: 'Remove metric note_1' });
+    expect(screen.queryByLabelText('note_1 function')).toBeNull();
   });
 
   it('adds the row count when the definition allows counting', async () => {
@@ -548,7 +642,7 @@ describe('AnalysisEditor defaults', () => {
     await add(/Add metric/, 'Row count');
 
     expect(
-      await screen.findByRole('button', { name: 'Remove metric count_2' }),
+      await screen.findByRole('button', { name: 'Remove metric count_1' }),
     ).toBeDefined();
   });
 
@@ -557,20 +651,20 @@ describe('AnalysisEditor defaults', () => {
     await open();
 
     await add(/Add metric/, 'Amount');
-    await user.click(await screen.findByLabelText('amount_2 function'));
+    await user.click(await screen.findByLabelText('amount_1 function'));
     await user.click(await screen.findByRole('option', { name: 'avg' }));
     await waitFor(() =>
-      expect(screen.getByLabelText('amount_2 function').textContent).toContain(
+      expect(screen.getByLabelText('amount_1 function').textContent).toContain(
         'avg',
       ),
     );
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Remove metric amount_2' }),
+      screen.getByRole('button', { name: 'Remove metric amount_1' }),
     );
     await waitFor(() =>
       expect(
-        screen.queryByRole('button', { name: 'Remove metric amount_2' }),
+        screen.queryByRole('button', { name: 'Remove metric amount_1' }),
       ).toBeNull(),
     );
 
@@ -582,6 +676,38 @@ describe('AnalysisEditor defaults', () => {
         screen.queryByRole('button', { name: 'Remove group warehouse' }),
       ).toBeNull(),
     );
+  });
+
+  /**
+   * Numbering by the row count reused a name the moment a row was removed:
+   * two metrics called `amount_2`, which React saw as one key and validation
+   * reported as a duplicate alias.
+   */
+  it('names a new row by the first free alias, not by the row count', async () => {
+    await open();
+
+    await add(/Add metric/, 'Amount');
+    await screen.findByRole('button', { name: 'Remove metric amount_1' });
+    await add(/Add metric/, 'Amount');
+    await screen.findByRole('button', { name: 'Remove metric amount_2' });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Remove metric amount_1' }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Remove metric amount_1' }),
+      ).toBeNull(),
+    );
+
+    // The freed name comes back; the kept row keeps its own.
+    await add(/Add metric/, 'Amount');
+    expect(
+      await screen.findByRole('button', { name: 'Remove metric amount_1' }),
+    ).toBeDefined();
+    expect(
+      screen.getAllByRole('button', { name: 'Remove metric amount_2' }),
+    ).toHaveLength(1);
   });
 
   it('refuses to remove the only metric', async () => {

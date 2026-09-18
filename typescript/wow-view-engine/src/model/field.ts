@@ -66,8 +66,17 @@ export const FIELDLESS_FIELD_KIND_IDS: readonly FieldKindId[] = [
  * the presence operators do not apply, the field is not a record column, and
  * Wow refuses such a filter inside an element predicate — it calls them root
  * filters, and its list is exactly this one.
+ *
+ * The registered kind answers first when the caller has one: a custom kind
+ * that compiles to a root filter declares `fieldless` on itself, and an id
+ * list here could never have heard of it. The list stays the answer for a
+ * kind nobody has resolved — a record column asked about by id alone.
  */
-export function isFieldlessKind(kind: FieldKindId): boolean {
+export function isFieldlessKind(
+  kind: FieldKindId,
+  registered?: { fieldless?: boolean },
+): boolean {
+  if (registered?.fieldless) return true;
   return FIELDLESS_FIELD_KIND_IDS.includes(kind);
 }
 
@@ -105,6 +114,19 @@ export const FIELD_NAME_PATTERN =
 
 export function isFieldName(name: string): boolean {
   return FIELD_NAME_PATTERN.test(name);
+}
+
+/**
+ * A field path as one alias segment, injectively.
+ *
+ * Wow takes a single-segment alias only, so a path has to lose its dots. A
+ * plain `.`→`_` made `a.b` and `a_b` the same alias, and whichever cell came
+ * second overwrote the first — silently, because both are legal aliases and
+ * the server answers with one value under one name. Doubling an existing `_`
+ * first keeps the mapping reversible: a lone `_` is always a `.` that was.
+ */
+export function fieldAliasSegment(field: string): string {
+  return field.replace(/_/g, '__').replace(/\./g, '_');
 }
 
 /** A selectable value: static for `enum`, resolved for `reference`. */

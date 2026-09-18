@@ -40,7 +40,12 @@ import type {
   PieData,
   ScatterData,
 } from '../analysis/index.js';
-import type { CartesianSeries, ChartSpec } from '../model/index.js';
+import type {
+  AxisSpec,
+  CartesianSeries,
+  ChartSpec,
+  ValueFormat,
+} from '../model/index.js';
 import {
   ChartContainer,
   ChartLegend,
@@ -72,6 +77,38 @@ function color(index: number): string {
 }
 
 /**
+ * A number as the spec asks for it. `percent` is a ratio the kernel produced
+ * — `deltaOf` divides — so it is the only one that scales before it prints.
+ */
+function formatValue(value: number, format?: ValueFormat): string {
+  if (format === 'percent')
+    return `${(value * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+  if (format === 'compact')
+    return value.toLocaleString(undefined, { notation: 'compact' });
+  return value.toLocaleString();
+}
+
+/** A bound the spec pinned; the other end is left to the data. */
+function domainOf(axis: AxisSpec | undefined) {
+  if (!axis || (axis.min === undefined && axis.max === undefined))
+    return undefined;
+  return [axis.min ?? 'auto', axis.max ?? 'auto'] as [
+    number | 'auto',
+    number | 'auto',
+  ];
+}
+
+function tickFormatterOf(axis: AxisSpec | undefined) {
+  if (!axis?.format) return undefined;
+  return (value: number) => formatValue(value, axis.format);
+}
+
+/** Which numeric axis a series or a line belongs to; the left one by default. */
+function axisId(axis: 'left' | 'right' | undefined): 'left' | 'right' {
+  return axis === 'right' ? 'right' : 'left';
+}
+
+/**
  * Draws what the kernel already shaped.
  *
  * Every pivot, merge, cumulation and conversion happened in `shapeChart`, so
@@ -91,7 +128,7 @@ export function AnalysisChart({ data, spec, className }: AnalysisChartProps) {
     case 'funnel':
       return <Funnel data={data} spec={spec} className={className} />;
     case 'metric':
-      return <MetricCard data={data} className={className} />;
+      return <MetricCard data={data} spec={spec} className={className} />;
   }
 }
 
@@ -141,7 +178,7 @@ function Cartesian({
       Object.fromEntries(
         data.series.map((series, index) => [
           safeKeys.get(series.key) ?? series.key,
-          { label: series.key, color: color(index) },
+          { label: series.label, color: color(index) },
         ]),
       ),
     [data, safeKeys],
@@ -151,6 +188,21 @@ function Cartesian({
   const bySeries = new Map(
     (spec?.cartesian?.series ?? []).map(series => [series.metric, series]),
   );
+  const referenceLines = spec?.cartesian?.referenceLines ?? [];
+  const left = spec?.cartesian?.yAxis?.left;
+  const right = spec?.cartesian?.yAxis?.right;
+  // A second axis is drawn only when something sits on it: two axes where
+  // every series is on the left is a scale nobody asked for.
+  const hasRight =
+    data.series.some(series => bySeries.get(series.metric)?.axis === 'right') ||
+    referenceLines.some(line => line.axis === 'right');
+  /**
+   * Which axis carries the numbers. Laid out vertically that is Y; laid out
+   * horizontally the chart is on its side and it is X, which is why a
+   * reference line drawn at `y` used to land on the categories.
+   */
+  const onNumericAxis = (axis: 'left' | 'right' | undefined) =>
+    horizontal ? { xAxisId: axisId(axis) } : { yAxisId: axisId(axis) };
   const Chart =
     data.chart === 'line'
       ? LineChart
@@ -169,30 +221,63 @@ function Cartesian({
         <CartesianGrid vertical={false} />
         {horizontal ? (
           <>
-            <XAxis type="number" />
+            <XAxis
+              type="number"
+              xAxisId="left"
+              domain={domainOf(left)}
+              tickFormatter={tickFormatterOf(left)}
+            />
+            {hasRight && (
+              <XAxis
+                type="number"
+                xAxisId="right"
+                orientation="top"
+                domain={domainOf(right)}
+                tickFormatter={tickFormatterOf(right)}
+              />
+            )}
             <YAxis type="category" dataKey="x" width={96} />
           </>
         ) : (
           <>
             <XAxis dataKey="x" tickLine={false} axisLine={false} />
-            <YAxis tickLine={false} axisLine={false} />
+            <YAxis
+              yAxisId="left"
+              tickLine={false}
+              axisLine={false}
+              domain={domainOf(left)}
+              tickFormatter={tickFormatterOf(left)}
+            />
+            {hasRight && (
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tickLine={false}
+                axisLine={false}
+                domain={domainOf(right)}
+                tickFormatter={tickFormatterOf(right)}
+              />
+            )}
           </>
         )}
         <ChartTooltip content={<ChartTooltipContent />} />
         {data.series.length > 1 && (
           <ChartLegend content={<ChartLegendContent />} />
         )}
-        {data.series.map(series =>
-          mark(
+        {data.series.map(series => {
+          const configured = bySeries.get(series.metric);
+          return mark(
             safeKeys.get(series.key) ?? series.key,
-            bySeries.get(series.metric),
+            configured,
             data.chart,
-          ),
-        )}
-        {(spec?.cartesian?.referenceLines ?? []).map(line => (
+            onNumericAxis(configured?.axis),
+          );
+        })}
+        {referenceLines.map(line => (
           <ReferenceLine
             key={`${line.axis}-${line.value}`}
-            y={line.value}
+            {...onNumericAxis(line.axis)}
+            {...(horizontal ? { x: line.value } : { y: line.value })}
             label={line.label}
             strokeDasharray="4 4"
           />
@@ -207,6 +292,8 @@ function mark(
   key: string,
   series: CartesianSeries | undefined,
   chart: CartesianData['chart'],
+  /** The numeric axis this series is measured against. */
+  axis: { xAxisId: 'left' | 'right' } | { yAxisId: 'left' | 'right' },
 ) {
   const kind = chart === 'combo' ? (series?.type ?? 'bar') : chart;
   const fill = `var(--color-${key})`;
@@ -214,6 +301,7 @@ function mark(
     return (
       <Line
         key={key}
+        {...axis}
         dataKey={key}
         stroke={fill}
         dot={false}
@@ -224,6 +312,7 @@ function mark(
     return (
       <Area
         key={key}
+        {...axis}
         dataKey={key}
         stroke={fill}
         fill={fill}
@@ -235,6 +324,7 @@ function mark(
   return (
     <Bar
       key={key}
+      {...axis}
       dataKey={key}
       fill={fill}
       stackId={series?.stack}
@@ -430,26 +520,39 @@ function Funnel({
   );
 }
 
+/**
+ * The comparison, signed. In `percent` mode the kernel divides, so the delta
+ * is a ratio: printing it as it stands turned a quarter more than last week
+ * into "+0.25".
+ */
+function formatDelta(delta: number, mode: 'delta' | 'percent' | undefined) {
+  const sign = delta > 0 ? '+' : '';
+  return `${sign}${formatValue(delta, mode === 'percent' ? 'percent' : undefined)}`;
+}
+
 function MetricCard({
   data,
+  spec,
   className,
 }: {
   data: MetricCardData;
+  spec?: ChartSpec;
   className?: string;
 }) {
+  const card = spec?.metric;
   return (
     <div
       data-slot="metric-card"
       className={cn('flex flex-col gap-2', className)}
     >
       <span className="text-3xl font-semibold tabular-nums">
-        {data.value === null ? '—' : data.value.toLocaleString()}
+        {data.value === null ? '—' : formatValue(data.value, card?.format)}
       </span>
       {data.compare && (
         <span className="text-muted-foreground text-sm">
           {data.compare.delta === null
             ? '—'
-            : `${data.compare.delta > 0 ? '+' : ''}${data.compare.delta.toLocaleString()}`}
+            : formatDelta(data.compare.delta, card?.compare?.mode)}
         </span>
       )}
       {data.target !== undefined && data.value !== null && (

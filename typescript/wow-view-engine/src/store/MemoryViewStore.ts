@@ -57,8 +57,10 @@ export interface MemoryState {
 export class MemoryViewStore implements ViewStore {
   private readonly instances = new Map<string, ViewInstance>();
   private readonly preferences = new Map<string, ViewPreferences>();
-  /** Outcome per logical write, so a retry is idempotent. */
+  /** Outcome per logical instance write, so a retry is idempotent. */
   private readonly outcomes = new Map<string, ViewInstance | null>();
+  /** The same rule for preferences, whose outcome is no instance. */
+  private readonly preferenceOutcomes = new Map<string, ViewPreferences>();
   private readonly snapshot?: MemorySnapshot;
   permissions?: (definitionId: string) => ViewPermissions;
   private sequence = 0;
@@ -71,7 +73,7 @@ export class MemoryViewStore implements ViewStore {
 
     const restored = options.snapshot?.load();
     for (const instance of restored?.instances ?? options.instances ?? [])
-      this.instances.set(instance.id, instance);
+      this.instances.set(instance.id, copy(instance));
     for (const [definitionId, preferences] of Object.entries(
       restored?.preferences ?? options.preferences ?? {},
     ))
@@ -88,7 +90,7 @@ export class MemoryViewStore implements ViewStore {
   get(id: string): Promise<ViewInstance> {
     const instance = this.instances.get(id);
     return instance
-      ? Promise.resolve(instance)
+      ? Promise.resolve(copy(instance))
       : Promise.reject(new ViewStoreError('NOT_FOUND', `No such view: ${id}`));
   }
 
@@ -97,7 +99,7 @@ export class MemoryViewStore implements ViewStore {
     context: WriteContext,
   ): Promise<ViewInstance> {
     const replayed = this.outcomes.get(context.requestId);
-    if (replayed) return Promise.resolve(replayed);
+    if (replayed) return Promise.resolve(copy(replayed));
     if (input.scope === 'system')
       return Promise.reject(
         new ViewStoreError('INVALID', 'System views are declared in code'),
@@ -115,7 +117,7 @@ export class MemoryViewStore implements ViewStore {
         new ViewStoreError('INVALID', `Reserved id namespace: ${id}`),
       );
 
-    const instance: ViewInstance = { ...input, id, revision: '1' };
+    const instance: ViewInstance = { ...copy(input), id, revision: '1' };
     this.instances.set(id, instance);
     return this.commit(context, instance);
   }
@@ -128,7 +130,7 @@ export class MemoryViewStore implements ViewStore {
   ): Promise<ViewInstance> {
     return this.update(id, revision, context, current => ({
       ...current,
-      config,
+      config: copy(config),
     }));
   }
 
@@ -151,6 +153,12 @@ export class MemoryViewStore implements ViewStore {
       return Promise.reject(
         new ViewStoreError('NOT_FOUND', `No such view: ${id}`),
       );
+    // Deleting a system view is refused exactly as overwriting one is: it is
+    // declared in code or by operations, and no user write reaches it.
+    if (current.scope === 'system')
+      return Promise.reject(
+        new ViewStoreError('FORBIDDEN', 'System views are read-only'),
+      );
     const conflict = this.expect(current, revision);
     if (conflict) return Promise.reject(conflict);
 
@@ -171,6 +179,12 @@ export class MemoryViewStore implements ViewStore {
     preferences: ViewPreferences,
     context: WriteContext,
   ): Promise<ViewPreferences> {
+    // A replay answers with the outcome the first attempt produced, as every
+    // other write does: a retry after a lost answer is the same logical
+    // write, and reporting a conflict for it would be a lie.
+    const replayed = this.preferenceOutcomes.get(context.requestId);
+    if (replayed) return Promise.resolve(replayed);
+
     const current = this.preferences.get(definitionId) ?? emptyPreferences();
     if (current.revision !== preferences.revision)
       return Promise.reject(
@@ -186,8 +200,8 @@ export class MemoryViewStore implements ViewStore {
       revision: String(Number(current.revision) + 1),
     };
     this.preferences.set(definitionId, next);
+    this.preferenceOutcomes.set(context.requestId, next);
     this.persist();
-    void context;
     return Promise.resolve(next);
   }
 
@@ -198,7 +212,7 @@ export class MemoryViewStore implements ViewStore {
     change: (current: ViewInstance) => ViewInstance,
   ): Promise<ViewInstance> {
     const replayed = this.outcomes.get(context.requestId);
-    if (replayed) return Promise.resolve(replayed);
+    if (replayed) return Promise.resolve(copy(replayed));
 
     const current = this.instances.get(id);
     if (!current)
@@ -239,13 +253,22 @@ export class MemoryViewStore implements ViewStore {
   ): Promise<ViewInstance> {
     this.outcomes.set(context.requestId, instance);
     this.persist();
-    return Promise.resolve(instance);
+    return Promise.resolve(copy(instance));
   }
 
   private persist(): void {
     this.snapshot?.save({
-      instances: [...this.instances.values()],
+      instances: [...this.instances.values()].map(instance => copy(instance)),
       preferences: Object.fromEntries(this.preferences),
     });
   }
+}
+
+/**
+ * A structural copy, so nothing a caller holds is the object the store keeps.
+ * A config handed in or read back is a plain JSON tree, and a caller editing
+ * one it still has a reference to must not change what is stored.
+ */
+function copy<T>(value: T): T {
+  return structuredClone(value);
 }

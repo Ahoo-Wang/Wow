@@ -138,7 +138,7 @@ describe('validateFilter', () => {
       builtinFieldKinds,
     );
     expect(errors(issues)).toEqual([
-      'filter.value.expected-number-range',
+      'filter.value.inverted-range',
       'filter.value.expected-boolean',
       'filter.value.unknown-option',
       'filter.value.expected-date',
@@ -959,17 +959,39 @@ describe('describeFilter', () => {
     expect(items[0]).toMatchObject({ field: 'gone', unresolved: true });
   });
 
-  it('marks a leaf the kind cannot read rather than throwing', () => {
+  it('names the field alone for a value the kind cannot read', () => {
     // A stored value the field no longer admits: `status` is an enum, whose
-    // operators take a list. Summarising it must not take the view down.
+    // operators take a list. Summarising it must not take the view down, and
+    // must not invent a reading of it either — the label is all that is true.
     const items = describeFilter(
       fields,
       tree({ field: 'status', operator: 'EQ', value: 'PENDING' }),
       builtinFieldKinds,
     );
 
+    expect(items[0].text).toBe('Status');
+  });
+
+  it('marks a leaf whose kind threw rather than taking the view down', () => {
+    // A kind is an extension point: what a custom one does with a value it
+    // cannot read is not this layer's to predict, only to survive.
+    const exploding = withFieldKinds(builtinFieldKinds, [
+      {
+        ...builtinFieldKinds.get('enum')!,
+        id: 'exploding',
+        describe() {
+          throw new Error('boom');
+        },
+      },
+    ]);
+    const items = describeFilter(
+      [{ name: 'status', label: 'Status', kind: 'exploding' }],
+      tree({ field: 'status', operator: 'IN', value: ['PENDING'] }),
+      exploding,
+    );
+
     expect(items[0]).toMatchObject({ field: 'status', unresolved: true });
-    expect(items[0].text).toContain('EQ');
+    expect(items[0].text).toContain('IN');
   });
 });
 

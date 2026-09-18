@@ -12,21 +12,15 @@
  */
 
 import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
-import type { FieldOption } from '../../model/index.js';
-import { issue, type FieldKind } from '../fieldKind.js';
-import { isFiniteNumber, type EnumFilterValue } from '../values.js';
+import { type FieldKind } from '../fieldKind.js';
+import { type EnumFilterValue } from '../values.js';
+import { labelOf, validateOptionValues } from './options.js';
 import {
   compilePresence,
   describePresence,
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
-
-function labelOf(options: FieldOption[] | undefined, value: string | number) {
-  return (
-    options?.find(option => option.value === value)?.label ?? String(value)
-  );
-}
 
 /**
  * A closed set of values declared by the definition. Both `IN` and `NOT_IN`
@@ -43,25 +37,12 @@ export const enumFieldKind: FieldKind = {
 
   validate({ value, operator, field, path }) {
     if (isPresenceOperator(operator)) return [];
-
-    if (
-      !Array.isArray(value) ||
-      !value.every(item => typeof item === 'string' || isFiniteNumber(item))
-    )
-      return [issue('filter.value.expected-option-list', path)];
-    if (value.length === 0) return [issue('filter.value.required', path)];
-
-    const declared = field.options;
-    if (!declared) return [];
-    const allowed = new Set(declared.map(option => option.value));
-    const unknown = value.filter(item => !allowed.has(item));
-    return unknown.length === 0
-      ? []
-      : [
-          issue('filter.value.unknown-option', path, {
-            values: unknown.join(', '),
-          }),
-        ];
+    return validateOptionValues(
+      value,
+      field,
+      path,
+      'filter.value.expected-option-list',
+    );
   },
 
   compile({ leaf, field }): FilterExpression {
@@ -82,6 +63,9 @@ export const enumFieldKind: FieldKind = {
   describe({ leaf, field }) {
     const presence = describePresence(leaf.operator);
     if (presence) return `${field.label} ${presence}`;
+    // A value that is not a list of candidates says nothing about the field,
+    // so the summary says only which field it was written against.
+    if (!Array.isArray(leaf.value)) return field.label;
     const labels = (leaf.value as EnumFilterValue).map(value =>
       labelOf(field.options, value),
     );

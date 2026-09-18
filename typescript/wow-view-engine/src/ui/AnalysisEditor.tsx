@@ -28,7 +28,6 @@ import {
   DropdownMenuTrigger,
 } from './components/dropdown-menu.js';
 import { Field, FieldGroup, FieldLabel } from './components/field.js';
-import { Input } from './components/input.js';
 import {
   Select,
   SelectContent,
@@ -39,6 +38,7 @@ import {
 } from './components/select.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
 import { crossesBoundary, leavesEditor } from './FilterPanel.js';
+import { NumberInput } from './FilterValueEditor.js';
 import { useViewMessages } from './MessagesProvider.js';
 
 export interface AnalysisEditorProps {
@@ -84,7 +84,7 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
           disabled={disabled}
           fields={groupable}
           onPick={field =>
-            analysis.addGroup(defaultGroup(field, analysis.groups.length))
+            analysis.addGroup(defaultGroup(field, aliasesOf(analysis)))
           }
         />
         <AddMenu
@@ -93,12 +93,12 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
           fields={measurable}
           countable={analysis.countable}
           onPick={field =>
-            analysis.addMetric(defaultMetric(field, analysis.metrics.length))
+            analysis.addMetric(defaultMetric(field, aliasesOf(analysis)))
           }
           onCount={() =>
             analysis.addMetric({
               type: 'COUNT',
-              alias: nextAlias('count', analysis.metrics.length),
+              alias: freeAlias('count', aliasesOf(analysis)),
             })
           }
         />
@@ -133,13 +133,19 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
           Totals
         </label>
 
-        <Input
-          type="number"
-          aria-label="Row limit"
+        {/*
+          A limit has no blank: clearing the field leaves the last one in
+          force rather than asking for zero rows, and the field stays empty
+          while the next one is typed.
+        */}
+        <NumberInput
+          label="Row limit"
           className="w-24"
           disabled={disabled}
-          value={String(analysis.limit)}
-          onChange={event => analysis.setLimit(Number(event.target.value))}
+          value={analysis.limit}
+          onNumber={next => {
+            if (next !== null) analysis.setLimit(next);
+          }}
         />
 
         <Button size="sm" disabled={disabled} onClick={analysis.submit}>
@@ -369,16 +375,34 @@ function MetricRow({
   );
 }
 
-/** Aliases are single-segment in Wow, so a field path becomes one token. */
-function nextAlias(base: string, index: number): string {
-  return `${base.split('.').join('_')}_${index + 1}`;
+/**
+ * A name no group or metric is using.
+ *
+ * Numbering by the row count collided as soon as a row was removed: two rows
+ * added after one deletion were both `amount_2`, which React saw as one key
+ * and validation reported as a duplicate alias. The first free number cannot
+ * collide however the rows were added and removed. Aliases are single-segment
+ * in Wow, so a field path becomes one token.
+ */
+function freeAlias(base: string, taken: readonly string[]): string {
+  const stem = base.split('.').join('_');
+  const used = new Set(taken);
+  for (let index = 1; ; index += 1) {
+    const alias = `${stem}_${index}`;
+    if (!used.has(alias)) return alias;
+  }
+}
+
+/** Every alias in use, which is the set an addition must stay clear of. */
+function aliasesOf(analysis: AnalysisEditorController): string[] {
+  return [...analysis.aliases.groups, ...analysis.aliases.metrics];
 }
 
 function defaultGroup(
   field: AnalysisFieldOption,
-  index: number,
+  taken: readonly string[],
 ): AnalysisGroup {
-  const alias = nextAlias(field.field, index);
+  const alias = freeAlias(field.field, taken);
   const type = field.groups[0];
   if (type === 'DATE_HISTOGRAM')
     return {
@@ -394,9 +418,9 @@ function defaultGroup(
 
 function defaultMetric(
   field: AnalysisFieldOption,
-  index: number,
+  taken: readonly string[],
 ): AnalysisMetric {
-  const alias = nextAlias(field.field, index);
+  const alias = freeAlias(field.field, taken);
   if (field.functions.length > 0)
     return {
       type: 'NUMERIC',

@@ -56,6 +56,7 @@ export const booleanFieldKind: FieldKind = {
   describe({ leaf, field }) {
     const presence = describePresence(leaf.operator);
     if (presence) return `${field.label} ${presence}`;
+    if (typeof leaf.value !== 'boolean') return field.label;
     return `${field.label} ${leaf.operator} ${readValue<boolean>(leaf.value)}`;
   },
 };

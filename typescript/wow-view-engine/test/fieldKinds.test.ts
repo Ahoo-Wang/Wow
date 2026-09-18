@@ -13,7 +13,10 @@
 
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
-import { FIELDLESS_FIELD_KIND_IDS } from '../src/model/index.js';
+import {
+  FIELDLESS_FIELD_KIND_IDS,
+  isFieldlessKind,
+} from '../src/model/index.js';
 import {
   booleanFieldKind,
   clearFilter,
@@ -112,6 +115,20 @@ describe('presence operators', () => {
       .sort();
 
     expect(without).toEqual([...FIELDLESS_FIELD_KIND_IDS].sort());
+  });
+
+  it('say so on the kind, so a custom one can join them', () => {
+    // The id list cannot have heard of an application's own kind, and a
+    // custom kind that compiles to `SEARCH` or a metadata filter is a root
+    // filter too — Wow throws when one reaches an element predicate.
+    const flagged = [...builtinFieldKinds.values()]
+      .filter(kind => kind.fieldless)
+      .map(kind => kind.id)
+      .sort();
+
+    expect(flagged).toEqual([...FIELDLESS_FIELD_KIND_IDS].sort());
+    expect(isFieldlessKind('colour')).toBe(false);
+    expect(isFieldlessKind('colour', { fieldless: true })).toBe(true);
   });
 
   it('are offered by every kind that names a document field', () => {
@@ -222,7 +239,13 @@ describe('number kind', () => {
 
   it('rejects an inverted range, a non-number and an empty list', () => {
     expect(codes(kind, [1, 2], 'BETWEEN', def)).toEqual([]);
+    // Two numbers the wrong way round is a range that starts after it ends —
+    // the same finding a date range reports, under the same code. Reading
+    // "enter a range of two numbers" beside two numbers said nothing.
     expect(codes(kind, [2, 1], 'BETWEEN', def)).toEqual([
+      'filter.value.inverted-range',
+    ]);
+    expect(codes(kind, ['x', 'y'], 'BETWEEN', def)).toEqual([
       'filter.value.expected-number-range',
     ]);
     expect(codes(kind, 'x', 'EQ', def)).toEqual([
@@ -598,6 +621,9 @@ describe('value guards', () => {
     expect(isPlainObject(null)).toBe(false);
     expect(isNumberRange([1, 2])).toBe(true);
     expect(isNumberRange([1])).toBe(false);
+    // Shape only: whether the bounds are the right way round is the kind's
+    // question, and it has its own sentence for the answer.
+    expect(isNumberRange([2, 1])).toBe(true);
     expect(isReferenceFilterValue({ items: 'no' })).toBe(false);
     expect(isDateTimeFilterValue({ type: 'other' })).toBe(false);
     expect(isDateTimeFilterValue('today')).toBe(false);
@@ -650,5 +676,40 @@ describe('registry helpers', () => {
         builtinFieldKinds,
       ),
     ).toBe(false);
+  });
+});
+
+/**
+ * A summary line says what is in force. A value the kind cannot read is not
+ * in force, and dressing it up — "Qty o ~ o" from a string spread into two
+ * bounds, `[object Object]` from an object — puts a sentence on screen that
+ * is worse than no sentence, in the one place a user checks what is applied.
+ */
+describe('describing a value a kind cannot read', () => {
+  const junk = { nope: true } as unknown;
+  const cases: [string, FilterOperatorName, unknown][] = [
+    ['string', 'EQ', junk],
+    ['number', 'EQ', junk],
+    ['number', 'BETWEEN', 'not a range'],
+    ['boolean', 'EQ', junk],
+    ['enum', 'IN', junk],
+    ['array', 'IN', junk],
+    ['reference', 'IN', junk],
+    ['date', 'BETWEEN', junk],
+    ['datetime', 'GTE', junk],
+    ['search', 'SEARCH', junk],
+    ['elementMatch', 'ELEMENT_MATCH', junk],
+  ];
+
+  it.each(cases)('falls back to the label for %s %s', (id, operator, value) => {
+    const kind = builtinFieldKinds.get(id)!;
+
+    expect(
+      kind.describe({
+        leaf: leaf(operator, value),
+        field: field({ kind: id }),
+        kinds: builtinFieldKinds,
+      }),
+    ).toBe('Value');
   });
 });

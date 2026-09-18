@@ -12,11 +12,14 @@
  */
 
 import type {
+  AnalysisMetric,
   AnalysisViewConfig,
   DataViewDefinition,
+  FieldDefinition,
   NumberFormat,
   RecordData,
 } from '../model/index.js';
+import { analysisScope } from './capability.js';
 import { shapeChart, type ChartData } from './chart.js';
 
 /** A column of the result table; groups come first, then metrics. */
@@ -46,15 +49,25 @@ export function resultSchema(config: AnalysisViewConfig): string[] {
   ];
 }
 
-function labelOf(definition: DataViewDefinition, field: string): string {
-  return definition.fields.find(entry => entry.name === field)?.label ?? field;
-}
-
-function numberFormatOf(
-  definition: DataViewDefinition,
-  field: string,
-): NumberFormat | undefined {
-  return definition.fields.find(entry => entry.name === field)?.numberFormat;
+/**
+ * The field a column is computed from, when it has one.
+ *
+ * Every metric that reads a single field names it: `ANY` directly, and the
+ * three expression-carrying kinds through a `FIELD` expression. Only `NUMERIC`
+ * used to be looked up, so a `DISTINCT_COUNT` of customers or a p95 of latency
+ * fell back to its alias and lost both its label and its number format.
+ */
+function sourceFieldOf(metric: AnalysisMetric): string | undefined {
+  if (metric.type === 'ANY') return metric.field;
+  if (
+    metric.type === 'NUMERIC' ||
+    metric.type === 'DISTINCT_COUNT' ||
+    metric.type === 'PERCENTILE'
+  )
+    return metric.expression?.type === 'FIELD'
+      ? metric.expression.field
+      : undefined;
+  return undefined;
 }
 
 /**
@@ -85,26 +98,32 @@ export function projectAnalysis(
   ]);
   const sourceField = new Map<string, string>([
     ...config.groups.map(group => [group.alias, group.field] as const),
-    ...config.metrics.flatMap(metric =>
-      metric.type === 'NUMERIC' && metric.expression.type === 'FIELD'
-        ? ([[metric.alias, metric.expression.field]] as const)
-        : ([] as const),
-    ),
+    ...config.metrics.flatMap(metric => {
+      const field = sourceFieldOf(metric);
+      return field === undefined
+        ? ([] as const)
+        : ([[metric.alias, field]] as const);
+    }),
   ]);
+  // The analysis scope, not the raw field list: an element field is addressed
+  // as `items.sku`, which no root field is named, so a grouping or metric over
+  // one used to be labelled by its alias.
+  const byName = scopeFields(definition, config);
 
   const columns = order.flatMap<AnalysisColumnView>(alias => {
     const role = roles.get(alias);
     if (!role) return [];
-    const field = sourceField.get(alias);
+    const source = sourceField.get(alias);
+    const field = source === undefined ? undefined : byName.get(source);
     const declaredColumn = declared.get(alias);
     return [
       {
         alias,
-        label: field ? labelOf(definition, field) : alias,
+        label: field?.label ?? source ?? alias,
         role,
         width: declaredColumn?.width,
         pinned: declaredColumn?.pinned,
-        numberFormat: field ? numberFormatOf(definition, field) : undefined,
+        numberFormat: field?.numberFormat,
       },
     ];
   });
@@ -117,4 +136,24 @@ export function projectAnalysis(
       ? { chart: shapeChart(config, result, totals?.[0]) }
       : {}),
   };
+}
+
+/**
+ * Root fields plus the fields of every expanded element, by their paths.
+ *
+ * The capability is required, as it is in `compileAnalysis` and
+ * `defaultAnalysisConfig`: an analysis view of a definition that offers none
+ * is a programming error, and admission reports it long before a result
+ * arrives here.
+ */
+function scopeFields(
+  definition: DataViewDefinition,
+  config: AnalysisViewConfig,
+): ReadonlyMap<string, FieldDefinition> {
+  const capability = definition.analysis;
+  if (!capability)
+    throw new Error(
+      `Definition ${definition.id} declares no analysis capability`,
+    );
+  return analysisScope(definition, capability, config).fields;
 }

@@ -36,6 +36,9 @@ export const searchFieldKind: FieldKind = {
   operators: ['SEARCH'],
   defaultOperator: 'SEARCH',
   scalar: false,
+  // `SEARCH` names no field, so it is one of the root filters Wow refuses
+  // inside an element predicate.
+  fieldless: true,
 
   emptyValue() {
     return '';
@@ -71,6 +74,9 @@ export const searchFieldKind: FieldKind = {
   },
 
   describe({ leaf, field }) {
+    // Anything but text is wrong rather than typed, and stringifying it would
+    // put `[object Object]` in the one line a reader checks.
+    if (typeof leaf.value !== 'string') return field.label;
     return `${field.label} ${readValue<string>(leaf.value)}`;
   },
 };

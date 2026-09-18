@@ -77,6 +77,7 @@ export const referenceFieldKind: FieldKind = {
   describe({ leaf, field }) {
     const presence = describePresence(leaf.operator);
     if (presence) return `${field.label} ${presence}`;
+    if (!isReferenceFilterValue(leaf.value)) return field.label;
     const labels = readValue<ReferenceFilterValue>(leaf.value).items.map(
       item => item.label,
     );

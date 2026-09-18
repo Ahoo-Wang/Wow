@@ -48,6 +48,7 @@ import {
   ordersDefinition,
   recordConfig,
   requireRecordConfig,
+  ROWS,
   testSource,
 } from './fixtures.js';
 
@@ -234,7 +235,38 @@ describe('useOpenView', () => {
       runtime: null,
       loading: false,
       error: null,
+      scopeIssues: [],
     });
+  });
+
+  /**
+   * A refused narrowing leaves the wider condition in force, so the result on
+   * screen answers a question the host has already withdrawn. The issues were
+   * dropped on the floor, which made that silent.
+   */
+  it('hands back the issues a refused narrowing produced', async () => {
+    const { engine } = engineWith();
+    const refused: FilterTree = {
+      op: 'and',
+      children: [
+        { field: 'nope', operator: `${FilterOperator.EQ}`, value: 'x' },
+      ],
+    };
+    const { result, rerender } = renderHook(
+      ({ scope }: { scope: FilterTree | null }) =>
+        useOpenView(engine, 'orders-1', scope),
+      { initialProps: { scope: null as FilterTree | null } },
+    );
+    await waitFor(() => expect(result.current.runtime).not.toBeNull());
+    expect(result.current.scopeIssues).toEqual([]);
+
+    rerender({ scope: refused });
+
+    await waitFor(() =>
+      expect(
+        result.current.scopeIssues.some(found => found.severity === 'error'),
+      ).toBe(true),
+    );
   });
 
   it('opens the id again when its runtime is disposed under it', async () => {
@@ -403,6 +435,8 @@ describe('useSaveCommands', () => {
       saveAs: false,
       rename: false,
       delete: false,
+      createPersonal: false,
+      createShared: false,
     });
     expect(result.current.state).toEqual({
       pending: false,
@@ -1050,6 +1084,13 @@ describe('useRecordTable', () => {
     return result;
   }
 
+  /** More rows than one page holds, so there is a next page to move to. */
+  function manyPages(): ViewSource {
+    return testSource({
+      paged: vi.fn(() => Promise.resolve({ total: 200, list: [...ROWS] })),
+    });
+  }
+
   it('is inert without a runtime', () => {
     const { result } = renderHook(() => useRecordTable(null));
 
@@ -1121,7 +1162,7 @@ describe('useRecordTable', () => {
   });
 
   it('moves between pages and stops at the first', async () => {
-    const result = await openTable();
+    const result = await openTable(manyPages());
 
     act(() => result.current.table.previous());
     expect(result.current.table.paging).toMatchObject({ index: 1 });
@@ -1140,6 +1181,20 @@ describe('useRecordTable', () => {
     await waitFor(() =>
       expect(result.current.table.paging).toMatchObject({ index: 4 }),
     );
+  });
+
+  /**
+   * The paged source says how many rows there are, and Next asked for the
+   * page after the last one anyway: an empty result that reads exactly like
+   * a filter matching nothing.
+   */
+  it('stops at the last page rather than asking past it', async () => {
+    const result = await openTable();
+
+    expect(result.current.table.hasNext).toBe(false);
+    act(() => result.current.table.next());
+
+    expect(result.current.table.paging).toMatchObject({ index: 1 });
   });
 
   it('follows a cursor when the definition declares one', async () => {
@@ -1167,6 +1222,20 @@ describe('useRecordTable', () => {
     act(() => result.current.previous());
     act(() => result.current.next());
     await waitFor(() => expect(result.current.status).toBe('success'));
+  });
+
+  /**
+   * The card half of the config is what a card list renders. Without it the
+   * UI fell back to the table's columns, so every card setting a user saved
+   * was stored and then ignored.
+   */
+  it('projects the card the config saved, with its labels resolved', async () => {
+    const result = await openTable();
+
+    expect(result.current.table.card).toEqual({
+      title: 'id',
+      fields: [{ field: 'amount', label: 'Amount' }],
+    });
   });
 
   it('changes layout, columns and page size', async () => {

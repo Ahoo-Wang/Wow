@@ -89,9 +89,17 @@ export class RequestRunner {
    * with `RequestQueueFullError` when the queue has no room left.
    */
   run<T>(key: string, task: RequestTask<T>): Promise<T> {
-    this.cancel(key);
-    if (this.queue.length >= this.maxQueued)
+    // Capacity is judged before the key is superseded, so a refusal leaves
+    // what was running in place: cancelling first would abort the live
+    // request and then reject the new one, and the view would sit at
+    // `queue-full` with nothing in flight to recover it.
+    const previous = this.byKey.get(key);
+    // A predecessor still waiting gives its own slot back, so it does not
+    // count against the room the new request needs.
+    const freed = previous && !previous.started ? 1 : 0;
+    if (this.queue.length - freed >= this.maxQueued)
       return Promise.reject(new RequestQueueFullError(key, this.maxQueued));
+    this.cancel(key);
 
     return new Promise<T>((resolve, reject) => {
       const entry: Entry<T> = {

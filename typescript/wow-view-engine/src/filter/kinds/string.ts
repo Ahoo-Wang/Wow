@@ -110,9 +110,10 @@ export const stringFieldKind: FieldKind = {
   describe({ leaf, field }) {
     const presence = describePresence(leaf.operator);
     if (presence) return `${field.label} ${presence}`;
-    const value = Array.isArray(leaf.value)
-      ? readValue<string[]>(leaf.value).join(', ')
-      : readValue<string>(leaf.value);
-    return `${field.label} ${leaf.operator} ${value}`;
+    if (Array.isArray(leaf.value))
+      return `${field.label} ${leaf.operator} ${readValue<string[]>(leaf.value).join(', ')}`;
+    // Not text: no condition this kind can read, so name only the field.
+    if (typeof leaf.value !== 'string') return field.label;
+    return `${field.label} ${leaf.operator} ${leaf.value}`;
   },
 };

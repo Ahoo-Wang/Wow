@@ -242,7 +242,16 @@ export class ViewEngine {
     const runtime = this.attach(instance, options.scopeFilter ?? null);
     // A dashboard is judged against the instances it references, so it waits
     // for them before its first apply rather than opening into empty frames.
-    if (runtime instanceof DashboardViewRuntime) await runtime.ready();
+    if (runtime instanceof DashboardViewRuntime)
+      try {
+        await runtime.ready();
+      } catch (error) {
+        // `attach` already registered it, and a dashboard may have children
+        // querying by now. Nobody is handed a runtime that failed to open,
+        // so nobody could close one: it is dropped here instead of leaking.
+        this.forget(runtime);
+        throw error;
+      }
     runtime.apply();
     return runtime as AnyViewRuntime;
   }
@@ -790,14 +799,19 @@ export class ViewEngine {
         return { kind: 'unknown', requestId, payload };
       case 'CONFLICT': {
         const remote = error.remote ?? (await this.fetchRemote(payload));
-        return remote
-          ? { kind: 'conflict', remote, requestId, payload }
-          : {
-              kind: 'rejected',
-              requestId,
-              payload,
-              issue: issue('view.write.conflict-unreadable', []),
-            };
+        if (!remote)
+          return {
+            kind: 'rejected',
+            requestId,
+            payload,
+            issue: issue('view.write.conflict-unreadable', []),
+          };
+        // A delete that conflicts is answered by confirming again (§7.4), so
+        // the summary the user confirms against is the one the store now
+        // holds rather than the title and revision they asked to delete.
+        if (payload.action === 'delete')
+          this.summaries.set(payload.id, toSummary(remote as ViewInstance));
+        return { kind: 'conflict', remote, requestId, payload };
       }
       default:
         return {
@@ -832,7 +846,12 @@ export class ViewEngine {
     if (state.payload.action === 'preferences')
       return this.preferences(state.payload.definitionId);
     const remote = state.remote as ViewInstance;
-    runtime?.adoptSaved(remote);
+    // Only a `save` was carrying a config, so only reloading that one means
+    // taking the server's config and dropping the draft. A rename or a delete
+    // carries no config (§7.1), and the edits the user has not saved yet are
+    // not theirs to discard: the baseline moves and the draft stays.
+    if (state.payload.action === 'save') runtime?.adoptSaved(remote);
+    else runtime?.moveBaseline(remote);
     this.summaries.set(remote.id, toSummary(remote));
     return remote;
   }

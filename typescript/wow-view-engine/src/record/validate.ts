@@ -165,8 +165,16 @@ function validateSort(
       issue('record.sort.too-many', ['sort'], { max: MAX_CURSOR_SORT_FIELDS }),
     );
 
+  const seen = new Set<string>();
   config.sort.forEach((sort, index) => {
     const path: IssuePath = ['sort', index, 'field'];
+    // A cursor is a position in one total order, so Wow's gateway refuses a
+    // repeated sort field outright; on a paged source the repeat is dead
+    // weight that still reads as a second ordering in the editor.
+    if (seen.has(sort.field))
+      issues.push(issue('record.sort.duplicate', path, { field: sort.field }));
+    seen.add(sort.field);
+
     const field = fields.get(sort.field);
     if (!field) {
       issues.push(issue('record.field.unknown', path, { field: sort.field }));
@@ -184,16 +192,30 @@ function validateColumns(
   config: RecordViewConfig,
   fields: ReadonlyMap<string, FieldDefinition>,
 ): Issue[] {
+  const seen = new Set<string>();
   return config.table.columns.flatMap((column, index) => {
     const at: IssuePath = ['table', 'columns', index, 'field'];
+    const issues: Issue[] = [];
+    // The field is the column's identity, all the way to the React key of the
+    // rendered header, so a repeat is two columns claiming one identity.
+    if (seen.has(column.field))
+      issues.push(
+        issue('record.column.duplicate', at, { field: column.field }),
+      );
+    seen.add(column.field);
+
     const field = fields.get(column.field);
     if (!field)
-      return [issue('record.field.unknown', at, { field: column.field })];
-    // A field-less kind's name is a handle for the editor, so a column on one
-    // reads nothing from a row and would be empty for every record shown.
+      return [
+        ...issues,
+        issue('record.field.unknown', at, { field: column.field }),
+      ];
     return isFieldlessKind(field.kind)
-      ? [issue('record.field.not-a-column', at, { field: column.field })]
-      : [];
+      ? [
+          ...issues,
+          issue('record.field.not-a-column', at, { field: column.field }),
+        ]
+      : issues;
   });
 }
 
@@ -202,9 +224,18 @@ function validateCard(
   fields: ReadonlyMap<string, FieldDefinition>,
 ): Issue[] {
   const issues: Issue[] = [];
+  // A card reads the same rows a table does, so the same two rules hold: the
+  // field has to exist, and a field-less kind's name is a handle for the
+  // editor rather than a path into a row, so it would be blank on every card.
   const check = (name: string | undefined, path: IssuePath) => {
-    if (name !== undefined && !fields.has(name))
+    if (name === undefined) return;
+    const field = fields.get(name);
+    if (!field) {
       issues.push(issue('record.field.unknown', path, { field: name }));
+      return;
+    }
+    if (isFieldlessKind(field.kind))
+      issues.push(issue('record.field.not-a-column', path, { field: name }));
   };
 
   check(config.card.title, ['card', 'title']);
@@ -219,19 +250,35 @@ function validateSummaries(
   config: RecordViewConfig,
   fields: ReadonlyMap<string, FieldDefinition>,
 ): Issue[] {
+  const seen = new Set<string>();
   return (config.summaries ?? []).flatMap((summary, index) => {
     const path: IssuePath = ['summaries', index];
+    const issues: Issue[] = [];
+    // One cell per field and function: the pair is what `summaryAlias` names,
+    // and two cells sharing an alias would read back the same one number.
+    const cell = `${summary.field} ${summary.fn}`;
+    if (seen.has(cell))
+      issues.push(
+        issue('record.summary.duplicate', path, {
+          field: summary.field,
+          fn: summary.fn,
+        }),
+      );
+    seen.add(cell);
+
     const field = fields.get(summary.field);
     if (!field)
       return [
+        ...issues,
         issue('record.field.unknown', [...path, 'field'], {
           field: summary.field,
         }),
       ];
     // The definition says which aggregations the source actually supports.
     return field.summary?.includes(summary.fn)
-      ? []
+      ? issues
       : [
+          ...issues,
           issue('record.summary.unsupported', [...path, 'fn'], {
             field: field.name,
             fn: summary.fn,

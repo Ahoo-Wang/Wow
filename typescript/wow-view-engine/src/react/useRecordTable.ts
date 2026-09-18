@@ -29,9 +29,33 @@ import type { QueryStatus, RecordViewRuntime } from '../runtime/index.js';
 import type { RecordViewConfig } from '../model/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
+/**
+ * The card layout of the result on screen, resolved against the definition.
+ *
+ * A card is not a narrow table: the saved config says which field titles it,
+ * which fields make up its body and where its image comes from, and none of
+ * that is derivable from the table's columns.
+ */
+export interface RecordCardView {
+  /** Field whose value titles each card; the row key when it holds none. */
+  title: string;
+  /** Fields of the card body, in order, with their labels resolved. */
+  fields: RecordCardField[];
+  /** Field holding an image URL, when the config asks for one. */
+  image?: string;
+  columns?: 1 | 2 | 3 | 4;
+}
+
+export interface RecordCardField {
+  field: string;
+  label: string;
+}
+
 export interface RecordTableController {
   /** Columns of the result on screen, which follow the executed config. */
   columns: RecordColumnView[];
+  /** The card layout of the same result; both are saved side by side. */
+  card: RecordCardView;
   rows: RecordRow[];
   paging: RecordPaging | null;
   summaries: SummaryRow | null;
@@ -62,7 +86,13 @@ export interface RecordTableController {
 
   /** Paged sources only; a cursor source has no page numbers to jump to. */
   goTo(index: number): void;
-  /** No-op at the end of a cursor sequence, where there is no next cursor. */
+  /**
+   * Whether there is a page after this one: the next cursor for a cursor
+   * source, and the total against the page reached for a paged one. A source
+   * that reports no total cannot say, so it is taken as "there may be".
+   */
+  hasNext: boolean;
+  /** No-op at the end, where there is no next page to ask for. */
   next(): void;
   previous(): void;
   refresh(): void;
@@ -71,6 +101,7 @@ export interface RecordTableController {
 /** Stable identities for "no runtime yet", so memo dependencies stay still. */
 const NO_SORT: RecordSort[] = [];
 const NO_SELECTION: RecordKey[] = [];
+const NO_CARD: RecordCardView = { title: '', fields: [] };
 
 /**
  * A record view as a table renders it, with no vendor types in sight.
@@ -145,9 +176,42 @@ export function useRecordTable(
   }, [runtime]);
 
   const paging = view?.paging ?? null;
+  const pageSize = state?.draft.pageSize ?? 0;
+
+  // Like the columns, the card follows the config that ran rather than the
+  // draft, so a body field appears with the rows it belongs to. Labels come
+  // from the definition; the kernel projects columns, not cards.
+  const cardSpec = state?.result?.config.card ?? null;
+  const fields = runtime?.definition.fields;
+  const card = useMemo<RecordCardView>(() => {
+    if (!cardSpec) return NO_CARD;
+    const byName = new Map((fields ?? []).map(field => [field.name, field]));
+    return {
+      title: cardSpec.title,
+      // A field the definition dropped is left out rather than shown as a
+      // blank row; `validateRecord` reports it separately.
+      fields: cardSpec.fields.flatMap(name => {
+        const field = byName.get(name);
+        return field ? [{ field: name, label: field.label }] : [];
+      }),
+      ...(cardSpec.image === undefined ? {} : { image: cardSpec.image }),
+      ...(cardSpec.columns === undefined ? {} : { columns: cardSpec.columns }),
+    };
+  }, [cardSpec, fields]);
+
+  const hasNext =
+    paging === null
+      ? false
+      : paging.mode === 'cursor'
+        ? paging.nextCursor !== null
+        : // A source that returns no total cannot rule the next page out.
+          paging.total === undefined ||
+          pageSize <= 0 ||
+          paging.index * pageSize < paging.total;
 
   return {
     columns: view?.columns ?? [],
+    card,
     rows,
     paging,
     summaries: data?.kind === 'record' ? data.summaries : null,
@@ -190,7 +254,7 @@ export function useRecordTable(
       },
       [editAndApply, runtime],
     ),
-    pageSize: state?.draft.pageSize ?? 0,
+    pageSize,
     setPageSize: useCallback(
       (pageSize: number) => editAndApply({ pageSize }),
       [editAndApply],
@@ -210,17 +274,17 @@ export function useRecordTable(
       },
       [runtime, paging],
     ),
+    hasNext,
     next: useCallback(() => {
-      if (!runtime || !paging) return;
-      // Which move "next" is depends on the protocol the definition declared,
-      // and a cursor source that returned none has no next page to ask for.
+      if (!runtime || !paging || !hasNext) return;
+      // Which move "next" is depends on the protocol the definition declared;
+      // past the last page there is nothing to ask either source for.
       if (paging.mode === 'cursor') {
-        if (paging.nextCursor !== null)
-          runtime.page({ cursor: paging.nextCursor });
+        runtime.page({ cursor: paging.nextCursor });
         return;
       }
       runtime.page({ index: paging.index + 1 });
-    }, [runtime, paging]),
+    }, [runtime, paging, hasNext]),
     previous: useCallback(() => {
       if (!runtime || paging?.mode !== 'paged' || paging.index <= 1) return;
       runtime.page({ index: paging.index - 1 });

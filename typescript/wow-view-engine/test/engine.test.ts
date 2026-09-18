@@ -264,6 +264,43 @@ describe('ViewEngine opening', () => {
       'runtime.kind.not-declared',
     );
   });
+
+  it('keeps no runtime for a dashboard that failed to open', async () => {
+    const store = new MemoryViewStore({
+      instances: [
+        mine,
+        {
+          ...mine,
+          id: 'overview-1',
+          definitionId: 'overview',
+          config: {
+            ...emptyDashboardConfig(),
+            panels: [
+              {
+                id: 'orders',
+                kind: 'view',
+                instanceId: 'orders-1',
+                bindings: [],
+                layout: { x: 0, y: 0, w: 6, h: 4 },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition(), overviewDefinition()],
+      store,
+      resolveSource: key => {
+        throw new Error(`no source: ${key}`);
+      },
+      environment: testEnvironment().environment,
+    });
+
+    await expect(engine.open('overview-1')).rejects.toThrow('no source');
+    // The caller never received it, so nobody could close it.
+    expect(engine.openRuntimes()).toEqual([]);
+  });
 });
 
 describe('ViewEngine creating and saving', () => {
@@ -713,6 +750,45 @@ describe('ViewEngine write outcomes', () => {
     expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(50);
     expect(runtime.getSnapshot().write).toBeNull();
     expect(engine.pendingWrites().size).toBe(0);
+  });
+
+  it('keeps the draft when a rename conflict is reloaded', async () => {
+    const { engine, store } = harness();
+    const runtime = await engine.open('orders-1');
+    runtime.edit({ pageSize: 99 });
+    const remote = { ...mine, revision: '9', title: 'Theirs' };
+    vi.spyOn(store, 'rename').mockRejectedValueOnce(
+      new ViewStoreError('CONFLICT', 'moved', remote),
+    );
+    await failedWrite(engine.rename('orders-1', 'Mine again'));
+
+    await engine.resolveConflict(runtime, 'reload');
+
+    // A rename carries no config, so reloading one takes the new title and
+    // revision and leaves the editing the user has not saved yet alone.
+    expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(99);
+    expect(runtime.getSnapshot().saved).toMatchObject({
+      title: 'Theirs',
+      revision: '9',
+    });
+    expect(runtime.getSnapshot().dirty).toBe(true);
+  });
+
+  it('refreshes the summary on a delete conflict, so confirming again works', async () => {
+    const { engine, store } = harness();
+    await engine.list('orders');
+    // Someone else saved the view between the list and the delete.
+    await store.save('orders-1', recordConfig({ pageSize: 50 }), '1', {
+      requestId: 'other',
+    });
+
+    const failure = await failedWrite(engine.delete('orders-1'));
+
+    expect(failure.state).toMatchObject({ kind: 'conflict' });
+    // The second confirmation goes against the revision the store now holds,
+    // without another list.
+    await expect(engine.delete('orders-1')).resolves.toBeUndefined();
+    await expect(store.list('orders')).resolves.toEqual([]);
   });
 
   it('overwrites by replaying the original intent at the reported revision', async () => {

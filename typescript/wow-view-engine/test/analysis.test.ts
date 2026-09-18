@@ -12,6 +12,7 @@
  */
 
 import {
+  AGGREGATION_LIMITS,
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
@@ -277,6 +278,87 @@ describe('validateAnalysis', () => {
         },
       }),
     ).toEqual(['analysis.alias.reserved']);
+  });
+
+  it('refuses an alias Wow would not take as a field name', () => {
+    // `aggregationAlias` runs the alias through the same admission a field
+    // path gets, so a space or a leading digit is a `TypeError` at the
+    // factory rather than an issue on the config.
+    expect(
+      check({
+        groups: [{ type: 'TERMS', field: 'warehouse', alias: '2024 wh' }],
+        chart: {
+          type: 'bar',
+          cartesian: { x: '2024 wh', series: [{ metric: 'orders' }] },
+        },
+      }),
+    ).toEqual(['analysis.alias.invalid']);
+  });
+
+  it('refuses the same alias sorted twice', () => {
+    expect(
+      check({
+        sort: [
+          { alias: 'orders', direction: 'DESC' },
+          { alias: 'orders', direction: 'ASC' },
+        ],
+      }),
+    ).toEqual(['analysis.sort.duplicate']);
+  });
+
+  it('refuses a gap-filling date grouping next to another grouping', () => {
+    const dense = {
+      type: 'DATE_HISTOGRAM',
+      field: 'createdAt',
+      alias: 'month',
+      unit: AggregationDateUnit.MONTH,
+      dense: true,
+    } as const;
+    expect(
+      check({
+        groups: [dense],
+        chart: {
+          type: 'bar',
+          cartesian: { x: 'month', series: [{ metric: 'orders' }] },
+        },
+      }),
+    ).toEqual([]);
+    expect(
+      check({
+        groups: [{ type: 'TERMS', field: 'warehouse', alias: 'wh' }, dense],
+        chart: {
+          type: 'heatmap',
+          heatmap: { x: 'month', y: 'wh', value: 'orders' },
+        },
+      }),
+    ).toEqual(['analysis.group.dense-not-alone']);
+  });
+
+  it('applies Wow own maximums when the capability declares no limits', () => {
+    const metrics: [AnalysisMetric, ...AnalysisMetric[]] = Array.from(
+      { length: AGGREGATION_LIMITS.MAX_METRICS + 1 },
+      (_, index) => ({ type: 'COUNT', alias: `m${index}` }),
+    ) as [AnalysisMetric, ...AnalysisMetric[]];
+    const sort = metrics
+      .slice(0, AGGREGATION_LIMITS.MAX_SORT_FIELDS + 1)
+      .map(metric => ({ alias: metric.alias, direction: 'DESC' as const }));
+    const issues = validateAnalysis(
+      definition(),
+      config({
+        metrics,
+        sort,
+        chart: {
+          type: 'bar',
+          cartesian: { x: 'wh', series: [{ metric: 'm0' }] },
+        },
+      }),
+      builtinFieldKinds,
+    );
+    expect(codes(issues)).toEqual([
+      'analysis.metrics.too-many',
+      'analysis.sort.too-many',
+    ]);
+    expect(issues[0].params?.max).toBe(AGGREGATION_LIMITS.MAX_METRICS);
   });
 
   it('checks each group against the field capability', () => {
@@ -1269,6 +1351,85 @@ describe('projectAnalysis', () => {
     expect(view.columns[1]).toMatchObject({
       label: 'Amount',
       numberFormat: { style: 'currency', currency: 'CNY' },
+    });
+  });
+
+  it('refuses a definition without the analysis capability', () => {
+    expect(() =>
+      projectAnalysis(
+        definition({ analysis: undefined }),
+        config({ layout: 'table' }),
+        rows,
+      ),
+    ).toThrow(/no analysis capability/);
+  });
+
+  it('labels every metric that reads a field, and element fields too', () => {
+    // Only NUMERIC used to be looked up, and only among the root fields, so a
+    // p95 read as `p95` and a grouping of `items.sku` read as its alias.
+    const withElements = definition({
+      fields: [
+        ...definition().fields,
+        {
+          name: 'items',
+          label: 'Items',
+          kind: 'array',
+          elements: [{ name: 'sku', label: 'SKU', kind: 'string' }],
+        },
+      ],
+      analysis: {
+        ...capability,
+        elements: [
+          {
+            path: 'items',
+            aggregations: [
+              {
+                field: 'sku',
+                groups: [AggregationGroupType.TERMS],
+                functions: [],
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const view = projectAnalysis(
+      withElements,
+      config({
+        layout: 'table',
+        elements: [{ path: 'items' }],
+        groups: [{ type: 'TERMS', field: 'items.sku', alias: 'sku' }],
+        metrics: [
+          {
+            type: 'PERCENTILE',
+            alias: 'p95',
+            expression: { type: 'FIELD', field: 'amount' },
+            percentile: 95,
+          },
+          {
+            type: 'DISTINCT_COUNT',
+            alias: 'buyers',
+            expression: { type: 'FIELD', field: 'amount' },
+          },
+          { type: 'ANY', alias: 'sample', field: 'amount' },
+        ],
+        sort: [],
+        chart: {
+          type: 'bar',
+          cartesian: { x: 'sku', series: [{ metric: 'p95' }] },
+        },
+      }),
+      [],
+    );
+    expect(view.columns.map(column => column.label)).toEqual([
+      'SKU',
+      'Amount',
+      'Amount',
+      'Amount',
+    ]);
+    expect(view.columns[1].numberFormat).toEqual({
+      style: 'currency',
+      currency: 'CNY',
     });
   });
 });

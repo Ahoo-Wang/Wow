@@ -20,11 +20,12 @@ import {
   type FieldSort,
   type FilterPagedQuery,
 } from '@ahoo-wang/fetcher-wow';
-import type {
-  DataViewDefinition,
-  RecordPageTarget,
-  RecordViewConfig,
-  SummaryFunction,
+import {
+  fieldAliasSegment,
+  type DataViewDefinition,
+  type RecordPageTarget,
+  type RecordViewConfig,
+  type SummaryFunction,
 } from '../model/index.js';
 import {
   compileFilter,
@@ -60,6 +61,11 @@ export function compileRecord(
   context: FilterCompileContext,
   page: RecordPageTarget,
 ): FilterPagedQuery | CursorQuery {
+  const capability = definition.record;
+  if (!capability)
+    throw new Error(
+      `Definition ${definition.id} declares no record capability`,
+    );
   const compiled = compileFilter(
     definition.fields,
     config.filter,
@@ -68,7 +74,15 @@ export function compileRecord(
   );
   const sort = compileSort(config);
 
-  if ('cursor' in page) {
+  // The mode decides, and the target must agree with it. Reading the mode off
+  // the target instead would let a cursor target quietly turn a paged source
+  // into a cursor query, which is a programming error rather than something a
+  // config can say — `RecordPageTarget` is typed by the declared mode.
+  if (capability.paging === 'cursor') {
+    if (!('cursor' in page))
+      throw new Error(
+        `Definition ${definition.id} pages by cursor, but the page target names an index`,
+      );
     return {
       filter: compiled,
       sort,
@@ -76,6 +90,10 @@ export function compileRecord(
       cursor: page.cursor,
     };
   }
+  if (!('index' in page))
+    throw new Error(
+      `Definition ${definition.id} pages by index, but the page target names a cursor`,
+    );
   return {
     filter: compiled,
     sort,
@@ -96,7 +114,7 @@ const SUMMARY_METRIC: Readonly<
 /** Alias of one summary cell; the projection reads the result back by it. */
 export function summaryAlias(field: string, fn: SummaryFunction): string {
   // Aliases are single-segment in Wow, so a field path becomes one token.
-  return `${field.replace(/\./g, '_')}_${fn.toLowerCase()}`;
+  return `${fieldAliasSegment(field)}_${fn.toLowerCase()}`;
 }
 
 /**

@@ -14,6 +14,7 @@
 import { AggregationGroupType } from '@ahoo-wang/fetcher-wow';
 import {
   DEFAULT_RUNTIME_LIMITS,
+  fieldAliasSegment,
   type AggregationFieldCapability,
   type AnalysisGroup,
   type AnalysisMetric,
@@ -28,7 +29,7 @@ const DEFAULT_PERCENTILE = 95;
 
 /** Alias derived from a field path, kept to the single segment Wow allows. */
 export function aliasOf(field: string, suffix: string): string {
-  return `${field.replace(/\./g, '_')}_${suffix}`;
+  return `${fieldAliasSegment(field)}_${suffix}`;
 }
 
 /**

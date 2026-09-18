@@ -56,9 +56,17 @@ function recoveredOf(
 
 export interface SaveAbilities {
   save: boolean;
+  /** True when a copy may be made in at least one scope. */
   saveAs: boolean;
   rename: boolean;
   delete: boolean;
+  /**
+   * Which scope a copy may be made in. A dialog that offers a scope the user
+   * cannot create in only lets them press Save to be refused, so it offers
+   * these and defaults to the first of them.
+   */
+  createPersonal: boolean;
+  createShared: boolean;
 }
 
 export interface SaveCommandState {
@@ -153,6 +161,10 @@ export function useSaveCommands(
       ? permissions?.createShared
       : permissions?.createPersonal;
   const system = state?.scope === 'system';
+  // A copy is a create, so it needs the create permission of the scope it is
+  // headed for — not of the scope the open view happens to sit in.
+  const createPersonal = state !== null && permissions?.createPersonal === true;
+  const createShared = state !== null && permissions?.createShared === true;
 
   const save = useCallback(
     () =>
@@ -249,11 +261,11 @@ export function useSaveCommands(
       // An unsaved view needs the create permission for its own scope; a saved
       // one needs the permission that belongs to the instance.
       save: !system && (state?.saved ? instance?.save : creating) === true,
-      saveAs:
-        state !== null &&
-        (permissions?.createPersonal || permissions?.createShared) === true,
+      saveAs: createPersonal || createShared,
       rename: !system && instance?.rename === true,
       delete: !system && instance?.delete === true,
+      createPersonal,
+      createShared,
     },
     state: {
       pending: own.pending,

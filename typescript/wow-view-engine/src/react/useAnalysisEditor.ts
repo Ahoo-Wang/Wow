@@ -25,7 +25,6 @@ import type {
   FieldDefinition,
   Issue,
 } from '../model/index.js';
-import { CHART_FAMILY } from '../model/index.js';
 import { analysisScope, type AnalysisScope } from '../analysis/index.js';
 import type { ViewRuntime } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
@@ -234,15 +233,10 @@ export function useAnalysisEditor(
     ),
     setChartType: useCallback(
       (type: ChartType) =>
-        change(current => ({
-          // Each family keeps its own sub-object, so switching type and back
-          // returns to the settings that family had.
-          chart: {
-            ...current.chart,
-            type,
-            [CHART_FAMILY[type]]: current.chart[CHART_FAMILY[type]],
-          },
-        })),
+        // Every family's sub-object is carried over, so switching type and
+        // back returns to the settings that family had. The spread does all
+        // of it; naming the new family's key copied it onto itself.
+        change(current => ({ chart: { ...current.chart, type } })),
       [change],
     ),
     updateChart: useCallback(

@@ -480,7 +480,13 @@ describe('RecordWorkbench interaction', () => {
   });
 
   it('sorts by a column and pages forward', async () => {
-    const { source } = await open();
+    // A total larger than one page: the toolbar disables Next at the end of
+    // the result, so paging forward needs somewhere to go.
+    const { source } = await open(
+      testSource({
+        paged: vi.fn(() => Promise.resolve({ total: 50, list: [...ROWS] })),
+      }),
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /Amount/ }));
     await waitFor(() => {
@@ -501,6 +507,22 @@ describe('RecordWorkbench interaction', () => {
       const calls = vi.mocked(source.paged).mock.calls;
       expect(calls[calls.length - 1][0].pagination).toMatchObject({ index: 1 });
     });
+  });
+
+  /**
+   * Next used to be live on every paged result, so the page after the last
+   * one was an ordinary click away — and what came back was an empty table
+   * with no way to tell it from a filter that matched nothing.
+   */
+  it('stops Next at the last page', async () => {
+    const { source } = await open();
+    const before = vi.mocked(source.paged).mock.calls.length;
+
+    const next = screen.getByRole('button', { name: 'Next page' });
+    expect(next.hasAttribute('disabled')).toBe(true);
+
+    fireEvent.click(next);
+    expect(vi.mocked(source.paged).mock.calls).toHaveLength(before);
   });
 
   it('hides a column from the picker', async () => {
@@ -761,6 +783,54 @@ describe('save actions', () => {
     });
     await user.click(within(dialog).getByLabelText('Who can see it'));
     await user.click(await screen.findByRole('option', { name: 'Everyone' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    await waitFor(async () =>
+      expect(
+        (await store.list('orders')).find(item => item.title === 'Ours')?.scope,
+      ).toBe('shared'),
+    );
+  });
+
+  /**
+   * Save as defaulted to "Only me" whatever the store allowed, so a user who
+   * may only publish shared views pressed Save and was refused by the engine
+   * for a scope the dialog had picked on their behalf.
+   */
+  it('offers only the audience the user may create in', async () => {
+    const store = new MemoryViewStore({
+      instances: [mine],
+      permissions: () => ({
+        createPersonal: false,
+        createShared: true,
+        reorder: true,
+        setDefault: true,
+        instance: () => ({ save: true, rename: true, delete: true }),
+      }),
+    });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Title'), {
+      target: { value: 'Ours' },
+    });
+    expect(
+      within(dialog).getByLabelText('Who can see it').textContent,
+    ).toContain('Everyone');
+
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     await waitFor(async () =>
@@ -1095,6 +1165,74 @@ describe('FilterValueEditor', () => {
     expect(changes).toEqual([false]);
   });
 
+  /**
+   * A row the user has only just added read as "is False" — a condition
+   * already narrowing the list — and picking the False it appeared to hold
+   * changed nothing, so the value it showed could not even be confirmed.
+   */
+  it('shows no choice for a blank boolean, and fires on the first pick', async () => {
+    const user = userEvent.setup();
+    const { changes } = editor({ input: 'boolean' }, null);
+
+    const trigger = screen.getByLabelText('amount');
+    expect(trigger.textContent).not.toContain('False');
+
+    await user.click(trigger);
+    await user.click(await screen.findByRole('option', { name: 'False' }));
+
+    expect(changes).toEqual([false]);
+  });
+
+  /**
+   * `Number('')` is 0, so emptying a number field used to ask for "equals
+   * zero", and a half-typed one for `NaN`, which no kind admits.
+   */
+  it('leaves an emptied number blank rather than asking for zero', () => {
+    const { changes } = editor({ input: 'number' }, 3);
+    const input = screen.getByLabelText('amount') as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: '1e' } });
+    fireEvent.change(input, { target: { value: '' } });
+
+    expect(last(changes)).toBeNull();
+    expect(input.value).toBe('');
+    expect(
+      changes.some(value => typeof value === 'number' && Number.isNaN(value)),
+    ).toBe(false);
+  });
+
+  it('blanks a range once both of its ends are emptied', () => {
+    const { changes } = editor({ input: 'number', range: true }, [1, 2]);
+
+    fireEvent.change(screen.getByLabelText('amount from'), {
+      target: { value: '' },
+    });
+    expect(last(changes)).toEqual([null, 2]);
+
+    fireEvent.change(screen.getByLabelText('amount to'), {
+      target: { value: '' },
+    });
+    expect(last(changes)).toBeNull();
+  });
+
+  it('keeps a relative window blank rather than asking for zero units', () => {
+    const { changes } = editor({ input: 'relativeDate' }, {
+      type: 'relative',
+      amount: 7,
+      unit: 'day',
+    } as unknown as FilterValue);
+    const amount = screen.getByLabelText('amount amount') as HTMLInputElement;
+
+    fireEvent.change(amount, { target: { value: '' } });
+
+    expect(last(changes)).toBeNull();
+    // Blank, and still the row the user was writing rather than a calendar.
+    expect(amount.value).toBe('');
+    expect(screen.getByLabelText('amount kind').textContent).toContain(
+      'Relative',
+    );
+  });
+
   it('offers the options a kind declared', async () => {
     const { changes } = editor(
       {
@@ -1320,6 +1458,10 @@ function tableController(
       { key: 'o-1', data: { amount: 10, warehouse: 'CN' } },
       { key: 'o-2', data: { amount: null, warehouse: true } },
     ],
+    card: {
+      title: 'warehouse',
+      fields: [{ field: 'amount', label: 'Amount' }],
+    },
     paging: { mode: 'paged', index: 1, total: 2 },
     summaries: null,
     status: 'success',
@@ -1340,6 +1482,7 @@ function tableController(
     toggleAll: () => {},
     clearSelection: () => {},
     goTo: () => {},
+    hasNext: true,
     next: () => {},
     previous: () => {},
     refresh: () => {},
@@ -1372,9 +1515,9 @@ describe('RecordCards on its own', () => {
     render(
       <RecordCards
         table={tableController({
+          card: { title: 'customer.name', fields: [] },
           rows: [{ key: 'o-1', data: { customer: { name: 'Acme' } } }],
         })}
-        title="customer.name"
       />,
     );
     expect(screen.getByText('Acme')).toBeDefined();
@@ -1451,8 +1594,8 @@ describe('RecordTable on its own', () => {
 });
 
 describe('RecordCards on its own', () => {
-  it('titles a card by the field it was told to use', () => {
-    render(<RecordCards table={tableController()} title="warehouse" />);
+  it('titles a card by the field the card spec names', () => {
+    render(<RecordCards table={tableController()} />);
 
     const [first, second] = screen.getAllByText(
       (_text, element) =>
@@ -1464,8 +1607,46 @@ describe('RecordCards on its own', () => {
   });
 
   it('falls back to the row key without a title field', () => {
-    render(<RecordCards table={tableController()} />);
+    render(
+      <RecordCards
+        table={tableController({ card: { title: '', fields: [] } })}
+      />,
+    );
     expect(screen.getByText('o-1')).toBeDefined();
+  });
+
+  /**
+   * A card is not the table narrowed. Rendering `table.columns` showed the
+   * column list under a title nobody configured, so every card setting a user
+   * saved — which field titles it, what its body holds, its picture — was
+   * stored, validated and then ignored.
+   */
+  it('shows the body fields and the image of the saved card', () => {
+    const { container } = render(
+      <RecordCards
+        table={tableController({
+          card: {
+            title: 'warehouse',
+            fields: [{ field: 'amount', label: 'Total' }],
+            image: 'photo',
+            columns: 2,
+          },
+          rows: [
+            { key: 'o-1', data: { warehouse: 'CN', amount: 10, photo: '/a' } },
+          ],
+        })}
+      />,
+    );
+
+    // The card's own label, not the column's, and none of the other columns.
+    expect(screen.getByText('Total')).toBeDefined();
+    expect(screen.queryByText('Warehouse')).toBeNull();
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('/a');
+    expect(
+      container
+        .querySelector('[data-slot="record-cards"]')
+        ?.className.includes('sm:grid-cols-2'),
+    ).toBe(true);
   });
 });
 
@@ -2203,6 +2384,42 @@ describe('EmbeddedView', () => {
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);
 
     await waitFor(() => expect(screen.getByText(/query failed/i)).toBeTruthy());
+  });
+
+  /**
+   * A refused narrowing leaves the previous one running. The hook dropped the
+   * issues `setScopeFilter` returns, so the embed went on showing a result
+   * for a condition the page had already replaced.
+   */
+  it('says so when a narrowing it is given later is refused', async () => {
+    const { engine, source } = setup();
+    const scope: FilterTree = {
+      op: 'and',
+      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+    };
+    const { rerender } = render(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        scopeFilter={scope}
+      />,
+    );
+    await waitFor(() =>
+      expect(vi.mocked(source.paged).mock.calls.length).toBeGreaterThan(0),
+    );
+
+    rerender(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        scopeFilter={{
+          op: 'and',
+          children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+        }}
+      />,
+    );
+
+    expect(await screen.findByText(/could not narrow/i)).toBeTruthy();
   });
 
   it('reports a view it cannot open', async () => {
