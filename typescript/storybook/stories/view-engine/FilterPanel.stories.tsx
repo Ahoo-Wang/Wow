@@ -1,0 +1,160 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import type {
+  DataViewDefinition,
+  FilterTree,
+  ViewInstance,
+} from '@ahoo-wang/fetcher-view-engine';
+import { RecordWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import { ScenarioFrame } from '../shared/ScenarioFrame.js';
+import {
+  createStoryEngine,
+  ordersDefinition,
+  recordConfig,
+  savedViews,
+} from './fixtures.js';
+import { StoryEngine, viewEngineScene } from './StoryEngine.js';
+import '@ahoo-wang/fetcher-view-engine/styles.css';
+
+/**
+ * The orders definition with an array field whose entries can be matched,
+ * so the editor has every shape of condition to show: a plain one, a group,
+ * and one that holds a tree.
+ */
+const withItems: DataViewDefinition = {
+  ...ordersDefinition,
+  fields: [
+    ...ordersDefinition.fields,
+    {
+      name: 'items',
+      label: '商品行',
+      kind: 'elementMatch',
+      elements: [
+        { name: 'sku', label: 'SKU', kind: 'string' },
+        { name: 'qty', label: '数量', kind: 'number' },
+      ],
+    },
+  ],
+};
+
+const RICH: FilterTree = {
+  op: 'and',
+  children: [
+    { field: 'warehouse', operator: 'IN', value: ['CN-EAST'] },
+    { field: 'status', operator: 'IN', value: ['PENDING', 'SHIPPED'] },
+    { field: 'amount', operator: 'BETWEEN', value: [100, 5000] },
+    {
+      field: 'createdAt',
+      operator: 'BETWEEN',
+      value: { type: 'preset', preset: 'thisMonth' },
+    },
+    // A field chosen and nothing said yet: blank, not wrong.
+    { field: 'id', operator: 'EQ', value: '' },
+    {
+      op: 'or',
+      children: [
+        { field: 'warehouse', operator: 'IN', value: ['CN-NORTH'] },
+        { field: 'amount', operator: 'GT', value: 20000 },
+      ],
+    },
+    {
+      field: 'items',
+      operator: 'ELEMENT_MATCH',
+      value: {
+        op: 'and',
+        children: [
+          { field: 'items.sku', operator: 'EQ', value: 'A-1' },
+          { field: 'items.qty', operator: 'GT', value: 2 },
+        ],
+      },
+    },
+  ],
+};
+
+const richView: ViewInstance = {
+  ...savedViews[0],
+  id: 'orders-rich',
+  title: '条件齐全的视图',
+  config: recordConfig({ filterMode: 'advanced', filter: RICH }),
+};
+
+const simpleView: ViewInstance = {
+  ...savedViews[0],
+  id: 'orders-simple',
+  title: '简单条件',
+  config: recordConfig({
+    filter: {
+      op: 'and',
+      children: [
+        { field: 'status', operator: 'IN', value: ['PENDING'] },
+        { field: 'amount', operator: 'GTE', value: 100 },
+      ],
+    },
+  }),
+};
+
+function FilterPanelDemo({ instanceId }: { instanceId: string }) {
+  return (
+    <StoryEngine
+      create={() =>
+        createStoryEngine({
+          definitions: [withItems],
+          instances: [richView, simpleView],
+        })
+      }
+    >
+      {engine => (
+        <RecordWorkbench
+          engine={engine}
+          definitionId="orders"
+          instanceId={instanceId}
+        />
+      )}
+    </StoryEngine>
+  );
+}
+
+const scene = {
+  ...viewEngineScene,
+  domain: '筛选编辑器',
+  summary: '分组是块，条件是内联的 pill；持有谓词的条件和分组一样是块。',
+  fixture: '内存 ViewStore · 带商品行数组字段的订单定义',
+  setup: '每次挂载都新建引擎与存储。',
+  observe:
+    '同一分组内每个字段只出现一次，添加条件的菜单只列出尚未使用的字段；未填写的条件是虚线，出错的条件标红。',
+};
+
+const meta = {
+  decorators: [
+    (Story, context) => (
+      <ScenarioFrame title={context.name} {...scene}>
+        <Story />
+      </ScenarioFrame>
+    ),
+  ],
+  title: 'View Engine/数据视图/筛选编辑器',
+  component: FilterPanelDemo,
+  args: { instanceId: 'orders-rich' },
+  argTypes: { instanceId: { table: { disable: true } } },
+} satisfies Meta<typeof FilterPanelDemo>;
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+/** Every shape of condition at once: pills, a nested group, an element match. */
+export const Advanced: Story = { args: { instanceId: 'orders-rich' } };
+
+/** Simple mode: the root's conditions as one strip, nothing else. */
+export const Simple: Story = { args: { instanceId: 'orders-simple' } };

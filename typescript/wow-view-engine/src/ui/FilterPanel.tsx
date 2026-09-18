@@ -21,7 +21,14 @@ import type {
   Issue,
   IssuePath,
 } from '../model/index.js';
-import { elementFields, writeValue, type FilterPath } from '../filter/index.js';
+import {
+  elementFields,
+  isBlankLeafValue,
+  isFilterGroup,
+  isFilterNode,
+  writeValue,
+  type FilterPath,
+} from '../filter/index.js';
 import {
   treeController,
   type FilterEditorController,
@@ -36,7 +43,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './components/dropdown-menu.js';
-import { Field, FieldGroup, FieldLabel } from './components/field.js';
 import {
   Select,
   SelectContent,
@@ -57,11 +63,15 @@ export interface FilterPanelProps {
 }
 
 /**
- * The condition builder: one row per leaf, a field, an operator and whatever
- * value editor the kind implies. Simple mode shows the root's leaves flat;
+ * The condition builder. A group is a framed block: its operator, its
+ * conditions and room to add. A condition is a compact inline pill — field,
+ * operator, value editor — and a group's conditions wrap in one strip, so a
+ * filter of five conditions reads in a line rather than five rows. A
+ * condition that holds a tree (an element match) is a block like a group,
+ * since it is one. Simple mode shows the root's conditions as one strip;
  * anything the simple editor cannot show faithfully — a group anywhere — gets
- * the advanced one, where groups are framed blocks that can be flipped
- * between and/or, nested, filled and removed.
+ * the advanced one, where groups can be flipped between and/or, nested,
+ * filled and removed.
  *
  * Nothing is applied until submit, which is the whole point of keeping a
  * draft apart from what ran: typing in here never re-queries.
@@ -151,8 +161,38 @@ export function FilterPanel({
         {filter.applied.length > 0 && (
           <div className="flex flex-wrap items-center gap-1">
             {filter.applied.map(item => (
-              <Badge key={item.path.join('.')} variant="secondary">
+              // A group reads out as one badge, its conditions joined by its
+              // own operator, so the bar keeps the logic the tree has. Its
+              // remove takes the condition out of force — the value goes
+              // back to "nothing said yet" and the query runs again — while
+              // the field stays in the editor for the next question.
+              <Badge
+                key={item.path.join('.')}
+                variant={item.group ? 'outline' : 'secondary'}
+                // A group's read-out can be long; it wraps inside the bar
+                // rather than carrying the bar off the edge of the view.
+                className="h-auto max-w-full whitespace-normal text-left"
+              >
                 {item.text}
+                <button
+                  type="button"
+                  aria-label={messages.label('label.filter.unset-of', {
+                    condition: item.text,
+                  })}
+                  disabled={disabled}
+                  className="-mr-1 rounded-full opacity-60 hover:opacity-100 focus-visible:outline-1"
+                  onClick={() => {
+                    filter.clearValue(
+                      item.path.filter(
+                        (segment): segment is number =>
+                          typeof segment === 'number',
+                      ),
+                    );
+                    filter.submit();
+                  }}
+                >
+                  <XIcon />
+                </button>
               </Badge>
             ))}
           </div>
@@ -176,20 +216,13 @@ export function FilterPanel({
         />
       ) : (
         filter.count > 0 && (
-          <FieldGroup>
-            {filter.tree.children.map((node, index) =>
-              'children' in node ? null : (
-                <FilterLeafRow
-                  key={`${node.field}-${index}`}
-                  filter={filter}
-                  leaf={node}
-                  path={[index]}
-                  disabled={disabled}
-                  optionsFor={optionsFor}
-                />
-              ),
-            )}
-          </FieldGroup>
+          <ConditionStrip
+            filter={filter}
+            group={filter.tree}
+            path={[]}
+            disabled={disabled}
+            optionsFor={optionsFor}
+          />
         )
       )}
     </section>
@@ -272,28 +305,14 @@ function GroupBlock({
         )}
       </div>
 
-      {group.children.map((child, index) =>
-        'children' in child ? (
-          <GroupBlock
-            key={index}
-            filter={filter}
-            group={child}
-            path={[...path, index]}
-            disabled={disabled}
-            optionsFor={optionsFor}
-            scope={scope}
-          />
-        ) : (
-          <FilterLeafRow
-            key={`${child.field}-${index}`}
-            filter={filter}
-            leaf={child}
-            path={[...path, index]}
-            disabled={disabled}
-            optionsFor={optionsFor}
-          />
-        ),
-      )}
+      <ConditionStrip
+        filter={filter}
+        group={group}
+        path={path}
+        disabled={disabled}
+        optionsFor={optionsFor}
+        scope={scope}
+      />
 
       <div className="flex flex-wrap items-center gap-1">
         <AddCondition
@@ -315,6 +334,62 @@ function GroupBlock({
           {messages.label('label.filter.add-group')}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * A group's conditions in one strip: a grid of equal columns, as many as
+ * fit, so the pills line up and their fields, operators and values fall
+ * under one another. A nested group, and a condition that holds a tree,
+ * takes a whole line of its own, since it holds conditions of its own.
+ */
+function ConditionStrip({
+  filter,
+  group,
+  path,
+  disabled,
+  optionsFor,
+  scope,
+}: {
+  filter: FilterTreeController;
+  group: FilterGroup;
+  path: FilterPath;
+  disabled?: boolean;
+  optionsFor?: (remote: string) => FieldOption[] | undefined;
+  scope?: string;
+}) {
+  if (group.children.length === 0) return null;
+  return (
+    <div
+      data-slot="filter-conditions"
+      className="@container grid grid-cols-[repeat(auto-fill,minmax(20rem,1fr))] gap-1.5"
+    >
+      {group.children.map((child, index) =>
+        // The same reading of a node admission and the walk use: a leaf
+        // carrying a stray `children` of the wrong shape is still a leaf.
+        !isFilterNode(child) ? null : isFilterGroup(child) ? (
+          <div key={index} className="col-span-full">
+            <GroupBlock
+              filter={filter}
+              group={child}
+              path={[...path, index]}
+              disabled={disabled}
+              optionsFor={optionsFor}
+              scope={scope}
+            />
+          </div>
+        ) : (
+          <Condition
+            key={`${child.field}-${index}`}
+            filter={filter}
+            leaf={child}
+            path={[...path, index]}
+            disabled={disabled}
+            optionsFor={optionsFor}
+          />
+        ),
+      )}
     </div>
   );
 }
@@ -359,7 +434,14 @@ function AddCondition({
   );
 }
 
-function FilterLeafRow({
+/**
+ * One condition: a field, an operator and whatever value editor the kind
+ * implies, as one inline pill. Blank — a field chosen and nothing said yet —
+ * it is dashed; wrong, it is marked invalid. A condition that holds a tree
+ * is a block instead: its header is the same field and operator, its body
+ * the group it holds.
+ */
+function Condition({
   filter,
   leaf,
   path,
@@ -387,49 +469,87 @@ function FilterLeafRow({
     value: operator,
   }));
   const editor = filter.editorFor(path);
+  const kind = field && filter.kinds?.get(field.kind);
+  const blank =
+    field !== undefined &&
+    kind !== undefined &&
+    filter.kinds !== undefined &&
+    isBlankLeafValue(leaf.value, leaf.operator, field, kind, filter.kinds);
   // `validateFilter` addresses a node as ['children', 0, 'children', 1, …];
   // its numeric segments are exactly this leaf's path.
   const invalid = filter.issues.some(found =>
     samePath(numericPath(found.path), path),
   );
+  const holdsTree = editor?.input === 'predicate';
+  // Two inputs need two cells' room; below two columns there is only the one.
+  const wide =
+    editor?.range === true ||
+    editor?.input === 'date' ||
+    editor?.input === 'dateRange' ||
+    editor?.input === 'relativeDate';
 
-  return (
-    <Field
-      orientation="horizontal"
-      data-invalid={invalid || undefined}
-      className="items-center"
+  const operatorSelect = (
+    <Select
+      items={operators}
+      value={leaf.operator}
+      disabled={disabled}
+      onValueChange={value => {
+        if (typeof value === 'string')
+          filter.updateLeaf(path, { operator: value });
+      }}
     >
-      <FieldLabel className="min-w-28">{label}</FieldLabel>
-
-      <Select
-        items={operators}
-        value={leaf.operator}
-        disabled={disabled}
-        onValueChange={value => {
-          if (typeof value === 'string')
-            filter.updateLeaf(path, { operator: value });
-        }}
+      <SelectTrigger
+        aria-label={messages.label('label.filter.operator-of', {
+          field: label,
+        })}
+        size="sm"
+        className="h-7 w-full border-0 bg-transparent px-1 shadow-none"
       >
-        <SelectTrigger
-          aria-label={messages.label('label.filter.operator-of', {
-            field: label,
-          })}
-          size="sm"
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {operators.map(operator => (
-              <SelectItem key={operator.value} value={operator.value}>
-                {operator.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {operators.map(operator => (
+            <SelectItem key={operator.value} value={operator.value}>
+              {operator.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
 
-      {editor?.input === 'predicate' ? (
+  const remove = (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label={messages.label('label.filter.remove-of', { field: label })}
+      disabled={disabled}
+      onClick={() => filter.remove(path)}
+    >
+      <XIcon />
+    </Button>
+  );
+
+  if (holdsTree)
+    return (
+      <div
+        data-slot="filter-element"
+        role="group"
+        aria-label={messages.label('label.filter.condition-of', {
+          field: label,
+        })}
+        data-invalid={invalid || undefined}
+        data-blank={blank || undefined}
+        className="col-span-full flex flex-col gap-1 rounded-md border border-border p-2 data-[blank]:border-dashed data-[invalid]:border-destructive"
+      >
+        <div className="flex items-center gap-1">
+          <span className="shrink-0 text-sm font-medium whitespace-nowrap">
+            {label}
+          </span>
+          <div className="w-44 shrink-0">{operatorSelect}</div>
+          {remove}
+        </div>
         <NestedPredicate
           filter={filter}
           leaf={leaf}
@@ -437,8 +557,27 @@ function FilterLeafRow({
           disabled={disabled}
           optionsFor={optionsFor}
         />
-      ) : (
-        editor && (
+      </div>
+    );
+
+  return (
+    <div
+      data-slot="filter-condition"
+      role="group"
+      aria-label={messages.label('label.filter.condition-of', {
+        field: label,
+      })}
+      data-invalid={invalid || undefined}
+      data-blank={blank || undefined}
+      data-wide={wide || undefined}
+      className="flex min-w-0 items-center gap-1 rounded-md border border-border bg-muted/40 py-0.5 pr-0.5 pl-2 text-sm data-[blank]:border-dashed data-[invalid]:border-destructive @[40rem]:data-[wide]:col-span-2"
+    >
+      <span className="w-16 shrink-0 truncate font-medium" title={label}>
+        {label}
+      </span>
+      <div className="w-24 shrink-0">{operatorSelect}</div>
+      <div className="min-w-0 flex-1">
+        {editor && (
           <FilterValueEditor
             editor={editor}
             value={leaf.value}
@@ -449,21 +588,10 @@ function FilterLeafRow({
             options={editor.remote ? optionsFor?.(editor.remote) : undefined}
             onChange={value => filter.updateLeaf(path, { value })}
           />
-        )
-      )}
-
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={messages.label('label.filter.remove-of', {
-          field: label,
-        })}
-        disabled={disabled}
-        onClick={() => filter.remove(path)}
-      >
-        <XIcon />
-      </Button>
-    </Field>
+        )}
+      </div>
+      {remove}
+    </div>
   );
 }
 
@@ -538,7 +666,7 @@ function NestedPredicate({
   });
 
   return (
-    <div className="border-muted min-w-0 flex-1 border-l-2 pl-2">
+    <div className="min-w-0">
       <GroupBlock
         filter={nested}
         group={nested.tree}

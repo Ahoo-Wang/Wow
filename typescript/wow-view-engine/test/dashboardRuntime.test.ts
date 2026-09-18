@@ -191,6 +191,31 @@ describe('DashboardViewRuntime panels', () => {
     expect(board.source.paged).not.toHaveBeenCalled();
   });
 
+  it('gives a panel exactly the tree admission judged, an "any of" root included', async () => {
+    const board = await harness();
+    const runtime = await board.open(
+      boundConfig({
+        filter: {
+          op: 'or',
+          children: [{ field: 'region', operator: 'EQ', value: 'CN' }],
+        },
+      }),
+    );
+
+    // The global filter reaches the panel as one nested group, with no
+    // wrapper in between: the same shape `validateDashboard` merged.
+    const child = runtime.getSnapshot().panels[0].runtime;
+    expect(child?.getSnapshot().result?.config.filter).toEqual({
+      op: 'and',
+      children: [
+        {
+          op: 'or',
+          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        },
+      ],
+    });
+  });
+
   it('maps the global filter onto the panel field', async () => {
     const board = await harness();
     await board.open();

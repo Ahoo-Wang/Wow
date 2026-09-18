@@ -214,6 +214,11 @@ export function useFilterEditor(
       (parent: FilterPath = ROOT) => addableFields(tree, fields, parent),
       [tree, fields],
     ),
+    clearValue: useCallback(
+      (path: FilterPath) =>
+        change(current => blankAt(current, path, byName, kinds)),
+      [change, byName, kinds],
+    ),
     updateLeaf,
     addGroup,
     updateGroup,
@@ -314,6 +319,14 @@ export interface FilterTreeController {
    * field. The picker lists these rather than `fields`.
    */
   fieldsFor(parent?: FilterPath): FieldDefinition[];
+  /**
+   * Sets a condition back to "nothing said yet": its value becomes the
+   * kind's empty value for its operator, so the row stays and the condition
+   * leaves the query. On a group, every condition in it. This is what the
+   * applied summary's remove does — it takes a condition out of force without
+   * taking the field away from the editor.
+   */
+  clearValue(path: FilterPath): void;
   updateLeaf(path: FilterPath, patch: Partial<FilterLeaf>): void;
   addGroup(op: FilterGroupOperator, parent?: FilterPath): void;
   updateGroup(path: FilterPath, op: FilterGroupOperator): void;
@@ -329,6 +342,30 @@ export interface TreeControllerInput {
   /** Issues already rebased onto this tree. */
   issues: Issue[];
   onChange(tree: FilterTree): void;
+}
+
+/** The tree with the node at `path` set to say nothing; see `clearValue`. */
+function blankAt(
+  tree: FilterTree,
+  path: FilterPath,
+  byName: ReadonlyMap<string, FieldDefinition>,
+  kinds: FieldKindRegistry | undefined,
+): FilterTree {
+  const blankLeaf = (leaf: FilterLeaf): FilterLeaf => {
+    const field = byName.get(leaf.field);
+    const kind = field && kinds?.get(field.kind);
+    if (!field || !kind) return leaf;
+    return {
+      ...leaf,
+      value: kind.emptyValue(leaf.operator, field) as FilterLeaf['value'],
+    };
+  };
+  const blankNode = (node: FilterNode): FilterNode =>
+    isFilterGroup(node)
+      ? { ...node, children: node.children.map(blankNode) }
+      : blankLeaf(node);
+  if (path.length === 0) return blankNode(tree) as FilterTree;
+  return updateAt(tree, path, blankNode);
 }
 
 /** The fields not yet a condition of the group at `parent`; see `fieldsFor`. */
@@ -366,6 +403,9 @@ export function treeController(
     issues,
     fieldsFor(parent = ROOT) {
       return addableFields(tree, fields, parent);
+    },
+    clearValue(path) {
+      change(current => blankAt(current, path, byName, kinds));
     },
     addLeaf(field, parent = ROOT) {
       const definition = byName.get(field);

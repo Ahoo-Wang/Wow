@@ -19,12 +19,11 @@ import {
 import {
   isFieldlessKind,
   type FieldDefinition,
-  type FilterGroupOperator,
   type FilterTree,
   type Issue,
 } from '../../model/index.js';
 import { compileFilter, type FilterCompileContext } from '../compile.js';
-import { describeFilter } from '../describe.js';
+import { describeFilter, groupJoinWord } from '../describe.js';
 import {
   issue,
   readValue,
@@ -181,7 +180,7 @@ export const elementMatchFieldKind: FieldKind = {
     // joining an `or` with "and" states the opposite of what is in force.
     return inner.length === 0
       ? `${field.label} has any entry`
-      : `${field.label} has an entry where ${inner.join(joinWord(value.op))}`;
+      : `${field.label} has an entry where ${inner.join(groupJoinWord(value.op))}`;
   },
 };
 
@@ -217,11 +216,6 @@ function rootFilters(
     );
   }
   return issues;
-}
-
-/** How a group's own operator reads between its conditions. */
-function joinWord(op: FilterGroupOperator): string {
-  return op === 'or' ? ' or ' : op === 'nor' ? ' nor ' : ' and ';
 }
 
 function isTree(value: unknown): value is FilterTree {

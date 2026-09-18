@@ -705,6 +705,30 @@ describe('useSaveCommands', () => {
 });
 
 describe('useFilterEditor', () => {
+  it('sets a condition, or a whole group, back to nothing said', async () => {
+    const { engine } = engineWith();
+    const runtime = await engine.open('orders-1');
+    const { result } = renderHook(() => useFilterEditor(runtime));
+    act(() => {
+      result.current.addLeaf('warehouse');
+      result.current.updateLeaf([0], { value: 'CN' });
+      result.current.addGroup('or');
+      result.current.addLeaf('status', [1]);
+      result.current.updateLeaf([1, 0], { value: 'open' });
+    });
+
+    act(() => result.current.clearValue([0]));
+    expect(result.current.tree.children[0]).toMatchObject({
+      field: 'warehouse',
+      value: '',
+    });
+    act(() => result.current.clearValue([1]));
+    expect(result.current.tree.children[1]).toMatchObject({
+      op: 'or',
+      children: [{ field: 'status', value: '' }],
+    });
+  });
+
   it('offers only the fields not yet a condition of the group', async () => {
     const { engine } = engineWith();
     const runtime = await engine.open('orders-1');

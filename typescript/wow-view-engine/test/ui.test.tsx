@@ -1768,6 +1768,89 @@ describe('FilterPanel tree editing', () => {
     expect(names).not.toContain('Warehouse');
   });
 
+  it('takes an applied condition out of force from its badge, keeping the field', async () => {
+    const { filter } = panel();
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().updateLeaf([0], { value: 'CN' });
+      filter().submit();
+    });
+    await waitFor(() =>
+      expect(screen.getByText('Warehouse EQ CN')).toBeDefined(),
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Unset Warehouse EQ CN' }),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByText('Warehouse EQ CN')).toBeNull(),
+    );
+    // The row is still there, blank, for the next question.
+    const pill = screen.getByRole('group', { name: 'Warehouse condition' });
+    expect(pill.hasAttribute('data-blank')).toBe(true);
+    expect(filter().applied).toEqual([]);
+  });
+
+  it('reads a stored leaf with a stray children property as a condition', () => {
+    const { filter } = panel();
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().updateLeaf([0], { children: null } as never);
+    });
+
+    // Admission and the walk read it as a leaf; so does the strip.
+    expect(
+      screen.getByRole('group', { name: 'Warehouse condition' }),
+    ).toBeDefined();
+    expect(
+      document.querySelectorAll('[data-slot="filter-group"]'),
+    ).toHaveLength(0);
+  });
+
+  it('lays a group conditions out in one strip, as pills', () => {
+    const { filter } = panel();
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().addLeaf('status');
+      filter().addLeaf('amount');
+    });
+
+    const strips = document.querySelectorAll('[data-slot="filter-conditions"]');
+    expect(strips).toHaveLength(1);
+    expect(
+      strips[0].querySelectorAll('[data-slot="filter-condition"]'),
+    ).toHaveLength(3);
+    expect(
+      screen.getByRole('group', { name: 'Warehouse condition' }),
+    ).toBeDefined();
+  });
+
+  it('marks a condition blank until it says something, and invalid when wrong', () => {
+    const { filter } = panel();
+    act(() => filter().addLeaf('amount'));
+    const pill = () => screen.getByRole('group', { name: 'Amount condition' });
+
+    expect(pill().hasAttribute('data-blank')).toBe(true);
+    act(() => filter().updateLeaf([0], { value: 10 }));
+    expect(pill().hasAttribute('data-blank')).toBe(false);
+    expect(pill().hasAttribute('data-invalid')).toBe(false);
+    act(() => filter().updateLeaf([0], { value: 'ten' as never }));
+    expect(pill().hasAttribute('data-invalid')).toBe(true);
+  });
+
+  it('renders a condition that holds a tree as a block, like a group', async () => {
+    const { filter } = panel(false, withItems());
+    act(() => filter().addLeaf('items'));
+
+    const block = await screen.findByRole('group', { name: 'Items condition' });
+    expect(block.getAttribute('data-slot')).toBe('filter-element');
+    // Nothing said inside it yet: blank, like a condition with no value.
+    expect(block.hasAttribute('data-blank')).toBe(true);
+    // Its own conditions strip sits inside it.
+    expect(block.querySelector('[data-slot="filter-group"]')).not.toBeNull();
+  });
+
   it('shows a tree whole, groups and their leaves included', () => {
     const { filter } = panel();
     act(() => {

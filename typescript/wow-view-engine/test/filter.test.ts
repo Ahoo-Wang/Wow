@@ -1020,6 +1020,72 @@ describe('describeFilter', () => {
     expect(items[0].path).toEqual(['children', 0]);
   });
 
+  it('reads a group out as one item joined by its own operator', () => {
+    const items = describeFilter(
+      fields,
+      {
+        op: 'and',
+        children: [
+          { field: 'id', operator: 'EQ', value: 'o-1' },
+          {
+            op: 'or',
+            children: [
+              { field: 'status', operator: 'IN', value: ['PENDING'] },
+              { field: 'amount', operator: 'BETWEEN', value: [1, 9] },
+              {
+                op: 'nor',
+                children: [{ field: 'paid', operator: 'EQ', value: true }],
+              },
+            ],
+          },
+        ],
+      },
+      builtinFieldKinds,
+    );
+
+    // Side by side reads as "all of"; the group keeps its own logic inside.
+    expect(items.map(item => item.text)).toEqual([
+      'Order EQ o-1',
+      'Status IN Pending or Amount 1 ~ 9 or (not Paid EQ true)',
+    ]);
+    expect(items[1]).toMatchObject({ group: 'or', path: ['children', 1] });
+  });
+
+  it('folds a root that is not "all of" into one item that says so', () => {
+    const items = describeFilter(
+      fields,
+      {
+        op: 'or',
+        children: [
+          { field: 'id', operator: 'EQ', value: 'o-1' },
+          { field: 'amount', operator: 'GT', value: 9 },
+        ],
+      },
+      builtinFieldKinds,
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ group: 'or', path: [] });
+    expect(items[0].text).toBe('Order EQ o-1 or Amount GT 9');
+  });
+
+  it('keeps the negation of a "none of" root even over one condition', () => {
+    const items = describeFilter(
+      fields,
+      {
+        op: 'nor',
+        children: [
+          { field: 'paid', operator: 'EQ', value: true },
+          // Blank, so left out; the root still negates what remains.
+          { field: 'amount', operator: 'GT', value: null as never },
+        ],
+      },
+      builtinFieldKinds,
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ group: 'nor', path: [] });
+    expect(items[0].text).toBe('not Paid EQ true');
+  });
+
   it('marks a condition whose field disappeared instead of hiding it', () => {
     const items = describeFilter(
       fields,
@@ -1205,6 +1271,20 @@ describe('tree editing', () => {
       { op: 'or', children: [leaf('id', 'b')] },
     ]);
     expect(mergeFilters()).toEqual(emptyFilter());
+  });
+
+  it('hands the base back as it stands when there is nothing to merge', () => {
+    // No wrapper an admission never saw: an `or` root stays an `or` root.
+    const any: FilterTree = {
+      op: 'or',
+      children: [
+        { field: 'id', operator: 'EQ', value: 'a' },
+        { field: 'amount', operator: 'GT', value: 1 },
+      ],
+    };
+    expect(mergeFilters(any)).toBe(any);
+    expect(mergeFilters(any, null, emptyFilter())).toBe(any);
+    expect(mergeFilters(null)).toEqual(emptyFilter());
   });
 
   it('does not drop a tree that lost its shape as if it were empty', () => {

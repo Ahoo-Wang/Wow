@@ -86,11 +86,17 @@ export function mergeFilters(
   ...trees: (FilterTree | null | undefined)[]
 ): FilterTree {
   const [base, ...scopes] = trees;
+  const present = scopes.filter(
+    (scope): scope is FilterTree => !!scope && !isEmptyFilter(scope),
+  );
+  // Nothing to merge is the base as it stands: an `or` root must not gain a
+  // wrapper here that admission never saw, or a tree judged at the depth
+  // budget would run one level deeper than it was admitted at.
+  if (present.length === 0) return base ?? emptyFilter();
   const children: FilterNode[] = [];
   if (base && !isEmptyFilter(base))
     children.push(...(base.op === 'and' ? base.children : [base]));
-  for (const scope of scopes)
-    if (scope && !isEmptyFilter(scope)) children.push(scope);
+  children.push(...present);
   return { op: 'and', children };
 }
 

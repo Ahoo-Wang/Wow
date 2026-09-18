@@ -13,6 +13,7 @@
 
 import type {
   FieldDefinition,
+  FilterGroupOperator,
   FilterLeaf,
   FilterTree,
   IssuePath,
@@ -22,29 +23,37 @@ import {
   type FieldKind,
   type FieldKindRegistry,
 } from './fieldKind.js';
-import { isFilterLeaf, walkFilter } from './tree.js';
+import { isFilterGroup, isFilterNode } from './tree.js';
 
 /** One applied condition, for the summary bar above a result. */
 export interface FilterSummaryItem {
-  /** Location of the leaf, so the bar can remove or focus it. */
+  /** Location of the node, so the bar can remove or focus it. */
   path: IssuePath;
-  field: string;
-  /** Field label, or the raw name when the field is gone. */
-  label: string;
-  /** Human-readable condition supplied by the kind. */
+  /** Human-readable condition supplied by the kind, or a group's read out. */
   text: string;
-  /** The field or its kind is no longer available. */
+  /** The field or its kind is no longer available, in it or under it. */
   unresolved: boolean;
+  /** A condition's field; a group has none. */
+  field?: string;
+  /** Field label, or the raw name when the field is gone. */
+  label?: string;
+  /** Present for a group: the operator whose word joins its text. */
+  group?: FilterGroupOperator;
+}
+
+/** How a group's own operator reads between its conditions. */
+export function groupJoinWord(op: FilterGroupOperator): string {
+  return op === 'or' ? ' or ' : op === 'nor' ? ' nor ' : ' and ';
 }
 
 /**
- * Summarises the applied conditions. It reports a leaf whose field or kind has
- * disappeared instead of hiding it, so a view that needs fixing says so.
- *
- * The same holds for a leaf the kind cannot read: a saved config arrives from
- * a store and may hold a value its field no longer admits, and a summary bar
- * that threw would take the whole view down with it rather than showing which
- * condition needs fixing.
+ * The conditions in force, one item per child of the root, so the summary
+ * keeps the tree's logic: a group under the root is one item that reads out
+ * its own conditions joined by its own operator, with a group inside it in
+ * parentheses. Items side by side read as "all of"; a root that is `or` or
+ * `nor` therefore folds into one item that says so. Blank conditions never
+ * reached the query and are left out; a condition whose field or kind is
+ * gone is named rather than hidden.
  */
 export function describeFilter(
   fields: readonly FieldDefinition[],
@@ -52,49 +61,89 @@ export function describeFilter(
   kinds: FieldKindRegistry,
 ): FilterSummaryItem[] {
   const byName = new Map(fields.map(field => [field.name, field]));
+  const items = describeGroup(tree, [], byName, kinds);
+  // Items side by side read as "all of", and one item alone reads the same
+  // under `or`; `nor` negates even a lone condition, so it always says so.
+  if (tree.op === 'and' || (tree.op === 'or' && items.length < 2)) return items;
+  if (items.length === 0) return items;
+  return [groupItem(tree.op, [], items)];
+}
+
+function describeGroup(
+  group: FilterTree,
+  path: IssuePath,
+  byName: ReadonlyMap<string, FieldDefinition>,
+  kinds: FieldKindRegistry,
+): FilterSummaryItem[] {
   const items: FilterSummaryItem[] = [];
-
-  for (const { node, path } of walkFilter(tree)) {
-    if (!isFilterLeaf(node)) continue;
-    const field = byName.get(node.field);
-    const kind = field ? kinds.get(field.kind) : undefined;
-    // A condition that was never finished did not reach the query, so it is
-    // not one of the conditions in force.
-    if (
-      field &&
-      kind &&
-      isBlankLeafValue(node.value, node.operator, field, kind, kinds)
-    )
-      continue;
-    const described =
-      field && kind ? describeLeaf(kind, node, field, kinds) : undefined;
-    if (!field || described === undefined) {
-      items.push({
-        path,
-        field: node.field,
-        label: field?.label ?? node.field,
-        text: `${field?.label ?? node.field} ${node.operator}`,
-        unresolved: true,
-      });
-      continue;
+  group.children.forEach((node, index) => {
+    const at: IssuePath = [...path, 'children', index];
+    if (!isFilterNode(node)) return;
+    if (isFilterGroup(node)) {
+      const inner = describeGroup(node, at, byName, kinds);
+      if (inner.length > 0) items.push(groupItem(node.op, at, inner));
+      return;
     }
-    items.push({
-      path,
-      field: field.name,
-      label: field.label,
-      text: described,
-      unresolved: false,
-    });
-  }
-
+    const item = describeCondition(node, at, byName, kinds);
+    if (item) items.push(item);
+  });
   return items;
 }
 
-/**
- * A kind describes an admitted leaf; this one may not have been admitted.
- * A kind is an extension point, so what it does with a value it cannot read is
- * not this layer's to predict — only to survive.
- */
+function groupItem(
+  op: FilterGroupOperator,
+  path: IssuePath,
+  inner: readonly FilterSummaryItem[],
+): FilterSummaryItem {
+  const parts = inner.map(item => (item.group ? `(${item.text})` : item.text));
+  // "A nor B" needs both sides; a lone condition under `nor` is its negation.
+  const text =
+    op === 'nor' && parts.length === 1
+      ? `not ${parts[0]}`
+      : parts.join(groupJoinWord(op));
+  return {
+    path,
+    text,
+    unresolved: inner.some(item => item.unresolved),
+    group: op,
+  };
+}
+
+function describeCondition(
+  node: FilterLeaf,
+  path: IssuePath,
+  byName: ReadonlyMap<string, FieldDefinition>,
+  kinds: FieldKindRegistry,
+): FilterSummaryItem | null {
+  const field = byName.get(node.field);
+  const kind = field ? kinds.get(field.kind) : undefined;
+  // A condition that was never finished did not reach the query, so it is
+  // not one of the conditions in force.
+  if (
+    field &&
+    kind &&
+    isBlankLeafValue(node.value, node.operator, field, kind, kinds)
+  )
+    return null;
+  const described =
+    field && kind ? describeLeaf(kind, node, field, kinds) : undefined;
+  if (!field || described === undefined)
+    return {
+      path,
+      field: node.field,
+      label: field?.label ?? node.field,
+      text: `${field?.label ?? node.field} ${node.operator}`,
+      unresolved: true,
+    };
+  return {
+    path,
+    field: field.name,
+    label: field.label,
+    text: described,
+    unresolved: false,
+  };
+}
+
 function describeLeaf(
   kind: FieldKind,
   leaf: FilterLeaf,
