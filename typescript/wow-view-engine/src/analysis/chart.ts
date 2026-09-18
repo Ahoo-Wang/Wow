@@ -16,6 +16,7 @@ import type {
   ChartType,
   RecordData,
 } from '../model/index.js';
+import { isAdditiveMetric } from './validateChart.js';
 
 /**
  * What a renderer receives. The shaping a chart needs happens here rather than
@@ -103,9 +104,14 @@ function num(row: RecordData, alias: string): number | null {
   return typeof value === 'number' ? value : null;
 }
 
+/**
+ * `totals` is the one row of the ungrouped totals query, when it ran. Only
+ * the metric card reads it: over a trend it is the headline for any metric.
+ */
 export function shapeChart(
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
+  totals?: RecordData,
 ): ChartData | undefined {
   const chart = config.chart;
   switch (chart.type) {
@@ -123,7 +129,7 @@ export function shapeChart(
     case 'funnel':
       return chart.funnel && funnel(chart.funnel, rows);
     case 'metric':
-      return chart.metric && metricCard(chart.metric, rows);
+      return chart.metric && metricCard(chart.metric, config, rows, totals);
   }
 }
 
@@ -284,38 +290,67 @@ function withConversion(
   });
 }
 
+/**
+ * Without a trend the query is ungrouped, so its one row is the headline.
+ * With one, the rows are the buckets of the sparkline and the headline is the
+ * totals row when its query ran — the ungrouped aggregation, right for any
+ * metric — and otherwise the buckets added up, which validation admits only
+ * for a metric that adds. Compare and target read the same headline either
+ * way, so a trend never drops them.
+ */
 function metricCard(
   spec: NonNullable<AnalysisViewConfig['chart']['metric']>,
+  config: AnalysisViewConfig,
   rows: readonly RecordData[],
+  totals: RecordData | undefined,
 ): MetricCardData {
-  if (spec.trend) {
-    const trend = rows.map(row => ({
-      x: row[spec.trend?.x ?? ''],
-      value: num(row, spec.metric),
-    }));
-    const total = trend.reduce(
-      (sum, point) => (point.value === null ? sum : sum + point.value),
-      0,
-    );
-    return { type: 'metric', value: total, trend };
-  }
+  const trend = spec.trend;
+  const headline: RecordData = trend
+    ? (totals ?? summed(config, rows))
+    : (rows[0] ?? {});
 
-  const row = rows[0] ?? {};
-  const value = num(row, spec.metric);
-  const compare = spec.compare ? num(row, spec.compare.metric) : undefined;
+  const value = num(headline, spec.metric);
+  const compare = spec.compare ? num(headline, spec.compare.metric) : null;
   return {
     type: 'metric',
     value,
     ...(spec.compare
       ? {
           compare: {
-            value: compare ?? null,
-            delta: deltaOf(value, compare ?? null, spec.compare.mode),
+            value: compare,
+            delta: deltaOf(value, compare, spec.compare.mode),
           },
         }
       : {}),
     ...(spec.target === undefined ? {} : { target: spec.target }),
+    ...(trend
+      ? {
+          trend: rows.map(row => ({
+            x: row[trend.x],
+            value: num(row, spec.metric),
+          })),
+        }
+      : {}),
   };
+}
+
+/**
+ * The buckets added up, per additive metric. A metric that does not add is
+ * left out, so it reads as null rather than as a number that means nothing.
+ */
+function summed(
+  config: AnalysisViewConfig,
+  rows: readonly RecordData[],
+): RecordData {
+  const row: RecordData = {};
+  for (const metric of config.metrics) {
+    if (!isAdditiveMetric(metric)) continue;
+    row[metric.alias] = rows.reduce((sum, bucket) => {
+      const value = num(bucket, metric.alias);
+      return value === null ? sum : sum + value;
+    }, 0);
+  }
+  return row;
 }
 
 function deltaOf(

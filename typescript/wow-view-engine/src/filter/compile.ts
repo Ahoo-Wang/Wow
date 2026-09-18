@@ -19,7 +19,7 @@ import type {
   FilterTree,
 } from '../model/index.js';
 import { isBlankLeafValue, type FieldKindRegistry } from './fieldKind.js';
-import { isFilterGroup } from './tree.js';
+import { isFilterGroup, isFilterNode } from './tree.js';
 
 /**
  * When a filter is evaluated, and in which zone. Relative conditions are
@@ -35,7 +35,10 @@ export interface FilterCompileContext {
  *
  * Only `validateFilter` decides what is admissible; this function assumes the
  * tree passed it and throws if a field or kind is missing, which is a
- * programming error rather than a user-visible issue.
+ * programming error rather than a user-visible issue. An entry that is not a
+ * node at all is skipped rather than thrown on, the way a blank leaf is: the
+ * validator has already refused the tree, and a compiler that threw on the
+ * same input would only turn one report into a crash.
  */
 export function compileFilter(
   fields: readonly FieldDefinition[],
@@ -44,7 +47,9 @@ export function compileFilter(
   context: FilterCompileContext,
 ): FilterExpression {
   const byName = new Map(fields.map(field => [field.name, field]));
-  const compiled = compileNode(tree, byName, kinds, context);
+  const compiled = isFilterGroup(tree)
+    ? compileGroup(tree, byName, kinds, context)
+    : null;
   // An empty tree means "no condition", which Wow spells as MATCH_ALL.
   return compiled ?? filter.matchAll();
 }
@@ -87,6 +92,7 @@ function compileGroup(
 ): FilterExpression | null {
   const operands: FilterExpression[] = [];
   for (const child of group.children) {
+    if (!isFilterNode(child)) continue;
     const compiled = compileNode(child, fields, kinds, context);
     // Empty groups carry no condition; Wow rejects empty AND/OR operands.
     if (compiled) operands.push(compiled);

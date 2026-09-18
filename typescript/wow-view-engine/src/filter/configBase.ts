@@ -19,13 +19,18 @@ import {
   type ViewConfigBase,
 } from '../model/index.js';
 import { issue, type FieldKindRegistry } from './fieldKind.js';
-import { isSimpleTree } from './tree.js';
+import { isFilterGroup, isSimpleTree } from './tree.js';
 import { validateFilter } from './validate.js';
+import { isPlainObject } from './values.js';
 
 /**
  * The part every view kind shares. It lives beside the filter because two of
  * its three fields describe the filter, and because `filter` is the one layer
  * record, analysis and dashboard all depend on.
+ *
+ * A config arrives from a store, so each of the three is first asked whether
+ * it is there at all and of the right shape; a missing or unreadable one is
+ * an Issue at its path, never a `TypeError` from the check that reads it.
  */
 export function validateViewConfigBase(
   fields: readonly FieldDefinition[],
@@ -33,11 +38,22 @@ export function validateViewConfigBase(
   kinds: FieldKindRegistry,
   limits: RuntimeLimits = DEFAULT_RUNTIME_LIMITS,
 ): Issue[] {
-  const issues = validateFilter(fields, config.filter, kinds, { limits });
+  if (!isPlainObject(config)) return [issue('config.invalid', [])];
+
+  // The root must be a group before anything walks it; `validateFilter`
+  // would report a malformed root too, but at `[]`, which is the config.
+  const hasTree = isFilterGroup(config.filter);
+  const issues = hasTree
+    ? validateFilter(fields, config.filter, kinds, { limits })
+    : [issue('config.filter.invalid', ['filter'])];
 
   if (config.filterMode !== 'simple' && config.filterMode !== 'advanced') {
     issues.push(issue('config.filterMode.unknown', ['filterMode']));
-  } else if (config.filterMode === 'simple' && !isSimpleTree(config.filter)) {
+  } else if (
+    hasTree &&
+    config.filterMode === 'simple' &&
+    !isSimpleTree(config.filter)
+  ) {
     // The tree still runs; only the editor cannot show it, so the view opens
     // in advanced mode instead of losing the condition.
     issues.push(
@@ -58,9 +74,10 @@ function validateRefresh(
   config: ViewConfigBase,
   limits: RuntimeLimits,
 ): Issue[] {
-  const interval = config.refresh?.interval;
-  if (config.refresh === undefined)
+  // Absent, `null` or not an object: there is no setting to read.
+  if (!isPlainObject(config.refresh))
     return [issue('config.refresh.missing', ['refresh'])];
+  const interval = config.refresh.interval;
   if (interval === null) return [];
 
   const path = ['refresh', 'interval'];

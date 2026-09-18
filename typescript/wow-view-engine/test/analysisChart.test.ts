@@ -86,6 +86,11 @@ describe('validateChart', () => {
     expect(codes({ type: 'nope' } as unknown as ChartSpec)).toEqual([
       'chart.type.unknown',
     ]);
+    // A config from a store may have no chart at all; that is a finding on
+    // its own, not a TypeError from indexing the family table.
+    expect(codes(undefined as unknown as ChartSpec)).toEqual([
+      'analysis.config.malformed',
+    ]);
   });
 
   describe('cartesian', () => {
@@ -212,6 +217,18 @@ describe('validateChart', () => {
     ).toEqual([]);
   });
 
+  it('needs a whole number of slices', () => {
+    // NaN and a fraction both pass `< 2`, and then `slice` keeps nothing:
+    // every category would collapse into "other".
+    for (const maxSlices of [Number.NaN, 2.5])
+      expect(
+        codes({
+          type: 'pie',
+          pie: { category: 'wh', value: 'orders', maxSlices },
+        }),
+      ).toEqual(['chart.pie.maxSlices-too-small']);
+  });
+
   it('keeps the two heatmap axes and the two scatter metrics apart', () => {
     expect(
       codes(
@@ -334,6 +351,53 @@ describe('validateChart', () => {
           [GROUPS.month],
         ),
       ).toEqual(['chart.metric.trend-alias-mismatch']);
+    });
+
+    it('refuses a trend headline over a metric that does not add', () => {
+      // Without a totals row the headline is the buckets added up, which is
+      // meaningless for an average — the same rule as a pie's merged slice,
+      // for the headline and for the value it is compared against.
+      expect(
+        codes(
+          {
+            type: 'metric',
+            metric: { metric: 'average', trend: { x: 'month' } },
+          },
+          [GROUPS.month],
+          [METRICS.average],
+        ),
+      ).toEqual(['chart.metric.trend-not-additive']);
+      expect(
+        validateChart(
+          config(
+            {
+              type: 'metric',
+              metric: {
+                metric: 'orders',
+                compare: { metric: 'average', mode: 'delta' },
+                trend: { x: 'month' },
+              },
+            },
+            [GROUPS.month],
+            [METRICS.orders, METRICS.average],
+          ),
+        ),
+      ).toEqual([
+        {
+          code: 'chart.metric.trend-not-additive',
+          severity: 'error',
+          path: ['chart', 'metric', 'compare', 'metric'],
+          params: { metric: 'average' },
+        },
+      ]);
+      // Without a trend the one row is the headline, so any metric will do.
+      expect(
+        codes(
+          { type: 'metric', metric: { metric: 'average' } },
+          [],
+          [METRICS.average],
+        ),
+      ).toEqual([]);
     });
   });
 });
@@ -621,27 +685,110 @@ describe('shapeChart', () => {
       expect(zero.compare).toEqual({ value: 0, delta: null });
     });
 
-    it('sums a trend and keeps its points', () => {
-      const data = shapeChart(
-        config(
-          {
-            type: 'metric',
-            metric: { metric: 'orders', trend: { x: 'month' } },
-          },
-          [GROUPS.month],
-        ),
-        [
-          { month: '2026-08', orders: 40 },
-          { month: '2026-09', orders: 20 },
-          { month: '2026-10', orders: null },
-        ],
-      ) as MetricCardData;
-      expect(data.value).toBe(60);
-      expect(data.trend).toEqual([
+    describe('over a trend', () => {
+      const buckets: RecordData[] = [
+        { month: '2026-08', orders: 40, total: 400 },
+        { month: '2026-09', orders: 20, total: 100 },
+        { month: '2026-10', orders: null, total: null },
+      ];
+      const points = [
         { x: '2026-08', value: 40 },
         { x: '2026-09', value: 20 },
         { x: '2026-10', value: null },
-      ]);
+      ];
+      const trend = config(
+        {
+          type: 'metric',
+          metric: { metric: 'orders', trend: { x: 'month' } },
+        },
+        [GROUPS.month],
+      );
+
+      it('takes the headline from the totals row when there is one', () => {
+        // The totals query is the ungrouped aggregation, which is the
+        // headline for any metric; the buckets only draw the sparkline.
+        const data = shapeChart(trend, buckets, {
+          orders: 55,
+        }) as MetricCardData;
+        expect(data.value).toBe(55);
+        expect(data.trend).toEqual(points);
+      });
+
+      it('adds the buckets up when no totals row came back', () => {
+        const data = shapeChart(trend, buckets) as MetricCardData;
+        expect(data.value).toBe(60);
+        expect(data.trend).toEqual(points);
+      });
+
+      it('leaves a headline it cannot add up as null', () => {
+        // Validation refuses this; the shaping still must not invent a
+        // number from buckets of an average.
+        const data = shapeChart(
+          config(
+            {
+              type: 'metric',
+              metric: { metric: 'average', trend: { x: 'month' } },
+            },
+            [GROUPS.month],
+            [METRICS.average],
+          ),
+          [
+            { month: '2026-08', average: 4 },
+            { month: '2026-09', average: 6 },
+          ],
+        ) as MetricCardData;
+        expect(data.value).toBeNull();
+        expect(data.trend).toEqual([
+          { x: '2026-08', value: 4 },
+          { x: '2026-09', value: 6 },
+        ]);
+      });
+
+      it('compares and targets the headline as a single value is', () => {
+        const compared = config(
+          {
+            type: 'metric',
+            metric: {
+              metric: 'orders',
+              compare: { metric: 'total', mode: 'delta' },
+              target: 100,
+              trend: { x: 'month' },
+            },
+          },
+          [GROUPS.month],
+          [METRICS.orders, METRICS.total],
+        );
+        expect(shapeChart(compared, buckets)).toEqual({
+          type: 'metric',
+          value: 60,
+          compare: { value: 500, delta: -440 },
+          target: 100,
+          trend: points,
+        });
+
+        // With a totals row both sides come from it, and the card is the
+        // one a trend-less config draws from that same row, plus the points.
+        const fromTotals = shapeChart(compared, buckets, {
+          orders: 55,
+          total: 500,
+        });
+        const single = shapeChart(
+          config(
+            {
+              type: 'metric',
+              metric: {
+                metric: 'orders',
+                compare: { metric: 'total', mode: 'delta' },
+                target: 100,
+              },
+            },
+            [],
+            [METRICS.orders, METRICS.total],
+          ),
+          [{ orders: 55, total: 500 }],
+        );
+        expect(fromTotals).toEqual({ ...single, trend: points });
+      });
     });
   });
 });

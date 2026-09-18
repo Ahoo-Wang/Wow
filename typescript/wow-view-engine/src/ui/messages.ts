@@ -172,6 +172,7 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'filter.field.unknown': 'The field {field} no longer exists.',
   'filter.group.unknown-operator': 'A condition group must be AND or OR.',
   'filter.kind.unregistered': 'No editor is registered for the {kind} type.',
+  'filter.node.invalid': 'This condition could not be read.',
   'filter.operator.unsupported': '{field} does not support {operator}.',
   'filter.tree.too-deep': 'The conditions nest deeper than {max} levels.',
   'filter.tree.too-many-nodes': 'The conditions exceed {max} entries.',
@@ -201,6 +202,8 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'filter.value.expected-string': 'Enter a value.',
   'filter.value.expected-string-list': 'Enter one or more values.',
   'filter.value.inverted-range': 'The range starts after it ends.',
+  'filter.value.relative-too-large':
+    'A relative window can reach at most {max} units.',
   'filter.value.required': 'This condition needs a value.',
   'filter.value.unknown-option': '{values} is no longer an option.',
   'filter.value.unknown-time-zone':
@@ -215,22 +218,28 @@ export const defaultMessages: ViewMessages = Object.freeze({
     'The refresh interval cannot exceed {max} seconds.',
   'config.refresh.too-short':
     'The refresh interval must be at least {min} seconds.',
+  'config.filter.invalid': 'The conditions of this view could not be read.',
   'config.filterMode.unknown': 'This view has an unknown filter mode.',
   'config.filterMode.not-simple':
     'These conditions need the advanced editor to be shown in full.',
+  'config.invalid': 'This view could not be read.',
 
   // Record kernel.
   'record.capability.missing':
     '{definition} does not offer a record view any more.',
+  'record.card.invalid': 'The card settings could not be read.',
   'record.field.not-a-column':
     '{field} is a search or metadata handle, not something a row holds.',
   'record.field.unknown': 'The column {field} no longer exists.',
   'record.layout.unsupported': 'The {layout} layout is not available here.',
   'record.pageSize.not-positive': 'The page size must be a positive number.',
   'record.pageSize.too-large': 'The page size cannot exceed {max}.',
+  'record.sort.invalid': 'The sort settings could not be read.',
   'record.sort.not-sortable': '{field} cannot be sorted on.',
   'record.sort.too-many': 'A cursor view sorts on at most {max} fields.',
+  'record.summaries.invalid': 'The summary settings could not be read.',
   'record.summary.unsupported': '{field} does not offer the {fn} summary.',
+  'record.table.invalid': 'The table settings could not be read.',
 
   // Analysis kernel.
   'analysis.alias.duplicate': 'The name {alias} is used twice.',
@@ -241,6 +250,7 @@ export const defaultMessages: ViewMessages = Object.freeze({
     '{definition} does not offer an analysis view any more.',
   'analysis.column.duplicate': 'The column {alias} is listed twice.',
   'analysis.column.unknown-alias': 'The column {alias} is not in this result.',
+  'analysis.config.malformed': 'This analysis has no usable shape.',
   'analysis.constant.not-finite': 'A constant must be a finite number.',
   'analysis.count.undeclared': 'This dataset does not offer a row count.',
   'analysis.derived.unknown-metric':
@@ -255,6 +265,9 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'analysis.elements.too-many': 'Too many nested paths for this dataset.',
   'analysis.expression.divide-by-zero': 'This expression divides by zero.',
   'analysis.expression.malformed': 'This metric has no usable expression.',
+  'analysis.expression.too-deep':
+    'The expression nests deeper than {max} levels.',
+  'analysis.expression.too-many-nodes': 'The expressions exceed {max} entries.',
   'analysis.expressions.undeclared':
     'This dataset does not offer computed expressions.',
   'analysis.field.unknown': 'The field {field} is not available here.',
@@ -270,18 +283,23 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'analysis.having.malformed': 'This result filter has no usable shape.',
   'analysis.having.requires-group':
     'Filtering the result needs at least one grouping.',
+  'analysis.having.too-deep':
+    'The result filter nests deeper than {max} levels.',
+  'analysis.having.too-many-nodes': 'The result filter exceeds {max} entries.',
   'analysis.having.undeclared':
     'This dataset does not offer filtering the result.',
   'analysis.having.unknown-metric':
     'The filter refers to {metric}, which is not a usable metric.',
   'analysis.limit.not-positive': 'The row limit must be a positive number.',
   'analysis.limit.too-large': 'The row limit cannot exceed {max}.',
+  'analysis.metric.type-unknown': 'The metric type {type} is not available.',
   'analysis.metricFilter.empty':
     'This filter has no conditions, so the metric covers every record.',
   'analysis.metricFilter.incomplete':
     'Give {field} a value, or the metric covers every record.',
   'analysis.metricFilter.not-scalar':
     '{field} has no single value for a metric filter to test.',
+  'analysis.metrics.empty': 'An analysis needs at least one metric.',
   'analysis.metrics.too-many': 'Too many metrics for this dataset.',
   'analysis.percentile.out-of-range':
     'A percentile must be between 0 and 100, exclusive.',
@@ -306,6 +324,8 @@ export const defaultMessages: ViewMessages = Object.freeze({
     'The trend must use the {alias} grouping.',
   'chart.metric.trend-needs-one-date-group':
     'A trend needs exactly one date grouping.',
+  'chart.metric.trend-not-additive':
+    'A trend headline needs an additive metric, not {metric}.',
   'chart.metric.unknown': '{alias} is not a metric of this analysis.',
   'chart.pie.maxSlices-not-additive':
     'Merging the smallest slices needs an additive metric.',
@@ -347,6 +367,8 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'dashboard.panel.unavailable': 'The view this panel shows is unavailable.',
   'dashboard.panel.unknown-kind': 'The {kind} panel type is not available.',
   'dashboard.panels.too-many': 'A dashboard holds at most {max} panels.',
+  'dashboard.shape.invalid':
+    'This part of the dashboard is not in the expected shape.',
   'dashboard.url.unsupported-scheme':
     'Only http, https, mailto and relative links can be shown.',
 

@@ -21,8 +21,13 @@ import {
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
 
-/** Metrics whose "other" slice can be derived by adding the remainder. */
-function isAdditive(metric: AnalysisMetric | undefined): boolean {
+/**
+ * Metrics the projection may add up across rows: a pie's "other" slice and a
+ * metric card's trend headline are both sums of queried buckets, which only
+ * means something for a metric that adds. AVG, MIN, MAX, DISTINCT_COUNT and a
+ * percentile cannot be re-aggregated from their parts.
+ */
+export function isAdditiveMetric(metric: AnalysisMetric | undefined): boolean {
   if (!metric) return false;
   if (metric.type === 'COUNT') return true;
   return metric.type === 'NUMERIC' && metric.function === 'SUM';
@@ -44,6 +49,10 @@ interface ChartContext {
 export function validateChart(config: AnalysisViewConfig): Issue[] {
   const path: IssuePath = ['chart'];
   const chart = config.chart;
+  // `validateAnalysis` refuses a missing chart before reaching here, but this
+  // is exported on its own and a config from a store may have none.
+  if (typeof chart !== 'object' || chart === null)
+    return [issue('analysis.config.malformed', path)];
   const family = CHART_FAMILY[chart.type];
   if (!family) return [issue('chart.type.unknown', [...path, 'type'])];
   if (chart[family] === undefined)
@@ -169,13 +178,15 @@ function pie(context: ChartContext): Issue[] {
   ];
 
   if (spec.maxSlices !== undefined) {
-    if (spec.maxSlices < 2)
+    // A NaN or fractional count would pass `< 2` and then slice nothing,
+    // collapsing every category into "other".
+    if (!Number.isInteger(spec.maxSlices) || spec.maxSlices < 2)
       issues.push(
         issue('chart.pie.maxSlices-too-small', [...path, 'maxSlices']),
       );
     // The merged slice is the sum of the remainder, which only works for a
     // metric that adds up.
-    if (!isAdditive(context.metrics.get(spec.value)))
+    if (!isAdditiveMetric(context.metrics.get(spec.value)))
       issues.push(
         issue('chart.pie.maxSlices-not-additive', [...path, 'maxSlices'], {
           metric: spec.value,
@@ -283,6 +294,20 @@ function metricCard(
       issue('chart.metric.trend-alias-mismatch', [...path, 'trend', 'x'], {
         alias: spec.trend.x,
       }),
+    );
+
+  // The headline over a trend is the totals row when that query ran, and
+  // otherwise the sum of the buckets — which only means something for a
+  // metric that adds. Same rule as a pie's merged slice, for the headline and
+  // for the value it is compared against.
+  const additive = (alias: string, at: IssuePath): Issue[] =>
+    context.metrics.has(alias) && !isAdditiveMetric(context.metrics.get(alias))
+      ? [issue('chart.metric.trend-not-additive', at, { metric: alias })]
+      : [];
+  issues.push(...additive(spec.metric, [...path, 'metric']));
+  if (spec.compare)
+    issues.push(
+      ...additive(spec.compare.metric, [...path, 'compare', 'metric']),
     );
   return issues;
 }

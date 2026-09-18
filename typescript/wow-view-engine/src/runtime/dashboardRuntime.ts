@@ -25,7 +25,12 @@ import {
   type ViewInstance,
   type ViewScope,
 } from '../model/index.js';
-import { mergeFilters, type FieldKindRegistry } from '../filter/index.js';
+import {
+  isFilterGroup,
+  isPlainObject,
+  mergeFilters,
+  type FieldKindRegistry,
+} from '../filter/index.js';
 import {
   isViewPanel,
   mapGlobalFilter,
@@ -36,6 +41,7 @@ import type { RuntimeEnvironment } from './environment.js';
 import type { WriteState } from './write.js';
 import {
   hasError,
+  refreshIntervalOf,
   type DataViewRuntime,
   type ManagedViewRuntime,
   type ViewQueryState,
@@ -181,8 +187,19 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   }
 
   /** A dashboard declares its own filter fields; there is no definition to ask. */
+  /**
+   * Only the well-formed entries: a stored `fields` may hold something that
+   * is no field, which admission reports, and an editor mapping fields by
+   * name must not be the second place to find out.
+   */
   get fields(): readonly FieldDefinition[] {
-    return this.state.draft.fields;
+    const fields: unknown = this.state.draft.fields;
+    return Array.isArray(fields)
+      ? fields.filter(
+          (field): field is FieldDefinition =>
+            isPlainObject(field) && typeof field.name === 'string',
+        )
+      : [];
   }
 
   getSnapshot(): DashboardRuntimeState {
@@ -273,12 +290,17 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
 
   markSaved(instance: ViewInstance): void {
     if (this.stopped) return;
+    this.moveBaseline(instance);
+    this.setState({ write: null });
+  }
+
+  moveBaseline(instance: ViewInstance): void {
+    if (this.stopped) return;
     this.setState({
       saved: instance,
       title: instance.title,
       scope: instance.scope,
       dirty: this.isDirty(this.state.draft, instance),
-      write: null,
     });
   }
 
@@ -312,6 +334,8 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
       child.runtime.dispose();
     }
     this.children.clear();
+    // The last notification, so a subscriber reading `disposed` sees it now.
+    for (const listener of [...this.listeners]) listener();
     this.listeners.clear();
   }
 
@@ -330,9 +354,11 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     scope: ViewScope,
     scopeFilter: FilterTree | null = this.scopeFilter,
   ): Issue[] {
-    const merged = scopeFilter
-      ? { ...config, filter: mergeFilters(config.filter, scopeFilter) }
-      : config;
+    // A root that is not a group is admission's to report as it stands.
+    const merged =
+      scopeFilter && isFilterGroup(config.filter)
+        ? { ...config, filter: mergeFilters(config.filter, scopeFilter) }
+        : config;
     return validateDashboard(merged, scope, this.references, this.kinds, {
       limits: this.options.limits,
     });
@@ -348,7 +374,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   /** Loads the references a config needs and revalidates as each arrives. */
   private load(config: DashboardViewConfig): void {
     const wanted = new Set(
-      config.panels
+      panelsOf(config)
         .filter(isViewPanel)
         .map(panel => panel.instanceId)
         .filter(id => !this.references.has(id) && !this.pending.has(id)),
@@ -395,7 +421,10 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     // it counts against the whole rather than slipping between the two.
     const blocked = hasError(issues.filter(found => panelOf(found) === null));
 
-    applied.panels.forEach((panel, index) => {
+    panelsOf(applied).forEach((panel, index) => {
+      // Admission reports an entry that is no panel at its index; there is
+      // no id to build a state under, and nothing to run.
+      if (!isPlainObject(panel)) return;
       const own = issues.filter(found => panelOf(found) === index);
       const { runtime, issues: reported } =
         isViewPanel(panel) && !blocked
@@ -498,7 +527,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   }
 
   private refreshDelay(): number | null {
-    const interval = this.state.applied.refresh.interval;
+    const interval = refreshIntervalOf(this.state.applied);
     if (
       this.stopped ||
       interval === null ||
@@ -523,6 +552,15 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.timer = undefined;
     this.timerDelay = null;
   }
+}
+
+/**
+ * The panels a config holds, read as the untrusted thing a stored config is.
+ * Admission reports a `panels` that is not an array; until it is fixed there
+ * is nothing to load or run, and nothing to throw about.
+ */
+function panelsOf(config: DashboardViewConfig): readonly DashboardPanel[] {
+  return Array.isArray(config.panels) ? config.panels : [];
 }
 
 /** The panel an issue belongs to, or `null` for one about the dashboard. */

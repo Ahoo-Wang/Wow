@@ -460,6 +460,47 @@ describe('date kinds', () => {
     });
   });
 
+  it('compiles a relative single bound on its far edge', () => {
+    // The near edge of "last 7 days" is now, and `LTE now` is not what
+    // anyone typed: both operators compare against the instant 7 days away.
+    const last = { type: 'relative', amount: 7, unit: 'day' };
+    const next = { ...last, direction: 'future' };
+    const weekAgo = '2026-09-09T10:30:00.000Z';
+    const weekAhead = '2026-09-23T10:30:00.000Z';
+
+    expect(compile(dateTimeFieldKind, leaf('GTE', last), def)).toMatchObject({
+      op: FilterOperator.GTE,
+      value: weekAgo,
+    });
+    expect(compile(dateTimeFieldKind, leaf('LTE', last), def)).toMatchObject({
+      op: FilterOperator.LTE,
+      value: weekAgo,
+    });
+    expect(compile(dateTimeFieldKind, leaf('GTE', next), def)).toMatchObject({
+      op: FilterOperator.GTE,
+      value: weekAhead,
+    });
+    expect(compile(dateTimeFieldKind, leaf('LTE', next), def)).toMatchObject({
+      op: FilterOperator.LTE,
+      value: weekAhead,
+    });
+  });
+
+  it('refuses a relative amount past the bound, and never throws past it', () => {
+    const huge = { type: 'relative', amount: 1e15, unit: 'hour' };
+
+    expect(codes(dateTimeFieldKind, huge, 'BETWEEN', def)).toEqual([
+      'filter.value.relative-too-large',
+    ]);
+    expect(codes(dateTimeFieldKind, huge, 'LTE', def)).toEqual([
+      'filter.value.relative-too-large',
+    ]);
+    for (const operator of ['BETWEEN', 'GTE', 'LTE'] as const)
+      expect(() =>
+        compile(dateTimeFieldKind, leaf(operator, huge), def),
+      ).not.toThrow();
+  });
+
   it('lets a condition override the runtime zone', () => {
     const shanghai = leaf('BETWEEN', {
       type: 'absolute',
@@ -506,6 +547,27 @@ describe('date kinds', () => {
       'Value a ~ b',
     );
     expect(describe_({ type: 'absolute', from: 'a' })).toBe('Value from a');
+  });
+
+  it('describes a single bound by the instant it compares against', () => {
+    const describe_ = (operator: FilterOperatorName, value: unknown) =>
+      dateTimeFieldKind.describe({
+        leaf: leaf(operator, value),
+        field: def,
+        kinds: builtinFieldKinds,
+      });
+    const last = { type: 'relative', amount: 7, unit: 'day' };
+
+    expect(describe_('GTE', last)).toBe('Value on or after 7 day ago');
+    expect(describe_('LTE', { ...last, direction: 'future' })).toBe(
+      'Value on or before 7 day ahead',
+    );
+    expect(describe_('LTE', { type: 'preset', preset: 'lastMonth' })).toBe(
+      'Value on or before last month',
+    );
+    expect(describe_('LTE', { type: 'absolute', from: 'a', to: 'b' })).toBe(
+      'Value on or before b',
+    );
   });
 });
 

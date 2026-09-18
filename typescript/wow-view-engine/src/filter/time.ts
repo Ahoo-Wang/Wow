@@ -125,7 +125,27 @@ const PERIODS: Readonly<
 type PeriodUnit = 'day' | 'isoWeek' | 'month' | 'quarter' | 'year';
 
 function bounds(from: Dayjs, to: Dayjs): ClosedInstantRange {
-  return { from: from.toISOString(), to: to.toISOString() };
+  return { from: clampedIso(from, 'start'), to: clampedIso(to, 'end') };
+}
+
+/**
+ * The instants a `Date` can name lie within this many milliseconds of the
+ * epoch, on either side; dayjs returns an invalid instant past them.
+ */
+const MAX_INSTANT_MS = 8.64e15;
+
+/**
+ * An instant as ISO 8601, or the farthest instant on that side when the
+ * arithmetic ran off the calendar. `validateFilter` bounds a relative amount
+ * before compilation, so this is reached only by a tree that skipped it, and
+ * a compiler that throws `RangeError` on such a tree turns a refused config
+ * into a crash.
+ */
+function clampedIso(instant: Dayjs, edge: RangeEdge): string {
+  if (instant.isValid()) return instant.toISOString();
+  return new Date(
+    edge === 'start' ? -MAX_INSTANT_MS : MAX_INSTANT_MS,
+  ).toISOString();
 }
 
 /**
@@ -210,6 +230,13 @@ export function resolveDateTimeRange(
  * asks for the start edge, `LTE` for the end. An absolute value with only
  * `from` stands on `from` for both — read at the end edge, a date-only `from`
  * is the end of its day, which is what "on or before the 31st" means.
+ *
+ * A relative value stands on its far edge whichever side asks. Its near edge
+ * is `now`, and "on or before now" is not what anyone typed: "7 days" is a
+ * distance from this moment, so `GTE` and `LTE` alike compare against the
+ * instant 7 days ago, or 7 days ahead when the window runs forwards. A
+ * preset is a calendar period and keeps the edge asked for: `LTE today` is
+ * the end of today.
  */
 export function resolveDateTimeBound(
   value: DateTimeFilterValue,
@@ -217,7 +244,11 @@ export function resolveDateTimeBound(
   timeZone: string,
   edge: RangeEdge,
 ): string {
-  if (value.type !== 'absolute')
+  if (value.type === 'relative') {
+    const window = windowAt(value, now, timeZone);
+    return value.direction === 'future' ? window.to : window.from;
+  }
+  if (value.type === 'preset')
     return windowAt(value, now, timeZone)[edge === 'start' ? 'from' : 'to'];
   const zone = value.timeZone ?? timeZone;
   return edge === 'start'

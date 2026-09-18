@@ -31,6 +31,7 @@ import {
   type ViewScope,
 } from '../model/index.js';
 import {
+  isFilterGroup,
   issue,
   mergeFilters,
   type FieldKindRegistry,
@@ -129,8 +130,14 @@ export interface ManagedViewRuntime<
    * would be shared with cannot read.
    */
   issuesAt(scope: ViewScope): Issue[];
-  /** Advances the saved baseline once the store has confirmed a write. */
+  /** Advances the saved baseline once the store has confirmed this view's write. */
   markSaved(instance: ViewInstance): void;
+  /**
+   * Advances the baseline because a write elsewhere moved it: the same
+   * instance open in another view, or renamed from the list. Whatever write
+   * of this view's own is still unsettled stays so, for its recovery actions.
+   */
+  moveBaseline(instance: ViewInstance): void;
   /** Replaces the draft with the store's state, for "reload" on a conflict. */
   adoptSaved(instance: ViewInstance): void;
   setWrite(write: WriteState | null): void;
@@ -387,12 +394,17 @@ export class DataViewRuntime<
   /** Called by `ViewEngine` once a write has been confirmed by the store. */
   markSaved(instance: ViewInstance): void {
     if (this.stopped) return;
+    this.moveBaseline(instance);
+    this.setState({ write: null });
+  }
+
+  moveBaseline(instance: ViewInstance): void {
+    if (this.stopped) return;
     this.setState({
       saved: instance,
       title: instance.title,
       scope: instance.scope,
       dirty: this.isDirty(this.state.draft, instance),
-      write: null,
     });
   }
 
@@ -423,6 +435,9 @@ export class DataViewRuntime<
     this.stopTimer();
     this.unwatchVisibility();
     this.runner.cancel(this.id);
+    // The last notification: a subscriber that reads `disposed` sees it now
+    // rather than on some later render it happens to get.
+    for (const listener of [...this.listeners]) listener();
     this.listeners.clear();
   }
 
@@ -440,7 +455,9 @@ export class DataViewRuntime<
 
   /** A config as it would run: the scope filter ANDed after its own. */
   private withScope(config: C, scope: FilterTree | null): C {
-    if (!scope) return config;
+    // A root that is not a group is admission's to report as it stands;
+    // merging would turn it into a condition, or lose it.
+    if (!scope || !isFilterGroup(config.filter)) return config;
     return { ...config, filter: mergeFilters(config.filter, scope) };
   }
 
@@ -545,7 +562,7 @@ export class DataViewRuntime<
   }
 
   private refreshDelay(): number | null {
-    const interval = this.state.applied.refresh.interval;
+    const interval = refreshIntervalOf(this.state.applied);
     if (
       this.stopped ||
       !this.autoRefresh ||
@@ -565,6 +582,20 @@ export class DataViewRuntime<
     this.timer = undefined;
     this.timerDelay = null;
   }
+}
+
+/**
+ * The interval a config asks for, read as the untrusted thing it is. A
+ * stored config with no `refresh` is admission's to report, and it is
+ * reported; every state change still passes through here on the way to the
+ * timer, and must not throw before the user can fix it.
+ */
+export function refreshIntervalOf(config: ViewConfig): number | null {
+  const interval = (config.refresh as { interval?: unknown } | undefined)
+    ?.interval;
+  return typeof interval === 'number' && Number.isFinite(interval)
+    ? interval
+    : null;
 }
 
 /** Turns a failed execution into the Issue the UI reports. */

@@ -75,6 +75,9 @@ export interface AnalysisEditorController {
   updateChart(patch: Partial<ChartSpec>): void;
   setTotals(totals: boolean): void;
   submit(): void;
+  /** Auto-refresh pauses between these two, so typing is never interrupted. */
+  focus(): void;
+  blur(): void;
 }
 
 const EMPTY_CHART: ChartSpec = { type: 'bar' };
@@ -253,5 +256,7 @@ export function useAnalysisEditor(
       [change],
     ),
     submit: useCallback(() => runtime?.apply(), [runtime]),
+    focus: useCallback(() => runtime?.setEditing(true), [runtime]),
+    blur: useCallback(() => runtime?.setEditing(false), [runtime]),
   };
 }

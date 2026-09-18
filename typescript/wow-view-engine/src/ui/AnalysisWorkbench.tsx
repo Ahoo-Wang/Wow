@@ -71,7 +71,6 @@ export function AnalysisWorkbench({
   const data = state?.result?.data;
   const view: AnalysisView | null =
     data?.kind === 'analysis' ? data.view : null;
-  const loading = state?.query.status === 'loading';
   const errors = (state?.issues ?? []).filter(
     found => found.severity === 'error',
   );
@@ -100,12 +99,10 @@ export function AnalysisWorkbench({
 
         {runtime && (
           <>
-            <FilterPanel
-              filter={filter}
-              optionsFor={optionsFor}
-              disabled={loading}
-            />
-            <AnalysisEditor analysis={analysis} disabled={loading} />
+            {/* Not frozen while a query runs: editing never re-queries, and
+                a refresh that lands mid-edit must not take the inputs away. */}
+            <FilterPanel filter={filter} optionsFor={optionsFor} />
+            <AnalysisEditor analysis={analysis} />
 
             {errors.length > 0 && (
               <Alert variant="destructive">
@@ -129,7 +126,13 @@ export function AnalysisWorkbench({
                 setChosen(instance.id);
                 list.reload();
               }}
-              onDeleted={() => setChosen(null)}
+              onDeleted={() => {
+                // The engine let the runtime go with the instance. Reload so
+                // the list drops it and the default moves on; the open id
+                // follows the new default, or empties with the list.
+                setChosen(null);
+                list.reload();
+              }}
               onRecovered={() => list.reload()}
             />
 

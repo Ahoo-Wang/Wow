@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { AggregationGroupType } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
@@ -33,6 +34,7 @@ import {
 import {
   analysisConfig,
   dashboardConfig,
+  ordersDefinition,
   panelReference,
   recordConfig,
 } from './fixtures.js';
@@ -329,6 +331,53 @@ describe('validateDashboard references', () => {
     ).toEqual(['dashboard.panel.scope-too-narrow']);
   });
 
+  it('judges an analysis reference against the fields it can reach', () => {
+    // The analysis expands `items`, so its own filter may stand on
+    // `items.sku`. It opens fine on its own; a dashboard must not refuse it
+    // for a field the root definition does not list.
+    const items = {
+      name: 'items',
+      label: 'Items',
+      kind: 'array' as const,
+      elements: [{ name: 'sku', label: 'SKU', kind: 'string' as const }],
+    };
+    const reference = panelReference(
+      {
+        config: analysisConfig({
+          elements: [{ path: 'items' }],
+          filter: {
+            op: 'and',
+            children: [{ field: 'items.sku', operator: 'EQ', value: 'A-1' }],
+          },
+        }),
+      },
+      {
+        fields: [...ordersDefinition().fields, items],
+        analysis: {
+          ...ordersDefinition().analysis!,
+          elements: [
+            {
+              path: 'items',
+              aggregations: [
+                {
+                  field: 'sku',
+                  groups: [AggregationGroupType.TERMS],
+                  functions: [],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    );
+    const config = dashboardConfig({ panels: [viewPanel()] });
+
+    expect(reference.fields.map(field => field.name)).toContain('items.sku');
+    expect(validate(config, 'personal', refs({ pending: reference }))).toEqual(
+      [],
+    );
+  });
+
   it('answers scope coverage directly', () => {
     expect(coversScope('personal', 'personal')).toBe(true);
     expect(coversScope('shared', 'shared')).toBe(true);
@@ -473,6 +522,86 @@ describe('validateDashboard bindings', () => {
     });
 
     expect(codes(validate(config))).toEqual(['dashboard.binding.missing']);
+  });
+});
+
+describe('validateDashboard malformed configs', () => {
+  // A config arrives from a store. Whatever shape it is in, admission
+  // answers with an Issue at the place that is wrong, never a TypeError.
+  const malformed = (config: unknown) =>
+    validate(config as DashboardViewConfig);
+
+  it('reports a skeleton that is not a dashboard', () => {
+    expect(malformed({ ...dashboardConfig(), panels: 'x' })).toMatchObject([
+      { code: 'dashboard.shape.invalid', path: ['panels'] },
+    ]);
+    expect(malformed({ ...dashboardConfig(), fields: null })).toMatchObject([
+      { code: 'dashboard.shape.invalid', path: ['fields'] },
+    ]);
+  });
+
+  it('reports a field or a panel that is not an object', () => {
+    expect(
+      codes(malformed(dashboardConfig({ fields: ['region' as never] }))),
+    ).toContain('dashboard.shape.invalid');
+    // Judged before the shared check maps fields by name, which would throw.
+    expect(
+      malformed(dashboardConfig({ fields: [null as never, REGION_FIELD] })),
+    ).toMatchObject([{ code: 'dashboard.shape.invalid', path: ['fields', 0] }]);
+    expect(
+      malformed(dashboardConfig({ panels: [null as never, viewPanel()] })),
+    ).toMatchObject([{ code: 'dashboard.shape.invalid', path: ['panels', 0] }]);
+  });
+
+  it('reports a panel whose id is not a string', () => {
+    expect(
+      codes(
+        malformed(dashboardConfig({ panels: [viewPanel({ id: 3 as never })] })),
+      ),
+    ).toContain('dashboard.panel.id-empty');
+  });
+
+  it('reports bindings that are not a list of pairs', () => {
+    expect(
+      malformed(
+        dashboardConfig({ panels: [viewPanel({ bindings: 'x' as never })] }),
+      ),
+    ).toMatchObject([
+      { code: 'dashboard.shape.invalid', path: ['panels', 0, 'bindings'] },
+    ]);
+    expect(
+      malformed(
+        dashboardConfig({
+          panels: [viewPanel({ bindings: [{ globalField: 1 } as never] })],
+        }),
+      ),
+    ).toMatchObject([
+      { code: 'dashboard.shape.invalid', path: ['panels', 0, 'bindings', 0] },
+    ]);
+  });
+
+  it('reports content that is not what its kind holds', () => {
+    const at = (panel: unknown) =>
+      malformed(dashboardConfig({ panels: [panel as DashboardPanel] }));
+    const base = { id: 'c', layout: { x: 0, y: 0, w: 6, h: 4 } };
+
+    expect(at({ ...base, kind: 'markdown', content: 7 })).toMatchObject([
+      { code: 'dashboard.shape.invalid', path: ['panels', 0, 'content'] },
+    ]);
+    expect(codes(at({ ...base, kind: 'image', src: 7, href: 8 }))).toEqual([
+      'dashboard.url.unsupported-scheme',
+      'dashboard.url.unsupported-scheme',
+    ]);
+    expect(at({ ...base, kind: 'links', items: 'x' })).toMatchObject([
+      { code: 'dashboard.shape.invalid', path: ['panels', 0, 'items'] },
+    ]);
+    expect(
+      at({ ...base, kind: 'links', items: [null, { label: 1, href: 2 }] }),
+    ).toMatchObject([
+      { code: 'dashboard.shape.invalid', path: ['panels', 0, 'items', 0] },
+      { code: 'dashboard.link.label-empty' },
+      { code: 'dashboard.url.unsupported-scheme' },
+    ]);
   });
 });
 

@@ -20,16 +20,42 @@ import type {
 } from '../model/index.js';
 
 /**
- * Trees arrive from a store, so this asks what the node actually is rather
- * than whether a property happens to be present: a leaf carrying a stray
- * `children` of the wrong shape would otherwise be walked as a group.
+ * Whether a value is a node at all.
+ *
+ * Trees arrive from a store, so a child may be `null`, a number, or an object
+ * that is neither a group nor a leaf. Every predicate here is total over
+ * `unknown`, and the walk skips what fails this one, so a corrupt entry is
+ * reported by `validateFilter` at its path rather than thrown as a
+ * `TypeError` from whichever pass reached it first.
  */
-export function isFilterGroup(node: FilterNode): node is FilterGroup {
-  return Array.isArray((node as FilterGroup).children);
+export function isFilterNode(value: unknown): value is FilterNode {
+  return isFilterGroup(value) || isWellFormedLeaf(value);
 }
 
-export function isFilterLeaf(node: FilterNode): node is FilterLeaf {
-  return !isFilterGroup(node);
+/**
+ * Asks what the node actually is rather than whether a property happens to
+ * be present: a leaf carrying a stray `children` of the wrong shape would
+ * otherwise be walked as a group.
+ */
+export function isFilterGroup(node: unknown): node is FilterGroup {
+  return isObject(node) && Array.isArray(node.children);
+}
+
+export function isFilterLeaf(node: unknown): node is FilterLeaf {
+  return !isFilterGroup(node) && isWellFormedLeaf(node);
+}
+
+/** A leaf names a field and an operator; the value is the kind's to judge. */
+function isWellFormedLeaf(node: unknown): node is FilterLeaf {
+  return (
+    isObject(node) &&
+    typeof node.field === 'string' &&
+    typeof node.operator === 'string'
+  );
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** An empty tree. A config always carries a tree, never `null`. */
@@ -71,8 +97,8 @@ export function nodeAt(tree: FilterTree, path: FilterPath): FilterNode | null {
   let node: FilterNode = tree;
   for (const index of path) {
     if (!isFilterGroup(node)) return null;
-    const child: FilterNode | undefined = node.children[index];
-    if (!child) return null;
+    const child: unknown = node.children[index];
+    if (!isFilterNode(child)) return null;
     node = child;
   }
   return node;
@@ -118,8 +144,8 @@ function updateChildren(
   update: (node: FilterNode) => FilterNode | null,
 ): FilterNode[] {
   const [index, ...rest] = path;
-  const current = children[index];
-  if (!current) return children;
+  const current: unknown = children[index];
+  if (!isFilterNode(current)) return children;
 
   if (rest.length === 0) {
     const next = update(current);
@@ -138,8 +164,18 @@ function updateChildren(
 }
 
 /** True when the tree holds no leaf at any depth. */
+/**
+ * Whether a tree asks nothing: well-formed groups all the way down and not
+ * one leaf. A tree holding a malformed entry is not empty — it is admission's
+ * to report — so `mergeFilters` must not drop it as if it said nothing, or a
+ * stored filter that lost its shape would vanish behind an injected scope
+ * and the query would run wider than the view was saved to be.
+ */
 export function isEmptyFilter(tree: FilterTree): boolean {
-  return countLeaves(tree) === 0;
+  for (const visit of walkFilterShape(tree)) {
+    if (visit.node === null || isFilterLeaf(visit.node)) return false;
+  }
+  return true;
 }
 
 /**
@@ -147,7 +183,11 @@ export function isEmptyFilter(tree: FilterTree): boolean {
  * advanced editor, which is why the mode travels with the saved config.
  */
 export function isSimpleTree(tree: FilterTree): boolean {
-  return tree.op === 'and' && tree.children.every(isFilterLeaf);
+  return (
+    isFilterGroup(tree) &&
+    tree.op === 'and' &&
+    tree.children.every(isFilterLeaf)
+  );
 }
 
 export interface TreeVisit {
@@ -157,24 +197,53 @@ export interface TreeVisit {
 }
 
 /**
- * Walks the tree iteratively. Configs arrive from a store, so nothing here may
- * recurse before the budget in `validateFilter` has admitted the tree.
+ * A place in the tree holding something that is not a node: `null`, a
+ * number, an object with neither `children` nor `field`. It has a path and a
+ * depth like any node, so the budget counts it and an issue can point at it,
+ * but nothing below it is walked.
  */
-export function* walkFilter(tree: FilterTree): Generator<TreeVisit> {
-  const stack: TreeVisit[] = [{ node: tree, path: [], depth: 1 }];
+export interface MalformedVisit {
+  node: null;
+  path: IssuePath;
+  depth: number;
+}
+
+/**
+ * Walks the tree iteratively, malformed entries included. Configs arrive from
+ * a store, so nothing here may recurse before the budget in `validateFilter`
+ * has admitted the tree, and that budget is the one caller that needs to see
+ * the malformed entries: they cost a node each, and they are its to report.
+ */
+export function* walkFilterShape(
+  tree: unknown,
+): Generator<TreeVisit | MalformedVisit> {
+  const stack: { value: unknown; path: IssuePath; depth: number }[] = [
+    { value: tree, path: [], depth: 1 },
+  ];
   while (stack.length > 0) {
-    const visit = stack.pop() as TreeVisit;
-    yield visit;
-    if (!isFilterGroup(visit.node)) continue;
-    const children = visit.node.children;
+    const { value, path, depth } = stack.pop() as (typeof stack)[number];
+    // A tree is a group; a leaf at the root is as malformed as a number.
+    if (!isFilterNode(value) || (depth === 1 && !isFilterGroup(value))) {
+      yield { node: null, path, depth };
+      continue;
+    }
+    yield { node: value, path, depth };
+    if (!isFilterGroup(value)) continue;
+    const children = value.children;
     for (let index = children.length - 1; index >= 0; index -= 1) {
       stack.push({
-        node: children[index],
-        path: [...visit.path, 'children', index],
-        depth: visit.depth + 1,
+        value: children[index],
+        path: [...path, 'children', index],
+        depth: depth + 1,
       });
     }
   }
+}
+
+/** Walks the nodes of the tree, skipping whatever is not one. */
+export function* walkFilter(tree: FilterTree): Generator<TreeVisit> {
+  for (const visit of walkFilterShape(tree))
+    if (visit.node !== null) yield visit;
 }
 
 export function countLeaves(tree: FilterTree): number {

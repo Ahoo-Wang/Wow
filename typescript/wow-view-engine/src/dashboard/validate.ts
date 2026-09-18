@@ -36,6 +36,7 @@ import {
   validateFilter,
   validateViewConfigBase,
   type FieldKindRegistry,
+  isPlainObject,
 } from '../filter/index.js';
 import { mergeGlobalFilter } from './merge.js';
 import { isSafeContentUrl, isViewPanel } from './panels.js';
@@ -44,6 +45,14 @@ import { isSafeContentUrl, isViewPanel } from './panels.js';
 export interface PanelReference {
   instance: ViewInstance;
   definition: ViewDefinition;
+  /**
+   * The fields the referenced view's filter and bindings are judged against.
+   * A record view sees its definition's own; an analysis view also reaches
+   * the element fields its config expands, and its filter may already stand
+   * on one. The resolver computes this, because the kernel that knows how an
+   * analysis expands is not one this kernel may import.
+   */
+  fields: readonly FieldDefinition[];
 }
 
 /**
@@ -78,6 +87,11 @@ export function validateDashboard(
 ): Issue[] {
   const limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
   const columns = options.columns ?? DASHBOARD_GRID_COLUMNS;
+  // A config arrives from a store. When its skeleton is not a dashboard's,
+  // nothing below can be judged, and saying so is the kernel's job rather
+  // than a `TypeError`'s.
+  const skeleton = validateSkeleton(config);
+  if (skeleton.length > 0) return skeleton;
   const fields = config.fields as readonly FieldDefinition[];
   const issues = validateViewConfigBase(fields, config, kinds, limits);
 
@@ -97,6 +111,10 @@ export function validateDashboard(
   const ids = new Set<string>();
   config.panels.forEach((panel, index) => {
     const path: IssuePath = ['panels', index];
+    if (!isPlainObject(panel)) {
+      issues.push(shape(path, 'object'));
+      return;
+    }
     issues.push(...validateIdentity(panel, path, ids));
     issues.push(...validateLayout(panel.layout, [...path, 'layout'], columns));
     issues.push(
@@ -107,6 +125,30 @@ export function validateDashboard(
   });
 
   return issues;
+}
+
+/**
+ * The parts every later check reads without asking: the two arrays, and
+ * each field entry, which the shared config check maps by name before this
+ * kernel's own rules get to look at it.
+ */
+function validateSkeleton(config: DashboardViewConfig): Issue[] {
+  const issues: Issue[] = [];
+  if (!Array.isArray(config.fields)) issues.push(shape(['fields'], 'array'));
+  else
+    config.fields.forEach((field, index) => {
+      if (!isPlainObject(field) || typeof field.name !== 'string')
+        issues.push(shape(['fields', index], 'object'));
+    });
+  if (!Array.isArray(config.panels)) issues.push(shape(['panels'], 'array'));
+  return issues;
+}
+
+function shape(
+  path: IssuePath,
+  expected: 'array' | 'object' | 'string',
+): Issue {
+  return issue('dashboard.shape.invalid', path, { expected });
 }
 
 function validateFields(config: DashboardViewConfig): Issue[] {
@@ -143,7 +185,7 @@ function validateIdentity(
   ids: Set<string>,
 ): Issue[] {
   const at: IssuePath = [...path, 'id'];
-  if (panel.id.trim().length === 0)
+  if (typeof panel.id !== 'string' || panel.id.trim().length === 0)
     return [issue('dashboard.panel.id-empty', at)];
   if (ids.has(panel.id))
     return [issue('dashboard.panel.id-duplicate', at, { id: panel.id })];
@@ -196,7 +238,7 @@ function validateViewPanel(
       ),
     ];
 
-  const { instance, definition } = reference;
+  const { instance, definition, fields } = reference;
   if (definition.kind !== 'data' || instance.config.kind === 'dashboard')
     return [
       issue('dashboard.panel.kind-unsupported', [...path, 'instanceId'], {
@@ -215,24 +257,25 @@ function validateViewPanel(
       }),
     );
 
-  const bindings = validateBindings(panel, path, config, definition.fields);
+  const bindings = validateBindings(panel, path, config, fields);
   issues.push(...bindings.issues);
   if (bindings.issues.length > 0) return issues;
 
   // Two trees that each fit the budget can still exceed it once ANDed, and the
   // panel's own definition may refuse an operator the global field allowed.
+  // The view is judged against what it can reach, not the root fields alone:
+  // an analysis standing on an element field opens fine on its own and must
+  // not be refused the moment it is placed on a dashboard.
   const merged = mergeGlobalFilter(
     instance.config.filter,
     config.filter,
     panel.bindings,
   );
   issues.push(
-    ...validateFilter(definition.fields, merged, kinds, { limits }).map(
-      found => ({
-        ...found,
-        path: [...path, 'filter', ...found.path],
-      }),
-    ),
+    ...validateFilter(fields, merged, kinds, { limits }).map(found => ({
+      ...found,
+      path: [...path, 'filter', ...found.path],
+    })),
   );
   return issues;
 }
@@ -248,8 +291,18 @@ function validateBindings(
   const targets = new Map(panelFields.map(field => [field.name, field]));
   const bound = new Set<string>();
 
+  if (!Array.isArray(panel.bindings))
+    return { issues: [shape([...path, 'bindings'], 'array')] };
   panel.bindings.forEach((binding, index) => {
     const at: IssuePath = [...path, 'bindings', index];
+    if (
+      !isPlainObject(binding) ||
+      typeof binding.globalField !== 'string' ||
+      typeof binding.panelField !== 'string'
+    ) {
+      issues.push(shape(at, 'object'));
+      return;
+    }
     const global = globals.get(binding.globalField);
     const target = targets.get(binding.panelField);
 
@@ -302,6 +355,8 @@ function validateContentPanel(
 ): Issue[] {
   switch (panel.kind) {
     case 'markdown':
+      if (typeof panel.content !== 'string')
+        return [shape([...path, 'content'], 'string')];
       return panel.content.length > MAX_MARKDOWN_LENGTH
         ? [
             issue('dashboard.markdown.too-long', [...path, 'content'], {
@@ -327,9 +382,12 @@ function validateImage(
   path: IssuePath,
 ): Issue[] {
   const issues: Issue[] = [];
-  if (!isSafeContentUrl(panel.src))
+  if (typeof panel.src !== 'string' || !isSafeContentUrl(panel.src))
     issues.push(issue('dashboard.url.unsupported-scheme', [...path, 'src']));
-  if (panel.href !== undefined && !isSafeContentUrl(panel.href))
+  if (
+    panel.href !== undefined &&
+    (typeof panel.href !== 'string' || !isSafeContentUrl(panel.href))
+  )
     issues.push(issue('dashboard.url.unsupported-scheme', [...path, 'href']));
   return issues;
 }
@@ -338,6 +396,7 @@ function validateLinks(
   panel: Extract<DashboardContentPanel, { kind: 'links' }>,
   path: IssuePath,
 ): Issue[] {
+  if (!Array.isArray(panel.items)) return [shape([...path, 'items'], 'array')];
   if (panel.items.length > MAX_PANEL_LINKS)
     return [
       issue('dashboard.links.too-many', [...path, 'items'], {
@@ -348,9 +407,13 @@ function validateLinks(
   const issues: Issue[] = [];
   panel.items.forEach((item, index) => {
     const at: IssuePath = [...path, 'items', index];
-    if (item.label.trim().length === 0)
+    if (!isPlainObject(item)) {
+      issues.push(shape(at, 'object'));
+      return;
+    }
+    if (typeof item.label !== 'string' || item.label.trim().length === 0)
       issues.push(issue('dashboard.link.label-empty', [...at, 'label']));
-    if (!isSafeContentUrl(item.href))
+    if (typeof item.href !== 'string' || !isSafeContentUrl(item.href))
       issues.push(issue('dashboard.url.unsupported-scheme', [...at, 'href']));
   });
   return issues;

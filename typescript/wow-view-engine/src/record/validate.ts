@@ -23,6 +23,7 @@ import {
   type RuntimeLimits,
 } from '../model/index.js';
 import {
+  isPlainObject,
   issue,
   validateViewConfigBase,
   type FieldKindRegistry,
@@ -52,6 +53,7 @@ export function validateRecord(
     return [
       issue('record.capability.missing', [], { definition: definition.id }),
     ];
+  if (!isPlainObject(config)) return [issue('config.invalid', [])];
 
   const issues = validateViewConfigBase(
     definition.fields,
@@ -59,11 +61,17 @@ export function validateRecord(
     kinds,
     limits,
   );
+  // The rules below read `sort`, `table`, `card` and `summaries` as the
+  // shapes the type promises; a config from a store may keep none of them.
+  const skeleton = validateShape(config);
+  if (skeleton.length > 0) return [...issues, ...skeleton];
   const byName = new Map(definition.fields.map(field => [field.name, field]));
 
   if (!capability.layouts.includes(config.layout))
     issues.push(
-      issue('record.layout.unsupported', ['layout'], { layout: config.layout }),
+      issue('record.layout.unsupported', ['layout'], {
+        layout: String(config.layout),
+      }),
     );
 
   issues.push(...validatePageSize(config, limits));
@@ -72,6 +80,62 @@ export function validateRecord(
   issues.push(...validateCard(config, byName));
   issues.push(...validateSummaries(config, byName));
 
+  return issues;
+}
+
+/**
+ * Whether the config has the skeleton the rules read through. Each part is
+ * reported at its own path; the entries are asked only for a `field`, since
+ * what a field must be is the rules' question, not this one's.
+ */
+function validateShape(config: RecordViewConfig): Issue[] {
+  const issues: Issue[] = [];
+  const namesField = (entry: unknown): entry is Record<string, unknown> =>
+    isPlainObject(entry) && typeof entry.field === 'string';
+  const listOf = (
+    list: unknown,
+    path: IssuePath,
+    code: string,
+    entryIs: (entry: unknown) => boolean,
+  ) => {
+    if (!Array.isArray(list)) {
+      issues.push(issue(code, path));
+      return;
+    }
+    list.forEach((entry, index) => {
+      if (!entryIs(entry)) issues.push(issue(code, [...path, index]));
+    });
+  };
+
+  listOf(config.sort, ['sort'], 'record.sort.invalid', namesField);
+  if (!isPlainObject(config.table))
+    issues.push(issue('record.table.invalid', ['table']));
+  else
+    listOf(
+      config.table.columns,
+      ['table', 'columns'],
+      'record.table.invalid',
+      namesField,
+    );
+  if (!isPlainObject(config.card)) {
+    issues.push(issue('record.card.invalid', ['card']));
+  } else {
+    if (typeof config.card.title !== 'string')
+      issues.push(issue('record.card.invalid', ['card', 'title']));
+    listOf(
+      config.card.fields,
+      ['card', 'fields'],
+      'record.card.invalid',
+      entry => typeof entry === 'string',
+    );
+  }
+  if (config.summaries !== undefined)
+    listOf(
+      config.summaries,
+      ['summaries'],
+      'record.summaries.invalid',
+      entry => namesField(entry) && typeof entry.fn === 'string',
+    );
   return issues;
 }
 

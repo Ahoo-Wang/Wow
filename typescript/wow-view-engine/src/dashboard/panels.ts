@@ -13,22 +13,22 @@
 
 import type {
   DashboardContentPanel,
-  DashboardPanel,
   DashboardViewPanel,
 } from '../model/index.js';
+import { isPlainObject } from '../filter/index.js';
 
 /** A panel backed by a referenced instance, and so by a child runtime. */
-export function isViewPanel(
-  panel: DashboardPanel,
-): panel is DashboardViewPanel {
-  return panel.kind === 'view';
+/**
+ * Total over `unknown`: a stored config may hold a panel that is no object,
+ * and the runtime asks this before admission has had its say.
+ */
+export function isViewPanel(panel: unknown): panel is DashboardViewPanel {
+  return isPlainObject(panel) && panel.kind === 'view';
 }
 
 /** A static panel: no query, no global filter, no child runtime. */
-export function isContentPanel(
-  panel: DashboardPanel,
-): panel is DashboardContentPanel {
-  return panel.kind !== 'view';
+export function isContentPanel(panel: unknown): panel is DashboardContentPanel {
+  return isPlainObject(panel) && panel.kind !== 'view';
 }
 
 /** Schemes a content panel may link to or load from. */

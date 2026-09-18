@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { cn } from 'cn';
-import GridLayout, { type Layout } from 'react-grid-layout';
+import GridLayout, { noCompactor, type Layout } from 'react-grid-layout';
 import {
   GripVerticalIcon,
   LayoutDashboardIcon,
@@ -61,6 +61,13 @@ export interface DashboardGridProps {
  * The grid library owns geometry and nothing else: a move or a resize comes
  * back as a placement, the controller turns it into an edit and an apply, and
  * everything inside a panel is the same component a full view would use.
+ *
+ * Only a gesture writes geometry back. The library also reports a layout it
+ * computed itself — on mount, and whenever the props change — and applying
+ * that would dirty a dashboard nobody touched, so those reports are not
+ * listened to. Panels sit where the config put them, not where a compactor
+ * would move them: the kernel admits `layout` as authored, and the screen
+ * must show what was admitted.
  */
 export function DashboardGrid({
   dashboard,
@@ -70,6 +77,9 @@ export function DashboardGrid({
 }: DashboardGridProps) {
   const { ref, width } = useContainerWidth();
   const messages = useViewMessages();
+  const placed = (next: Layout) => {
+    if (editable) dashboard.place(next.map(toPlacement));
+  };
 
   if (dashboard.panels.length === 0)
     return (
@@ -104,7 +114,9 @@ export function DashboardGrid({
         // Dragging by the header alone leaves the panel body clickable.
         dragConfig={{ enabled: editable, handle: '[data-slot="panel-grip"]' }}
         resizeConfig={{ enabled: editable }}
-        onLayoutChange={next => dashboard.place(next.map(toPlacement))}
+        compactor={noCompactor}
+        onDragStop={placed}
+        onResizeStop={placed}
       >
         {dashboard.panels.map(panel => (
           <div key={panel.id} className="min-h-0">

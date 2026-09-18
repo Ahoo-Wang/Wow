@@ -41,7 +41,12 @@ import {
   AnalysisWorkbench,
   ViewSurface,
 } from '../src/ui/index.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  deferred,
+  ordersDefinition,
+  testSource,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -164,6 +169,16 @@ describe('useAnalysisEditor', () => {
       groups: ['warehouse'],
       metrics: ['orders'],
     });
+  });
+
+  it('pauses auto refresh while an editor holds focus', async () => {
+    const result = await editor();
+
+    act(() => result.current.analysis.focus());
+    expect(result.current.opened.runtime?.getSnapshot().editing).toBe(true);
+
+    act(() => result.current.analysis.blur());
+    expect(result.current.opened.runtime?.getSnapshot().editing).toBe(false);
   });
 
   it('reports the issues that belong to the analysis', async () => {
@@ -634,6 +649,51 @@ describe('AnalysisWorkbench', () => {
     expect(
       screen.getByRole('columnheader', { name: 'Warehouse' }),
     ).toBeDefined();
+  });
+
+  it('holds the timer while the editor has focus', async () => {
+    const { engine } = await open();
+    const runtime = engine.openRuntimes()[0];
+    const limit = screen.getByLabelText('Row limit');
+    const run = screen.getByRole('button', { name: /Run/ });
+
+    fireEvent.focus(limit, { relatedTarget: null });
+    expect(runtime.getSnapshot().editing).toBe(true);
+
+    // Between two controls of the editor: still editing.
+    fireEvent.blur(limit, { relatedTarget: run });
+    fireEvent.focus(run, { relatedTarget: limit });
+    expect(runtime.getSnapshot().editing).toBe(true);
+
+    fireEvent.blur(run, { relatedTarget: document.body });
+    expect(runtime.getSnapshot().editing).toBe(false);
+  });
+
+  it('keeps the editor usable while an aggregation is still running', async () => {
+    const waiting = deferred<Record<string, unknown>[]>();
+    const { engine } = setup(testSource({ aggregate: () => waiting.promise }));
+    render(
+      <AnalysisWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    const limit = (await screen.findByLabelText(
+      'Row limit',
+    )) as HTMLInputElement;
+
+    // The result is still coming; the inputs are not frozen for it.
+    expect(limit.disabled).toBe(false);
+    expect(
+      screen.getByRole('button', { name: /Run/ }).hasAttribute('disabled'),
+    ).toBe(false);
+    expect(
+      screen.getByRole('button', { name: /Apply/ }).hasAttribute('disabled'),
+    ).toBe(false);
+
+    waiting.resolve([{ warehouse: 'CN', orders: 2, amount_sum: 30 }]);
+    await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
   });
 
   it('adds a metric from what the capability offers', async () => {

@@ -141,7 +141,13 @@ export function DashboardWorkbench({
                   setChosen(instance.id);
                   list.reload();
                 }}
-                onDeleted={() => setChosen(null)}
+                onDeleted={() => {
+                  // The engine let the runtime go with the instance. Reload so
+                  // the list drops it and the default moves on; the open id
+                  // follows the new default, or empties with the list.
+                  setChosen(null);
+                  list.reload();
+                }}
                 onRecovered={() => list.reload()}
               />
             </div>

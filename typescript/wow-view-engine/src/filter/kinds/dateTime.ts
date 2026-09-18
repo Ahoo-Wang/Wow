@@ -12,14 +12,18 @@
  */
 
 import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
-import type { FieldKindId } from '../../model/index.js';
+import type { FieldKindId, FilterOperatorName } from '../../model/index.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
 import {
   isValidTimeZone,
   resolveDateTimeBound,
   resolveDateTimeRange,
 } from '../time.js';
-import { isDateTimeFilterValue, type DateTimeFilterValue } from '../values.js';
+import {
+  isDateTimeFilterValue,
+  MAX_RELATIVE_DATE_AMOUNT,
+  type DateTimeFilterValue,
+} from '../values.js';
 import {
   compilePresence,
   describePresence,
@@ -31,7 +35,8 @@ function isParsableInstant(text: string): boolean {
   return !Number.isNaN(Date.parse(text));
 }
 
-function describeValue(value: DateTimeFilterValue): string {
+/** The window a value names, as a phrase: for `BETWEEN`. */
+function describeWindow(value: DateTimeFilterValue): string {
   switch (value.type) {
     case 'absolute':
       return value.to === undefined
@@ -43,9 +48,34 @@ function describeValue(value: DateTimeFilterValue): string {
       // actually in force.
       return `${value.direction === 'future' ? 'next' : 'last'} ${value.amount} ${value.unit}`;
     case 'preset':
-      // `nextQuarter` is a key, not a phrase, and there are fifteen of them.
-      return value.preset.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+      return describePreset(value);
   }
+}
+
+/**
+ * The one instant a single-bound operator compares against, as a phrase.
+ * It follows `resolveDateTimeBound`: a relative value is a distance from
+ * now, so "on or before 7 day ago" is the bound in force, where "last 7 day"
+ * would read as the window the query does not run over.
+ */
+function describeBound(
+  value: DateTimeFilterValue,
+  operator: FilterOperatorName,
+): string {
+  const side = operator === 'GTE' ? 'on or after' : 'on or before';
+  switch (value.type) {
+    case 'absolute':
+      return `${side} ${operator === 'GTE' ? value.from : (value.to ?? value.from)}`;
+    case 'relative':
+      return `${side} ${value.amount} ${value.unit} ${value.direction === 'future' ? 'ahead' : 'ago'}`;
+    case 'preset':
+      return `${side} ${describePreset(value)}`;
+  }
+}
+
+/** `nextQuarter` is a key, not a phrase, and there are fifteen of them. */
+function describePreset(value: DateTimeFilterValue & { type: 'preset' }) {
+  return value.preset.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 }
 
 /**
@@ -88,6 +118,14 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
             }),
           ];
       }
+      // Past the bound the arithmetic runs off the calendar, and a compiler
+      // that clamps would quietly answer a different question.
+      if (value.type === 'relative' && value.amount > MAX_RELATIVE_DATE_AMOUNT)
+        return [
+          issue('filter.value.relative-too-large', path, {
+            max: MAX_RELATIVE_DATE_AMOUNT,
+          }),
+        ];
       return [];
     },
 
@@ -128,7 +166,12 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
     describe({ leaf, field }) {
       const presence = describePresence(leaf.operator);
       if (presence) return `${field.label} ${presence}`;
-      return `${field.label} ${describeValue(readValue<DateTimeFilterValue>(leaf.value))}`;
+      const value = readValue<DateTimeFilterValue>(leaf.value);
+      const text =
+        leaf.operator === 'GTE' || leaf.operator === 'LTE'
+          ? describeBound(value, leaf.operator)
+          : describeWindow(value);
+      return `${field.label} ${text}`;
     },
   };
 }

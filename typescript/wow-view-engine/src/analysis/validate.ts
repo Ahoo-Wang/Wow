@@ -65,6 +65,11 @@ export function validateAnalysis(
       issue('analysis.capability.missing', [], { definition: definition.id }),
     ];
 
+  // The rules below index into the config freely, so a wrong skeleton is
+  // reported once, here, and nothing else runs over it.
+  const shape = validateShape(config);
+  if (shape.length > 0) return shape;
+
   const scope = analysisScope(definition, capability, config);
   const issues = validateViewConfigBase(
     [...scope.fields.values()],
@@ -77,10 +82,51 @@ export function validateAnalysis(
   issues.push(...validateGroups(config, scope));
   issues.push(...validateMetrics(config, capability, scope, kinds, limits));
   issues.push(...validateAliases(config));
-  issues.push(...validateHaving(config, capability));
+  issues.push(...validateHaving(config, capability, limits));
   issues.push(...validateSortAndColumns(config));
   issues.push(...validateLimits(config, capability, limits));
   issues.push(...validateChart(config));
+  return issues;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Whether the config has the skeleton every other rule reads through.
+ *
+ * A config arrives from a store, so any container may be missing or of the
+ * wrong kind — `groups` a string, `chart` absent, an alias a number. The rules
+ * index into them without looking (`groups.map`, `alias.includes`,
+ * `CHART_FAMILY[chart.type]`), so each wrong piece is named here with its
+ * path, and the caller stops before anything walks it. This is the analysis
+ * counterpart of the filter budget: the kernel's contract is an Issue out,
+ * never a TypeError.
+ */
+function validateShape(config: AnalysisViewConfig): Issue[] {
+  const issues: Issue[] = [];
+  const malformed = (path: IssuePath) =>
+    issues.push(issue('analysis.config.malformed', path));
+
+  // Every entry of these lists is addressed by alias before it is validated,
+  // so the alias must at least be a string.
+  const list = (value: unknown, path: IssuePath, aliased: boolean) => {
+    if (!Array.isArray(value)) return malformed(path);
+    value.forEach((entry, index) => {
+      if (!isObject(entry)) malformed([...path, index]);
+      else if (aliased && typeof entry.alias !== 'string')
+        malformed([...path, index, 'alias']);
+    });
+  };
+
+  list(config.groups, ['groups'], true);
+  list(config.metrics, ['metrics'], true);
+  list(config.sort, ['sort'], true);
+  if (config.elements !== undefined) list(config.elements, ['elements'], false);
+  if (!isObject(config.table)) malformed(['table']);
+  else list(config.table.columns, ['table', 'columns'], true);
+  if (!isObject(config.chart)) malformed(['chart']);
   return issues;
 }
 
@@ -185,16 +231,28 @@ function validateGroups(
       // not be refused because this client's ICU is trimmed or out of date. A
       // filter value is the opposite case — it is resolved here against dayjs,
       // so an unknown zone there is an error.
-      if (group.timeZone !== undefined && group.timeZone.trim() === '')
-        issues.push(
-          issue('analysis.group.blank-time-zone', [...path, 'timeZone']),
-        );
+      if (group.timeZone !== undefined) {
+        if (typeof group.timeZone !== 'string')
+          issues.push(
+            issue('analysis.config.malformed', [...path, 'timeZone']),
+          );
+        else if (group.timeZone.trim() === '')
+          issues.push(
+            issue('analysis.group.blank-time-zone', [...path, 'timeZone']),
+          );
+      }
     }
     if (group.type === 'TERMS') {
-      if (group.missingKey !== undefined && group.missingKey.trim() === '')
-        issues.push(
-          issue('analysis.group.blank-missing-key', [...path, 'missingKey']),
-        );
+      if (group.missingKey !== undefined) {
+        if (typeof group.missingKey !== 'string')
+          issues.push(
+            issue('analysis.config.malformed', [...path, 'missingKey']),
+          );
+        else if (group.missingKey.trim() === '')
+          issues.push(
+            issue('analysis.group.blank-missing-key', [...path, 'missingKey']),
+          );
+      }
     }
     return issues;
   });
@@ -254,6 +312,112 @@ function expressionIssues(
     ),
   );
   return issues;
+}
+
+/**
+ * The budget of an expression, derived or having tree, checked iteratively
+ * before anything recurses into it.
+ *
+ * These trees arrive from a store like a filter does, and the walks below are
+ * plain recursion, so without this a nested `BINARY` chain would exhaust the
+ * stack before any rule ran. The filter budget is reused as the ceiling: Wow
+ * caps an expression at the same depth 8 and 256 nodes it uses for nothing
+ * else, and one pair of limits keeps the caller's override in one place.
+ * Like Wow, depth is per tree and the node count is one budget over every
+ * tree of one kind, so a config cannot slip past by spreading a large tree
+ * across many metrics.
+ */
+type BudgetOverrun = 'too-deep' | 'too-many-nodes';
+
+const BUDGET_ISSUE_CODES = {
+  expression: {
+    'too-deep': 'analysis.expression.too-deep',
+    'too-many-nodes': 'analysis.expression.too-many-nodes',
+  },
+  having: {
+    'too-deep': 'analysis.having.too-deep',
+    'too-many-nodes': 'analysis.having.too-many-nodes',
+  },
+} as const;
+
+/** One node counter per tree kind, shared across the metrics of a config. */
+interface BudgetCounter {
+  nodes: number;
+}
+
+function checkTreeBudget(
+  root: unknown,
+  children: (node: unknown) => readonly unknown[],
+  limits: RuntimeLimits,
+  counted: BudgetCounter,
+): BudgetOverrun | undefined {
+  const pending: { node: unknown; depth: number }[] = [
+    { node: root, depth: 1 },
+  ];
+  while (pending.length > 0) {
+    const { node, depth } = pending.pop() as { node: unknown; depth: number };
+    if (depth > limits.maxFilterDepth) return 'too-deep';
+    counted.nodes += 1;
+    if (counted.nodes > limits.maxFilterNodes) return 'too-many-nodes';
+    for (const child of children(node))
+      pending.push({ node: child, depth: depth + 1 });
+  }
+  return undefined;
+}
+
+function budgetIssues(
+  kind: keyof typeof BUDGET_ISSUE_CODES,
+  overrun: BudgetOverrun | undefined,
+  path: IssuePath,
+  limits: RuntimeLimits,
+): Issue[] {
+  if (overrun === undefined) return [];
+  const max =
+    overrun === 'too-deep' ? limits.maxFilterDepth : limits.maxFilterNodes;
+  return [issue(BUDGET_ISSUE_CODES[kind][overrun], path, { max })];
+}
+
+/** The two operands of a BINARY node; anything else is a leaf, sound or not. */
+function binaryChildren(node: unknown): readonly unknown[] {
+  const shaped = node as
+    { type?: unknown; left?: unknown; right?: unknown } | null | undefined;
+  return shaped?.type === 'BINARY' ? [shaped.left, shaped.right] : [];
+}
+
+/** The operands of a having group; a non-array is the walk's to report. */
+function havingChildren(node: unknown): readonly unknown[] {
+  const operands = (node as { operands?: unknown } | null | undefined)
+    ?.operands;
+  return Array.isArray(operands) ? operands : [];
+}
+
+/** `expressionIssues` behind the budget, which decides whether it runs. */
+function budgetedExpressionIssues(
+  expression: AnalysisExpression,
+  scope: AnalysisScope,
+  path: IssuePath,
+  expressionsAllowed: boolean,
+  limits: RuntimeLimits,
+  counted: BudgetCounter,
+): Issue[] {
+  const overrun = checkTreeBudget(expression, binaryChildren, limits, counted);
+  return overrun
+    ? budgetIssues('expression', overrun, path, limits)
+    : expressionIssues(expression, scope, path, expressionsAllowed);
+}
+
+/** `derivedIssues` behind the budget, which decides whether it runs. */
+function budgetedDerivedIssues(
+  expression: AnalysisDerivedExpression | undefined,
+  available: ReadonlySet<string>,
+  path: IssuePath,
+  limits: RuntimeLimits,
+  counted: BudgetCounter,
+): Issue[] {
+  const overrun = checkTreeBudget(expression, binaryChildren, limits, counted);
+  return overrun
+    ? budgetIssues('expression', overrun, path, limits)
+    : derivedIssues(expression, available, path);
 }
 
 /** Whether a value can be read as one of the three expression shapes. */
@@ -411,10 +575,19 @@ function validateMetrics(
   limits: RuntimeLimits,
 ): Issue[] {
   const issues: Issue[] = [];
+  // Wow refuses `metrics must not be empty.`; an aggregation with nothing to
+  // compute is caught here rather than by the server.
+  if (config.metrics.length === 0)
+    issues.push(issue('analysis.metrics.empty', ['metrics']));
+
   // DERIVED may only reach metrics declared before it, which rules out both
   // forward references and cycles by construction.
   const earlier = new Set<string>();
   const expressionsAllowed = capability.expressions === true;
+  // One node budget over every aggregate expression and another over every
+  // derived one, as Wow counts them.
+  const expressionNodes: BudgetCounter = { nodes: 0 };
+  const derivedNodes: BudgetCounter = { nodes: 0 };
 
   config.metrics.forEach((metric, index) => {
     const path: IssuePath = ['metrics', index];
@@ -447,11 +620,13 @@ function validateMetrics(
         break;
       case 'NUMERIC': {
         issues.push(
-          ...expressionIssues(
+          ...budgetedExpressionIssues(
             metric.expression,
             scope,
             [...path, 'expression'],
             expressionsAllowed,
+            limits,
+            expressionNodes,
           ),
         );
         if (metric.expression?.type === 'FIELD') {
@@ -482,11 +657,13 @@ function validateMetrics(
       }
       case 'DISTINCT_COUNT': {
         issues.push(
-          ...expressionIssues(
+          ...budgetedExpressionIssues(
             metric.expression,
             scope,
             [...path, 'expression'],
             expressionsAllowed,
+            limits,
+            expressionNodes,
           ),
         );
         if (metric.expression?.type === 'FIELD') {
@@ -502,11 +679,13 @@ function validateMetrics(
       }
       case 'PERCENTILE': {
         issues.push(
-          ...expressionIssues(
+          ...budgetedExpressionIssues(
             metric.expression,
             scope,
             [...path, 'expression'],
             expressionsAllowed,
+            limits,
+            expressionNodes,
           ),
         );
         if (metric.expression?.type === 'FIELD') {
@@ -533,10 +712,24 @@ function validateMetrics(
         if (!expressionsAllowed)
           issues.push(issue('analysis.expressions.undeclared', path));
         issues.push(
-          ...derivedIssues(metric.expression, earlier, [...path, 'expression']),
+          ...budgetedDerivedIssues(
+            metric.expression,
+            earlier,
+            [...path, 'expression'],
+            limits,
+            derivedNodes,
+          ),
         );
         break;
       }
+      default:
+        // A type this version does not know is a finding, not a fall-through:
+        // `compileMetric` has no mapping for it and must never be reached.
+        issues.push(
+          issue('analysis.metric.type-unknown', [...path, 'type'], {
+            type: String((metric as { type: unknown }).type),
+          }),
+        );
     }
 
     if (metric.type !== 'ANY') earlier.add(metric.alias);
@@ -548,6 +741,7 @@ function validateMetrics(
 function validateHaving(
   config: AnalysisViewConfig,
   capability: NonNullable<DataViewDefinition['analysis']>,
+  limits: RuntimeLimits,
 ): Issue[] {
   if (!config.having) return [];
   // Having is a declared capability like expressions; an undeclared one is
@@ -558,6 +752,13 @@ function validateHaving(
   // aggregation is one row, and Wow refuses a having over it.
   if (config.groups.length === 0)
     return [issue('analysis.having.requires-group', ['having'])];
+
+  // The budget first, iteratively, so the recursive walk below never sees a
+  // tree that could exhaust the stack.
+  const overrun = checkTreeBudget(config.having, havingChildren, limits, {
+    nodes: 0,
+  });
+  if (overrun) return budgetIssues('having', overrun, ['having'], limits);
 
   const { nonAnyMetrics } = aliasesOf(config);
 

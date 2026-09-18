@@ -529,6 +529,32 @@ describe('RecordWorkbench interaction', () => {
     );
   });
 
+  it('keeps the filter editable while a query is still running', async () => {
+    const pending = deferred<PagedList<RecordData>>();
+    const { engine } = setup(testSource({ paged: () => pending.promise }));
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    const apply = await screen.findByRole('button', { name: /Apply/ });
+
+    // The rows are still coming. Typing never re-queries and the next apply
+    // supersedes the request in flight, so nothing here has to wait for it.
+    expect(apply.hasAttribute('disabled')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: /Add condition/ }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Warehouse' }));
+    const value = await screen.findByLabelText('warehouse value');
+    expect((value as HTMLInputElement).disabled).toBe(false);
+    fireEvent.change(value, { target: { value: 'CN' } });
+    expect((value as HTMLInputElement).value).toBe('CN');
+
+    pending.resolve({ total: 2, list: [...ROWS] });
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+  });
+
   it('refreshes on demand', async () => {
     const { source } = await open();
     const before = vi.mocked(source.paged).mock.calls.length;
@@ -613,6 +639,70 @@ describe('save actions', () => {
     await waitFor(async () =>
       expect(await store.list('orders')).toHaveLength(1),
     );
+  });
+
+  it('moves on to the next view once the open default is deleted', async () => {
+    // No explicit instance and the personal view is the default: the id the
+    // workbench opened came from the list, so a delete has nothing to unpin.
+    // The engine disposed the runtime with the instance; what is on screen
+    // must follow, and the list must stop offering the view.
+    const store = new MemoryViewStore({
+      instances: [mine],
+      preferences: {
+        orders: { order: [], defaultInstanceId: 'orders-1', revision: '0' },
+      },
+    });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    render(<RecordWorkbench engine={engine} definitionId="orders" />);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Mine' }).ariaCurrent).toBe(
+        'true',
+      ),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Delete',
+      }),
+    );
+
+    // The system view is what is left, and it is the one open now.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /All orders/ }).ariaCurrent,
+      ).toBe('true'),
+    );
+    expect(screen.queryByRole('button', { name: 'Mine' })).toBeNull();
+    expect(screen.getAllByRole('row')).toHaveLength(3);
+  });
+
+  it('shows the empty state once the last view is deleted', async () => {
+    const store = new MemoryViewStore({ instances: [mine] });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition({ views: [] })],
+      store,
+      resolveSource: () => testSource(),
+    });
+    render(<RecordWorkbench engine={engine} definitionId="orders" />);
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Delete',
+      }),
+    );
+
+    // The runtime goes at once — disposal notifies — and the list a moment
+    // later, once it has reloaded without the deleted view.
+    await waitFor(() => expect(screen.queryByRole('table')).toBeNull());
+    expect(await screen.findByText('No view yet')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Mine' })).toBeNull();
   });
 
   it('offers a way out of a conflict', async () => {
@@ -1805,6 +1895,106 @@ describe('FilterPanel tree editing', () => {
     expect(screen.getByRole('button', { name: 'Simple' }).ariaPressed).toBe(
       'false',
     );
+  });
+});
+
+describe('FilterPanel and auto refresh', () => {
+  /** The panel over a fresh runtime, with the runtime in reach. */
+  function panelWithRuntime() {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [mine] }),
+      resolveSource: () => testSource(),
+    });
+    const runtime = engine.create('orders', {
+      title: 'Scratch',
+      scope: 'personal',
+      config: recordConfig({
+        filter: {
+          op: 'and',
+          children: [
+            { field: 'warehouse', operator: 'EQ', value: 'CN' },
+            { field: 'status', operator: 'EQ', value: 'open' },
+          ],
+        },
+      }),
+    });
+    function Probe() {
+      return <FilterPanel filter={useFilterEditor(runtime)} />;
+    }
+    render(
+      <>
+        <Probe />
+        <button type="button">Elsewhere</button>
+      </>,
+    );
+    const editing = () => runtime.getSnapshot().editing;
+    return { runtime, editing };
+  }
+
+  it('holds the timer while an input inside has focus, and lets go after', () => {
+    const { editing } = panelWithRuntime();
+    const input = screen.getByLabelText('warehouse value');
+
+    expect(editing()).toBe(false);
+    fireEvent.focus(input, { relatedTarget: null });
+    expect(editing()).toBe(true);
+
+    fireEvent.blur(input, {
+      relatedTarget: screen.getByRole('button', { name: 'Elsewhere' }),
+    });
+    expect(editing()).toBe(false);
+  });
+
+  it('does not let go while focus moves between two inputs inside', () => {
+    const { runtime, editing } = panelWithRuntime();
+    const setEditing = vi.spyOn(runtime, 'setEditing');
+    const first = screen.getByLabelText('warehouse value');
+    const second = screen.getByLabelText('status value');
+
+    fireEvent.focus(first, { relatedTarget: null });
+    // A move within the panel: the blur names the input gaining focus and
+    // the focus names the one losing it. Neither crosses the panel's edge.
+    fireEvent.blur(first, { relatedTarget: second });
+    fireEvent.focus(second, { relatedTarget: first });
+
+    expect(editing()).toBe(true);
+    expect(setEditing).toHaveBeenCalledTimes(1);
+    expect(setEditing).toHaveBeenCalledWith(true);
+  });
+
+  it('keeps holding while focus is in a popup of one of its controls', () => {
+    const { editing } = panelWithRuntime();
+    const input = screen.getByLabelText('warehouse value');
+    const trigger = screen.getByRole('combobox', {
+      name: /Warehouse operator/i,
+    });
+    fireEvent.focus(input, { relatedTarget: null });
+
+    // A select's list renders in a portal outside the panel, so focus moving
+    // into it looks like leaving. Base UI marks the trigger of an open popup
+    // with `data-popup-open`, which is what the panel goes by.
+    trigger.setAttribute('data-popup-open', '');
+    fireEvent.blur(trigger, { relatedTarget: document.body });
+    expect(editing()).toBe(true);
+
+    // Closed again, focus back on the trigger: a later blur is a real leave.
+    trigger.removeAttribute('data-popup-open');
+    fireEvent.focus(trigger, { relatedTarget: document.body });
+    fireEvent.blur(trigger, {
+      relatedTarget: screen.getByRole('button', { name: 'Elsewhere' }),
+    });
+    expect(editing()).toBe(false);
+  });
+
+  it('lets go when focus leaves the document altogether', () => {
+    const { editing } = panelWithRuntime();
+    const input = screen.getByLabelText('warehouse value');
+
+    fireEvent.focus(input, { relatedTarget: null });
+    fireEvent.blur(input, { relatedTarget: null });
+
+    expect(editing()).toBe(false);
   });
 });
 

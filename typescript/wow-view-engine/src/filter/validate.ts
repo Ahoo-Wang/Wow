@@ -26,7 +26,12 @@ import {
   operatorsOf,
   type FieldKindRegistry,
 } from './fieldKind.js';
-import { isFilterGroup, isFilterLeaf, walkFilter } from './tree.js';
+import {
+  isFilterGroup,
+  isFilterLeaf,
+  walkFilter,
+  walkFilterShape,
+} from './tree.js';
 
 /** The operators a group may carry; a tree from a store may say anything. */
 const GROUP_OPERATORS: readonly FilterGroupOperator[] = ['and', 'or', 'nor'];
@@ -38,10 +43,11 @@ export interface ValidateFilterOptions {
 /**
  * Admits a tree that arrived from a store.
  *
- * The budget is checked first, with an iterative walk, so an oversized tree is
- * reported instead of exhausting the stack in a later pass. Fields come as a
- * list rather than as a definition, because a dashboard validates its own
- * global fields.
+ * The shape is checked first, with an iterative walk, so an oversized tree is
+ * reported instead of exhausting the stack in a later pass, and an entry that
+ * is not a node at all is reported at its path instead of dereferenced by one.
+ * Fields come as a list rather than as a definition, because a dashboard
+ * validates its own global fields.
  */
 export function validateFilter(
   fields: readonly FieldDefinition[],
@@ -50,8 +56,8 @@ export function validateFilter(
   options: ValidateFilterOptions = {},
 ): Issue[] {
   const limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
-  const budget = checkBudget(tree, fields, kinds, limits);
-  if (budget.length > 0) return budget;
+  const shape = checkShape(tree, fields, kinds, limits);
+  if (shape.length > 0) return shape;
 
   const byName = new Map(fields.map(field => [field.name, field]));
   const issues: Issue[] = [];
@@ -110,67 +116,83 @@ export function validateFilter(
 }
 
 /**
- * The whole tree's budget, nested trees included.
+ * The whole tree's skeleton: its budget, nested trees included, and every
+ * entry that is not a node.
  *
  * One budget covers the nesting rather than one per level: the limits are
  * there so a tree from a store cannot exhaust the stack, and a per-level
  * budget would let a leaf carry a full tree that carries a full tree, which
  * is the same unbounded growth counted differently. Depth continues through
  * a nested root, so nesting costs depth as plainly as a group does.
+ *
+ * A malformed entry is found on the same walk, because the budget is the one
+ * pass that may see the whole tree, and it costs a node like any other so a
+ * list of a million `null`s is stopped by the count. Exceeding the budget
+ * ends the walk at once and is the only finding, since the tree is refused
+ * whole; otherwise every malformed entry is collected, so a corrupt config
+ * is reported in one round.
  */
-function checkBudget(
+function checkShape(
   tree: FilterTree,
   fields: readonly FieldDefinition[],
   kinds: FieldKindRegistry,
   limits: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>,
 ): Issue[] {
-  const counted = { nodes: 0 };
-  return walkBudget(tree, fields, kinds, limits, counted, 0, []);
+  const malformed: Issue[] = [];
+  const budget = walkShape(tree, fields, kinds, limits, {
+    counted: { nodes: 0 },
+    depthOffset: 0,
+    prefix: [],
+    malformed,
+  });
+  return budget ? [budget] : malformed;
 }
 
-function walkBudget(
+interface ShapeWalk {
+  counted: { nodes: number };
+  depthOffset: number;
+  prefix: IssuePath;
+  malformed: Issue[];
+}
+
+/** The budget issue that ended the walk, or `null` when it ran to the end. */
+function walkShape(
   tree: FilterTree,
   fields: readonly FieldDefinition[],
   kinds: FieldKindRegistry,
   limits: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>,
-  counted: { nodes: number },
-  depthOffset: number,
-  prefix: IssuePath,
-): Issue[] {
+  walk: ShapeWalk,
+): Issue | null {
   const byName = new Map(fields.map(field => [field.name, field]));
 
-  for (const { node, path, depth } of walkFilter(tree)) {
-    counted.nodes += 1;
-    const at = [...prefix, ...path];
-    if (depth + depthOffset > limits.maxFilterDepth)
-      return [
-        issue('filter.tree.too-deep', at, { max: limits.maxFilterDepth }),
-      ];
-    if (counted.nodes > limits.maxFilterNodes)
-      return [
-        issue('filter.tree.too-many-nodes', [], {
-          max: limits.maxFilterNodes,
-        }),
-      ];
+  for (const { node, path, depth } of walkFilterShape(tree)) {
+    walk.counted.nodes += 1;
+    const at = [...walk.prefix, ...path];
+    if (depth + walk.depthOffset > limits.maxFilterDepth)
+      return issue('filter.tree.too-deep', at, { max: limits.maxFilterDepth });
+    if (walk.counted.nodes > limits.maxFilterNodes)
+      return issue('filter.tree.too-many-nodes', [], {
+        max: limits.maxFilterNodes,
+      });
 
+    if (node === null) {
+      walk.malformed.push(issue('filter.node.invalid', at));
+      continue;
+    }
     if (!isFilterLeaf(node)) continue;
     const field = byName.get(node.field);
     const kind = field ? kinds.get(field.kind) : undefined;
     const nested = kind?.nested?.(node.value, field as FieldDefinition);
     if (!nested) continue;
 
-    const found = walkBudget(
-      nested.tree,
-      nested.fields,
-      kinds,
-      limits,
-      counted,
-      depth + depthOffset,
-      at,
-    );
-    if (found.length > 0) return found;
+    const budget = walkShape(nested.tree, nested.fields, kinds, limits, {
+      ...walk,
+      depthOffset: depth + walk.depthOffset,
+      prefix: at,
+    });
+    if (budget) return budget;
   }
-  return [];
+  return null;
 }
 
 /**

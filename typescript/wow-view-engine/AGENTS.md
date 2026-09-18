@@ -189,7 +189,7 @@ src/
 - **Runtime state is transient**: drafts, results, paging and selection live only inside one opening. A `ViewRuntime` is a small `subscribe` / `getSnapshot` store and never persists
 - **Four pure kernels**: `filter`, `record`, `analysis`, `dashboard` are synchronous pure functions, all shaped "definition + config in, result or `Issue` out". They never read the clock — relative times resolve against an injected `ctx.now`
 - **`FieldKind` is the main extension point**: operators, validation, compilation and a data-only editor descriptor. Applications register custom kinds in `FieldKindRegistry`. Note that `EditorDescriptor.input` is a **closed union** and `FilterValueEditor` switches over it, so a custom kind picks one of the existing inputs — there is no renderer registry in `/ui` or `/react` today, and an unrecognised shape falls through to a plain text input. `docs/design.md` §10 describes a per-kind renderer registry as intended, not as built
-- **Untrusted configs**: configs arrive from a store, so validation checks depth and node budgets before anything walks a tree
+- **Untrusted configs**: configs arrive from a store, so validation checks the node shape together with the depth and node budgets on one iterative walk before any kind rule runs, and a malformed node is an Issue at its path rather than a `TypeError`
 - **A blank leaf is not an error**: a field chosen without a value yet is a normal editing state — it is not validated by kind and does not compile
 
 ## Dependencies

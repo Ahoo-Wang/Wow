@@ -64,6 +64,18 @@ export interface RelativeDateTimeValue {
 
 export type RelativeDateDirection = 'past' | 'future';
 
+/**
+ * How far a relative window may reach, in any unit.
+ *
+ * A `Date` holds about 273,000 years either side of the epoch; beyond that
+ * dayjs yields an invalid instant and `toISOString` throws. 100,000 years is
+ * safely inside that in the largest unit, and in the smallest, 100,000 hours
+ * is eleven years, so no unit is cut short of anything a person would ask.
+ * The shape check admits any positive integer; the kind's `validate` applies
+ * this bound and reports it by name.
+ */
+export const MAX_RELATIVE_DATE_AMOUNT = 100_000;
+
 export const RELATIVE_DATE_DIRECTIONS: readonly RelativeDateDirection[] = [
   'past',
   'future',

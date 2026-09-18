@@ -109,10 +109,23 @@ const NOT_OPENED: OpenedView = {
   error: null,
 };
 
+/** How many times a disposal forced a reopen, and the last runtime that did. */
+interface Reopen {
+  after: AnyViewRuntime | null;
+  attempt: number;
+}
+
+const NO_REOPEN: Reopen = { after: null, attempt: 0 };
+
 /**
  * Opens an instance and owns the runtime it produced: changing the id or
  * unmounting disposes the previous one, and a response that arrives after that
  * is dropped rather than applied to a view nobody is looking at.
+ *
+ * A runtime disposed under it — the engine lets one go when its instance is
+ * deleted — is not handed out either. The id is opened again, and the caller
+ * gets a live runtime for what is still there, or the not-found the engine
+ * answers with, in place of a dead runtime that ignores every command.
  *
  * Loading is derived rather than stored. As long as the answer on hand belongs
  * to a different request, this one is still in flight, so the effect sets
@@ -129,6 +142,10 @@ export function useOpenView(
   scopeFilter: FilterTree | null = null,
 ): OpenViewState {
   const [opened, setOpened] = useState<OpenedView>(NOT_OPENED);
+  // Advanced once per runtime disposed under the hook, so the opening effect
+  // runs again for an id that did not change. The dead runtime is remembered
+  // so the same one advances it only once.
+  const [reopen, setReopen] = useState<Reopen>(NO_REOPEN);
   // Read at open time, so a new object identity does not reopen the view.
   // Kept fresh by the effect below rather than during render, and declared
   // before the opening effect so a reopen sees the current condition.
@@ -176,7 +193,7 @@ export function useOpenView(
       cancelled = true;
       if (runtime) engine.close(runtime);
     };
-  }, [engine, instanceId]);
+  }, [engine, instanceId, reopen.attempt]);
 
   // Later changes are injected; `setScopeFilter` ignores an identical tree,
   // so this is quiet until the host actually narrows or widens the view.
@@ -185,9 +202,25 @@ export function useOpenView(
     runtime?.setScopeFilter(scopeFilter);
   }, [runtime, scopeFilter]);
 
+  // A runtime is disposed without a notification — `dispose` drops its
+  // listeners — so the subscription alone would never fire. The snapshot is
+  // read on every render as well, which is where the disposal is seen.
+  const disposed = useSyncExternalStore(
+    useCallback(
+      (listener: () => void) => runtime?.subscribe(listener) ?? NO_OP,
+      [runtime],
+    ),
+    useCallback(() => runtime?.disposed === true, [runtime]),
+  );
+  // Adjusted during render, as state derived from a value that changed: React
+  // re-renders at once with the new attempt and the effect above reopens.
+  if (disposed && runtime !== null && reopen.after !== runtime)
+    setReopen({ after: runtime, attempt: reopen.attempt + 1 });
+
   const answered =
     opened.instanceId === instanceId &&
-    (opened.engine === engine || instanceId === null);
+    (opened.engine === engine || instanceId === null) &&
+    !disposed;
 
   return useMemo(
     () =>

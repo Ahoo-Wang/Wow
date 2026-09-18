@@ -308,6 +308,133 @@ describe('validateRecord', () => {
   });
 });
 
+/**
+ * A config arrives from a store, so the rules cannot read `sort`, `table`,
+ * `card` or `summaries` as the shapes the type promises until something has
+ * asked. Each missing or unreadable part is an Issue at its path.
+ */
+describe('a record config that lost its shape', () => {
+  const shaped = (overrides: Record<string, unknown>) =>
+    validateRecord(
+      definition(),
+      { ...config(), ...overrides } as RecordViewConfig,
+      builtinFieldKinds,
+    );
+
+  it.each([
+    ['sort is not a list', { sort: 'id' }, 'record.sort.invalid', ['sort']],
+    [
+      'a sort entry is null',
+      { sort: [null] },
+      'record.sort.invalid',
+      ['sort', 0],
+    ],
+    [
+      'a sort entry names no field',
+      { sort: [{ direction: 'ASC' }] },
+      'record.sort.invalid',
+      ['sort', 0],
+    ],
+    [
+      'table is absent',
+      { table: undefined },
+      'record.table.invalid',
+      ['table'],
+    ],
+    ['table is null', { table: null }, 'record.table.invalid', ['table']],
+    [
+      'table has no columns',
+      { table: {} },
+      'record.table.invalid',
+      ['table', 'columns'],
+    ],
+    [
+      'a column is null',
+      { table: { columns: [null] } },
+      'record.table.invalid',
+      ['table', 'columns', 0],
+    ],
+    [
+      'a column names no field',
+      { table: { columns: [{ width: 1 }] } },
+      'record.table.invalid',
+      ['table', 'columns', 0],
+    ],
+    ['card is absent', { card: undefined }, 'record.card.invalid', ['card']],
+    [
+      'card has no fields',
+      { card: { title: 'id' } },
+      'record.card.invalid',
+      ['card', 'fields'],
+    ],
+    [
+      'card has no title',
+      { card: { fields: [] } },
+      'record.card.invalid',
+      ['card', 'title'],
+    ],
+    [
+      'a card field is not a name',
+      { card: { title: 'id', fields: [5] } },
+      'record.card.invalid',
+      ['card', 'fields', 0],
+    ],
+    [
+      'summaries is not a list',
+      { summaries: {} },
+      'record.summaries.invalid',
+      ['summaries'],
+    ],
+    [
+      'a summary is null',
+      { summaries: [null] },
+      'record.summaries.invalid',
+      ['summaries', 0],
+    ],
+    [
+      'a summary names no function',
+      { summaries: [{ field: 'amount' }] },
+      'record.summaries.invalid',
+      ['summaries', 0],
+    ],
+  ])('reports that %s instead of throwing', (_name, overrides, code, path) => {
+    expect(shaped(overrides)).toEqual([{ code, severity: 'error', path }]);
+  });
+
+  it('reports a page size or layout of the wrong type by the existing rule', () => {
+    expect(codes(shaped({ pageSize: '20' }))).toEqual([
+      'record.pageSize.not-positive',
+    ]);
+    expect(shaped({ layout: null })).toEqual([
+      {
+        code: 'record.layout.unsupported',
+        severity: 'error',
+        path: ['layout'],
+        params: { layout: 'null' },
+      },
+    ]);
+  });
+
+  it('reports a config that is not an object at all', () => {
+    for (const broken of [null, undefined, 5, []])
+      expect(
+        validateRecord(definition(), broken as never, builtinFieldKinds),
+      ).toEqual([{ code: 'config.invalid', severity: 'error', path: [] }]);
+  });
+
+  it('keeps the shared findings and stops before the rules that read through the shape', () => {
+    const found = shaped({
+      refresh: undefined,
+      sort: null,
+      table: { columns: [{ field: 'gone' }] },
+    });
+    expect(found.map(i => i.code)).toEqual([
+      'config.refresh.missing',
+      'record.sort.invalid',
+    ]);
+  });
+});
+
 describe('compileRecord', () => {
   it('compiles a paged query that starts at page one', () => {
     const query = compileRecord(

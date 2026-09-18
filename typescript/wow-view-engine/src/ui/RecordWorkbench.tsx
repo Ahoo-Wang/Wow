@@ -100,11 +100,9 @@ export function RecordWorkbench({
 
         {runtime && (
           <>
-            <FilterPanel
-              filter={filter}
-              optionsFor={optionsFor}
-              disabled={table.loading}
-            />
+            {/* Not frozen while a query runs: typing never re-queries, and
+                a refresh that lands mid-edit must not take the input away. */}
+            <FilterPanel filter={filter} optionsFor={optionsFor} />
 
             {errors.length > 0 && (
               <Alert variant="destructive">
@@ -129,7 +127,13 @@ export function RecordWorkbench({
                   setChosen(instance.id);
                   list.reload();
                 }}
-                onDeleted={() => setChosen(null)}
+                onDeleted={() => {
+                  // The engine let the runtime go with the instance. Reload so
+                  // the list drops it and the default moves on; the open id
+                  // follows the new default, or empties with the list.
+                  setChosen(null);
+                  list.reload();
+                }}
                 onRecovered={() => list.reload()}
               />
             </RecordToolbar>

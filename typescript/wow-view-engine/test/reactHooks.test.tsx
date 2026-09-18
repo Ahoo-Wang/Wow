@@ -237,6 +237,41 @@ describe('useOpenView', () => {
     });
   });
 
+  it('opens the id again when its runtime is disposed under it', async () => {
+    const { engine } = engineWith();
+    const { result } = renderHook(() => useOpenView(engine, 'orders-1'));
+    await waitFor(() => expect(result.current.runtime).not.toBeNull());
+    const first = result.current.runtime!;
+
+    // Let go behind the hook's back, as the engine does with the runtime of
+    // an instance that was deleted. Disposal is the runtime's last
+    // notification, so the hook hears of it without a render from anyone.
+    act(() => engine.close(first));
+
+    // Not the dead one, and not handed out as if it were alive.
+    expect(result.current.runtime).toBeNull();
+    expect(result.current.loading).toBe(true);
+    await waitFor(() => expect(result.current.runtime).not.toBeNull());
+    expect(result.current.runtime).not.toBe(first);
+    expect(result.current.runtime?.disposed).toBe(false);
+  });
+
+  it('reports a deleted view as gone rather than keeping its dead runtime', async () => {
+    const { engine } = engineWith();
+    const { result } = renderHook(() => useOpenView(engine, 'orders-1'));
+    await waitFor(() => expect(result.current.runtime).not.toBeNull());
+
+    await act(() => engine.delete('orders-1'));
+
+    await waitFor(() =>
+      expect(result.current.error).toMatchObject({
+        code: 'view.open.failed.not_found',
+      }),
+    );
+    expect(result.current.runtime).toBeNull();
+    expect(result.current.loading).toBe(false);
+  });
+
   it('drops a view that arrives after it was unmounted', async () => {
     const { engine } = engineWith();
     const open = vi.spyOn(engine, 'open');

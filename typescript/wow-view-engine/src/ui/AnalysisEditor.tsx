@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from './components/select.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
+import { crossesBoundary, leavesEditor } from './FilterPanel.js';
 import { useViewMessages } from './MessagesProvider.js';
 
 export interface AnalysisEditorProps {
@@ -68,6 +69,14 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
       data-slot="analysis-editor"
       aria-label="Analysis"
       className="flex flex-col gap-3"
+      // Auto-refresh holds while a control in here has focus, as in the
+      // filter panel; a move between two controls inside is neither.
+      onFocus={event => {
+        if (crossesBoundary(event)) analysis.focus();
+      }}
+      onBlur={event => {
+        if (leavesEditor(event)) analysis.blur();
+      }}
     >
       <div className="flex flex-wrap items-center gap-2">
         <AddMenu

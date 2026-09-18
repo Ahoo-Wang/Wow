@@ -222,8 +222,12 @@ function compileMetric(
   metric: AnalysisMetric,
   compileTree: (tree: FilterTree) => FilterExpression,
 ): AggregationMetric {
+  // A DERIVED metric carries no filter in the protocol, and validation lets a
+  // stale one through on the promise that it changes nothing. Compiling it
+  // anyway would break that promise: `compileFilter` throws on a field the
+  // scope no longer has, and the query would carry a filter Wow never reads.
   const predicate =
-    'filter' in metric && metric.filter
+    metric.type !== 'DERIVED' && metric.filter
       ? { filter: compileTree(metric.filter) }
       : {};
 
@@ -270,6 +274,13 @@ function compileMetric(
         expression: compileDerived(metric.expression),
         alias: metric.alias,
       };
+    default:
+      // Admission refuses a type this version does not know, so reaching
+      // here is a programming error. Falling off the switch instead would put
+      // an `undefined` into `metrics` and let Wow report the hole.
+      throw new Error(
+        `Unknown analysis metric type ${String((metric as { type: unknown }).type)}`,
+      );
   }
 }
 

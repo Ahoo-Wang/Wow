@@ -569,6 +569,78 @@ describe('ViewEngine write re-entrancy', () => {
   });
 });
 
+describe('ViewEngine with one instance open twice', () => {
+  it('moves every open view of the instance to the renamed baseline', async () => {
+    const { engine } = harness();
+    const first = await engine.open('orders-1');
+    const second = await engine.open('orders-1');
+
+    await engine.rename('orders-1', 'Renamed');
+
+    for (const runtime of [first, second]) {
+      expect(runtime.getSnapshot().saved).toMatchObject({
+        title: 'Renamed',
+        revision: '2',
+      });
+      expect(runtime.getSnapshot().dirty).toBe(false);
+    }
+    // The other view is on the baseline the store holds, so its own save
+    // goes through rather than conflicting with a revision it never saw.
+    second.edit({ pageSize: 30 });
+    await expect(engine.save(second)).resolves.toMatchObject({
+      revision: '3',
+    });
+  });
+
+  it('moves the other open view when one of them saves', async () => {
+    const { engine } = harness();
+    const first = await engine.open('orders-1');
+    const second = await engine.open('orders-1');
+    first.edit({ pageSize: 30 });
+
+    await engine.save(first);
+
+    expect(second.getSnapshot().saved?.revision).toBe('2');
+    // Its draft still shows the old config, which is now a change.
+    expect(second.getSnapshot().dirty).toBe(true);
+  });
+
+  it('keeps the other view own unsettled write when the baseline moves', async () => {
+    const { engine, store } = harness();
+    const first = await engine.open('orders-1');
+    const second = await engine.open('orders-1');
+    second.edit({ pageSize: 40 });
+    vi.spyOn(store, 'save').mockRejectedValueOnce(
+      new ViewStoreError('UNAVAILABLE', 'timeout'),
+    );
+    await failedWrite(engine.save(second));
+
+    first.edit({ pageSize: 30 });
+    await engine.save(first);
+
+    // The baseline moved under the second view, but its own write is still
+    // unknown, and still its own to retry or abandon.
+    expect(second.getSnapshot().saved?.revision).toBe('2');
+    expect(second.getSnapshot().write?.kind).toBe('unknown');
+    expect(engine.pendingWrites().size).toBe(1);
+    // The retry carries the revision it was sent with, which is stale now.
+    const retried = await engine.retryWrite(second).catch(e => e);
+    expect(isViewWriteError(retried) && retried.state.kind).toBe('conflict');
+  });
+
+  it('closes every open view of a deleted instance', async () => {
+    const { engine } = harness();
+    const first = await engine.open('orders-1');
+    const second = await engine.open('orders-1');
+
+    await engine.delete('orders-1');
+
+    expect(first.disposed).toBe(true);
+    expect(second.disposed).toBe(true);
+    expect(engine.openRuntimes()).toHaveLength(0);
+  });
+});
+
 describe('ViewEngine write outcomes', () => {
   it('records a conflict with the state the store holds', async () => {
     const { engine, store } = harness();

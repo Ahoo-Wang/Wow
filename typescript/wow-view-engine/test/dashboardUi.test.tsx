@@ -313,6 +313,95 @@ describe('DashboardGrid', () => {
     expect(screen.queryByLabelText('Move panel')).toBeNull();
   });
 
+  /**
+   * The grid library computes a layout of its own on mount and on every prop
+   * change; a stored layout with a gap above a panel is exactly the kind it
+   * would rewrite. What the store holds is what is shown, and nothing writes
+   * geometry back until a hand has moved a panel.
+   */
+  describe('with a stored layout the grid would have compacted', () => {
+    const gapped = dashboardConfig({
+      panels: [panel({ layout: { x: 0, y: 3, w: 6, h: 4 } })],
+    });
+
+    async function settle() {
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    }
+
+    it('leaves a read-only dashboard clean and its panels unrun again', async () => {
+      const source = testSource();
+      const { controller, runtime } = await openDashboard(
+        gapped,
+        [pending],
+        source,
+      );
+
+      render(<DashboardGrid dashboard={controller()} editable={false} />);
+      await settle();
+
+      expect(runtime.getSnapshot().dirty).toBe(false);
+      expect(controller().panels[0].layout).toEqual({
+        x: 0,
+        y: 3,
+        w: 6,
+        h: 4,
+      });
+      // Opening ran each panel once; nothing re-applied the dashboard.
+      expect(source.paged).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves an editable dashboard clean until a panel is moved', async () => {
+      const source = testSource();
+      const { controller, runtime } = await openDashboard(
+        gapped,
+        [pending],
+        source,
+      );
+
+      render(<DashboardGrid dashboard={controller()} editable />);
+      await settle();
+
+      expect(runtime.getSnapshot().dirty).toBe(false);
+      expect(source.paged).toHaveBeenCalledTimes(1);
+    });
+
+    it('writes the geometry back once a drag ends', async () => {
+      // jsdom lays nothing out, so `offsetParent` is null and the grid would
+      // refuse to start a drag; every rect is at the origin, so the drag
+      // starts from (0, 0) whatever the panel's stored position.
+      vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(
+        function (this: HTMLElement) {
+          return this.parentElement;
+        },
+      );
+      const { controller, runtime } = await openDashboard(gapped);
+      render(<DashboardGrid dashboard={controller()} editable />);
+      await settle();
+      const grip = document.querySelector(
+        '[data-slot="panel-grip"]',
+      ) as HTMLElement;
+
+      // A drag as the pointer makes one: down on the grip, movement on the
+      // document, up. The grid is 1280px over 12 columns of 80px rows, so
+      // 300px right and 180px down is three columns and two rows.
+      fireEvent.mouseDown(grip, { clientX: 10, clientY: 10, button: 0 });
+      fireEvent.mouseMove(document, { clientX: 100, clientY: 100 });
+      fireEvent.mouseMove(document, { clientX: 310, clientY: 190 });
+      fireEvent.mouseUp(document, { clientX: 310, clientY: 190 });
+      await settle();
+
+      expect(runtime.getSnapshot().dirty).toBe(true);
+      expect(controller().panels[0].layout).toEqual({
+        x: 3,
+        y: 2,
+        w: 6,
+        h: 4,
+      });
+    });
+  });
+
   it('shows a skeleton until a panel has data', async () => {
     const waiting = deferred<{ total: number; list: [] }>();
     const { controller } = await openDashboard(

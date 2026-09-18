@@ -15,6 +15,7 @@ import {
   DEFAULT_RUNTIME_LIMITS,
   type DashboardViewConfig,
   type DataViewDefinition,
+  type FieldDefinition,
   type FilterTree,
   isSystemInstanceId,
   isViewStoreError,
@@ -47,6 +48,7 @@ import {
   type RuntimeEnvironment,
 } from './environment.js';
 import { RequestRunner } from './requestRunner.js';
+import { analysisScope } from '../analysis/index.js';
 import type { OptionSource, ViewSource } from './source.js';
 import type { DataViewConfig } from './execute.js';
 import {
@@ -575,10 +577,8 @@ export class ViewEngine {
   /** What a panel references: the instance and the definition behind it. */
   private readonly resolvePanel: PanelResolver = async instanceId => {
     const instance = await this.readInstance(instanceId);
-    return {
-      instance,
-      definition: this.requireDefinition(instance.definitionId),
-    };
+    const definition = this.requireDefinition(instance.definitionId);
+    return { instance, definition, fields: panelFields(instance, definition) };
   };
 
   /**
@@ -714,12 +714,20 @@ export class ViewEngine {
       case 'rename': {
         const instance = result as ViewInstance;
         this.summaries.set(instance.id, toSummary(instance));
+        // Every open view of this instance moves to the new baseline, not
+        // only the one the command came through: the same view open twice
+        // would otherwise keep a revision nobody can write against. Only the
+        // view this write belongs to has its outcome settled; another's
+        // unsettled write is still its own to retry or abandon.
         runtime?.markSaved(instance);
+        for (const holder of this.holders(instance.id))
+          if (holder !== runtime) holder.moveBaseline(instance);
         return;
       }
       case 'delete': {
         this.summaries.delete(payload.id);
-        if (runtime) this.forget(runtime);
+        for (const holder of this.holders(payload.id, runtime))
+          this.forget(holder);
         return;
       }
       case 'preferences':
@@ -840,9 +848,7 @@ export class ViewEngine {
         issue('view.system.read-only', [], { action }),
       );
     this.prune();
-    const runtime = [...this.runtimes].find(
-      entry => entry.getSnapshot().saved?.id === id,
-    );
+    const [runtime] = this.holders(id);
     const known = runtime?.getSnapshot().saved ?? this.summaries.get(id);
     const summary = known ?? (await this.store.get(id));
     this.requireInstancePermission(summary, action);
@@ -885,6 +891,21 @@ export class ViewEngine {
     this.writes.delete(requestId);
     this.owners.get(requestId)?.setWrite(null);
     this.owners.delete(requestId);
+  }
+
+  /**
+   * Open runtimes whose baseline is this instance, `first` ahead of the rest.
+   * The engine allows an instance to be open more than once, and a confirmed
+   * write to it concerns each of them.
+   */
+  private holders(
+    id: string,
+    first?: ManagedViewRuntime,
+  ): ManagedViewRuntime[] {
+    const found = [...this.runtimes].filter(
+      entry => entry !== first && entry.getSnapshot().saved?.id === id,
+    );
+    return first && this.runtimes.has(first) ? [first, ...found] : found;
   }
 
   private forget(runtime: ManagedViewRuntime): void {
@@ -1026,6 +1047,25 @@ function withRevision(
     default:
       return { ...payload, revision: remote.revision };
   }
+}
+
+/**
+ * What a panel's view is judged against. An analysis reaches the element
+ * fields its config expands, and its filter may already stand on one; the
+ * dashboard kernel cannot ask the analysis kernel, so the answer travels
+ * with the reference.
+ */
+function panelFields(
+  instance: ViewInstance,
+  definition: ViewDefinition,
+): readonly FieldDefinition[] {
+  if (definition.kind !== 'data') return [];
+  const { config } = instance;
+  if (config.kind === 'analysis' && definition.analysis)
+    return [
+      ...analysisScope(definition, definition.analysis, config).fields.values(),
+    ];
+  return definition.fields;
 }
 
 /** Instances a definition declares in code, in declaration order. */

@@ -113,6 +113,8 @@ export function projectAnalysis(
     columns,
     rows: [...result],
     ...(totals && totals.length > 0 ? { totals: totals[0] } : {}),
-    ...(config.layout === 'chart' ? { chart: shapeChart(config, result) } : {}),
+    ...(config.layout === 'chart'
+      ? { chart: shapeChart(config, result, totals?.[0]) }
+      : {}),
   };
 }

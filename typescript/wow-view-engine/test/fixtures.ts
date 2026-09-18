@@ -17,6 +17,7 @@ import {
   AggregationMetricType,
 } from '@ahoo-wang/fetcher-wow';
 import { vi } from 'vitest';
+import { analysisScope } from '../src/index.js';
 import type {
   AnalysisViewConfig,
   DashboardDefinition,
@@ -164,9 +165,21 @@ export function panelReference(
   instance: Partial<ViewInstance> = {},
   definition: Partial<DataViewDefinition> = {},
 ): PanelReference {
+  const found = savedInstance(instance);
+  const owner = ordersDefinition(definition);
   return {
-    instance: savedInstance(instance),
-    definition: ordersDefinition(definition),
+    instance: found,
+    definition: owner,
+    fields:
+      found.config.kind === 'analysis' && owner.analysis
+        ? [
+            ...analysisScope(
+              owner,
+              owner.analysis,
+              found.config,
+            ).fields.values(),
+          ]
+        : owner.fields,
   };
 }
 

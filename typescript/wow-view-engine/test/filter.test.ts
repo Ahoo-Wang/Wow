@@ -24,20 +24,25 @@ import {
   createFieldKindRegistry,
   describeFilter,
   emptyFilter,
+  isEmptyFilter,
   insertAt,
   isSimpleTree,
+  MAX_RELATIVE_DATE_AMOUNT,
   mergeFilters,
   nodeAt,
+  RELATIVE_DATE_UNITS,
   removeAt,
   resolveDateTimeBound,
   resolveDateTimeRange,
   updateAt,
   validateFilter,
+  validateViewConfigBase,
   withFieldKinds,
   type FieldDefinition,
   type FieldKind,
   type FilterLeaf,
   type FilterTree,
+  type ViewConfigBase,
 } from '../src/index.js';
 
 const fields: FieldDefinition[] = [
@@ -1108,5 +1113,285 @@ describe('tree editing', () => {
       { op: 'or', children: [leaf('id', 'b')] },
     ]);
     expect(mergeFilters()).toEqual(emptyFilter());
+  });
+
+  it('does not drop a tree that lost its shape as if it were empty', () => {
+    // A stored filter whose only entry is malformed says nothing valid, but
+    // it is not empty: dropping it behind an injected scope would run the
+    // query wider than the view was saved to be, and report nothing.
+    const broken = { op: 'and', children: [null] } as unknown as FilterTree;
+    const scope: FilterTree = {
+      op: 'and',
+      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+    };
+
+    expect(isEmptyFilter(broken)).toBe(false);
+    expect(isEmptyFilter(emptyFilter())).toBe(true);
+    const merged = mergeFilters(broken, scope);
+    expect(merged.children).toHaveLength(2);
+    expect(
+      validateFilter(fields, merged, builtinFieldKinds).map(found => ({
+        code: found.code,
+        path: found.path,
+      })),
+    ).toEqual([{ code: 'filter.node.invalid', path: ['children', 0] }]);
+  });
+});
+
+/**
+ * A tree arrives from a store, so an entry that is not a node — `null`, a
+ * number, an object with neither `children` nor `field` — is a finding at
+ * its path, never a `TypeError` from the first pass to dereference it.
+ */
+describe('malformed trees', () => {
+  const order = (id: string): FilterLeaf => ({
+    field: 'id',
+    operator: 'EQ',
+    value: id,
+  });
+  const malformed = (...children: unknown[]): FilterTree =>
+    ({ op: 'and', children }) as unknown as FilterTree;
+
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['a number', 5],
+    ['an array', []],
+    ['an object with neither children nor field', { op: 'and' }],
+    ['a leaf whose field is not a string', { field: 7, operator: 'EQ' }],
+    ['a leaf without an operator', { field: 'id', value: 'x' }],
+  ])('reports %s at its path instead of throwing', (_name, child) => {
+    expect(
+      validateFilter(fields, malformed(order('o-1'), child), builtinFieldKinds),
+    ).toEqual([
+      { code: 'filter.node.invalid', severity: 'error', path: ['children', 1] },
+    ]);
+  });
+
+  it('reports a root that is not a group', () => {
+    for (const root of [null, undefined, 5, order('o-1'), { op: 'and' }])
+      expect(validateFilter(fields, root as never, builtinFieldKinds)).toEqual([
+        { code: 'filter.node.invalid', severity: 'error', path: [] },
+      ]);
+  });
+
+  it('finds every malformed entry, at any depth, in one round', () => {
+    const found = validateFilter(
+      fields,
+      malformed(null, { op: 'or', children: [order('o-1'), 'x'] }),
+      builtinFieldKinds,
+    );
+    expect(found.map(i => i.path)).toEqual([
+      ['children', 0],
+      ['children', 1, 'children', 1],
+    ]);
+  });
+
+  it('charges a malformed entry to the node budget', () => {
+    const nulls = Array.from({ length: 300 }, () => null);
+    expect(
+      errors(validateFilter(fields, malformed(...nulls), builtinFieldKinds)),
+    ).toEqual(['filter.tree.too-many-nodes']);
+  });
+
+  it('is skipped by the walk, so a summary and a query survive it', () => {
+    const damaged = malformed(null, order('o-1'), 5);
+
+    expect(
+      describeFilter(fields, damaged, builtinFieldKinds).map(i => i.field),
+    ).toEqual(['id']);
+    expect(compileFilter(fields, damaged, builtinFieldKinds, context)).toEqual(
+      compileFilter(fields, tree(order('o-1')), builtinFieldKinds, context),
+    );
+    expect(
+      compileFilter(fields, null as never, builtinFieldKinds, context),
+    ).toEqual(compileFilter(fields, emptyFilter(), builtinFieldKinds, context));
+  });
+
+  it('is never a simple tree and never a node the editor can address', () => {
+    const damaged = malformed(null, order('o-1'));
+
+    expect(isSimpleTree(damaged)).toBe(false);
+    expect(isSimpleTree(null as never)).toBe(false);
+    expect(nodeAt(damaged, [0])).toBeNull();
+    expect(nodeAt(damaged, [1])).toEqual(order('o-1'));
+    expect(updateAt(damaged, [0], () => null).children).toBe(damaged.children);
+  });
+});
+
+/**
+ * The shared part of a config is read by every kernel, so a missing or
+ * unreadable member is reported at its path rather than dereferenced.
+ */
+describe('validateViewConfigBase', () => {
+  const check = (overrides: Record<string, unknown>) =>
+    validateViewConfigBase(
+      fields,
+      {
+        filter: emptyFilter(),
+        filterMode: 'simple',
+        refresh: { interval: null },
+        ...overrides,
+      } as unknown as ViewConfigBase,
+      builtinFieldKinds,
+    );
+
+  it('reports a filter that is not a group', () => {
+    const roots = [undefined, null, 5, 'x', [], { op: 'and' }];
+    for (const filter of [...roots, { field: 'id', operator: 'EQ' }])
+      expect(check({ filter })).toEqual([
+        { code: 'config.filter.invalid', severity: 'error', path: ['filter'] },
+      ]);
+  });
+
+  it('reports a filter mode that is neither of the two', () => {
+    for (const filterMode of [undefined, null, 5, 'plain'])
+      expect(errors(check({ filterMode }))).toEqual([
+        'config.filterMode.unknown',
+      ]);
+  });
+
+  it('reports a refresh setting that is not there to read', () => {
+    for (const refresh of [undefined, null, 5, 'x', []])
+      expect(check({ refresh }).map(i => i.code)).toEqual([
+        'config.refresh.missing',
+      ]);
+    for (const interval of [undefined, 'x', true, {}])
+      expect(check({ refresh: { interval } }).map(i => i.code)).toEqual([
+        'config.refresh.not-an-integer',
+      ]);
+  });
+
+  it('reports a config that is not an object at all', () => {
+    for (const config of [null, undefined, 5, 'x', []])
+      expect(
+        validateViewConfigBase(fields, config as never, builtinFieldKinds),
+      ).toEqual([{ code: 'config.invalid', severity: 'error', path: [] }]);
+  });
+});
+
+/**
+ * "7 days" is a distance from now. A window has one edge at now and one at
+ * that distance, and a single bound at now is not what anyone typed, so a
+ * relative value stands on its far edge whichever operator asks. A preset
+ * is a calendar period and keeps the edge the operator asks for.
+ */
+describe('a relative value as a single bound', () => {
+  const last = { type: 'relative', amount: 7, unit: 'day' };
+  const next = { ...last, direction: 'future' };
+  const today = { type: 'preset', preset: 'today' };
+  const weekAgo = '2026-09-09T10:30:00.000Z';
+  const weekAhead = '2026-09-23T10:30:00.000Z';
+  const bound = (operator: 'GTE' | 'LTE', value: unknown) =>
+    (
+      compileFilter(
+        fields,
+        tree({ field: 'createdAt', operator, value: value as never }),
+        builtinFieldKinds,
+        context,
+      ) as { value: string }
+    ).value;
+  const text = (operator: string, value: unknown) =>
+    describeFilter(
+      fields,
+      tree({ field: 'createdAt', operator, value } as never),
+      builtinFieldKinds,
+    )[0].text;
+
+  it('stands on the edge that is not now', () => {
+    expect(bound('GTE', last)).toBe(weekAgo);
+    expect(bound('LTE', last)).toBe(weekAgo);
+    expect(bound('GTE', next)).toBe(weekAhead);
+    expect(bound('LTE', next)).toBe(weekAhead);
+    expect(resolveDateTimeBound(last as never, context.now, 'UTC', 'end')).toBe(
+      weekAgo,
+    );
+  });
+
+  it('keeps a preset on the edge asked for', () => {
+    expect(bound('GTE', today)).toBe('2026-09-16T00:00:00.000Z');
+    expect(bound('LTE', today)).toBe('2026-09-16T23:59:59.999Z');
+  });
+
+  it('says which instant it compares against', () => {
+    expect(text('GTE', last)).toBe('Created on or after 7 day ago');
+    expect(text('LTE', last)).toBe('Created on or before 7 day ago');
+    expect(text('GTE', next)).toBe('Created on or after 7 day ahead');
+    expect(text('LTE', next)).toBe('Created on or before 7 day ahead');
+    expect(text('GTE', today)).toBe('Created on or after today');
+    expect(text('LTE', today)).toBe('Created on or before today');
+    expect(text('BETWEEN', last)).toBe('Created last 7 day');
+  });
+
+  it('names the bound an absolute value stands on', () => {
+    const day = { type: 'absolute', from: '2026-01-01' };
+    const range = { ...day, to: '2026-01-31' };
+    expect(text('GTE', day)).toBe('Created on or after 2026-01-01');
+    expect(text('LTE', day)).toBe('Created on or before 2026-01-01');
+    expect(text('GTE', range)).toBe('Created on or after 2026-01-01');
+    expect(text('LTE', range)).toBe('Created on or before 2026-01-31');
+  });
+});
+
+/**
+ * A relative amount past what a `Date` can hold made dayjs produce an
+ * invalid instant, and `compileFilter` threw `RangeError` on a tree the
+ * validator had admitted. The validator is the gate; the compiler is total.
+ */
+describe('an unbounded relative amount', () => {
+  const huge = { type: 'relative', amount: 1e15, unit: 'day' } as const;
+  const ahead = { ...huge, direction: 'future' } as const;
+  const at = (operator: string, value: unknown) =>
+    tree({ field: 'createdAt', operator, value } as never);
+
+  it('is refused by validation, with the bound it crossed', () => {
+    expect(
+      validateFilter(fields, at('BETWEEN', huge), builtinFieldKinds),
+    ).toEqual([
+      {
+        code: 'filter.value.relative-too-large',
+        severity: 'error',
+        path: ['children', 0],
+        params: { max: MAX_RELATIVE_DATE_AMOUNT },
+      },
+    ]);
+  });
+
+  it('admits the bound itself in every unit and direction', () => {
+    for (const unit of RELATIVE_DATE_UNITS)
+      for (const direction of ['past', 'future']) {
+        const value = {
+          type: 'relative',
+          amount: MAX_RELATIVE_DATE_AMOUNT,
+          unit,
+          direction,
+        };
+        expect(
+          validateFilter(fields, at('BETWEEN', value), builtinFieldKinds),
+        ).toEqual([]);
+        const range = resolveDateTimeRange(value as never, context.now, 'UTC');
+        expect(Number.isNaN(Date.parse(range.from))).toBe(false);
+        expect(Number.isNaN(Date.parse(range.to as string))).toBe(false);
+      }
+  });
+
+  it('does not make compilation throw', () => {
+    const earliest = new Date(-8.64e15).toISOString();
+    const latest = new Date(8.64e15).toISOString();
+
+    expect(() =>
+      compileFilter(fields, at('BETWEEN', huge), builtinFieldKinds, context),
+    ).not.toThrow();
+    expect(() =>
+      compileFilter(fields, at('LTE', ahead), builtinFieldKinds, context),
+    ).not.toThrow();
+    expect(resolveDateTimeRange(huge, context.now, 'UTC')).toEqual({
+      from: earliest,
+      to: context.now.toISOString(),
+    });
+    expect(resolveDateTimeRange(ahead, context.now, 'UTC')).toEqual({
+      from: context.now.toISOString(),
+      to: latest,
+    });
   });
 });
