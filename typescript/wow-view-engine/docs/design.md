@@ -260,7 +260,7 @@ export interface ChartSpec {
   metric?: MetricCardSpec;
   legend?: 'auto' | 'top' | 'bottom' | 'right' | 'none';
   labels?: boolean; // 数据标签
-  colors?: Record<string, string>; // 系列别名或分类值 → 颜色；未列出的用主题调色板
+  colors?: Record<string, string>; // 系列或分类 → 颜色，键是图表打印出来的分类值（数字、布尔转文本，null 为空串）或指标别名；未列出的用主题调色板；值须是 CSS 颜色（culori 解析），非对象报 malformed
 }
 
 export interface CartesianSpec {
@@ -525,7 +525,7 @@ src/
 | `@ahoo-wang/fetcher-view-engine` | `model`、四个纯内核、`runtime`、`ViewStore` 端口、`MemoryViewStore` |
 | `/react`                         | 钩子与控制器                                                        |
 | `/ui`                            | 默认组件、默认视图、工作台                                          |
-| `/styles.css`、`/themes/*`       | 样式资源，显式导入                                                  |
+| `/styles.css`                    | 主题；宿主通过 `:root` 上的 `--fve-*`／`--fve-dark-*` 变量定制      |
 
 ## 5. 纯内核
 
@@ -944,9 +944,9 @@ useSaveCommands(engine, runtime): { save; saveAs; rename; delete; retry; abandon
 
 排序与列的改动立即 `edit` 后 `apply`：表格渲染的列与行来自上一次成功结果，由内核按执行时的配置投影，因此不重跑就看不到改动；筛选则等提交。
 
-`ui/` 用 shadcn + Base UI 实现默认视觉。落地约定：注册表组件原样落在 `ui/components/`，由 `shadcn add --diff` 升级，因此不启用 Tailwind 前缀——前缀会让每个文件都要手改并从此无法跟随上游；隔离改由 `.fve-root` 边界承担，全部 token 与 base 规则都挂在它上面，`ViewSurface` 渲染它，宿主页面不受影响。`cn` 取自同名包（shadcn 2026-09 起的约定），不再自写 `clsx + tailwind-merge`。主题以独立入口 `/styles.css` 交付，应用显式导入。组件清单：`FilterPanel`、`RecordTable`、`RecordCards`、`AnalysisEditor`、`AnalysisChart`（recharts 适配，覆盖 bar／line／area／combo／pie／scatter）、`Heatmap`（自绘网格）、`Funnel`、`MetricCard`、`DashboardGrid`（react-grid-layout 适配）、内容面板 `MarkdownPanel`（react-markdown，不启用原始 HTML）、`ImagePanel`（加载失败显示占位）、`LinksPanel`（外链带 `rel="noopener"`）、`Workbench`（侧栏列表 + 视图 + 保存动作）、`EmbeddedView`。每个默认组件只消费对应控制器，不直接调用 runtime 以外的对象。独立筛选器与值编辑器不需要 Engine。
+`ui/` 用 shadcn + Base UI 实现默认视觉。落地约定：注册表组件原样落在 `ui/components/`，由 `shadcn add --diff` 升级，因此不启用 Tailwind 前缀——前缀会让每个文件都要手改并从此无法跟随上游；隔离改由 `.fve-root` 边界承担，全部 token 与 base 规则都挂在它上面，`ViewSurface` 渲染它，宿主页面不受影响。Tailwind 的 preflight 与工具类按其写法都是全局的——preflight 重置整页的 `*`、`html`、标题、列表、链接与按钮，工具类是宿主可能撞名的裸 class（`.flex`、`.container`、`.collapse`），栅格库的 `.react-grid-*` 亦然——所以 `scripts/scope-utilities.mjs`（`postcss-prefix-selector`）在构建时给每条规则的主体加上 `:where(.fve-root, .fve-root *)`：用 `:where` 是为了不改变特异性，用「根或根内」而不是后代前缀是因为弹层自己带着根类；`html` 这种主体永远不在根内的规则就此失效，宿主的排版因此保持。自定义属性也不例外——宿主会读它们：Tailwind 发到 `:root` 的主题变量（`--spacing`、`--radius-md`……）会与宿主自己的 Tailwind 互相覆盖，而 `--radius-md: calc(var(--radius) * .8)` 只有在 `--radius` 所在的根上才有效——所以 `:root`／`:host` 一律改写为 `.fve-root`；只有 `@property` 注册天然全局，它注册的也只是宿主 Tailwind 会同样注册的 `--tw-*` 名字。`verify-package` 对构建产物守住这条：根之外没有任何规则，也不再有 `:root`。Storybook 走同一个插件、且只作用于主题文件，所以 story 看到的就是发布的规则。`cn` 取自同名包（shadcn 2026-09 起的约定），不再自写 `clsx + tailwind-merge`。主题以独立入口 `/styles.css` 交付，应用显式导入。组件清单：`FilterPanel`、`RecordTable`、`RecordCards`、`AnalysisEditor`、`AnalysisChart`（recharts 适配，覆盖 bar／line／area／combo／pie／scatter）、`Heatmap`（自绘网格）、`Funnel`、`MetricCard`、`DashboardGrid`（react-grid-layout 适配）、内容面板 `MarkdownPanel`（react-markdown，不启用原始 HTML）、`ImagePanel`（加载失败显示占位）、`LinksPanel`（外链带 `rel="noopener"`）、`Workbench`（侧栏列表 + 视图 + 保存动作）、`EmbeddedView`。每个默认组件只消费对应控制器，不直接调用 runtime 以外的对象。独立筛选器与值编辑器不需要 Engine。
 
-主题的全部 token 与基础规则都挂在 `.fve-root` 上，而弹层（Select 列表、菜单、Popover、Tooltip、Dialog、Combobox）经 Portal 渲染到 body、在根之外，因此本包自己的组件一律从 `ui/popups.tsx` 引入各 `*Content`——它给弹层加上 `fve-root` 类与所在 `ViewSurface` 的主题，vendored 组件原样不动，`architecture.test.ts` 按导入记录守住这条引入规则——整模块导入、`export *`、转导出、动态导入与 `.ts` 文件都算在内。
+主题的全部 token 与基础规则都挂在 `.fve-root` 上，而弹层（Select 列表、菜单、Popover、Tooltip、Dialog、Combobox）经 Portal 渲染到 body、在根之外，因此本包自己的组件一律从 `ui/popups.tsx` 引入各 `*Content`——它给弹层加上 `fve-root` 类与所在 `ViewSurface` 的主题（钉住的值，或面从自己的 `color-scheme` 计算值里解析出的跟随结果，因此宿主的 `.dark` 不必在 `<html>` 上），vendored 组件原样不动，`architecture.test.ts` 按导入记录守住这条引入规则——整模块导入、`export *`、转导出、动态导入与 `.ts` 文件都算在内。明暗也只有一套判定：`dark:` 变体与 token 用同一组选择器——`.fve-root[data-theme='dark']` 与 `.dark .fve-root:not([data-theme='light'])` 及其后代——宿主用祖先上的 `.dark` class 让视图跟随，`ViewSurface` 的 `theme` 则用 `data-theme` 把一处钉住，`verify-package` 断言构建产物里这两处集合一致。面不嵌套：每个工作台与 `EmbeddedView` 各渲染一个根，包内没有根套根；宿主若把钉成相反模式的面嵌进另一个面里，`dark:` 工具类会跟随外层根——CSS 没有"最近祖先"选择器——这不受支持，同一模式或跟随宿主的嵌套则正常。每个 token 读 `--fve-<token>`（暗色块读 `--fve-dark-<token>`）并以内置值兜底，宿主在 `:root` 上赋值即可定制，portal 弹层同样继承到；`verify-package` 断言两个 token 块无一例外。根默认涂 `--background`——钉住另一种模式的视图必须自带底色——宿主要让嵌入视图透出自己的底色，就把 `--fve-background` 设为 `transparent`。
 
 列出字段的三个选择器（添加条件、列选择、分析的分组与指标）都经 `fieldGroups(fields, definition.fieldGroups, key)` 分组：未被任何分组列出的字段在前、无标题，其后按目录顺序列出各分组并带标题，组内按该分组自己的 `fields` 顺序；选择器常常只列一个子集（尚未成为条件的字段、能做列的字段），所以没有字段的分组不显示。目录声明在 `DataViewDefinition.fieldGroups`（`{ id, label, fields }[]`），字段定义本身不记录归属：一个组有哪些字段在一处读完，组序与组内序都不被字段顺序绑住（字段顺序同时决定默认列序），列了未声明的字段名或把一个字段列进两个组都在定义准入时报错。Dashboard 的全局字段与元素字段没有目录，不分组。
 
@@ -954,19 +954,19 @@ useSaveCommands(engine, runtime): { save; saveAs; rename; delete; retry; abandon
 
 `DashboardGrid` 不做自动紧凑，面板按配置中的 `layout` 原样摆放；只有用户拖动或缩放结束时才把几何写回（`edit` + `apply`），库自身在挂载或属性变化时算出的布局不写回，因此打开已保存的 Dashboard 不会变脏。
 
-图表只画内核已经整形好的数据：透视、合并"其他"、漏斗累计与转化率、热力图矩阵、比较值都在 `shapeChart` 里完成，`AnalysisChart` 只选标记与配色，换一个图表库不触碰任何规则。热力图与漏斗自绘，用图表库画它们的成本高于收益。`projectAnalysis` 只在 `layout === 'chart'` 时整形图表，因此切换 Table／Chart 是一次新的执行而不是重绘，`useAnalysisEditor.setLayout` 据此直接 apply；其余改动等 Run。
+图表只画内核已经整形好的数据：透视、合并"其他"、漏斗累计与转化率、热力图矩阵、比较值都在 `shapeChart` 里完成，`AnalysisChart` 只选标记与配色，换一个图表库不触碰任何规则。`AnalysisChart` 按 `spec.colors` 给系列或分类上色，其余按 `--chart-1..5` 顺序取用；五档色相在亮暗两种模式下各自校过分离度与对比度。热力图与漏斗自绘，用图表库画它们的成本高于收益。`projectAnalysis` 只在 `layout === 'chart'` 时整形图表，因此切换 Table／Chart 是一次新的执行而不是重绘，`useAnalysisEditor.setLayout` 据此直接 apply；其余改动等 Run。
 
 `RecordTable` 暂不接 TanStack：控制器已经是表格模型，列语义、排序、选择与分页都从它来，再叠一层只是把同一份状态写两遍。等列宽拖拽与列序拖拽真的要做时再引入，那时它提供的才是新能力。注册表组件是上游源码：覆盖率、Prettier、ESLint 与 Codacy 都排除 `ui/components` 与 `ui/lib`，它们保持与上游逐字一致，否则每次 `shadcn add --diff` 都会变成整文件冲突；本包测的、也负责的是其上的组合。
 
 ## 10. 扩展点
 
-| 变化轴   | 机制                                                                                          | 落点                                                       |
-| -------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| 字段类型 | `FieldKind` 包：操作符集、默认操作符、值校验、编译到 `FilterExpression`、编辑器描述（纯数据） | `filter/` 注册表；React 渲染器在 `ui/` 用同一 kind id 注册 |
-| 数据来源 | `resolveSource(key)` 返回 `Pick<QueryApi, 'paged' \| 'cursor' \| 'aggregate'>`                | 应用注入                                                   |
-| 持久化   | 实现 `ViewStore`                                                                              | 业务应用，或官方后端的客户端包                             |
-| 渲染器   | 单元格、行动作、工具栏动作按键注册 React 组件                                                 | `ui/` 注册表                                               |
-| 外观     | CSS 变量与主题文件；组件级替换通过自定义组合 `/react`                                         | `/themes/*`                                                |
+| 变化轴   | 机制                                                                                                                       | 落点                                                       |
+| -------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 字段类型 | `FieldKind` 包：操作符集、默认操作符、值校验、编译到 `FilterExpression`、编辑器描述（纯数据）                              | `filter/` 注册表；React 渲染器在 `ui/` 用同一 kind id 注册 |
+| 数据来源 | `resolveSource(key)` 返回 `Pick<QueryApi, 'paged' \| 'cursor' \| 'aggregate'>`                                             | 应用注入                                                   |
+| 持久化   | 实现 `ViewStore`                                                                                                           | 业务应用，或官方后端的客户端包                             |
+| 渲染器   | 单元格、行动作、工具栏动作按键注册 React 组件                                                                              | `ui/` 注册表                                               |
+| 外观     | `:root` 上的 `--fve-<token>`（亮）与 `--fve-dark-<token>`（暗），根与 portal 弹层都读到；组件级替换通过自定义组合 `/react` | 宿主样式表；预设主题即一份这些变量的赋值文件               |
 
 ```ts
 export interface FieldKind {

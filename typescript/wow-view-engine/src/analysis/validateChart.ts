@@ -12,6 +12,19 @@
  */
 
 import {
+  modeHsl,
+  modeLab,
+  modeLch,
+  modeOklab,
+  modeOklch,
+  modeP3,
+  modeRgb,
+  parse,
+  // Not a React hook, whatever the name looks like: it registers a colour
+  // space with the parser. Aliased so the hook rules read it as what it is.
+  useMode as registerMode,
+} from 'culori/fn';
+import {
   CHART_FAMILY,
   type AnalysisMetric,
   type AnalysisViewConfig,
@@ -31,6 +44,64 @@ export function isAdditiveMetric(metric: AnalysisMetric | undefined): boolean {
   if (!metric) return false;
   if (metric.type === 'COUNT') return true;
   return metric.type === 'NUMERIC' && metric.function === 'SUM';
+}
+
+/**
+ * The colour spaces `parse` is taught to read. `culori/fn` is the
+ * tree-shakable entry: it ships no mode registered, and a mode's syntaxes
+ * only become parseable once it is passed to `useMode`. These seven are
+ * every syntax a stylesheet writes a colour in.
+ */
+registerMode(modeRgb);
+registerMode(modeHsl);
+registerMode(modeLab);
+registerMode(modeLch);
+registerMode(modeOklab);
+registerMode(modeOklch);
+registerMode(modeP3);
+
+/** A theme slot, which is how the palette itself is named. */
+const VARIABLE_COLOR = /^var\(--[\w-]+\)$/;
+
+/**
+ * Whether a saved colour is one the renderer may pass on. A chart colour is
+ * written verbatim into a `<style>` element as a custom property's value, so
+ * a config from a store gets to name a colour and nothing else: anything that
+ * could close the declaration or the rule around it is not a colour here. The
+ * renderer applies the same predicate and falls back to the palette, so an
+ * unvalidated spec cannot inject either.
+ *
+ * Two shapes pass. A `var(--slot)` reference, which is how this package's own
+ * palette is written and which no parser resolves; and anything `culori`
+ * parses, which decides validity rather than a character class: a named
+ * colour (case-insensitively, as CSS reads them), `#rgb` through `#rrggbbaa`,
+ * `rgb()`/`rgba()`, `hsl()`/`hsla()`, `lab()`, `lch()`, `oklab()`, `oklch()`
+ * and `color()` over the spaces the registered modes name — `srgb`,
+ * `display-p3` and the rest. A spelling outside that set is refused even
+ * where it would have painted, `currentcolor` among them; the hand-written
+ * regexes this replaced did the opposite, taking `banana`, `rgb(foo)` and
+ * `color(nope)` for colours and leaving the series they named unpainted.
+ */
+export function isChartColor(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const text = value.trim();
+  return VARIABLE_COLOR.test(text) || parse(text) !== undefined;
+}
+
+/**
+ * One finding per colour the theme would refuse to paint with, and one for a
+ * `colors` that is no map of them. Only `undefined` means "none pinned": a
+ * string, a number, `null` or an array is a config that lost its shape, and
+ * reading it as "not provided" hid that.
+ */
+function colors(chart: ChartSpec, path: IssuePath): Issue[] {
+  const colors_ = chart.colors;
+  if (colors_ === undefined) return [];
+  if (typeof colors_ !== 'object' || colors_ === null || Array.isArray(colors_))
+    return [issue('chart.colors.malformed', [...path, 'colors'])];
+  return Object.entries(colors_)
+    .filter(([, value]) => !isChartColor(value))
+    .map(([key]) => issue('chart.colors.invalid', [...path, 'colors', key]));
 }
 
 interface ChartContext {
@@ -65,7 +136,12 @@ export function validateChart(config: AnalysisViewConfig): Issue[] {
     path,
   };
 
-  switch (chart.type) {
+  return [...colors(chart, path), ...byFamily(context, config)];
+}
+
+/** The rules of the family the chart currently is. */
+function byFamily(context: ChartContext, config: AnalysisViewConfig): Issue[] {
+  switch (context.chart.type) {
     case 'bar':
     case 'line':
     case 'area':

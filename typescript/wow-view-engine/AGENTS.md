@@ -51,7 +51,7 @@ pnpm --filter @ahoo-wang/fetcher-view-engine lint:check
 - **Coverage thresholds are enforced**: statements 95, branches 91, functions 97, lines 96. `src/ui/components/**`, `src/ui/lib/**` and `src/styles.ts` are excluded — they are vendored from the shadcn registry and are upstream's to test
 - `test/architecture.test.ts` enforces the dependency rules below on the TypeScript AST, so multi-line, type-only, re-exported and **statically resolvable** dynamic imports are all seen — an `import()` whose argument is a string literal or a substitution-free template. One built from a variable is not recorded, and would slip past these assertions. It reads the wow **sources** off disk, so it is the one suite that runs without any build — every test that imports `@ahoo-wang/fetcher-wow` needs the dependency chain built first
 - `tsconfig.headless.json` type-checks the headless layers **without the DOM lib**, which is what keeps them free of browser globals
-- `scripts/verify-package.mjs` checks the built artifact: every entry resolves and imports, the root entry's types need no DOM lib, and no JavaScript entry pulls in the stylesheet
+- `scripts/verify-package.mjs` checks the built artifact: every entry resolves and imports, the root entry's types need no DOM lib, and no JavaScript entry pulls in the stylesheet, and the built stylesheet paints nothing outside `.fve-root` — no rule sits outside the root, Tailwind's `:root` theme variables included. `scripts/scope-utilities.mjs` (`postcss-prefix-selector`) makes that true at build time by pinning every rule, preflight and utilities included, to `:where(.fve-root, .fve-root *)`; Storybook runs the same plugin on the theme file
 
 ## Architecture — the six dependency rules
 
@@ -68,18 +68,18 @@ Beyond the six:
 
 - `model` through `store` contain no React, DOM, `window` or `document`
 - `runtime` reaches `store` only as a **type-only import of `store/ViewStore`** — the port, never an implementation
-- Third-party landing spots are fixed: `@ahoo-wang/fetcher-wow` only at the root entry and in `model`, `filter`, `record`, `analysis`, `runtime` (not `dashboard`, not `store`); `dayjs` in `filter`, `record`, `analysis`, `runtime`, `ui`; `dequal` in `runtime` alone; everything else (`recharts`, `react-grid-layout`, `react-markdown`, `@base-ui/react`, `lucide-react`, …) is **UI-only**. A new React dependency cannot reach a headless layer without being listed explicitly in the test
+- Third-party landing spots are fixed: `@ahoo-wang/fetcher-wow` only at the root entry and in `model`, `filter`, `record`, `analysis`, `runtime` (not `dashboard`, not `store`); `dayjs` in `filter`, `record`, `analysis`, `runtime`, `ui`; `dequal` in `runtime` alone; `culori` in `analysis` alone; everything else (`recharts`, `react-grid-layout`, `react-markdown`, `@base-ui/react`, `lucide-react`, …) is **UI-only**. A new React dependency cannot reach a headless layer without being listed explicitly in the test
 - **Deprecated Wow APIs are banned.** The test derives the deprecated export set from the wow sources themselves and fails on any import of it. Use `FilterExpression` and the `Filter*Query` family — never `Condition`, `PagedQuery`, `ListQuery` or `SingleQuery`
 - Wow must be imported from its root entry, by name, so every binding can be checked
 
 Package entries:
 
-| Entry                            | Contents                                                                      |
-| -------------------------------- | ----------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | `model`, the four kernels, `runtime`, the `ViewStore` port, `MemoryViewStore` |
-| `/react`                         | Hooks and headless controllers                                                |
-| `/ui`                            | Default components, views and workbenches                                     |
-| `/styles.css`                    | Theme, imported explicitly                                                    |
+| Entry                            | Contents                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------- |
+| `@ahoo-wang/fetcher-view-engine` | `model`, the four kernels, `runtime`, the `ViewStore` port, `MemoryViewStore`         |
+| `/react`                         | Hooks and headless controllers                                                        |
+| `/ui`                            | Default components, views and workbenches                                             |
+| `/styles.css`                    | Theme, imported explicitly, customised through `--fve-*` / `--fve-dark-*` on the host |
 
 ## Project Structure
 
@@ -197,7 +197,7 @@ src/
 - `@ahoo-wang/fetcher-wow` — query protocol (`FilterExpression`, `FilterPagedQuery`, `CursorQuery`, `AggregationQuery`)
 - `react` / `react-dom` — **optional peer dependencies**; the root entry works without React
 - UI-only: `@base-ui/react`, `recharts`, `react-grid-layout`, `react-markdown`, `react-day-picker`, `lucide-react`, `class-variance-authority`, `cn`
-- Headless: `dayjs` (time), `dequal` (runtime equality)
+- Headless: `dayjs` (time), `dequal` (runtime equality), `culori` (colour syntax, `analysis` only — a saved chart colour is validated before it reaches a `<style>` element)
 
 ## Code Style
 

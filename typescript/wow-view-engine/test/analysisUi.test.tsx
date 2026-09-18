@@ -27,9 +27,10 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AnalysisView, ChartData } from '../src/index.js';
+import type { AnalysisView, ChartData, ChartSpec } from '../src/index.js';
 import {
   MemoryViewStore,
+  shapeChart,
   ViewEngine,
   type ViewInstance,
   type ViewSource,
@@ -345,6 +346,133 @@ describe('AnalysisChart', () => {
       ],
     });
     expect(container.querySelector('[data-slot="chart"]')).not.toBeNull();
+  });
+
+  /**
+   * `ChartSpec.colors` was stored and validated and then never read, so a
+   * pinned series colour did nothing and every chart came out of the palette
+   * in index order.
+   */
+  it('paints a slice the colour the spec pinned for its category', () => {
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart
+          data={{
+            type: 'pie',
+            slices: [
+              { category: 'CN-EAST', value: 3 },
+              { category: 'CN-WEST', value: 2 },
+              { category: null, value: 1, other: true },
+            ],
+          }}
+          spec={{
+            type: 'pie',
+            pie: { category: 'region', value: 'orders' },
+            // The merged remainder prints its category as `null`; naming it
+            // still does not colour it.
+            colors: { 'CN-EAST': '#eb6834', null: '#000000' },
+          }}
+        />
+      </ViewSurface>,
+    );
+
+    // recharts draws no sector in jsdom — the pie layer comes out empty — so
+    // the colours are read where they are declared: the custom properties the
+    // container emits, which are the same values the cells are given.
+    const css = container.querySelector('style')?.textContent ?? '';
+    expect(css).toContain('--color-p0: #eb6834;');
+    expect(css).toContain('--color-p1: var(--chart-2);');
+    expect(css).toContain('--color-p2: var(--chart-3);');
+  });
+
+  it('colours a cartesian series by its metric alias', () => {
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart
+          data={cartesian}
+          spec={{
+            type: 'bar',
+            cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+            colors: { orders: '#2a78d6' },
+          }}
+        />
+      </ViewSurface>,
+    );
+
+    // The series is drawn from the custom property the container emits, so
+    // that is where a configured colour has to land.
+    const css = container.querySelector('style')?.textContent ?? '';
+    expect(css).toContain('--color-s0: #2a78d6');
+  });
+
+  /**
+   * A pivoted series is keyed by `seriesKey`, which tags a number so that `1`
+   * and `'1'` stay two series, and this file then exchanges that key for
+   * `s0` — so a spec could name neither if it tried. Its public name is the
+   * label: the split value as the legend prints it. Matching on the key left
+   * every pivot uncolourable whenever the split was not a string.
+   */
+  it('colours a pivoted series by the value the legend prints', () => {
+    const spec: ChartSpec = {
+      type: 'bar',
+      cartesian: {
+        x: 'month',
+        splitBy: 'warehouse',
+        series: [{ metric: 'orders' }],
+      },
+      // The warehouses are numbered, and a key is written as it prints.
+      colors: { '1': '#eb6834' },
+    };
+    // Shaped by the kernel rather than written out, so the keys under test
+    // are the ones a query really produces.
+    const pivoted = shapeChart(
+      analysisConfig({
+        groups: [
+          { alias: 'month', field: 'createdAt', type: 'TERMS' },
+          { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+        ],
+        chart: spec,
+      }),
+      [
+        { month: '2026-08', warehouse: 1, orders: 2 },
+        { month: '2026-08', warehouse: 2, orders: 3 },
+      ],
+    ) as ChartData;
+
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart data={pivoted} spec={spec} />
+      </ViewSurface>,
+    );
+
+    const css = container.querySelector('style')?.textContent ?? '';
+    expect(css).toContain('--color-s0: #eb6834');
+    expect(css).toContain('--color-s1: var(--chart-2)');
+  });
+
+  /**
+   * A spec handed straight to the renderer never passed the kernel — the
+   * stories do exactly that — so the colour is checked again here and an
+   * unusable one falls back to the slot rather than reaching the stylesheet.
+   */
+  it('falls back to the palette when a colour is not one', () => {
+    const hostile = 'red; } .fve-root { display: none';
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart
+          data={cartesian}
+          spec={{
+            type: 'bar',
+            cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+            colors: { orders: hostile },
+          }}
+        />
+      </ViewSurface>,
+    );
+
+    const css = container.querySelector('style')?.textContent ?? '';
+    expect(css).not.toContain(hostile);
+    expect(css).toContain('--color-s0: var(--chart-1)');
   });
 
   it('draws a scatter', () => {

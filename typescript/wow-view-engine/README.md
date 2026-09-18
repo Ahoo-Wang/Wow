@@ -151,6 +151,56 @@ export function OrdersPage() {
 }
 ```
 
+The theme follows the host through a `.dark` class on any ancestor; pass `theme="light"` or `theme="dark"` to `ViewSurface` to pin one view. Popups portalled to `<body>` carry the mode the surface resolved, so the class does not have to sit on `<html>`.
+
+#### Customising the theme
+
+Every token reads a host-level variable with the built-in value as its fallback: set `--fve-<token>` for light and `--fve-dark-<token>` for dark on your own `:root`, and the surface and the popups portalled to `<body>` both pick it up — no selector to scope, no load order to win.
+
+```css
+:root {
+  --fve-primary: oklch(0.55 0.21 265deg);
+  --fve-primary-foreground: oklch(0.99 0 0deg);
+  --fve-dark-primary: oklch(0.75 0.15 265deg);
+  --fve-dark-primary-foreground: oklch(0.21 0.05 265deg);
+  --fve-radius: 0.375rem;
+}
+```
+
+| Token                  | Role                                 | Light default                   | Dark default                    |
+| ---------------------- | ------------------------------------ | ------------------------------- | ------------------------------- |
+| `background`           | Surface behind everything            | `oklch(1 0 0deg)`               | `oklch(0.145 0 0deg)`           |
+| `foreground`           | Default text                         | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`           |
+| `card`                 | Card and panel surface               | `oklch(1 0 0deg)`               | `oklch(0.205 0 0deg)`           |
+| `card-foreground`      | Text on cards                        | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`           |
+| `popover`              | Popup surface                        | `oklch(1 0 0deg)`               | `oklch(0.205 0 0deg)`           |
+| `popover-foreground`   | Text in popups                       | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`           |
+| `primary`              | Primary action fill                  | `oklch(0.205 0 0deg)`           | `oklch(0.922 0 0deg)`           |
+| `primary-foreground`   | Text on primary                      | `oklch(0.985 0 0deg)`           | `oklch(0.205 0 0deg)`           |
+| `secondary`            | Secondary action fill                | `oklch(0.97 0 0deg)`            | `oklch(0.269 0 0deg)`           |
+| `secondary-foreground` | Text on secondary                    | `oklch(0.205 0 0deg)`           | `oklch(0.985 0 0deg)`           |
+| `muted`                | Muted surface                        | `oklch(0.97 0 0deg)`            | `oklch(0.269 0 0deg)`           |
+| `muted-foreground`     | Secondary text                       | `oklch(0.556 0 0deg)`           | `oklch(0.708 0 0deg)`           |
+| `accent`               | Hover and selected fill              | `oklch(0.97 0 0deg)`            | `oklch(0.269 0 0deg)`           |
+| `accent-foreground`    | Text on accent                       | `oklch(0.205 0 0deg)`           | `oklch(0.985 0 0deg)`           |
+| `destructive`          | Danger and delete                    | `oklch(0.577 0.245 27.325deg)`  | `oklch(0.704 0.191 22.216deg)`  |
+| `success`              | Positive outcome                     | `oklch(0.527 0.154 150.069deg)` | `oklch(0.792 0.209 151.711deg)` |
+| `warning`              | Needs attention, not blocking        | `oklch(0.555 0.163 48.998deg)`  | `oklch(0.828 0.189 84.429deg)`  |
+| `info`                 | Neutral notice                       | `oklch(0.546 0.245 262.881deg)` | `oklch(0.707 0.165 254.624deg)` |
+| `border`               | Borders and dividers                 | `oklch(0.922 0 0deg)`           | `oklch(1 0 0deg / 10%)`         |
+| `input`                | Input and control borders            | `oklch(0.922 0 0deg)`           | `oklch(1 0 0deg / 15%)`         |
+| `ring`                 | Focus ring                           | `oklch(0.708 0 0deg)`           | `oklch(0.556 0 0deg)`           |
+| `chart-1`              | Chart slot 1, blue                   | `#2a78d6`                       | `#3987e5`                       |
+| `chart-2`              | Chart slot 2, orange                 | `#eb6834`                       | `#d95926`                       |
+| `chart-3`              | Chart slot 3, aqua                   | `#1baf7a`                       | `#199e70`                       |
+| `chart-4`              | Chart slot 4, yellow                 | `#eda100`                       | `#c98500`                       |
+| `chart-5`              | Chart slot 5, magenta                | `#e87ba4`                       | `#d55181`                       |
+| `radius`               | Corner radius, the rest scale off it | `0.625rem`                      | —                               |
+
+`radius` is the one token the dark block does not redeclare, so `--fve-radius` sets it in both modes and there is no `--fve-dark-radius`.
+
+The root paints `--background`, so an embedded view shows its own rectangle inside a host card; to let the host's own surface show through instead, set `--fve-background: transparent` (and `--fve-dark-background` for a surface pinned to dark), and the root then paints nothing behind the components, which keep their own card, popover and input colours.
+
 ### 3b. Or compose your own UI
 
 ```tsx
@@ -224,12 +274,12 @@ Details in [docs/design.md](docs/design.md) §7.
 
 ## Entries
 
-| Entry                            | Exports                                                                                                                                                                                                                    |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                                 |
-| `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useDashboard`, `useSaveCommands`                                                                              |
-| `/ui`                            | `RecordWorkbench`, `AnalysisWorkbench`, `DashboardWorkbench`, `FilterPanel`, `RecordTable`, `RecordCards`, `AnalysisEditor`, `AnalysisChart`, `DashboardGrid`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `EmbeddedView` |
-| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, which `scripts/verify-package.mjs` checks on every build.                                                                                                |
+| Entry                            | Exports                                                                                                                                                                                                                         |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                                      |
+| `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useDashboard`, `useSaveCommands`                                                                                   |
+| `/ui`                            | `RecordWorkbench`, `AnalysisWorkbench`, `DashboardWorkbench`, `FilterPanel`, `RecordTable`, `RecordCards`, `AnalysisEditor`, `AnalysisChart`, `DashboardGrid`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `EmbeddedView`      |
+| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside `.fve-root` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build. |
 
 ## Persistence
 

@@ -28,10 +28,13 @@ import { useSurfaceTheme } from './ViewSurface.js';
  * page stays untouched. A popup — a select's list, a menu, a popover, a
  * tooltip, a dialog, a combobox — is portalled to the document body, outside
  * that root, and would render without a background or a border. These
- * wrappers put the class and the surface's theme on the popup itself. The
- * vendored components stay as the registry ships them; this package's own
- * components import the popup contents from here, and a test holds them to
- * it.
+ * wrappers put the class and the surface's mode on the popup itself — the
+ * pinned `theme` when there is one, otherwise the mode the surface resolved
+ * from the cascade, so a `.dark` on any ancestor reaches the popup and the
+ * class does not have to sit on `<html>`. The stylesheet's `color-scheme`
+ * stays the source of truth; nothing here decides the mode. The vendored
+ * components stay as the registry ships them; this package's own components
+ * import the popup contents from here, and a test holds them to it.
  */
 type ClassName<S> = string | ((state: S) => string | undefined) | undefined;
 

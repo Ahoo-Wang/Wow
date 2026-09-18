@@ -12,6 +12,7 @@
  */
 
 import type { Preview } from '@storybook/react-vite';
+import { withThemeByClassName } from '@storybook/addon-themes';
 import './preview.css';
 import { DocsPage } from './DocsPage.js';
 
@@ -52,6 +53,15 @@ const preview: Preview = {
       },
     },
   },
+  // View Engine's dark theme wakes up when `.dark` sits on an ancestor of
+  // `.fve-root`; the addon puts it on `<html>`, so the toolbar switch reaches
+  // every story the same way a host application would.
+  decorators: [
+    withThemeByClassName({
+      themes: { light: '', dark: 'dark' },
+      defaultTheme: 'light',
+    }),
+  ],
   tags: ['autodocs', 'test'],
 };
 

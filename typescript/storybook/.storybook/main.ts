@@ -4,6 +4,7 @@ import { createRequire } from 'module';
 import type { StorybookConfig } from '@storybook/react-vite';
 import { mergeConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
+import { scopeUtilities } from '../packages/view-engine/scripts/scope-utilities.mjs';
 
 const require = createRequire(import.meta.url);
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -47,6 +48,7 @@ const config: StorybookConfig = {
       },
     },
     getAbsolutePath('@storybook/addon-a11y'),
+    getAbsolutePath('@storybook/addon-themes'),
     getAbsolutePath('@storybook/addon-vitest'),
   ],
   typescript: {
@@ -58,9 +60,11 @@ const config: StorybookConfig = {
   },
   viteFinal: config =>
     mergeConfig(config, {
-      // View Engine's theme is a Tailwind stylesheet; the plugin that builds
-      // the package builds it here too, so the stories show the real thing.
+      // View Engine's theme is a Tailwind stylesheet; the plugins that build
+      // the package build it here too, so the stories show the real thing —
+      // every painting rule pinned inside `.fve-root`.
       plugins: [tailwindcss()],
+      css: { postcss: { plugins: [scopeUtilities()] } },
       server: { watch: { ignored: ['**/coverage/**'] } },
       resolve: {
         alias: {

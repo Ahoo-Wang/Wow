@@ -13,7 +13,7 @@
 
 // Run after building: pnpm --filter @ahoo-wang/fetcher-view-engine test:package
 //
-// Three properties of the built package, which no unit test can see because
+// Six properties of the built package, which no unit test can see because
 // each one is about the artifact rather than the source (docs/design.md §12):
 //
 // 1. Every declared entry resolves and imports.
@@ -21,6 +21,12 @@
 //    use the kernels and the runtime.
 // 3. No JavaScript entry pulls in the stylesheet, so importing the package
 //    never puts CSS in a host page that did not ask for it.
+// 4. The stylesheet holds no rule outside `.fve-root` at all, so a host that
+//    does import it keeps its own page and its own variables.
+// 5. The `dark:` utilities and the dark tokens turn on the same roots, so no
+//    host can end up with the utilities of one mode over the other's tokens.
+// 6. Every token defers to a host-level `--fve-*` variable, so a host can
+//    customise the theme from `:root` without reaching inside the root.
 import assert from 'node:assert/strict';
 import {
   readFileSync,
@@ -30,6 +36,7 @@ import {
   rmSync,
 } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import postcss from 'postcss';
 import ts from 'typescript';
 
 const packageRoot = new URL('../', import.meta.url);
@@ -69,10 +76,185 @@ assert.ok(jsEntries.length >= 3, 'Expected the root, /react and /ui entries');
 // The stylesheet ships as its own entry, which a host imports deliberately.
 const styles = manifest.exports['./styles.css'];
 assert.equal(typeof styles, 'string', './styles.css must be a single target');
+const stylesheet = readFileSync(new URL(styles, packageRoot), 'utf8');
 assert.ok(
-  readFileSync(new URL(styles, packageRoot), 'utf8').includes('.fve-root'),
+  stylesheet.includes('.fve-root'),
   'The theme must hang off the .fve-root boundary',
 );
+
+// 4. No rule sits outside the root — custom properties included.
+//
+// Tailwind's preflight would reset `*`, `html`, headings, lists and buttons on
+// the whole host page, and its utilities are bare classes a host may share;
+// `scripts/scope-utilities.mjs` pins every rule to the root at build time, and
+// this is where that is checked. A rule that only sets custom properties is no
+// exception, because a host reads custom properties: a `:root` variable is as
+// much a leak as a painted pixel. Tailwind's theme variables (`--spacing`,
+// `--radius-md`, `--font-sans`, …) would otherwise overwrite a host Tailwind's
+// values for the same names, or be overwritten by them, and its `--tw-*`
+// defaults on `*` are scoped to the root like everything else. Only
+// `@property` registrations stay global, and they have no selector at all.
+const leaks = styleRules(stylesheet).filter(
+  ({ selector }) => !selector.includes('.fve-root'),
+);
+assert.deepEqual(
+  leaks.map(({ selector }) => selector),
+  [],
+  'The stylesheet has rules outside .fve-root',
+);
+const globalRoots = styleRules(stylesheet).flatMap(({ selector }) =>
+  selectorList(selector).filter(part => part === ':root' || part === ':host'),
+);
+assert.deepEqual(
+  globalRoots,
+  [],
+  "The stylesheet still carries a :root or :host selector; Tailwind's theme variables must live on .fve-root",
+);
+
+// 5. Light and dark are one decision, spelled the same way twice.
+//
+// `src/styles.css` names the dark roots once for the `@custom-variant dark`
+// the vendored components' `dark:` utilities compile against, and once for the
+// token block. Let the two drift and a host is served the utilities of one
+// mode over the tokens of the other — dark `data-theme` with light colours, or
+// a surface pinned light inside a `.dark` page painted half dark.
+const darkTokens = styleRules(stylesheet).find(
+  ({ selector, declarations }) =>
+    !selector.includes('dark\\:') &&
+    selector.includes('data-theme') &&
+    declarations.includes('color-scheme') &&
+    declarations.includes('--background'),
+);
+assert.ok(darkTokens, 'The stylesheet sets no dark tokens');
+const tokenSelectors = selectorList(darkTokens.selector);
+assert.equal(
+  tokenSelectors.length,
+  2,
+  'The dark tokens should name a pinned root and one following a .dark host',
+);
+
+// A compiled utility carries the variant on its subject, as in
+// `.dark\:bg-input\/30:where(<the variant>)`. `scripts/scope-utilities.mjs`
+// would append a second `:where(.fve-root, .fve-root *)`, and does so as soon
+// as the variant stops naming the root itself, so read the first one.
+const darkUtility = styleRules(stylesheet).find(({ selector }) =>
+  selector.startsWith('.dark\\:'),
+);
+assert.ok(darkUtility, 'The stylesheet compiled no dark: utility to check');
+const variantSelectors = selectorList(whereArgument(darkUtility.selector));
+assert.deepEqual(
+  variantSelectors.map(unquoted).sort(),
+  tokenSelectors
+    .flatMap(selector => [selector, `${selector} *`])
+    .map(unquoted)
+    .sort(),
+  'The dark: variant and the dark tokens must name the same roots',
+);
+
+// 6. Every token is an indirection through a host-level variable.
+//
+// A host customises the theme by setting `--fve-<token>` for light and
+// `--fve-dark-<token>` for dark on its own `:root`, and every token here reads
+// that variable with the built-in value as its fallback. Because the host sets
+// them above everything, the override reaches the root and the popups
+// portalled out of it alike, in follow-the-host and pinned modes alike, with
+// no selector to scope and no load order to win. A token left as a literal
+// would quietly ignore the host, so both blocks are read token by token.
+const lightTokens = styleRules(stylesheet).find(
+  ({ selector, declarations }) =>
+    selector === '.fve-root' &&
+    declarations.includes('color-scheme') &&
+    declarations.includes('--background'),
+);
+assert.ok(lightTokens, 'The stylesheet sets no light tokens');
+for (const [mode, rule, prefix] of [
+  ['light', lightTokens, '--fve-'],
+  ['dark', darkTokens, '--fve-dark-'],
+]) {
+  // The minifier may drop the space after the comma; the fallback is the rest.
+  const literal = rule.tokens.filter(
+    ([property, value]) =>
+      !new RegExp(`^var\\(${prefix}${property.slice(2)},\\s*.+\\)$`).test(
+        value,
+      ),
+  );
+  assert.deepEqual(
+    literal.map(([property]) => property),
+    [],
+    `The ${mode} tokens must each read ${prefix}<token> with the built-in value as the fallback`,
+  );
+  assert.deepEqual(
+    rule.tokens
+      .map(([property]) => property)
+      .filter(property => property.startsWith('--sidebar')),
+    [],
+    `The ${mode} tokens still set sidebar properties, which nothing in this package uses`,
+  );
+}
+
+/** A selector list split on its top-level commas, each part trimmed. */
+function selectorList(selectors) {
+  const parts = [];
+  let depth = 0;
+  let start = 0;
+  for (let at = 0; at < selectors.length; at += 1) {
+    const char = selectors[at];
+    if (char === '(') depth += 1;
+    else if (char === ')') depth -= 1;
+    else if (char === ',' && depth === 0) {
+      parts.push(selectors.slice(start, at).trim());
+      start = at + 1;
+    }
+  }
+  parts.push(selectors.slice(start).trim());
+  return parts;
+}
+
+/**
+ * The argument of the first `:where()` in a selector, read to the parenthesis
+ * that closes it — the argument holds a `:not()` of its own.
+ */
+function whereArgument(selector) {
+  const opens = selector.indexOf(':where(');
+  assert.ok(opens >= 0, `${selector} has no :where()`);
+  const from = opens + ':where('.length;
+  let depth = 1;
+  for (let at = from; at < selector.length; at += 1) {
+    if (selector[at] === '(') depth += 1;
+    else if (selector[at] === ')') {
+      depth -= 1;
+      if (depth === 0) return selector.slice(from, at);
+    }
+  }
+  return assert.fail(`${selector} has an unbalanced :where()`);
+}
+
+/** The minifier drops the quotes in `[data-theme='dark']`; ignore them. */
+function unquoted(selector) {
+  return selector.replace(/['"]/g, '');
+}
+
+/**
+ * Every style rule in a stylesheet as its selector, the properties it sets
+ * and, for the custom properties among them, `tokens` — the property paired
+ * with its value; `@keyframes` steps are not selectors and are left out.
+ */
+function styleRules(css) {
+  const rules = [];
+  postcss.parse(css).walkRules(rule => {
+    if (rule.parent?.type === 'atrule' && rule.parent.name === 'keyframes')
+      return;
+    const declarations = [];
+    const tokens = [];
+    rule.each(node => {
+      if (node.type !== 'decl') return;
+      declarations.push(node.prop);
+      if (node.prop.startsWith('--')) tokens.push([node.prop, node.value]);
+    });
+    rules.push({ selector: rule.selector, declarations, tokens });
+  });
+  return rules;
+}
 
 // 2. The root entry's types compile without the DOM lib.
 const typeProbe = mkdtempSync(new URL('.package-types-', packageRoot));
@@ -140,12 +322,12 @@ for (const file of visited) {
   }
 }
 
-// 4. And, that settled, every entry actually imports.
+// 7. And, that settled, every entry actually imports.
 for (const { specifier, resolved } of jsEntries) {
   const module = await import(resolved);
   assert.ok(Object.keys(module).length > 0, `${specifier} exports nothing`);
 }
 
 console.log(
-  `${targets.size} entries resolve and import, the root entry's types need no DOM lib, and ${visited.size} runtime modules import no CSS.`,
+  `${targets.size} entries resolve and import, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the stylesheet holds no rule outside .fve-root and no :root selector at all, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, and its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables.`,
 );

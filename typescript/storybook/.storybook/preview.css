@@ -1,3 +1,10 @@
+/* The story frames below keep their own light palette on purpose — the View
+   Engine surface inside them is self-contained. Only the page around them
+   follows the toolbar's dark theme. */
+html.dark body {
+  background: #0a0a0a;
+}
+
 .story-overview,
 .story-scene {
   font-family:

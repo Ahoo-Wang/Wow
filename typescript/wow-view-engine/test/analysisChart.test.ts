@@ -13,6 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  isChartColor,
   shapeChart,
   validateChart,
   type AnalysisGroup,
@@ -91,6 +92,57 @@ describe('validateChart', () => {
     expect(codes(undefined as unknown as ChartSpec)).toEqual([
       'analysis.config.malformed',
     ]);
+  });
+
+  /**
+   * A saved colour is written verbatim into a `<style>` element, so it may
+   * name a colour and nothing else.
+   */
+  it('takes a colour a style element can hold, and nothing else', () => {
+    const coloured = (colors: Record<string, string>): ChartSpec => ({
+      type: 'bar',
+      cartesian: { x: 'wh', series: [{ metric: 'orders' }] },
+      colors,
+    });
+
+    expect(
+      codes(coloured({ orders: '#2a78d6', wh: 'var(--chart-2)' })),
+    ).toEqual([]);
+
+    expect(
+      validateChart(config(coloured({ orders: 'red; } .x { color: red' }))),
+    ).toEqual([
+      {
+        code: 'chart.colors.invalid',
+        severity: 'error',
+        path: ['chart', 'colors', 'orders'],
+      },
+    ]);
+  });
+
+  /**
+   * Only `undefined` is "none pinned". Every other non-object read as one,
+   * so a `colors` a migration had turned into a string, a number or a list
+   * validated clean and then coloured nothing.
+   */
+  it('takes a map of colours, or nothing at all', () => {
+    const withColors = (colors: unknown): AnalysisViewConfig =>
+      config({
+        type: 'bar',
+        cartesian: { x: 'wh', series: [{ metric: 'orders' }] },
+        colors: colors as Record<string, string>,
+      });
+
+    expect(validateChart(withColors(undefined))).toEqual([]);
+
+    for (const malformed of ['red', 3, null, ['#2a78d6']])
+      expect(validateChart(withColors(malformed))).toEqual([
+        {
+          code: 'chart.colors.malformed',
+          severity: 'error',
+          path: ['chart', 'colors'],
+        },
+      ]);
   });
 
   describe('cartesian', () => {
@@ -399,6 +451,56 @@ describe('validateChart', () => {
         ),
       ).toEqual([]);
     });
+  });
+});
+
+describe('isChartColor', () => {
+  it('accepts the shapes a theme is written in', () => {
+    for (const value of [
+      '#fff',
+      '#2a78d6',
+      '#2a78d6ff',
+      'rgb(42 120 214)',
+      'rgba(42, 120, 214, 0.5)',
+      'hsl(210 50% 40%)',
+      'oklch(0.62 0.14 250deg)',
+      'oklab(0.62 -0.02 -0.13)',
+      'color(display-p3 0.1 0.45 0.84)',
+      'color(display-p3 0.5 0.2 0.1)',
+      'oklch(0.6 0.2 30)',
+      'hsl(120 50% 50%)',
+      'rebeccapurple',
+      'var(--chart-1)',
+      'var(--chart-2)',
+      'transparent',
+      // CSS reads a colour name case-insensitively and so does the parser.
+      'Red',
+    ])
+      expect(isChartColor(value)).toBe(true);
+  });
+
+  it('refuses anything that could leave the declaration it sits in', () => {
+    for (const value of [
+      'red; } .x { color: red',
+      'var(--chart-1); background: url(//evil/)',
+      'url(//evil/)',
+      'rgb(1,2,3) !important',
+      '#12345',
+      // A character class took these for colours — a word, a function name
+      // with nonsense inside it, an unknown colour space — and the series
+      // each one named then came out unpainted rather than from the palette.
+      'banana',
+      'rgb(foo)',
+      'color(nope)',
+      // A keyword that resolves against the element rather than naming a
+      // colour: the parser does not know it, so neither does the chart.
+      'currentcolor',
+      '',
+      42,
+      null,
+      undefined,
+    ])
+      expect(isChartColor(value)).toBe(false);
   });
 });
 

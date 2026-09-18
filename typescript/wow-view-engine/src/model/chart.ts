@@ -27,7 +27,14 @@ export interface ChartSpec {
   metric?: MetricCardSpec;
   legend?: 'auto' | 'top' | 'bottom' | 'right' | 'none';
   labels?: boolean;
-  /** Series alias or category value to colour; the theme fills in the rest. */
+  /**
+   * The colours pinned by hand; the theme fills in the rest from its palette.
+   *
+   * A key is the series or slice as the chart prints it: the category value
+   * of a split or a pie — a number or a boolean as text, `null` as the empty
+   * string — or, where nothing is split, the metric alias. Internal keys are
+   * never addressable, so a numeric category is named `"1"`, not `1`.
+   */
   colors?: Record<string, string>;
 }
 

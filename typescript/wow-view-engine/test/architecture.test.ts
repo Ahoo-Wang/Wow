@@ -104,6 +104,7 @@ const wowSrc = resolve(src, '../../wow/src');
  */
 const HEADLESS_DEPENDENCIES: Record<string, readonly Location[]> = {
   [WOW]: ['root', 'model', 'filter', 'record', 'analysis', 'runtime'],
+  culori: ['analysis'],
   dayjs: ['filter', 'record', 'analysis', 'runtime', 'ui'],
   dequal: ['runtime'],
 };

@@ -135,6 +135,7 @@ export function SaveActions({
   return (
     <div data-slot="save-actions" className="flex flex-wrap items-center gap-2">
       <Button
+        variant="outline"
         size="sm"
         disabled={!commands.can.save || commands.state.pending}
         onClick={() => {
@@ -294,7 +295,7 @@ function WriteOutcome({
 
   if (write?.kind === 'unknown') {
     return (
-      <Alert className="w-full">
+      <Alert className="w-full text-warning *:data-[slot=alert-description]:text-warning">
         <AlertTitle>{messages.label('label.write.unknown')}</AlertTitle>
         <AlertDescription>
           {messages.label('label.unknown.consequence')}

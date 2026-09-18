@@ -17,6 +17,7 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import dts from 'unplugin-dts/vite';
+import { scopeUtilities } from './scripts/scope-utilities.mjs';
 
 // Rewrite in progress (docs/design.md): the root, `/react` and `/ui` entries
 // exist, with the theme shipped as a separate `/styles.css` an application
@@ -29,6 +30,9 @@ export default defineConfig({
     babel({ presets: [reactCompilerPreset()] }),
     dts({ tsconfigPath: './tsconfig.json' }),
   ],
+  // Tailwind compiles ahead of PostCSS, so this sees the utilities it emitted
+  // and keeps every one of them inside `.fve-root`.
+  css: { postcss: { plugins: [scopeUtilities()] } },
   build: {
     cssTarget: 'esnext',
     sourcemap: true,
