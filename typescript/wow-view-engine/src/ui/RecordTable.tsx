@@ -30,7 +30,7 @@ import {
   EmptyTitle,
 } from './components/empty.js';
 import { Skeleton } from './components/skeleton.js';
-import { useViewMessages } from './MessagesProvider.js';
+import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import {
   Table,
   TableBody,
@@ -45,6 +45,7 @@ export interface RecordTableProps {
   table: RecordTableController;
   /** Renders one cell; the default formats by the column's declared kind. */
   renderCell?(cell: RecordCell): React.ReactNode;
+  /** Overrides the catalogue's own wording for an empty result. */
   emptyTitle?: string;
   emptyDescription?: string;
 }
@@ -65,10 +66,12 @@ export interface RecordCell {
  */
 export function RecordTable({
   table,
-  renderCell = defaultCell,
-  emptyTitle = 'Nothing to show',
-  emptyDescription = 'No record matches the current conditions.',
+  renderCell,
+  emptyTitle,
+  emptyDescription,
 }: RecordTableProps) {
+  const messages = useViewMessages();
+  const renderOne = renderCell ?? (found => defaultCell(found, messages));
   const allSelected =
     table.rows.length > 0 && table.selection.length === table.rows.length;
 
@@ -79,8 +82,12 @@ export function RecordTable({
           <EmptyMedia variant="icon">
             <InboxIcon />
           </EmptyMedia>
-          <EmptyTitle>{emptyTitle}</EmptyTitle>
-          <EmptyDescription>{emptyDescription}</EmptyDescription>
+          <EmptyTitle>
+            {emptyTitle ?? messages.label('label.record.empty')}
+          </EmptyTitle>
+          <EmptyDescription>
+            {emptyDescription ?? messages.label('label.record.empty-hint')}
+          </EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
@@ -93,7 +100,7 @@ export function RecordTable({
           <TableRow>
             <TableHead className="w-10">
               <Checkbox
-                aria-label="Select all rows"
+                aria-label={messages.label('label.record.select-all')}
                 checked={allSelected}
                 indeterminate={
                   table.selection.length > 0 && !allSelected ? true : undefined
@@ -140,14 +147,16 @@ export function RecordTable({
                 >
                   <TableCell>
                     <Checkbox
-                      aria-label={`Select ${String(row.key)}`}
+                      aria-label={messages.label('label.record.select', {
+                        key: String(row.key),
+                      })}
                       checked={table.isSelected(row.key)}
                       onCheckedChange={() => table.toggle(row.key)}
                     />
                   </TableCell>
                   {table.columns.map(column => (
                     <TableCell key={column.field}>
-                      {renderCell({
+                      {renderOne({
                         column,
                         row: row.data,
                         key: row.key,
@@ -202,7 +211,10 @@ function SummaryFooter({
               <span
                 key={cell.fn}
                 className="block whitespace-nowrap"
-                title={`${cell.fn} of ${cell.label}`}
+                title={messages.label('label.summary.of', {
+                  fn: cell.fn,
+                  field: cell.label,
+                })}
               >
                 <span className="text-muted-foreground mr-1 text-xs">
                   {cell.fn}
@@ -226,11 +238,15 @@ function SortMark({ direction }: { direction: 'ASC' | 'DESC' | null }) {
 }
 
 /** Numbers follow the field's declared format; everything else is text. */
-function defaultCell({ column, value }: RecordCell): React.ReactNode {
+function defaultCell(
+  { column, value }: RecordCell,
+  messages: MessageFormatters,
+): React.ReactNode {
   if (value === null || value === undefined) return null;
   if (typeof value === 'number')
     return formatNumber(value, column.numberFormat);
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'boolean')
+    return messages.label(value ? 'label.value.yes' : 'label.value.no');
   if (typeof value === 'string') return value;
   return JSON.stringify(value);
 }

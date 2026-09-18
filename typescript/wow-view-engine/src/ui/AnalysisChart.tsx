@@ -55,6 +55,7 @@ import {
   type ChartConfig,
 } from './components/chart.js';
 import { cn } from 'cn';
+import { useViewMessages } from './MessagesProvider.js';
 
 export interface AnalysisChartProps {
   data: ChartData;
@@ -342,11 +343,15 @@ function PieSlices({
   spec?: ChartSpec;
   className?: string;
 }) {
+  const messages = useViewMessages();
   // Same rule as the cartesian series: a category value becomes an identifier
   // before it can reach the style element, and stays a label.
   const rows = data.slices.map((slice, index) => ({
     key: `p${index}`,
-    name: slice.other === true ? 'Other' : labelOf(slice.category),
+    name:
+      slice.other === true
+        ? messages.label('label.chart.other')
+        : labelOf(slice.category),
     value: slice.value,
   }));
   const config = Object.fromEntries(
@@ -386,6 +391,7 @@ function ScatterPoints({
   data: ScatterData;
   className?: string;
 }) {
+  const messages = useViewMessages();
   const rows = data.points.map(point => ({
     name: labelOf(point.category),
     x: point.x,
@@ -395,7 +401,12 @@ function ScatterPoints({
 
   return (
     <ChartContainer
-      config={{ points: { label: 'Points', color: color(0) } }}
+      config={{
+        points: {
+          label: messages.label('label.chart.points'),
+          color: color(0),
+        },
+      }}
       className={cn('min-h-52 w-full', className)}
     >
       <ScatterChart>
@@ -421,6 +432,7 @@ function Heatmap({
   data: HeatmapData;
   className?: string;
 }) {
+  const messages = useViewMessages();
   const values = data.cells
     .flat()
     .filter((cell): cell is number => cell !== null);
@@ -443,7 +455,11 @@ function Heatmap({
             return (
               <div
                 key={labelOf(x) || column}
-                title={`${labelOf(y)} · ${labelOf(x)}: ${cell ?? '—'}`}
+                title={messages.label('label.chart.cell', {
+                  y: labelOf(y),
+                  x: labelOf(x),
+                  value: cell ?? messages.label('label.summary.unavailable'),
+                })}
                 className="bg-primary size-8 shrink-0 rounded-sm"
                 style={{
                   opacity:
@@ -539,6 +555,7 @@ function MetricCard({
   spec?: ChartSpec;
   className?: string;
 }) {
+  const messages = useViewMessages();
   const card = spec?.metric;
   return (
     <div
@@ -567,7 +584,12 @@ function MetricCard({
       )}
       {data.trend && data.trend.length > 0 && (
         <ChartContainer
-          config={{ trend: { label: 'Trend', color: color(0) } }}
+          config={{
+            trend: {
+              label: messages.label('label.chart.trend'),
+              color: color(0),
+            },
+          }}
           className="h-16 w-full"
         >
           <LineChart

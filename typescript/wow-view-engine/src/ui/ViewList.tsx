@@ -43,12 +43,6 @@ const SCOPE_ICON: Record<ViewScope, typeof LockIcon> = {
   personal: LockIcon,
 };
 
-const SCOPE_LABEL: Record<ViewScope, string> = {
-  system: 'Shipped with the definition',
-  shared: 'Shared with everyone',
-  personal: 'Only you',
-};
-
 /**
  * The views of one definition, in the user's own order.
  *
@@ -76,9 +70,9 @@ export function ViewList({ list, currentId, onOpen }: ViewListProps) {
           </EmptyMedia>
           <EmptyTitle>{messages.label('label.view.none')}</EmptyTitle>
           <EmptyDescription>
-            {list.error
-              ? 'The list could not be loaded.'
-              : 'Save the current conditions to make one.'}
+            {messages.label(
+              list.error ? 'label.view.list-failed' : 'label.view.none-hint',
+            )}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -88,7 +82,7 @@ export function ViewList({ list, currentId, onOpen }: ViewListProps) {
   return (
     <nav
       data-slot="view-list"
-      aria-label="Views"
+      aria-label={messages.label('label.view.list')}
       className="flex flex-col gap-1"
     >
       {list.items.map(item => (
@@ -113,6 +107,7 @@ function ViewListItem({
   onOpen(instanceId: string): void;
 }) {
   const Icon = SCOPE_ICON[item.scope];
+  const messages = useViewMessages();
   return (
     <Button
       variant={current ? 'secondary' : 'ghost'}
@@ -123,12 +118,14 @@ function ViewListItem({
     >
       <Tooltip>
         <TooltipTrigger render={<Icon data-icon="inline-start" />} />
-        <TooltipContent>{SCOPE_LABEL[item.scope]}</TooltipContent>
+        <TooltipContent>
+          {messages.label(`label.scope.${item.scope}`)}
+        </TooltipContent>
       </Tooltip>
       <span className="truncate">{item.title}</span>
       {item.scope !== 'personal' && (
         <Badge variant="secondary" className="ml-auto">
-          {item.scope}
+          {messages.label(`label.scope.tag.${item.scope}`)}
         </Badge>
       )}
     </Button>

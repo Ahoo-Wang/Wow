@@ -168,6 +168,7 @@ function TextValue({
   disabled,
   multiple,
 }: ValueProps & { multiple: boolean }) {
+  const messages = useViewMessages();
   // A list is parsed on the way out, but the raw text stays on screen while
   // it is typed: re-deriving it from the parsed list would eat the comma
   // separating the values, and a second value could never be entered. The
@@ -189,7 +190,9 @@ function TextValue({
       aria-label={label}
       disabled={disabled}
       value={text}
-      placeholder={multiple ? 'Comma separated' : undefined}
+      placeholder={
+        multiple ? messages.label('label.filter.comma-separated') : undefined
+      }
       onChange={event => {
         const raw = event.target.value;
         if (!multiple) {
@@ -285,6 +288,7 @@ function NumberValue({
   range,
   multiple,
 }: ValueProps & { range: boolean; multiple: boolean }) {
+  const messages = useViewMessages();
   if (range || multiple) {
     const parts = Array.isArray(value) ? value : [];
     const ends = [numberOrBlank(parts[0]), numberOrBlank(parts[1])];
@@ -293,7 +297,10 @@ function NumberValue({
         {[0, 1].map(index => (
           <NumberInput
             key={index}
-            label={`${label} ${index === 0 ? 'from' : 'to'}`}
+            label={messages.label(
+              index === 0 ? 'label.filter.range-from' : 'label.filter.range-to',
+              { field: label },
+            )}
             disabled={disabled}
             value={ends[index]}
             onNumber={next => {
@@ -360,8 +367,8 @@ function BooleanValue({ value, onChange, label, disabled }: ValueProps) {
       value={typeof value === 'boolean' ? String(value) : null}
       placeholder={messages.label('label.filter.choose')}
       items={[
-        { label: 'True', value: 'true' },
-        { label: 'False', value: 'false' },
+        { label: messages.label('label.boolean.true'), value: 'true' },
+        { label: messages.label('label.boolean.false'), value: 'false' },
       ]}
       onChange={next => onChange(next === 'true')}
     />
@@ -456,21 +463,14 @@ function OptionValue({
 type DateShape = DateTimeFilterValue['type'];
 
 /** `relative` no longer means backwards, so the shape no longer says it. */
-const DATE_SHAPES: { label: string; value: DateShape }[] = [
-  { label: 'On a date', value: 'absolute' },
-  { label: 'Relative', value: 'relative' },
-  { label: 'A period', value: 'preset' },
-];
+const DATE_SHAPES: readonly DateShape[] = ['absolute', 'relative', 'preset'];
 
 /**
  * Which side of now a relative window lies on. It reads as the sentence the
  * row makes — "in the last 7 days", "in the next 7 days" — so the direction
  * carries the wording and the shape above stays neutral.
  */
-const DATE_DIRECTIONS: { label: string; value: RelativeDateDirection }[] = [
-  { label: 'In the last', value: 'past' },
-  { label: 'In the next', value: 'future' },
-];
+const DATE_DIRECTIONS: readonly RelativeDateDirection[] = ['past', 'future'];
 
 function DateValue({
   value,
@@ -480,6 +480,7 @@ function DateValue({
   range,
   withTime,
 }: ValueProps & { range: boolean; withTime: boolean }) {
+  const messages = useViewMessages();
   const stored = readDateValue(value);
   // Which shape a blank row is in. Emptying the amount of "in the last 7
   // days" blanks the leaf, and without this the editor would jump back to
@@ -491,10 +492,13 @@ function DateValue({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <ChoiceValue
-        label={`${label} kind`}
+        label={messages.label('label.date.shape-of', { field: label })}
         disabled={disabled}
         value={current.type}
-        items={DATE_SHAPES}
+        items={DATE_SHAPES.map(shape => ({
+          label: messages.label(`label.date.${shape}`),
+          value: shape,
+        }))}
         onChange={next =>
           onChange(writeValue(emptyDateValue(next as DateShape, withTime)))
         }
@@ -512,10 +516,15 @@ function DateValue({
       {current.type === 'relative' && (
         <div className="flex items-center gap-2">
           <ChoiceValue
-            label={`${label} direction`}
+            label={messages.label('label.date.direction-of', {
+              field: label,
+            })}
             disabled={disabled}
             value={current.direction ?? 'past'}
-            items={DATE_DIRECTIONS}
+            items={DATE_DIRECTIONS.map(direction => ({
+              label: messages.label(`label.date.${direction}`),
+              value: direction,
+            }))}
             onChange={next =>
               onChange(
                 writeValue({
@@ -526,7 +535,7 @@ function DateValue({
             }
           />
           <NumberInput
-            label={`${label} amount`}
+            label={messages.label('label.date.amount-of', { field: label })}
             disabled={disabled}
             className="w-20"
             value={current.amount}
@@ -539,7 +548,7 @@ function DateValue({
             }
           />
           <ChoiceValue
-            label={`${label} unit`}
+            label={messages.label('label.date.unit-of', { field: label })}
             disabled={disabled}
             value={current.unit}
             items={RELATIVE_DATE_UNITS.map(unit => ({
@@ -556,7 +565,7 @@ function DateValue({
       )}
       {current.type === 'preset' && (
         <ChoiceValue
-          label={`${label} period`}
+          label={messages.label('label.date.period-of', { field: label })}
           disabled={disabled}
           value={current.preset}
           items={DATE_TIME_PRESETS.map(preset => ({
@@ -589,6 +598,8 @@ function AbsoluteDate({
   range: boolean;
   withTime: boolean;
 }) {
+  const messages = useViewMessages();
+  const blank = messages.label('label.date.pick');
   const from = parseDate(value.from);
   const to = parseDate(value.to);
 
@@ -599,8 +610,8 @@ function AbsoluteDate({
         aria-label={label}
       >
         <CalendarIcon data-icon="inline-start" />
-        {formatDate(from, withTime)}
-        {range ? ` – ${formatDate(to, withTime)}` : ''}
+        {formatDate(from, withTime, blank)}
+        {range ? ` – ${formatDate(to, withTime, blank)}` : ''}
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0">
         {range ? (
@@ -691,7 +702,11 @@ function storeDate(date: Date, withTime: boolean): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function formatDate(date: Date | undefined, withTime: boolean): string {
-  if (!date) return 'Pick a date';
+function formatDate(
+  date: Date | undefined,
+  withTime: boolean,
+  blank: string,
+): string {
+  if (!date) return blank;
   return withTime ? date.toLocaleString() : date.toLocaleDateString();
 }

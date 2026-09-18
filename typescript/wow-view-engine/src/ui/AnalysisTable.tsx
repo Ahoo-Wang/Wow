@@ -12,7 +12,7 @@
  */
 
 import { SigmaIcon } from 'lucide-react';
-import { useViewMessages } from './MessagesProvider.js';
+import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import type { AnalysisView } from '../analysis/index.js';
 import type { NumberFormat } from '../model/index.js';
 import {
@@ -74,7 +74,7 @@ export function AnalysisTable({ view }: AnalysisTableProps) {
             <TableRow key={index}>
               {view.columns.map(column => (
                 <TableCell key={column.alias}>
-                  {cell(row[column.alias], column.numberFormat)}
+                  {cell(messages, row[column.alias], column.numberFormat)}
                 </TableCell>
               ))}
             </TableRow>
@@ -86,8 +86,12 @@ export function AnalysisTable({ view }: AnalysisTableProps) {
               {view.columns.map((column, index) => (
                 <TableCell key={column.alias}>
                   {index === 0 && column.role === 'group'
-                    ? 'Total'
-                    : cell(view.totals?.[column.alias], column.numberFormat)}
+                    ? messages.label('label.summary.total')
+                    : cell(
+                        messages,
+                        view.totals?.[column.alias],
+                        column.numberFormat,
+                      )}
                 </TableCell>
               ))}
             </TableRow>
@@ -98,14 +102,19 @@ export function AnalysisTable({ view }: AnalysisTableProps) {
   );
 }
 
-function cell(value: unknown, format?: NumberFormat): string {
+function cell(
+  messages: MessageFormatters,
+  value: unknown,
+  format?: NumberFormat,
+): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'number') {
     if (!format) return value.toLocaleString();
     const { locale, ...options } = format;
     return new Intl.NumberFormat(locale, options).format(value);
   }
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'boolean')
+    return messages.label(value ? 'label.value.yes' : 'label.value.no');
   if (typeof value === 'string') return value;
   return JSON.stringify(value) ?? '';
 }

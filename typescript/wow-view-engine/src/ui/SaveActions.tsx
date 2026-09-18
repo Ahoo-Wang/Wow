@@ -59,17 +59,25 @@ export interface SaveActionsProps {
 
 type SaveScope = Exclude<ViewScope, 'system'>;
 
-const SCOPES: { label: string; value: SaveScope }[] = [
-  { label: 'Only me', value: 'personal' },
-  { label: 'Everyone', value: 'shared' },
+/**
+ * The audiences, as keys rather than words: the dialog resolves them through
+ * the catalogue, so an application rewords or translates them like everything
+ * else this package says.
+ */
+const SCOPES: { labelKey: string; value: SaveScope }[] = [
+  { labelKey: 'label.scope.only-me', value: 'personal' },
+  { labelKey: 'label.scope.everyone', value: 'shared' },
 ];
 
 /** The scopes this user may create in, in the order they are offered. */
-function scopesOf(can: SaveAbilities): { label: string; value: SaveScope }[] {
+function scopesOf(can: SaveAbilities): ScopeChoice[] {
   return SCOPES.filter(scope =>
     scope.value === 'personal' ? can.createPersonal : can.createShared,
   );
 }
+
+/** One audience on offer, still unworded. */
+type ScopeChoice = { labelKey: string; value: SaveScope };
 
 /**
  * Save, save as, rename and delete, plus the recovery a write needs when it
@@ -173,8 +181,8 @@ export function SaveActions({
       <TitleDialog
         open={copyOpen}
         onOpenChange={setCopyOpen}
-        heading="Save as a new view"
-        description="The view you are looking at stays as it is."
+        headingKey="label.save-as.heading"
+        descriptionKey="label.save-as.description"
         initialTitle={`${title} copy`}
         scopes={scopesOf(commands.can)}
         onSubmit={(next, scope) => {
@@ -188,8 +196,8 @@ export function SaveActions({
       <TitleDialog
         open={renameOpen}
         onOpenChange={setRenameOpen}
-        heading="Rename this view"
-        description="Only the title changes; the conditions stay."
+        headingKey="label.rename.heading"
+        descriptionKey="label.rename.description"
         initialTitle={title}
         onSubmit={next => {
           void commands
@@ -333,19 +341,19 @@ function IssueAlert({ issue }: { issue: Issue }) {
 function TitleDialog({
   open,
   onOpenChange,
-  heading,
-  description,
+  headingKey,
+  descriptionKey,
   initialTitle,
   scopes,
   onSubmit,
 }: {
   open: boolean;
   onOpenChange(open: boolean): void;
-  heading: string;
-  description: string;
+  headingKey: string;
+  descriptionKey: string;
   initialTitle: string;
   /** Audiences to offer; a rename asks for none and passes nothing. */
-  scopes?: { label: string; value: SaveScope }[];
+  scopes?: ScopeChoice[];
   onSubmit(title: string, scope: SaveScope): void;
 }) {
   const [title, setTitle] = useState(initialTitle);
@@ -353,7 +361,10 @@ function TitleDialog({
   // what is on offer follows the permissions, which arrive with the view.
   const [picked, setPicked] = useState<SaveScope | null>(null);
   const messages = useViewMessages();
-  const offered = scopes ?? [];
+  const offered = (scopes ?? []).map(item => ({
+    label: messages.label(item.labelKey),
+    value: item.value,
+  }));
   const scope =
     picked !== null && offered.some(item => item.value === picked)
       ? picked
@@ -369,8 +380,10 @@ function TitleDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{heading}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle>{messages.label(headingKey)}</DialogTitle>
+          <DialogDescription>
+            {messages.label(descriptionKey)}
+          </DialogDescription>
         </DialogHeader>
         <FieldGroup>
           <Field>
@@ -415,13 +428,13 @@ function TitleDialog({
         </FieldGroup>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>
-            Cancel
+            {messages.label('label.dialog.cancel')}
           </DialogClose>
           <Button
             disabled={title.trim().length === 0}
             onClick={() => onSubmit(title.trim(), scope)}
           >
-            Save
+            {messages.label('label.save.save')}
           </Button>
         </DialogFooter>
       </DialogContent>

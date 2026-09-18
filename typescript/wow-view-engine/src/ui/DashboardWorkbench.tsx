@@ -126,7 +126,7 @@ export function DashboardWorkbench({
                 disabled={dashboard.resolving}
               >
                 <RefreshCwIcon />
-                Refresh
+                {messages.label('label.toolbar.refresh')}
               </Button>
               <SaveActions
                 commands={commands}

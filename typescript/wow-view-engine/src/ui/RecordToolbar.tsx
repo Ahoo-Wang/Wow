@@ -64,7 +64,7 @@ export function RecordToolbar({ table, fields, children }: RecordToolbarProps) {
         }}
         variant="outline"
         size="sm"
-        aria-label="Layout"
+        aria-label={messages.label('label.toolbar.layout')}
       >
         <ToggleGroupItem value="table">
           {messages.label('label.layout.table')}
@@ -77,7 +77,7 @@ export function RecordToolbar({ table, fields, children }: RecordToolbarProps) {
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
           <Columns3Icon data-icon="inline-start" />
-          Columns
+          {messages.label('label.toolbar.columns')}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuGroup>
@@ -113,11 +113,15 @@ export function RecordToolbar({ table, fields, children }: RecordToolbarProps) {
         ) : (
           <RefreshCwIcon data-icon="inline-start" />
         )}
-        Refresh
+        {messages.label('label.toolbar.refresh')}
       </Button>
 
       {table.selection.length > 0 && (
-        <Badge variant="secondary">{table.selection.length} selected</Badge>
+        <Badge variant="secondary">
+          {messages.label('label.toolbar.selected', {
+            count: table.selection.length,
+          })}
+        </Badge>
       )}
 
       <div className="flex-1" />
@@ -129,16 +133,23 @@ export function RecordToolbar({ table, fields, children }: RecordToolbarProps) {
       <div className="flex items-center gap-1">
         {table.paging?.mode === 'paged' && (
           <span className="text-muted-foreground text-xs">
-            Page {table.paging.index}
             {table.paging.total === undefined
-              ? ''
-              : ` of ${Math.max(1, Math.ceil(table.paging.total / table.pageSize))}`}
+              ? messages.label('label.toolbar.page', {
+                  index: table.paging.index,
+                })
+              : messages.label('label.toolbar.page-of', {
+                  index: table.paging.index,
+                  pages: Math.max(
+                    1,
+                    Math.ceil(table.paging.total / table.pageSize),
+                  ),
+                })}
           </span>
         )}
         <Button
           variant="outline"
           size="icon-sm"
-          aria-label="Previous page"
+          aria-label={messages.label('label.toolbar.previous')}
           disabled={table.paging?.mode !== 'paged' || table.paging.index <= 1}
           onClick={table.previous}
         >
@@ -147,7 +158,7 @@ export function RecordToolbar({ table, fields, children }: RecordToolbarProps) {
         <Button
           variant="outline"
           size="icon-sm"
-          aria-label="Next page"
+          aria-label={messages.label('label.toolbar.next')}
           disabled={!table.hasNext}
           onClick={table.next}
         >

@@ -99,6 +99,11 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.delete.consequence':
     'It disappears for everyone who can see it. This cannot be undone.',
   'label.delete.keep': 'Keep it',
+  'label.dialog.cancel': 'Cancel',
+  'label.save-as.heading': 'Save as a new view',
+  'label.save-as.description': 'The view you are looking at stays as it is.',
+  'label.rename.heading': 'Rename this view',
+  'label.rename.description': 'Only the title changes; the conditions stay.',
   'label.conflict.choice':
     'Take their version and lose your edits, or write yours over theirs.',
   'label.conflict.theirs': 'Take theirs',
@@ -120,6 +125,99 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.filter.add-group': 'Add group',
   'label.filter.choose': 'Choose',
   'label.analysis.row-count': 'Row count',
+
+  // The record toolbar. `label.toolbar.page` is the count-less form a cursor
+  // view gets: a total it never asked for cannot be shown.
+  'label.toolbar.layout': 'Layout',
+  'label.toolbar.columns': 'Columns',
+  'label.toolbar.refresh': 'Refresh',
+  'label.toolbar.selected': '{count} selected',
+  'label.toolbar.page': 'Page {index}',
+  'label.toolbar.page-of': 'Page {index} of {pages}',
+  'label.toolbar.previous': 'Previous page',
+  'label.toolbar.next': 'Next page',
+
+  // The record view itself.
+  'label.record.empty': 'Nothing to show',
+  'label.record.empty-hint': 'No record matches the current conditions.',
+  'label.record.select-all': 'Select all rows',
+  'label.record.select': 'Select {key}',
+  'label.summary.of': '{fn} of {field}',
+  'label.value.yes': 'Yes',
+  'label.value.no': 'No',
+
+  // The condition builder. The names ending in `-of` are accessible names,
+  // which is why they read as a field followed by what the control does: a
+  // screen reader announces them one after another and nothing else tells
+  // the two `warehouse` selects apart.
+  'label.filter.panel': 'Filter',
+  'label.filter.mode': 'Filter mode',
+  'label.filter.clear': 'Clear',
+  'label.filter.apply': 'Apply',
+  'label.filter.group-operator': 'Group operator',
+  'label.filter.remove-group': 'Remove group',
+  'label.filter.add-condition': 'Add condition',
+  'label.filter.add-condition-here': 'Add condition in this group',
+  'label.filter.operator-of': '{field} operator',
+  'label.filter.value-of': '{field} value',
+  'label.filter.remove-of': 'Remove {field}',
+  'label.filter.comma-separated': 'Comma separated',
+  'label.filter.range-from': '{field} from',
+  'label.filter.range-to': '{field} to',
+  'label.boolean.true': 'True',
+  'label.boolean.false': 'False',
+
+  // The three date shapes, the side of now a relative window lies on, and
+  // the controls that edit them.
+  'label.date.absolute': 'On a date',
+  'label.date.relative': 'Relative',
+  'label.date.preset': 'A period',
+  'label.date.past': 'In the last',
+  'label.date.future': 'In the next',
+  'label.date.pick': 'Pick a date',
+  'label.date.shape-of': '{field} kind',
+  'label.date.direction-of': '{field} direction',
+  'label.date.amount-of': '{field} amount',
+  'label.date.unit-of': '{field} unit',
+  'label.date.period-of': '{field} period',
+
+  // Who a view is for. The audience picker asks it of the person saving,
+  // the list's tooltip answers it about a view already saved, so the two
+  // are worded differently and keyed apart.
+  'label.scope.only-me': 'Only me',
+  'label.scope.everyone': 'Everyone',
+  'label.scope.system': 'Shipped with the definition',
+  'label.scope.shared': 'Shared with everyone',
+  'label.scope.personal': 'Only you',
+  'label.scope.tag.system': 'system',
+  'label.scope.tag.shared': 'shared',
+  'label.scope.tag.personal': 'personal',
+  'label.view.list': 'Views',
+  'label.view.list-failed': 'The list could not be loaded.',
+  'label.view.none-hint': 'Save the current conditions to make one.',
+
+  // The analysis editor. Its "Add group" is its own: a grouping is not a
+  // condition group, and a translation that shares one word for both is a
+  // translation this package forced.
+  'label.analysis.editor': 'Analysis',
+  'label.analysis.layout': 'Analysis layout',
+  'label.analysis.add-group': 'Add group',
+  'label.analysis.add-metric': 'Add metric',
+  'label.analysis.show-totals': 'Show totals',
+  'label.analysis.totals': 'Totals',
+  'label.analysis.row-limit': 'Row limit',
+  'label.analysis.run': 'Run',
+  'label.analysis.chart-type': 'Chart type',
+  'label.analysis.grouping-of': '{alias} grouping',
+  'label.analysis.remove-group': 'Remove group {alias}',
+  'label.analysis.function-of': '{alias} function',
+  'label.analysis.remove-metric': 'Remove metric {alias}',
+
+  // Series names the chart writes itself, for legends and tooltips.
+  'label.chart.other': 'Other',
+  'label.chart.points': 'Points',
+  'label.chart.trend': 'Trend',
+  'label.chart.cell': '{y} · {x}: {value}',
 
   // Operator names a component would otherwise derive from the enum. Only the
   // ones whose derived spelling is unreadable need an entry; the rest fall

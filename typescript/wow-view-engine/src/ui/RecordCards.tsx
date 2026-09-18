@@ -17,6 +17,7 @@ import type { RecordTableController } from '../react/index.js';
 import { recordValue } from '../record/index.js';
 import { Checkbox } from './components/checkbox.js';
 import { Card, CardContent, CardHeader, CardTitle } from './components/card.js';
+import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { cn } from 'cn';
 
 export interface RecordCardsProps {
@@ -43,10 +44,9 @@ const GRID: Record<1 | 2 | 3 | 4, string> = {
  * so switching back and forth loses nothing — and a card is not the table
  * narrowed: its title, its body fields and its image are its own.
  */
-export function RecordCards({
-  table,
-  renderValue = defaultValue,
-}: RecordCardsProps) {
+export function RecordCards({ table, renderValue }: RecordCardsProps) {
+  const messages = useViewMessages();
+  const render = renderValue ?? (value => defaultValue(value, messages));
   const card = table.card;
 
   return (
@@ -59,11 +59,13 @@ export function RecordCards({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Checkbox
-                aria-label={`Select ${String(row.key)}`}
+                aria-label={messages.label('label.record.select', {
+                  key: String(row.key),
+                })}
                 checked={table.isSelected(row.key)}
                 onCheckedChange={() => table.toggle(row.key)}
               />
-              {cardTitle(row.data, row.key, card.title)}
+              {cardTitle(row.data, row.key, card.title, messages)}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-1">
@@ -76,7 +78,7 @@ export function RecordCards({
                   {field.label}
                 </span>
                 <span className="truncate text-sm">
-                  {renderValue(recordValue(row.data, field.field))}
+                  {render(recordValue(row.data, field.field))}
                 </span>
               </div>
             ))}
@@ -103,12 +105,16 @@ function cardTitle(
   row: RecordData,
   key: RecordKey,
   field: string,
+  messages: MessageFormatters,
 ): React.ReactNode {
   const value = field ? recordValue(row, field) : key;
-  return defaultValue(value) ?? String(key);
+  return defaultValue(value, messages) ?? String(key);
 }
 
-function defaultValue(value: unknown): React.ReactNode {
+function defaultValue(
+  value: unknown,
+  messages: MessageFormatters,
+): React.ReactNode {
   switch (typeof value) {
     case 'string':
       return value;
@@ -116,7 +122,7 @@ function defaultValue(value: unknown): React.ReactNode {
     case 'bigint':
       return value.toString();
     case 'boolean':
-      return value ? 'Yes' : 'No';
+      return messages.label(value ? 'label.value.yes' : 'label.value.no');
     case 'object':
       return value === null ? null : JSON.stringify(value);
     default:

@@ -85,7 +85,7 @@ export function FilterPanel({
   return (
     <section
       data-slot="filter-panel"
-      aria-label="Filter"
+      aria-label={messages.label('label.filter.panel')}
       className="flex flex-col gap-3"
       // Auto-refresh holds while any control in here has focus. Focus events
       // bubble in React, so the root sees every input; a move from one
@@ -109,7 +109,7 @@ export function FilterPanel({
           }}
           variant="outline"
           size="sm"
-          aria-label="Filter mode"
+          aria-label={messages.label('label.filter.mode')}
         >
           <ToggleGroupItem value="simple">
             {messages.label('label.filter.simple')}
@@ -141,11 +141,11 @@ export function FilterPanel({
           disabled={disabled || (filter.count === 0 && !overBudget)}
           onClick={filter.clear}
         >
-          Clear
+          {messages.label('label.filter.clear')}
         </Button>
         <Button size="sm" disabled={disabled} onClick={filter.submit}>
           <FilterIcon data-icon="inline-start" />
-          Apply
+          {messages.label('label.filter.apply')}
         </Button>
 
         {filter.applied.length > 0 && (
@@ -225,7 +225,9 @@ function GroupBlock({
     <div
       data-slot="filter-group"
       role="group"
-      aria-label={group.op === 'or' ? 'Any of' : 'All of'}
+      aria-label={messages.label(
+        group.op === 'or' ? 'label.filter.any-of' : 'label.filter.all-of',
+      )}
       className="flex flex-col gap-2 rounded-md border border-border p-2"
     >
       <div className="flex items-center gap-1">
@@ -241,7 +243,9 @@ function GroupBlock({
           disabled={disabled}
           aria-label={within(
             scope,
-            nested ? `Group operator ${path.join('.')}` : 'Group operator',
+            nested
+              ? `${messages.label('label.filter.group-operator')} ${path.join('.')}`
+              : messages.label('label.filter.group-operator'),
           )}
         >
           <ToggleGroupItem value="and">
@@ -259,7 +263,7 @@ function GroupBlock({
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Remove group"
+            aria-label={messages.label('label.filter.remove-group')}
             disabled={disabled}
             onClick={() => filter.remove(path)}
           >
@@ -296,7 +300,10 @@ function GroupBlock({
           filter={filter}
           parent={path}
           disabled={disabled}
-          label={within(scope, 'Add condition in this group')}
+          label={within(
+            scope,
+            messages.label('label.filter.add-condition-here'),
+          )}
         />
         <Button
           variant="ghost"
@@ -317,20 +324,24 @@ function AddCondition({
   filter,
   parent,
   disabled,
-  label = 'Add condition',
+  label,
 }: {
   filter: FilterTreeController;
   parent: FilterPath;
   disabled?: boolean;
+  /** The accessible name; the catalogue's own when a caller names none. */
   label?: string;
 }) {
+  const messages = useViewMessages();
+  const name = label ?? messages.label('label.filter.add-condition');
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={<Button variant="outline" size="sm" disabled={disabled} />}
       >
         <PlusIcon data-icon="inline-start" />
-        {label}
+        {name}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuGroup>
@@ -399,7 +410,12 @@ function FilterLeafRow({
             filter.updateLeaf(path, { operator: value });
         }}
       >
-        <SelectTrigger aria-label={`${label} operator`} size="sm">
+        <SelectTrigger
+          aria-label={messages.label('label.filter.operator-of', {
+            field: label,
+          })}
+          size="sm"
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -426,7 +442,9 @@ function FilterLeafRow({
           <FilterValueEditor
             editor={editor}
             value={leaf.value}
-            label={`${leaf.field} value`}
+            label={messages.label('label.filter.value-of', {
+              field: leaf.field,
+            })}
             disabled={disabled}
             options={editor.remote ? optionsFor?.(editor.remote) : undefined}
             onChange={value => filter.updateLeaf(path, { value })}
@@ -437,7 +455,9 @@ function FilterLeafRow({
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label={`Remove ${label}`}
+        aria-label={messages.label('label.filter.remove-of', {
+          field: label,
+        })}
         disabled={disabled}
         onClick={() => filter.remove(path)}
       >

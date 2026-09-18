@@ -16,13 +16,21 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cleanup, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import type { FilterValue, ViewInstanceSummary } from '../src/index.js';
+import type {
+  RecordTableController,
+  ViewListState,
+} from '../src/react/index.js';
 import {
   defaultMessages,
+  FilterValueEditor,
   formatIssue,
   formatIssues,
   formatMessage,
   MessagesProvider,
+  RecordToolbar,
   useViewMessages,
+  ViewList,
   ViewSurface,
 } from '../src/ui/index.js';
 
@@ -169,10 +177,43 @@ function Probe() {
  * itself, and those drifted into JSX exactly where the wording carries the
  * most weight: the conflict dialog and the delete confirmation. A catalogue
  * nothing is obliged to use is a catalogue an application cannot translate.
+ *
+ * The first version of this scan only saw JSX text of two words or more on a
+ * line of its own, so `Clear`, `Apply`, `Refresh` and `Run` sat in the markup
+ * for as long as it passed, and so did every `aria-label="Next page"` and
+ * every `{ label: 'Only me' }`. It now reads three shapes — JSX text of any
+ * length, a string-valued wording prop, and a literal option label — and
+ * names the file and line of each, so the next slip is one click away.
  */
 describe('components write no copy of their own', () => {
   /** Files whose text is upstream shadcn source, kept verbatim on purpose. */
   const VENDOR = /\/(components|lib)\//;
+
+  /**
+   * Props whose value a person reads: a visible placeholder, a tooltip, or
+   * the accessible name a screen reader announces in place of one.
+   */
+  const WORDING_PROP = /\b(aria-label|placeholder|title|alt|label)="([^"]*)"/g;
+
+  /** `{ label: 'Only me' }` — an option's wording, spelt out in a constant. */
+  const OPTION_LABEL = /\blabel:\s*'([^']*)'/g;
+
+  /**
+   * JSX text: what sits between a closing `>` and the next `<` with no brace
+   * between them, since an interpolation would have opened one. Only prose
+   * counts — an expression carries brackets, quotes or an operator, and none
+   * of those appear in something a person reads.
+   */
+  const JSX_TEXT = />([^<>{}]*)</g;
+  const PROSE = /^[A-Za-z][A-Za-z ,.'’!?%:–—-]*$/;
+
+  /**
+   * The escape hatch, written where the exception is: a line carrying
+   * `// literal-copy:` and its reason is left alone. It is for the handful of
+   * strings that are not wording — a data-only attribute, a code sample, an
+   * identifier that only looks like a word.
+   */
+  const EXEMPT = /\/\/\s*literal-copy:/;
 
   function compositionFiles(): string[] {
     const found: string[] = [];
@@ -190,30 +231,190 @@ describe('components write no copy of their own', () => {
     return found;
   }
 
-  /** Comments carry prose by design; only what renders is at issue. */
+  /**
+   * Comments carry prose by design; only what renders is at issue. They are
+   * blanked rather than removed so every remaining character keeps the line
+   * it was on, which is what lets an offender be reported by line.
+   */
   function withoutComments(source: string): string {
+    const blank = (found: string) => found.replace(/[^\n]/g, ' ');
     return source
-      .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, '')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/^\s*\/\/.*$/gm, '');
+      .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, blank)
+      .replace(/\/\*[\s\S]*?\*\//g, blank)
+      .replace(/^[ \t]*\/\/.*$/gm, blank);
   }
 
-  it.each(compositionFiles())('%s renders no bare sentence', path => {
-    const source = withoutComments(readFileSync(path, 'utf8'));
-    const offenders: string[] = [];
+  function lineOf(source: string, index: number): number {
+    return source.slice(0, index).split('\n').length;
+  }
 
-    for (const line of source.split('\n')) {
-      const text = line.trim();
-      // JSX text is a line that is neither markup nor code: no tag, no brace,
-      // no string quote, and none of the punctuation a call or a type
-      // annotation carries — `Array.isArray(x)` starts with a capital and has
-      // two words too. Two words or more is a sentence, not a symbol.
-      if (/[<>{}`'"=();]/.test(text)) continue;
-      if (!/^[A-Z][A-Za-z]/.test(text)) continue;
-      if (text.split(/\s+/).length < 2) continue;
-      offenders.push(text);
+  /** Every literal a person would read, as `file:line — text`. */
+  function copyIn(name: string, raw: string): string[] {
+    const lines = raw.split('\n');
+    const source = withoutComments(raw);
+    const found: string[] = [];
+
+    const report = (index: number, text: string): void => {
+      const line = lineOf(source, index);
+      if (EXEMPT.test(lines[line - 1] ?? '')) return;
+      found.push(`${name}:${line} — ${text}`);
+    };
+
+    for (const match of source.matchAll(JSX_TEXT)) {
+      const text = match[1].trim();
+      if (text.length === 0 || !PROSE.test(text)) continue;
+      report(match.index + 1 + match[1].search(/\S/), text);
     }
+    for (const match of source.matchAll(WORDING_PROP)) {
+      if (!/[A-Za-z]/.test(match[2])) continue;
+      report(match.index, `${match[1]}="${match[2]}"`);
+    }
+    for (const match of source.matchAll(OPTION_LABEL)) {
+      if (!/[A-Za-z]/.test(match[1])) continue;
+      report(match.index, `label: '${match[1]}'`);
+    }
+    return found;
+  }
 
-    expect(offenders).toEqual([]);
+  it.each(compositionFiles())('%s writes no wording of its own', path => {
+    expect(
+      copyIn(path.slice(src.length + 1), readFileSync(path, 'utf8')),
+    ).toEqual([]);
+  });
+
+  it('sees a single word, a wording prop and an option label', () => {
+    // The scan is the rule, so the rule gets a test of its own: these are the
+    // three shapes that walked past the old one, plus the one that may stay.
+    const source = [
+      'export function Probe() {',
+      '  return (',
+      '    <div>',
+      '      <Button aria-label="Next page">Run</Button>',
+      "      <Select items={[{ label: 'Only me', value: 'personal' }]} />",
+      '      <span title="Move panel" /> // literal-copy: a worked example',
+      '    </div>',
+      '  );',
+      '}',
+    ].join('\n');
+
+    expect(copyIn('ui/Probe.tsx', source)).toEqual([
+      'ui/Probe.tsx:4 — Run',
+      'ui/Probe.tsx:4 — aria-label="Next page"',
+      "ui/Probe.tsx:5 — label: 'Only me'",
+    ]);
   });
 });
+
+/**
+ * What the keys are for. The defaults are what the tests above read, so a
+ * label that is keyed but unreachable would look exactly like one that works;
+ * these three override the key and check the screen changed.
+ */
+describe('an application rewords what the components write', () => {
+  it('a toolbar button', () => {
+    render(
+      <MessagesProvider messages={{ 'label.toolbar.refresh': '刷新' }}>
+        <RecordToolbar table={tableController()} fields={[]} />
+      </MessagesProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: '刷新' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Refresh/ })).toBeNull();
+    // Everything not overridden keeps its default wording.
+    expect(screen.getByRole('button', { name: /Columns/ })).toBeTruthy();
+  });
+
+  it('a scope label', () => {
+    render(
+      <MessagesProvider messages={{ 'label.scope.tag.shared': '全员' }}>
+        <ViewList
+          list={listState([
+            {
+              id: 'v-1',
+              definitionId: 'orders',
+              title: 'Pending',
+              scope: 'shared',
+              revision: '1',
+            },
+          ])}
+          currentId="v-1"
+          onOpen={() => {}}
+        />
+      </MessagesProvider>,
+    );
+
+    expect(screen.getByText('全员')).toBeTruthy();
+    expect(screen.queryByText('shared')).toBeNull();
+  });
+
+  it('a date shape', () => {
+    render(
+      <MessagesProvider messages={{ 'label.date.absolute': '某一天' }}>
+        <FilterValueEditor
+          editor={{ input: 'date' }}
+          value={
+            { type: 'absolute', from: '2026-01-31' } as unknown as FilterValue
+          }
+          label="amount"
+          onChange={() => {}}
+        />
+      </MessagesProvider>,
+    );
+
+    expect(screen.getByLabelText('amount kind').textContent).toContain(
+      '某一天',
+    );
+  });
+});
+
+/** The little a `RecordToolbar` reads off its controller, and nothing more. */
+function tableController(): RecordTableController {
+  return {
+    columns: [],
+    rows: [],
+    card: { title: '', fields: [] },
+    paging: null,
+    summaries: null,
+    status: 'success',
+    error: null,
+    loading: false,
+    sort: [],
+    sortOf: () => null,
+    toggleSort: () => {},
+    layout: 'table',
+    setLayout: () => {},
+    columnFields: [],
+    setColumns: () => {},
+    pageSize: 20,
+    setPageSize: () => {},
+    selection: [],
+    isSelected: () => false,
+    toggle: () => {},
+    toggleAll: () => {},
+    clearSelection: () => {},
+    goTo: () => {},
+    hasNext: false,
+    next: () => {},
+    previous: () => {},
+    refresh: () => {},
+  };
+}
+
+function listState(items: ViewInstanceSummary[]): ViewListState {
+  return {
+    items,
+    preferences: null,
+    permissions: {
+      createPersonal: true,
+      createShared: true,
+      reorder: true,
+      setDefault: true,
+      instance: () => ({ save: true, rename: true, delete: true }),
+    },
+    defaultInstanceId: null,
+    loading: false,
+    error: null,
+    preferencesError: null,
+    reload: () => {},
+  };
+}

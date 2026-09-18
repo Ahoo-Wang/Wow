@@ -67,7 +67,7 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
   return (
     <section
       data-slot="analysis-editor"
-      aria-label="Analysis"
+      aria-label={messages.label('label.analysis.editor')}
       className="flex flex-col gap-3"
       // Auto-refresh holds while a control in here has focus, as in the
       // filter panel; a move between two controls inside is neither.
@@ -80,7 +80,7 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
     >
       <div className="flex flex-wrap items-center gap-2">
         <AddMenu
-          label={messages.label('label.filter.add-group')}
+          label={messages.label('label.analysis.add-group')}
           disabled={disabled}
           fields={groupable}
           onPick={field =>
@@ -88,7 +88,7 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
           }
         />
         <AddMenu
-          label="Add metric"
+          label={messages.label('label.analysis.add-metric')}
           disabled={disabled}
           fields={measurable}
           countable={analysis.countable}
@@ -111,7 +111,7 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
           }}
           variant="outline"
           size="sm"
-          aria-label="Analysis layout"
+          aria-label={messages.label('label.analysis.layout')}
         >
           <ToggleGroupItem value="table">
             {messages.label('label.layout.table')}
@@ -127,10 +127,10 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
           <Checkbox
             checked={analysis.totals}
             disabled={disabled}
-            aria-label="Show totals"
+            aria-label={messages.label('label.analysis.show-totals')}
             onCheckedChange={checked => analysis.setTotals(checked === true)}
           />
-          Totals
+          {messages.label('label.analysis.totals')}
         </label>
 
         {/*
@@ -139,7 +139,7 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
           while the next one is typed.
         */}
         <NumberInput
-          label="Row limit"
+          label={messages.label('label.analysis.row-limit')}
           className="w-24"
           disabled={disabled}
           value={analysis.limit}
@@ -150,7 +150,7 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
 
         <Button size="sm" disabled={disabled} onClick={analysis.submit}>
           <PlayIcon data-icon="inline-start" />
-          Run
+          {messages.label('label.analysis.run')}
         </Button>
       </div>
 
@@ -230,6 +230,7 @@ function ChartTypeSelect({
   analysis: AnalysisEditorController;
   disabled?: boolean;
 }) {
+  const messages = useViewMessages();
   const items = CHART_TYPES.map(type => ({ label: type, value: type }));
   return (
     <Select
@@ -240,7 +241,10 @@ function ChartTypeSelect({
         if (typeof value === 'string') analysis.setChartType(value);
       }}
     >
-      <SelectTrigger aria-label="Chart type" size="sm">
+      <SelectTrigger
+        aria-label={messages.label('label.analysis.chart-type')}
+        size="sm"
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -267,6 +271,7 @@ function GroupRow({
   index: number;
   disabled?: boolean;
 }) {
+  const messages = useViewMessages();
   const field = analysis.fields.find(entry => entry.field === group.field);
   const types = (field?.groups ?? []).map(type => ({
     label: type.split('_').join(' ').toLowerCase(),
@@ -287,7 +292,12 @@ function GroupRow({
             analysis.updateGroup(index, groupOfType(group, value, field));
         }}
       >
-        <SelectTrigger aria-label={`${group.alias} grouping`} size="sm">
+        <SelectTrigger
+          aria-label={messages.label('label.analysis.grouping-of', {
+            alias: group.alias,
+          })}
+          size="sm"
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -303,7 +313,9 @@ function GroupRow({
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label={`Remove group ${group.alias}`}
+        aria-label={messages.label('label.analysis.remove-group', {
+          alias: group.alias,
+        })}
         disabled={disabled}
         onClick={() => analysis.removeGroup(index)}
       >
@@ -324,6 +336,7 @@ function MetricRow({
   index: number;
   disabled?: boolean;
 }) {
+  const messages = useViewMessages();
   const field = fieldOfMetric(metric);
   const option = analysis.fields.find(entry => entry.field === field);
   const functions = (option?.functions ?? []).map(name => ({
@@ -334,7 +347,9 @@ function MetricRow({
   return (
     <Field orientation="horizontal" className="items-center">
       <FieldLabel className="min-w-28">
-        {metric.type === 'COUNT' ? 'Row count' : (option?.label ?? field)}
+        {metric.type === 'COUNT'
+          ? messages.label('label.analysis.row-count')
+          : (option?.label ?? field)}
       </FieldLabel>
       {metric.type === 'NUMERIC' && functions.length > 0 && (
         <Select
@@ -348,7 +363,12 @@ function MetricRow({
               });
           }}
         >
-          <SelectTrigger aria-label={`${metric.alias} function`} size="sm">
+          <SelectTrigger
+            aria-label={messages.label('label.analysis.function-of', {
+              alias: metric.alias,
+            })}
+            size="sm"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -365,7 +385,9 @@ function MetricRow({
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label={`Remove metric ${metric.alias}`}
+        aria-label={messages.label('label.analysis.remove-metric', {
+          alias: metric.alias,
+        })}
         disabled={disabled || analysis.metrics.length <= 1}
         onClick={() => analysis.removeMetric(index)}
       >
