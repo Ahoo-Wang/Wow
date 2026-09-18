@@ -45,7 +45,7 @@ const preview: Preview = {
           // The rewrite (packages/view-engine/docs/design.md) delivers one
           // surface per step; this list grows with them rather than reserving
           // names for stories that do not exist yet.
-          ['数据视图', '分析视图', '仪表盘视图'],
+          ['数据视图', '分析视图', '仪表盘视图', '真实后端'],
           'Viewer',
           '开发验证',
         ],

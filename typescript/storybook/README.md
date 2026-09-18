@@ -25,7 +25,7 @@ View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析�
 
 - 服务地址是故事的 `host` 参数，可在 Controls 面板随时切换；初始值取 `STORYBOOK_WOW_COMPENSATION_HOST`，未设置时为 `http://localhost:8080`。
 - 写操作会真实写回服务，只连接测试环境。
-- 真实数据每次都不同，这些故事标记为 `!test` 与 `!autodocs`：不进入回归测试，也不生成文档页。
+- 真实数据每次都不同，这些故事标记为 `!test`，不进入回归测试；文档页用 `docs.autoMount: false` 只列出场景链接，不挂载示例，因此打开目录不会调用服务。
 
 ## 检查命令
 

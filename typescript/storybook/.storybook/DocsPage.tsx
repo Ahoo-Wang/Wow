@@ -27,11 +27,19 @@ export function DocsPage() {
     .filter(
       story => story.tags.includes('dev') && story.tags.includes('autodocs'),
     );
+  // A story that talks to a live service must not run because someone opened
+  // its page. It still belongs in the catalog, so the page keeps the
+  // description, the parameters and the links, and drops only the example.
+  const autoMount = stories[0]?.parameters.docs?.autoMount !== false;
   return (
     <>
       <Title />
       <Description />
-      <Primary />
+      {autoMount ? (
+        <Primary />
+      ) : (
+        <p>本页不挂载示例：故事连接真实服务，打开即会发起请求。</p>
+      )}
       <Controls />
       <h2>独立场景</h2>
       <p>选择场景，在独立画布中操作。各场景使用自己的初始状态。</p>

@@ -348,9 +348,11 @@ const scene = {
 const meta = {
   title: 'View Engine/真实后端/补偿控制台',
   component: RecordConsole,
-  // A live service answers differently every time: never a regression test,
-  // and no docs page mounting it unasked.
-  tags: ['!test', '!autodocs'],
+  // A live service answers differently every time, so this is never a
+  // regression test, and its docs page lists the scenes rather than mounting
+  // one: opening the catalog must not call the service.
+  tags: ['!test'],
+  parameters: { docs: { autoMount: false } },
   args: { host: DEFAULT_COMPENSATION_HOST },
   argTypes: {
     host: {
