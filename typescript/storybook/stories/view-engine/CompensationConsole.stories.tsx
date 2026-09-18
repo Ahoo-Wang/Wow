@@ -43,11 +43,12 @@ import { Alert, AlertDescription, AlertTitle } from '@/ui/components/alert';
 import { Button } from '@/ui/components/button';
 import {
   DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/ui/components/dropdown-menu';
+// Popup contents come themed from popups.tsx, as View Engine's own do.
+import { DropdownMenuContent } from '@/ui/popups';
 import { Separator } from '@/ui/components/separator';
 import { Skeleton } from '@/ui/components/skeleton';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';

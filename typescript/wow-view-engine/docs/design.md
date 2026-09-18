@@ -947,7 +947,7 @@ useSaveCommands(engine, runtime): { save; saveAs; rename; delete; retry; abandon
 
 `ui/` 用 shadcn + Base UI 实现默认视觉。落地约定：注册表组件原样落在 `ui/components/`，由 `shadcn add --diff` 升级，因此不启用 Tailwind 前缀——前缀会让每个文件都要手改并从此无法跟随上游；隔离改由 `.fve-root` 边界承担，全部 token 与 base 规则都挂在它上面，`ViewSurface` 渲染它，宿主页面不受影响。`cn` 取自同名包（shadcn 2026-09 起的约定），不再自写 `clsx + tailwind-merge`。主题以独立入口 `/styles.css` 交付，应用显式导入。组件清单：`FilterPanel`、`RecordTable`、`RecordCards`、`AnalysisEditor`、`AnalysisChart`（recharts 适配，覆盖 bar／line／area／combo／pie／scatter）、`Heatmap`（自绘网格）、`Funnel`、`MetricCard`、`DashboardGrid`（react-grid-layout 适配）、内容面板 `MarkdownPanel`（react-markdown，不启用原始 HTML）、`ImagePanel`（加载失败显示占位）、`LinksPanel`（外链带 `rel="noopener"`）、`Workbench`（侧栏列表 + 视图 + 保存动作）、`EmbeddedView`。每个默认组件只消费对应控制器，不直接调用 runtime 以外的对象。独立筛选器与值编辑器不需要 Engine。
 
-主题的全部 token 与基础规则都挂在 `.fve-root` 上，而弹层（Select 列表、菜单、Popover、Tooltip、Dialog、Combobox）经 Portal 渲染到 body、在根之外，因此本包自己的组件一律从 `ui/popups.tsx` 引入各 `*Content`——它给弹层加上 `fve-root` 类与所在 `ViewSurface` 的主题，vendored 组件原样不动，`popups.test.tsx` 守住这条引入规则。
+主题的全部 token 与基础规则都挂在 `.fve-root` 上，而弹层（Select 列表、菜单、Popover、Tooltip、Dialog、Combobox）经 Portal 渲染到 body、在根之外，因此本包自己的组件一律从 `ui/popups.tsx` 引入各 `*Content`——它给弹层加上 `fve-root` 类与所在 `ViewSurface` 的主题，vendored 组件原样不动，`architecture.test.ts` 按导入记录守住这条引入规则——整模块导入、`export *`、转导出、动态导入与 `.ts` 文件都算在内。
 
 列出字段的三个选择器（添加条件、列选择、分析的分组与指标）都经 `fieldGroups(fields, definition.fieldGroups)` 分组：未分组的字段在前、无标题，其后按目录顺序列出各分组并带标题，没有字段的分组不显示。目录声明在 `DataViewDefinition.fieldGroups`（`{ id, label }[]`），字段以 `group` 引用 id：顺序不被字段顺序绑住（字段顺序同时决定默认列序），引用写错在定义准入时报错。Dashboard 的全局字段与元素字段没有目录，不分组。
 

@@ -341,6 +341,54 @@ const describePath = (file: SourceFile) => relative(src, file.path);
 const LOCATIONS: readonly Location[] = ['root', ...LAYERS];
 
 describe('architecture', () => {
+  // Registry popups portal to document.body, out of the surface that holds
+  // the theme tokens; ui/popups.tsx carries the theme out with them. A file
+  // that reaches a popup module another way renders its contents with no
+  // theme, a transparent menu over the table, and nothing else notices. So
+  // the rule is read off the import records rather than the source text: a
+  // namespace import, `export *`, a re-export, a dynamic import and a `.ts`
+  // file all count. Only a type-only import, which renders nothing, is free.
+  it('takes every popup content from ui/popups.tsx, not from the registry', () => {
+    const modules = [
+      'combobox',
+      'dialog',
+      'dropdown-menu',
+      'popover',
+      'select',
+      'tooltip',
+    ].map(name => join('ui', 'components', name));
+    const contents = new Set([
+      'ComboboxContent',
+      'DialogContent',
+      'DropdownMenuContent',
+      'PopoverContent',
+      'SelectContent',
+      'TooltipContent',
+    ]);
+    const exempt = (file: SourceFile) =>
+      /^ui\/(components|lib)\//.test(describePath(file)) ||
+      describePath(file) === join('ui', 'popups.tsx');
+    const violations = files
+      .filter(file => !exempt(file))
+      .flatMap(file =>
+        file.imports
+          .filter(entry => {
+            const target = targetOf(file, entry.specifier)?.replace(
+              /\.(tsx?|js)$/,
+              '',
+            );
+            return (
+              !entry.typeOnly &&
+              target !== undefined &&
+              modules.includes(target) &&
+              (entry.namespace || entry.names.some(name => contents.has(name)))
+            );
+          })
+          .map(entry => `${describePath(file)} -> ${entry.specifier}`),
+      );
+    expect(violations).toEqual([]);
+  });
+
   it('has a root entry', () => {
     expect(existsSync(join(src, 'index.ts'))).toBe(true);
   });

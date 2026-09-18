@@ -11,8 +11,6 @@
  * limitations under the License.
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
@@ -20,28 +18,7 @@ import { useFilterEditor } from '../src/react/index.js';
 import { FilterPanel, ViewSurface } from '../src/ui/index.js';
 import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
 
-const UI = join(import.meta.dirname, '../src/ui');
-const POPUPS =
-  /\b(Combobox|Dialog|DropdownMenu|Popover|Select|Tooltip)Content\b/;
-
 describe('popups carry the theme out of the root', () => {
-  it('imports every popup content from popups.tsx, never from the vendored file', () => {
-    const offenders = readdirSync(UI)
-      .filter(name => name.endsWith('.tsx') && name !== 'popups.tsx')
-      .flatMap(name => {
-        const source = readFileSync(join(UI, name), 'utf8');
-        const vendored = [
-          ...source.matchAll(
-            /import \{([^}]*)\} from '\.\/components\/[a-z-]+\.js';/g,
-          ),
-        ];
-        return vendored
-          .filter(found => POPUPS.test(found[1]))
-          .map(found => `${name}: ${found[1].replace(/\s+/g, ' ').trim()}`);
-      });
-    expect(offenders).toEqual([]);
-  });
-
   it('puts the root class and the surface theme on a popup', async () => {
     const engine = new ViewEngine({
       definitions: [ordersDefinition()],
