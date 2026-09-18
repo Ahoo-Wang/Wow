@@ -25,6 +25,13 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '@ahoo-wang/fetcher-view-engine';
+import {
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationMetricType,
+  type AggregationMetric,
+  type AggregationQuery,
+} from '@ahoo-wang/fetcher-wow';
 
 /**
  * One warehouse dataset, shared by every View Engine story.
@@ -47,6 +54,8 @@ export const ordersDefinition: DataViewDefinition = {
       options: [
         { value: 'CN-EAST', label: '华东' },
         { value: 'CN-NORTH', label: '华北' },
+        { value: 'CN-SOUTH', label: '华南' },
+        { value: 'CN-WEST', label: '西南' },
       ],
     },
     {
@@ -108,6 +117,27 @@ export const ORDERS: RecordData[] = [
     status: 'PENDING',
     amount: 2450,
     createdAt: '2026-09-16T01:05:00.000Z',
+  },
+  {
+    id: 'SO-1004',
+    warehouse: 'CN-SOUTH',
+    status: 'SHIPPED',
+    amount: 3120,
+    createdAt: '2026-09-16T05:30:00.000Z',
+  },
+  {
+    id: 'SO-1005',
+    warehouse: 'CN-SOUTH',
+    status: 'PENDING',
+    amount: 1760,
+    createdAt: '2026-09-17T02:20:00.000Z',
+  },
+  {
+    id: 'SO-1006',
+    warehouse: 'CN-WEST',
+    status: 'PENDING',
+    amount: 980,
+    createdAt: '2026-09-17T08:45:00.000Z',
   },
 ];
 
@@ -180,6 +210,8 @@ export function dashboardConfig(
         options: [
           { value: 'CN-EAST', label: '华东' },
           { value: 'CN-NORTH', label: '华北' },
+          { value: 'CN-SOUTH', label: '华南' },
+          { value: 'CN-WEST', label: '西南' },
         ],
       },
     ],
@@ -281,20 +313,62 @@ export function storySource(behaviour: SourceBehaviour = 'data'): ViewSource {
   return {
     paged: () => answer({ total: rows.length, list: rows }),
     cursor: () => answer({ nextCursor: null, list: rows }),
-    // An ungrouped query is the totals query the analysis kernel sends
-    // separately, and it answers for the whole set rather than for a row.
-    aggregate: query =>
-      answer(
-        rows.length === 0
-          ? []
-          : (query.groups ?? []).length === 0
-            ? [{ orders: 3, amount: 4370 }]
-            : [
-                { warehouse: 'CN-EAST', orders: 2, amount: 1920 },
-                { warehouse: 'CN-NORTH', orders: 1, amount: 2450 },
-              ],
-      ),
+    aggregate: query => answer(aggregate(rows, query)),
   };
+}
+
+/**
+ * The rows summarised the way the query asks: one row per value of its first
+ * group, or a single row when it has none — that is the totals query the
+ * analysis kernel sends beside a table, and it answers for the whole set.
+ * Every metric lands under its own alias, so one added in the editor gets a
+ * number as well.
+ */
+function aggregate(
+  rows: readonly RecordData[],
+  query: AggregationQuery,
+): RecordData[] {
+  if (rows.length === 0) return [];
+  const group = query.groupBy?.[0];
+  const buckets = new Map<unknown, RecordData[]>();
+  for (const row of rows) {
+    const key = group === undefined ? undefined : row[group.field];
+    buckets.set(key, [...(buckets.get(key) ?? []), row]);
+  }
+  return [...buckets].map(([value, members]) => ({
+    ...(group === undefined ? {} : { [group.alias]: value }),
+    ...Object.fromEntries(
+      query.metrics.map(metric => [metric.alias, measure(members, metric)]),
+    ),
+  }));
+}
+
+/** COUNT and the plain field functions; anything richer is left unanswered. */
+function measure(rows: RecordData[], metric: AggregationMetric): number | null {
+  if (metric.type === AggregationMetricType.COUNT) return rows.length;
+  if (
+    metric.type !== AggregationMetricType.NUMERIC ||
+    metric.expression.type !== AggregationExpressionType.FIELD
+  )
+    return null;
+  const field = metric.expression.field;
+  const values = rows
+    .map(row => row[field])
+    .filter((value): value is number => typeof value === 'number');
+  if (values.length === 0) return null;
+  const sum = values.reduce((total, value) => total + value, 0);
+  switch (metric.function) {
+    case AggregationFunction.SUM:
+      return sum;
+    case AggregationFunction.AVG:
+      return sum / values.length;
+    case AggregationFunction.MIN:
+      return Math.min(...values);
+    case AggregationFunction.MAX:
+      return Math.max(...values);
+    default:
+      return null;
+  }
 }
 
 function delay(ms: number): Promise<void> {

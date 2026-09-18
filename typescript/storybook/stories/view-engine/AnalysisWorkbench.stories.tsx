@@ -23,6 +23,12 @@ import { StoryEngine, viewEngineScene } from './StoryEngine.js';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
 /**
+ * Colours a spec pins by name: a category value for a pie's slice, a series
+ * alias for a cartesian mark. The theme's palette fills every other slot.
+ */
+const PINNED_COLORS = { 'CN-SOUTH': '#7c3aed', amount: '#0f766e' };
+
+/**
  * The Analysis workbench. Table and chart are two layouts of one saved
  * config, and switching between them is a new execution rather than a redraw,
  * because the kernel shapes a chart only when the config that ran asked for one.
@@ -31,20 +37,43 @@ function AnalysisWorkbenchDemo({
   behaviour = 'data',
   layout = 'chart',
   chart = 'bar',
+  series = 'amount',
+  pinned = false,
 }: {
   behaviour?: SourceBehaviour;
   layout?: 'table' | 'chart';
   chart?: 'bar' | 'line' | 'pie';
+  /** Which metrics a cartesian chart draws; two of them earn a legend. */
+  series?: 'amount' | 'both';
+  /** Whether the spec pins 华南 and the amount series to colours of their own. */
+  pinned?: boolean;
 }) {
   const config = analysisConfig({
     layout,
-    chart:
-      chart === 'pie'
-        ? { type: 'pie', pie: { category: 'warehouse', value: 'amount' } }
+    chart: {
+      ...(chart === 'pie'
+        ? {
+            type: 'pie' as const,
+            // Four warehouses, three slices: the smallest two merge into "other".
+            pie: { category: 'warehouse', value: 'amount', maxSlices: 3 },
+          }
         : {
             type: chart,
-            cartesian: { x: 'warehouse', series: [{ metric: 'amount' }] },
-          },
+            cartesian: {
+              x: 'warehouse',
+              // Order counts are single digits beside amounts in the
+              // thousands, so the second metric is measured on its own axis.
+              series:
+                series === 'both'
+                  ? [
+                      { metric: 'amount' },
+                      { metric: 'orders', axis: 'right' as const },
+                    ]
+                  : [{ metric: 'amount' }],
+            },
+          }),
+      ...(pinned ? { colors: PINNED_COLORS } : {}),
+    },
     table: {
       columns: [
         { alias: 'warehouse' },
@@ -79,7 +108,7 @@ const scene = {
   ...viewEngineScene,
   domain: '分析视图',
   summary: '分组与指标进去，图表或表格出来。',
-  fixture: '内存 ViewStore · 两个仓库的聚合结果',
+  fixture: '内存 ViewStore · 四个仓库的聚合结果',
   setup: '每次挂载都新建引擎与存储；分组、指标与图型来自保存的配置。',
   observe: '切换 Table／Chart 会重新执行，因为图表整形发生在投影层。',
 };
@@ -94,7 +123,13 @@ const meta = {
   ],
   title: 'View Engine/分析视图/Analysis 工作台',
   component: AnalysisWorkbenchDemo,
-  args: { behaviour: 'data', layout: 'chart', chart: 'bar' },
+  args: {
+    behaviour: 'data',
+    layout: 'chart',
+    chart: 'bar',
+    series: 'amount',
+    pinned: false,
+  },
   argTypes: {
     behaviour: {
       control: 'inline-radio',
@@ -102,6 +137,8 @@ const meta = {
     },
     layout: { control: 'inline-radio', options: ['table', 'chart'] },
     chart: { control: 'inline-radio', options: ['bar', 'line', 'pie'] },
+    series: { control: 'inline-radio', options: ['amount', 'both'] },
+    pinned: { control: 'boolean' },
   },
 } satisfies Meta<typeof AnalysisWorkbenchDemo>;
 
@@ -109,14 +146,31 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** The default: a bar chart of one metric across one grouping. */
+/** The default: a bar chart of one metric across four warehouses. */
 export const BarChart: Story = { args: { layout: 'chart', chart: 'bar' } };
+
+/**
+ * Two metrics on one chart: a series each, the count on a right-hand axis,
+ * and the legend a cartesian chart shows only once it has more than one.
+ */
+export const TwoMetrics: Story = {
+  args: { layout: 'chart', chart: 'bar', series: 'both' },
+};
 
 /** The same result as rows, with the totals row from its own ungrouped query. */
 export const TableWithTotals: Story = { args: { layout: 'table' } };
 
 /** A pie needs a category and one value, and the kernel merges the tail. */
 export const PieChart: Story = { args: { layout: 'chart', chart: 'pie' } };
+
+/**
+ * `chart.colors` names a category — 华南 — and the slice takes that colour
+ * while the other slices keep their palette slots. Flip to a bar to see the
+ * same map colour a series by its alias instead.
+ */
+export const PinnedCategoryColor: Story = {
+  args: { layout: 'chart', chart: 'pie', pinned: true },
+};
 
 /** An aggregation that matched nothing still has its editor. */
 export const EmptyResult: Story = {
