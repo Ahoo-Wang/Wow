@@ -26,9 +26,10 @@ import tools.jackson.databind.annotation.JsonDeserialize
 interface IListQuery : Queryable<IListQuery> {
     /**
      * The maximum number of items to return in the query result.
-     * Must be >= 0. If set to 0, the query will return unlimited results.
+     * Must be >= 0. A value of 0 returns unlimited results on the query gateway;
+     * over HTTP the server replaces 0 with its configured default list size.
      */
-    @get:Schema(defaultValue = "0", minimum = "0")
+    @get:Schema(defaultValue = "100", minimum = "0")
     val limit: Int
 }
 

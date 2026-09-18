@@ -154,6 +154,7 @@ spring:
 | `wow.webflux.batch.concurrency` | Int | `128` | 批量快照重建与 StateEvent 重发任务并发度 |
 | `wow.webflux.batch.prefetch` | Int | `4` | 批量任务 prefetch |
 | `wow.webflux.query.max-list-size` | Int | `1000` | list/aggregation limit；`0` 关闭上限并允许 limit `0` |
+| `wow.webflux.query.default-list-size` | Int | `100` | HTTP list 查询省略 `limit` 或传 `0` 时套用的默认值；不超过 `max-list-size`；`0` 关闭默认值并恢复拒绝 limit `0` |
 | `wow.webflux.query.max-page-size` | Int | `100` | page size 上限；`0` 关闭 |
 | `wow.webflux.query.max-page-window` | Long | `10000` | `page.index * page.size` 上限；`0` 关闭 |
 | `wow.webflux.query.max-filter-nodes` | Int | `128` | FilterExpression 节点数上限；`0` 关闭 |

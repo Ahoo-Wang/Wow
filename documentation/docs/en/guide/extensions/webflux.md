@@ -53,6 +53,7 @@ wow:
       prefetch: 4
     query:
       max-list-size: 1000
+      default-list-size: 100
       max-page-size: 100
       max-page-window: 10000
       max-filter-nodes: 128
