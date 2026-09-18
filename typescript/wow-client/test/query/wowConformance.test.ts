@@ -35,9 +35,9 @@ import {
  * builders, or left to the server — and which of the three, for each rule, is
  * written down rather than inferred.
  *
- * `wow` is the message Wow throws, verbatim, and is the key: it is what
- * `scripts/check-wow-conformance.mjs` diffs against a Wow checkout, so a rule
- * added upstream shows up as missing here instead of being quietly skipped.
+ * `wow` is the message Wow throws, verbatim, and is the key: search Wow's
+ * source for it to find the rule, and search this file for a message Wow
+ * throws to see whether it is accounted for.
  *
  * `throws` is what this package says, which is not always the same wording.
  * Recording both keeps the divergence visible: `filter.gt('a', null)` is
@@ -812,6 +812,3 @@ describe('Wow query conformance', () => {
     expect(mirrored.length).toBeGreaterThanOrEqual(50);
   });
 });
-
-/** Read by `scripts/check-wow-conformance.mjs`. */
-export const CONFORMANCE_RULE_COUNT = RULES.length;

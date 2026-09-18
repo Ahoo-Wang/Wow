@@ -23,74 +23,25 @@ pnpm --filter @ahoo-wang/fetcher-wow clean
 
 ## Wow conformance
 
-This package mirrors Wow's query protocol, so every rule Wow enforces by
-throwing is accounted for in `test/query/wowConformance.test.ts`. Each entry
-names the rule verbatim, cites its Kotlin source, and says which of three
-things this package does with it: mirrors it (with an input that breaks it),
-satisfies it by the shape of the builders, or leaves it to the server (with
-the reason). Add an entry in the same change as any new rule.
+This package mirrors Wow's query protocol, and two things hold it there.
 
-The tests keep those answers honest. They cannot see a rule Wow adds upstream,
-so when bumping the Wow version, diff the register against a Wow checkout:
+**Rules.** Every rule Wow enforces by throwing is accounted for in
+`test/query/wowConformance.test.ts`. Each entry names the rule verbatim, cites
+its Kotlin source, and says which of three things this package does with it:
+mirrors it (with an input that breaks it), satisfies it by the shape of the
+builders, or leaves it to the server (with the reason). Add an entry in the
+same change as any new rule. The server enforces every rule regardless; the
+register is what makes this package's answer to each one explicit and tested.
 
-```bash
-pnpm --filter @ahoo-wang/fetcher-wow check:wow /path/to/Wow
-```
-
-It exits non-zero naming any rule in `wow-api`'s query package the register
-does not carry, and any wire value out of step with Wow: every enum, and the
-`@JsonSubTypes` names a sealed interface is dispatched on. A value Wow has that
-this package lacks is missing; a value this package sends that Wow does not
-know is refused with a 400. The comparison runs both ways: every enum here must
-have a counterpart in Wow too, so an enum Wow deletes outright is caught — and
-so is a parsing failure that silently drops a Kotlin name, which one-way
-comparison would report as success. Deliberate differences are listed in the
-script with their reason — `JDK_ENUMS` for `TimeUnit`, which Wow takes from the
-JDK rather than declaring; `SERVER_ONLY_ENUMS` for schema metadata the client
-never sends; `TS_ONLY_VALUES` for `Operator.RAW`, which the deprecated
-Condition API keeps for servers older than Wow #2999. It is not part of CI,
-which has no Wow checkout.
-
-The checker fails closed: where it recognises an enum entry, a discriminator
-or a rule but cannot read it, that is an error, never a silent skip. Every
-blind spot it has had took the shape of a dropped name and a reported success,
-and comparing both ways only catches a name that goes missing whole, not one
-value dropped from a set that otherwise matches. Discriminators spelled as
-constants — Wow spells all fifty filter operators as
-`QueryProtocol.FilterExpression.Operator.X` — are resolved through the `const
-val`s they name, and a constant that is not one whole literal is unreadable. So
-is a constant path declared twice: Kotlin tells the two apart by package and
-import, which the checker does not read. A value is whole only where its
-expression visibly ends, and a line break does not end one — inside brackets
-Kotlin reads on across it, and anywhere before a leading `.`.
-
-Failing closed does not catch a value read confidently but wrongly, so the
-constructs that change what goes on the wire are read for what they put there:
-an entry's `@JsonProperty` value rather than its Kotlin name, and an enum
-written through `@JsonValue` is reported, since its entry names are not sent.
-Two declarations sharing a simple name are an error rather than one silently
-replacing the other. Each `JsonSubTypes.Type` must yield a name — from
-`name =`, `names =`, or a single `@JsonTypeName` on its class — and its owner
-must carry `@JsonTypeInfo(use = …Id.NAME)`, since under any other id the wire
-does not carry those names. Jackson's annotations are recognised by their
-qualified names as well as their short ones, `@JsonValue` under any use-site
-target too, and one imported under an alias is an error, since what it declares
-would otherwise be skipped whole. Comments follow each language's own rules:
-Kotlin block comments nest, TypeScript's do not. Declarations, and the `use` of
-a `@JsonTypeInfo`, are located in a copy of the source with comments and
-strings blanked, so a documentation example or a setting kept in a comment is
-neither mistaken for the real one nor raises a false alarm, and then read from
-the original at the same offsets. This package's enum members are split
-outside strings, so a value holding a comma or a brace reads whole.
-
-`test/fixtures/` holds the stand-ins: `wow-synthetic` for most shapes,
-`wow-kdoc` for declarations that exist only in comments and strings, and
-`wow-ts-comments` with `ts-comments` as a pair for how this package's own
-TypeScript is read, which `WOW_CONFORMANCE_TS_SOURCE` points the checker at.
-
-The checker is itself held by `conformanceScript.test.ts` against the stand-in
-checkout in `test/fixtures/wow-synthetic`, one case per shape it must read.
-When it misses something, add the shape there first.
+**Wire values.** `integration-test/test/wow/wowOpenApi.test.ts` holds every
+enum this package sends — filter operators, aggregation and expression types,
+sort directions — to the OpenAPI document of the Wow example server CI runs.
+The server writes that document from its own types, so it states exactly
+what Wow accepts. Renovate bumps the server's version, so a Wow release that
+changes the protocol fails that pull request rather than someone's
+application. A new enum belongs in the test's list. `Operator`, the
+deprecated Condition API's, is left out: the document describes only
+`FilterExpression`.
 
 ## Testing
 
@@ -148,8 +99,6 @@ src/
   types/
     abac.ts, common.ts, endpoints.ts, error.ts, function.ts,
     messaging.ts, modeling.ts, naming.ts, bi.ts, index.ts
-scripts/
-  check-wow-conformance.mjs   — Diffs the conformance register against a Wow checkout (see Wow conformance)
 ```
 
 ### Key Concepts
