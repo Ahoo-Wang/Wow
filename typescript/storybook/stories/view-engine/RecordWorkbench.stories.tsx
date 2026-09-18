@@ -71,7 +71,7 @@ const scene = {
   ...viewEngineScene,
   domain: '数据视图',
   summary: '明细、汇总、筛选与保存，全部来自一份配置。',
-  fixture: '内存 ViewStore · 三条订单 · 可切换的数据源行为',
+  fixture: '内存 ViewStore · 六条订单 · 可切换的数据源行为',
   setup: '每次挂载都新建引擎与存储，场景之间不共享已保存的视图。',
   observe: '表格、汇总行与提示反映这一次执行的口径，而不是草稿。',
 };
