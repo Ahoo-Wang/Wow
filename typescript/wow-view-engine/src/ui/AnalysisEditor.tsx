@@ -12,7 +12,11 @@
  */
 
 import { PlayIcon, PlusIcon, XIcon } from 'lucide-react';
-import type { AnalysisGroup, AnalysisMetric } from '../model/index.js';
+import type {
+  AnalysisGroup,
+  AnalysisMetric,
+  FieldGroupDefinition,
+} from '../model/index.js';
 import { CHART_TYPES } from '../model/index.js';
 import type {
   AnalysisEditorController,
@@ -22,7 +26,6 @@ import { Button } from './components/button.js';
 import { Checkbox } from './components/checkbox.js';
 import {
   DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -30,14 +33,15 @@ import {
 import { Field, FieldGroup, FieldLabel } from './components/field.js';
 import {
   Select,
-  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from './components/select.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
+import { DropdownMenuContent, SelectContent } from './popups.js';
 import { crossesBoundary, leavesEditor } from './FilterPanel.js';
+import { GroupedMenu } from './FieldMenu.js';
 import { NumberInput } from './FilterValueEditor.js';
 import { useViewMessages } from './MessagesProvider.js';
 
@@ -83,6 +87,7 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
           label={messages.label('label.analysis.add-group')}
           disabled={disabled}
           fields={groupable}
+          groups={analysis.fieldGroups}
           onPick={field =>
             analysis.addGroup(defaultGroup(field, aliasesOf(analysis)))
           }
@@ -91,6 +96,7 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
           label={messages.label('label.analysis.add-metric')}
           disabled={disabled}
           fields={measurable}
+          groups={analysis.fieldGroups}
           countable={analysis.countable}
           onPick={field =>
             analysis.addMetric(defaultMetric(field, aliasesOf(analysis)))
@@ -183,6 +189,7 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
 function AddMenu({
   label,
   fields,
+  groups,
   disabled,
   countable,
   onPick,
@@ -190,6 +197,7 @@ function AddMenu({
 }: {
   label: string;
   fields: AnalysisFieldOption[];
+  groups: readonly FieldGroupDefinition[];
   disabled?: boolean;
   countable?: boolean;
   onPick(field: AnalysisFieldOption): void;
@@ -206,18 +214,22 @@ function AddMenu({
         {label}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        <DropdownMenuGroup>
-          {countable === true && onCount && (
+        {countable === true && onCount && (
+          <DropdownMenuGroup>
             <DropdownMenuItem onClick={onCount}>
               {messages.label('label.analysis.row-count')}
             </DropdownMenuItem>
-          )}
-          {fields.map(field => (
+          </DropdownMenuGroup>
+        )}
+        <GroupedMenu
+          items={fields}
+          groups={groups}
+          render={field => (
             <DropdownMenuItem key={field.field} onClick={() => onPick(field)}>
               {field.label}
             </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
+          )}
+        />
       </DropdownMenuContent>
     </DropdownMenu>
   );

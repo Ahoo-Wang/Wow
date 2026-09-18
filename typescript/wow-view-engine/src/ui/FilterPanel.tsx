@@ -12,7 +12,7 @@
  */
 
 import type { FocusEvent } from 'react';
-import { FilterIcon, PlusIcon, XIcon } from 'lucide-react';
+import { FilterIcon, XIcon } from 'lucide-react';
 import type {
   FieldOption,
   FilterGroup,
@@ -36,22 +36,16 @@ import {
 } from '../react/index.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from './components/dropdown-menu.js';
+import { FieldPicker } from './FieldMenu.js';
 import {
   Select,
-  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from './components/select.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
+import { SelectContent } from './popups.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { FilterValueEditor } from './FilterValueEditor.js';
 
@@ -129,19 +123,12 @@ export function FilterPanel({
           </ToggleGroupItem>
         </ToggleGroup>
 
-        <AddCondition filter={filter} parent={[]} disabled={disabled} />
-
-        {advanced && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={disabled}
-            onClick={() => filter.addGroup('or')}
-          >
-            <PlusIcon data-icon="inline-start" />
-            {messages.label('label.filter.add-group')}
-          </Button>
-        )}
+        <AddEntry
+          filter={filter}
+          parent={[]}
+          disabled={disabled}
+          groups={advanced}
+        />
 
         <Button
           variant="outline"
@@ -315,24 +302,13 @@ function GroupBlock({
       />
 
       <div className="flex flex-wrap items-center gap-1">
-        <AddCondition
+        <AddEntry
           filter={filter}
           parent={path}
           disabled={disabled}
-          label={within(
-            scope,
-            messages.label('label.filter.add-condition-here'),
-          )}
+          groups
+          label={within(scope, messages.label('label.filter.add-here'))}
         />
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={disabled}
-          onClick={() => filter.addGroup('and', path)}
-        >
-          <PlusIcon data-icon="inline-start" />
-          {messages.label('label.filter.add-group')}
-        </Button>
       </div>
     </div>
   );
@@ -394,43 +370,57 @@ function ConditionStrip({
   );
 }
 
-/** The field picker that appends a leaf to one group. */
-function AddCondition({
+/**
+ * The one entry for adding to a group: a field, as a condition, or — where
+ * the editor shows groups — a group to nest, by its operator.
+ */
+function AddEntry({
   filter,
   parent,
   disabled,
+  groups,
   label,
 }: {
   filter: FilterTreeController;
   parent: FilterPath;
   disabled?: boolean;
+  /** Whether groups may be added here: only the advanced editor shows them. */
+  groups: boolean;
   /** The accessible name; the catalogue's own when a caller names none. */
   label?: string;
 }) {
   const messages = useViewMessages();
-  const name = label ?? messages.label('label.filter.add-condition');
+  const name = label ?? messages.label('label.filter.add');
+  const nestable = (['and', 'or', 'nor'] as const).map(op => ({
+    key: `group:${op}`,
+    label: messages.label(
+      op === 'and'
+        ? 'label.filter.all-of'
+        : op === 'or'
+          ? 'label.filter.any-of'
+          : 'label.filter.none-of',
+    ),
+    pick: () => filter.addGroup(op, parent),
+  }));
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={<Button variant="outline" size="sm" disabled={disabled} />}
-      >
-        <PlusIcon data-icon="inline-start" />
-        {name}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuGroup>
-          {filter.fieldsFor(parent).map(field => (
-            <DropdownMenuItem
-              key={field.name}
-              onClick={() => filter.addLeaf(field.name, parent)}
-            >
-              {field.label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <FieldPicker
+      items={filter.fieldsFor(parent)}
+      groups={filter.fieldGroups}
+      extras={
+        groups
+          ? {
+              label: messages.label('label.filter.nested-group'),
+              entries: nestable,
+            }
+          : undefined
+      }
+      label={name}
+      disabled={disabled}
+      itemKey={field => field.name}
+      itemLabel={field => field.label}
+      onPick={field => filter.addLeaf(field.name, parent)}
+    />
   );
 }
 

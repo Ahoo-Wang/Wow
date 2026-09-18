@@ -27,7 +27,6 @@ import { useViewMessages } from './MessagesProvider.js';
 import {
   Dialog,
   DialogClose,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -37,13 +36,13 @@ import { Field, FieldGroup, FieldLabel } from './components/field.js';
 import { Input } from './components/input.js';
 import {
   Select,
-  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from './components/select.js';
 import { Spinner } from './components/spinner.js';
+import { DialogContent, SelectContent } from './popups.js';
 
 export interface SaveActionsProps {
   commands: SaveCommands;

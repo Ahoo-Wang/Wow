@@ -17,26 +17,32 @@ import {
   Columns3Icon,
   RefreshCwIcon,
 } from 'lucide-react';
-import { isFieldlessKind, type FieldDefinition } from '../model/index.js';
+import {
+  isFieldlessKind,
+  type FieldDefinition,
+  type FieldGroupDefinition,
+} from '../model/index.js';
 import type { RecordTableController } from '../react/index.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuTrigger,
 } from './components/dropdown-menu.js';
+import { GroupedMenu } from './FieldMenu.js';
 import { Separator } from './components/separator.js';
 import { Spinner } from './components/spinner.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
+import { DropdownMenuContent } from './popups.js';
 import { useViewMessages } from './MessagesProvider.js';
 
 export interface RecordToolbarProps {
   table: RecordTableController;
   /** Fields the definition offers, for the column picker. */
   fields: readonly FieldDefinition[];
+  /** The picker groups of the definition the fields come from. */
+  fieldGroups?: readonly FieldGroupDefinition[];
   children?: React.ReactNode;
 }
 
@@ -47,7 +53,12 @@ export interface RecordToolbarProps {
  * once saved, come back with it. Paging and selection are not, which is why
  * they leave no trace in the saved config.
  */
-export function RecordToolbar({ table, fields, children }: RecordToolbarProps) {
+export function RecordToolbar({
+  table,
+  fields,
+  fieldGroups,
+  children,
+}: RecordToolbarProps) {
   const messages = useViewMessages();
   const visible = new Set(table.columnFields);
 
@@ -80,25 +91,25 @@ export function RecordToolbar({ table, fields, children }: RecordToolbarProps) {
           {messages.label('label.toolbar.columns')}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuGroup>
-            {fields
-              .filter(field => !isFieldlessKind(field.kind))
-              .map(field => (
-                <DropdownMenuCheckboxItem
-                  key={field.name}
-                  checked={visible.has(field.name)}
-                  onCheckedChange={() =>
-                    table.setColumns(
-                      visible.has(field.name)
-                        ? table.columnFields.filter(name => name !== field.name)
-                        : [...table.columnFields, field.name],
-                    )
-                  }
-                >
-                  {field.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-          </DropdownMenuGroup>
+          <GroupedMenu
+            items={fields.filter(field => !isFieldlessKind(field.kind))}
+            groups={fieldGroups ?? []}
+            render={field => (
+              <DropdownMenuCheckboxItem
+                key={field.name}
+                checked={visible.has(field.name)}
+                onCheckedChange={() =>
+                  table.setColumns(
+                    visible.has(field.name)
+                      ? table.columnFields.filter(name => name !== field.name)
+                      : [...table.columnFields, field.name],
+                  )
+                }
+              >
+                {field.label}
+              </DropdownMenuCheckboxItem>
+            )}
+          />
         </DropdownMenuContent>
       </DropdownMenu>
 

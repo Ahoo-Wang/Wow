@@ -113,7 +113,11 @@ export function RecordWorkbench({
               </Alert>
             )}
 
-            <RecordToolbar table={table} fields={fields}>
+            <RecordToolbar
+              table={table}
+              fields={fields}
+              fieldGroups={record?.definition.fieldGroups}
+            >
               <SaveActions
                 commands={commands}
                 title={state?.title ?? ''}

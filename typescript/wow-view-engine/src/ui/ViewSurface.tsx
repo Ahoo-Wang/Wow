@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type * as React from 'react';
+import * as React from 'react';
 import { cn } from 'cn';
 import { TooltipProvider } from './components/tooltip.js';
 import { MessagesProvider } from './MessagesProvider.js';
@@ -32,6 +32,19 @@ export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
  * nothing about the page around it, and an embedded view can pin its own
  * theme while the rest of the application follows the host.
  */
+/**
+ * The theme a surface was given, for what renders outside it. A popup is
+ * portalled to the document body, where `.fve-root` and its `data-theme` are
+ * not ancestors; `popups.tsx` reads this to carry both onto the popup.
+ */
+const SurfaceThemeContext = React.createContext<'light' | 'dark' | undefined>(
+  undefined,
+);
+
+export function useSurfaceTheme(): 'light' | 'dark' | undefined {
+  return React.useContext(SurfaceThemeContext);
+}
+
 export function ViewSurface({
   className,
   theme,
@@ -46,9 +59,11 @@ export function ViewSurface({
       className={cn('fve-root flex min-h-0 flex-col gap-3', className)}
       {...props}
     >
-      <MessagesProvider messages={messages}>
-        <TooltipProvider>{children}</TooltipProvider>
-      </MessagesProvider>
+      <SurfaceThemeContext.Provider value={theme}>
+        <MessagesProvider messages={messages}>
+          <TooltipProvider>{children}</TooltipProvider>
+        </MessagesProvider>
+      </SurfaceThemeContext.Provider>
     </div>
   );
 }

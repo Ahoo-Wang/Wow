@@ -23,6 +23,7 @@ import {
   DATE_TIME_PRESETS,
   createFieldKindRegistry,
   describeFilter,
+  fieldGroups,
   emptyFilter,
   isEmptyFilter,
   insertAt,
@@ -1000,6 +1001,58 @@ describe('nor groups', () => {
         ),
       ),
     ).toEqual(['filter.group.unknown-operator']);
+  });
+});
+
+describe('fieldGroups', () => {
+  const catalogue = [
+    { id: 'money', label: 'Money' },
+    { id: 'time', label: 'Time' },
+    { id: 'unused', label: 'Unused' },
+  ];
+
+  it('lists the ungrouped fields first, then the declared groups in their order', () => {
+    const grouped = fieldGroups(
+      [
+        { name: 'id' },
+        { name: 'createdAt', group: 'time' },
+        { name: 'amount', group: 'money' },
+        { name: 'status' },
+        { name: 'currency', group: 'money' },
+      ],
+      catalogue,
+    );
+    expect(
+      grouped.map(entry => [
+        entry.group?.label,
+        entry.items.map(item => item.name),
+      ]),
+    ).toEqual([
+      [undefined, ['id', 'status']],
+      ['Money', ['amount', 'currency']],
+      ['Time', ['createdAt']],
+    ]);
+  });
+
+  it('lists a field naming an undeclared group as ungrouped', () => {
+    // Admission reports the definition; the picker does not invent a group.
+    expect(
+      fieldGroups([{ name: 'a', group: 'typo' }], catalogue).map(
+        entry => entry.group,
+      ),
+    ).toEqual([undefined]);
+  });
+
+  it('is one nameless group without a catalogue', () => {
+    expect(fieldGroups([{ name: 'a', group: 'money' }, { name: 'b' }])).toEqual(
+      [
+        {
+          group: undefined,
+          items: [{ name: 'a', group: 'money' }, { name: 'b' }],
+        },
+      ],
+    );
+    expect(fieldGroups([], catalogue)).toEqual([]);
   });
 });
 

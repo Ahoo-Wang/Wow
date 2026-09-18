@@ -25,11 +25,8 @@ import {
 } from './components/empty.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { Skeleton } from './components/skeleton.js';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from './components/tooltip.js';
+import { Tooltip, TooltipTrigger } from './components/tooltip.js';
+import { TooltipContent } from './popups.js';
 
 export interface ViewListProps {
   list: ViewListState;

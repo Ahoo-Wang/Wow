@@ -35,10 +35,22 @@ export interface DataViewDefinition {
   /** Key passed to `resolveSource`. */
   source: string;
   fields: FieldDefinition[];
+  /**
+   * The groups a picker lists fields under, in this order. A field names
+   * one by `group`; naming one not declared here is a definition error, so
+   * a typo is caught at admission rather than shown as a group of its own.
+   */
+  fieldGroups?: FieldGroupDefinition[];
   record?: RecordCapability;
   analysis?: AnalysisCapability;
   /** System views declared in code; they deploy with the definition. */
   views?: SystemView[];
+}
+
+/** One group of a field picker: a stable id the fields name, and a label. */
+export interface FieldGroupDefinition {
+  id: string;
+  label: string;
 }
 
 /** Dashboards own no data; the definition is their catalogue entry. */

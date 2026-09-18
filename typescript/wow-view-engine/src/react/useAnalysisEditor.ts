@@ -13,6 +13,7 @@
 
 import { useCallback, useMemo } from 'react';
 import type {
+  FieldGroupDefinition,
   AnalysisDateUnit,
   AnalysisFunction,
   AnalysisGroup,
@@ -33,6 +34,8 @@ import { useViewRuntime } from './useViewEngine.js';
 export interface AnalysisFieldOption {
   field: string;
   label: string;
+  /** The picker group the definition puts this field in, if any. */
+  group?: string;
   /** Group types this field offers; empty when it cannot be grouped. */
   groups: AnalysisGroupType[];
   /** Aggregation functions it offers; empty when it cannot be measured. */
@@ -57,6 +60,8 @@ export interface AnalysisEditorController {
   aliases: { groups: string[]; metrics: string[] };
   /** What the definition allows, already expanded for configured elements. */
   fields: AnalysisFieldOption[];
+  /** The picker groups the definition declares. */
+  fieldGroups: readonly FieldGroupDefinition[];
   countable: boolean;
 
   addGroup(group: AnalysisGroup): void;
@@ -89,6 +94,8 @@ const EMPTY_CHART: ChartSpec = { type: 'bar' };
  * rather than from the field list, because a backend that cannot sum a column
  * should not be offered the option.
  */
+const EMPTY_GROUPS: readonly FieldGroupDefinition[] = [];
+
 export function useAnalysisEditor(
   runtime: ViewRuntime | null,
 ): AnalysisEditorController {
@@ -131,6 +138,7 @@ export function useAnalysisEditor(
       const aggregation = scope.aggregations.get(field.name);
       return {
         field: field.name,
+        group: field.group,
         label: field.label,
         groups: aggregation?.groups ?? [],
         functions: aggregation?.functions ?? [],
@@ -162,6 +170,7 @@ export function useAnalysisEditor(
       metrics: metrics.map(metric => metric.alias),
     },
     fields,
+    fieldGroups: definition?.fieldGroups ?? EMPTY_GROUPS,
     countable: capability?.count === true,
 
     addGroup: useCallback(

@@ -122,7 +122,6 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.filter.all-of': 'All of',
   'label.filter.any-of': 'Any of',
   'label.filter.none-of': 'None of',
-  'label.filter.add-group': 'Add group',
   'label.filter.choose': 'Choose',
   'label.analysis.row-count': 'Row count',
 
@@ -156,9 +155,12 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.filter.apply': 'Apply',
   'label.filter.group-operator': 'Group operator',
   'label.filter.remove-group': 'Remove group',
-  'label.filter.add-condition': 'Add condition',
-  'label.filter.add-condition-here': 'Add condition in this group',
+  'label.filter.add': 'Add',
+  'label.filter.add-here': 'Add in this group',
+  'label.filter.nested-group': 'Group',
   'label.filter.condition-of': '{field} condition',
+  'label.field.none': 'No field matches',
+  'label.field.search': 'Search fields',
   'label.filter.operator-of': '{field} operator',
   'label.filter.value-of': '{field} value',
   'label.filter.remove-of': 'Remove {field}',
@@ -501,6 +503,10 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'definition.analysis.no-metric':
     'The analysis capability offers no metric to start from.',
   'definition.field.duplicate': 'The field {field} is declared twice.',
+  'definition.field.group-unknown':
+    '{field} names the group {group}, which the definition does not declare.',
+  'definition.fieldGroup.duplicate': 'The group {group} is declared twice.',
+  'definition.fieldGroup.invalid': 'A field group needs an id and a label.',
   'definition.field.string-comparison-invalid':
     '{field} declares an unknown text comparison: {value}.',
   'definition.field.kind-unregistered':

@@ -167,7 +167,7 @@ export interface FieldDefinition {
   /** Remote candidate source key for `reference`, resolved by the engine. */
   remote?: string;
   sortable?: boolean;
-  /** Grouping label in the add-filter picker. */
+  /** The `DataViewDefinition.fieldGroups` entry this field is listed under. */
   group?: string;
   numberFormat?: NumberFormat;
   /** Summary functions this field allows. */

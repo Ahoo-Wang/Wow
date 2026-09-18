@@ -32,6 +32,45 @@ import {
   testSource,
 } from './fixtures.js';
 
+describe('field groups', () => {
+  it('refuses a field naming a group the definition does not declare', () => {
+    const definition = ordersDefinition({
+      fieldGroups: [{ id: 'money', label: 'Money' }],
+    });
+    definition.fields = definition.fields.map(field =>
+      field.name === 'amount' ? { ...field, group: 'monney' } : field,
+    );
+    expect(codes(definition)).toEqual(['definition.field.group-unknown']);
+  });
+
+  it('refuses a group declared twice, or without an id or a label', () => {
+    expect(
+      codes(
+        ordersDefinition({
+          fieldGroups: [
+            { id: 'money', label: 'Money' },
+            { id: 'money', label: 'Again' },
+            { id: '', label: 'Nameless' },
+          ],
+        }),
+      ),
+    ).toEqual([
+      'definition.fieldGroup.duplicate',
+      'definition.fieldGroup.invalid',
+    ]);
+  });
+
+  it('accepts fields under declared groups', () => {
+    const definition = ordersDefinition({
+      fieldGroups: [{ id: 'money', label: 'Money' }],
+    });
+    definition.fields = definition.fields.map(field =>
+      field.name === 'amount' ? { ...field, group: 'money' } : field,
+    );
+    expect(codes(definition)).toEqual([]);
+  });
+});
+
 function codes(definition: ViewDefinition): string[] {
   return validateDefinition(definition, builtinFieldKinds).map(
     found => found.code,

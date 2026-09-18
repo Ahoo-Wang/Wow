@@ -422,8 +422,8 @@ describe('RecordWorkbench interaction', () => {
   it('adds a condition, edits it and applies it', async () => {
     const { source } = await open();
 
-    fireEvent.click(screen.getByRole('button', { name: /Add condition/ }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Warehouse' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Warehouse' }));
 
     const value = await screen.findByLabelText('warehouse value');
     fireEvent.change(value, { target: { value: 'CN' } });
@@ -441,15 +441,15 @@ describe('RecordWorkbench interaction', () => {
   it('removes a condition and clears the tree', async () => {
     await open();
 
-    fireEvent.click(screen.getByRole('button', { name: /Add condition/ }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Warehouse' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Warehouse' }));
     await screen.findByLabelText('warehouse value');
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove Warehouse' }));
     expect(screen.queryByLabelText('warehouse value')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /Add condition/ }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Warehouse' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Warehouse' }));
     await screen.findByLabelText('warehouse value');
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
 
@@ -566,8 +566,8 @@ describe('RecordWorkbench interaction', () => {
     // The rows are still coming. Typing never re-queries and the next apply
     // supersedes the request in flight, so nothing here has to wait for it.
     expect(apply.hasAttribute('disabled')).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: /Add condition/ }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Warehouse' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Warehouse' }));
     const value = await screen.findByLabelText('warehouse value');
     expect((value as HTMLInputElement).disabled).toBe(false);
     fireEvent.change(value, { target: { value: 'CN' } });
@@ -1755,13 +1755,57 @@ describe('FilterPanel tree editing', () => {
     return { filter: () => latest as ReturnType<typeof useFilterEditor> };
   }
 
+  it('lists the fields of the picker by the groups the definition declares', async () => {
+    const grouped = ordersDefinition({
+      fieldGroups: [
+        { id: 'state', label: 'State' },
+        { id: 'money', label: 'Money' },
+      ],
+    });
+    grouped.fields = grouped.fields.map(field =>
+      field.name === 'amount'
+        ? { ...field, group: 'money' }
+        : field.name === 'status'
+          ? { ...field, group: 'state' }
+          : field,
+    );
+    panel(false, grouped);
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
+    const text = (await screen.findByRole('listbox')).textContent ?? '';
+
+    // Ungrouped fields first, then each declared group under its label, in
+    // the catalogue's order rather than the fields' own.
+    const at = (word: string) => text.indexOf(word);
+    expect(at('Order')).toBeGreaterThanOrEqual(0);
+    expect(at('Order')).toBeLessThan(at('State'));
+    expect(at('State')).toBeLessThan(at('Status'));
+    expect(at('Status')).toBeLessThan(at('Money'));
+    expect(at('Money')).toBeLessThan(at('Amount'));
+  });
+
+  it('narrows the fields to what is typed, across every group', async () => {
+    panel();
+    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
+    const search = await screen.findByRole('combobox', {
+      name: 'Search fields',
+    });
+
+    fireEvent.change(search, { target: { value: 'sta' } });
+
+    const names = (await screen.findAllByRole('option')).map(
+      option => option.textContent,
+    );
+    expect(names).toEqual(['Status']);
+  });
+
   it('offers a field once per group when adding a condition', async () => {
     const { filter } = panel();
     act(() => filter().addLeaf('warehouse'));
 
-    fireEvent.click(screen.getByRole('button', { name: /Add condition/ }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
 
-    const names = (await screen.findAllByRole('menuitem')).map(
+    const names = (await screen.findAllByRole('option')).map(
       item => item.textContent,
     );
     expect(names).toContain('Status');
@@ -1943,11 +1987,11 @@ describe('FilterPanel tree editing', () => {
       expect(screen.getByLabelText('Items Group operator')).toBeTruthy(),
     );
     await user.click(
-      screen.getByRole('button', {
-        name: 'Items Add condition in this group',
+      screen.getByRole('combobox', {
+        name: 'Items Add in this group',
       }),
     );
-    await user.click(await screen.findByRole('menuitem', { name: 'SKU' }));
+    await user.click(await screen.findByRole('option', { name: 'SKU' }));
 
     const predicate = filter().tree.children[0] as unknown as {
       value: FilterTree;
@@ -1961,15 +2005,15 @@ describe('FilterPanel tree editing', () => {
 
     act(() => filter().addLeaf('items'));
     await user.click(
-      screen.getByRole('button', {
-        name: 'Items Add condition in this group',
+      screen.getByRole('combobox', {
+        name: 'Items Add in this group',
       }),
     );
 
     // `warehouse` belongs to the order, not to a line, and a predicate that
     // named it would compile into something Wow cannot answer.
-    expect(await screen.findByRole('menuitem', { name: 'SKU' })).toBeTruthy();
-    expect(screen.queryByRole('menuitem', { name: 'Warehouse' })).toBeNull();
+    expect(await screen.findByRole('option', { name: 'SKU' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'Warehouse' })).toBeNull();
   });
 
   it('marks the row inside a predicate that is wrong, not the one holding it', async () => {
@@ -1978,11 +2022,11 @@ describe('FilterPanel tree editing', () => {
 
     act(() => filter().addLeaf('items'));
     await user.click(
-      screen.getByRole('button', {
-        name: 'Items Add condition in this group',
+      screen.getByRole('combobox', {
+        name: 'Items Add in this group',
       }),
     );
-    await user.click(await screen.findByRole('menuitem', { name: 'Qty' }));
+    await user.click(await screen.findByRole('option', { name: 'Qty' }));
 
     // A number field given text: the kind reports it under the leaf that
     // carries the predicate, and the row inside is what has to light up.
@@ -2021,11 +2065,11 @@ describe('FilterPanel tree editing', () => {
     const group = screen.getByRole('group', { name: 'Any of' });
 
     fireEvent.click(
-      within(group).getByRole('button', {
-        name: 'Add condition in this group',
+      within(group).getByRole('combobox', {
+        name: 'Add in this group',
       }),
     );
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Warehouse' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Warehouse' }));
 
     expect(filter().tree.children[0]).toMatchObject({
       op: 'or',

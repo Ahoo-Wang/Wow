@@ -71,6 +71,7 @@ export function validateDefinition(
 
   if (definition.kind === 'data') {
     issues.push(...validateFields(definition.fields, kinds, ['fields']));
+    issues.push(...validateFieldGroups(definition));
     issues.push(...validateRecordCapability(definition));
     issues.push(...validateAnalysisCapability(definition));
   }
@@ -82,6 +83,40 @@ export function validateDefinition(
 /** Whether a definition may be opened at all. */
 export function isUsableDefinition(issues: readonly Issue[]): boolean {
   return !issues.some(found => found.severity === 'error');
+}
+
+/**
+ * The picker groups: each declared once with an id and a label, and every
+ * field's `group` one of them. A group nobody declared would otherwise show
+ * up as a group of its own, and a typo would look like a design.
+ */
+function validateFieldGroups(definition: DataViewDefinition): Issue[] {
+  const issues: Issue[] = [];
+  const ids = new Set<string>();
+  (definition.fieldGroups ?? []).forEach((group, index) => {
+    const at: IssuePath = ['fieldGroups', index];
+    if (group.id.trim().length === 0 || group.label.trim().length === 0) {
+      issues.push(issue('definition.fieldGroup.invalid', at));
+      return;
+    }
+    if (ids.has(group.id))
+      issues.push(
+        issue('definition.fieldGroup.duplicate', [...at, 'id'], {
+          group: group.id,
+        }),
+      );
+    ids.add(group.id);
+  });
+  definition.fields.forEach((field, index) => {
+    if (field.group !== undefined && !ids.has(field.group))
+      issues.push(
+        issue('definition.field.group-unknown', ['fields', index, 'group'], {
+          field: field.name,
+          group: field.group,
+        }),
+      );
+  });
+  return issues;
 }
 
 function validateFields(

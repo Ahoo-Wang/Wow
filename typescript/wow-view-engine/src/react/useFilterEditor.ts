@@ -14,6 +14,7 @@
 import { useCallback, useMemo } from 'react';
 import type {
   FieldDefinition,
+  FieldGroupDefinition,
   FilterGroupOperator,
   FilterLeaf,
   FilterMode,
@@ -64,6 +65,7 @@ export interface FilterEditorController extends FilterTreeController {
 }
 
 const ROOT: FilterPath = [];
+const EMPTY_GROUPS: readonly FieldGroupDefinition[] = [];
 /** Stable identity for "no runtime yet", so the memo below stays quiet. */
 const EMPTY_FIELDS: readonly FieldDefinition[] = [];
 /** Stable identity for "no runtime yet"; every edit produces a new tree. */
@@ -180,6 +182,10 @@ export function useFilterEditor(
     tree,
     mode: state?.draft.filterMode ?? 'simple',
     fields,
+    fieldGroups:
+      runtime?.definition.kind === 'data'
+        ? (runtime.definition.fieldGroups ?? EMPTY_GROUPS)
+        : EMPTY_GROUPS,
     kinds,
     // `validateFilter` addresses a node by its path (`[0]`, `[1, 0]`), so the
     // code is what says an Issue belongs to the filter at all — and the path
@@ -309,6 +315,8 @@ function reseedValue(
 export interface FilterTreeController {
   tree: FilterTree;
   fields: readonly FieldDefinition[];
+  /** The picker groups the definition declares; none for a dashboard's or an element's fields. */
+  fieldGroups: readonly FieldGroupDefinition[];
   /** The registry admission used, so a nested editor admits by the same one. */
   kinds: FieldKindRegistry | undefined;
   issues: Issue[];
@@ -338,6 +346,7 @@ export interface FilterTreeController {
 export interface TreeControllerInput {
   tree: FilterTree;
   fields: readonly FieldDefinition[];
+  fieldGroups?: readonly FieldGroupDefinition[];
   kinds: FieldKindRegistry | undefined;
   /** Issues already rebased onto this tree. */
   issues: Issue[];
@@ -399,6 +408,7 @@ export function treeController(
   return {
     tree,
     fields,
+    fieldGroups: input.fieldGroups ?? [],
     kinds,
     issues,
     fieldsFor(parent = ROOT) {
