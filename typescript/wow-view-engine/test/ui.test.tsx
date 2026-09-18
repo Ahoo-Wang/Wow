@@ -257,6 +257,54 @@ describe('RecordWorkbench', () => {
     expect(container.querySelector('table')).toBeNull();
   });
 
+  // A field is a Wow query path. Read as a key, `customer.city` names nothing,
+  // and every nested column comes out blank — which is what a Wow snapshot,
+  // whose state all sits under `state`, looked like in both layouts.
+  it.each(['table', 'card'] as const)(
+    'reads a nested field by its path in the %s layout',
+    async layout => {
+      const nested: ViewInstance = {
+        ...mine,
+        config: recordConfig({
+          layout,
+          table: { columns: [{ field: 'id' }, { field: 'customer.city' }] },
+          card: { title: 'id', fields: ['customer.city'] },
+        }),
+      };
+      const engine = new ViewEngine({
+        definitions: [
+          ordersDefinition({
+            fields: [
+              ...ordersDefinition().fields,
+              { name: 'customer.name', label: 'Customer', kind: 'string' },
+              { name: 'customer.city', label: 'City', kind: 'string' },
+            ],
+          }),
+        ],
+        store: new MemoryViewStore({ instances: [nested] }),
+        resolveSource: () =>
+          testSource({
+            paged: vi.fn(() =>
+              Promise.resolve({
+                total: 1,
+                list: [
+                  {
+                    id: 'o-1',
+                    amount: 10,
+                    customer: { name: 'Acme', city: 'Hangzhou' },
+                  },
+                ],
+              }),
+            ),
+          }),
+      });
+
+      render(<EmbeddedView engine={engine} instanceId="orders-1" />);
+
+      await waitFor(() => expect(screen.getByText('Hangzhou')).toBeDefined());
+    },
+  );
+
   /**
    * The states a reader actually meets when a source is slow or down. They
    * are easy to skip past with `waitFor`, and then the first time anyone sees
@@ -1229,7 +1277,36 @@ function listState(overrides: Partial<ViewListState> = {}): ViewListState {
   };
 }
 
+describe('RecordCards on its own', () => {
+  it('reads a nested title field by its path', () => {
+    render(
+      <RecordCards
+        table={tableController({
+          rows: [{ key: 'o-1', data: { customer: { name: 'Acme' } } }],
+        })}
+        title="customer.name"
+      />,
+    );
+    expect(screen.getByText('Acme')).toBeDefined();
+  });
+});
+
 describe('RecordTable on its own', () => {
+  it('hands a custom cell the null the record holds', () => {
+    const seen: unknown[] = [];
+    render(
+      <RecordTable
+        table={tableController()}
+        renderCell={cell => {
+          if (cell.key === 'o-2' && cell.column.field === 'amount')
+            seen.push(cell.value);
+          return null;
+        }}
+      />,
+    );
+    expect(seen).toEqual([null]);
+  });
+
   it('formats each value by what the column declared', () => {
     render(<RecordTable table={tableController()} />);
 

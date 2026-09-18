@@ -14,6 +14,7 @@
 import type * as React from 'react';
 import type { RecordData, RecordKey } from '../model/index.js';
 import type { RecordTableController } from '../react/index.js';
+import { recordValue } from '../record/index.js';
 import { Checkbox } from './components/checkbox.js';
 import { Card, CardContent, CardHeader, CardTitle } from './components/card.js';
 
@@ -58,7 +59,7 @@ export function RecordCards({
                   {column.label}
                 </span>
                 <span className="truncate text-sm">
-                  {renderValue(row.data[column.field])}
+                  {renderValue(recordValue(row.data, column.field))}
                 </span>
               </div>
             ))}
@@ -74,7 +75,7 @@ function cardTitle(
   key: RecordKey,
   field?: string,
 ): React.ReactNode {
-  const value = field ? row[field] : key;
+  const value = field ? recordValue(row, field) : key;
   return defaultValue(value) ?? String(key);
 }
 

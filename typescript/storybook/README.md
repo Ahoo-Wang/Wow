@@ -19,6 +19,14 @@ Storybook 是可运行的接入文档，也承载浏览器交互回归。导航�
 
 View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析视图与仪表盘视图，每个故事只呈现一种状态：有数据、空结果、加载中、查询失败、待修复、面板不可用。状态由 `fixtures.ts` 里的假数据源决定，引擎与存储每次挂载都新建，因此保存、改名与删除是真写入，也不会跨场景残留。
 
+## 真实后端
+
+`view-engine/CompensationConsole.stories.tsx` 让 View Engine 直连一个 Wow 补偿服务，用真实数据和真实数据量检验体验：数据视图带重试、强制重试与标记可恢复性等写操作，分析视图做全量分组统计。
+
+- 服务地址是故事的 `host` 参数，可在 Controls 面板随时切换；初始值取 `STORYBOOK_WOW_COMPENSATION_HOST`，未设置时为 `http://localhost:8080`。
+- 写操作会真实写回服务，只连接测试环境。
+- 真实数据每次都不同，这些故事标记为 `!test` 与 `!autodocs`：不进入回归测试，也不生成文档页。
+
 ## 检查命令
 
 ```bash

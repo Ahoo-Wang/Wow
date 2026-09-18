@@ -135,6 +135,24 @@ export type SummarySource =
   | { scope: 'page'; rows: readonly RecordData[] }
   | { scope: 'total'; result: readonly RecordData[] };
 
+/**
+ * The value of `field` in a record. A field is a Wow query path, so
+ * `state.status` is a value inside `state` rather than a key named with a dot:
+ * a Wow snapshot keeps everything it materialises under `state`.
+ *
+ * A `null` the record holds comes back as `null`; only a path that is not
+ * there is `undefined`. A cell renderer may tell the two apart, and
+ * `getPropertyValue` would turn the first into the second.
+ */
+export function recordValue(data: RecordData, field: string): unknown {
+  let value: unknown = data;
+  for (const segment of field.split('.')) {
+    if (value === null || typeof value !== 'object') return undefined;
+    value = (value as Record<string, unknown>)[segment];
+  }
+  return value;
+}
+
 function reduceRows(
   rows: readonly RecordData[],
   field: string,
@@ -142,7 +160,7 @@ function reduceRows(
 ): number | null {
   if (fn === 'COUNT') return rows.length;
   const numbers = rows
-    .map(row => getPropertyValue<unknown>(row, field))
+    .map(row => recordValue(row, field))
     .filter((value): value is number => typeof value === 'number');
   if (numbers.length === 0) return null;
   switch (fn) {

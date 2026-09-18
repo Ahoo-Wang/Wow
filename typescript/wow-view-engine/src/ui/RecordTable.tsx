@@ -20,6 +20,7 @@ import type {
   SummaryRow,
 } from '../record/index.js';
 import type { RecordTableController } from '../react/index.js';
+import { recordValue } from '../record/index.js';
 import { Checkbox } from './components/checkbox.js';
 import {
   Empty,
@@ -150,7 +151,7 @@ export function RecordTable({
                         column,
                         row: row.data,
                         key: row.key,
-                        value: row.data[column.field],
+                        value: recordValue(row.data, column.field),
                       })}
                     </TableCell>
                   ))}

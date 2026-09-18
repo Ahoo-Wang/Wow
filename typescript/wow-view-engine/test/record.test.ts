@@ -26,6 +26,7 @@ import {
   projectRecord,
   projectSummaries,
   recordCapabilityOf,
+  recordValue,
   summaryAlias,
   validateRecord,
   type DataViewDefinition,
@@ -394,6 +395,29 @@ describe('compileSummaries', () => {
 
   it('keeps an alias to a single segment', () => {
     expect(summaryAlias('address.city', 'MAX')).toBe('address_city_max');
+  });
+});
+
+describe('recordValue', () => {
+  const record = {
+    note: null,
+    customer: { city: 'Hangzhou', region: null },
+  };
+
+  it('reads a field by its path', () => {
+    expect(recordValue(record, 'customer.city')).toBe('Hangzhou');
+  });
+
+  // A renderer may show "none" for a null the backend sent and nothing at all
+  // for a field that is absent, so the two must not collapse into one.
+  it('keeps a null the record holds, at the root or at the end of a path', () => {
+    expect(recordValue(record, 'note')).toBeNull();
+    expect(recordValue(record, 'customer.region')).toBeNull();
+  });
+
+  it('is undefined only where the path is not there', () => {
+    expect(recordValue(record, 'customer.street')).toBeUndefined();
+    expect(recordValue(record, 'note.text')).toBeUndefined();
   });
 });
 
