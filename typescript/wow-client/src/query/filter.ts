@@ -12,6 +12,7 @@
  */
 
 import { DeletionState } from './condition.js';
+import { queryField } from './queryField.js';
 
 export type QueryField<FIELDS extends string = string> = FIELDS;
 /** @deprecated Use QueryField instead. */
@@ -95,8 +96,6 @@ export enum TimeUnit {
 
 const LOCAL_TIME_PATTERN =
   /^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\.[0-9]{1,9})?)?$/;
-const QUERY_FIELD_PATTERN =
-  /^@?[A-Za-z_][A-Za-z0-9_-]*(\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$/;
 const OFFSET_ZONE_PATTERN =
   /^(?:UTC|GMT|UT)?[+-](\d{1,2}|\d{4}|\d{6}|\d{2}:\d{2}|\d{2}:\d{2}:\d{2})$/;
 const OFFSET_ZONE_CANDIDATE_PATTERN = /^(?:UTC|GMT|UT)?[+-]/;
@@ -140,13 +139,6 @@ const DATE_PATTERN_COUNTS: Readonly<
   Y: Number.POSITIVE_INFINITY,
   g: 19,
 };
-
-function queryField<FIELDS extends string>(field: FIELDS): FIELDS {
-  if (typeof field !== 'string' || !QUERY_FIELD_PATTERN.test(field)) {
-    throw new TypeError(`Query field is invalid: [${String(field)}].`);
-  }
-  return field;
-}
 
 function filterLiteral<T extends FilterLiteral>(
   value: T,

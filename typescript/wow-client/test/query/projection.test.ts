@@ -58,3 +58,21 @@ describe('projection', () => {
     });
   });
 });
+
+describe('field paths', () => {
+  it.each(['include', 'exclude'] as const)('refuses a bad %s path', key => {
+    expect(() => projection({ [key]: ['9 not a path'] })).toThrow(
+      'Query field is invalid',
+    );
+  });
+
+  it('keeps both keys whether or not they were given', () => {
+    // The shape this factory returns is its own contract; validating a path
+    // is no reason to change it.
+    expect(Object.keys(projection())).toEqual(['include', 'exclude']);
+    expect(Object.keys(projection({ include: ['a'] }))).toEqual([
+      'include',
+      'exclude',
+    ]);
+  });
+});

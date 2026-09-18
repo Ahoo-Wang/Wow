@@ -21,6 +21,25 @@ pnpm --filter @ahoo-wang/fetcher-wow lint
 pnpm --filter @ahoo-wang/fetcher-wow clean
 ```
 
+## Wow conformance
+
+This package mirrors Wow's query protocol, so every rule Wow enforces by
+throwing is accounted for in `test/query/wowConformance.test.ts`. Each entry
+names the rule verbatim, cites its Kotlin source, and says which of three
+things this package does with it: mirrors it (with an input that breaks it),
+satisfies it by the shape of the builders, or leaves it to the server (with
+the reason). Add an entry in the same change as any new rule.
+
+The tests keep those answers honest. They cannot see a rule Wow adds upstream,
+so when bumping the Wow version, diff the register against a Wow checkout:
+
+```bash
+pnpm --filter @ahoo-wang/fetcher-wow check:wow /path/to/Wow
+```
+
+It exits non-zero naming any rule in `wow-api`'s query package the register
+does not carry. It is not part of CI, which has no Wow checkout.
+
 ## Testing
 
 - Vitest with `globals: true` and `@vitest/coverage-v8`
@@ -53,6 +72,7 @@ src/
     pagination.ts             — Pagination support
     sort.ts                   — Sort specifications
     projection.ts             — Field projection
+    queryField.ts             — Internal QueryField path check for filter, sort and projection (not exported)
     types.ts                  — DynamicDocument type aliases
     condition.ts              — DEPRECATED legacy conditions; DeletionState still current
     operator.ts               — DEPRECATED legacy Operator enum — use FilterOperator
@@ -76,6 +96,8 @@ src/
   types/
     abac.ts, common.ts, endpoints.ts, error.ts, function.ts,
     messaging.ts, modeling.ts, naming.ts, bi.ts, index.ts
+scripts/
+  check-wow-conformance.mjs   — Diffs the conformance register against a Wow checkout (see Wow conformance)
 ```
 
 ### Key Concepts
@@ -83,7 +105,7 @@ src/
 - **Command Client**: Sends CQRS commands with wait strategies (sent, processed, snapshot)
 - **Query Clients**: Type-safe query builders for snapshots, event streams, and state aggregates
 - **Filter Expressions**: `filter.*` builders produce the `FilterExpression` tree the filterable `QueryApi` operations take — the current API. It is optional on `AggregationQuery`, and the load-state clients accept no filter at all
-- **Aggregation**: `aggregation.*` builds groups, metrics and arithmetic expressions. There is no `aggregation.having()` — `HavingExpression` is constructed directly, and `derived()` takes an already-built `DerivedExpression`
+- **Aggregation**: `aggregation.*` builds groups, metrics and arithmetic expressions, and `aggregation.query()` admits the assembled query against the rules Wow enforces in its constructor. There is no `aggregation.having()` — `HavingExpression` is constructed directly, and `derived()` takes an already-built `DerivedExpression`
 - **Legacy Condition API**: `condition.ts`, `operator.ts`, and `locale/` are deprecated — superseded by `filter.ts`. The exception is `DeletionState`, which is not deprecated and is what `filter.deletion()` takes
 - **Wow Metadata**: `WowMetadata` types describing bounded contexts and aggregates (types only, no decorator)
 

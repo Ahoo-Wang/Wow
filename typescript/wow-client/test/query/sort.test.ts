@@ -35,3 +35,22 @@ describe('sort', () => {
     });
   });
 });
+
+describe('field paths', () => {
+  // Kotlin holds a sort field as `QueryField`, which refuses a path its
+  // pattern rejects. A query built from one is answered with a 400.
+  it.each(['9 not a path', 'has space', 'trailing.', ''])(
+    'refuses %s',
+    field => {
+      expect(() => asc(field)).toThrow('Query field is invalid');
+      expect(() => desc(field)).toThrow('Query field is invalid');
+    },
+  );
+
+  it.each(['name', 'state.status', '@ownerId', 'items.0.sku'])(
+    'admits %s',
+    field => {
+      expect(asc(field).field).toBe(field);
+    },
+  );
+});

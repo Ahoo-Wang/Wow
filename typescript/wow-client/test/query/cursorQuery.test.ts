@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { asc, cursorQuery, filter } from '../../src';
+import { asc, cursorQuery, filter, SortDirection } from '../../src';
 
 describe('cursorQuery', () => {
   it('creates a Wow V9 cursor request with server defaults', () => {
@@ -67,5 +67,33 @@ describe('cursorQuery', () => {
         sort: Array.from({ length: 33 }, (_, index) => asc(`field${index}`)),
       }),
     ).toThrow('sort must contain at most 32 fields.');
+  });
+});
+
+describe('sort uniqueness', () => {
+  it('refuses the same field twice', () => {
+    // A cursor is a position in one total order. Two directions for one field
+    // leave that position ambiguous, and a page can repeat or skip rows.
+    expect(() =>
+      cursorQuery({
+        filter: filter.matchAll(),
+        sort: [
+          { field: 'createdAt', direction: SortDirection.ASC },
+          { field: 'createdAt', direction: SortDirection.DESC },
+        ],
+      }),
+    ).toThrow('Cursor sort fields must be unique.');
+  });
+
+  it('admits distinct fields', () => {
+    expect(
+      cursorQuery({
+        filter: filter.matchAll(),
+        sort: [
+          { field: 'createdAt', direction: SortDirection.ASC },
+          { field: 'id', direction: SortDirection.ASC },
+        ],
+      }).sort,
+    ).toHaveLength(2);
   });
 });

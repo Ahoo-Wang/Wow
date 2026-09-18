@@ -49,5 +49,12 @@ export function cursorQuery<FIELDS extends string = string>({
       `sort must contain at most ${MAX_CURSOR_SORT_FIELDS} fields.`,
     );
   }
+  // A cursor is a position in one total order, so the gateway appends a unique
+  // field and then refuses a repeated one: two directions for the same field
+  // would leave the position ambiguous and a page could repeat or skip rows.
+  const fields = sort.map(entry => entry.field);
+  if (new Set(fields).size !== fields.length) {
+    throw new TypeError('Cursor sort fields must be unique.');
+  }
   return { filter, projection, sort, size, cursor };
 }

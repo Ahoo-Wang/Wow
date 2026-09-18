@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import { queryField } from './queryField.js';
+
 /**
  * Enumeration of sort directions.
  * ASC for ascending order, DESC for descending order.
@@ -37,7 +39,7 @@ export function asc<FIELDS extends string = string>(
   field: FIELDS,
 ): FieldSort<FIELDS> {
   return {
-    field,
+    field: queryField(field),
     direction: SortDirection.ASC,
   };
 }
@@ -51,7 +53,7 @@ export function desc<FIELDS extends string = string>(
   field: FIELDS,
 ): FieldSort<FIELDS> {
   return {
-    field,
+    field: queryField(field),
     direction: SortDirection.DESC,
   };
 }
