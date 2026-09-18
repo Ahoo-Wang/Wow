@@ -36,6 +36,8 @@ import {
   type FieldKindRegistry,
   type FilterPath,
   type FilterSummaryItem,
+  isFilterGroup,
+  isFilterLeaf,
 } from '../filter/index.js';
 import type { ViewRuntime } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
@@ -208,6 +210,10 @@ export function useFilterEditor(
       [runtime],
     ),
     addLeaf,
+    fieldsFor: useCallback(
+      (parent: FilterPath = ROOT) => addableFields(tree, fields, parent),
+      [tree, fields],
+    ),
     updateLeaf,
     addGroup,
     updateGroup,
@@ -302,6 +308,12 @@ export interface FilterTreeController {
   kinds: FieldKindRegistry | undefined;
   issues: Issue[];
   addLeaf(field: string, parent?: FilterPath): void;
+  /**
+   * Fields a new condition may be added on under `parent`: every field not
+   * already a condition of that group, since a group holds one condition per
+   * field. The picker lists these rather than `fields`.
+   */
+  fieldsFor(parent?: FilterPath): FieldDefinition[];
   updateLeaf(path: FilterPath, patch: Partial<FilterLeaf>): void;
   addGroup(op: FilterGroupOperator, parent?: FilterPath): void;
   updateGroup(path: FilterPath, op: FilterGroupOperator): void;
@@ -317,6 +329,21 @@ export interface TreeControllerInput {
   /** Issues already rebased onto this tree. */
   issues: Issue[];
   onChange(tree: FilterTree): void;
+}
+
+/** The fields not yet a condition of the group at `parent`; see `fieldsFor`. */
+function addableFields(
+  tree: FilterTree,
+  fields: readonly FieldDefinition[],
+  parent: FilterPath,
+): FieldDefinition[] {
+  const group = nodeAt(tree, parent);
+  const used = new Set(
+    isFilterGroup(group)
+      ? group.children.filter(isFilterLeaf).map(leaf => leaf.field)
+      : [],
+  );
+  return fields.filter(field => !used.has(field.name));
 }
 
 /**
@@ -337,6 +364,9 @@ export function treeController(
     fields,
     kinds,
     issues,
+    fieldsFor(parent = ROOT) {
+      return addableFields(tree, fields, parent);
+    },
     addLeaf(field, parent = ROOT) {
       const definition = byName.get(field);
       const kind = definition && kinds?.get(definition.kind);

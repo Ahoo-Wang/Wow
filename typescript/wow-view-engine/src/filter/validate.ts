@@ -15,6 +15,7 @@ import {
   DEFAULT_RUNTIME_LIMITS,
   type FieldDefinition,
   type IssuePath,
+  type FilterGroup,
   type FilterGroupOperator,
   type FilterTree,
   type Issue,
@@ -68,13 +69,18 @@ export function validateFilter(
   options: ValidateFilterOptions = {},
 ): Issue[] {
   const limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
+  const issues: Issue[] = [];
   if (!options.shapeChecked) {
-    const shape = checkShape(tree, fields, kinds, limits);
+    const { shape, duplicates } = checkShape(tree, fields, kinds, limits);
     if (shape.length > 0) return shape;
+    // Found on the same walk as the shape, nested trees included, so a
+    // predicate still blank — which the loop below never enters — is held to
+    // the rule as well. The nested pass a kind runs is told the shape was
+    // checked, and so does not report them a second time.
+    issues.push(...duplicates);
   }
 
   const byName = new Map(fields.map(field => [field.name, field]));
-  const issues: Issue[] = [];
 
   for (const { node, path } of walkFilter(tree)) {
     if (isFilterGroup(node)) {
@@ -131,6 +137,30 @@ export function validateFilter(
 }
 
 /**
+ * One condition per field in a group. A range is one `BETWEEN`, a choice of
+ * several values one `IN`, so a field named twice among a group's own leaves
+ * is not a second question but a slip; to ask two different things of one
+ * field, the user nests a group. It holds under every group operator, `or`
+ * included. An `ELEMENT_MATCH` predicate is a tree of its own and is judged
+ * by its own call.
+ */
+function duplicateFieldIssues(group: FilterGroup, path: IssuePath): Issue[] {
+  const issues: Issue[] = [];
+  const seen = new Set<string>();
+  group.children.forEach((child, index) => {
+    if (!isFilterLeaf(child)) return;
+    if (seen.has(child.field))
+      issues.push(
+        issue('filter.field.duplicate-in-group', [...path, 'children', index], {
+          field: child.field,
+        }),
+      );
+    seen.add(child.field);
+  });
+  return issues;
+}
+
+/**
  * The whole tree's skeleton: its budget, nested trees included, and every
  * entry that is not a node.
  *
@@ -152,15 +182,17 @@ function checkShape(
   fields: readonly FieldDefinition[],
   kinds: FieldKindRegistry,
   limits: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>,
-): Issue[] {
+): { shape: Issue[]; duplicates: Issue[] } {
   const malformed: Issue[] = [];
+  const duplicates: Issue[] = [];
   const budget = walkShape(tree, fields, kinds, limits, {
     counted: { nodes: 0 },
     depthOffset: 0,
     prefix: [],
     malformed,
+    duplicates,
   });
-  return budget ? [budget] : malformed;
+  return { shape: budget ? [budget] : malformed, duplicates };
 }
 
 interface ShapeWalk {
@@ -168,6 +200,8 @@ interface ShapeWalk {
   depthOffset: number;
   prefix: IssuePath;
   malformed: Issue[];
+  /** A field named twice in one group, at every level the walk reaches. */
+  duplicates: Issue[];
 }
 
 /** The budget issue that ended the walk, or `null` when it ran to the end. */
@@ -192,6 +226,10 @@ function walkShape(
 
     if (node === null) {
       walk.malformed.push(issue('filter.node.invalid', at));
+      continue;
+    }
+    if (isFilterGroup(node)) {
+      walk.duplicates.push(...duplicateFieldIssues(node, at));
       continue;
     }
     if (!isFilterLeaf(node)) continue;

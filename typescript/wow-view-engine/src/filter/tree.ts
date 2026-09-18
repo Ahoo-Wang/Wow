@@ -69,9 +69,15 @@ export function clearFilter(): FilterTree {
 }
 
 /**
- * ANDs several trees into one, dropping the empty ones. A tree that is
- * already a plain AND group is flattened rather than nested, so merging an
- * injected scope keeps the depth budget intact.
+ * ANDs several trees into one, dropping the empty ones. The first tree is
+ * the base and keeps its shape: a plain AND group contributes its children
+ * as they are, so a path into it still leads to the same node. Every later
+ * tree is appended as one nested group, never flattened: a group holds one
+ * condition per field, and an injected scope on a field the base already
+ * asks about — a host narrowing to one region over a view saved for another
+ * — is a second question, not a duplicate. It costs one level of depth for
+ * the scope's own subtree, which a single condition does not even show on
+ * the wire, since a group of one compiles to that one.
  *
  * The runtime uses it for `setScopeFilter`, and the dashboard kernel for the
  * global filter it maps onto each panel.
@@ -79,10 +85,12 @@ export function clearFilter(): FilterTree {
 export function mergeFilters(
   ...trees: (FilterTree | null | undefined)[]
 ): FilterTree {
-  const children = trees.flatMap(tree => {
-    if (!tree || isEmptyFilter(tree)) return [];
-    return tree.op === 'and' ? tree.children : [tree];
-  });
+  const [base, ...scopes] = trees;
+  const children: FilterNode[] = [];
+  if (base && !isEmptyFilter(base))
+    children.push(...(base.op === 'and' ? base.children : [base]));
+  for (const scope of scopes)
+    if (scope && !isEmptyFilter(scope)) children.push(scope);
   return { op: 'and', children };
 }
 

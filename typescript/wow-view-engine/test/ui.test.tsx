@@ -1755,6 +1755,19 @@ describe('FilterPanel tree editing', () => {
     return { filter: () => latest as ReturnType<typeof useFilterEditor> };
   }
 
+  it('offers a field once per group when adding a condition', async () => {
+    const { filter } = panel();
+    act(() => filter().addLeaf('warehouse'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Add condition/ }));
+
+    const names = (await screen.findAllByRole('menuitem')).map(
+      item => item.textContent,
+    );
+    expect(names).toContain('Status');
+    expect(names).not.toContain('Warehouse');
+  });
+
   it('shows a tree whole, groups and their leaves included', () => {
     const { filter } = panel();
     act(() => {

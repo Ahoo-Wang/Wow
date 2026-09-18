@@ -141,7 +141,7 @@ describe('mapGlobalFilter', () => {
 });
 
 describe('mergeGlobalFilter', () => {
-  it('ANDs the panel filter with the mapped global one, flattened', () => {
+  it('ANDs the mapped global filter onto the panel filter as a nested group', () => {
     const panelFilter: FilterTree = {
       op: 'and',
       children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
@@ -155,7 +155,11 @@ describe('mergeGlobalFilter', () => {
       op: 'and',
       children: [
         { field: 'status', operator: 'EQ', value: 'PENDING' },
-        { field: 'warehouse', operator: 'EQ', value: 'CN' },
+        // Nested, not flattened: the panel may already ask about warehouse.
+        {
+          op: 'and',
+          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        },
       ],
     });
   });

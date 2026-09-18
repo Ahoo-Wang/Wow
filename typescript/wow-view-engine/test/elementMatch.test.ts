@@ -454,11 +454,17 @@ describe('the budget reaches into a predicate', () => {
   it("counts it against the caller's budget, not the default one", () => {
     // The nested pass used to run with `DEFAULT_RUNTIME_LIMITS`, so a filter
     // its caller had given room for was refused for a size it did not have.
+    // One field per group, so each condition sits in a group of its own.
     const many = predicate(
       ...Array.from({ length: 300 }, () => ({
-        field: 'items.sku',
-        operator: 'EQ' as FilterOperatorName,
-        value: 'A',
+        op: 'and' as const,
+        children: [
+          {
+            field: 'items.sku',
+            operator: 'EQ' as FilterOperatorName,
+            value: 'A',
+          },
+        ],
       })),
     );
 

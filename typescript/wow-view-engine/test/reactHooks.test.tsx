@@ -705,6 +705,25 @@ describe('useSaveCommands', () => {
 });
 
 describe('useFilterEditor', () => {
+  it('offers only the fields not yet a condition of the group', async () => {
+    const { engine } = engineWith();
+    const runtime = await engine.open('orders-1');
+    const { result } = renderHook(() => useFilterEditor(runtime));
+
+    const before = result.current.fieldsFor().map(field => field.name);
+    act(() => result.current.addLeaf('warehouse'));
+    const after = result.current.fieldsFor().map(field => field.name);
+
+    expect(before).toContain('warehouse');
+    expect(after).not.toContain('warehouse');
+    expect(after.length).toBe(before.length - 1);
+    // A nested group starts with every field again.
+    act(() => result.current.addGroup('or'));
+    expect(result.current.fieldsFor([1]).map(field => field.name)).toContain(
+      'warehouse',
+    );
+  });
+
   async function openEditor() {
     const { engine } = engineWith();
     const { result } = renderHook(() => {

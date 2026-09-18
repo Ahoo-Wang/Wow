@@ -345,7 +345,7 @@ function AddCondition({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuGroup>
-          {filter.fields.map(field => (
+          {filter.fieldsFor(parent).map(field => (
             <DropdownMenuItem
               key={field.name}
               onClick={() => filter.addLeaf(field.name, parent)}

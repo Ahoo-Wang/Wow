@@ -269,6 +269,8 @@ export const defaultMessages: ViewMessages = Object.freeze({
   // Filter kernel.
   'filter.field.reference-without-source':
     '{field} is a reference field with no candidate source declared.',
+  'filter.field.duplicate-in-group':
+    '{field} is already a condition in this group. Nest a group to ask it something else.',
   'filter.field.unknown': 'The field {field} no longer exists.',
   'filter.group.unknown-operator': 'A condition group must be AND or OR.',
   'filter.kind.unregistered': 'No editor is registered for the {kind} type.',

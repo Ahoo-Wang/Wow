@@ -452,7 +452,11 @@ describe('DataViewRuntime scope filter', () => {
     expect(state.draft.filter.children).toEqual([]);
     expect(state.applied.filter.children).toEqual([]);
     expect(state.dirty).toBe(false);
-    expect(state.result?.config.filter).toEqual(scope);
+    // The scope rides along as a nested group of its own.
+    expect(state.result?.config.filter).toEqual({
+      op: 'and',
+      children: [scope],
+    });
   });
 
   it('refuses a condition the definition does not admit', () => {
@@ -602,6 +606,34 @@ describe('DataViewRuntime admission', () => {
 
     expect(runtime.getSnapshot().issues.map(found => found.code)).toContain(
       'config.filter.invalid',
+    );
+  });
+
+  it('addresses the draft own nodes unchanged when its root is not "all of"', () => {
+    // A root that is `or` rides in the merged tree as its first child; a
+    // finding on the draft still reads as a path into the draft.
+    const { runtime } = harness({
+      config: recordConfig({
+        filterMode: 'advanced',
+        filter: {
+          op: 'or',
+          children: [
+            { field: 'warehouse', operator: 'EQ', value: 'CN' },
+            { field: 'warehouse', operator: 'EQ', value: 'EU' },
+          ],
+        },
+      }),
+      scopeFilter: {
+        op: 'and',
+        children: [{ field: 'status', operator: 'EQ', value: 'open' }],
+      },
+    });
+
+    expect(runtime.getSnapshot().issues).toContainEqual(
+      expect.objectContaining({
+        code: 'filter.field.duplicate-in-group',
+        path: ['children', 1],
+      }),
     );
   });
 

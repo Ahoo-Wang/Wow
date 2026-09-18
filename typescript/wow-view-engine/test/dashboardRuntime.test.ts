@@ -216,7 +216,12 @@ describe('DashboardViewRuntime panels', () => {
     // The condition that ran is recorded with the result instead.
     expect(state?.result?.config.filter).toEqual({
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      children: [
+        {
+          op: 'and',
+          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        },
+      ],
     });
   });
 
@@ -680,7 +685,10 @@ describe('DashboardViewRuntime child refusal', () => {
     const [state] = runtime.getSnapshot().panels;
     expect(state.runtime).toBeNull();
     expect(state.issues).toMatchObject([
-      { code: 'filter.field.unknown', path: ['panels', 0, 'children', 0] },
+      {
+        code: 'filter.field.unknown',
+        path: ['panels', 0, 'children', 0, 'children', 0],
+      },
     ]);
     expect(source.paged).not.toHaveBeenCalled();
   });

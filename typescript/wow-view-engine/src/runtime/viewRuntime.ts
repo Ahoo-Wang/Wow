@@ -32,6 +32,7 @@ import {
 } from '../model/index.js';
 import {
   isFilterGroup,
+  isSimpleTree,
   issue,
   mergeFilters,
   type FieldKindRegistry,
@@ -208,6 +209,33 @@ export interface ViewRuntimeOptions<C extends DataViewConfig> {
 }
 
 const IDLE: ViewQueryState = { status: 'idle' };
+
+/**
+ * Findings on a config judged with its scope, read as findings on the config.
+ *
+ * Two things the merge does must not leak into the issues. The `filterMode`
+ * warning judges what the editor can show, which is the config's own tree;
+ * the merged tree is never simple, so the warning is dropped when the draft
+ * itself is simple. And a root that is not `and` rides in the merged tree
+ * as its first child, so a finding at `['children', 0, …]` is a finding at
+ * `[…]` of the draft, and is addressed so — every reader of `issues` reads
+ * a path against the draft.
+ */
+export function withoutScopeModeWarning(
+  issues: Issue[],
+  config: ViewConfig,
+  scope: FilterTree | null,
+): Issue[] {
+  if (!scope || !isFilterGroup(config.filter)) return issues;
+  const nested = config.filter.op !== 'and';
+  const simple = isSimpleTree(config.filter);
+  return issues.flatMap(found => {
+    if (simple && found.code === 'config.filterMode.not-simple') return [];
+    if (nested && found.path[0] === 'children' && found.path[1] === 0)
+      return [{ ...found, path: found.path.slice(2) }];
+    return [found];
+  });
+}
 
 /** An `error` blocks apply and every write; a `warning` only reports. */
 export function hasError(issues: readonly Issue[]): boolean {
@@ -470,7 +498,11 @@ export class DataViewRuntime<
     config: C,
     scope: FilterTree | null = this.scopeFilter,
   ): Issue[] {
-    return validateDataConfig(this.context, this.withScope(config, scope));
+    return withoutScopeModeWarning(
+      validateDataConfig(this.context, this.withScope(config, scope)),
+      config,
+      scope,
+    );
   }
 
   private effectiveConfig(): C {

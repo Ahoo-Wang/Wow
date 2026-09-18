@@ -43,6 +43,7 @@ import type { WriteState } from './write.js';
 import {
   hasError,
   refreshIntervalOf,
+  withoutScopeModeWarning,
   type DataViewRuntime,
   type ManagedViewRuntime,
   type ViewQueryState,
@@ -362,9 +363,13 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
       scopeFilter && isFilterGroup(config.filter)
         ? { ...config, filter: mergeFilters(config.filter, scopeFilter) }
         : config;
-    return validateDashboard(merged, scope, this.references, this.kinds, {
-      limits: this.options.limits,
-    });
+    return withoutScopeModeWarning(
+      validateDashboard(merged, scope, this.references, this.kinds, {
+        limits: this.options.limits,
+      }),
+      config,
+      scopeFilter,
+    );
   }
 
   private isDirty(
