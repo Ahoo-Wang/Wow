@@ -882,7 +882,12 @@ export function earlierDays<FIELDS extends string = string>(
  * @param raw - The raw condition value
  * @returns A condition with RAW operator
  */
-/** @deprecated RAW has no FilterExpression replacement. */
+/**
+ * @deprecated RAW has no FilterExpression replacement, and current Wow refuses
+ * it: the operator was removed in Wow #2999. It is kept for servers older than
+ * that, which the Condition API exists to reach and which still accept it.
+ * Against a current server this condition is answered with a 400.
+ */
 export function raw<FIELDS extends string = string>(
   raw: any,
 ): Condition<FIELDS> {

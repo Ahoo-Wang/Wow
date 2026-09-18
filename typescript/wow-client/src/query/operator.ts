@@ -245,7 +245,10 @@ export enum Operator {
    */
   MATCH = 'MATCH',
   /**
-   * Raw operator, uses the condition value directly as the raw database query condition
+   * Raw operator, uses the condition value directly as the raw database query condition.
+   *
+   * Removed from Wow in #2999 and refused by current servers. Kept for servers
+   * older than that; see `raw()`.
    */
   RAW = 'RAW',
 }
