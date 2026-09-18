@@ -15,6 +15,7 @@
 
 package me.ahoo.wow.webflux.route.query
 
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
@@ -78,14 +79,15 @@ class HttpQueryGuardTest {
 
     @Test
     fun rejectsInvalidConfiguration() {
-        listOf(-1, -1, -1, -1, -1).forEachIndexed { index, value ->
+        listOf(-1, -1, -1, -1, -1, -1).forEachIndexed { index, value ->
             assertThrows<IllegalArgumentException> {
                 HttpQueryGuard(
                     maxListSize = if (index == 0) value else 1,
-                    maxPageSize = if (index == 1) value else 1,
-                    maxPageWindow = if (index == 2) value.toLong() else 1,
-                    maxFilterNodes = if (index == 3) value else 1,
-                    maxFilterValues = if (index == 4) value else 1,
+                    defaultListSize = if (index == 1) value else 1,
+                    maxPageSize = if (index == 2) value else 1,
+                    maxPageWindow = if (index == 3) value.toLong() else 1,
+                    maxFilterNodes = if (index == 4) value else 1,
+                    maxFilterValues = if (index == 5) value else 1,
                 )
             }
         }
@@ -497,8 +499,85 @@ class HttpQueryGuardTest {
         verify(exactly = 0) { gateway.dynamicList(any()) }
     }
 
+    @Test
+    fun appliesServerDefaultWhenListQueryLimitIsZero() {
+        val gateway = mockk<QueryGateway<Any>> {
+            every { dynamicList(any()) } returns Flux.empty()
+        }
+        val handler = ListQueryHandlerFunction(
+            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+            queryGateway = gateway,
+            queryRequestScope = QueryRequestScope { _, _ -> MatchAllFilter },
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            guard = guard(),
+            rewriteResult = { it },
+        )
+        val response = handler.handle(
+            MockServerRequest.builder().body(ListQuery(MatchAllFilter, limit = 0).toMono()),
+        ).block()!!
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+
+        response.writeTo(exchange, SERVER_RESPONSE_CONTEXT).block()
+
+        exchange.response.statusCode.assert().isEqualTo(HttpStatus.OK)
+        verify(exactly = 1) { gateway.dynamicList(match { it.limit == 100 }) }
+    }
+
+    @Test
+    fun rejectsNegativeListQueryLimitThroughHandler() {
+        val gateway = mockk<QueryGateway<Any>>()
+        val handler = ListQueryHandlerFunction(
+            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+            queryGateway = gateway,
+            queryRequestScope = QueryRequestScope { _, _ -> MatchAllFilter },
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            guard = guard(),
+            rewriteResult = { it },
+        )
+        val response = handler.handle(
+            MockServerRequest.builder().body(ListQuery(MatchAllFilter, limit = -1).toMono()),
+        ).block()!!
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+
+        response.writeTo(exchange, SERVER_RESPONSE_CONTEXT).block()
+
+        exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
+        verify(exactly = 0) { gateway.dynamicList(any()) }
+    }
+
+    @Test
+    fun applyListDefaultAppliesConfiguredDefaultWhenLimitIsZero() {
+        guard().applyListDefault(ListQuery(MatchAllFilter, limit = 0)).limit.assert().isEqualTo(100)
+    }
+
+    @Test
+    fun applyListDefaultClampsDefaultToMaxListSize() {
+        guard(maxListSize = 50).applyListDefault(ListQuery(MatchAllFilter, limit = 0)).limit.assert().isEqualTo(50)
+    }
+
+    @Test
+    fun applyListDefaultKeepsZeroWhenListCapsAreDisabled() {
+        guard(maxListSize = 0).applyListDefault(ListQuery(MatchAllFilter, limit = 0)).limit.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun applyListDefaultKeepsZeroWhenDefaultIsDisabled() {
+        guard(defaultListSize = 0).applyListDefault(ListQuery(MatchAllFilter, limit = 0)).limit.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun applyListDefaultKeepsPositiveLimit() {
+        guard().applyListDefault(ListQuery(MatchAllFilter, limit = 7)).limit.assert().isEqualTo(7)
+    }
+
+    @Test
+    fun applyListDefaultKeepsNegativeLimitForValidation() {
+        guard().applyListDefault(ListQuery(MatchAllFilter, limit = -1)).limit.assert().isEqualTo(-1)
+    }
+
     private fun guard(
         maxListSize: Int = 1000,
+        defaultListSize: Int = 100,
         maxPageSize: Int = 100,
         maxPageWindow: Long = 10_000,
         maxFilterNodes: Int = HttpQueryGuard.DEFAULT_MAX_FILTER_NODES,
@@ -507,6 +586,7 @@ class HttpQueryGuardTest {
         idleTimeout: Duration = Duration.ofSeconds(10),
     ) = HttpQueryGuard(
         maxListSize = maxListSize,
+        defaultListSize = defaultListSize,
         maxPageSize = maxPageSize,
         maxPageWindow = maxPageWindow,
         maxFilterNodes = maxFilterNodes,

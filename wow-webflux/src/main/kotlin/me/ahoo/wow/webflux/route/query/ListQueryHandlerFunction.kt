@@ -43,7 +43,7 @@ class ListQueryHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.body(LIST_QUERY_EXTRACTOR)
             .flatMapMany {
-                val query = it
+                val query = guard.applyListDefault(it)
                 val scope = queryRequestScope.resolve(aggregateMetadata, request)
                 guard.flux(QueryType.LIST, query, request, scope) { rewriteResult(queryGateway.dynamicList(query)) }
                     .contextWrite { context ->

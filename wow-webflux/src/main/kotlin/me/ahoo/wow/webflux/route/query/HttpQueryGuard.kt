@@ -29,6 +29,7 @@ import java.util.ArrayDeque
 
 class HttpQueryGuard(
     private val maxListSize: Int = 1000,
+    private val defaultListSize: Int = DEFAULT_LIST_SIZE,
     private val maxPageSize: Int = 100,
     private val maxPageWindow: Long = 10_000,
     private val maxFilterNodes: Int = DEFAULT_MAX_FILTER_NODES,
@@ -39,6 +40,7 @@ class HttpQueryGuard(
 
     init {
         require(maxListSize >= 0) { "maxListSize must be greater than or equal to 0." }
+        require(defaultListSize >= 0) { "defaultListSize must be greater than or equal to 0." }
         require(maxPageSize >= 0) { "maxPageSize must be greater than or equal to 0." }
         require(maxPageWindow >= 0) { "maxPageWindow must be greater than or equal to 0." }
         require(maxFilterNodes >= 0) { "maxFilterNodes must be greater than or equal to 0." }
@@ -145,6 +147,20 @@ class HttpQueryGuard(
 
     private fun validateList(query: IListQuery) {
         validateResultSize(query.limit, "list")
+    }
+
+    /**
+     * Rewrites an unbounded ([IListQuery.limit] == 0) request-body list query to the server-side
+     * default list size, so clients following the published `limit` default are not rejected.
+     * Negative limits are kept for [validateList] to reject. Disabled when either
+     * [defaultListSize] or [maxListSize] is 0, matching the 0-disables convention: with list caps
+     * off, 0 keeps its query-model meaning of unlimited.
+     */
+    fun applyListDefault(query: ListQuery): ListQuery {
+        if (query.limit != 0 || defaultListSize == 0 || maxListSize == 0) {
+            return query
+        }
+        return query.copy(limit = defaultListSize.coerceAtMost(maxListSize))
     }
 
     private fun validateResultSize(limit: Int, queryName: String) {
@@ -284,6 +300,7 @@ class HttpQueryGuard(
 
     companion object {
         const val DEFAULT_MAX_FILTER_NODES: Int = 128
+        const val DEFAULT_LIST_SIZE: Int = 100
 
         private val EXPENSIVE_OPERATORS = setOf(
             FilterOperator.NE,

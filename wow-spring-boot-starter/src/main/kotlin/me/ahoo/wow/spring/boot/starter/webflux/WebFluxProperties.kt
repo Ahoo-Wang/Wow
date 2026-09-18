@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.webflux
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import me.ahoo.wow.webflux.route.query.HttpQueryGuard.Companion.DEFAULT_LIST_SIZE
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard.Companion.DEFAULT_MAX_FILTER_NODES
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -53,6 +54,8 @@ constructor(
     data class Query(
         @DefaultValue("1000")
         var maxListSize: Int = 1000,
+        @DefaultValue("$DEFAULT_LIST_SIZE")
+        var defaultListSize: Int = DEFAULT_LIST_SIZE,
         @DefaultValue("100")
         var maxPageSize: Int = 100,
         @DefaultValue("10000")

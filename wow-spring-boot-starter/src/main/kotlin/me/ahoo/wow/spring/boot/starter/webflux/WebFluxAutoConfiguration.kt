@@ -129,6 +129,7 @@ class WebFluxAutoConfiguration {
         val query = webFluxProperties.query
         return HttpQueryGuard(
             maxListSize = query.maxListSize,
+            defaultListSize = query.defaultListSize,
             maxPageSize = query.maxPageSize,
             maxPageWindow = query.maxPageWindow,
             maxFilterNodes = query.maxFilterNodes,
