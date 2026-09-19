@@ -12,10 +12,13 @@
  */
 
 import type {
+  AnalysisDateUnit,
+  AnalysisGroup,
   AnalysisMetric,
   AnalysisViewConfig,
   DataViewDefinition,
   FieldDefinition,
+  FieldOption,
   NumberFormat,
   RecordData,
 } from '../model/index.js';
@@ -30,6 +33,18 @@ export interface AnalysisColumnView {
   width?: number;
   pinned?: 'left' | 'right';
   numberFormat?: NumberFormat;
+  /**
+   * For a group, or an `ANY` whose value is one of the field's: the field's
+   * kind, renderer key and choices, so its values show as the field's do.
+   * Other metrics are numbers, whatever they were computed from.
+   */
+  kind?: string;
+  cell?: string;
+  options?: readonly FieldOption[];
+  /** For a date histogram group: the width of the buckets its keys start. */
+  dateUnit?: AnalysisDateUnit;
+  /** For a date histogram group: the zone its buckets were cut in. */
+  timeZone?: string;
 }
 
 export interface AnalysisView {
@@ -68,6 +83,33 @@ function sourceFieldOf(metric: AnalysisMetric): string | undefined {
       ? metric.expression.field
       : undefined;
   return undefined;
+}
+
+/** How the values of a field show, for a column that holds them. */
+function valueOf(
+  field: FieldDefinition,
+): Pick<AnalysisColumnView, 'kind' | 'cell' | 'options'> {
+  return {
+    kind: field.kind,
+    cell: field.cell ?? field.kind,
+    ...(field.options ? { options: field.options } : {}),
+  };
+}
+
+/**
+ * A date histogram's keys are bucket starts: the unit says how wide, and the
+ * zone, when the group named one, the clock they were cut by. Without one the
+ * engine's zone cut them (see `compileAnalysis`), which is the zone they are
+ * shown in anyway.
+ */
+function bucketOf(
+  group: AnalysisGroup | undefined,
+): Pick<AnalysisColumnView, 'dateUnit' | 'timeZone'> {
+  if (group?.type !== 'DATE_HISTOGRAM') return {};
+  return {
+    dateUnit: group.unit,
+    ...(group.timeZone === undefined ? {} : { timeZone: group.timeZone }),
+  };
 }
 
 /**
@@ -109,6 +151,15 @@ export function projectAnalysis(
   // as `items.sku`, which no root field is named, so a grouping or metric over
   // one used to be labelled by its alias.
   const byName = scopeFields(definition, config);
+  const groups = new Map<string, AnalysisGroup>(
+    config.groups.map(group => [group.alias, group]),
+  );
+  const valued = new Set([
+    ...groups.keys(),
+    ...config.metrics
+      .filter(metric => metric.type === 'ANY')
+      .map(metric => metric.alias),
+  ]);
 
   const columns = order.flatMap<AnalysisColumnView>(alias => {
     const role = roles.get(alias);
@@ -124,6 +175,8 @@ export function projectAnalysis(
         width: declaredColumn?.width,
         pinned: declaredColumn?.pinned,
         numberFormat: field?.numberFormat,
+        ...(field && valued.has(alias) ? valueOf(field) : {}),
+        ...bucketOf(groups.get(alias)),
       },
     ];
   });

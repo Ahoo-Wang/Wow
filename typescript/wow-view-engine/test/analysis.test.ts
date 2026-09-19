@@ -1277,6 +1277,103 @@ describe('compileAnalysis', () => {
   });
 });
 
+describe('display metadata', () => {
+  const warehouses = [{ value: 'SH', label: 'Shanghai' }];
+  const withEnum = () =>
+    definition({
+      fields: definition().fields.map(field =>
+        field.name === 'warehouse'
+          ? { ...field, kind: 'enum', options: warehouses }
+          : field,
+      ),
+    });
+
+  // Left to the backend, a day ran midnight to midnight UTC: mid-morning to
+  // mid-morning in Shanghai, and no longer the day "today" means.
+  it('cuts a date histogram in the engine zone unless the group names one', () => {
+    const day = {
+      type: 'DATE_HISTOGRAM',
+      field: 'createdAt',
+      alias: 'day',
+      unit: 'DAY',
+    } as const;
+    const shanghai = { ...context, timeZone: 'Asia/Shanghai' };
+
+    const unnamed = compileAnalysis(
+      definition(),
+      config({ groups: [day] }),
+      builtinFieldKinds,
+      shanghai,
+    );
+    const named = compileAnalysis(
+      definition(),
+      config({ groups: [{ ...day, timeZone: 'UTC' }] }),
+      builtinFieldKinds,
+      shanghai,
+    );
+
+    expect(unnamed.groupBy?.[0]).toMatchObject({ timeZone: 'Asia/Shanghai' });
+    expect(named.groupBy?.[0]).toMatchObject({ timeZone: 'UTC' });
+  });
+
+  it('tells each column how its values show', () => {
+    const view = projectAnalysis(
+      withEnum(),
+      config({
+        layout: 'table',
+        groups: [
+          { type: 'TERMS', field: 'warehouse', alias: 'wh' },
+          {
+            type: 'DATE_HISTOGRAM',
+            field: 'createdAt',
+            alias: 'day',
+            unit: 'DAY',
+            timeZone: 'UTC',
+          },
+          {
+            type: 'DATE_HISTOGRAM',
+            field: 'createdAt',
+            alias: 'month',
+            unit: 'MONTH',
+          },
+        ],
+        metrics: [
+          { type: 'COUNT', alias: 'orders' },
+          { type: 'ANY', alias: 'some', field: 'warehouse' },
+          {
+            type: 'NUMERIC',
+            alias: 'latest',
+            function: 'MAX',
+            expression: { type: 'FIELD', field: 'createdAt' },
+          },
+        ],
+      }),
+      [],
+    );
+    const column = (alias: string) =>
+      view.columns.find(found => found.alias === alias);
+
+    expect(column('wh')).toMatchObject({
+      kind: 'enum',
+      cell: 'enum',
+      options: warehouses,
+    });
+    expect(column('day')).toMatchObject({
+      kind: 'datetime',
+      dateUnit: 'DAY',
+      timeZone: 'UTC',
+    });
+    // Cut in the engine's zone, which is the zone it is shown in anyway.
+    expect(column('month')).toMatchObject({ dateUnit: 'MONTH' });
+    expect(column('month')?.timeZone).toBeUndefined();
+    // ANY returns one of the field's values; any other metric is a number,
+    // whatever it was computed from.
+    expect(column('some')).toMatchObject({ kind: 'enum', options: warehouses });
+    expect(column('latest')?.kind).toBeUndefined();
+    expect(column('orders')?.kind).toBeUndefined();
+  });
+});
+
 describe('projectAnalysis', () => {
   const rows = [
     { wh: 'SH', orders: 30 },
@@ -1298,6 +1395,9 @@ describe('projectAnalysis', () => {
         width: undefined,
         pinned: undefined,
         numberFormat: undefined,
+        // A group column holds the field's values, so it says how they show.
+        kind: 'string',
+        cell: 'string',
       },
       {
         alias: 'orders',

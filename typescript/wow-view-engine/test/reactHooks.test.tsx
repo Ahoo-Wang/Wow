@@ -1337,7 +1337,16 @@ describe('useRecordTable', () => {
 
     expect(result.current.table.card).toEqual({
       title: 'id',
-      fields: [{ field: 'amount', label: 'Amount' }],
+      // The title and each field carry how their values show.
+      titleField: {
+        field: 'id',
+        label: 'Order',
+        kind: 'string',
+        cell: 'string',
+      },
+      fields: [
+        { field: 'amount', label: 'Amount', kind: 'number', cell: 'number' },
+      ],
     });
   });
 

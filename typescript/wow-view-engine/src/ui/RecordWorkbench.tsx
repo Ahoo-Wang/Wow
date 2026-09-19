@@ -31,6 +31,7 @@ import { RecordTable } from './RecordTable.js';
 import { RecordToolbar } from './RecordToolbar.js';
 import { SaveActions } from './SaveActions.js';
 import { useViewMessages } from './MessagesProvider.js';
+import type { ViewMessages } from './messages.js';
 import { ViewSurface } from './ViewSurface.js';
 import { ViewList } from './ViewList.js';
 import { WarningNotice } from './WarningNotice.js';
@@ -41,6 +42,13 @@ export interface RecordWorkbenchProps {
   /** Opens this view first; the user's effective default when left out. */
   instanceId?: string | null;
   theme?: 'light' | 'dark';
+  /** Wording, merged over what is already in force: where a host translates. */
+  messages?: ViewMessages;
+  /**
+   * The language dates and times show in; the runtime's when left out. It is
+   * the same choice as `messages`, made for values rather than words.
+   */
+  locale?: string;
   optionsFor?(remote: string): FieldOption[] | undefined;
 }
 
@@ -57,6 +65,8 @@ export function RecordWorkbench({
   definitionId,
   instanceId = null,
   theme,
+  messages: wording,
+  locale,
   optionsFor,
 }: RecordWorkbenchProps) {
   const list = useViewList(engine, definitionId);
@@ -70,7 +80,7 @@ export function RecordWorkbench({
   const table = useRecordTable(record);
   const filter = useFilterEditor(runtime);
   const commands = useSaveCommands(engine, runtime);
-  const messages = useViewMessages();
+  const messages = useViewMessages(wording);
 
   const fields = runtime?.fields ?? [];
   const errors = (state?.issues ?? []).filter(
@@ -78,7 +88,13 @@ export function RecordWorkbench({
   );
 
   return (
-    <ViewSurface theme={theme} className="gap-0 md:flex-row">
+    <ViewSurface
+      theme={theme}
+      messages={wording}
+      locale={locale}
+      timeZone={engine.environment.timeZone}
+      className="gap-0 md:flex-row"
+    >
       <aside className="flex w-56 shrink-0 flex-col gap-2 p-3">
         <ViewList
           list={list}

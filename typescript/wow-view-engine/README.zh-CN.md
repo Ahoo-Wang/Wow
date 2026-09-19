@@ -327,13 +327,22 @@ interface ViewStore {
 
 本包提供 `MemoryViewStore`，用于测试、示例与只查询不持久化的场景。业务应用用自己的 fetcher 针对自己的 API 实现 `ViewStore`，HTTP 状态码到 `ViewStoreError.code` 的映射在应用侧完成。授权、可见性过滤与去重是服务端职责，`permissions` 只决定按钮可用性。
 
-### 措辞
+### 措辞与语言
 
-模型只带 `code` 与 `params`，措辞归 `/ui`。`defaultMessages` 给每个 issue 一句英文，`ViewSurface` 的 `messages` 按 key 覆盖它——改写与本地化是同一个入口：
+模型只带 `code` 与 `params`，措辞归 `/ui`。`defaultMessages` 给每个 issue 一句英文，`ViewSurface` 与每个工作台的 `messages` 按 key 合并在已生效的措辞之上——改写与本地化是同一个入口；在应用外层放一个 `MessagesProvider`，就能对其中所有视图一次设定。
+
+值按字段显示：枚举显示选项的标签，`datetime`／`date` 经 `Intl.DateTimeFormat` 格式化，日期直方图的键显示为它起始的年、季度、月或日。`locale` 决定这些值用什么语言显示，缺省为运行环境的语言；它和 `messages` 是同一个选择，一个管文字，一个管值：
 
 ```tsx
-<ViewSurface messages={{ 'label.query.failed': '查询失败' }}>
+<RecordWorkbench
+  engine={engine}
+  definitionId="orders"
+  messages={{ 'label.filter.apply': '应用' }}
+  locale="zh-CN"
+/>
 ```
+
+时间按引擎的时钟 `environment.timeZone` 显示：相对日期"今天"按它解析，未声明 `timeZone` 的日期直方图也按它切桶，所以一行按什么时钟被筛选、被分组，就按什么时钟显示。
 
 找不到的 key 会沿点号回退到最长的已知前缀，再退回 key 本身，因此不会渲染空白。新增 issue code 却没有对应措辞时，测试会失败。
 

@@ -641,6 +641,23 @@ describe('projectRecord', () => {
     { id: 'A2', amount: 30, warehouse: 'BJ' },
   ];
 
+  it("carries an enum field's choices on its column, for a cell to name", () => {
+    const options = [{ value: 'SH', label: 'Shanghai' }];
+    const view = projectRecord(
+      definition({
+        fields: definition().fields.map(field =>
+          field.name === 'warehouse'
+            ? { ...field, kind: 'enum', options }
+            : field,
+        ),
+      }),
+      config({ table: { columns: [{ field: 'warehouse' }] } }),
+      { total: 2, list: rows },
+    );
+
+    expect(view.columns[0]).toMatchObject({ field: 'warehouse', options });
+  });
+
   it('resolves column semantics and the row key', () => {
     const view = projectRecord(definition(), config(), {
       total: 2,

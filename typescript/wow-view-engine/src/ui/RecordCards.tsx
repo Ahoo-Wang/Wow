@@ -12,12 +12,18 @@
  */
 
 import type * as React from 'react';
-import type { RecordData, RecordKey } from '../model/index.js';
-import type { RecordTableController } from '../react/index.js';
+import type { NumberFormat, RecordData, RecordKey } from '../model/index.js';
+import type {
+  RecordCardField,
+  RecordCardView,
+  RecordTableController,
+} from '../react/index.js';
 import { recordValue } from '../record/index.js';
 import { Checkbox } from './components/checkbox.js';
 import { Card, CardContent, CardHeader, CardTitle } from './components/card.js';
+import { displayValue, formatNumber, type DisplayContext } from './display.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
+import { useSurfaceDisplay } from './ViewSurface.js';
 import { cn } from 'cn';
 
 export interface RecordCardsProps {
@@ -46,8 +52,15 @@ const GRID: Record<1 | 2 | 3 | 4, string> = {
  */
 export function RecordCards({ table, renderValue }: RecordCardsProps) {
   const messages = useViewMessages();
-  const render = renderValue ?? (value => defaultValue(value, messages));
+  const display = useSurfaceDisplay();
   const card = table.card;
+  // A host's renderer decides for itself; otherwise a value shows as it does
+  // in the field's column.
+  const show = (value: unknown, field: RecordCardField) =>
+    renderValue
+      ? renderValue(value)
+      : (displayValue(value, field, display) ??
+        defaultValue(value, messages, field.numberFormat));
 
   return (
     <div
@@ -65,7 +78,7 @@ export function RecordCards({ table, renderValue }: RecordCardsProps) {
                 checked={table.isSelected(row.key)}
                 onCheckedChange={() => table.toggle(row.key)}
               />
-              {cardTitle(row.data, row.key, card.title, messages)}
+              {cardTitle(row.data, row.key, card, messages, display)}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-1">
@@ -78,7 +91,7 @@ export function RecordCards({ table, renderValue }: RecordCardsProps) {
                   {field.label}
                 </span>
                 <span className="truncate text-sm">
-                  {render(recordValue(row.data, field.field))}
+                  {show(recordValue(row.data, field.field), field)}
                 </span>
               </div>
             ))}
@@ -104,21 +117,29 @@ function CardImage({ src }: { src: unknown }) {
 function cardTitle(
   row: RecordData,
   key: RecordKey,
-  field: string,
+  card: RecordCardView,
   messages: MessageFormatters,
+  display: DisplayContext,
 ): React.ReactNode {
-  const value = field ? recordValue(row, field) : key;
-  return defaultValue(value, messages) ?? String(key);
+  const value = card.title ? recordValue(row, card.title) : key;
+  const field = card.titleField;
+  return (
+    (field && displayValue(value, field, display)) ??
+    defaultValue(value, messages, field?.numberFormat) ??
+    String(key)
+  );
 }
 
 function defaultValue(
   value: unknown,
   messages: MessageFormatters,
+  format?: NumberFormat,
 ): React.ReactNode {
   switch (typeof value) {
     case 'string':
       return value;
     case 'number':
+      return formatNumber(value, format);
     case 'bigint':
       return value.toString();
     case 'boolean':

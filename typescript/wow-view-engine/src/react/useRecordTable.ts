@@ -13,7 +13,10 @@
 
 import { useCallback, useMemo } from 'react';
 import type {
+  FieldDefinition,
+  FieldOption,
   Issue,
+  NumberFormat,
   RecordKey,
   RecordLayout,
   RecordSort,
@@ -39,6 +42,8 @@ import { useViewRuntime } from './useViewEngine.js';
 export interface RecordCardView {
   /** Field whose value titles each card; the row key when it holds none. */
   title: string;
+  /** How the title's values show, when the definition still has the field. */
+  titleField?: RecordCardField;
   /** Fields of the card body, in order, with their labels resolved. */
   fields: RecordCardField[];
   /** Field holding an image URL, when the config asks for one. */
@@ -49,6 +54,25 @@ export interface RecordCardView {
 export interface RecordCardField {
   field: string;
   label: string;
+  /**
+   * What the definition says about the field, so a value on a card shows as
+   * it does in the field's column. Optional for a controller built by hand.
+   */
+  kind?: string;
+  cell?: string;
+  options?: readonly FieldOption[];
+  numberFormat?: NumberFormat;
+}
+
+function cardField(field: FieldDefinition): RecordCardField {
+  return {
+    field: field.name,
+    label: field.label,
+    kind: field.kind,
+    cell: field.cell ?? field.kind,
+    ...(field.options ? { options: field.options } : {}),
+    ...(field.numberFormat ? { numberFormat: field.numberFormat } : {}),
+  };
 }
 
 export interface RecordTableController {
@@ -186,13 +210,15 @@ export function useRecordTable(
   const card = useMemo<RecordCardView>(() => {
     if (!cardSpec) return NO_CARD;
     const byName = new Map((fields ?? []).map(field => [field.name, field]));
+    const titleField = byName.get(cardSpec.title);
     return {
       title: cardSpec.title,
+      ...(titleField ? { titleField: cardField(titleField) } : {}),
       // A field the definition dropped is left out rather than shown as a
       // blank row; `validateRecord` reports it separately.
       fields: cardSpec.fields.flatMap(name => {
         const field = byName.get(name);
-        return field ? [{ field: name, label: field.label }] : [];
+        return field ? [cardField(field)] : [];
       }),
       ...(cardSpec.image === undefined ? {} : { image: cardSpec.image }),
       ...(cardSpec.columns === undefined ? {} : { columns: cardSpec.columns }),

@@ -28,6 +28,7 @@ import { DashboardGrid } from './DashboardGrid.js';
 import { RecordCards } from './RecordCards.js';
 import { RecordTable } from './RecordTable.js';
 import { useViewMessages } from './MessagesProvider.js';
+import type { ViewMessages } from './messages.js';
 import { ViewSurface } from './ViewSurface.js';
 import { WarningNotice } from './WarningNotice.js';
 
@@ -43,6 +44,13 @@ export interface EmbeddedViewProps {
   scopeFilter?: FilterTree | null;
   /** Follows the host page when left out. */
   theme?: 'light' | 'dark';
+  /** Wording, merged over what is already in force: where a host translates. */
+  messages?: ViewMessages;
+  /**
+   * The language dates and times show in; the runtime's when left out. It is
+   * the same choice as `messages`, made for values rather than words.
+   */
+  locale?: string;
   className?: string;
 }
 
@@ -63,17 +71,25 @@ export function EmbeddedView({
   instanceId,
   scopeFilter = null,
   theme,
+  messages: wording,
+  locale,
   className,
 }: EmbeddedViewProps) {
   // The condition goes in with the config, not after it: `useOpenView` hands
   // it to `engine.open`, so the opening query is already scoped and an
   // inadmissible condition is reported instead of being quietly dropped.
   const opened = useOpenView(engine, instanceId, scopeFilter);
-  const messages = useViewMessages();
+  const messages = useViewMessages(wording);
   const runtime = opened.runtime;
 
   return (
-    <ViewSurface theme={theme} className={className}>
+    <ViewSurface
+      theme={theme}
+      messages={wording}
+      locale={locale}
+      timeZone={engine.environment.timeZone}
+      className={className}
+    >
       {opened.error && (
         <Alert variant="destructive">
           <AlertTitle>{messages.label('label.view.unopenable')}</AlertTitle>
@@ -190,7 +206,11 @@ function EmbeddedAnalysis({ runtime }: { runtime: OpenedRuntime }) {
   if (state?.query.status === 'error') return <Failed runtime={runtime} />;
   if (!view) return <Skeleton className="h-24 w-full" />;
   return view.chart ? (
-    <AnalysisChart data={view.chart} spec={analysis.chart} />
+    <AnalysisChart
+      data={view.chart}
+      spec={analysis.chart}
+      columns={view.columns}
+    />
   ) : (
     <AnalysisTable view={view} />
   );

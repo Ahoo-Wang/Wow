@@ -263,7 +263,12 @@ function AnalysisPanel({ runtime }: { runtime: DataViewRuntime }) {
     return <PanelFailed error={state.query.error} />;
   if (!view) return <Skeleton className="h-24 w-full" />;
   return view.chart ? (
-    <AnalysisChart data={view.chart} spec={analysis.chart} className="h-full" />
+    <AnalysisChart
+      data={view.chart}
+      spec={analysis.chart}
+      columns={view.columns}
+      className="h-full"
+    />
   ) : (
     <AnalysisTable view={view} />
   );

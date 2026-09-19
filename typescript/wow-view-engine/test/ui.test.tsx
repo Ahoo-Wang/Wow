@@ -28,6 +28,7 @@ import {
   MemoryViewStore,
   ViewEngine,
   ViewStoreError,
+  defaultRuntimeEnvironment,
   withFieldKinds,
   type FieldKind,
   type ViewInstance,
@@ -58,9 +59,13 @@ import {
   WarningNotice,
 } from '../src/ui/index.js';
 import {
+  INSTANT,
+  ZONE,
   analysisConfig,
   dashboardConfig,
   deferred,
+  inZone,
+  namedOrdersDefinition,
   ROWS,
   ordersDefinition,
   overviewDefinition,
@@ -152,6 +157,64 @@ describe('RecordWorkbench', () => {
     expect(notice?.textContent).toContain('Worth noting');
     expect(notice?.textContent).toContain('advanced editor');
     expect(screen.queryByText(/needs fixing/)).toBeNull();
+  });
+
+  // Its own alerts render above the provider of the surface it draws, yet
+  // must read the wording it was handed, as everything inside that surface does.
+  it("takes the host's wording, for its own alerts and everything inside", async () => {
+    const { engine } = setup();
+
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="missing"
+        messages={{
+          'label.view.unopenable': '打不开这个视图',
+          'label.view.list': '视图',
+        }}
+      />,
+    );
+
+    expect(await screen.findByText('打不开这个视图')).toBeDefined();
+    expect(screen.getByRole('navigation', { name: '视图' })).toBeDefined();
+  });
+
+  // What "today" filters by and what a row shows read the same clock.
+  it("shows times on the clock of the engine's zone, in the language given", async () => {
+    const engine = new ViewEngine({
+      definitions: [namedOrdersDefinition()],
+      store: new MemoryViewStore({
+        instances: [
+          {
+            ...mine,
+            config: recordConfig({
+              table: { columns: [{ field: 'id' }, { field: 'createdAt' }] },
+            }),
+          },
+        ],
+      }),
+      resolveSource: () =>
+        testSource({
+          paged: () =>
+            Promise.resolve({
+              total: 1,
+              list: [{ id: 'o-1', createdAt: INSTANT }],
+            }),
+        }),
+      environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
+    });
+
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+        locale="en-GB"
+      />,
+    );
+
+    expect(await screen.findByText(inZone(INSTANT))).toBeDefined();
   });
 
   it('shows an analysis view as its saved layout', async () => {
@@ -1597,6 +1660,45 @@ describe('RecordTable on its own', () => {
     expect(screen.queryByRole('button', { name: 'Warehouse' })).toBeNull();
   });
 
+  /**
+   * Wow keeps a time as epoch milliseconds and an enum as its code, so a
+   * table that printed values as they came was a column of thirteen-digit
+   * numbers beside a column of constants.
+   */
+  it('shows a time in the zone and language of its surface, and an enum by its label', () => {
+    render(
+      <ViewSurface locale="en-GB" timeZone={ZONE}>
+        <RecordTable
+          table={tableController({
+            columns: [
+              {
+                field: 'createdAt',
+                label: 'Created',
+                kind: 'datetime',
+                cell: 'datetime',
+                sortable: false,
+              },
+              {
+                field: 'status',
+                label: 'Status',
+                kind: 'enum',
+                cell: 'enum',
+                sortable: false,
+                options: [{ value: 'FAILED', label: 'Failed' }],
+              },
+            ],
+            rows: [
+              { key: 'o-1', data: { createdAt: INSTANT, status: 'FAILED' } },
+            ],
+          })}
+        />
+      </ViewSurface>,
+    );
+
+    expect(screen.getByText(inZone(INSTANT))).toBeDefined();
+    expect(screen.getByText('Failed')).toBeDefined();
+  });
+
   it('marks sort direction on the column it applies to', () => {
     render(
       <RecordTable
@@ -1651,6 +1753,65 @@ describe('RecordCards on its own', () => {
     expect(first.textContent).toContain('CN');
     // The second row's title field is a boolean, which reads as Yes.
     expect(second.textContent).toContain('Yes');
+  });
+
+  it('shows a card value as its column would', () => {
+    render(
+      <ViewSurface locale="en-GB" timeZone={ZONE}>
+        <RecordCards
+          table={tableController({
+            card: {
+              title: 'status',
+              titleField: {
+                field: 'status',
+                label: 'Status',
+                options: [{ value: 'FAILED', label: 'Failed' }],
+              },
+              fields: [
+                { field: 'createdAt', label: 'Created', kind: 'datetime' },
+                {
+                  field: 'amount',
+                  label: 'Amount',
+                  numberFormat: { style: 'currency', currency: 'CNY' },
+                },
+              ],
+            },
+            rows: [
+              {
+                key: 'o-1',
+                data: { status: 'FAILED', createdAt: INSTANT, amount: 10 },
+              },
+            ],
+          })}
+        />
+      </ViewSurface>,
+    );
+
+    expect(screen.getByText('Failed')).toBeDefined();
+    expect(screen.getByText(inZone(INSTANT))).toBeDefined();
+    expect(screen.getByText('CN¥10.00')).toBeDefined();
+  });
+
+  it("leaves a card's values to the host's renderer when it has one", () => {
+    render(
+      <ViewSurface locale="en-GB" timeZone={ZONE}>
+        <RecordCards
+          table={tableController({
+            card: {
+              title: 'id',
+              fields: [
+                { field: 'createdAt', label: 'Created', kind: 'datetime' },
+              ],
+            },
+            rows: [{ key: 'o-1', data: { id: 'o-1', createdAt: INSTANT } }],
+          })}
+          renderValue={value => <em>raw {String(value)}</em>}
+        />
+      </ViewSurface>,
+    );
+
+    expect(screen.getByText(`raw ${INSTANT}`)).toBeDefined();
+    expect(screen.queryByText(inZone(INSTANT))).toBeNull();
   });
 
   it('falls back to the row key without a title field', () => {
@@ -2532,6 +2693,69 @@ describe('the summary row', () => {
 });
 
 describe('EmbeddedView', () => {
+  function embed(config: ViewInstance['config']) {
+    return new ViewEngine({
+      definitions: [namedOrdersDefinition()],
+      store: new MemoryViewStore({ instances: [{ ...mine, config }] }),
+      resolveSource: () =>
+        testSource({
+          paged: () =>
+            Promise.resolve({
+              total: 1,
+              list: [{ id: 'o-1', createdAt: INSTANT }],
+            }),
+        }),
+      environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
+    });
+  }
+
+  it("shows times on the clock of the engine's zone, in the language given", async () => {
+    const engine = embed(
+      recordConfig({
+        table: { columns: [{ field: 'id' }, { field: 'createdAt' }] },
+      }),
+    );
+
+    render(
+      <EmbeddedView engine={engine} instanceId="orders-1" locale="en-GB" />,
+    );
+
+    expect(await screen.findByText(inZone(INSTANT))).toBeDefined();
+  });
+
+  it("takes the host's wording, for its own alerts and everything inside", async () => {
+    render(
+      <EmbeddedView
+        engine={setup().engine}
+        instanceId="missing"
+        messages={{ 'label.view.unopenable': '打不开这个视图' }}
+      />,
+    );
+    expect(await screen.findByText('打不开这个视图')).toBeDefined();
+    cleanup();
+
+    render(
+      <EmbeddedView
+        engine={setup().engine}
+        instanceId="orders-1"
+        messages={{ 'label.record.select-all': '全选' }}
+      />,
+    );
+    expect(await screen.findByRole('checkbox', { name: '全选' })).toBeDefined();
+  });
+
+  it('names chart categories as their field names its values', async () => {
+    const engine = embed(analysisConfig({ layout: 'chart' }));
+
+    // Recharts measures text in a span of its own on the body; the chart is
+    // what is asked about.
+    const { container } = render(
+      <EmbeddedView engine={engine} instanceId="orders-1" />,
+    );
+
+    expect(await within(container).findByText('China')).toBeDefined();
+  });
+
   it('shows the result and none of the workbench chrome', async () => {
     const { engine } = setup();
 

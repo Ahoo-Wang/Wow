@@ -14,14 +14,26 @@
 import * as React from 'react';
 import { cn } from 'cn';
 import { TooltipProvider } from './components/tooltip.js';
+import type { DisplayContext } from './display.js';
 import { MessagesProvider } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 
 export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
   /** Follows the host when left out; set it to pin an embedded view. */
   theme?: 'light' | 'dark';
-  /** Wording, merged over the defaults; this is also where translation goes. */
+  /**
+   * Wording, merged over what is already in force — the defaults, or an outer
+   * `MessagesProvider`; this is also where translation goes.
+   */
   messages?: ViewMessages;
+  /** The language dates and times show in; the runtime's when left out. */
+  locale?: string;
+  /**
+   * The zone times show in. A workbench passes its engine's, the zone a
+   * relative filter is evaluated in, so a row's time reads on the same clock
+   * it was filtered by.
+   */
+  timeZone?: string;
 }
 
 /**
@@ -94,15 +106,28 @@ function useResolvedTheme(
   return resolved;
 }
 
+const SurfaceDisplayContext = React.createContext<DisplayContext>({});
+
+/** The language and zone the nearest surface shows values in. */
+export function useSurfaceDisplay(): DisplayContext {
+  return React.useContext(SurfaceDisplayContext);
+}
+
 export function ViewSurface({
   className,
   theme,
   messages,
+  locale,
+  timeZone,
   children,
   ...props
 }: ViewSurfaceProps) {
   const rootRef = React.useRef<HTMLDivElement>(null);
   const resolved = useResolvedTheme(rootRef);
+  const display = React.useMemo(
+    () => ({ locale, timeZone }),
+    [locale, timeZone],
+  );
   return (
     <div
       data-slot="view-surface"
@@ -112,9 +137,11 @@ export function ViewSurface({
       {...props}
     >
       <SurfaceThemeContext.Provider value={theme ?? resolved}>
-        <MessagesProvider messages={messages}>
-          <TooltipProvider>{children}</TooltipProvider>
-        </MessagesProvider>
+        <SurfaceDisplayContext.Provider value={display}>
+          <MessagesProvider messages={messages}>
+            <TooltipProvider>{children}</TooltipProvider>
+          </MessagesProvider>
+        </SurfaceDisplayContext.Provider>
       </SurfaceThemeContext.Provider>
     </div>
   );

@@ -33,6 +33,7 @@ import { FilterPanel } from './FilterPanel.js';
 import { SaveActions } from './SaveActions.js';
 import { ViewList } from './ViewList.js';
 import { useViewMessages } from './MessagesProvider.js';
+import type { ViewMessages } from './messages.js';
 import { ViewSurface } from './ViewSurface.js';
 import { WarningNotice } from './WarningNotice.js';
 
@@ -41,6 +42,13 @@ export interface AnalysisWorkbenchProps {
   definitionId: string;
   instanceId?: string | null;
   theme?: 'light' | 'dark';
+  /** Wording, merged over what is already in force: where a host translates. */
+  messages?: ViewMessages;
+  /**
+   * The language dates and times show in; the runtime's when left out. It is
+   * the same choice as `messages`, made for values rather than words.
+   */
+  locale?: string;
   optionsFor?(remote: string): FieldOption[] | undefined;
 }
 
@@ -56,6 +64,8 @@ export function AnalysisWorkbench({
   definitionId,
   instanceId = null,
   theme,
+  messages: wording,
+  locale,
   optionsFor,
 }: AnalysisWorkbenchProps) {
   const list = useViewList(engine, definitionId);
@@ -67,17 +77,28 @@ export function AnalysisWorkbench({
   const analysis = useAnalysisEditor(runtime);
   const filter = useFilterEditor(runtime);
   const commands = useSaveCommands(engine, runtime);
-  const messages = useViewMessages();
+  const messages = useViewMessages(wording);
 
   const data = state?.result?.data;
   const view: AnalysisView | null =
     data?.kind === 'analysis' ? data.view : null;
+  // The chart the result was shaped by, not the draft being edited: until
+  // Run, the draft's aliases may name other columns than the ones the
+  // result's categories came from, and a category is named through its column.
+  const shaped = state?.result?.config;
+  const chart = shaped?.kind === 'analysis' ? shaped.chart : analysis.chart;
   const errors = (state?.issues ?? []).filter(
     found => found.severity === 'error',
   );
 
   return (
-    <ViewSurface theme={theme} className="gap-0 md:flex-row">
+    <ViewSurface
+      theme={theme}
+      messages={wording}
+      locale={locale}
+      timeZone={engine.environment.timeZone}
+      className="gap-0 md:flex-row"
+    >
       <aside className="flex w-56 shrink-0 flex-col gap-2 p-3">
         <ViewList
           list={list}
@@ -151,7 +172,11 @@ export function AnalysisWorkbench({
 
             {view &&
               (analysis.layout === 'chart' && view.chart ? (
-                <AnalysisChart data={view.chart} spec={analysis.chart} />
+                <AnalysisChart
+                  data={view.chart}
+                  spec={chart}
+                  columns={view.columns}
+                />
               ) : (
                 <AnalysisTable view={view} />
               ))}

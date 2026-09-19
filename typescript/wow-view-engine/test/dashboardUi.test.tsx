@@ -19,6 +19,7 @@ import {
   renderHook,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -26,6 +27,7 @@ import {
   builtinFieldKinds,
   MemoryViewStore,
   ViewEngine,
+  defaultRuntimeEnvironment,
   withFieldKinds,
   type DashboardRuntime,
   type FieldKind,
@@ -45,9 +47,13 @@ import {
   ViewSurface,
 } from '../src/ui/index.js';
 import {
+  INSTANT,
+  ZONE,
   analysisConfig,
   dashboardConfig,
   deferred,
+  inZone,
+  namedOrdersDefinition,
   ordersDefinition,
   overviewDefinition,
   recordConfig,
@@ -749,6 +755,86 @@ describe('DashboardWorkbench', () => {
     expect(screen.getByRole('button', { name: /Apply/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Refresh' })).toBeTruthy();
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+  });
+
+  // Its own alerts render above the provider of the surface it draws, yet
+  // must read the wording it was handed, as everything inside that surface does.
+  it("takes the host's wording, for its own alerts and everything inside", async () => {
+    const { engine } = setup();
+
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="missing"
+        messages={{
+          'label.view.unopenable': '打不开这个视图',
+          'label.view.list': '视图',
+        }}
+      />,
+    );
+
+    expect(await screen.findByText('打不开这个视图')).toBeDefined();
+    expect(screen.getByRole('navigation', { name: '视图' })).toBeDefined();
+  });
+
+  /** A dashboard whose one panel shows `config` over the named orders. */
+  function named(config: ViewInstance['config']) {
+    return new ViewEngine({
+      definitions: [namedOrdersDefinition(), overviewDefinition()],
+      store: new MemoryViewStore({
+        instances: [
+          { ...pending, config },
+          {
+            ...overview,
+            config: dashboardConfig({ panels: [panel({ title: 'Pending' })] }),
+          },
+        ],
+      }),
+      resolveSource: () =>
+        testSource({
+          paged: () =>
+            Promise.resolve({
+              total: 1,
+              list: [{ id: 'o-1', createdAt: INSTANT }],
+            }),
+        }),
+      environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
+    });
+  }
+
+  it("shows a panel's times on the clock of the engine's zone, in the language given", async () => {
+    const engine = named(
+      recordConfig({
+        table: { columns: [{ field: 'id' }, { field: 'createdAt' }] },
+      }),
+    );
+
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+        locale="en-GB"
+      />,
+    );
+
+    expect(await screen.findByText(inZone(INSTANT))).toBeTruthy();
+  });
+
+  it("names a chart panel's categories as their field names its values", async () => {
+    const engine = named(analysisConfig({ layout: 'chart' }));
+
+    // Recharts measures text in a span of its own on the body.
+    const { container } = render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+      />,
+    );
+
+    expect(await within(container).findByText('China')).toBeTruthy();
   });
 
   it('runs the panels again on demand', async () => {

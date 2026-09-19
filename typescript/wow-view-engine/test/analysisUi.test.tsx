@@ -24,6 +24,7 @@ import {
   renderHook,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -32,6 +33,7 @@ import {
   MemoryViewStore,
   shapeChart,
   ViewEngine,
+  defaultRuntimeEnvironment,
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
@@ -43,8 +45,10 @@ import {
   ViewSurface,
 } from '../src/ui/index.js';
 import {
+  ZONE,
   analysisConfig,
   deferred,
+  namedOrdersDefinition,
   ordersDefinition,
   testSource,
 } from './fixtures.js';
@@ -214,6 +218,161 @@ describe('AnalysisChart', () => {
     ],
     series: [{ key: 'orders', label: 'orders', metric: 'orders' }],
   };
+
+  const statuses: AnalysisView['columns'] = [
+    {
+      alias: 'status',
+      label: 'Status',
+      role: 'group',
+      kind: 'enum',
+      cell: 'enum',
+      options: [
+        { value: 'FAILED', label: 'Failed' },
+        { value: 'SUCCEEDED', label: 'Succeeded' },
+      ],
+    },
+    { alias: 'orders', label: 'Orders', role: 'metric' },
+  ];
+
+  // Recharts measures text in a span of its own on the body, so each query
+  // looks inside the chart.
+  it('names a category as its column shows it', () => {
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart
+          data={{
+            ...cartesian,
+            points: [{ x: 'FAILED', values: { orders: 2 } }],
+          }}
+          spec={{
+            type: 'bar',
+            cartesian: { x: 'status', series: [{ metric: 'orders' }] },
+          }}
+          columns={statuses}
+        />
+      </ViewSurface>,
+    );
+
+    expect(within(container).getByText('Failed')).toBeDefined();
+    expect(within(container).queryByText('FAILED')).toBeNull();
+  });
+
+  // The kind of a number or a boolean field has nothing to add, so the axis
+  // printed `1000` and `true` where the table beside it read CN¥1,000.00 and Yes.
+  it('names a number category in its format and a boolean one in words', () => {
+    const amount = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: 'CNY',
+    }).format(1000);
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart
+          data={{
+            ...cartesian,
+            points: [
+              { x: 1000, values: { orders: 2 } },
+              { x: true, values: { orders: 1 } },
+            ],
+          }}
+          spec={{
+            type: 'bar',
+            cartesian: { x: 'amount', series: [{ metric: 'orders' }] },
+          }}
+          columns={[
+            {
+              alias: 'amount',
+              label: 'Amount',
+              role: 'group',
+              kind: 'number',
+              cell: 'number',
+              numberFormat: { style: 'currency', currency: 'CNY' },
+            },
+            { alias: 'orders', label: 'Orders', role: 'metric' },
+          ]}
+        />
+      </ViewSurface>,
+    );
+
+    expect(within(container).getByText(amount)).toBeDefined();
+    expect(within(container).getByText('Yes')).toBeDefined();
+  });
+
+  it('names a pivot series by the value it was split by', () => {
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart
+          data={{
+            type: 'cartesian',
+            chart: 'line',
+            points: [{ x: 'CN', values: { a: 1, b: 2 } }],
+            series: [
+              { key: 'a', label: 'FAILED', metric: 'orders', value: 'FAILED' },
+              {
+                key: 'b',
+                label: 'SUCCEEDED',
+                metric: 'orders',
+                value: 'SUCCEEDED',
+              },
+            ],
+          }}
+          spec={{
+            type: 'line',
+            cartesian: {
+              x: 'warehouse',
+              splitBy: 'status',
+              series: [{ metric: 'orders' }],
+            },
+          }}
+          columns={statuses}
+        />
+      </ViewSurface>,
+    );
+
+    expect(within(container).getByText('Failed')).toBeDefined();
+    expect(within(container).getByText('Succeeded')).toBeDefined();
+  });
+
+  // Two values can show alike: two options with one label, or the two 01:00
+  // hours of the night the clocks go back. A key made of the shown text
+  // collided and let React reuse one row for the other.
+  it('keys heatmap rows and cells by value, so values shown alike stay apart', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart
+          data={{
+            type: 'heatmap',
+            xs: ['A', 'B'],
+            ys: ['A', 'B'],
+            cells: [
+              [1, 2],
+              [3, 4],
+            ],
+          }}
+          spec={{
+            type: 'heatmap',
+            heatmap: { x: 'col', y: 'row', value: 'orders' },
+          }}
+          columns={['row', 'col'].map(alias => ({
+            alias,
+            label: alias,
+            role: 'group' as const,
+            kind: 'enum',
+            cell: 'enum',
+            options: [
+              { value: 'A', label: 'Same' },
+              { value: 'B', label: 'Same' },
+            ],
+          }))}
+        />
+      </ViewSurface>,
+    );
+
+    expect(within(container).getAllByText('Same')).toHaveLength(4);
+    expect(
+      error.mock.calls.some(call => String(call[0]).includes('same key')),
+    ).toBe(false);
+  });
 
   it('draws every cartesian variant', () => {
     for (const chart of ['bar', 'line', 'area', 'combo'] as const) {
@@ -507,7 +666,8 @@ describe('AnalysisChart', () => {
       cells: [[1, 2, 3]],
     });
 
-    expect(screen.getByTitle('3 · true: 2')).toBeDefined();
+    // A boolean reads as the analysis table writes it, in the catalogue's words.
+    expect(screen.getByTitle('3 · Yes: 2')).toBeDefined();
     expect(screen.getByTitle('3 · {"id":1}: 3')).toBeDefined();
   });
 
@@ -659,6 +819,49 @@ describe('AnalysisTable', () => {
     expect(screen.getByText('7')).toBeDefined();
     expect(screen.getByText('No')).toBeDefined();
     expect(screen.getByText('{"nested":true}')).toBeDefined();
+  });
+
+  it('shows a date bucket as the day it starts, and an enum key by its label', () => {
+    const day = Date.UTC(2026, 8, 18);
+    render(
+      <ViewSurface locale="en-GB" timeZone="UTC">
+        <AnalysisTable
+          view={{
+            columns: [
+              {
+                alias: 'day',
+                label: 'Day',
+                role: 'group',
+                kind: 'datetime',
+                cell: 'datetime',
+                dateUnit: 'DAY',
+              },
+              {
+                alias: 'status',
+                label: 'Status',
+                role: 'group',
+                kind: 'enum',
+                cell: 'enum',
+                options: [{ value: 'FAILED', label: 'Failed' }],
+              },
+              { alias: 'orders', label: 'Orders', role: 'metric' },
+            ],
+            rows: [{ day, status: 'FAILED', orders: 2 }],
+          }}
+        />
+      </ViewSurface>,
+    );
+
+    expect(
+      screen.getByText(
+        new Intl.DateTimeFormat('en-GB', {
+          dateStyle: 'medium',
+          timeZone: 'UTC',
+        }).format(day),
+      ),
+    ).toBeDefined();
+    expect(screen.getByText('Failed')).toBeDefined();
+    expect(screen.getByText('2')).toBeDefined();
   });
 
   it('says when there is nothing to aggregate', () => {
@@ -903,6 +1106,138 @@ describe('AnalysisWorkbench', () => {
     expect(
       screen.getByRole('columnheader', { name: 'Warehouse' }),
     ).toBeDefined();
+  });
+
+  // Its own alerts render above the provider of the surface it draws, yet
+  // must read the wording it was handed, as everything inside that surface does.
+  it("takes the host's wording, for its own alerts and everything inside", async () => {
+    const { engine } = setup();
+
+    render(
+      <AnalysisWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="missing"
+        messages={{
+          'label.view.unopenable': '打不开这个视图',
+          'label.view.list': '视图',
+        }}
+      />,
+    );
+
+    expect(await screen.findByText('打不开这个视图')).toBeDefined();
+    expect(screen.getByRole('navigation', { name: '视图' })).toBeDefined();
+  });
+
+  // A month cut in Kathmandu starts at 18:15 UTC on the last day of the month
+  // before: read on any other clock, the bucket names the wrong month. In
+  // Chinese it is also written unlike the runtime's own English.
+  it("cuts and shows buckets on the clock of the engine's zone, in the language given", async () => {
+    const october = Date.UTC(2026, 8, 30, 18, 15);
+    const source = testSource({
+      aggregate: vi.fn(() => Promise.resolve([{ month: october, orders: 2 }])),
+    });
+    const engine = new ViewEngine({
+      definitions: [namedOrdersDefinition()],
+      store: new MemoryViewStore({
+        instances: [
+          {
+            ...analysisView,
+            config: analysisConfig({
+              groups: [
+                {
+                  alias: 'month',
+                  field: 'createdAt',
+                  type: 'DATE_HISTOGRAM',
+                  unit: 'MONTH',
+                },
+              ],
+              chart: {
+                type: 'bar',
+                cartesian: { x: 'month', series: [{ metric: 'orders' }] },
+              },
+            }),
+          },
+        ],
+      }),
+      resolveSource: () => source,
+      environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
+    });
+
+    render(
+      <AnalysisWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+        locale="zh-CN"
+      />,
+    );
+
+    const month = new Intl.DateTimeFormat('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      timeZone: ZONE,
+    }).format(october);
+    expect(await screen.findByText(month)).toBeDefined();
+    expect(
+      vi.mocked(source.aggregate).mock.calls[0][0].groupBy?.[0],
+    ).toMatchObject({ timeZone: ZONE });
+  });
+
+  // Until Run the result on screen is the applied config's, so its categories
+  // are named through the columns that config grouped by, not the draft's.
+  it('names chart categories by the config that ran while the chart is edited', async () => {
+    const engine = new ViewEngine({
+      definitions: [namedOrdersDefinition()],
+      store: new MemoryViewStore({
+        instances: [
+          { ...analysisView, config: analysisConfig({ layout: 'chart' }) },
+        ],
+      }),
+      resolveSource: () => testSource(),
+    });
+    const { container } = render(
+      <AnalysisWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    expect(await within(container).findByText('China')).toBeDefined();
+
+    act(() => {
+      engine.openRuntimes()[0].edit({
+        chart: {
+          type: 'bar',
+          cartesian: { x: 'elsewhere', series: [{ metric: 'orders' }] },
+        },
+      });
+    });
+
+    expect(within(container).getByText('China')).toBeDefined();
+  });
+
+  it('names chart categories as their field names its values', async () => {
+    const engine = new ViewEngine({
+      definitions: [namedOrdersDefinition()],
+      store: new MemoryViewStore({
+        instances: [
+          { ...analysisView, config: analysisConfig({ layout: 'chart' }) },
+        ],
+      }),
+      resolveSource: () => testSource(),
+    });
+
+    // Recharts measures text in a span of its own on the body.
+    const { container } = render(
+      <AnalysisWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+
+    expect(await within(container).findByText('China')).toBeDefined();
   });
 
   it('holds the timer while the editor has focus', async () => {

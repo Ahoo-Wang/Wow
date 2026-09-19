@@ -175,6 +175,7 @@ src/
     ViewList.tsx, ViewSurface.tsx, SaveActions.tsx, EmbeddedView.tsx
     WarningNotice.tsx             — Non-blocking findings, in the theme's `warning` colour
     messages.ts, MessagesProvider.tsx   — wording by key, overridable
+    display.ts                    — A value as its field shows it: enum labels, dates, bucket keys
     index.ts
     components/                   — 24 shadcn/ui primitives — vendored, see below
     lib/utils.ts                  — shadcn cn() helper — vendored

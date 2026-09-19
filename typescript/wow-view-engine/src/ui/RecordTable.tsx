@@ -13,7 +13,7 @@
 
 import type * as React from 'react';
 import { ArrowDownIcon, ArrowUpIcon, InboxIcon } from 'lucide-react';
-import type { NumberFormat, RecordData, RecordKey } from '../model/index.js';
+import type { RecordData, RecordKey } from '../model/index.js';
 import type {
   RecordColumnView,
   SummaryCell,
@@ -30,7 +30,9 @@ import {
   EmptyTitle,
 } from './components/empty.js';
 import { Skeleton } from './components/skeleton.js';
+import { displayValue, formatNumber, type DisplayContext } from './display.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
+import { useSurfaceDisplay } from './ViewSurface.js';
 import {
   Table,
   TableBody,
@@ -71,7 +73,9 @@ export function RecordTable({
   emptyDescription,
 }: RecordTableProps) {
   const messages = useViewMessages();
-  const renderOne = renderCell ?? (found => defaultCell(found, messages));
+  const display = useSurfaceDisplay();
+  const renderOne =
+    renderCell ?? (found => defaultCell(found, messages, display));
   const allSelected =
     table.rows.length > 0 && table.selection.length === table.rows.length;
 
@@ -241,18 +245,17 @@ function SortMark({ direction }: { direction: 'ASC' | 'DESC' | null }) {
 function defaultCell(
   { column, value }: RecordCell,
   messages: MessageFormatters,
+  display: DisplayContext,
 ): React.ReactNode {
   if (value === null || value === undefined) return null;
+  // A time, a date or an enum shows as the field says; a number keeps its
+  // format and a boolean its wording below.
+  const shown = displayValue(value, column, display);
+  if (shown !== undefined) return shown;
   if (typeof value === 'number')
     return formatNumber(value, column.numberFormat);
   if (typeof value === 'boolean')
     return messages.label(value ? 'label.value.yes' : 'label.value.no');
   if (typeof value === 'string') return value;
   return JSON.stringify(value);
-}
-
-function formatNumber(value: number, format?: NumberFormat): string {
-  if (!format) return String(value);
-  const { locale, ...options } = format;
-  return new Intl.NumberFormat(locale, options).format(value);
 }

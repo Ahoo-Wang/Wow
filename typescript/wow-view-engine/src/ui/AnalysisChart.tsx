@@ -33,6 +33,7 @@ import {
 } from 'recharts';
 import { isChartColor } from '../analysis/index.js';
 import type {
+  AnalysisColumnView,
   CartesianData,
   ChartData,
   FunnelData,
@@ -56,13 +57,20 @@ import {
   type ChartConfig,
 } from './components/chart.js';
 import { cn } from 'cn';
+import { displayValue, valueText } from './display.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { useSurfaceDisplay } from './ViewSurface.js';
 
 export interface AnalysisChartProps {
   data: ChartData;
   /** The saved spec; only `combo` and a few axis options still need it. */
   spec?: ChartSpec;
   className?: string;
+  /**
+   * The result's columns, so a category shows as its field's values do: an
+   * enum by its label, a date bucket as its day or its month.
+   */
+  columns?: readonly AnalysisColumnView[];
 }
 
 /** Five slots, cycled; the theme owns what they look like. */
@@ -80,9 +88,11 @@ function color(index: number): string {
 
 /**
  * The colour the spec pinned for the first of `keys` that names one, and the
- * slot otherwise. A key is a series or category as the chart prints it, never
+ * slot otherwise. A key is a series or category as the kernel labels it, never
  * an internal one: the kernel tags a pivot's key by type and this file then
  * exchanges it for `s0`, `s1` …, so a spec could not name either if it tried.
+ * Nor is it the text shown, an enum's label or a bucket's day: that follows
+ * the language and the definition's wording, and a saved key must not.
  *
  * A spec may reach here unvalidated — the stories pass one straight in — and
  * its value ends up inside a `<style>` element, so the kernel's predicate
@@ -139,21 +149,52 @@ function axisId(axis: 'left' | 'right' | undefined): 'left' | 'right' {
  * this file only picks marks and colours; a different chart library would
  * replace it without touching a rule.
  */
-export function AnalysisChart({ data, spec, className }: AnalysisChartProps) {
+export function AnalysisChart({
+  data,
+  spec,
+  className,
+  columns,
+}: AnalysisChartProps) {
+  const label = useCategoryLabel(columns);
+  const props = { spec, className, label };
   switch (data.type) {
     case 'cartesian':
-      return <Cartesian data={data} spec={spec} className={className} />;
+      return <Cartesian data={data} {...props} />;
     case 'pie':
-      return <PieSlices data={data} spec={spec} className={className} />;
+      return <PieSlices data={data} {...props} />;
     case 'heatmap':
-      return <Heatmap data={data} className={className} />;
+      return <Heatmap data={data} {...props} />;
     case 'scatter':
-      return <ScatterPoints data={data} className={className} />;
+      return <ScatterPoints data={data} {...props} />;
     case 'funnel':
-      return <Funnel data={data} spec={spec} className={className} />;
+      return <Funnel data={data} {...props} />;
     case 'metric':
-      return <MetricCard data={data} spec={spec} className={className} />;
+      return <MetricCard data={data} {...props} />;
   }
+}
+
+/** A category as its column shows it, by the alias the chart reads it from. */
+type CategoryLabel = (alias: string | undefined, value: unknown) => string;
+
+function useCategoryLabel(
+  columns: readonly AnalysisColumnView[] | undefined,
+): CategoryLabel {
+  const display = useSurfaceDisplay();
+  const messages = useViewMessages();
+  return useMemo(() => {
+    const byAlias = new Map(
+      (columns ?? []).map(column => [column.alias, column]),
+    );
+    // As the analysis table shows the same value: what the field's kind
+    // names first, then a number in its format and a boolean in words.
+    return (alias, value) => {
+      const column = alias === undefined ? undefined : byAlias.get(alias);
+      return (
+        (column && displayValue(value, column, display)) ??
+        valueText(value, messages, column?.numberFormat)
+      );
+    };
+  }, [columns, display, messages]);
 }
 
 function labelOf(value: unknown): string {
@@ -168,10 +209,12 @@ function Cartesian({
   data,
   spec,
   className,
+  label,
 }: {
   data: CartesianData;
   spec?: ChartSpec;
   className?: string;
+  label: CategoryLabel;
 }) {
   // A pivot names its series by raw group values, and the style element
   // interpolates config keys into custom properties: only an identifier is
@@ -186,7 +229,7 @@ function Cartesian({
   const rows = useMemo(
     () =>
       data.points.map(point => ({
-        x: labelOf(point.x),
+        x: label(spec?.cartesian?.x, point.x),
         ...Object.fromEntries(
           Object.entries(point.values).map(([key, value]) => [
             safeKeys.get(key) ?? key,
@@ -194,7 +237,7 @@ function Cartesian({
           ]),
         ),
       })),
-    [data, safeKeys],
+    [data, safeKeys, label, spec],
   );
 
   const config = useMemo<ChartConfig>(
@@ -203,15 +246,20 @@ function Cartesian({
         data.series.map((series, index) => [
           safeKeys.get(series.key) ?? series.key,
           {
-            label: series.label,
-            // A pivoted series is named by its split value as the legend
-            // prints it and an unpivoted one by its metric alias, which is
-            // its label too; the spec may name either.
+            // A pivoted series shows its split value as that field shows it;
+            // an unpivoted one is its metric alias.
+            label:
+              series.value === undefined
+                ? series.label
+                : label(spec?.cartesian?.splitBy, series.value),
+            // The spec names a pivoted series by its split value as the
+            // kernel labels it and an unpivoted one by its metric alias; it
+            // may name either.
             color: colorOf(spec, index, series.label, series.metric),
           },
         ]),
       ),
-    [data, safeKeys, spec],
+    [data, safeKeys, label, spec],
   );
 
   const horizontal = spec?.cartesian?.orientation === 'horizontal';
@@ -367,10 +415,12 @@ function PieSlices({
   data,
   spec,
   className,
+  label,
 }: {
   data: PieData;
   spec?: ChartSpec;
   className?: string;
+  label: CategoryLabel;
 }) {
   const messages = useViewMessages();
   // Same rule as the cartesian series: a category value becomes an identifier
@@ -380,13 +430,13 @@ function PieSlices({
     name:
       slice.other === true
         ? messages.label('label.chart.other')
-        : labelOf(slice.category),
+        : label(spec?.pie?.category, slice.category),
     value: slice.value,
-    // A slice is named by its category as the legend prints it, which is the
-    // kernel's rule — `null` is the empty string there, where `String(...)`
-    // would have looked it up under `null`. The merged remainder is no
-    // category anyone could have coloured, so it keeps its slot whatever the
-    // spec says.
+    // A slice is named by its category as the kernel labels it — `null` is
+    // the empty string there, where `String(...)` would have looked it up
+    // under `null` — rather than as the legend shows it. The merged
+    // remainder is no category anyone could have coloured, so it keeps its
+    // slot whatever the spec says.
     color:
       slice.other === true
         ? color(index)
@@ -421,14 +471,18 @@ function PieSlices({
 
 function ScatterPoints({
   data,
+  spec,
   className,
+  label,
 }: {
   data: ScatterData;
+  spec?: ChartSpec;
   className?: string;
+  label: CategoryLabel;
 }) {
   const messages = useViewMessages();
   const rows = data.points.map(point => ({
-    name: labelOf(point.category),
+    name: label(spec?.scatter?.category, point.category),
     x: point.x,
     y: point.y,
     size: point.size ?? 1,
@@ -462,10 +516,14 @@ function ScatterPoints({
  */
 function Heatmap({
   data,
+  spec,
   className,
+  label,
 }: {
   data: HeatmapData;
+  spec?: ChartSpec;
   className?: string;
+  label: CategoryLabel;
 }) {
   const messages = useViewMessages();
   const values = data.cells
@@ -483,7 +541,7 @@ function Heatmap({
       {data.ys.map((y, row) => (
         <div key={labelOf(y) || row} className="flex items-center gap-1">
           <span className="text-muted-foreground w-24 shrink-0 truncate text-xs">
-            {labelOf(y)}
+            {label(spec?.heatmap?.y, y)}
           </span>
           {data.xs.map((x, column) => {
             const cell = data.cells[row]?.[column] ?? null;
@@ -491,8 +549,8 @@ function Heatmap({
               <div
                 key={labelOf(x) || column}
                 title={messages.label('label.chart.cell', {
-                  y: labelOf(y),
-                  x: labelOf(x),
+                  y: label(spec?.heatmap?.y, y),
+                  x: label(spec?.heatmap?.x, x),
                   value: cell ?? messages.label('label.summary.unavailable'),
                 })}
                 className="bg-primary size-8 shrink-0 rounded-sm"
@@ -512,7 +570,7 @@ function Heatmap({
             key={labelOf(x) || column}
             className="text-muted-foreground w-8 shrink-0 truncate text-center text-xs"
           >
-            {labelOf(x)}
+            {label(spec?.heatmap?.x, x)}
           </span>
         ))}
       </div>
@@ -524,12 +582,18 @@ function Funnel({
   data,
   spec,
   className,
+  label,
 }: {
   data: FunnelData;
   spec?: ChartSpec;
   className?: string;
+  label: CategoryLabel;
 }) {
   const widest = Math.max(...data.stages.map(stage => stage.value), 1);
+  // Stages taken from a group are named by its values, which show as the
+  // group's column does; metric stages carry the labels they were given.
+  const stages = spec?.funnel?.stages;
+  const category = stages?.from === 'group' ? stages.category : undefined;
   const horizontal = spec?.funnel?.orientation === 'horizontal';
 
   return (
@@ -550,7 +614,9 @@ function Funnel({
           )}
         >
           <span className="text-muted-foreground w-28 shrink-0 truncate text-xs">
-            {stage.label}
+            {category === undefined
+              ? stage.label
+              : label(category, stage.label)}
           </span>
           <div
             className="bg-primary/80 flex h-7 items-center justify-end rounded-sm px-2"
@@ -585,10 +651,12 @@ function MetricCard({
   data,
   spec,
   className,
+  label,
 }: {
   data: MetricCardData;
   spec?: ChartSpec;
   className?: string;
+  label: CategoryLabel;
 }) {
   const messages = useViewMessages();
   const card = spec?.metric;
@@ -629,7 +697,7 @@ function MetricCard({
         >
           <LineChart
             data={data.trend.map(point => ({
-              x: labelOf(point.x),
+              x: label(spec?.metric?.trend?.x, point.x),
               trend: point.value,
             }))}
           >

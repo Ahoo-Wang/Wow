@@ -555,6 +555,27 @@ describe('shapeChart', () => {
     });
   });
 
+  // The label prints the value; the UI needs the value itself to show it as
+  // its field does, an enum by its name and a date bucket as its day.
+  it('keeps the raw value each pivot series was split by', () => {
+    const data = shapeChart(
+      config(
+        {
+          type: 'line',
+          cartesian: {
+            x: 'month',
+            splitBy: 'wh',
+            series: [{ metric: 'orders' }],
+          },
+        },
+        [GROUPS.month, GROUPS.wh],
+      ),
+      [{ wh: 7, month: '2026-08', orders: 1 }],
+    ) as CartesianData;
+
+    expect(data.series[0]).toMatchObject({ label: '7', value: 7 });
+  });
+
   it('keeps a plain string split value as its own series key', () => {
     const data = shapeChart(
       config(

@@ -30,10 +30,12 @@ export interface ChartSpec {
   /**
    * The colours pinned by hand; the theme fills in the rest from its palette.
    *
-   * A key is the series or slice as the chart prints it: the category value
+   * A key is the series or slice as the kernel labels it: the category value
    * of a split or a pie — a number or a boolean as text, `null` as the empty
    * string — or, where nothing is split, the metric alias. Internal keys are
-   * never addressable, so a numeric category is named `"1"`, not `1`.
+   * never addressable, so a numeric category is named `"1"`, not `1`; nor is
+   * the text a chart shows, so an enum is named by its code rather than its
+   * label, and a pinned colour holds in every language.
    */
   colors?: Record<string, string>;
 }

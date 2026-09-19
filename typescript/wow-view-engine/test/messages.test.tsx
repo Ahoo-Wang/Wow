@@ -153,6 +153,47 @@ describe('the provider', () => {
     expect(result.current.label('label.dashboard.empty')).toBe('No panels yet');
   });
 
+  // A surface used to reset to the defaults, so an application that set its
+  // wording once around its views lost it inside every one of them.
+  it("keeps an application's wording inside a surface, under the surface's own", () => {
+    const { result } = renderHook(() => useViewMessages(), {
+      wrapper: ({ children }) => (
+        <MessagesProvider
+          messages={{
+            'label.dashboard.empty': '还没有面板',
+            'label.query.failed': '查询失败',
+          }}
+        >
+          <ViewSurface messages={{ 'label.query.failed': '查不到' }}>
+            {children}
+          </ViewSurface>
+        </MessagesProvider>
+      ),
+    });
+
+    expect(result.current.label('label.dashboard.empty')).toBe('还没有面板');
+    expect(result.current.label('label.query.failed')).toBe('查不到');
+    expect(result.current.label('label.toolbar.refresh')).toBe('Refresh');
+  });
+
+  it('merges what a component hands its own surface over the wording in force', () => {
+    const { result } = renderHook(
+      () => useViewMessages({ 'label.query.failed': '查不到' }),
+      {
+        wrapper: ({ children }) => (
+          <MessagesProvider
+            messages={{ 'label.dashboard.empty': '还没有面板' }}
+          >
+            {children}
+          </MessagesProvider>
+        ),
+      },
+    );
+
+    expect(result.current.label('label.query.failed')).toBe('查不到');
+    expect(result.current.label('label.dashboard.empty')).toBe('还没有面板');
+  });
+
   it('reaches the components through the surface', () => {
     render(
       <ViewSurface messages={{ 'label.dashboard.empty': '还没有面板' }}>

@@ -66,7 +66,11 @@ export function compileAnalysis(
   return {
     ...query,
     ...(config.groups.length > 0
-      ? { groupBy: config.groups.map(compileGroup) }
+      ? {
+          groupBy: config.groups.map(group =>
+            compileGroup(group, context.timeZone),
+          ),
+        }
       : {}),
     ...(config.having ? { having: compileHaving(config.having) } : {}),
     ...(config.sort.length > 0 ? { sort: compileSort(config) } : {}),
@@ -140,7 +144,16 @@ function compileElement(
   };
 }
 
-function compileGroup(group: AnalysisGroup): AggregationGroup {
+/**
+ * A date histogram is cut in the engine's zone unless the group names one.
+ * That is the zone "today" is evaluated in and the one the keys are shown in;
+ * left to the backend, a day ran midnight to midnight UTC, which for most of
+ * the world starts and ends mid-afternoon or mid-morning.
+ */
+function compileGroup(
+  group: AnalysisGroup,
+  timeZone: string,
+): AggregationGroup {
   switch (group.type) {
     case 'TERMS':
       return {
@@ -164,7 +177,7 @@ function compileGroup(group: AnalysisGroup): AggregationGroup {
         field: group.field,
         alias: group.alias,
         unit: group.unit as AggregationDateUnit,
-        ...(group.timeZone === undefined ? {} : { timeZone: group.timeZone }),
+        timeZone: group.timeZone ?? timeZone,
         ...(group.dense === undefined ? {} : { dense: group.dense }),
       };
   }

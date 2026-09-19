@@ -24,7 +24,10 @@ import {
 const MessagesContext = createContext<ViewMessages>(defaultMessages);
 
 export interface MessagesProviderProps {
-  /** Merged over the defaults, so an application overrides what it cares to. */
+  /**
+   * Merged over the wording already in force, so an application overrides
+   * what it cares to: the defaults, or what an outer provider set.
+   */
   messages?: ViewMessages;
   children: ReactNode;
 }
@@ -34,15 +37,15 @@ export interface MessagesProviderProps {
  *
  * `ViewSurface` renders it, so passing `messages` there is enough; this exists
  * on its own for a host that builds its own surface out of the components.
+ * Each provider merges over the one above it, not over the defaults: an
+ * application that sets its wording once around its views keeps it inside
+ * every surface, where a reset used to put the defaults back.
  */
 export function MessagesProvider({
   messages,
   children,
 }: MessagesProviderProps) {
-  const merged = useMemo(
-    () => (messages ? { ...defaultMessages, ...messages } : defaultMessages),
-    [messages],
-  );
+  const merged = useMerged(useMessages(), messages);
   return (
     <MessagesContext.Provider value={merged}>
       {children}
@@ -52,6 +55,17 @@ export function MessagesProvider({
 
 export function useMessages(): ViewMessages {
   return useContext(MessagesContext);
+}
+
+/** `messages` over `inherited`; the same object when there is nothing to add. */
+function useMerged(
+  inherited: ViewMessages,
+  messages: ViewMessages | undefined,
+): ViewMessages {
+  return useMemo(
+    () => (messages ? { ...inherited, ...messages } : inherited),
+    [inherited, messages],
+  );
 }
 
 /** What a component needs: a label by key, an issue or a list as a sentence. */
@@ -67,17 +81,23 @@ export interface MessageFormatters {
   issues(found: readonly Issue[]): string;
 }
 
-export function useViewMessages(): MessageFormatters {
-  const messages = useMessages();
+/**
+ * The formatters for the wording in force here, with `messages` merged over
+ * it. A workbench passes the wording it hands its own surface: that surface's
+ * provider is below it, so without this the workbench's own alerts would miss
+ * the translation every component inside it gets.
+ */
+export function useViewMessages(messages?: ViewMessages): MessageFormatters {
+  const merged = useMerged(useMessages(), messages);
   return useMemo(
     () => ({
       label: (key, params, fallback) => {
-        const found = formatMessage(messages, key, params);
+        const found = formatMessage(merged, key, params);
         return found === key && fallback !== undefined ? fallback : found;
       },
-      issue: found => formatIssue(messages, found),
-      issues: found => formatIssues(messages, found),
+      issue: found => formatIssue(merged, found),
+      issues: found => formatIssues(merged, found),
     }),
-    [messages],
+    [merged],
   );
 }

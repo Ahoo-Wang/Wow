@@ -329,13 +329,22 @@ Two rules make it consistent:
 
 The package ships `MemoryViewStore` for tests, examples and query-only use. Business applications implement `ViewStore` against their own API with their own fetcher; mapping HTTP status codes to `ViewStoreError.code` belongs there. Authorization, visibility filtering and deduplication are server responsibilities; `permissions` only drives button availability.
 
-### Wording
+### Wording and language
 
-The model carries `code` and `params` and no copy, so `/ui` owns the words. `defaultMessages` gives every issue an English sentence, and `ViewSurface` takes a `messages` map that is merged over it — the same seam serves rewording and translation:
+The model carries `code` and `params` and no copy, so `/ui` owns the words. `defaultMessages` gives every issue an English sentence, and `messages` — on `ViewSurface` and on every workbench — is merged over the wording already in force, the same seam for rewording and translation. A `MessagesProvider` around the application sets it once for every view inside.
+
+Values show as their fields say: an enum by its option's label, a `datetime` or a `date` through `Intl.DateTimeFormat`, a date-histogram key as the year, quarter, month or day it starts. `locale` is the language they show in, the runtime's when left out; it is the same choice as `messages`, made for values rather than words:
 
 ```tsx
-<ViewSurface messages={{ 'label.query.failed': '查询失败' }}>
+<RecordWorkbench
+  engine={engine}
+  definitionId="orders"
+  messages={{ 'label.filter.apply': '应用' }}
+  locale="zh-CN"
+/>
 ```
+
+Times read on the engine's clock, `environment.timeZone`: the zone "today" is resolved in, and the one a date histogram that names no `timeZone` is bucketed in, so a row shows the time it was filtered and grouped by.
 
 An unknown key falls back along the dots and then to the key itself, so a gap shows up rather than rendering blank. A test fails when a new issue code has no entry.
 

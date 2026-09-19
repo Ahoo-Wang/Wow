@@ -39,9 +39,10 @@ export interface CartesianData {
   /**
    * One entry per drawn line or bar. `key` is the record key of the points'
    * values and is injective over group values, so it may carry a type tag;
-   * `label` is what a legend shows, the value as it prints.
+   * `label` is what a legend shows, the value as it prints. A pivoted series
+   * also keeps the raw split `value`, for a UI to show as its field does.
    */
-  series: { key: string; label: string; metric: string }[];
+  series: { key: string; label: string; metric: string; value?: unknown }[];
 }
 
 export interface PieSlice {
@@ -177,7 +178,10 @@ function cartesian(
   rows: readonly RecordData[],
 ): CartesianData {
   const byX = new Map<unknown, Record<string, number | null>>();
-  const seriesKeys = new Map<string, { label: string; metric: string }>();
+  const seriesKeys = new Map<
+    string,
+    { label: string; metric: string; value?: unknown }
+  >();
 
   for (const row of rows) {
     const x = row[spec.x];
@@ -189,6 +193,7 @@ function cartesian(
       seriesKeys.set(key, {
         label: spec.splitBy === undefined ? series.metric : printed(split),
         metric: series.metric,
+        ...(spec.splitBy === undefined ? {} : { value: split }),
       });
       values[key] = num(row, series.metric);
     }

@@ -19,6 +19,7 @@ import {
 import type {
   DataViewDefinition,
   FieldDefinition,
+  FieldOption,
   NumberFormat,
   RecordData,
   RecordKey,
@@ -38,6 +39,8 @@ export interface RecordColumnView {
   pinned?: 'left' | 'right';
   sortable: boolean;
   numberFormat?: NumberFormat;
+  /** An enum's choices, so a cell can show a value by its label. */
+  options?: readonly FieldOption[];
 }
 
 export interface RecordRow {
@@ -69,6 +72,7 @@ function columnView(
     pinned: column.pinned,
     sortable: field.sortable === true,
     numberFormat: field.numberFormat,
+    ...(field.options ? { options: field.options } : {}),
   };
 }
 

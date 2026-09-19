@@ -12,6 +12,7 @@
  */
 
 import {
+  AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
   AggregationMetricType,
@@ -74,6 +75,60 @@ export function ordersDefinition(
     ],
     ...overrides,
   };
+}
+
+/** 09:21:55 UTC on 18 Sep 2026, as Wow keeps a time: epoch milliseconds. */
+export const INSTANT = 1789723315014;
+
+/**
+ * Kathmandu runs forty-five minutes off the hour, so no machine's own zone
+ * passes for it: a time that reads as it does there was shown in the zone it
+ * was given.
+ */
+export const ZONE = 'Asia/Kathmandu';
+
+/** A datetime as a surface in `en-GB` on {@link ZONE}'s time shows it. */
+export function inZone(value: number): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'medium',
+    timeZone: ZONE,
+  }).format(value);
+}
+
+/**
+ * The orders capability with values only their field can make readable: a
+ * warehouse enum whose codes have names, and a creation time kept as epoch
+ * milliseconds that analyses can bucket by month.
+ */
+export function namedOrdersDefinition(): DataViewDefinition {
+  const base = ordersDefinition();
+  return ordersDefinition({
+    fields: [
+      ...base.fields.map(field =>
+        field.name === 'warehouse'
+          ? {
+              ...field,
+              kind: 'enum',
+              options: [{ value: 'CN', label: 'China' }],
+            }
+          : field,
+      ),
+      { name: 'createdAt', label: 'Created', kind: 'datetime' },
+    ],
+    analysis: {
+      count: true,
+      fields: [
+        ...(base.analysis?.fields ?? []),
+        {
+          field: 'createdAt',
+          groups: [AggregationGroupType.DATE_HISTOGRAM],
+          functions: [],
+          dateUnits: [AggregationDateUnit.MONTH],
+        },
+      ],
+    },
+  });
 }
 
 export function recordConfig(
