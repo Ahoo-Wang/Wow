@@ -254,6 +254,7 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.summary.unavailable': '—',
   'label.view.unopenable': 'This view could not be opened',
   'label.view.needs-fixing': 'This view needs fixing before it runs',
+  'label.view.warnings': 'Worth noting',
   'label.view.none': 'No view yet',
   'label.dashboard.needs-fixing': 'This dashboard needs fixing before it runs',
   'label.dashboard.empty': 'No panels yet',

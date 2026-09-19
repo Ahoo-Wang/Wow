@@ -29,6 +29,7 @@ import { RecordCards } from './RecordCards.js';
 import { RecordTable } from './RecordTable.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { ViewSurface } from './ViewSurface.js';
+import { WarningNotice } from './WarningNotice.js';
 
 export interface EmbeddedViewProps {
   engine: ViewEngine;
@@ -116,18 +117,38 @@ function EmbeddedBody({ runtime }: { runtime: OpenedRuntime }) {
   const errors = (state?.issues ?? []).filter(
     found => found.severity === 'error',
   );
+  // A warning blocks nothing, so the result still shows, with the warning
+  // above it: an embed hides the editor, and this is the one place a reader
+  // learns the view is not quite what its author saved. A dashboard's
+  // panel-scoped findings are the panels' to show, each in its own frame.
+  const warnings = (state?.issues ?? []).filter(
+    found => runtime.kind !== 'dashboard' || found.path[0] !== 'panels',
+  );
+  // An error takes the result's place; it does not take the warnings' — a
+  // config can carry both, and the workbench says both.
   if (errors.length > 0)
     return (
-      <Alert variant="destructive">
-        <AlertTitle>{messages.label('label.view.needs-fixing')}</AlertTitle>
-        <AlertDescription>{messages.issues(errors)}</AlertDescription>
-      </Alert>
+      <>
+        <Alert variant="destructive">
+          <AlertTitle>{messages.label('label.view.needs-fixing')}</AlertTitle>
+          <AlertDescription>{messages.issues(errors)}</AlertDescription>
+        </Alert>
+        <WarningNotice issues={warnings} />
+      </>
     );
 
-  if (runtime.kind === 'record') return <EmbeddedRecord runtime={runtime} />;
-  if (runtime.kind === 'analysis')
-    return <EmbeddedAnalysis runtime={runtime} />;
-  return <EmbeddedDashboard runtime={runtime} />;
+  return (
+    <>
+      <WarningNotice issues={warnings} />
+      {runtime.kind === 'record' ? (
+        <EmbeddedRecord runtime={runtime} />
+      ) : runtime.kind === 'analysis' ? (
+        <EmbeddedAnalysis runtime={runtime} />
+      ) : (
+        <EmbeddedDashboard runtime={runtime} />
+      )}
+    </>
+  );
 }
 
 function Failed({ runtime }: { runtime: OpenedRuntime }) {

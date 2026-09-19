@@ -17,6 +17,7 @@ import GridLayout, { noCompactor, type Layout } from 'react-grid-layout';
 import {
   GripVerticalIcon,
   LayoutDashboardIcon,
+  TriangleAlertIcon,
   UnplugIcon,
 } from 'lucide-react';
 import type { AnalysisView } from '../analysis/index.js';
@@ -140,13 +141,35 @@ export interface DashboardPanelProps {
 /** One framed panel: a title, a grip when the layout is editable, a body. */
 export function DashboardPanel({ panel, editable }: DashboardPanelProps) {
   const messages = useViewMessages();
+  // A panel that runs and still has something to say shows its view and
+  // wears the finding in its header. A broken one says why in its body,
+  // where the view would have been; whatever else it has to say — a config
+  // can carry a warning beside its error — still goes in the header, and
+  // only the finding the body shows is left out, so nothing is said twice.
+  const shown = bodyIssue(panel);
+  const warnings = panel.issues.filter(
+    found => found.severity === 'warning' && found !== shown,
+  );
+  const warned = warnings.length > 0;
   return (
     <Card
       data-slot="dashboard-panel"
-      className="h-full gap-2 overflow-hidden py-3"
+      data-warning={warned || undefined}
+      className="h-full gap-2 overflow-hidden py-3 data-[warning]:border-warning"
     >
       <CardHeader className="px-3">
         <CardTitle className="flex items-center gap-1 text-sm">
+          {warned && (
+            <span
+              data-slot="panel-warning"
+              role="img"
+              aria-label={messages.issues(warnings)}
+              title={messages.issues(warnings)}
+              className="text-warning"
+            >
+              <TriangleAlertIcon className="size-4" />
+            </span>
+          )}
           {/*
             Decorative on purpose. Dragging is a pointer gesture with no
             keyboard equivalent yet, and naming the grip for a screen reader
@@ -179,8 +202,7 @@ function PanelBody({ panel }: { panel: DashboardPanelView }) {
   // and leaves the rest alone. Content panels come through here too: a link
   // whose scheme was rejected must not reach the document because the rest of
   // the dashboard happened to be fine.
-  if (panel.broken)
-    return <Unavailable issue={firstError(panel) ?? panel.issues[0]} />;
+  if (panel.broken) return <Unavailable issue={bodyIssue(panel)} />;
   if (panel.panel.kind !== 'view') return <ContentPanel panel={panel.panel} />;
   if (!panel.runtime) return <Unavailable issue={panel.issues[0]} />;
   return panel.runtime.kind === 'record' ? (
@@ -190,9 +212,16 @@ function PanelBody({ panel }: { panel: DashboardPanelView }) {
   );
 }
 
-/** The reason a panel is out, preferred over a warning that came with it. */
-function firstError(panel: DashboardPanelView): Issue | undefined {
-  return panel.issues.find(found => found.severity === 'error');
+/**
+ * The finding a broken panel's body shows as the reason it is out: its
+ * first error, else the warning that came alone. A panel that runs shows
+ * its view instead, and its findings all belong to the header.
+ */
+function bodyIssue(panel: DashboardPanelView): Issue | undefined {
+  if (!panel.broken) return undefined;
+  return (
+    panel.issues.find(found => found.severity === 'error') ?? panel.issues[0]
+  );
 }
 
 function Unavailable({ issue }: { issue: Issue | undefined }) {

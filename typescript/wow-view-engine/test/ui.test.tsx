@@ -24,13 +24,16 @@ import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  builtinFieldKinds,
   MemoryViewStore,
   ViewEngine,
   ViewStoreError,
+  withFieldKinds,
+  type FieldKind,
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
-import type { PagedList } from '@ahoo-wang/fetcher-wow';
+import { FilterOperator, type PagedList } from '@ahoo-wang/fetcher-wow';
 import type {
   EditorDescriptor,
   FilterTree,
@@ -52,6 +55,7 @@ import {
   SaveActions,
   ViewList,
   ViewSurface,
+  WarningNotice,
 } from '../src/ui/index.js';
 import {
   analysisConfig,
@@ -73,6 +77,21 @@ const mine: ViewInstance = {
   scope: 'personal',
   revision: '1',
   config: recordConfig(),
+};
+
+/**
+ * A simple-mode config holding a tree only the advanced editor can show. It
+ * opens, runs and saves; the kernel warns about it, and nothing more.
+ */
+const mixed: ViewInstance = {
+  ...mine,
+  config: recordConfig({
+    filterMode: 'simple',
+    filter: {
+      op: 'or',
+      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+    },
+  }),
 };
 
 /** The last value a controlled editor reported. */
@@ -105,6 +124,34 @@ describe('RecordWorkbench', () => {
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
     expect(screen.getByRole('button', { name: /Apply/ })).toBeDefined();
     expect(screen.getByRole('navigation', { name: 'Views' })).toBeDefined();
+  });
+
+  /**
+   * The workbench only ever looked for errors, so a warning the kernel took
+   * the trouble to raise reached nobody. It must show, and it must not do
+   * what an error does: the rows still come, and nothing says "fix this".
+   */
+  it('says what is worth noting without stopping the view', async () => {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [mixed] }),
+      resolveSource: () => testSource(),
+    });
+
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    const notice = document.querySelector('[data-slot="view-warnings"]');
+    expect(notice?.getAttribute('role')).toBe('status');
+    expect(notice?.textContent).toContain('Worth noting');
+    expect(notice?.textContent).toContain('advanced editor');
+    expect(screen.queryByText(/needs fixing/)).toBeNull();
   });
 
   it('shows an analysis view as its saved layout', async () => {
@@ -2210,6 +2257,77 @@ describe('FilterPanel tree editing', () => {
       'false',
     );
   });
+
+  /**
+   * The pill read every issue at its path as "invalid", so a warning — a
+   * finding that blocks nothing — painted the same red as a value the kind
+   * refused. No built-in kind warns about a leaf, so one is registered here:
+   * a number it will round, worth pointing out and not worth refusing.
+   */
+  it('marks a condition with a warning apart from one that is invalid', () => {
+    const rounded: FieldKind = {
+      id: 'rounded',
+      operators: ['EQ'],
+      defaultOperator: 'EQ',
+      emptyValue: () => null,
+      validate: ({ value, path }) =>
+        typeof value !== 'number'
+          ? [{ code: 'filter.value.expected-number', severity: 'error', path }]
+          : Number.isInteger(value)
+            ? []
+            : [{ code: 'filter.value.rounded', severity: 'warning', path }],
+      compile: ({ leaf, field }) => ({
+        op: FilterOperator.EQ,
+        field: field.name,
+        value: Math.round(leaf.value as number),
+      }),
+      editor: () => ({ input: 'number' }),
+      describe: ({ leaf, field }) => `${field.label} = ${String(leaf.value)}`,
+    };
+    const base = ordersDefinition();
+    const engine = new ViewEngine({
+      definitions: [
+        {
+          ...base,
+          fields: [
+            ...base.fields,
+            { name: 'weight', label: 'Weight', kind: 'rounded' },
+          ],
+        },
+      ],
+      store: new MemoryViewStore({ instances: [mine] }),
+      resolveSource: () => testSource(),
+      kinds: withFieldKinds(builtinFieldKinds, [rounded]),
+    });
+    const runtime = engine.create('orders', {
+      title: 'Scratch',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+    let latest: ReturnType<typeof useFilterEditor> | null = null;
+    function Probe() {
+      const filter = useFilterEditor(runtime);
+      latest = filter;
+      return <FilterPanel filter={filter} />;
+    }
+    render(<Probe />);
+    const filter = () => latest as ReturnType<typeof useFilterEditor>;
+    const pill = () => screen.getByRole('group', { name: 'Weight condition' });
+
+    act(() => filter().addLeaf('weight'));
+    act(() => filter().updateLeaf([0], { value: 2.5 }));
+
+    expect(pill().hasAttribute('data-warning')).toBe(true);
+    expect(pill().hasAttribute('data-invalid')).toBe(false);
+    // A warning blocks nothing: the condition applies as it stands.
+    act(() => filter().submit());
+    expect(filter().applied).toHaveLength(1);
+
+    act(() => filter().updateLeaf([0], { value: 'heavy' as never }));
+
+    expect(pill().hasAttribute('data-invalid')).toBe(true);
+    expect(pill().hasAttribute('data-warning')).toBe(false);
+  });
 });
 
 describe('FilterPanel and auto refresh', () => {
@@ -2563,5 +2681,139 @@ describe('EmbeddedView', () => {
     await waitFor(() =>
       expect(screen.getByText(/could not be opened/i)).toBeDefined(),
     );
+  });
+
+  /**
+   * An embed hides the editor, so this notice is the one way a reader learns
+   * the view is not quite what its author saved. Unlike an error it does not
+   * take the result's place: the rows are real, and they still show.
+   */
+  it('shows a warning above the result rather than instead of it', async () => {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [mixed] }),
+      resolveSource: () => testSource(),
+    });
+
+    render(<EmbeddedView engine={engine} instanceId="orders-1" />);
+
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    const notice = document.querySelector('[data-slot="view-warnings"]');
+    expect(notice?.textContent).toContain('advanced editor');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  /**
+   * A config can carry both. The error branch returned before the warning
+   * was rendered, so an embed said one level less than the workbench did.
+   */
+  it('keeps saying what is worth noting when an error takes the result place', async () => {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({
+        instances: [
+          {
+            ...mixed,
+            config: recordConfig({
+              filterMode: 'simple',
+              filter: {
+                op: 'or',
+                children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+              },
+              // Blocks: the page size must be positive.
+              pageSize: 0,
+            }),
+          },
+        ],
+      }),
+      resolveSource: () => testSource(),
+    });
+
+    render(<EmbeddedView engine={engine} instanceId="orders-1" />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toContain('needs fixing'),
+    );
+    expect(
+      document.querySelector('[data-slot="view-warnings"]')?.textContent,
+    ).toContain('advanced editor');
+    expect(screen.queryByRole('row')).toBeNull();
+  });
+});
+
+describe('WarningNotice', () => {
+  it('renders nothing when there is no warning to report', () => {
+    const { container } = render(
+      <WarningNotice issues={[{ code: 'x', severity: 'error', path: [] }]} />,
+    );
+
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('wears the warning colour, a class of its own, and a status role', () => {
+    render(
+      <WarningNotice
+        className="mt-2"
+        issues={[
+          { code: 'blocking.elsewhere', severity: 'error', path: [] },
+          {
+            code: 'config.filterMode.not-simple',
+            severity: 'warning',
+            path: ['filterMode'],
+          },
+        ]}
+      />,
+    );
+
+    // A status, not an alert: a screen reader mentions it without
+    // interrupting whatever its user was doing.
+    const notice = screen.getByRole('status');
+    expect(notice.className).toContain('border-warning');
+    expect(notice.className).toContain('mt-2');
+    expect(notice.textContent).toContain('Worth noting');
+    // Only the warnings; the error has an alert of its own elsewhere.
+    expect(notice.textContent).not.toContain('blocking.elsewhere');
+    expect(notice.textContent).toContain('advanced editor');
+  });
+
+  /**
+   * A dashboard validates a global condition once as its own and once per
+   * panel it maps onto, so the same sentence arrived twice with two paths.
+   * The code and the params are the sentence; one of each is said.
+   */
+  it('says the same sentence once, however many paths raise it', () => {
+    render(
+      <WarningNotice
+        issues={[
+          {
+            code: 'config.filterMode.not-simple',
+            severity: 'warning',
+            path: [],
+          },
+          {
+            code: 'config.filterMode.not-simple',
+            severity: 'warning',
+            path: ['panels', 0, 'filterMode'],
+          },
+          {
+            code: 'record.summary.unsupported',
+            severity: 'warning',
+            path: ['summaries', 0],
+            params: { field: 'Amount', fn: 'AVG' },
+          },
+          {
+            code: 'record.summary.unsupported',
+            severity: 'warning',
+            path: ['summaries', 1],
+            params: { field: 'Amount', fn: 'SUM' },
+          },
+        ]}
+      />,
+    );
+
+    const text = screen.getByRole('status').textContent ?? '';
+    expect(text.match(/advanced editor/g)).toHaveLength(1);
+    expect(text).toContain('AVG summary');
+    expect(text).toContain('SUM summary');
   });
 });

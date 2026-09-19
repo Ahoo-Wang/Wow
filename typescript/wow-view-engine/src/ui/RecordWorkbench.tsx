@@ -33,6 +33,7 @@ import { SaveActions } from './SaveActions.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { ViewSurface } from './ViewSurface.js';
 import { ViewList } from './ViewList.js';
+import { WarningNotice } from './WarningNotice.js';
 
 export interface RecordWorkbenchProps {
   engine: ViewEngine;
@@ -112,6 +113,9 @@ export function RecordWorkbench({
                 <AlertDescription>{messages.issues(errors)}</AlertDescription>
               </Alert>
             )}
+            {/* Warnings block nothing — the rows below are the real ones —
+                so they sit under the errors and never replace the result. */}
+            <WarningNotice issues={state?.issues ?? []} />
 
             <RecordToolbar
               table={table}

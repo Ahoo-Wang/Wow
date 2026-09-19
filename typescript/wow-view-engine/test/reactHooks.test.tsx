@@ -269,6 +269,66 @@ describe('useOpenView', () => {
     );
   });
 
+  /**
+   * `setScopeFilter` reports every finding of the merged condition, so a
+   * view whose saved config already carried a warning answered an accepted
+   * narrowing with that warning, and the hook called it a refusal.
+   */
+  it('does not call an accepted narrowing refused over a warning', async () => {
+    const source = testSource();
+    const { engine } = engineWith({
+      source,
+      instances: [
+        {
+          ...mine,
+          config: recordConfig({
+            filterMode: 'simple',
+            filter: {
+              op: 'or',
+              children: [
+                {
+                  field: 'warehouse',
+                  operator: `${FilterOperator.EQ}`,
+                  value: 'CN',
+                },
+              ],
+            },
+          }),
+        },
+      ],
+    });
+    const narrowed: FilterTree = {
+      op: 'and',
+      children: [
+        { field: 'warehouse', operator: `${FilterOperator.EQ}`, value: 'US' },
+      ],
+    };
+    const { result, rerender } = renderHook(
+      ({ scope }: { scope: FilterTree | null }) =>
+        useOpenView(engine, 'orders-1', scope),
+      { initialProps: { scope: null as FilterTree | null } },
+    );
+    await waitFor(() => expect(result.current.runtime).not.toBeNull());
+
+    rerender({ scope: narrowed });
+
+    // The narrowing went through: the query carries it.
+    await waitFor(() =>
+      expect(
+        vi
+          .mocked(source.paged)
+          .mock.calls.some(([query]) =>
+            JSON.stringify(query.filter).includes('US'),
+          ),
+      ).toBe(true),
+    );
+    expect(result.current.scopeIssues).toEqual([]);
+    // The warning is still the runtime's to show.
+    expect(
+      result.current.runtime?.getSnapshot().issues.map(found => found.code),
+    ).toContain('config.filterMode.not-simple');
+  });
+
   it('opens the id again when its runtime is disposed under it', async () => {
     const { engine } = engineWith();
     const { result } = renderHook(() => useOpenView(engine, 'orders-1'));

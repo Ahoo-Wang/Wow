@@ -173,6 +173,7 @@ src/
     DashboardGrid.tsx, DashboardPanels.tsx
     FilterPanel.tsx, FilterValueEditor.tsx
     ViewList.tsx, ViewSurface.tsx, SaveActions.tsx, EmbeddedView.tsx
+    WarningNotice.tsx             — Non-blocking findings, in the theme's `warning` colour
     messages.ts, MessagesProvider.tsx   — wording by key, overridable
     index.ts
     components/                   — 24 shadcn/ui primitives — vendored, see below

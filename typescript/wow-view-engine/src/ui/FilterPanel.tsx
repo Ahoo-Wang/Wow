@@ -467,9 +467,13 @@ function Condition({
     isBlankLeafValue(leaf.value, leaf.operator, field, kind, filter.kinds);
   // `validateFilter` addresses a node as ['children', 0, 'children', 1, …];
   // its numeric segments are exactly this leaf's path.
-  const invalid = filter.issues.some(found =>
+  // An error marks the pill invalid; a warning marks it, in the theme's
+  // warning colour, without saying it is wrong — the condition still runs.
+  const own = filter.issues.filter(found =>
     samePath(numericPath(found.path), path),
   );
+  const invalid = own.some(found => found.severity === 'error');
+  const warned = !invalid && own.some(found => found.severity === 'warning');
   const holdsTree = editor?.input === 'predicate';
   // Two inputs need two cells' room; below two columns there is only the one.
   const wide =
@@ -530,8 +534,9 @@ function Condition({
           field: label,
         })}
         data-invalid={invalid || undefined}
+        data-warning={warned || undefined}
         data-blank={blank || undefined}
-        className="col-span-full flex flex-col gap-1 rounded-md border border-border p-2 data-[blank]:border-dashed data-[invalid]:border-destructive"
+        className="col-span-full flex flex-col gap-1 rounded-md border border-border p-2 data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning"
       >
         <div className="flex items-center gap-1">
           <span className="shrink-0 text-sm font-medium whitespace-nowrap">
@@ -558,9 +563,10 @@ function Condition({
         field: label,
       })}
       data-invalid={invalid || undefined}
+      data-warning={warned || undefined}
       data-blank={blank || undefined}
       data-wide={wide || undefined}
-      className="flex min-w-0 items-center gap-1 rounded-md border border-border bg-muted/40 py-0.5 pr-0.5 pl-2 text-sm data-[blank]:border-dashed data-[invalid]:border-destructive @[40rem]:data-[wide]:col-span-2"
+      className="flex min-w-0 items-center gap-1 rounded-md border border-border bg-muted/40 py-0.5 pr-0.5 pl-2 text-sm data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning @[40rem]:data-[wide]:col-span-2"
     >
       <span className="w-16 shrink-0 truncate font-medium" title={label}>
         {label}

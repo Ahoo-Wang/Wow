@@ -210,7 +210,12 @@ export function useOpenView(
   // so the issues are kept and handed to the caller.
   const refusals = useState(issueStore)[0];
   useEffect(() => {
-    refusals.set(runtime?.setScopeFilter(scopeFilter) ?? NO_ISSUES);
+    // `setScopeFilter` reports every finding of the merged condition, and an
+    // accepted condition can carry a warning about the saved config. That is
+    // the runtime's own to show; only an error is a refusal.
+    const reported = runtime?.setScopeFilter(scopeFilter) ?? NO_ISSUES;
+    const errors = reported.filter(found => found.severity === 'error');
+    refusals.set(errors.length > 0 ? errors : NO_ISSUES);
   }, [refusals, runtime, scopeFilter]);
   const scopeIssues = useSyncExternalStore(refusals.subscribe, refusals.get);
 

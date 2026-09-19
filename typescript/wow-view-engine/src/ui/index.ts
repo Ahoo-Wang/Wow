@@ -38,3 +38,4 @@ export * from './RecordWorkbench.js';
 export * from './SaveActions.js';
 export * from './ViewList.js';
 export * from './ViewSurface.js';
+export * from './WarningNotice.js';

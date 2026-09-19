@@ -23,7 +23,10 @@ import {
   RequestRunner,
   ViewEngine,
   emptyDashboardConfig,
+  withFieldKinds,
   type DashboardPanel,
+  type FieldKind,
+  type FieldKindRegistry,
   type DashboardViewConfig,
   type FilterTree,
   type Issue,
@@ -111,6 +114,7 @@ function harness(
     source?: ViewSource;
     resolveSource?: (key: string) => ViewSource;
     limits?: Partial<RuntimeLimits>;
+    kinds?: FieldKindRegistry;
   } = {},
 ): Harness {
   const clock = testEnvironment();
@@ -127,6 +131,7 @@ function harness(
     resolveSource: options.resolveSource ?? (() => source),
     environment: clock.environment,
     limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits },
+    kinds: options.kinds,
   });
 
   return {
@@ -293,6 +298,139 @@ describe('DashboardViewRuntime unavailable references', () => {
     // Resolution is over, and what it learned reached the dashboard's issues.
     expect(state.resolving).toBe(false);
     expect(codes(state.issues)).toEqual(['dashboard.panel.unavailable']);
+  });
+
+  /**
+   * A child admits its own saved config and can warn about it. The panel ran,
+   * but the warning went nowhere: `syncPanel` reported only the dashboard's
+   * findings for a child it kept. It rides on the panel now, and survives a
+   * re-sync that leaves the scope unchanged, where `setScopeFilter` has
+   * nothing to report.
+   */
+  it('carries a running child warning on the panel', async () => {
+    const board = await harness({
+      instances: [
+        pending({
+          config: recordConfig({
+            filterMode: 'simple',
+            filter: {
+              op: 'or',
+              children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+            },
+          }),
+        }),
+      ],
+    });
+    const runtime = await board.open(dashboardConfig({ panels: [panel()] }));
+    const first = () => runtime.getSnapshot().panels[0];
+
+    expect(first().runtime).not.toBeNull();
+    expect(first().issues).toEqual([
+      {
+        code: 'config.filterMode.not-simple',
+        severity: 'warning',
+        path: ['panels', 0, 'filterMode'],
+      },
+    ]);
+
+    runtime.edit({ panels: [panel({ layout: { x: 1, y: 0, w: 6, h: 4 } })] });
+    runtime.apply();
+    await flush();
+
+    expect(first().runtime).not.toBeNull();
+    expect(codes(first().issues)).toEqual(['config.filterMode.not-simple']);
+  });
+
+  /**
+   * The dashboard re-validates the merged filter against the child's fields
+   * and the child admits the same merged tree, so a kind that warns about a
+   * value was heard twice, and the panel read the same sentence twice.
+   */
+  it('reports a warning the dashboard and the child both raise once', async () => {
+    const rounded: FieldKind = {
+      id: 'rounded',
+      operators: ['EQ'],
+      defaultOperator: 'EQ',
+      emptyValue: () => null,
+      validate: ({ value, path }) =>
+        typeof value === 'number' && !Number.isInteger(value)
+          ? [{ code: 'filter.value.rounded', severity: 'warning', path }]
+          : [],
+      compile: ({ leaf, field }) => ({
+        op: FilterOperator.EQ,
+        field: field.name,
+        value: Math.round(leaf.value as number),
+      }),
+      editor: () => ({ input: 'number' }),
+      describe: ({ leaf, field }) => `${field.label} = ${String(leaf.value)}`,
+    };
+    const orders = ordersDefinition();
+    const board = await harness({
+      definitions: [
+        {
+          ...orders,
+          fields: [
+            ...orders.fields,
+            { name: 'weight', label: 'Weight', kind: 'rounded' },
+          ],
+        },
+        overviewDefinition(),
+      ],
+      kinds: withFieldKinds(builtinFieldKinds, [rounded]),
+    });
+    const runtime = await board.open(
+      dashboardConfig({
+        fields: [{ name: 'weight', label: 'Weight', kind: 'rounded' }],
+        filter: {
+          op: 'and',
+          children: [{ field: 'weight', operator: 'EQ', value: 2.5 }],
+        },
+        panels: [
+          panel({
+            bindings: [{ globalField: 'weight', panelField: 'weight' }],
+          }),
+        ],
+      }),
+    );
+    const first = runtime.getSnapshot().panels[0];
+
+    expect(first.runtime).not.toBeNull();
+    expect(codes(first.issues)).toEqual(['filter.value.rounded']);
+  });
+
+  /**
+   * `panelRuntime` is the host's handle on one panel, and driving it changes
+   * what the child has to say. The panel's issues were copied at sync time
+   * only, so a marker over the panel lagged the body under it until some
+   * unrelated apply on the dashboard.
+   */
+  it('follows a child warning the host raises or clears through the panel runtime', async () => {
+    const board = await harness();
+    const runtime = await board.open(dashboardConfig({ panels: [panel()] }));
+    const child = runtime.panelRuntime('orders');
+    const first = () => runtime.getSnapshot().panels[0];
+    expect(child).not.toBeNull();
+    expect(first().issues).toEqual([]);
+
+    child?.edit({
+      filterMode: 'simple',
+      filter: {
+        op: 'or',
+        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      },
+    });
+
+    expect(first().issues).toEqual([
+      {
+        code: 'config.filterMode.not-simple',
+        severity: 'warning',
+        path: ['panels', 0, 'filterMode'],
+      },
+    ]);
+
+    child?.edit({ filterMode: 'advanced' });
+
+    expect(first().issues).toEqual([]);
   });
 
   it('clears the issue once the reference has arrived', async () => {

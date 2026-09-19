@@ -13,7 +13,7 @@
 
 import { useState } from 'react';
 import { RefreshCwIcon } from 'lucide-react';
-import type { FieldOption } from '../model/index.js';
+import type { FieldOption, Issue } from '../model/index.js';
 import type { ViewEngine } from '../runtime/index.js';
 import {
   useDashboard,
@@ -33,6 +33,7 @@ import { Skeleton } from './components/skeleton.js';
 import { ViewList } from './ViewList.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { ViewSurface } from './ViewSurface.js';
+import { WarningNotice } from './WarningNotice.js';
 
 export interface DashboardWorkbenchProps {
   engine: ViewEngine;
@@ -78,6 +79,17 @@ export function DashboardWorkbench({
   const errors = (state?.issues ?? []).filter(
     found => found.severity === 'error',
   );
+  // The panels carry the warnings of what is applied, each in its own frame.
+  // The draft's are not all carried: a global condition mapped onto a panel
+  // field that warns, not yet applied, is a finding under `['panels', …]`
+  // that no panel holds until Apply hands it over — and Save would persist
+  // it unseen. So the notice takes every warning no panel is showing.
+  const carried = dashboard.panels.flatMap(panel => panel.issues);
+  const warnings = (state?.issues ?? []).filter(
+    found =>
+      found.severity === 'warning' &&
+      !carried.some(shown => sameIssue(shown, found)),
+  );
 
   return (
     <ViewSurface theme={theme} className="gap-0 md:flex-row">
@@ -117,6 +129,7 @@ export function DashboardWorkbench({
                 <AlertDescription>{messages.issues(errors)}</AlertDescription>
               </Alert>
             )}
+            <WarningNotice issues={warnings} />
 
             <div className="flex items-center gap-2">
               <Button
@@ -157,5 +170,23 @@ export function DashboardWorkbench({
         )}
       </main>
     </ViewSurface>
+  );
+}
+
+/**
+ * Whether two findings are the same finding. A panel's issues are the
+ * dashboard's own re-addressed and the child's rebased, so they never share
+ * an object with the draft's; the finding is compared instead.
+ */
+function sameIssue(a: Issue, b: Issue): boolean {
+  if (a.code !== b.code || a.severity !== b.severity) return false;
+  if (a.path.length !== b.path.length) return false;
+  if (a.path.some((segment, index) => segment !== b.path[index])) return false;
+  const left = a.params ?? {};
+  const right = b.params ?? {};
+  const keys = Object.keys(left);
+  return (
+    keys.length === Object.keys(right).length &&
+    keys.every(key => left[key] === right[key])
   );
 }

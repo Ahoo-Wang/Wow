@@ -34,6 +34,7 @@ import { SaveActions } from './SaveActions.js';
 import { ViewList } from './ViewList.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { ViewSurface } from './ViewSurface.js';
+import { WarningNotice } from './WarningNotice.js';
 
 export interface AnalysisWorkbenchProps {
   engine: ViewEngine;
@@ -112,6 +113,9 @@ export function AnalysisWorkbench({
                 <AlertDescription>{messages.issues(errors)}</AlertDescription>
               </Alert>
             )}
+            {/* Warnings block nothing — the result below is real — so they
+                sit under the errors and never replace it. */}
+            <WarningNotice issues={state?.issues ?? []} />
 
             <SaveActions
               commands={commands}
