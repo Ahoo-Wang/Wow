@@ -18,7 +18,7 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Dependency rules from docs/design.md §4, checked on the TypeScript AST so that
+ * Dependency rules from docs/design/README.md, checked on the TypeScript AST so that
  * multi-line, type-only, re-exported and dynamic imports are all seen. A dynamic
  * import counts only where its specifier is constant — a string literal or a
  * template without substitutions; one built from a variable, `import(target)`,

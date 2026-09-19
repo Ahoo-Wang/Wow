@@ -86,7 +86,7 @@ function cells(): string[] {
 }
 
 /**
- * Closed loop one, as `docs/design.md` §13 defines it and step 5 exits on: the
+ * Closed loop one, as `docs/design/README.md` defines it and step 5 exits on: the
  * user filters, adjusts columns and sorting, saves a personal view, reopens it
  * and gets the configuration back without the browsing state, then refreshes
  * and sees new data.

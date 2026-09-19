@@ -14,7 +14,7 @@
 /**
  * Root entry of `@ahoo-wang/fetcher-view-engine`.
  *
- * The package is being rebuilt from an empty tree following `docs/design.md`.
+ * The package is being rebuilt from an empty tree following `docs/design/`.
  * This entry grows layer by layer in the order fixed there: `model`, `filter`,
  * `record` / `analysis` / `dashboard`, `runtime`, `store`. The `/react` and `/ui`
  * entries are added by their own delivery steps. Dependency rules between the

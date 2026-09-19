@@ -1,6 +1,6 @@
 # Third-party notices
 
-The default UI of this package (`src/ui/`, delivered by the `/ui` entry) adapts components from shadcn/ui's `base-nova` registry using the shadcn CLI, with prefixed utilities and scoped theme tokens. The rewrite in progress reintroduces them in the `/ui` delivery step described in `docs/design.md`; the license below applies to that code.
+The default UI of this package (`src/ui/`, delivered by the `/ui` entry) adapts components from shadcn/ui's `base-nova` registry using the shadcn CLI, with prefixed utilities and scoped theme tokens. The rewrite in progress reintroduces them in the `/ui` delivery step described in `docs/design/`; the license below applies to that code.
 
 Source: https://github.com/shadcn-ui/ui
 

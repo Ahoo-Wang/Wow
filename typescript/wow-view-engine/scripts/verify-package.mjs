@@ -14,7 +14,7 @@
 // Run after building: pnpm --filter @ahoo-wang/fetcher-view-engine test:package
 //
 // Six properties of the built package, which no unit test can see because
-// each one is about the artifact rather than the source (docs/design.md §12):
+// each one is about the artifact rather than the source (docs/design/README.md):
 //
 // 1. Every declared entry resolves and imports.
 // 2. The root entry's types need no DOM lib, so a Node or worker consumer can

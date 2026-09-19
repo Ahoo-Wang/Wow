@@ -19,7 +19,7 @@ import tailwindcss from '@tailwindcss/vite';
 import dts from 'unplugin-dts/vite';
 import { scopeUtilities } from './scripts/scope-utilities.mjs';
 
-// Rewrite in progress (docs/design.md): the root, `/react` and `/ui` entries
+// Rewrite in progress (docs/design/): the root, `/react` and `/ui` entries
 // exist, with the theme shipped as a separate `/styles.css` an application
 // imports explicitly.
 export default defineConfig({

@@ -1,6 +1,6 @@
 # Fetcher View Engine
 
-> **Status: the rewrite defined in [docs/design.md](docs/design.md) is delivered**, through its ninth and last step. Record, Analysis and Dashboard views, the `/react` controllers and the `/ui` components below are all in the package. The previous implementation is frozen at the git tag `view-engine-legacy` (`a064fc1a`) for reference only.
+> **Status: the rewrite defined in [docs/design/](docs/design/) is delivered**, through its ninth and last step. Record, Analysis and Dashboard views, the `/react` controllers and the `/ui` components below are all in the package. The previous implementation is frozen at the git tag `view-engine-legacy` (`a064fc1a`) for reference only.
 
 **Fetcher View Engine is a data view engine for Wow-based business applications.** The application declares in code _how a dataset can be observed_: fields, kinds, operators, available groupings and metrics. Users decide in the UI _how to observe it this time_: filters, columns, sorting, groupings, charts, panel composition. The engine compiles that way of observing into Wow queries, runs them, renders the result, and saves the ways worth keeping so they can be reopened with one click.
 
@@ -272,7 +272,7 @@ const view = projectRecord(orders, config, page);
 - **Conflicts and unknown outcomes.** On a revision conflict choose reload or overwrite, or save as; when a request was sent but its outcome is unknown, retry with the same `requestId`. The draft is always kept.
 - **Leave protection.** Closing a view with an unsaved draft or an unknown write asks for confirmation; navigation never cancels an in-flight write.
 
-Details in [docs/design.md](docs/design.md) §7.
+Details in [docs/design/management.md](docs/design/management.md).
 
 ## Entries
 

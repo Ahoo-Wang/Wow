@@ -295,7 +295,7 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.manage.rename-cancel': 'Keep the title',
   'label.manage.delete': 'Delete',
   // A preference conflict that was reloaded keeps what the user meant and
-  // puts it to them once more (design §7.3), so the button offers the write
+  // puts it to them once more (design/management.md), so the button offers the write
   // again rather than a recovery of the one that lost.
   'label.manage.resubmit': 'Apply again',
   'label.manage.reload': 'Reload list',

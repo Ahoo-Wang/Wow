@@ -6,13 +6,14 @@ Configurable data view engine for Wow-based applications: definitions in code, v
 
 ## Status — active development, no compatibility obligation
 
-This package is being rebuilt from an empty tree against `docs/design.md`, and it **does not owe anyone backward compatibility**. Treat every export as changeable.
+This package is being rebuilt from an empty tree against `docs/design/`, and it **does not owe anyone backward compatibility**. Treat every export as changeable.
 
 - **Change the shape; do not add a compatibility layer.** No shims, no `*V2` names, no aliases re-exported "just in case", no `@deprecated` markers, no migration guides. The wow package carries a deprecated Condition API for external reasons — this package must never grow one.
 - **Renaming, narrowing or deleting an export is a normal change.** Update the callers in this repo and move on. The only consumers that matter are in this monorepo.
 - **When a design gets clearer, rewrite the old shape out of existence** rather than layering onto it. A clean architecture outranks a stable surface here.
-- **`docs/design.md` is the source of truth** for the model, boundaries and contracts, and it is written before the code. When behaviour it describes changes, change the doc in the same PR. Where this file and the design doc disagree, the design doc wins.
-- **A rule worth having is a test, not a paragraph** (design §12). Do not add an invariants index; add the test.
+- **`docs/design/` is the source of truth** for the model, boundaries and contracts, and it is written before the code. It is one page per layer — start at `docs/design/README.md`, which indexes the rest. When behaviour it describes changes, change the page in the same PR. Where this file and the design doc disagree, the design doc wins.
+- **Before changing behaviour, check `docs/design/todo.md`** for an entry that already covers it, and continue that one rather than opening a second front. Entries are deleted when done — never ticked. Product questions still undecided live in `docs/design/decisions.md`, not there.
+- **A rule worth having is a test, not a paragraph** (`docs/design/README.md`). Do not add an invariants index; add the test.
 
 ## Build & Run Commands
 
@@ -55,7 +56,7 @@ pnpm --filter @ahoo-wang/fetcher-view-engine lint:check
 
 ## Architecture — the six dependency rules
 
-From `docs/design.md` §4, all enforced by `test/architecture.test.ts`:
+From `docs/design/README.md`, all enforced by `test/architecture.test.ts`:
 
 1. `model` imports no other directory
 2. `filter` imports `model` only
@@ -194,7 +195,7 @@ src/
     lib/utils.ts                  — shadcn cn() helper — vendored
 ```
 
-`test/` (41 files), `examples/` (`FetcherViewStore.ts`, `PlainRecordWorkbench.tsx`, `quickstart.ts`) and `docs/design.md` sit beside `src/`.
+`test/` (41 files), `examples/` (`FetcherViewStore.ts`, `PlainRecordWorkbench.tsx`, `quickstart.ts`) and `docs/design/` sit beside `src/`.
 
 ### Key Concepts
 
@@ -203,7 +204,7 @@ src/
 - **Configs are data**: what a user saves is a way of looking, not a snapshot. The only persisted objects are `ViewInstance` and personal preferences; consistency is an optimistic version plus an idempotent `requestId`
 - **Runtime state is transient**: drafts, results, paging and selection live only inside one opening. A `ViewRuntime` is a small `subscribe` / `getSnapshot` store and never persists
 - **Four pure kernels**: `filter`, `record`, `analysis`, `dashboard` are synchronous pure functions, all shaped "definition + config in, result or `Issue` out". They never read the clock — relative times resolve against an injected `ctx.now`
-- **`FieldKind` is the main extension point**: operators, validation, compilation and a data-only editor descriptor. Applications register custom kinds in `FieldKindRegistry`. Note that `EditorDescriptor.input` is a **closed union** and `FilterValueEditor` switches over it, so a custom kind picks one of the existing inputs — there is no renderer registry in `/ui` or `/react` today, and an unrecognised shape falls through to a plain text input. `docs/design.md` §10 describes a per-kind renderer registry as intended, not as built
+- **`FieldKind` is the main extension point**: operators, validation, compilation and a data-only editor descriptor. Applications register custom kinds in `FieldKindRegistry`. Note that `EditorDescriptor.input` is a **closed union** and `FilterValueEditor` switches over it, so a custom kind picks one of the existing inputs — there is no renderer registry in `/ui` or `/react` today, and an unrecognised shape falls through to a plain text input. `docs/design/extension.md` describes a per-kind renderer registry as intended, not as built
 - **Untrusted configs**: configs arrive from a store, so validation checks the node shape together with the depth and node budgets on one iterative walk before any kind rule runs, and a malformed node is an Issue at its path rather than a `TypeError`
 - **A blank leaf is not an error**: a field chosen without a value yet is a normal editing state — it is not validated by kind and does not compile
 
@@ -220,7 +221,7 @@ src/
 - Prettier: single quotes, trailing commas, semicolons, 80 char width
 - ESLint runs `react-hooks` with `exhaustive-deps`, `incompatible-library` and `unsupported-syntax` all set to **error**; CI gates on `lint:check` with `--max-warnings 0`
 - `src/ui/components/**` and `src/ui/lib/**` are vendored from the shadcn registry — update them with `shadcn add --diff` rather than editing by hand
-- Bilingual READMEs (`README.md`, `README.zh-CN.md`); `docs/design.md` is in Chinese
+- Bilingual READMEs (`README.md`, `README.zh-CN.md`); `docs/design/` is in Chinese
 
 ## Git Workflow
 

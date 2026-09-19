@@ -1,0 +1,56 @@
+# 扩展点与 Wow 协议的对应
+
+## 扩展点
+
+| 变化轴   | 机制                                                                                                                       | 落点                                                       |
+| -------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 字段类型 | `FieldKind` 包：操作符集、默认操作符、值校验、编译到 `FilterExpression`、编辑器描述（纯数据）                              | `filter/` 注册表；React 渲染器在 `ui/` 用同一 kind id 注册 |
+| 数据来源 | `resolveSource(key)` 返回 `Pick<QueryApi, 'paged' \| 'cursor' \| 'aggregate'>`                                             | 应用注入                                                   |
+| 持久化   | 实现 `ViewStore`                                                                                                           | 业务应用，或官方后端的客户端包                             |
+| 动作槽位 | 宿主向工作台传 render 函数 `global / bulk / row`，动作是代码，不进配置、不进 ViewInstance、不进 Dashboard 面板             | `react/actions.ts` 的类型；工作台属性                      |
+| 外观     | `:root` 上的 `--fve-<token>`（亮）与 `--fve-dark-<token>`（暗），根与 portal 弹层都读到；组件级替换通过自定义组合 `/react` | 宿主样式表；预设主题即一份这些变量的赋值文件               |
+
+```ts
+export interface FieldKind {
+  id: FieldKindId;
+  operators: FilterOperator[];
+  defaultOperator: FilterOperator;
+  validate(
+    value: unknown,
+    operator: FilterOperator,
+    field: FieldDefinition,
+  ): Issue[];
+  compile(leaf: FilterLeaf, field: FieldDefinition, ctx): FilterExpression;
+  /** 由操作符与当前值的语义变体推出编辑器描述；组件名不进入配置。 */
+  editor(operator: FilterOperator, value?: unknown): EditorDescriptor; // { input: 'text' | 'number' | 'select' | 'date' | 'daterange' | 'relative' | 'remote'; multiple?; ... }
+}
+```
+
+### 内置 kind
+
+内置 kind：string、number、boolean、date、datetime、enum、reference、array，各自拥有 [model-shapes.md](model-shapes.md#filter-树三类共享) 列出的值类型。
+
+- **`array`** 是"一个字段同时持有多个值"（标签、分类）的一等表示，它独立成 kind 而不是 string 上的一个开关，因为操作符含义不同：标量字段上 `IN` 问"这一个值是否在列表里"，数组字段上问"字段的条目是否包含其中任一"，另有 `CONTAINS_ALL`（全部包含）与 `IS_EMPTY`（有没有条目——这是 `IS_NULL` 回答不了的，字段可以持有空列表而并非缺失）。声明了 `options` 即为封闭集合，与 enum 同；声明了 `remote` 走远程候选；两者皆无则自由输入。（见 test/arrayKind.test.ts「the array kind」）
+- **元数据 kind** 另有五个，由 Wow 元数据过滤支撑：documentId（`ID`／`IDS`）、aggregateId（`AGGREGATE_ID`／`AGGREGATE_IDS`）、tenantId、ownerId、spaceId。元数据过滤不带字段名（`{ op, value }`），因此这些 kind 的 `FieldDefinition.name` 只是编辑器、标签与 Issue 路径的句柄，不进入查询；约定写作 `@ownerId` 这类带 `@` 的名字，但不依赖它。某个元数据字段算不算合法筛选条件取决于"谁在看"——租户内的用户按所有者或工作空间收窄，平台运维按租户收窄——这个判断属于定义，定义是代码、随应用部署，所以引擎提供 kind，由每份定义决定视图能用哪些。它们不提供 presence 操作符：`IS_NULL` 一类是带字段名的，混进来会让同一个叶子的 `name` 在不同操作符下时而是路径时而是标签。（见 test/metadataKinds.test.ts「metadata field kinds」）
+- **`search`** 是列表页顶部那个搜索框：Wow 的 `SEARCH` 不带字段名，所以它的 `name` 与元数据 kind 一样只是句柄；查哪些字段、按词还是按短语匹配属于定义（`searchFields`／`searchMode`），与 `stringComparison` 同理——匹配方式是字段的属性，值只是用户敲进去的东西。空白查询是「还没问」而非错误，非文本值则是错误：`filter.search` 对两者都抛异常，但只有前者该被宽容。它同样不提供 presence 操作符，原因与元数据 kind 相同，而这条规则由 `FieldKind.fieldless` 自述，`FIELDLESS_FIELD_KIND_IDS` 只是内置 kind 的缺省答案——**名字不是路径的那些 kind**；编译成根过滤的自定义 kind 同样要声明它，否则会溜进元素谓词而被 Wow 拒绝。（见 test/searchKind.test.ts「a handle is not a record field」）
+
+### `elementMatch` 与嵌套谓词
+
+- `elementMatch` 的值是一棵**条件树**而不是标量：Wow 的 `ELEMENT_MATCH` 携带完整谓词，而谓词正是用户在这里写的东西——同一棵树、同一套编辑器，作用域换成该数组元素声明的字段。
+- 它存在的理由是语义差别：`items.sku` 与 `items.qty` 两条并列写在顶层，由**任意**元素各满足一条即可；写在元素匹配里则必须由**同一个**元素同时满足。
+- 持有树的 kind 用 `nested(value, field, operator)` 自述——按操作符设限，`IS_EMPTY` 下遗留的谓词不计入——`checkShape` 据此把嵌套树计入**同一份** `maxFilterDepth`／`maxFilterNodes`——预算的存在是为了让 store 送来的树无法耗尽调用栈，每层各给一份额度等于换个方式重新放开。（见 test/elementMatch.test.ts「the budget reaches into a predicate」）
+- `FieldKind` 的四个上下文（blank、validate、compile、describe）因此带上 `kinds`，validate 另带 `limits`：嵌套谓词按**外层的**预算准入，且不重复走一遍骨架检查：持有树的 kind 要用**外层正在用的那份**注册表，自定义 kind 才能在元素谓词里按同样的条件被准入。
+- 自定义 kind 由应用注册到 `FieldKindRegistry`，自行定义值的形状；缺少对应 React 渲染器时 UI 显示不可编辑并给出 Issue，编译不受影响。
+
+## 与 Wow 协议的对应
+
+| 内核输出                              | Wow 类型（`@ahoo-wang/fetcher-wow`）                                                                                                      | 执行入口           |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `compileFilter`                       | `FilterExpression`（`LogicalFilter`、`EqualityFilter`、`ComparisonFilter`、`StringFilter`、`CollectionFilter`、`BetweenFilter` 等的联合） | 嵌入下方三种查询   |
+| `compileRecord` 分页                  | `FilterPagedQuery { filter; sort; pagination; projection }`                                                                               | `source.paged`     |
+| `compileRecord` 游标                  | `CursorQuery { filter; sort; ... }`                                                                                                       | `source.cursor`    |
+| `compileAnalysis`、`compileSummaries` | `AggregationQuery { filter; groupBy; metrics; sort; limit; having }`                                                                      | `source.aggregate` |
+
+Wow 已将 `Condition`、`ConditionOptions`、`PagedQuery`、`ListQuery`、`SingleQuery` 等基于 condition 的 API 标记为弃用。本包只使用 `FilterExpression` 与 `Filter*Query` 系列；架构测试禁止从 `@ahoo-wang/fetcher-wow` 导入任何弃用符号，`FilterLeaf` 的编译结果类型固定为 `FilterExpression`。
+
+`AnalysisViewConfig` 覆盖 `AggregationQuery` 的全部字段：`filter`、`elements`、`groupBy`、六种 `metrics`、`having`、`sort`、`limit`。Wow 端的能力（是否支持 aggregate、支持哪些 group 类型、函数与扩展能力）由 `AnalysisCapability` 在定义中声明；内核只按声明编译，不探测后端。

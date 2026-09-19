@@ -1,6 +1,6 @@
 # Fetcher View Engine
 
-> **状态：[docs/design.md](docs/design.md) 定义的重写已交付**，第九步即最后一步已完成。Record、Analysis、Dashboard 三种视图，以及下文的 `/react` 控制器与 `/ui` 组件均已在包内。旧实现以 git tag `view-engine-legacy`（`a064fc1a`）冻结，仅作参考。
+> **状态：[docs/design/](docs/design/) 定义的重写已交付**，第九步即最后一步已完成。Record、Analysis、Dashboard 三种视图，以及下文的 `/react` 控制器与 `/ui` 组件均已在包内。旧实现以 git tag `view-engine-legacy`（`a064fc1a`）冻结，仅作参考。
 
 **Fetcher View Engine 是面向 Wow 业务应用的数据视图引擎。** 业务应用用代码声明一份数据"能被怎样观察"：字段、类型、操作符、可用的分组与指标。用户在界面上决定"这一次怎样观察"：筛选、列、排序、分组、图表、面板组合。引擎把这种观察方式编译成 Wow 查询、执行、渲染，并把有价值的观察方式保存下来供下次直接打开。
 
@@ -270,7 +270,7 @@ const view = projectRecord(orders, config, page);
 - **冲突与未知结果。** 版本冲突时二选一：重新加载或覆盖，另加"另存"；请求已发出但结果未知时可用同一 `requestId` 重试，草稿始终保留。
 - **离开保护。** 有未保存草稿或未知写入的视图关闭前确认；导航不取消在途写入。
 
-细节见 [docs/design.md](docs/design.md) 第 7 节。
+细节见 [docs/design/management.md](docs/design/management.md)。
 
 ## 入口
 

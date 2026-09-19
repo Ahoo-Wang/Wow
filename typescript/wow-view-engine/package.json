@@ -32,7 +32,7 @@
   },
   "files": [
     "dist",
-    "docs/design.md",
+    "docs/design",
     "README.md",
     "README.zh-CN.md",
     "THIRD_PARTY_NOTICES.md"

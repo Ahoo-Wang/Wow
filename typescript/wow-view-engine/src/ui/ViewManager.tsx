@@ -306,7 +306,7 @@ function ManagedRow({
 /**
  * What a write that no open view owns came to, under the row that started it.
  *
- * Reloading a preference conflict does not replay the intent (design §7.3):
+ * Reloading a preference conflict does not replay the intent (design/management.md):
  * the list comes back at the stored revision and the user presses again, so
  * the line stays until they do something with it.
  */
@@ -338,7 +338,7 @@ function OutcomeLine({
 
   if (state.kind === 'conflict') {
     // A reload of a preference conflict settled it and kept what the user
-    // meant (design §7.3), so what is offered now is that intent once more
+    // meant (design/management.md), so what is offered now is that intent once more
     // rather than a recovery of a write the engine no longer holds — the
     // button used to call one that could only answer "nothing to recover".
     if (manager.canResubmit(outcomeKey))

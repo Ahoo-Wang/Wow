@@ -12,7 +12,7 @@
  */
 
 /**
- * Types and constants only: the three facts of `docs/design.md` §1 say
+ * Types and constants only: the three facts of `docs/design/README.md` say
  * definitions are code, configs are data and runtime state is transient, so
  * this layer describes the first two and depends on nothing else.
  */
