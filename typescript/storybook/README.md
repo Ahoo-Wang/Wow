@@ -19,6 +19,8 @@ Storybook 是可运行的接入文档，也承载浏览器交互回归。导航�
 
 View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析视图与仪表盘视图，每个故事只呈现一种状态：有数据、空结果、加载中、查询失败、待修复、面板不可用。状态由 `fixtures.ts` 里的假数据源决定，引擎与存储每次挂载都新建，因此保存、改名与删除是真写入，也不会跨场景残留。
 
+假数据源按引擎实际发出的查询作答：`rowSource.ts` 把 Wow 查询翻译成 MongoDB 查询，交给 `mingo` 做筛选、排序、分页与聚合，所以表格、汇总行和图表就是这些条件选出的结果。翻译不了的算子直接报错，表现为查询失败，而不是给出一个看似合理的错误答案。每个界面的 `*.test.stories.tsx` 断言这些结果。
+
 ## 真实后端
 
 `view-engine/CompensationConsole.stories.tsx` 让 View Engine 直连一个 Wow 补偿服务，用真实数据和真实数据量检验体验：数据视图带重试、强制重试与标记可恢复性等写操作，分析视图做全量分组统计。
@@ -26,6 +28,7 @@ View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析�
 - 服务地址是故事的 `host` 参数，可在 Controls 面板随时切换；初始值取 `STORYBOOK_WOW_COMPENSATION_HOST`，未设置时为 `http://localhost:8080`。
 - 写操作会真实写回服务，只连接测试环境。
 - 真实数据每次都不同，这些故事标记为 `!test`，不进入回归测试；文档页用 `docs.autoMount: false` 只列出场景链接，不挂载示例，因此打开目录不会调用服务。
+- 变的只是数据；定义、系统视图和读取快照的方式是确定的，View Engine 的规则一变就可能让它们失效。`CompensationConsole.test.stories.tsx` 把同一个控制台指向 `compensationService.ts` 里的录制服务，让这类失效在 CI 里失败，而不是等有人打开目录才发现。
 
 ## 检查命令
 
@@ -33,9 +36,10 @@ View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析�
 pnpm test:storybook
 pnpm build-storybook
 pnpm lint:stories
+pnpm typecheck:stories
 ```
 
-`build-storybook` 包含静态索引检查：验证首页地址与回归标签。
+`build-storybook` 包含静态索引检查：验证首页地址与回归标签。`typecheck:stories` 按应用看到的方式检查故事：对照各包构建出的类型声明，因此先运行 `pnpm -r --filter './packages/*' build`。
 
 先运行 `pnpm storybook`，再运行以下真实浏览器检查；使用独立的无头浏览器：
 

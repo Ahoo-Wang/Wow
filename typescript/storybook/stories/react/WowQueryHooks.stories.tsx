@@ -88,8 +88,9 @@ function WowQueryDemo({ scenario }: { scenario: Scenario }) {
 
   useEffect(() => {
     if (!stream.result) return;
+    const result = stream.result;
     void (async () => {
-      const reader = stream.result.getReader();
+      const reader = result.getReader();
       const first = await reader.read();
       setStreamOutput(
         `Stream · ${first.value?.data.map(user => user.name).join(', ')}`,

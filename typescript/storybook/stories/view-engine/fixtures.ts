@@ -26,12 +26,14 @@ import {
   type ViewSource,
 } from '@ahoo-wang/fetcher-view-engine';
 import {
-  AggregationExpressionType,
   AggregationFunction,
-  AggregationMetricType,
-  type AggregationMetric,
-  type AggregationQuery,
+  AggregationGroupType,
 } from '@ahoo-wang/fetcher-wow';
+import { rowSource } from './rowSource.js';
+
+// Wow's names for what the analysis side may group and compute by.
+const { TERMS } = AggregationGroupType;
+const { SUM, AVG } = AggregationFunction;
 
 /**
  * One warehouse dataset, shared by every View Engine story.
@@ -81,9 +83,9 @@ export const ordersDefinition: DataViewDefinition = {
   analysis: {
     count: true,
     fields: [
-      { field: 'warehouse', groups: ['TERMS'], functions: [] },
-      { field: 'status', groups: ['TERMS'], functions: [] },
-      { field: 'amount', groups: [], functions: ['SUM', 'AVG'] },
+      { field: 'warehouse', groups: [TERMS], functions: [] },
+      { field: 'status', groups: [TERMS], functions: [] },
+      { field: 'amount', groups: [], functions: [SUM, AVG] },
     ],
   },
   views: [{ id: 'all', title: '全部订单', config: recordConfig() }],
@@ -312,79 +314,27 @@ export const savedDashboard: ViewInstance = {
 export type SourceBehaviour = 'data' | 'empty' | 'slow' | 'failing';
 
 /**
- * A `ViewSource` that answers from the rows above, or refuses to. It is the
- * one knob the state stories turn: every state below the workbench follows
- * from what the backend does.
+ * The rows above behind a `ViewSource`, or a backend that refuses to answer.
+ * It is the one knob the state stories turn: every state below the workbench
+ * follows from what the backend does, and with data it answers the query the
+ * engine sent — filtered, sorted, paged and aggregated — so what a story
+ * shows is what those conditions select.
  */
 export function storySource(behaviour: SourceBehaviour = 'data'): ViewSource {
-  const rows = behaviour === 'empty' ? [] : ORDERS;
-  const answer = async <T>(value: T): Promise<T> => {
+  const source = rowSource(behaviour === 'empty' ? [] : ORDERS);
+  const answer = async <T>(query: () => Promise<T>): Promise<T> => {
     if (behaviour === 'failing')
       throw new ViewStoreError('UNAVAILABLE', '仓储服务暂时不可用');
     // Long enough to look at, short enough that nobody waits for it.
     if (behaviour === 'slow') await delay(1_500);
-    return value;
+    return query();
   };
 
   return {
-    paged: () => answer({ total: rows.length, list: rows }),
-    cursor: () => answer({ nextCursor: null, list: rows }),
-    aggregate: query => answer(aggregate(rows, query)),
+    paged: query => answer(() => source.paged(query)),
+    cursor: query => answer(() => source.cursor(query)),
+    aggregate: query => answer(() => source.aggregate(query)),
   };
-}
-
-/**
- * The rows summarised the way the query asks: one row per value of its first
- * group, or a single row when it has none — that is the totals query the
- * analysis kernel sends beside a table, and it answers for the whole set.
- * Every metric lands under its own alias, so one added in the editor gets a
- * number as well.
- */
-function aggregate(
-  rows: readonly RecordData[],
-  query: AggregationQuery,
-): RecordData[] {
-  if (rows.length === 0) return [];
-  const group = query.groupBy?.[0];
-  const buckets = new Map<unknown, RecordData[]>();
-  for (const row of rows) {
-    const key = group === undefined ? undefined : row[group.field];
-    buckets.set(key, [...(buckets.get(key) ?? []), row]);
-  }
-  return [...buckets].map(([value, members]) => ({
-    ...(group === undefined ? {} : { [group.alias]: value }),
-    ...Object.fromEntries(
-      query.metrics.map(metric => [metric.alias, measure(members, metric)]),
-    ),
-  }));
-}
-
-/** COUNT and the plain field functions; anything richer is left unanswered. */
-function measure(rows: RecordData[], metric: AggregationMetric): number | null {
-  if (metric.type === AggregationMetricType.COUNT) return rows.length;
-  if (
-    metric.type !== AggregationMetricType.NUMERIC ||
-    metric.expression.type !== AggregationExpressionType.FIELD
-  )
-    return null;
-  const field = metric.expression.field;
-  const values = rows
-    .map(row => row[field])
-    .filter((value): value is number => typeof value === 'number');
-  if (values.length === 0) return null;
-  const sum = values.reduce((total, value) => total + value, 0);
-  switch (metric.function) {
-    case AggregationFunction.SUM:
-      return sum;
-    case AggregationFunction.AVG:
-      return sum / values.length;
-    case AggregationFunction.MIN:
-      return Math.min(...values);
-    case AggregationFunction.MAX:
-      return Math.max(...values);
-    default:
-      return null;
-  }
 }
 
 function delay(ms: number): Promise<void> {

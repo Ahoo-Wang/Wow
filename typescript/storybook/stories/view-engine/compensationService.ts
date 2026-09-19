@@ -1,0 +1,133 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import type {
+  AggregationQuery,
+  CursorQuery,
+  FilterPagedQuery,
+} from '@ahoo-wang/fetcher-wow';
+import type { RecordData, ViewSource } from '@ahoo-wang/fetcher-view-engine';
+import { rowSource } from './rowSource.js';
+
+/**
+ * The host the console's regression stories point at. No network answers it:
+ * `installRecordedCompensationService` does, in the page.
+ */
+export const RECORDED_COMPENSATION_HOST = 'https://compensation.example.test';
+
+const START = Date.parse('2026-09-18T08:00:00.000Z');
+
+/**
+ * Failed executions shaped like the snapshots a compensation service returns
+ * for `execution_failed`, with neutral names. `minutes` orders them in time,
+ * so the default view's newest-first sort has something to decide.
+ */
+export const RECORDED_EXECUTIONS: RecordData[] = [
+  execution('EF-1', 'FAILED', 'UNKNOWN', 2, 1),
+  execution('EF-2', 'PREPARED', 'RECOVERABLE', 1, 5),
+  execution('EF-3', 'SUCCEEDED', 'RECOVERABLE', 1, 3),
+  execution('EF-4', 'FAILED', 'UNRECOVERABLE', 3, 2),
+  execution('EF-5', 'FAILED', 'UNKNOWN', 4, 4),
+];
+
+function execution(
+  id: string,
+  status: string,
+  recoverable: string,
+  retries: number,
+  minutes: number,
+): RecordData {
+  const eventTime = START + minutes * 60_000;
+  return {
+    aggregateId: id,
+    firstEventTime: START,
+    eventTime,
+    state: {
+      id,
+      status,
+      recoverable,
+      isRetryable: status !== 'SUCCEEDED',
+      isBelowRetryThreshold: retries < 3,
+      function: {
+        contextName: 'order-service',
+        processorName: 'OrderSaga',
+        name: 'onOrderCreated',
+        functionKind: 'EVENT',
+      },
+      eventId: {
+        id: `${id}-event`,
+        version: 1,
+        aggregateId: {
+          contextName: 'order-service',
+          aggregateName: 'order',
+          aggregateId: `order-${id}`,
+        },
+      },
+      error: { errorCode: 'BadRequest', errorMsg: 'Inventory refused.' },
+      retrySpec: { maxRetries: 3, minBackoff: 180, executionTimeout: 120 },
+      retryState: {
+        retries,
+        retryAt: eventTime,
+        nextRetryAt: eventTime + 180_000,
+        timeoutAt: eventTime + 120_000,
+      },
+    },
+  };
+}
+
+/**
+ * Answers the snapshot queries the console sends to the recorded host, with
+ * `rowSource` standing in for the service's store; every other request goes
+ * where it went before. The console's own fetcher, clients and engine run
+ * unchanged, so what this checks is the console, not a copy of it.
+ *
+ * Returns the uninstaller, as `beforeEach` expects.
+ */
+export function installRecordedCompensationService(): () => void {
+  const original = globalThis.fetch;
+  const source = rowSource(RECORDED_EXECUTIONS);
+  globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const url = new URL(request.url);
+    if (url.origin !== RECORDED_COMPENSATION_HOST) return original(input, init);
+    const answer = await answerSnapshotQuery(
+      source,
+      url.pathname,
+      await request.json(),
+    );
+    return answer === undefined
+      ? Response.json(
+          { errorCode: 'NotFound', errorMsg: `Not recorded: ${url.pathname}` },
+          { status: 404 },
+        )
+      : Response.json(answer);
+  };
+  return () => {
+    globalThis.fetch = original;
+  };
+}
+
+function answerSnapshotQuery(
+  source: ViewSource,
+  path: string,
+  query: unknown,
+): Promise<unknown> | undefined {
+  switch (path) {
+    case '/execution_failed/snapshot/paged':
+      return source.paged(query as FilterPagedQuery);
+    case '/execution_failed/snapshot/cursor':
+      return source.cursor(query as CursorQuery);
+    case '/execution_failed/snapshot/aggregation':
+      return source.aggregate(query as AggregationQuery);
+  }
+}

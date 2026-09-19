@@ -24,6 +24,9 @@ import {
 import { StoryEngine, viewEngineScene } from './StoryEngine.js';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
+/** Which saved dashboard a story opens, and which views it can reach. */
+type Variant = 'panels' | 'filtered' | 'unavailable' | 'empty';
+
 /**
  * A dashboard composes saved views. The global filter reaches each panel as
  * an injected scope, mapped onto that panel's own field, so a referenced view
@@ -35,7 +38,7 @@ function DashboardDemo({
   editable = false,
 }: {
   behaviour?: SourceBehaviour;
-  variant?: 'panels' | 'unavailable' | 'empty';
+  variant?: Variant;
   editable?: boolean;
 }) {
   return (
@@ -46,9 +49,7 @@ function DashboardDemo({
           instances: [
             // An unavailable panel is one whose instance is not in the store.
             ...(variant === 'unavailable' ? [savedViews[1]] : savedViews),
-            variant === 'empty'
-              ? { ...savedDashboard, config: emptyDashboard() }
-              : { ...savedDashboard, config: dashboardConfig() },
+            { ...savedDashboard, config: savedConfig(variant) },
           ],
         })
       }
@@ -63,6 +64,18 @@ function DashboardDemo({
       )}
     </StoryEngine>
   );
+}
+
+function savedConfig(variant: Variant) {
+  if (variant === 'empty') return emptyDashboard();
+  if (variant === 'filtered')
+    return dashboardConfig({
+      filter: {
+        op: 'and',
+        children: [{ field: 'region', operator: 'IN', value: ['CN-SOUTH'] }],
+      },
+    });
+  return dashboardConfig();
 }
 
 const scene = {
@@ -101,6 +114,12 @@ type Story = StoryObj<typeof meta>;
 
 /** Two data panels and one content panel, under one global filter. */
 export const AllPanels: Story = { args: { variant: 'panels' } };
+
+/**
+ * Saved with the global filter on 华南: each panel answers for that warehouse
+ * alone, through its own field, and neither referenced view changes.
+ */
+export const GlobalFilter: Story = { args: { variant: 'filtered' } };
 
 /** Drag by a panel's grip, or resize it; both apply at once, like sorting. */
 export const EditableLayout: Story = { args: { editable: true } };

@@ -13,6 +13,9 @@
 
 import { ExchangeError, Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
 import {
+  AggregationDateUnit,
+  AggregationFunction,
+  AggregationGroupType,
   CommandClient,
   CommandHeaders,
   CommandStage,
@@ -46,6 +49,11 @@ export const EXECUTION_FAILED_ANALYSIS = 'execution-failed-analysis';
 const AGGREGATE = 'execution_failed';
 
 const ACTIVE = ['FAILED', 'PREPARED'];
+
+// Wow's names for what the analysis side may group and compute by.
+const { TERMS, HISTOGRAM, DATE_HISTOGRAM } = AggregationGroupType;
+const { SUM, AVG, MAX } = AggregationFunction;
+const { DAY, WEEK, MONTH } = AggregationDateUnit;
 
 const COLUMNS = [
   'state.id',
@@ -310,42 +318,42 @@ export const executionFailedDefinition: DataViewDefinition = {
   analysis: {
     count: true,
     fields: [
-      { field: 'state.status', groups: ['TERMS'], functions: [] },
-      { field: 'state.recoverable', groups: ['TERMS'], functions: [] },
+      { field: 'state.status', groups: [TERMS], functions: [] },
+      { field: 'state.recoverable', groups: [TERMS], functions: [] },
       {
         field: 'state.function.functionKind',
-        groups: ['TERMS'],
+        groups: [TERMS],
         functions: [],
       },
-      { field: 'state.function.contextName', groups: ['TERMS'], functions: [] },
+      { field: 'state.function.contextName', groups: [TERMS], functions: [] },
       {
         field: 'state.function.processorName',
-        groups: ['TERMS'],
+        groups: [TERMS],
         functions: [],
       },
-      { field: 'state.function.name', groups: ['TERMS'], functions: [] },
+      { field: 'state.function.name', groups: [TERMS], functions: [] },
       {
         field: 'state.eventId.aggregateId.aggregateName',
-        groups: ['TERMS'],
+        groups: [TERMS],
         functions: [],
       },
-      { field: 'state.error.errorCode', groups: ['TERMS'], functions: [] },
+      { field: 'state.error.errorCode', groups: [TERMS], functions: [] },
       {
         field: 'state.retryState.retries',
-        groups: ['HISTOGRAM'],
-        functions: ['SUM', 'AVG', 'MAX'],
+        groups: [HISTOGRAM],
+        functions: [SUM, AVG, MAX],
       },
       {
         field: 'firstEventTime',
-        groups: ['DATE_HISTOGRAM'],
+        groups: [DATE_HISTOGRAM],
         functions: [],
-        dateUnits: ['DAY', 'WEEK', 'MONTH'],
+        dateUnits: [DAY, WEEK, MONTH],
       },
       {
         field: 'eventTime',
-        groups: ['DATE_HISTOGRAM'],
+        groups: [DATE_HISTOGRAM],
         functions: [],
-        dateUnits: ['DAY', 'WEEK', 'MONTH'],
+        dateUnits: [DAY, WEEK, MONTH],
       },
     ],
   },
