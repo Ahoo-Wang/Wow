@@ -49,4 +49,5 @@ export * from './ViewHeader.js';
 export * from './ViewList.js';
 export * from './ViewManager.js';
 export * from './ViewSurface.js';
+export * from './WorkbenchShell.js';
 export * from './WriteOutcome.js';

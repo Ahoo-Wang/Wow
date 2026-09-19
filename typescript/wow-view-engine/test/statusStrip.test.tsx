@@ -16,7 +16,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FilterTree, FilterValue, Issue } from '../src/index.js';
 import { Button } from '../src/ui/components/button.js';
 import { dedupeIssues, StatusStrip } from '../src/ui/StatusStrip.js';
-import { ErrorStrip, unmarkedErrors, WarningStrip } from '../src/ui/index.js';
+// `unmarkedErrors` is a question about the tree, so it moved to the filter
+// kernel; the strip beside it only renders what it is handed.
+import { unmarkedErrors } from '../src/filter/index.js';
+import { ErrorStrip, WarningStrip } from '../src/ui/index.js';
 
 afterEach(cleanup);
 

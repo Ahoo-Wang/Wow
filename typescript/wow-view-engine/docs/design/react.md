@@ -58,7 +58,8 @@ useFilterEditor(runtime): FilterController
 - 草稿超出树预算（filter.tree.too-deep／too-many-nodes）时这三者一律为 false／0——面板本就不画它，比较也不走它（applied 不在其列，见上）；
 - 超预算同样按路径认领（根路径或 `['children', …]`，与 issues 同一组），分析的指标／元素筛选与仪表盘面板筛选报的是同样的 code、只是重定址到 `['metrics', …]`／`['elements', …]`／`['panels', …]`，只看 code 会让根编辑器为一棵它不画的树关掉 pending；
 - 比较本身是迭代加计数的，过深或成环的草稿返回 false 而不是爆栈；
-- blocked 是落在条件上的 error 条数——包括编辑器画不出 pill 的那些（畸形节点），它们同样阻塞 Apply，只是由状态条而不是 pill 报出。（见 test/reactHooks.test.tsx「useFilterEditor」「useFilterEditor pending and applied」「useFilterEditor under a host scope filter」）
+- blocked 是落在条件上的 error 条数——包括编辑器画不出 pill 的那些（畸形节点），它们同样阻塞 Apply，只是由状态条而不是 pill 报出；
+- unmarked 与 blocked 成对：blocked 数的是 pill 上那些（外加画不出 pill 的），unmarked 给出的是**没有一处标记**的那些——畸形节点、分组自身的 error，以及配置里条件以外的 error（掉了的列、不再受理的页大小）。两者合起来把"拦住视图的每一条 error"交代完，各说一次、互不重复：pill 一份，编辑器上方的状态条一份。判断由 `filter/marks.ts` 的 `unmarkedErrors(issues, tree)` 做，它只问树——哪些路径解析得到一条渲染得出的条件（谓词内部的条件也算）——所以它属于内核而不属于编辑器；unmarked 走的是整份 `state.issues` 而不是被本树收窄过的 `issues`。（见 test/reactHooks.test.tsx「useFilterEditor」「useFilterEditor pending and applied」「useFilterEditor under a host scope filter」与 test/statusStrip.test.tsx「ErrorStrip」）
 
 ## useRecordTable
 
@@ -114,6 +115,28 @@ useDashboard(runtime): DashboardController
 ```
 
 两者的界面规则见 [ui/analysis.md](ui/analysis.md) 与 [ui/dashboard.md](ui/dashboard.md)。
+
+## useWorkbench
+
+```ts
+useWorkbench(engine, definitionId, { kind, instanceId? }): WorkbenchController
+WorkbenchController {
+  list; manager; openId; choose(id); opened; runtime; state; unopenable;
+  commands; filter; leave; onSaved; onRenamed; onDeleted; onRecovered
+}
+```
+
+一个工作台除了自己的编辑器与结果之外的全部：哪些视图、开着哪个、它说了什么、换一个时会发生什么。三个默认工作台只在编辑器与结果上不同，装配一模一样，所以装配只写这一处。
+
+- 列表按 `kind` 收窄后再定默认（`useViewList(engine, definitionId, { kind })`）：侧栏不提供这一页画不出的视图，默认视图也只在这些里解析。仪表盘定义本就只有 dashboard 实例，收窄对它是恒等；
+- `openId` 是"此刻在开的那个"：显式选择（`choose` 写下的 pin），没有则是列表的有效默认。`choose` 一律经离开守卫，因为切换会释放当前 runtime，未保存的草稿只活在里面；
+- 种类不符由 `kindMismatch` 判为 `unopenable`，与"打不开"同一个出口：一个定义同时容纳 record 与 analysis 实例，宿主仍可点名任一个，画不出的那一页要说明白，而不是在标题栏下留一片空白。`unopenable` 为真时 `runtime`／`state` 皆为 null；
+- pin 指向的视图被删除后由 `react/workbench/releaseDeleted.ts` 放手：引擎随实例释放 runtime，同一 id 再开只会一直答 not_found，页面因此永远走不到还在的那个视图上。只放手**开过**的 id——宿主点名而 store 从来没有的 id 是一个要报出来的错，不是一个要导航离开的状态；
+- `leave` 是无对话框的离开守卫（`react/workbench/leaveGuard.ts`）：`asking` / `request(next)` / `confirm()` / `cancel()`。`dirty` 或写入结局为 `unknown` 时才问，`confirm` 先结清（`commands.abandon()`）再走——`next` 会释放这个 runtime，结局就再没有它可依附，handle 会指向一个谁也够不着的 runtime 而 `engine.pendingWrites()` 把它留到会话结束。怎么问是宿主的事，`/ui` 用 `LeaveDialog`；
+- `filter` 是这次打开的筛选编辑器，在这里建一次：外壳画已应用条件条要用它，error 条要用它的 `unmarked`，三个工作台本来也各建一个；
+- 四个 `on*` 是标题栏结局的工作台语义，已经接好：存下的副本随即打开、改名留在原视图（先 pin 再 reload，否则骑在默认视图上的工作台会关掉 runtime 连草稿一起丢）、删除即移开（pin 清空，列表重读，默认视图顺位接上，或随列表一起空掉）、恢复则重读列表。（见 test/workbench.test.tsx「useWorkbench」）
+
+宿主写自己的标记时调这一个钩子就够，规则一条也不会掉——`examples/PlainRecordWorkbench.tsx` 是那份参照。`test/architecture.test.ts` 禁止 `ui/*Workbench.tsx` 直接 import `useViewList`／`useOpenView`／`useViewManager`／`useLeaveGuard`：绕过去就是把装配重建一遍。
 
 ## RecordActionSlots
 

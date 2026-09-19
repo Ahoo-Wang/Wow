@@ -9,19 +9,18 @@
 
 ## 重构（小步，每步一个 PR，零行为变化）
 
-- **R3 抽 `useWorkbench` 与 `WorkbenchShell`**——为什么：三个工作台各自把 list + open + releaseDeleted + manager + leaveGuard + wrong-kind 装配一遍。判据：`/react` 出 `useWorkbench`，`/ui` 出 `WorkbenchShell`，三个工作台变薄，`examples/PlainRecordWorkbench.tsx` 改用 `useWorkbench`；`unmarkedErrors` 从 `ui/StatusStrip.tsx` 移到 `useFilterEditor`（暴露 `unmarked`，与 `blocked` 成对）；三个工作台的测试不变。落点：`src/react/`、`src/ui/`、[ui/README.md#工作台骨架](ui/README.md#工作台骨架)。
 - **R4 拆过长的 UI 文件**——为什么：同一个文件里既有布局又有分支，改一处要重读全部。判据：`ViewManager.tsx` 拆为 Row / DeleteDialog / OutcomeActions（与 `WriteOutcome` 共用"结局→按钮"组件），`WriteOutcome.tsx` 抽 ConflictConfirm，`FilterPanel.tsx` 拆为 GroupBlock / ConditionPill / FilterActions，`FilterValueEditor.tsx` 按 `EditorDescriptor.input` 分文件；行为与测试不变。落点：`src/ui/`。
 - **R5 写入结局模型去重**——为什么：`useSaveCommands` 与 `useViewManager` 各写了一遍"结局怎么结清、哪种恢复算写了视图、什么时候禁用"。判据：`src/react/writes.ts` 给出 `settle` / `RecoveredWrite` / `savesView` / `blockedBy`，两个钩子共用，两边测试不变。落点：`src/react/`、[management.md#冲突与未知结果](management.md#冲突与未知结果)。
 - **R6 文案目录分文件 + `MessageKey` 类型**——为什么：一份平铺的目录看不出哪些键还活着。判据：按前缀分文件并导出 `MessageKey`；同时删除死键 `label.save.rename`、`label.save.delete`、`label.rename.heading`、`label.rename.description`、`label.unknown.consequence`；`test/messages.test.tsx` 仍全绿。落点：`src/ui/messages.ts`、[ui/README.md#措辞与-messagesprovider](ui/README.md#措辞与-messagesprovider)。
 - **R7 `runtime/viewEngine.ts` 抽 `writeLedger.ts`**——为什么：注册表与写入账本两件事同在一个类里。判据：`writes` / `owners` / `pendingWrites` / `retry` / `abandon` / `resolveConflict` 移入 `writeLedger.ts`，`ViewEngine` 公开面不变。落点：`src/runtime/`、[runtime.md#viewengine](runtime.md#viewengine)。
-- **守护**——为什么：拆完要拦住它长回去。判据：ESLint `max-lines` 绊线覆盖 `src`（不含 vendored 的 `ui/components`、`ui/lib`）；`test/architecture.test.ts` 禁止 `*Workbench.tsx` 绕过 `useWorkbench` 直接 import 装配用的钩子。落点：`eslint.config.js`、`test/architecture.test.ts`。
+- **守护**——为什么：拆完要拦住它长回去。判据：ESLint `max-lines` 绊线覆盖 `src`（不含 vendored 的 `ui/components`、`ui/lib`）。落点：`eslint.config.js`。（架构测试里「`*Workbench.tsx` 不得绕过 `useWorkbench` 直接 import 装配用的钩子」那一条已随 R3 落地。）
 
 ## 功能（legacy 形态）
 
 - **侧栏可折叠**——为什么：legacy 有，现在没有，窄屏上侧栏占掉结果的宽度。判据：折叠时标题栏最左出现展开按钮 + 定义标题 + 视图切换下拉（按受众分组、当前项打勾、系统标签、底部"管理视图"项）；筛选带增加"撤销筛选修改"（草稿筛选退回已应用）；对照 `view-engine-legacy` 截图。落点：`src/ui/ViewList.tsx`、`src/ui/ViewHeader.tsx`、[ui/README.md#工作台骨架](ui/README.md#工作台骨架)。
 - **写入结局的 Storybook 故事**——为什么：conflict / unknown / rejected 三条路径只有单测走过，改 UI 时没人看得见它们。判据：`WriteOutcome`、管理器行内结局、删除冲突二次确认各有故事，夹具的假存储能注入 `CONFLICT` 与 `UNAVAILABLE`。落点：`stories/`、`test/fixtures/`、[management.md#冲突与未知结果](management.md#冲突与未知结果)。
+- **文案支持中文**——为什么：目录只有英文默认句，宿主要中文得自己覆盖四百多个键，等于没有本地化。判据：`/ui` 导出完整的 `zhCN` 目录（`messages/zh-CN.ts`），`test/messages.test.tsx` 断言它与英文目录键集合一致、占位符成对；`ViewSurface` 的 `messages={zhCN}` 传入即生效；Record 工作台有一个中文文案故事。落点：`src/ui/messages/`，与 R6 的分文件、`MessageKey` 类型化同一个 PR 做。
 
 ## 小修
 
-- **`ViewHeader` 的视图名改为标题元素**——为什么：现在它只是一段文本，读屏器跳不到。判据：渲染为 `h2`（或由宿主定级），`main` 以它 `aria-labelledby`；`test/accessibility.test.tsx` 覆盖。落点：`src/ui/ViewHeader.tsx`。
 - **删除后重载列表的合同容易漏**——为什么：宿主直接经引擎删除实例时必须调用 `list.reload({ without: id })`，这条合同写在文档里而不是类型里。判据：评估改为引擎侧通知（架构决定，先记录，不急着改）；结论写进 [decisions.md](decisions.md)。落点：[react.md#useviewlist](react.md#useviewlist)。

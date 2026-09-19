@@ -16,7 +16,7 @@
 ## 两级 severity 与 StatusStrip
 
 - 两级 severity 在界面上分开呈现，而且都是**单行状态条**（`StatusStrip`）而不是整块 Alert：结果区始终留着上一次成功的结果，一条阻塞不了什么的提示不该把它顶下屏幕。状态条有 warning／error／info 三种 tone，error 以 `role="alert"` 播报，其余以 `role="status"`；
-- 多于一条时只显示一句概述与「{count} more」，展开才逐条列出。`error` 阻塞：条件级的 error 就地标在 pill 上并禁用应用按钮，所以工作台的 error 条只报**条件以外**的那些（`unmarkedErrors`：code 以 `filter.` 开头、且路径在草稿树上确实解析到一条被渲染的条件——谓词内部的条件也算——才交给编辑器；畸形子节点被条件带跳过、分组本身也不带标记，这些没有 pill 的照样报在状态条里，否则它们会禁用 Apply 却无处可看），标题 `label.view.needs-fixing`／`label.dashboard.needs-fixing`；
+- 多于一条时只显示一句概述与「{count} more」，展开才逐条列出。`error` 阻塞：条件级的 error 就地标在 pill 上并禁用应用按钮，所以工作台的 error 条只报**条件以外**的那些，由编辑器控制器交出的 `filter.unmarked` 给定（判断在 `filter/marks.ts` 的 `unmarkedErrors`：code 以 `filter.` 开头、且路径在草稿树上确实解析到一条被渲染的条件——谓词内部的条件也算——才交给编辑器；畸形子节点被条件带跳过、分组本身也不带标记，这些没有 pill 的照样报在状态条里，否则它们会禁用 Apply 却无处可看）。`ErrorStrip` 自己不做这件事，它只画交给它的那些；标题 `label.view.needs-fixing`／`label.dashboard.needs-fixing`（`WorkbenchShell` 按 kind 选）；
 - `EmbeddedView` 没有编辑器，没有任何一条被标在别处，因此全部报出，并以它取代结果（查询失败是例外：上一次成功的结果还在时，失败条与结果并排，取代结果的只有「什么都还没回来过」那一种——条里那句 `label.query.stale` 说的就是它身旁的东西）（warning 仍照常显示在旁，两级并存时两级都说）。`warning` 不阻塞，但"报出而不阻塞"要求它被看见：warning 条用主题的 `warning` token（`text-warning`／`border-warning`，与 `destructive` 并列，宿主用 `--fve-warning`／`--fve-dark-warning` 定制），只有一条时那句话本身就是标题，多条时标题是 `label.view.warnings-count`；
 - 同 code 同 params 的 warning 只说一句（`dedupeIssues`）——Dashboard 对全局条件自己校验一次、映射到每个面板再校验一次，两片叶子也可能触发同一条规则，句子相同就不重复。查询失败也是一条 error 状态条：标题是失败本身那句话，右端一个 Retry，若上一次结果还在屏幕上，展开处附一句 `label.query.stale` 说明看到的是旧结果——失败从不清空结果，一次断线不该把人正在读的东西拿走。（见 test/statusStrip.test.tsx「StatusStrip」「dedupeIssues」与 test/ui.test.tsx「WarningStrip」「ErrorStrip」）
 
@@ -66,6 +66,10 @@
 
 - 工作台的骨架自上而下是：**标题栏 → 编辑带 → 状态条 → 已应用条件条 → 结果工具栏 → 结果 → 分页**，顺序按"离结果多近"排：结果是视图的目的，它上面的每一样都要为自己的高度负责。`ViewHeader` 一行说清这是哪个视图——种类图标、受众标签、标题，以及"屏幕上的东西存过没有"的标记（`saved === null` 是 `label.header.new-view`，`saved && dirty` 是 `label.header.unsaved`），右端是宿主的全局动作与 `SaveActions`，上一次写入的结局（`WriteOutcome`：冲突、未知、拒绝）落在标题栏下方一行而不是压在结果上。`EditorBand` 是编辑器所在的折叠带：已保存的视图打开时折起——作者已经决定过了，结果才是要看的东西——没存过的展开，折叠状态属于这一次打开，以 `runtime.id` 为 key 重置，不入库也不记忆。（见 test/editorBand.test.tsx「EditorBand」与 test/viewHeader.test.tsx「ViewHeader」）Analysis 与 Dashboard 本轮只接标题栏、状态条与已应用条件条，编辑器形态照旧。
 
+- 这副骨架由 `WorkbenchShell` 画，三个工作台共用一份：侧栏（`ViewList`，`manager` 只在 `manager.can.anything` 时交出去）、`LeaveDialog`，以及主列——打不开时只有一条 `label.view.unopenable` 的 Alert，否则是 `ViewHeader` → `editor` 槽 → `ErrorStrip`(`filter.unmarked`) + `WarningStrip` + `strips` 槽（只有一种视图才有的，如 Record 的查询失败条） → `AppliedBar` → `result` 槽。props 是 `{ workbench, kind, title, theme?, messages?, locale?, timeZone, actions?, editor, strips?, result, sidebarOpen?, hasResult?, warnings?, className? }`——`hasResult` 与 `warnings` 留给自己没有结果、且告警由面板分担的 Dashboard 覆盖，其余两种读开着的那个视图本身。它不持有任何状态，要画什么全部读自一个 `WorkbenchController`（[react.md#useworkbench](../react.md#useworkbench)）；
+- `ViewHeader` 的视图名是 `h2`（`headingLevel` 可由宿主定级），`main` 以它的 id `aria-labelledby`——只在标题真的在屏幕上时才指，指向不存在的 id 是一个坏标签而不是一个缺标签。（见 test/accessibility.test.tsx「the open view names the region it is drawn in」）
+- 留给扩展的缝还在：`ViewHeader.leading`（折叠侧栏后留在标题栏最左的那一块）、`data-slot="view-sidebar"`、以及 `sidebarOpen` 这一个布尔——折叠是一处的改动，不是它旁边每一块的布局改动。
+
 ## 三态各有一处凭据
 
 - 三种状态各有一处凭据，互不重复：**草稿未应用**是条件 pill 与应用按钮上的那个点（`data-pending`，基准是 `state.applied`），折起来时汇总成折叠行上的 `label.editor.pending` 计数；
@@ -87,7 +91,7 @@
 
 ## 离开保护
 
-从侧栏切到另一个视图会释放当前 runtime，而未保存的草稿只活在 runtime 里，所以那是一次删除工作：`useLeaveGuard` 在 `dirty` 或写入结局为 `unknown` 时先问一句，没有东西可失去时一句也不问——每次切换都拦的守卫，人会学会不读就点掉。（见 test/viewHeader.test.tsx「useLeaveGuard」）
+从侧栏切到另一个视图会释放当前 runtime，而未保存的草稿只活在 runtime 里，所以那是一次删除工作：`useLeaveGuard`（`/react`，见 [react.md#useworkbench](../react.md#useworkbench)）在 `dirty` 或写入结局为 `unknown` 时先问一句，没有东西可失去时一句也不问——每次切换都拦的守卫，人会学会不读就点掉。该问的时候问什么是无状态的，`/ui` 这边只剩 `LeaveDialog({ leave, messages? })` 照着 `leave.asking` 画，两个按钮分别接 `confirm` 与 `cancel`；它渲染在承载文案的 `ViewSurface` 之外，所以要单独把 `messages` 递给它。（见 test/workbench.test.tsx「useLeaveGuard」）
 
 ## 动作槽位
 

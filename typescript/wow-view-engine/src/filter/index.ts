@@ -24,6 +24,7 @@ export * from './describe.js';
 export * from './fieldGroups.js';
 export * from './fieldKind.js';
 export * from './kinds/index.js';
+export * from './marks.js';
 export * from './time.js';
 export * from './tree.js';
 export * from './validate.js';

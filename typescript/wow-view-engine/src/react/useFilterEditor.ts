@@ -34,6 +34,7 @@ import {
   removeAt,
   sameFilterNode,
   sameFilterTree,
+  unmarkedErrors,
   updateAt,
   walkFilter,
   type EditorDescriptor,
@@ -119,6 +120,18 @@ export interface FilterEditorController extends FilterTreeController {
    * never points at a fix that is nowhere on screen.
    */
   blocked: number;
+  /**
+   * The blocking errors the panel can draw on no pill, which is where the
+   * count above points when it points at nothing: a malformed node has
+   * nothing to render, a group wears no marker of its own, and an error
+   * about the rest of the config — a column the definition dropped, a page
+   * size it no longer admits — was never this editor's to mark. A surface
+   * shows these in the strip above the editor.
+   *
+   * The pair of `blocked`: together they account for every error that stops
+   * the view, one on the pills and one in the strip, with neither said twice.
+   */
+  unmarked: Issue[];
   setMode(mode: FilterMode): void;
   clear(): void;
   /** Applies the draft, which is what runs the query. */
@@ -134,6 +147,8 @@ const EMPTY_GROUPS: readonly FieldGroupDefinition[] = [];
 const EMPTY_FIELDS: readonly FieldDefinition[] = [];
 /** Stable identity for "no runtime yet"; every edit produces a new tree. */
 const EMPTY_TREE: FilterTree = { op: 'and', children: [] };
+/** Stable identity for "no runtime yet", so `unmarked` stays still. */
+const EMPTY_ISSUES: readonly Issue[] = [];
 
 /**
  * True for a finding about the tree this editor draws rather than a nested
@@ -353,6 +368,13 @@ export function useFilterEditor(
     blocked: issues.filter(
       found => found.severity === 'error' && found.path[0] === 'children',
     ).length,
+    // Over every finding of the view rather than over `issues`, which is
+    // narrowed to this tree: an error about the columns or the page size is
+    // marked nowhere either, and the strip is the only place it is read.
+    unmarked: useMemo(
+      () => unmarkedErrors(state?.issues ?? EMPTY_ISSUES, tree),
+      [state, tree],
+    ),
     setMode: useCallback(
       (mode: FilterMode) => runtime?.edit({ filterMode: mode }),
       [runtime],

@@ -107,6 +107,7 @@ src/
   filter/                       — Filter kernel — imports model only
     fieldKind.ts                  — FieldKind contract and registry (extension point)
     validate.ts                   — validateFilter, depth and node budgets
+    marks.ts                      — unmarkedErrors — the errors no condition pill can carry
     compile.ts                    — compileFilter → Wow FilterExpression
     tree.ts                       — Tree node predicates; trees arrive untrusted
     values.ts                     — Value shapes of the built-in kinds
@@ -163,19 +164,23 @@ src/
     useFilterEditor.ts            — Filter tree editor controller
     useDashboard.ts               — Dashboard panels, geometry and state
     useSaveCommands.ts            — Save, save-as, revert, rename, delete
+    useWorkbench.ts               — One workbench's shell: list, open, leave, the header's outcomes
     actions.ts                    — The three action slots a host fills: global, bulk, row
     environment.ts                — Page visibility, so a hidden tab stops polling
     issues.ts                     — Turns a thrown command into one Issue
     index.ts
+    workbench/                    — What `useWorkbench` composes
+      leaveGuard.ts                 — Headless leave protection; `/ui` draws `LeaveDialog` from it
+      releaseDeleted.ts             — Lets a workbench's pinned id go once the view is deleted
   ui/                           — Default look; may import every layer
+    WorkbenchShell.tsx            — The frame the three workbenches share, over one `useWorkbench`
     RecordWorkbench.tsx           — Default Record workbench
     AnalysisWorkbench.tsx         — Default Analysis workbench
     DashboardWorkbench.tsx        — Default Dashboard workbench
     ViewHeader.tsx                — Title bar: kind, audience, title, unsaved mark, save commands
     SaveActions.tsx               — Split save button group; SaveAsDialog.tsx, WriteOutcome.tsx
     ViewManager.tsx               — Rename, delete, reorder and the default view, from the sidebar
-    LeaveGuard.tsx                — `useLeaveGuard`: confirms a switch that would lose a draft
-    useReleaseDeleted.ts          — Lets a workbench's pinned id go once the view is deleted
+    LeaveGuard.tsx                — `LeaveDialog`: draws the headless guard's question
     EditorBand.tsx                — The fold a view's editor lives in
     StatusStrip.tsx               — One-line findings: warning, error, failed query (+ `dedupeIssues`)
     AppliedBar.tsx                — The conditions the rows on screen were fetched under

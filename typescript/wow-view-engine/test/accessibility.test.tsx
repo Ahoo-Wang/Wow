@@ -110,6 +110,60 @@ async function violations(node: HTMLElement): Promise<string[]> {
   );
 }
 
+/**
+ * The view title is a heading, and the region it names says so.
+ *
+ * As a bare span it was a line of text like any other: a screen reader
+ * navigating by headings jumped straight past the one thing that says which
+ * view is open, and the region holding the whole view had no name at all.
+ */
+describe('the open view names the region it is drawn in', () => {
+  it('renders the view title as a heading the main region points at', async () => {
+    const { container } = render(
+      <ViewSurface>
+        <RecordWorkbench
+          engine={engineWith([pendingOrders])}
+          definitionId="orders"
+          instanceId="pending"
+        />
+      </ViewSurface>,
+    );
+    await waitFor(() => expect(container.querySelector('table')).toBeTruthy());
+
+    const title = container.querySelector('[data-slot="view-title"]')!;
+    expect(title.tagName).toBe('H2');
+    expect(title.textContent).toBe('Pending');
+
+    const main = container.querySelector('main')!;
+    expect(main.getAttribute('aria-labelledby')).toBe(title.id);
+    expect(title.id).not.toBe('');
+  });
+
+  /**
+   * An id that addresses nothing is a broken label rather than a missing
+   * one, so the region is left unnamed while there is no title to name it.
+   */
+  it('leaves the region unnamed when the view could not be opened', async () => {
+    const { container } = render(
+      <ViewSurface>
+        <RecordWorkbench
+          engine={engineWith([pendingOrders])}
+          definitionId="orders"
+          instanceId="no-such-view"
+        />
+      </ViewSurface>,
+    );
+    await waitFor(() =>
+      expect(container.querySelector('[role="alert"]')).toBeTruthy(),
+    );
+
+    expect(
+      container.querySelector('main')!.hasAttribute('aria-labelledby'),
+    ).toBe(false);
+    expect(await violations(container)).toEqual([]);
+  });
+});
+
 describe('the default workbenches pass axe', () => {
   it('record', async () => {
     const { container } = render(

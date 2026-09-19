@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import {
   audienceOf,
   isSystemScope,
@@ -57,7 +57,22 @@ export interface ViewHeaderProps {
    * empty by default, and the bar makes no room for it when it is.
    */
   leading?: ReactNode;
+  /**
+   * The id the view title carries, so the region the view is drawn in can
+   * name itself by it. One is generated when the caller has nothing to point
+   * at it.
+   */
+  titleId?: string;
+  /**
+   * Where the view title sits in the document outline. It is a heading
+   * rather than a line of text because it names everything under it, and a
+   * screen reader navigates by headings; the level is the host's, since only
+   * the page around the workbench knows what it is nested in.
+   */
+  headingLevel?: HeadingLevel;
 }
+
+type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
 /**
  * The one line that says which view this is, and the one place it is saved
@@ -80,10 +95,16 @@ export function ViewHeader({
   onRecovered,
   actions,
   leading,
+  titleId,
+  headingLevel = 2,
 }: ViewHeaderProps) {
   const messages = useViewMessages();
+  const generatedId = useId();
   if (!state) return null;
 
+  // Preflight leaves a heading at the size and weight of the text around it,
+  // so this is the outline the title was missing and not a change of look.
+  const Title: `h${HeadingLevel}` = `h${headingLevel}`;
   const Kind = KIND_ICON[kind];
   const audience = audienceOf(state.scope);
   const Audience = AUDIENCE_ICON[audience];
@@ -112,13 +133,14 @@ export function ViewHeader({
             {messages.label(`label.scope.tag.${scopeKey}`)}
           </Badge>
 
-          <span
+          <Title
+            id={titleId ?? generatedId}
             data-slot="view-title"
             data-dirty={state.dirty || undefined}
             className="truncate font-medium"
           >
             {state.title}
-          </span>
+          </Title>
 
           {/* Two different things, so two different words: one view was never
               saved, the other has been saved and edited since. */}

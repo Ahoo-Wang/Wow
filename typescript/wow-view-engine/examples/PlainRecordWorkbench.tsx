@@ -13,14 +13,7 @@
 
 import { useState } from 'react';
 import type { RecordViewRuntime, ViewEngine } from '../src/index.js';
-import {
-  useFilterEditor,
-  useOpenView,
-  useRecordTable,
-  useSaveCommands,
-  useViewList,
-  useViewRuntime,
-} from '../src/react/index.js';
+import { useRecordTable, useWorkbench } from '../src/react/index.js';
 
 /**
  * The whole `/react` layer in one plain component: no styling, no component
@@ -28,7 +21,10 @@ import {
  * loop on their own, and the closed-loop test drives this file rather than a
  * bespoke harness.
  *
- * Everything below is ordinary HTML. The `/ui` step replaces the markup, not
+ * It is also the reference for "your own markup, the same controllers":
+ * `useWorkbench` hands over exactly what `WorkbenchShell` draws from — the
+ * list, the open view, the leave guard and the header's four outcomes — and
+ * everything below is ordinary HTML. The `/ui` step replaces the markup, not
  * the controllers.
  */
 export function PlainRecordWorkbench({
@@ -41,21 +37,16 @@ export function PlainRecordWorkbench({
   /** Which view to open first; the effective default when left out. */
   initialInstanceId?: string | null;
 }) {
-  const list = useViewList(engine, definitionId);
-  const [chosen, setChosen] = useState<string | null>(initialInstanceId);
   const [title, setTitle] = useState('Pending shipments');
-
-  const { runtime, loading, error } = useOpenView(
-    engine,
-    chosen ?? list.defaultInstanceId,
-  );
-  // Subscribed rather than read during render: `getSnapshot()` off a runtime
-  // in the middle of rendering is a value React never hears about changing.
-  const state = useViewRuntime(runtime);
+  const workbench = useWorkbench(engine, definitionId, {
+    kind: 'record',
+    instanceId: initialInstanceId,
+  });
+  // `state`, `filter` and `commands` are the controller's, already bound to
+  // whichever view is open; nothing here re-derives them from the engine.
+  const { commands, filter, list, opened, runtime, state } = workbench;
   const record = runtime?.kind === 'record' ? runtime : null;
   const table = useRecordTable(record as RecordViewRuntime | null);
-  const filter = useFilterEditor(runtime);
-  const commands = useSaveCommands(engine, runtime);
 
   return (
     <div>
@@ -65,15 +56,30 @@ export function PlainRecordWorkbench({
             key={item.id}
             type="button"
             aria-current={item.id === state?.saved?.id}
-            onClick={() => setChosen(item.id)}
+            // Through the guard: switching releases this runtime, and the
+            // unsaved draft lives nowhere else.
+            onClick={() => workbench.choose(item.id)}
           >
             {item.title}
           </button>
         ))}
       </nav>
 
-      {loading && <p role="status">Loading the view</p>}
-      {error && <p role="alert">{error.code}</p>}
+      {/* The guard is headless, so the confirmation is the host's markup
+          too: without one, a switch that would lose the draft never runs. */}
+      {workbench.leave.asking && (
+        <div role="alertdialog" aria-label="Leave this view?">
+          <button type="button" onClick={() => workbench.leave.confirm()}>
+            Leave
+          </button>
+          <button type="button" onClick={() => workbench.leave.cancel()}>
+            Stay
+          </button>
+        </div>
+      )}
+
+      {opened.loading && <p role="status">Loading the view</p>}
+      {workbench.unopenable && <p role="alert">{workbench.unopenable.code}</p>}
 
       <section aria-label="filter">
         {filter.fields.map(field => (
@@ -204,7 +210,9 @@ export function PlainRecordWorkbench({
           onClick={() => {
             void commands
               .saveAs({ title, scope: 'personal' })
-              .then(saved => saved && setChosen(saved.id));
+              // The copy is what the workbench then shows, and the list is
+              // read again so it is on it.
+              .then(saved => saved && workbench.onSaved(saved));
           }}
         >
           Save as personal view

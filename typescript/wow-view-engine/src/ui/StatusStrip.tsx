@@ -14,18 +14,7 @@
 import { useState, type ReactNode } from 'react';
 import { cn } from 'cn';
 import { CircleAlertIcon, InfoIcon, TriangleAlertIcon } from 'lucide-react';
-import type {
-  FilterNode,
-  FilterTree,
-  Issue,
-  IssuePath,
-} from '../model/index.js';
-import {
-  isFilterGroup,
-  isFilterLeaf,
-  nodeAt,
-  type FilterPath,
-} from '../filter/index.js';
+import type { Issue } from '../model/index.js';
 import { Button, buttonVariants } from './components/button.js';
 import {
   Collapsible,
@@ -161,70 +150,6 @@ function sameWording(a: Issue, b: Issue): boolean {
   );
 }
 
-/**
- * The errors a condition editor is not already marking.
- *
- * A wrong condition is marked on its own pill and counted on the Apply
- * button, which is both nearer to the mistake and the only place the mistake
- * can be corrected; repeating it in a strip above says the same thing twice
- * and further from the fix. Everything else — a column the definition
- * dropped, a page size it no longer admits — has no pill to sit on, and a
- * strip is the only way it is ever seen.
- *
- * Which is why the draft tree is asked rather than the path alone: a
- * condition-shaped path is not the same thing as a pill. `FilterPanel` draws
- * a node only when the tree really holds one there — a malformed child is
- * skipped by the condition strip, and a group carries no marker of its own —
- * so an error addressing anything but a rendered condition is marked nowhere
- * and belongs here. Apply is still refused for it: the editor's `blocked`
- * counts every condition-level error, whether or not a pill could be found
- * for it.
- */
-export function unmarkedErrors(
-  issues: readonly Issue[],
-  /** The draft the editor beside this strip is showing. */
-  tree: FilterTree,
-): Issue[] {
-  return issues.filter(
-    found => found.severity === 'error' && !isMarked(found, tree),
-  );
-}
-
-/** Whether the condition editor puts this finding on a pill of its own. */
-function isMarked(found: Issue, tree: FilterTree): boolean {
-  if (!found.code.startsWith('filter.') || found.path[0] !== 'children')
-    return false;
-  // Only a condition wears a mark; a group's own findings wear none.
-  return isFilterLeaf(conditionAt(tree, indexesOf(found.path)));
-}
-
-/** The node indexes of an issue path: `['children', 1]` addresses `[1]`. */
-function indexesOf(path: IssuePath): FilterPath {
-  return path.filter((step): step is number => typeof step === 'number');
-}
-
-/**
- * The node a path addresses, descending into a predicate leaf's own tree as
- * the panel does: an element match renders the group its value carries, and
- * the findings inside it are marked on the conditions of that group.
- */
-function conditionAt(tree: FilterTree, path: FilterPath): FilterNode | null {
-  let node: FilterNode | null = tree;
-  for (const index of path) {
-    const group = groupOf(node);
-    if (group === null) return null;
-    node = nodeAt(group, [index]);
-  }
-  return node;
-}
-
-/** The group a node holds conditions in, its own or a predicate's. */
-function groupOf(node: FilterNode | null): FilterTree | null {
-  if (node === null) return null;
-  if (isFilterGroup(node)) return node;
-  return isFilterGroup(node.value) ? node.value : null;
-}
-
 export interface IssueStripProps {
   /** Every finding of the view; this picks the ones it is about. */
   issues: readonly Issue[];
@@ -324,9 +249,10 @@ export interface ErrorStripProps extends IssueStripProps {
  *
  * It is a line rather than a banner because the last successful result is
  * still on screen underneath — a config that stopped running did not stop
- * being worth reading — and a banner would push it away. A surface that has
- * a condition editor narrows what it hands over with {@link unmarkedErrors};
- * an embed, which has no editor and so marks nothing anywhere, does not.
+ * being worth reading — and a banner would push it away. It shows the issues
+ * it is handed: a surface with a condition editor hands over `filter.unmarked`,
+ * the ones no pill carries; an embed, which has no editor and so marks nothing
+ * anywhere, hands over all of them.
  */
 export function ErrorStrip({ issues, title, className }: ErrorStripProps) {
   const messages = useViewMessages();

@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import type { OpenViewState } from '../react/index.js';
+import type { OpenViewState } from '../useViewEngine.js';
 
 /**
  * Lets the pinned view go once it is gone.

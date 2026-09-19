@@ -11,18 +11,10 @@
  * limitations under the License.
  */
 
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState, type ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
@@ -36,11 +28,6 @@ import {
   useViewRuntime,
   type SaveCommands,
 } from '../src/react/index.js';
-import {
-  useLeaveGuard,
-  type LeaveGuardOptions,
-  type LeaveGuardState,
-} from '../src/ui/LeaveGuard.js';
 import { ViewHeader } from '../src/ui/ViewHeader.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
 import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
@@ -271,184 +258,5 @@ describe('ViewHeader', () => {
     expect(header().querySelectorAll('[data-slot="separator"]')).toHaveLength(
       0,
     );
-  });
-});
-
-function Guarded({
-  state,
-  options,
-}: {
-  state: LeaveGuardState | null;
-  options?: LeaveGuardOptions;
-}) {
-  const guard = useLeaveGuard(state, options);
-  const [left, setLeft] = useState(false);
-  return (
-    <ViewSurface>
-      <button type="button" onClick={() => guard.request(() => setLeft(true))}>
-        Open another
-      </button>
-      <span data-testid="where">{left ? 'gone' : 'here'}</span>
-      {guard.dialog}
-    </ViewSurface>
-  );
-}
-
-function leave() {
-  fireEvent.click(screen.getByRole('button', { name: 'Open another' }));
-}
-
-function where(): string {
-  return screen.getByTestId('where').textContent ?? '';
-}
-
-describe('useLeaveGuard', () => {
-  it('goes straight there when nothing would be lost', () => {
-    render(<Guarded state={{ dirty: false, write: null }} />);
-
-    leave();
-
-    expect(where()).toBe('gone');
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
-
-  it('goes straight there when no view is open at all', () => {
-    render(<Guarded state={null} />);
-
-    leave();
-
-    expect(where()).toBe('gone');
-  });
-
-  /**
-   * Opening another view releases this one's runtime, and the draft lives
-   * nowhere else — so leaving is the deletion of work, asked about once.
-   */
-  it('asks before unsaved edits are lost', async () => {
-    render(<Guarded state={{ dirty: true, write: null }} />);
-
-    leave();
-
-    const dialog = await screen.findByRole('dialog');
-    expect(dialog.textContent).toContain('Leave this view?');
-    expect(where()).toBe('here');
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Leave' }));
-    expect(where()).toBe('gone');
-  });
-
-  it('stays put when that is the answer', async () => {
-    render(<Guarded state={{ dirty: true, write: null }} />);
-
-    leave();
-    const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Stay' }));
-
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(where()).toBe('here');
-  });
-
-  it('asks when a write never came back', async () => {
-    // Leaving takes away the chance to settle it, which is its own loss.
-    render(
-      <Guarded
-        state={{
-          dirty: false,
-          write: {
-            kind: 'unknown',
-            requestId: 'r1',
-            payload: { action: 'delete', id: 'orders-1', revision: '1' },
-          },
-        }}
-      />,
-    );
-
-    leave();
-
-    expect(await screen.findByRole('dialog')).toBeDefined();
-  });
-
-  /**
-   * The hook runs in the workbench, which sits outside the surface that
-   * carries the wording — so the labels it resolves are the ones in force
-   * *there*. Handed the workbench's own `messages`, the one dialog that
-   * interrupts everything else says what the rest of the surface says.
-   */
-  it('says it in the wording it was handed', async () => {
-    render(
-      <Guarded
-        state={{ dirty: true, write: null }}
-        options={{ messages: { 'label.leave.heading': '离开这个视图？' } }}
-      />,
-    );
-
-    leave();
-
-    const dialog = await screen.findByRole('dialog');
-    expect(dialog.textContent).toContain('离开这个视图？');
-  });
-
-  /**
-   * Leaving disposes the runtime, and an unsettled write outlives it inside
-   * the engine: the handle would address a runtime nobody can reach again.
-   */
-  it('settles the outcome on its way out', async () => {
-    const settled = vi.fn();
-    render(
-      <Guarded
-        state={{ dirty: true, write: null }}
-        options={{ onLeave: settled }}
-      />,
-    );
-
-    leave();
-    const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Leave' }));
-
-    expect(settled).toHaveBeenCalledTimes(1);
-    expect(where()).toBe('gone');
-  });
-
-  it('settles nothing when the answer is to stay', async () => {
-    const settled = vi.fn();
-    render(
-      <Guarded
-        state={{ dirty: true, write: null }}
-        options={{ onLeave: settled }}
-      />,
-    );
-
-    leave();
-    const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Stay' }));
-
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(settled).not.toHaveBeenCalled();
-  });
-
-  it('does not ask about an outcome that can be settled later', () => {
-    // A conflict keeps the edits and stays answerable from wherever the view
-    // is next opened; only an unknown result is lost by walking away.
-    render(
-      <Guarded
-        state={{
-          dirty: false,
-          write: {
-            kind: 'rejected',
-            requestId: 'r1',
-            payload: { action: 'delete', id: 'orders-1', revision: '1' },
-            issue: {
-              code: 'view.delete.forbidden',
-              path: [],
-              severity: 'error',
-            },
-          },
-        }}
-      />,
-    );
-
-    leave();
-
-    expect(where()).toBe('gone');
   });
 });

@@ -390,6 +390,38 @@ describe('architecture', () => {
     expect(violations).toEqual([]);
   });
 
+  /**
+   * The shell of a workbench is assembled once, in `react/useWorkbench.ts`.
+   *
+   * Three workbenches each wired list + open + manager + leave guard by hand,
+   * and every rule that lives in the order of those calls — the kind it
+   * refuses, the pin it releases, the write it settles on the way out — was
+   * retold three times and drifted. A workbench that reaches for one of them
+   * directly is rebuilding the assembly, so the import is the rule: whatever
+   * else it needs, the shell comes from `useWorkbench`.
+   */
+  it('assembles the workbenches through useWorkbench alone', () => {
+    const assembly = [
+      'useViewList',
+      'useOpenView',
+      'useViewManager',
+      'useLeaveGuard',
+    ];
+    const violations = files
+      .filter(
+        file =>
+          file.location === 'ui' && /Workbench\.tsx$/.test(describePath(file)),
+      )
+      .flatMap(file =>
+        file.imports.flatMap(entry =>
+          entry.names
+            .filter(name => assembly.includes(name))
+            .map(name => `${describePath(file)} imports ${name}`),
+        ),
+      );
+    expect(violations).toEqual([]);
+  });
+
   it('has a root entry', () => {
     expect(existsSync(join(src, 'index.ts'))).toBe(true);
   });
