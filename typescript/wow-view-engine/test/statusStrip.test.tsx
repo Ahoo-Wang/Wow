@@ -13,9 +13,10 @@
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Issue } from '../src/index.js';
+import type { FilterTree, FilterValue, Issue } from '../src/index.js';
 import { Button } from '../src/ui/components/button.js';
 import { dedupeIssues, StatusStrip } from '../src/ui/StatusStrip.js';
+import { ErrorStrip, unmarkedErrors, WarningStrip } from '../src/ui/index.js';
 
 afterEach(cleanup);
 
@@ -136,5 +137,225 @@ describe('dedupeIssues', () => {
     // Either way round: the comparison is of two sentences, not of one
     // sentence against whatever the other one happens to carry.
     expect(dedupeIssues([withParams, notSimple])).toHaveLength(2);
+  });
+});
+
+describe('WarningStrip', () => {
+  it('renders nothing when there is no warning to report', () => {
+    const { container } = render(
+      <WarningStrip issues={[{ code: 'x', severity: 'error', path: [] }]} />,
+    );
+
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('wears the warning colour, a class of its own, and a status role', () => {
+    render(
+      <WarningStrip
+        className="mt-2"
+        issues={[
+          { code: 'blocking.elsewhere', severity: 'error', path: [] },
+          {
+            code: 'config.filterMode.not-simple',
+            severity: 'warning',
+            path: ['filterMode'],
+          },
+        ]}
+      />,
+    );
+
+    // A status, not an alert: a screen reader mentions it without
+    // interrupting whatever its user was doing.
+    const notice = screen.getByRole('status');
+    expect(notice.className).toContain('border-warning');
+    expect(notice.className).toContain('mt-2');
+    // One finding is its own sentence: no count to read, nothing to unfold.
+    expect(notice.textContent).toContain('advanced editor');
+    expect(notice.textContent).not.toContain('worth noting');
+    // Only the warnings; the error has a strip of its own elsewhere.
+    expect(notice.textContent).not.toContain('blocking.elsewhere');
+    expect(screen.queryByRole('button', { name: /more/ })).toBeNull();
+  });
+
+  /**
+   * A dashboard validates a global condition once as its own and once per
+   * panel it maps onto, so the same sentence arrived twice with two paths.
+   * The code and the params are the sentence; one of each is said.
+   */
+  it('says the same sentence once, however many paths raise it', () => {
+    render(
+      <WarningStrip
+        issues={[
+          {
+            code: 'config.filterMode.not-simple',
+            severity: 'warning',
+            path: [],
+          },
+          {
+            code: 'config.filterMode.not-simple',
+            severity: 'warning',
+            path: ['panels', 0, 'filterMode'],
+          },
+          {
+            code: 'record.summary.unsupported',
+            severity: 'warning',
+            path: ['summaries', 0],
+            params: { field: 'Amount', fn: 'AVG' },
+          },
+          {
+            code: 'record.summary.unsupported',
+            severity: 'warning',
+            path: ['summaries', 1],
+            params: { field: 'Amount', fn: 'SUM' },
+          },
+        ]}
+      />,
+    );
+
+    // Three sentences behind one line, which says how many there are.
+    expect(screen.getByRole('status').textContent).toContain(
+      '3 things worth noting',
+    );
+    fireEvent.click(screen.getByRole('button', { name: '3 more' }));
+
+    const text = screen.getByRole('status').textContent ?? '';
+    expect(text.match(/advanced editor/g)).toHaveLength(1);
+    expect(text).toContain('AVG summary');
+    expect(text).toContain('SUM summary');
+  });
+});
+
+describe('ErrorStrip', () => {
+  /** A draft holding two conditions, which is what the editor draws pills for. */
+  const twoConditions: FilterTree = {
+    op: 'and',
+    children: [
+      { field: 'warehouse', operator: 'EQ', value: 'CN' },
+      { field: 'status', operator: 'EQ', value: 'PENDING' },
+    ],
+  };
+
+  it('leaves the conditions the editor marks to the editor', () => {
+    // A wrong condition is marked on its own pill and counted on Apply,
+    // which is where it can be fixed; the strip would only say it again.
+    const marked = unmarkedErrors(
+      [
+        {
+          code: 'filter.value.expected-date',
+          severity: 'error',
+          path: ['children', 0],
+        },
+        {
+          code: 'record.column.unknown',
+          severity: 'error',
+          path: ['table', 'columns', 0],
+          params: { field: 'gone' },
+        },
+        {
+          code: 'config.filterMode.not-simple',
+          severity: 'warning',
+          path: [],
+        },
+      ],
+      twoConditions,
+    );
+
+    expect(marked.map(found => found.code)).toEqual(['record.column.unknown']);
+
+    render(<ErrorStrip issues={marked} />);
+    const strip = screen.getByRole('alert');
+    expect(strip.className).toContain('border-destructive');
+    expect(strip.textContent).toContain('needs fixing');
+  });
+
+  it('says nothing when every error is marked elsewhere', () => {
+    const { container } = render(
+      <ErrorStrip
+        issues={unmarkedErrors(
+          [
+            {
+              code: 'filter.value.expected-text',
+              severity: 'error',
+              path: ['children', 1],
+            },
+          ],
+          twoConditions,
+        )}
+      />,
+    );
+
+    expect(container.innerHTML).toBe('');
+  });
+
+  /**
+   * A condition-shaped path is not the same thing as a pill. The panel skips
+   * a malformed child — there is nothing to draw a field, an operator or a
+   * value editor from — so a finding about it is marked nowhere, and the
+   * strip is the only place it can ever be read.
+   */
+  it('keeps an error about a node the editor cannot draw', () => {
+    const kept = unmarkedErrors(
+      [
+        {
+          code: 'filter.node.invalid',
+          severity: 'error',
+          path: ['children', 0],
+        },
+      ],
+      { op: 'and', children: [null as unknown as FilterTree] },
+    );
+
+    expect(kept.map(found => found.path)).toEqual([['children', 0]]);
+  });
+
+  /** A group carries no marker of its own; only its conditions do. */
+  it('keeps an error about a group, which wears no mark', () => {
+    const kept = unmarkedErrors(
+      [
+        {
+          code: 'filter.group.duplicate-field',
+          severity: 'error',
+          path: ['children', 0],
+          params: { field: 'warehouse' },
+        },
+      ],
+      { op: 'and', children: [{ op: 'or', children: [] }] },
+    );
+
+    expect(kept).toHaveLength(1);
+  });
+
+  /**
+   * A condition inside an element match is drawn by the same components,
+   * from the tree the leaf carries, so it wears a pill like any other.
+   */
+  it('leaves a condition inside a predicate to the editor', () => {
+    const kept = unmarkedErrors(
+      [
+        {
+          code: 'filter.value.expected-text',
+          severity: 'error',
+          path: ['children', 0, 'children', 1],
+        },
+      ],
+      {
+        op: 'and',
+        children: [
+          {
+            field: 'lines',
+            operator: 'ELEMENT_MATCH',
+            value: {
+              op: 'and',
+              children: [
+                { field: 'sku', operator: 'EQ', value: 'a' },
+                { field: 'qty', operator: 'EQ', value: 1 },
+              ],
+            } as unknown as FilterValue,
+          },
+        ],
+      },
+    );
+
+    expect(kept).toEqual([]);
   });
 });

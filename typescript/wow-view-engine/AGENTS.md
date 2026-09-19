@@ -47,7 +47,7 @@ pnpm --filter @ahoo-wang/fetcher-view-engine lint:check
 
 - Vitest in the **jsdom** environment, with `clearMocks` and `restoreMocks`
 - **No `globals: true`** — unlike the other packages here, import `describe`, `it`, `expect`, `vi` from `vitest` explicitly
-- Test files live in `test/` at the package root, named by subject rather than mirroring `src/` one-to-one (41 files)
+- Test files live in `test/` at the package root, named by subject rather than mirroring `src/` one-to-one (45 files). Fixtures shared by several suites sit beside them: `test/fixtures.ts` for definitions, configs and sources, `test/fixtures/ui.tsx` for what the UI suites open
 - `@` resolves to `src/`
 - **Coverage thresholds are enforced**: statements 95, branches 91, functions 97, lines 96. `src/ui/components/**`, `src/ui/lib/**` and `src/styles.ts` are excluded — they are vendored from the shadcn registry and are upstream's to test
 - `test/architecture.test.ts` enforces the dependency rules below on the TypeScript AST, so multi-line, type-only, re-exported and **statically resolvable** dynamic imports are all seen — an `import()` whose argument is a string literal or a substitution-free template. One built from a variable is not recorded, and would slip past these assertions. It reads the wow **sources** off disk, so it is the one suite that runs without any build — every test that imports `@ahoo-wang/fetcher-wow` needs the dependency chain built first
@@ -195,7 +195,7 @@ src/
     lib/utils.ts                  — shadcn cn() helper — vendored
 ```
 
-`test/` (41 files), `examples/` (`FetcherViewStore.ts`, `PlainRecordWorkbench.tsx`, `quickstart.ts`) and `docs/design/` sit beside `src/`.
+`test/` (45 test files plus `fixtures.ts` and `fixtures/ui.tsx`), `examples/` (`FetcherViewStore.ts`, `PlainRecordWorkbench.tsx`, `quickstart.ts`) and `docs/design/` sit beside `src/`.
 
 ### Key Concepts
 

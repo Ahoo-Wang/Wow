@@ -9,7 +9,6 @@
 
 ## 重构（小步，每步一个 PR，零行为变化）
 
-- **R1 拆 `test/ui.test.tsx`**（4 144 行、17 个 describe）——为什么：一个文件同时测工作台、面板、表格与嵌入视图，改一处要读四千行。判据：按主题拆成 `recordWorkbench` / `filterPanel` / `recordTable` / `viewList` / `embeddedView` / `filterValueEditor` 等测试文件，夹具进 `test/fixtures/ui.tsx`，断言不变、覆盖率不降。落点：`test/`。
 - **R2 拆 `src/react/useViewManager.ts`**（804 行）——为什么：结局、队列与顺序三件事挤在一个文件里，[react.md#useviewmanager](react.md#useviewmanager) 也因此是全篇最长的一节。判据：拆为 `react/manager/{outcomes,queue,order}.ts` 加一层组合，公开面不变，`test/viewManager.test.tsx` 原样通过。落点：`src/react/`。
 - **R3 抽 `useWorkbench` 与 `WorkbenchShell`**——为什么：三个工作台各自把 list + open + releaseDeleted + manager + leaveGuard + wrong-kind 装配一遍。判据：`/react` 出 `useWorkbench`，`/ui` 出 `WorkbenchShell`，三个工作台变薄，`examples/PlainRecordWorkbench.tsx` 改用 `useWorkbench`；`unmarkedErrors` 从 `ui/StatusStrip.tsx` 移到 `useFilterEditor`（暴露 `unmarked`，与 `blocked` 成对）；三个工作台的测试不变。落点：`src/react/`、`src/ui/`、[ui/README.md#工作台骨架](ui/README.md#工作台骨架)。
 - **R4 拆过长的 UI 文件**——为什么：同一个文件里既有布局又有分支，改一处要重读全部。判据：`ViewManager.tsx` 拆为 Row / DeleteDialog / OutcomeActions（与 `WriteOutcome` 共用"结局→按钮"组件），`WriteOutcome.tsx` 抽 ConflictConfirm，`FilterPanel.tsx` 拆为 GroupBlock / ConditionPill / FilterActions，`FilterValueEditor.tsx` 按 `EditorDescriptor.input` 分文件；行为与测试不变。落点：`src/ui/`。
