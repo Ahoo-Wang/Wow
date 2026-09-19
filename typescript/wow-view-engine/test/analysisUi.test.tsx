@@ -1218,11 +1218,19 @@ describe('AnalysisWorkbench', () => {
   });
 
   it('names chart categories as their field names its values', async () => {
+    // The table shows only the count; the chart still groups by warehouse,
+    // and names its bars through the schema rather than the table's columns.
     const engine = new ViewEngine({
       definitions: [namedOrdersDefinition()],
       store: new MemoryViewStore({
         instances: [
-          { ...analysisView, config: analysisConfig({ layout: 'chart' }) },
+          {
+            ...analysisView,
+            config: analysisConfig({
+              layout: 'chart',
+              table: { columns: [{ alias: 'orders' }] },
+            }),
+          },
         ],
       }),
       resolveSource: () => testSource(),

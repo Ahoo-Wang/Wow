@@ -48,7 +48,15 @@ export interface AnalysisColumnView {
 }
 
 export interface AnalysisView {
+  /** The table's columns: those `table.columns` picks, in its order. */
   columns: AnalysisColumnView[];
+  /**
+   * Every alias the result holds, described as `columns` are, whatever the
+   * table picks. A chart names its categories through these: it may group by
+   * a column the table leaves out, whose values would otherwise show raw.
+   * `projectAnalysis` always sets it; a view built by hand may leave it out.
+   */
+  schema?: AnalysisColumnView[];
   rows: RecordData[];
   /** Present only when `table.totals` asked for it and its query succeeded. */
   totals?: RecordData;
@@ -161,7 +169,7 @@ export function projectAnalysis(
       .map(metric => metric.alias),
   ]);
 
-  const columns = order.flatMap<AnalysisColumnView>(alias => {
+  const describe = (alias: string): AnalysisColumnView[] => {
     const role = roles.get(alias);
     if (!role) return [];
     const source = sourceField.get(alias);
@@ -179,10 +187,11 @@ export function projectAnalysis(
         ...bucketOf(groups.get(alias)),
       },
     ];
-  });
+  };
 
   return {
-    columns,
+    columns: order.flatMap(describe),
+    schema: resultSchema(config).flatMap(describe),
     rows: [...result],
     ...(totals && totals.length > 0 ? { totals: totals[0] } : {}),
     ...(config.layout === 'chart'

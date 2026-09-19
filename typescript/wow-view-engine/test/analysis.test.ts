@@ -1316,6 +1316,23 @@ describe('display metadata', () => {
     expect(named.groupBy?.[0]).toMatchObject({ timeZone: 'UTC' });
   });
 
+  // The table may show only the count while the chart still groups by the
+  // warehouse, so what a chart names its categories by cannot be the table's.
+  it('describes every alias for the chart, the ones the table hides too', () => {
+    const view = projectAnalysis(
+      withEnum(),
+      config({ table: { columns: [{ alias: 'orders' }] } }),
+      [],
+    );
+
+    expect(view.columns.map(column => column.alias)).toEqual(['orders']);
+    expect(view.schema?.map(column => column.alias)).toEqual(['wh', 'orders']);
+    expect(view.schema?.[0]).toMatchObject({
+      kind: 'enum',
+      options: warehouses,
+    });
+  });
+
   it('tells each column how its values show', () => {
     const view = projectAnalysis(
       withEnum(),

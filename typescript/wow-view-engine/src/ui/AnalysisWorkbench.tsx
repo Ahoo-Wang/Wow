@@ -175,7 +175,7 @@ export function AnalysisWorkbench({
                 <AnalysisChart
                   data={view.chart}
                   spec={chart}
-                  columns={view.columns}
+                  columns={view.schema ?? view.columns}
                 />
               ) : (
                 <AnalysisTable view={view} />

@@ -823,7 +823,14 @@ describe('DashboardWorkbench', () => {
   });
 
   it("names a chart panel's categories as their field names its values", async () => {
-    const engine = named(analysisConfig({ layout: 'chart' }));
+    // The table shows only the count; the chart still groups by warehouse,
+    // and names its bars through the schema rather than the table's columns.
+    const engine = named(
+      analysisConfig({
+        layout: 'chart',
+        table: { columns: [{ alias: 'orders' }] },
+      }),
+    );
 
     // Recharts measures text in a span of its own on the body.
     const { container } = render(

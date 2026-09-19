@@ -132,9 +132,8 @@ function readTime(
 
 /** A number in the format its field declared; as written when it has none. */
 export function formatNumber(value: number, format?: NumberFormat): string {
-  if (!format) return String(value);
-  const { locale, ...options } = format;
-  return new Intl.NumberFormat(locale, options).format(value);
+  const formatter = format && numberFormatter(format);
+  return formatter ? formatter.format(value) : String(value);
 }
 
 /**
@@ -150,9 +149,8 @@ export function valueText(
 ): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'number') {
-    if (!format) return value.toLocaleString();
-    const { locale, ...options } = format;
-    return new Intl.NumberFormat(locale, options).format(value);
+    const formatter = format && numberFormatter(format);
+    return formatter ? formatter.format(value) : value.toLocaleString();
   }
   if (typeof value === 'boolean')
     return messages.label(value ? 'label.value.yes' : 'label.value.no');
@@ -246,6 +244,38 @@ function format(
   options: Intl.DateTimeFormatOptions,
 ): string {
   return formatter(locale, options).format(date);
+}
+
+const numberFormatters = new Map<string, Intl.NumberFormat | null>();
+
+/**
+ * The formatter a field's `numberFormat` asks for, built once, or `null` when
+ * Intl will not build it. The type admits what Intl refuses — a locale such
+ * as `zh_CN`, a currency style with no currency — and the throw used to take
+ * the whole table down mid-render. The language gives way first, as a date's
+ * does; a format that still fails is dropped, and the number shows unformatted.
+ */
+function numberFormatter(format: NumberFormat): Intl.NumberFormat | null {
+  const key = JSON.stringify(format);
+  let found = numberFormatters.get(key);
+  if (found === undefined) {
+    const { locale, ...options } = format;
+    found =
+      buildNumber(locale, options) ?? buildNumber(undefined, options) ?? null;
+    numberFormatters.set(key, found);
+  }
+  return found;
+}
+
+function buildNumber(
+  locale: string | undefined,
+  options: Intl.NumberFormatOptions,
+): Intl.NumberFormat | undefined {
+  try {
+    return new Intl.NumberFormat(locale, options);
+  } catch {
+    return undefined;
+  }
 }
 
 const formatters = new Map<string, Intl.DateTimeFormat>();

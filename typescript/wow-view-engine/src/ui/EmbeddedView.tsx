@@ -209,7 +209,7 @@ function EmbeddedAnalysis({ runtime }: { runtime: OpenedRuntime }) {
     <AnalysisChart
       data={view.chart}
       spec={analysis.chart}
-      columns={view.columns}
+      columns={view.schema ?? view.columns}
     />
   ) : (
     <AnalysisTable view={view} />

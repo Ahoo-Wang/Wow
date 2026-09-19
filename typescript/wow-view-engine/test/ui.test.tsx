@@ -1699,6 +1699,28 @@ describe('RecordTable on its own', () => {
     expect(screen.getByText('Failed')).toBeDefined();
   });
 
+  it('still renders a column whose number format Intl refuses', () => {
+    render(
+      <RecordTable
+        table={tableController({
+          columns: [
+            {
+              field: 'amount',
+              label: 'Amount',
+              kind: 'number',
+              cell: 'number',
+              sortable: false,
+              numberFormat: { style: 'currency' },
+            },
+          ],
+          rows: [{ key: 'o-1', data: { amount: 10 } }],
+        })}
+      />,
+    );
+
+    expect(screen.getByText('10')).toBeDefined();
+  });
+
   it('marks sort direction on the column it applies to', () => {
     render(
       <RecordTable
@@ -2745,7 +2767,14 @@ describe('EmbeddedView', () => {
   });
 
   it('names chart categories as their field names its values', async () => {
-    const engine = embed(analysisConfig({ layout: 'chart' }));
+    // The table shows only the count; the chart still groups by warehouse,
+    // and names its bars through the schema rather than the table's columns.
+    const engine = embed(
+      analysisConfig({
+        layout: 'chart',
+        table: { columns: [{ alias: 'orders' }] },
+      }),
+    );
 
     // Recharts measures text in a span of its own on the body; the chart is
     // what is asked about.

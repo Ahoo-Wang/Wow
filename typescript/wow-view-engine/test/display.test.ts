@@ -12,7 +12,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { displayValue } from '../src/ui/display.js';
+import type { MessageFormatters } from '../src/ui/index.js';
+import { displayValue, formatNumber, valueText } from '../src/ui/display.js';
 
 /**
  * Expected text comes from the same Intl call, not a literal: the ICU data a
@@ -117,6 +118,26 @@ describe('displayValue', () => {
         ...DATE_TIME,
         timeZone: 'America/Los_Angeles',
       }),
+    );
+  });
+
+  // The type admits what Intl refuses, and the throw used to take the whole
+  // table down mid-render.
+  it('gives way on a number format Intl will not build instead of throwing', () => {
+    const words = {} as MessageFormatters;
+    const currency = { style: 'currency', currency: 'CNY' } as const;
+
+    // The language goes first and the currency stays.
+    expect(formatNumber(1000, { ...currency, locale: 'zh_CN' })).toBe(
+      new Intl.NumberFormat(undefined, currency).format(1000),
+    );
+    // A currency style with no currency cannot be built at all.
+    expect(formatNumber(1000, { style: 'currency' })).toBe('1000');
+    expect(valueText(1000, words, { style: 'currency' })).toBe(
+      (1000).toLocaleString(),
+    );
+    expect(valueText(1000, words, currency)).toBe(
+      new Intl.NumberFormat(undefined, currency).format(1000),
     );
   });
 

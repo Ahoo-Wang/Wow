@@ -266,7 +266,7 @@ function AnalysisPanel({ runtime }: { runtime: DataViewRuntime }) {
     <AnalysisChart
       data={view.chart}
       spec={analysis.chart}
-      columns={view.columns}
+      columns={view.schema ?? view.columns}
       className="h-full"
     />
   ) : (
