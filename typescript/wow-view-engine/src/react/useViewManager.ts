@@ -11,62 +11,44 @@
  * limitations under the License.
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import {
   audienceOf,
-  isSystemScope,
-  SYSTEM_INSTANCE_ID_PREFIX,
-  SYSTEM_INSTANCE_ID_SEPARATOR,
-  type Issue,
   type ViewAudience,
   type ViewPreferences,
 } from '../model/index.js';
-import {
-  isViewWriteError,
-  type ConflictChoice,
-  type ViewEngine,
-  type WriteHandle,
-  type WritePayload,
-  type WriteState,
+import type {
+  ConflictChoice,
+  ViewEngine,
+  WritePayload,
+  WriteState,
 } from '../runtime/index.js';
-import { toIssue } from './issues.js';
+import { abilitiesOf, type ViewManagerAbilities } from './manager/abilities.js';
+import {
+  kept,
+  PREFERENCES_KEY,
+  projectStates,
+  UNSENT,
+} from './manager/outcomes.js';
+import {
+  neighbourOf,
+  planMove,
+  sameOrder,
+  type MoveDirection,
+  type OptimisticOrder,
+} from './manager/order.js';
+import {
+  useCommandRunner,
+  type ManagerTag,
+} from './manager/useCommandRunner.js';
 import type { ViewListState } from './useViewList.js';
 
-/**
- * The key the order and the default view are recorded under.
- *
- * Both are one preference record, so both contend for one slot and share one
- * outcome: there is no instance to hang them off, and a row cannot be asked
- * to recover a write that was never about it.
- *
- * It shares the key space with instance ids, so it is taken from the one
- * namespace a `ViewStore` may not issue into — the `system:` prefix
- * `isSystemInstanceId` reserves — rather than from a bare word a store could
- * hand out as an id and collide with.
- */
-export const PREFERENCES_KEY =
-  `${SYSTEM_INSTANCE_ID_PREFIX}${SYSTEM_INSTANCE_ID_SEPARATOR}preferences` as const;
-
-export type MoveDirection = 'up' | 'down';
-
-/** What may be done to one row. `save` is not among them: nothing here edits a config. */
-export interface ManagedInstanceAbilities {
-  rename: boolean;
-  delete: boolean;
-}
-
-export interface ViewManagerAbilities {
-  reorder: boolean;
-  setDefault: boolean;
-  instance(id: string): ManagedInstanceAbilities;
-  /**
-   * Whether anything at all can be managed: the order, the default, or the
-   * title or existence of any row on the list. False means the manager would
-   * open on a dialog of read-only rows, so the way in is not offered — a
-   * button whose only lesson is that it leads nowhere.
-   */
-  anything: boolean;
-}
+export { PREFERENCES_KEY } from './manager/outcomes.js';
+export type { MoveDirection } from './manager/order.js';
+export type {
+  ManagedInstanceAbilities,
+  ViewManagerAbilities,
+} from './manager/abilities.js';
 
 export interface ViewManagerController {
   rename(id: string, title: string): Promise<boolean>;
@@ -114,143 +96,8 @@ export interface ViewManagerController {
   can: ViewManagerAbilities;
 }
 
-/**
- * One recorded outcome. The handle is the engine's, kept here rather than
- * handed out: a caller acts on the row it can see, and `retry`, `abandon` and
- * `resolveConflict` address the write for it.
- */
-interface Outcome {
-  state: WriteState;
-  /**
-   * Absent when there is nothing left to replay: a command the engine refused
-   * before dispatching, or a conflict it has already settled.
-   */
-  handle: WriteHandle | null;
-  /**
-   * The command as the user meant it, for a preference write whose conflict
-   * was answered with a reload. Running it again is a new write — it reads
-   * the revision the reload brought in — so the intent survives the reload
-   * without ever being replayed behind the user's back.
-   */
-  again?: () => Promise<unknown>;
-}
-
-/**
- * The revision and the request id of a write that never left. A refusal is
- * recorded so the row can say why it did not happen, and its payload is the
- * intent rather than anything sent, so it quotes neither.
- */
-const UNSENT = '';
-
-const NO_OUTCOMES: ReadonlyMap<string, Outcome> = new Map();
-
-/**
- * What the commands have produced, tagged with the inputs they were raised
- * under.
- *
- * The tag is the derivation `useViewList` makes — "which request does this
- * answer belong to", asked of a command rather than of a load. A workbench
- * swaps `definitionId` or `engine` while a write is in flight, and without
- * the tag the rows of the definition just left keep their outcomes and their
- * progress against a list that no longer holds them, and a completion from
- * the old inputs repopulates the new one.
- */
-interface ManagerState {
-  /** Null only before the first command; nothing is tagged with it. */
-  engine: ViewEngine | null;
-  definitionId: string;
-  outcomes: ReadonlyMap<string, Outcome>;
-  /** The key of the one write in flight; see `pending`. */
-  pending: string | null;
-}
-
-/** State belonging to no inputs, which is also how other inputs' state reads. */
-const NOTHING_MANAGED: ManagerState = {
-  engine: null,
-  definitionId: '',
-  outcomes: NO_OUTCOMES,
-  pending: null,
-};
-
-const NO_INSTANCE_WRITES: ManagedInstanceAbilities = {
-  rename: false,
-  delete: false,
-};
-
-/**
- * The serialization queue, tagged with the inputs whose commands are on it.
- *
- * Chaining is only right among commands that answer for the same list: a
- * workbench that swaps `definitionId` or `engine` while a write hangs would
- * otherwise queue the new definition's first command behind it, and the row
- * the user just clicked would sit there showing nothing.
- */
-interface CommandQueue {
-  engine: ViewEngine;
-  definitionId: string;
-  chain: Promise<boolean>;
-}
-
-/**
- * The order a queued move computed, while the list it was computed from is
- * still a reload behind it.
- *
- * `base` is the full rendered order it started from: once the list is no
- * longer that, the reload has landed and the rendered order is the truth
- * again. The two orders after the swap are both kept, because they answer
- * different questions — `order` is what was submitted, and `visible` is what
- * the next move looks for a neighbour in.
- */
-interface OptimisticOrder {
-  engine: ViewEngine;
-  definitionId: string;
-  /** The full rendered order, unfiltered, before this move. */
-  base: readonly string[];
-  /** The full order this move submitted. */
-  order: readonly string[];
-  /** The narrowed order as this move left it. */
-  visible: readonly string[];
-}
-
-/**
- * What a command tells the queue about itself, beyond what it writes.
- *
- * Both halves arrived with a different question — one keeps an intent alive
- * across a reload, the other decides whether an unsettled key accepts this
- * command at all — and they are independent: `resubmit` carries an intent and
- * is still an ordinary write, so the `unknown` guard applies to it.
- */
-interface RunOptions {
-  /**
-   * Kept with the outcome so the same intent can be put again later. Only
-   * the preference commands pass one: everything else recovers through its
-   * handle, which addresses the write the store already has.
-   */
-  again?: () => Promise<unknown>;
-  /** A replay or a conflict choice, which is the one thing an unsettled outcome accepts. */
-  recovery?: boolean;
-  /**
-   * Asked once more at the front of the queue, for a command that addresses
-   * a handle it read when it was queued. The command ahead may have settled
-   * that outcome — retried it, abandoned it, answered its conflict — and the
-   * engine would refuse the second address with an error the row would show
-   * as a failure of the click the user just made. False means "nothing to do
-   * any more": the command is skipped and resolves `false`.
-   */
-  guard?: () => boolean;
-}
-
-function sameOrder(one: readonly string[], other: readonly string[]): boolean {
-  return one.length === other.length && one.every((id, at) => id === other[at]);
-}
-
-/**
- * A refusal, in the shape the row already renders. `ViewCommandError` means
- * nothing was sent, which is exactly a rejection with no outcome to recover.
- */
-function refused(payload: WritePayload, issue: Issue): WriteState {
-  return { requestId: UNSENT, payload, kind: 'rejected', issue };
-}
+/** A queued move's orders, with the inputs it was computed under. */
+type PendingOrder = OptimisticOrder & ManagerTag;
 
 /**
  * Managing the views a list shows, rather than the one that is open: rename,
@@ -262,25 +109,26 @@ function refused(payload: WritePayload, issue: Issue): WriteState {
  * needs no try/catch and an unresolved write stays visible until the user
  * retries, overwrites or abandons it. A write that lands reloads the list,
  * because it is the list that changed.
+ *
+ * This is the composition alone. The rules the commands are decided by live
+ * beside it: `manager/outcomes.ts` says what one row's slot accepts,
+ * `manager/queue.ts` serializes, `manager/order.ts` does the arithmetic of a
+ * move, and `manager/useCommandRunner.ts` is the protocol all five commands
+ * and the recovery actions run under.
  */
 export function useViewManager(
   engine: ViewEngine,
   definitionId: string,
   list: ViewListState,
 ): ViewManagerController {
-  // Kept here rather than read back from `engine.pendingWrites()`: that map is
-  // keyed by request id and says nothing about which row raised a write, and
-  // the error each command rejects with already carries both halves.
-  const [state, setState] = useState<ManagerState>(NOTHING_MANAGED);
-  // The same state, readable between renders. A queued command decides
-  // whether it may run at all from what the command before it recorded, and
-  // no render has necessarily happened in between.
-  const live = useRef<ManagerState>(NOTHING_MANAGED);
-  // The write in flight, so the next one waits for it rather than racing it.
-  const queue = useRef<CommandQueue | null>(null);
-  // What the moves already queued have submitted; see `move`.
-  const optimistic = useRef<OptimisticOrder | null>(null);
   const { all, items, permissions, preferences, reload } = list;
+  const { run, outcomes, pending, held, record, owns } = useCommandRunner(
+    engine,
+    definitionId,
+    reload,
+  );
+  // What the moves already queued have submitted; see `move`.
+  const optimistic = useRef<PendingOrder | null>(null);
 
   // The order on screen, and the group each row sits in. A move reasons over
   // ids alone — the order a queued one computed has nothing but ids — so the
@@ -298,193 +146,6 @@ export function useViewManager(
         all.map(item => [item.id, audienceOf(item.scope)]),
       ),
     [all],
-  );
-
-  // State raised under other inputs is about rows this render does not list,
-  // so it reads as nothing rather than being shown against these ones.
-  const own =
-    state.engine === engine && state.definitionId === definitionId
-      ? state
-      : NOTHING_MANAGED;
-  const outcomes = own.outcomes;
-
-  const commit = useCallback((next: ManagerState): void => {
-    live.current = next;
-    setState(next);
-  }, []);
-
-  const record = useCallback(
-    (key: string, outcome: Outcome | null): void => {
-      const current = live.current;
-      // A completion from inputs the hook has moved on from answers for a
-      // row the list no longer holds; it must not land on the new one.
-      if (current.engine !== engine || current.definitionId !== definitionId)
-        return;
-      if (outcome === null && !current.outcomes.has(key)) return;
-      const next = new Map(current.outcomes);
-      if (outcome) next.set(key, outcome);
-      else next.delete(key);
-      commit({ ...current, outcomes: next });
-    },
-    [commit, definitionId, engine],
-  );
-
-  /**
-   * The outcome a command would be landing on, or null when the state on
-   * hand was raised under other inputs and says nothing about this key.
-   */
-  const held = useCallback(
-    (key: string): Outcome | null => {
-      const current = live.current;
-      if (current.engine !== engine || current.definitionId !== definitionId)
-        return null;
-      return current.outcomes.get(key) ?? null;
-    },
-    [definitionId, engine],
-  );
-
-  const execute = useCallback(
-    async (
-      key: string,
-      intent: WritePayload,
-      code: string,
-      command: () => Promise<unknown>,
-      /**
-       * Kept with the outcome so the same intent can be put again later. Only
-       * the preference commands pass one: everything else recovers through
-       * its handle, which addresses the write the store already has.
-       */
-      again?: () => Promise<unknown>,
-      /** True for a replay or a conflict choice; see `RunOptions.recovery`. */
-      recovery = false,
-    ): Promise<boolean> => {
-      // A `rejected` outcome that still holds a handle is the one unsettled
-      // outcome a new command is allowed past (design/management.md: correct it and
-      // save again), and this command is about to take its slot. Settling it
-      // first is what keeps the write it addresses from being left in
-      // `engine.pendingWrites()` with nothing on screen able to reach it. A
-      // recovery is not a new intent — it is that very handle being used.
-      const stale = recovery ? null : held(key);
-      if (stale?.handle && stale.state.kind === 'rejected') {
-        try {
-          engine.abandonWrite(stale.handle);
-        } catch {
-          // Already settled, which is the state this wanted it in.
-        }
-      }
-      // Claiming the slot also tags it: a command under new inputs starts
-      // from nothing rather than inheriting the outcomes of the old ones.
-      const current = live.current;
-      commit(
-        current.engine === engine && current.definitionId === definitionId
-          ? { ...current, pending: key }
-          : { engine, definitionId, outcomes: NO_OUTCOMES, pending: key },
-      );
-      try {
-        await command();
-        // It landed: nothing is left to recover, and the list it changed —
-        // the titles, the order, the default — is now a revision behind. A
-        // delete also takes its row with it: the reload keeps what is on hand
-        // on screen until the store answers, so the id goes with the request
-        // rather than being listed, and named as the default, a moment longer
-        // than it exists.
-        record(key, null);
-        reload(intent.action === 'delete' ? { without: intent.id } : undefined);
-        return true;
-      } catch (caught) {
-        if (isViewWriteError(caught)) {
-          record(key, { state: caught.state, handle: caught.handle, again });
-        } else if (!held(key)?.handle) {
-          // A refusal never left, so it has nothing to replay. Letting it
-          // take the place of an outcome that still holds a handle would
-          // drop the only way to retry or abandon that write — which is
-          // exactly what the engine refusing a second command against an
-          // `unknown` outcome would otherwise do to it. The intent still
-          // rides along: a refusal is the user's command all the same, and
-          // `resubmit` is how a preference write is put again.
-          record(key, {
-            state: refused(intent, toIssue(caught, code)),
-            handle: null,
-            again,
-          });
-        }
-        return false;
-      } finally {
-        const settled = live.current;
-        if (
-          settled.engine === engine &&
-          settled.definitionId === definitionId &&
-          settled.pending === key
-        )
-          commit({ ...settled, pending: null });
-      }
-    },
-    [commit, definitionId, engine, held, record, reload],
-  );
-
-  /**
-   * One write at a time, in the order the clicks came.
-   *
-   * Two rows deleted in quick succession are two writes against one list and
-   * one `pending` slot: run together, the second one's completion clears the
-   * slot while the first is still going, and the first row stops showing
-   * progress it is still making. Chaining also keeps the reload each landing
-   * triggers from reading a list the other write is halfway through. An idle
-   * queue starts now rather than a microtask later, so the row the user just
-   * clicked shows progress in that same event.
-   */
-  const run = useCallback(
-    (
-      key: string,
-      intent: WritePayload,
-      code: string,
-      command: () => Promise<unknown>,
-      { again, recovery = false, guard }: RunOptions = {},
-    ): Promise<boolean> => {
-      // A row holds one outcome, so a new command for a key whose outcome is
-      // still the engine's to answer for has nowhere to put its own:
-      // recording it would drop the handle, and the write it addresses would
-      // be left in `engine.pendingWrites()` with nothing on screen able to
-      // retry, overwrite or abandon it. The engine refuses a second command
-      // against an `unknown` outright; a `conflict` it would dispatch over,
-      // which is the same problem one step later. A `rejected` outcome is a
-      // definite answer with nothing outstanding, so §7.4's "correct it and
-      // save again" goes through as the new intent it is.
-      const blocked = () => {
-        const outcome = !recovery ? held(key) : null;
-        return (
-          outcome?.handle != null &&
-          (outcome.state.kind === 'unknown' ||
-            outcome.state.kind === 'conflict')
-        );
-      };
-      if (blocked()) return Promise.resolve(false);
-      // Checked again at the front of the queue: the command ahead may be
-      // the one that turns this key `unknown`.
-      const start = () =>
-        blocked() || (guard !== undefined && !guard())
-          ? Promise.resolve(false)
-          : execute(key, intent, code, command, again, recovery);
-      const ahead = queue.current;
-      // Only the queue these inputs put there. One belonging to a definition
-      // or an engine the hook has moved on from settles on its own, and this
-      // command starts now rather than behind a write nobody is watching.
-      const mine =
-        ahead && ahead.engine === engine && ahead.definitionId === definitionId
-          ? ahead.chain
-          : null;
-      // `execute` resolves whatever happened, so the rejection arm is only
-      // there to keep one broken link from stalling the queue for good.
-      const landed = mine === null ? start() : mine.then(start, start);
-      const queued: CommandQueue = { engine, definitionId, chain: landed };
-      queue.current = queued;
-      const release = () => {
-        if (queue.current === queued) queue.current = null;
-      };
-      void landed.then(release, release);
-      return landed;
-    },
-    [definitionId, engine, execute, held],
   );
 
   /**
@@ -562,49 +223,28 @@ export function useViewManager(
       // one it was computed from — after which the reload has landed and the
       // rendered order is the truth again.
       const carried =
-        ahead &&
-        ahead.engine === engine &&
-        ahead.definitionId === definitionId &&
-        sameOrder(ahead.base, full)
-          ? ahead
-          : null;
-      const visible = carried ? carried.visible : rendered;
-      // The pair to swap is found among the rows the user can see, and in
-      // the same group: the two lists render personal views above shared
-      // ones, so a swap across that boundary would store a new order and
-      // move nothing on screen.
-      const from = visible.indexOf(id);
-      const to = neighbourOf(visible, audiences, id, direction);
-      // A row at either end of its own audience has nowhere to go, and a row
-      // the list no longer holds cannot be placed. Submitting the order
-      // unchanged would still cost a revision and still be able to conflict.
-      if (from < 0 || to < 0) return Promise.resolve(false);
-      const other = visible[to];
-      // The swap itself happens in the *full* order. Submitting the visible
-      // one would store a list with every other kind's id missing, and the
-      // store keeps one order for the whole definition: a record workbench
-      // reordering its own views would silently drop the analyses.
-      const order = [...(carried ? carried.order : full)];
-      const at = order.indexOf(id);
-      const otherAt = order.indexOf(other);
-      if (at < 0 || otherAt < 0) return Promise.resolve(false);
-      [order[at], order[otherAt]] = [order[otherAt], order[at]];
-      const moved = [...visible];
-      [moved[from], moved[to]] = [moved[to], moved[from]];
-      const submitted: OptimisticOrder = {
+        ahead && owns(ahead) && sameOrder(ahead.base, full) ? ahead : null;
+      const planned = planMove(
+        carried ? carried.visible : rendered,
+        carried ? carried.order : full,
+        audiences,
+        id,
+        direction,
+      );
+      if (planned === null) return Promise.resolve(false);
+      const submitted: PendingOrder = {
         engine,
         definitionId,
         base: full,
-        order,
-        visible: moved,
+        ...planned,
       };
       optimistic.current = submitted;
       // The whole order goes, not the one pair that moved: the server holds
       // a list, not a diff.
-      const put = () => engine.reorder(definitionId, order);
+      const put = () => engine.reorder(definitionId, planned.order);
       const landed = run(
         PREFERENCES_KEY,
-        preferencesIntent({ order }),
+        preferencesIntent({ order: planned.order }),
         'view.preferences.failed',
         put,
         { again: put },
@@ -617,7 +257,16 @@ export function useViewManager(
       });
       return landed;
     },
-    [audiences, definitionId, engine, full, preferencesIntent, rendered, run],
+    [
+      audiences,
+      definitionId,
+      engine,
+      full,
+      owns,
+      preferencesIntent,
+      rendered,
+      run,
+    ],
   );
 
   const retry = useCallback(
@@ -710,37 +359,12 @@ export function useViewManager(
     [outcomes],
   );
 
-  const can = useMemo<ViewManagerAbilities>(() => {
-    const instance = (id: string): ManagedInstanceAbilities => {
-      // A system view ships with the definition, so no store write reaches
-      // it whatever the permissions answer for its id.
-      const summary = items.find(item => item.id === id);
-      if (summary && isSystemScope(summary.scope)) return NO_INSTANCE_WRITES;
-      const granted = permissions.instance(id);
-      return { rename: granted.rename, delete: granted.delete };
-    };
-    return {
-      reorder: permissions.reorder,
-      setDefault: permissions.setDefault,
-      instance,
-      // Asked of the rows on screen rather than of the permissions alone: a
-      // list whose every row is a system view answers "nothing", however
-      // freely the store hands out `rename` and `delete`.
-      anything:
-        permissions.reorder ||
-        permissions.setDefault ||
-        items.some(item => {
-          const granted = instance(item.id);
-          return granted.rename || granted.delete;
-        }),
-    };
-  }, [items, permissions]);
+  const can = useMemo<ViewManagerAbilities>(
+    () => abilitiesOf(items, permissions),
+    [items, permissions],
+  );
 
-  const states = useMemo<ReadonlyMap<string, WriteState>>(() => {
-    const projected = new Map<string, WriteState>();
-    for (const [key, outcome] of outcomes) projected.set(key, outcome.state);
-    return projected;
-  }, [outcomes]);
+  const states = useMemo(() => projectStates(outcomes), [outcomes]);
 
   return {
     rename,
@@ -754,51 +378,7 @@ export function useViewManager(
     resolveConflict,
     resubmit,
     canResubmit,
-    pending: own.pending,
+    pending,
     can,
   };
-}
-
-/**
- * Whether an outcome is a conflict the engine has already settled and whose
- * intent is still the user's to put again: after a reload there is no handle
- * to recover through, and the button offers the write once more rather than
- * a recovery that would answer `false`.
- */
-function kept(outcome: Outcome | undefined): boolean {
-  return (
-    outcome !== undefined &&
-    outcome.handle === null &&
-    outcome.again !== undefined &&
-    outcome.state.kind === 'conflict'
-  );
-}
-
-/**
- * The index the row would swap with: the nearest one in that direction that
- * the sidebar shows in the same group, or -1 when there is none.
- *
- * Audience is the reason this is not `index ± 1`. Both lists render personal
- * views above shared ones whatever order is stored, so the row above a
- * shared view on screen may be a personal one, and swapping the two would
- * store a new order, spend a revision and move nothing anybody can see.
- *
- * It walks an order of ids rather than the summaries themselves, because the
- * order a queued move computed is the one the next move has to reason over
- * while a row's audience is the same wherever that order puts it. Both
- * indices a swap needs then come from the same list.
- */
-function neighbourOf(
-  order: readonly string[],
-  audiences: ReadonlyMap<string, ViewAudience>,
-  id: string,
-  direction: MoveDirection,
-): number {
-  const from = order.indexOf(id);
-  const audience = from < 0 ? undefined : audiences.get(id);
-  if (audience === undefined) return -1;
-  const step = direction === 'up' ? -1 : 1;
-  for (let at = from + step; at >= 0 && at < order.length; at += step)
-    if (audiences.get(order[at]) === audience) return at;
-  return -1;
 }

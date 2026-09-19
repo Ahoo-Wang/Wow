@@ -86,6 +86,8 @@ useSaveCommands(engine, runtime): { save; saveAs; rename; delete; revert; retry;
 
 ## useViewManager
 
+实现拆在 `src/react/manager/`：`outcomes.ts`（结局的归属与替换规则）、`queue.ts`（按输入打标的串行队列，React 无关）、`order.ts`（同受众相邻项与乐观顺序）、`abilities.ts`（许可投影）、`useCommandRunner.ts`（结局账本与队列的 React 一侧）；`useViewManager.ts` 只做组合。公开面只从 `/react` 入口导出。
+
 ```ts
 useViewManager(engine, definitionId, list): { rename; delete; setDefault; move; canMove; outcomes; retry; abandon; resolveConflict; resubmit; canResubmit; pending; can }
 ```

@@ -579,7 +579,12 @@ describe('WriteOutcome', () => {
     const held = deferred<ViewInstance>();
     vi.spyOn(store, 'create').mockReturnValueOnce(held.promise);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save my copy' }));
+    // The conflict reaches the screen one render before `pending` clears:
+    // the runtime's write lands first, the command's own progress after.
+    // Clicking in that gap hits a disabled button and no dialog ever opens.
+    const copy = screen.getByRole('button', { name: 'Save my copy' });
+    await waitFor(() => expect(copy.hasAttribute('disabled')).toBe(false));
+    fireEvent.click(copy);
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Create view' }),
