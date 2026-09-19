@@ -16,11 +16,13 @@ import { ArrowDownIcon, ArrowUpIcon, InboxIcon } from 'lucide-react';
 import type { RecordData, RecordKey } from '../model/index.js';
 import type {
   RecordColumnView,
+  RecordRow,
   SummaryCell,
   SummaryRow,
 } from '../record/index.js';
 import type { RecordTableController } from '../react/index.js';
 import { recordValue } from '../record/index.js';
+import { RowActions } from './RowActions.js';
 import { Checkbox } from './components/checkbox.js';
 import {
   Empty,
@@ -53,10 +55,30 @@ export interface RecordTableProps {
    * checkboxes that lead nowhere.
    */
   selectable?: boolean;
+  /**
+   * What a host offers on one row, as a pinned last column.
+   *
+   * It takes the row and nothing else: the table knows a result, not a
+   * runtime, and the caller that owns the runtime — a workbench, an embedded
+   * view — is the one that binds it into a `RecordRowActionContext`. Leaving
+   * it out leaves the column out; the output is wrapped in `RowActions`, so
+   * a host hands over buttons rather than a layout.
+   */
+  rowActions?(row: RecordRow): React.ReactNode;
   /** Overrides the catalogue's own wording for an empty result. */
   emptyTitle?: string;
   emptyDescription?: string;
 }
+
+/**
+ * The action column stays put while the rest scrolls sideways, which is the
+ * only reason it can be the last one: on a wide table, actions that scroll
+ * away are actions nobody finds. The inset shadow draws its left edge — a
+ * real border would move with the cell it is on and leave a gap under the
+ * sticky one.
+ */
+const ACTION_CELL =
+  'sticky right-0 w-0 bg-background whitespace-nowrap shadow-[inset_1px_0_0_var(--border)]';
 
 export interface RecordCell {
   column: RecordColumnView;
@@ -76,6 +98,7 @@ export function RecordTable({
   table,
   renderCell,
   selectable = true,
+  rowActions,
   emptyTitle,
   emptyDescription,
 }: RecordTableProps) {
@@ -142,6 +165,11 @@ export function RecordTable({
                 )}
               </TableHead>
             ))}
+            {rowActions && (
+              <TableHead className={ACTION_CELL}>
+                {messages.label('label.toolbar.actions')}
+              </TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -149,7 +177,11 @@ export function RecordTable({
             ? Array.from({ length: 3 }, (_unused, index) => (
                 <TableRow key={`skeleton-${index}`}>
                   <TableCell
-                    colSpan={table.columns.length + (selectable ? 1 : 0)}
+                    colSpan={
+                      table.columns.length +
+                      (selectable ? 1 : 0) +
+                      (rowActions ? 1 : 0)
+                    }
                   >
                     <Skeleton className="h-4 w-full" />
                   </TableCell>
@@ -183,6 +215,11 @@ export function RecordTable({
                       })}
                     </TableCell>
                   ))}
+                  {rowActions && (
+                    <TableCell className={ACTION_CELL}>
+                      <RowActions>{rowActions(row)}</RowActions>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
         </TableBody>
@@ -191,6 +228,7 @@ export function RecordTable({
             summaries={table.summaries}
             columns={table.columns}
             selectable={selectable}
+            actions={rowActions !== undefined}
           />
         )}
       </Table>
@@ -211,10 +249,13 @@ function SummaryFooter({
   summaries,
   columns,
   selectable,
+  actions,
 }: {
   summaries: SummaryRow;
   columns: readonly RecordColumnView[];
   selectable: boolean;
+  /** Whether the rows carry an action column the footer has to match. */
+  actions: boolean;
 }) {
   const messages = useViewMessages();
   // A field may carry several functions — `amount` summed and averaged — and
@@ -264,6 +305,9 @@ function SummaryFooter({
             ))}
           </TableCell>
         ))}
+        {/* Nothing to summarise about actions, but the row still has to be
+            as wide as the ones above it. */}
+        {actions && <TableCell className={ACTION_CELL} />}
       </TableRow>
     </TableFooter>
   );

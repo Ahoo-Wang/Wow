@@ -65,6 +65,12 @@ export interface FilterEditorController extends FilterTreeController {
    * takes — so `clearValue(item.path)` takes out the condition the badge names.
    * The scope's own conditions are `scoped`.
    *
+   * A dashboard is the exception, because it has no result of its own: every
+   * panel runs its own query and there is no single config to read one back
+   * from. There `state.applied.filter` is described instead — the global
+   * condition the panels were asked under — and the workbench decides from
+   * the panels whether anything was asked at all.
+   *
    * A draft over the tree budget does not empty it. What the rows came back
    * under was admitted before it ran, so it is within budget whatever the
    * draft has since become, and a summary that blanked while the user edited
@@ -103,7 +109,15 @@ export interface FilterEditorController extends FilterTreeController {
    * the applied tree has is pending too: it is gone.
    */
   isPending(path: FilterPath): boolean;
-  /** How many `issues` block apply *and* point at a condition the editor shows. */
+  /**
+   * How many `issues` block apply by addressing a condition of this filter.
+   * Every one of them counts, including the ones the panel can draw no pill
+   * for — a malformed node has nothing to render — because Apply is refused
+   * for those just the same, and a count that left them out would be a
+   * button that stays disabled with nothing to show for it. What has no pill
+   * is said in the strip above the editor (`unmarkedErrors`), so the count
+   * never points at a fix that is nowhere on screen.
+   */
   blocked: number;
   setMode(mode: FilterMode): void;
   clear(): void;
@@ -306,9 +320,16 @@ export function useFilterEditor(
     // apply, so it is not what produced these rows and does not silence what
     // did. `own` rather than `config`: a merged scope moves every path.
     applied: useMemo(() => {
-      const ran = state?.result?.own.filter;
+      // A dashboard's `result` is always null — the panels hold the queries —
+      // so what was asked is read from the applied config itself. A data
+      // view keeps reading its result, which is the whole reason the bar
+      // does not follow `applied`: between apply and answer they differ.
+      const ran =
+        runtime?.kind === 'dashboard'
+          ? state?.applied.filter
+          : state?.result?.own.filter;
       return !ran || !kinds ? [] : describeFilter(fields, ran, kinds);
-    }, [state, fields, kinds]),
+    }, [runtime, state, fields, kinds]),
     // The scope in force now rather than the one the result ran under: it is
     // the host's statement about what the user is looking at, and a host that
     // narrows it has narrowed the question before the answer arrives.
@@ -325,9 +346,10 @@ export function useFilterEditor(
     pending: !overBudget && !sameFilterTree(tree, inForce),
     pendingCount,
     isPending,
-    // Only the conditions the editor draws: an error elsewhere in the config
-    // blocks apply too, but no pill can be marked for it, so the Apply button
-    // would promise a fix the user cannot find here.
+    // Conditions only: an error elsewhere in the config blocks apply too, but
+    // it is not this editor's to count. Within the tree every error counts,
+    // pill or no pill — a malformed node the panel skips still stops apply,
+    // and the strip above the editor is where it is read.
     blocked: issues.filter(
       found => found.severity === 'error' && found.path[0] === 'children',
     ).length,

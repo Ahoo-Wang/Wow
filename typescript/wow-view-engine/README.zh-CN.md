@@ -274,12 +274,12 @@ const view = projectRecord(orders, config, page);
 
 ## 入口
 
-| 入口                             | 导出                                                                                                                                                                                                                       |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                                          |
-| `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useDashboard`、`useSaveCommands`                                                                              |
-| `/ui`                            | `RecordWorkbench`、`AnalysisWorkbench`、`DashboardWorkbench`、`FilterPanel`、`RecordTable`、`RecordCards`、`AnalysisEditor`、`AnalysisChart`、`DashboardGrid`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`EmbeddedView` |
-| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root` 之外绘制任何东西（preflight 与工具类在构建时收进根内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                         |
+| 入口                             | 导出                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                                                                                                                                                                                                     |
+| `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`                                                                                                                                                                                   |
+| `/ui`                            | `RecordWorkbench`、`AnalysisWorkbench`、`DashboardWorkbench`、`ViewHeader`、`SaveActions`、`ViewManager`、`useLeaveGuard`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisEditor`、`AnalysisChart`、`DashboardGrid`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`EmbeddedView` |
+| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root` 之外绘制任何东西（preflight 与工具类在构建时收进根内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                                                    |
 
 ## 持久化
 
@@ -355,7 +355,7 @@ interface ViewStore {
 | 字段类型 | 注册 `FieldKind`（操作符、校验、编译到 `FilterExpression`、编辑器描述），并在 `/ui` 以同一 id 注册对应的编辑器与单元格 |
 | 数据来源 | `resolveSource(key)` 返回 Wow 查询客户端                                                                               |
 | 持久化   | 实现 `ViewStore`                                                                                                       |
-| 渲染器   | 按键注册单元格、行动作与工具栏动作组件                                                                                 |
+| 动作     | 向工作台传 `actions`：`global`、`bulk`、`row` 三个渲染函数。动作是代码，由宿主交出来，不进配置、不入库                 |
 | 外观     | CSS 变量与主题文件；通过组合 `/react` 钩子替换组件                                                                     |
 
 内置字段类型：`string`、`number`、`boolean`、`date`、`datetime`、`enum`、`reference`。

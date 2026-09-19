@@ -18,9 +18,17 @@ import type {
   RecordCardView,
   RecordTableController,
 } from '../react/index.js';
+import type { RecordRow } from '../record/index.js';
 import { recordValue } from '../record/index.js';
+import { RowActions } from './RowActions.js';
 import { Checkbox } from './components/checkbox.js';
-import { Card, CardContent, CardHeader, CardTitle } from './components/card.js';
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from './components/card.js';
 import { displayValue, formatNumber, type DisplayContext } from './display.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
@@ -29,6 +37,12 @@ import { cn } from 'cn';
 export interface RecordCardsProps {
   table: RecordTableController;
   renderValue?(value: unknown): React.ReactNode;
+  /**
+   * What a host offers on one card, in a footer under its body. Same
+   * contract as the table's: the row alone, because the caller holding the
+   * runtime is the one that binds the action context.
+   */
+  rowActions?(row: RecordRow): React.ReactNode;
 }
 
 /**
@@ -50,7 +64,11 @@ const GRID: Record<1 | 2 | 3 | 4, string> = {
  * so switching back and forth loses nothing — and a card is not the table
  * narrowed: its title, its body fields and its image are its own.
  */
-export function RecordCards({ table, renderValue }: RecordCardsProps) {
+export function RecordCards({
+  table,
+  renderValue,
+  rowActions,
+}: RecordCardsProps) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   const card = table.card;
@@ -96,6 +114,13 @@ export function RecordCards({ table, renderValue }: RecordCardsProps) {
               </div>
             ))}
           </CardContent>
+          {/* A card has no column to pin actions to, so they sit under a
+              rule at its foot — the same buttons, the same order. */}
+          {rowActions && (
+            <CardFooter className="flex justify-end gap-1 border-t pt-2">
+              <RowActions>{rowActions(row)}</RowActions>
+            </CardFooter>
+          )}
         </Card>
       ))}
     </div>

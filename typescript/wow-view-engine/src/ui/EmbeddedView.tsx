@@ -11,11 +11,14 @@
  * limitations under the License.
  */
 
+import type { ReactNode } from 'react';
 import type { FilterTree } from '../model/index.js';
+import type { RecordRow } from '../record/index.js';
 import type { DashboardRuntime, ViewEngine } from '../runtime/index.js';
 import {
   useAnalysisEditor,
   useDashboard,
+  useFilterEditor,
   useOpenView,
   useRecordTable,
   useViewRuntime,
@@ -24,13 +27,14 @@ import { Alert, AlertDescription, AlertTitle } from './components/alert.js';
 import { Skeleton } from './components/skeleton.js';
 import { AnalysisChart } from './AnalysisChart.js';
 import { AnalysisTable } from './AnalysisTable.js';
+import { AppliedBar } from './AppliedBar.js';
 import { DashboardGrid } from './DashboardGrid.js';
 import { RecordCards } from './RecordCards.js';
 import { RecordTable } from './RecordTable.js';
+import { ErrorStrip, QueryStrip, WarningStrip } from './StatusStrip.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { ViewSurface } from './ViewSurface.js';
-import { WarningNotice } from './WarningNotice.js';
 
 export interface EmbeddedViewProps {
   engine: ViewEngine;
@@ -52,6 +56,13 @@ export interface EmbeddedViewProps {
    */
   locale?: string;
   className?: string;
+  /**
+   * What the host offers on one row of a record view. An embed has no
+   * toolbar and no save, but the rows it shows are still records somebody
+   * may want to act on; the slot takes the row alone, because there is no
+   * view to command here.
+   */
+  rowActions?(row: RecordRow): ReactNode;
 }
 
 /**
@@ -74,6 +85,7 @@ export function EmbeddedView({
   messages: wording,
   locale,
   className,
+  rowActions,
 }: EmbeddedViewProps) {
   // The condition goes in with the config, not after it: `useOpenView` hands
   // it to `engine.open`, so the opening query is already scoped and an
@@ -110,7 +122,7 @@ export function EmbeddedView({
         </Alert>
       )}
       {opened.loading && <Skeleton className="h-24 w-full" />}
-      {runtime && <EmbeddedBody runtime={runtime} />}
+      {runtime && <EmbeddedBody runtime={runtime} rowActions={rowActions} />}
     </ViewSurface>
   );
 }
@@ -122,42 +134,44 @@ type OpenedRuntime = NonNullable<ReturnType<typeof useOpenView>['runtime']>;
  * above because each kind's controller is a hook, and a hook cannot be called
  * conditionally.
  */
-function EmbeddedBody({ runtime }: { runtime: OpenedRuntime }) {
+function EmbeddedBody({
+  runtime,
+  rowActions,
+}: {
+  runtime: OpenedRuntime;
+  rowActions?(row: RecordRow): ReactNode;
+}) {
   const state = useViewRuntime(runtime);
-  const messages = useViewMessages();
 
   // A config the definition no longer admits opens but never executes, so
   // without this a record sits at an empty frame and an analysis at a
   // skeleton that never resolves: a view waiting to be fixed, dressed up as
   // one with nothing to show. The workbenches say so; so does this.
-  const errors = (state?.issues ?? []).filter(
-    found => found.severity === 'error',
-  );
+  const issues = state?.issues ?? [];
+  const errors = issues.filter(found => found.severity === 'error');
   // A warning blocks nothing, so the result still shows, with the warning
   // above it: an embed hides the editor, and this is the one place a reader
   // learns the view is not quite what its author saved. A dashboard's
   // panel-scoped findings are the panels' to show, each in its own frame.
-  const warnings = (state?.issues ?? []).filter(
+  const warnings = issues.filter(
     found => runtime.kind !== 'dashboard' || found.path[0] !== 'panels',
   );
   // An error takes the result's place; it does not take the warnings' — a
-  // config can carry both, and the workbench says both.
+  // config can carry both, and the workbench says both. There is no
+  // condition editor here, so no finding is marked anywhere else.
   if (errors.length > 0)
     return (
       <>
-        <Alert variant="destructive">
-          <AlertTitle>{messages.label('label.view.needs-fixing')}</AlertTitle>
-          <AlertDescription>{messages.issues(errors)}</AlertDescription>
-        </Alert>
-        <WarningNotice issues={warnings} />
+        <ErrorStrip issues={errors} />
+        <WarningStrip issues={warnings} />
       </>
     );
 
   return (
     <>
-      <WarningNotice issues={warnings} />
+      <WarningStrip issues={warnings} />
       {runtime.kind === 'record' ? (
-        <EmbeddedRecord runtime={runtime} />
+        <EmbeddedRecord runtime={runtime} rowActions={rowActions} />
       ) : runtime.kind === 'analysis' ? (
         <EmbeddedAnalysis runtime={runtime} />
       ) : (
@@ -167,33 +181,66 @@ function EmbeddedBody({ runtime }: { runtime: OpenedRuntime }) {
   );
 }
 
+/**
+ * What the rows were fetched under. An embed shows it for the same reason it
+ * shows warnings: nothing else here says what the view is asking, and a
+ * scope the host narrowed it by is part of that question.
+ *
+ * Read-only, unlike the workbench's: there is no editor here, and the view's
+ * own conditions are what its author saved. A ✕ would let a reader drop a
+ * saved condition — on a page that embedded this view to show one customer's
+ * shipments, that is the page quietly listing everyone's.
+ */
+function Applied({ runtime }: { runtime: OpenedRuntime }) {
+  const state = useViewRuntime(runtime);
+  const filter = useFilterEditor(runtime);
+  return (
+    <AppliedBar filter={filter} hasResult={state?.result != null} readOnly />
+  );
+}
+
 function Failed({ runtime }: { runtime: OpenedRuntime }) {
   const state = useViewRuntime(runtime);
-  const messages = useViewMessages();
-  const error = state?.query.error;
-  if (state?.query.status !== 'error' || !error) return null;
+  // No toolbar, so no retry: the embed re-runs on its own schedule, and a
+  // button that is the page's only control would make it look like one.
   return (
-    <Alert variant="destructive">
-      <AlertTitle>{messages.label('label.query.failed')}</AlertTitle>
-      <AlertDescription>{messages.issue(error)}</AlertDescription>
-    </Alert>
+    <QueryStrip
+      error={state?.query.status === 'error' ? state.query.error : null}
+      stale={state?.result != null}
+    />
   );
 }
 
 function EmbeddedRecord({
   runtime,
+  rowActions,
 }: {
   runtime: Extract<OpenedRuntime, { kind: 'record' }>;
+  rowActions?(row: RecordRow): ReactNode;
 }) {
+  const state = useViewRuntime(runtime);
   const table = useRecordTable(runtime);
+  const hasResult = state?.result != null;
 
-  if (table.status === 'error') return <Failed runtime={runtime} />;
+  // A refresh that failed over rows that are still good says so *above* them
+  // rather than instead of them, the way the workbenches do: the strip itself
+  // promises "the last successful result", and taking the table away would
+  // make that line describe an empty frame. Only a failure with nothing
+  // behind it replaces the content.
+  if (table.status === 'error' && !hasResult)
+    return <Failed runtime={runtime} />;
   if (table.loading && table.rows.length === 0)
     return <Skeleton className="h-24 w-full" />;
-  return table.layout === 'card' ? (
-    <RecordCards table={table} />
-  ) : (
-    <RecordTable table={table} />
+  return (
+    <>
+      <Failed runtime={runtime} />
+      <Applied runtime={runtime} />
+      {table.layout === 'card' ? (
+        <RecordCards table={table} rowActions={rowActions} />
+      ) : (
+        <RecordTable table={table} rowActions={rowActions} />
+      )}
+    </>
   );
 }
 
@@ -203,16 +250,25 @@ function EmbeddedAnalysis({ runtime }: { runtime: OpenedRuntime }) {
   const data = state?.result?.data;
   const view = data?.kind === 'analysis' ? data.view : null;
 
-  if (state?.query.status === 'error') return <Failed runtime={runtime} />;
+  // As in the record embed: the chart stays while the strip reports the
+  // refresh that failed over it.
+  if (state?.query.status === 'error' && !view)
+    return <Failed runtime={runtime} />;
   if (!view) return <Skeleton className="h-24 w-full" />;
-  return view.chart ? (
-    <AnalysisChart
-      data={view.chart}
-      spec={analysis.chart}
-      columns={view.schema ?? view.columns}
-    />
-  ) : (
-    <AnalysisTable view={view} />
+  return (
+    <>
+      <Failed runtime={runtime} />
+      <Applied runtime={runtime} />
+      {view.chart ? (
+        <AnalysisChart
+          data={view.chart}
+          spec={analysis.chart}
+          columns={view.schema ?? view.columns}
+        />
+      ) : (
+        <AnalysisTable view={view} />
+      )}
+    </>
   );
 }
 

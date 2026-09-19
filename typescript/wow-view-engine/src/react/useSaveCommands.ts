@@ -107,11 +107,19 @@ export interface SaveCommandState {
    *
    * A conflict or a refusal is not among them. Both are a definite answer,
    * and what resolves them is often a new intent — "Save my copy" after
-   * somebody else moved the baseline — which this flag would disable. A UI
-   * that must refuse a *blind* Save while a conflict is on screen asks
-   * `write` itself rather than this.
+   * somebody else moved the baseline — which this flag would disable. It is
+   * deliberately coarse, so a button that has to tell the settled outcomes
+   * apart — a rejection is a new attempt away, a conflict is not — or that
+   * must refuse a *blind* Save while a conflict is on screen, reads `write`
+   * and `hasErrors` themselves rather than this.
    */
   blocked: boolean;
+  /**
+   * The draft itself reports something that stops every write. Unlike
+   * `blocked` it says nothing about outcomes, which is what lets a caller
+   * decide for itself which of those it wants to stop on.
+   */
+  hasErrors: boolean;
   /**
    * When the last write of this view landed, by the engine's clock. A UI
    * shows a "Saved" moment from it, so it is a timestamp and not a boolean:
@@ -136,7 +144,14 @@ export interface SaveCommands {
   revert(): void;
   /** Replays the pending write and reports what the replay answered. */
   retry(): Promise<RecoveredWrite>;
-  abandon(): void;
+  /**
+   * Gives up on an unsettled outcome. With no argument it is the one the
+   * open view is reporting; a caller that has a `WriteState` in hand passes
+   * it, because a write can outlive the runtime's report of it — the engine
+   * clears a runtime's outcome as it settles whichever write landed last,
+   * and a copy made out of a conflict is a write of its own.
+   */
+  abandon(write?: WriteState): void;
   /** Resolves a conflict and reports what the choice answered. */
   resolveConflict(choice: ConflictChoice): Promise<RecoveredWrite>;
   can: SaveAbilities;
@@ -301,29 +316,35 @@ export function useSaveCommands(
     );
   }, [engine, runtime, run]);
 
-  const abandon = useCallback(() => {
-    if (!runtime) return;
-    // Abandoning is the user acting now, not an old callback arriving late,
-    // so its outcome takes the slot however it is held.
-    try {
-      engine.abandonWrite(runtime);
-      // Giving up on an outcome is not a write, so it leaves the moment an
-      // earlier one landed alone.
-      setProgress(current => ({
-        runtime,
-        pending: false,
-        error: null,
-        savedAt: current.runtime === runtime ? current.savedAt : null,
-      }));
-    } catch (caught) {
-      setProgress({
-        runtime,
-        pending: false,
-        error: toIssue(caught, 'view.abandon.failed'),
-        savedAt: null,
-      });
-    }
-  }, [engine, runtime]);
+  const abandon = useCallback(
+    (write?: WriteState) => {
+      if (!runtime) return;
+      // Abandoning is the user acting now, not an old callback arriving late,
+      // so its outcome takes the slot however it is held.
+      try {
+        // By its own handle when the caller named one: the runtime may have
+        // stopped reporting it, and the engine would then answer that nothing
+        // is pending while the write is still in its map.
+        engine.abandonWrite(write ? { id: write.requestId } : runtime);
+        // Giving up on an outcome is not a write, so it leaves the moment an
+        // earlier one landed alone.
+        setProgress(current => ({
+          runtime,
+          pending: false,
+          error: null,
+          savedAt: current.runtime === runtime ? current.savedAt : null,
+        }));
+      } catch (caught) {
+        setProgress({
+          runtime,
+          pending: false,
+          error: toIssue(caught, 'view.abandon.failed'),
+          savedAt: null,
+        });
+      }
+    },
+    [engine, runtime],
+  );
 
   const resolveConflict = useCallback(
     (choice: ConflictChoice) => {
@@ -384,6 +405,7 @@ export function useSaveCommands(
         own.pending ||
         state?.write?.kind === 'unknown' ||
         issues.some(found => found.severity === 'error'),
+      hasErrors: issues.some(found => found.severity === 'error'),
       lastSavedAt: own.savedAt,
     },
   };

@@ -119,10 +119,8 @@ export const EmptyResult: Story = {
 export const QueryFailed: Story = {
   ...DisplayQueryFailed,
   play: async ({ canvasElement }) => {
+    // The strip says the failure itself, in one line above the result.
     const alert = await within(canvasElement).findByRole('alert');
-    await expect(alert).toHaveTextContent(
-      defaultMessages['label.query.failed'],
-    );
     await expect(alert).toHaveTextContent('仓储服务暂时不可用');
   },
 };

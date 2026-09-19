@@ -912,7 +912,13 @@ export class ViewEngine {
 
   private settle(requestId: string): void {
     this.writes.delete(requestId);
-    this.owners.get(requestId)?.setWrite(null);
+    const owner = this.owners.get(requestId);
+    // Only if the runtime is still reporting *this* write. It may have moved
+    // on to a later one — a copy made out of a conflict is a write of its own,
+    // and settling the conflict behind it would take the copy's outcome off
+    // the screen while the engine went on holding it.
+    if (owner?.getSnapshot().write?.requestId === requestId)
+      owner.setWrite(null);
     this.owners.delete(requestId);
   }
 

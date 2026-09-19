@@ -168,6 +168,41 @@ describe('a dialog themes its backdrop as well as its surface', () => {
     expect(surface.getAttribute('data-slot')).toBe('dialog-content');
   });
 
+  /**
+   * A popup's `className` may be a function of its own state, and both
+   * wrappers a dialog goes through have to keep it one: resolving it eagerly
+   * would hand Base UI a string computed from no state, and dropping to the
+   * string branch would lose the root class the portalled popup needs.
+   */
+  it('keeps a state-dependent class a function, with the root in front', async () => {
+    render(
+      <ViewSurface theme="light">
+        <Dialog defaultOpen>
+          <DialogContent
+            className={state => (state.open ? 'is-open' : 'is-closed')}
+          >
+            <DialogTitle>Confirm</DialogTitle>
+          </DialogContent>
+        </Dialog>
+      </ViewSurface>,
+    );
+
+    const surface = await screen.findByRole('dialog');
+    const classes = surface.className;
+
+    // The state reached the caller's function rather than being guessed at.
+    expect(surface.classList.contains('is-open')).toBe(true);
+    expect(surface.classList.contains('is-closed')).toBe(false);
+    // And the root class still leads the caller's own, as it does for a
+    // plain string, so the theme is not lost to the function form.
+    expect(surface.classList.contains('fve-root')).toBe(true);
+    expect(classes.indexOf('fve-root')).toBeLessThan(
+      classes.indexOf('is-open'),
+    );
+    // The vendored popup classes survive both wrappers too.
+    expect(surface.classList.contains('bg-popover')).toBe(true);
+  });
+
   it('still closes from the close button', async () => {
     openDialog('light');
     await screen.findByRole('dialog');

@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { cleanup, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { FilterValue, ViewInstanceSummary } from '../src/index.js';
+import type { RecordViewRuntime } from '../src/runtime/index.js';
 import type {
   RecordTableController,
   ViewListState,
@@ -28,7 +29,7 @@ import {
   formatIssues,
   formatMessage,
   MessagesProvider,
-  RecordToolbar,
+  ResultToolbar,
   useViewMessages,
   ViewList,
   ViewSurface,
@@ -355,7 +356,11 @@ describe('an application rewords what the components write', () => {
   it('a toolbar button', () => {
     render(
       <MessagesProvider messages={{ 'label.toolbar.refresh': '刷新' }}>
-        <RecordToolbar table={tableController()} fields={[]} />
+        <ResultToolbar
+          table={tableController()}
+          fields={[]}
+          runtime={{ id: 'r-1' } as unknown as RecordViewRuntime}
+        />
       </MessagesProvider>,
     );
 
@@ -409,7 +414,7 @@ describe('an application rewords what the components write', () => {
   });
 });
 
-/** The little a `RecordToolbar` reads off its controller, and nothing more. */
+/** The little a `ResultToolbar` reads off its controller, and nothing more. */
 function tableController(): RecordTableController {
   return {
     columns: [],
@@ -429,6 +434,7 @@ function tableController(): RecordTableController {
     columnFields: [],
     setColumns: () => {},
     pageSize: 20,
+    pageSizes: [10, 20, 50, 100],
     setPageSize: () => {},
     selection: [],
     selectedRows: [],
@@ -447,6 +453,7 @@ function tableController(): RecordTableController {
 function listState(items: ViewInstanceSummary[]): ViewListState {
   return {
     items,
+    all: items,
     preferences: null,
     permissions: {
       createPersonal: true,

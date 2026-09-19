@@ -16,6 +16,7 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,
+  DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   ViewCommandError,
   ViewEngine,
@@ -460,6 +461,75 @@ describe('useViewList', () => {
     expect(result.current.defaultInstanceId).toBeNull();
   });
 
+  /**
+   * One data definition holds record and analysis instances together, and a
+   * workbench draws one of them. The narrowing has to happen before the
+   * default is resolved: a stored default of the other kind used to be
+   * handed to a workbench that then rendered a header over nothing.
+   */
+  describe('narrowed to one kind', () => {
+    const chart: ViewInstance = {
+      id: 'orders-chart',
+      definitionId: 'orders',
+      title: 'By warehouse',
+      scope: 'personal',
+      revision: '1',
+      config: analysisConfig(),
+    };
+
+    async function listOf(kind: 'record' | 'analysis' | undefined) {
+      const { engine, store } = engineWith({ instances: [mine, chart] });
+      await store.setPreferences(
+        'orders',
+        {
+          order: ['orders-chart', 'orders-1'],
+          // Stored by the analysis workbench; the record one must not take it.
+          defaultInstanceId: 'orders-chart',
+          revision: '0',
+        },
+        { requestId: 'seed' },
+      );
+      const rendered = renderHook(() =>
+        useViewList(engine, 'orders', kind ? { kind } : undefined),
+      );
+      await waitFor(() => expect(rendered.result.current.loading).toBe(false));
+      return rendered.result;
+    }
+
+    it('lists every kind when no kind is asked for', async () => {
+      const result = await listOf(undefined);
+
+      expect(result.current.items.map(item => item.id)).toEqual([
+        'orders-chart',
+        'orders-1',
+        'system:orders:all',
+      ]);
+      expect(result.current.defaultInstanceId).toBe('orders-chart');
+    });
+
+    it('lists only that kind and defaults among it', async () => {
+      const result = await listOf('record');
+
+      // The analysis view is neither offered nor opened by default: the
+      // stored default names it, and it is not one of these, so the first
+      // of the ordered record views answers instead.
+      expect(result.current.items.map(item => item.id)).toEqual([
+        'orders-1',
+        'system:orders:all',
+      ]);
+      expect(result.current.defaultInstanceId).toBe('orders-1');
+    });
+
+    it('keeps the stored default when it is of the kind asked for', async () => {
+      const result = await listOf('analysis');
+
+      expect(result.current.items.map(item => item.id)).toEqual([
+        'orders-chart',
+      ]);
+      expect(result.current.defaultInstanceId).toBe('orders-chart');
+    });
+  });
+
   it('reloads on demand', async () => {
     const { engine, store } = engineWith();
     const list = vi.spyOn(store, 'list');
@@ -505,6 +575,7 @@ describe('useSaveCommands', () => {
       write: null,
       dirty: false,
       blocked: false,
+      hasErrors: false,
       lastSavedAt: null,
     });
   });
@@ -1777,6 +1848,47 @@ describe('useRecordTable', () => {
       result.current.previous();
       result.current.refresh();
     }).not.toThrow();
+  });
+
+  /**
+   * A size above `maxPageSize` is refused by `validateRecord`, so offering
+   * one is offering a way to break the view: the user picks 100 from a list
+   * the UI drew and the config stops running. The ladder is cut to what the
+   * runtime was admitted under.
+   */
+  it('offers only the page sizes the limits admit', async () => {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [mine] }),
+      resolveSource: () => testSource(),
+      limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 50 },
+    });
+    const { result } = renderHook(() => {
+      const opened = useOpenView(engine, 'orders-1');
+      return useRecordTable(opened.runtime as RecordViewRuntime | null);
+    });
+    await waitFor(() => expect(result.current.status).toBe('success'));
+
+    expect(result.current.pageSizes).toEqual([10, 20, 50]);
+  });
+
+  /** Whatever it is: a select whose value is not an item of it shows nothing. */
+  it('folds the size in force into the ladder', async () => {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({
+        instances: [{ ...mine, config: recordConfig({ pageSize: 25 }) }],
+      }),
+      resolveSource: () => testSource(),
+      limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 50 },
+    });
+    const { result } = renderHook(() => {
+      const opened = useOpenView(engine, 'orders-1');
+      return useRecordTable(opened.runtime as RecordViewRuntime | null);
+    });
+    await waitFor(() => expect(result.current.status).toBe('success'));
+
+    expect(result.current.pageSizes).toEqual([10, 20, 25, 50]);
   });
 
   it('offers the layouts the definition allows', async () => {

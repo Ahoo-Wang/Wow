@@ -21,20 +21,24 @@ import {
   useOpenView,
   useSaveCommands,
   useViewList,
+  useViewManager,
   useViewRuntime,
 } from '../react/index.js';
 import { Alert, AlertDescription, AlertTitle } from './components/alert.js';
 import { Button } from './components/button.js';
+import { AppliedBar } from './AppliedBar.js';
 import { DashboardGrid } from './DashboardGrid.js';
 import { FilterPanel } from './FilterPanel.js';
-import { SaveActions } from './SaveActions.js';
+import { useLeaveGuard } from './LeaveGuard.js';
+import { ErrorStrip, unmarkedErrors, WarningStrip } from './StatusStrip.js';
 import { Separator } from './components/separator.js';
 import { Skeleton } from './components/skeleton.js';
+import { ViewHeader } from './ViewHeader.js';
 import { ViewList } from './ViewList.js';
+import { useReleaseDeleted } from './useReleaseDeleted.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { ViewSurface } from './ViewSurface.js';
-import { WarningNotice } from './WarningNotice.js';
 
 export interface DashboardWorkbenchProps {
   engine: ViewEngine;
@@ -75,27 +79,49 @@ export function DashboardWorkbench({
   optionsFor,
 }: DashboardWorkbenchProps) {
   const list = useViewList(engine, definitionId);
+  // One boolean governs the sidebar, so collapsing it later is a change in
+  // one place rather than in the layout of every part beside it.
+  const [sidebarOpen] = useState(true);
   const [chosen, setChosen] = useState<string | null>(instanceId);
+  const openId = chosen ?? list.defaultInstanceId;
 
-  const opened = useOpenView(engine, chosen ?? list.defaultInstanceId);
+  const opened = useOpenView(engine, openId);
   const runtime = opened.runtime;
   const state = useViewRuntime(runtime);
   const board = runtime?.kind === 'dashboard' ? runtime : null;
   const dashboard = useDashboard(board);
   const filter = useFilterEditor(runtime);
   const commands = useSaveCommands(engine, runtime);
+  const manager = useViewManager(engine, definitionId, list);
   const messages = useViewMessages(wording);
-
-  const errors = (state?.issues ?? []).filter(
-    found => found.severity === 'error',
+  const leave = useLeaveGuard(
+    state ? { dirty: state.dirty, write: state.write } : null,
+    // The dialog is rendered out here, outside the surface that carries the
+    // wording, so it is handed the wording directly; and leaving settles the
+    // outcome first, because the runtime it belongs to is about to go.
+    { messages: wording, onLeave: () => commands.abandon() },
   );
+  useReleaseDeleted(openId, chosen, opened, setChosen);
+
+  const issues = state?.issues ?? [];
   // The panels carry the warnings of what is applied, each in its own frame.
   // The draft's are not all carried: a global condition mapped onto a panel
   // field that warns, not yet applied, is a finding under `['panels', …]`
   // that no panel holds until Apply hands it over — and Save would persist
   // it unseen. So the notice takes every warning no panel is showing.
   const carried = dashboard.panels.flatMap(panel => panel.issues);
-  const warnings = (state?.issues ?? []).filter(
+  // A dashboard runs nothing of its own — `state.result` is always null — so
+  // what the applied bar describes is whether the panels were asked at all.
+  // One panel that has answered, or that is asking, is an answer: the global
+  // condition it went out under is exactly what the bar says.
+  const hasResult = dashboard.panels.some(panel => {
+    const panelState = panel.runtime?.getSnapshot();
+    return (
+      panelState !== undefined &&
+      (panelState.result !== null || panelState.query.status !== 'idle')
+    );
+  });
+  const warnings = issues.filter(
     found =>
       found.severity === 'warning' &&
       !carried.some(shown => sameIssue(shown, found)),
@@ -109,16 +135,31 @@ export function DashboardWorkbench({
       timeZone={engine.environment.timeZone}
       className="gap-0 md:flex-row"
     >
-      <aside className="flex w-56 shrink-0 flex-col gap-2 p-3">
-        <ViewList
-          list={list}
-          title={engine.definitions.get(definitionId)?.title}
-          currentId={state?.saved?.id ?? null}
-          onOpen={setChosen}
-        />
-      </aside>
+      {sidebarOpen && (
+        <>
+          <aside
+            data-slot="view-sidebar"
+            className="flex w-56 shrink-0 flex-col gap-2 p-3"
+          >
+            <ViewList
+              list={list}
+              title={engine.definitions.get(definitionId)?.title}
+              currentId={state?.saved?.id ?? null}
+              // Opening another view releases this one's runtime and the draft
+              // goes with it, so the switch is asked about before it happens.
+              onOpen={id => leave.request(() => setChosen(id))}
+              // Only when something on the list can actually be managed: a
+              // reader with no write permission at all would otherwise get a
+              // button whose only lesson is that it leads to a dialog of
+              // read-only rows.
+              manager={manager.can.anything ? manager : undefined}
+              openDirtyId={state?.dirty ? (state.saved?.id ?? null) : null}
+            />
+          </aside>
 
-      <Separator orientation="vertical" className="hidden md:block" />
+          <Separator orientation="vertical" className="hidden md:block" />
+        </>
+      )}
 
       <main className="flex min-w-0 flex-1 flex-col gap-3 p-3">
         {opened.error && (
@@ -132,60 +173,60 @@ export function DashboardWorkbench({
 
         {board && (
           <>
+            <ViewHeader
+              state={state}
+              kind="dashboard"
+              commands={commands}
+              actions={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={dashboard.refresh}
+                  disabled={dashboard.resolving}
+                >
+                  <RefreshCwIcon data-icon="inline-start" />
+                  {messages.label('label.toolbar.refresh')}
+                </Button>
+              }
+              onSaved={saved => {
+                setChosen(saved.id);
+                list.reload();
+              }}
+              onRenamed={instance => {
+                // Pin the view before the reload: a workbench riding on the
+                // default would otherwise close its runtime and lose the draft.
+                setChosen(instance.id);
+                list.reload();
+              }}
+              onDeleted={() => {
+                // The engine let the runtime go with the instance. Reload so
+                // the list drops it and the default moves on; the open id
+                // follows the new default, or empties with the list.
+                setChosen(null);
+                list.reload();
+              }}
+              onRecovered={() => list.reload()}
+            />
+
             {/* Without global fields there is nothing to filter, and an empty
                 panel would only take up room. */}
             {dashboard.panels.length > 0 && filter.fields.length > 0 && (
               <FilterPanel filter={filter} optionsFor={optionsFor} />
             )}
 
-            {errors.length > 0 && (
-              <Alert variant="destructive">
-                <AlertTitle>
-                  {messages.label('label.dashboard.needs-fixing')}
-                </AlertTitle>
-                <AlertDescription>{messages.issues(errors)}</AlertDescription>
-              </Alert>
-            )}
-            <WarningNotice issues={warnings} />
+            <ErrorStrip
+              issues={unmarkedErrors(issues, filter.tree)}
+              title={messages.label('label.dashboard.needs-fixing')}
+            />
+            <WarningStrip issues={warnings} />
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={dashboard.refresh}
-                disabled={dashboard.resolving}
-              >
-                <RefreshCwIcon />
-                {messages.label('label.toolbar.refresh')}
-              </Button>
-              <SaveActions
-                commands={commands}
-                title={state?.title ?? ''}
-                onSaved={saved => {
-                  setChosen(saved.id);
-                  list.reload();
-                }}
-                onRenamed={instance => {
-                  // Pin the view before the reload: a workbench riding on the
-                  // default would otherwise close its runtime and lose the draft.
-                  setChosen(instance.id);
-                  list.reload();
-                }}
-                onDeleted={() => {
-                  // The engine let the runtime go with the instance. Reload so
-                  // the list drops it and the default moves on; the open id
-                  // follows the new default, or empties with the list.
-                  setChosen(null);
-                  list.reload();
-                }}
-                onRecovered={() => list.reload()}
-              />
-            </div>
+            <AppliedBar filter={filter} hasResult={hasResult} />
 
             <DashboardGrid dashboard={dashboard} editable={editable} />
           </>
         )}
       </main>
+      {leave.dialog}
     </ViewSurface>
   );
 }

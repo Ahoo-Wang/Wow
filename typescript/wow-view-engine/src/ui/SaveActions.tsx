@@ -11,50 +11,45 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
-import { SaveIcon, TrashIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import {
-  VIEW_AUDIENCES,
-  type Issue,
-  type ViewAudience,
-  type ViewInstance,
-} from '../model/index.js';
-import type { WriteAction } from '../runtime/index.js';
-import type { SaveAbilities, SaveCommands } from '../react/index.js';
-import {
-  Alert,
-  AlertAction,
-  AlertDescription,
-  AlertTitle,
-} from './components/alert.js';
+  CheckIcon,
+  ChevronDownIcon,
+  CopyIcon,
+  RotateCcwIcon,
+  SaveIcon,
+} from 'lucide-react';
+import type { ViewInstance } from '../model/index.js';
+import type { WriteAction, WriteState } from '../runtime/index.js';
+import type { SaveCommands } from '../react/index.js';
 import { Button } from './components/button.js';
-import { useViewMessages } from './MessagesProvider.js';
+import { ButtonGroup } from './components/button-group.js';
 import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from './components/dialog.js';
-import { Field, FieldGroup, FieldLabel } from './components/field.js';
-import { Input } from './components/input.js';
-import {
-  Select,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './components/select.js';
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './components/dropdown-menu.js';
 import { Spinner } from './components/spinner.js';
-import { DialogContent, SelectContent } from './popups.js';
+import { useViewMessages } from './MessagesProvider.js';
+import { DropdownMenuContent } from './popups.js';
+import { SaveAsDialog } from './SaveAsDialog.js';
+
+/**
+ * How long the button says a save landed. Long enough to be read, short
+ * enough that it never describes a state that has since moved on.
+ */
+const SAVED_FOR = 2500;
 
 export interface SaveActionsProps {
   commands: SaveCommands;
   title: string;
   /** Called with the instance a save produced, so a host can open it. */
   onSaved?(instance: ViewInstance): void;
-  /** Called with the renamed instance, so a host can refresh its list. */
+  /**
+   * Renaming and deleting moved to the view manager, where they act on any
+   * view rather than only the open one. The callbacks stay so a host keeps
+   * one place to learn what landed, wherever it was started from.
+   */
   onRenamed?(instance: ViewInstance): void;
   onDeleted?(): void;
   /** Called when a recovered write (retry, overwrite, reload) landed. */
@@ -62,385 +57,222 @@ export interface SaveActionsProps {
 }
 
 /**
- * The audiences, as keys rather than words: the dialog resolves them through
- * the catalogue, so an application rewords or translates them like everything
- * else this package says.
- */
-const SCOPES: ScopeChoice[] = [
-  { labelKey: 'label.scope.only-me', value: 'personal' },
-  { labelKey: 'label.scope.everyone', value: 'shared' },
-];
-
-/** The scopes this user may create in, in the order they are offered. */
-function scopesOf(can: SaveAbilities): ScopeChoice[] {
-  return SCOPES.filter(scope =>
-    scope.value === 'personal' ? can.createPersonal : can.createShared,
-  );
-}
-
-/** One audience on offer, still unworded. */
-type ScopeChoice = { labelKey: string; value: ViewAudience };
-
-/**
- * Save, save as, rename and delete, plus the recovery a write needs when it
- * did not simply succeed.
+ * Saving the open view: one button for the thing to do now, and a menu for
+ * the rest.
+ *
+ * Which button that is, is decided by permission rather than by state: a view
+ * the user may write to saves, one they may not copies, and a view they can
+ * do neither to shows no group at all. Nothing here is a disabled button for
+ * a permission the user does not hold — a control that can never be pressed
+ * teaches nothing and costs a click to find out.
  *
  * Commands resolve rather than reject, so nothing here is wrapped in a
- * try/catch: an outcome that needs a decision stays on screen until the user
- * makes one.
+ * try/catch: an outcome that needs a decision lands in `commands.state` and
+ * `WriteOutcome` keeps it on screen until the user answers it.
  */
-export function SaveActions({
-  commands,
-  title,
-  onSaved,
-  onRenamed,
-  onDeleted,
-  onRecovered,
-}: SaveActionsProps) {
-  const [copyOpen, setCopyOpen] = useState(false);
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+export function SaveActions({ commands, title, onSaved }: SaveActionsProps) {
   const messages = useViewMessages();
+  const [copying, setCopying] = useState(false);
+  const { can, state } = commands;
 
-  /**
-   * A recovered write lands like the original one would have: a recovered
-   * create or save opens what it made, a rename keeps the instance current,
-   * a delete lets the view go. Every landing also reports through
-   * onRecovered, which is where a host that wires nothing else stays fresh.
-   * A reload is not a landing: the server's state was adopted, so nothing is
-   * opened or let go of — the list may still have moved.
-   */
-  const notify = (
-    action: WriteAction | undefined,
-    instance: ViewInstance | null,
-    reloaded = false,
-  ) => {
-    if (!action) return;
-    if (reloaded) {
-      onRecovered?.(action);
-      return;
-    }
-    switch (action) {
-      case 'delete':
-        onDeleted?.();
-        onRecovered?.(action);
-        return;
-      case 'rename':
-        if (instance) onRenamed?.(instance);
-        onRecovered?.(action);
-        return;
-      default:
-        if (instance) onSaved?.(instance);
-        onRecovered?.(action);
-    }
-  };
+  // The moment a save landed, said only as long as it is worth saying. What
+  // is held is the moment that has run out rather than a flag, so the effect
+  // sets nothing on its way in — it only arms a timer, and the word is
+  // derived from comparing the two timestamps. Two saves in a row are two
+  // moments, and the second one starts the count again.
+  const [spent, setSpent] = useState<number | null>(null);
+  const { lastSavedAt } = state;
+  useEffect(() => {
+    if (lastSavedAt === null) return;
+    const timer = setTimeout(() => setSpent(lastSavedAt), SAVED_FOR);
+    return () => clearTimeout(timer);
+  }, [lastSavedAt]);
+
+  // Saying "Saved" over a draft that has moved on since would be a lie; a new
+  // write clears the moment on its way out, and has its own thing to say.
+  const saved =
+    lastSavedAt !== null &&
+    spent !== lastSavedAt &&
+    !state.dirty &&
+    !state.pending;
+
+  // An outcome the engine is still answering for. Until it is settled, every
+  // way of undoing or re-putting the draft is a second write over a first
+  // one whose result nobody knows yet.
+  const unsettled = isUnsettled(state.write);
+
+  const copy = can.saveAs && (
+    <SaveAsDialog
+      open={copying}
+      onOpenChange={setCopying}
+      commands={commands}
+      title={title}
+      onSaved={onSaved}
+    />
+  );
+
+  // Save when it is allowed, else a copy. Neither leaves only the way back.
+  if (!can.save && !can.saveAs)
+    return (
+      <div data-slot="save-actions" className="flex items-center gap-2">
+        {can.revert && <RevertButton commands={commands} />}
+      </div>
+    );
+
+  const menuSaveAs = can.save && can.saveAs;
+  const menuRevert = can.revert;
+  // Spelled out rather than taken from `blocked`, because the outcomes are
+  // not one thing. A write in flight stops everything. An unknown outcome
+  // must be settled first — the engine refuses the next write anyway. A
+  // conflict refuses a blind save: the user has been asked which version
+  // wins and has not answered. A refusal, though, is over — the store never
+  // took it, nothing is pending, and trying again with a corrected draft is
+  // exactly what the user should do next.
+  const stopped = state.pending || unsettled;
+  // `hasErrors` judges the draft *for the audience it already sits in*, which
+  // is the question a save in place asks. The primary button asks a different
+  // one when the user may not write here: Save As creates a copy somewhere
+  // else, and a config the current audience refuses can be perfectly valid
+  // there — a shared dashboard naming a personal view is the standard case.
+  // So the dialog judges its own target, and this button does not judge it
+  // for it.
+  const blockedDraft = can.save && state.hasErrors;
 
   return (
-    <div data-slot="save-actions" className="flex flex-wrap items-center gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={!commands.can.save || commands.state.pending}
-        onClick={() => {
-          void commands.save().then(saved => saved && onSaved?.(saved));
-        }}
-      >
-        {commands.state.pending ? (
-          <Spinner data-icon="inline-start" />
-        ) : (
-          <SaveIcon data-icon="inline-start" />
-        )}
-        {messages.label('label.save.save')}
-      </Button>
+    <div data-slot="save-actions" className="flex items-center gap-2">
+      <ButtonGroup aria-label={messages.label('label.save.group')}>
+        <Button
+          variant="outline"
+          size="sm"
+          // A save with nothing to save is the one disabled button here: the
+          // permission is held, so the button belongs on screen, and the
+          // reason it does nothing is the state the user can see.
+          disabled={stopped || blockedDraft || (can.save && !state.dirty)}
+          onClick={() => {
+            if (can.save)
+              void commands.save().then(made => made && onSaved?.(made));
+            else setCopying(true);
+          }}
+        >
+          <PrimaryFace saving={state.pending} saved={saved} writes={can.save} />
+        </Button>
 
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={!commands.can.saveAs || commands.state.pending}
-        onClick={() => setCopyOpen(true)}
-      >
-        {messages.label('label.save.save-as')}
-      </Button>
-
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={!commands.can.rename || commands.state.pending}
-        onClick={() => setRenameOpen(true)}
-      >
-        {messages.label('label.save.rename')}
-      </Button>
-
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={!commands.can.delete || commands.state.pending}
-        onClick={() => setDeleteOpen(true)}
-      >
-        <TrashIcon data-icon="inline-start" />
-        {messages.label('label.save.delete')}
-      </Button>
-
-      <TitleDialog
-        open={copyOpen}
-        onOpenChange={setCopyOpen}
-        headingKey="label.save-as.heading"
-        descriptionKey="label.save-as.description"
-        initialTitle={`${title} copy`}
-        scopes={scopesOf(commands.can)}
-        onSubmit={(next, scope) => {
-          void commands
-            .saveAs({ title: next, scope })
-            .then(saved => saved && onSaved?.(saved));
-          setCopyOpen(false);
-        }}
-      />
-
-      <TitleDialog
-        open={renameOpen}
-        onOpenChange={setRenameOpen}
-        headingKey="label.rename.heading"
-        descriptionKey="label.rename.description"
-        initialTitle={title}
-        onSubmit={next => {
-          void commands
-            .rename(next)
-            .then(instance => instance && onRenamed?.(instance));
-          setRenameOpen(false);
-        }}
-      />
-
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{messages.label('label.delete.confirm')}</DialogTitle>
-            <DialogDescription>
-              {messages.label('label.delete.consequence')}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>
-              {messages.label('label.delete.keep')}
-            </DialogClose>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                void commands.delete().then(done => done && onDeleted?.());
-                setDeleteOpen(false);
-              }}
+        {(menuSaveAs || menuRevert) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  // Nothing in the menu may run while a write is in flight:
+                  // reverting mid-save would leave the old config as a dirty
+                  // draft over a baseline that has just become the new one.
+                  // Nor while an outcome is unsettled: Retry or Keep mine is
+                  // still to land, and a revert taken first would be undone
+                  // by the write the user is about to choose.
+                  disabled={stopped}
+                  aria-label={messages.label('label.header.more')}
+                />
+              }
             >
-              {messages.label('label.save.delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <ChevronDownIcon />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {menuSaveAs && (
+                <DropdownMenuItem onClick={() => setCopying(true)}>
+                  <CopyIcon />
+                  {messages.label('label.save.save-as')}
+                </DropdownMenuItem>
+              )}
+              {menuRevert && (
+                <DropdownMenuItem disabled={stopped} onClick={commands.revert}>
+                  <RotateCcwIcon />
+                  {messages.label('label.save.revert')}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </ButtonGroup>
 
-      <WriteOutcome commands={commands} notify={notify} />
+      {/* Announced rather than only shown: the word appears on the control
+          the user just pressed, which a screen reader does not re-read. */}
+      {saved && (
+        <span role="status" className="sr-only">
+          {messages.label('label.save.saved-announce')}
+        </span>
+      )}
+
+      {copy}
     </div>
   );
 }
 
-function WriteOutcome({
-  commands,
-  notify,
+/** What the primary button wears right now: saving, saved, or its own name. */
+function PrimaryFace({
+  saving,
+  saved,
+  writes,
 }: {
-  commands: SaveCommands;
-  /** Reports a recovered write, by the action it carried and what it made. */
-  notify(
-    action: WriteAction | undefined,
-    instance: ViewInstance | null,
-    reloaded?: boolean,
-  ): void;
+  saving: boolean;
+  saved: boolean;
+  /** True when the button saves in place, false when it copies. */
+  writes: boolean;
 }) {
-  const { write, error } = commands.state;
   const messages = useViewMessages();
-
-  if (write?.kind === 'conflict') {
+  if (saving)
     return (
-      <Alert variant="destructive" className="w-full">
-        <AlertTitle>{messages.label('label.write.conflict')}</AlertTitle>
-        <AlertDescription>
-          {messages.label('label.conflict.choice')}
-        </AlertDescription>
-        <AlertAction>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const action = write.payload.action;
-              void commands
-                .resolveConflict('reload')
-                .then(
-                  result =>
-                    result.landed && notify(action, result.instance, true),
-                );
-            }}
-          >
-            {messages.label('label.conflict.theirs')}
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              const action = write.payload.action;
-              void commands
-                .resolveConflict('overwrite')
-                .then(
-                  result => result.landed && notify(action, result.instance),
-                );
-            }}
-          >
-            {messages.label('label.conflict.mine')}
-          </Button>
-        </AlertAction>
-      </Alert>
+      <>
+        <Spinner data-icon="inline-start" />
+        {messages.label('label.save.saving')}
+      </>
     );
-  }
-
-  if (write?.kind === 'unknown') {
+  if (saved)
     return (
-      <Alert className="w-full text-warning *:data-[slot=alert-description]:text-warning">
-        <AlertTitle>{messages.label('label.write.unknown')}</AlertTitle>
-        <AlertDescription>
-          {messages.label('label.unknown.consequence')}
-        </AlertDescription>
-        <AlertAction>
-          <Button variant="outline" size="sm" onClick={commands.abandon}>
-            {messages.label('label.unknown.leave')}
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              const action = write.payload.action;
-              void commands
-                .retry()
-                .then(
-                  result => result.landed && notify(action, result.instance),
-                );
-            }}
-          >
-            {messages.label('label.unknown.retry')}
-          </Button>
-        </AlertAction>
-      </Alert>
+      <>
+        <CheckIcon data-icon="inline-start" />
+        {messages.label('label.save.saved')}
+      </>
     );
-  }
-
-  const refused = write?.kind === 'rejected' ? write.issue : error;
-  return refused ? <IssueAlert issue={refused} /> : null;
-}
-
-function IssueAlert({ issue }: { issue: Issue }) {
-  const messages = useViewMessages();
-  return (
-    <Alert variant="destructive" className="w-full">
-      <AlertTitle>{messages.issue(issue)}</AlertTitle>
-      {issue.params?.reason !== undefined && (
-        <AlertDescription>{String(issue.params.reason)}</AlertDescription>
-      )}
-    </Alert>
+  return writes ? (
+    <>
+      <SaveIcon data-icon="inline-start" />
+      {messages.label('label.save.save')}
+    </>
+  ) : (
+    <>
+      <CopyIcon data-icon="inline-start" />
+      {messages.label('label.save.save-as')}
+    </>
   );
 }
 
-function TitleDialog({
-  open,
-  onOpenChange,
-  headingKey,
-  descriptionKey,
-  initialTitle,
-  scopes,
-  onSubmit,
-}: {
-  open: boolean;
-  onOpenChange(open: boolean): void;
-  headingKey: string;
-  descriptionKey: string;
-  initialTitle: string;
-  /** Audiences to offer; a rename asks for none and passes nothing. */
-  scopes?: ScopeChoice[];
-  onSubmit(title: string, scope: ViewAudience): void;
-}) {
-  const [title, setTitle] = useState(initialTitle);
-  // Null until the user picks: the default is the first scope on offer, and
-  // what is on offer follows the permissions, which arrive with the view.
-  const [picked, setPicked] = useState<ViewAudience | null>(null);
-  const messages = useViewMessages();
-  const offered = (scopes ?? []).map(item => ({
-    label: messages.label(item.labelKey),
-    value: item.value,
-  }));
-  const scope =
-    picked !== null && offered.some(item => item.value === picked)
-      ? picked
-      : (offered[0]?.value ?? 'personal');
+/**
+ * Whether the engine is still answering for the last write. A conflict and an
+ * unknown are both unsettled: one is waiting for the user to choose, the
+ * other for a retry or an abandon, and until then any further write is a
+ * second one over a first whose result nobody knows.
+ */
+function isUnsettled(write: WriteState | null): boolean {
+  return write?.kind === 'unknown' || write?.kind === 'conflict';
+}
 
+/** The way back, when there is no way forward: put the saved config back. */
+function RevertButton({ commands }: { commands: SaveCommands }) {
+  const messages = useViewMessages();
   return (
-    <Dialog
-      open={open}
-      onOpenChange={next => {
-        if (next) setTitle(initialTitle);
-        onOpenChange(next);
-      }}
+    <Button
+      variant="ghost"
+      size="sm"
+      // Taking the edits back while the same edits are being written would
+      // leave what was reverted from as the baseline and what was reverted
+      // to as a dirty draft over it. An unsettled outcome is the same story
+      // one step earlier: Retry or Keep mine has yet to land.
+      disabled={commands.state.pending || isUnsettled(commands.state.write)}
+      onClick={commands.revert}
     >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{messages.label(headingKey)}</DialogTitle>
-          <DialogDescription>
-            {messages.label(descriptionKey)}
-          </DialogDescription>
-        </DialogHeader>
-        <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="view-title">
-              {messages.label('label.save.title')}
-            </FieldLabel>
-            <Input
-              id="view-title"
-              value={title}
-              aria-invalid={title.trim().length === 0}
-              onChange={event => setTitle(event.target.value)}
-            />
-          </Field>
-          {offered.length > 0 && (
-            <Field>
-              <FieldLabel htmlFor="view-scope">
-                {messages.label('label.save.audience')}
-              </FieldLabel>
-              <Select
-                items={offered}
-                value={scope}
-                onValueChange={value => {
-                  const next = VIEW_AUDIENCES.find(item => item === value);
-                  if (next) setPicked(next);
-                }}
-              >
-                <SelectTrigger id="view-scope">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {offered.map(item => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-          )}
-        </FieldGroup>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
-            {messages.label('label.dialog.cancel')}
-          </DialogClose>
-          <Button
-            disabled={title.trim().length === 0}
-            onClick={() => onSubmit(title.trim(), scope)}
-          >
-            {messages.label('label.save.save')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <RotateCcwIcon data-icon="inline-start" />
+      {messages.label('label.save.revert')}
+    </Button>
   );
 }

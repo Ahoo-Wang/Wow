@@ -11,23 +11,15 @@
  * limitations under the License.
  */
 
-import { useId } from 'react';
-import {
-  InboxIcon,
-  LayersIcon,
-  LayoutDashboardIcon,
-  LockIcon,
-  SigmaIcon,
-  UsersIcon,
-} from 'lucide-react';
+import { useId, useState } from 'react';
+import { LayersIcon, Settings2Icon } from 'lucide-react';
 import {
   audienceOf,
   isSystemScope,
   type ViewAudience,
   type ViewInstanceSummary,
-  type ViewKind,
 } from '../model/index.js';
-import type { ViewListState } from '../react/index.js';
+import type { ViewListState, ViewManagerController } from '../react/index.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import {
@@ -37,10 +29,12 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from './components/empty.js';
+import { AUDIENCE_ICON, KIND_ICON } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { Skeleton } from './components/skeleton.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { TooltipContent } from './popups.js';
+import { ViewManager } from './ViewManager.js';
 
 export interface ViewListProps {
   list: ViewListState;
@@ -53,22 +47,20 @@ export interface ViewListProps {
   title?: string;
   currentId: string | null;
   onOpen(instanceId: string): void;
+  /**
+   * Renaming, deleting, reordering and the default view. Given one, the
+   * heading grows a button that opens the manager; left out, the list is a
+   * list — a host that hands out no write permissions gets no manage button
+   * rather than a dialog full of nothing.
+   */
+  manager?: ViewManagerController;
+  /**
+   * The open view, when it has edits that were never saved. It is the
+   * manager's to say in a delete confirmation, and only the workbench holds
+   * the runtime it is read off; the list passes it through.
+   */
+  openDirtyId?: string | null;
 }
-
-/**
- * The kind each view is, as the rest of the package draws it: one kind wears
- * one face here and on its own empty state.
- */
-const KIND_ICON: Record<ViewKind, typeof InboxIcon> = {
-  record: InboxIcon,
-  analysis: SigmaIcon,
-  dashboard: LayoutDashboardIcon,
-};
-
-const AUDIENCE_ICON: Record<ViewAudience, typeof LockIcon> = {
-  personal: LockIcon,
-  shared: UsersIcon,
-};
 
 /**
  * The order the sidebar shows the two groups in. It is this component's
@@ -89,23 +81,57 @@ const GROUPS: readonly ViewAudience[] = ['personal', 'shared'];
  * A system view is always here even when the store is unreachable, because it
  * travels with the definition rather than with the data.
  */
-export function ViewList({ list, title, currentId, onOpen }: ViewListProps) {
+export function ViewList({
+  list,
+  title,
+  currentId,
+  onOpen,
+  manager,
+  openDirtyId = null,
+}: ViewListProps) {
   const messages = useViewMessages();
   const headingId = useId();
+  const [managing, setManaging] = useState(false);
   return (
     <nav
       data-slot="view-list"
       aria-labelledby={headingId}
       className="flex min-w-0 flex-col gap-3"
     >
-      <h2
-        id={headingId}
-        data-slot="view-list-title"
-        className="truncate px-1.5 text-sm font-medium"
+      {/* The heading is its own row: the title, and whatever acts on the
+          list as a whole sits beside it rather than among the views. */}
+      <div
+        data-slot="view-list-header"
+        className="flex min-w-0 items-center gap-1"
       >
-        {title || messages.label('label.view.list')}
-      </h2>
+        <h2
+          id={headingId}
+          data-slot="view-list-title"
+          className="min-w-0 flex-1 truncate px-1.5 text-sm font-medium"
+        >
+          {title || messages.label('label.view.list')}
+        </h2>
+        {manager && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={messages.label('label.manage.open')}
+            onClick={() => setManaging(true)}
+          >
+            <Settings2Icon />
+          </Button>
+        )}
+      </div>
       <ViewListBody list={list} currentId={currentId} onOpen={onOpen} />
+      {manager && (
+        <ViewManager
+          manager={manager}
+          list={list}
+          open={managing}
+          onOpenChange={setManaging}
+          openDirtyId={openDirtyId}
+        />
+      )}
     </nav>
   );
 }

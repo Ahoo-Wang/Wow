@@ -130,6 +130,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   readonly kind = 'dashboard' as const;
   readonly definition: DashboardDefinition;
   readonly kinds: FieldKindRegistry;
+  readonly limits: RuntimeLimits;
 
   private readonly listeners = new Set<() => void>();
   private readonly options: DashboardRuntimeOptions;
@@ -159,6 +160,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.id = options.id;
     this.definition = options.definition;
     this.kinds = options.kinds;
+    this.limits = options.limits;
     this.environment = options.environment;
     this.injectedScope = options.scopeFilter ?? null;
 

@@ -34,7 +34,6 @@ import {
   type FilterEditorController,
   type FilterTreeController,
 } from '../react/index.js';
-import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import { FieldPicker } from './FieldMenu.js';
 import {
@@ -54,6 +53,13 @@ export interface FilterPanelProps {
   /** Candidates for a `remote` value editor, by the key its kind declared. */
   optionsFor?(remote: string): FieldOption[] | undefined;
   disabled?: boolean;
+  /**
+   * Whether the panel carries its own way out. An editor that is applied
+   * from elsewhere — a dashboard's global band, a host's own button — keeps
+   * the fields to add with and loses the pair that would run the query
+   * twice.
+   */
+  submit?: boolean;
 }
 
 /**
@@ -74,6 +80,7 @@ export function FilterPanel({
   filter,
   optionsFor,
   disabled,
+  submit = true,
 }: FilterPanelProps) {
   const advanced = filter.mode === 'advanced' || !filter.simple;
   const messages = useViewMessages();
@@ -122,68 +129,6 @@ export function FilterPanel({
             {messages.label('label.filter.advanced')}
           </ToggleGroupItem>
         </ToggleGroup>
-
-        <AddEntry
-          filter={filter}
-          parent={[]}
-          disabled={disabled}
-          groups={advanced}
-        />
-
-        <Button
-          variant="outline"
-          size="sm"
-          // An over-budget tree may hold no leaf at all — deep groups — and
-          // clearing it is then the only way back to an editable filter.
-          disabled={disabled || (filter.count === 0 && !overBudget)}
-          onClick={filter.clear}
-        >
-          {messages.label('label.filter.clear')}
-        </Button>
-        <Button size="sm" disabled={disabled} onClick={filter.submit}>
-          <FilterIcon data-icon="inline-start" />
-          {messages.label('label.filter.apply')}
-        </Button>
-
-        {filter.applied.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1">
-            {filter.applied.map(item => (
-              // A group reads out as one badge, its conditions joined by its
-              // own operator, so the bar keeps the logic the tree has. Its
-              // remove takes the condition out of force — the value goes
-              // back to "nothing said yet" and the query runs again — while
-              // the field stays in the editor for the next question.
-              <Badge
-                key={item.path.join('.')}
-                variant={item.group ? 'outline' : 'secondary'}
-                // A group's read-out can be long; it wraps inside the bar
-                // rather than carrying the bar off the edge of the view.
-                className="h-auto max-w-full whitespace-normal text-left"
-              >
-                {item.text}
-                <button
-                  type="button"
-                  aria-label={messages.label('label.filter.unset-of', {
-                    condition: item.text,
-                  })}
-                  disabled={disabled}
-                  className="-mr-1 rounded-full opacity-60 hover:opacity-100 focus-visible:outline-1"
-                  onClick={() => {
-                    filter.clearValue(
-                      item.path.filter(
-                        (segment): segment is number =>
-                          typeof segment === 'number',
-                      ),
-                    );
-                    filter.submit();
-                  }}
-                >
-                  <XIcon />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        )}
       </div>
 
       {overBudget ? (
@@ -200,6 +145,7 @@ export function FilterPanel({
           path={[]}
           disabled={disabled}
           optionsFor={optionsFor}
+          isPending={filter.isPending}
         />
       ) : (
         filter.count > 0 && (
@@ -209,10 +155,84 @@ export function FilterPanel({
             path={[]}
             disabled={disabled}
             optionsFor={optionsFor}
+            isPending={filter.isPending}
           />
         )
       )}
+
+      {/* The way in and the way out, under what they act on: a field to add
+          on the left, and on the right the pair that ends an edit. */}
+      <div
+        data-slot="filter-actions"
+        className="flex flex-wrap items-center gap-2"
+      >
+        <AddEntry
+          filter={filter}
+          parent={[]}
+          disabled={disabled}
+          groups={advanced}
+        />
+
+        {submit && (
+          <div className="ml-auto flex items-center gap-2">
+            {filter.blocked > 0 && (
+              // Apply is refused and the pills say where; this says how many,
+              // beside the button that will not move until they are gone.
+              <span className="text-destructive text-xs">
+                {messages.label('label.filter.blocked', {
+                  count: filter.blocked,
+                })}
+              </span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              // An over-budget tree may hold no leaf at all — deep groups —
+              // and clearing it is then the only way back to an editable
+              // filter.
+              disabled={disabled || (filter.count === 0 && !overBudget)}
+              onClick={filter.clear}
+            >
+              {messages.label('label.filter.clear')}
+            </Button>
+            <Button
+              size="sm"
+              data-pending={filter.pending || undefined}
+              disabled={disabled || filter.blocked > 0}
+              onClick={filter.submit}
+            >
+              {filter.pending && (
+                // The same dot the pills wear, in the one colour that shows
+                // on a filled primary button. It names nothing: the pills it
+                // summarises carry the wording.
+                <span
+                  aria-hidden="true"
+                  className="bg-primary-foreground size-1.5 rounded-full"
+                />
+              )}
+              <FilterIcon data-icon="inline-start" />
+              {messages.label('label.filter.apply')}
+            </Button>
+          </div>
+        )}
+      </div>
     </section>
+  );
+}
+
+/**
+ * The one credential for "said, but not yet asked".
+ *
+ * A draft is only worth keeping apart from what ran if the difference is
+ * visible, and it is visible in one place per node rather than in a banner
+ * that says some condition somewhere has moved.
+ */
+function PendingDot() {
+  const messages = useViewMessages();
+  return (
+    <span className="bg-primary absolute -top-0.5 -right-0.5 size-1.5 rounded-full">
+      <span className="sr-only">{messages.label('label.filter.pending')}</span>
+    </span>
   );
 }
 
@@ -224,12 +244,19 @@ function GroupBlock({
   disabled,
   optionsFor,
   scope,
+  isPending,
 }: {
   filter: FilterTreeController;
   group: FilterGroup;
   path: FilterPath;
   disabled?: boolean;
   optionsFor?: (remote: string) => FieldOption[] | undefined;
+  /**
+   * Whether the node at a path has been edited since the last apply. Only
+   * the editor bound to a view has an applied tree to compare against; a
+   * predicate's editor writes into a leaf and has none, so it passes none.
+   */
+  isPending?: (path: FilterPath) => boolean;
   /**
    * What this group is a group of, for the controls' accessible names. A
    * predicate renders a second root group on the same screen as the view's
@@ -240,6 +267,7 @@ function GroupBlock({
 }) {
   const nested = path.length > 0;
   const messages = useViewMessages();
+  const pending = isPending?.(path) === true;
 
   return (
     <div
@@ -248,8 +276,10 @@ function GroupBlock({
       aria-label={messages.label(
         group.op === 'or' ? 'label.filter.any-of' : 'label.filter.all-of',
       )}
-      className="flex flex-col gap-2 rounded-md border border-border p-2"
+      data-pending={pending || undefined}
+      className="border-border relative flex flex-col gap-2 rounded-md border p-2"
     >
+      {pending && <PendingDot />}
       <div className="flex items-center gap-1">
         <ToggleGroup
           value={[group.op]}
@@ -299,6 +329,7 @@ function GroupBlock({
         disabled={disabled}
         optionsFor={optionsFor}
         scope={scope}
+        isPending={isPending}
       />
 
       <div className="flex flex-wrap items-center gap-1">
@@ -327,6 +358,7 @@ function ConditionStrip({
   disabled,
   optionsFor,
   scope,
+  isPending,
 }: {
   filter: FilterTreeController;
   group: FilterGroup;
@@ -334,6 +366,7 @@ function ConditionStrip({
   disabled?: boolean;
   optionsFor?: (remote: string) => FieldOption[] | undefined;
   scope?: string;
+  isPending?: (path: FilterPath) => boolean;
 }) {
   if (group.children.length === 0) return null;
   return (
@@ -353,6 +386,7 @@ function ConditionStrip({
               disabled={disabled}
               optionsFor={optionsFor}
               scope={scope}
+              isPending={isPending}
             />
           </div>
         ) : (
@@ -363,6 +397,7 @@ function ConditionStrip({
             path={[...path, index]}
             disabled={disabled}
             optionsFor={optionsFor}
+            isPending={isPending}
           />
         ),
       )}
@@ -437,14 +472,17 @@ function Condition({
   path,
   disabled,
   optionsFor,
+  isPending,
 }: {
   filter: FilterTreeController;
   leaf: FilterLeaf;
   path: FilterPath;
   disabled?: boolean;
   optionsFor?: (remote: string) => FieldOption[] | undefined;
+  isPending?: (path: FilterPath) => boolean;
 }) {
   const messages = useViewMessages();
+  const pending = isPending?.(path) === true;
   const field = filter.fields.find(entry => entry.name === leaf.field);
   const label = field?.label ?? leaf.field;
   const operators = filter.operatorsFor(leaf.field).map(operator => ({
@@ -536,8 +574,10 @@ function Condition({
         data-invalid={invalid || undefined}
         data-warning={warned || undefined}
         data-blank={blank || undefined}
-        className="col-span-full flex flex-col gap-1 rounded-md border border-border p-2 data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning"
+        data-pending={pending || undefined}
+        className="border-border data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning relative col-span-full flex flex-col gap-1 rounded-md border p-2"
       >
+        {pending && <PendingDot />}
         <div className="flex items-center gap-1">
           <span className="shrink-0 text-sm font-medium whitespace-nowrap">
             {label}
@@ -566,8 +606,10 @@ function Condition({
       data-warning={warned || undefined}
       data-blank={blank || undefined}
       data-wide={wide || undefined}
-      className="flex min-w-0 items-center gap-1 rounded-md border border-border bg-muted/40 py-0.5 pr-0.5 pl-2 text-sm data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning @[40rem]:data-[wide]:col-span-2"
+      data-pending={pending || undefined}
+      className="border-border bg-muted/40 data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning @[40rem]:data-[wide]:col-span-2 relative flex min-w-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm"
     >
+      {pending && <PendingDot />}
       <span className="w-16 shrink-0 truncate font-medium" title={label}>
         {label}
       </span>

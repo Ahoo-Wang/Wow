@@ -1106,6 +1106,46 @@ describe('AnalysisWorkbench', () => {
     expect(
       screen.getByRole('columnheader', { name: 'Warehouse' }),
     ).toBeDefined();
+    // The shell the three workbenches share: which view this is at the top,
+    // and what the result was fetched under above it.
+    expect(document.querySelector('[data-slot="view-header"]')).not.toBeNull();
+    expect(
+      screen.getByRole('region', { name: 'Showing' }).textContent,
+    ).toContain('All records');
+  });
+
+  /**
+   * Saving is the title bar's now, not a row of its own below the editor,
+   * and what lands there has to reach the sidebar and the open view alike.
+   */
+  it('saves a copy from the title bar and opens it', async () => {
+    const { store } = await open();
+
+    fireEvent.click(screen.getByRole('button', { name: 'More view actions' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Save as' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Title'), {
+      target: { value: 'Split by size' },
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Create view' }),
+    );
+
+    await waitFor(async () =>
+      expect(
+        (await store.list('orders')).filter(
+          item => item.title === 'Split by size',
+        ),
+      ).toHaveLength(1),
+    );
+    // The copy is what is open, and the sidebar says so.
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('navigation')).getByRole('button', {
+          name: 'Split by size',
+        }).ariaCurrent,
+      ).toBe('true'),
+    );
   });
 
   // Its own alerts render above the provider of the surface it draws, yet
@@ -1342,6 +1382,70 @@ describe('AnalysisWorkbench', () => {
             (alert.textContent ?? '').includes('The source answered'),
           ),
       ).toBe(true),
+    );
+  });
+});
+
+/**
+ * The workbench is pinned to the view the host named, and nothing reloads a
+ * pin: when the manager deletes that view, the engine disposes the runtime
+ * and reopening the id answers "no such view" for as long as the page is
+ * open. Every workbench has to let go of its own accord — this one used to
+ * sit on the not-found forever.
+ */
+describe('deleting the open analysis', () => {
+  const other: ViewInstance = {
+    ...analysisView,
+    id: 'orders-2',
+    title: 'Also mine',
+  };
+
+  it('moves on to the view that is still there', async () => {
+    const store = new MemoryViewStore({ instances: [analysisView, other] });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    render(
+      <AnalysisWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'By warehouse' }).ariaCurrent,
+      ).toBe('true'),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manage views' }));
+    const manager = await screen.findByRole('dialog');
+    const row = Array.from(
+      manager.querySelectorAll('[data-slot="view-manager-row"]'),
+    ).find(candidate =>
+      candidate.textContent?.includes('By warehouse'),
+    ) as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'Delete' }));
+    const confirm = (await screen.findByText('Delete this view?')).closest(
+      '[role="dialog"]',
+    ) as HTMLElement;
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+    await waitFor(
+      () =>
+        expect(
+          screen.queryByRole('button', { name: 'By warehouse' }),
+        ).toBeNull(),
+      { timeout: 3000 },
+    );
+    // The pin is gone, so the list's default is what is open.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Also mine' }).ariaCurrent,
+      ).toBe('true'),
     );
   });
 });

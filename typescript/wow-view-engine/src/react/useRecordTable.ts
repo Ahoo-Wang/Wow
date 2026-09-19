@@ -104,6 +104,14 @@ export interface RecordTableController {
   columnFields: string[];
   setColumns(fields: string[]): void;
   pageSize: number;
+  /**
+   * Page sizes worth offering: the standard ladder, cut to what the runtime
+   * limits admit and with the current size folded in. A size above
+   * `maxPageSize` is refused by `validateRecord`, so offering it would be
+   * offering a way to break the view — and the saved size has to be in the
+   * list whatever it is, or a select shows nothing at all.
+   */
+  pageSizes: number[];
   setPageSize(size: number): void;
 
   selection: RecordKey[];
@@ -132,6 +140,12 @@ export interface RecordTableController {
   previous(): void;
   refresh(): void;
 }
+
+/**
+ * The ladder a page-size control offers from, before the limits cut it and
+ * the current size is folded in.
+ */
+const PAGE_SIZES = [10, 20, 50, 100];
 
 /** Stable identities for "no runtime yet", so memo dependencies stay still. */
 const NO_SORT: RecordSort[] = [];
@@ -307,6 +321,17 @@ export function useRecordTable(
       [editAndApply, runtime],
     ),
     pageSize,
+    pageSizes: useMemo(() => {
+      const max = runtime?.limits.maxPageSize;
+      const offered = PAGE_SIZES.filter(
+        size => max === undefined || size <= max,
+      );
+      // The saved size joins whatever it is: a view saved at 500 under an
+      // older limit still has to show the size it is running at.
+      return [
+        ...new Set([...offered, ...(pageSize > 0 ? [pageSize] : [])]),
+      ].sort((left, right) => left - right);
+    }, [pageSize, runtime]),
     setPageSize: useCallback(
       (pageSize: number) => editAndApply({ pageSize }),
       [editAndApply],

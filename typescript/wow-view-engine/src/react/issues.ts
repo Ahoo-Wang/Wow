@@ -12,7 +12,7 @@
  */
 
 import { issue } from '../filter/index.js';
-import { isViewStoreError, type Issue } from '../model/index.js';
+import { isViewStoreError, type Issue, type ViewKind } from '../model/index.js';
 import { isViewCommandError, isViewWriteError } from '../runtime/index.js';
 
 /**
@@ -33,4 +33,21 @@ export function toIssue(error: unknown, code: string): Issue {
   return issue(code, [], {
     reason: error instanceof Error ? error.message : String(error),
   });
+}
+
+/**
+ * The reason a view that opened cannot be drawn here, or nothing.
+ *
+ * One data definition holds record and analysis instances together, so a host
+ * may name either of them to either workbench. The one that cannot render it
+ * says so where every other failure to open is already reported — a body it
+ * has no kernel for is an empty page, and an empty page explains nothing.
+ */
+export function kindMismatch(
+  runtime: { kind: ViewKind } | null,
+  expected: ViewKind,
+): Issue | null {
+  return runtime && runtime.kind !== expected
+    ? issue('view.open.wrong-kind', [], { kind: runtime.kind })
+    : null;
 }

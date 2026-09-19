@@ -75,6 +75,13 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   readonly fields: readonly FieldDefinition[];
   /** The registry admission used, which an editor must edit against. */
   readonly kinds: FieldKindRegistry;
+  /**
+   * The budgets this view was admitted under. An editor offers within them
+   * rather than offering a choice the kernel will then refuse: a page size
+   * above `maxPageSize` is an error the user made by picking from a list the
+   * UI drew, which is the UI's fault and not theirs.
+   */
+  readonly limits: RuntimeLimits;
   getSnapshot(): ViewRuntimeState<C>;
   subscribe(listener: () => void): () => void;
   /** Changes the draft only, synchronously. */
@@ -285,6 +292,7 @@ export class DataViewRuntime<
   readonly kind: C['kind'];
   readonly definition: DefinitionFor<C>;
   readonly kinds: FieldKindRegistry;
+  readonly limits: RuntimeLimits;
 
   private readonly listeners = new Set<() => void>();
   private readonly context: KernelContext;
@@ -315,6 +323,7 @@ export class DataViewRuntime<
     // which the compiler cannot prove while `C` is still a parameter.
     this.definition = options.definition as DefinitionFor<C>;
     this.kinds = options.kinds;
+    this.limits = options.limits;
     this.runner = options.runner;
     this.environment = options.environment;
     this.autoRefresh = options.autoRefresh ?? true;

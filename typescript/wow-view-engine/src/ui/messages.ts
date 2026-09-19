@@ -137,10 +137,18 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.conflict.summary.analysis':
     '{groups} groups · {metrics} metrics · up to {limit} rows',
   'label.conflict.summary.dashboard': '{panels} panels',
+  // A conflicting config comes from the store as it is: this release may
+  // never have written it, and a shape the summary cannot count says so
+  // rather than taking the dialog down with it.
+  'label.conflict.summary.malformed': 'Cannot be read',
   'label.unknown.consequence':
     'It may well have been saved. Retrying asks again for the same write rather than making a second one.',
   'label.unknown.leave': 'Leave it',
   'label.unknown.retry': 'Retry',
+  // A refusal never reached the store, so there is nothing to recover — only
+  // a line to take down once it has been read, which is what frees the view
+  // to be written again.
+  'label.rejected.dismiss': 'Dismiss',
 
   // The title bar and the collapsible editor under it. The two title marks
   // are keyed apart because they say different things: one view was never
@@ -224,6 +232,9 @@ export const defaultMessages: ViewMessages = Object.freeze({
   // not the draft above it.
   'label.applied.title': 'Showing',
   'label.applied.all': 'All records',
+  // A condition the host put in force, which the reader cannot take out:
+  // it is not in the draft, and no path of this editor addresses it.
+  'label.applied.scoped': 'Set by the page',
 
   // The three date shapes, the side of now a relative window lies on, and
   // the controls that edit them.
@@ -283,6 +294,10 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.manage.rename-confirm': 'Save the title',
   'label.manage.rename-cancel': 'Keep the title',
   'label.manage.delete': 'Delete',
+  // A preference conflict that was reloaded keeps what the user meant and
+  // puts it to them once more (design §7.3), so the button offers the write
+  // again rather than a recovery of the one that lost.
+  'label.manage.resubmit': 'Apply again',
   'label.manage.reload': 'Reload list',
 
   // Leaving a view with edits nobody has saved, or with a write whose result
@@ -645,6 +660,8 @@ export const defaultMessages: ViewMessages = Object.freeze({
     'The stored view {id} uses a reserved id and was skipped.',
   'view.open.failed': 'This view could not be opened.',
   'view.open.not-found': 'No view named {id}.',
+  'view.open.wrong-kind':
+    'This view is of another kind ({kind}), so this page cannot show it.',
   'view.preferences.default-forbidden': 'You may not set the default view.',
   'view.preferences.failed': 'Your view preferences could not be saved.',
   'view.preferences.reorder-forbidden': 'You may not reorder views.',

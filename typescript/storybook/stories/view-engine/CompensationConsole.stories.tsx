@@ -18,27 +18,16 @@ import {
   systemInstanceId,
   type ViewEngine,
 } from '@ahoo-wang/fetcher-view-engine';
-import {
-  useFilterEditor,
-  useOpenView,
-  useRecordTable,
-  useSaveCommands,
-  useViewList,
-  useViewRuntime,
-  type RecordTableController,
+import type {
+  RecordActionSlots,
+  RecordBulkActionContext,
 } from '@ahoo-wang/fetcher-view-engine/react';
 import {
   AnalysisWorkbench,
-  FilterPanel,
-  RecordCards,
-  RecordTable,
-  RecordToolbar,
-  SaveActions,
-  ViewList,
+  RecordWorkbench,
   ViewSurface,
-  useViewMessages,
 } from '@ahoo-wang/fetcher-view-engine/ui';
-// View Engine's own primitives, so the added commands look like its toolbar.
+// View Engine's own primitives, so the added commands look like its own.
 import { Alert, AlertDescription, AlertTitle } from '@/ui/components/alert';
 import { Button } from '@/ui/components/button';
 import {
@@ -49,8 +38,6 @@ import {
 } from '@/ui/components/dropdown-menu';
 // Popup contents come themed from popups.tsx, as View Engine's own do.
 import { DropdownMenuContent } from '@/ui/popups';
-import { Separator } from '@/ui/components/separator';
-import { Skeleton } from '@/ui/components/skeleton';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
   DEFAULT_COMPENSATION_HOST,
@@ -91,18 +78,16 @@ const RECOVERABILITY: [RecoverableType, string][] = [
  * reads its effect rather than racing it.
  */
 function CompensationActions({
-  table,
+  selection,
   commands,
   onOutcome,
 }: {
-  table: RecordTableController;
+  selection: RecordBulkActionContext;
   commands: CompensationCommands;
   onOutcome(outcome: Outcome): void;
 }) {
   const [running, setRunning] = useState(false);
-  const ids = table.rows
-    .filter(row => table.isSelected(row.key))
-    .map(row => String(row.key));
+  const ids = selection.keys.map(key => String(key));
   const disabled = running || ids.length === 0;
 
   const run = async (
@@ -113,7 +98,7 @@ function CompensationActions({
     const outcomes = await Promise.all(ids.map(command));
     setRunning(false);
     onOutcome({ title, outcomes });
-    table.refresh();
+    selection.refresh();
   };
 
   return (
@@ -181,115 +166,46 @@ function OutcomeAlert({ outcome }: { outcome: Outcome }) {
 }
 
 /**
- * `RecordWorkbench` composed again from the same hooks, with the compensation
- * commands in its toolbar. This is the route the workbench documents for an
- * application that needs more than the default: nothing here is private.
+ * The default workbench with the compensation commands hung in its bulk slot.
+ *
+ * The console adds no markup of its own: everything a business page needs —
+ * what to do to a selection, and what came of it — reaches the workbench
+ * through `actions`, which is the route an application takes when the default
+ * look is right and only the commands are its own.
  */
-function CompensationWorkbench({
+function CompensationConsole({
   engine,
   commands,
 }: {
   engine: ViewEngine;
   commands: CompensationCommands;
 }) {
-  const list = useViewList(engine, EXECUTION_FAILED);
-  const [chosen, setChosen] = useState<string | null>(null);
-  const openId = chosen ?? list.defaultInstanceId;
-
-  const opened = useOpenView(engine, openId);
-  const runtime = opened.runtime;
-  const state = useViewRuntime(runtime);
-  const record = runtime?.kind === 'record' ? runtime : null;
-  const table = useRecordTable(record);
-  const filter = useFilterEditor(runtime);
-  const save = useSaveCommands(engine, runtime);
-  const messages = useViewMessages();
   const [outcome, setOutcome] = useState<Outcome | null>(null);
-
-  const errors = (state?.issues ?? []).filter(
-    found => found.severity === 'error',
-  );
+  const actions: RecordActionSlots = {
+    bulk: selection => (
+      <CompensationActions
+        selection={selection}
+        commands={commands}
+        onOutcome={setOutcome}
+      />
+    ),
+  };
 
   return (
-    <ViewSurface className="gap-0 md:flex-row">
-      <aside className="flex w-56 shrink-0 flex-col gap-2 p-3">
-        <ViewList
-          list={list}
-          currentId={state?.saved?.id ?? null}
-          onOpen={id => {
-            setOutcome(null);
-            setChosen(id);
-          }}
-        />
-      </aside>
-
-      <Separator orientation="vertical" className="hidden md:block" />
-
-      <main className="flex min-w-0 flex-1 flex-col gap-3 p-3">
-        {opened.error && (
-          <Alert variant="destructive">
-            <AlertTitle>{messages.label('label.view.unopenable')}</AlertTitle>
-            <AlertDescription>{messages.issue(opened.error)}</AlertDescription>
-          </Alert>
-        )}
-
-        {opened.loading && <Skeleton className="h-8 w-full" />}
-
-        {runtime && (
-          <>
-            <FilterPanel filter={filter} disabled={table.loading} />
-
-            {errors.length > 0 && (
-              <Alert variant="destructive">
-                <AlertTitle>
-                  {messages.label('label.view.needs-fixing')}
-                </AlertTitle>
-                <AlertDescription>{messages.issues(errors)}</AlertDescription>
-              </Alert>
-            )}
-
-            <RecordToolbar table={table} fields={runtime.fields}>
-              <CompensationActions
-                table={table}
-                commands={commands}
-                onOutcome={setOutcome}
-              />
-              <SaveActions
-                commands={save}
-                title={state?.title ?? ''}
-                onSaved={saved => {
-                  setChosen(saved.id);
-                  list.reload();
-                }}
-                onRenamed={instance => {
-                  setChosen(instance.id);
-                  list.reload();
-                }}
-                onDeleted={() => setChosen(null)}
-                onRecovered={() => list.reload()}
-              />
-            </RecordToolbar>
-
-            {outcome && <OutcomeAlert outcome={outcome} />}
-
-            {table.error && (
-              <Alert variant="destructive">
-                <AlertTitle>{messages.label('label.query.failed')}</AlertTitle>
-                <AlertDescription>
-                  {messages.issue(table.error)}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {table.layout === 'card' ? (
-              <RecordCards table={table} />
-            ) : (
-              <RecordTable table={table} />
-            )}
-          </>
-        )}
-      </main>
-    </ViewSurface>
+    <div className="flex min-w-0 flex-col">
+      {/* What the last command came to. It outlives the selection it acted
+          on, so it sits beside the workbench rather than inside its toolbar. */}
+      {outcome && (
+        <ViewSurface className="px-3 pt-3">
+          <OutcomeAlert outcome={outcome} />
+        </ViewSurface>
+      )}
+      <RecordWorkbench
+        engine={engine}
+        definitionId={EXECUTION_FAILED}
+        actions={actions}
+      />
+    </div>
   );
 }
 
@@ -318,7 +234,7 @@ function RecordConsole({ host }: { host: string }) {
   return (
     <Console key={host} host={host}>
       {(engine, commands) => (
-        <CompensationWorkbench engine={engine} commands={commands} />
+        <CompensationConsole engine={engine} commands={commands} />
       )}
     </Console>
   );

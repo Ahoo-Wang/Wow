@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { RecordActionSlots } from '@ahoo-wang/fetcher-view-engine/react';
 import { RecordWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+// View Engine's own button, so the host's commands sit in its toolbar rather
+// than beside it — exactly what an application does with the action slots.
+import { Button } from '@/ui/components/button';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
   createStoryEngine,
@@ -31,11 +35,14 @@ function RecordWorkbenchDemo({
   behaviour = 'data',
   instanceId,
   broken = false,
+  withActions = false,
 }: {
   behaviour?: SourceBehaviour;
   instanceId?: string;
   /** Saves a config the definition no longer accepts, to show "needs fixing". */
   broken?: boolean;
+  /** Fills the three action slots, the way a business page would. */
+  withActions?: boolean;
 }) {
   return (
     <StoryEngine
@@ -61,11 +68,59 @@ function RecordWorkbenchDemo({
           engine={engine}
           definitionId="orders"
           instanceId={instanceId ?? savedViews[0].id}
+          actions={withActions ? businessActions : undefined}
         />
       )}
     </StoryEngine>
   );
 }
+
+/**
+ * What an application hangs on the workbench: one command over the view, one
+ * over a selection, one per row. They are render functions rather than names
+ * in a config, so they can do anything the page can do — and nothing about
+ * them is saved with the view.
+ */
+const businessActions: RecordActionSlots = {
+  global: () => (
+    <Button size="sm" onClick={() => alert('新建订单')}>
+      新建订单
+    </Button>
+  ),
+  bulk: ({ rows, clearSelection }) => (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        alert(`导出 ${rows.length} 单`);
+        clearSelection();
+      }}
+    >
+      导出所选
+    </Button>
+  ),
+  row: ({ row, refresh }) => (
+    <>
+      <Button
+        variant="ghost"
+        size="xs"
+        onClick={() => alert(`打开 ${row.key}`)}
+      >
+        打开
+      </Button>
+      <Button
+        variant="ghost"
+        size="xs"
+        onClick={() => {
+          alert(`取消 ${row.key}`);
+          refresh();
+        }}
+      >
+        取消
+      </Button>
+    </>
+  ),
+};
 
 const scene = {
   ...viewEngineScene,
@@ -94,6 +149,7 @@ const meta = {
     },
     broken: { table: { disable: true } },
     instanceId: { table: { disable: true } },
+    withActions: { table: { disable: true } },
   },
 } satisfies Meta<typeof RecordWorkbenchDemo>;
 
@@ -118,3 +174,16 @@ export const NeedsFixing: Story = { args: { broken: true } };
 
 /** No saved view under this id, reported instead of an empty frame. */
 export const CannotOpen: Story = { args: { instanceId: 'deleted' } };
+
+/**
+ * The host's own commands in the three places they belong: over the view, over
+ * a selection, and on one row. Pick rows to see the middle one appear.
+ */
+export const WithActions: Story = { args: { withActions: true } };
+
+/**
+ * Managing the list rather than looking at one view: rename, delete, reorder
+ * and choose which view opens first. Open it from the gear beside the sidebar
+ * heading — every button is there only where the store permits it.
+ */
+export const ManageViews: Story = { args: { behaviour: 'data' } };

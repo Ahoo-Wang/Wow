@@ -810,8 +810,282 @@ describe('DashboardWorkbench', () => {
 
     await waitFor(() => expect(screen.getByText('Pending')).toBeTruthy());
     expect(screen.getByRole('button', { name: /Apply/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Refresh' })).toBeTruthy();
+    // Refresh moved into the title bar with the save commands; the row of
+    // buttons between the editor and the panels is gone.
+    const header = document.querySelector(
+      '[data-slot="view-header"]',
+    ) as HTMLElement;
+    expect(
+      within(header).getByRole('button', { name: 'Refresh' }),
+    ).toBeTruthy();
+    expect(header.textContent).toContain('Operations');
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+  });
+
+  /**
+   * Nothing reloads a pin: once the manager deletes the pinned view, the
+   * engine disposes the runtime and reopening the id answers "no such view"
+   * for as long as the page is open, so the workbench has to let go itself.
+   */
+  it('moves on to the view that is still there once the open one is deleted', async () => {
+    const other: ViewInstance = {
+      ...overview,
+      id: 'overview-2',
+      title: 'Night shift',
+    };
+    const store = new MemoryViewStore({
+      instances: [pending, overview, other],
+    });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition(), overviewDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+      />,
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Operations' }).ariaCurrent,
+      ).toBe('true'),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manage views' }));
+    const manager = await screen.findByRole('dialog');
+    const row = Array.from(
+      manager.querySelectorAll('[data-slot="view-manager-row"]'),
+    ).find(candidate =>
+      candidate.textContent?.includes('Operations'),
+    ) as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'Delete' }));
+    const confirm = (await screen.findByText('Delete this view?')).closest(
+      '[role="dialog"]',
+    ) as HTMLElement;
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+    await waitFor(
+      () =>
+        expect(screen.queryByRole('button', { name: 'Operations' })).toBeNull(),
+      { timeout: 3000 },
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Night shift' }).ariaCurrent,
+      ).toBe('true'),
+    );
+  });
+
+  /**
+   * A dashboard has no result of its own — every panel runs its own query —
+   * so the bar over the panels reads the applied config rather than a
+   * result's, and shows once any panel has been asked. Reading a result that
+   * is always null, it never showed at all.
+   */
+  it('says what the panels were asked under', async () => {
+    const { engine } = setup({
+      ...overview,
+      config: dashboardConfig({
+        fields: [{ name: 'region', label: 'Region', kind: 'string' }],
+        filter: {
+          op: 'and',
+          children: [{ field: 'region', operator: 'EQ', value: 'north' }],
+        },
+        panels: [
+          panel({
+            title: 'Pending',
+            bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+          }),
+        ],
+      }),
+    });
+
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+      />,
+    );
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+
+    const bar = screen.getByRole('region', { name: 'Showing' });
+    expect(bar.textContent).toContain('Region');
+    expect(bar.textContent).toContain('north');
+  });
+
+  it('says so plainly when the panels were asked under nothing', async () => {
+    const { engine } = setup();
+
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+      />,
+    );
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+
+    expect(
+      screen.getByRole('region', { name: 'Showing' }).textContent,
+    ).toContain('All records');
+  });
+
+  /**
+   * The title bar is the one place a dashboard is saved from now, and what
+   * lands there has to reach the sidebar and the open view alike.
+   */
+  it('saves a copy from the title bar and opens it', async () => {
+    const { engine, store } = setup();
+
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+      />,
+    );
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'More view actions' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Save as' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Title'), {
+      target: { value: 'Night shift' },
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Create view' }),
+    );
+
+    await waitFor(async () =>
+      expect((await store.list('overview')).map(item => item.title)).toContain(
+        'Night shift',
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('navigation')).getByRole('button', {
+          name: 'Night shift',
+        }).ariaCurrent,
+      ).toBe('true'),
+    );
+  });
+
+  /**
+   * A copy is judged for the audience it is headed for, not the one the open
+   * view sits in: `engine.saveAs` validates at the target scope. Gating the
+   * dialog on the open draft's own validity therefore answered the wrong
+   * question in both directions — it let through a copy the engine would
+   * refuse, and it barred a copy that is the way out of an invalid view.
+   */
+  describe('copying a dashboard to another audience', () => {
+    /** A personal record view: a shared dashboard may not show it. */
+    const personalPanel: ViewInstance = {
+      ...pending,
+      id: 'mine',
+      title: 'My orders',
+      scope: 'personal',
+    };
+
+    function board(scope: ViewInstance['scope']): ViewInstance {
+      return {
+        ...overview,
+        scope,
+        config: dashboardConfig({
+          panels: [panel({ title: 'Mine', instanceId: 'mine' })],
+        }),
+      };
+    }
+
+    function workbench(instance: ViewInstance) {
+      const store = new MemoryViewStore({
+        instances: [personalPanel, instance],
+      });
+      const engine = new ViewEngine({
+        definitions: [ordersDefinition(), overviewDefinition()],
+        store,
+        resolveSource: () => testSource(),
+      });
+      render(
+        <DashboardWorkbench
+          engine={engine}
+          definitionId="overview"
+          instanceId="overview-1"
+        />,
+      );
+      return { store };
+    }
+
+    /** The save-as dialog, opened from the title bar's menu. */
+    async function openCopy() {
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'More view actions' }),
+      );
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'Save as' }));
+      return screen.findByRole('dialog');
+    }
+
+    it('shows the refusal inside the dialog and stays open', async () => {
+      // Valid where it is: a personal dashboard may show a personal view.
+      const { store } = workbench(board('personal'));
+      await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+
+      const dialog = await openCopy();
+      fireEvent.change(within(dialog).getByLabelText('Title'), {
+        target: { value: 'For everyone' },
+      });
+      fireEvent.click(within(dialog).getByRole('radio', { name: 'Everyone' }));
+      const create = within(dialog).getByRole('button', {
+        name: 'Create view',
+      });
+      // The draft is valid, so nothing here can tell it will be refused —
+      // only the engine knows, at the scope the copy is headed for.
+      expect(create).toHaveProperty('disabled', false);
+      fireEvent.click(create);
+
+      expect(
+        await within(dialog).findByText(
+          'Fix what this view reports before saving it.',
+        ),
+      ).toBeDefined();
+      // Said where the user is still looking, with the answer still theirs.
+      expect(screen.getByRole('dialog')).toBe(dialog);
+      expect(
+        (await store.list('overview')).map(item => item.title),
+      ).not.toContain('For everyone');
+    });
+
+    it('takes a copy that is valid where the open view is not', async () => {
+      // Saved shared over a personal panel: the view on screen reports an
+      // error, and a personal copy of it is exactly the way out.
+      const { store } = workbench(board('shared'));
+      await screen.findByRole('button', { name: 'More view actions' });
+      expect(
+        (await screen.findAllByRole('alert')).some(alert =>
+          (alert.textContent ?? '').includes('needs fixing'),
+        ),
+      ).toBe(true);
+
+      const dialog = await openCopy();
+      fireEvent.change(within(dialog).getByLabelText('Title'), {
+        target: { value: 'Mine after all' },
+      });
+      fireEvent.click(within(dialog).getByRole('radio', { name: 'Only me' }));
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: 'Create view' }),
+      );
+
+      await waitFor(async () =>
+        expect(
+          (await store.list('overview')).map(item => item.title),
+        ).toContain('Mine after all'),
+      );
+    });
   });
 
   // Its own alerts render above the provider of the surface it draws, yet
@@ -956,10 +1230,14 @@ describe('DashboardWorkbench', () => {
       />,
     );
 
+    // The strip is a line: it says the dashboard needs fixing, and unfolds
+    // into what exactly, rather than pushing the panels down the page.
     await waitFor(() =>
-      expect(screen.getByRole('alert').textContent).toContain(
-        'not a field is not a usable field name.',
-      ),
+      expect(screen.getByRole('alert').textContent).toContain('needs fixing'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '1 more' }));
+    expect(screen.getByRole('alert').textContent).toContain(
+      'not a field is not a usable field name.',
     );
     // Nothing ran: an error blocks the apply that would have created panels.
     expect(source.paged).not.toHaveBeenCalled();
@@ -1025,7 +1303,9 @@ describe('DashboardWorkbench', () => {
     );
 
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
-    const notice = document.querySelector('[data-slot="view-warnings"]');
+    const notice = document.querySelector(
+      '[data-slot="status-strip"][data-tone="warning"]',
+    );
     expect(notice?.textContent).toContain('advanced editor');
     expect(notice?.textContent).not.toContain('unavailable');
     expect(screen.getByText('This panel is unavailable')).toBeTruthy();
@@ -1103,7 +1383,8 @@ describe('DashboardWorkbench', () => {
       />,
     );
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
-    const notice = () => document.querySelector('[data-slot="view-warnings"]');
+    const notice = () =>
+      document.querySelector('[data-slot="status-strip"][data-tone="warning"]');
     const marker = () => document.querySelector('[data-slot="panel-warning"]');
     expect(notice()).toBeNull();
     const runtime = engine

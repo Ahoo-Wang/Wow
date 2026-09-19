@@ -46,7 +46,7 @@ pnpm --filter @ahoo-wang/fetcher-view-engine lint:check
 
 - Vitest in the **jsdom** environment, with `clearMocks` and `restoreMocks`
 - **No `globals: true`** — unlike the other packages here, import `describe`, `it`, `expect`, `vi` from `vitest` explicitly
-- Test files live in `test/` at the package root, named by subject rather than mirroring `src/` one-to-one (27 files)
+- Test files live in `test/` at the package root, named by subject rather than mirroring `src/` one-to-one (41 files)
 - `@` resolves to `src/`
 - **Coverage thresholds are enforced**: statements 95, branches 91, functions 97, lines 96. `src/ui/components/**`, `src/ui/lib/**` and `src/styles.ts` are excluded — they are vendored from the shadcn registry and are upstream's to test
 - `test/architecture.test.ts` enforces the dependency rules below on the TypeScript AST, so multi-line, type-only, re-exported and **statically resolvable** dynamic imports are all seen — an `import()` whose argument is a string literal or a substitution-free template. One built from a variable is not recorded, and would slip past these assertions. It reads the wow **sources** off disk, so it is the one suite that runs without any build — every test that imports `@ahoo-wang/fetcher-wow` needs the dependency chain built first
@@ -156,11 +156,13 @@ src/
   react/                        — Headless hooks and controllers; never imports ui
     useViewEngine.ts              — Creates and disposes one engine
     useViewList.ts                — View summaries in the user's order
+    useViewManager.ts             — Rename, delete, reorder, default; outcomes per row
     useRecordTable.ts             — Record controller
     useAnalysisEditor.ts          — Analysis controller
     useFilterEditor.ts            — Filter tree editor controller
     useDashboard.ts               — Dashboard panels, geometry and state
-    useSaveCommands.ts            — Save, save-as, rename, delete
+    useSaveCommands.ts            — Save, save-as, revert, rename, delete
+    actions.ts                    — The three action slots a host fills: global, bulk, row
     environment.ts                — Page visibility, so a hidden tab stops polling
     issues.ts                     — Turns a thrown command into one Issue
     index.ts
@@ -168,12 +170,23 @@ src/
     RecordWorkbench.tsx           — Default Record workbench
     AnalysisWorkbench.tsx         — Default Analysis workbench
     DashboardWorkbench.tsx        — Default Dashboard workbench
-    RecordTable.tsx, RecordCards.tsx, RecordToolbar.tsx
+    ViewHeader.tsx                — Title bar: kind, audience, title, unsaved mark, save commands
+    SaveActions.tsx               — Split save button group; SaveAsDialog.tsx, WriteOutcome.tsx
+    ViewManager.tsx               — Rename, delete, reorder and the default view, from the sidebar
+    LeaveGuard.tsx                — `useLeaveGuard`: confirms a switch that would lose a draft
+    useReleaseDeleted.ts          — Lets a workbench's pinned id go once the view is deleted
+    EditorBand.tsx                — The fold a view's editor lives in
+    StatusStrip.tsx               — One-line findings: warning, error, failed query (+ `dedupeIssues`)
+    AppliedBar.tsx                — The conditions the rows on screen were fetched under
+    ResultToolbar.tsx             — Selection, bulk slot, layout, columns, refresh
+    RowActions.tsx, RecordPagination.tsx
+    RecordTable.tsx, RecordCards.tsx
     AnalysisTable.tsx, AnalysisChart.tsx, AnalysisEditor.tsx
     DashboardGrid.tsx, DashboardPanels.tsx
     FilterPanel.tsx, FilterValueEditor.tsx
-    ViewList.tsx, ViewSurface.tsx, SaveActions.tsx, EmbeddedView.tsx
-    WarningNotice.tsx             — Non-blocking findings, in the theme's `warning` colour
+    ViewList.tsx, ViewSurface.tsx, EmbeddedView.tsx
+    kinds.ts                      — The icon each kind and audience wears, shared by list and header
+    describeConfig.ts             — One config in a sentence, for a conflict's side-by-side
     messages.ts, MessagesProvider.tsx   — wording by key, overridable
     display.ts                    — A value as its field shows it: enum labels, dates, bucket keys
     index.ts
@@ -181,7 +194,7 @@ src/
     lib/utils.ts                  — shadcn cn() helper — vendored
 ```
 
-`test/` (27 files), `examples/` (`FetcherViewStore.ts`, `PlainRecordWorkbench.tsx`, `quickstart.ts`) and `docs/design.md` sit beside `src/`.
+`test/` (41 files), `examples/` (`FetcherViewStore.ts`, `PlainRecordWorkbench.tsx`, `quickstart.ts`) and `docs/design.md` sit beside `src/`.
 
 ### Key Concepts
 

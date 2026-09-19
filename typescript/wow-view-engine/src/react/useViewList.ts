@@ -15,11 +15,26 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   Issue,
   ViewInstanceSummary,
+  ViewKind,
   ViewPreferences,
 } from '../model/index.js';
 import { orderSummaries, type ViewEngine } from '../runtime/index.js';
 import type { ViewPermissions } from '../store/ViewStore.js';
 import { toIssue } from './issues.js';
+
+export interface ViewListOptions {
+  /**
+   * Narrows the list to one kind, before it is ordered and before a default
+   * is resolved from it.
+   *
+   * One data definition holds record and analysis instances together, while a
+   * workbench draws one of the two. Without this the sidebar offers views the
+   * body cannot render, and the effective default may land on one of them —
+   * which is a blank page rather than a view. Left out, every kind is listed,
+   * which is what a dashboard definition wants.
+   */
+  kind?: ViewKind;
+}
 
 /** What a caller already knows about the list it is asking to be read again. */
 export interface ViewListReloadOptions {
@@ -41,6 +56,17 @@ export interface ViewListReloadOptions {
 export interface ViewListState {
   /** Summaries in the order the workbench shows them. */
   items: ViewInstanceSummary[];
+  /**
+   * The same summaries before `options.kind` narrowed them, in the same
+   * order. Equal to `items` when no kind was asked for.
+   *
+   * A reorder stores one order for the whole definition, and a record
+   * workbench lists only the record views: submitting the order it can see
+   * would drop every analysis id from `preferences.order`. So a caller that
+   * writes the order reads it from here and moves the two ids it can see
+   * inside it, leaving the kinds it does not draw where they were.
+   */
+  all: ViewInstanceSummary[];
   preferences: ViewPreferences | null;
   permissions: ViewPermissions;
   /** The view to open when the caller names none; null until preferences settle. */
@@ -95,7 +121,11 @@ const FIRST_LOAD: ReloadRequest = { token: 0, without: null };
 export function useViewList(
   engine: ViewEngine,
   definitionId: string,
+  options: ViewListOptions = {},
 ): ViewListState {
+  // Read off the object rather than kept: a caller writes the options inline,
+  // so the object is new every render and the kind inside it is not.
+  const { kind } = options;
   const [request, setRequest] = useState<ReloadRequest>(FIRST_LOAD);
   const [list, setList] =
     useState<Loaded<ViewInstanceSummary[]>>(NOTHING_LOADED);
@@ -182,7 +212,7 @@ export function useViewList(
     };
   }, [retainedPreferences, without]);
 
-  const items = useMemo(() => {
+  const all = useMemo(() => {
     const listed = current.value ?? [];
     const kept =
       without === null ? listed : listed.filter(item => item.id !== without);
@@ -191,8 +221,17 @@ export function useViewList(
       : kept;
   }, [current.value, currentPreferences.value, without]);
 
+  // The narrowing happens last, over the ordered list, so both the order and
+  // the default below are resolved among the views the caller can open while
+  // `all` keeps the positions of the kinds this caller does not draw.
+  const items = useMemo(
+    () => (kind ? all.filter(summary => summary.kind === kind) : all),
+    [all, kind],
+  );
+
   return {
     items,
+    all,
     preferences: currentPreferences.value,
     permissions,
     // No default until preferences have settled: answering from server order

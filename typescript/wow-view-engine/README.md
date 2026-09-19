@@ -276,12 +276,12 @@ Details in [docs/design.md](docs/design.md) §7.
 
 ## Entries
 
-| Entry                            | Exports                                                                                                                                                                                                                         |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                                      |
-| `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useDashboard`, `useSaveCommands`                                                                                   |
-| `/ui`                            | `RecordWorkbench`, `AnalysisWorkbench`, `DashboardWorkbench`, `FilterPanel`, `RecordTable`, `RecordCards`, `AnalysisEditor`, `AnalysisChart`, `DashboardGrid`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `EmbeddedView`      |
-| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside `.fve-root` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build. |
+| Entry                            | Exports                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                                                                                                                                                                                            |
+| `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`                                                                                                                                                                                   |
+| `/ui`                            | `RecordWorkbench`, `AnalysisWorkbench`, `DashboardWorkbench`, `ViewHeader`, `SaveActions`, `ViewManager`, `useLeaveGuard`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisEditor`, `AnalysisChart`, `DashboardGrid`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `EmbeddedView` |
+| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside `.fve-root` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build.                                                                                                                                                       |
 
 ## Persistence
 
@@ -352,13 +352,13 @@ An unknown key falls back along the dots and then to the key itself, so a gap sh
 
 ## Extension points
 
-| Axis        | Mechanism                                                                                                                                                                  |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Field type  | Register a `FieldKind` (operators, validation, `compile` to `FilterExpression`, editor descriptor); register the matching React editor and cell in `/ui` under the same id |
-| Data source | `resolveSource(key)` returns a Wow query client                                                                                                                            |
-| Persistence | Implement `ViewStore`                                                                                                                                                      |
-| Renderers   | Register cell, row-action and toolbar-action components by key                                                                                                             |
-| Appearance  | CSS variables and theme files; replace components by composing `/react` hooks                                                                                              |
+| Axis        | Mechanism                                                                                                                                                                          |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Field type  | Register a `FieldKind` (operators, validation, `compile` to `FilterExpression`, editor descriptor); register the matching React editor and cell in `/ui` under the same id         |
+| Data source | `resolveSource(key)` returns a Wow query client                                                                                                                                    |
+| Persistence | Implement `ViewStore`                                                                                                                                                              |
+| Actions     | Pass `actions` to a workbench — `global`, `bulk` and `row` render functions. They are code, so they are handed over rather than named in a config, and nothing about them is saved |
+| Appearance  | CSS variables and theme files; replace components by composing `/react` hooks                                                                                                      |
 
 Built-in kinds: `string`, `number`, `boolean`, `date`, `datetime`, `enum`, `reference`.
 
