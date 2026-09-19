@@ -31,7 +31,13 @@ import {
 } from '../src/index.js';
 import type { FieldKind, ViewInstance, FilterTree } from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
-import { FilterPanel, RecordWorkbench } from '../src/ui/index.js';
+import {
+  FilterPanel,
+  MessagesProvider,
+  RecordWorkbench,
+  zhCN,
+} from '../src/ui/index.js';
+import type { ViewMessages } from '../src/ui/index.js';
 import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
 import { mine, setup } from './fixtures/ui.js';
 
@@ -65,6 +71,7 @@ describe('FilterPanel tree editing', () => {
   function panel(
     disabled = false,
     definition = ordersDefinition(),
+    messages?: ViewMessages,
   ): PanelHarness {
     const engine = new ViewEngine({
       definitions: [definition],
@@ -84,7 +91,11 @@ describe('FilterPanel tree editing', () => {
       latest = filter;
       return <FilterPanel filter={filter} disabled={disabled} />;
     }
-    render(<Probe />);
+    render(
+      <MessagesProvider messages={messages}>
+        <Probe />
+      </MessagesProvider>,
+    );
     return { filter: () => latest as ReturnType<typeof useFilterEditor> };
   }
 
@@ -388,7 +399,7 @@ describe('FilterPanel tree editing', () => {
     expect(filter().tree.op).toBe('nor');
   });
 
-  it('names an operator the catalogue spells out, and derives the rest', () => {
+  it('names every operator through the catalogue', () => {
     const { filter } = panel();
     act(() => filter().addLeaf('warehouse'));
 
@@ -396,10 +407,27 @@ describe('FilterPanel tree editing', () => {
       name: /Warehouse operator/i,
     });
 
-    // `EQ` reads fine derived; `NOT_IN` as "not in" does not, so it has an
-    // entry. Neither should ever render as its key.
+    // Every operator the field offers has an entry, so none of them can
+    // render as its key.
     expect(options.textContent).not.toContain('label.operator');
     expect(filter().operatorsFor('warehouse')).toContain('NOT_IN');
+  });
+
+  /**
+   * The point of naming the whole enum rather than the unreadable half of it.
+   * A field's own operators used to have no key at all, so `zhCN` had nowhere
+   * to put a Chinese word and the select still read `eq`.
+   */
+  it('shows a translated operator when the host hands over zhCN', () => {
+    const { filter } = panel(false, ordersDefinition(), zhCN);
+    act(() => filter().addLeaf('amount'));
+
+    const options = screen.getByRole('combobox', {
+      name: /Amount 操作符/i,
+    });
+
+    expect(options.textContent).toContain('等于');
+    expect(options.textContent).not.toContain('eq');
   });
 
   /**

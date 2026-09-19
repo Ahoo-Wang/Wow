@@ -43,7 +43,9 @@ import {
   AnalysisTable,
   AnalysisWorkbench,
   ViewSurface,
+  zhCN,
 } from '../src/ui/index.js';
+import type { ViewMessages } from '../src/ui/index.js';
 import {
   ZONE,
   analysisConfig,
@@ -914,7 +916,7 @@ function richDefinition() {
 }
 
 describe('AnalysisEditor defaults', () => {
-  async function open() {
+  async function open(messages?: ViewMessages) {
     const store = new MemoryViewStore({ instances: [analysisView] });
     const engine = new ViewEngine({
       definitions: [richDefinition()],
@@ -926,6 +928,7 @@ describe('AnalysisEditor defaults', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
+        messages={messages}
       />,
     );
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
@@ -948,6 +951,26 @@ describe('AnalysisEditor defaults', () => {
     expect(
       (await screen.findByLabelText('amount_1 grouping')).textContent,
     ).toContain('histogram');
+  });
+
+  /**
+   * The editor used to label these three controls with the identifier itself
+   * — `bar`, `terms`, `sum` — so a host that handed over `zhCN` still got an
+   * English analysis editor. They read the catalogue now, which is the only
+   * place a translation can come from.
+   */
+  it('translates the chart type, the grouping and the function with zhCN', async () => {
+    await open(zhCN);
+
+    expect(screen.getByLabelText('图表类型').textContent).toContain('柱状图');
+    expect(screen.getByLabelText('warehouse 分组方式').textContent).toContain(
+      '按值分组',
+    );
+
+    await add(/添加指标/, 'Amount');
+    expect(
+      (await screen.findByLabelText('amount_1 函数')).textContent,
+    ).toContain('求和');
   });
 
   it('picks the metric shape each field can support', async () => {

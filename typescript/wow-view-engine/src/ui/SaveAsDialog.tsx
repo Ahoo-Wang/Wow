@@ -34,6 +34,7 @@ import {
 import { Input } from './components/input.js';
 import { RadioGroup, RadioGroupItem } from './components/radio-group.js';
 import { Spinner } from './components/spinner.js';
+import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { DialogContent } from './popups.js';
 
@@ -50,8 +51,8 @@ export interface SaveAsDialogProps {
 /** One audience on offer, still unworded: the catalogue says all of it. */
 interface ScopeChoice {
   value: ViewAudience;
-  labelKey: string;
-  descriptionKey: string;
+  labelKey: MessageKey;
+  descriptionKey: MessageKey;
 }
 
 const SCOPES: readonly ScopeChoice[] = [

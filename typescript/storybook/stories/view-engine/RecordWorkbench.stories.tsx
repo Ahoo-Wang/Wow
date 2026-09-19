@@ -12,7 +12,7 @@
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { RecordActionSlots } from '@ahoo-wang/fetcher-view-engine/react';
-import { RecordWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import { RecordWorkbench, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 // View Engine's own button, so the host's commands sit in its toolbar rather
 // than beside it — exactly what an application does with the action slots.
 import { Button } from '@/ui/components/button';
@@ -36,6 +36,7 @@ function RecordWorkbenchDemo({
   instanceId,
   broken = false,
   withActions = false,
+  localized = false,
 }: {
   behaviour?: SourceBehaviour;
   instanceId?: string;
@@ -43,6 +44,8 @@ function RecordWorkbenchDemo({
   broken?: boolean;
   /** Fills the three action slots, the way a business page would. */
   withActions?: boolean;
+  /** Hands the workbench the shipped Chinese catalogue. */
+  localized?: boolean;
 }) {
   return (
     <StoryEngine
@@ -69,6 +72,7 @@ function RecordWorkbenchDemo({
           definitionId="orders"
           instanceId={instanceId ?? savedViews[0].id}
           actions={withActions ? businessActions : undefined}
+          messages={localized ? zhCN : undefined}
         />
       )}
     </StoryEngine>
@@ -150,6 +154,7 @@ const meta = {
     broken: { table: { disable: true } },
     instanceId: { table: { disable: true } },
     withActions: { table: { disable: true } },
+    localized: { table: { disable: true } },
   },
 } satisfies Meta<typeof RecordWorkbenchDemo>;
 
@@ -187,3 +192,9 @@ export const WithActions: Story = { args: { withActions: true } };
  * heading — every button is there only where the store permits it.
  */
 export const ManageViews: Story = { args: { behaviour: 'data' } };
+
+/**
+ * 中文文案。包里带了 `zhCN`，宿主把它交给 `messages` 就换掉整面的措辞；要改其
+ * 中几句，铺开再覆盖：`{ ...zhCN, 'label.filter.apply': '确定' }`。
+ */
+export const Localized: Story = { args: { localized: true } };

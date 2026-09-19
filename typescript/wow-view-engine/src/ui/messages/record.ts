@@ -1,0 +1,75 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/** The record view: its layouts, toolbar, paging, rows and summaries. */
+export const recordMessages = {
+  // Layout switches.
+  'label.layout.table': 'Table',
+  'label.layout.chart': 'Chart',
+  'label.layout.cards': 'Cards',
+
+  // The record toolbar. `label.toolbar.page` is the count-less form a cursor
+  // view gets: a total it never asked for cannot be shown.
+  'label.toolbar.layout': 'Layout',
+  'label.toolbar.columns': 'Columns',
+  'label.toolbar.refresh': 'Refresh',
+  'label.toolbar.selected': '{count} selected',
+  'label.toolbar.clear-selection': 'Clear selection',
+  'label.toolbar.actions': 'Actions',
+  'label.toolbar.page': 'Page {index}',
+  'label.toolbar.page-of': 'Page {index} of {pages}',
+  'label.toolbar.previous': 'Previous page',
+  'label.toolbar.next': 'Next page',
+
+  // Paging counts. A total comes from the query and a cursor view has none,
+  // so the two halves are worded apart and shown apart.
+  'label.pagination.total': '{total} in all',
+  'label.pagination.on-page': '{count} on this page',
+  'label.pagination.page-size': 'Rows per page',
+
+  // The record view itself.
+  'label.record.empty': 'Nothing to show',
+  'label.record.empty-hint': 'No record matches the current conditions.',
+  'label.record.select-all': 'Select all rows',
+  'label.record.select': 'Select {key}',
+  'label.summary.of': '{fn} of {field}',
+  'label.value.yes': 'Yes',
+  'label.value.no': 'No',
+
+  // A summary's scope belongs on screen: a total comes from its own query
+  // over everything the conditions match, a page total only from the rows
+  // in front of you, and the two are not interchangeable.
+  'label.summary.total': 'Total',
+  'label.summary.page': 'This page',
+  'label.summary.unavailable': '—',
+
+  // Record kernel.
+  'record.capability.missing':
+    '{definition} does not offer a record view any more.',
+  'record.card.invalid': 'The card settings could not be read.',
+  'record.column.duplicate': 'The column {field} is listed twice.',
+  'record.field.not-a-column':
+    '{field} is a search or metadata handle, not something a row holds.',
+  'record.field.unknown': 'The column {field} no longer exists.',
+  'record.layout.unsupported': 'The {layout} layout is not available here.',
+  'record.pageSize.not-positive': 'The page size must be a positive number.',
+  'record.pageSize.too-large': 'The page size cannot exceed {max}.',
+  'record.sort.duplicate': 'The sort already orders by {field}.',
+  'record.sort.invalid': 'The sort settings could not be read.',
+  'record.sort.not-sortable': '{field} cannot be sorted on.',
+  'record.sort.too-many': 'A cursor view sorts on at most {max} fields.',
+  'record.summaries.invalid': 'The summary settings could not be read.',
+  'record.summary.duplicate': 'The {fn} summary of {field} is listed twice.',
+  'record.summary.unsupported': '{field} does not offer the {fn} summary.',
+  'record.table.invalid': 'The table settings could not be read.',
+} as const satisfies Record<string, string>;

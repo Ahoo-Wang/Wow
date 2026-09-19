@@ -35,6 +35,7 @@ import { Spinner } from './components/spinner.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
 import { GroupedMenu } from './FieldMenu.js';
 import { DropdownMenuContent } from './popups.js';
+import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
 
 export interface ResultToolbarProps {
@@ -58,7 +59,7 @@ export interface ResultToolbarProps {
 }
 
 /** Wording per layout, so an unhandled one cannot be silently unlabelled. */
-const LAYOUT_LABEL: Record<RecordLayout, string> = {
+const LAYOUT_LABEL: Record<RecordLayout, MessageKey> = {
   table: 'label.layout.table',
   card: 'label.layout.cards',
 };

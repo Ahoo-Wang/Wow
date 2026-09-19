@@ -18,6 +18,7 @@ import {
   formatIssue,
   formatIssues,
   formatMessage,
+  type MessageKey,
   type ViewMessages,
 } from './messages.js';
 
@@ -75,8 +76,12 @@ export interface MessageFormatters {
    * an operator reads acceptably as `between` without a catalogue entry and
    * not at all as `ids`, so the catalogue names the ones worth naming and the
    * rest fall back rather than printing their key.
+   *
+   * The key is one this package ships (`MessageKey`), so a component cannot
+   * ask for wording the catalogue does not carry. A host's own keys are read
+   * by the host, from its own map, not through here.
    */
-  label(key: string, params?: Issue['params'], fallback?: string): string;
+  label(key: MessageKey, params?: Issue['params'], fallback?: string): string;
   issue(found: Issue): string;
   issues(found: readonly Issue[]): string;
 }

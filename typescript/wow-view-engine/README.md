@@ -333,22 +333,24 @@ The package ships `MemoryViewStore` for tests, examples and query-only use. Busi
 
 ### Wording and language
 
-The model carries `code` and `params` and no copy, so `/ui` owns the words. `defaultMessages` gives every issue an English sentence, and `messages` — on `ViewSurface` and on every workbench — is merged over the wording already in force, the same seam for rewording and translation. A `MessagesProvider` around the application sets it once for every view inside.
+The model carries `code` and `params` and no copy, so `/ui` owns the words. `defaultMessages` (`en`) gives every issue an English sentence, and `messages` — on `ViewSurface` and on every workbench — is merged over the wording already in force, the same seam for rewording and translation. A `MessagesProvider` around the application sets it once for every view inside. `zhCN` is a second catalogue, key for key: hand it over whole, or spread it and change what you like (`{ ...zhCN, 'label.filter.apply': '确定' }`).
 
 Values show as their fields say: an enum by its option's label, a `datetime` or a `date` through `Intl.DateTimeFormat`, a date-histogram key as the year, quarter, month or day it starts. `locale` is the language they show in, the runtime's when left out; it is the same choice as `messages`, made for values rather than words:
 
 ```tsx
+import { RecordWorkbench, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+
 <RecordWorkbench
   engine={engine}
   definitionId="orders"
-  messages={{ 'label.filter.apply': '应用' }}
+  messages={{ ...zhCN, 'label.filter.apply': '确定' }}
   locale="zh-CN"
-/>
+/>;
 ```
 
 Times read on the engine's clock, `environment.timeZone`: the zone "today" is resolved in, and the one a date histogram that names no `timeZone` is bucketed in, so a row shows the time it was filtered and grouped by.
 
-An unknown key falls back along the dots and then to the key itself, so a gap shows up rather than rendering blank. A test fails when a new issue code has no entry.
+An unknown key falls back along the dots and then to the key itself, so a gap shows up rather than rendering blank. A test fails when a new issue code has no entry. What a component may ask for is the `MessageKey` union, so a key the catalogue dropped is a compile error; a host's own `messages` stays an open string map.
 
 ## Extension points
 

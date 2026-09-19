@@ -16,6 +16,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cleanup, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import {
+  AggregationFunction,
+  AggregationGroupType,
+  FilterOperator,
+} from '@ahoo-wang/fetcher-wow';
+import { CHART_TYPES } from '../src/index.js';
 import type { FilterValue, ViewInstanceSummary } from '../src/index.js';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
 import type {
@@ -24,6 +30,7 @@ import type {
 } from '../src/react/index.js';
 import {
   defaultMessages,
+  en,
   FilterValueEditor,
   formatIssue,
   formatIssues,
@@ -33,6 +40,7 @@ import {
   useViewMessages,
   ViewList,
   ViewSurface,
+  zhCN,
 } from '../src/ui/index.js';
 
 afterEach(cleanup);
@@ -76,6 +84,124 @@ describe('the message catalogue', () => {
     expect(defaultMessages['record.summary.unsupported']).toBe(
       '{field} does not offer the {fn} summary.',
     );
+  });
+
+  it('is what the default wording is', () => {
+    // The split is by prefix family; the English catalogue is only the
+    // composition of those files, and nothing else may slip in.
+    expect(defaultMessages).toBe(en);
+  });
+});
+
+/**
+ * The second catalogue, which is what makes the first one a catalogue rather
+ * than a habit. `zhCN` is typed `Record<MessageKey, string>`, so a missing or
+ * misspelt key already fails `tsc`; these two say the same in the suite, and
+ * catch the half of it a type cannot see — a sentence that dropped a value.
+ */
+describe('the Chinese catalogue', () => {
+  it('names exactly the keys the English one does', () => {
+    expect(Object.keys(zhCN).sort()).toEqual(Object.keys(en).sort());
+  });
+
+  it('keeps every placeholder its English sentence carries', () => {
+    const placeholders = (sentence: string): string[] =>
+      [...sentence.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort();
+
+    const dropped = Object.entries(en).flatMap(([key, english]) => {
+      const mine = new Set(placeholders(zhCN[key] ?? ''));
+      const lost = placeholders(english).filter(name => !mine.has(name));
+      return lost.length === 0 ? [] : [`${key}: ${lost.join(', ')}`];
+    });
+
+    expect(dropped).toEqual([]);
+  });
+
+  it('is translated, not copied', () => {
+    expect(zhCN['label.filter.apply']).toBe('应用');
+    expect(zhCN['label.save.save-as']).toBe('另存为');
+    expect(zhCN['record.summary.unsupported']).toBe(
+      '{field} 不提供 {fn} 汇总。',
+    );
+  });
+
+  it('serves a component through the provider', () => {
+    render(
+      <MessagesProvider messages={zhCN}>
+        <Probe />
+      </MessagesProvider>,
+    );
+
+    expect(screen.getByText('还没有面板')).toBeTruthy();
+  });
+
+  it('is a base a host composes its own wording onto', () => {
+    const { result } = renderHook(() => useViewMessages(), {
+      wrapper: ({ children }) => (
+        <MessagesProvider messages={{ ...zhCN, 'label.filter.apply': '确定' }}>
+          {children}
+        </MessagesProvider>
+      ),
+    });
+
+    expect(result.current.label('label.filter.apply')).toBe('确定');
+    expect(result.current.label('label.filter.clear')).toBe('清空');
+  });
+});
+
+/**
+ * The enums a control puts in front of a reader.
+ *
+ * Each of these was named in part or not at all, on the grounds that `EQ`,
+ * `bar` and `sum` read acceptably derived from the identifier. They do, in
+ * English; `messages={zhCN}` then had no key to hang a Chinese word on and
+ * the operator select and the whole analysis editor stayed in English. A
+ * closed set is named in full or it is not translatable, and these walk the
+ * enums rather than repeating a list that could drift behind them.
+ */
+describe('the closed enums a control offers', () => {
+  const missing = (keys: readonly string[]) => [
+    ...keys.filter(key => !(key in en)).map(key => `en: ${key}`),
+    ...keys.filter(key => !(key in zhCN)).map(key => `zhCN: ${key}`),
+  ];
+
+  it('names every filter operator', () => {
+    const keys = Object.values(FilterOperator).map(
+      operator => `label.operator.${operator}`,
+    );
+
+    expect(missing(keys)).toEqual([]);
+  });
+
+  it('names every chart type', () => {
+    expect(
+      missing(CHART_TYPES.map(type => `label.chart.type.${type}`)),
+    ).toEqual([]);
+  });
+
+  it('names every grouping and every aggregation function', () => {
+    expect(
+      missing([
+        ...Object.values(AggregationGroupType).map(
+          type => `label.group.type.${type}`,
+        ),
+        ...Object.values(AggregationFunction).map(
+          fn => `label.metric.function.${fn}`,
+        ),
+      ]),
+    ).toEqual([]);
+  });
+
+  /**
+   * The English half of the same bargain: naming what a component derived
+   * must not reword it, or every English test and screenshot moves with it.
+   */
+  it('keeps the spelling the editor used to derive', () => {
+    expect(en['label.operator.EQ']).toBe('eq');
+    expect(en['label.operator.BETWEEN']).toBe('between');
+    expect(en['label.chart.type.bar']).toBe('bar');
+    expect(en['label.group.type.DATE_HISTOGRAM']).toBe('date histogram');
+    expect(en['label.metric.function.SUM']).toBe('sum');
   });
 });
 

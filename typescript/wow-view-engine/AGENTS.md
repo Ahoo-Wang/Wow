@@ -204,7 +204,12 @@ src/
     ViewList.tsx, ViewSurface.tsx, EmbeddedView.tsx
     kinds.ts                      — The icon each kind and audience wears, shared by list and header
     describeConfig.ts             — One config in a sentence, for a conflict's side-by-side
-    messages.ts, MessagesProvider.tsx   — wording by key, overridable
+    messages.ts, MessagesProvider.tsx   — wording by key, overridable; `MessageKey` is the union
+    messages/                     — the catalogue, one file per prefix family
+      en.ts                         — the English catalogue: the files below, spread
+      zh-CN.ts                      — `zhCN`, the same keys in 简体中文
+      save.ts, header.ts, record.ts, filter.ts, config.ts, scope.ts,
+      view.ts, manage.ts, analysis.ts, dashboard.ts, status.ts, definition.ts
     display.ts                    — A value as its field shows it: enum labels, dates, bucket keys
     index.ts
     components/                   — 24 shadcn/ui primitives — vendored, see below

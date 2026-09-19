@@ -244,7 +244,12 @@ function ChartTypeSelect({
   disabled?: boolean;
 }) {
   const messages = useViewMessages();
-  const items = CHART_TYPES.map(type => ({ label: type, value: type }));
+  // `CHART_TYPES` is this package's own constant, so every member is named in
+  // the catalogue and none of these can fall back.
+  const items = CHART_TYPES.map(type => ({
+    label: messages.label(`label.chart.type.${type}`),
+    value: type,
+  }));
   return (
     <Select
       items={items}
@@ -286,8 +291,15 @@ function GroupRow({
 }) {
   const messages = useViewMessages();
   const field = analysis.fields.find(entry => entry.field === group.field);
+  // What a definition declares it can group by. The catalogue names every
+  // member of the enum; the derived spelling stays as the fallback because
+  // this list comes from a host's capability data rather than from here.
   const types = (field?.groups ?? []).map(type => ({
-    label: type.split('_').join(' ').toLowerCase(),
+    label: messages.label(
+      `label.group.type.${type}`,
+      undefined,
+      type.split('_').join(' ').toLowerCase(),
+    ),
     value: type,
   }));
 
@@ -353,7 +365,11 @@ function MetricRow({
   const field = fieldOfMetric(metric);
   const option = analysis.fields.find(entry => entry.field === field);
   const functions = (option?.functions ?? []).map(name => ({
-    label: name.toLowerCase(),
+    label: messages.label(
+      `label.metric.function.${name}`,
+      undefined,
+      name.toLowerCase(),
+    ),
     value: name,
   }));
 

@@ -1,0 +1,59 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Definition admission.
+ *
+ * A definition is code, so these are read by whoever wrote the release rather
+ * than by the person using the view — they name the declaration at fault.
+ */
+export const definitionMessages = {
+  'definition.field.search-fields-unknown':
+    '{field} searches {missing}, which the definition does not declare.',
+  'definition.field.search-mode-invalid':
+    '{field} declares an unknown search mode: {value}.',
+  'definition.analysis.default-limit-too-large':
+    'The default row limit exceeds the maximum.',
+  'definition.analysis.element-field-unknown':
+    '{path} declares no field named {field}.',
+  'definition.analysis.element-undeclared':
+    'The analysis expands {path}, which is not a field holding elements.',
+  'definition.analysis.element-path-invalid':
+    '{path} is not a usable field path.',
+  'definition.analysis.field-unknown':
+    'The analysis capability names {field}, which the definition does not declare.',
+  'definition.analysis.limit-invalid':
+    'An analysis limit must be a positive whole number.',
+  'definition.analysis.no-metric':
+    'The analysis capability offers no metric to start from.',
+  'definition.field.duplicate': 'The field {field} is declared twice.',
+  'definition.fieldGroup.duplicate': 'The group {group} is declared twice.',
+  'definition.fieldGroup.field-duplicate':
+    'The group {group} lists {field}, which is already listed under another group.',
+  'definition.fieldGroup.field-unknown':
+    'The group {group} lists {field}, which the definition does not declare.',
+  'definition.fieldGroup.invalid': 'A field group needs an id and a label.',
+  'definition.field.string-comparison-invalid':
+    '{field} declares an unknown text comparison: {value}.',
+  'definition.field.kind-unregistered':
+    '{field} uses the unregistered type {kind}.',
+  'definition.field.name-invalid': '{field} is not a usable field name.',
+  'definition.id.separator': 'A definition id cannot contain {separator}.',
+  'definition.record.layouts-empty': 'The record capability offers no layout.',
+  'definition.record.row-key-unknown':
+    'The row key {field} is not a declared field.',
+  'definition.view.id-duplicate': 'Two views share the id {id}.',
+  'definition.view.id-separator': 'A view id cannot contain {separator}.',
+  'definition.view.kind-mismatch':
+    'A {kind} view does not belong to a {definition} definition.',
+} as const satisfies Record<string, string>;

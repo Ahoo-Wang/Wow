@@ -12,11 +12,12 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { defaultMessages } from '@ahoo-wang/fetcher-view-engine/ui';
+import { defaultMessages, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   CannotOpen as DisplayCannotOpen,
   EmptyResult as DisplayEmptyResult,
   Loading as DisplayLoading,
+  Localized as DisplayLocalized,
   ManageViews as DisplayManageViews,
   NeedsFixing as DisplayNeedsFixing,
   QueryFailed as DisplayQueryFailed,
@@ -316,6 +317,39 @@ export const CannotOpen: Story = {
     await expect(
       await within(canvasElement).findByRole('alert'),
     ).toHaveTextContent(defaultMessages['label.view.unopenable']);
+  },
+};
+
+/**
+ * The shipped Chinese catalogue, handed to the workbench the way a host does.
+ * The stories above assert the English wording, so this one is separate: it
+ * says the same screen reads in Chinese when `messages` says so.
+ */
+export const Localized: Story = {
+  ...DisplayLocalized,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+
+    // The audience tag and the fold above the rows, both from the catalogue.
+    await expect(
+      canvasElement.querySelector<HTMLElement>('[data-slot="view-header"]'),
+    ).toHaveTextContent(zhCN['label.scope.tag.shared']);
+    await expect(
+      canvas.getByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByRole('button', { name: zhCN['label.toolbar.refresh'] }),
+    ).toBeVisible();
+
+    // And nothing is left in English behind it.
+    await expect(
+      canvas.queryByRole('button', {
+        name: defaultMessages['label.toolbar.refresh'],
+      }),
+    ).toBeNull();
   },
 };
 

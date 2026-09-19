@@ -11,7 +11,10 @@
 ## 措辞与 MessagesProvider
 
 - 措辞在 `ui/`：`model` 只带 `code` 与 `params`，`ui/messages.ts` 给出每个 code 的英文句子，`ViewSurface` 与四个工作台（`RecordWorkbench`、`AnalysisWorkbench`、`DashboardWorkbench`、`EmbeddedView`）的 `messages` 属性按 key 覆盖，这也是本地化的入口。每层 `MessagesProvider` 合并在上一层之上而不是默认值之上，应用在外层设一次，面里面仍然生效；
-- 工作台自己的提示渲染在它所画的面之外，所以用 `useViewMessages(messages)` 读同一份合并结果。缺失的 key 沿点号回退到最长的已知前缀（`/react` 把命令与 store 结果拼成 `view.open.failed.not_found` 这类 code），再退回 key 本身，因此永远不会渲染空白。`test/messages.test.tsx` 扫描源码里所有 `issue(...)` 的 code，少一条就失败——否则 `record.summary.unsupported` 这样的键会直接出现在界面上。（见 test/messages.test.tsx「the message catalogue」「components write no copy of their own」）
+- 目录按前缀分文件放在 `ui/messages/`（`save`、`header`、`record`、`filter`、`config`、`scope`、`view`、`manage`、`analysis`、`dashboard`、`status`、`definition`），每个文件 `as const satisfies Record<string, string>`，`messages/en.ts` 把它们铺成英文目录——一份平铺的目录看不出哪些键还活着。`ui/messages.ts` 仍是所有组件 import 的那一个模块，它组合这些文件，并导出 `ViewMessages`、`defaultMessages`、三个格式化函数与前缀回退；
+- **key 是类型**：`MessageKey = keyof typeof en`，`MessageFormatters.label(key, params?, fallback?)` 只收它，所以删掉一个键或拼错一个键是编译错误而不是屏幕上的一行 code。由运行时值拼出的 key 走收紧后的源类型（`ViewKind`、`ViewAudience`、`RecordLayout`、`DateShape` 都是闭合联合，模板字面量因此可判）。界面上能选的闭合枚举一律整套命名，不留派生拼写：`label.operator.*` 覆盖 `FilterOperator` 全部成员（`operatorKey()` 只是把这个家族拼一次，不再有断言），`label.chart.type.*`、`label.group.type.*`、`label.metric.function.*` 同理——目录只命名一半的集合根本没法翻译，`messages={zhCN}` 时下拉里照样是 `eq`、`between`、`date histogram`。派生拼写只作为宿主能力数据给出未知成员时的兜底，`test/messages.test.tsx` 按枚举逐个核对，缺一个就失败。全包已无 `MessageKey` 断言；
+- 宿主的覆盖仍是 `Readonly<Record<string, string>>`：宿主可以放自己的 key，本包从不读它不认识的 key。包里带第二份目录 `zhCN`（`ui/messages/zh-CN.ts`，类型是 `satisfies Record<MessageKey, string>`，少一键多一键都编译不过），与 `en` 一同从 `/ui` 导出；宿主整份交出去，或者铺开再覆盖几句：`messages={{ ...zhCN, 'label.x': '…' }}`。zh-CN 是没有任何组件 import 的叶子模块，只引组件的打包不会把它带进去；
+- 工作台自己的提示渲染在它所画的面之外，所以用 `useViewMessages(messages)` 读同一份合并结果。缺失的 key 沿点号回退到最长的已知前缀（`/react` 把命令与 store 结果拼成 `view.open.failed.not_found` 这类 code），再退回 key 本身，因此永远不会渲染空白。`test/messages.test.tsx` 扫描源码里所有 `issue(...)` 的 code，少一条就失败——否则 `record.summary.unsupported` 这样的键会直接出现在界面上；同一份测试断言 `Object.keys(zhCN)` 与 `Object.keys(en)` 相同，且英文句子里的每个 `{param}` 在中文里也在。（见 test/messages.test.tsx「the message catalogue」「the Chinese catalogue」「components write no copy of their own」）
 
 ## 两级 severity 与 StatusStrip
 

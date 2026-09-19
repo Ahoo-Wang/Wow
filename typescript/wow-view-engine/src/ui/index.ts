@@ -32,6 +32,11 @@ export * from './EditorBand.js';
 export * from './EmbeddedView.js';
 export * from './FilterPanel.js';
 export * from './messages.js';
+// The catalogues ship beside the formatters so a host can compose one:
+// `{ ...zhCN, 'label.filter.apply': '确定' }`. `zh-CN` is a leaf module no
+// component imports, so a bundle that only pulls in components drops it.
+export * from './messages/en.js';
+export * from './messages/zh-CN.js';
 export * from './MessagesProvider.js';
 export * from './FilterValueEditor.js';
 export * from './kinds.js';
