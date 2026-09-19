@@ -29,6 +29,43 @@ export const reactLintConfig = {
   },
 };
 
+/** 只数代码行：跳过空行与注释，绊线量的是代码，不是本包偏长的 why-注释。 */
+const countCode = { skipBlankLines: true, skipComments: true };
+
+/**
+ * 豁免上限 = 实测代码行 × 1.1，向上取到十位。
+ *
+ * 不钉死在实测值：改个 bug 多两行不该把 CI 打红。也不给更多：10% 只够维护，
+ * 攒不回一个新主题，而且拆完一轮要重新实测、重新收紧。
+ */
+const withMargin = lines => Math.ceil((lines * 1.1) / 10) * 10;
+
+/**
+ * 绊线管辖内、当下就超阈值的文件，`lines` 是本次实测的代码行数。
+ * 每条都在 `docs/design/todo.md` 的「`max-lines` 存量豁免」里有对应的拆分项——
+ * 拆到阈值以内后，连同那一条一起删掉。
+ */
+const maxLinesWaivers = [
+  // 骨架、预算、别名、元素域、指标、having、排序七套规则一个文件 —— todo.md「R8」
+  { file: 'src/analysis/validate.ts', lines: 701 },
+  // 抽走 writeLedger 之后仍是注册表 + 打开/创建 + 偏好缓存 —— todo.md「R9」
+  { file: 'src/runtime/viewEngine.ts', lines: 635 },
+  // 六个图表家族的渲染器与调色、坐标轴工具同居一处 —— todo.md「R10」
+  { file: 'src/ui/AnalysisChart.tsx', lines: 599 },
+  // 子运行时编排、轮询调度、全局筛选注入合在一个类里 —— todo.md「R11」
+  { file: 'src/runtime/dashboardRuntime.ts', lines: 511 },
+  // 十个顶层 describe，从 defaults 一路盖到图表投影 —— todo.md「R12」
+  { file: 'test/analysis.test.ts', lines: 1882 },
+  // 十一个钩子的套件挤在一个文件里 —— todo.md「R13」
+  { file: 'test/reactHooks.test.tsx', lines: 1766 },
+  // 校验、编译、时间、描述、树编辑五个主题一个文件 —— todo.md「R14」
+  { file: 'test/filter.test.ts', lines: 1467 },
+  // 渲染、交互、保存、视图管理、布局五个主题一个文件 —— todo.md「R15」
+  { file: 'test/recordWorkbench.test.tsx', lines: 1254 },
+  // 编辑器、图表、指标卡三套 UI 一个文件，只超线十二行 —— todo.md「R16」
+  { file: 'test/analysisUi.test.tsx', lines: 1212 },
+];
+
 export default tseslint.config(
   {
     // src/ui/components 与 src/ui/lib 是 shadcn 注册表源码，由 `shadcn add --diff`
@@ -90,4 +127,26 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-assignment': 'off',
     },
   },
+  {
+    // 绊线：拆开的文件不许长回去。vendored 的 src/ui/components、src/ui/lib 已由顶部
+    // ignores 排除；src/ui/messages/ 是纯文案目录，一份译文天然就长，不该被行数管。
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/ui/messages/**'],
+    rules: {
+      'max-lines': ['error', { max: 500, ...countCode }],
+    },
+  },
+  {
+    // 测试按主题分文件，上限放宽到 1200：够写一个主题，不够再攒回四千行。
+    files: ['test/**/*.{ts,tsx}'],
+    rules: {
+      'max-lines': ['error', { max: 1200, ...countCode }],
+    },
+  },
+  ...maxLinesWaivers.map(({ file, lines }) => ({
+    files: [file],
+    rules: {
+      'max-lines': ['error', { max: withMargin(lines), ...countCode }],
+    },
+  })),
 );
