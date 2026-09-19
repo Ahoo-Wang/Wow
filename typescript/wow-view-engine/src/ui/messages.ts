@@ -100,6 +100,7 @@ export const defaultMessages: ViewMessages = Object.freeze({
     'It disappears for everyone who can see it. This cannot be undone.',
   'label.delete.keep': 'Keep it',
   'label.dialog.cancel': 'Cancel',
+  'label.dialog.close': 'Close',
   'label.save-as.heading': 'Save as a new view',
   'label.save-as.description': 'The view you are looking at stays as it is.',
   'label.rename.heading': 'Rename this view',

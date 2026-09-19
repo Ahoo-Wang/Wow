@@ -11,10 +11,18 @@
  * limitations under the License.
  */
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
+import { Dialog, DialogTitle } from '../src/ui/components/dialog.js';
+import { DialogContent } from '../src/ui/popups.js';
 import { FilterPanel, ViewSurface } from '../src/ui/index.js';
 import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
 
@@ -113,5 +121,60 @@ describe('popups carry the theme out of the root', () => {
     expect((await openAddPopup('light'))?.getAttribute('data-theme')).toBe(
       'light',
     );
+  });
+});
+
+/**
+ * A dialog portals two elements, not one. The backdrop is the popup's
+ * sibling, so it needs the root class in its own right: the built stylesheet
+ * is scoped to `:where(.fve-root, .fve-root *)`, and a backdrop outside every
+ * root keeps none of its utilities — the dialog would open over an undimmed
+ * page.
+ */
+describe('a dialog themes its backdrop as well as its surface', () => {
+  function openDialog(theme: 'light' | 'dark') {
+    render(
+      <ViewSurface theme={theme}>
+        <Dialog defaultOpen>
+          <DialogContent>
+            <DialogTitle>Confirm</DialogTitle>
+          </DialogContent>
+        </Dialog>
+      </ViewSurface>,
+    );
+  }
+
+  it('puts the root class and the surface theme on the backdrop', async () => {
+    openDialog('dark');
+
+    const surface = await screen.findByRole('dialog');
+    const backdrop = document.querySelector('[data-slot="dialog-overlay"]');
+
+    expect(backdrop?.classList.contains('fve-root')).toBe(true);
+    expect(backdrop?.getAttribute('data-theme')).toBe('dark');
+    // The same mode as the surface it dims, and outside the view surface —
+    // both are portalled, which is why neither inherits the root.
+    expect(surface.getAttribute('data-theme')).toBe('dark');
+    expect(surface.classList.contains('fve-root')).toBe(true);
+    expect(backdrop?.closest('[data-slot="view-surface"]')).toBeNull();
+  });
+
+  it('keeps the vendored popup classes on the surface', async () => {
+    openDialog('light');
+
+    const surface = await screen.findByRole('dialog');
+
+    expect(surface.classList.contains('bg-popover')).toBe(true);
+    expect(surface.getAttribute('data-slot')).toBe('dialog-content');
+  });
+
+  it('still closes from the close button', async () => {
+    openDialog('light');
+    await screen.findByRole('dialog');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.querySelector('[data-slot="dialog-overlay"]')).toBeNull();
   });
 });

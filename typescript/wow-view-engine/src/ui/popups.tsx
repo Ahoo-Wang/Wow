@@ -12,13 +12,22 @@
  */
 
 import type * as React from 'react';
+import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { cn } from 'cn';
+import { XIcon } from 'lucide-react';
+import { Button } from './components/button.js';
 import { ComboboxContent as VendoredComboboxContent } from './components/combobox.js';
-import { DialogContent as VendoredDialogContent } from './components/dialog.js';
+import {
+  DialogClose,
+  DialogOverlay,
+  DialogPortal,
+  type DialogContent as VendoredDialogContent,
+} from './components/dialog.js';
 import { DropdownMenuContent as VendoredDropdownMenuContent } from './components/dropdown-menu.js';
 import { PopoverContent as VendoredPopoverContent } from './components/popover.js';
 import { SelectContent as VendoredSelectContent } from './components/select.js';
 import { TooltipContent as VendoredTooltipContent } from './components/tooltip.js';
+import { useViewMessages } from './MessagesProvider.js';
 import { useSurfaceTheme } from './ViewSurface.js';
 
 /**
@@ -38,11 +47,16 @@ import { useSurfaceTheme } from './ViewSurface.js';
  */
 type ClassName<S> = string | ((state: S) => string | undefined) | undefined;
 
+/** A popup's own class with `base` in front, whichever form it takes. */
+function withClass<S>(base: string, className: ClassName<S>): ClassName<S> {
+  return typeof className === 'function'
+    ? (state: S) => cn(base, className(state))
+    : cn(base, className);
+}
+
 /** The popup's own class with the root's in front, whichever form it takes. */
 function themedClass<S>(className: ClassName<S>): ClassName<S> {
-  return typeof className === 'function'
-    ? (state: S) => cn('fve-root', className(state))
-    : cn('fve-root', className);
+  return withClass('fve-root', className);
 }
 
 export function ComboboxContent(
@@ -57,15 +71,64 @@ export function ComboboxContent(
   );
 }
 
-export function DialogContent(
-  props: React.ComponentProps<typeof VendoredDialogContent>,
-) {
+/** The vendored popup's classes, copied verbatim from `components/dialog.tsx`. */
+const DIALOG_POPUP_CLASS =
+  'fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
+
+/**
+ * The one popup this file composes instead of wrapping.
+ *
+ * A dialog portals two elements, not one: the backdrop is the popup's
+ * *sibling* inside the portal, so putting `fve-root` on what the vendored
+ * `DialogContent` accepts — the popup — leaves the backdrop outside every
+ * root. The build scopes the whole stylesheet to
+ * `:where(.fve-root, .fve-root *)`, so an unrooted backdrop loses every one
+ * of its utilities and paints nothing: a dialog with no dimming behind it.
+ * Wrapping cannot reach the sibling, so the markup lives here — a faithful
+ * copy of the vendored `DialogContent` — with the root class and the
+ * surface's mode on *both* portalled elements. `components/dialog.tsx` stays
+ * as the registry ships it; keep this in step when it is updated.
+ */
+export function DialogContent({
+  className,
+  children,
+  showCloseButton = true,
+  ...props
+}: React.ComponentProps<typeof VendoredDialogContent>) {
+  const theme = useSurfaceTheme();
+  const messages = useViewMessages();
   return (
-    <VendoredDialogContent
-      {...props}
-      className={themedClass(props.className)}
-      data-theme={useSurfaceTheme()}
-    />
+    <DialogPortal>
+      <DialogOverlay className="fve-root" data-theme={theme} />
+      <DialogPrimitive.Popup
+        data-slot="dialog-content"
+        {...props}
+        className={withClass(DIALOG_POPUP_CLASS, themedClass(className))}
+        data-theme={theme}
+      >
+        {children}
+        {showCloseButton && (
+          <DialogClose
+            data-slot="dialog-close"
+            render={
+              <Button
+                variant="ghost"
+                className="absolute top-2 right-2"
+                size="icon-sm"
+              />
+            }
+          >
+            <XIcon />
+            {/* The one place the copy differs from the registry's: this file
+                composes the markup now, so the label goes through the
+                catalogue like every other word this package writes. */}
+            <span className="sr-only">
+              {messages.label('label.dialog.close')}
+            </span>
+          </DialogClose>
+        )}
+      </DialogPrimitive.Popup>
+    </DialogPortal>
   );
 }
 
