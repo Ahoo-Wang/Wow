@@ -18,24 +18,32 @@ export const recordMessages = {
   'label.layout.chart': 'Chart',
   'label.layout.cards': 'Cards',
 
-  // The record toolbar. `label.toolbar.page` is the count-less form a cursor
-  // view gets: a total it never asked for cannot be shown.
+  // The record toolbar.
   'label.toolbar.layout': 'Layout',
   'label.toolbar.columns': 'Columns',
   'label.toolbar.refresh': 'Refresh',
   'label.toolbar.selected': '{count} selected',
   'label.toolbar.clear-selection': 'Clear selection',
   'label.toolbar.actions': 'Actions',
+
+  // The pagination bar under the rows. `label.toolbar.page` is the
+  // count-less form: a total the source never gave cannot be divided into
+  // pages, so the page reached is said on its own.
   'label.toolbar.page': 'Page {index}',
   'label.toolbar.page-of': 'Page {index} of {pages}',
   'label.toolbar.previous': 'Previous page',
   'label.toolbar.next': 'Next page',
 
-  // Paging counts. A total comes from the query and a cursor view has none,
-  // so the two halves are worded apart and shown apart.
-  'label.pagination.total': '{total} in all',
+  // The count the bar opens with. A total comes from the query and a cursor
+  // view has none, so the two are worded apart: with a total the bar says how
+  // many there are, and without one it says only what it can see.
+  'label.pagination.total': '{total} records in all',
   'label.pagination.on-page': '{count} on this page',
-  'label.pagination.page-size': 'Rows per page',
+  // The words before the size control and the sizes it offers. The unit
+  // rides with the number, which is what a Chinese measure word needs —
+  // `每页` + `20 条`, never `每页 20`.
+  'label.pagination.page-size': 'Per page',
+  'label.pagination.page-size-option': '{size} per page',
 
   // The record view itself.
   'label.record.empty': 'Nothing to show',

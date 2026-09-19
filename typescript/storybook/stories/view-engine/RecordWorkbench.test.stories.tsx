@@ -12,7 +12,11 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { defaultMessages, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+import {
+  defaultMessages,
+  formatMessage,
+  zhCN,
+} from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   CannotOpen as DisplayCannotOpen,
   EmptyResult as DisplayEmptyResult,
@@ -20,6 +24,7 @@ import displayMeta, {
   Localized as DisplayLocalized,
   ManageViews as DisplayManageViews,
   NeedsFixing as DisplayNeedsFixing,
+  Paged as DisplayPaged,
   QueryFailed as DisplayQueryFailed,
   WithActions as DisplayWithActions,
   WithData as DisplayWithData,
@@ -38,6 +43,14 @@ type Story = StoryObj<typeof displayMeta>;
 
 /** The shared view's condition and sort, as the source answered them. */
 const PENDING_BY_AMOUNT = ['SO-1003', 'SO-1005', 'SO-1001', 'SO-1006'];
+
+/** One catalogue sentence with its numbers filled in, as the bar writes it. */
+const say = (key: string, params: Record<string, string | number>) =>
+  formatMessage(defaultMessages, key, params);
+
+/** The bar under the rows. */
+const paginationBar = (canvasElement: HTMLElement) =>
+  canvasElement.querySelector<HTMLElement>('[data-slot="record-pagination"]')!;
 
 export const WithData: Story = {
   ...DisplayWithData,
@@ -81,11 +94,16 @@ export const WithData: Story = {
       }),
     ).toHaveTextContent('待出库');
 
-    // Paging is under the rows it pages, not in the toolbar.
-    const paging = canvasElement.querySelector<HTMLElement>(
-      '[data-slot="record-pagination"]',
+    // Paging is under the rows it pages, not in the toolbar, and it counts
+    // what the conditions select rather than what fitted on the screen.
+    const paging = paginationBar(canvasElement);
+    await expect(paging).toHaveTextContent(
+      say('label.pagination.total', { total: 4 }),
     );
-    await expect(paging).toHaveTextContent('4');
+    // Four rows at twenty a page is the whole of it, said as such.
+    await expect(paging).toHaveTextContent(
+      say('label.toolbar.page-of', { index: 1, pages: 1 }),
+    );
 
     // Opening the fold brings back the one way out of the editor.
     await userEvent.click(band);
@@ -94,6 +112,78 @@ export const WithData: Story = {
         name: defaultMessages['label.filter.apply'],
       }),
     ).toBeVisible();
+  },
+};
+
+/**
+ * The bar under the rows, on a result that has somewhere to go.
+ *
+ * It is one row: how many records there are in all on the left, and on the
+ * right how many are shown per page, which page this is, and the two steps
+ * out of it. `WithData` above only ever sees the single-page form of it.
+ */
+export const Paged: Story = {
+  ...DisplayPaged,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(['SO-1001', 'SO-1002']),
+    );
+
+    const bar = paginationBar(canvasElement);
+    // The total is every order the conditions select, not the two on screen.
+    await expect(bar).toHaveTextContent(
+      say('label.pagination.total', { total: 6 }),
+    );
+    await expect(bar).toHaveTextContent(
+      say('label.toolbar.page-of', { index: 1, pages: 3 }),
+    );
+    // The size in force is offered back with its unit attached.
+    await expect(
+      within(bar).getByRole('combobox', {
+        name: defaultMessages['label.pagination.page-size'],
+      }),
+    ).toHaveTextContent(say('label.pagination.page-size-option', { size: 2 }));
+
+    // Page one has nowhere to go back to.
+    const previous = within(bar).getByRole('button', {
+      name: defaultMessages['label.toolbar.previous'],
+    });
+    const next = within(bar).getByRole('button', {
+      name: defaultMessages['label.toolbar.next'],
+    });
+    await expect(previous).toBeDisabled();
+
+    // Forward: new rows, a new page sentence, the same total.
+    await userEvent.click(next);
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(['SO-1003', 'SO-1004']),
+    );
+    await expect(paginationBar(canvasElement)).toHaveTextContent(
+      say('label.toolbar.page-of', { index: 2, pages: 3 }),
+    );
+    await expect(paginationBar(canvasElement)).toHaveTextContent(
+      say('label.pagination.total', { total: 6 }),
+    );
+
+    // And back again, which is now open.
+    await expect(
+      within(paginationBar(canvasElement)).getByRole('button', {
+        name: defaultMessages['label.toolbar.previous'],
+      }),
+    ).toBeEnabled();
+    await userEvent.click(
+      within(paginationBar(canvasElement)).getByRole('button', {
+        name: defaultMessages['label.toolbar.previous'],
+      }),
+    );
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(['SO-1001', 'SO-1002']),
+    );
+    await expect(paginationBar(canvasElement)).toHaveTextContent(
+      say('label.toolbar.page-of', { index: 1, pages: 3 }),
+    );
   },
 };
 
@@ -343,6 +433,20 @@ export const Localized: Story = {
     await expect(
       canvas.getByRole('button', { name: zhCN['label.toolbar.refresh'] }),
     ).toBeVisible();
+
+    // The bar under the rows, where the measure word has to ride with the
+    // number: `共 4 条记录`, and `每页` beside `20 条` rather than `每页 20`.
+    const bar = paginationBar(canvasElement);
+    await expect(bar).toHaveTextContent(
+      formatMessage(zhCN, 'label.pagination.total', { total: 4 }),
+    );
+    await expect(
+      within(bar).getByRole('combobox', {
+        name: zhCN['label.pagination.page-size'],
+      }),
+    ).toHaveTextContent(
+      formatMessage(zhCN, 'label.pagination.page-size-option', { size: 20 }),
+    );
 
     // And nothing is left in English behind it.
     await expect(

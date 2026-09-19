@@ -22,6 +22,7 @@ import {
 import {
   AnalysisWorkbench,
   DashboardWorkbench,
+  RecordPagination,
   RecordWorkbench,
   ViewSurface,
 } from '../src/ui/index.js';
@@ -33,6 +34,7 @@ import {
   recordConfig,
   testSource,
 } from './fixtures.js';
+import { recordTableController } from './fixtures/ui.js';
 
 /**
  * Axe over the three default workbenches.
@@ -214,6 +216,30 @@ describe('the default workbenches pass axe', () => {
 
     // The drag grip is the reason this test exists: an `aria-label` on a bare
     // span is a prohibited attribute, and only a browser or axe reports it.
+    expect(await violations(container)).toEqual([]);
+  });
+
+  /**
+   * The pagination bar on its own, on a page in the middle so that every
+   * control it can draw is drawn and live.
+   *
+   * The workbench case above only ever reaches the bar's first page, where
+   * both the empty-result rule and a disabled Previous hide half of it. This
+   * one is where the size control's name is checked — it is labelled by the
+   * words beside it, and an `aria-labelledby` that addresses nothing is a
+   * broken name rather than a missing one, which axe is the thing that sees.
+   */
+  it('the pagination bar, mid-way through a paged result', async () => {
+    const { container } = render(
+      <ViewSurface>
+        <RecordPagination
+          table={recordTableController({
+            paging: { mode: 'paged', index: 2, total: 42 },
+          })}
+        />
+      </ViewSurface>,
+    );
+
     expect(await violations(container)).toEqual([]);
   });
 });

@@ -19,6 +19,7 @@
 
 import { MemoryViewStore, ViewEngine } from '../../src/index.js';
 import type { ViewInstance, ViewSource } from '../../src/index.js';
+import type { RecordTableController } from '../../src/react/index.js';
 import { ordersDefinition, recordConfig, testSource } from '../fixtures.js';
 
 export const mine: ViewInstance = {
@@ -44,6 +45,60 @@ export const mixed: ViewInstance = {
     },
   }),
 };
+
+/**
+ * A settled record table on the first of three pages, for the suites that
+ * open one component on its own rather than a whole workbench. Every state
+ * the bar and the table have is this one with an override or two.
+ */
+export function recordTableController(
+  overrides: Partial<RecordTableController> = {},
+): RecordTableController {
+  return {
+    columns: [
+      {
+        field: 'amount',
+        label: 'Amount',
+        kind: 'number',
+        cell: 'number',
+        sortable: false,
+      },
+    ],
+    card: { title: 'amount', fields: [] },
+    rows: [
+      { key: 'o-1', data: { amount: 1 } },
+      { key: 'o-2', data: { amount: 2 } },
+    ],
+    paging: { mode: 'paged', index: 1, total: 42 },
+    summaries: null,
+    status: 'success',
+    error: null,
+    loading: false,
+    sort: [],
+    sortOf: () => null,
+    toggleSort: () => {},
+    layout: 'table',
+    layouts: ['table', 'card'],
+    setLayout: () => {},
+    columnFields: ['amount'],
+    setColumns: () => {},
+    pageSize: 20,
+    pageSizes: [10, 20, 50, 100],
+    setPageSize: () => {},
+    selection: [],
+    selectedRows: [],
+    isSelected: () => false,
+    toggle: () => {},
+    toggleAll: () => {},
+    clearSelection: () => {},
+    goTo: () => {},
+    hasNext: true,
+    next: () => {},
+    previous: () => {},
+    refresh: () => {},
+    ...overrides,
+  };
+}
 
 export function setup(source: ViewSource = testSource()) {
   const store = new MemoryViewStore({ instances: [mine] });

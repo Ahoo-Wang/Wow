@@ -31,10 +31,25 @@ import '@ahoo-wang/fetcher-view-engine/styles.css';
  * what the backend does or from what the saved config says, so a story sets
  * one of those two and changes nothing else.
  */
+/**
+ * Six orders two at a time, oldest first: the one scenario where the bar
+ * under the rows has somewhere to go. The saved size is below the offered
+ * ladder, so the control also shows a size folding into it.
+ */
+const pagedView = {
+  ...savedViews[0],
+  title: '逐页翻看',
+  config: recordConfig({
+    pageSize: 2,
+    sort: [{ field: 'createdAt', direction: 'ASC' as const }],
+  }),
+};
+
 function RecordWorkbenchDemo({
   behaviour = 'data',
   instanceId,
   broken = false,
+  paged = false,
   withActions = false,
   localized = false,
 }: {
@@ -42,6 +57,8 @@ function RecordWorkbenchDemo({
   instanceId?: string;
   /** Saves a config the definition no longer accepts, to show "needs fixing". */
   broken?: boolean;
+  /** Saves a page size small enough that the result spans several pages. */
+  paged?: boolean;
   /** Fills the three action slots, the way a business page would. */
   withActions?: boolean;
   /** Hands the workbench the shipped Chinese catalogue. */
@@ -62,7 +79,9 @@ function RecordWorkbenchDemo({
                   }),
                 },
               ]
-            : savedViews,
+            : paged
+              ? [pagedView]
+              : savedViews,
         })
       }
     >
@@ -152,6 +171,7 @@ const meta = {
       options: ['data', 'empty', 'slow', 'failing'],
     },
     broken: { table: { disable: true } },
+    paged: { table: { disable: true } },
     instanceId: { table: { disable: true } },
     withActions: { table: { disable: true } },
     localized: { table: { disable: true } },
@@ -179,6 +199,12 @@ export const NeedsFixing: Story = { args: { broken: true } };
 
 /** No saved view under this id, reported instead of an empty frame. */
 export const CannotOpen: Story = { args: { instanceId: 'deleted' } };
+
+/**
+ * 结果不止一页时，表格下面那一行：左边说一共多少条，右边是每页几条、第几页，
+ * 以及前后两步。翻页不写进配置，改每页条数则是一次编辑，会立刻应用。
+ */
+export const Paged: Story = { args: { paged: true } };
 
 /**
  * The host's own commands in the three places they belong: over the view, over

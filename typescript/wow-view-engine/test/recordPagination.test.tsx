@@ -14,70 +14,30 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { RecordTableController } from '../src/react/index.js';
+import { MessagesProvider, zhCN } from '../src/ui/index.js';
 import { RecordPagination } from '../src/ui/RecordPagination.js';
+import { recordTableController as tableController } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
-function tableController(
-  overrides: Partial<RecordTableController> = {},
-): RecordTableController {
-  return {
-    columns: [
-      {
-        field: 'amount',
-        label: 'Amount',
-        kind: 'number',
-        cell: 'number',
-        sortable: false,
-      },
-    ],
-    card: { title: 'amount', fields: [] },
-    rows: [
-      { key: 'o-1', data: { amount: 1 } },
-      { key: 'o-2', data: { amount: 2 } },
-    ],
-    paging: { mode: 'paged', index: 1, total: 42 },
-    summaries: null,
-    status: 'success',
-    error: null,
-    loading: false,
-    sort: [],
-    sortOf: () => null,
-    toggleSort: () => {},
-    layout: 'table',
-    layouts: ['table', 'card'],
-    setLayout: () => {},
-    columnFields: ['amount'],
-    setColumns: () => {},
-    pageSize: 20,
-    pageSizes: [10, 20, 50, 100],
-    setPageSize: () => {},
-    selection: [],
-    selectedRows: [],
-    isSelected: () => false,
-    toggle: () => {},
-    toggleAll: () => {},
-    clearSelection: () => {},
-    goTo: () => {},
-    hasNext: true,
-    next: () => {},
-    previous: () => {},
-    refresh: () => {},
-    ...overrides,
-  };
-}
-
-describe('RecordPagination counts', () => {
-  it('says how many there are and how many are here', () => {
+/**
+ * The count the bar opens with.
+ *
+ * It answers the question the conditions above it were asked — how many
+ * records there are — and not how many of them fitted on the screen. Only
+ * when the source gave no total does it fall back to what it can see.
+ */
+describe('RecordPagination counts the records', () => {
+  it('says how many there are in all', () => {
     render(<RecordPagination table={tableController()} />);
 
-    expect(screen.getByText('42 in all')).toBeTruthy();
-    expect(screen.getByText('2 on this page')).toBeTruthy();
+    expect(screen.getByText('42 records in all')).toBeTruthy();
+    // The rows on this page are not the answer, so they are not also said.
+    expect(screen.queryByText(/on this page/)).toBeNull();
   });
 
   /** A cursor source was never asked for a total, so it claims none. */
-  it('claims no total when the source reports none', () => {
+  it('says what it can see when the source reports no total', () => {
     render(
       <RecordPagination
         table={tableController({
@@ -99,8 +59,8 @@ describe('RecordPagination counts', () => {
   it('keeps the last counts while the next page is loading', () => {
     render(<RecordPagination table={tableController({ status: 'loading' })} />);
 
-    expect(screen.getByText('42 in all')).toBeTruthy();
-    expect(screen.getByText('2 on this page')).toBeTruthy();
+    expect(screen.getByText('42 records in all')).toBeTruthy();
+    expect(screen.getByText('Page 1 of 3')).toBeTruthy();
   });
 
   it('renders nothing for a result that is empty and settled', () => {
@@ -114,7 +74,11 @@ describe('RecordPagination counts', () => {
   it('still renders on a first load, where the rows are yet to come', () => {
     render(
       <RecordPagination
-        table={tableController({ rows: [], status: 'loading' })}
+        table={tableController({
+          rows: [],
+          paging: { mode: 'paged', index: 1 },
+          status: 'loading',
+        })}
       />,
     );
 
@@ -164,7 +128,7 @@ describe('RecordPagination page size', () => {
    * What may be offered is the controller's to decide — it is the one that
    * knows the runtime's budget — and the bar draws exactly that list.
    */
-  it('offers the sizes the controller allows', async () => {
+  it('offers the sizes the controller allows, each carrying its unit', async () => {
     const user = userEvent.setup();
     render(
       <RecordPagination
@@ -175,13 +139,13 @@ describe('RecordPagination page size', () => {
       />,
     );
 
-    await user.click(screen.getByRole('combobox', { name: 'Rows per page' }));
+    await user.click(screen.getByRole('combobox', { name: 'Per page' }));
     const options = await screen.findAllByRole('option');
     expect(options.map(option => option.textContent)).toEqual([
-      '10',
-      '20',
-      '25',
-      '50',
+      '10 per page',
+      '20 per page',
+      '25 per page',
+      '50 per page',
     ]);
   });
 
@@ -190,9 +154,45 @@ describe('RecordPagination page size', () => {
     const user = userEvent.setup();
     render(<RecordPagination table={tableController({ setPageSize })} />);
 
-    await user.click(screen.getByRole('combobox', { name: 'Rows per page' }));
-    await user.click(await screen.findByRole('option', { name: '50' }));
+    await user.click(screen.getByRole('combobox', { name: 'Per page' }));
+    await user.click(
+      await screen.findByRole('option', { name: '50 per page' }),
+    );
     expect(setPageSize).toHaveBeenCalledWith(50);
+  });
+
+  /**
+   * The words in front of the control are its name, rather than a second
+   * label kept in step with it by hand.
+   */
+  it('names the control by the words beside it', () => {
+    render(<RecordPagination table={tableController()} />);
+
+    const trigger = screen.getByRole('combobox', { name: 'Per page' });
+    const named = document.getElementById(
+      trigger.getAttribute('aria-labelledby')!,
+    );
+    expect(named?.textContent).toBe('Per page');
+    expect(trigger.hasAttribute('aria-label')).toBe(false);
+  });
+
+  /**
+   * The measure word rides with the number in Chinese: `每页` + `20 条`,
+   * never `每页 20`, which is what a size spelt into the label would give.
+   */
+  it('keeps the unit with the number in Chinese', () => {
+    render(
+      <MessagesProvider messages={zhCN}>
+        <RecordPagination table={tableController()} />
+      </MessagesProvider>,
+    );
+
+    expect(screen.getByText('共 42 条记录')).toBeTruthy();
+    expect(screen.getByText('每页')).toBeTruthy();
+    expect(
+      screen.getByRole('combobox', { name: '每页' }).textContent,
+    ).toContain('20 条');
+    expect(screen.getByText('第 1 / 3 页')).toBeTruthy();
   });
 });
 
@@ -206,6 +206,11 @@ describe('RecordPagination moving between pages', () => {
         .getByRole('button', { name: 'Previous page' })
         .hasAttribute('disabled'),
     ).toBe(true);
+    expect(
+      screen
+        .getByRole('button', { name: 'Next page' })
+        .hasAttribute('disabled'),
+    ).toBe(false);
   });
 
   it('moves either way from a page in the middle', async () => {
@@ -222,10 +227,63 @@ describe('RecordPagination moving between pages', () => {
       />,
     );
 
+    expect(screen.getByText('Page 2 of 3')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Previous page' }));
     await user.click(screen.getByRole('button', { name: 'Next page' }));
     expect(previous).toHaveBeenCalledTimes(1);
     expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops at the last page while the way back stays open', () => {
+    render(
+      <RecordPagination
+        table={tableController({
+          paging: { mode: 'paged', index: 3, total: 42 },
+          hasNext: false,
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Page 3 of 3')).toBeTruthy();
+    expect(
+      screen
+        .getByRole('button', { name: 'Previous page' })
+        .hasAttribute('disabled'),
+    ).toBe(false);
+    expect(
+      screen
+        .getByRole('button', { name: 'Next page' })
+        .hasAttribute('disabled'),
+    ).toBe(true);
+  });
+
+  /**
+   * Everything fits on one page: the arrows are drawn and both dead, which
+   * says there is nowhere else to be rather than leaving the reader to
+   * wonder where the controls went.
+   */
+  it('deadens both arrows when there is only the one page', () => {
+    render(
+      <RecordPagination
+        table={tableController({
+          paging: { mode: 'paged', index: 1, total: 2 },
+          hasNext: false,
+        })}
+      />,
+    );
+
+    expect(screen.getByText('2 records in all')).toBeTruthy();
+    expect(screen.getByText('Page 1 of 1')).toBeTruthy();
+    expect(
+      screen
+        .getByRole('button', { name: 'Previous page' })
+        .hasAttribute('disabled'),
+    ).toBe(true);
+    expect(
+      screen
+        .getByRole('button', { name: 'Next page' })
+        .hasAttribute('disabled'),
+    ).toBe(true);
   });
 
   /**
@@ -242,12 +300,16 @@ describe('RecordPagination moving between pages', () => {
     );
 
     expect(screen.queryByText(/Page/)).toBeNull();
+    expect(screen.queryByText(/in all/)).toBeNull();
+    expect(screen.getByText('2 on this page')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Previous page' })).toBeNull();
     expect(
       screen
         .getByRole('button', { name: 'Next page' })
         .hasAttribute('disabled'),
     ).toBe(false);
+    // The size control is the one thing a cursor source keeps.
+    expect(screen.getByRole('combobox', { name: 'Per page' })).toBeTruthy();
   });
 
   it('stops at the end of a cursor source', () => {
@@ -265,5 +327,34 @@ describe('RecordPagination moving between pages', () => {
         .getByRole('button', { name: 'Next page' })
         .hasAttribute('disabled'),
     ).toBe(true);
+  });
+
+  /**
+   * The bar is walked in the order it reads: the size first, then the two
+   * steps out of the page. Nothing before the size control takes focus,
+   * because the count is a sentence and not a control.
+   */
+  it('takes focus in the order it is read', async () => {
+    const user = userEvent.setup();
+    render(
+      <RecordPagination
+        table={tableController({
+          paging: { mode: 'paged', index: 2, total: 42 },
+        })}
+      />,
+    );
+
+    await user.tab();
+    expect(document.activeElement).toBe(
+      screen.getByRole('combobox', { name: 'Per page' }),
+    );
+    await user.tab();
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Previous page' }),
+    );
+    await user.tab();
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Next page' }),
+    );
   });
 });
