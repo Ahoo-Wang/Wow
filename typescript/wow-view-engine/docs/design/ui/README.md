@@ -89,6 +89,8 @@
 - 未打开实例的写入结局显示在它自己那一行。删除确认把后果拼出来：基础句，shared 再加一句，目标正是当前打开且 dirty 时再加一句；
 - 删除遇到冲突时「保留我的」不直接覆盖，而是用 `write.remote` 刷新后的摘要再确认一次（见 [management.md#冲突与未知结果](../management.md#冲突与未知结果)）——第一次确认说的是列表里的那个视图，冲突报回来的已经不是它。上移／下移只在行所在的受众组内移动，到组的首尾即禁用（`canMove`）。`rejected` 的那一行也带一个 `label.rejected.dismiss`，所有恢复按钮在 `manager.pending` 非空时禁用（见 [management.md#冲突与未知结果](../management.md#冲突与未知结果)）。管理入口本身按 `manager.can.anything` 决定给不给：顺序、默认与任一行的改名／删除全都不可用时，工作台根本不把 manager 交给 `ViewList`。（见 test/saveActions.test.tsx「SaveActions, the split button group」「WriteOutcome」与 test/viewManagerUi.test.tsx「ViewManager rows」「the manage button on the view list」）
 
+落到文件上：「结局→一句话加一排按钮」只有一处，`ui/OutcomeActions.tsx`，打开的视图（`ui/WriteOutcome.tsx`）与管理器的行（`ui/ViewManagerRow.tsx`）共用它，两边的差别只是 `surface`——行在对话框里是一行小字小按钮，视图是标题栏下的一条框。各自留下的是只有自己有的那部分：`WriteOutcome` 的复制出口与落地通知，加上 `ui/ConflictConfirm.tsx` 的双栏确认；管理器的删除后果对话框是 `ui/DeleteDialog.tsx`，第一次确认与冲突后的二次确认是同一个。
+
 ## 离开保护
 
 从侧栏切到另一个视图会释放当前 runtime，而未保存的草稿只活在 runtime 里，所以那是一次删除工作：`useLeaveGuard`（`/react`，见 [react.md#useworkbench](../react.md#useworkbench)）在 `dirty` 或写入结局为 `unknown` 时先问一句，没有东西可失去时一句也不问——每次切换都拦的守卫，人会学会不读就点掉。该问的时候问什么是无状态的，`/ui` 这边只剩 `LeaveDialog({ leave, messages? })` 照着 `leave.asking` 画，两个按钮分别接 `confirm` 与 `cancel`；它渲染在承载文案的 `ViewSurface` 之外，所以要单独把 `messages` 递给它。（见 test/workbench.test.tsx「useLeaveGuard」）
@@ -106,3 +108,5 @@
 - 落在条件上的 error 数（`filter.blocked`）大于零时它禁用，并在左侧以 `label.filter.blocked` 说还有几条要改；
 - 草稿与已应用不一致时按钮上也带那个点。`submit={false}` 时底行整行不渲染，留给从别处提交的编辑器（比如 Dashboard 的全局条件带）。已应用条件的摘要不在面板里，在结果上方的 `AppliedBar`：根是 OR／NOR 时整体折成一个 badge 并说明；
 - 宿主注入的作用域条件在那里另起一组只读呈现，不带删除。（见 test/ui.test.tsx「FilterPanel tree editing」）
+
+落到文件上：`ui/FilterPanel.tsx` 只留根——模式切换、焦点边界、超预算提示与底行；块与 pill 在 `ui/filter/` 下分为 `GroupBlock.tsx`（含条件带）、`ConditionPill.tsx`（含元素匹配块与 `PendingDot`）、`AddEntry.tsx` 与 `FilterActions.tsx`。值编辑器同理：`ui/FilterValueEditor.tsx` 只剩按 `EditorDescriptor.input` 分派的 switch——**这是全包唯一知道这个封闭联合的地方**，也是 [extension.md](../extension.md) 所说的按 kind 注册渲染器将来要切开的缝——每种输入各自一个文件在 `ui/filter/inputs/`（`text`／`number`／`select`／`remote`／`date`／`daterange`／`relative`，公共部分在 `shared.tsx`）。

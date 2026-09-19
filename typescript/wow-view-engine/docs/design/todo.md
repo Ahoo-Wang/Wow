@@ -9,7 +9,6 @@
 
 ## 重构（小步，每步一个 PR，零行为变化）
 
-- **R4 拆过长的 UI 文件**——为什么：同一个文件里既有布局又有分支，改一处要重读全部。判据：`ViewManager.tsx` 拆为 Row / DeleteDialog / OutcomeActions（与 `WriteOutcome` 共用"结局→按钮"组件），`WriteOutcome.tsx` 抽 ConflictConfirm，`FilterPanel.tsx` 拆为 GroupBlock / ConditionPill / FilterActions，`FilterValueEditor.tsx` 按 `EditorDescriptor.input` 分文件；行为与测试不变。落点：`src/ui/`。
 - **R5 写入结局模型去重**——为什么：`useSaveCommands` 与 `useViewManager` 各写了一遍"结局怎么结清、哪种恢复算写了视图、什么时候禁用"。判据：`src/react/writes.ts` 给出 `settle` / `RecoveredWrite` / `savesView` / `blockedBy`，两个钩子共用，两边测试不变。落点：`src/react/`、[management.md#冲突与未知结果](management.md#冲突与未知结果)。
 - **R6 文案目录分文件 + `MessageKey` 类型**——为什么：一份平铺的目录看不出哪些键还活着。判据：按前缀分文件并导出 `MessageKey`；同时删除死键 `label.save.rename`、`label.save.delete`、`label.rename.heading`、`label.rename.description`、`label.unknown.consequence`；`test/messages.test.tsx` 仍全绿。落点：`src/ui/messages.ts`、[ui/README.md#措辞与-messagesprovider](ui/README.md#措辞与-messagesprovider)。
 - **R7 `runtime/viewEngine.ts` 抽 `writeLedger.ts`**——为什么：注册表与写入账本两件事同在一个类里。判据：`writes` / `owners` / `pendingWrites` / `retry` / `abandon` / `resolveConflict` 移入 `writeLedger.ts`，`ViewEngine` 公开面不变。落点：`src/runtime/`、[runtime.md#viewengine](runtime.md#viewengine)。
@@ -24,3 +23,4 @@
 ## 小修
 
 - **删除后重载列表的合同容易漏**——为什么：宿主直接经引擎删除实例时必须调用 `list.reload({ without: id })`，这条合同写在文档里而不是类型里。判据：评估改为引擎侧通知（架构决定，先记录，不急着改）；结论写进 [decisions.md](decisions.md)。落点：[react.md#useviewlist](react.md#useviewlist)。
+- **筛选面板里 Enter 提交**——为什么：[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局) 写了 Enter 提交（排除 IME 组字与内部弹层），重写后的 `FilterPanel` 没有这个处理器，是一处遗漏。判据：在条件的值输入里按 Enter 等于点击应用；IME 组字中、弹层（Select／Combobox／Popover／Dialog）内的 Enter 不触发；`test/filterPanel.test.tsx` 覆盖三种情况。落点：`src/ui/FilterPanel.tsx`。

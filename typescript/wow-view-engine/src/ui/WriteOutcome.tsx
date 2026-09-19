@@ -11,9 +11,8 @@
  * limitations under the License.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type {
-  Issue,
   ViewConfig,
   ViewInstance,
   ViewPreferences,
@@ -25,18 +24,8 @@ import type {
   WriteState,
 } from '../runtime/index.js';
 import type { SaveCommands } from '../react/index.js';
-import { Button } from './components/button.js';
-import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from './components/dialog.js';
-import { describeConfig } from './describeConfig.js';
-import { useViewMessages } from './MessagesProvider.js';
-import { DialogContent } from './popups.js';
+import { ConflictConfirm } from './ConflictConfirm.js';
+import { OutcomeActions, RefusalLine } from './OutcomeActions.js';
 import { SaveAsDialog } from './SaveAsDialog.js';
 
 export interface WriteOutcomeProps {
@@ -48,29 +37,6 @@ export interface WriteOutcomeProps {
   onDeleted?(): void;
   /** Called when a recovered write (retry, overwrite, reload) landed. */
   onRecovered?(action: WriteAction): void;
-}
-
-/** The one line and the row of buttons every outcome is drawn as. */
-function OutcomeStrip({
-  tone,
-  children,
-}: {
-  tone: 'alert' | 'status';
-  children: ReactNode;
-}) {
-  return (
-    <section
-      data-slot="write-outcome"
-      role={tone}
-      className={
-        tone === 'alert'
-          ? 'border-destructive text-destructive flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm'
-          : 'text-warning border-warning flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm'
-      }
-    >
-      {children}
-    </section>
-  );
 }
 
 /**
@@ -96,12 +62,11 @@ function remoteConfig(
 }
 
 /**
- * What became of the last write, and the way out of it.
+ * What became of the last write of the open view, and the way out of it.
  *
- * It is one line rather than a block, because the result below it is still
- * the real one and a banner that pushed it off screen would be reporting a
- * problem by causing a second. Every outcome that needs a decision keeps its
- * buttons here until the user makes one; nothing here times out.
+ * The line itself is `OutcomeActions`, which the manager's rows draw too;
+ * what lives here is the part only an open view has — a conflict it can make
+ * a copy out of, and the landing a recovered write has to be reported as.
  */
 export function WriteOutcome({
   commands,
@@ -111,7 +76,6 @@ export function WriteOutcome({
   onDeleted,
   onRecovered,
 }: WriteOutcomeProps) {
-  const messages = useViewMessages();
   const [confirming, setConfirming] = useState<ConflictChoice | null>(null);
   const [copying, setCopying] = useState(false);
   // The conflict a copy is being made out of, captured when the dialog opens.
@@ -184,47 +148,24 @@ export function WriteOutcome({
     };
     return (
       <>
-        <OutcomeStrip tone="alert">
-          <span className="min-w-0 flex-1">
-            {messages.label('label.write.conflict')}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            // A second recovery while the first is in flight addresses the
-            // same handle twice; the engine refuses it with
-            // `view.write.in-flight`, and the line would report that as the
-            // failure of a click that was only impatient.
-            disabled={pending}
-            onClick={() => setConfirming('reload')}
-          >
-            {messages.label('label.conflict.theirs')}
-          </Button>
-          {/* Each way out is offered only where it can be taken: a copy needs
-              somewhere to create it, an overwrite needs the right to write. */}
-          {commands.can.saveAs && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pending}
-              onClick={() => {
-                original.current = write;
-                setCopying(true);
-              }}
-            >
-              {messages.label('label.conflict.copy')}
-            </Button>
-          )}
-          {commands.can.save && (
-            <Button
-              size="sm"
-              disabled={pending}
-              onClick={() => setConfirming('overwrite')}
-            >
-              {messages.label('label.conflict.mine')}
-            </Button>
-          )}
-        </OutcomeStrip>
+        <OutcomeActions
+          state={write}
+          pending={pending}
+          // Each way out is offered only where it can be taken: a copy needs
+          // somewhere to create it, an overwrite needs the right to write.
+          actions={{
+            reload: () => setConfirming('reload'),
+            copy: commands.can.saveAs
+              ? () => {
+                  original.current = write;
+                  setCopying(true);
+                }
+              : undefined,
+            overwrite: commands.can.save
+              ? () => setConfirming('overwrite')
+              : undefined,
+          }}
+        />
 
         <ConflictConfirm
           choice={confirming}
@@ -260,162 +201,38 @@ export function WriteOutcome({
     );
   }
 
-  if (write?.kind === 'unknown') {
+  if (write?.kind === 'unknown')
     return (
-      <OutcomeStrip tone="status">
-        <span className="min-w-0 flex-1">
-          {messages.label('label.write.unknown')}
-        </span>
-        <Button
-          size="sm"
-          // One retry at a time: a second one replays a handle the engine is
-          // already busy with and comes back as `view.write.in-flight`.
-          disabled={pending}
-          onClick={() => {
+      <OutcomeActions
+        state={write}
+        pending={pending}
+        actions={{
+          retry: () => {
             const action = write.payload.action;
             void commands
               .retry()
               .then(result => result.landed && notify(action, result.instance));
-          }}
-        >
-          {messages.label('label.unknown.retry')}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={pending}
-          onClick={() => commands.abandon()}
-        >
-          {messages.label('label.unknown.leave')}
-        </Button>
-      </OutcomeStrip>
-    );
-  }
-
-  if (write?.kind === 'rejected')
-    return (
-      // The store never took it, so there is nothing to retry or overwrite —
-      // only the reason, and a way to take it down. Dismissing matters: the
-      // refusal stays in the engine's pending writes until it is settled,
-      // and the line would sit over the view for the rest of the session
-      // while the user fixes what it complained about.
-      <RefusalLine
-        issue={write.issue}
-        disabled={pending}
-        onDismiss={() => commands.abandon(write)}
+          },
+          leave: () => commands.abandon(),
+        }}
       />
     );
+
+  if (write?.kind === 'rejected')
+    // The store never took it, so there is nothing to retry or overwrite —
+    // only the reason, and a way to take it down. Dismissing matters: the
+    // refusal stays in the engine's pending writes until it is settled,
+    // and the line would sit over the view for the rest of the session
+    // while the user fixes what it complained about.
+    return (
+      <OutcomeActions
+        state={write}
+        pending={pending}
+        actions={{ dismiss: () => commands.abandon(write) }}
+      />
+    );
+
+  // A command the engine refused before dispatching holds nothing to settle,
+  // so it is the one line with no way out and needs none.
   return error ? <RefusalLine issue={error} /> : null;
-}
-
-/** A refusal says why, and offers only the way to have done with it. */
-function RefusalLine({
-  issue,
-  disabled,
-  onDismiss,
-}: {
-  issue: Issue;
-  disabled?: boolean;
-  /** Absent for a failure the engine holds nothing for; see `WriteOutcome`. */
-  onDismiss?(): void;
-}) {
-  const messages = useViewMessages();
-  return (
-    <OutcomeStrip tone="alert">
-      <span className="min-w-0 flex-1">
-        {messages.issue(issue)}
-        {issue.params?.reason !== undefined &&
-          ` ${String(issue.params.reason)}`}
-      </span>
-      {onDismiss && (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={disabled}
-          onClick={onDismiss}
-        >
-          {messages.label('label.rejected.dismiss')}
-        </Button>
-      )}
-    </OutcomeStrip>
-  );
-}
-
-/**
- * The same choice, put once more with both configs on the table.
- *
- * Either answer loses something a user cannot see from the button that
- * offered it, so the two ways of looking are summarised side by side first.
- */
-function ConflictConfirm({
-  choice,
-  local,
-  remote,
-  onOpenChange,
-  onConfirm,
-}: {
-  /** The choice awaiting confirmation, or null while none is. */
-  choice: ConflictChoice | null;
-  local: ViewConfig | null;
-  remote: ViewConfig | null;
-  onOpenChange(open: boolean): void;
-  onConfirm(choice: ConflictChoice): void;
-}) {
-  const messages = useViewMessages();
-  const taking = choice === 'reload';
-  return (
-    <Dialog open={choice !== null} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {messages.label(
-              taking
-                ? 'label.conflict.confirm-theirs'
-                : 'label.conflict.confirm-mine',
-            )}
-          </DialogTitle>
-          <DialogDescription>
-            {messages.label('label.conflict.choice')}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <ConfigSide titleKey="label.conflict.local" config={local} />
-          <ConfigSide titleKey="label.conflict.remote" config={remote} />
-        </div>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
-            {messages.label('label.dialog.cancel')}
-          </DialogClose>
-          <Button
-            onClick={() => choice !== null && onConfirm(choice)}
-            variant={taking ? 'default' : 'destructive'}
-          >
-            {messages.label(
-              taking ? 'label.conflict.theirs' : 'label.conflict.mine',
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function ConfigSide({
-  titleKey,
-  config,
-}: {
-  titleKey: string;
-  config: ViewConfig | null;
-}) {
-  const messages = useViewMessages();
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <span className="font-medium">{messages.label(titleKey)}</span>
-      {config && (
-        <span className="text-muted-foreground">
-          {describeConfig(config, messages)}
-        </span>
-      )}
-    </div>
-  );
 }

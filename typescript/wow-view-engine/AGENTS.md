@@ -178,8 +178,12 @@ src/
     AnalysisWorkbench.tsx         — Default Analysis workbench
     DashboardWorkbench.tsx        — Default Dashboard workbench
     ViewHeader.tsx                — Title bar: kind, audience, title, unsaved mark, save commands
-    SaveActions.tsx               — Split save button group; SaveAsDialog.tsx, WriteOutcome.tsx
+    SaveActions.tsx               — Split save button group; SaveAsDialog.tsx
+    WriteOutcome.tsx              — The open view's last write; ConflictConfirm.tsx (mine/theirs)
+    OutcomeActions.tsx            — One outcome as a line and its buttons, shared by the two above and the manager
     ViewManager.tsx               — Rename, delete, reorder and the default view, from the sidebar
+    ViewManagerRow.tsx            — One managed view: rename in place, arrows, default, delete
+    DeleteDialog.tsx              — What a delete costs, said before it happens
     LeaveGuard.tsx                — `LeaveDialog`: draws the headless guard's question
     EditorBand.tsx                — The fold a view's editor lives in
     StatusStrip.tsx               — One-line findings: warning, error, failed query (+ `dedupeIssues`)
@@ -189,7 +193,14 @@ src/
     RecordTable.tsx, RecordCards.tsx
     AnalysisTable.tsx, AnalysisChart.tsx, AnalysisEditor.tsx
     DashboardGrid.tsx, DashboardPanels.tsx
-    FilterPanel.tsx, FilterValueEditor.tsx
+    FilterPanel.tsx               — Condition builder root: mode, focus boundary, actions row
+    FilterValueEditor.tsx         — The switch over `EditorDescriptor.input`; the only place that knows the union
+    filter/                       — What the panel is made of
+      GroupBlock.tsx                — One group as a framed block, and its strip of conditions
+      ConditionPill.tsx             — One condition; the element-match block; `PendingDot`
+      AddEntry.tsx                  — The field picker a group is added to from
+      FilterActions.tsx             — Clear and Apply, with the blocked count
+      inputs/                       — One file per `EditorDescriptor.input`, plus shared.tsx
     ViewList.tsx, ViewSurface.tsx, EmbeddedView.tsx
     kinds.ts                      — The icon each kind and audience wears, shared by list and header
     describeConfig.ts             — One config in a sentence, for a conflict's side-by-side
