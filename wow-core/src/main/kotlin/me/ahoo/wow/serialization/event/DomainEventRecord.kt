@@ -102,7 +102,8 @@ interface DomainEventRecord :
         }
         return try {
             bodyType.toType<Any>()
-        } catch (classNotFoundException: ClassNotFoundException) {
+        } catch (ignoredClassNotFoundException: ClassNotFoundException) {
+            // Preserve unknown event payloads as JsonDomainEvent so they remain readable and replayable.
             null
         }
     }
