@@ -94,6 +94,11 @@ export interface RecordTableController {
   toggleSort(field: string): void;
 
   layout: RecordLayout;
+  /**
+   * The layouts the definition allows, in its order. A switcher offers these
+   * and nothing else — and renders nothing at all below two.
+   */
+  layouts: RecordLayout[];
   setLayout(layout: RecordLayout): void;
   /** Fields of the draft's table layout, in order. */
   columnFields: string[];
@@ -102,6 +107,12 @@ export interface RecordTableController {
   setPageSize(size: number): void;
 
   selection: RecordKey[];
+  /**
+   * The selected rows of the current result, in result order. A bulk action
+   * needs the rows and not only their keys — it names what it is about to
+   * act on — and the selection is keys alone.
+   */
+  selectedRows: RecordRow[];
   isSelected(key: RecordKey): boolean;
   toggle(key: RecordKey): void;
   /** Selects every row of the current result, or clears the selection. */
@@ -125,6 +136,8 @@ export interface RecordTableController {
 /** Stable identities for "no runtime yet", so memo dependencies stay still. */
 const NO_SORT: RecordSort[] = [];
 const NO_SELECTION: RecordKey[] = [];
+const NO_ROWS: RecordRow[] = [];
+const NO_LAYOUTS: RecordLayout[] = [];
 const NO_CARD: RecordCardView = { title: '', fields: [] };
 
 /**
@@ -144,6 +157,15 @@ export function useRecordTable(
   const rows = useMemo(() => view?.rows ?? [], [view]);
   const selection = useMemo(() => state?.selection ?? NO_SELECTION, [state]);
   const selected = useMemo(() => new Set(selection), [selection]);
+  // Result order, not click order: a bulk action lists what it will touch,
+  // and the list has to read like the table above it.
+  const selectedRows = useMemo(
+    () =>
+      selection.length === 0
+        ? NO_ROWS
+        : rows.filter(row => selected.has(row.key)),
+    [rows, selected, selection],
+  );
   const sort = state?.draft.sort ?? NO_SORT;
 
   const toggleSort = useCallback(
@@ -254,6 +276,10 @@ export function useRecordTable(
     toggleSort,
 
     layout: state?.draft.layout ?? 'table',
+    layouts:
+      runtime?.definition.kind === 'data'
+        ? (runtime.definition.record?.layouts ?? NO_LAYOUTS)
+        : NO_LAYOUTS,
     setLayout: useCallback(
       (layout: RecordLayout) => runtime?.edit({ layout }),
       [runtime],
@@ -287,6 +313,7 @@ export function useRecordTable(
     ),
 
     selection,
+    selectedRows,
     isSelected: useCallback((key: RecordKey) => selected.has(key), [selected]),
     toggle,
     toggleAll,

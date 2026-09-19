@@ -669,6 +669,92 @@ describe('DataViewRuntime admission', () => {
   });
 });
 
+describe('DataViewRuntime revert', () => {
+  it('does nothing on a view that was never saved', async () => {
+    const { runtime, source } = harness();
+    runtime.edit({ pageSize: 10 });
+
+    runtime.revert();
+    await flush();
+
+    // There is no baseline to go back to, so the edits are all there is.
+    expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(10);
+    expect(runtime.getSnapshot().dirty).toBe(true);
+    expect(source.paged).not.toHaveBeenCalled();
+  });
+
+  it('restores the saved config and puts it back in force', async () => {
+    const { runtime, source } = harness({ saved: savedInstance });
+    runtime.apply();
+    await flush();
+    runtime.edit({ pageSize: 10 });
+    runtime.apply();
+    await flush();
+
+    runtime.revert();
+    await flush();
+
+    const state = runtime.getSnapshot();
+    expect(state.draft).toEqual(savedInstance.config);
+    expect(state.applied).toEqual(savedInstance.config);
+    expect(state.dirty).toBe(false);
+    // The rows on screen answered the edited config; leaving them there
+    // would show them under the saved config's name.
+    expect(source.paged).toHaveBeenCalledTimes(3);
+  });
+
+  it('runs nothing when the edits were never applied', async () => {
+    const { runtime, source } = harness({ saved: savedInstance });
+    runtime.apply();
+    await flush();
+    runtime.edit({ pageSize: 10 });
+
+    runtime.revert();
+    await flush();
+
+    expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(20);
+    expect(runtime.getSnapshot().dirty).toBe(false);
+    expect(source.paged).toHaveBeenCalledTimes(1);
+  });
+
+  it('restores a saved config the definition now refuses without running it', async () => {
+    const stored: ViewInstance = {
+      ...savedInstance,
+      config: recordConfig({ pageSize: 5000 }),
+    };
+    const { runtime, source } = harness({
+      config: stored.config as DataViewConfig,
+      saved: stored,
+    });
+    runtime.edit({ pageSize: 20 });
+    runtime.apply();
+    await flush();
+
+    runtime.revert();
+    await flush();
+
+    // Refusing to revert would strand the user on edits they asked to be
+    // rid of; the draft goes back and waits to be fixed.
+    expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(
+      5000,
+    );
+    expect(runtime.getSnapshot().issues.map(found => found.code)).toContain(
+      'record.pageSize.too-large',
+    );
+    expect(source.paged).toHaveBeenCalledTimes(1);
+  });
+
+  it('is a no-op once disposed', () => {
+    const { runtime } = harness({ saved: savedInstance });
+    runtime.edit({ pageSize: 10 });
+    runtime.dispose();
+
+    runtime.revert();
+
+    expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(10);
+  });
+});
+
 describe('DataViewRuntime auto refresh', () => {
   const refreshing = recordConfig({ refresh: { interval: 30 } });
 

@@ -116,8 +116,6 @@ export interface RecordCapability {
   paging: PagingMode;
   layouts: RecordLayout[];
   defaults?: Partial<RecordViewConfig>;
-  /** Renderer keys for business actions. */
-  actions?: { toolbar?: string; row?: string; bulk?: string };
 }
 
 export interface AnalysisCapability {

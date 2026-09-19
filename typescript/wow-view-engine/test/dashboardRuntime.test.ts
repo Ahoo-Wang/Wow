@@ -1024,6 +1024,44 @@ describe('DashboardViewRuntime saving', () => {
     );
   });
 
+  it('reverts the draft to the saved config and re-applies it', async () => {
+    const board = await harness();
+    const runtime = await board.open();
+
+    runtime.edit({ filter: { op: 'and', children: [] } });
+    runtime.apply();
+    expect(runtime.getSnapshot().dirty).toBe(true);
+
+    runtime.revert();
+    await flush();
+
+    const state = runtime.getSnapshot();
+    expect(state.dirty).toBe(false);
+    expect(state.draft.filter).toEqual(REGION_FILTER);
+    expect(state.applied.filter).toEqual(REGION_FILTER);
+    // The panels come back with it: the global filter reaches them as a
+    // scope, so reverting the dashboard has to re-push it.
+    expect(state.panels).toHaveLength(1);
+  });
+
+  it('does not revert a dashboard that was never saved', () => {
+    const board = harness();
+    const runtime = board.engine.create('overview', {
+      title: 'Scratch',
+      scope: 'personal',
+      config: boundConfig(),
+    });
+
+    runtime.edit({ filter: { op: 'and', children: [] } });
+    runtime.revert();
+
+    expect(runtime.getSnapshot().draft.filter).toEqual({
+      op: 'and',
+      children: [],
+    });
+    expect(runtime.getSnapshot().dirty).toBe(true);
+  });
+
   it('adopts the stored state when a conflict is reloaded', async () => {
     const board = await harness();
     const runtime = await board.open();

@@ -85,7 +85,6 @@ export interface RecordCapability {
   paging: 'paged' | 'cursor'; // 数据源提供哪种分页；决定 runtime 调用 source.paged 还是 source.cursor
   layouts: ('table' | 'card')[];
   defaults?: Partial<RecordViewConfig>;
-  actions?: { toolbar?: string; row?: string; bulk?: string }; // 渲染器键
 }
 
 export interface AnalysisCapability {
@@ -603,9 +602,11 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
 
   edit(patch: Partial<C>): void; // 只改 draft，同步
   apply(): void; // validate(draft) 无 error → applied = draft，执行
+  revert(): void; // draft 回到 saved.config，重算 issues／dirty；与 applied 不同且无 error 时再 apply；未保存过为空操作
   refresh(): void; // 重跑 applied
   setEditing(active: boolean): void; // 编辑器获得／失去输入焦点时调用，暂停自动刷新
   setScopeFilter(tree: FilterTree | null): Issue[]; // 外层注入的附加条件，AND 到已应用筛选；不改 draft／saved
+  readonly scopeFilter: FilterTree | null; // 当前生效的注入条件（最后一次被准入的那棵）；筛选摘要据此把"宿主的条件"与"视图自己的条件"分开呈现
   dispose(): void; // 最后一次通知订阅者后清空监听
 }
 
@@ -651,7 +652,7 @@ export interface ViewRuntimeState<C> {
     error?: Issue;
     requestId?: string;
   };
-  result: { config: C; data: ProjectedView; receivedAt: number } | null; // 只随成功推进
+  result: { config: C; own: C; data: ProjectedView; receivedAt: number } | null; // 只随成功推进；config 是真正执行的有效配置（含作用域），own 是产生它的自有配置（合并前被提升的 applied；Dashboard 不自跑查询，两者相同）
   selection: RecordKey[]; // 只覆盖当前结果；范围变化即清空，见下
   write: WriteState | null; // 最近一次写入的待处理结局，见第 7.4 节
   editing: boolean; // 由 setEditing 维护，用于暂停自动刷新
@@ -695,7 +696,7 @@ export class ViewWriteError extends Error {
 
 规则：
 
-- `result.config` 是产生该结果的配置，不随 draft 变化；UI 用它标注"结果对应的条件"。
+- `result.config` 是产生该结果的配置，不随 draft 变化；UI 用它标注"结果对应的条件"。`result.own` 是同一次执行中**合并作用域之前**的那份自有配置，随 `config` 一起记录：`mergeFilters` 把作用域作为尾随分组追加，`or`／`nor` 的 draft 还会被整棵包成第一个子节点，因此 `config.filter` 上的路径既不指向 draft，也不指向编辑器能删的东西——摘要要给出可点删除的条件，就只能读 `own.filter`，而宿主注入的那部分由 `runtime.scopeFilter` 单独交出、单独呈现且不可删除。
 - 选择绑定当前结果：`page`、`apply` 与解释环境变化清空 `selection`；`refresh` 后按新结果的行键求交集，消失的行自动移出。本轮不支持跨页选择，批量动作只作用于当前结果中仍存在的行。
 - 新的 `apply / refresh / page` 替代同一 runtime 的在途请求，旧响应到达后丢弃。这由 `RequestRunner` 用 per-runtime key 实现，全局并发上限与队列来自 `RuntimeLimits`（`maxConcurrentQueries`、`maxQueuedQueries`、`maxPageSize`、`maxAnalysisRows`、`minRefreshInterval`、`maxRefreshInterval`、`maxFilterDepth`、`maxFilterNodes`、`maxDashboardPanels`）。
 - 状态变更同步提交后再通知订阅者；相同状态返回相同对象，子对象引用稳定，以配合 `useSyncExternalStore`。`dispose` 是最后一次通知：订阅者据此读到 `disposed`，`useOpenView` 才能在实例被别处删除时自行重开，而不必等一次碰巧的渲染。
@@ -939,13 +940,16 @@ export class ViewStoreError extends Error {
 useViewEngine(options): ViewEngine                      // 建一个并在卸载时释放；需要更长生命周期由应用自建后传入
 useViewRuntime(runtime): ViewRuntimeState | null        // useSyncExternalStore
 useOpenView(engine, instanceId, scopeFilter?): { runtime | null; loading; error; scopeIssues }   // 拥有所开 runtime：换 id 或卸载即释放；runtime 在其下被释放（如实例被删除）时不再交出，按同一 id 重新打开，得到新 runtime 或 not_found；注入的 scopeFilter 被拒时，`setScopeFilter` 返回的 error 级 Issue 由 `scopeIssues` 交出，宿主据此提示；warning 不算拒绝，条件照常生效，warning 留在 runtime 的 `issues` 里由 UI 按 warning 呈现——否则旧的、更宽的条件仍在运行却无人知晓
-useViewList(engine, definitionId): { items; preferences; permissions; defaultInstanceId; loading; error; preferencesError; reload }
+useViewList(engine, definitionId): { items; preferences; permissions; defaultInstanceId; loading; error; preferencesError; reload }   // reload 可带 `{ without?: id }`：重载期间把该 id 从留存的摘要里去掉，`preferences.defaultInstanceId` 命中它也读作 null，答案落地即恢复由 store 说了算——重载只刷新不清空，否则刚删掉的那一行会继续被列出、继续被当作默认视图，骑在默认视图上的工作台就会去重开一个刚被释放的 runtime（瞬时 not_found）；`useViewManager.delete` 自动带上被删的 id，宿主绕过它直接用 engine 删除时同样要带
 
-useFilterEditor(runtime): FilterController              // 按路径增删改、模式、清空、提交；Enter 提交排除 IME 与内部弹层由 UI 层处理
-useRecordTable(runtime): RecordTableController          // 列语义、排序、列宽列序、选择、分页；无 TanStack 类型
+useFilterEditor(runtime): FilterController              // 按路径增删改、模式、清空、提交；Enter 提交排除 IME 与内部弹层由 UI 层处理；applied 读 result.own.filter（描述产出当前结果的、视图自有的那部分条件，无结果为空；路径因此仍指向 draft，badge 的删除即 clearValue(path)），宿主注入的作用域由 scoped 读 runtime.scopeFilter 单独描述、不可删除——读 result.config.filter 会把作用域混进同一串 badge，且 or／nor 的 draft 被包成第一个子节点后路径整体下移一层，删除会落到别的叶子上；草稿超预算不清空 applied：产出结果的那份配置是先过准入才跑的，本就在预算内，摘要要一直描述它身旁的数据；pending／pendingCount／isPending(path) 以 state.applied 为基准（叶子比字段＋操作符＋值，分组只比 op，不比子节点）；pendingCount 同时走两棵树，只在 applied 里的路径也计一次（删掉一条、清空筛选同样是未应用的改动）；草稿超出树预算（filter.tree.too-deep／too-many-nodes）时这三者一律为 false／0——面板本就不画它，比较也不走它（applied 不在其列，见上）；超预算同样按路径认领（根路径或 `['children', …]`，与 issues 同一组），分析的指标／元素筛选与仪表盘面板筛选报的是同样的 code、只是重定址到 `['metrics', …]`／`['elements', …]`／`['panels', …]`，只看 code 会让根编辑器为一棵它不画的树关掉 pending；比较本身是迭代加计数的，过深或成环的草稿返回 false 而不是爆栈；blocked 是落在条件上的 error 条数
+useRecordTable(runtime): RecordTableController          // 列语义、排序、列宽列序、选择、分页；无 TanStack 类型；layouts 为定义允许的布局，selectedRows 为当前结果中被选中的行（结果顺序）
 useAnalysisEditor(runtime): AnalysisController
 useDashboard(runtime): DashboardController
-useSaveCommands(engine, runtime): { save; saveAs; rename; delete; retry; abandon; resolveConflict; can; state }
+useSaveCommands(engine, runtime): { save; saveAs; rename; delete; revert; retry; abandon; resolveConflict; can; state }   // can 增 revert（dirty 且已保存过）；state 增 blocked（pending／含 error／write 为 unknown——冲突与拒绝是确定的答复，其可选解法里含"另存一份"这类新意图，不应被禁用；需要在冲突时拦住盲目 Save 的 UI 自行查 state.write）与 lastSavedAt（最近一次真正写入成功的时间戳，按 environment.now()，新写入开始即清空）；retry 与 resolveConflict 兑现 `RecoveredWrite { landed; written; instance }`，landed 说"该结局已结清"，written 说"确实把这个视图存下来了"——只有正文 action 为 create／save 的恢复才算（取调用当时 state.write.payload.action）：冲突选 reload 是取服务端状态并丢弃草稿，什么也没写；改名与删除的重试或覆盖确实写了 store，但写的不是屏幕上这份配置，报"View saved"等于告诉用户未保存的编辑已经安全。两者都 landed 为 true 而 written 为 false，因此都不计入 lastSavedAt；只有 create／save 的重试与覆盖两者皆真
+useViewManager(engine, definitionId, list): { rename; delete; setDefault; move; outcomes; retry; abandon; resolveConflict; pending; can }   // 管未打开的实例：命令一律以状态兑现，成功即 list.reload()；outcomes 与 pending 按 engine＋definitionId 打标（同 useViewList 的"手上的答案属于哪一次请求"），换定义或换引擎即读作空，旧输入的完成不再回填；命令按 ref 里的 promise 队列串行，同时至多一个写入在途，pending 恒是它的 key——队列本身也按同一组输入打标，换定义或换引擎后的命令另起一条队列立即开始，旧队列独自结清且结果无人读取，否则新列表的第一条命令会排在一个没人看的挂起写入之后；outcomes 按实例 id 或 PREFERENCES_KEY（`'system:preferences'`，取 store 不得签发的 `system:` 保留命名空间，避免与实例 id 撞键）记结局（ViewWriteError 的 state，handle 私有，供三个恢复动作寻址），引擎在发出前拒绝的记为 rejected 且无从重放——但拒绝绝不覆盖仍持有 handle 的结局，否则 §7.4 的"unknown 未结清时拒绝新意图"反而会把该 unknown 的重试与放弃一并抹掉；同一 key 的结局仍持有 handle（unknown 或 conflict）时，新意图根本不入队（直接兑现 false，并在队首再查一次——排在前面的命令可能正好把这个 key 变成 unknown），只有该 key 的 retry／abandon／resolveConflict 放行：一行只有一个结局槽位，新命令记下自己的结局就会顶掉那个 handle，被它寻址的写入从此留在 engine.pendingWrites() 里而界面上无人能重试、覆盖或放弃它——unknown 是 Engine 直接拒绝，conflict 则是 Engine 照发不误、一步之后才出同样的问题；rejected 不持有 handle（Engine 发出前就拒了），§7.4 的"改正后作为新意图再保存"照常放行；move 提交整份可见顺序，首尾不写，并在 ref 里记住已提交的乐观顺序——列表要等落地后的 reload 才追上，同一行连点两次否则会算出并提交两份相同的顺序（`[A,B,C]` 中 C 连续上移两次提交 `[A,C,B]` 与 `[C,A,B]`），列表身份一变（reload 已落地）即回到渲染顺序，未落地的 move 也把它撤回；偏好冲突按 §7.3 重载后保留本次意图待再次确认，改名／删除冲突按 §7.4 推进基线后清除；can 取自 list.permissions，系统视图恒不可改名、删除
+
+RecordActionSlots { global?; bulk?; row? }              // 三层业务动作的 render 槽位（react/actions.ts），由宿主传给工作台；动作是代码，不进配置也不进 ViewInstance
 ```
 
 措辞在 `ui/`：`model` 只带 `code` 与 `params`，`ui/messages.ts` 给出每个 code 的英文句子，`ViewSurface` 与四个工作台（`RecordWorkbench`、`AnalysisWorkbench`、`DashboardWorkbench`、`EmbeddedView`）的 `messages` 属性按 key 覆盖，这也是本地化的入口。每层 `MessagesProvider` 合并在上一层之上而不是默认值之上，应用在外层设一次，面里面仍然生效；工作台自己的提示渲染在它所画的面之外，所以用 `useViewMessages(messages)` 读同一份合并结果。缺失的 key 沿点号回退到最长的已知前缀（`/react` 把命令与 store 结果拼成 `view.open.failed.not_found` 这类 code），再退回 key 本身，因此永远不会渲染空白。`test/messages.test.tsx` 扫描源码里所有 `issue(...)` 的 code，少一条就失败——否则 `record.summary.unsupported` 这样的键会直接出现在界面上。
@@ -964,7 +968,7 @@ useSaveCommands(engine, runtime): { save; saveAs; rename; delete; retry; abandon
 
 列出字段的三个选择器（添加条件、列选择、分析的分组与指标）都经 `fieldGroups(fields, definition.fieldGroups, key)` 分组：未被任何分组列出的字段在前、无标题，其后按目录顺序列出各分组并带标题，组内按该分组自己的 `fields` 顺序；选择器常常只列一个子集（尚未成为条件的字段、能做列的字段），所以没有字段的分组不显示。目录声明在 `DataViewDefinition.fieldGroups`（`{ id, label, fields }[]`），字段定义本身不记录归属：一个组有哪些字段在一处读完，组序与组内序都不被字段顺序绑住（字段顺序同时决定默认列序），列了未声明的字段名或把一个字段列进两个组都在定义准入时报错。Dashboard 的全局字段与元素字段没有目录，不分组。
 
-`FilterPanel` 的布局：分组是带边框的块，头部是操作符切换（All of／Any of／None of）与删除，主体是一条条件带：等宽栅格，能放几列放几列，pill 在格子里对齐，字段名、操作符、值上下对齐；持双输入的条件（区间、日期）在条件带放得下两列时占两格；条件是内联的紧凑 pill（字段 · 操作符 · 值编辑器 · 删除），不独占一行，未填写时虚线边框，校验有 error 时标为 invalid（`data-invalid`，destructive 色），只有 warning 时标为 `data-warning`（主题的 `warning` 色）——条件照常执行，颜色只说"值得看一眼"；持有谓词的 `ELEMENT_MATCH` 条件和分组一样渲染为块，头部是字段与操作符，主体是它持有的分组。简单模式只显示根分组的条件带，高级模式显示根分组的块。已应用条件的摘要 badge 仍单独显示：它说的是结果对应的条件，不是 draft；摘要保留树的逻辑——根下每个直接子节点一个 badge，分组子节点合成一个 badge，内部条件用分组自己的操作符词连接、再嵌套的分组加括号，根是 OR／NOR 时整体折成一个 badge 并说明。每个 badge 带删除：把对应条件的值设回未填写（分组则组内每条）并重新应用，字段行留在编辑器里，这是 `clearValue(path)`。
+`FilterPanel` 的布局：分组是带边框的块，头部是操作符切换（All of／Any of／None of）与删除，主体是一条条件带：等宽栅格，能放几列放几列，pill 在格子里对齐，字段名、操作符、值上下对齐；持双输入的条件（区间、日期）在条件带放得下两列时占两格；条件是内联的紧凑 pill（字段 · 操作符 · 值编辑器 · 删除），不独占一行，未填写时虚线边框，校验有 error 时标为 invalid（`data-invalid`，destructive 色），只有 warning 时标为 `data-warning`（主题的 `warning` 色）——条件照常执行，颜色只说"值得看一眼"；持有谓词的 `ELEMENT_MATCH` 条件和分组一样渲染为块，头部是字段与操作符，主体是它持有的分组。简单模式只显示根分组的条件带，高级模式显示根分组的块。已应用条件的摘要 badge 仍单独显示：它说的是结果对应的条件，不是 draft；摘要保留树的逻辑——根下每个直接子节点一个 badge，分组子节点合成一个 badge，内部条件用分组自己的操作符词连接、再嵌套的分组加括号，根是 OR／NOR 时整体折成一个 badge 并说明。每个 badge 带删除：把对应条件的值设回未填写（分组则组内每条）并重新应用，字段行留在编辑器里，这是 `clearValue(path)`。宿主注入的作用域条件另起一组（`scoped`）只读呈现，不带删除：它不在 draft 里，也没有一条本编辑器的路径指向它。
 
 `DashboardGrid` 不做自动紧凑，面板按配置中的 `layout` 原样摆放；只有用户拖动或缩放结束时才把几何写回（`edit` + `apply`），库自身在挂载或属性变化时算出的布局不写回，因此打开已保存的 Dashboard 不会变脏。面板里的 Record 视图以 `selectable={false}` 渲染 `RecordTable`：Dashboard 是读数的地方，没有工具栏也没有行动作，没有任何东西读选择，勾选框因此只是一列点不出结果的控件。`RecordTable` 的 `selectable` 默认为 true，工作台与 `EmbeddedView` 不受影响；关掉时汇总行的口径标签（`total`／`page`）没有多出来的格子可占，于是标在首列之上，而不是顶掉首列自己的汇总。
 
@@ -979,7 +983,7 @@ useSaveCommands(engine, runtime): { save; saveAs; rename; delete; retry; abandon
 | 字段类型 | `FieldKind` 包：操作符集、默认操作符、值校验、编译到 `FilterExpression`、编辑器描述（纯数据）                              | `filter/` 注册表；React 渲染器在 `ui/` 用同一 kind id 注册 |
 | 数据来源 | `resolveSource(key)` 返回 `Pick<QueryApi, 'paged' \| 'cursor' \| 'aggregate'>`                                             | 应用注入                                                   |
 | 持久化   | 实现 `ViewStore`                                                                                                           | 业务应用，或官方后端的客户端包                             |
-| 渲染器   | 单元格、行动作、工具栏动作按键注册 React 组件                                                                              | `ui/` 注册表                                               |
+| 动作槽位 | 宿主向工作台传 render 函数 `global / bulk / row`，动作是代码，不进配置、不进 ViewInstance、不进 Dashboard 面板             | `react/actions.ts` 的类型；工作台属性                      |
 | 外观     | `:root` 上的 `--fve-<token>`（亮）与 `--fve-dark-<token>`（暗），根与 portal 弹层都读到；组件级替换通过自定义组合 `/react` | 宿主样式表；预设主题即一份这些变量的赋值文件               |
 
 ```ts

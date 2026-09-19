@@ -93,26 +93,62 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.save.save-as': 'Save as',
   'label.save.rename': 'Rename',
   'label.save.delete': 'Delete',
+  'label.save.revert': 'Revert',
   'label.save.title': 'Title',
   'label.save.audience': 'Who can see it',
+  'label.save.group': 'View actions',
+  'label.save.saving': 'Saving…',
+  // What the button says once a save has landed, and what a screen reader is
+  // told: the button's own word is read off a control the user just pressed,
+  // so on its own it announces nothing.
+  'label.save.saved': 'Saved',
+  'label.save.saved-announce': 'View saved',
   'label.delete.confirm': 'Delete this view?',
-  'label.delete.consequence':
-    'It disappears for everyone who can see it. This cannot be undone.',
+  // The base sentence says the one thing that is true of every delete, and
+  // says it without the two below: they are composed after it, and a base
+  // that already spoke for everyone would repeat the shared one.
+  'label.delete.consequence': 'Only the view is removed; its records stay.',
+  // Said only when they apply, and always after the sentence above: a shared
+  // view is somebody else's too, and a dirty one takes edits down with it.
+  'label.delete.shared-consequence': 'Everyone who uses it loses it.',
+  'label.delete.dirty-consequence': 'Unsaved changes go with it.',
   'label.delete.keep': 'Keep it',
   'label.dialog.cancel': 'Cancel',
   'label.dialog.close': 'Close',
   'label.save-as.heading': 'Save as a new view',
   'label.save-as.description': 'The view you are looking at stays as it is.',
+  'label.save-as.copy-title': '{title} copy',
+  'label.save-as.submit': 'Create view',
   'label.rename.heading': 'Rename this view',
   'label.rename.description': 'Only the title changes; the conditions stay.',
   'label.conflict.choice':
     'Take their version and lose your edits, or write yours over theirs.',
   'label.conflict.theirs': 'Take theirs',
   'label.conflict.mine': 'Keep mine',
+  'label.conflict.copy': 'Save my copy',
+  // Either choice loses something, so each is put once more as a question,
+  // with the two configs side by side under these two headings.
+  'label.conflict.confirm-theirs': 'Take their version?',
+  'label.conflict.confirm-mine': 'Write yours over theirs?',
+  'label.conflict.local': 'Mine',
+  'label.conflict.remote': 'Theirs',
+  'label.conflict.summary.record':
+    '{pageSize} per page · {layout} · {columns} columns · {sorts} sorts',
+  'label.conflict.summary.analysis':
+    '{groups} groups · {metrics} metrics · up to {limit} rows',
+  'label.conflict.summary.dashboard': '{panels} panels',
   'label.unknown.consequence':
     'It may well have been saved. Retrying asks again for the same write rather than making a second one.',
   'label.unknown.leave': 'Leave it',
   'label.unknown.retry': 'Retry',
+
+  // The title bar and the collapsible editor under it. The two title marks
+  // are keyed apart because they say different things: one view was never
+  // saved, the other has been saved and edited since.
+  'label.header.new-view': 'Not saved yet',
+  'label.header.unsaved': 'Edited',
+  'label.header.more': 'More view actions',
+  'label.editor.pending': '{count} not applied',
 
   // Layout and mode switches.
   'label.layout.table': 'Table',
@@ -132,10 +168,18 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.toolbar.columns': 'Columns',
   'label.toolbar.refresh': 'Refresh',
   'label.toolbar.selected': '{count} selected',
+  'label.toolbar.clear-selection': 'Clear selection',
+  'label.toolbar.actions': 'Actions',
   'label.toolbar.page': 'Page {index}',
   'label.toolbar.page-of': 'Page {index} of {pages}',
   'label.toolbar.previous': 'Previous page',
   'label.toolbar.next': 'Next page',
+
+  // Paging counts. A total comes from the query and a cursor view has none,
+  // so the two halves are worded apart and shown apart.
+  'label.pagination.total': '{total} in all',
+  'label.pagination.on-page': '{count} on this page',
+  'label.pagination.page-size': 'Rows per page',
 
   // The record view itself.
   'label.record.empty': 'Nothing to show',
@@ -154,6 +198,10 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.filter.mode': 'Filter mode',
   'label.filter.clear': 'Clear',
   'label.filter.apply': 'Apply',
+  // An edited condition changes nothing until it is applied, and a condition
+  // with an error stops the whole submission; both are marked where they are.
+  'label.filter.pending': 'Not applied yet',
+  'label.filter.blocked': '{count} to fix',
   'label.filter.group-operator': 'Group operator',
   'label.filter.remove-group': 'Remove group',
   'label.filter.add': 'Add',
@@ -171,6 +219,11 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.filter.range-to': '{field} to',
   'label.boolean.true': 'True',
   'label.boolean.false': 'False',
+
+  // The conditions the result in front of you actually ran with, which is
+  // not the draft above it.
+  'label.applied.title': 'Showing',
+  'label.applied.all': 'All records',
 
   // The three date shapes, the side of now a relative window lies on, and
   // the controls that edit them.
@@ -196,6 +249,13 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.scope.group.shared': 'Shared',
   'label.scope.system': 'Shipped with the definition',
   'label.scope.tag.system': 'system',
+  'label.scope.tag.personal': 'personal',
+  'label.scope.tag.shared': 'shared',
+  'label.scope.personal.description': 'Only you see it.',
+  'label.scope.shared.description': 'Everyone who uses this data sees it.',
+  // A scope the user cannot create in is offered and disabled rather than
+  // hidden: an option that is missing looks like an option that is gone.
+  'label.scope.no-permission': '(no permission to create)',
 
   // Which kind of view a row names: one data definition holds record and
   // analysis views together, so the list says which is which.
@@ -205,6 +265,32 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.view.list': 'Views',
   'label.view.list-failed': 'The list could not be loaded.',
   'label.view.none-hint': 'Save the current conditions to make one.',
+
+  // The view manager. Renaming and deleting are keyed apart from the save
+  // commands although two of them read the same: these are the accessible
+  // names of icon buttons on a row, and a translation may well need a
+  // different word for "rename this one" than for "rename what is open".
+  'label.manage.open': 'Manage views',
+  'label.manage.heading': 'Manage views',
+  'label.manage.description':
+    'Rename, reorder and delete views, and choose which one opens first.',
+  'label.manage.default': 'Default',
+  'label.manage.set-default': 'Open this one first',
+  'label.manage.unset-default': 'Stop opening this one first',
+  'label.manage.move-up': 'Move up',
+  'label.manage.move-down': 'Move down',
+  'label.manage.rename': 'Rename',
+  'label.manage.rename-confirm': 'Save the title',
+  'label.manage.rename-cancel': 'Keep the title',
+  'label.manage.delete': 'Delete',
+  'label.manage.reload': 'Reload list',
+
+  // Leaving a view with edits nobody has saved, or with a write whose result
+  // never came back.
+  'label.leave.heading': 'Leave this view?',
+  'label.leave.consequence': 'Unsaved changes will be lost.',
+  'label.leave.stay': 'Stay',
+  'label.leave.leave': 'Leave',
 
   // The analysis editor. Its "Add group" is its own: a grouping is not a
   // condition group, and a translation that shares one word for both is a
@@ -261,6 +347,9 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.view.unopenable': 'This view could not be opened',
   'label.view.needs-fixing': 'This view needs fixing before it runs',
   'label.view.warnings': 'Worth noting',
+  // Several of them collapse to one line, so the line has to say how many.
+  'label.view.warnings-count': '{count} things worth noting',
+  'label.status.more': '{count} more',
   'label.view.none': 'No view yet',
   'label.dashboard.needs-fixing': 'This dashboard needs fixing before it runs',
   'label.dashboard.empty': 'No panels yet',
@@ -269,6 +358,10 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.panel.unavailable': 'This panel is unavailable',
   'label.panel.unavailable-hint': 'The view it shows could not be opened.',
   'label.query.failed': 'The query failed',
+  // A failed query does not clear the table: what is on screen is the last
+  // result that did come back, and saying so is the only way to know.
+  'label.query.stale': 'Showing the last successful result',
+  'label.query.retry': 'Try again',
   'label.scope.refused': 'This page could not narrow this view',
   'label.analysis.empty': 'Nothing to aggregate',
   'label.write.conflict': 'Someone else saved this view first',

@@ -82,6 +82,12 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   /** Promotes a valid draft to `applied` and executes it. */
   apply(): void;
   /**
+   * Takes the draft back to the saved baseline and puts it in force again. A
+   * view that was never saved has no baseline to return to, so it is a no-op
+   * there; what is on screen is all there is.
+   */
+  revert(): void;
+  /**
    * Re-runs `applied` from the first page. A no-op while `applied` was never
    * admitted: a view opened on a config the definition refuses waits for a
    * fix, and no command runs it as it stands.
@@ -91,6 +97,17 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   setEditing(active: boolean): void;
   /** An outer condition ANDed onto the applied filter; never touches the draft. */
   setScopeFilter(tree: FilterTree | null): Issue[];
+  /**
+   * The outer condition in force, as `setScopeFilter` last admitted it, or
+   * `null` while none is injected.
+   *
+   * It is read rather than only written because the conditions the rows came
+   * back under are two things and not one: the view's own, which the editor
+   * addresses and may take out, and the host's, which are in force and are
+   * nobody's here to remove. A summary that reads the merged tree can tell
+   * neither apart — see `ViewResult.own`.
+   */
+  readonly scopeFilter: FilterTree | null;
   dispose(): void;
   /** True once disposed: every command is a no-op from then on. */
   readonly disposed: boolean;
@@ -160,6 +177,19 @@ export interface ViewQueryState {
 export interface ViewResult<C> {
   /** The config that produced this data, scope filter included. */
   config: C;
+  /**
+   * The view's own half of it: the `applied` config as it was promoted,
+   * before the scope filter was merged in.
+   *
+   * A summary of the conditions in force addresses the draft through this one.
+   * `mergeFilters` appends the scope as a trailing group, and wraps an `or` or
+   * `nor` draft as the first child of an `and`, so a path into `config.filter`
+   * addresses neither the draft's tree nor anything the editor may remove —
+   * and the host's own condition would sit in the bar looking removable.
+   * Equal to `config` when nothing is injected, and for a dashboard, which
+   * runs no query of its own.
+   */
+  own: C;
   data: ProjectedView;
   receivedAt: number;
 }
@@ -264,7 +294,7 @@ export class DataViewRuntime<
   private readonly autoRefresh: boolean;
 
   private state: ViewRuntimeState<C>;
-  private scopeFilter: FilterTree | null = null;
+  private injectedScope: FilterTree | null = null;
   /**
    * Whether `applied` merged with the scope passed admission. `apply` and
    * `setScopeFilter` only promote what did, so this is false only for the
@@ -288,7 +318,7 @@ export class DataViewRuntime<
     this.runner = options.runner;
     this.environment = options.environment;
     this.autoRefresh = options.autoRefresh ?? true;
-    this.scopeFilter = options.scopeFilter ?? null;
+    this.injectedScope = options.scopeFilter ?? null;
     this.context = {
       definition: options.definition,
       kinds: options.kinds,
@@ -332,6 +362,11 @@ export class DataViewRuntime<
     return this.context.definition.fields;
   }
 
+  /** The injected condition in force; see `ViewRuntime.scopeFilter`. */
+  get scopeFilter(): FilterTree | null {
+    return this.injectedScope;
+  }
+
   getSnapshot(): ViewRuntimeState<C> {
     return this.state;
   }
@@ -359,6 +394,26 @@ export class DataViewRuntime<
     this.pageTarget = firstPageOf(this.context.definition);
     this.setState({ applied: this.state.draft, selection: [] });
     this.execute({ keepSelection: false });
+  }
+
+  /**
+   * Discards the edits and re-runs what was saved.
+   *
+   * It re-applies rather than only restoring the draft, because the results
+   * on screen may already answer a question the user has just taken back —
+   * leaving them there would show the reverted config's rows under the saved
+   * config's name. A draft the store's own config cannot pass admission for
+   * is restored all the same and left for the user to fix, since refusing
+   * would strand them on edits they asked to be rid of.
+   */
+  revert(): void {
+    const saved = this.state.saved;
+    if (this.stopped || saved === null) return;
+    const draft = saved.config as C;
+    const issues = this.admit(draft);
+    const ran = this.state.applied;
+    this.setState({ draft, issues, dirty: this.isDirty(draft, saved) });
+    if (!dequal(ran, draft) && !hasError(issues)) this.apply();
   }
 
   /**
@@ -400,12 +455,12 @@ export class DataViewRuntime<
     if (this.stopped) return [];
     // Re-injecting the same condition changes nothing, and a dashboard does
     // exactly that whenever a layout edit is applied.
-    if (dequal(tree ?? null, this.scopeFilter)) return [];
+    if (dequal(tree ?? null, this.injectedScope)) return [];
     const issues = this.admit(this.state.applied, tree);
     // An injected condition is admitted exactly like a user's own.
     if (hasError(issues)) return issues;
 
-    this.scopeFilter = tree;
+    this.injectedScope = tree ?? null;
     this.appliedAdmitted = true;
     this.pageTarget = firstPageOf(this.context.definition);
     // The draft is judged with the scope too, so its issues move with it.
@@ -496,7 +551,7 @@ export class DataViewRuntime<
    */
   private admit(
     config: C,
-    scope: FilterTree | null = this.scopeFilter,
+    scope: FilterTree | null = this.injectedScope,
   ): Issue[] {
     return withoutScopeModeWarning(
       validateDataConfig(this.context, this.withScope(config, scope)),
@@ -505,12 +560,12 @@ export class DataViewRuntime<
     );
   }
 
-  private effectiveConfig(): C {
-    return this.withScope(this.state.applied, this.scopeFilter);
-  }
-
   private execute(options: { keepSelection: boolean }): void {
-    const config = this.effectiveConfig();
+    // Both halves travel with the request: what ran, and the view's own
+    // config it was merged from. `applied` may move on before the answer
+    // arrives, and a summary reading it would describe another question.
+    const own = this.state.applied;
+    const config = this.withScope(own, this.injectedScope);
     const requestId = `${this.id}:${(this.requestSeq += 1)}`;
     this.setState({ query: { status: 'loading', requestId } });
 
@@ -519,7 +574,8 @@ export class DataViewRuntime<
         executeDataConfig(this.context, config, this.pageTarget, controller),
       )
       .then(
-        data => this.onSuccess(requestId, config, data, options.keepSelection),
+        data =>
+          this.onSuccess(requestId, config, own, data, options.keepSelection),
         error => this.onFailure(requestId, error),
       );
   }
@@ -527,12 +583,13 @@ export class DataViewRuntime<
   private onSuccess(
     requestId: string,
     config: C,
+    own: C,
     data: ProjectedView,
     keepSelection: boolean,
   ): void {
     if (!this.isCurrent(requestId)) return;
     const receivedAt = this.environment.now().getTime();
-    const result = { config, data, receivedAt };
+    const result = { config, own, data, receivedAt };
     const selection = keepSelection
       ? this.retainSelection(data)
       : this.state.selection;

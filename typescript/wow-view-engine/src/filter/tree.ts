@@ -260,6 +260,102 @@ export function* walkFilter(tree: FilterTree): Generator<TreeVisit> {
     if (visit.node !== null) yield visit;
 }
 
+/**
+ * How many places a comparison may look at before it gives up and answers
+ * "not the same".
+ *
+ * These functions run on a *draft*, which `validateFilter` has not admitted
+ * and may never admit: the editor asks what changed on every render, and a
+ * tree deeper than `maxFilterDepth`, wider than `maxFilterNodes` or holding
+ * a cycle would otherwise exhaust the stack in the middle of one. So the
+ * walk is iterative and counted, and the count is generous next to the
+ * limits the validator budgets with — a tree it admits is 256 nodes deep at
+ * most 8, and even one carrying a value per node stays far under this —
+ * because a comparison that gave up early would report an edit that is not
+ * there. A draft past this point is one the panel refuses to render anyway.
+ */
+export const DEFAULT_COMPARE_BUDGET = 100_000;
+
+/**
+ * Whether two nodes say the same thing *at their own level*: a leaf by its
+ * field, operator and value, a group by its operator alone.
+ *
+ * A group deliberately ignores its children, because the callers walk the
+ * tree and ask about every node. Comparing children here would mark a group,
+ * its parent and the root as changed for one edited condition, and "3 not
+ * applied" for a single edit is a lie the user cannot act on. `null` stands
+ * for "no node there", which is never equal to a node — an added condition
+ * is a change, whatever it says.
+ *
+ * `dequal` would answer the value part, but the runtime is the only layer
+ * allowed to import it (`test/architecture.test.ts`), and this comparison
+ * belongs to the editor rather than to the store of state.
+ */
+export function sameFilterNode(
+  left: FilterNode | null,
+  right: FilterNode | null,
+  budget: number = DEFAULT_COMPARE_BUDGET,
+): boolean {
+  if (left === right) return true;
+  if (left === null || right === null) return false;
+  if (isFilterGroup(left) || isFilterGroup(right))
+    return isFilterGroup(left) && isFilterGroup(right) && left.op === right.op;
+  return (
+    left.field === right.field &&
+    left.operator === right.operator &&
+    sameValue(left.value, right.value, budget)
+  );
+}
+
+/** Whether two trees are the same tree, children and all. */
+export function sameFilterTree(
+  left: FilterTree,
+  right: FilterTree,
+  budget: number = DEFAULT_COMPARE_BUDGET,
+): boolean {
+  return sameValue(left, right, budget);
+}
+
+/**
+ * Structural equality over what a config may hold: JSON values, and the
+ * nodes built from them. Configs round-trip through a store, so two trees
+ * that mean the same thing are rarely the same objects.
+ *
+ * Iterative and budgeted, for the reason `DEFAULT_COMPARE_BUDGET` gives: an
+ * over-deep or cyclic draft answers `false` rather than throwing.
+ */
+function sameValue(left: unknown, right: unknown, budget: number): boolean {
+  const stack: { left: unknown; right: unknown }[] = [{ left, right }];
+  let visited = 0;
+  while (stack.length > 0) {
+    visited += 1;
+    if (visited > budget) return false;
+    const pair = stack.pop() as (typeof stack)[number];
+    const here = pair.left;
+    const there = pair.right;
+    if (here === there) continue;
+    if (Array.isArray(here) || Array.isArray(there)) {
+      if (
+        !Array.isArray(here) ||
+        !Array.isArray(there) ||
+        here.length !== there.length
+      )
+        return false;
+      for (let index = 0; index < here.length; index += 1)
+        stack.push({ left: here[index], right: there[index] });
+      continue;
+    }
+    if (!isObject(here) || !isObject(there)) return false;
+    const keys = Object.keys(here);
+    if (keys.length !== Object.keys(there).length) return false;
+    for (const key of keys) {
+      if (!(key in there)) return false;
+      stack.push({ left: here[key], right: there[key] });
+    }
+  }
+  return true;
+}
+
 export function countLeaves(tree: FilterTree): number {
   let leaves = 0;
   for (const { node } of walkFilter(tree)) if (isFilterLeaf(node)) leaves += 1;

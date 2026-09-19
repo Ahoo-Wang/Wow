@@ -1586,12 +1586,14 @@ function tableController(
     sortOf: () => null,
     toggleSort: () => {},
     layout: 'table',
+    layouts: ['table', 'card'],
     setLayout: () => {},
     columnFields: ['amount', 'warehouse'],
     setColumns: () => {},
     pageSize: 20,
     setPageSize: () => {},
     selection: [],
+    selectedRows: [],
     isSelected: () => false,
     toggle: () => {},
     toggleAll: () => {},
@@ -2568,7 +2570,7 @@ describe('FilterPanel tree editing', () => {
    * refused. No built-in kind warns about a leaf, so one is registered here:
    * a number it will round, worth pointing out and not worth refusing.
    */
-  it('marks a condition with a warning apart from one that is invalid', () => {
+  it('marks a condition with a warning apart from one that is invalid', async () => {
     const rounded: FieldKind = {
       id: 'rounded',
       operators: ['EQ'],
@@ -2625,7 +2627,8 @@ describe('FilterPanel tree editing', () => {
     expect(pill().hasAttribute('data-invalid')).toBe(false);
     // A warning blocks nothing: the condition applies as it stands.
     act(() => filter().submit());
-    expect(filter().applied).toHaveLength(1);
+    // The summary describes the result, so it arrives with the query.
+    await waitFor(() => expect(filter().applied).toHaveLength(1));
 
     act(() => filter().updateLeaf([0], { value: 'heavy' as never }));
 

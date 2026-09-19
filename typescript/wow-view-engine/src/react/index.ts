@@ -18,6 +18,7 @@
  * functions, never JSX, class names or vendor types, so the default UI and a
  * hand-built one consume exactly the same contract.
  */
+export * from './actions.js';
 export * from './environment.js';
 export * from './issues.js';
 export * from './useAnalysisEditor.js';
@@ -27,3 +28,4 @@ export * from './useRecordTable.js';
 export * from './useSaveCommands.js';
 export * from './useViewEngine.js';
 export * from './useViewList.js';
+export * from './useViewManager.js';

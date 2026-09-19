@@ -35,6 +35,8 @@ import {
   removeAt,
   resolveDateTimeBound,
   resolveDateTimeRange,
+  sameFilterNode,
+  sameFilterTree,
   updateAt,
   validateFilter,
   validateViewConfigBase,
@@ -1370,6 +1372,124 @@ describe('tree editing', () => {
  * number, an object with neither `children` nor `field` — is a finding at
  * its path, never a `TypeError` from the first pass to dereference it.
  */
+describe('node and tree comparison', () => {
+  const leaf = (value: unknown): FilterLeaf => ({
+    field: 'id',
+    operator: `${FilterOperator.EQ}`,
+    value: value as FilterLeaf['value'],
+  });
+
+  it('compares a leaf by field, operator and value', () => {
+    expect(sameFilterNode(leaf('a'), leaf('a'))).toBe(true);
+    expect(sameFilterNode(leaf('a'), leaf('b'))).toBe(false);
+    expect(
+      sameFilterNode(leaf('a'), { ...leaf('a'), field: 'warehouse' }),
+    ).toBe(false);
+    expect(
+      sameFilterNode(leaf('a'), {
+        ...leaf('a'),
+        operator: `${FilterOperator.NE}`,
+      }),
+    ).toBe(false);
+  });
+
+  it('reads a value that travelled through a store as the same value', () => {
+    // A stored config comes back as new objects every time, so identity is
+    // no answer: a list condition would read as edited on every render.
+    expect(sameFilterNode(leaf(['a', 'b']), leaf(['a', 'b']))).toBe(true);
+    expect(sameFilterNode(leaf(['a', 'b']), leaf(['b', 'a']))).toBe(false);
+    expect(sameFilterNode(leaf(['a']), leaf(['a', 'b']))).toBe(false);
+    expect(sameFilterNode(leaf(['a']), leaf('a'))).toBe(false);
+    expect(
+      sameFilterNode(leaf({ from: 1, to: 2 }), leaf({ to: 2, from: 1 })),
+    ).toBe(true);
+    expect(sameFilterNode(leaf({ from: 1 }), leaf({ from: 1, to: 2 }))).toBe(
+      false,
+    );
+    expect(sameFilterNode(leaf({ from: 1 }), leaf({ to: 1 }))).toBe(false);
+    expect(sameFilterNode(leaf(null), leaf('a'))).toBe(false);
+  });
+
+  it('compares a group by its operator, not by what is in it', () => {
+    const or: FilterTree = { op: 'or', children: [leaf('a')] };
+    expect(sameFilterNode(or, { op: 'or', children: [leaf('z')] })).toBe(true);
+    expect(sameFilterNode(or, { op: 'and', children: [leaf('a')] })).toBe(
+      false,
+    );
+    // A group and a leaf are never the same thing, whichever side it is on.
+    expect(sameFilterNode(or, leaf('a'))).toBe(false);
+    expect(sameFilterNode(leaf('a'), or)).toBe(false);
+  });
+
+  it('treats a missing node as unequal to any node', () => {
+    expect(sameFilterNode(null, null)).toBe(true);
+    expect(sameFilterNode(null, leaf('a'))).toBe(false);
+    expect(sameFilterNode(leaf('a'), null)).toBe(false);
+  });
+
+  it('compares a whole tree, children and all', () => {
+    const tree: FilterTree = {
+      op: 'and',
+      children: [leaf('a'), { op: 'or', children: [leaf('b')] }],
+    };
+    expect(sameFilterTree(tree, structuredClone(tree))).toBe(true);
+    expect(
+      sameFilterTree(tree, {
+        op: 'and',
+        children: [leaf('a'), { op: 'or', children: [leaf('z')] }],
+      }),
+    ).toBe(false);
+    expect(sameFilterTree(tree, emptyFilter())).toBe(false);
+  });
+
+  /**
+   * The editor asks what changed on every render, and it asks it of a
+   * *draft* — something `validateFilter` has not admitted and may never
+   * admit. A recursive comparison would exhaust the stack on one, which is a
+   * crash during render rather than a finding.
+   */
+  it('answers a tree deeper than any stack without throwing', () => {
+    const deep = (depth: number): FilterTree => {
+      let node: FilterTree = { op: 'and', children: [leaf('a')] };
+      for (let level = 0; level < depth; level += 1)
+        node = { op: 'and', children: [node] };
+      return node;
+    };
+
+    // Far past any call stack, and still under the node budget: a real
+    // answer, arrived at iteratively.
+    expect(sameFilterTree(deep(15_000), deep(15_000))).toBe(true);
+    expect(sameFilterTree(deep(15_000), deep(15_001))).toBe(false);
+    // Past the budget the answer is "not the same" — the only safe one, and
+    // a tree the panel refuses to draw anyway.
+    expect(sameFilterTree(deep(40_000), deep(40_000))).toBe(false);
+    // The budget is a parameter, so a caller with tighter limits may say so.
+    expect(sameFilterTree(deep(20), deep(20), 4)).toBe(false);
+  });
+
+  it('answers a cyclic value without walking it for ever', () => {
+    const left: Record<string, unknown> = { from: 1 };
+    left.self = left;
+    const right: Record<string, unknown> = { from: 1 };
+    right.self = right;
+
+    // Two cycles that mean the same thing are still not the same answer a
+    // finite walk can give, so the budget ends it at "no".
+    expect(sameFilterNode(leaf(left), leaf(right))).toBe(false);
+    // The same object is the same value without looking inside it at all.
+    expect(sameFilterNode(leaf(left), leaf(left))).toBe(true);
+
+    const cyclic = (): FilterTree => {
+      const tree: FilterTree = { op: 'and', children: [] };
+      tree.children.push(tree);
+      return tree;
+    };
+    expect(sameFilterTree(cyclic(), cyclic())).toBe(false);
+    const one = cyclic();
+    expect(sameFilterTree(one, one)).toBe(true);
+  });
+});
+
 describe('malformed trees', () => {
   const order = (id: string): FilterLeaf => ({
     field: 'id',

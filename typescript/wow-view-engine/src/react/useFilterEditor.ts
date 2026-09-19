@@ -32,7 +32,10 @@ import {
   nodeAt,
   operatorsOf,
   removeAt,
+  sameFilterNode,
+  sameFilterTree,
   updateAt,
+  walkFilter,
   type EditorDescriptor,
   type FieldKindRegistry,
   type FilterPath,
@@ -50,11 +53,58 @@ import { useViewRuntime } from './useViewEngine.js';
  */
 export interface FilterEditorController extends FilterTreeController {
   mode: FilterMode;
-  /** Conditions currently in force, for a summary bar. */
+  /**
+   * The view's own conditions the rows on screen were fetched under, for a
+   * summary bar. It reads the config the result carries rather than `applied`,
+   * so the bar always describes the data beside it: applying starts a query,
+   * and until it answers, `applied` has already moved on. Empty until a result
+   * exists.
+   *
+   * It describes `result.own`, not `result.config`: under a host scope filter
+   * the two differ, and only the first is addressed by the paths this editor
+   * takes — so `clearValue(item.path)` takes out the condition the badge names.
+   * The scope's own conditions are `scoped`.
+   *
+   * A draft over the tree budget does not empty it. What the rows came back
+   * under was admitted before it ran, so it is within budget whatever the
+   * draft has since become, and a summary that blanked while the user edited
+   * would stop describing the data it sits beside.
+   */
   applied: FilterSummaryItem[];
+  /**
+   * The host's own conditions, in force alongside `applied` but not this
+   * editor's to change: `setScopeFilter` injects them, the draft never holds
+   * them, and no path here addresses them. A bar shows them as plain items,
+   * with no remove — `clearValue` cannot reach them, and offering it would
+   * promise a narrowing the user cannot undo. Empty when no scope is injected.
+   */
+  scoped: FilterSummaryItem[];
   count: number;
   /** False when the tree needs the advanced editor to be shown faithfully. */
   simple: boolean;
+  /**
+   * True when the draft says something other than what was last applied.
+   * False for a draft over the tree budget, which cannot be applied at all.
+   */
+  pending: boolean;
+  /**
+   * How many nodes `isPending` holds for; a badge count. It counts both
+   * trees: a path the draft has and the applied tree does not is a new
+   * condition, and a path only the applied tree has is one removed since —
+   * both are edits waiting for Apply, and a cleared filter is only the
+   * second kind.
+   */
+  pendingCount: number;
+  /**
+   * Whether the node at `path` has been edited since the last apply. Compares
+   * that node alone — a leaf by field, operator and value, a group by its
+   * operator — so one edited condition marks one pill, not its ancestors too.
+   * A node the applied tree has nothing at is pending: it is new. A node only
+   * the applied tree has is pending too: it is gone.
+   */
+  isPending(path: FilterPath): boolean;
+  /** How many `issues` block apply *and* point at a condition the editor shows. */
+  blocked: number;
   setMode(mode: FilterMode): void;
   clear(): void;
   /** Applies the draft, which is what runs the query. */
@@ -70,6 +120,17 @@ const EMPTY_GROUPS: readonly FieldGroupDefinition[] = [];
 const EMPTY_FIELDS: readonly FieldDefinition[] = [];
 /** Stable identity for "no runtime yet"; every edit produces a new tree. */
 const EMPTY_TREE: FilterTree = { op: 'and', children: [] };
+
+/**
+ * True for a finding about the tree this editor draws rather than a nested
+ * one. A metric's, an element's or a dashboard panel's filter is validated in
+ * its own scope and re-pathed under ['metrics', …], ['elements', …] or
+ * ['panels', …]; the root tree's own findings sit at the config root or under
+ * ['children', …].
+ */
+function isOwnFilterPath(found: Issue): boolean {
+  return found.path.length === 0 || found.path[0] === 'children';
+}
 
 /**
  * Editing of the draft filter tree, addressed by path.
@@ -90,12 +151,16 @@ export function useFilterEditor(
   );
   const kinds = runtime?.kinds;
   const tree = state?.draft.filter ?? EMPTY_TREE;
-  // The budget findings of this filter alone: the issue filter below keeps
-  // element- and panel-scoped trees out, so a hit here is the top-level one.
+  // The budget findings of this filter alone. An analysis metric's or a
+  // dashboard panel's own filter reports the very same codes, so the code
+  // alone would let an oversized tree the editor does not draw switch off
+  // `pending` and `pendingCount` for the root tree — the path is what says
+  // the finding is this filter's, exactly as `issues` below reads it.
   const overBudget = (state?.issues ?? []).some(
     found =>
-      found.code === 'filter.tree.too-deep' ||
-      found.code === 'filter.tree.too-many-nodes',
+      (found.code === 'filter.tree.too-deep' ||
+        found.code === 'filter.tree.too-many-nodes') &&
+      isOwnFilterPath(found),
   );
 
   const byName = useMemo(
@@ -178,6 +243,54 @@ export function useFilterEditor(
     [change],
   );
 
+  // `validateFilter` addresses a node by its path (`[0]`, `[1, 0]`), so the
+  // code is what says an Issue belongs to the filter at all — and the path
+  // is what says it belongs to *this* filter: an element's or a dashboard
+  // panel's own filter is validated in its own scope and re-pathed under
+  // ['elements', …] or ['panels', …], which would otherwise mark top-level
+  // conditions as invalid.
+  const issues = (state?.issues ?? []).filter(
+    found =>
+      found.code.startsWith('config.filterMode.') ||
+      (found.code.startsWith('filter.') && isOwnFilterPath(found)),
+  );
+
+  // What "not applied yet" is measured against is the tree `apply` promoted,
+  // which is not the one the result carries: between the two a query is in
+  // flight, and the editor must not go on offering to apply what it just did.
+  const inForce = state?.applied.filter ?? EMPTY_TREE;
+
+  // An over-budget draft is not compared at all. It is deeper or wider than
+  // admission allows — a tree from a store may even hold a cycle — so
+  // walking it once per render would be work spent on conditions the panel
+  // refuses to draw, and it already blocked apply. Nothing about it is
+  // pending because nothing about it can be applied.
+  const isPending = useCallback(
+    (path: FilterPath) =>
+      !overBudget && !sameFilterNode(nodeAt(tree, path), nodeAt(inForce, path)),
+    [overBudget, tree, inForce],
+  );
+
+  const pendingCount = useMemo(() => {
+    if (overBudget) return 0;
+    let count = 0;
+    const visited = new Set<string>();
+    for (const { node, path } of walkFilter(tree)) {
+      const at = indexesOf(path);
+      visited.add(at.join(','));
+      if (!sameFilterNode(node, nodeAt(inForce, at))) count += 1;
+    }
+    // A condition taken out of the draft is still an edit not applied: the
+    // rows on screen were fetched under it, and `isPending` at its path says
+    // so. Counting the draft alone would leave a badge of 0 beside an Apply
+    // button that has something to do — a cleared filter most of all.
+    for (const { path } of walkFilter(inForce)) {
+      const at = indexesOf(path);
+      if (!visited.has(at.join(','))) count += 1;
+    }
+    return count;
+  }, [overBudget, tree, inForce]);
+
   return {
     tree,
     mode: state?.draft.filterMode ?? 'simple',
@@ -187,30 +300,37 @@ export function useFilterEditor(
         ? (runtime.definition.fieldGroups ?? EMPTY_GROUPS)
         : EMPTY_GROUPS,
     kinds,
-    // `validateFilter` addresses a node by its path (`[0]`, `[1, 0]`), so the
-    // code is what says an Issue belongs to the filter at all — and the path
-    // is what says it belongs to *this* filter: an element's or a dashboard
-    // panel's own filter is validated in its own scope and re-pathed under
-    // ['elements', …] or ['panels', …], which would otherwise mark top-level
-    // conditions as invalid.
-    issues: (state?.issues ?? []).filter(
-      found =>
-        found.code.startsWith('config.filterMode.') ||
-        (found.code.startsWith('filter.') &&
-          (found.path.length === 0 || found.path[0] === 'children')),
-    ),
-    // An over-budget draft also blocked apply, so what was applied last is
-    // the oversized tree itself; summarising it would walk every leaf and
-    // render one line per condition. The findings say so instead.
-    applied: useMemo(
-      () =>
-        overBudget || !state || !kinds
-          ? []
-          : describeFilter(fields, state.applied.filter, kinds),
-      [overBudget, state, fields, kinds],
+    issues,
+    // The result's own config, which was admitted before it ran and is
+    // therefore within budget by construction — an over-budget draft blocked
+    // apply, so it is not what produced these rows and does not silence what
+    // did. `own` rather than `config`: a merged scope moves every path.
+    applied: useMemo(() => {
+      const ran = state?.result?.own.filter;
+      return !ran || !kinds ? [] : describeFilter(fields, ran, kinds);
+    }, [state, fields, kinds]),
+    // The scope in force now rather than the one the result ran under: it is
+    // the host's statement about what the user is looking at, and a host that
+    // narrows it has narrowed the question before the answer arrives.
+    scoped: useMemo(
+      () => {
+        const scope = runtime?.scopeFilter;
+        return !scope || !kinds ? [] : describeFilter(fields, scope, kinds);
+      },
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- `scopeFilter` is a getter the runtime notifies through
+      [runtime, state, fields, kinds],
     ),
     count: countLeaves(tree),
     simple: isSimpleTree(tree),
+    pending: !overBudget && !sameFilterTree(tree, inForce),
+    pendingCount,
+    isPending,
+    // Only the conditions the editor draws: an error elsewhere in the config
+    // blocks apply too, but no pill can be marked for it, so the Apply button
+    // would promise a fix the user cannot find here.
+    blocked: issues.filter(
+      found => found.severity === 'error' && found.path[0] === 'children',
+    ).length,
     setMode: useCallback(
       (mode: FilterMode) => runtime?.edit({ filterMode: mode }),
       [runtime],
@@ -351,6 +471,14 @@ export interface TreeControllerInput {
   /** Issues already rebased onto this tree. */
   issues: Issue[];
   onChange(tree: FilterTree): void;
+}
+
+/**
+ * A walk's path as the editor addresses nodes. `walkFilter` interleaves the
+ * `'children'` key with each index, and a `FilterPath` is the indexes alone.
+ */
+function indexesOf(path: readonly (string | number)[]): FilterPath {
+  return path.filter((step): step is number => typeof step === 'number');
 }
 
 /** The tree with the node at `path` set to say nothing; see `clearValue`. */

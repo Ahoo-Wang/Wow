@@ -495,6 +495,7 @@ describe('useSaveCommands', () => {
       saveAs: false,
       rename: false,
       delete: false,
+      revert: false,
       createPersonal: false,
       createShared: false,
     });
@@ -503,6 +504,8 @@ describe('useSaveCommands', () => {
       error: null,
       write: null,
       dirty: false,
+      blocked: false,
+      lastSavedAt: null,
     });
   });
 
@@ -518,10 +521,12 @@ describe('useSaveCommands', () => {
     await expect(result.current.delete()).resolves.toBe(false);
     await expect(result.current.retry()).resolves.toEqual({
       landed: false,
+      written: false,
       instance: null,
     });
     await expect(result.current.resolveConflict('reload')).resolves.toEqual({
       landed: false,
+      written: false,
       instance: null,
     });
     expect(() => result.current.abandon()).not.toThrow();
@@ -660,6 +665,10 @@ describe('useSaveCommands', () => {
       await result.current.commands.retry();
     });
     expect(result.current.commands.state.write).toBeNull();
+    // A replay that landed is a write that landed, badge and all.
+    expect(result.current.commands.state.lastSavedAt).toEqual(
+      expect.any(Number),
+    );
     await expect(store.get('orders-1')).resolves.toMatchObject({
       config: { pageSize: 21 },
     });
@@ -746,6 +755,204 @@ describe('useSaveCommands', () => {
 
     expect(result.current.commands.state.error).toBeNull();
     expect(result.current.commands.state.pending).toBe(false);
+  });
+
+  it('offers revert only with edits and a baseline to drop them for', async () => {
+    const { engine, result } = await openMine();
+    expect(result.current.commands.can.revert).toBe(false);
+
+    act(() => result.current.opened.runtime?.edit({ pageSize: 44 }));
+    expect(result.current.commands.can.revert).toBe(true);
+
+    act(() => result.current.commands.revert());
+    expect(result.current.commands.can.revert).toBe(false);
+    expect(result.current.opened.runtime?.getSnapshot().draft).toMatchObject({
+      pageSize: 20,
+    });
+
+    // A view that was never saved is dirty from the start and has nothing to
+    // go back to, so reverting is never offered and does nothing.
+    const fresh = engine.create('orders', {
+      title: 'Draft',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+    const { result: unsaved } = renderHook(() =>
+      useSaveCommands(engine, fresh),
+    );
+    expect(unsaved.current.can.revert).toBe(false);
+    act(() => unsaved.current.revert());
+    expect(fresh.getSnapshot().dirty).toBe(true);
+  });
+
+  it('blocks writing on a refused draft or an outcome nobody can read', async () => {
+    const { store, result } = await openMine();
+    expect(result.current.commands.state.blocked).toBe(false);
+
+    // Every button that writes disables on all three reasons at once, so the
+    // hook answers them as one flag rather than making each UI re-derive it.
+    act(() => result.current.opened.runtime?.edit({ pageSize: 5000 }));
+    expect(result.current.commands.state.blocked).toBe(true);
+    act(() => result.current.opened.runtime?.edit({ pageSize: 21 }));
+    expect(result.current.commands.state.blocked).toBe(false);
+
+    vi.spyOn(store, 'save').mockRejectedValueOnce(
+      new ViewStoreError('UNAVAILABLE', 'timeout'),
+    );
+    await act(async () => {
+      await result.current.commands.save();
+    });
+    // Nobody knows whether that write landed, so the next one might be the
+    // same write a second time.
+    expect(result.current.commands.state.write?.kind).toBe('unknown');
+    expect(result.current.commands.state.blocked).toBe(true);
+  });
+
+  it('leaves a conflict open to the new intent that resolves it', async () => {
+    const { store, result } = await openMine();
+    await store.save('orders-1', recordConfig({ pageSize: 77 }), '1', {
+      requestId: 'other',
+    });
+
+    act(() => result.current.opened.runtime?.edit({ pageSize: 21 }));
+    await act(async () => {
+      await result.current.commands.save();
+    });
+    expect(result.current.commands.state.write?.kind).toBe('conflict');
+
+    // A conflict is a definite answer, and "Save my copy" is one of the ways
+    // out of it — blocking on it would disable the button that resolves it.
+    // A UI that must refuse a *blind* Save here reads `write` itself.
+    expect(result.current.commands.state.blocked).toBe(false);
+    await act(async () => {
+      await expect(
+        result.current.commands.saveAs({
+          title: 'My copy',
+          scope: 'personal',
+        }),
+      ).resolves.not.toBeNull();
+    });
+  });
+
+  it('times the write that landed and clears it when the next starts', async () => {
+    const { engine, result } = await openMine();
+    expect(result.current.commands.state.lastSavedAt).toBeNull();
+
+    act(() => result.current.opened.runtime?.edit({ pageSize: 44 }));
+    await act(async () => {
+      await result.current.commands.save();
+    });
+    const landed = result.current.commands.state.lastSavedAt;
+    expect(typeof landed).toBe('number');
+
+    // The moment belongs to one write. A UI showing "Saved" for a couple of
+    // seconds must not carry the last one's badge over the next attempt.
+    const slow = deferred<ViewInstance>();
+    vi.spyOn(engine, 'save').mockReturnValueOnce(slow.promise);
+    act(() => {
+      void result.current.commands.save();
+    });
+    expect(result.current.commands.state.lastSavedAt).toBeNull();
+    expect(result.current.commands.state.blocked).toBe(true);
+
+    await act(async () => {
+      slow.resolve({ ...mine, revision: '3' });
+      await Promise.resolve();
+    });
+    expect(result.current.commands.state.lastSavedAt).toEqual(
+      expect.any(Number),
+    );
+  });
+
+  it('leaves the last write unmarked when a command fails', async () => {
+    const { engine, result } = await openMine();
+    vi.spyOn(engine, 'save').mockRejectedValueOnce(
+      new ViewCommandError(issue('view.config.invalid', [])),
+    );
+
+    await act(async () => {
+      await result.current.commands.save();
+    });
+
+    expect(result.current.commands.state.lastSavedAt).toBeNull();
+    // A rename that landed is not a save, so it marks no moment either.
+    await act(async () => {
+      await result.current.commands.rename('Renamed');
+    });
+    expect(result.current.commands.state.lastSavedAt).toBeNull();
+  });
+
+  it('marks no moment for a conflict the user resolved by reloading', async () => {
+    const { store, result } = await openMine();
+    await store.save('orders-1', recordConfig({ pageSize: 77 }), '1', {
+      requestId: 'other',
+    });
+
+    act(() => result.current.opened.runtime?.edit({ pageSize: 21 }));
+    await act(async () => {
+      await result.current.commands.save();
+    });
+    expect(result.current.commands.state.write?.kind).toBe('conflict');
+
+    await act(async () => {
+      await expect(
+        result.current.commands.resolveConflict('reload'),
+      ).resolves.toMatchObject({ landed: true, written: false });
+    });
+
+    // Reloading settles the conflict by taking the stored state and dropping
+    // the draft. Nothing of the user's was written, so a "View saved" badge
+    // over the edits they just gave up is the one thing it must not show.
+    expect(result.current.commands.state.lastSavedAt).toBeNull();
+  });
+
+  it('marks no moment for a replayed write that is not a save', async () => {
+    const { store, result } = await openMine();
+    vi.spyOn(store, 'rename').mockRejectedValueOnce(
+      new ViewStoreError('UNAVAILABLE', 'timeout'),
+    );
+
+    await act(async () => {
+      await result.current.commands.rename('Renamed');
+    });
+    expect(result.current.commands.state.write?.kind).toBe('unknown');
+
+    await act(async () => {
+      await expect(result.current.commands.retry()).resolves.toMatchObject({
+        landed: true,
+        written: false,
+      });
+    });
+
+    // The replay did reach the store — the title is the new one — but what
+    // it wrote is not the config on screen. Saying "View saved" here would
+    // tell the user their unsaved edits are safe when nothing of them went.
+    expect(result.current.commands.state.lastSavedAt).toBeNull();
+    await expect(store.get('orders-1')).resolves.toMatchObject({
+      title: 'Renamed',
+    });
+  });
+
+  it('times a conflict the user resolved by overwriting', async () => {
+    const { store, result } = await openMine();
+    await store.save('orders-1', recordConfig({ pageSize: 77 }), '1', {
+      requestId: 'other',
+    });
+
+    act(() => result.current.opened.runtime?.edit({ pageSize: 21 }));
+    await act(async () => {
+      await result.current.commands.save();
+    });
+
+    await act(async () => {
+      await expect(
+        result.current.commands.resolveConflict('overwrite'),
+      ).resolves.toMatchObject({ landed: true, written: true });
+    });
+
+    expect(result.current.commands.state.lastSavedAt).toEqual(
+      expect.any(Number),
+    );
   });
 
   it('offers only a copy of a system view', async () => {
@@ -1098,6 +1305,354 @@ describe('useFilterEditor', () => {
  * runtime's draft. It is what lets a condition holding a condition render
  * through the same components as the filter around it.
  */
+describe('useFilterEditor pending and applied', () => {
+  async function openEditor() {
+    const { engine } = engineWith();
+    const { result } = renderHook(() => {
+      const opened = useOpenView(engine, 'orders-1');
+      return { opened, filter: useFilterEditor(opened.runtime) };
+    });
+    await waitFor(() =>
+      expect(result.current.opened.runtime?.getSnapshot().result).toBeTruthy(),
+    );
+    return result;
+  }
+
+  it('describes the conditions the rows on screen came back under', async () => {
+    const result = await openEditor();
+    const filter = () => result.current.filter;
+    expect(filter().applied).toEqual([]);
+
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().updateLeaf([0], { value: 'CN' });
+    });
+    act(() => filter().submit());
+
+    // Applied, but not answered yet: the summary sits beside the rows and
+    // must describe those rows, not the query that is still in flight.
+    expect(filter().applied).toEqual([]);
+    await waitFor(() => expect(filter().applied).toHaveLength(1));
+  });
+
+  it('marks the draft nodes that have not been applied yet', async () => {
+    const result = await openEditor();
+    const filter = () => result.current.filter;
+
+    expect(filter().pending).toBe(false);
+    expect(filter().pendingCount).toBe(0);
+    expect(filter().isPending([0])).toBe(false);
+
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().updateLeaf([0], { value: 'CN' });
+    });
+
+    expect(filter().pending).toBe(true);
+    // The new condition alone; the root still says the same `and`.
+    expect(filter().pendingCount).toBe(1);
+    expect(filter().isPending([0])).toBe(true);
+    expect(filter().isPending([])).toBe(false);
+
+    act(() => filter().submit());
+    expect(filter().pending).toBe(false);
+    expect(filter().pendingCount).toBe(0);
+    expect(filter().isPending([0])).toBe(false);
+  });
+
+  it('counts a changed group operator without counting its children', async () => {
+    const result = await openEditor();
+    const filter = () => result.current.filter;
+    act(() => {
+      filter().addGroup('or');
+      filter().addLeaf('warehouse', [0]);
+      filter().updateLeaf([0, 0], { value: 'CN' });
+    });
+    act(() => filter().submit());
+    expect(filter().pendingCount).toBe(0);
+
+    act(() => filter().updateGroup([0], 'and'));
+
+    // One group moved, and the condition inside it did not: a single edit
+    // reported as three would be a number the user cannot act on.
+    expect(filter().pendingCount).toBe(1);
+    expect(filter().isPending([0])).toBe(true);
+    expect(filter().isPending([0, 0])).toBe(false);
+
+    act(() => filter().updateGroup([], 'or'));
+    expect(filter().isPending([])).toBe(true);
+    expect(filter().pendingCount).toBe(2);
+  });
+
+  it('counts a condition the draft no longer has', async () => {
+    const result = await openEditor();
+    const filter = () => result.current.filter;
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().updateLeaf([0], { value: 'CN' });
+    });
+    act(() => filter().submit());
+    expect(filter().pendingCount).toBe(0);
+
+    act(() => filter().remove([0]));
+
+    // Taking the last condition out is as much an unapplied edit as adding
+    // one: the rows on screen are still the narrow ones, and a badge of 0
+    // beside a live Apply button is the count contradicting itself.
+    expect(filter().pending).toBe(true);
+    expect(filter().pendingCount).toBe(1);
+    expect(filter().isPending([0])).toBe(true);
+  });
+
+  it('counts every condition a cleared filter dropped', async () => {
+    const result = await openEditor();
+    const filter = () => result.current.filter;
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().updateLeaf([0], { value: 'CN' });
+      filter().addLeaf('amount');
+      filter().updateLeaf([1], { value: 10 });
+    });
+    act(() => filter().submit());
+    expect(filter().pendingCount).toBe(0);
+
+    act(() => filter().clear());
+
+    expect(filter().pending).toBe(true);
+    expect(filter().pendingCount).toBe(2);
+  });
+
+  it('says nothing is pending for a draft over the tree budget', async () => {
+    const result = await openEditor();
+    const filter = () => result.current.filter;
+
+    let nested: FilterTree = { op: 'and', children: [] };
+    for (let level = 0; level < 12; level += 1)
+      nested = { op: 'and', children: [nested] };
+    act(() => result.current.opened.runtime?.edit({ filter: nested }));
+
+    expect(filter().issues.map(found => found.code)).toContain(
+      'filter.tree.too-deep',
+    );
+    // The panel does not draw a tree admission refused, so there is no pill
+    // to mark and nothing to offer to apply — and comparing it is work the
+    // editor would repeat on every render for an answer nobody reads.
+    expect(filter().pending).toBe(false);
+    expect(filter().pendingCount).toBe(0);
+    expect(filter().isPending([0])).toBe(false);
+    expect(filter().applied).toEqual([]);
+  });
+
+  it('keeps summarising the result while the draft goes over budget', async () => {
+    const result = await openEditor();
+    const filter = () => result.current.filter;
+
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().updateLeaf([0], { value: 'CN' });
+    });
+    act(() => filter().submit());
+    await waitFor(() => expect(filter().applied).toHaveLength(1));
+
+    let nested: FilterTree = { op: 'and', children: [] };
+    for (let level = 0; level < 12; level += 1)
+      nested = { op: 'and', children: [nested] };
+    act(() => result.current.opened.runtime?.edit({ filter: nested }));
+
+    expect(filter().issues.map(found => found.code)).toContain(
+      'filter.tree.too-deep',
+    );
+    expect(filter().pending).toBe(false);
+    // The rows on screen are still the narrow ones: what produced them was
+    // admitted before it ran, so it is within budget whatever the draft has
+    // since become. A summary that blanked while the user edited would stop
+    // describing the data it sits beside.
+    expect(filter().applied).toHaveLength(1);
+    expect(filter().applied[0]?.text).toContain('CN');
+  });
+
+  it('keeps the root editor working when a metric owns the oversized tree', async () => {
+    const analysis: ViewInstance = {
+      id: 'orders-analysis',
+      definitionId: 'orders',
+      title: 'By warehouse',
+      scope: 'personal',
+      revision: '1',
+      config: analysisConfig(),
+    };
+    const { engine } = engineWith({ instances: [analysis] });
+    const { result } = renderHook(() => {
+      const opened = useOpenView(engine, 'orders-analysis');
+      return { opened, filter: useFilterEditor(opened.runtime) };
+    });
+    await waitFor(() => expect(result.current.opened.runtime).not.toBeNull());
+    const filter = () => result.current.filter;
+
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().updateLeaf([0], { value: 'CN' });
+    });
+    act(() => filter().submit());
+    await waitFor(() => expect(filter().applied).toHaveLength(1));
+
+    // A metric's own filter is validated in its own scope and re-pathed under
+    // ['metrics', …], and it reports the very same budget codes as this tree.
+    const wide: FilterTree = {
+      op: 'and',
+      children: Array.from({ length: 400 }, () => ({
+        field: 'amount',
+        operator: 'EQ' as const,
+        value: 1,
+      })),
+    };
+    act(() =>
+      result.current.opened.runtime?.edit({
+        metrics: [{ type: 'COUNT', alias: 'orders', filter: wide }],
+      }),
+    );
+    expect(
+      result.current.opened.runtime
+        ?.getSnapshot()
+        .issues.map(found => found.code),
+    ).toContain('filter.tree.too-many-nodes');
+
+    // That tree is not the one this editor draws, so the code alone must not
+    // switch the editor off: its own conditions are still comparable, still
+    // applicable, and the summary still describes the rows on screen.
+    expect(filter().issues).toEqual([]);
+    expect(filter().applied).toHaveLength(1);
+    act(() => filter().updateLeaf([0], { value: 'US' }));
+    expect(filter().pending).toBe(true);
+    expect(filter().pendingCount).toBe(1);
+    expect(filter().isPending([0])).toBe(true);
+  });
+
+  it('counts only the blocking findings that point at a condition', async () => {
+    const result = await openEditor();
+    const filter = () => result.current.filter;
+    expect(filter().blocked).toBe(0);
+
+    act(() => {
+      filter().addLeaf('amount');
+      filter().updateLeaf([0], { value: 'heavy' as never });
+    });
+
+    expect(filter().blocked).toBe(1);
+
+    // An error elsewhere in the config blocks apply too, but no pill can be
+    // marked for it, so the filter panel must not claim it.
+    act(() => result.current.opened.runtime?.edit({ pageSize: 5000 }));
+    expect(filter().blocked).toBe(1);
+  });
+});
+
+describe('useFilterEditor under a host scope filter', () => {
+  /** What an embedding host narrows the view to; never in the draft. */
+  const scope: FilterTree = {
+    op: 'and',
+    children: [{ field: 'status', operator: 'EQ', value: 'OPEN' }],
+  };
+
+  /** A summary item's path as the tree editor addresses a node. */
+  function indexes(path: readonly (string | number)[]): number[] {
+    return path.filter((step): step is number => typeof step === 'number');
+  }
+
+  async function openScoped() {
+    const { engine } = engineWith();
+    const { result } = renderHook(() => {
+      const opened = useOpenView(engine, 'orders-1', scope);
+      return { opened, filter: useFilterEditor(opened.runtime) };
+    });
+    await waitFor(() =>
+      expect(result.current.opened.runtime?.getSnapshot().result).toBeTruthy(),
+    );
+    return result;
+  }
+
+  it('describes the host conditions apart from the view own', async () => {
+    const result = await openScoped();
+    const filter = () => result.current.filter;
+
+    expect(filter().scoped).toHaveLength(1);
+    expect(filter().scoped[0]).toMatchObject({
+      field: 'status',
+      path: ['children', 0],
+    });
+    expect(filter().applied).toEqual([]);
+
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().updateLeaf([0], { value: 'CN' });
+      filter().addLeaf('amount');
+      filter().updateLeaf([1], { value: 10 });
+    });
+    act(() => filter().submit());
+    await waitFor(() => expect(filter().applied).toHaveLength(2));
+
+    // The scope ran with them, and `result.config` holds the merged tree —
+    // but a badge for it would offer a remove nobody here can honour, and
+    // the path it carried would address the draft's next condition instead.
+    expect(filter().applied.map(item => item.path)).toEqual([
+      ['children', 0],
+      ['children', 1],
+    ]);
+    expect(filter().applied.some(item => item.text.includes('OPEN'))).toBe(
+      false,
+    );
+
+    // The path a badge carries reaches the leaf it names, and only it.
+    act(() => {
+      filter().clearValue(indexes(filter().applied[1].path));
+      filter().submit();
+    });
+    await waitFor(() => expect(filter().applied).toHaveLength(1));
+    expect(filter().applied[0].text).toContain('CN');
+    expect(filter().scoped).toHaveLength(1);
+  });
+
+  it('addresses an or-root draft through the config that produced the result', async () => {
+    const result = await openScoped();
+    const filter = () => result.current.filter;
+
+    act(() => {
+      filter().updateGroup([], 'or');
+      filter().addLeaf('warehouse');
+      filter().updateLeaf([0], { value: 'CN' });
+      filter().addLeaf('amount');
+      filter().updateLeaf([1], { value: 10 });
+    });
+    act(() => filter().submit());
+    await waitFor(() => expect(filter().applied).toHaveLength(1));
+
+    // `mergeFilters` carries an `or` draft in as the first child of an `and`,
+    // so every path into the merged tree is one level deeper than the tree
+    // the editor draws. The summary reads `own`, which is that very tree.
+    const summary = filter().applied[0];
+    expect(summary).toMatchObject({ group: 'or', path: [] });
+    expect(summary.text).toContain('CN');
+    expect(summary.text).not.toContain('OPEN');
+
+    const runtime = result.current.opened.runtime;
+    expect(runtime?.getSnapshot().result?.config.filter).toMatchObject({
+      op: 'and',
+    });
+    expect(runtime?.getSnapshot().result?.own.filter).toMatchObject({
+      op: 'or',
+    });
+
+    act(() => {
+      filter().clearValue(indexes(summary.path));
+      filter().submit();
+    });
+    await waitFor(() => expect(filter().applied).toEqual([]));
+    // The host's own condition is not the editor's to take out, and taking
+    // the view's out did not touch it.
+    expect(filter().scoped).toHaveLength(1);
+    expect(runtime?.scopeFilter).toEqual(scope);
+  });
+});
+
 describe('treeController', () => {
   const fields = [
     { name: 'sku', label: 'SKU', kind: 'string' as const },
@@ -1204,6 +1759,8 @@ describe('useRecordTable', () => {
       status: 'idle',
       pageSize: 0,
       layout: 'table',
+      layouts: [],
+      selectedRows: [],
     });
     expect(result.current.sortOf('id')).toBeNull();
     expect(result.current.isSelected('o-1')).toBe(false);
@@ -1220,6 +1777,31 @@ describe('useRecordTable', () => {
       result.current.previous();
       result.current.refresh();
     }).not.toThrow();
+  });
+
+  it('offers the layouts the definition allows', async () => {
+    const result = await openTable();
+
+    // A switcher offers these and nothing else — and nothing at all below two.
+    expect(result.current.table.layouts).toEqual(['table', 'card']);
+  });
+
+  it('gives the selected rows in result order', async () => {
+    const result = await openTable();
+
+    act(() => result.current.table.toggle('o-2'));
+    act(() => result.current.table.toggle('o-1'));
+
+    // Clicked in reverse, listed as the table lists them: a bulk action names
+    // what it is about to touch, and the list has to read like the rows above.
+    expect(result.current.table.selection).toEqual(['o-2', 'o-1']);
+    expect(result.current.table.selectedRows.map(row => row.key)).toEqual([
+      'o-1',
+      'o-2',
+    ]);
+
+    act(() => result.current.table.clearSelection());
+    expect(result.current.table.selectedRows).toEqual([]);
   });
 
   it('keeps the priority of a column when its direction changes', async () => {
