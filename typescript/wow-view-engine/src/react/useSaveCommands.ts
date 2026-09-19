@@ -11,67 +11,40 @@
  * limitations under the License.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   audienceOf,
   isSystemScope,
   type Issue,
   type ViewAudience,
   type ViewInstance,
-  type ViewPreferences,
 } from '../model/index.js';
 import type {
   ConflictChoice,
   ViewEngine,
   ViewRuntime,
-  WriteAction,
   WriteState,
 } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 import { toIssue } from './issues.js';
+import {
+  createCommandQueue,
+  enqueue,
+  type CommandQueue,
+} from './manager/queue.js';
+import {
+  blocksNewIntent,
+  recovered,
+  savesView,
+  UNRECOVERED,
+  type RecoveredWrite,
+} from './writes.js';
+
+export type { RecoveredWrite } from './writes.js';
 
 export interface SaveTargetInput {
   title: string;
   scope: ViewAudience;
-}
-
-/** What replaying a write answered: whether it landed, and what it made. */
-export interface RecoveredWrite {
-  /** The command is done: the outcome it was raised against is settled. */
-  landed: boolean;
-  /**
-   * Whether it saved this view — a `create` or a `save` that reached the
-   * store. That is what a "Saved" moment is about, and two other landings
-   * are not it: a conflict resolved by `reload` takes the stored state and
-   * drops the draft, so it writes nothing at all; and a recovered `rename` or
-   * `delete` does write, but not the config on screen — announcing "View
-   * saved" after a retried rename would tell the user their unsaved edits are
-   * safe when they are not.
-   */
-  written: boolean;
-  /** The instance a recovered create, save or rename produced, if any. */
-  instance: ViewInstance | null;
-}
-
-const UNRECOVERED: RecoveredWrite = {
-  landed: false,
-  written: false,
-  instance: null,
-};
-
-/** Preferences resolve too, and carry no instance. */
-function recoveredOf(
-  result: ViewInstance | ViewPreferences | void,
-  written: boolean,
-): RecoveredWrite {
-  return {
-    landed: true,
-    written,
-    instance:
-      typeof result === 'object' && result !== null && 'config' in result
-        ? result
-        : null,
-  };
 }
 
 export interface SaveAbilities {
@@ -101,17 +74,14 @@ export interface SaveCommandState {
   dirty: boolean;
   /**
    * Nothing may be written right now: a write is in flight, the draft would
-   * be refused, or the last one came back `unknown` and a second attempt
-   * might be a second write. One flag rather than three, because every button
-   * that writes disables on all of them.
+   * be refused, or the outcome on screen stops a new intent
+   * ({@link blocksNewIntent}). One flag rather than three, because every
+   * button that writes disables on all of them.
    *
-   * A conflict or a refusal is not among them. Both are a definite answer,
-   * and what resolves them is often a new intent — "Save my copy" after
-   * somebody else moved the baseline — which this flag would disable. It is
-   * deliberately coarse, so a button that has to tell the settled outcomes
-   * apart — a rejection is a new attempt away, a conflict is not — or that
-   * must refuse a *blind* Save while a conflict is on screen, reads `write`
-   * and `hasErrors` themselves rather than this.
+   * It is deliberately coarse, so a button that has to tell the settled
+   * outcomes apart — a rejection is a new attempt away, a conflict is not —
+   * or that must refuse a *blind* Save while a conflict is on screen, reads
+   * `write` and `hasErrors` themselves rather than this.
    */
   blocked: boolean;
   /**
@@ -189,9 +159,17 @@ export function useSaveCommands(
   // views, so progress and the last failure are tagged with the runtime they
   // came from and read as empty for any other.
   const [progress, setProgress] = useState<CommandProgress>(IDLE);
+  // One write in flight per runtime, on the same queue the manager's rows run
+  // on: a second command waits for the first rather than racing it into the
+  // engine's `view.write.in-flight` refusal, which the row would then report
+  // as the failure of a click that was only impatient. The tag is the runtime,
+  // so a workbench that switches views starts a fresh queue instead of holding
+  // the new view's first command behind the one it left. Created on the first
+  // command rather than per render, and never read during one.
+  const queue = useRef<CommandQueue<ViewRuntime | null> | null>(null);
 
   const run = useCallback(
-    async <T>(
+    <T>(
       code: string,
       command: () => Promise<T>,
       fallback: T,
@@ -199,35 +177,52 @@ export function useSaveCommands(
       // write: a delete resolves with `false` on failure, a retry with a
       // replay that may have answered "not landed".
       landed?: (outcome: T) => boolean,
-    ) => {
-      setProgress({ runtime, pending: true, error: null, savedAt: null });
-      try {
-        const outcome = await command();
-        if (landed?.(outcome) === true) {
-          const at = engine.environment.now().getTime();
+      // A replay or a conflict choice: it addresses the outcome that is in
+      // the way rather than being stopped by it. See {@link guarded}.
+      recovery = false,
+    ): Promise<T> => {
+      const commands = (queue.current ??=
+        createCommandQueue<ViewRuntime | null>());
+      return enqueue(commands, runtime, async () => {
+        // Asked at the front of the queue rather than at the click: the
+        // command ahead may be the one that turned this view `unknown`, or
+        // the last thing a runtime did before it was released. Sending anyway
+        // earns a `view.write.unknown-pending` refusal, and the header would
+        // show it as the failure of a click that was only second — over an
+        // outcome the user still has to retry or abandon.
+        if (!guarded(runtime, recovery)) return fallback;
+        setProgress({ runtime, pending: true, error: null, savedAt: null });
+        try {
+          const outcome = await command();
+          if (landed?.(outcome) === true) {
+            const at = engine.environment.now().getTime();
+            setProgress(current =>
+              current.runtime === runtime
+                ? { ...current, savedAt: at }
+                : current,
+            );
+          }
+          return outcome;
+        } catch (caught) {
+          const failure = toIssue(caught, code);
+          // A workbench reuses this hook across views; another view's command
+          // may have taken the slot while this one was in flight.
           setProgress(current =>
-            current.runtime === runtime ? { ...current, savedAt: at } : current,
+            current.runtime === runtime
+              ? { runtime, pending: false, error: failure, savedAt: null }
+              : current,
+          );
+          return fallback;
+        } finally {
+          // A command that outlived its view leaves the next view's state
+          // alone.
+          setProgress(current =>
+            current.runtime === runtime && current.pending
+              ? { ...current, pending: false }
+              : current,
           );
         }
-        return outcome;
-      } catch (caught) {
-        const failure = toIssue(caught, code);
-        // A workbench reuses this hook across views; another view's command
-        // may have taken the slot while this one was in flight.
-        setProgress(current =>
-          current.runtime === runtime
-            ? { runtime, pending: false, error: failure, savedAt: null }
-            : current,
-        );
-        return fallback;
-      } finally {
-        // A command that outlived its view leaves the next view's state alone.
-        setProgress(current =>
-          current.runtime === runtime && current.pending
-            ? { ...current, pending: false }
-            : current,
-        );
-      }
+      });
     },
     [engine, runtime],
   );
@@ -308,11 +303,10 @@ export function useSaveCommands(
       // A delete resolves with nothing, which still means it landed; a
       // recovered create, save or rename carries the instance it produced.
       () =>
-        engine
-          .retryWrite(runtime)
-          .then(it => recoveredOf(it, savesView(action))),
+        engine.retryWrite(runtime).then(it => recovered(it, savesView(action))),
       UNRECOVERED,
       wroteStore,
+      true,
     );
   }, [engine, runtime, run]);
 
@@ -361,10 +355,11 @@ export function useSaveCommands(
           engine
             .resolveConflict(runtime, choice)
             .then(it =>
-              recoveredOf(it, choice === 'overwrite' && savesView(action)),
+              recovered(it, choice === 'overwrite' && savesView(action)),
             ),
         UNRECOVERED,
         wroteStore,
+        true,
       );
     },
     [engine, runtime, run],
@@ -403,12 +398,29 @@ export function useSaveCommands(
       dirty: state?.dirty ?? false,
       blocked:
         own.pending ||
-        state?.write?.kind === 'unknown' ||
+        blocksNewIntent(state?.write) ||
         issues.some(found => found.severity === 'error'),
       hasErrors: issues.some(found => found.severity === 'error'),
       lastSavedAt: own.savedAt,
     },
   };
+}
+
+/**
+ * Whether a command that has reached the front of the queue may still go.
+ *
+ * A recovery always may: it is the very outcome in the way being answered.
+ * Anything else is a new intent, and what stops it here is exactly what
+ * {@link blocksNewIntent} stopped the click by — read again, because the
+ * command ahead of this one may have turned the view `unknown` since. A
+ * runtime released while this waited has nothing left to write to, and every
+ * command on it is a no-op, so it is not worth an error either. Skipping
+ * resolves the command's own fallback, which is what "nothing happened"
+ * already reads as.
+ */
+function guarded(runtime: ViewRuntime | null, recovery: boolean): boolean {
+  if (runtime === null || runtime.disposed) return false;
+  return recovery || !blocksNewIntent(runtime.getSnapshot().write);
 }
 
 /** A save or a copy that produced an instance is one the store took. */
@@ -421,18 +433,6 @@ function landedSave(instance: ViewInstance | null): boolean {
  * Landing is not enough: `reload` settles the conflict by taking the stored
  * state, and nothing of the user's was saved.
  */
-function wroteStore(recovered: RecoveredWrite): boolean {
-  return recovered.written;
-}
-
-/**
- * Whether recovering this write saves the view itself. A `rename` and a
- * `delete` reach the store as much as a `save` does, but neither is the
- * config on screen: "View saved" after a retried rename says the edits are
- * safe when nothing of them has been written. A write the runtime no longer
- * holds — the outcome settled between the render and the click — answers no,
- * which is the quiet way to be wrong.
- */
-function savesView(action: WriteAction | undefined): boolean {
-  return action === 'create' || action === 'save';
+function wroteStore(write: RecoveredWrite): boolean {
+  return write.written;
 }

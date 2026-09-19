@@ -549,7 +549,7 @@ describe('ViewEngine and an unusable definition', () => {
     ).toThrow();
   });
 
-  it('leaves a definition with only warnings usable', () => {
+  it('leaves a definition with only warnings usable', async () => {
     const issues: Issue[] = [];
     const engine = engineWith(
       overviewDefinition({
@@ -576,7 +576,7 @@ describe('ViewEngine and an unusable definition', () => {
     );
 
     expect(issues.every(found => found.severity === 'warning')).toBe(true);
-    expect(engine.list('overview')).resolves.toHaveLength(1);
+    await expect(engine.list('overview')).resolves.toHaveLength(1);
   });
 
   it('says nothing about a definition that is fine', () => {

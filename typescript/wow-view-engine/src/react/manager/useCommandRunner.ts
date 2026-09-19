@@ -15,28 +15,17 @@
  * The protocol every view-manager command runs under: one outcome per key,
  * one write in flight, and both tagged with the inputs they answer for.
  *
- * It is the React half of the split — `queue.ts` serializes and `outcomes.ts`
- * decides which outcome a key accepts; this holds the state those rules are
- * asked about and turns a command into an outcome the row can render.
+ * It is the React half of the split — `queue.ts` serializes, `react/writes.ts`
+ * decides what a slot accepts and `outcomes.ts` is the map of slots; this
+ * holds the state those rules are asked about and turns a command into an
+ * outcome the row can render.
  */
 
 import { useCallback, useRef, useState } from 'react';
-import {
-  isViewWriteError,
-  type ViewEngine,
-  type WritePayload,
-} from '../../runtime/index.js';
-import { toIssue } from '../issues.js';
+import type { ViewEngine, WritePayload } from '../../runtime/index.js';
 import type { ViewListState } from '../useViewList.js';
-import {
-  blocks,
-  mayRefuse,
-  NO_OUTCOMES,
-  refused,
-  strandedHandle,
-  withOutcome,
-  type Outcome,
-} from './outcomes.js';
+import { holdsHandle, mayReplace, settle, strandedHandle } from '../writes.js';
+import { NO_OUTCOMES, withOutcome, type Outcome } from './outcomes.js';
 import { createCommandQueue, enqueue, type CommandQueue } from './queue.js';
 
 /**
@@ -228,19 +217,12 @@ export function useCommandRunner(
         reload(intent.action === 'delete' ? { without: intent.id } : undefined);
         return true;
       } catch (caught) {
-        if (isViewWriteError(caught)) {
-          record(key, { state: caught.state, handle: caught.handle, again });
-        } else if (mayRefuse(held(key))) {
-          // A refusal never left, and it may not displace a handle; see
-          // `mayRefuse`. The intent still rides along: a refusal is the
-          // user's command all the same, and `resubmit` is how a preference
-          // write is put again.
-          record(key, {
-            state: refused(intent, toIssue(caught, code)),
-            handle: null,
-            again,
-          });
-        }
+        // A refusal never left, and it may not displace a handle; see
+        // `mayReplace`. The intent still rides along either way: a refusal is
+        // the user's command all the same, and `resubmit` is how a preference
+        // write is put again.
+        const outcome = settle(caught, code, intent);
+        if (mayReplace(held(key), outcome)) record(key, { ...outcome, again });
         return false;
       } finally {
         const settled = live.current;
@@ -260,8 +242,8 @@ export function useCommandRunner(
       { again, recovery = false, guard }: RunOptions = {},
     ): Promise<boolean> => {
       // A recovery addresses the outcome that is in the way; every other
-      // command waits for it to be settled, as `blocks` explains.
-      const blocked = () => !recovery && blocks(held(key));
+      // command waits for it to be settled, as `holdsHandle` explains.
+      const blocked = () => !recovery && holdsHandle(held(key));
       if (blocked()) return Promise.resolve(false);
       // Asked again at the front of the queue: the command ahead may be the
       // one that turns this key `unknown`, or that settles the very handle a

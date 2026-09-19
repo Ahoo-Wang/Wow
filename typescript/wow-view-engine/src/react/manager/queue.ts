@@ -21,10 +21,16 @@
  * is still making. Chaining also keeps the reload each landing triggers from
  * reading a list the other write is halfway through.
  *
- * The tag is what keeps that chaining honest. A hook that swaps its inputs —
- * a workbench moving to another definition or another engine — while a write
- * hangs would otherwise queue the new inputs' first command behind it, and the
- * row the user just clicked would sit there showing nothing.
+ * The tag is what keeps that chaining honest, and it cuts both ways. A hook
+ * that swaps its inputs — a workbench moving to another definition, or to
+ * another view — while a write hangs must not queue the new inputs' first
+ * command behind it, or the row the user just clicked sits there showing
+ * nothing. And it must not lose the old chain either: the user can come back
+ * to those inputs while their write is still in flight, and a second write
+ * against the same target is one the engine refuses with
+ * `view.write.in-flight`, which the caller would report as the failure of the
+ * click that was only second. So the queue holds one chain per tag rather
+ * than one altogether, and each is dropped as it settles.
  *
  * There is no React in here: a queue is a plain mutable holder a hook keeps in
  * a ref, so any command hook can take one.
@@ -35,10 +41,11 @@ export type TagEquality<Tag> = (one: Tag, other: Tag) => boolean;
 
 export interface CommandQueue<Tag> {
   /**
-   * The task at the back of the queue and the tag it was queued under, or null
-   * when the queue is idle. Only ever read through {@link enqueue}.
+   * The task at the back of each tag's chain, one entry per tag with something
+   * still in flight. An entry is dropped as its chain settles, so an idle
+   * queue is empty. Only ever read through {@link enqueue}.
    */
-  back: { tag: Tag; chain: Promise<unknown> } | null;
+  backs: { tag: Tag; chain: Promise<unknown> }[];
   readonly sameTag: TagEquality<Tag>;
 }
 
@@ -50,36 +57,37 @@ export interface CommandQueue<Tag> {
 export function createCommandQueue<Tag>(
   sameTag: TagEquality<Tag> = Object.is,
 ): CommandQueue<Tag> {
-  return { back: null, sameTag };
+  return { backs: [], sameTag };
 }
 
 /**
  * Runs `task` after whatever this tag already has in flight, and answers what
  * it answered.
  *
- * A task tagged differently from the one at the back starts a fresh queue: the
- * queue it found belongs to inputs the caller has moved on from, so it settles
- * on its own with nobody reading its result, and this task starts now rather
- * than behind a write nobody is watching. An idle queue also starts the task
- * now rather than a microtask later, so the row the user just clicked shows
- * progress in that same event.
+ * A task whose tag has nothing in flight starts now rather than a microtask
+ * later, so the row the user just clicked shows progress in that same event —
+ * and that is true of a tag nobody has used yet as much as of one whose last
+ * write is over. Another tag's chain is never waited on: it answers for inputs
+ * this task has nothing to do with.
  */
 export function enqueue<Tag, T>(
   queue: CommandQueue<Tag>,
   tag: Tag,
   task: () => Promise<T>,
 ): Promise<T> {
-  const ahead = queue.back;
-  const mine = ahead && queue.sameTag(ahead.tag, tag) ? ahead.chain : null;
+  const at = queue.backs.findIndex(entry => queue.sameTag(entry.tag, tag));
   // A task is expected to resolve whatever happened, so the rejection arm is
   // only there to keep one broken link from stalling the queue for good.
-  const landed = mine === null ? task() : mine.then(task, task);
+  const landed = at < 0 ? task() : queue.backs[at].chain.then(task, task);
   const queued = { tag, chain: landed };
-  queue.back = queued;
-  // The queue goes idle again once the last task settles, so the next one is
-  // not chained behind a promise that is already over.
+  if (at < 0) queue.backs.push(queued);
+  else queue.backs[at] = queued;
+  // This tag goes idle again once its last task settles, so the next one is
+  // not chained behind a promise that is already over — and a tag the caller
+  // never comes back to leaves nothing behind.
   const release = () => {
-    if (queue.back === queued) queue.back = null;
+    const mine = queue.backs.indexOf(queued);
+    if (mine >= 0) queue.backs.splice(mine, 1);
   };
   void landed.then(release, release);
   return landed;

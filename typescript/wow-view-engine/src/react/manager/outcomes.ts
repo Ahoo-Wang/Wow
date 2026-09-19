@@ -12,8 +12,9 @@
  */
 
 /**
- * What a view manager's commands have produced, and the rules that decide
- * which outcome may take a row's one slot.
+ * What a view manager's commands have produced: one outcome per row, held in a
+ * map. The rules that decide what a row's slot accepts are `react/writes.ts`'s,
+ * asked from there directly — this is the map around them.
  *
  * Everything here is a pure function over one `Outcome` or over the map of
  * them: the hook holds that map in React state, but none of these rules needs
@@ -23,13 +24,9 @@
 import {
   SYSTEM_INSTANCE_ID_PREFIX,
   SYSTEM_INSTANCE_ID_SEPARATOR,
-  type Issue,
 } from '../../model/index.js';
-import type {
-  WriteHandle,
-  WritePayload,
-  WriteState,
-} from '../../runtime/index.js';
+import type { WriteState } from '../../runtime/index.js';
+import type { SettledWrite } from '../writes.js';
 
 /**
  * The key the order and the default view are recorded under.
@@ -47,24 +44,12 @@ export const PREFERENCES_KEY =
   `${SYSTEM_INSTANCE_ID_PREFIX}${SYSTEM_INSTANCE_ID_SEPARATOR}preferences` as const;
 
 /**
- * The revision and the request id of a write that never left. A refusal is
- * recorded so the row can say why it did not happen, and its payload is the
- * intent rather than anything sent, so it quotes neither.
+ * One recorded outcome: what the command settled as, plus the intent a
+ * preference write keeps across a reload. The handle is the engine's, kept
+ * here rather than handed out — a caller acts on the row it can see, and
+ * `retry`, `abandon` and `resolveConflict` address the write for it.
  */
-export const UNSENT = '';
-
-/**
- * One recorded outcome. The handle is the engine's, kept here rather than
- * handed out: a caller acts on the row it can see, and `retry`, `abandon` and
- * `resolveConflict` address the write for it.
- */
-export interface Outcome {
-  state: WriteState;
-  /**
-   * Absent when there is nothing left to replay: a command the engine refused
-   * before dispatching, or a conflict it has already settled.
-   */
-  handle: WriteHandle | null;
+export interface Outcome extends SettledWrite {
   /**
    * The command as the user meant it, for a preference write whose conflict
    * was answered with a reload. Running it again is a new write — it reads
@@ -75,14 +60,6 @@ export interface Outcome {
 }
 
 export const NO_OUTCOMES: ReadonlyMap<string, Outcome> = new Map();
-
-/**
- * A refusal, in the shape the row already renders. `ViewCommandError` means
- * nothing was sent, which is exactly a rejection with no outcome to recover.
- */
-export function refused(payload: WritePayload, issue: Issue): WriteState {
-  return { requestId: UNSENT, payload, kind: 'rejected', issue };
-}
 
 /**
  * Whether an outcome is a conflict the engine has already settled and whose
@@ -97,54 +74,6 @@ export function kept(outcome: Outcome | undefined): boolean {
     outcome.again !== undefined &&
     outcome.state.kind === 'conflict'
   );
-}
-
-/**
- * Whether the outcome a key holds refuses a new intent altogether.
- *
- * A row holds one outcome, so a new command for a key whose outcome is still
- * the engine's to answer for has nowhere to put its own: recording it would
- * drop the handle, and the write it addresses would be left in
- * `engine.pendingWrites()` with nothing on screen able to retry, overwrite or
- * abandon it. The engine refuses a second command against an `unknown`
- * outright; a `conflict` it would dispatch over, which is the same problem one
- * step later. A `rejected` outcome is a definite answer with nothing
- * outstanding, so design/management.md's "correct it and save again" goes through as
- * the new intent it is.
- */
-export function blocks(outcome: Outcome | null): boolean {
-  return (
-    outcome?.handle != null &&
-    (outcome.state.kind === 'unknown' || outcome.state.kind === 'conflict')
-  );
-}
-
-/**
- * The handle a new command for this key would strand, or null when it strands
- * none.
- *
- * A `rejected` outcome that still holds a handle is the one unsettled outcome
- * a new command is allowed past ({@link blocks}), and that command is about to
- * take its slot. Abandoning this handle first is what keeps the write it
- * addresses from being left in `engine.pendingWrites()` with nothing on screen
- * able to reach it.
- */
-export function strandedHandle(outcome: Outcome | null): WriteHandle | null {
-  return outcome?.handle && outcome.state.kind === 'rejected'
-    ? outcome.handle
-    : null;
-}
-
-/**
- * Whether a refusal may be recorded over whatever the key holds.
- *
- * A refusal never left, so it has nothing to replay. Letting it take the place
- * of an outcome that still holds a handle would drop the only way to retry or
- * abandon that write — which is exactly what the engine refusing a second
- * command against an `unknown` outcome would otherwise do to it.
- */
-export function mayRefuse(outcome: Outcome | null): boolean {
-  return !outcome?.handle;
 }
 
 /**

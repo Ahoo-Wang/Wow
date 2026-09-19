@@ -685,6 +685,102 @@ describe('useSaveCommands', () => {
     expect(result.current.state.pending).toBe(true);
   });
 
+  /**
+   * A workbench can go back. The hook keeps one queue, so A's second write
+   * must still chain behind A's first however many other views were written
+   * to in between — a second write against one runtime is what the engine
+   * refuses with `view.write.in-flight`, and the header would report that as
+   * the failure of the click that was only second.
+   */
+  it("waits for this view's own write when the workbench returns", async () => {
+    const { engine } = engineWith();
+    const a = await engine.open('orders-1');
+    const b = engine.create('orders', {
+      title: 'Draft',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+
+    const held = deferred<ViewInstance>();
+    const started: string[] = [];
+    vi.spyOn(engine, 'save').mockImplementation(runtime => {
+      if (runtime === a) {
+        started.push(started.includes('a') ? 'a2' : 'a');
+        return held.promise;
+      }
+      started.push('b');
+      return Promise.resolve({ ...mine, id: 'orders-2', revision: '1' });
+    });
+
+    const { result, rerender } = renderHook(
+      ({ runtime }: { runtime: typeof a }) => useSaveCommands(engine, runtime),
+      { initialProps: { runtime: a } },
+    );
+
+    act(() => {
+      void result.current.save();
+    });
+    rerender({ runtime: b });
+    await act(async () => {
+      await result.current.save();
+    });
+    rerender({ runtime: a });
+
+    // A's first write is still hanging, so its second one has not left.
+    let second: Promise<ViewInstance | null> = Promise.resolve(null);
+    act(() => {
+      second = result.current.save();
+    });
+    expect(started).toEqual(['a', 'b']);
+
+    await act(async () => {
+      held.resolve({ ...mine, revision: '2' });
+      await second;
+    });
+    expect(started).toEqual(['a', 'b', 'a2']);
+    // It ran as its own write, not as a refusal of one already in flight.
+    expect(result.current.state.error).toBeNull();
+  });
+
+  /**
+   * Two clicks before the first answer is in. The second is queued behind the
+   * first, and by the time it reaches the front the view is `unknown` — the
+   * one outcome that refuses a new intent, because the write it stands for
+   * may already have landed. Sending anyway earns `view.write.unknown-pending`
+   * and puts that refusal on screen over an outcome the user has yet to retry
+   * or abandon, so the queued command is dropped instead.
+   */
+  it('drops a queued write once the one ahead came back unknown', async () => {
+    const { store, result } = await openMine();
+    const held = deferred<ViewInstance>();
+    const saves = vi.spyOn(store, 'save').mockReturnValueOnce(held.promise);
+
+    act(() => result.current.opened.runtime?.edit({ pageSize: 21 }));
+    let first: Promise<ViewInstance | null> = Promise.resolve(null);
+    let second: Promise<ViewInstance | null> = Promise.resolve(null);
+    act(() => {
+      first = result.current.commands.save();
+      second = result.current.commands.save();
+    });
+
+    await act(async () => {
+      held.reject(new ViewStoreError('UNAVAILABLE', 'timeout'));
+      await Promise.all([first, second]);
+    });
+
+    expect(result.current.commands.state.write?.kind).toBe('unknown');
+    // The second never left, so the store saw one attempt and the second
+    // click resolved as nothing happened rather than as a failure.
+    expect(saves).toHaveBeenCalledTimes(1);
+    await expect(second).resolves.toBeNull();
+    // What is on screen is the first write's own outcome, not a refusal of
+    // the second one stacked over it.
+    expect(result.current.commands.state.error?.code).toBe(
+      'view.save.failed.unknown',
+    );
+    expect(result.current.commands.state.pending).toBe(false);
+  });
+
   it("lets the current view's abandon take the progress slot", async () => {
     const { engine } = engineWith();
     const a = await engine.open('orders-1');

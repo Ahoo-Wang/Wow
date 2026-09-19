@@ -9,7 +9,6 @@
 
 ## 重构（小步，每步一个 PR，零行为变化）
 
-- **R5 写入结局模型去重**——为什么：`useSaveCommands` 与 `useViewManager` 各写了一遍"结局怎么结清、哪种恢复算写了视图、什么时候禁用"。判据：`src/react/writes.ts` 给出 `settle` / `RecoveredWrite` / `savesView` / `blockedBy`，两个钩子共用，两边测试不变。落点：`src/react/`、[management.md#冲突与未知结果](management.md#冲突与未知结果)。
 - **守护**——为什么：拆完要拦住它长回去。判据：ESLint `max-lines` 绊线覆盖 `src`（不含 vendored 的 `ui/components`、`ui/lib`）。落点：`eslint.config.js`。（架构测试里「`*Workbench.tsx` 不得绕过 `useWorkbench` 直接 import 装配用的钩子」那一条已随 R3 落地。）
 
 ## 功能（legacy 形态）

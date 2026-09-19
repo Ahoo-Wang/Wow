@@ -12,9 +12,11 @@
  */
 
 /**
- * The React-free modules `useViewManager` is composed of. The hook itself is
- * covered end to end by `viewManager.test.tsx`; these ask each rule the
- * questions that are awkward to stage through a rendered list.
+ * The React-free modules `useViewManager` is composed of, and the rules of
+ * `react/writes.ts` as a manager row asks them. The hook itself is covered end
+ * to end by `viewManager.test.tsx`, and the write vocabulary on its own by
+ * `writes.test.ts`; these ask each rule the questions that are awkward to
+ * stage through a rendered list.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -27,18 +29,20 @@ import type { WritePayload, WriteState } from '../src/runtime/index.js';
 import type { ViewPermissions } from '../src/index.js';
 import { abilitiesOf } from '../src/react/manager/abilities.js';
 import {
-  blocks,
   kept,
-  mayRefuse,
   NO_OUTCOMES,
   PREFERENCES_KEY,
   projectStates,
-  refused,
-  strandedHandle,
-  UNSENT,
   withOutcome,
   type Outcome,
 } from '../src/react/manager/outcomes.js';
+import {
+  holdsHandle,
+  mayRefuse,
+  refused,
+  strandedHandle,
+  UNSENT,
+} from '../src/react/writes.js';
 import { createCommandQueue, enqueue } from '../src/react/manager/queue.js';
 import {
   neighbourOf,
@@ -111,13 +115,13 @@ describe('manager/outcomes', () => {
   });
 
   it('blocks a new intent only while a handle is outstanding', () => {
-    expect(blocks(null)).toBe(false);
-    expect(blocks(outcomeOf('unknown'))).toBe(true);
-    expect(blocks(outcomeOf('conflict'))).toBe(true);
+    expect(holdsHandle(null)).toBe(false);
+    expect(holdsHandle(outcomeOf('unknown'))).toBe(true);
+    expect(holdsHandle(outcomeOf('conflict'))).toBe(true);
     // §7.4: correct it and save again.
-    expect(blocks(outcomeOf('rejected'))).toBe(false);
+    expect(holdsHandle(outcomeOf('rejected'))).toBe(false);
     // Settled outcomes address nothing, whatever they report.
-    expect(blocks(outcomeOf('unknown', { handle: null }))).toBe(false);
+    expect(holdsHandle(outcomeOf('unknown', { handle: null }))).toBe(false);
   });
 
   it('strands only the rejection a new command would take the slot of', () => {
@@ -213,7 +217,7 @@ describe('manager/abilities', () => {
 describe('manager/queue', () => {
   it('starts an idle queue in the same turn, and goes idle again', async () => {
     const queue = createCommandQueue<string>();
-    expect(queue.back).toBeNull();
+    expect(queue.backs).toEqual([]);
     let started = false;
     const landed = enqueue(queue, 'one', () => {
       started = true;
@@ -221,10 +225,10 @@ describe('manager/queue', () => {
     });
     // Not a microtask later: the row the user clicked shows progress now.
     expect(started).toBe(true);
-    expect(queue.back).not.toBeNull();
+    expect(queue.backs).toHaveLength(1);
     await expect(landed).resolves.toBe(1);
     await Promise.resolve();
-    expect(queue.back).toBeNull();
+    expect(queue.backs).toEqual([]);
   });
 
   it('runs same-tagged tasks one after the other', async () => {
@@ -256,7 +260,7 @@ describe('manager/queue', () => {
     ).resolves.toBe('after');
   });
 
-  it('starts a fresh queue for another tag rather than waiting on it', async () => {
+  it('starts a fresh chain for another tag rather than waiting on it', async () => {
     const queue = createCommandQueue<string>();
     const hanging = deferred<string>();
     const stale = enqueue(queue, 'old', () => hanging.promise);
@@ -267,9 +271,45 @@ describe('manager/queue', () => {
     });
     expect(started).toBe(true);
     await expect(landed).resolves.toBe('new');
-    // The old queue settles alone, with nobody reading its result.
+    // The old chain settles alone, with nobody reading its result.
     hanging.resolve('old');
     await expect(stale).resolves.toBe('old');
+  });
+
+  /**
+   * The inputs the caller left are not the inputs it abandoned. Coming back to
+   * a tag whose write is still in flight must chain behind that write: a
+   * second one against the same target is what the engine refuses with
+   * `view.write.in-flight`, and the caller would report that as the failure of
+   * the click that was only second.
+   */
+  it('waits for a returning tag own in-flight task', async () => {
+    const queue = createCommandQueue<string>();
+    const hanging = deferred<string>();
+    const order: string[] = [];
+    const first = enqueue(queue, 'a', () =>
+      hanging.promise.then(value => {
+        order.push(value);
+        return value;
+      }),
+    );
+    // Another tag in between, which neither waits nor displaces A's chain.
+    await enqueue(queue, 'b', () => {
+      order.push('b');
+      return Promise.resolve('b');
+    });
+
+    let started = false;
+    const second = enqueue(queue, 'a', () => {
+      started = true;
+      order.push('a2');
+      return Promise.resolve('a2');
+    });
+    expect(started).toBe(false);
+
+    hanging.resolve('a1');
+    await Promise.all([first, second]);
+    expect(order).toEqual(['b', 'a1', 'a2']);
   });
 
   it('chains by the comparison the caller supplied', async () => {

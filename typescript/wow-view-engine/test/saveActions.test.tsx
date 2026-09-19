@@ -238,8 +238,10 @@ describe('SaveActions, the split button group', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await screen.findByRole('alert');
 
-    const save = screen.getByRole('button', { name: 'Save' });
-    expect(save).toHaveProperty('disabled', false);
+    // The refusal reaches the screen one render before the command's own
+    // pending flag clears, and until it does the button reads "Saving…".
+    const save = await screen.findByRole('button', { name: 'Save' });
+    await waitFor(() => expect(save.hasAttribute('disabled')).toBe(false));
     fireEvent.click(save);
 
     await waitFor(async () =>
@@ -382,6 +384,20 @@ describe('the save-as dialog', () => {
 });
 
 describe('WriteOutcome', () => {
+  /**
+   * An outcome reaches the screen one render before the command's own
+   * `pending` clears — the runtime's write lands first, the progress after —
+   * and every button that answers an outcome is disabled while it is set. A
+   * click in that gap hits a disabled button and is swallowed, so a recovery
+   * or a copy waits for the button it is aimed at.
+   */
+  async function clickWhenEnabled(name: string) {
+    const button = screen.getByRole('button', { name });
+    await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
+    fireEvent.click(button);
+    return button;
+  }
+
   /** Someone else saved the view between opening it and saving it. */
   async function conflicted() {
     const opened = await open();
@@ -397,7 +413,7 @@ describe('WriteOutcome', () => {
   it('puts the choice once more, with both ways of looking side by side', async () => {
     await conflicted();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Take theirs' }));
+    await clickWhenEnabled('Take theirs');
 
     const dialog = await screen.findByRole('dialog');
     expect(dialog.textContent).toContain('Take their version?');
@@ -409,7 +425,7 @@ describe('WriteOutcome', () => {
   it('adopts the server version once that choice is confirmed', async () => {
     const { runtime } = await conflicted();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Take theirs' }));
+    await clickWhenEnabled('Take theirs');
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Take theirs' }),
@@ -423,7 +439,7 @@ describe('WriteOutcome', () => {
   it('writes over the server version once that choice is confirmed', async () => {
     const { store } = await conflicted();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Keep mine' }));
+    await clickWhenEnabled('Keep mine');
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Keep mine' }));
 
@@ -435,7 +451,7 @@ describe('WriteOutcome', () => {
   it('lets the conflict be settled by making a copy instead', async () => {
     const { store } = await conflicted();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save my copy' }));
+    await clickWhenEnabled('Save my copy');
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText('Title'), {
       target: { value: 'Mine after all' },
@@ -463,7 +479,7 @@ describe('WriteOutcome', () => {
     const { engine, store, runtime } = await conflicted();
     expect(engine.pendingWrites().size).toBe(1);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save my copy' }));
+    await clickWhenEnabled('Save my copy');
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText('Title'), {
       target: { value: 'Mine after all' },
@@ -525,7 +541,7 @@ describe('WriteOutcome', () => {
     expect(engine.pendingWrites().size).toBe(1);
     vi.spyOn(store, 'create').mockRejectedValueOnce(new Error('socket closed'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save my copy' }));
+    await clickWhenEnabled('Save my copy');
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Create view' }),
@@ -555,7 +571,7 @@ describe('WriteOutcome', () => {
 
     const held = deferred<ViewInstance>();
     vi.spyOn(store, 'save').mockReturnValueOnce(held.promise);
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await clickWhenEnabled('Retry');
 
     await waitFor(() =>
       expect(
@@ -579,12 +595,7 @@ describe('WriteOutcome', () => {
     const held = deferred<ViewInstance>();
     vi.spyOn(store, 'create').mockReturnValueOnce(held.promise);
 
-    // The conflict reaches the screen one render before `pending` clears:
-    // the runtime's write lands first, the command's own progress after.
-    // Clicking in that gap hits a disabled button and no dialog ever opens.
-    const copy = screen.getByRole('button', { name: 'Save my copy' });
-    await waitFor(() => expect(copy.hasAttribute('disabled')).toBe(false));
-    fireEvent.click(copy);
+    await clickWhenEnabled('Save my copy');
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Create view' }),
@@ -616,7 +627,7 @@ describe('WriteOutcome', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await screen.findByText('The result never came back');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await clickWhenEnabled('Retry');
     await waitFor(async () =>
       expect((await store.get('orders-1')).revision).toBe('2'),
     );
@@ -630,7 +641,7 @@ describe('WriteOutcome', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await screen.findByText('The result never came back');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Leave it' }));
+    await clickWhenEnabled('Leave it');
     await waitFor(() =>
       expect(screen.queryByText('The result never came back')).toBeNull(),
     );
@@ -652,7 +663,7 @@ describe('WriteOutcome', () => {
     await screen.findByText(/You may not write to this view/);
     expect(engine.pendingWrites().size).toBe(1);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    await clickWhenEnabled('Dismiss');
 
     await waitFor(() =>
       expect(screen.queryByText(/You may not write to this view/)).toBeNull(),
@@ -711,7 +722,7 @@ describe('WriteOutcome', () => {
       </ViewSurface>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await clickWhenEnabled('Retry');
 
     await waitFor(() => expect(onDeleted).toHaveBeenCalled());
     expect(onRecovered).toHaveBeenCalledWith('delete');
@@ -752,7 +763,7 @@ describe('WriteOutcome', () => {
       </ViewSurface>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await clickWhenEnabled('Retry');
 
     await waitFor(() => expect(onRenamed).toHaveBeenCalledWith(renamed));
   });
