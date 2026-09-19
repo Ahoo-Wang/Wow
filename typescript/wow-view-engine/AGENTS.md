@@ -142,6 +142,7 @@ src/
     index.ts
   runtime/                      — Stateful layer; never imports react or ui
     viewEngine.ts                 — ViewEngine — registry, open/create/list, permissions
+    writeLedger.ts                — The write ledger: outcomes by requestId, retry, conflicts
     viewRuntime.ts                — One open view; subscribe / getSnapshot store
     dashboardRuntime.ts           — Owns one child runtime per data panel
     requestRunner.ts              — Scheduling; a newer request supersedes a key

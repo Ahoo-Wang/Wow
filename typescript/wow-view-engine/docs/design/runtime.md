@@ -192,6 +192,8 @@ export interface ViewEngine {
 }
 ```
 
+写入账本单独住在 `runtime/writeLedger.ts` 的 `WriteLedger` 里，`ViewEngine` 构造一个并转发：引擎这一侧只剩注册表与命令准入——定义是否可用、许可、标题、草稿有没有 error——准入过了就把一份 `WritePayload` 交给账本，公开面上的 `pendingWrites` / `retryWrite` / `abandonWrite` / `resolveConflict` 都只是转发，语义不变。账本掌管 `requestId` 的生成、按 `requestId` 索引的未结清结局、同一目标同时只放行一个在途写入，以及「上一个 unknown 没处理完之前不放行新意图」这条拦截；重试沿用原 `requestId` 与原正文重放，覆盖写则带上冲突报回的 revision 以新 `requestId` 重发，`reload` 只对 `save` 换掉草稿。账本够不到的东西——摘要缓存、偏好缓存、同一实例的其他已打开 runtime——由引擎通过 `WriteLedgerHost` 的几个回调借给它；确认之后落到 runtime 上的 `markSaved` / `moveBaseline` / `adoptSaved` / `setWrite` 仍由账本驱动。（见 test/writeLedger.test.ts）
+
 `open` 与 `create` 对 Record 定义返回 `RecordViewRuntime`，其 `page` 只接受该定义声明的分页模式对应的目标；Analysis 与 Dashboard runtime 没有 `page`／`select`。`apply()` 与 `open()` 的首次查询按 `RecordCapability.paging` 选择目标：`paged` 用 `{ index: 1 }` 调 `source.paged`（Wow `Pagination.index` 从 1 开始），`cursor` 用 `{ cursor: null }` 调 `source.cursor`。`refresh()` 同样回到第一页。
 
 `create`、`save`、`saveAs` 与 `open` 都先核对 `config.kind` 与所属定义的能力：`kind: 'data'` 只接受能力已声明的 `record`／`analysis`，`kind: 'dashboard'` 只接受 `dashboard`，不匹配即 error，不进入执行或保存。这与系统视图的定义期检查是同一条规则。

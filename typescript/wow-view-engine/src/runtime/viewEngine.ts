@@ -20,7 +20,6 @@ import {
   type FieldDefinition,
   type FilterTree,
   isSystemInstanceId,
-  isViewStoreError,
   parseSystemInstanceId,
   systemInstanceId,
   toSummary,
@@ -44,7 +43,6 @@ import type {
   InstancePermissions,
   ViewPermissions,
   ViewStore,
-  WriteContext,
 } from '../store/ViewStore.js';
 import {
   defaultRuntimeEnvironment,
@@ -72,11 +70,15 @@ import {
 } from './validateDefinition.js';
 import {
   ViewCommandError,
-  ViewWriteError,
-  type WriteHandle,
   type WritePayload,
   type WriteState,
 } from './write.js';
+import {
+  WriteLedger,
+  type ConflictChoice,
+  type WriteLedgerHost,
+  type WriteTarget,
+} from './writeLedger.js';
 
 /** Everything is allowed when a store declares no permissions. */
 const ALLOW_ALL: ViewPermissions = {
@@ -113,10 +115,8 @@ export interface OpenOptions {
   scopeFilter?: FilterTree | null;
 }
 
-/** What a write command is addressed to: an open view, or a handle. */
-export type WriteTarget = ViewRuntime | WriteHandle;
-
-export type ConflictChoice = 'reload' | 'overwrite';
+/** The ledger names what a write command is addressed to; the engine takes it. */
+export type { ConflictChoice, WriteTarget } from './writeLedger.js';
 
 /** Who a runtime is, apart from the config it holds. */
 interface RuntimeIdentity {
@@ -155,15 +155,12 @@ export class ViewEngine {
   private readonly options: ViewEngineOptions;
   private readonly runner: RequestRunner;
   private readonly runtimes = new Set<ManagedViewRuntime>();
-  private readonly writes = new Map<string, WriteState>();
-  /** Write targets with a request in flight; see `dispatch`. */
-  private readonly inFlight = new Set<string>();
-  private readonly owners = new Map<string, ManagedViewRuntime>();
+  /** Every write that left, and every outcome not yet settled. */
+  private readonly ledger: WriteLedger;
   private readonly preferencesCache = new Map<string, ViewPreferences>();
   /** `validateDefinition` per registered definition, computed once. */
   private readonly definitionFindings = new Map<string, Issue[]>();
   private readonly summaries = new Map<string, ViewInstanceSummary>();
-  private readonly newId: () => string;
   private sequence = 0;
 
   constructor(options: ViewEngineOptions) {
@@ -176,7 +173,7 @@ export class ViewEngine {
       options.definitions.map(definition => [definition.id, definition]),
     );
     this.runner = new RequestRunner(this.limits);
-    this.newId = options.newId ?? (() => crypto.randomUUID());
+    this.ledger = new WriteLedger(this.ledgerHost());
 
     // Definitions are code, so they are judged once, here, rather than on
     // every open. One that fails is kept but refused at the point of use:
@@ -306,9 +303,8 @@ export class ViewEngine {
         config: state.draft,
       };
       this.requireCreatePermission(target.definition.id, state.scope);
-      return (await this.dispatch(
+      return (await this.ledger.dispatch(
         { action: 'create', input, intent: 'first-save' },
-        this.newRequestId(),
         target,
       )) as ViewInstance;
     }
@@ -321,11 +317,7 @@ export class ViewEngine {
       revision: saved.revision,
       config: state.draft,
     };
-    return (await this.dispatch(
-      payload,
-      this.newRequestId(),
-      target,
-    )) as ViewInstance;
+    return (await this.ledger.dispatch(payload, target)) as ViewInstance;
   }
 
   /** A copy under a new title and scope; the source runtime is untouched. */
@@ -340,7 +332,7 @@ export class ViewEngine {
     this.requireTitle(input.title);
     this.requireCreatePermission(target.definition.id, input.scope);
 
-    return (await this.dispatch(
+    return (await this.ledger.dispatch(
       {
         action: 'create',
         input: {
@@ -351,7 +343,6 @@ export class ViewEngine {
         },
         intent: 'save-as',
       },
-      this.newRequestId(),
       target,
     )) as ViewInstance;
   }
@@ -361,18 +352,13 @@ export class ViewEngine {
     this.requireTitle(title);
     const { revision, runtime } = await this.locate(id, 'rename');
     const payload: WritePayload = { action: 'rename', id, revision, title };
-    return (await this.dispatch(
-      payload,
-      this.newRequestId(),
-      runtime,
-    )) as ViewInstance;
+    return (await this.ledger.dispatch(payload, runtime)) as ViewInstance;
   }
 
   async delete(id: string): Promise<void> {
     const { revision, runtime } = await this.locate(id, 'delete');
-    // Preferences keep the id; a later reorder or default cleans it up.
     const payload: WritePayload = { action: 'delete', id, revision };
-    await this.dispatch(payload, this.newRequestId(), runtime);
+    await this.ledger.dispatch(payload, runtime);
   }
 
   /** Submits the full visible order, with the revision it was read at. */
@@ -422,21 +408,19 @@ export class ViewEngine {
 
   /** Writes still waiting for a decision, by handle id. */
   pendingWrites(): ReadonlyMap<string, WriteState> {
-    return this.writes;
+    return this.ledger.pendingWrites();
   }
 
   /** Replays the original intent under its original `requestId`. */
   async retryWrite(
     target: WriteTarget,
   ): Promise<ViewInstance | ViewPreferences | void> {
-    const { requestId, state } = this.requireWrite(target);
-    return this.dispatch(state.payload, requestId, this.owners.get(requestId));
+    return this.ledger.retryWrite(target);
   }
 
   /** Drops the outcome and keeps the draft; a later save is a new intent. */
   abandonWrite(target: WriteTarget): void {
-    const { requestId } = this.requireWrite(target);
-    this.settle(requestId);
+    this.ledger.abandonWrite(target);
   }
 
   /**
@@ -448,23 +432,7 @@ export class ViewEngine {
     target: WriteTarget,
     choice: ConflictChoice,
   ): Promise<ViewInstance | ViewPreferences | void> {
-    const { requestId, state } = this.requireWrite(target);
-    if (state.kind !== 'conflict')
-      throw new ViewCommandError(
-        issue('view.write.not-a-conflict', [], { kind: state.kind }),
-      );
-
-    const runtime = this.owners.get(requestId);
-    if (choice === 'reload') {
-      this.settle(requestId);
-      return this.reload(state, runtime);
-    }
-    this.settle(requestId);
-    return this.dispatch(
-      withRevision(state.payload, state.remote),
-      this.newRequestId(),
-      runtime,
-    );
+    return this.ledger.resolveConflict(target, choice);
   }
 
   /** Open runtimes, for a workbench that tracks its own tabs. */
@@ -649,11 +617,7 @@ export class ViewEngine {
     next: ViewPreferences,
   ): Promise<ViewPreferences> {
     const payload: WritePayload = { action: 'preferences', definitionId, next };
-    return (await this.dispatch(
-      payload,
-      this.newRequestId(),
-      undefined,
-    )) as ViewPreferences;
+    return (await this.ledger.dispatch(payload, undefined)) as ViewPreferences;
   }
 
   private async currentPreferences(
@@ -666,198 +630,26 @@ export class ViewEngine {
   }
 
   /**
-   * The one place a write leaves the engine. Success clears the outcome;
-   * anything else is recorded, attached to the owning runtime and raised as a
-   * `ViewWriteError` carrying its own handle.
+   * What the ledger reaches back for. A confirmed write settles in the ledger,
+   * but it also moves what only the engine holds — the summary and preference
+   * caches, and the open runtimes of the instance it touched — so the engine
+   * lends those out as closures rather than as members of its own surface.
    */
-  private async dispatch(
-    payload: WritePayload,
-    requestId: string,
-    runtime: ManagedViewRuntime | undefined,
-  ): Promise<ViewInstance | ViewPreferences | void> {
-    // One write at a time per target. Two saves of one view would carry the
-    // same expected revision, so the second reports a conflict the user caused
-    // by clicking twice; two first saves would each create, leaving a duplicate
-    // instance and a runtime bound to only one of them. The idempotent
-    // `requestId` cannot help, because each command mints its own: it dedupes
-    // a retry of one write, not two writes that mean the same thing.
-    const key = writeKey(payload, runtime);
-    if (this.inFlight.has(key))
-      throw new ViewCommandError(
-        issue('view.write.in-flight', [], { action: payload.action }),
-      );
-    this.requireNoUnknownWrite(key, requestId);
-    this.inFlight.add(key);
-
-    const context: WriteContext = { requestId };
-    if (runtime) this.owners.set(requestId, runtime);
-    try {
-      const result = await this.send(payload, context);
-      this.applyEffect(payload, result, runtime);
-      this.settle(requestId);
-      return result;
-    } catch (error) {
-      const state = await this.toWriteState(error, requestId, payload);
-      this.writes.set(requestId, state);
-      runtime?.setWrite(state);
-      throw new ViewWriteError(state);
-    } finally {
-      this.inFlight.delete(key);
-    }
-  }
-
-  /**
-   * What a confirmed write changes here. It hangs off the payload rather than
-   * the command, so replaying an intent as a retry or an overwrite advances
-   * the same baseline the first attempt would have.
-   */
-  private applyEffect(
-    payload: WritePayload,
-    result: ViewInstance | ViewPreferences | void,
-    runtime: ManagedViewRuntime | undefined,
-  ): void {
-    switch (payload.action) {
-      case 'create': {
-        const instance = result as ViewInstance;
-        this.summaries.set(instance.id, toSummary(instance));
-        if (payload.intent === 'first-save') runtime?.markSaved(instance);
-        return;
-      }
-      case 'save':
-      case 'rename': {
-        const instance = result as ViewInstance;
-        this.summaries.set(instance.id, toSummary(instance));
-        // Every open view of this instance moves to the new baseline, not
-        // only the one the command came through: the same view open twice
-        // would otherwise keep a revision nobody can write against. Only the
-        // view this write belongs to has its outcome settled; another's
-        // unsettled write is still its own to retry or abandon.
-        runtime?.markSaved(instance);
-        for (const holder of this.holders(instance.id))
-          if (holder !== runtime) holder.moveBaseline(instance);
-        return;
-      }
-      case 'delete': {
-        this.summaries.delete(payload.id);
-        for (const holder of this.holders(payload.id, runtime))
-          this.forget(holder);
-        return;
-      }
-      case 'preferences':
-        this.preferencesCache.set(
-          payload.definitionId,
-          result as ViewPreferences,
-        );
-    }
-  }
-
-  private send(
-    payload: WritePayload,
-    context: WriteContext,
-  ): Promise<ViewInstance | ViewPreferences | void> {
-    switch (payload.action) {
-      case 'create':
-        return this.store.create(payload.input, context);
-      case 'save':
-        return this.store.save(
-          payload.id,
-          payload.config,
-          payload.revision,
-          context,
-        );
-      case 'rename':
-        return this.store.rename(
-          payload.id,
-          payload.title,
-          payload.revision,
-          context,
-        );
-      case 'delete':
-        return this.store.delete(payload.id, payload.revision, context);
-      case 'preferences':
-        return this.store.setPreferences(
-          payload.definitionId,
-          payload.next,
-          context,
-        );
-    }
-  }
-
-  private async toWriteState(
-    error: unknown,
-    requestId: string,
-    payload: WritePayload,
-  ): Promise<WriteState> {
-    if (!isViewStoreError(error))
-      // Anything that does not speak the port's language is treated as an
-      // unknown outcome rather than a failure. It may well be a bug in the
-      // adapter that will fail again on retry, and saying "unknown" about it
-      // is then misleading — but the other mistake is worse: a write that
-      // reached the server, reported as failed, is a view the user saves a
-      // second time. Only the store can tell these apart, and it does so by
-      // raising a `ViewStoreError`.
-      return { kind: 'unknown', requestId, payload };
-
-    switch (error.code) {
-      case 'UNAVAILABLE':
-        return { kind: 'unknown', requestId, payload };
-      case 'CONFLICT': {
-        const remote = error.remote ?? (await this.fetchRemote(payload));
-        if (!remote)
-          return {
-            kind: 'rejected',
-            requestId,
-            payload,
-            issue: issue('view.write.conflict-unreadable', []),
-          };
-        // A delete that conflicts is answered by confirming again (§7.4), so
-        // the summary the user confirms against is the one the store now
-        // holds rather than the title and revision they asked to delete.
-        if (payload.action === 'delete')
-          this.summaries.set(payload.id, toSummary(remote as ViewInstance));
-        return { kind: 'conflict', remote, requestId, payload };
-      }
-      default:
-        return {
-          kind: 'rejected',
-          requestId,
-          payload,
-          issue: issue(`view.write.${error.code.toLowerCase()}`, [], {
-            reason: error.message,
-          }),
-        };
-    }
-  }
-
-  /** A store may report a conflict without the state it holds; ask for it. */
-  private async fetchRemote(
-    payload: WritePayload,
-  ): Promise<ViewInstance | ViewPreferences | null> {
-    try {
-      if (payload.action === 'preferences')
-        return await this.store.getPreferences(payload.definitionId);
-      if (payload.action === 'create') return null;
-      return await this.store.get(payload.id);
-    } catch {
-      return null;
-    }
-  }
-
-  private async reload(
-    state: Extract<WriteState, { kind: 'conflict' }>,
-    runtime: ManagedViewRuntime | undefined,
-  ): Promise<ViewInstance | ViewPreferences | void> {
-    if (state.payload.action === 'preferences')
-      return this.preferences(state.payload.definitionId);
-    const remote = state.remote as ViewInstance;
-    // Only a `save` was carrying a config, so only reloading that one means
-    // taking the server's config and dropping the draft. A rename or a delete
-    // carries no config (§7.1), and the edits the user has not saved yet are
-    // not theirs to discard: the baseline moves and the draft stays.
-    if (state.payload.action === 'save') runtime?.adoptSaved(remote);
-    else runtime?.moveBaseline(remote);
-    this.summaries.set(remote.id, toSummary(remote));
-    return remote;
+  private ledgerHost(): WriteLedgerHost {
+    return {
+      store: this.store,
+      newId: this.options.newId,
+      noteInstance: instance =>
+        this.summaries.set(instance.id, toSummary(instance)),
+      dropInstance: (id, owner) => {
+        this.summaries.delete(id);
+        for (const holder of this.holders(id, owner)) this.forget(holder);
+      },
+      notePreferences: (definitionId, preferences) =>
+        this.preferencesCache.set(definitionId, preferences),
+      readPreferences: definitionId => this.preferences(definitionId),
+      holders: id => this.holders(id),
+    };
   }
 
   /** The revision a command needs, from an open view, the last list, or the store. */
@@ -876,50 +668,6 @@ export class ViewEngine {
     const summary = known ?? (await this.store.get(id));
     this.requireInstancePermission(summary, action);
     return { revision: summary.revision, runtime };
-  }
-
-  private requireWrite(target: WriteTarget): {
-    requestId: string;
-    state: WriteState;
-  } {
-    const requestId = isRuntime(target)
-      ? target.getSnapshot().write?.requestId
-      : target.id;
-    const state = requestId ? this.writes.get(requestId) : undefined;
-    if (!requestId || !state)
-      throw new ViewCommandError(issue('view.write.not-pending', []));
-    return { requestId, state };
-  }
-
-  /**
-   * An unknown outcome is a write that may have landed. Sending another to
-   * the same target before it is retried or abandoned is how a first save
-   * ends up as two instances, so a new intent waits; only the replay of the
-   * unknown write itself, under its own `requestId`, goes through.
-   */
-  private requireNoUnknownWrite(key: string, requestId: string): void {
-    for (const [pendingId, pending] of this.writes) {
-      if (pendingId === requestId || pending.kind !== 'unknown') continue;
-      if (writeKey(pending.payload, this.owners.get(pendingId)) !== key)
-        continue;
-      throw new ViewCommandError(
-        issue('view.write.unknown-pending', [], {
-          action: pending.payload.action,
-        }),
-      );
-    }
-  }
-
-  private settle(requestId: string): void {
-    this.writes.delete(requestId);
-    const owner = this.owners.get(requestId);
-    // Only if the runtime is still reporting *this* write. It may have moved
-    // on to a later one — a copy made out of a conflict is a write of its own,
-    // and settling the conflict behind it would take the copy's outcome off
-    // the screen while the engine went on holding it.
-    if (owner?.getSnapshot().write?.requestId === requestId)
-      owner.setWrite(null);
-    this.owners.delete(requestId);
   }
 
   /**
@@ -946,10 +694,6 @@ export class ViewEngine {
   private prune(): void {
     for (const runtime of [...this.runtimes])
       if (runtime.disposed) this.runtimes.delete(runtime);
-  }
-
-  private newRequestId(): string {
-    return this.newId();
   }
 
   private report(found: Issue): void {
@@ -1031,52 +775,11 @@ function isManagedRuntime(runtime: ViewRuntime): runtime is ManagedViewRuntime {
   );
 }
 
-function isRuntime(target: WriteTarget): target is ViewRuntime {
-  return typeof (target as ViewRuntime).getSnapshot === 'function';
-}
-
 function capabilityOf(definition: ViewDefinition, config: ViewConfig): boolean {
   if (definition.kind !== 'data') return false;
   return config.kind === 'record'
     ? definition.record !== undefined
     : definition.analysis !== undefined;
-}
-
-/**
- * What a write contends for. A runtime is its own target — the design allows
- * one in-flight write per open view, whatever the command — and a write with
- * no runtime behind it contends for the instance or the preferences it names.
- */
-function writeKey(
-  payload: WritePayload,
-  runtime: ManagedViewRuntime | undefined,
-): string {
-  if (runtime) return `runtime:${runtime.id}`;
-  switch (payload.action) {
-    case 'preferences':
-      return `preferences:${payload.definitionId}`;
-    case 'create':
-      return `create:${payload.input.definitionId}:${payload.input.title}`;
-    default:
-      return `instance:${payload.id}`;
-  }
-}
-
-function withRevision(
-  payload: WritePayload,
-  remote: ViewInstance | ViewPreferences,
-): WritePayload {
-  switch (payload.action) {
-    case 'preferences':
-      return {
-        ...payload,
-        next: { ...payload.next, revision: remote.revision },
-      };
-    case 'create':
-      return payload;
-    default:
-      return { ...payload, revision: remote.revision };
-  }
 }
 
 /**
