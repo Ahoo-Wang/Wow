@@ -12,6 +12,7 @@
  */
 
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import Markdown from 'react-markdown';
 import { ExternalLinkIcon, ImageOffIcon } from 'lucide-react';
 import type { DashboardContentPanel } from '../model/index.js';
@@ -56,6 +57,37 @@ export interface MarkdownPanelProps {
   content: string;
 }
 
+/**
+ * A link written in the markdown, on the same terms as every other link this
+ * package draws: an unsafe destination costs the link and leaves the words,
+ * and a safe one opens in its own tab without handing the opener over.
+ *
+ * Markdown is the one content panel whose links are not listed anywhere a
+ * config could be checked against — they are inside the prose — so this is
+ * where that promise is kept.
+ */
+const MARKDOWN_COMPONENTS = {
+  a({
+    href,
+    title,
+    children,
+  }: {
+    href?: string;
+    title?: string;
+    children?: ReactNode;
+  }) {
+    // `title` is the author's own hint — the check is about where the link
+    // goes, so it takes nothing else away from them.
+    return href !== undefined && isSafeContentUrl(href) ? (
+      <a href={href} title={title} target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    ) : (
+      <span title={title}>{children}</span>
+    );
+  },
+};
+
 /** Markdown with raw HTML left off, which is the whole point of using it. */
 export function MarkdownPanel({ content }: MarkdownPanelProps) {
   return (
@@ -63,7 +95,7 @@ export function MarkdownPanel({ content }: MarkdownPanelProps) {
       data-slot="markdown-panel"
       className="prose-sm flex h-full flex-col gap-2 overflow-auto text-sm [&_a]:underline [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-sm [&_h2]:font-semibold [&_ul]:list-disc [&_ul]:pl-4"
     >
-      <Markdown>{content}</Markdown>
+      <Markdown components={MARKDOWN_COMPONENTS}>{content}</Markdown>
     </div>
   );
 }
