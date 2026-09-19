@@ -365,9 +365,9 @@ describe('an application rewords what the components write', () => {
     expect(screen.getByRole('button', { name: /Columns/ })).toBeTruthy();
   });
 
-  it('a scope label', () => {
+  it('an audience group', () => {
     render(
-      <MessagesProvider messages={{ 'label.scope.tag.shared': '全员' }}>
+      <MessagesProvider messages={{ 'label.scope.group.shared': '全员' }}>
         <ViewList
           list={listState([
             {
@@ -375,6 +375,7 @@ describe('an application rewords what the components write', () => {
               definitionId: 'orders',
               title: 'Pending',
               scope: 'shared',
+              kind: 'record',
               revision: '1',
             },
           ])}
@@ -385,7 +386,7 @@ describe('an application rewords what the components write', () => {
     );
 
     expect(screen.getByText('全员')).toBeTruthy();
-    expect(screen.queryByText('shared')).toBeNull();
+    expect(screen.queryByText('Shared')).toBeNull();
   });
 
   it('a date shape', () => {

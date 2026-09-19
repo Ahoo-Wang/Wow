@@ -20,6 +20,7 @@ import {
   MemoryViewStore,
   orderSummaries,
   systemInstances,
+  toSummary,
   ViewEngine,
   ViewStoreError,
   type Issue,
@@ -148,7 +149,7 @@ describe('ViewEngine listing', () => {
       { ...mine, id: 'a' },
       { ...mine, id: 'b' },
       { ...mine, id: 'c' },
-    ];
+    ].map(toSummary);
     const preferences: ViewPreferences = {
       order: ['c', 'gone', 'a'],
       defaultInstanceId: null,
@@ -162,7 +163,7 @@ describe('ViewEngine listing', () => {
 
   it('resolves the default view in the documented order', () => {
     const { engine } = harness();
-    const summaries = systemInstances(ordersDefinition());
+    const summaries = systemInstances(ordersDefinition()).map(toSummary);
     const preferences: ViewPreferences = {
       order: [],
       defaultInstanceId: 'system:orders:all',

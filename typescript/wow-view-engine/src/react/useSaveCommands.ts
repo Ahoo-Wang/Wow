@@ -12,11 +12,13 @@
  */
 
 import { useCallback, useState } from 'react';
-import type {
-  Issue,
-  ViewInstance,
-  ViewPreferences,
-  ViewScope,
+import {
+  audienceOf,
+  isSystemScope,
+  type Issue,
+  type ViewAudience,
+  type ViewInstance,
+  type ViewPreferences,
 } from '../model/index.js';
 import type {
   ConflictChoice,
@@ -29,7 +31,7 @@ import { toIssue } from './issues.js';
 
 export interface SaveTargetInput {
   title: string;
-  scope: Exclude<ViewScope, 'system'>;
+  scope: ViewAudience;
 }
 
 /** What replaying a write answered: whether it landed, and what it made. */
@@ -157,10 +159,10 @@ export function useSaveCommands(
   const instance =
     permissions && instanceId ? permissions.instance(instanceId) : null;
   const creating =
-    state?.scope === 'shared'
+    state && audienceOf(state.scope) === 'shared'
       ? permissions?.createShared
       : permissions?.createPersonal;
-  const system = state?.scope === 'system';
+  const system = state !== null && isSystemScope(state.scope);
   // A copy is a create, so it needs the create permission of the scope it is
   // headed for — not of the scope the open view happens to sit in.
   const createPersonal = state !== null && permissions?.createPersonal === true;

@@ -1120,13 +1120,16 @@ describe('AnalysisWorkbench', () => {
         instanceId="missing"
         messages={{
           'label.view.unopenable': '打不开这个视图',
-          'label.view.list': '视图',
+          'label.scope.group.personal': '仅自己',
         }}
       />,
     );
 
     expect(await screen.findByText('打不开这个视图')).toBeDefined();
-    expect(screen.getByRole('navigation', { name: '视图' })).toBeDefined();
+    // The sidebar is named by the definition rather than by the catalogue;
+    // what it says about itself still comes from the wording handed in.
+    expect(screen.getByRole('navigation', { name: 'Orders' })).toBeDefined();
+    expect(screen.getByText('仅自己')).toBeDefined();
   });
 
   // A month cut in Kathmandu starts at 18:15 UTC on the last day of the month

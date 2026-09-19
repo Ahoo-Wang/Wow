@@ -28,8 +28,12 @@ import {
   SUMMARY_FUNCTIONS,
   SYSTEM_INSTANCE_ID_PREFIX,
   SYSTEM_INSTANCE_ID_SEPARATOR,
+  VIEW_AUDIENCES,
   VIEW_KINDS,
   VIEW_SCOPES,
+  audienceOf,
+  isSystemScope,
+  toSummary,
   type AnalysisViewConfig,
   type ChartSpec,
   type DashboardViewConfig,
@@ -92,6 +96,57 @@ describe('model constants', () => {
     expect(SYSTEM_INSTANCE_ID_PREFIX).toBe('system');
     expect(SYSTEM_INSTANCE_ID_SEPARATOR).toBe(':');
     expect(CODE_REVISION).toBe('code');
+  });
+});
+
+describe('scope answers two questions', () => {
+  it('puts a system view in front of everyone, never in a group of its own', () => {
+    expect(VIEW_AUDIENCES).toEqual(['personal', 'shared']);
+    expect(VIEW_SCOPES.map(audienceOf)).toEqual([
+      'shared',
+      'shared',
+      'personal',
+    ]);
+  });
+
+  it('names only the system scope as the one a user did not configure', () => {
+    expect(VIEW_SCOPES.filter(isSystemScope)).toEqual(['system']);
+  });
+});
+
+describe('a summary', () => {
+  const instance = (config: ViewConfig): ViewInstance => ({
+    id: 'orders-1',
+    definitionId: 'orders',
+    title: 'Mine',
+    scope: 'personal',
+    revision: '1',
+    config,
+  });
+
+  const record: ViewConfig = {
+    ...filterBase,
+    kind: 'record',
+    refresh: { interval: null },
+    sort: [],
+    pageSize: 20,
+    layout: 'table',
+    table: { columns: [] },
+    card: { title: 'id', fields: [] },
+  };
+
+  const dashboard: ViewConfig = {
+    ...filterBase,
+    kind: 'dashboard',
+    refresh: { interval: null },
+    fields: [],
+    panels: [],
+  };
+
+  it('carries the kind of the config it names, and not the config', () => {
+    expect(toSummary(instance(record)).kind).toBe('record');
+    expect(toSummary(instance(dashboard)).kind).toBe('dashboard');
+    expect('config' in toSummary(instance(record))).toBe(false);
   });
 });
 

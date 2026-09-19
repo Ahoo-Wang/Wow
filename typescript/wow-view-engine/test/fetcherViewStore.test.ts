@@ -15,6 +15,7 @@ import { Fetcher } from '@ahoo-wang/fetcher';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   isViewStoreError,
+  toSummary,
   ViewEngine,
   type ViewInstance,
   type ViewStoreErrorCode,
@@ -93,13 +94,13 @@ afterEach(() => {
 
 describe('FetcherViewStore reads', () => {
   it('lists the views of one definition', async () => {
-    fetchMock.mockResolvedValueOnce(
-      reply([{ ...instance, config: undefined }]),
-    );
+    // What a backend answers with: the summary projection, kind included.
+    fetchMock.mockResolvedValueOnce(reply([toSummary(instance)]));
 
     const summaries = await store().list('orders');
 
     expect(summaries).toHaveLength(1);
+    expect(summaries[0].kind).toBe('record');
     expect(sent().url).toBe(
       'https://views.test/view-engine/definitions/orders/views',
     );

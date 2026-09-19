@@ -16,6 +16,7 @@ import {
   DEFAULT_RUNTIME_LIMITS,
   MAX_MARKDOWN_LENGTH,
   MAX_PANEL_LINKS,
+  audienceOf,
   isFieldName,
   type DashboardContentPanel,
   type DashboardPanel,
@@ -423,12 +424,17 @@ function validateLinks(
  * Whether an instance is visible wherever the dashboard is. A personal
  * dashboard may reference anything its owner can read; a shared or system one
  * is seen by others, so it may only reference views they can read too.
+ *
+ * The question is one of audience alone — that a system view passes it is
+ * `audienceOf` answering, not a case spelled out here.
  */
 export function coversScope(
   dashboard: ViewScope,
   instance: ViewScope,
 ): boolean {
-  return dashboard === 'personal' || instance !== 'personal';
+  return (
+    audienceOf(dashboard) === 'personal' || audienceOf(instance) === 'shared'
+  );
 }
 
 function isNonNegativeInteger(value: number): boolean {

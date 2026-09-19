@@ -53,6 +53,12 @@ export class FetcherViewStore implements ViewStore {
     this.basePath = trimSlash(options.basePath ?? '/view-engine');
   }
 
+  /**
+   * The server answers with summaries rather than instances. Each one carries
+   * the `kind` of the config it names — projected from that config, never
+   * stored a second time — so a sidebar can tell a record view from an
+   * analysis one without reading either config.
+   */
   async list(
     definitionId: string,
     signal?: AbortSignal,

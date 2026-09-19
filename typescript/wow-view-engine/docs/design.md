@@ -459,7 +459,14 @@ export interface ViewInstance {
   revision: string; // 不透明，只做相等比较；代码声明的系统视图固定为 'code'
   config: ViewConfig;
 }
-export type ViewInstanceSummary = Omit<ViewInstance, 'config'>;
+export interface ViewInstanceSummary {
+  id: string;
+  definitionId: string;
+  title: string;
+  scope: 'system' | 'shared' | 'personal';
+  kind: ViewConfig['kind']; // 该实例配置的种类；摘要不带 config，列表据此区分记录与分析
+  revision: string;
+}
 export interface ViewPreferences {
   order: string[];
   defaultInstanceId: string | null;
@@ -734,7 +741,7 @@ export interface ViewEngine {
     choice: 'reload' | 'overwrite',
   ): Promise<ViewInstance | void>;
   pendingWrites(): ReadonlyMap<string, WriteState>; // 未结清的写入，按 WriteHandle 索引；含列表命令
-  list(definitionId: string): Promise<ViewInstanceSummary[]>; // 代码声明的系统视图 + store.list()
+  list(definitionId: string): Promise<ViewInstanceSummary[]>; // 代码声明的系统视图 + store.list()；摘要的 kind 由各自的 config 投影而来
   preferences(definitionId: string): Promise<ViewPreferences>;
   permissions(definitionId: string): ViewPermissions; // store 同步提供，缺省全允许
   definitionIssues(definitionId: string): Issue[]; // 构造时对定义准入的结果
@@ -806,6 +813,8 @@ export interface RuntimeEnvironment {
 | `shared`   | 有共享许可的业务用户                   | 该定义的所有用户 | 依许可决定能否覆盖、改名、删除；总可另存         | `ViewStore`                                                 |
 | `personal` | 任何用户                               | 仅本人           | 全部                                             | `ViewStore`                                                 |
 
+这三个值是**两件事的合法组合**：这个视图给谁看（受众：`personal` 或 `shared`），以及它是不是用户配置的。系统视图一定是共享视图，"个人的系统视图"不存在——把两件事合成一个值，正是为了让这句话无法写出来，而不是拆成两个字段再补一条要靠校验守住的不变式。模型给出两个具名派生：`audienceOf(scope)` 回答受众（`system` 答 `shared`），`isSystemScope(scope)` 回答出处。Dashboard 的引用约束、创建许可、只读判断与侧栏分组都走这两个派生，不各自比较字符串——散落在各处的 `scope !== 'personal'` 是同一条规则被重写了一遍，改的时候没人知道它们是一回事。创建类的入参因此是 `ViewAudience` 而不是 `Exclude<ViewScope, 'system'>`：用户只能为受众创建。
+
 系统视图有两种来源，Engine 对它们一视同仁。**代码声明**放在 `definition.views`，随应用部署，`revision` 固定为 `'code'`，打开时不经过 store；这是"定义是代码"的自然延伸，适合每个业务对象的默认列表与常用视角。**服务端配置**由运维通过业务系统的管理入口写入，`list()` 以 `scope: 'system'` 返回；引擎不提供这条管理入口。两种来源在列表中合并，代码声明者在前。
 
 Dashboard 的范围受其引用约束：`shared` 或 `system` Dashboard 只能引用 `shared` 或 `system` 的 Record／Analysis 实例，`validateDashboard` 在保存与另存时按目标范围检查，见第 5 节。
@@ -836,6 +845,7 @@ export interface ViewPreferences {
 }
 ```
 
+- **侧栏呈现。** 列表按受众分两组，个人在前、共享在后；系统视图落在共享组里，并以 `system` 标签标出它随定义而来。一个 data 定义同时承载记录与分析实例，所以每项以种类图标作前缀（记录／分析／仪表盘），种类由摘要的 `kind` 给出。侧栏标题取自 `definition.title`，由工作台传入并作 `nav` 的可访问名。三件事各占一个位置、互不重复：图标说种类，分组说受众，标签说出处。
 - **排序。** 工作台展示顺序为 `order` 中出现且仍存在于列表的 id，按 `order` 排列；其余按服务端返回顺序追加。`reorder(ids)` 提交当前可见列表的完整顺序与偏好 `revision`。
 - **默认视图。** `setDefault(id | null)` 只改 `defaultInstanceId`。有效默认值的解析规则：显式指定的 `instanceId` 优先；否则 `defaultInstanceId` 存在于列表则用它；否则取排序后的第一项，通常就是第一个系统视图；列表为空时显示空态并提供新建。
 - **删除与偏好。** 删除实例不写偏好。读取时忽略已不存在的 id，下一次 `reorder` 或 `setDefault` 写入自然清理。

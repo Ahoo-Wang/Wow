@@ -185,17 +185,22 @@ export const defaultMessages: ViewMessages = Object.freeze({
   'label.date.unit-of': '{field} unit',
   'label.date.period-of': '{field} period',
 
-  // Who a view is for. The audience picker asks it of the person saving,
-  // the list's tooltip answers it about a view already saved, so the two
-  // are worded differently and keyed apart.
+  // Who a view is for. The audience picker asks it of the person saving;
+  // the list answers it with the group a view sits in, so the two are worded
+  // differently and keyed apart. Nothing names the shared or personal
+  // audience on the row itself — the group above it already did.
   'label.scope.only-me': 'Only me',
   'label.scope.everyone': 'Everyone',
+  'label.scope.group.personal': 'Personal',
+  'label.scope.group.shared': 'Shared',
   'label.scope.system': 'Shipped with the definition',
-  'label.scope.shared': 'Shared with everyone',
-  'label.scope.personal': 'Only you',
   'label.scope.tag.system': 'system',
-  'label.scope.tag.shared': 'shared',
-  'label.scope.tag.personal': 'personal',
+
+  // Which kind of view a row names: one data definition holds record and
+  // analysis views together, so the list says which is which.
+  'label.kind.record': 'Record view',
+  'label.kind.analysis': 'Analysis view',
+  'label.kind.dashboard': 'Dashboard',
   'label.view.list': 'Views',
   'label.view.list-failed': 'The list could not be loaded.',
   'label.view.none-hint': 'Save the current conditions to make one.',

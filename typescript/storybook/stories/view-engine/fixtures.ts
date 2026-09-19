@@ -276,6 +276,22 @@ export const savedViews: ViewInstance[] = [
     revision: '1',
     config: analysisConfig(),
   },
+  // Appended, never inserted: stories address the two above by index. It is
+  // here so a sidebar has both groups, and both kinds inside one of them.
+  {
+    id: 'orders-mine',
+    definitionId: 'orders',
+    title: '我盯的大额单',
+    scope: 'personal',
+    revision: '1',
+    config: recordConfig({
+      filter: {
+        op: 'and',
+        children: [{ field: 'amount', operator: 'GT', value: 5000 }],
+      },
+      sort: [{ field: 'createdAt', direction: 'DESC' }],
+    }),
+  },
 ];
 
 /** A dashboard with nothing on it, which is a valid starting point. */

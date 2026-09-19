@@ -13,6 +13,8 @@
 
 import {
   DEFAULT_RUNTIME_LIMITS,
+  audienceOf,
+  isSystemScope,
   type DashboardViewConfig,
   type DataViewDefinition,
   type FieldDefinition,
@@ -28,6 +30,7 @@ import {
   type ViewConfig,
   type ViewDefinition,
   type ViewInstance,
+  type ViewAudience,
   type ViewInstanceSummary,
   type ViewPreferences,
   type ViewScope,
@@ -124,7 +127,8 @@ interface RuntimeIdentity {
 
 export interface CreateInput<C extends ViewConfig> {
   title: string;
-  scope: Exclude<ViewScope, 'system'>;
+  /** A user creates for an audience; only a definition declares a system view. */
+  scope: ViewAudience;
   config: C;
 }
 
@@ -327,7 +331,7 @@ export class ViewEngine {
   /** A copy under a new title and scope; the source runtime is untouched. */
   async saveAs(
     runtime: ViewRuntime,
-    input: { title: string; scope: Exclude<ViewScope, 'system'> },
+    input: { title: string; scope: ViewAudience },
   ): Promise<ViewInstance> {
     const target = this.requireRuntime(runtime);
     const state = target.getSnapshot();
@@ -987,18 +991,19 @@ export class ViewEngine {
   ): void {
     const permissions = this.permissions(definitionId);
     this.requirePermission(
-      scope === 'shared'
+      audienceOf(scope) === 'shared'
         ? permissions.createShared
         : permissions.createPersonal,
       'view.create.forbidden',
     );
   }
 
+  /** Asks for identity and scope alone, so an instance answers as well as a summary. */
   private requireInstancePermission(
-    instance: ViewInstanceSummary,
+    instance: Pick<ViewInstanceSummary, 'id' | 'definitionId' | 'scope'>,
     action: keyof InstancePermissions,
   ): void {
-    if (instance.scope === 'system')
+    if (isSystemScope(instance.scope))
       throw new ViewCommandError(
         issue('view.system.read-only', [], { action }),
       );

@@ -13,7 +13,12 @@
 
 import { useState } from 'react';
 import { SaveIcon, TrashIcon } from 'lucide-react';
-import type { Issue, ViewInstance, ViewScope } from '../model/index.js';
+import {
+  VIEW_AUDIENCES,
+  type Issue,
+  type ViewAudience,
+  type ViewInstance,
+} from '../model/index.js';
 import type { WriteAction } from '../runtime/index.js';
 import type { SaveAbilities, SaveCommands } from '../react/index.js';
 import {
@@ -56,14 +61,12 @@ export interface SaveActionsProps {
   onRecovered?(action: WriteAction): void;
 }
 
-type SaveScope = Exclude<ViewScope, 'system'>;
-
 /**
  * The audiences, as keys rather than words: the dialog resolves them through
  * the catalogue, so an application rewords or translates them like everything
  * else this package says.
  */
-const SCOPES: { labelKey: string; value: SaveScope }[] = [
+const SCOPES: ScopeChoice[] = [
   { labelKey: 'label.scope.only-me', value: 'personal' },
   { labelKey: 'label.scope.everyone', value: 'shared' },
 ];
@@ -76,7 +79,7 @@ function scopesOf(can: SaveAbilities): ScopeChoice[] {
 }
 
 /** One audience on offer, still unworded. */
-type ScopeChoice = { labelKey: string; value: SaveScope };
+type ScopeChoice = { labelKey: string; value: ViewAudience };
 
 /**
  * Save, save as, rename and delete, plus the recovery a write needs when it
@@ -354,12 +357,12 @@ function TitleDialog({
   initialTitle: string;
   /** Audiences to offer; a rename asks for none and passes nothing. */
   scopes?: ScopeChoice[];
-  onSubmit(title: string, scope: SaveScope): void;
+  onSubmit(title: string, scope: ViewAudience): void;
 }) {
   const [title, setTitle] = useState(initialTitle);
   // Null until the user picks: the default is the first scope on offer, and
   // what is on offer follows the permissions, which arrive with the view.
-  const [picked, setPicked] = useState<SaveScope | null>(null);
+  const [picked, setPicked] = useState<ViewAudience | null>(null);
   const messages = useViewMessages();
   const offered = (scopes ?? []).map(item => ({
     label: messages.label(item.labelKey),
@@ -406,8 +409,8 @@ function TitleDialog({
                 items={offered}
                 value={scope}
                 onValueChange={value => {
-                  if (value === 'personal' || value === 'shared')
-                    setPicked(value);
+                  const next = VIEW_AUDIENCES.find(item => item === value);
+                  if (next) setPicked(next);
                 }}
               >
                 <SelectTrigger id="view-scope">

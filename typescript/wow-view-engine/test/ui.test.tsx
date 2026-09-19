@@ -40,6 +40,7 @@ import type {
   FilterTree,
   FilterValue,
   RecordData,
+  ViewInstanceSummary,
 } from '../src/index.js';
 import type {
   RecordTableController,
@@ -128,7 +129,8 @@ describe('RecordWorkbench', () => {
 
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
     expect(screen.getByRole('button', { name: /Apply/ })).toBeDefined();
-    expect(screen.getByRole('navigation', { name: 'Views' })).toBeDefined();
+    // The sidebar carries the definition's own title.
+    expect(screen.getByRole('navigation', { name: 'Orders' })).toBeDefined();
   });
 
   /**
@@ -171,13 +173,16 @@ describe('RecordWorkbench', () => {
         instanceId="missing"
         messages={{
           'label.view.unopenable': '打不开这个视图',
-          'label.view.list': '视图',
+          'label.scope.group.personal': '仅自己',
         }}
       />,
     );
 
     expect(await screen.findByText('打不开这个视图')).toBeDefined();
-    expect(screen.getByRole('navigation', { name: '视图' })).toBeDefined();
+    // The sidebar is named by the definition rather than by the catalogue;
+    // what it says about itself still comes from the wording handed in.
+    expect(screen.getByRole('navigation', { name: 'Orders' })).toBeDefined();
+    expect(screen.getByText('仅自己')).toBeDefined();
   });
 
   // What "today" filters by and what a row shows read the same clock.
@@ -1881,6 +1886,21 @@ describe('RecordCards on its own', () => {
 });
 
 describe('ViewList on its own', () => {
+  /** What a list receives: an instance's identity plus its config's kind. */
+  function summary(
+    overrides: Partial<ViewInstanceSummary> = {},
+  ): ViewInstanceSummary {
+    return {
+      id: 'a',
+      definitionId: 'orders',
+      title: 'Mine',
+      scope: 'personal',
+      kind: 'record',
+      revision: '1',
+      ...overrides,
+    };
+  }
+
   it('shows placeholders while loading', () => {
     const { container } = render(
       <ViewList
@@ -1907,15 +1927,117 @@ describe('ViewList on its own', () => {
     expect(screen.getByText(/could not be loaded/)).toBeDefined();
   });
 
-  it('marks the open view and labels the shared ones', () => {
+  it('is named by the definition, and falls back when none is given', () => {
+    // The heading names the nav, so the two cannot drift apart.
+    render(
+      <ViewList
+        list={listState({ loading: true })}
+        title="订单工作台"
+        currentId={null}
+        onOpen={() => {}}
+      />,
+    );
+    expect(
+      screen.getByRole('navigation', { name: '订单工作台' }),
+    ).toBeDefined();
+    expect(screen.getByRole('heading', { name: '订单工作台' })).toBeDefined();
+
+    cleanup();
+    render(
+      <ViewList
+        list={listState({ loading: true })}
+        currentId={null}
+        onOpen={() => {}}
+      />,
+    );
+    expect(screen.getByRole('navigation', { name: 'Views' })).toBeDefined();
+  });
+
+  it('files a system view under shared, and tags that one alone', () => {
+    render(
+      <ViewSurface>
+        <ViewList
+          list={listState({
+            items: [
+              summary({ id: 'a', title: 'Mine' }),
+              summary({ id: 'b', title: 'Ours', scope: 'shared' }),
+              summary({ id: 'c', title: 'All orders', scope: 'system' }),
+            ],
+          })}
+          currentId="a"
+          onOpen={() => {}}
+        />
+      </ViewSurface>,
+    );
+
+    const [personal, shared] = screen.getAllByRole('group');
+    expect(within(personal).getByText('Personal')).toBeDefined();
+    expect(
+      within(personal)
+        .getAllByRole('button')
+        .map(item => item.textContent),
+    ).toEqual(['Mine']);
+    // A system view is a shared view, so it sits in that group rather than
+    // in a third one — the tag is what says where it came from.
+    expect(within(shared).getByText('Shared')).toBeDefined();
+    expect(within(shared).getByRole('button', { name: /Ours/ })).toBeDefined();
+    const tags = screen.getAllByText('system');
+    expect(tags).toHaveLength(1);
+    expect(tags[0].closest('button')?.textContent).toContain('All orders');
+  });
+
+  it('shows only the groups it has views for', () => {
+    render(
+      <ViewSurface>
+        <ViewList
+          list={listState({ items: [summary({ scope: 'system' })] })}
+          currentId={null}
+          onOpen={() => {}}
+        />
+      </ViewSurface>,
+    );
+
+    const groups = screen.getAllByRole('group');
+    expect(groups).toHaveLength(1);
+    expect(within(groups[0]).getByText('Shared')).toBeDefined();
+  });
+
+  it('tells a record view from an analysis view by its icon', () => {
+    // One data definition holds both, so the two sit in the same group and
+    // the icon is all that separates them.
+    render(
+      <ViewSurface>
+        <ViewList
+          list={listState({
+            items: [
+              summary({ id: 'a', title: 'Rows', kind: 'record' }),
+              summary({ id: 'b', title: 'Totals', kind: 'analysis' }),
+            ],
+          })}
+          currentId={null}
+          onOpen={() => {}}
+        />
+      </ViewSurface>,
+    );
+
+    const iconOf = (name: string) =>
+      screen
+        .getByRole('button', { name: new RegExp(name) })
+        .querySelector('svg')
+        ?.getAttribute('class');
+    expect(iconOf('Rows')).toContain('inbox');
+    expect(iconOf('Totals')).toContain('sigma');
+  });
+
+  it('marks the open view and opens the one clicked', () => {
     const opened = vi.fn();
     render(
       <ViewSurface>
         <ViewList
           list={listState({
             items: [
-              { ...mine, id: 'a', title: 'Mine', scope: 'personal' },
-              { ...mine, id: 'b', title: 'Ours', scope: 'shared' },
+              summary({ id: 'a', title: 'Mine' }),
+              summary({ id: 'b', title: 'Ours', scope: 'shared' }),
             ],
           })}
           currentId="a"
@@ -1927,7 +2049,6 @@ describe('ViewList on its own', () => {
     expect(screen.getByRole('button', { name: /Mine/ }).ariaCurrent).toBe(
       'true',
     );
-    expect(screen.getByText('shared')).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: /Ours/ }));
     expect(opened).toHaveBeenCalledWith('b');

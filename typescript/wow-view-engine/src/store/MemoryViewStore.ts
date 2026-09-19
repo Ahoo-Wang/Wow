@@ -13,6 +13,7 @@
 
 import {
   isSystemInstanceId,
+  isSystemScope,
   toSummary,
   ViewStoreError,
   type ViewConfig,
@@ -100,7 +101,7 @@ export class MemoryViewStore implements ViewStore {
   ): Promise<ViewInstance> {
     const replayed = this.outcomes.get(context.requestId);
     if (replayed) return Promise.resolve(copy(replayed));
-    if (input.scope === 'system')
+    if (isSystemScope(input.scope))
       return Promise.reject(
         new ViewStoreError('INVALID', 'System views are declared in code'),
       );
@@ -155,7 +156,7 @@ export class MemoryViewStore implements ViewStore {
       );
     // Deleting a system view is refused exactly as overwriting one is: it is
     // declared in code or by operations, and no user write reaches it.
-    if (current.scope === 'system')
+    if (isSystemScope(current.scope))
       return Promise.reject(
         new ViewStoreError('FORBIDDEN', 'System views are read-only'),
       );
@@ -219,7 +220,7 @@ export class MemoryViewStore implements ViewStore {
       return Promise.reject(
         new ViewStoreError('NOT_FOUND', `No such view: ${id}`),
       );
-    if (current.scope === 'system')
+    if (isSystemScope(current.scope))
       return Promise.reject(
         new ViewStoreError('FORBIDDEN', 'System views are read-only'),
       );

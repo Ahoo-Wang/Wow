@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ViewConfig } from './config.js';
+import type { ViewConfig, ViewKind } from './config.js';
 
 /**
  * Who configured a view, who sees it and who may change it.
@@ -19,6 +19,16 @@ import type { ViewConfig } from './config.js';
  * - `system`: developers or operators; read-only for everyone else.
  * - `shared`: a user with permission; visible across the definition.
  * - `personal`: its owner only.
+ *
+ * These are the legal combinations of two facts — who a view is for, and
+ * whether it came from a user — rather than one dimension. A system view is
+ * always a shared view, and a personal system view is not a thing; holding
+ * the pair as a single value is what makes that last sentence impossible to
+ * write down instead of a rule somebody has to enforce. `audienceOf` and
+ * `isSystemScope` read the two facts back out, and every caller asks through
+ * them rather than comparing the value itself — a `scope !== 'personal'`
+ * spelled out at the point of use is this rule, restated where nobody can
+ * see it is the same rule.
  */
 export type ViewScope = 'system' | 'shared' | 'personal';
 
@@ -27,6 +37,21 @@ export const VIEW_SCOPES: readonly ViewScope[] = [
   'shared',
   'personal',
 ];
+
+/** Who a view is for. A system view is a shared view; see `ViewScope`. */
+export type ViewAudience = 'personal' | 'shared';
+
+export const VIEW_AUDIENCES: readonly ViewAudience[] = ['personal', 'shared'];
+
+/** The audience a scope puts a view in: `system` answers `shared`. */
+export function audienceOf(scope: ViewScope): ViewAudience {
+  return scope === 'personal' ? 'personal' : 'shared';
+}
+
+/** Whether the view was configured for everyone rather than by a user. */
+export function isSystemScope(scope: ViewScope): boolean {
+  return scope === 'system';
+}
 
 /** A saved config plus its identity. Only configs persist, never results. */
 export interface ViewInstance {
@@ -42,13 +67,29 @@ export interface ViewInstance {
 /** Revision of a system view that ships with the definition. */
 export const CODE_REVISION = 'code';
 
-/** What a list returns: enough to render the sidebar, without the config. */
-export type ViewInstanceSummary = Omit<ViewInstance, 'config'>;
+/**
+ * What a list returns: enough to render the sidebar, without the config.
+ *
+ * It is not "an instance minus its config": `kind` is the config's own tag,
+ * projected, because one data definition holds record and analysis views
+ * together and a list has to tell them apart. A store answering `list` reads
+ * it off the config it stores — it never records a second copy, which could
+ * then disagree with the config it names.
+ */
+export interface ViewInstanceSummary {
+  id: string;
+  definitionId: string;
+  title: string;
+  scope: ViewScope;
+  /** Always equal to the `kind` of the config this summary names. */
+  kind: ViewKind;
+  revision: string;
+}
 
 /** What a list shows: an instance without the config it holds. */
 export function toSummary(instance: ViewInstance): ViewInstanceSummary {
-  const { id, definitionId, title, scope, revision } = instance;
-  return { id, definitionId, title, scope, revision };
+  const { id, definitionId, title, scope, revision, config } = instance;
+  return { id, definitionId, title, scope, kind: config.kind, revision };
 }
 
 /** One user's ordering and default view for one definition. */

@@ -112,6 +112,7 @@ export function DashboardWorkbench({
       <aside className="flex w-56 shrink-0 flex-col gap-2 p-3">
         <ViewList
           list={list}
+          title={engine.definitions.get(definitionId)?.title}
           currentId={state?.saved?.id ?? null}
           onOpen={setChosen}
         />
