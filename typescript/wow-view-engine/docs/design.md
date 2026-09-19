@@ -966,7 +966,7 @@ useSaveCommands(engine, runtime): { save; saveAs; rename; delete; retry; abandon
 
 `FilterPanel` 的布局：分组是带边框的块，头部是操作符切换（All of／Any of／None of）与删除，主体是一条条件带：等宽栅格，能放几列放几列，pill 在格子里对齐，字段名、操作符、值上下对齐；持双输入的条件（区间、日期）在条件带放得下两列时占两格；条件是内联的紧凑 pill（字段 · 操作符 · 值编辑器 · 删除），不独占一行，未填写时虚线边框，校验有 error 时标为 invalid（`data-invalid`，destructive 色），只有 warning 时标为 `data-warning`（主题的 `warning` 色）——条件照常执行，颜色只说"值得看一眼"；持有谓词的 `ELEMENT_MATCH` 条件和分组一样渲染为块，头部是字段与操作符，主体是它持有的分组。简单模式只显示根分组的条件带，高级模式显示根分组的块。已应用条件的摘要 badge 仍单独显示：它说的是结果对应的条件，不是 draft；摘要保留树的逻辑——根下每个直接子节点一个 badge，分组子节点合成一个 badge，内部条件用分组自己的操作符词连接、再嵌套的分组加括号，根是 OR／NOR 时整体折成一个 badge 并说明。每个 badge 带删除：把对应条件的值设回未填写（分组则组内每条）并重新应用，字段行留在编辑器里，这是 `clearValue(path)`。
 
-`DashboardGrid` 不做自动紧凑，面板按配置中的 `layout` 原样摆放；只有用户拖动或缩放结束时才把几何写回（`edit` + `apply`），库自身在挂载或属性变化时算出的布局不写回，因此打开已保存的 Dashboard 不会变脏。
+`DashboardGrid` 不做自动紧凑，面板按配置中的 `layout` 原样摆放；只有用户拖动或缩放结束时才把几何写回（`edit` + `apply`），库自身在挂载或属性变化时算出的布局不写回，因此打开已保存的 Dashboard 不会变脏。面板里的 Record 视图以 `selectable={false}` 渲染 `RecordTable`：Dashboard 是读数的地方，没有工具栏也没有行动作，没有任何东西读选择，勾选框因此只是一列点不出结果的控件。`RecordTable` 的 `selectable` 默认为 true，工作台与 `EmbeddedView` 不受影响；关掉时汇总行的口径标签（`total`／`page`）没有多出来的格子可占，于是标在首列之上，而不是顶掉首列自己的汇总。
 
 工作台交给 `AnalysisChart` 的是产生当前结果的那份图表配置（`ViewResult.config`），不是正在编辑的草稿：类目按别名找列取标签，草稿的别名在 Run 之前可能已指向别的列。图表只画内核已经整形好的数据：透视、合并"其他"、漏斗累计与转化率、热力图矩阵、比较值都在 `shapeChart` 里完成，`AnalysisChart` 只选标记与配色，换一个图表库不触碰任何规则。`AnalysisChart` 按 `spec.colors` 给系列或分类上色，其余按 `--chart-1..5` 顺序取用；五档色相在亮暗两种模式下各自校过分离度与对比度。热力图与漏斗自绘，用图表库画它们的成本高于收益。`projectAnalysis` 只在 `layout === 'chart'` 时整形图表，因此切换 Table／Chart 是一次新的执行而不是重绘，`useAnalysisEditor.setLayout` 据此直接 apply；其余改动等 Run。
 

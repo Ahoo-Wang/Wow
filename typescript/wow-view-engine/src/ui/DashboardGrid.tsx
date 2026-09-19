@@ -243,13 +243,18 @@ function Unavailable({ issue }: { issue: Issue | undefined }) {
   );
 }
 
+/**
+ * A record panel is a readout, not a worklist: the dashboard shows rows and
+ * offers nothing to do with a pick — no toolbar, no row action, nothing that
+ * reads the selection — so the table comes without its checkbox column.
+ */
 function RecordPanel({ runtime }: { runtime: RecordViewRuntime }) {
   const table = useRecordTable(runtime);
   if (table.status === 'error')
     return <PanelFailed error={table.error ?? undefined} />;
   if (table.loading && table.rows.length === 0)
     return <Skeleton className="h-24 w-full" />;
-  return <RecordTable table={table} />;
+  return <RecordTable table={table} selectable={false} />;
 }
 
 function AnalysisPanel({ runtime }: { runtime: DataViewRuntime }) {

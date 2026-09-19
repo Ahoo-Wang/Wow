@@ -225,6 +225,63 @@ describe('DashboardGrid', () => {
   });
 
   /**
+   * A dashboard shows rows and offers nothing to do with a pick — no toolbar,
+   * no row action, nothing anywhere that reads the selection. A checkbox
+   * column here is a control that leads nowhere, and it costs a column of
+   * width the panel does not have to spare.
+   */
+  it('renders the panel table without a selection column', async () => {
+    const { controller } = await openDashboard(
+      dashboardConfig({ panels: [panel({ title: 'Waiting to ship' })] }),
+    );
+
+    render(
+      <ViewSurface>
+        <DashboardGrid dashboard={controller()} />
+      </ViewSurface>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+    expect(screen.queryAllByRole('checkbox')).toEqual([]);
+    // The two configured columns, and no third one holding checkboxes.
+    expect(screen.getAllByRole('columnheader')).toHaveLength(2);
+  });
+
+  /**
+   * The scope label rides in the selection column when there is one. Without
+   * it the row has no spare cell, so the label must land above the first
+   * column rather than take a column's place — a summary that silently lost
+   * its `total` / `page` word is the one mistake this row could make.
+   */
+  it('keeps the summary scope readable without the selection column', async () => {
+    const summarised: ViewInstance = {
+      ...pending,
+      config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+    };
+    const { controller } = await openDashboard(
+      dashboardConfig({ panels: [panel()] }),
+      [summarised],
+    );
+
+    const { container } = render(
+      <ViewSurface>
+        <DashboardGrid dashboard={controller()} />
+      </ViewSurface>,
+    );
+
+    const footer = await waitFor(() => {
+      const found = container.querySelector('tfoot');
+      expect(found).not.toBeNull();
+      return found as HTMLElement;
+    });
+    expect(footer.dataset.scope).toBe('total');
+    expect(footer.textContent).toContain('Total');
+    expect(footer.textContent).toContain('30');
+    // One cell per column: the footer stays aligned with the header.
+    expect(footer.querySelectorAll('td')).toHaveLength(2);
+  });
+
+  /**
    * The panels come from `applied`, which for a dashboard read out of a store
    * is whatever that store held — including a config admission refused. One
    * bad panel must be the only thing that goes missing, and it must go missing

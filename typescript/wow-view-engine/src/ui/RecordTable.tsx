@@ -47,6 +47,12 @@ export interface RecordTableProps {
   table: RecordTableController;
   /** Renders one cell; the default formats by the column's declared kind. */
   renderCell?(cell: RecordCell): React.ReactNode;
+  /**
+   * Whether rows can be picked. On by default; a surface that offers nothing
+   * to do with a selection turns it off rather than showing a column of
+   * checkboxes that lead nowhere.
+   */
+  selectable?: boolean;
   /** Overrides the catalogue's own wording for an empty result. */
   emptyTitle?: string;
   emptyDescription?: string;
@@ -69,6 +75,7 @@ export interface RecordCell {
 export function RecordTable({
   table,
   renderCell,
+  selectable = true,
   emptyTitle,
   emptyDescription,
 }: RecordTableProps) {
@@ -102,16 +109,20 @@ export function RecordTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-10">
-              <Checkbox
-                aria-label={messages.label('label.record.select-all')}
-                checked={allSelected}
-                indeterminate={
-                  table.selection.length > 0 && !allSelected ? true : undefined
-                }
-                onCheckedChange={table.toggleAll}
-              />
-            </TableHead>
+            {selectable && (
+              <TableHead className="w-10">
+                <Checkbox
+                  aria-label={messages.label('label.record.select-all')}
+                  checked={allSelected}
+                  indeterminate={
+                    table.selection.length > 0 && !allSelected
+                      ? true
+                      : undefined
+                  }
+                  onCheckedChange={table.toggleAll}
+                />
+              </TableHead>
+            )}
             {table.columns.map(column => (
               <TableHead
                 key={column.field}
@@ -137,7 +148,9 @@ export function RecordTable({
           {table.status === 'loading' && table.rows.length === 0
             ? Array.from({ length: 3 }, (_unused, index) => (
                 <TableRow key={`skeleton-${index}`}>
-                  <TableCell colSpan={table.columns.length + 1}>
+                  <TableCell
+                    colSpan={table.columns.length + (selectable ? 1 : 0)}
+                  >
                     <Skeleton className="h-4 w-full" />
                   </TableCell>
                 </TableRow>
@@ -149,15 +162,17 @@ export function RecordTable({
                     table.isSelected(row.key) ? 'selected' : undefined
                   }
                 >
-                  <TableCell>
-                    <Checkbox
-                      aria-label={messages.label('label.record.select', {
-                        key: String(row.key),
-                      })}
-                      checked={table.isSelected(row.key)}
-                      onCheckedChange={() => table.toggle(row.key)}
-                    />
-                  </TableCell>
+                  {selectable && (
+                    <TableCell>
+                      <Checkbox
+                        aria-label={messages.label('label.record.select', {
+                          key: String(row.key),
+                        })}
+                        checked={table.isSelected(row.key)}
+                        onCheckedChange={() => table.toggle(row.key)}
+                      />
+                    </TableCell>
+                  )}
                   {table.columns.map(column => (
                     <TableCell key={column.field}>
                       {renderOne({
@@ -172,7 +187,11 @@ export function RecordTable({
               ))}
         </TableBody>
         {table.summaries && (
-          <SummaryFooter summaries={table.summaries} columns={table.columns} />
+          <SummaryFooter
+            summaries={table.summaries}
+            columns={table.columns}
+            selectable={selectable}
+          />
         )}
       </Table>
     </div>
@@ -191,9 +210,11 @@ export function RecordTable({
 function SummaryFooter({
   summaries,
   columns,
+  selectable,
 }: {
   summaries: SummaryRow;
   columns: readonly RecordColumnView[];
+  selectable: boolean;
 }) {
   const messages = useViewMessages();
   // A field may carry several functions — `amount` summed and averaged — and
@@ -203,14 +224,27 @@ function SummaryFooter({
   for (const cell of summaries.cells)
     byField.set(cell.field, [...(byField.get(cell.field) ?? []), cell]);
 
+  // The scope rides in the selection column when there is one; without it
+  // there is no spare cell, so it labels the first column from above rather
+  // than taking a column's place and hiding whatever that column summarises.
+  // A table with no columns has nothing to summarise on screen either, so the
+  // row is simply empty and `data-scope` carries the scope on its own.
+  const scope = (
+    <span
+      data-slot="summary-scope"
+      className="text-muted-foreground block text-xs font-normal"
+    >
+      {messages.label(`label.summary.${summaries.scope}`)}
+    </span>
+  );
+
   return (
     <TableFooter data-scope={summaries.scope}>
       <TableRow>
-        <TableCell className="text-muted-foreground text-xs font-normal">
-          {messages.label(`label.summary.${summaries.scope}`)}
-        </TableCell>
-        {columns.map(column => (
+        {selectable && <TableCell>{scope}</TableCell>}
+        {columns.map((column, index) => (
           <TableCell key={column.field}>
+            {!selectable && index === 0 && scope}
             {(byField.get(column.field) ?? []).map(cell => (
               <span
                 key={cell.fn}
