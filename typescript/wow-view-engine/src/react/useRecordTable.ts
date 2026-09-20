@@ -187,6 +187,18 @@ export interface RecordTableController {
   error: Issue | null;
   /** True while a query is in flight and rows are still the previous ones. */
   loading: boolean;
+  /**
+   * Whether a result ever came back for this view — the last one that did,
+   * however old it is by now.
+   *
+   * It is not `rows.length > 0` and not `status === 'success'`: a failed
+   * refresh keeps the rows it could not replace and turns the status to
+   * `error`, and a result that matched nothing has no rows. What it answers
+   * is the one question a table cannot answer from rows alone — is there a
+   * result underneath this status, or is the frame empty because nothing has
+   * ever been executed here.
+   */
+  hasResult: boolean;
 
   sort: RecordSort[];
   sortOf(field: string): SortDirection | null;
@@ -448,6 +460,7 @@ export function useRecordTable(
     status: state?.query.status ?? 'idle',
     error: state?.query.error ?? null,
     loading: state?.query.status === 'loading',
+    hasResult: state?.result != null,
 
     sort,
     sortOf: useCallback(

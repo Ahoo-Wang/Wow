@@ -83,6 +83,7 @@ function tableController(
     status: 'success',
     error: null,
     loading: false,
+    hasResult: true,
     sort: [],
     sortOf: () => null,
     toggleSort: () => {},
@@ -1067,6 +1068,101 @@ describe('the table chrome', () => {
     expect(container.querySelector('thead th')!.className).not.toContain(
       'sticky',
     );
+  });
+});
+
+/**
+ * What a table draws when it has no result to draw.
+ *
+ * The columns come from the result, so a view that never got one has none:
+ * what used to be drawn was a header of a single empty cell over no rows,
+ * carrying a tab-reachable "Select all rows" that named rows there were none
+ * of and changed nothing when pressed. Two states have something to show and
+ * keep their table — the first query's skeleton, and rows a failed refresh
+ * could not replace — and everything else has nothing.
+ */
+describe('a record view with no result', () => {
+  function workbench(
+    instance: ViewInstance,
+    source: ViewSource = testSource(),
+  ) {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [instance] }),
+      resolveSource: () => source,
+    });
+    return render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId={instance.id}
+      />,
+    );
+  }
+
+  /** The select-all, which is the control the dead table kept offering. */
+  const selectAll = () =>
+    screen.queryByRole('checkbox', { name: 'Select all rows' });
+
+  it('draws nothing at all when the first query failed', async () => {
+    workbench(
+      mine,
+      testSource({
+        paged: vi.fn(() => Promise.reject(new Error('gateway down'))),
+      }),
+    );
+
+    const strip = await screen.findByRole('alert');
+    expect(strip.textContent).toContain('gateway down');
+    // No frame, and above all no control: the strip already says what
+    // happened and offers the retry. A header over nothing says nothing.
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(selectAll()).toBeNull();
+    // And not the other sentence either — this query did not return nothing,
+    // it did not return.
+    expect(screen.queryByText('Nothing to show')).toBeNull();
+  });
+
+  it('draws nothing for a config the definition refuses to run', async () => {
+    workbench({
+      ...mine,
+      config: recordConfig({
+        table: { columns: [{ field: 'removedColumn' }] },
+      }),
+    });
+
+    // `apply` was refused, so the query never ran and never will until the
+    // config is fixed: status stays idle, and there is nothing on the way.
+    await screen.findByText('This view needs fixing before it runs');
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(selectAll()).toBeNull();
+  });
+
+  it('keeps the skeleton while the first query is still running', async () => {
+    // A query that never settles: the view stays on its first `loading`.
+    workbench(
+      mine,
+      testSource({ paged: vi.fn((): Promise<never> => new Promise(() => {})) }),
+    );
+
+    // A query in flight has something to show, and the skeleton is it.
+    const table = await screen.findByRole('table');
+    expect(table.querySelectorAll('tbody tr')).toHaveLength(3);
+  });
+
+  it('says in its own words that a query matched nothing', async () => {
+    workbench(
+      mine,
+      testSource({
+        paged: vi.fn(() => Promise.resolve({ total: 0, list: [] })),
+      }),
+    );
+
+    // The conditions ran and these are the records there are — a different
+    // sentence from a failure, because a user acts differently on each.
+    await screen.findByText('Nothing to show');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(selectAll()).toBeNull();
   });
 });
 

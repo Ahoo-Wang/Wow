@@ -36,6 +36,9 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 ## RecordTable 与 RecordCards
 
+- **没有结果、也没有在途的查询时，表根本不画**：列来自结果，所以一个从未拿到结果的视图连列都没有——画出来是一格空表头压在零行之上，格子里还留着一个 Tab 可达、名叫「选择全部行」的复选框：它选不中任何东西，点下去 `aria-checked` 也不动，既没有 `aria-disabled` 说明自己不能用。这一格比空白更糟，所以 `RecordTable` 在 `hasResult` 为假且状态不是 `loading` 时返回 `null`；
+- **两种"没有行"是两句话，读者对它们的反应不一样**：查询失败由 `QueryStrip` 说（「查询失败」，行尾带重试），配置跑不起来由 `ErrorStrip` 说（「这个视图需要修复才能运行」），两句都在表之上，不由表再说一遍——这与 `AnalysisWorkbench` 的做法是同一条（它的结果槽位以 `view &&` 把关，没有结果就什么也不画）；**查询跑完、什么也没匹配上**才是表自己的那句话（`label.record.empty`「没有可显示的内容」），因为上面没有任何一条会说它；
+- **这道闸门窄到只关它该关的**：刷新失败会留住它替换不掉的那批行并把状态转为 `error`（见 test/recordWorkbench.test.tsx「keeps the rows a failed refresh could not replace」），第一次 `loading` 有自己的骨架行——两者手上都有东西可画，表照画不误。`hasResult` 因此是控制器上一个独立的成员（`state.result != null`），而不是拿 `rows.length` 或 `status` 去猜：一个匹配零行的成功结果也没有行。（见 test/recordTable.test.tsx「a record view with no result」）
 - `RecordTable` 的 `selectable` 默认为 true，工作台与 `EmbeddedView` 不受影响；
 - 关掉时汇总行的口径标签（`total`／`page`）没有多出来的格子可占，于是标在首列之上，而不是顶掉首列自己的汇总。
 

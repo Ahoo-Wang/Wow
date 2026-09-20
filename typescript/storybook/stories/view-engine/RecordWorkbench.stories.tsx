@@ -81,6 +81,15 @@ const refreshingView = {
   config: recordConfig({ refresh: { interval: 30 } }),
 };
 
+/**
+ * A view whose name is longer than any bar will ever be, for the one thing
+ * in the title bar that is allowed to give way.
+ */
+const longTitledView = {
+  ...savedViews[0],
+  title: '全部订单 · 华东仓 · 待出库 · 按金额倒序 · 2026 年第三季度复核清单',
+};
+
 function RecordWorkbenchDemo({
   behaviour = 'data',
   instanceId,
@@ -95,6 +104,7 @@ function RecordWorkbenchDemo({
   raisedHost = false,
   pinnedColumn = false,
   refreshing = false,
+  narrowHost = false,
 }: {
   behaviour?: SourceBehaviour;
   instanceId?: string;
@@ -134,6 +144,12 @@ function RecordWorkbenchDemo({
   pinnedColumn?: boolean;
   /** Opens a view whose config already carries an auto-refresh interval. */
   refreshing?: boolean;
+  /**
+   * Opens a long-titled view in a column narrower than the title bar's own
+   * controls, the way a phone or a split pane does. The width is on the host
+   * rather than on the workbench, because that is where a host puts it.
+   */
+  narrowHost?: boolean;
 }) {
   const workbench = (
     <StoryEngine
@@ -161,7 +177,9 @@ function RecordWorkbenchDemo({
                 ? [pinnedView]
                 : refreshing
                   ? [refreshingView]
-                  : savedViews,
+                  : narrowHost
+                    ? [longTitledView]
+                    : savedViews,
         });
       }}
     >
@@ -172,11 +190,25 @@ function RecordWorkbenchDemo({
           instanceId={instanceId ?? savedViews[0].id}
           actions={withActions ? businessActions : undefined}
           messages={localized ? zhCN : undefined}
-          defaultSidebarOpen={!collapsed}
+          // A narrow column is a column with no room for a 224px sidebar
+          // beside it, so it opens the way a phone does: the list folded
+          // away and the whole width given to the view.
+          defaultSidebarOpen={!collapsed && !narrowHost}
         />
       )}
     </StoryEngine>
   );
+  // A column narrower than the title bar's own controls. The width is the
+  // whole of the scenario, and the regression play walks it down by writing
+  // to this element's `style.width`; `overflow: hidden` is the tell, since
+  // anything the bar cannot fit into would otherwise be painted over the
+  // page beside it rather than clipped where it can be measured.
+  if (narrowHost)
+    return (
+      <div data-narrow-host style={{ width: 360, overflow: 'hidden' }}>
+        {workbench}
+      </div>
+    );
   // `transform` makes this div the containing block for every `position:
   // fixed` inside it, so a surface that assumed the viewport would fill the
   // div instead. `data-transformed-host` is what the regression play looks
@@ -324,6 +356,7 @@ const meta = {
     transformedHost: { table: { disable: true } },
     refreshing: { table: { disable: true } },
     raisedHost: { table: { disable: true } },
+    narrowHost: { table: { disable: true } },
   },
 } satisfies Meta<typeof RecordWorkbenchDemo>;
 
@@ -502,3 +535,24 @@ export const FillTheScreenWithPopups: Story = {
 export const PopupsOverRaisedHostLayer: Story = {
   args: { raisedHost: true, paged: true },
 };
+
+/**
+ * 窄栏里的标题栏：一根 360px 宽的柱子——手机、分屏、宿主的侧边面板都是这个
+ * 宽度——装一个名字长得放不下的视图。
+ *
+ * 标题栏读作两组：左边「这是哪个视图」（种类、受众、名字、保存命令），右边
+ * 「我在怎么看它」（筛选带的开合、铺满屏幕、宿主自己的按钮）。窄到两组并排
+ * 放不下时，**先让名字缩，缩到不能再缩就换行**——右边那组整组挪到第二行，而
+ * 不是压在左边那组上面。
+ *
+ * 以前是压上去的：左边那组带着 `min-w-0`，于是它可以被压到比自己内容还窄
+ * （实测 96.8px 装 206.9px 的内容），父级因此以为一行放得下、`flex-wrap` 永远
+ * 不触发，`Save` 被画在筛选开关**底下** 102px。在 375px 的视口上，`Save` 左
+ * 缘、正中、右缘三点 `elementFromPoint` 全部答的是筛选开关：键盘还够得着，指
+ * 针和手指一下也点不到——一个手机宽度的用户存不了盘。
+ *
+ * 现在左边那组按自己的内容定尺寸，名字是组里唯一的弹簧（`w-0 grow`）：
+ * `truncate` 自己做不到这件事，一行不折的标题照样按整串文字要宽度，组会跟着
+ * 名字一起长出去，溢出只是换了条路。
+ */
+export const NarrowTitleBar: Story = { args: { narrowHost: true } };

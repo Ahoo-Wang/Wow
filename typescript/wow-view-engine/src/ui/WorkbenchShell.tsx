@@ -290,7 +290,13 @@ export function WorkbenchShell({
   const collapsed = !sidebarOpen && (
     <div
       data-slot="view-collapsed"
-      className={cn('flex min-w-0 items-center', SPACE.WITHIN)}
+      // The identity group's spring while it is there: with the sidebar
+      // away the view's name is the switcher's label rather than the
+      // heading beside it, so this is the part of the line that may give.
+      // `min-w-0` is safe here because the switcher below it can shrink to
+      // its icons — a group whose contents cannot shrink and which is
+      // allowed to be squeezed is exactly what put Save under the controls.
+      className={cn('flex min-w-0 grow items-center', SPACE.WITHIN)}
     >
       <Button
         ref={expandRef}

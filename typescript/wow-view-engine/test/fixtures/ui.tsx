@@ -77,6 +77,7 @@ export function recordTableController(
     status: 'success',
     error: null,
     loading: false,
+    hasResult: true,
     sort: [],
     sortOf: () => null,
     toggleSort: () => {},

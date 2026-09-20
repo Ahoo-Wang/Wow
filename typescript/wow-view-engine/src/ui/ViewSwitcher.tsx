@@ -97,7 +97,12 @@ export function ViewSwitcher({
             // *does* — a screen reader otherwise hears the view it is on as
             // though pressing it would open that one.
             aria-label={messages.label('label.workbench.switch-view')}
-            className="min-w-0"
+            // Starts at nothing and takes what the collapsed group has
+            // left, so the current view's name is the part of that group
+            // that truncates. Sized to its label instead, it would be the
+            // whole group's floor and would push the save commands off the
+            // end of a narrow bar.
+            className="w-0 min-w-0 grow"
           />
         }
       >

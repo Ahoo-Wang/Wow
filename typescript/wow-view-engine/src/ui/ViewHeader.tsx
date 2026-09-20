@@ -136,10 +136,22 @@ export function ViewHeader({
       >
         {/* Which view this is, and the commands that keep it: one group, in
             the order a user reads it — where it sits, what it is, what to do
-            with it. */}
+            with it.
+
+            No `min-w-0` on it, and that is the whole of how this bar narrows
+            honestly. `min-w-0` lets a flex item be squeezed below what its
+            contents need, and every content here but the title is
+            `shrink-0`: the group reported that it fitted at 96.8px while its
+            children needed 206.9px, so the row never wrapped and the save
+            commands were painted 102px *over* the controls on the right —
+            at a phone's width, `elementFromPoint` answered the filter toggle
+            at Save's left edge, middle and right edge alike. Sized to its
+            contents instead, the group tells the truth about what it needs,
+            and `flex-wrap` above puts the controls on a second line at the
+            width where they no longer both fit. */}
         <div
           data-slot="view-identity"
-          className="flex min-w-0 flex-1 items-center gap-2"
+          className="flex flex-1 items-center gap-2"
         >
           {leading}
           {namesView && (
@@ -163,12 +175,27 @@ export function ViewHeader({
           {/* Always a heading, because the region around it is named by its
               id — an id that addresses nothing is a broken label. When
               something else on the line already shows the title, the heading
-              stays for a screen reader and goes out of the layout. */}
+              stays for a screen reader and goes out of the layout.
+
+              It is the group's one spring: `w-0 grow` starts it at nothing
+              and hands it whatever the row has left over, so the title is
+              what gives when the bar narrows and the name is the only thing
+              that truncates. `truncate` alone would not do it — a nowrap
+              heading still *asks* for its full text, and the group sized to
+              its contents would then grow with the title rather than clip
+              it, which is the same overflow by another route. A width of
+              zero is a definite size the group can count on, which is why
+              `max-w-fit` was no answer. */}
           <Title
             id={titleId ?? generatedId}
             data-slot="view-title"
             data-dirty={state.dirty || undefined}
-            className={cn('truncate font-medium', !namesView && 'sr-only')}
+            className={cn(
+              'truncate font-medium',
+              // `sr-only` sets a width of its own, so the spring is only for
+              // the title that is actually on the line.
+              namesView ? 'w-0 grow' : 'sr-only',
+            )}
           >
             {state.title}
           </Title>

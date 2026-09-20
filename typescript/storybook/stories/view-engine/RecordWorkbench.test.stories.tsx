@@ -510,10 +510,17 @@ export const NeedsFixing: Story = {
     // The findings fold behind a count so the result keeps its room.
     await userEvent.click(within(alert).getByRole('button', { name: /1/ }));
     await expect(alert).toHaveTextContent('removedColumn');
-    // A config the definition refuses is never run.
+    // A config the definition refuses is never run, so there is no result —
+    // and with no result there are no columns either. What used to be drawn
+    // was a header of one empty cell over no rows, with a tab-reachable
+    // "Select all rows" in it that selected nothing: the strip above already
+    // says what is wrong, and the table has nothing of its own to add.
+    await expect(canvas.queryByRole('table')).toBeNull();
     await expect(
-      canvas.getByRole('table').querySelectorAll('tbody tr'),
-    ).toHaveLength(0);
+      canvas.queryByRole('checkbox', {
+        name: defaultMessages['label.record.select-all'],
+      }),
+    ).toBeNull();
   },
 };
 

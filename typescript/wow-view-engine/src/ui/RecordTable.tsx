@@ -165,6 +165,24 @@ export function RecordTable({
   const pinSelect = selectable && pinsSelect(columns);
   const summaries = useSummaries(table.summaries, table.rows);
 
+  // No result to draw and none on the way. The table is built from the
+  // result, so there are no columns either: what would be drawn is a header
+  // of one empty cell over no rows, with a tab-reachable "Select all rows"
+  // in it that selects nothing and cannot be told it is disabled. Nothing is
+  // a truer frame than that, and the reason is already on screen — the query
+  // strip says the query failed, the error strip says the config has to be
+  // fixed first. Neither is this table's sentence to repeat.
+  //
+  // Narrow on purpose. A refresh that fails keeps the rows it could not
+  // replace and turns the status to `error`, and the first `loading` has its
+  // skeleton rows to draw: both have something to show, so both keep the
+  // table. What has nothing is a view that never got a result and has
+  // nothing running to get one.
+  if (!table.hasResult && table.status !== 'loading') return null;
+
+  // A result that matched nothing is a different sentence, and the user acts
+  // differently on it: the conditions ran, and these are the records there
+  // are. It is the table's own to say, because nothing above says it.
   if (table.status === 'success' && table.rows.length === 0) {
     return (
       <Empty>
