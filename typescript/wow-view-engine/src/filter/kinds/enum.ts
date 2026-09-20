@@ -14,10 +14,15 @@
 import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
 import { type FieldKind } from '../fieldKind.js';
 import { type EnumFilterValue } from '../values.js';
-import { labelOf, validateOptionValues } from './options.js';
+import {
+  namedLabels,
+  optionLabelOf,
+  shownEntries,
+  validateOptionValues,
+} from './options.js';
 import {
   compilePresence,
-  describePresence,
+  describePresenceParts,
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
@@ -61,14 +66,19 @@ export const enumFieldKind: FieldKind = {
   },
 
   describe({ leaf, field }) {
-    const presence = describePresence(leaf.operator);
-    if (presence) return `${field.label} ${presence}`;
+    const presence = describePresenceParts(leaf.operator, field);
+    if (presence) return presence;
     // A value that is not a list of candidates says nothing about the field,
     // so the summary says only which field it was written against.
-    if (!Array.isArray(leaf.value)) return field.label;
-    const labels = (leaf.value as EnumFilterValue).map(value =>
-      labelOf(field.options, value),
-    );
-    return `${field.label} ${leaf.operator} ${labels.join(', ')}`;
+    if (!Array.isArray(leaf.value))
+      return { text: field.label, value: { kind: 'blank' } };
+    const values = leaf.value as EnumFilterValue;
+    // A code the definition no longer lists has no label, and stringifying
+    // it into one would put it ahead of the field's own formatting.
+    const labels = values.map(value => optionLabelOf(field.options, value));
+    return {
+      text: `${field.label} ${leaf.operator} ${shownEntries(values, labels)}`,
+      value: { kind: 'list', values, ...namedLabels(labels) },
+    };
   },
 };

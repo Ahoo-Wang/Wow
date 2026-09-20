@@ -579,7 +579,7 @@ describe('WriteOutcome', () => {
       ).toBe(true),
     );
     expect(
-      screen.getByRole('button', { name: 'Leave it' }).hasAttribute('disabled'),
+      screen.getByRole('button', { name: 'Abandon' }).hasAttribute('disabled'),
     ).toBe(true);
     await act(async () => {
       held.resolve({ ...mine, revision: '2' });
@@ -641,7 +641,7 @@ describe('WriteOutcome', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await screen.findByText('The result never came back');
 
-    await clickWhenEnabled('Leave it');
+    await clickWhenEnabled('Abandon');
     await waitFor(() =>
       expect(screen.queryByText('The result never came back')).toBeNull(),
     );

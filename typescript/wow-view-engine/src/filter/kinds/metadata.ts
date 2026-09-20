@@ -13,9 +13,12 @@
 
 import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
 import type {
+  FieldDefinition,
+  FilterLeaf,
   FilterOperatorName,
   MetadataFieldKindId,
 } from '../../model/index.js';
+import type { FieldKindDescription } from '../describe.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
 import {
   isNonBlankString,
@@ -53,6 +56,27 @@ function shown(value: unknown): string {
   if (typeof value === 'number' || typeof value === 'boolean')
     return String(value);
   return '';
+}
+
+/**
+ * One metadata condition, as a line and as parts.
+ *
+ * `shown` answers '' for a value no editor here produces, and a label with
+ * nothing after it is the honest reading of a value with nothing in it this
+ * kind can read. What it does read, it has already resolved — a picked owner
+ * arrives as a label — so the parts carry the resolved text rather than the
+ * raw id, and a list of ids stays a list.
+ */
+function describeMetadata(
+  leaf: FilterLeaf,
+  field: FieldDefinition,
+): FieldKindDescription {
+  const text = shown(leaf.value);
+  if (text === '') return { text: field.label, value: { kind: 'blank' } };
+  const line = `${field.label} ${text}`;
+  return Array.isArray(leaf.value)
+    ? { text: line, value: { kind: 'list', values: leaf.value.map(shown) } }
+    : { text: line, value: { kind: 'text', value: text } };
 }
 
 /** The id a metadata filter carries, however the editor collected it. */
@@ -144,11 +168,7 @@ function createSingleMetadataKind(
     },
 
     describe({ leaf, field }) {
-      // `shown` answers '' for a value no editor here produces, and a label
-      // with nothing after it is the honest reading of a value with nothing
-      // in it this kind can read.
-      const text = shown(leaf.value);
-      return text === '' ? field.label : `${field.label} ${text}`;
+      return describeMetadata(leaf, field);
     },
   };
 }
@@ -201,11 +221,7 @@ function createIdMetadataKind(
     },
 
     describe({ leaf, field }) {
-      // `shown` answers '' for a value no editor here produces, and a label
-      // with nothing after it is the honest reading of a value with nothing
-      // in it this kind can read.
-      const text = shown(leaf.value);
-      return text === '' ? field.label : `${field.label} ${text}`;
+      return describeMetadata(leaf, field);
     },
   };
 }

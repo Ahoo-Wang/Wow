@@ -25,6 +25,13 @@ const meta = {
   tags: ['!dev', '!autodocs', 'test'],
 };
 
+/** The amount field's declared format, as the bar itself formats it. */
+const yuan = (value: number) =>
+  new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'CNY',
+  }).format(value);
+
 export default meta;
 
 type Story = StoryObj<typeof displayMeta>;
@@ -53,10 +60,35 @@ export const Simple: Story = {
 export const Advanced: Story = {
   ...DisplayAdvanced,
   play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
     await expect(
-      await within(canvasElement).findByText(
-        defaultMessages['label.record.empty-hint'],
-      ),
+      await canvas.findByText(defaultMessages['label.record.empty-hint']),
     ).toBeVisible();
+
+    // The bar over the result is the one place this tree is read back as
+    // sentences, and it is built from the parts each kind hands over. This
+    // is the only fixture carrying all three of the shapes that get it
+    // wrong: a named period, a nested group, and a predicate.
+    const applied = canvas.getByRole('region', {
+      name: defaultMessages['label.applied.title'],
+    });
+    const badges = [...applied.querySelectorAll('[data-slot="badge"]')].map(
+      badge => badge.textContent?.trim(),
+    );
+
+    await expect(badges).toEqual([
+      '仓库 is any of 华东',
+      '状态 is any of 待出库, 已发运',
+      // The field's own `numberFormat`, from the same Intl call the bar
+      // makes — which currency symbol ICU picks is not what this is about.
+      `金额 between ${yuan(100)} ~ ${yuan(5000)}`,
+      // A period, not a range: the operator asks for the window it names.
+      '创建时间 between this month',
+      // A group says how its conditions combine before it lists them.
+      `Any of 仓库 is any of 华北, 金额 gt ${yuan(20000)}`,
+      // And a predicate reads its own conditions out once, under the one
+      // operator it holds them by.
+      '商品行 has an entry where All of SKU eq A-1, 数量 gt 2',
+    ]);
   },
 };

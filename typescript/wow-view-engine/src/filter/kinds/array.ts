@@ -12,14 +12,31 @@
  */
 
 import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
+import type { FilterSummaryRelation } from '../describe.js';
 import { readValue, type FieldKind } from '../fieldKind.js';
-import { labelOf, validateOptionValues } from './options.js';
+import {
+  namedLabels,
+  optionLabelOf,
+  shownEntries,
+  validateOptionValues,
+} from './options.js';
 import {
   compilePresence,
-  describePresence,
+  describePresenceParts,
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
+
+/**
+ * The English `text` has always read this way. The bar words the relation
+ * through the catalogue instead, so both say the same thing in whichever
+ * language is in force.
+ */
+const RELATION_TEXT: Record<FilterSummaryRelation, string> = {
+  'has-all': 'has all of',
+  'has-none': 'has none of',
+  'has-any': 'has any of',
+};
 
 /** What one entry of an array field may be. */
 export type ArrayFilterValue = (string | number)[];
@@ -93,21 +110,33 @@ export const arrayFieldKind: FieldKind = {
   },
 
   describe({ leaf, field }) {
-    const presence = describePresence(leaf.operator);
-    if (presence) return `${field.label} ${presence}`;
-    if (leaf.operator === 'IS_EMPTY') return `${field.label} has no entries`;
+    const presence = describePresenceParts(leaf.operator, field);
+    if (presence) return presence;
+    if (leaf.operator === 'IS_EMPTY')
+      return {
+        text: `${field.label} has no entries`,
+        value: { kind: 'none' },
+      };
     // Entries this kind cannot read are no condition to report.
-    if (!Array.isArray(leaf.value)) return field.label;
+    if (!Array.isArray(leaf.value))
+      return { text: field.label, value: { kind: 'blank' } };
 
-    const entries = readValue<ArrayFilterValue>(leaf.value).map(entry =>
-      labelOf(field.options, entry),
-    );
+    const values = readValue<ArrayFilterValue>(leaf.value);
+    // Only what the definition actually named. An open-ended array has no
+    // candidates at all, so every "label" would be the entry stringified —
+    // and the bar prefers a label to the field's own formatting, which is
+    // how a currency entry ended up a bare number beside a column of ¥.
+    const labels = values.map(entry => optionLabelOf(field.options, entry));
     const relation =
       leaf.operator === 'CONTAINS_ALL'
-        ? 'has all of'
+        ? 'has-all'
         : leaf.operator === 'NOT_IN'
-          ? 'has none of'
-          : 'has any of';
-    return `${field.label} ${relation} ${entries.join(', ')}`;
+          ? 'has-none'
+          : 'has-any';
+    return {
+      text: `${field.label} ${RELATION_TEXT[relation]} ${shownEntries(values, labels)}`,
+      relation,
+      value: { kind: 'list', values, ...namedLabels(labels) },
+    };
   },
 };

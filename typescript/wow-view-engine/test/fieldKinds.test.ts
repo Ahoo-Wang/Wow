@@ -153,7 +153,7 @@ describe('presence operators', () => {
           leaf: leaf('IS_NULL', null),
           field: field(),
           kinds: builtinFieldKinds,
-        }),
+        }).text,
       ).toContain('Value');
     }
   });
@@ -213,14 +213,14 @@ describe('string kind', () => {
         leaf: leaf('IN', ['A', 'B']),
         field: field(),
         kinds: builtinFieldKinds,
-      }),
+      }).text,
     ).toBe('Value IN A, B');
     expect(
       kind.describe({
         leaf: leaf('EQ', 'A'),
         field: field(),
         kinds: builtinFieldKinds,
-      }),
+      }).text,
     ).toBe('Value EQ A');
   });
 });
@@ -286,21 +286,21 @@ describe('number kind', () => {
         leaf: leaf('BETWEEN', [1, 2]),
         field: def,
         kinds: builtinFieldKinds,
-      }),
+      }).text,
     ).toBe('Value 1 ~ 2');
     expect(
       kind.describe({
         leaf: leaf('IN', [1, 2]),
         field: def,
         kinds: builtinFieldKinds,
-      }),
+      }).text,
     ).toBe('Value IN 1, 2');
     expect(
       kind.describe({
         leaf: leaf('GT', 1),
         field: def,
         kinds: builtinFieldKinds,
-      }),
+      }).text,
     ).toBe('Value GT 1');
   });
 });
@@ -331,7 +331,7 @@ describe('boolean kind', () => {
         leaf: leaf('EQ', true),
         field: def,
         kinds: builtinFieldKinds,
-      }),
+      }).text,
     ).toBe('Value EQ true');
   });
 });
@@ -377,7 +377,7 @@ describe('enum kind', () => {
         leaf: leaf('IN', ['A', 2, 'Z']),
         field: def,
         kinds: builtinFieldKinds,
-      }),
+      }).text,
     ).toBe('Value IN Alpha, Two, Z');
   });
 });
@@ -418,7 +418,7 @@ describe('reference kind', () => {
         leaf: leaf('IN', value),
         field: def,
         kinds: builtinFieldKinds,
-      }),
+      }).text,
     ).toBe('Value IN ACME');
   });
 });
@@ -561,7 +561,7 @@ describe('date kinds', () => {
         leaf: leaf('BETWEEN', value),
         field: def,
         kinds: builtinFieldKinds,
-      });
+      }).text;
     expect(describe_({ type: 'preset', preset: 'today' })).toBe('Value today');
     expect(describe_({ type: 'relative', amount: 7, unit: 'day' })).toBe(
       'Value last 7 day',
@@ -578,7 +578,7 @@ describe('date kinds', () => {
         leaf: leaf(operator, value),
         field: def,
         kinds: builtinFieldKinds,
-      });
+      }).text;
     const last = { type: 'relative', amount: 7, unit: 'day' };
 
     expect(describe_('GTE', last)).toBe('Value on or after 7 day ago');
@@ -704,12 +704,14 @@ describe('describing a value a kind cannot read', () => {
   it.each(cases)('falls back to the label for %s %s', (id, operator, value) => {
     const kind = builtinFieldKinds.get(id)!;
 
+    // The line is the label alone, and the parts say why: the value is
+    // blank, so the bar names the field and says nothing after it.
     expect(
       kind.describe({
         leaf: leaf(operator, value),
         field: field({ kind: id }),
         kinds: builtinFieldKinds,
       }),
-    ).toBe('Value');
+    ).toEqual({ text: 'Value', value: { kind: 'blank' } });
   });
 });

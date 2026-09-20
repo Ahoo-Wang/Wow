@@ -24,7 +24,7 @@ import { issue, readValue, type FieldKind } from '../fieldKind.js';
 import { isNonEmptyString } from '../values.js';
 import {
   compilePresence,
-  describePresence,
+  describePresenceParts,
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
@@ -108,12 +108,21 @@ export const stringFieldKind: FieldKind = {
   },
 
   describe({ leaf, field }) {
-    const presence = describePresence(leaf.operator);
-    if (presence) return `${field.label} ${presence}`;
-    if (Array.isArray(leaf.value))
-      return `${field.label} ${leaf.operator} ${readValue<string[]>(leaf.value).join(', ')}`;
+    const presence = describePresenceParts(leaf.operator, field);
+    if (presence) return presence;
+    if (Array.isArray(leaf.value)) {
+      const values = readValue<string[]>(leaf.value);
+      return {
+        text: `${field.label} ${leaf.operator} ${values.join(', ')}`,
+        value: { kind: 'list', values },
+      };
+    }
     // Not text: no condition this kind can read, so name only the field.
-    if (typeof leaf.value !== 'string') return field.label;
-    return `${field.label} ${leaf.operator} ${leaf.value}`;
+    if (typeof leaf.value !== 'string')
+      return { text: field.label, value: { kind: 'blank' } };
+    return {
+      text: `${field.label} ${leaf.operator} ${leaf.value}`,
+      value: { kind: 'text', value: leaf.value },
+    };
   },
 };

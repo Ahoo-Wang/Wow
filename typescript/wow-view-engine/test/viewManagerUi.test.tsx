@@ -599,7 +599,7 @@ describe('ViewManager outcomes', () => {
     );
 
     await screen.findByText('The result never came back');
-    fireEvent.click(screen.getByRole('button', { name: 'Leave it' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Abandon' }));
 
     await waitFor(() =>
       expect(screen.queryByText('The result never came back')).toBeNull(),
@@ -667,7 +667,7 @@ describe('ViewManager outcomes', () => {
       ).toBe(true),
     );
     expect(
-      screen.getByRole('button', { name: 'Leave it' }).hasAttribute('disabled'),
+      screen.getByRole('button', { name: 'Abandon' }).hasAttribute('disabled'),
     ).toBe(true);
 
     await act(async () => {

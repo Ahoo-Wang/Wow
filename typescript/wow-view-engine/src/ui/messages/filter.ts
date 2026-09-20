@@ -46,6 +46,18 @@ export const filterMessages = {
   'label.filter.remove-of': 'Remove {field}',
   'label.filter.unset-of': 'Unset {condition}',
   'label.filter.comma-separated': 'Comma separated',
+  // What separates the values of one condition, and the conditions of one
+  // group, in an applied badge. Punctuation is wording too: a Chinese list
+  // is not separated by a comma and a space.
+  // What an operator means for the kind that named it: an array's `IN` asks
+  // whether the array holds any of the candidates, which "is any of" would
+  // say the other way round.
+  'label.relation.has-any': 'has any of',
+  'label.relation.has-none': 'has none of',
+  'label.relation.has-all': 'has all of',
+  'label.filter.join': ', ',
+  // An element predicate that asks nothing of an entry still asks for one.
+  'label.filter.any-entry': 'has any entry',
   'label.filter.range-from': '{field} from',
   'label.filter.range-to': '{field} to',
   'label.boolean.true': 'True',
@@ -73,6 +85,44 @@ export const filterMessages = {
   'label.date.amount-of': '{field} amount',
   'label.date.unit-of': '{field} unit',
   'label.date.period-of': '{field} period',
+
+  // The two closed sets the relative-date control offers. Both used to be
+  // rendered as the identifier itself — `hour`, `thisWeek` — so the control
+  // stayed in English however the catalogue was replaced, exactly as the
+  // operator select did before `label.operator.*` covered its enum. The
+  // units keep the spelling the control already showed; the periods keep the
+  // spelling the summary bar already read them out by, which is the same
+  // word spaced out. `test/messages.test.tsx` walks both sets.
+  // A distance from now is two different conditions, and the badge has to
+  // tell them apart: `BETWEEN` asks for the span between now and there,
+  // `GTE`/`LTE` compare against the moment at the far end of it. "In the
+  // last 7 days" where "7 days ago" was meant names a span the query never
+  // ran over. These are the phrases the summary line always read.
+  'label.relative.window.past': 'last {amount} {unit}',
+  'label.relative.window.future': 'next {amount} {unit}',
+  'label.relative.instant.past': '{amount} {unit} ago',
+  'label.relative.instant.future': '{amount} {unit} ahead',
+  'label.relative.unit.hour': 'hour',
+  'label.relative.unit.day': 'day',
+  'label.relative.unit.week': 'week',
+  'label.relative.unit.month': 'month',
+  'label.relative.unit.quarter': 'quarter',
+  'label.relative.unit.year': 'year',
+  'label.relative.preset.today': 'today',
+  'label.relative.preset.yesterday': 'yesterday',
+  'label.relative.preset.tomorrow': 'tomorrow',
+  'label.relative.preset.thisWeek': 'this week',
+  'label.relative.preset.lastWeek': 'last week',
+  'label.relative.preset.nextWeek': 'next week',
+  'label.relative.preset.thisMonth': 'this month',
+  'label.relative.preset.lastMonth': 'last month',
+  'label.relative.preset.nextMonth': 'next month',
+  'label.relative.preset.thisQuarter': 'this quarter',
+  'label.relative.preset.lastQuarter': 'last quarter',
+  'label.relative.preset.nextQuarter': 'next quarter',
+  'label.relative.preset.thisYear': 'this year',
+  'label.relative.preset.lastYear': 'last year',
+  'label.relative.preset.nextYear': 'next year',
 
   // Every `FilterOperator`, in the order the enum declares them.
   //

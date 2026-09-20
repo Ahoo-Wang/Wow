@@ -15,7 +15,7 @@ import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
 import {
   compilePresence,
-  describePresence,
+  describePresenceParts,
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
@@ -54,9 +54,14 @@ export const booleanFieldKind: FieldKind = {
   },
 
   describe({ leaf, field }) {
-    const presence = describePresence(leaf.operator);
-    if (presence) return `${field.label} ${presence}`;
-    if (typeof leaf.value !== 'boolean') return field.label;
-    return `${field.label} ${leaf.operator} ${readValue<boolean>(leaf.value)}`;
+    const presence = describePresenceParts(leaf.operator, field);
+    if (presence) return presence;
+    if (typeof leaf.value !== 'boolean')
+      return { text: field.label, value: { kind: 'blank' } };
+    const value = readValue<boolean>(leaf.value);
+    return {
+      text: `${field.label} ${leaf.operator} ${value}`,
+      value: { kind: 'text', value },
+    };
   },
 };

@@ -1060,134 +1060,6 @@ describe('fieldGroups', () => {
   });
 });
 
-describe('describeFilter', () => {
-  it('summarises applied conditions with the field label', () => {
-    const items = describeFilter(
-      fields,
-      tree(
-        { field: 'status', operator: 'IN', value: ['PENDING'] },
-        { field: 'amount', operator: 'BETWEEN', value: [1, 9] },
-      ),
-      builtinFieldKinds,
-    );
-    expect(items.map(item => item.text)).toEqual([
-      'Status IN Pending',
-      'Amount 1 ~ 9',
-    ]);
-    expect(items[0].path).toEqual(['children', 0]);
-  });
-
-  it('reads a group out as one item joined by its own operator', () => {
-    const items = describeFilter(
-      fields,
-      {
-        op: 'and',
-        children: [
-          { field: 'id', operator: 'EQ', value: 'o-1' },
-          {
-            op: 'or',
-            children: [
-              { field: 'status', operator: 'IN', value: ['PENDING'] },
-              { field: 'amount', operator: 'BETWEEN', value: [1, 9] },
-              {
-                op: 'nor',
-                children: [{ field: 'paid', operator: 'EQ', value: true }],
-              },
-            ],
-          },
-        ],
-      },
-      builtinFieldKinds,
-    );
-
-    // Side by side reads as "all of"; the group keeps its own logic inside.
-    expect(items.map(item => item.text)).toEqual([
-      'Order EQ o-1',
-      'Status IN Pending or Amount 1 ~ 9 or (not Paid EQ true)',
-    ]);
-    expect(items[1]).toMatchObject({ group: 'or', path: ['children', 1] });
-  });
-
-  it('folds a root that is not "all of" into one item that says so', () => {
-    const items = describeFilter(
-      fields,
-      {
-        op: 'or',
-        children: [
-          { field: 'id', operator: 'EQ', value: 'o-1' },
-          { field: 'amount', operator: 'GT', value: 9 },
-        ],
-      },
-      builtinFieldKinds,
-    );
-    expect(items).toHaveLength(1);
-    expect(items[0]).toMatchObject({ group: 'or', path: [] });
-    expect(items[0].text).toBe('Order EQ o-1 or Amount GT 9');
-  });
-
-  it('keeps the negation of a "none of" root even over one condition', () => {
-    const items = describeFilter(
-      fields,
-      {
-        op: 'nor',
-        children: [
-          { field: 'paid', operator: 'EQ', value: true },
-          // Blank, so left out; the root still negates what remains.
-          { field: 'amount', operator: 'GT', value: null as never },
-        ],
-      },
-      builtinFieldKinds,
-    );
-    expect(items).toHaveLength(1);
-    expect(items[0]).toMatchObject({ group: 'nor', path: [] });
-    expect(items[0].text).toBe('not Paid EQ true');
-  });
-
-  it('marks a condition whose field disappeared instead of hiding it', () => {
-    const items = describeFilter(
-      fields,
-      tree({ field: 'gone', operator: 'EQ', value: 'x' }),
-      builtinFieldKinds,
-    );
-    expect(items[0]).toMatchObject({ field: 'gone', unresolved: true });
-  });
-
-  it('names the field alone for a value the kind cannot read', () => {
-    // A stored value the field no longer admits: `status` is an enum, whose
-    // operators take a list. Summarising it must not take the view down, and
-    // must not invent a reading of it either — the label is all that is true.
-    const items = describeFilter(
-      fields,
-      tree({ field: 'status', operator: 'EQ', value: 'PENDING' }),
-      builtinFieldKinds,
-    );
-
-    expect(items[0].text).toBe('Status');
-  });
-
-  it('marks a leaf whose kind threw rather than taking the view down', () => {
-    // A kind is an extension point: what a custom one does with a value it
-    // cannot read is not this layer's to predict, only to survive.
-    const exploding = withFieldKinds(builtinFieldKinds, [
-      {
-        ...builtinFieldKinds.get('enum')!,
-        id: 'exploding',
-        describe() {
-          throw new Error('boom');
-        },
-      },
-    ]);
-    const items = describeFilter(
-      [{ name: 'status', label: 'Status', kind: 'exploding' }],
-      tree({ field: 'status', operator: 'IN', value: ['PENDING'] }),
-      exploding,
-    );
-
-    expect(items[0]).toMatchObject({ field: 'status', unresolved: true });
-    expect(items[0].text).toContain('IN');
-  });
-});
-
 describe('the field kind registry', () => {
   it('ships the document-field kinds and the metadata kinds', () => {
     expect([...builtinFieldKinds.keys()].sort()).toEqual(
@@ -1223,7 +1095,10 @@ describe('the field kind registry', () => {
         value: leaf.value as string,
       }),
       editor: () => ({ input: 'text' }),
-      describe: ({ leaf, field }) => `${field.label} = ${String(leaf.value)}`,
+      describe: ({ leaf, field }) => ({
+        text: `${field.label} = ${String(leaf.value)}`,
+        value: { kind: 'text', value: String(leaf.value) },
+      }),
     };
 
     const kinds = withFieldKinds(builtinFieldKinds, [colour]);

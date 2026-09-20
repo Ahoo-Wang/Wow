@@ -709,7 +709,10 @@ describe('FilterPanel tree editing', () => {
         value: Math.round(leaf.value as number),
       }),
       editor: () => ({ input: 'number' }),
-      describe: ({ leaf, field }) => `${field.label} = ${String(leaf.value)}`,
+      describe: ({ leaf, field }) => ({
+        text: `${field.label} = ${String(leaf.value)}`,
+        value: { kind: 'text', value: String(leaf.value) },
+      }),
     };
     const base = ordersDefinition();
     const engine = new ViewEngine({

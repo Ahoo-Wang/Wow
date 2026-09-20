@@ -67,7 +67,10 @@ export const saveMessages = {
   // never have written it, and a shape the summary cannot count says so
   // rather than taking the dialog down with it.
   'label.conflict.summary.malformed': 'Cannot be read',
-  'label.unknown.leave': 'Leave it',
+  // Not "Leave it": the button clears the write state, so the intent behind
+  // it is given up and nobody can retry or overwrite it afterwards. The
+  // engine calls that `abandonWrite`, and so should the word on the button.
+  'label.unknown.leave': 'Abandon',
   'label.unknown.retry': 'Retry',
   // A refusal never reached the store, so there is nothing to recover — only
   // a line to take down once it has been read, which is what frees the view

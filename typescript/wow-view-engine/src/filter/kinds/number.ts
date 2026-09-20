@@ -22,7 +22,7 @@ import {
 } from '../values.js';
 import {
   compilePresence,
-  describePresence,
+  describePresenceParts,
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
@@ -116,16 +116,29 @@ export const numberFieldKind: FieldKind = {
   // read is not in force. Saying only the field's name is honest; "Qty o ~ o"
   // — which is what a string spread into two bounds reads as — is not.
   describe({ leaf, field }) {
-    const presence = describePresence(leaf.operator);
-    if (presence) return `${field.label} ${presence}`;
+    const presence = describePresenceParts(leaf.operator, field);
+    if (presence) return presence;
     if (leaf.operator === 'BETWEEN') {
-      if (!isNumberRange(leaf.value)) return field.label;
+      if (!isNumberRange(leaf.value))
+        return { text: field.label, value: { kind: 'blank' } };
       const [lower, upper] = leaf.value;
-      return `${field.label} ${lower} ~ ${upper}`;
+      return {
+        text: `${field.label} ${lower} ~ ${upper}`,
+        value: { kind: 'range', from: lower, to: upper },
+      };
     }
-    if (Array.isArray(leaf.value))
-      return `${field.label} ${leaf.operator} ${readValue<number[]>(leaf.value).join(', ')}`;
-    if (!isFiniteNumber(leaf.value)) return field.label;
-    return `${field.label} ${leaf.operator} ${leaf.value}`;
+    if (Array.isArray(leaf.value)) {
+      const values = readValue<number[]>(leaf.value);
+      return {
+        text: `${field.label} ${leaf.operator} ${values.join(', ')}`,
+        value: { kind: 'list', values },
+      };
+    }
+    if (!isFiniteNumber(leaf.value))
+      return { text: field.label, value: { kind: 'blank' } };
+    return {
+      text: `${field.label} ${leaf.operator} ${leaf.value}`,
+      value: { kind: 'text', value: leaf.value },
+    };
   },
 };

@@ -494,6 +494,32 @@ export const Localized: Story = {
         name: defaultMessages['label.toolbar.refresh'],
       }),
     ).toBeNull();
+
+    // The most visible line of the result area, which each kind used to hand
+    // over as a finished English sentence: field label from the definition,
+    // operator from the catalogue, option label from the definition again.
+    const applied = canvas.getByRole('region', {
+      name: zhCN['label.applied.title'],
+    });
+    const badge = `状态 ${zhCN['label.operator.IN']} 待出库`;
+    await expect(applied).toHaveTextContent(badge);
+    await expect(applied).not.toHaveTextContent(/Status|IN Pending/);
+
+    // And it is operable: the ✕ takes the condition out of force and the
+    // query runs again, which is what leaves every order on screen.
+    await userEvent.click(
+      within(applied).getByRole('button', {
+        name: zhCN['label.filter.unset-of'].replace('{condition}', badge),
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        canvas.getByRole('region', { name: zhCN['label.applied.title'] }),
+      ).toHaveTextContent(zhCN['label.applied.all']),
+    );
+    await waitFor(() =>
+      expect(readColumn(canvas.getByRole('table'), '订单号')).toHaveLength(6),
+    );
   },
 };
 

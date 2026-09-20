@@ -23,8 +23,19 @@ export interface FieldKind {
   compile(leaf: FilterLeaf, field: FieldDefinition, ctx): FilterExpression;
   /** 由操作符与当前值的语义变体推出编辑器描述；组件名不进入配置。 */
   editor(operator: FilterOperator, value?: unknown): EditorDescriptor; // { input: 'text' | 'number' | 'select' | 'date' | 'daterange' | 'relative' | 'remote'; multiple?; ... }
+  /** 一条已应用条件的部件，以及它们读作的那句英文。 */
+  describe(ctx): FieldKindDescription; // { text; operator?; relation?; value: FilterSummaryValue; items?; group? }
 }
 ```
+
+`describe` 交的是**部件**而不是一句话。它的结果落在结果区最显眼的那一行上，kind 自己拼出的句子——原始操作符名、`is empty`、`on or before`——是任何措辞目录都够不到的，`messages={zhCN}` 之下整页中文、唯独条件 badge 是英文就是这么来的。所以：
+
+- `value` 必须是封闭联合 `FilterSummaryValue` 中的一个（`none`／`blank`／`text`／`list`／`range`／`relative`／`preset`，见 [kernels.md#已应用摘要是部件不是句子](kernels.md#已应用摘要是部件不是句子)）。自定义 kind 也从这七种里挑一种，`/ui` 据此渲染，正如 `EditorDescriptor.input` 是封闭的一样；
+- 读不出的值交 `blank` 而不是编一个读法；操作符本身就是全部条件（presence、`IS_EMPTY`）时交 `none`；已经解析过的候选项标签随 `list.labels`／`text.label` 一起交出去，界面不再解析一遍；
+- `operator` 缺省就是叶子自己的，**编译出来的条件与叶子写的不是同一个时要自报**——缺上界的绝对 `BETWEEN` 编译成 `filter.gte(from)`，就报 `GTE`；
+- 同一个值在不同操作符下含义不同时，由 `value` 自己区分而不是让界面去猜操作符：相对日期的 `bound: 'window' | 'instant'` 就是这条规则的实例；
+- 持有谓词的 kind 另交 `items` 与 `group`，且要先拆掉 `describeFilter` 的折叠（见 [kernels.md](kernels.md#已应用摘要是部件不是句子)），否则操作符会被说两遍；
+- `text` 仍要给，且是英文：宿主可能直接读 `FilterSummaryItem.text`。它是兜底，不是摘要。
 
 ### 内置 kind
 

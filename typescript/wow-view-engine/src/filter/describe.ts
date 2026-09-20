@@ -12,11 +12,14 @@
  */
 
 import type {
+  FieldKindId,
   FieldDefinition,
   FilterGroupOperator,
   FilterLeaf,
+  FilterOperatorName,
   FilterTree,
   IssuePath,
+  NumberFormat,
 } from '../model/index.js';
 import {
   isBlankLeafValue,
@@ -24,12 +27,116 @@ import {
   type FieldKindRegistry,
 } from './fieldKind.js';
 import { isFilterGroup, isFilterNode } from './tree.js';
+import type {
+  DateTimePreset,
+  RelativeDateDirection,
+  RelativeDateUnit,
+} from './values.js';
+
+/**
+ * What a condition compares against, as its kind read it.
+ *
+ * A closed union, and the reason the summary can be translated at all: the
+ * bar used to be handed one English sentence per condition, so the most
+ * visible line of the result area was the one line no catalogue could reach.
+ * Each variant carries the raw value, plus the labels a kind has already
+ * resolved — `/ui` turns it into words with the wording in force.
+ */
+export type FilterSummaryValue =
+  /** The operator is the whole condition: `IS_NULL`, `IS_EMPTY`. */
+  | { kind: 'none' }
+  /**
+   * The kind cannot read this value, so only the field's name is true of it.
+   * A stored config outlives the definition that admitted it.
+   */
+  | { kind: 'blank' }
+  /** One value, as the field holds it; `label` when the kind resolved one. */
+  | { kind: 'text'; value: string | number | boolean; label?: string }
+  /**
+   * Several values, and the label the definition gave each one — positional,
+   * and `undefined` where it named none.
+   *
+   * A label is what the definition said this value is called, never a
+   * stand-in for the value itself: a label the kind invented by stringifying
+   * the value would win over the field's own formatting, and a currency
+   * entry would show as a bare number beside a column showing ¥.
+   */
+  | {
+      kind: 'list';
+      values: readonly (string | number)[];
+      labels?: readonly (string | undefined)[];
+    }
+  /**
+   * Two bounds in the field's own units. Both are required: one bound is not
+   * a range, it is the condition that actually compiles — an absolute
+   * `BETWEEN` with no upper edge compiles to `GTE`, and it says `GTE`.
+   */
+  | { kind: 'range'; from: string | number; to: string | number }
+  /**
+   * A distance from the evaluation moment, and what the condition makes of
+   * it: `window` reaches from now to there, `instant` stands on it.
+   *
+   * The two are different conditions over the same stored value — `BETWEEN`
+   * asks for the span, `GTE` and `LTE` compare against its far edge — and
+   * saying "in the last 7 days" where "7 days ago" was meant is the summary
+   * describing a query that did not run. It is not the operator restated:
+   * `direction` already says which side of now, `operator` already says
+   * which way the comparison runs, and a kind offering `LT` would leave a
+   * `before`/`after` spelling stale on the first use.
+   */
+  | {
+      kind: 'relative';
+      amount: number;
+      unit: RelativeDateUnit;
+      direction: RelativeDateDirection;
+      bound: 'window' | 'instant';
+    }
+  /** A named calendar period, resolved at compile time. */
+  | { kind: 'preset'; preset: DateTimePreset };
+
+/**
+ * What a `FieldKind` says about one applied condition.
+ *
+ * `text` is the English line the kind has always produced, kept because a
+ * host may read `FilterSummaryItem.text` directly; the parts beside it are
+ * what `/ui` formats the badge from.
+ */
+export interface FieldKindDescription {
+  /** The English reading, for a host that consumes `text` as it stands. */
+  text: string;
+  /** How the condition reads; the leaf's own operator unless given. */
+  operator?: FilterOperatorName;
+  /**
+   * What the operator means for this kind, where the generic word would say
+   * something else. `IN` over an array asks whether the array contains any
+   * of the candidates, not whether a value is one of them, and "is any of"
+   * reads as the second — so `array` names the relation and the bar words
+   * that instead.
+   */
+  relation?: FilterSummaryRelation;
+  value: FilterSummaryValue;
+  /** For a predicate-valued kind: the conditions inside it. */
+  items?: readonly FilterSummaryItem[];
+  /** The operator joining `items`. */
+  group?: FilterGroupOperator;
+}
+
+/**
+ * A relation a kind reads its operator as, where the operator's own word
+ * would mislead. `/ui` words these through the catalogue, as it does
+ * operators.
+ */
+export type FilterSummaryRelation = 'has-any' | 'has-none' | 'has-all';
 
 /** One applied condition, for the summary bar above a result. */
 export interface FilterSummaryItem {
   /** Location of the node, so the bar can remove or focus it. */
   path: IssuePath;
-  /** Human-readable condition supplied by the kind, or a group's read out. */
+  /**
+   * The condition in English, as the kind reads it out. It is a fallback
+   * rather than the summary: `/ui` builds the badge from the parts below, so
+   * the bar reads in the language the catalogue is in.
+   */
   text: string;
   /** The field or its kind is no longer available, in it or under it. */
   unresolved: boolean;
@@ -37,13 +144,41 @@ export interface FilterSummaryItem {
   field?: string;
   /** Field label, or the raw name when the field is gone. */
   label?: string;
-  /** Present for a group: the operator whose word joins its text. */
+  /** The field's kind, so the bar shows the value the way the field does. */
+  kind?: FieldKindId;
+  /** The field's renderer key, which overrides its kind: `cell ?? kind`. */
+  cell?: string;
+  /** The field's number format, for the same reason. */
+  numberFormat?: NumberFormat;
+  /** How the condition reads; absent on a group. */
+  operator?: FilterOperatorName;
+  /** What that operator means for this kind, when its own word would not. */
+  relation?: FilterSummaryRelation;
+  /** What the condition compares against; absent on a group. */
+  value?: FilterSummaryValue;
+  /**
+   * The operator joining `items`: a group's own, or the one inside a
+   * predicate. An item with no `field` is a group.
+   */
   group?: FilterGroupOperator;
+  /** The conditions read out inside: a group's children, or a predicate's. */
+  items?: readonly FilterSummaryItem[];
 }
 
 /** How a group's own operator reads between its conditions. */
 export function groupJoinWord(op: FilterGroupOperator): string {
   return op === 'or' ? ' or ' : op === 'nor' ? ' nor ' : ' and ';
+}
+
+/**
+ * Whether this item is a group rather than one condition.
+ *
+ * A group names no field. A predicate-valued condition carries `items` and a
+ * `group` too — it reads its predicate out — but it is one condition, and the
+ * bar draws it as one.
+ */
+export function isGroupItem(item: FilterSummaryItem): boolean {
+  return item.field === undefined && item.items !== undefined;
 }
 
 /**
@@ -95,7 +230,11 @@ function groupItem(
   path: IssuePath,
   inner: readonly FilterSummaryItem[],
 ): FilterSummaryItem {
-  const parts = inner.map(item => (item.group ? `(${item.text})` : item.text));
+  // A group inside a group is parenthesised; a predicate leaf carries a
+  // `group` of its own and is a condition, not a nesting of this one.
+  const parts = inner.map(item =>
+    isGroupItem(item) ? `(${item.text})` : item.text,
+  );
   // "A nor B" needs both sides; a lone condition under `nor` is its negation.
   const text =
     op === 'nor' && parts.length === 1
@@ -106,6 +245,7 @@ function groupItem(
     text,
     unresolved: inner.some(item => item.unresolved),
     group: op,
+    items: inner,
   };
 }
 
@@ -132,6 +272,11 @@ function describeCondition(
       path,
       field: node.field,
       label: field?.label ?? node.field,
+      ...(field ? fieldParts(field) : {}),
+      // Nothing is known about the value, but the question still is: the
+      // bar names the field and the operator, and says no more.
+      operator: node.operator,
+      value: { kind: 'blank' },
       text: `${field?.label ?? node.field} ${node.operator}`,
       unresolved: true,
     };
@@ -139,8 +284,36 @@ function describeCondition(
     path,
     field: field.name,
     label: field.label,
-    text: described,
-    unresolved: false,
+    ...fieldParts(field),
+    operator: described.operator ?? node.operator,
+    ...(described.relation ? { relation: described.relation } : {}),
+    value: described.value,
+    ...(described.items ? { items: described.items } : {}),
+    ...(described.group ? { group: described.group } : {}),
+    text: described.text,
+    // A predicate holds conditions of its own, and a field the element
+    // definition has since dropped is unreadable there just as it is here.
+    // The bar draws one badge for the outer condition, so that is where the
+    // mark has to land — the same reckoning `groupItem` does.
+    unresolved: described.items?.some(item => item.unresolved) ?? false,
+  };
+}
+
+/**
+ * What the bar needs about the field to show its value the way it does.
+ *
+ * `cell` travels with `kind` because the display rule is `cell ?? kind`, not
+ * `kind`: a field that stores a millisecond instant as a number and declares
+ * `cell: 'date'` is a date everywhere it is shown, and a bar that read only
+ * the kind put a thirteen-digit number under a column of dates.
+ */
+function fieldParts(
+  field: FieldDefinition,
+): Pick<FilterSummaryItem, 'kind' | 'cell' | 'numberFormat'> {
+  return {
+    kind: field.kind,
+    ...(field.cell ? { cell: field.cell } : {}),
+    ...(field.numberFormat ? { numberFormat: field.numberFormat } : {}),
   };
 }
 
@@ -149,7 +322,7 @@ function describeLeaf(
   leaf: FilterLeaf,
   field: FieldDefinition,
   kinds: FieldKindRegistry,
-): string | undefined {
+): FieldKindDescription | undefined {
   try {
     return kind.describe({ leaf, field, kinds });
   } catch {

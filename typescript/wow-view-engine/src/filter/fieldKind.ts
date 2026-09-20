@@ -24,6 +24,7 @@ import type {
   IssuePath,
   RuntimeLimits,
 } from '../model/index.js';
+import type { FieldKindDescription } from './describe.js';
 
 /**
  * Everything the engine needs to know about one field type.
@@ -108,8 +109,16 @@ export interface FieldKind {
     field: FieldDefinition,
     value?: unknown,
   ): EditorDescriptor;
-  /** One line describing an applied condition, for the summary bar. */
-  describe(context: FieldKindDescribeContext): string;
+  /**
+   * One applied condition, for the summary bar: its parts, and the English
+   * line they read as.
+   *
+   * The parts are what makes the bar translatable — it is the most visible
+   * text of the result area, and a kind that returned a sentence put it
+   * beyond every catalogue. `text` stays the English reading, because a host
+   * may consume `FilterSummaryItem.text` as it stands.
+   */
+  describe(context: FieldKindDescribeContext): FieldKindDescription;
 }
 
 /** A tree held inside a leaf's value, and the fields it is written against. */

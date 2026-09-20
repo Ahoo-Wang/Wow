@@ -25,14 +25,52 @@ import { isFiniteNumber } from '../values.js';
  * belongs in one place or the two kinds drift.
  */
 
+/**
+ * A candidate's label, strictly: `undefined` when the definition named none.
+ *
+ * The difference from `labelOf` matters wherever the answer travels rather
+ * than being printed. A summary item carries labels so the bar can show what
+ * the definition calls a value; handing it a stringified value as if it were
+ * a label makes the bar prefer it over the field's own formatting, and a
+ * currency entry shows as a bare number beside a column showing ¥.
+ */
+export function optionLabelOf(
+  options: FieldOption[] | undefined,
+  value: string | number,
+): string | undefined {
+  return options?.find(option => option.value === value)?.label;
+}
+
 /** A candidate's label, or the raw value when the definition declares none. */
 export function labelOf(
   options: FieldOption[] | undefined,
   value: string | number,
 ): string {
-  return (
-    options?.find(option => option.value === value)?.label ?? String(value)
-  );
+  return optionLabelOf(options, value) ?? String(value);
+}
+
+/**
+ * The values of one condition as the English line reads them: the label the
+ * definition gave each, or the value itself where it gave none.
+ */
+export function shownEntries(
+  values: readonly (string | number)[],
+  labels: readonly (string | undefined)[],
+): string {
+  return values
+    .map((value, index) => labels[index] ?? String(value))
+    .join(', ');
+}
+
+/**
+ * The `labels` a summary item carries, or nothing at all when the definition
+ * named none of them — an absent `labels` is what tells the bar to fall back
+ * on the field's own formatting rather than on a stringified value.
+ */
+export function namedLabels(labels: readonly (string | undefined)[]): {
+  labels?: readonly (string | undefined)[];
+} {
+  return labels.some(label => label !== undefined) ? { labels } : {};
 }
 
 /** Whether a value is something `options` could list. */

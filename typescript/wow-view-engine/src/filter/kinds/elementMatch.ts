@@ -23,7 +23,12 @@ import {
   type Issue,
 } from '../../model/index.js';
 import { compileFilter, type FilterCompileContext } from '../compile.js';
-import { describeFilter, groupJoinWord } from '../describe.js';
+import {
+  describeFilter,
+  groupJoinWord,
+  isGroupItem,
+  type FilterSummaryItem,
+} from '../describe.js';
 import {
   issue,
   readValue,
@@ -34,7 +39,7 @@ import { emptyFilter, isFilterGroup, walkFilter } from '../tree.js';
 import { isBlankFilter, validateFilter } from '../validate.js';
 import {
   compilePresence,
-  describePresence,
+  describePresenceParts,
   PRESENCE_OPERATORS,
 } from './presence.js';
 
@@ -161,28 +166,61 @@ export const elementMatchFieldKind: FieldKind = {
   },
 
   describe({ leaf, field, kinds }) {
-    const presence = describePresence(leaf.operator);
-    if (presence) return `${field.label} ${presence}`;
-    if (leaf.operator === 'IS_EMPTY') return `${field.label} has no entries`;
+    const presence = describePresenceParts(leaf.operator, field);
+    if (presence) return presence;
+    if (leaf.operator === 'IS_EMPTY')
+      return {
+        text: `${field.label} has no entries`,
+        value: { kind: 'none' },
+      };
 
     // A value that is not a condition describes nothing: reading it as an
     // empty predicate would announce "has any entry", a condition nobody
     // wrote and the query does not carry.
     const value = leaf.value;
-    if (!isTree(value)) return field.label;
+    if (!isTree(value)) return { text: field.label, value: { kind: 'blank' } };
 
-    const inner = describeFilter(
+    const described = describeFilter(
       elementFields(field),
       readValue<FilterTree>(value),
       kinds,
-    ).map(item => item.text);
+    );
     // The predicate's own operator, as `describeFilter` reads a group's:
     // joining an `or` with "and" states the opposite of what is in force.
-    return inner.length === 0
-      ? `${field.label} has any entry`
-      : `${field.label} has an entry where ${inner.join(groupJoinWord(value.op))}`;
+    return {
+      text:
+        described.length === 0
+          ? `${field.label} has any entry`
+          : `${field.label} has an entry where ${described.map(item => item.text).join(groupJoinWord(value.op))}`,
+      // The predicate is not a value to show beside the operator; it is the
+      // conditions in `items`, which the bar reads out in its own wording.
+      value: { kind: 'none' },
+      items: predicateItems(described),
+      group: value.op,
+    };
   },
 };
+
+/**
+ * The conditions a predicate holds, said once.
+ *
+ * `describeFilter` folds a root that is not "all of" into a single group item
+ * carrying that operator, because at the top of a bar the items sit side by
+ * side and nothing else would say how they combine. Here the operator is
+ * stated beside them anyway, so passing the fold on read it twice — "any of
+ * (any of A, B)" — and a one-condition `nor` read as its own negation
+ * negated, which is the opposite of the query that ran. The fold is
+ * recognised by its empty path: it stands for the root, not for a group
+ * anybody wrote.
+ */
+function predicateItems(
+  described: readonly FilterSummaryItem[],
+): readonly FilterSummaryItem[] {
+  const [only] = described;
+  return described.length === 1 && isGroupItem(only) && only.path.length === 0
+    ? (only.items ?? [])
+    : described;
+}
 
 /**
  * Conditions inside a predicate that Wow calls root filters.

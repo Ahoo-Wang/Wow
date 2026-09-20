@@ -58,8 +58,9 @@ const maxLinesWaivers = [
   { file: 'test/analysis.test.ts', lines: 1882 },
   // 十一个钩子的套件挤在一个文件里 —— todo.md「R13」
   { file: 'test/reactHooks.test.tsx', lines: 1766 },
-  // 校验、编译、时间、描述、树编辑五个主题一个文件 —— todo.md「R14」
-  { file: 'test/filter.test.ts', lines: 1467 },
+  // 校验、编译、时间、树编辑四个主题一个文件；描述已拆到
+  // describeFilter.test.ts，额度随之重新实测收紧 —— todo.md「R14」
+  { file: 'test/filter.test.ts', lines: 1359 },
   // 渲染、交互、保存、视图管理、布局五个主题一个文件 —— todo.md「R15」
   { file: 'test/recordWorkbench.test.tsx', lines: 1254 },
   // 编辑器、图表、指标卡三套 UI 一个文件，只超线十二行 —— todo.md「R16」

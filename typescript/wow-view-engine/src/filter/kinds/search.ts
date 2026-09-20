@@ -76,7 +76,12 @@ export const searchFieldKind: FieldKind = {
   describe({ leaf, field }) {
     // Anything but text is wrong rather than typed, and stringifying it would
     // put `[object Object]` in the one line a reader checks.
-    if (typeof leaf.value !== 'string') return field.label;
-    return `${field.label} ${readValue<string>(leaf.value)}`;
+    if (typeof leaf.value !== 'string')
+      return { text: field.label, value: { kind: 'blank' } };
+    const value = readValue<string>(leaf.value);
+    return {
+      text: `${field.label} ${value}`,
+      value: { kind: 'text', value },
+    };
   },
 };

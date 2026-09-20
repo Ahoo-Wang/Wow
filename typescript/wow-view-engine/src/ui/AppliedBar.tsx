@@ -13,9 +13,12 @@
 
 import { cn } from 'cn';
 import { XIcon } from 'lucide-react';
+import type { FilterSummaryItem } from '../filter/index.js';
 import type { FilterEditorController } from '../react/index.js';
 import { Badge } from './components/badge.js';
+import { summaryText } from './display.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { useSurfaceDisplay } from './ViewSurface.js';
 
 export interface AppliedBarProps {
   filter: FilterEditorController;
@@ -54,6 +57,12 @@ export function AppliedBar({
   className,
 }: AppliedBarProps) {
   const messages = useViewMessages();
+  // The badge is the most visible text of the result area, so it is built
+  // from the parts each kind hands over rather than from the English line
+  // beside them: the words come from the catalogue in force, the values from
+  // the surface's own language and zone.
+  const display = useSurfaceDisplay();
+  const say = (item: FilterSummaryItem) => summaryText(item, messages, display);
   // The host's own conditions, which are in force beside the view's own but
   // belong to the page rather than to the view. They read as `scoped` on the
   // controller precisely because no path here addresses them.
@@ -95,12 +104,12 @@ export function AppliedBar({
           // than carrying the bar off the edge of the view.
           className="h-auto max-w-full text-left whitespace-normal"
         >
-          {item.text}
+          {say(item)}
           {!readOnly && (
             <button
               type="button"
               aria-label={messages.label('label.filter.unset-of', {
-                condition: item.text,
+                condition: say(item),
               })}
               disabled={disabled}
               className="-mr-1 rounded-full opacity-60 hover:opacity-100 focus-visible:outline-1"
@@ -132,7 +141,7 @@ export function AppliedBar({
           data-unresolved={item.unresolved || undefined}
           className="h-auto max-w-full text-left whitespace-normal"
         >
-          {item.text}
+          {say(item)}
           <span className="sr-only">
             {' '}
             {messages.label('label.applied.scoped')}

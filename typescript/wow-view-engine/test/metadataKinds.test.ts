@@ -284,7 +284,7 @@ describe('metadata field kinds', () => {
         leaf: { field: '@ownerId', operator: 'OWNER_ID', value: 7 },
         field,
         kinds: builtinFieldKinds,
-      }),
+      }).text,
     ).toBe('Created by 7');
     expect(
       kind.describe({
@@ -292,7 +292,7 @@ describe('metadata field kinds', () => {
         field,
         kinds: builtinFieldKinds,
       }),
-    ).toBe('Created by');
+    ).toMatchObject({ text: 'Created by', value: { kind: 'blank' } });
   });
 
   it('refuses an id that is only whitespace', () => {

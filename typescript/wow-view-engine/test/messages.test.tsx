@@ -21,7 +21,11 @@ import {
   AggregationGroupType,
   FilterOperator,
 } from '@ahoo-wang/fetcher-wow';
-import { CHART_TYPES } from '../src/index.js';
+import {
+  CHART_TYPES,
+  DATE_TIME_PRESETS,
+  RELATIVE_DATE_UNITS,
+} from '../src/index.js';
 import type { FilterValue, ViewInstanceSummary } from '../src/index.js';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
 import type {
@@ -125,6 +129,23 @@ describe('the Chinese catalogue', () => {
     );
   });
 
+  /**
+   * Two words that said something the code does not do.
+   *
+   * The button under an unknown write calls `abandonWrite`: the intent is
+   * given up and nobody can retry or overwrite it afterwards, which is not
+   * "deal with it later". And `BEFORE_TODAY` is Wow's own operator, whose
+   * word in `packages/wow/src/query/locale/zh_CN.ts` is 今天之前 — the
+   * bound is the caller's time of day, so naming the hour was an invention.
+   */
+  it('says what the button and the operator actually do', () => {
+    expect(zhCN['label.unknown.leave']).toBe('放弃');
+    expect(en['label.unknown.leave']).toBe('Abandon');
+    expect(zhCN['label.operator.BEFORE_TODAY']).toBe('今天之前');
+    expect(zhCN['label.operator.RECENT_DAYS']).toBe('最近几天');
+    expect(zhCN['label.operator.EARLIER_DAYS']).toBe('几天前');
+  });
+
   it('serves a component through the provider', () => {
     render(
       <MessagesProvider messages={zhCN}>
@@ -193,6 +214,20 @@ describe('the closed enums a control offers', () => {
   });
 
   /**
+   * The relative-date control's two sets, which had the same gap: it put the
+   * identifier itself on screen — `hour`, `thisWeek` — so it stayed in
+   * English however the catalogue was replaced.
+   */
+  it('names every relative unit and every named period', () => {
+    expect(
+      missing([
+        ...RELATIVE_DATE_UNITS.map(unit => `label.relative.unit.${unit}`),
+        ...DATE_TIME_PRESETS.map(preset => `label.relative.preset.${preset}`),
+      ]),
+    ).toEqual([]);
+  });
+
+  /**
    * The English half of the same bargain: naming what a component derived
    * must not reword it, or every English test and screenshot moves with it.
    */
@@ -202,6 +237,10 @@ describe('the closed enums a control offers', () => {
     expect(en['label.chart.type.bar']).toBe('bar');
     expect(en['label.group.type.DATE_HISTOGRAM']).toBe('date histogram');
     expect(en['label.metric.function.SUM']).toBe('sum');
+    // The unit keeps the control's own spelling; the period keeps the one
+    // the summary bar already read it out by.
+    expect(en['label.relative.unit.day']).toBe('day');
+    expect(en['label.relative.preset.nextQuarter']).toBe('next quarter');
   });
 });
 

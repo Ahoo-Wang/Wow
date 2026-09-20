@@ -84,8 +84,11 @@ export function RelativeDate({
         label={messages.label('label.date.unit-of', { field: label })}
         disabled={disabled}
         value={value.unit}
+        // A closed set, so it is named in full rather than rendered as the
+        // identifier — which is what left this control in English however
+        // the catalogue was replaced.
         items={RELATIVE_DATE_UNITS.map(unit => ({
-          label: unit,
+          label: messages.label(`label.relative.unit.${unit}`),
           value: unit,
         }))}
         onChange={next =>
@@ -114,8 +117,10 @@ export function PresetDate({
       label={messages.label('label.date.period-of', { field: label })}
       disabled={disabled}
       value={value.preset}
+      // A closed set too, and fifteen of them: `nextQuarter` is a key, not
+      // a period anybody reads.
       items={DATE_TIME_PRESETS.map(preset => ({
-        label: preset,
+        label: messages.label(`label.relative.preset.${preset}`),
         value: preset,
       }))}
       onChange={next =>

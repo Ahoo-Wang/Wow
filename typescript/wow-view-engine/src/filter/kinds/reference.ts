@@ -19,7 +19,7 @@ import {
 } from '../values.js';
 import {
   compilePresence,
-  describePresence,
+  describePresenceParts,
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
@@ -75,12 +75,15 @@ export const referenceFieldKind: FieldKind = {
   },
 
   describe({ leaf, field }) {
-    const presence = describePresence(leaf.operator);
-    if (presence) return `${field.label} ${presence}`;
-    if (!isReferenceFilterValue(leaf.value)) return field.label;
-    const labels = readValue<ReferenceFilterValue>(leaf.value).items.map(
-      item => item.label,
-    );
-    return `${field.label} ${leaf.operator} ${labels.join(', ')}`;
+    const presence = describePresenceParts(leaf.operator, field);
+    if (presence) return presence;
+    if (!isReferenceFilterValue(leaf.value))
+      return { text: field.label, value: { kind: 'blank' } };
+    const items = readValue<ReferenceFilterValue>(leaf.value).items;
+    const labels = items.map(item => item.label);
+    return {
+      text: `${field.label} ${leaf.operator} ${labels.join(', ')}`,
+      value: { kind: 'list', values: items.map(item => item.id), labels },
+    };
   },
 };

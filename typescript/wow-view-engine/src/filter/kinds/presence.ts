@@ -12,7 +12,8 @@
  */
 
 import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
-import type { FilterOperatorName } from '../../model/index.js';
+import type { FieldDefinition, FilterOperatorName } from '../../model/index.js';
+import type { FieldKindDescription } from '../describe.js';
 
 /**
  * Operators that ask about presence rather than about a value. Every kind
@@ -45,6 +46,21 @@ export function compilePresence(
     default:
       return null;
   }
+}
+
+/**
+ * A presence question as one summary item: the operator is the whole
+ * condition, so the value says there is nothing beside it to read. `null`
+ * when the operator asks about a value after all.
+ */
+export function describePresenceParts(
+  operator: FilterOperatorName,
+  field: FieldDefinition,
+): FieldKindDescription | null {
+  const presence = describePresence(operator);
+  return presence === null
+    ? null
+    : { text: `${field.label} ${presence}`, value: { kind: 'none' } };
 }
 
 export function describePresence(operator: FilterOperatorName): string | null {

@@ -231,5 +231,10 @@ export const ManageViews: Story = { args: { behaviour: 'data' } };
 /**
  * 中文文案。包里带了 `zhCN`，宿主把它交给 `messages` 就换掉整面的措辞；要改其
  * 中几句，铺开再覆盖：`{ ...zhCN, 'label.filter.apply': '确定' }`。
+ *
+ * 打开的是那个带条件的共享视图，所以结果上方的「正在显示」里就有一枚可操作的
+ * 条件 badge：字段名来自定义，操作符与候选项标签分别来自目录与定义，按 ✕ 把它
+ * 撤下会立刻重跑查询。展开筛选带还能看到相对日期的单位与时间段——`day`、
+ * `thisWeek` 这些以前是原样的标识符，现在同样走目录。
  */
 export const Localized: Story = { args: { localized: true } };

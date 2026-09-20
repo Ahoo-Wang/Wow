@@ -13,6 +13,7 @@
 
 import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
 import type { FieldKindId, FilterOperatorName } from '../../model/index.js';
+import type { FilterSummaryValue } from '../describe.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
 import {
   isValidTimeZone,
@@ -26,7 +27,7 @@ import {
 } from '../values.js';
 import {
   compilePresence,
-  describePresence,
+  describePresenceParts,
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
@@ -35,21 +36,61 @@ function isParsableInstant(text: string): boolean {
   return !Number.isNaN(Date.parse(text));
 }
 
-/** The window a value names, as a phrase: for `BETWEEN`. */
-function describeWindow(value: DateTimeFilterValue): string {
+/** The window a value names, as a phrase and as parts: for `BETWEEN`. */
+function describeWindow(value: DateTimeFilterValue): DescribedValue {
   switch (value.type) {
     case 'absolute':
+      // An upper edge nobody gave is not a range with one side missing: the
+      // compiler emits `filter.gte(from)`, so the condition in force is a
+      // `GTE` and the summary says the operator that actually ran. `from` is
+      // never missing — `isDateTimeFilterValue` refuses a value without one,
+      // so that shape reaches `describe` as unreadable rather than as a
+      // range with a hole in it.
       return value.to === undefined
-        ? `from ${value.from}`
-        : `${value.from} ~ ${value.to}`;
+        ? {
+            text: `from ${value.from}`,
+            operator: 'GTE',
+            value: { kind: 'text', value: value.from },
+          }
+        : {
+            text: `${value.from} ~ ${value.to}`,
+            value: { kind: 'range', from: value.from, to: value.to },
+          };
     case 'relative':
       // Reading "last 7 day" beside a query that ran forwards would be worse
       // than saying nothing: the summary bar is where a user checks what is
       // actually in force.
-      return `${value.direction === 'future' ? 'next' : 'last'} ${value.amount} ${value.unit}`;
+      return {
+        text: `${value.direction === 'future' ? 'next' : 'last'} ${value.amount} ${value.unit}`,
+        value: relativeParts(value, 'window'),
+      };
     case 'preset':
-      return describePreset(value);
+      return {
+        text: describePreset(value),
+        value: { kind: 'preset', preset: value.preset },
+      };
   }
+}
+
+/** The English phrase a bound or a window reads as, and the parts behind it. */
+interface DescribedValue {
+  text: string;
+  value: FilterSummaryValue;
+  /** Set where the condition in force is not the one the leaf spells. */
+  operator?: FilterOperatorName;
+}
+
+function relativeParts(
+  value: DateTimeFilterValue & { type: 'relative' },
+  bound: 'window' | 'instant',
+): FilterSummaryValue {
+  return {
+    kind: 'relative',
+    amount: value.amount,
+    unit: value.unit,
+    direction: value.direction ?? 'past',
+    bound,
+  };
 }
 
 /**
@@ -61,15 +102,28 @@ function describeWindow(value: DateTimeFilterValue): string {
 function describeBound(
   value: DateTimeFilterValue,
   operator: FilterOperatorName,
-): string {
+): DescribedValue {
   const side = operator === 'GTE' ? 'on or after' : 'on or before';
   switch (value.type) {
-    case 'absolute':
-      return `${side} ${operator === 'GTE' ? value.from : (value.to ?? value.from)}`;
+    case 'absolute': {
+      // The bound the operator asks for: a range's lower edge for `GTE`, its
+      // upper one for `LTE`, and the one date either way when it has only one.
+      const edge = operator === 'GTE' ? value.from : (value.to ?? value.from);
+      return { text: `${side} ${edge}`, value: { kind: 'text', value: edge } };
+    }
     case 'relative':
-      return `${side} ${value.amount} ${value.unit} ${value.direction === 'future' ? 'ahead' : 'ago'}`;
+      // Not the window `BETWEEN` asks for: `resolveDateTimeBound` stands on
+      // the far edge, so this compares against the moment seven days ago,
+      // and "in the last 7 days" would name a span the query never ran over.
+      return {
+        text: `${side} ${value.amount} ${value.unit} ${value.direction === 'future' ? 'ahead' : 'ago'}`,
+        value: relativeParts(value, 'instant'),
+      };
     case 'preset':
-      return `${side} ${describePreset(value)}`;
+      return {
+        text: `${side} ${describePreset(value)}`,
+        value: { kind: 'preset', preset: value.preset },
+      };
   }
 }
 
@@ -164,17 +218,22 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
     },
 
     describe({ leaf, field }) {
-      const presence = describePresence(leaf.operator);
-      if (presence) return `${field.label} ${presence}`;
+      const presence = describePresenceParts(leaf.operator, field);
+      if (presence) return presence;
       // A window this kind cannot read has no phrase; `describeWindow` would
       // fall off its switch and print `undefined` beside the field's name.
-      if (!isDateTimeFilterValue(leaf.value)) return field.label;
+      if (!isDateTimeFilterValue(leaf.value))
+        return { text: field.label, value: { kind: 'blank' } };
       const value = readValue<DateTimeFilterValue>(leaf.value);
-      const text =
+      const described =
         leaf.operator === 'GTE' || leaf.operator === 'LTE'
           ? describeBound(value, leaf.operator)
           : describeWindow(value);
-      return `${field.label} ${text}`;
+      return {
+        text: `${field.label} ${described.text}`,
+        value: described.value,
+        ...(described.operator ? { operator: described.operator } : {}),
+      };
     },
   };
 }
