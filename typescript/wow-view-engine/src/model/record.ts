@@ -40,10 +40,33 @@ export interface RecordSort {
   direction: SortDirection;
 }
 
+/**
+ * The side a column is held on. A pinned column does not move with the rest
+ * when the table scrolls sideways, and it never leaves its side.
+ */
+export type RecordColumnPin = 'left' | 'right';
+
+export const RECORD_COLUMN_PINS: readonly RecordColumnPin[] = ['left', 'right'];
+
+/**
+ * A stored pinning, or `null` for anything that is not one.
+ *
+ * Configs arrive from a store, so `pinned` may be `'top'`, `''` or a number.
+ * Read through here it becomes a side or nothing; read raw it became a key
+ * into a wording table, and `undefined` from that lookup took the settings
+ * popover — and the workbench around it — down with it. `validateRecord`
+ * reports the bad value separately, so it is fixable rather than silent.
+ */
+export function columnPin(value: unknown): RecordColumnPin | null {
+  return RECORD_COLUMN_PINS.includes(value as RecordColumnPin)
+    ? (value as RecordColumnPin)
+    : null;
+}
+
 export interface RecordColumn {
   field: string;
   width?: number;
-  pinned?: 'left' | 'right';
+  pinned?: RecordColumnPin;
 }
 
 export interface RecordSummary {

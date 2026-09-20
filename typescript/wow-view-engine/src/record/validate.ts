@@ -13,6 +13,7 @@
 
 import { MAX_CURSOR_SORT_FIELDS } from '@ahoo-wang/fetcher-wow';
 import {
+  columnPin,
   DEFAULT_RUNTIME_LIMITS,
   isFieldlessKind,
   type DataViewDefinition,
@@ -75,8 +76,8 @@ export function validateRecord(
     );
 
   issues.push(...validatePageSize(config, limits));
-  issues.push(...validateSort(config, capability.paging, byName));
-  issues.push(...validateColumns(config, byName));
+  issues.push(...validateSort(config, definition, byName));
+  issues.push(...validateColumns(config, capability.rowKey, byName));
   issues.push(...validateCard(config, byName));
   issues.push(...validateSummaries(config, byName));
 
@@ -153,17 +154,32 @@ function validatePageSize(
   return [];
 }
 
+/**
+ * How many fields this definition may be sorted on at once.
+ *
+ * A cursor is a position in one total order and Wow bounds how many fields
+ * that order is built from; a paged query has no such bound, so the answer
+ * is however many fields there are to sort on. It is exported because a
+ * control that offers a field has to stop where `validateSort` starts
+ * refusing — otherwise the pick is admitted by the UI, refused by the
+ * kernel, and the view sits in an error nobody asked for.
+ */
+export function maxSortFields(definition: DataViewDefinition): number {
+  return definition.record?.paging === 'cursor'
+    ? MAX_CURSOR_SORT_FIELDS
+    : definition.fields.length;
+}
+
 function validateSort(
   config: RecordViewConfig,
-  paging: 'paged' | 'cursor',
+  definition: DataViewDefinition,
   fields: ReadonlyMap<string, FieldDefinition>,
 ): Issue[] {
   const issues: Issue[] = [];
+  const max = maxSortFields(definition);
   // A cursor query carries its sort in the cursor, which Wow bounds.
-  if (paging === 'cursor' && config.sort.length > MAX_CURSOR_SORT_FIELDS)
-    issues.push(
-      issue('record.sort.too-many', ['sort'], { max: MAX_CURSOR_SORT_FIELDS }),
-    );
+  if (definition.record?.paging === 'cursor' && config.sort.length > max)
+    issues.push(issue('record.sort.too-many', ['sort'], { max }));
 
   const seen = new Set<string>();
   config.sort.forEach((sort, index) => {
@@ -174,6 +190,19 @@ function validateSort(
     if (seen.has(sort.field))
       issues.push(issue('record.sort.duplicate', path, { field: sort.field }));
     seen.add(sort.field);
+
+    // The shape check asks a sort entry for a `field` and nothing else, so
+    // a stored config may name a direction of `up`, or none at all. Left
+    // unsaid it reaches the editor as a key into a wording table and takes
+    // the workbench down with it; said here it is a finding like any other,
+    // and the draft stays in the error state until it is fixed.
+    if (sort.direction !== 'ASC' && sort.direction !== 'DESC')
+      issues.push(
+        issue('record.sort.direction-invalid', ['sort', index, 'direction'], {
+          field: sort.field,
+          direction: String(sort.direction),
+        }),
+      );
 
     const field = fields.get(sort.field);
     if (!field) {
@@ -190,6 +219,7 @@ function validateSort(
 
 function validateColumns(
   config: RecordViewConfig,
+  rowKey: string,
   fields: ReadonlyMap<string, FieldDefinition>,
 ): Issue[] {
   const seen = new Set<string>();
@@ -203,6 +233,33 @@ function validateColumns(
         issue('record.column.duplicate', at, { field: column.field }),
       );
     seen.add(column.field);
+
+    // The shape check asks a column for a `field` and nothing else, so a
+    // stored column may be pinned `'top'`, or to `''`. Said here it is a
+    // finding the user can fix; left unsaid it reached the settings popover
+    // as a key into a wording table and took the workbench down.
+    //
+    // Except on the row key, whose pinning the config has no opinion about:
+    // `projectRecord` holds it on the left whatever is stored, and the
+    // settings show that fixed and disabled. Reporting a value nothing on
+    // screen decides would block the query and the save over something no
+    // control can change — the trap in `ui/record.md`, sprung by the check
+    // meant to avoid one. What the config cannot say cannot be wrong.
+    if (
+      column.field !== rowKey &&
+      column.pinned !== undefined &&
+      columnPin(column.pinned) === null
+    )
+      issues.push(
+        issue(
+          'record.column.pin-invalid',
+          ['table', 'columns', index, 'pinned'],
+          {
+            field: column.field,
+            pinned: String(column.pinned),
+          },
+        ),
+      );
 
     const field = fields.get(column.field);
     if (!field)

@@ -17,6 +17,7 @@ import {
   formatMessage,
   zhCN,
 } from '@ahoo-wang/fetcher-view-engine/ui';
+import type { RecordViewConfig } from '@ahoo-wang/fetcher-view-engine';
 import displayMeta, {
   CannotOpen as DisplayCannotOpen,
   CollapsedSidebar as DisplayCollapsedSidebar,
@@ -27,11 +28,19 @@ import displayMeta, {
   NeedsFixing as DisplayNeedsFixing,
   Paged as DisplayPaged,
   QueryFailed as DisplayQueryFailed,
+  TableSettings as DisplayTableSettings,
   TotalCoversThisPageOnly as DisplayTotalCoversThisPageOnly,
   WithActions as DisplayWithActions,
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
-import { amountOf, readColumn, readPage, readTotal } from './readTable.js';
+import { tableSettingsStore } from './fixtures.js';
+import {
+  amountOf,
+  readColumn,
+  readHeaders,
+  readPage,
+  readTotal,
+} from './readTable.js';
 
 const meta = {
   ...displayMeta,
@@ -581,6 +590,118 @@ export const Localized: Story = {
     await waitFor(() =>
       expect(readColumn(canvas.getByRole('table'), '订单号')).toHaveLength(6),
     );
+  },
+};
+
+/**
+ * The column settings and the sort control, driven the way a keyboard user
+ * drives them, and then saved.
+ *
+ * Four changes in one pass — order, pinning, a summary and the sort — because
+ * they are one question ("what does a row look like") and because each of
+ * them has to survive the others: the pin is written onto the column the
+ * reorder moved, and the summary onto a column that is now somewhere else.
+ * The table is asserted for what is on screen, and the store for what was
+ * actually written; the draft would satisfy the first on its own.
+ */
+export const TableSettings: Story = {
+  ...DisplayTableSettings,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
+
+    await userEvent.click(
+      canvasElement.querySelector<HTMLElement>('[data-control="columns"]')!,
+    );
+    const popover = within(document.body);
+
+    // The key column is held on the left and says so without offering a way
+    // to change it; the rest of the list is the order the table is in.
+    await expect(
+      popover.getByRole('button', {
+        name: `Pinning of 订单号: ${defaultMessages['label.columns.pin.left']}`,
+      }),
+    ).toBeDisabled();
+
+    // Reorder by keyboard: 状态 up one place, past 仓库.
+    const handle = popover.getByRole('button', { name: 'Reorder 状态' });
+    handle.focus();
+    await userEvent.keyboard('{ArrowUp}');
+    await expect(
+      document.querySelector('[data-slot="column-announcement"]'),
+    ).toHaveTextContent('状态 moved to position 2 of 4');
+
+    // Pin 金额, then summarise it as an average rather than a sum.
+    await userEvent.click(
+      popover.getByRole('button', {
+        name: `Pinning of 金额: ${defaultMessages['label.columns.pin.none']}`,
+      }),
+    );
+    await userEvent.click(
+      popover.getByRole('combobox', { name: 'Summary under 金额' }),
+    );
+    await userEvent.click(
+      await popover.findByRole('option', {
+        name: defaultMessages['label.summary.fn.AVG'],
+      }),
+    );
+    await userEvent.keyboard('{Escape}');
+
+    // The sort button reads the sort back; turning 金额 around turns the
+    // rows around, because sorting applies at once.
+    await userEvent.click(
+      canvasElement.querySelector<HTMLElement>('[data-control="sort"]')!,
+    );
+    await userEvent.click(
+      await within(document.body).findByRole('button', {
+        name: 'Direction of 金额',
+      }),
+    );
+    await userEvent.keyboard('{Escape}');
+
+    // What is on screen: the areas a table draws in. `订单号` and the newly
+    // pinned `金额` are held on the left — pinning is what moves a column
+    // between areas, since `sticky` only fixes an element where it already
+    // is — and the two that scroll follow in the order just set.
+    await waitFor(() =>
+      expect(readHeaders(canvas.getByRole('table'))).toEqual([
+        '订单号',
+        '金额',
+        '状态',
+        '仓库',
+      ]),
+    );
+    await waitFor(() =>
+      expect(readColumn(canvas.getByRole('table'), '订单号')).toEqual(
+        [...PENDING_BY_AMOUNT].reverse(),
+      ),
+    );
+
+    // And what was written: all four changes, in the saved config.
+    await userEvent.click(
+      canvas.getByRole('button', { name: defaultMessages['label.save.save'] }),
+    );
+    await waitFor(async () => {
+      const saved = await tableSettingsStore.current!.get('orders-pending');
+      // The config keeps the order the reorder committed; where a pinned
+      // column is *drawn* is the projection's answer, not something a saved
+      // view has an opinion about — the same split as the row key's pin.
+      expect(saved.config as RecordViewConfig).toMatchObject({
+        table: {
+          columns: [
+            { field: 'id' },
+            { field: 'status' },
+            { field: 'warehouse' },
+            { field: 'amount', pinned: 'left' },
+          ],
+        },
+        summaries: [{ field: 'amount', fn: 'AVG' }],
+        sort: [{ field: 'amount', direction: 'ASC' }],
+      });
+    });
   },
 };
 

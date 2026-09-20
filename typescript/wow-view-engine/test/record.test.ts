@@ -14,6 +14,7 @@
 import {
   AggregationMetricType,
   FilterOperator,
+  MAX_CURSOR_SORT_FIELDS,
   SortDirection,
 } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
@@ -23,6 +24,7 @@ import {
   compileSummaries,
   defaultRecordConfig,
   FIRST_PAGE,
+  maxSortFields,
   projectRecord,
   projectSummaries,
   recordCapabilityOf,
@@ -31,6 +33,7 @@ import {
   validateRecord,
   type DataViewDefinition,
   type Issue,
+  type RecordSort,
   type RecordViewConfig,
 } from '../src/index.js';
 
@@ -190,10 +193,41 @@ describe('validateRecord', () => {
     ).toEqual(['record.field.unknown']);
   });
 
+  /**
+   * The shape check asks a sort entry for a `field` and nothing else, so a
+   * stored config may name a direction of `up`, or none at all. Said here it
+   * is a finding like any other and the draft stays in the error state; left
+   * unsaid it reached the sort editor as a key into a wording table and took
+   * the whole workbench down with it.
+   */
+  it('reports a sort direction that reads as neither way round', () => {
+    const bad = [
+      { field: 'createdAt', direction: 'up' },
+      { field: 'id' },
+    ] as unknown as RecordSort[];
+
+    const issues = validateRecord(
+      definition(),
+      config({ sort: bad }),
+      builtinFieldKinds,
+    );
+
+    expect(codes(issues)).toEqual([
+      'record.sort.direction-invalid',
+      'record.sort.direction-invalid',
+      'record.sort.not-sortable',
+    ]);
+    expect(issues[0].path).toEqual(['sort', 0, 'direction']);
+  });
+
   it('bounds the sort fields of a cursor source with the Wow limit', () => {
     const def = definition({
       record: { rowKey: 'id', paging: 'cursor', layouts: ['table'] },
     });
+    // The ceiling a control has to stop at is this one: `maxSortFields` is
+    // exported so the two cannot drift into disagreeing.
+    expect(maxSortFields(def)).toBe(MAX_CURSOR_SORT_FIELDS);
+    expect(maxSortFields(definition())).toBe(definition().fields.length);
     const sort = Array.from({ length: 33 }, () => ({
       field: 'createdAt',
       direction: 'ASC' as const,
@@ -670,7 +704,10 @@ describe('projectRecord', () => {
         kind: 'string',
         cell: 'string',
         width: undefined,
-        pinned: undefined,
+        // The row key is held on the left whatever the config says: it is
+        // the column that says which record a row is, so it is the one that
+        // has to stay in view while the rest scrolls sideways.
+        pinned: 'left',
         sortable: false,
         numberFormat: undefined,
       },
@@ -687,6 +724,126 @@ describe('projectRecord', () => {
     ]);
     expect(view.rows.map(row => row.key)).toEqual(['A1', 'A2']);
     expect(view.paging).toEqual({ mode: 'paged', index: 1, total: 2 });
+  });
+
+  /**
+   * A definition's row key is not a preference, so the config is left alone
+   * and the projection answers with the pinning the table must honour —
+   * which is also what the column settings show, disabled.
+   */
+  it('holds the row key on the left, whatever the config asks for', () => {
+    const view = projectRecord(
+      definition(),
+      config({
+        table: { columns: [{ field: 'id', pinned: 'right' }] },
+      }),
+      { total: 0, list: [] },
+    );
+
+    expect(view.columns[0]).toMatchObject({ field: 'id', pinned: 'left' });
+  });
+
+  /**
+   * A column pinned nowhere in particular is a finding the user can fix,
+   * and a projection that says "not pinned" in the meantime — never a side
+   * the table would then try to stick it to.
+   */
+  /**
+   * Except on the row key, whose pinning the config has no opinion about:
+   * the projection holds it left whatever is stored and the settings show
+   * that fixed and disabled, so reporting the value would block the query
+   * and the save over something no control on screen can change.
+   */
+  it('says nothing about the row key\u2019s own pinning', () => {
+    const issues = validateRecord(
+      definition(),
+      config({
+        table: {
+          columns: [{ field: 'id', pinned: 'top' }, { field: 'amount' }],
+        },
+      } as unknown as Partial<RecordViewConfig>),
+      builtinFieldKinds,
+    );
+
+    expect(codes(issues)).toEqual([]);
+  });
+
+  it('reports a pinning that is neither side, and projects it as none', () => {
+    const config_ = config({
+      table: { columns: [{ field: 'amount', pinned: 'top' }] },
+    } as unknown as Partial<RecordViewConfig>);
+
+    const issues = validateRecord(definition(), config_, builtinFieldKinds);
+    expect(codes(issues)).toEqual(['record.column.pin-invalid']);
+    expect(issues[0].path).toEqual(['table', 'columns', 0, 'pinned']);
+
+    expect(
+      projectRecord(definition(), config_, { total: 0, list: [] }).columns[0]
+        .pinned,
+    ).toBeUndefined();
+  });
+
+  /**
+   * A column pinned left that is drawn second covers the one before it, so
+   * where the row key goes is decided here, beside its pinning, rather than
+   * by whoever wrote the config. The rest keep the order they are in.
+   */
+  it('leads with the row key, and leaves the rest in their order', () => {
+    const view = projectRecord(
+      definition(),
+      config({
+        table: {
+          columns: [
+            { field: 'amount' },
+            { field: 'warehouse' },
+            { field: 'id' },
+          ],
+        },
+      }),
+      { total: 0, list: [] },
+    );
+
+    expect(view.columns.map(column => column.field)).toEqual([
+      'id',
+      'amount',
+      'warehouse',
+    ]);
+  });
+
+  /**
+   * `sticky` fixes an element where it already is, so a column pinned right
+   * that is drawn in the middle scrolls away like any other: laying the
+   * areas out is part of the same rule as pinning them, and it lives where
+   * the table reads both.
+   */
+  it('lays the columns out in the three areas a table draws', () => {
+    const view = projectRecord(
+      definition(),
+      config({
+        table: {
+          columns: [
+            { field: 'amount', pinned: 'right' },
+            { field: 'warehouse' },
+            { field: 'id' },
+            { field: 'createdAt', pinned: 'left' },
+          ],
+        },
+      }),
+      { total: 0, list: [] },
+    );
+
+    expect(view.columns.map(column => column.field)).toEqual([
+      'id',
+      'createdAt',
+      'warehouse',
+      'amount',
+    ]);
+    expect(view.columns.map(column => column.pinned)).toEqual([
+      'left',
+      'left',
+      undefined,
+      'right',
+    ]);
   });
 
   it('uses the renderer key a field declares', () => {

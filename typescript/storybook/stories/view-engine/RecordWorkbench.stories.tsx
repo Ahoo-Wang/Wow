@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { MemoryViewStore } from '@ahoo-wang/fetcher-view-engine';
 import type { RecordActionSlots } from '@ahoo-wang/fetcher-view-engine/react';
 import { RecordWorkbench, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 // View Engine's own button, so the host's commands sit in its toolbar rather
@@ -21,6 +22,7 @@ import {
   createStoryEngine,
   recordConfig,
   savedViews,
+  tableSettingsStore,
   type SourceBehaviour,
 } from './fixtures.js';
 import { StoryEngine, viewEngineScene } from './StoryEngine.js';
@@ -52,6 +54,7 @@ function RecordWorkbenchDemo({
   paged = false,
   withActions = false,
   localized = false,
+  keepStore = false,
   collapsed = false,
 }: {
   behaviour?: SourceBehaviour;
@@ -64,14 +67,21 @@ function RecordWorkbenchDemo({
   withActions?: boolean;
   /** Hands the workbench the shipped Chinese catalogue. */
   localized?: boolean;
+  /** Publishes the store on `tableSettingsStore`, for a play to read. */
+  keepStore?: boolean;
   /** Opens with the view list folded away, as a narrow page would. */
   collapsed?: boolean;
 }) {
   return (
     <StoryEngine
-      create={() =>
-        createStoryEngine({
+      create={() => {
+        const store = keepStore
+          ? new MemoryViewStore({ instances: savedViews })
+          : undefined;
+        if (store) tableSettingsStore.current = store;
+        return createStoryEngine({
           behaviour,
+          ...(store ? { store } : {}),
           instances: broken
             ? [
                 {
@@ -85,8 +95,8 @@ function RecordWorkbenchDemo({
             : paged
               ? [pagedView]
               : savedViews,
-        })
-      }
+        });
+      }}
     >
       {engine => (
         <RecordWorkbench
@@ -179,6 +189,7 @@ const meta = {
     instanceId: { table: { disable: true } },
     withActions: { table: { disable: true } },
     localized: { table: { disable: true } },
+    keepStore: { table: { disable: true } },
     collapsed: { table: { disable: true } },
   },
 } satisfies Meta<typeof RecordWorkbenchDemo>;
@@ -243,6 +254,18 @@ export const ManageViews: Story = { args: { behaviour: 'data' } };
  * `thisWeek` 这些以前是原样的标识符，现在同样走目录。
  */
 export const Localized: Story = { args: { localized: true } };
+
+/**
+ * 表格设置：工具栏右端的「列设置」与「排序」。
+ *
+ * 列设置里一行一列——拖动手柄、显隐、列名、汇总函数、固定开关。拖动只在同一区域
+ * 内生效：主键「订单号」钉在左侧，宿主的操作列钉在右侧（这个故事没有行动作，所以
+ * 右侧那一行不出现），中间几列随意排。手柄也可以用键盘：Tab 到手柄，方向键上下移
+ * 一位，移完会播报落在第几位。旁边的排序按钮把当前排序读成话，点开可以逐条翻方
+ * 向、删掉，或者添加一个还没用到的可排序字段。改完点「Save」，重开这个视图就是
+ * 现在这副样子——列设置与排序改的都是视图本身，不是这一次打开。
+ */
+export const TableSettings: Story = { args: { keepStore: true } };
 
 /**
  * 侧栏收起后的样子：标题栏最左边是展开按钮、定义标题与视图切换下拉，结果拿回

@@ -16,7 +16,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   getSnapshot(): ViewRuntimeState<C>;
   subscribe(listener: () => void): () => void;
 
-  edit(patch: Partial<C>): void; // 只改 draft，同步
+  edit(patch: Partial<C>): void; // 只改 draft，同步；成员给 undefined 即删除该成员
   apply(): void; // validate(draft) 无 error → applied = draft，执行
   revert(): void; // draft 回到 saved.config，重算 issues／dirty；与 applied 不同且无 error 时再 apply；未保存过为空操作
   refresh(): void; // 重跑 applied
@@ -117,6 +117,8 @@ export class ViewWriteError extends Error {
 - 新的 `apply / refresh / page` 替代同一 runtime 的在途请求，旧响应到达后丢弃。这由 `RequestRunner` 用 per-runtime key 实现，全局并发上限与队列来自 `RuntimeLimits`（`maxConcurrentQueries`、`maxQueuedQueries`、`maxPageSize`、`maxAnalysisRows`、`minRefreshInterval`、`maxRefreshInterval`、`maxFilterDepth`、`maxFilterNodes`、`maxDashboardPanels`）。
 - 状态变更同步提交后再通知订阅者；相同状态返回相同对象，子对象引用稳定，以配合 `useSyncExternalStore`。`dispose` 是最后一次通知：订阅者据此读到 `disposed`，`useOpenView` 才能在实例被别处删除时自行重开，而不必等一次碰巧的渲染。
 - runtime 不做持久化。保存是 Engine 的命令，成功后 Engine 调用 `runtime.markSaved(instance)` 推进基线。
+- **`edit` 里值为 `undefined` 的成员是"删掉"，不是"置为 undefined"。** 配置是 JSON：没有这个成员与成员为 `undefined` 是同一份配置，却不是同一个对象，而 `dirty` 是与已保存配置的一次 `dequal`。把最后一条可选列表项删掉的编辑器因此会让视图就此一直"未保存"、离开守卫还会问一句用户早已撤销过的改动。`defaultRecordConfig` 同理：没有汇总时根本不写 `summaries` 这个键，而不是写一个 `undefined`。
+
 - **注入的作用域条件同样要准入。** `setScopeFilter` 按本 runtime 的定义与 kinds 校验合并后的有效筛选（含深度与节点预算），返回 Issue 列表；含 error 时不改变已应用口径也不执行，因此自定义宿主与 Dashboard 走同一条准入路径。作用域条件从打开起就与配置一起准入：`issues` 始终是"draft AND 作用域"这份有效配置的校验结果，构造、`edit`、`adoptSaved` 与 `setScopeFilter` 都按这一条规则重算；`mergeFilters` 把作用域作为一个嵌套分组追加在 draft 自身条件之后（不拍平：分组内字段唯一，而宿主对同一字段再收窄是第二个问题而不是重复），因此指向 draft 树的 Issue 路径不因作用域而移位；作用域自身的子树多占一层深度，单条条件在线上仍编译为它本身。合并只丢弃结构合法且没有叶子的空树：含畸形条目的树不算空（`isEmptyFilter` 为 false），畸形条目保留在合并结果里由准入报出；根不是分组的 filter 不参与合并，原样交给准入报 `config.filter.invalid`。Dashboard 的 `fields` 访问器只交出结构合法的字段项，畸形项留给准入。
 - **只执行准入过的配置。** `apply` 与 `setScopeFilter` 只提升通过准入的口径；打开时 `applied` 若未通过准入，`refresh` 与 `page` 同样是空操作，直到一份修正后的 draft 被 `apply`。否则"待修复"只挡住 `apply` 一个入口，刷新或翻页就会把被拒绝的配置发出去。
 - **结果自身的问题记在结果上，不记在 `issues` 里。** `ProjectedView` 带一份 `issues: readonly Issue[]`，说的是"屏幕上这些数字"而不是"这份配置"。`state.issues` 是 draft 连同作用域的准入结果，每次 `edit` 都重算：把这类发现放进去，用户一敲键盘它就没了，而它描述的那些数字还在屏幕上。它随成功的执行一起推进，随下一次成功的结果一起被换掉，读它的是 `resultIssues(data)` 这一个函数——两个工作台把它并进 `WorkbenchShell` 的 `warnings`，`EmbeddedView` 并进它自己的 warning 条（[ui/README.md#两级-severity-与-statusstrip](ui/README.md#两级-severity-与-statusstrip)）。当下有两条，都是 warning，都不阻塞：

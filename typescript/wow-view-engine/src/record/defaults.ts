@@ -66,7 +66,10 @@ export function defaultRecordConfig(
     kind: 'record',
     sort: defaults.sort ?? [],
     pageSize,
-    summaries: defaults.summaries,
+    // Written only when there is one. A config is JSON, and a `summaries`
+    // member that is `undefined` is not the same object as no member at
+    // all — which is what `dirty` compares, and what a store round-trips.
+    ...(defaults.summaries ? { summaries: defaults.summaries } : {}),
     layout: defaults.layout ?? capability.layouts[0],
     table: defaults.table ?? {
       columns: names.slice(0, DEFAULT_COLUMNS).map(field => ({ field })),

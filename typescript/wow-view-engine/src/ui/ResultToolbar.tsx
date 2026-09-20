@@ -12,12 +12,11 @@
  */
 
 import type * as React from 'react';
-import { Columns3Icon, RefreshCwIcon } from 'lucide-react';
-import {
-  isFieldlessKind,
-  type FieldDefinition,
-  type FieldGroupDefinition,
-  type RecordLayout,
+import { RefreshCwIcon } from 'lucide-react';
+import type {
+  FieldDefinition,
+  FieldGroupDefinition,
+  RecordLayout,
 } from '../model/index.js';
 import type {
   RecordBulkActionContext,
@@ -26,16 +25,12 @@ import type {
 import type { RecordViewRuntime } from '../runtime/index.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuTrigger,
-} from './components/dropdown-menu.js';
+import { ButtonGroup } from './components/button-group.js';
 import { Spinner } from './components/spinner.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
-import { SEGMENTED } from './layout.js';
-import { GroupedMenu } from './FieldMenu.js';
-import { DropdownMenuContent } from './popups.js';
+import { ColumnSettings } from './ColumnSettings.js';
+import { SortSettings } from './SortSettings.js';
+import { SEGMENTED, SPACE } from './layout.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
 
@@ -45,6 +40,16 @@ export interface ResultToolbarProps {
   fields: readonly FieldDefinition[];
   /** The picker groups of the definition the fields come from. */
   fieldGroups?: readonly FieldGroupDefinition[];
+  /**
+   * The field holding each row's identity. The column settings hold it on
+   * the left, where the table shows it, and let nothing past it.
+   */
+  rowKey?: string;
+  /**
+   * Whether the table carries the host's action column, so the settings can
+   * show where it sits — pinned right and not the user's to move.
+   */
+  hasRowActions?: boolean;
   /**
    * What the host offers for the rows that are selected. It is a render
    * function rather than a node, because it acts on the selection and the
@@ -73,26 +78,36 @@ const LAYOUT_LABEL: Record<RecordLayout, MessageKey> = {
  * once saved, come back with it. The selection is not: it lives for one
  * opening, which is why nothing here reaches a saved config. Paging sits
  * below the result in `RecordPagination`, where the rows it pages are.
+ *
+ * The right is three groups by responsibility, 8px apart and seamless
+ * inside: the layout switch, then how the table shows what it has, then how
+ * fresh it is. Every control here is `ghost` — the toolbar sits above the
+ * result and must not compete with it — except the layout switch, which
+ * wears one outline because that outline is what makes it read as one
+ * control with two positions rather than two buttons. The host's bulk
+ * actions are the only `outline` in the row, and the one primary button on
+ * screen stays the filter's Apply.
  */
 export function ResultToolbar({
   table,
   fields,
   fieldGroups,
+  rowKey,
+  hasRowActions = false,
   bulkActions,
   runtime,
 }: ResultToolbarProps) {
   const messages = useViewMessages();
-  const visible = new Set(table.columnFields);
   const selected = table.selection.length > 0;
 
   return (
     <div
       data-slot="result-toolbar"
-      className="flex flex-wrap items-center gap-2"
+      className={`flex flex-wrap items-center ${SPACE.GROUPS}`}
     >
       {/* Kept at a button's height whether or not anything is selected, so
           picking the first row does not push the result down a line. */}
-      <div className="flex min-h-8 items-center gap-2">
+      <div className={`flex min-h-8 items-center ${SPACE.GROUPS}`}>
         {selected && (
           <>
             <Badge variant="secondary" role="status">
@@ -117,8 +132,16 @@ export function ResultToolbar({
       <div className="flex-1" />
 
       {/* Only the definition's layouts, in its order — and nothing at all
-          when there is no choice to make. */}
-      {table.layouts.length >= 2 && (
+          when there is no choice to make, unless the view is saved in a
+          layout the definition has since dropped: `validateRecord` refuses
+          that config, and a switcher that hides itself exactly then leaves
+          the user reading an error with no way to answer it. Nothing is
+          pressed in that state, which is the truth — the layout in force is
+          not one of these. `SEGMENTED` is what makes it one
+          control with two positions rather than two bordered buttons that
+          happen to sit together; it is the house rule's one spelling of
+          that, applied here because `ui/components` is upstream's. */}
+      {(table.layouts.length >= 2 || !table.layouts.includes(table.layout)) && (
         <ToggleGroup
           value={[table.layout]}
           onValueChange={value => {
@@ -140,48 +163,38 @@ export function ResultToolbar({
         </ToggleGroup>
       )}
 
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
-          <Columns3Icon data-icon="inline-start" />
-          {messages.label('label.toolbar.columns')}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <GroupedMenu
-            items={fields.filter(field => !isFieldlessKind(field.kind))}
-            groups={fieldGroups ?? []}
-            itemKey={field => field.name}
-            render={field => (
-              <DropdownMenuCheckboxItem
-                key={field.name}
-                checked={visible.has(field.name)}
-                onCheckedChange={() =>
-                  table.setColumns(
-                    visible.has(field.name)
-                      ? table.columnFields.filter(name => name !== field.name)
-                      : [...table.columnFields, field.name],
-                  )
-                }
-              >
-                {field.label}
-              </DropdownMenuCheckboxItem>
-            )}
-          />
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* How the table shows what it has: one responsibility, one group. */}
+      <ButtonGroup aria-label={messages.label('label.toolbar.arrange')}>
+        <ColumnSettings
+          table={table}
+          fields={fields}
+          {...(rowKey === undefined ? {} : { rowKey })}
+          actions={hasRowActions}
+        />
+        <SortSettings
+          table={table}
+          fields={fields}
+          {...(fieldGroups ? { fieldGroups } : {})}
+        />
+      </ButtonGroup>
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={table.refresh}
-        disabled={table.loading}
-      >
-        {table.loading ? (
-          <Spinner data-icon="inline-start" />
-        ) : (
-          <RefreshCwIcon data-icon="inline-start" />
-        )}
-        {messages.label('label.toolbar.refresh')}
-      </Button>
+      {/* Freshness, alone in a group of its own so the auto-refresh interval
+          can join it as a second control without moving anything. */}
+      <ButtonGroup aria-label={messages.label('label.toolbar.freshness')}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={table.refresh}
+          disabled={table.loading}
+        >
+          {table.loading ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <RefreshCwIcon data-icon="inline-start" />
+          )}
+          {messages.label('label.toolbar.refresh')}
+        </Button>
+      </ButtonGroup>
     </div>
   );
 }

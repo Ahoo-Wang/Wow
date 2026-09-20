@@ -651,9 +651,13 @@ describe('DashboardGrid', () => {
     const item = document.querySelector('.react-grid-item') as HTMLElement;
     const initial = item.style.width;
 
-    // A record panel's table watches itself too, so the grid's observer is
-    // named by what it watches rather than by the order it was made in.
-    const grid = observers.find(observer => observer.node?.tagName !== 'TABLE');
+    // A record panel's table watches cells of its own — it measures where a
+    // pinned column ends — so the grid's observer is named by the element it
+    // actually watches rather than by the order it was made in, or by which
+    // tags some other component happens to use this week.
+    const grid = observers.find(
+      observer => observer.node !== null && !observer.node.closest('table'),
+    );
     act(() => grid!.resize(600));
     // A measurement of zero is what a hidden container reports; it is ignored.
     act(() => grid!.resize(0));

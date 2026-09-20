@@ -16,15 +16,18 @@ import {
   type CursorPage,
   type PagedList,
 } from '@ahoo-wang/fetcher-wow';
-import type {
-  DataViewDefinition,
-  FieldDefinition,
-  FieldOption,
-  NumberFormat,
-  RecordData,
-  RecordKey,
-  RecordViewConfig,
-  SummaryFunction,
+import {
+  columnPin,
+  type DataViewDefinition,
+  type FieldDefinition,
+  type FieldOption,
+  type NumberFormat,
+  type RecordColumn,
+  type RecordColumnPin,
+  type RecordData,
+  type RecordKey,
+  type RecordViewConfig,
+  type SummaryFunction,
 } from '../model/index.js';
 import { summaryAlias } from './compile.js';
 
@@ -36,7 +39,7 @@ export interface RecordColumnView {
   /** Renderer key; the kind's default when the field names none. */
   cell: string;
   width?: number;
-  pinned?: 'left' | 'right';
+  pinned?: RecordColumnPin;
   sortable: boolean;
   numberFormat?: NumberFormat;
   /** An enum's choices, so a cell can show a value by its label. */
@@ -59,9 +62,20 @@ export interface RecordView {
   paging: RecordPaging;
 }
 
+/**
+ * One column as the table renders it.
+ *
+ * The row key is held on the left whatever the config says. It is the
+ * column that says which record a row is, so it is the one column that must
+ * stay in view while the rest scrolls sideways — and that is a property of
+ * the definition, not a preference: the column settings show its pinning
+ * fixed and refuse to change it. Deciding it here rather than in the panel
+ * is what makes the two agree, because this is where the table reads it.
+ */
 function columnView(
   field: FieldDefinition,
-  column: { width?: number; pinned?: 'left' | 'right' },
+  column: RecordColumn,
+  rowKey: string,
 ): RecordColumnView {
   return {
     field: field.name,
@@ -69,11 +83,38 @@ function columnView(
     kind: field.kind,
     cell: field.cell ?? field.kind,
     width: column.width,
-    pinned: column.pinned,
+    // Read through `columnPin`, so a stored `'top'` reaches the table as
+    // "not pinned" rather than as a side it would then try to stick to.
+    pinned:
+      field.name === rowKey ? 'left' : (columnPin(column.pinned) ?? undefined),
     sortable: field.sortable === true,
     numberFormat: field.numberFormat,
     ...(field.options ? { options: field.options } : {}),
   };
+}
+
+/**
+ * The columns in the three areas a table draws them in: what is held on the
+ * left, what scrolls, what is held on the right.
+ *
+ * `sticky` fixes an element where it already is, so a column pinned right
+ * that is drawn in the middle simply scrolls away like any other — the
+ * pinning is not a promise a stylesheet can keep on its own. Laying the
+ * areas out is therefore part of the same rule as pinning them, and the row
+ * key leads the left area because it is the column that says which record a
+ * row is. The order inside each area is the config's own; the sort is
+ * stable, so nothing else moves.
+ */
+function laidOut(
+  columns: readonly RecordColumn[],
+  rowKey: string,
+): RecordColumn[] {
+  const area = (column: RecordColumn): number => {
+    if (column.field === rowKey) return 0;
+    const pinned = columnPin(column.pinned);
+    return pinned === 'left' ? 1 : pinned === 'right' ? 3 : 2;
+  };
+  return [...columns].sort((left, right) => area(left) - area(right));
 }
 
 function isCursorPage(
@@ -100,9 +141,9 @@ export function projectRecord(
     );
 
   const byName = new Map(definition.fields.map(field => [field.name, field]));
-  const columns = config.table.columns.flatMap(column => {
+  const columns = laidOut(config.table.columns, rowKey).flatMap(column => {
     const field = byName.get(column.field);
-    return field ? [columnView(field, column)] : [];
+    return field ? [columnView(field, column, rowKey)] : [];
   });
 
   const rows = page.list.map(data => ({

@@ -1930,13 +1930,19 @@ describe('useRecordTable', () => {
       selectedRows: [],
     });
     expect(result.current.sortOf('id')).toBeNull();
+    expect(result.current.pinnedOf('id')).toBeNull();
+    expect(result.current.summaryOf('amount')).toBeNull();
     expect(result.current.isSelected('o-1')).toBe(false);
     expect(() => {
       result.current.toggleSort('id');
+      result.current.setSort([{ field: 'amount', direction: 'ASC' }]);
       result.current.toggle('o-1');
       result.current.toggleAll();
       result.current.clearSelection();
       result.current.setColumns(['id']);
+      result.current.setColumnOrder(['id']);
+      result.current.setPinned('id', 'left');
+      result.current.setSummary('amount', 'SUM');
       result.current.setLayout('card');
       result.current.setPageSize(10);
       result.current.goTo(2);

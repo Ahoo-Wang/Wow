@@ -84,7 +84,18 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   readonly limits: RuntimeLimits;
   getSnapshot(): ViewRuntimeState<C>;
   subscribe(listener: () => void): () => void;
-  /** Changes the draft only, synchronously. */
+  /**
+   * Changes the draft only, synchronously.
+   *
+   * A member given as `undefined` is **removed** rather than set to it. A
+   * config is JSON, where a member that is not there and one that is
+   * `undefined` are the same config but not the same object — and `dirty`
+   * is an equality against the saved one, so setting it left a view
+   * permanently unsaved and the leave guard asking about an edit the user
+   * had already undone. An editor that takes the last entry out of an
+   * optional list therefore says `undefined` and gets the config back as it
+   * was.
+   */
   edit(patch: Partial<C>): void;
   /** Promotes a valid draft to `applied` and executes it. */
   apply(): void;
@@ -275,6 +286,23 @@ export function withoutScopeModeWarning(
 }
 
 /** An `error` blocks apply and every write; a `warning` only reports. */
+/**
+ * The draft with `patch` over it, where a member given as `undefined` is
+ * removed rather than set to it.
+ *
+ * A config is JSON. A member that is not there and a member that is
+ * `undefined` are the same config, but not the same object, and `dirty` is
+ * an equality against the saved one — so an editor that took the last entry
+ * out of an optional list left the view unsaved for the rest of the session,
+ * with the leave guard asking about an edit that had already been undone.
+ */
+function patched<C extends object>(draft: C, patch: Partial<C>): C {
+  const next: Record<string, unknown> = { ...draft, ...patch };
+  for (const [key, value] of Object.entries(patch))
+    if (value === undefined) delete next[key];
+  return next as C;
+}
+
 export function hasError(issues: readonly Issue[]): boolean {
   return issues.some(entry => entry.severity === 'error');
 }
@@ -389,7 +417,7 @@ export class DataViewRuntime<
 
   edit(patch: Partial<C>): void {
     if (this.stopped) return;
-    const draft = { ...this.state.draft, ...patch };
+    const draft = patched(this.state.draft, patch);
     this.setState({
       draft,
       issues: this.admit(draft),

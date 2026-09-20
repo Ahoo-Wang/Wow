@@ -20,7 +20,16 @@ const preview: Preview = {
   parameters: {
     a11y: {
       context: {
-        exclude: [['.ant-select-dropdown'], ['.ant-table-measure-row']],
+        exclude: [
+          ['.ant-select-dropdown'],
+          ['.ant-table-measure-row'],
+          // Base UI puts a pair of focus sentinels around every open popup —
+          // `aria-hidden` and `tabindex="0"`, which is exactly the shape
+          // `aria-hidden-focus` is written to catch. They are how the popup
+          // keeps the tab order inside itself, they are what the library
+          // ships, and no story can render one differently.
+          ['[data-base-ui-focus-guard]'],
+        ],
       },
       test: 'error',
     },

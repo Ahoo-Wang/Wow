@@ -152,6 +152,10 @@ export function RecordWorkbench({
               table={table}
               fields={fields}
               fieldGroups={record.definition.fieldGroups}
+              rowKey={record.definition.record?.rowKey}
+              // The settings show the action column only when there is one:
+              // a host that hands over no row slot has no column to place.
+              hasRowActions={row !== undefined}
               bulkActions={actions?.bulk}
               runtime={record}
             />

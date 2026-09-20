@@ -53,6 +53,8 @@
   "dependencies": {
     "@ahoo-wang/fetcher-wow": "workspace:^",
     "@base-ui/react": "catalog:",
+    "@dnd-kit/dom": "catalog:",
+    "@dnd-kit/react": "catalog:",
     "class-variance-authority": "catalog:",
     "cn": "catalog:",
     "culori": "catalog:",

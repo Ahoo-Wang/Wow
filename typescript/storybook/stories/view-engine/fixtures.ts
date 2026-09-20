@@ -358,10 +358,31 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * The store the table-settings story writes into.
+ *
+ * Its regression play changes the columns, the pinning, a summary and the
+ * sort, then saves — and what it has to prove is that the *saved config*
+ * holds all four. The screen shows the draft whether or not anything landed,
+ * so the store is the only witness, and a play cannot otherwise reach the
+ * one its story built. It lives here rather than beside the story because
+ * everything a stories module exports is taken for a story.
+ */
+export const tableSettingsStore: { current: MemoryViewStore | null } = {
+  current: null,
+};
+
 export interface StoryEngineOptions {
   behaviour?: SourceBehaviour;
   instances?: ViewInstance[];
   definitions?: (DataViewDefinition | DashboardDefinition)[];
+  /**
+   * The store to build on, when a story keeps a handle to it. A regression
+   * play that asserts what a save *wrote* has to read the store itself: the
+   * screen shows the draft either way, so asserting the screen would pass
+   * just as happily with nothing persisted at all.
+   */
+  store?: MemoryViewStore;
 }
 
 /**
@@ -374,7 +395,9 @@ export function createStoryEngine(
 ): ViewEngine {
   return new ViewEngine({
     definitions: options.definitions ?? [ordersDefinition, overviewDefinition],
-    store: new MemoryViewStore({ instances: options.instances ?? savedViews }),
+    store:
+      options.store ??
+      new MemoryViewStore({ instances: options.instances ?? savedViews }),
     resolveSource: () => storySource(options.behaviour),
   });
 }

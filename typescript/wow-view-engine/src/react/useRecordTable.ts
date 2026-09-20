@@ -17,18 +17,37 @@ import type {
   FieldOption,
   Issue,
   NumberFormat,
+  RecordColumn,
   RecordKey,
   RecordLayout,
   RecordSort,
+  RecordSummary,
   SortDirection,
+  SummaryFunction,
+  ViewInstance,
 } from '../model/index.js';
+import { columnPin, type RecordColumnPin } from '../model/index.js';
+import {
+  recordColumns,
+  recordSort,
+  recordSummaries,
+  wasSound,
+} from './recordDraft.js';
+import { maxSortFields } from '../record/index.js';
+// The side a column is held on, named once in the model and offered here so
+// a control can talk about pinning without importing the kernel's types.
+export type { RecordColumnPin };
 import type {
   RecordColumnView,
   RecordPaging,
   RecordRow,
   SummaryRow,
 } from '../record/index.js';
-import type { QueryStatus, RecordViewRuntime } from '../runtime/index.js';
+import type {
+  QueryStatus,
+  RecordViewRuntime,
+  ViewRuntimeState,
+} from '../runtime/index.js';
 import type { RecordViewConfig } from '../model/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
@@ -64,6 +83,87 @@ export interface RecordCardField {
   numberFormat?: NumberFormat;
 }
 
+/**
+ * One column with its pinning changed.
+ *
+ * The member is rebuilt rather than spread over, because a config is JSON
+ * and `{ pinned: undefined }` is not the same object as one without the key:
+ * it survives a `dequal` against the saved baseline as a difference, and a
+ * view that was only unpinned back to where it started would stay marked as
+ * unsaved for the rest of the session.
+ */
+function repinned(
+  column: RecordColumn,
+  pinned: RecordColumnPin | null,
+): RecordColumn {
+  return {
+    field: column.field,
+    ...(column.width === undefined ? {} : { width: column.width }),
+    ...(pinned === null ? {} : { pinned }),
+  };
+}
+
+/**
+ * The summaries to write, in the shape the saved config uses for none.
+ *
+ * `summaries` is optional, so "no summaries" is spelled two ways — an empty
+ * list, or no member at all — and `dirty` is an equality against the saved
+ * config, which cannot tell the difference between a shape and a change.
+ * Adding a summary and taking it away again therefore left the view unsaved
+ * for the rest of the session, with the leave guard asking about an edit
+ * that had already been undone. `edit` removes a member given as
+ * `undefined`, so answering with the saved config's own spelling makes
+ * undoing an undo.
+ */
+function summariesOf(
+  next: RecordSummary[],
+  saved: ViewInstance | null,
+): RecordSummary[] | undefined {
+  if (next.length > 0) return next;
+  const config = saved?.config;
+  return config?.kind === 'record' && config.summaries !== undefined
+    ? []
+    : undefined;
+}
+
+/**
+ * The patch, plus the sound form of any list the draft could not be read
+ * from and this patch does not already replace.
+ *
+ * A list the controller had to repair is a config the kernel refuses over
+ * entries that are not on screen — they could not be read, so no control
+ * lists them and no control can take them out. Carrying the repair along
+ * with whatever the user *did* change is what makes "the first change they
+ * make writes the sound list back" true of every list rather than only of
+ * the one they touched: with no sortable field left to add, an unreadable
+ * `sort` had no other way out at all.
+ */
+function repairing(
+  patch: Partial<RecordViewConfig>,
+  state: ViewRuntimeState<RecordViewConfig>,
+): Partial<RecordViewConfig> {
+  const draft = state.draft;
+  const repairs: Partial<RecordViewConfig> = {};
+
+  const sort = recordSort(draft.sort);
+  if (patch.sort === undefined && !wasSound(draft.sort, sort))
+    repairs.sort = sort;
+
+  const summaries = recordSummaries(draft.summaries);
+  if (
+    !('summaries' in patch) &&
+    draft.summaries !== undefined &&
+    !wasSound(draft.summaries, summaries)
+  )
+    repairs.summaries = summariesOf(summaries, state.saved);
+
+  const columns = recordColumns(draft.table?.columns);
+  if (patch.table === undefined && !wasSound(draft.table?.columns, columns))
+    repairs.table = { columns };
+
+  return { ...repairs, ...patch };
+}
+
 function cardField(field: FieldDefinition): RecordCardField {
   return {
     field: field.name,
@@ -92,6 +192,25 @@ export interface RecordTableController {
   sortOf(field: string): SortDirection | null;
   /** Ascending, then descending, then off. Applies at once, like a table does. */
   toggleSort(field: string): void;
+  /**
+   * Replaces the whole sort, in priority order, and applies at once.
+   *
+   * `toggleSort` is one column's answer and can only append; an editor that
+   * shows the sort as a list needs to say which field comes first, flip one
+   * of them and drop one of them, and all three are the same write.
+   */
+  setSort(sort: RecordSort[]): void;
+  /**
+   * How many fields this view may sort on at once.
+   *
+   * A cursor is a position in one total order, and Wow bounds how many
+   * fields that order may be built from, so `validateRecord` refuses a
+   * longer sort and `apply` never runs: the rows keep the order they had and
+   * the view sits in an error the user did not ask for. A control that
+   * offers a field therefore has to stop at the ceiling. A paged source has
+   * no such bound, and answers with the number of fields it could sort on.
+   */
+  maxSortFields: number;
 
   layout: RecordLayout;
   /**
@@ -102,7 +221,39 @@ export interface RecordTableController {
   setLayout(layout: RecordLayout): void;
   /** Fields of the draft's table layout, in order. */
   columnFields: string[];
+  /**
+   * Which columns the table shows, in order, and applies at once.
+   *
+   * A column that goes takes its summary with it: a summary belongs to a
+   * column, so one left behind buys an aggregation query with nowhere to
+   * appear. Each column that stays is reused as it was configured, so its
+   * width and pinning survive.
+   */
   setColumns(fields: string[]): void;
+  /**
+   * Puts the draft's columns in this order and applies at once.
+   *
+   * A name that is not a column is ignored and a column the caller leaves
+   * unnamed keeps its place at the end, so a control that knows about part
+   * of the table — one area of the column settings — cannot drop the rest
+   * of it by saying nothing about it.
+   */
+  setColumnOrder(fields: string[]): void;
+  /** Which side the draft holds a column on, or null when it is unpinned. */
+  pinnedOf(field: string): RecordColumnPin | null;
+  /** Holds a column on one side of the table, or lets it go. Applies at once. */
+  setPinned(field: string, pinned: RecordColumnPin | null): void;
+  /** The function the draft summarises a column with, if any. */
+  summaryOf(field: string): SummaryFunction | null;
+  /**
+   * Replaces whatever a column summarised with one function, or with none.
+   *
+   * A config may carry several functions for one field and the table shows
+   * all of them; this writes one, because a control that offers a column one
+   * summary is the shape the settings have. Setting one therefore drops the
+   * others on that column, and `null` leaves it without a summary.
+   */
+  setSummary(field: string, fn: SummaryFunction | null): void;
   pageSize: number;
   /**
    * Page sizes worth offering: the standard ladder, cut to what the runtime
@@ -149,6 +300,8 @@ const PAGE_SIZES = [10, 20, 50, 100];
 
 /** Stable identities for "no runtime yet", so memo dependencies stay still. */
 const NO_SORT: RecordSort[] = [];
+const NO_COLUMNS: RecordColumn[] = [];
+const NO_SUMMARIES: RecordSummary[] = [];
 const NO_SELECTION: RecordKey[] = [];
 const NO_ROWS: RecordRow[] = [];
 const NO_LAYOUTS: RecordLayout[] = [];
@@ -180,12 +333,27 @@ export function useRecordTable(
         : rows.filter(row => selected.has(row.key)),
     [rows, selected, selection],
   );
-  const sort = state?.draft.sort ?? NO_SORT;
+  // Read through `recordDraft`, so what this hands the UI is always a
+  // list of well-formed entries whatever the store held — see the rule
+  // on that module, and `docs/design/react.md`.
+  const draft = state?.draft;
+  const sort = useMemo(
+    () => (draft ? recordSort(draft.sort) : NO_SORT),
+    [draft],
+  );
+  const tableColumns = useMemo(
+    () => (draft ? recordColumns(draft.table?.columns) : NO_COLUMNS),
+    [draft],
+  );
+  const summaries = useMemo(
+    () => (draft ? recordSummaries(draft.summaries) : NO_SUMMARIES),
+    [draft],
+  );
 
   const toggleSort = useCallback(
     (field: string) => {
       if (!runtime) return;
-      const current = runtime.getSnapshot().draft.sort;
+      const current = recordSort(runtime.getSnapshot().draft.sort);
       const at = current.findIndex(entry => entry.field === field);
       // A new field joins at the end; an existing one keeps its place, because
       // the order of `sort` is the priority between columns.
@@ -206,7 +374,7 @@ export function useRecordTable(
   const editAndApply = useCallback(
     (patch: Partial<RecordViewConfig>) => {
       if (!runtime) return;
-      runtime.edit(patch);
+      runtime.edit(repairing(patch, runtime.getSnapshot()));
       runtime.apply();
     },
     [runtime],
@@ -288,6 +456,16 @@ export function useRecordTable(
       [sort],
     ),
     toggleSort,
+    setSort: useCallback(
+      (sort: RecordSort[]) => editAndApply({ sort }),
+      [editAndApply],
+    ),
+    // The kernel owns the rule; the controller only hands it on, so the
+    // ceiling a control stops at is the one `validateRecord` refuses past.
+    maxSortFields:
+      runtime?.definition.kind === 'data'
+        ? maxSortFields(runtime.definition)
+        : 0,
 
     layout: state?.draft.layout ?? 'table',
     layouts:
@@ -295,12 +473,24 @@ export function useRecordTable(
         ? (runtime.definition.record?.layouts ?? NO_LAYOUTS)
         : NO_LAYOUTS,
     setLayout: useCallback(
-      (layout: RecordLayout) => runtime?.edit({ layout }),
+      (layout: RecordLayout) => {
+        if (!runtime) return;
+        runtime.edit({ layout });
+        // Both layouts draw the same result, so switching normally needs
+        // no query. A view whose saved layout the definition no longer
+        // allows has no result at all, though: `apply` was refused on
+        // open, `refresh` is a no-op until something has been admitted,
+        // and the switch that repairs it would otherwise leave the screen
+        // as empty as it found it.
+        const state = runtime.getSnapshot();
+        if (state.result === null && state.query.status === 'idle')
+          runtime.apply();
+      },
       [runtime],
     ),
     columnFields: useMemo(
-      () => (state?.draft.table.columns ?? []).map(column => column.field),
-      [state],
+      () => tableColumns.map(column => column.field),
+      [tableColumns],
     ),
     setColumns: useCallback(
       (fields: string[]) => {
@@ -308,14 +498,97 @@ export function useRecordTable(
         // Reuse each column as it was configured: rebuilding from the field
         // name alone would drop its width and pinning on the next save.
         const existing = new Map(
-          runtime
-            .getSnapshot()
-            .draft.table.columns.map(column => [column.field, column]),
+          recordColumns(runtime.getSnapshot().draft.table?.columns).map(
+            column => [column.field, column],
+          ),
         );
+        // A summary belongs to a column, so a column that goes takes its
+        // summary with it — in this one update. Left behind, the runtime
+        // keeps asking for an aggregate with nowhere to appear: the scope
+        // row stands empty, a failed aggregate warns about a summary nobody
+        // can see, and the settings disable the select that would clear it.
+        const shown = new Set(fields);
+        const state = runtime.getSnapshot();
         editAndApply({
           table: {
             columns: fields.map(field => existing.get(field) ?? { field }),
           },
+          summaries: summariesOf(
+            recordSummaries(state.draft.summaries).filter(summary =>
+              shown.has(summary.field),
+            ),
+            state.saved,
+          ),
+        });
+      },
+      [editAndApply, runtime],
+    ),
+    setColumnOrder: useCallback(
+      (fields: string[]) => {
+        if (!runtime) return;
+        const columns = recordColumns(
+          runtime.getSnapshot().draft.table?.columns,
+        );
+        const byField = new Map(columns.map(column => [column.field, column]));
+        const named = new Set<string>();
+        const ordered = fields.flatMap(field => {
+          const column = byField.get(field);
+          // A name repeated by the caller would otherwise become a second
+          // column of the same field, which `validateRecord` then refuses.
+          if (!column || named.has(field)) return [];
+          named.add(field);
+          return [column];
+        });
+        editAndApply({
+          table: {
+            columns: [
+              ...ordered,
+              ...columns.filter(column => !named.has(column.field)),
+            ],
+          },
+        });
+      },
+      [editAndApply, runtime],
+    ),
+    // Read through `columnPin`, so the type this declares is true even of a
+    // config that came out of a store saying `pinned: 'top'`.
+    pinnedOf: useCallback(
+      (field: string) =>
+        columnPin(tableColumns.find(column => column.field === field)?.pinned),
+      [tableColumns],
+    ),
+    setPinned: useCallback(
+      (field: string, pinned: RecordColumnPin | null) => {
+        if (!runtime) return;
+        editAndApply({
+          table: {
+            columns: recordColumns(
+              runtime.getSnapshot().draft.table?.columns,
+            ).map(column =>
+              column.field === field ? repinned(column, pinned) : column,
+            ),
+          },
+        });
+      },
+      [editAndApply, runtime],
+    ),
+    summaryOf: useCallback(
+      (field: string) =>
+        summaries.find(entry => entry.field === field)?.fn ?? null,
+      [summaries],
+    ),
+    setSummary: useCallback(
+      (field: string, fn: SummaryFunction | null) => {
+        if (!runtime) return;
+        const state = runtime.getSnapshot();
+        const rest = recordSummaries(state.draft.summaries).filter(
+          entry => entry.field !== field,
+        );
+        editAndApply({
+          summaries: summariesOf(
+            fn === null ? rest : [...rest, { field, fn }],
+            state.saved,
+          ),
         });
       },
       [editAndApply, runtime],

@@ -22,6 +22,10 @@ export const recordMessages = {
   'label.toolbar.layout': 'Layout',
   'label.toolbar.columns': 'Columns',
   'label.toolbar.refresh': 'Refresh',
+  // The two groups on the right of the toolbar, named so a screen reader
+  // hears what a group is for rather than "group, group".
+  'label.toolbar.arrange': 'Table settings',
+  'label.toolbar.freshness': 'Freshness',
   'label.toolbar.selected': '{count} selected',
   'label.toolbar.clear-selection': 'Clear selection',
   'label.toolbar.actions': 'Actions',
@@ -71,6 +75,7 @@ export const recordMessages = {
   'label.summary.total': 'Total',
   'label.summary.scope.page': 'This page',
   'label.summary.scope.total': 'All records',
+  'label.summary.fn.none': 'No summary',
   'label.summary.fn.SUM': 'Sum',
   'label.summary.fn.AVG': 'Average',
   'label.summary.fn.MIN': 'Min',
@@ -78,17 +83,59 @@ export const recordMessages = {
   'label.summary.fn.COUNT': 'Count',
   'label.summary.unavailable': '—',
 
+  // The column settings. The two areas a column cannot leave are named by
+  // the same words as the pin states, because they are the same fact: a
+  // column is in the left area precisely because it is held on the left.
+  'label.columns.title': 'Column settings',
+  'label.columns.hint':
+    'Drag a handle to reorder columns within one area. The key column stays on the left and actions stay on the right.',
+  'label.columns.instructions':
+    'Press the arrow keys to move a column one place. Press space to pick it up, the arrow keys to move it, space again to drop it and escape to cancel.',
+  'label.columns.drag': 'Reorder {field}',
+  'label.columns.moved': '{field} moved to position {index} of {total}',
+  'label.columns.picked': '{field} picked up',
+  'label.columns.cancelled': 'Move cancelled; {field} stayed where it was',
+  'label.columns.show': 'Show {field}',
+  'label.columns.last-visible': 'A table needs at least one column.',
+  'label.columns.hidden':
+    'A column has to be shown before it can be pinned or summarised.',
+  'label.columns.unknown':
+    'A column shown in grey is not in this data any more; switch it off to take it out.',
+  'label.columns.summary': 'Summary under {field}',
+  'label.columns.pin': 'Pinning of {field}: {state}',
+  'label.columns.pin.none': 'Not pinned',
+  'label.columns.pin.left': 'Pinned left',
+  'label.columns.pin.right': 'Pinned right',
+
+  // The sort editor behind the toolbar's button. It says the direction in
+  // one word, because it labels a row of a list rather than a button whose
+  // whole job is one column; taking a field out of the sort is the header's
+  // own `label.sort.none`, which already says exactly that.
+  'label.sort.title': 'Sort',
+  'label.sort.hint': 'Rows are ordered by the first field, then by the next.',
+  'label.sort.unsorted': 'These rows are in no particular order.',
+  'label.sort.asc': 'Ascending',
+  'label.sort.desc': 'Descending',
+  'label.sort.more': '+{count}',
+  'label.sort.direction': 'Direction of {field}',
+  'label.sort.add': 'Sort by a field',
+  'label.sort.full': 'These rows can be ordered by at most {max} fields.',
+
   // Record kernel.
   'record.capability.missing':
     '{definition} does not offer a record view any more.',
   'record.card.invalid': 'The card settings could not be read.',
   'record.column.duplicate': 'The column {field} is listed twice.',
+  'record.column.pin-invalid':
+    'The column {field} is held to {pinned}, which is neither side.',
   'record.field.not-a-column':
     '{field} is a search or metadata handle, not something a row holds.',
   'record.field.unknown': 'The column {field} no longer exists.',
   'record.layout.unsupported': 'The {layout} layout is not available here.',
   'record.pageSize.not-positive': 'The page size must be a positive number.',
   'record.pageSize.too-large': 'The page size cannot exceed {max}.',
+  'record.sort.direction-invalid':
+    'The sort on {field} reads neither ascending nor descending.',
   'record.sort.duplicate': 'The sort already orders by {field}.',
   'record.sort.invalid': 'The sort settings could not be read.',
   'record.sort.not-sortable': '{field} cannot be sorted on.',

@@ -22,6 +22,14 @@ export function readColumn(table: HTMLElement, header: string): string[] {
   );
 }
 
+/** The column headers a reader sees, left to right, empty ones left out. */
+export function readHeaders(table: HTMLElement): string[] {
+  const cells = (table as HTMLTableElement).tHead?.rows[0]?.cells ?? [];
+  return [...cells]
+    .map(cell => cell.textContent?.trim() ?? '')
+    .filter(text => text !== '');
+}
+
 /**
  * The cell under a header in the row summarising everything the conditions
  * match. A record table shows the page beside it and says which is which on

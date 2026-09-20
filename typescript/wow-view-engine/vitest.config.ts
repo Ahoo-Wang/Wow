@@ -33,6 +33,9 @@ export default defineConfig(({ mode }) => ({
   },
   test: {
     environment: 'jsdom',
+    // The browser APIs jsdom lacks and `@dnd-kit/dom` reaches for as it is
+    // imported; see `test/setup.ts`.
+    setupFiles: ['test/setup.ts'],
     clearMocks: true,
     restoreMocks: true,
     coverage: {

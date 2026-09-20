@@ -63,6 +63,16 @@ useFilterEditor(runtime): FilterController
 - blocked 是落在条件上的 error 条数——包括编辑器画不出 pill 的那些（畸形节点），它们同样阻塞 Apply，只是由状态条而不是 pill 报出；
 - unmarked 与 blocked 成对：blocked 数的是 pill 上那些（外加画不出 pill 的），unmarked 给出的是**没有一处标记**的那些——畸形节点、分组自身的 error，以及配置里条件以外的 error（掉了的列、不再受理的页大小）。两者合起来把"拦住视图的每一条 error"交代完，各说一次、互不重复：pill 一份，编辑器上方的状态条一份。判断由 `filter/marks.ts` 的 `unmarkedErrors(issues, tree)` 做，它只问树——哪些路径解析得到一条渲染得出的条件（谓词内部的条件也算）——所以它属于内核而不属于编辑器；unmarked 走的是整份 `state.issues` 而不是被本树收窄过的 `issues`。（见 test/reactHooks.test.tsx「useFilterEditor」「useFilterEditor pending and applied」「useFilterEditor under a host scope filter」与 test/statusStrip.test.tsx「ErrorStrip」）
 
+## 控制器是边界
+
+**控制器交给 UI 的列表，永远是可安全遍历、成员格式良好的列表**，无论存储里放的是什么。配置来自存储：`sort` 可能是一个对象、一个字符串，或一个含 `null` 的数组，`summaries` 同理。准入会报出形状（`record.sort.invalid`、`record.summaries.invalid`）、草稿因此停在错误态——但**能让用户删掉那一条的编辑器，正是从这同一份草稿渲染出来的**，一次 `.map` 落在字符串上就把工作台带走，用户根本够不着那一条。所以归一化发生在控制器这道边界上（`src/react/recordDraft.ts`），面板不再各写一遍防御性读取，下一个人写的面板也自动继承这条保证。
+
+整份列表读不出来时（`sort` 是个字符串），它归一化成空列表——于是那些条目一个都不在屏幕上，也就没有任何控件能删掉它们，而准入仍在报 `record.sort.invalid`。所以控制器的**任何一次写入都顺带把读不出的列表按归一化结果写回去**（`editAndApply` 里的 `repairing`）：用户改一个列，那个曾经是字符串的 `sort` 就变成他们看得见的列表。否则定义里一个可排序字段都没有时，那份 `sort` 根本没有出路。
+
+读不出来的条目就地丢掉，这本身也是修复路径：用户编辑的是那份读得出的列表，他们做的第一个改动就把它写回去，那条从来读不出的条目随之消失，准入也就不再报了。方向这类**值**的问题则不丢条目而是取默认（`'DESC'` 以外读作升序）——字段是用户选的，方向是他们看得见之后一按就能翻的那一半。
+
+（见 test/recordTableCommands.test.tsx「the shapes a store can hold」，其中一条直接拿真实控制器把 `ResultToolbar` 渲染出来。）
+
 ## useRecordTable
 
 ```ts
@@ -72,6 +82,16 @@ useRecordTable(runtime): RecordTableController
 - 列语义、排序、列宽列序、选择、分页；
 - 无 TanStack 类型；
 - layouts 为定义允许的布局，selectedRows 为当前结果中被选中的行（结果顺序），pageSizes 为可供选择的每页条数（标准档位按 runtime.limits.maxPageSize 裁剪，并并入当前值）。（见 test/reactHooks.test.tsx「useRecordTable」）
+
+改动配置的命令一律是一次 `edit` 加一次 `apply`，与既有的 `toggleSort`／`setColumns` 同一条路径：表格画的是内核按**执行时**的配置投影出来的列与行，不重跑就看不到改动（筛选则等提交）。列设置与排序控件（[ui/record.md](ui/record.md)）所需的那几条：
+
+- `setColumnOrder(fields)`——按给定顺序重排草稿的列。不是列的名字忽略，重复的名字只算一次（否则会落成同一字段的两列，`validateRecord` 随即拒绝），**没被点到名的列保留在末尾**：只了解表格一部分的控件（列设置的一个区域）不该因为没提到其余部分就把它们删掉；每一列按原样搬运，宽度与固定不会在下次保存时丢失；
+- `setLayout(layout)`——表格还是卡片。两种布局画的是同一份结果，所以平时只 `edit` 不 `apply`；但保存的布局已不在定义允许之列时，`apply` 在打开时就被拒、`refresh` 在有东西被准入之前是空操作，此时这个切换如果只 `edit`，屏幕修好了也还是空的——所以**什么都没跑过时**（`result === null` 且查询 `idle`）它顺带 `apply` 一次；
+- `setColumns(fields)`——表格显示哪几列、按什么顺序。**被关掉的列的汇总在同一次写入里一并删掉**：汇总属于列，留下的那条只会换来一次没处可画的聚合（见 [ui/record.md](ui/record.md)）；留下的列照旧按原样搬运，宽度与固定不丢；
+- `pinnedOf(field)` / `setPinned(field, pinned)`——草稿把某列固定在哪一侧，`null` 为不固定。读的时候走 `columnPin()`，所以存进来的 `'top'` 读作"不固定"而不是一个侧边，签名声明的类型对不可信配置也成立。取消固定时删键而不是置 `undefined`（理由见 [ui/record.md](ui/record.md)）；
+- `summaryOf(field)` / `setSummary(field, fn)`——某列底下汇总用的函数。**删掉最后一条时按已保存配置的写法还原**：`summaries` 是可选成员，"没有汇总"有两种写法（空数组、没有这个成员），而 `dirty` 是与已保存配置的一次相等比较——分不清换了写法和改了内容。加一条又删掉，视图会就此一直显示"未保存"、离开守卫还会问一句用户早就撤销过的改动。`ViewRuntime.edit` 因此把值为 `undefined` 的成员**删掉**而不是置为 `undefined`（配置是 JSON，没有这个成员与成员为 `undefined` 是同一份配置、却不是同一个对象），控制器则按已保存那份的写法作答；配置允许一个字段带多个函数、表格也全画出来，而这条命令写**一个**：控件一列只给一个下拉，设一个就替换掉该列原有的，`null` 则该列不汇总，其余列不受影响；
+- `maxSortFields`——这个视图一次最多按几个字段排序：游标源取 Wow 的上限，分页源取定义里字段的个数。规则在内核（`record/maxSortFields`），控制器只转交，所以"控件停在哪"与"内核从哪开始拒绝"是同一个数；
+- `setSort(sort)`——整份排序按优先级顺序替换。`toggleSort` 是单列的答案、只能往后追加，而把排序当作一张列表来编辑要能说清谁先谁后、翻转其中一条、删掉其中一条，三件事是同一次写入。（见 test/recordTableCommands.test.tsx）
 
 ## useSaveCommands
 

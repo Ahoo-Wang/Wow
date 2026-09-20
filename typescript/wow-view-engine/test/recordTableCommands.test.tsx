@@ -1,0 +1,579 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * The commands the column settings and the sort control write through:
+ * order, pinning, summaries and the whole sort. Each is an `edit` followed
+ * by an `apply`, like the column and sort commands that were here before —
+ * the table renders the result the kernel projected, so a change that is not
+ * applied is a change nobody can see.
+ */
+
+import { MAX_CURSOR_SORT_FIELDS } from '@ahoo-wang/fetcher-wow';
+import {
+  act,
+  cleanup,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  MemoryViewStore,
+  ViewEngine,
+  type DataViewDefinition,
+  type RecordViewConfig,
+  type RecordViewRuntime,
+  type ViewInstance,
+} from '../src/index.js';
+import { useOpenView, useRecordTable } from '../src/react/index.js';
+import { ResultToolbar } from '../src/ui/ResultToolbar.js';
+import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+
+afterEach(cleanup);
+
+/**
+ * Orders with two summarisable fields and two sortable ones, so a command
+ * that replaces one of several has something to leave alone. Everything the
+ * commands write is admitted, so `apply` runs and the assertions are about
+ * the command rather than about a validation error.
+ */
+function definition(): DataViewDefinition {
+  return ordersDefinition({
+    fields: ordersDefinition().fields.map(field => {
+      if (field.name === 'amount')
+        return { ...field, summary: ['SUM', 'AVG', 'MAX'] as const };
+      if (field.name === 'warehouse')
+        return { ...field, summary: ['COUNT'] as const };
+      if (field.name === 'id') return { ...field, sortable: true };
+      return field;
+    }),
+  });
+}
+
+const mine: ViewInstance = {
+  id: 'orders-1',
+  definitionId: 'orders',
+  title: 'Mine',
+  scope: 'personal',
+  revision: '1',
+  config: recordConfig(),
+};
+
+/**
+ * Opens the view and waits for rows. A config the definition refuses never
+ * runs — `apply` is blocked while the draft holds an error — so a suite
+ * about such a config passes `ready: false` and reads the draft instead.
+ */
+async function openTable(
+  config?: Partial<RecordViewConfig>,
+  overrides: Partial<DataViewDefinition> = {},
+  ready = true,
+) {
+  const engine = new ViewEngine({
+    definitions: [{ ...definition(), ...overrides }],
+    store: new MemoryViewStore({
+      instances: [config ? { ...mine, config: recordConfig(config) } : mine],
+    }),
+    resolveSource: () => testSource(),
+  });
+  const { result } = renderHook(() => {
+    const opened = useOpenView(engine, 'orders-1');
+    return {
+      runtime: opened.runtime as RecordViewRuntime | null,
+      table: useRecordTable(opened.runtime as RecordViewRuntime | null),
+    };
+  });
+  if (ready)
+    await waitFor(() => expect(result.current.table.status).toBe('success'));
+  else await waitFor(() => expect(result.current.runtime).not.toBeNull());
+  return result;
+}
+
+/** The draft as the runtime holds it, which is what a save would write. */
+function draft(result: {
+  current: { runtime: RecordViewRuntime | null };
+}): RecordViewConfig {
+  return result.current.runtime!.getSnapshot().draft;
+}
+
+describe('setColumnOrder', () => {
+  it('puts the columns in the order it is given, and applies at once', async () => {
+    const result = await openTable();
+
+    act(() => result.current.table.setColumnOrder(['amount', 'id']));
+
+    await waitFor(() =>
+      expect(result.current.table.columnFields).toEqual(['amount', 'id']),
+    );
+    // The result on screen answers the new order rather than the old one:
+    // the kernel projects columns from the config that ran. The row key
+    // still leads it, because that is decided where the table reads the
+    // order rather than by whoever wrote the config — the same place its
+    // left pin is decided, and for the same reason.
+    expect(result.current.table.columns.map(column => column.field)).toEqual([
+      'id',
+      'amount',
+    ]);
+  });
+
+  /**
+   * Each column is reused rather than rebuilt from its name, so a width or a
+   * pinning set earlier survives a reorder instead of being dropped on the
+   * next save.
+   */
+  it('carries each column’s own settings through the move', async () => {
+    const result = await openTable({
+      table: {
+        columns: [
+          { field: 'id', pinned: 'left' },
+          { field: 'amount', width: 120 },
+        ],
+      },
+    });
+
+    act(() => result.current.table.setColumnOrder(['amount', 'id']));
+
+    await waitFor(() =>
+      expect(draft(result).table.columns).toEqual([
+        { field: 'amount', width: 120 },
+        { field: 'id', pinned: 'left' },
+      ]),
+    );
+  });
+
+  /**
+   * A control that knows about one area of the table names only that area.
+   * Dropping everything it did not mention would empty the table from a
+   * control that was asked to reorder two of its columns.
+   */
+  it('keeps a column it was not told about, at the end', async () => {
+    const result = await openTable({
+      table: {
+        columns: [{ field: 'id' }, { field: 'warehouse' }, { field: 'amount' }],
+      },
+    });
+
+    act(() => result.current.table.setColumnOrder(['amount', 'id']));
+
+    await waitFor(() =>
+      expect(result.current.table.columnFields).toEqual([
+        'amount',
+        'id',
+        'warehouse',
+      ]),
+    );
+  });
+
+  it('ignores an unknown name and a name said twice', async () => {
+    const result = await openTable();
+
+    act(() =>
+      result.current.table.setColumnOrder(['amount', 'amount', 'gone', 'id']),
+    );
+
+    await waitFor(() =>
+      expect(result.current.table.columnFields).toEqual(['amount', 'id']),
+    );
+  });
+});
+
+describe('setPinned', () => {
+  it('holds a column on a side and lets it go again', async () => {
+    const result = await openTable();
+
+    act(() => result.current.table.setPinned('amount', 'right'));
+    await waitFor(() =>
+      expect(result.current.table.pinnedOf('amount')).toBe('right'),
+    );
+    expect(result.current.table.pinnedOf('id')).toBeNull();
+
+    act(() => result.current.table.setPinned('amount', null));
+    await waitFor(() =>
+      expect(result.current.table.pinnedOf('amount')).toBeNull(),
+    );
+  });
+
+  /**
+   * A config is JSON, and `{ pinned: undefined }` is not the same object as
+   * one without the key: it reads as a difference against the saved baseline
+   * for the rest of the session, so a column pinned and unpinned again is
+   * the config it started as.
+   */
+  it('leaves no trace of a pinning that was taken back', async () => {
+    const result = await openTable();
+    const before = draft(result).table.columns;
+
+    act(() => result.current.table.setPinned('amount', 'left'));
+    await waitFor(() =>
+      expect(result.current.table.pinnedOf('amount')).toBe('left'),
+    );
+    act(() => result.current.table.setPinned('amount', null));
+
+    await waitFor(() => expect(draft(result).table.columns).toEqual(before));
+    expect(Object.keys(draft(result).table.columns[1]).includes('pinned')).toBe(
+      false,
+    );
+  });
+
+  /**
+   * A stored pinning of `'top'` is not a side. Read raw it became a key the
+   * catalogue has never heard of and took the settings popover — and the
+   * workbench around it — down; read through `columnPin` the controller's
+   * declared type is true of it.
+   */
+  it('reports a pinning that is neither side as none at all', async () => {
+    const result = await openTable(
+      {
+        table: {
+          columns: [{ field: 'id' }, { field: 'amount', pinned: 'top' }],
+        },
+      } as unknown as Partial<RecordViewConfig>,
+      {},
+      false,
+    );
+
+    expect(result.current.table.pinnedOf('amount')).toBeNull();
+    // And it is a finding rather than a silence: the view waits to be fixed.
+    expect(result.current.table.status).toBe('idle');
+  });
+
+  it('does nothing to a column the draft does not hold', async () => {
+    const result = await openTable();
+
+    act(() => result.current.table.setPinned('gone', 'left'));
+
+    await waitFor(() =>
+      expect(result.current.table.columnFields).toEqual(['id', 'amount']),
+    );
+    expect(result.current.table.pinnedOf('gone')).toBeNull();
+  });
+});
+
+describe('setLayout', () => {
+  /**
+   * Both layouts draw the same result, so switching normally needs no query
+   * — but a view whose saved layout the definition no longer allows has no
+   * result at all: `apply` was refused on open and `refresh` is a no-op
+   * until something has been admitted, so the switch that repairs it would
+   * have left the screen as empty as it found it.
+   */
+  it('runs the first query when the layout was the thing refused', async () => {
+    const result = await openTable(
+      { layout: 'card' },
+      { record: { rowKey: 'id', paging: 'paged', layouts: ['table'] } },
+      false,
+    );
+    expect(result.current.table.status).toBe('idle');
+
+    act(() => result.current.table.setLayout('table'));
+
+    await waitFor(() => expect(result.current.table.status).toBe('success'));
+    expect(result.current.table.rows.length).toBeGreaterThan(0);
+  });
+
+  /** A view that is already running only changes shape; the rows stay put. */
+  it('does not re-query a view that already has a result', async () => {
+    const result = await openTable();
+    const before = result.current.runtime!.getSnapshot().result;
+
+    act(() => result.current.table.setLayout('card'));
+
+    await waitFor(() => expect(result.current.table.layout).toBe('card'));
+    expect(result.current.runtime!.getSnapshot().result).toBe(before);
+  });
+});
+
+describe('setColumns', () => {
+  /**
+   * A summary belongs to a column. Left behind when the column is hidden,
+   * the runtime keeps asking for an aggregate with nowhere to appear — the
+   * scope row stands empty and a failure warns about a summary nobody can
+   * see — and the settings disable the select that would clear it, so there
+   * is no way back except showing the column again.
+   */
+  it('takes a hidden column\u2019s summary with it', async () => {
+    const result = await openTable({
+      summaries: [
+        { field: 'amount', fn: 'SUM' },
+        { field: 'warehouse', fn: 'COUNT' },
+      ],
+      table: {
+        columns: [{ field: 'id' }, { field: 'amount' }, { field: 'warehouse' }],
+      },
+    });
+
+    act(() => result.current.table.setColumns(['id', 'warehouse']));
+
+    await waitFor(() =>
+      expect(draft(result).summaries).toEqual([
+        { field: 'warehouse', fn: 'COUNT' },
+      ]),
+    );
+    expect(result.current.table.summaryOf('amount')).toBeNull();
+  });
+
+  it('leaves the summaries of the columns that stay', async () => {
+    const result = await openTable({
+      summaries: [{ field: 'amount', fn: 'SUM' }],
+    });
+
+    act(() => result.current.table.setColumns(['id', 'amount', 'warehouse']));
+
+    await waitFor(() =>
+      expect(result.current.table.columnFields).toEqual([
+        'id',
+        'amount',
+        'warehouse',
+      ]),
+    );
+    expect(draft(result).summaries).toEqual([{ field: 'amount', fn: 'SUM' }]);
+  });
+});
+
+describe('setSummary', () => {
+  it('summarises a column, and stops', async () => {
+    const result = await openTable();
+
+    act(() => result.current.table.setSummary('amount', 'SUM'));
+    await waitFor(() =>
+      expect(result.current.table.summaryOf('amount')).toBe('SUM'),
+    );
+    expect(draft(result).summaries).toEqual([{ field: 'amount', fn: 'SUM' }]);
+
+    act(() => result.current.table.setSummary('amount', null));
+    await waitFor(() =>
+      expect(result.current.table.summaryOf('amount')).toBeNull(),
+    );
+    // The saved config has no `summaries` member, so neither has this one
+    // again — see "leaves the view as saved once the last summary goes".
+    expect('summaries' in draft(result)).toBe(false);
+  });
+
+  /**
+   * `summaries` is optional, so "none" is spelled two ways, and `dirty` is
+   * an equality against the saved config — which cannot tell a shape from a
+   * change. Adding a summary and taking it away again used to leave the
+   * view unsaved for the rest of the session, with the leave guard asking
+   * about an edit that had already been undone.
+   */
+  it('leaves the view as saved once the last summary goes', async () => {
+    const result = await openTable();
+    expect(result.current.runtime!.getSnapshot().dirty).toBe(false);
+
+    act(() => result.current.table.setSummary('amount', 'SUM'));
+    await waitFor(() =>
+      expect(result.current.runtime!.getSnapshot().dirty).toBe(true),
+    );
+
+    act(() => result.current.table.setSummary('amount', null));
+
+    await waitFor(() =>
+      expect(result.current.runtime!.getSnapshot().dirty).toBe(false),
+    );
+  });
+
+  /** And a config that spells it `[]` gets `[]` back, for the same reason. */
+  it('keeps an empty list where the saved config used one', async () => {
+    const result = await openTable({ summaries: [] });
+
+    act(() => result.current.table.setSummary('amount', 'SUM'));
+    await waitFor(() =>
+      expect(result.current.table.summaryOf('amount')).toBe('SUM'),
+    );
+    act(() => result.current.table.setSummary('amount', null));
+
+    await waitFor(() => expect(draft(result).summaries).toEqual([]));
+    expect(result.current.runtime!.getSnapshot().dirty).toBe(false);
+  });
+
+  /**
+   * The settings offer a column one summary, so setting one replaces
+   * whatever that column had — and leaves every other column alone.
+   */
+  it('replaces a column’s own summary and no other', async () => {
+    const result = await openTable({
+      summaries: [
+        { field: 'amount', fn: 'SUM' },
+        { field: 'warehouse', fn: 'COUNT' },
+      ],
+    });
+
+    act(() => result.current.table.setSummary('amount', 'MAX'));
+
+    await waitFor(() =>
+      expect(draft(result).summaries).toEqual([
+        { field: 'warehouse', fn: 'COUNT' },
+        { field: 'amount', fn: 'MAX' },
+      ]),
+    );
+  });
+});
+
+/**
+ * The controller is the boundary. A config comes from a store, so its lists
+ * may be objects, strings, or arrays with `null` in them; admission reports
+ * the shape and the draft rightly stays in the error state, but the editor
+ * that would let the user delete the offending entry is rendered from that
+ * same draft. What the controller hands the UI is therefore always a safely
+ * iterable list of well-formed entries — and dropping what cannot be read is
+ * the repair, since the first change writes the sound list back.
+ */
+describe('the shapes a store can hold', () => {
+  const broken = {
+    sort: 'amount',
+    summaries: { field: 'amount', fn: 'SUM' },
+    table: { columns: [null, { field: 'amount' }, 'id'] },
+  } as unknown as Partial<RecordViewConfig>;
+
+  it('hands the UI lists whatever the config holds', async () => {
+    const result = await openTable(broken, {}, false);
+    const table = result.current.table;
+
+    expect(table.sort).toEqual([]);
+    expect(table.columnFields).toEqual(['amount']);
+    expect(table.sortOf('amount')).toBeNull();
+    expect(table.summaryOf('amount')).toBeNull();
+    expect(table.pinnedOf('amount')).toBeNull();
+    // And the view waits to be fixed rather than pretending to be fine.
+    expect(table.status).toBe('idle');
+  });
+
+  /**
+   * The proof that the boundary is where the rule says it is: the panels do
+   * no defensive reading of their own, so this renders them against a real
+   * controller over a config a store could hold. Before the controller
+   * normalised, `.map` over a string took the workbench down from inside
+   * the toolbar, and the user never reached the entry that caused it.
+   */
+  it('lets the panels render against a config a store could hold', async () => {
+    const result = await openTable(broken, {}, false);
+
+    expect(() =>
+      render(
+        <ResultToolbar
+          table={result.current.table}
+          fields={definition().fields}
+          runtime={result.current.runtime!}
+        />,
+      ),
+    ).not.toThrow();
+    expect(screen.getByRole('button', { name: /Columns/ })).toBeTruthy();
+  });
+
+  it('lets every command run against them without throwing', async () => {
+    const result = await openTable(broken, {}, false);
+
+    expect(() => {
+      act(() => result.current.table.toggleSort('amount'));
+      act(() => result.current.table.setColumns(['amount']));
+      act(() => result.current.table.setColumnOrder(['amount']));
+      act(() => result.current.table.setPinned('amount', 'left'));
+      act(() => result.current.table.setSummary('amount', 'SUM'));
+    }).not.toThrow();
+  });
+
+  /**
+   * A list that could not be read at all lists nothing, so no control can
+   * take its entries out — the sort above has no sortable field left to
+   * add, which was its only other way out. Whatever the user changes
+   * carries the repair with it, so one press anywhere puts the config back
+   * in a shape the kernel admits.
+   */
+  it('writes the sound lists back with the first change of any kind', async () => {
+    const result = await openTable(broken, {}, false);
+
+    act(() => result.current.table.setPinned('amount', 'left'));
+
+    await waitFor(() => expect(result.current.table.status).toBe('success'));
+    expect(draft(result).sort).toEqual([]);
+    expect(draft(result).summaries).toEqual([]);
+    expect(draft(result).table.columns).toEqual([
+      { field: 'amount', pinned: 'left' },
+    ]);
+  });
+
+  /** Entries that cannot be read go; the ones that can are kept as they are. */
+  it('keeps the entries it can read and drops the rest', async () => {
+    const result = await openTable(
+      {
+        sort: [
+          null,
+          { field: 'amount', direction: 'up' },
+          { direction: 'ASC' },
+        ],
+        summaries: [null, { field: 'amount', fn: 'NOPE' }],
+      } as unknown as Partial<RecordViewConfig>,
+      {},
+      false,
+    );
+
+    expect(result.current.table.sort).toEqual([
+      { field: 'amount', direction: 'ASC' },
+    ]);
+    expect(result.current.table.summaryOf('amount')).toBeNull();
+  });
+});
+
+describe('maxSortFields', () => {
+  /**
+   * A control that offers a sort field has to stop where the kernel starts
+   * refusing, so the ceiling comes from the kernel rather than being spelled
+   * a second time in the UI.
+   */
+  it('answers the cursor ceiling for a cursor source', async () => {
+    const result = await openTable(undefined, {
+      record: { rowKey: 'id', paging: 'cursor', layouts: ['table'] },
+    });
+
+    expect(result.current.table.maxSortFields).toBe(MAX_CURSOR_SORT_FIELDS);
+  });
+
+  it('is bounded only by the fields there are on a paged source', async () => {
+    const result = await openTable();
+
+    expect(result.current.table.maxSortFields).toBe(definition().fields.length);
+  });
+});
+
+describe('setSort', () => {
+  it('replaces the whole sort in priority order', async () => {
+    const result = await openTable();
+
+    act(() =>
+      result.current.table.setSort([
+        { field: 'amount', direction: 'DESC' },
+        { field: 'id', direction: 'ASC' },
+      ]),
+    );
+
+    await waitFor(() =>
+      expect(result.current.table.sort).toEqual([
+        { field: 'amount', direction: 'DESC' },
+        { field: 'id', direction: 'ASC' },
+      ]),
+    );
+    expect(result.current.table.sortOf('amount')).toBe('DESC');
+  });
+
+  it('clears the sort, which is a sort of none', async () => {
+    const result = await openTable({
+      sort: [{ field: 'amount', direction: 'ASC' }],
+    });
+
+    act(() => result.current.table.setSort([]));
+
+    await waitFor(() => expect(result.current.table.sort).toEqual([]));
+  });
+});

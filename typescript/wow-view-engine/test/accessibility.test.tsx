@@ -339,6 +339,60 @@ describe('the default workbenches pass axe', () => {
     expect(await violations(container)).toEqual([]);
   });
 
+  /**
+   * The column settings are the densest thing this package draws: a list of
+   * rows each carrying a drag handle, a checkbox, a select and a toggle, and
+   * the drag library adds attributes of its own to every handle. Axe is run
+   * over the document rather than the container, because the popover and the
+   * library's live region are both portalled out of it.
+   */
+  it('record, with the column settings open', async () => {
+    const user = userEvent.setup();
+    render(
+      <ViewSurface>
+        <RecordWorkbench
+          engine={engineWith([pendingOrders])}
+          definitionId="orders"
+          instanceId="pending"
+          actions={{ row: () => <button type="button">{'Open'}</button> }}
+        />
+      </ViewSurface>,
+    );
+    await waitFor(() => expect(document.querySelector('table')).toBeTruthy());
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    expect(
+      await screen.findByRole('button', { name: 'Reorder Amount' }),
+    ).toBeTruthy();
+
+    expect(await violations(document.body)).toEqual([]);
+  });
+
+  it('record, with the sort control open', async () => {
+    const user = userEvent.setup();
+    render(
+      <ViewSurface>
+        <RecordWorkbench
+          engine={engineWith([pendingOrders])}
+          definitionId="orders"
+          instanceId="pending"
+        />
+      </ViewSurface>,
+    );
+    await waitFor(() => expect(document.querySelector('table')).toBeTruthy());
+
+    // The trigger reads the sort back, so it is addressed by what it is
+    // rather than by a name that changes with the config.
+    await user.click(
+      document.querySelector<HTMLElement>('[data-control="sort"]')!,
+    );
+    expect(
+      await screen.findByRole('button', { name: /Sort by a field/ }),
+    ).toBeTruthy();
+
+    expect(await violations(document.body)).toEqual([]);
+  });
+
   it('analysis', async () => {
     const { container } = render(
       <ViewSurface>
