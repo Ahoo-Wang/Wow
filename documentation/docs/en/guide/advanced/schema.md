@@ -144,7 +144,8 @@ By declaration shape:
 |---|---|---|
 | Kotlin constructor parameter without a default | yes | no |
 | Kotlin constructor parameter with a default | no | no |
-| Kotlin class-body property with a public getter | yes | yes for `val` or a non-public setter |
+| Kotlin class-body property, read-only (`val` or non-public setter) | yes | yes |
+| Kotlin class-body property, writable (public setter) | no | no |
 | Kotlin `lateinit var` | yes | yes |
 | Kotlin property without a public getter | no | — |
 | Class without a primary constructor, single declared one | same as constructor rules | same |

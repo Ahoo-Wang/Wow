@@ -144,7 +144,8 @@ val generator = SchemaGeneratorBuilder()
 |---|---|---|
 | Kotlin 构造参数，无默认值 | 是 | 否 |
 | Kotlin 构造参数，有默认值 | 否 | 否 |
-| Kotlin 类体属性（公开 getter） | 是 | `val` 或 setter 非公开时为是 |
+| Kotlin 类体属性，只读（`val` 或 setter 非公开） | 是 | 是 |
+| Kotlin 类体属性，可写（公开 setter） | 否 | 否 |
 | Kotlin `lateinit var` | 是 | 是 |
 | Kotlin 无 getter 或 getter 私有 | 否 | — |
 | 无主构造函数时取唯一声明构造函数 | 同构造参数规则 | 同上 |

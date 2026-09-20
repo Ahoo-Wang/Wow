@@ -39,10 +39,11 @@ object KotlinRequiredCheck : Predicate<FieldScope> {
             return !it.isOptional
         }
         /*
-         * Declared in the class body instead of the constructor: it always holds a value and is always
-         * written out, so it is always present in the payload. Properties without a public getter are
-         * reported as write-only and are left out.
+         * Declared in the class body instead of the constructor. A read-only one cannot be supplied by a
+         * client and always holds a value, so it is always present in responses and ignored in requests.
+         * A writable one keeps its initializer when the payload omits it, so it stays optional. Properties
+         * without a public getter are reported as write-only and are left out.
          */
-        return property.getter.visibility == KVisibility.PUBLIC
+        return KotlinReadOnlyCheck.test(fieldScope) && property.getter.visibility == KVisibility.PUBLIC
     }
 }

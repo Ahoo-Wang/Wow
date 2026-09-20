@@ -92,8 +92,9 @@ class KotlinModuleTest {
         val properties = schema.get("properties")
         properties.get("items").get("readOnly").booleanValue().assert().isTrue()
         properties.get("status").get("readOnly").booleanValue().assert().isTrue()
+        // `comment` stays writable, so a payload may omit it and keep the initializer.
         (properties.get("comment").get("readOnly")?.booleanValue() == true).assert().isFalse()
-        schema.requiredNames().assert().containsExactlyInAnyOrder("id", "comment", "items", "status")
+        schema.requiredNames().assert().containsExactlyInAnyOrder("id", "items", "status")
     }
 
     @Test
