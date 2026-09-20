@@ -7,6 +7,14 @@
 - 做完就**删掉**这一条，不打勾、不留归档。历史在 git 里。
 - 改行为之前先看这里有没有对应项；有就接着做，别另起一条。
 
+## 本轮范围：全局功能与记录视图推进到生产级
+
+用户定下的范围只有两块——**全局功能（外壳）** 与 **记录视图**。Analysis 编辑器形态、Dashboard 编排不在本轮，它们的未决问题在 [decisions.md#搁置待议](decisions.md#搁置待议)。
+
+每条的判据以这条基线读，**但只取适用的那几项**：一条只补回归的条目不必造文案，一条只看不改的条目没有并发路径。基线是——新出现的行为，其错误、空、权限、并发路径各有定义也有测试；新出现的界面键盘可达并过 axe；新出现的文案中英齐全；新出现的交互有故事既能手动操作也有回归；design 对应页与本页同步；全门绿。哪几项适用，由各条自己的判据说了算。
+
+顺序：**自动刷新 → 打磨清单（先看后改）→ 筛选三条（日期时刻／IN 多值／软删除）→ ErrorBoundary → 单元格渲染器族 → 列宽・隐藏字段排序・指针拖动回归 → 写入结局故事・视图管理拖动排序**。打磨排在新功能之前：先把已经有的做对，再加没有的。
+
 ## 重构（小步，每步一个 PR，零行为变化）
 
 ## `max-lines` 存量豁免（拆到阈值以内就删掉 override）
@@ -26,6 +34,23 @@
 - **R16 `test/analysisUi.test.tsx` 下线**——为什么：编辑器、图表、指标卡三套 UI 的套件合成 1212 代码行，只超线十二行，但正是靠一次次「只多几行」长到这里的。判据：图表与指标卡的 `describe` 独立成文件，编辑器留在原处；下线到 1200 代码行以内并删除 override。落点：`test/`、[ui/analysis.md](ui/analysis.md)。
 
 （架构测试里「`*Workbench.tsx` 不得绕过 `useWorkbench` 直接 import 装配用的钩子」那一条已随 R3 落地。）
+
+## 全局功能（外壳）
+
+- **自动刷新缺的只是入口**——为什么：合同早已落地——`ViewConfigBase.refresh.interval` 随视图配置保存，取值由 `RuntimeLimits` 的 `minRefreshInterval`／`maxRefreshInterval` 兜住，runtime 按它持有唯一一个计时器并在四种情况暂停（[runtime.md](runtime.md)、[model.md](model.md)）。缺的只有界面：结果工具栏只有一次性的刷新按钮，看板式的用法只能靠人手点。判据：刷新改为拆分按钮（主键一次刷新、`▾` 选间隔），选中即 `edit({ refresh: { interval } })` 加 `apply`——改的是**现有的** `refresh.interval`，不得另起一套临时状态；可选间隔按 `runtime.limits` 裁剪，限制不允许的间隔是**不存在**而不是禁用（D4）；开启时刷新按钮上有一处在走的凭据（它说的是“这个视图在自己刷新”，与三态凭据不冲突）；暂停与停表的时机沿用 runtime 已有的四条，界面不自己发明第五条。三种视图都要有入口，因为 `refresh` 在 `ViewConfigBase` 上：Record 走 `ResultToolbar`（刷新那一组已经给它留了位置）；Analysis 不用这个工具栏，入口落在它自己的那一处刷新旁；Dashboard 的计时器由 `DashboardRuntime` 统一持有、被引用实例自身的 `refresh` 在其中被忽略（[runtime.md](runtime.md)），所以它编辑的是仪表盘自己的 `refresh.interval`，并要在界面上说清这一层关系。落点：`src/ui/ResultToolbar.tsx`、`src/ui/AnalysisWorkbench.tsx`、`src/ui/DashboardWorkbench.tsx`、`src/react/`、[ui/README.md](ui/README.md)。
+- **带时刻的日期条件筛不准边界**——为什么：日期条件只有日历，没有 `HH:mm:ss` 控件，`withTime` 于是直接取日历给的那一刻（零点），"今天下午三点之后"写不出来，边界上的记录要么全进要么全不进。判据：`withTime` 为真的字段在日历旁给出时刻输入（与日历同属一个控件，一次提交），未填时刻时的缺省语义**按 [decisions.md](decisions.md) 的 Q10 执行**，不在实现时二选一（它决定哪些记录命中，不是实现细节）；相对日期与预设不受影响；`test/filter*.test.ts` 覆盖边界两侧各一条。落点：`src/ui/filter/`、[ui/README.md](ui/README.md)、[kernels.md](kernels.md)。
+- **数值 `IN`／`NOT_IN` 只能录两个值**——为什么：内核早就收任意长度的数值数组，是 `src/ui/filter/inputs/number.tsx` 的 `NumberValue` 把 `multiple` 和 `range` 并在同一个分支里（`if (range || multiple)`）截成两个输入框，第三个值无处可填。判据：`multiple` 走自己的渲染——可增删的值列表，空值不提交；`range` 保持两端点；回归落在 **jsdom 的界面套件 `test/filterValueEditor.test.tsx`**（必要时加 `test/filterPanel.test.tsx`），不能只加一条内核用例——界面仍只能输入两个值时那种用例照样会过。落点：`src/ui/filter/inputs/number.tsx`、[ui/README.md](ui/README.md)。
+- **软删除条件没了**——为什么：legacy 有 `DELETION` 条件（只看未删除／只看已删除／全都看），现在没有，列表会默不作声地混进已删除记录——这是数据口径的沉默，比少一个筛选项严重。判据：定义能声明这一维（能力决定它存不存在，D4），未声明时界面上没有这个东西；声明了则条件区有一处显式选择；**缺省口径与旧配置缺这一维时的读法按 [decisions.md](decisions.md) 的 Q11 执行**，并要在已应用条上说得出来；`test/` 覆盖三种口径各一条。落点：[model.md](model.md)、`src/filter/`、[kernels.md](kernels.md)。
+- **默认 UI 没有任何 ErrorBoundary**——为什么：宿主真正交进来的 React 是动作槽位 `actions={{ global, bulk, row }}`（D6）与 Dashboard 面板里的 markdown，它们在工作台的渲染树里；其中任意一处抛错，今天会把整页带走。单元格渲染器不在此列——`FieldDefinition` 上那个是字符串提示，由本包硬编码分支读，宿主注册不进来，所以不要拿它当边界场景，也不要为此发明注册合同。判据：结果区、编辑带、面板各有边界，落到边界上时那一块显示可复原的错误态（带“重试”）而不是白屏，边界之外照常可用；错误能被宿主收走（回调），不只是吞掉；`test/` 覆盖“宿主的行动作抛错只毁掉那一块”与“面板抛错不影响同屏其他面板”。落点：`src/ui/`、[ui/README.md](ui/README.md)。
+
+## 记录视图
+
+- **单元格渲染器族只有默认与枚举徽章**——为什么：legacy 的表格能把一列读成状态、标签组、链接或多行文本，现在除枚举徽章外一律走默认渲染，于是一列 URL 只是一串字，一列字符串数组只是逗号拼接。判据：`FieldDefinition` 能声明单元格的读法（闭合取值，如 `cell?: 'status' | 'tags' | 'link' | 'text'`，定义准入拒绝未知值——能力决定存在，D4），`RecordTable` 按它分派：`status` 走徽章、`tags` 走多枚徽章、`link` 走 `isSafeContentUrl` 守住的外链（`target="_blank" rel="noopener noreferrer"`，与 `DashboardPanels` 的 markdown 链接同一条规则）、`text` 走可截断的多行；未声明时保持今天的默认渲染不变；`test/recordTable.test.tsx` 每族一条，`stories/` 有一屏能看全。落点：`src/model/field.ts`、`src/ui/RecordTable.tsx`、`src/ui/display.ts`、[ui/record.md](ui/record.md)。
+
+## 打磨（先看后改，不凭想象改）
+
+- **逐屏看一遍再列条目**——为什么：打磨的条目必须来自看，不能来自想；上一轮的问题（没有区块划分、同职责控件被拆成一排独立按钮）就是看出来的。判据：在 Storybook 上对着合并后的 `main` 逐屏过——默认、展开筛选、空、加载、失败、窄屏、暗色、中文、长标题与多列——把具体条目写进本页再小批改；间距分四级（块间 16 / 块内行间 12 / 控件组间 8 / 组内 4），互斥选项按 [ui/README.md](ui/README.md) 的判断规则选分段控件还是 `Select`，结果工具栏一律 `ghost`、只有宿主的批量动作用 `outline`，**布局切换是既有的唯一例外**（那一圈描边正是“一个控件两个档位”与“两个按钮”的差别，见 [ui/record.md](ui/record.md)，打磨时不要把它抹掉）。落点：[ui/README.md](ui/README.md)、[ui/record.md](ui/record.md)。
+- **固定列的边缘是静态的，说不出内容有没有滑到它下面**——为什么：`src/ui/record/columns.ts` 的 `pin()` 已经给左右固定单元格发了 1px 的 inset 描边（`ACTION_CELL` 同理），所以固定列**不是**没有视觉——但那道边一直在，没滚动时也在，于是它说的是“这里有条线”而不是“内容正从这里滑到我下面”。判据：把这道既有的静态边升级成随滚动出现的阴影（`scrollLeft` 为 0 时左边那道不出现，滚到尽头时右边那道不出现），表头、数据行、汇总行三层同步；改的是 `pin()` 这一处，不要在 `RecordTable.tsx` 或全局 CSS 里另起一套而把旧的静态边留在原地；`stories/` 有横向滚动的回归。**末列是否在没有行操作时也强制固定，取决于 [decisions.md](decisions.md) 的 Q8**，在它有结论之前不要改列固定的语义。落点：`src/ui/record/columns.ts`、`src/ui/RecordTable.tsx`、[ui/record.md](ui/record.md)。
 
 ## 功能（legacy 形态）
 
