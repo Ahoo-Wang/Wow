@@ -35,6 +35,10 @@ export const viewMessages = {
   'runtime.query.failed': 'The source answered: {reason}',
   'runtime.query.queue-full':
     'Too many queries at once; try again in a moment.',
+  // The summary row survived its own query failing, at a narrower scope than
+  // it was asked for. The row says which scope it is; this says why.
+  'runtime.summary.page-only':
+    'The totals query failed, so the summary adds up only the rows on this page.',
   'view.abandon.failed': 'That write could not be set aside.',
   'view.config.invalid': 'Fix what this view reports before saving it.',
   'view.create.forbidden': 'You may not create views here.',

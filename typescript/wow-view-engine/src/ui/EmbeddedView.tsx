@@ -14,7 +14,11 @@
 import type { ReactNode } from 'react';
 import type { FilterTree } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
-import type { DashboardRuntime, ViewEngine } from '../runtime/index.js';
+import {
+  resultIssues,
+  type DashboardRuntime,
+  type ViewEngine,
+} from '../runtime/index.js';
 import {
   useAnalysisEditor,
   useDashboard,
@@ -153,9 +157,16 @@ function EmbeddedBody({
   // above it: an embed hides the editor, and this is the one place a reader
   // learns the view is not quite what its author saved. A dashboard's
   // panel-scoped findings are the panels' to show, each in its own frame.
-  const warnings = issues.filter(
-    found => runtime.kind !== 'dashboard' || found.path[0] !== 'panels',
-  );
+  // What the result says about itself is said here too, and for a stronger
+  // reason than in a workbench: there is no editor, no toolbar and no scope
+  // bar, so a page total wearing the word "total" or a pie drawn from a
+  // truncated grouping would have nothing at all to correct it.
+  const warnings = [
+    ...issues.filter(
+      found => runtime.kind !== 'dashboard' || found.path[0] !== 'panels',
+    ),
+    ...resultIssues(state?.result?.data),
+  ];
   // An error takes the result's place; it does not take the warnings' — a
   // config can carry both, and the workbench says both. There is no
   // condition editor here, so no finding is marked anywhere else.

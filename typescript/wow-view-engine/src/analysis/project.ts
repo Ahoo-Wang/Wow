@@ -58,6 +58,22 @@ export interface AnalysisView {
    */
   schema?: AnalysisColumnView[];
   rows: RecordData[];
+  /**
+   * The row limit the result exactly filled, when it did.
+   *
+   * An aggregation answers at most `limit` rows and says nothing about how
+   * many it had to leave out, so "came back with exactly `limit`" is the only
+   * signal there is, and it is ambiguous: a grouping of exactly that size
+   * looks the same as one that was cut down to it. It is reported as "may
+   * have been cut short" for that reason, and never as a fact — but a
+   * complete-looking table whose every share, percentage and pie slice is
+   * computed over a prefix is the one thing a reader cannot find out for
+   * themselves.
+   *
+   * Absent when fewer rows came back, and when the config carries no usable
+   * limit at all — nothing was cut, or nothing is known to have been.
+   */
+  atLimit?: number;
   /** Present only when `table.totals` asked for it and its query succeeded. */
   totals?: RecordData;
   /** Shaped for the configured chart family; absent when it cannot be drawn. */
@@ -193,11 +209,36 @@ export function projectAnalysis(
     columns: order.flatMap(describe),
     schema: resultSchema(config).flatMap(describe),
     rows: [...result],
+    ...limitReached(config, result),
     ...(totals && totals.length > 0 ? { totals: totals[0] } : {}),
     ...(config.layout === 'chart'
       ? { chart: shapeChart(config, result, totals?.[0]) }
       : {}),
   };
+}
+
+/**
+ * Whether the result sat exactly on the limit the query carried — see
+ * `AnalysisView.atLimit`.
+ *
+ * The limit is read as the untrusted number it is. `validateAnalysis` refuses
+ * anything but a positive integer, but this function is exported and a host
+ * may project a config nothing admitted; a missing or nonsensical limit means
+ * nothing is known about what was left out, which is not the same as knowing
+ * nothing was. More rows than the limit means the source ignored it, so the
+ * count it answered with was never a ceiling and says nothing either.
+ */
+function limitReached(
+  config: AnalysisViewConfig,
+  result: readonly RecordData[],
+): { atLimit?: number } {
+  // An analysis with no groups asks one question and gets one row back, so a
+  // limit of one is met by every successful answer and cuts nothing short.
+  // Only a grouping can lose rows to a ceiling.
+  if (config.groups.length === 0) return {};
+  const limit = config.limit;
+  if (!Number.isInteger(limit) || limit < 1) return {};
+  return result.length === limit ? { atLimit: limit } : {};
 }
 
 /**

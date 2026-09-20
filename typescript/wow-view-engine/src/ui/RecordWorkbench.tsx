@@ -14,7 +14,11 @@
 import { useState, type ReactNode } from 'react';
 import type { FieldOption } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
-import type { RecordViewRuntime, ViewEngine } from '../runtime/index.js';
+import {
+  resultIssues,
+  type RecordViewRuntime,
+  type ViewEngine,
+} from '../runtime/index.js';
 import {
   useRecordTable,
   useWorkbench,
@@ -96,6 +100,14 @@ export function RecordWorkbench({
       locale={locale}
       timeZone={engine.environment.timeZone}
       className="gap-2"
+      // What the config says, plus what this result says about itself: a
+      // summary row that had to fall back to the page is a fact about the
+      // numbers below, and it outlives the next keystroke because it rides
+      // with them rather than with the draft's admission.
+      warnings={[
+        ...(state?.issues ?? []),
+        ...resultIssues(state?.result?.data),
+      ]}
       actions={
         record && actions?.global?.({ runtime: record, refresh: table.refresh })
       }

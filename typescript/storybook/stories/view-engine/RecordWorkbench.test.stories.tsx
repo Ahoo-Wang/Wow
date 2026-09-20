@@ -26,6 +26,7 @@ import displayMeta, {
   NeedsFixing as DisplayNeedsFixing,
   Paged as DisplayPaged,
   QueryFailed as DisplayQueryFailed,
+  TotalCoversThisPageOnly as DisplayTotalCoversThisPageOnly,
   WithActions as DisplayWithActions,
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
@@ -380,6 +381,45 @@ export const QueryFailed: Story = {
     await expect(
       canvas.getByRole('button', { name: /^待出库订单/ }),
     ).toHaveAttribute('aria-current', 'true');
+  },
+};
+
+/**
+ * The summary row outliving its own query, and saying so.
+ *
+ * The number stays — a page total is worth having — but it stops calling
+ * itself a total, and the strip above says which query failed. What this
+ * guards against is the silent version: 1280 + 2450 of four rows wearing the
+ * word "Total" while the conditions match forty thousand.
+ */
+export const TotalCoversThisPageOnly: Story = {
+  ...DisplayTotalCoversThisPageOnly,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
+
+    // The footer names the scope it really answers for, and carries it in
+    // the attribute a host can style on.
+    const footer = table.querySelector<HTMLElement>('tfoot')!;
+    await expect(footer.dataset.scope).toBe('page');
+    await expect(footer).toHaveTextContent(
+      defaultMessages['label.summary.page'],
+    );
+    await expect(footer).not.toHaveTextContent(
+      defaultMessages['label.summary.total'],
+    );
+    // The rows on screen add up to exactly what the row shows.
+    await expect(amountOf(readTotal(table, '金额'))).toBe(6470);
+
+    // And one line above the result says why it is only a page total. It is
+    // a warning, not an alert: nothing was blocked.
+    const strip = await canvas.findByRole('status');
+    await expect(strip).toHaveTextContent(
+      defaultMessages['runtime.summary.page-only'],
+    );
   },
 };
 

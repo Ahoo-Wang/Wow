@@ -35,5 +35,7 @@
 
 ## 小修
 
+- **Dashboard 面板不说结果自身的 warning**——为什么：`ProjectedView.issues`（汇总退回本页 `runtime.summary.page-only`、分析填满上限 `analysis.result.at-limit`）在两个工作台与 `EmbeddedView` 上都会说出来，面板不会：`DashboardPanelState.issues` 是 `dashboardRuntime` 从准入结果重建的，只含配置级发现，面板 chrome 的那个告警图标因此看不见这两条。于是同一个被截断的饼图，单开一个分析视图会说，放进仪表盘就不说了。判据：面板的 issues 合并子 runtime 当前结果的 `resultIssues(...)`（随子 runtime 的通知一起重建，不等下一次 Dashboard 同步），路径按面板重定址成 `['panels', index, ...]`，`test/dashboardRuntime.test.ts` 覆盖"子面板结果退回本页口径"与"子面板分析填满上限"两条；注意 `src/runtime/dashboardRuntime.ts` 已在 `max-lines` 豁免名单里（R11），这条要么先做 R11 的拆分，要么把合并逻辑放进新文件。落点：`src/runtime/dashboardRuntime.ts`、`src/ui/DashboardGrid.tsx`、[ui/dashboard.md](ui/dashboard.md)、[runtime.md#dashboard](runtime.md#dashboard)。
+
 - **删除后重载列表的合同容易漏**——为什么：宿主直接经引擎删除实例时必须调用 `list.reload({ without: id })`，这条合同写在文档里而不是类型里。判据：评估改为引擎侧通知（架构决定，先记录，不急着改）；结论写进 [decisions.md](decisions.md)。落点：[react.md#useviewlist](react.md#useviewlist)。
 - **筛选面板里 Enter 提交**——为什么：[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局) 写了 Enter 提交（排除 IME 组字与内部弹层），重写后的 `FilterPanel` 没有这个处理器，是一处遗漏。判据：在条件的值输入里按 Enter 等于点击应用；IME 组字中、弹层（Select／Combobox／Popover／Dialog）内的 Enter 不触发；`test/filterPanel.test.tsx` 覆盖三种情况。落点：`src/ui/FilterPanel.tsx`。

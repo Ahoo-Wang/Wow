@@ -290,6 +290,7 @@ export const zhCN: ViewMessages = {
   'runtime.options.unresolved': '{source} 没有配置候选来源。',
   'runtime.query.failed': '数据源回答：{reason}',
   'runtime.query.queue-full': '同时查询太多，过一会儿再试。',
+  'runtime.summary.page-only': '合计查询失败，表尾只汇总了本页的行。',
   'view.abandon.failed': '无法放弃那次写入。',
   'view.config.invalid': '先修正这个视图报出的问题，再保存。',
   'view.create.forbidden': '你不能在这里创建视图。',
@@ -432,6 +433,8 @@ export const zhCN: ViewMessages = {
   'analysis.metrics.too-many': '这份数据的指标太多了。',
   'analysis.percentile.out-of-range': '百分位要在 0 与 100 之间，不含两端。',
   'analysis.percentile.undeclared': '{field} 不提供百分位。',
+  'analysis.result.at-limit':
+    '结果正好填满 {limit} 行的上限，分组可能被截断：下面的每个占比与扇区都只覆盖已显示的部分，而不是全部。',
   'analysis.sort.duplicate': '排序已经按 {alias} 排过了。',
   'analysis.sort.requires-group': '排序至少需要一个分组。',
   'analysis.sort.too-many': '结果最多按 {max} 列排序。',

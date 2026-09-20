@@ -18,7 +18,7 @@ import type {
   FilterPagedQuery,
   PagedList,
 } from '@ahoo-wang/fetcher-wow';
-import type { FieldOption, RecordData } from '../model/index.js';
+import type { FieldOption, Issue, RecordData } from '../model/index.js';
 import type { AnalysisView } from '../analysis/index.js';
 import type { RecordView, SummaryRow } from '../record/index.js';
 
@@ -70,14 +70,43 @@ export interface OptionSource {
  */
 export type ProjectedView = ProjectedRecord | ProjectedAnalysis;
 
-export interface ProjectedRecord {
+/**
+ * What both kinds carry besides their view: what is wrong with *these
+ * numbers*, as opposed to what is wrong with the config.
+ *
+ * `ViewRuntimeState.issues` cannot hold these. It is admission of the draft,
+ * recomputed on every keystroke, so a finding put there would vanish the
+ * moment the user touched the editor while the numbers it described were
+ * still on screen. A finding about a result belongs to the result, and lives
+ * exactly as long as it does: until the next successful execution replaces
+ * it. The strips read it beside `state.issues` and cannot tell them apart,
+ * which is the point — both are `warning`s the view has to say.
+ */
+export interface ProjectedBase {
+  /** Empty when the numbers mean what they appear to mean. */
+  issues: readonly Issue[];
+}
+
+export interface ProjectedRecord extends ProjectedBase {
   kind: 'record';
   view: RecordView;
-  /** Absent when the config asked for no summaries, or their query failed. */
+  /**
+   * Absent when the config asked for no summaries. Present with
+   * `scope: 'page'` when the totals query failed and the visible rows were
+   * added up instead — the numbers stay, `scope` says what they cover, and
+   * `issues` carries the warning that says why.
+   */
   summaries: SummaryRow | null;
 }
 
-export interface ProjectedAnalysis {
+export interface ProjectedAnalysis extends ProjectedBase {
   kind: 'analysis';
   view: AnalysisView;
+}
+
+/** The findings of the last result, or none while there is no result. */
+export function resultIssues(
+  data: ProjectedView | null | undefined,
+): readonly Issue[] {
+  return data?.issues ?? [];
 }

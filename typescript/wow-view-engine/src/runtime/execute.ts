@@ -27,9 +27,10 @@ import {
   projectAnalysis,
   validateAnalysis,
 } from '../analysis/index.js';
-import type {
-  FieldKindRegistry,
-  FilterCompileContext,
+import {
+  issue,
+  type FieldKindRegistry,
+  type FilterCompileContext,
 } from '../filter/index.js';
 import type {
   AnalysisViewConfig,
@@ -114,21 +115,38 @@ async function executeRecord(
     'cursor' in target
       ? source.cursor(query as CursorQuery, undefined, controller)
       : source.paged(query as FilterPagedQuery, undefined, controller),
-    // A failed summary query costs the summary row, never the page itself.
-    totals
-      ? source.aggregate(totals, undefined, controller).catch(() => null)
-      : Promise.resolve(null),
+    // A failed summary query costs the summary row's scope, never the page
+    // itself — and the downgrade is reported rather than absorbed, below.
+    totals ? attempt(source.aggregate(totals, undefined, controller)) : null,
   ]);
 
   const index = 'index' in target ? target.index : 1;
   const view = projectRecord(definition, config, result, index);
+  const summaries = summaryRow(context, config, result.list, rows);
   return {
     kind: 'record',
     view,
-    summaries: summaryRow(context, config, result.list, rows),
+    summaries,
+    issues: summaries?.scope === 'page' ? [summaryDowngraded()] : [],
   };
 }
 
+/** A query whose failure is one of the answers, not the end of the request. */
+function attempt<T>(query: Promise<T>): Promise<T | null> {
+  return query.catch(() => null);
+}
+
+/**
+ * The summary row, at the widest scope that actually answered.
+ *
+ * `total` is its own aggregation over everything the conditions match;
+ * `page` is the rows on screen added up, which is all that is left when that
+ * aggregation fails. Dropping the row instead would be no kinder — a page
+ * total is a useful number — so it stays, saying which of the two it is, and
+ * the caller reports the downgrade. An AVG over the twenty rows in front of
+ * you, presented as the AVG over forty thousand, is the one mistake this row
+ * could make; silence about it is how that mistake is made.
+ */
 function summaryRow(
   context: KernelContext,
   config: RecordViewConfig,
@@ -136,7 +154,6 @@ function summaryRow(
   totals: RecordData[] | null,
 ): SummaryRow | null {
   if ((config.summaries ?? []).length === 0) return null;
-  // Falling back to the visible rows keeps a number on screen; `scope` says so.
   return totals
     ? projectSummaries(context.definition, config, {
         scope: 'total',
@@ -146,6 +163,22 @@ function summaryRow(
         scope: 'page',
         rows: pageRows,
       });
+}
+
+/**
+ * The scope the summary row lost.
+ *
+ * Nothing is parameterised: the path addresses the `summaries` the config
+ * asked for, and which rows the row does cover is what its own label says.
+ * It is built per result all the same, so no two results share one object.
+ */
+function summaryDowngraded(): Issue {
+  return issue(
+    'runtime.summary.page-only',
+    ['summaries'],
+    undefined,
+    'warning',
+  );
 }
 
 async function executeAnalysis(
@@ -166,14 +199,28 @@ async function executeAnalysis(
   const [rows, totals] = await Promise.all([
     source.aggregate(query, undefined, controller),
     totalsQuery
-      ? source
-          .aggregate(totalsQuery, undefined, controller)
-          .catch(() => undefined)
-      : Promise.resolve(undefined),
+      ? attempt(source.aggregate(totalsQuery, undefined, controller))
+      : null,
   ]);
 
+  const view = projectAnalysis(definition, config, rows, totals ?? undefined);
   return {
     kind: 'analysis',
-    view: projectAnalysis(definition, config, rows, totals),
+    view,
+    // A grouping that filled its limit exactly may go on past the last row
+    // shown, and every share, percentage and slice on the screen is then
+    // computed over a prefix of it. See `AnalysisView.atLimit` for why this
+    // is the only signal available, and why it is said as "may".
+    issues:
+      view.atLimit === undefined
+        ? []
+        : [
+            issue(
+              'analysis.result.at-limit',
+              ['limit'],
+              { limit: view.atLimit },
+              'warning',
+            ),
+          ],
   };
 }

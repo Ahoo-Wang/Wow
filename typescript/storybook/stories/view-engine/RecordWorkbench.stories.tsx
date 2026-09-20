@@ -168,7 +168,7 @@ const meta = {
   argTypes: {
     behaviour: {
       control: 'inline-radio',
-      options: ['data', 'empty', 'slow', 'failing'],
+      options: ['data', 'empty', 'slow', 'failing', 'no-aggregate'],
     },
     broken: { table: { disable: true } },
     paged: { table: { disable: true } },
@@ -193,6 +193,15 @@ export const Loading: Story = { args: { behaviour: 'slow' } };
 
 /** A failed query keeps the view and its conditions; only the data is gone. */
 export const QueryFailed: Story = { args: { behaviour: 'failing' } };
+
+/**
+ * 汇总查询失败，明细照常。合计因此退回本页合计——数字留着，因为本页合计本身
+ * 有用——但行尾的口径标签改说「本页」，上方多一条 warning 说明为什么。默默
+ * 顶替才是这里唯一的错误：读者看到「总计」，会当成全部命中记录的总计。
+ */
+export const TotalCoversThisPageOnly: Story = {
+  args: { behaviour: 'no-aggregate' },
+};
 
 /** A saved config the definition outgrew: `apply` is refused until it is fixed. */
 export const NeedsFixing: Story = { args: { broken: true } };

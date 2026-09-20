@@ -20,14 +20,14 @@ validateRecord(def, cfg: RecordViewConfig, kinds): Issue[]   // 见下方规则
 compileRecord(def, cfg, kinds, ctx, page: RecordPageTarget): FilterPagedQuery | CursorQuery   // 按 RecordCapability.paging 判别；首次查询为 { index: 1 } 或 { cursor: null }（Wow 页码从 1 开始）
 projectRecord(def, cfg, page: PagedList<RecordData> | CursorPage<RecordData>): RecordView   // 列语义、行、行键；paging 为 { mode: 'paged'; index; total? } | { mode: 'cursor'; nextCursor: string | null }
 compileSummaries(def, cfg, kinds, ctx): AggregationQuery | null    // 全范围汇总
-projectSummaries(def, cfg, rows | aggregation): SummaryRow
+projectSummaries(def, cfg, rows | aggregation): SummaryRow        // scope 是结果的一部分：'total' 来自自己的聚合，'page' 来自屏幕上的行
 
 // analysis
 defaultAnalysisConfig(def): AnalysisViewConfig                  // 按固定优先级从已声明能力挑选指标；有可分组字段时取其一并按指标降序排序，否则分组为空且 `sort` 为空（无分组聚合只有一行，Wow 拒绝对其排序）
 validateAnalysis(def, cfg: AnalysisViewConfig, kinds): Issue[]   // 见下方规则
 compileAnalysis(def, cfg, kinds, ctx): AggregationQuery          // 同构映射；三处 FilterTree 编译为 FilterExpression
 compileAnalysisTotals(def, cfg, kinds, ctx): AggregationQuery | null   // table.totals 为 true 时的无分组聚合，否则 null
-projectAnalysis(def, cfg, result, totals?): AnalysisView          // 表格列与行；图表系列；合计行取自 totals，metric 卡片趋势模式的标题值亦取自 totals
+projectAnalysis(def, cfg, result, totals?): AnalysisView          // 表格列与行；图表系列；合计行取自 totals，metric 卡片趋势模式的标题值亦取自 totals；行数恰好等于 cfg.limit 时记 atLimit
 resultSchema(def, cfg): ResultSchema                     // 结果行校验依据
 
 // dashboard
@@ -144,6 +144,7 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - 合计行来自 `compileAnalysisTotals` 的独立结果，因此 `AVG`、`DISTINCT_COUNT`、百分位等不可加指标也正确；
 - 该查询与主查询共享同一调度预算，失败只使合计行不可用，不影响主结果。图表所需的派生整形也在此完成：`splitBy` 透视、饼图"其他"合并、漏斗累计与转化率、热力图矩阵、metric 卡片的比较值。metric 卡片带 `trend` 时的标题值取自合计行（`projectAnalysis` 的 `totals`），无合计行时按分桶求和；
 - `compare` 与 `target` 在有无 `trend` 时同样生效。
+- **结果行数恰好等于 `limit` 时记下 `AnalysisView.atLimit`**。聚合回答的是至多 `limit` 行，并不告诉调用方它省略了多少，因此"正好填满上限"是唯一可用的信号，而它本身是二义的：刚好这么多组，和被截到这么多组，长得一模一样。所以它只被报成"可能被截断"（运行时的 `analysis.result.at-limit`，见 [runtime.md#规则](runtime.md#规则)），从不被报成事实——但一张看起来完整、每个占比与扇区却都是按前缀算出来的表，是读者自己查不出来的那一种错。没有分组（无分组聚合按定义只答一行，`limit: 1` 于是被每一次成功的查询填满，而没有任何分组可以被截掉）、行数少于上限、配置里没有可用上限（缺失、非正整数、非有限数——准入会拒绝这些，但投影是导出的，宿主可能拿没被准入的配置来投影），以及数据源答得比上限还多（它根本没把上限当天花板，行数因此什么也说明不了）四种情况都不记：不知道被截掉了什么，与知道没被截掉，不是同一回事。（见 test/resultIssues.test.tsx「projectAnalysis row limit」）
 
 ## Dashboard 内核的规则
 

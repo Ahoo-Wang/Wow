@@ -119,6 +119,10 @@ export class ViewWriteError extends Error {
 - runtime 不做持久化。保存是 Engine 的命令，成功后 Engine 调用 `runtime.markSaved(instance)` 推进基线。
 - **注入的作用域条件同样要准入。** `setScopeFilter` 按本 runtime 的定义与 kinds 校验合并后的有效筛选（含深度与节点预算），返回 Issue 列表；含 error 时不改变已应用口径也不执行，因此自定义宿主与 Dashboard 走同一条准入路径。作用域条件从打开起就与配置一起准入：`issues` 始终是"draft AND 作用域"这份有效配置的校验结果，构造、`edit`、`adoptSaved` 与 `setScopeFilter` 都按这一条规则重算；`mergeFilters` 把作用域作为一个嵌套分组追加在 draft 自身条件之后（不拍平：分组内字段唯一，而宿主对同一字段再收窄是第二个问题而不是重复），因此指向 draft 树的 Issue 路径不因作用域而移位；作用域自身的子树多占一层深度，单条条件在线上仍编译为它本身。合并只丢弃结构合法且没有叶子的空树：含畸形条目的树不算空（`isEmptyFilter` 为 false），畸形条目保留在合并结果里由准入报出；根不是分组的 filter 不参与合并，原样交给准入报 `config.filter.invalid`。Dashboard 的 `fields` 访问器只交出结构合法的字段项，畸形项留给准入。
 - **只执行准入过的配置。** `apply` 与 `setScopeFilter` 只提升通过准入的口径；打开时 `applied` 若未通过准入，`refresh` 与 `page` 同样是空操作，直到一份修正后的 draft 被 `apply`。否则"待修复"只挡住 `apply` 一个入口，刷新或翻页就会把被拒绝的配置发出去。
+- **结果自身的问题记在结果上，不记在 `issues` 里。** `ProjectedView` 带一份 `issues: readonly Issue[]`，说的是"屏幕上这些数字"而不是"这份配置"。`state.issues` 是 draft 连同作用域的准入结果，每次 `edit` 都重算：把这类发现放进去，用户一敲键盘它就没了，而它描述的那些数字还在屏幕上。它随成功的执行一起推进，随下一次成功的结果一起被换掉，读它的是 `resultIssues(data)` 这一个函数——两个工作台把它并进 `WorkbenchShell` 的 `warnings`，`EmbeddedView` 并进它自己的 warning 条（[ui/README.md#两级-severity-与-statusstrip](ui/README.md#两级-severity-与-statusstrip)）。当下有两条，都是 warning，都不阻塞：
+  - **`runtime.summary.page-only`**（路径 `['summaries']`）——汇总查询失败，汇总行退回本页口径。行本身留着，因为本页合计本身有用；`SummaryRow.scope` 说明它答的是 `page` 还是 `total`，这条 Issue 说明为什么退。配置没要汇总时两者都没有，汇总查询成功时是 `scope: 'total'` 且没有 Issue。默默顶替才是这里唯一的错误：读者看到「总计」，会当成全部命中记录的总计，二十行的 AVG 被读成四万行的 AVG。
+  - **`analysis.result.at-limit`**（路径 `['limit']`，参数 `{ limit }`）——分析结果正好填满 `limit` 行。聚合只回答了行数，没说它省略了多少，"恰好等于上限"既可能是刚好这么多组，也可能是被截断的前缀，所以措辞是"**可能**被截断"而不是断言（判据见 [kernels.md#compileanalysis-与-projectanalysis](kernels.md#compileanalysis-与-projectanalysis)）。分析的合计行走自己的无分组查询，因此即使分组被截断它仍覆盖全部——两行加起来小于它们下面的合计，两个数都没错。
+  - 分析的**合计**查询单独失败不报：分组行仍然完整地回答了它们自己的问题，屏幕上没有哪个数字的含义与它的说法不符，少一行合计而已。（见 test/resultIssues.test.tsx）
 
 ## 自动刷新
 

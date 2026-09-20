@@ -13,7 +13,7 @@
 
 import type { AnalysisView } from '../analysis/index.js';
 import type { FieldOption } from '../model/index.js';
-import type { ViewEngine } from '../runtime/index.js';
+import { resultIssues, type ViewEngine } from '../runtime/index.js';
 import { useAnalysisEditor, useWorkbench } from '../react/index.js';
 import { AnalysisChart } from './AnalysisChart.js';
 import { AnalysisEditor } from './AnalysisEditor.js';
@@ -79,6 +79,14 @@ export function AnalysisWorkbench({
       messages={wording}
       locale={locale}
       timeZone={engine.environment.timeZone}
+      // A grouping that filled its limit is a fact about this result, so it
+      // is said beside the config's own findings and stays until the next
+      // result replaces it. The strip sits above both layouts, which is why
+      // a truncated pie is labelled as surely as a truncated table.
+      warnings={[
+        ...(state?.issues ?? []),
+        ...resultIssues(state?.result?.data),
+      ]}
       editor={
         /* Not frozen while a query runs: editing never re-queries, and a
            refresh that lands mid-edit must not take the inputs away. */

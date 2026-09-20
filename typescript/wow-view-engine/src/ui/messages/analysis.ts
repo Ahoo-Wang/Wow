@@ -133,6 +133,10 @@ export const analysisMessages = {
   'analysis.percentile.out-of-range':
     'A percentile must be between 0 and 100, exclusive.',
   'analysis.percentile.undeclared': '{field} does not offer percentiles.',
+  // "May": exactly `limit` rows is what a grouping of that size and a larger
+  // one cut down to it both look like, and the source says nothing more.
+  'analysis.result.at-limit':
+    'The result filled its limit of {limit} rows, so the grouping may have been cut short: every share and slice below is of what is shown, not of the whole.',
   'analysis.sort.duplicate': 'The sort already orders by {alias}.',
   'analysis.sort.requires-group': 'Sorting needs at least one grouping.',
   'analysis.sort.too-many': 'A result sorts on at most {max} columns.',

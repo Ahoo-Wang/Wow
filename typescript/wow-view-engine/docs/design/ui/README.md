@@ -23,6 +23,8 @@
 - `EmbeddedView` 没有编辑器，没有任何一条被标在别处，因此全部报出，并以它取代结果（查询失败是例外：上一次成功的结果还在时，失败条与结果并排，取代结果的只有「什么都还没回来过」那一种——条里那句 `label.query.stale` 说的就是它身旁的东西）（warning 仍照常显示在旁，两级并存时两级都说）。`warning` 不阻塞，但"报出而不阻塞"要求它被看见：warning 条用主题的 `warning` token（`text-warning`／`border-warning`，与 `destructive` 并列，宿主用 `--fve-warning`／`--fve-dark-warning` 定制），只有一条时那句话本身就是标题，多条时标题是 `label.view.warnings-count`；
 - 同 code 同 params 的 warning 只说一句（`dedupeIssues`）——Dashboard 对全局条件自己校验一次、映射到每个面板再校验一次，两片叶子也可能触发同一条规则，句子相同就不重复。查询失败也是一条 error 状态条：标题是失败本身那句话，右端一个 Retry，若上一次结果还在屏幕上，展开处附一句 `label.query.stale` 说明看到的是旧结果——失败从不清空结果，一次断线不该把人正在读的东西拿走。（见 test/statusStrip.test.tsx「StatusStrip」「dedupeIssues」与 test/ui.test.tsx「WarningStrip」「ErrorStrip」）
 
+- **结果自己的 warning 与配置的 warning 并排。** 一条发现说的可能不是"这份配置有问题"，而是"屏幕上这些数字不等于它们看起来的意思"：汇总行退回本页口径（`runtime.summary.page-only`）、分析结果正好填满上限（`analysis.result.at-limit`）。这类发现随结果走（`ProjectedView.issues`，见 [../runtime.md#规则](../runtime.md#规则)），因为 `state.issues` 每次 `edit` 都重算，放进去就会在用户敲下一个键时消失，而它描述的数字还在屏幕上。`RecordWorkbench` 与 `AnalysisWorkbench` 把两者拼起来交给 `WorkbenchShell` 的 `warnings`，`EmbeddedView` 并进它自己那条——嵌入式视图没有编辑器、没有工具栏，那条状态条是页面上唯一能纠正行上那个词的东西。状态条对二者一视同仁，本来也该如此：都是视图必须说出口的 warning。
+
 `FilterPanel` 的条件 pill 见 [FilterPanel 的布局](#filterpanel-的布局)。
 
 ## 值按字段显示

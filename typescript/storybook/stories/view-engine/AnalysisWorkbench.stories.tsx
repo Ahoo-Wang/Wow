@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { SortDirection } from '@ahoo-wang/fetcher-wow';
 import { AnalysisWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
@@ -39,6 +40,7 @@ function AnalysisWorkbenchDemo({
   chart = 'bar',
   series = 'amount',
   pinned = false,
+  limit,
 }: {
   behaviour?: SourceBehaviour;
   layout?: 'table' | 'chart';
@@ -47,9 +49,20 @@ function AnalysisWorkbenchDemo({
   series?: 'amount' | 'both';
   /** Whether the spec pins 华南 and the amount series to colours of their own. */
   pinned?: boolean;
+  /**
+   * A row limit the four warehouses can actually hit. Ordering the result
+   * makes which rows survive the cut a decision rather than an accident.
+   */
+  limit?: number;
 }) {
   const config = analysisConfig({
     layout,
+    ...(limit === undefined
+      ? {}
+      : {
+          limit,
+          sort: [{ alias: 'amount', direction: SortDirection.DESC }],
+        }),
     chart: {
       ...(chart === 'pie'
         ? {
@@ -131,6 +144,7 @@ const meta = {
     pinned: false,
   },
   argTypes: {
+    limit: { table: { disable: true } },
     behaviour: {
       control: 'inline-radio',
       options: ['data', 'empty', 'slow', 'failing'],
@@ -171,6 +185,18 @@ export const PieChart: Story = { args: { layout: 'chart', chart: 'pie' } };
 export const PinnedCategoryColor: Story = {
   args: { layout: 'chart', chart: 'pie', pinned: true },
 };
+
+/**
+ * 四个仓库、上限两行：结果正好填满上限，分组可能还没画完。饼图是最坏的一种
+ * ——每个扇区的占比都是拿"已显示的部分"当分母算出来的——所以上方多一条
+ * warning，把"可能被截断"说成"可能"，因为聚合只回答了行数，没说它省略了多少。
+ */
+export const CutShort: Story = {
+  args: { layout: 'chart', chart: 'pie', limit: 2 },
+};
+
+/** The same cut, as rows: the table says it too, with the same one line. */
+export const CutShortTable: Story = { args: { layout: 'table', limit: 2 } };
 
 /** An aggregation that matched nothing still has its editor. */
 export const EmptyResult: Story = {
