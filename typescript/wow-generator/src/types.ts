@@ -35,6 +35,17 @@ export interface Logger {
   /** Log informational messages */
   info(message: string, ...params: any[]): void;
 
+  /**
+   * Log warnings - something the generator carried on past, but that the user
+   * probably did not intend.
+   *
+   * Optional so that an existing Logger keeps compiling; callers reach it
+   * through {@link warn}, which falls back to {@link info}. The rest
+   * parameter only passes values through to the sink, so it takes `unknown`
+   * rather than the `any` the older methods were written with.
+   */
+  warn?(message: string, ...params: unknown[]): void;
+
   /** Log success messages */
   success(message: string, ...params: any[]): void;
 
@@ -75,27 +86,6 @@ export interface GeneratorConfiguration {
    * tag name -> api client configuration
    */
   apiClients?: Record<string, ApiClientConfiguration>;
-  /**
-   * How read models - aggregate state and domain events - are generated.
-   */
-  readModel?: ReadModelConfiguration;
-}
-
-export interface ReadModelConfiguration {
-  /**
-   * Marks every non-nullable property of an aggregate state or domain event
-   * schema as required, even when the OpenAPI document leaves it out of
-   * `required`.
-   *
-   * Exporters commonly omit properties that carry a default value from
-   * `required`, which describes a request faithfully but understates a
-   * response the server always populates. Enabling this restores the
-   * responses without touching commands: nullable properties stay optional,
-   * and schemas that commands also reach keep their declared shape.
-   *
-   * default: false
-   */
-  nonNullRequired?: boolean;
 }
 
 export interface ApiClientConfiguration {

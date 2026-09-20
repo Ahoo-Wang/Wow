@@ -24,47 +24,50 @@ packages used by the generated output to application dependencies.
     "Catalog": {
       "ignorePathParameters": ["tenantId", "ownerId"]
     }
-  },
-  "readModel": {
-    "nonNullRequired": false
   }
 }
 ```
 
-The default config path is `./fetcher-generator.config.json`. When that optional
-file is absent, the CLI logs the parse failure and continues with defaults.
+The default config path is `./fetcher-generator.config.json`, resolved against
+the working directory the CLI runs in. Only that default path is optional: when
+no file is there the CLI says so and generates with defaults. A path passed to
+`--config` has to exist, and a configuration that cannot be read, cannot be
+parsed, or declares an option with the wrong shape fails the run rather than
+degrading to defaults. Options the generator does not read - a misspelled
+`apiClient`, say - are warned about by name and ignored.
 
-### `readModel.nonNullRequired`
+The log names the absolute path it read and the settings it resolved to, so a
+run answers "did my configuration take effect?" on its own:
 
-A property a document leaves out of `required` is generated as optional. That is
-what the request side means, but exporters commonly drop properties that carry a
-default value from `required`, which understates a response the server always
-populates.
+```text
+ℹ️  Configuration loaded from /work/app/fetcher-generator.config.json: apiClients=Catalog
+```
 
-Enable `readModel.nonNullRequired` to generate every non-nullable property of an
-aggregate state or domain event schema as required. The rule is deliberately
-narrow:
+If that line is missing, the file never reached the generator - check which
+directory the CLI ran in.
 
-- Nullable properties stay optional, in every spelling of null - the OpenAPI 3.0
-  `nullable` flag, a `null` entry in a 3.1 type array, a `null` enum member or
-  const, one `anyOf` branch that admits null, exactly one such `oneOf` branch,
-  and an `allOf` whose every branch does. Every keyword must agree: a `null`
-  enum member alongside `type: string` is rejected by that sibling type, and a
-  `not` whose subschema accepts null rejects it too, so those properties are
-  required rather than optional.
-- `writeOnly` properties stay optional, including when the flag sits on the
-  referenced component. They belong to the request side, so a response may omit
-  them however their type reads. So do properties no value can satisfy, such as
-  `{ not: {} }` or an empty `enum` - a response must omit those.
-- Request schemas are untouched, and that means every operation's body and
-  parameters, not only Wow commands. Over-stating a request's required
-  properties would reject a call the client is entitled to make.
-- A schema both a request and a read model reach keeps its declared shape. Those
-  that the rule would have changed are listed in the generation log.
+## Property optionality
 
-Defaults to `false`, which generates exactly what the document declares. Only
-turn it on when the service really does serialise every non-null property -
-Jackson's `NON_NULL` inclusion does, `NON_DEFAULT` does not.
+Every property a schema declares is generated as required. A statically typed
+service has no absent `int` or `boolean` to hand back, so a model full of `?`
+describes its exporter rather than its wire format - exporters routinely drop
+properties that carry a default value from `required`, and the resulting nulls
+checks are noise.
+
+Optionality that the document genuinely means is carried where it belongs:
+
+- **Null** stays in the type. A nullable property generates `T | null`, so a
+  value that may be absent is still impossible to forget.
+- **Commands** keep their declared optionality at the command type. A command
+  client wraps its body in `PartialBy<Command, 'field' | ...>` built from the
+  document's `required`, so a caller may still omit what the API says is
+  optional - `AddCartItemCommand = CommandBody<PartialBy<AddCartItem,
+'quantity'>>`. Requiring the model never narrows what a client may send.
+
+One consequence is worth knowing: a non-nullable property that references its
+own schema has no finite literal, since every level needs the next. A recursive
+model that terminates declares its link nullable, which generates `T | null` and
+constructs fine.
 
 ## Core capabilities
 

@@ -95,7 +95,7 @@ it('excludes primitive branches whenever an allOf member requires objects', () =
   });
   generator.generate();
   file.addStatements(`
-    const valid: Model = {};
+    const valid: Model = { id: 'one', name: 'two' };
     // @ts-expect-error an explicit object constraint excludes a string branch
     const invalid: Model = 'text';
   `);
@@ -207,10 +207,13 @@ it('keeps legal recursive properties in generated object compositions', () => {
     schemas: { Model: schema },
   });
   generator.generate();
+  // A non-nullable self-reference has no finite literal - every `next` needs
+  // its own - so the recursion is built by assignment rather than constructed.
   file.addStatements(`
-    const valid: Model = {name: 'one', next: {name: 'two'}};
+    const valid = { name: 'one' } as Model;
+    valid.next = valid;
     // @ts-expect-error recursive object properties retain their constraint
-    const invalid: Model = {name: 'one', next: 1};
+    valid.next = 1;
   `);
   expect(project.getPreEmitDiagnostics().map(d => d.getMessageText())).toEqual(
     [],

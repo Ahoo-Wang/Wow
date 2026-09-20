@@ -16,7 +16,7 @@ import {
   FileFormat,
   inferFileFormat,
   parseOpenAPI,
-  parseConfiguration,
+  parseContent,
 } from '../../src/utils';
 import { loadResource } from '../../src/utils';
 
@@ -108,29 +108,29 @@ describe('openAPIParser', () => {
     });
   });
 
-  describe('parseConfiguration', () => {
-    it('should parse JSON configuration', async () => {
-      const jsonContent =
-        '{ "apiClients": { "test": { "baseUrl": "http://example.com" } } }';
-      mockLoadResource.mockResolvedValue(jsonContent);
-
-      const result = await parseConfiguration('config.json');
-      expect(result).toEqual({
-        apiClients: { test: { baseUrl: 'http://example.com' } },
-      });
-      expect(mockLoadResource).toHaveBeenCalledWith('config.json');
+  describe('parseContent', () => {
+    it('should parse JSON content', () => {
+      expect(
+        parseContent(
+          '{ "apiClients": { "test": { "ignorePathParameters": [] } } }',
+          'config.json',
+        ),
+      ).toEqual({ apiClients: { test: { ignorePathParameters: [] } } });
     });
 
-    it('should parse YAML configuration', async () => {
-      const yamlContent =
-        'apiClients:\n  test:\n    baseUrl: http://example.com';
-      mockLoadResource.mockResolvedValue(yamlContent);
+    it('should parse YAML content', () => {
+      expect(
+        parseContent(
+          'apiClients:\n  test:\n    ignorePathParameters: []',
+          'config.yaml',
+        ),
+      ).toEqual({ apiClients: { test: { ignorePathParameters: [] } } });
+    });
 
-      const result = await parseConfiguration('config.yaml');
-      expect(result).toEqual({
-        apiClients: { test: { baseUrl: 'http://example.com' } },
-      });
-      expect(mockLoadResource).toHaveBeenCalledWith('config.yaml');
+    it('should name the source when the format cannot be inferred', () => {
+      expect(() => parseContent('', 'config.json')).toThrow(
+        'Unable to infer file format',
+      );
     });
   });
 });

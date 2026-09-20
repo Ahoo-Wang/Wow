@@ -28,10 +28,11 @@ export function setupCLI() {
       'Input OpenAPI specification file path or URL (http/https)',
     )
     .option('-o, --output <path>', 'Output directory path', 'src/generated')
+    // No commander default: an omitted -c falls back to DEFAULT_CONFIG_PATH,
+    // which may be absent, while a path the user named has to exist.
     .option(
       '-c, --config <file>',
-      'Configuration file path',
-      DEFAULT_CONFIG_PATH,
+      `Configuration file path (default: ${DEFAULT_CONFIG_PATH})`,
     )
     .option(
       '-t, --ts-config-file-path <file>',

@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ConsoleLogger, SilentLogger } from '../../src/utils/logger';
+import { ConsoleLogger, SilentLogger, warn } from '../../src/utils/logger';
 
 describe('ConsoleLogger', () => {
   beforeEach(() => {
@@ -77,6 +77,29 @@ describe('ConsoleLogger', () => {
       '[12:00:00] ℹ️  Test info message',
       'param1',
       'param2',
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('should log warn messages with emoji', () => {
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const logger = new ConsoleLogger();
+
+    logger.warn('Test warn message');
+
+    expect(consoleSpy).toHaveBeenCalledWith('[12:00:00] ⚠️  Test warn message');
+    consoleSpy.mockRestore();
+  });
+
+  it('should log warn messages with params', () => {
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const logger = new ConsoleLogger();
+
+    logger.warn('Test warn message', 'param1');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[12:00:00] ⚠️  Test warn message',
+      'param1',
     );
     consoleSpy.mockRestore();
   });
@@ -176,6 +199,7 @@ describe('SilentLogger', () => {
     const logger = new SilentLogger();
 
     logger.info('Test info');
+    logger.warn('Test warn');
     logger.success('Test success');
     logger.error('Test error');
     logger.progress('Test progress');
@@ -185,5 +209,24 @@ describe('SilentLogger', () => {
     expect(consoleErrorSpy).not.toHaveBeenCalled();
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
+  });
+});
+
+describe('warn', () => {
+  it('uses the logger warning channel when there is one', () => {
+    const logger = { info: vi.fn(), warn: vi.fn() } as any;
+
+    warn(logger, 'Heads up', 'detail');
+
+    expect(logger.warn).toHaveBeenCalledWith('Heads up', 'detail');
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
+  it('falls back to info rather than dropping the message', () => {
+    const logger = { info: vi.fn() } as any;
+
+    warn(logger, 'Heads up', 'detail');
+
+    expect(logger.info).toHaveBeenCalledWith('Heads up', 'detail');
   });
 });

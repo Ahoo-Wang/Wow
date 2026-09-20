@@ -13,6 +13,8 @@
 
 export * from './clis';
 export * from './components';
+export * from './configuration';
+export * from './logger';
 export * from './naming';
 export * from './operations';
 export * from './parsers';

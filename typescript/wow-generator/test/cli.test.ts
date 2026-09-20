@@ -76,10 +76,11 @@ describe('CLI setup', () => {
       'Output directory path',
       'src/generated',
     );
+    // No commander default: CodeGenerator owns the fallback, so an omitted
+    // -c stays undefined and a named path is treated as required.
     expect(result.option).toHaveBeenCalledWith(
       '-c, --config <file>',
-      'Configuration file path',
-      './fetcher-generator.config.json',
+      'Configuration file path (default: ./fetcher-generator.config.json)',
     );
     expect(result.option).toHaveBeenCalledWith(
       '-t, --ts-config-file-path <file>',

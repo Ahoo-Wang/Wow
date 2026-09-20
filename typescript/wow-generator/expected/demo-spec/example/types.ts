@@ -34,8 +34,8 @@ export enum ApiVersion {
  * ```
  */
 export interface Link {
-    href?: string;
-    templated?: boolean;
+    href: string;
+    templated: boolean;
 }
 
 /**
@@ -103,5 +103,5 @@ export type StringStringListMap = globalThis.Record<string, string[]>;
  * ```
  */
 export interface WebServerNamespace {
-    value?: string;
+    value: string;
 }

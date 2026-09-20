@@ -17,13 +17,13 @@ import { AggregateResolver } from './aggregate';
 import { ClientGenerator } from './client';
 import { GenerateContext } from './generateContext';
 import { ModelGenerator } from './model';
-import type { GeneratorConfiguration, GeneratorOptions } from './types';
+import type { GeneratorOptions } from './types';
 import {
   beginGeneration,
   forgetStaleGeneratedFiles,
   getGeneratedFilePaths,
   getOrCreateSourceFile,
-  parseConfiguration,
+  loadConfiguration,
   parseOpenAPI,
   saveGeneration,
 } from './utils';
@@ -71,14 +71,16 @@ export class CodeGenerator {
    * This method performs the following steps:
    * 1. Parses the OpenAPI specification from the input path.
    * 2. Resolves bounded context aggregates.
-   * 3. Parses the generator configuration.
+   * 3. Loads and validates the generator configuration.
    * 4. Generates models and clients.
    * 5. Creates index files for the output directory.
    * 6. Optimizes and formats the generated source files.
    * 7. Saves the project to disk.
    *
    * @returns A promise that resolves when code generation is complete.
-   * @throws Error if OpenAPI parsing fails, configuration parsing fails, or file operations fail.
+   * @throws Error if OpenAPI parsing fails, the configuration cannot be read,
+   * parsed or understood, or file operations fail. A configuration is only
+   * optional at {@link DEFAULT_CONFIG_PATH}; one the caller named has to exist.
    *
    * @example
    * ```typescript
@@ -104,14 +106,13 @@ export class CodeGenerator {
     this.options.logger.info(
       `Resolved ${boundedContextAggregates.size} bounded context aggregates`,
     );
-    const configPath = this.options.configPath ?? DEFAULT_CONFIG_PATH;
-    let config: GeneratorConfiguration = {};
-    try {
-      this.options.logger.info(`Parsing configuration file: ${configPath}`);
-      config = await parseConfiguration(configPath);
-    } catch (e) {
-      this.options.logger.info(`Configuration file parsing failed: ${e}`);
-    }
+    const config = await loadConfiguration(
+      {
+        path: this.options.configPath ?? DEFAULT_CONFIG_PATH,
+        explicit: this.options.configPath !== undefined,
+      },
+      this.options.logger,
+    );
 
     beginGeneration(this.project, this.options.outputDir);
 

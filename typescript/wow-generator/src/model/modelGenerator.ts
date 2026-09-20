@@ -54,7 +54,6 @@ export class ModelGenerator implements Generator {
     }
     const stateAggregatedTypeNames = this.stateAggregatedTypeNames();
     const keySchemas = this.filterSchemas(schemas, stateAggregatedTypeNames);
-    this.reportContestedSchemas();
     this.context.logger.progress(
       `Generating models for ${keySchemas.length} schemas`,
     );
@@ -68,26 +67,6 @@ export class ModelGenerator implements Generator {
       this.generateKeyedSchema(keySchema);
     });
     this.context.logger.success('Model generation completed');
-  }
-
-  /**
-   * Reports schemas that commands and read models share and that the
-   * read-model rule would otherwise have changed. They keep their declared
-   * shape: over-stating a command's required properties would reject requests
-   * a client is entitled to send, while an extra optional property only costs
-   * the caller a null check.
-   */
-  private reportContestedSchemas() {
-    if (!this.context.config.readModel?.nonNullRequired) {
-      return;
-    }
-    const contested = this.context.schemaUsage.contestedKeys();
-    if (!contested.length) {
-      return;
-    }
-    this.context.logger.info(
-      `Keeping declared optionality for ${contested.length} schema(s) shared by commands and read models: ${contested.join(', ')}`,
-    );
   }
 
   private filterSchemas(
@@ -186,7 +165,6 @@ export class ModelGenerator implements Generator {
       keySchema,
       this.context.outputDir,
       this.context.openAPI.components,
-      this.context.isReadModelNonNullRequired(keySchema.key),
     );
     typeGenerator.generate();
   }

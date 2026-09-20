@@ -54,7 +54,6 @@ src/
   aggregate/
     aggregate.ts              — Aggregate definition generator
     aggregateResolver.ts      — Aggregate resolution from OpenAPI spec
-    schemaUsage.ts            — Read/write classification of component schemas
     types.ts                  — Aggregate type definitions
     utils.ts                  — Aggregate utilities
   utils/

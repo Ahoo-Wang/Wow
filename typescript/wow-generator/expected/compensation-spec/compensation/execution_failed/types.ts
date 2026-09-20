@@ -32,7 +32,7 @@ export interface ApplyExecutionFailed {
     error: ErrorDetails;
     /** - format: int64 */
     executeAt: number;
-    recoverable?: RecoverableType;
+    recoverable: RecoverableType;
 }
 
 /**
@@ -225,8 +225,8 @@ export interface CreateExecutionFailed {
     /** - format: int64 */
     executeAt: number;
     function: FunctionInfo;
-    recoverable?: RecoverableType;
-    retrySpec?: globalThis.Exclude<(null | RetrySpec), string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null);
+    recoverable: RecoverableType;
+    retrySpec: globalThis.Exclude<(null | RetrySpec), string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null);
 }
 
 /**
@@ -265,11 +265,11 @@ export interface CreateExecutionFailed {
  * ```
  */
 export interface ErrorDetails {
-    bindingErrors?: BindingError[];
+    bindingErrors: BindingError[];
     errorCode: string;
     errorMsg: string;
     stackTrace: string;
-    readonly succeeded?: boolean;
+    readonly succeeded: boolean;
 }
 
 /**
@@ -448,7 +448,7 @@ export interface ExecutionFailedApplied {
     error: ErrorDetails;
     /** - format: int64 */
     executeAt: number;
-    recoverable?: RecoverableType;
+    recoverable: RecoverableType;
 }
 
 /**
@@ -500,7 +500,7 @@ export interface ExecutionFailedCreated {
     /** - format: int64 */
     executeAt: number;
     function: FunctionInfo;
-    recoverable?: RecoverableType;
+    recoverable: RecoverableType;
     retrySpec: RetrySpec;
     retryState: RetryState;
 }
@@ -561,18 +561,18 @@ export interface ExecutionFailedCreated {
  * ```
  */
 export interface ExecutionFailedState {
-    readonly error?: ErrorDetails;
-    readonly eventId?: EventId;
+    readonly error: ErrorDetails;
+    readonly eventId: EventId;
     /** - format: int64 */
-    executeAt?: number;
-    readonly function?: FunctionInfo;
+    executeAt: number;
+    readonly function: FunctionInfo;
     id: string;
-    recoverable?: RecoverableType;
-    readonly retrySpec?: RetrySpec;
-    readonly retryState?: RetryState;
-    status?: ExecutionFailedStatus;
-    readonly isBelowRetryThreshold?: boolean;
-    readonly isRetryable?: boolean;
+    recoverable: RecoverableType;
+    readonly retrySpec: RetrySpec;
+    readonly retryState: RetryState;
+    status: ExecutionFailedStatus;
+    readonly isBelowRetryThreshold: boolean;
+    readonly isRetryable: boolean;
 }
 
 /**

@@ -41,7 +41,7 @@ vi.mock('../src/utils', () => ({
   }),
   saveGeneration: vi.fn(),
   parseOpenAPI: vi.fn(),
-  parseConfiguration: vi.fn(),
+  loadConfiguration: vi.fn(),
 }));
 
 vi.mock('../src/aggregate', () => ({
@@ -66,7 +66,7 @@ vi.mock('../src/client', () => ({
 }));
 
 // Import after mocking
-import { parseOpenAPI, parseConfiguration } from '../src/utils';
+import { parseOpenAPI, loadConfiguration } from '../src/utils';
 
 describe('CodeGenerator', () => {
   let mockProject: any;
@@ -99,7 +99,7 @@ describe('CodeGenerator', () => {
     };
 
     (parseOpenAPI as any).mockResolvedValue(mockOpenAPI);
-    (parseConfiguration as any).mockResolvedValue({});
+    (loadConfiguration as any).mockResolvedValue({});
 
     options = {
       tsConfigFilePath: undefined,

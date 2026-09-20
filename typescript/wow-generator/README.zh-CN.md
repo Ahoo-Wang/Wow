@@ -23,39 +23,39 @@ pnpm exec fetcher-generator generate \
     "Catalog": {
       "ignorePathParameters": ["tenantId", "ownerId"]
     }
-  },
-  "readModel": {
-    "nonNullRequired": false
   }
 }
 ```
 
-默认配置路径为 `./fetcher-generator.config.json`。该可选文件不存在时，CLI 会记录解析
-失败，并使用默认值继续执行。
+默认配置路径为 `./fetcher-generator.config.json`，相对 CLI 的运行目录解析。只有这个默认
+路径是可选的：该位置没有文件时，CLI 会明确说明并按默认值生成。`--config` 指定的路径必须
+存在；配置读不到、解析不了，或某个选项的形态不对，都会让本次生成失败，而不是退回默认值。
+生成器不认识的选项——例如拼错的 `apiClient`——会被逐个点名警告并忽略。
 
-### `readModel.nonNullRequired`
+日志会写出实际读取的绝对路径与解析出的设置，一次运行就能回答"我的配置生效了吗"：
 
-未列入 `required` 的属性会生成为可选属性。这对请求侧是准确的，但导出器通常会把带默认
-值的属性排除在 `required` 之外，于是响应被低估——服务端其实总会返回这些字段。
+```text
+ℹ️  Configuration loaded from /work/app/fetcher-generator.config.json: apiClients=Catalog
+```
 
-开启 `readModel.nonNullRequired` 后，状态聚合与领域事件 schema 中所有非空属性都会生成
-为必填。该规则的适用范围被刻意收窄：
+如果这一行不存在，说明配置文件根本没送到生成器——请检查 CLI 的运行目录。
 
-- 可空属性仍保持可选，涵盖 null 的各种写法：OpenAPI 3.0 的 `nullable` 标记、3.1 类型
-  数组中的 `null`、枚举或 const 中的 `null`、某个可空的 `anyOf` 分支、恰好一个可空的
-  `oneOf` 分支，以及每个分支都可空的 `allOf`。所有关键字必须一致同意：枚举里的 null
-  成员若与 `type: string` 同级会被该 type 排除，`not` 的子 schema 若接受 null 也等于
-  排除 null，这两种情况下属性都是必填而非可选。
-- `writeOnly` 属性仍保持可选，标记写在被引用的 component 上也算。它们属于请求侧，
-  无论类型怎么写，响应都可以不返回。任何值都无法满足的属性（如 `{ not: {} }`、空
-  `enum`）同样保持可选——响应必须省略它们。
-- 请求 schema 不受影响，且"请求"涵盖所有操作的请求体与参数，不只是 Wow 命令。把请求的
-  必填属性写多了，会拒绝客户端本可以发起的调用。
-- 请求与读模型共享的 schema 保持文档声明的形态，其中会被该规则改变的 schema 会在生成
-  日志中列出。
+## 属性可选性
 
-默认值为 `false`，即完全按文档声明生成。只有当服务端确实会序列化每个非空属性时才应开
-启——Jackson 的 `NON_NULL` 满足该前提，`NON_DEFAULT` 不满足。
+schema 声明的每个属性都生成为必填。强类型后端根本没有"缺席的 `int`/`boolean`"可以返回，
+满屏 `?` 的模型描述的是导出器而不是线上格式——导出器常把带默认值的属性排除在 `required`
+之外，由此产生的空值判断纯属噪音。
+
+文档真正想表达的可选性，则由各自合适的位置承载：
+
+- **可空**留在类型里。可空属性生成 `T | null`，可能缺席的值依然不可能被忘记。
+- **命令**在命令类型上保留声明的可选性。命令客户端会依据文档的 `required` 把请求体包成
+  `PartialBy<Command, 'field' | ...>`，调用方仍可省略 API 允许省略的字段——
+  `AddCartItemCommand = CommandBody<PartialBy<AddCartItem, 'quantity'>>`。把模型改成必填
+  绝不会收紧客户端能发的内容。
+
+有一点值得知道：引用自身 schema 的非空属性没有有限字面量，因为每一层都还要下一层。能终止
+的递归模型会把这条链声明为可空，生成 `T | null`，构造起来毫无问题。
 
 ## 核心能力
 

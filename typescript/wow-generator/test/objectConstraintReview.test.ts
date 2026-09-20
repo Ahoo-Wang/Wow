@@ -72,7 +72,7 @@ describe('reviewed object schema constraints', () => {
           },
         },
         `
-      const valid: Model[] = [{}, { id: '1', extra: 2 }];
+      const valid: Model[] = [{ id: '1' }, { id: '1', extra: 2 }];
       // @ts-expect-error root property constraints still apply
       const wrong: Model = { id: 1 };
     `,
@@ -97,11 +97,11 @@ describe('reviewed object schema constraints', () => {
           },
         },
         `
-      const valid: Model[] = [{}, { name: 'yes', extra: 'allowed' }];
+      const valid: Model[] = [{ name: 'yes' }, { name: 'yes', extra: 'allowed' }];
       const empty: Empty = {};
       const dictionary: Dictionary = { count: 1 };
       // @ts-expect-error additional properties retain their schema type
-      const wrong: Model = { extra: 2 };
+      const wrong: Model = { name: 'yes', extra: 2 };
     `,
       ),
     ).toEqual([]);

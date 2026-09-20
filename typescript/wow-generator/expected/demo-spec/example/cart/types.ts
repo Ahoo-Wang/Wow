@@ -30,7 +30,7 @@ export interface CartData {
      * 购物车数量
      * - format: int32
      */
-    readonly size?: number;
+    readonly size: number;
 }
 
 /**
@@ -70,7 +70,7 @@ export interface AddCartItem {
      * - Numeric Constraints
      *   - exclusiveMinimum: 0
      */
-    quantity?: number;
+    quantity: number;
 }
 
 /**
@@ -149,7 +149,7 @@ export enum CartAggregatedFields {
 export interface CartItem {
     productId: string;
     /** - format: int32 */
-    quantity?: number;
+    quantity: number;
 }
 
 /**
@@ -255,12 +255,12 @@ export interface CartQuantityChanged {
  */
 export interface CartState {
     id: string;
-    items?: CartItem[];
+    items: CartItem[];
     /**
      * 购物车数量
      * - format: int32
      */
-    readonly size?: number;
+    readonly size: number;
 }
 
 /**

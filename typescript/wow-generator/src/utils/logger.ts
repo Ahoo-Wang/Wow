@@ -31,6 +31,15 @@ export class ConsoleLogger implements Logger {
     }
   }
 
+  warn(message: string, ...params: unknown[]): void {
+    const timestamp = this.getTimestamp();
+    if (params.length > 0) {
+      console.warn(`[${timestamp}] ⚠️  ${message}`, ...params);
+    } else {
+      console.warn(`[${timestamp}] ⚠️  ${message}`);
+    }
+  }
+
   success(message: string, ...params: any[]): void {
     const timestamp = this.getTimestamp();
     if (params.length > 0) {
@@ -88,6 +97,9 @@ export class SilentLogger implements Logger {
   info(_message: string, ...params: any[]): void {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  warn(_message: string, ...params: unknown[]): void {}
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   success(_message: string, ...params: any[]): void {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -106,4 +118,27 @@ export class SilentLogger implements Logger {
   ): void {}
 
   /* eslint-enable @typescript-eslint/no-unused-vars */
+}
+
+/**
+ * Logs a warning through a logger that may not implement one.
+ *
+ * {@link Logger.warn} is optional, so that adding it did not break loggers
+ * written against the previous interface; those fall back to {@link
+ * Logger.info} rather than losing the message.
+ *
+ * @param logger - The logger to write to
+ * @param message - The warning
+ * @param params - Additional values to log
+ */
+export function warn(
+  logger: Logger,
+  message: string,
+  ...params: unknown[]
+): void {
+  if (logger.warn) {
+    logger.warn(message, ...params);
+    return;
+  }
+  logger.info(message, ...params);
 }

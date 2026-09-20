@@ -30,6 +30,9 @@ export default defineConfig({
         'yaml',
         'fs',
         'path',
+        // Node builtins written with the `node:` prefix, so one slipping into
+        // a source file cannot be bundled into a broken import at runtime.
+        /^node:/,
       ],
       output: {
         globals: {

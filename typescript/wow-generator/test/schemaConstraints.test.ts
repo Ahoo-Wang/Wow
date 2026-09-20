@@ -65,7 +65,7 @@ describe('review regressions', () => {
             },
           },
           `
-      let value: Model = { id: '1' };
+      let value: Model = { id: '1', name: 'name' };
       value.name = 'updated';
       // @ts-expect-error id is readonly even when the object can be null
       value.id = '2';
@@ -153,50 +153,51 @@ describe('review regressions', () => {
     expect(exports).toMatchObject({ Model: { ON: 'ON' }, value: 'ON' });
   });
 
-  it('preserves optional properties in models and nested objects', () => {
+  it('generates every declared property as required, at every depth', () => {
     const { diagnostics, file } = generateModel(
       {
         type: 'object',
         required: ['id'],
         properties: {
           id: { type: 'string' },
-          optional: { type: 'string' },
+          declared: { type: 'string' },
           nested: {
             type: 'object',
-            properties: { optional: { type: 'string' } },
+            properties: { declared: { type: 'string' } },
           },
         },
       },
-      "const value: Model = { id: '1', nested: {} };\n// @ts-expect-error id remains required\nconst invalid: Model = {};",
+      "const value: Model = { id: '1', declared: 'x', nested: { declared: 'y' } };\n// @ts-expect-error a declared property is never optional\nconst invalid: Model = { id: '1', nested: { declared: 'y' } };",
     );
     expect(diagnostics).toEqual([]);
     expect(
       file
         .getInterfaceOrThrow('Model')
-        .getPropertyOrThrow('optional')
+        .getPropertyOrThrow('declared')
         .hasQuestionToken(),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('allows optional properties alongside additional properties', () => {
+  it('requires declared properties alongside additional properties', () => {
     const schema: Schema = {
       type: 'object',
       properties: { name: { type: 'string' } },
       additionalProperties: { type: 'string' },
     };
     expect(
-      generateModel(schema, 'const value: Model = {};').diagnostics,
+      generateModel(schema, "const value: Model = { name: 'name' };")
+        .diagnostics,
     ).toEqual([]);
     expect(
       generateModel(
         { type: 'object', properties: { nested: schema } },
-        'const value: Model = { nested: {} };',
+        "const value: Model = { nested: { name: 'name' } };",
       ).diagnostics,
     ).toEqual([]);
   });
 
   it.each(['named', 'nested', 'allOf'] as const)(
-    'rejects undefined additional properties beside optional properties (%s)',
+    'rejects undefined additional properties beside declared properties (%s)',
     placement => {
       const objectSchema: Schema = {
         type: 'object',
@@ -219,12 +220,11 @@ describe('review regressions', () => {
         generateModel(
           schema,
           `
-            const empty: Model = ${value('{}')};
             const valid: Model = ${value("{ name: 'name', extra: 'value' }")};
             // @ts-expect-error additional properties only accept string values
-            const undefinedExtra: Model = ${value('{ extra: undefined }')};
+            const undefinedExtra: Model = ${value("{ name: 'name', extra: undefined }")};
             // @ts-expect-error additional properties still reject numbers
-            const numberExtra: Model = ${value('{ extra: 1 }')};
+            const numberExtra: Model = ${value("{ name: 'name', extra: 1 }")};
             // @ts-expect-error declared properties keep their readonly modifier
             valid${placement === 'nested' ? '.nested' : ''}.name = 'updated';
           `,
@@ -585,7 +585,7 @@ describe('allOf required and nullable interactions', () => {
           nullable: true,
           allOf: [{ type: 'object', properties: { id: { type: 'string' } } }],
         },
-        'const valid: Model = {};\n// @ts-expect-error the allOf object constraint excludes null\nconst invalid: Model = null;',
+        "const valid: Model = { id: '1' };\n// @ts-expect-error the allOf object constraint excludes null\nconst invalid: Model = null;",
       ).diagnostics,
     ).toEqual([]);
   });
@@ -664,7 +664,7 @@ describe('allOf preserves every referenced and inline constraint', () => {
         ).generate();
       }
       file.addStatements(
-        "const valid: Derived = { id: '1' };\n// @ts-expect-error inherited id remains required\nconst missing: Derived = {};\n// @ts-expect-error inherited id must be a string\nconst wrong: Derived = { id: 1 };\n// @ts-expect-error required does not permit undefined\nconst unset: Derived = { id: undefined };",
+        "const valid: Derived = { id: '1', other: 'other' };\n// @ts-expect-error inherited id remains required\nconst missing: Derived = {};\n// @ts-expect-error inherited id must be a string\nconst wrong: Derived = { id: 1 };\n// @ts-expect-error required does not permit undefined\nconst unset: Derived = { id: undefined };",
       );
       expect(
         project.getPreEmitDiagnostics().map(d => d.getMessageText()),
@@ -705,7 +705,7 @@ it('requires keys absent from an object schema properties map', () => {
         properties: { name: { type: 'string' } },
         required: ['id'],
       },
-      'const valid: Model = { id: 1 };\n// @ts-expect-error required is independent from properties\nconst missing: Model = {};',
+      "const valid: Model = { id: 1, name: 'name' };\n// @ts-expect-error required is independent from properties\nconst missing: Model = {};",
     ).diagnostics,
   ).toEqual([]);
 });
@@ -861,8 +861,8 @@ describe('required additional property constraints', () => {
         required: ['id'],
         additionalProperties: { type: 'string' },
       };
-      const assignments =
-        "const valid: Model = { id: '1' };\n// @ts-expect-error id is required\nconst missing: Model = {};\n// @ts-expect-error undeclared required id obeys additionalProperties\nconst wrong: Model = { id: 1 };";
+      const name = withProperties ? "name: 'name', " : '';
+      const assignments = `const valid: Model = { ${name}id: '1' };\n// @ts-expect-error id is required\nconst missing: Model = {};\n// @ts-expect-error undeclared required id obeys additionalProperties\nconst wrong: Model = { ${name}id: 1 };`;
       expect(generateModel(schema, assignments).diagnostics).toEqual([]);
       expect(
         generateModel(
@@ -871,7 +871,7 @@ describe('required additional property constraints', () => {
             required: ['nested'],
             properties: { nested: schema },
           },
-          "const valid: Model = { nested: { id: '1' } };\n// @ts-expect-error nested id follows additionalProperties too\nconst wrong: Model = { nested: { id: 1 } };",
+          `const valid: Model = { nested: { ${name}id: '1' } };\n// @ts-expect-error nested id follows additionalProperties too\nconst wrong: Model = { nested: { ${name}id: 1 } };`,
         ).diagnostics,
       ).toEqual([]);
     },

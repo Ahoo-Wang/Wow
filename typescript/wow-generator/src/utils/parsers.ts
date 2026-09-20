@@ -13,7 +13,6 @@
 
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { parse } from 'yaml';
-import type { GeneratorConfiguration } from '../types';
 import { loadResource } from './resources';
 
 /**
@@ -23,22 +22,17 @@ import { loadResource } from './resources';
  * @returns A promise that resolves to the parsed OpenAPI object
  */
 export async function parseOpenAPI(inputPath: string): Promise<OpenAPI> {
-  const content = await loadResource(inputPath);
-  const fileFormat = inferFileFormat(content);
-  switch (fileFormat) {
-    case FileFormat.JSON:
-      return JSON.parse(content);
-    case FileFormat.YAML:
-      return parse(content);
-    default:
-      throw new Error(`Unsupported file format: ${inputPath}`);
-  }
+  return parseContent<OpenAPI>(await loadResource(inputPath), inputPath);
 }
 
-export async function parseConfiguration(
-  configPath: string,
-): Promise<GeneratorConfiguration> {
-  const content = await loadResource(configPath);
+/**
+ * Parses already-loaded document content in whichever format it is written.
+ *
+ * @param content - The document text
+ * @param source - Where it came from, named in the error when the format is unsupported
+ * @returns The parsed document
+ */
+export function parseContent<T>(content: string, source: string): T {
   const fileFormat = inferFileFormat(content);
   switch (fileFormat) {
     case FileFormat.JSON:
@@ -46,7 +40,7 @@ export async function parseConfiguration(
     case FileFormat.YAML:
       return parse(content);
     default:
-      throw new Error(`Unsupported file format: ${configPath}`);
+      throw new Error(`Unsupported file format: ${source}`);
   }
 }
 

@@ -118,7 +118,7 @@ describe('TypeGenerator', () => {
         type: 'object',
         properties: { name: { type: 'string' }, age: { type: 'number' } },
       });
-      expect(result).toBe('{\n  name?: string;\n  age?: number; \n}');
+      expect(result).toBe('{\n  name: string;\n  age: number; \n}');
     });
 
     it('should resolve object type with additional properties', () => {
@@ -185,7 +185,7 @@ describe('TypeGenerator', () => {
         type: 'object',
         properties: { name: { type: 'string' } },
       });
-      expect(result).toBe('{\n  name?: string; \n}');
+      expect(result).toBe('{\n  name: string; \n}');
     });
 
     it('should resolve object with additional properties only', () => {
@@ -215,7 +215,7 @@ describe('TypeGenerator', () => {
         additionalProperties: { type: 'number' },
       });
       expect(result).toBe(
-        '({\n  name?: string; \n} & globalThis.Record<string, number>)',
+        '({\n  name: string; \n} & globalThis.Record<string, number>)',
       );
     });
 
@@ -298,7 +298,7 @@ describe('TypeGenerator', () => {
           age: { type: 'number' },
         },
       });
-      expect(result).toEqual(['name?: string', 'age?: number']);
+      expect(result).toEqual(['name: string', 'age: number']);
     });
   });
 
@@ -432,7 +432,7 @@ describe('TypeGenerator', () => {
       const result = (generator as any).process();
       expect(mockSourceFile.addTypeAlias).toHaveBeenCalledWith({
         name: 'TestModel',
-        type: 'globalThis.Exclude<(BaseModel & {\n  extra?: boolean; \n}), string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null)',
+        type: 'globalThis.Exclude<(BaseModel & {\n  extra: boolean; \n}), string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null)',
         isExported: true,
       });
       expect(result).toBeDefined();
