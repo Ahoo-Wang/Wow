@@ -35,9 +35,11 @@ import {
   isComposition,
   isEnum,
   isMap,
+  isNullableSchema,
   isObject,
   isReadOnly,
   isReference,
+  isWriteOnly,
   jsDoc,
   resolveEnumMemberName,
   resolvePrimitiveType,
@@ -54,7 +56,45 @@ export class TypeGenerator implements Generator {
     private readonly keySchema: KeySchema<Schema | Reference>,
     private readonly outputDir: string,
     private readonly components?: Components,
+    /**
+     * Treats non-nullable properties as required even when the document leaves
+     * them out of `required`. Set for read-model schemas only, as classified by
+     * SchemaUsageResolver.
+     */
+    private readonly nonNullRequired: boolean = false,
   ) {}
+
+  /**
+   * Resolves the property names to generate as required.
+   *
+   * Everything the document declares as required always is. Under
+   * {@link nonNullRequired} every non-nullable property joins them, which
+   * restores response properties an exporter dropped from `required` because
+   * they carry a default value.
+   *
+   * `writeOnly` properties are left alone: they belong to requests, so a
+   * response is entitled to omit them however their type reads.
+   *
+   * @param schema - The object schema owning the properties
+   * @returns The effective required property names
+   */
+  private requiredProperties(schema: Schema): Set<string> {
+    const required = new Set(schema.required ?? []);
+    if (!this.nonNullRequired) {
+      return required;
+    }
+    for (const [propName, propSchema] of Object.entries(
+      schema.properties ?? {},
+    )) {
+      if (
+        !isWriteOnly(propSchema, this.components) &&
+        !isNullableSchema(propSchema, this.components)
+      ) {
+        required.add(propName);
+      }
+    }
+    return required;
+  }
 
   generate(): void {
     const node = this.process();
@@ -158,12 +198,25 @@ export class TypeGenerator implements Generator {
     );
   }
 
+  /**
+   * Chooses the intersection representation over an interface with an index
+   * signature.
+   *
+   * This reads the DECLARED `required` rather than the effective set: an
+   * interface may only carry a named property whose type is assignable to its
+   * index signature, so letting the read-model rule promote a property must
+   * not silently switch the model to a form that no longer compiles (TS2411).
+   *
+   * @param schema - The object schema to represent
+   * @returns True when the schema needs the intersection form
+   */
   private requiresAdditionalPropertiesIntersection(schema: Schema): boolean {
-    return (
-      typeof schema.additionalProperties === 'object' &&
-      Object.keys(schema.properties ?? {}).some(
-        name => !schema.required?.includes(name),
-      )
+    if (typeof schema.additionalProperties !== 'object') {
+      return false;
+    }
+    const declaredRequired = new Set(schema.required ?? []);
+    return Object.keys(schema.properties ?? {}).some(
+      name => !declaredRequired.has(name),
     );
   }
 
@@ -177,12 +230,13 @@ export class TypeGenerator implements Generator {
 
   private resolvePropertyDefinitions(schema: ObjectSchema): string[] {
     const { properties } = schema;
+    const required = this.requiredProperties(schema);
     return Object.entries(properties).map(([propName, propSchema]) => {
       const type = this.resolveType(propSchema);
       const resolvedPropName =
         (isReadOnly(propSchema) ? 'readonly ' : '') +
         resolvePropertyName(propName) +
-        (schema.required?.includes(propName) ? '' : '?');
+        (required.has(propName) ? '' : '?');
       if (!isReference(propSchema)) {
         const jsDocDescriptions = schemaJSDoc(propSchema);
         const doc = jsDoc(jsDocDescriptions, '\n * ');
@@ -538,13 +592,14 @@ export class TypeGenerator implements Generator {
     });
 
     const properties = schema.properties || {};
+    const required = this.requiredProperties(schema);
 
     Object.entries(properties).forEach(([propName, propSchema]) => {
       this.addPropertyToInterface(
         interfaceDeclaration,
         propName,
         propSchema,
-        schema.required?.includes(propName) ?? false,
+        required.has(propName),
       );
     });
 

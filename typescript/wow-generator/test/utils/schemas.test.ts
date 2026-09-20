@@ -24,6 +24,8 @@ import {
   isComposition,
   toArrayType,
   isEmptyObject,
+  isNullableSchema,
+  isWriteOnly,
   resolvePrimitiveType,
 } from '../../src/utils';
 
@@ -251,5 +253,145 @@ describe('schemas', () => {
       expect(resolvePrimitiveType('object')).toBe('any');
       expect(resolvePrimitiveType('array')).toBe('any');
     });
+  });
+});
+
+describe('isNullableSchema', () => {
+  it.each([
+    ['an untyped schema constrains nothing', {}, true],
+    ['the 3.0 nullable flag', { type: 'string', nullable: true }, true],
+    ['a null entry in a type array', { type: ['string', 'null'] }, true],
+    ['a bare null type', { type: 'null' }, true],
+    ['an untyped null enum member', { enum: ['a', null] }, true],
+    ['an untyped null const', { const: null }, true],
+    ['a plain typed schema', { type: 'string' }, false],
+    ['an untyped enum without null', { enum: ['a', 'b'] }, false],
+    ['an untyped const that is not null', { const: 'a' }, false],
+    [
+      'a type that rejects the null enum member',
+      { type: 'string', enum: ['a', null] },
+      false,
+    ],
+    [
+      'a type that rejects the null const',
+      { type: 'string', const: null },
+      false,
+    ],
+  ] satisfies [string, Schema, boolean][])(
+    'reports %s as %s',
+    (_, schema, expected) => {
+      expect(isNullableSchema(schema)).toBe(expected);
+    },
+  );
+
+  it.each([
+    ['a not that accepts null', { not: { type: 'null' } }, false],
+    ['a not that rejects null', { not: { type: 'string' } }, true],
+    [
+      'anyOf and oneOf that each admit null',
+      { anyOf: [{ type: 'null' }], oneOf: [{ type: ['string', 'null'] }] },
+      true,
+    ],
+    [
+      'an anyOf admitting null beside a oneOf that does not',
+      { anyOf: [{ type: 'null' }], oneOf: [{ type: 'string' }] },
+      false,
+    ],
+    [
+      'two oneOf branches admitting null',
+      { oneOf: [{ type: 'null' }, { enum: [null] }] },
+      false,
+    ],
+    [
+      'one anyOf branch admits null',
+      { anyOf: [{ type: 'null' }, { type: 'string' }] },
+      true,
+    ],
+    [
+      'no anyOf branch admits null',
+      { anyOf: [{ type: 'string' }, { type: 'number' }] },
+      false,
+    ],
+    [
+      'every allOf branch admits null',
+      { allOf: [{ type: ['string', 'null'] }, { enum: ['x', null] }] },
+      true,
+    ],
+    [
+      'one allOf branch rejects null',
+      { allOf: [{ type: ['string', 'null'] }, { type: 'string' }] },
+      false,
+    ],
+  ] satisfies [string, Schema, boolean][])(
+    'reports that %s as %s',
+    (_, schema, expected) => {
+      expect(isNullableSchema(schema)).toBe(expected);
+    },
+  );
+
+  it('judges allOf branches independently of one another', () => {
+    const nullable: Schema = { type: ['string', 'null'] };
+    // The same object appearing twice must not be dismissed as a cycle.
+    expect(isNullableSchema({ allOf: [nullable, nullable] })).toBe(true);
+  });
+
+  it('follows a reference when components are supplied', () => {
+    const components = {
+      schemas: {
+        Nullish: { type: 'string', nullable: true },
+        Present: { type: 'string' },
+      },
+    };
+    const reference = { $ref: '#/components/schemas/Nullish' };
+    expect(isNullableSchema(reference, components)).toBe(true);
+    expect(
+      isNullableSchema({ $ref: '#/components/schemas/Present' }, components),
+    ).toBe(false);
+    // Without components a reference cannot be judged, so it is not nullable.
+    expect(isNullableSchema(reference)).toBe(false);
+    // A dangling reference is treated the same way.
+    expect(
+      isNullableSchema({ $ref: '#/components/schemas/Missing' }, components),
+    ).toBe(false);
+  });
+
+  it('stops at a schema it has already visited', () => {
+    const schema: Schema = { type: ['string', 'null'] };
+    expect(isNullableSchema(schema, undefined, new Set([schema]))).toBe(false);
+  });
+});
+
+describe('isWriteOnly', () => {
+  it.each([
+    [{ type: 'string', writeOnly: true }, true],
+    [{ type: 'string', writeOnly: false }, false],
+    [{ type: 'string' }, false],
+  ] satisfies [Schema, boolean][])('reports %o as %s', (schema, expected) => {
+    expect(isWriteOnly(schema)).toBe(expected);
+  });
+
+  it('follows a reference to the component carrying the flag', () => {
+    const components = {
+      schemas: {
+        Secret: { type: 'string', writeOnly: true },
+        Plain: { type: 'string' },
+      },
+    };
+    expect(
+      isWriteOnly({ $ref: '#/components/schemas/Secret' }, components),
+    ).toBe(true);
+    expect(
+      isWriteOnly({ $ref: '#/components/schemas/Plain' }, components),
+    ).toBe(false);
+    // Without components, and for a dangling reference, nothing can be judged.
+    expect(isWriteOnly({ $ref: '#/components/schemas/Secret' })).toBe(false);
+    expect(
+      isWriteOnly({ $ref: '#/components/schemas/Missing' }, components),
+    ).toBe(false);
+  });
+
+  it('stops at a schema it has already visited', () => {
+    const schema: Schema = { type: 'string', writeOnly: true };
+    expect(isWriteOnly(schema, undefined, new Set([schema]))).toBe(false);
   });
 });

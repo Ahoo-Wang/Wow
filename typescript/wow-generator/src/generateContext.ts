@@ -14,6 +14,7 @@
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import type { Project, SourceFile } from 'ts-morph';
 import type { BoundedContextAggregates } from './aggregate';
+import { SchemaUsageResolver } from './aggregate/schemaUsage';
 import type {
   GenerateContextInit,
   GeneratorConfiguration,
@@ -35,6 +36,7 @@ export class GenerateContext implements GenerateContextInit {
   readonly config: GeneratorConfiguration;
   private readonly defaultIgnorePathParameters = ['tenantId', 'ownerId'];
   readonly currentContextAlias: string | undefined;
+  private schemaUsageResolver: SchemaUsageResolver | undefined;
 
   constructor(context: GenerateContextInit) {
     this.project = context.project;
@@ -44,6 +46,33 @@ export class GenerateContext implements GenerateContextInit {
     this.logger = context.logger;
     this.config = context.config ?? {};
     this.currentContextAlias = this.openAPI.info['x-wow-context-alias'];
+  }
+
+  /**
+   * Classifies component schemas by the CQRS side that reaches them.
+   * Resolved on first use, since documents without aggregates never need it.
+   */
+  get schemaUsage(): SchemaUsageResolver {
+    this.schemaUsageResolver ??= new SchemaUsageResolver(
+      this.openAPI,
+      this.contextAggregates,
+    );
+    return this.schemaUsageResolver;
+  }
+
+  /**
+   * Reports whether a schema's non-nullable properties should be generated as
+   * required. Only schemas reached exclusively by aggregate state or domain
+   * events qualify; anything a command also reaches keeps its declared shape.
+   *
+   * @param schemaKey - The component schema key
+   * @returns True when the read-model rule applies to this schema
+   */
+  isReadModelNonNullRequired(schemaKey: string): boolean {
+    if (!this.config.readModel?.nonNullRequired) {
+      return false;
+    }
+    return this.schemaUsage.usageOf(schemaKey) === 'read';
   }
 
   getOrCreateSourceFile(filePath: string): SourceFile {

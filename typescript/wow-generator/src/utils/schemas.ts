@@ -11,7 +11,14 @@
  * limitations under the License.
  */
 
-import type { Reference, Schema, SchemaType } from '@ahoo-wang/fetcher-openapi';
+import type {
+  Components,
+  Reference,
+  Schema,
+  SchemaType,
+} from '@ahoo-wang/fetcher-openapi';
+import { extractSchema } from './components';
+import { isReference } from './references';
 
 /** List of primitive schema types */
 const PRIMITIVE_TYPES: SchemaType[] = [
@@ -178,6 +185,120 @@ export function isEmptyObject(schema: Schema): boolean {
 
 export function isReadOnly(schema: Schema | Reference): boolean {
   return (schema as Schema).readOnly === true;
+}
+
+/**
+ * Checks whether a schema admits `null`.
+ *
+ * A schema admits null only when every applicable keyword does, so each is
+ * checked in turn rather than accepting the first `null` that turns up:
+ *
+ * - `type` must include `null`, or the OpenAPI 3.0 `nullable` flag must be set.
+ *   An absent `type` constrains nothing and admits null.
+ * - `const` must be null, and `enum` must contain it.
+ * - `anyOf` / `oneOf` need one branch that admits null; `allOf` needs all of
+ *   them, since an intersection is only as permissive as its narrowest
+ *   conjunct.
+ *
+ * `{ type: 'string', enum: ['a', null] }` is therefore not nullable: the
+ * sibling `type` rejects the null member, exactly as `resolveType` does when it
+ * drops the literal from the generated union.
+ *
+ * References are followed when components are supplied.
+ *
+ * @param schema - The schema or reference to check
+ * @param components - Components used to resolve references
+ * @param visited - Schemas already visited, guarding against reference cycles
+ * @returns True if the schema admits null, false otherwise
+ */
+export function isNullableSchema(
+  schema: Schema | Reference,
+  components?: Components,
+  visited: Set<Schema | Reference> = new Set(),
+): boolean {
+  if (visited.has(schema)) {
+    return false;
+  }
+  visited.add(schema);
+  if (isReference(schema)) {
+    if (!components) {
+      return false;
+    }
+    const resolved = extractSchema(schema, components);
+    return resolved ? isNullableSchema(resolved, components, visited) : false;
+  }
+  const typeAdmitsNull =
+    schema.nullable === true ||
+    schema.type === undefined ||
+    [schema.type].flat().includes('null');
+  if (!typeAdmitsNull) {
+    return false;
+  }
+  if (schema.const !== undefined && schema.const !== null) {
+    return false;
+  }
+  if (Array.isArray(schema.enum) && !schema.enum.includes(null)) {
+    return false;
+  }
+  // Each branch gets its own visited set: sibling branches must be judged
+  // independently, while the copy still accumulates along a path so reference
+  // cycles terminate.
+  const isNullableMember = (member: Schema | Reference) =>
+    isNullableSchema(member, components, new Set(visited));
+  // anyOf and oneOf are separate assertions that must both hold, so they are
+  // never merged into one check.
+  if (schema.anyOf?.length && !schema.anyOf.some(isNullableMember)) {
+    return false;
+  }
+  // oneOf admits null only when EXACTLY one branch does: a value matching two
+  // branches fails the keyword.
+  if (
+    schema.oneOf?.length &&
+    schema.oneOf.filter(isNullableMember).length !== 1
+  ) {
+    return false;
+  }
+  if (schema.allOf?.length && !schema.allOf.every(isNullableMember)) {
+    return false;
+  }
+  // `not` rejects whatever its subschema accepts, so a nullable subschema
+  // makes the whole schema non-nullable.
+  if (schema.not !== undefined && isNullableMember(schema.not)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Checks whether a schema is request-only.
+ *
+ * A `writeOnly` property belongs to requests, so a response may omit it however
+ * the document declares its type. References are followed when components are
+ * supplied, since a property is commonly a bare `$ref` to the component that
+ * carries the flag.
+ *
+ * @param schema - The schema or reference to check
+ * @param components - Components used to resolve references
+ * @param visited - Schemas already visited, guarding against reference cycles
+ * @returns True if the schema is write-only, false otherwise
+ */
+export function isWriteOnly(
+  schema: Schema | Reference,
+  components?: Components,
+  visited: Set<Schema | Reference> = new Set(),
+): boolean {
+  if (visited.has(schema)) {
+    return false;
+  }
+  visited.add(schema);
+  if (isReference(schema)) {
+    if (!components) {
+      return false;
+    }
+    const resolved = extractSchema(schema, components);
+    return resolved ? isWriteOnly(resolved, components, visited) : false;
+  }
+  return schema.writeOnly === true;
 }
 
 /**

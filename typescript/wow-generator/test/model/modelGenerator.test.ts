@@ -64,6 +64,8 @@ describe('ModelGenerator', () => {
     defaultIgnorePathParameters: [],
     isIgnoreApiClientPathParameters: vi.fn(),
     isIgnoreCommandClientPathParameters: vi.fn(),
+    isReadModelNonNullRequired: vi.fn(() => false),
+    schemaUsage: { contestedKeys: vi.fn(() => []) },
     project: {} as any,
     config: {},
     currentContextAlias: undefined,
@@ -176,6 +178,53 @@ describe('ModelGenerator', () => {
       expect(
         (generator as any).isWowSchema('TestModel', aggregatedTypeNames),
       ).toBe(false);
+    });
+  });
+
+  describe('reportContestedSchemas', () => {
+    it('stays silent when the read-model rule is disabled', () => {
+      const contestedKeys = vi.fn(() => ['demo.Value']);
+      const logger = { ...mockLogger, info: vi.fn() };
+      const generator = new ModelGenerator({
+        ...mockContext,
+        logger,
+        schemaUsage: { contestedKeys },
+      } as any);
+
+      (generator as any).reportContestedSchemas();
+
+      expect(contestedKeys).not.toHaveBeenCalled();
+      expect(logger.info).not.toHaveBeenCalled();
+    });
+
+    it('names the shared schemas that keep their declared optionality', () => {
+      const logger = { ...mockLogger, info: vi.fn() };
+      const generator = new ModelGenerator({
+        ...mockContext,
+        logger,
+        config: { readModel: { nonNullRequired: true } },
+        schemaUsage: { contestedKeys: vi.fn(() => ['demo.Value']) },
+      } as any);
+
+      (generator as any).reportContestedSchemas();
+
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('demo.Value'),
+      );
+    });
+
+    it('stays silent when nothing is contested', () => {
+      const logger = { ...mockLogger, info: vi.fn() };
+      const generator = new ModelGenerator({
+        ...mockContext,
+        logger,
+        config: { readModel: { nonNullRequired: true } },
+        schemaUsage: { contestedKeys: vi.fn(() => []) },
+      } as any);
+
+      (generator as any).reportContestedSchemas();
+
+      expect(logger.info).not.toHaveBeenCalled();
     });
   });
 
