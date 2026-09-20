@@ -661,5 +661,40 @@ describe('TypeGenerator', () => {
       );
       expect(result).toBe(mockInterfaceDeclaration);
     });
+
+    it('should take the intersection form when a required property clashes with the index signature', () => {
+      // An interface may only carry a named property assignable to its index
+      // signature (TS2411), which a `string` beside a `number` index is not
+      // however the document declares it required.
+      const mockTypeAlias = { addJsDoc: vi.fn() };
+      const mockSourceFile = {
+        addInterface: vi.fn(),
+        addTypeAlias: vi.fn().mockReturnValue(mockTypeAlias),
+      };
+      const schema = {
+        type: 'object' as const,
+        properties: { id: { type: 'string' as const } },
+        required: ['id'],
+        additionalProperties: { type: 'number' as const },
+      };
+      const generator = new TypeGenerator(
+        modelInfo,
+        mockSourceFile as any,
+        { key: 'TestModel', schema },
+        outputDir,
+      );
+
+      const result = (generator as any).processInterface(schema);
+
+      expect(mockSourceFile.addInterface).not.toHaveBeenCalled();
+      expect(mockSourceFile.addTypeAlias).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: modelInfo.name,
+          type: expect.stringContaining('globalThis.Record<string, number>'),
+          isExported: true,
+        }),
+      );
+      expect(result).toBe(mockTypeAlias);
+    });
   });
 });

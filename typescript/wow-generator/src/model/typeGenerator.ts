@@ -50,6 +50,88 @@ import {
 } from '../utils';
 import type { Generator } from '../generateContext';
 
+/**
+ * What a schema generates, as far as assignability to an index signature goes.
+ *
+ * A primitive carries its resolved TypeScript type; `object` and `array` need
+ * no further detail, since neither is ever assignable to a primitive.
+ */
+type SchemaKind = 'object' | 'array' | { primitive: string };
+
+/**
+ * Classifies a schema, following references through the components.
+ *
+ * Returns undefined - undecided - for anything whose assignability cannot be
+ * read off the schema: a composition, an enum, a const, a nullable schema, a
+ * type union, a missing `type`, a reference that cannot be resolved and a
+ * reference cycle.
+ *
+ * @param schema - The schema to classify
+ * @param components - The components a reference resolves against
+ * @param seen - The references already followed, guarding against a cycle
+ * @returns The schema's kind, or undefined when it cannot be decided
+ */
+function schemaKind(
+  schema: Schema | Reference,
+  components?: Components,
+  seen: Set<string> = new Set(),
+): SchemaKind | undefined {
+  if (isReference(schema)) {
+    if (!components || seen.has(schema.$ref)) return undefined;
+    seen.add(schema.$ref);
+    const resolved = extractSchema(schema, components);
+    return resolved ? schemaKind(resolved, components, seen) : undefined;
+  }
+  if (
+    isComposition(schema) ||
+    isEnum(schema) ||
+    schema.const !== undefined ||
+    schema.nullable ||
+    schema.type === undefined ||
+    Array.isArray(schema.type)
+  ) {
+    return undefined;
+  }
+  if (schema.type === 'object') return 'object';
+  if (schema.type === 'array') return 'array';
+  return { primitive: resolvePrimitiveType(schema.type) };
+}
+
+/**
+ * Tells whether a named property provably cannot sit beside the index signature.
+ *
+ * The index type has to resolve to a primitive. That is not about proving the
+ * clash - it is what keeps the alias sound: `Record<string, T>` in a type alias
+ * may not lead back to the alias itself (TS2456), and only a primitive `T` is
+ * certain never to. A property may reference anything, including the model
+ * itself, because an object member defers.
+ *
+ * Against a primitive index, an object and an array are as incompatible as a
+ * different primitive is. Everything undecided stays in the interface: an enum
+ * narrows the primitive it sits beside (`'a' | 'b'` against `string`) and a
+ * composition may admit it (`null` against `Model | null`), so calling either a
+ * clash would move a schema the interface expresses perfectly well.
+ *
+ * @param propSchema - The named property's schema
+ * @param additionalProperties - The additional-property schema
+ * @param components - The components a reference resolves against
+ * @returns True when the property cannot be assignable to the index type
+ */
+function clashesWithIndexSignature(
+  propSchema: Schema | Reference,
+  additionalProperties: Schema | Reference,
+  components?: Components,
+): boolean {
+  const indexKind = schemaKind(additionalProperties, components);
+  if (typeof indexKind !== 'object') return false;
+  const propertyKind = schemaKind(propSchema, components);
+  if (propertyKind === undefined) return false;
+  return (
+    typeof propertyKind === 'string' ||
+    propertyKind.primitive !== indexKind.primitive
+  );
+}
+
 export class TypeGenerator implements Generator {
   constructor(
     private readonly modelInfo: ModelInfo,
@@ -206,21 +288,35 @@ export class TypeGenerator implements Generator {
    * Chooses the intersection representation over an interface with an index
    * signature.
    *
-   * This reads the DECLARED `required` rather than the effective set: an
-   * interface may only carry a named property whose type is assignable to its
-   * index signature, so letting the read-model rule promote a property must
-   * not silently switch the model to a form that no longer compiles (TS2411).
+   * An interface may only carry a named property whose type is assignable to
+   * its index signature (TS2411). An optional property never is - its
+   * `undefined` alone breaks the rule - so it always takes the intersection.
+   *
+   * A required property may or may not be, and only a clash that can be PROVEN
+   * off the schemas moves it - see {@link clashesWithIndexSignature}. Anything
+   * undecided keeps the interface, which is the only form that can reference
+   * itself through an index signature: an alias reaching itself through
+   * `Record` is circular (TS2456), which is what a dictionary of its own type
+   * would generate. Erring towards the interface also means this rule never
+   * breaks a schema that compiled before it.
    *
    * @param schema - The object schema to represent
    * @returns True when the schema needs the intersection form
    */
   private requiresAdditionalPropertiesIntersection(schema: Schema): boolean {
-    if (typeof schema.additionalProperties !== 'object') {
+    const additionalProperties = schema.additionalProperties;
+    if (typeof additionalProperties !== 'object') {
       return false;
     }
     const declaredRequired = new Set(schema.required ?? []);
-    return Object.keys(schema.properties ?? {}).some(
-      name => !declaredRequired.has(name),
+    return Object.entries(schema.properties ?? {}).some(
+      ([name, propSchema]) =>
+        !declaredRequired.has(name) ||
+        clashesWithIndexSignature(
+          propSchema,
+          additionalProperties,
+          this.components,
+        ),
     );
   }
 

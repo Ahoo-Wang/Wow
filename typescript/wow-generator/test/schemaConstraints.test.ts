@@ -14,10 +14,14 @@
 import { describe, expect, it } from 'vitest';
 import { Project, ModuleKind } from 'ts-morph';
 import { runInNewContext } from 'node:vm';
-import type { Schema } from '@ahoo-wang/fetcher-openapi';
+import type { Components, Schema } from '@ahoo-wang/fetcher-openapi';
 import { TypeGenerator } from '../src/model';
 
-function generateModel(schema: Schema, assignments: string) {
+function generateModel(
+  schema: Schema,
+  assignments: string,
+  components?: Components,
+) {
   const project = new Project({
     useInMemoryFileSystem: true,
     compilerOptions: {
@@ -32,6 +36,7 @@ function generateModel(schema: Schema, assignments: string) {
     file,
     { key: 'Model', schema },
     '/',
+    components,
   ).generate();
   file.addStatements(assignments);
   return {
@@ -871,6 +876,185 @@ describe('required additional property constraints', () => {
       ).toEqual([]);
     },
   );
+
+  it.each([false, true])(
+    'keeps required properties out of a conflicting index signature (nested: %s)',
+    nested => {
+      // An interface may not carry a `string` property beside a `number` index
+      // signature (TS2411), and two plain primitives of different types are
+      // the one clash provable without a type checker - so this schema takes
+      // the intersection however the document declares the property.
+      const schema: Schema = {
+        type: 'object',
+        required: ['name'],
+        properties: { name: { type: 'string' } },
+        additionalProperties: { type: 'number' },
+      };
+      const value = nested ? 'model.value' : 'model';
+      const { file, diagnostics } = generateModel(
+        nested
+          ? {
+              type: 'object',
+              required: ['value'],
+              properties: { value: schema },
+            }
+          : schema,
+        `
+          declare const model: Model;
+          const name: string = ${value}.name;
+          const extra: number = ${value}.other;
+          // @ts-expect-error TypeScript cannot exempt a named property from the
+          // index signature, so no literal satisfies both halves of a schema
+          // whose additionalProperties contradict it
+          const literal: Model = ${nested ? "{ value: { name: 'name' } }" : "{ name: 'name' }"};
+        `,
+      );
+      expect(diagnostics).toEqual([]);
+      expect(file.getFullText()).toContain('globalThis.Record<string, number>');
+    },
+  );
+
+  it.each([false, true])(
+    'admits values when a required property agrees with the index signature (nested: %s)',
+    nested => {
+      const schema: Schema = {
+        type: 'object',
+        required: ['name'],
+        properties: { name: { type: 'string' } },
+        additionalProperties: { type: 'string' },
+      };
+      const wrap = (object: string) =>
+        nested ? `{ value: ${object} }` : object;
+      expect(
+        generateModel(
+          nested
+            ? {
+                type: 'object',
+                required: ['value'],
+                properties: { value: schema },
+              }
+            : schema,
+          `
+            const valid: Model = ${wrap("{ name: 'name', extra: 'value' }")};
+            // @ts-expect-error name stays required
+            const missing: Model = ${wrap("{ extra: 'value' }")};
+            // @ts-expect-error additional properties still reject numbers
+            const wrong: Model = ${wrap("{ name: 'name', extra: 1 }")};
+          `,
+        ).diagnostics,
+      ).toEqual([]);
+    },
+  );
+
+  it.each([
+    ['an array', { type: 'array', items: { type: 'string' } } as Schema],
+    [
+      'an inline object',
+      { type: 'object', properties: { id: { type: 'string' } } } as Schema,
+    ],
+  ])(
+    'moves a required property out of a primitive index signature: %s',
+    (_, property) => {
+      // Against a primitive index an object and an array are as incompatible
+      // as a different primitive is (TS2411), and the index type stays a
+      // primitive, so the alias cannot reach itself through `Record`.
+      const schema: Schema = {
+        type: 'object',
+        required: ['value'],
+        properties: { value: property },
+        additionalProperties: { type: 'string' },
+      };
+      const { file, diagnostics } = generateModel(
+        schema,
+        "const valid: Model = { value: undefined as any, extra: 'text' };",
+        { schemas: { Model: schema } },
+      );
+      expect(diagnostics).toEqual([]);
+      expect(file.getTypeAliasOrThrow('Model').getText()).toContain(
+        'globalThis.Record<string, string>',
+      );
+    },
+  );
+
+  it('keeps a self-referential property beside a primitive index signature', () => {
+    // The property may reference the model, an object member defers - it is
+    // the index type that must not lead back to the alias.
+    const schema: Schema = {
+      type: 'object',
+      required: ['child'],
+      properties: { child: { $ref: '#/components/schemas/Model' } },
+      additionalProperties: { type: 'string' },
+    };
+    const { file, diagnostics } = generateModel(schema, '', {
+      schemas: { Model: schema },
+    });
+    expect(diagnostics).toEqual([]);
+    expect(file.getTypeAliasOrThrow('Model').getText()).toContain(
+      'globalThis.Record<string, string>',
+    );
+  });
+
+  it.each([
+    [
+      'a null property against a nullable dictionary of itself',
+      { type: 'null' } as Schema,
+      {
+        oneOf: [{ $ref: '#/components/schemas/Model' }, { type: 'null' }],
+      } as Schema,
+    ],
+    [
+      'an enum property against the primitive it narrows',
+      { type: 'string', enum: ['a', 'b'] } as Schema,
+      { type: 'string' } as Schema,
+    ],
+  ])(
+    'leaves an assignable required property in the interface: %s',
+    (_, property, additionalProperties) => {
+      // Textual inequality is not non-assignability. Calling either of these a
+      // clash would move a schema the interface expresses perfectly well to an
+      // alias - and the first one would then reach itself through `Record`
+      // (TS2456).
+      const schema: Schema = {
+        type: 'object',
+        required: ['value'],
+        properties: { value: property },
+        additionalProperties,
+      };
+      const { file, diagnostics } = generateModel(schema, '', {
+        schemas: { Model: schema },
+      });
+      expect(diagnostics).toEqual([]);
+      expect(
+        file.getInterfaceOrThrow('Model').getIndexSignatures(),
+      ).toHaveLength(1);
+    },
+  );
+
+  it('keeps a dictionary of its own type an interface', () => {
+    // Only an interface may reference itself through an index signature: a type
+    // alias that reaches itself through `Record` is circular (TS2456). A
+    // reference is never a provable clash, so the dictionary keeps the
+    // interface and stays expressible.
+    const schema: Schema = {
+      type: 'object',
+      required: ['child'],
+      properties: { child: { $ref: '#/components/schemas/Model' } },
+      additionalProperties: { $ref: '#/components/schemas/Model' },
+    };
+    const { file, diagnostics } = generateModel(
+      schema,
+      `
+        declare const model: Model;
+        const child: Model = model.child;
+        const other: Model = model.other;
+      `,
+      { schemas: { Model: schema } },
+    );
+    expect(diagnostics).toEqual([]);
+    expect(file.getInterfaceOrThrow('Model').getIndexSignatures()).toHaveLength(
+      1,
+    );
+  });
 
   it.each([false, true, undefined])(
     'respects boolean/default additionalProperties: %s',
