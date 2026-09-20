@@ -47,6 +47,13 @@ export interface DashboardWorkbenchProps {
   defaultSidebarOpen?: boolean;
   /** Told whenever the sidebar opens or closes, for a host that mirrors it. */
   onSidebarOpenChange?(open: boolean): void;
+  /**
+   * Whether this workbench offers to fill the screen. On by default, and the
+   * fold itself belongs to the shell — a host only says whether the control
+   * exists, because a page that is already one full-screen view of one thing
+   * has nothing to gain from a second way to say so.
+   */
+  expandable?: boolean;
 }
 
 /**
@@ -70,6 +77,7 @@ export function DashboardWorkbench({
   optionsFor,
   defaultSidebarOpen,
   onSidebarOpenChange,
+  expandable,
 }: DashboardWorkbenchProps) {
   const workbench = useWorkbench(engine, definitionId, {
     kind: 'dashboard',
@@ -119,6 +127,7 @@ export function DashboardWorkbench({
       timeZone={engine.environment.timeZone}
       defaultSidebarOpen={defaultSidebarOpen}
       onSidebarOpenChange={onSidebarOpenChange}
+      expandable={expandable}
       hasResult={hasResult}
       resultSurface={false}
       warnings={warnings}

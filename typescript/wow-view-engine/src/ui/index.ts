@@ -52,6 +52,10 @@ export * from './SaveActions.js';
 export * from './SaveAsDialog.js';
 export * from './SortSettings.js';
 export * from './StatusStrip.js';
+// The hook ships beside the toggle: `EmbeddedView` has no title bar to put a
+// button in, so a host that wants its embed to fill the screen owns the
+// control and points this at the surface it got a ref to.
+export * from './ViewExpansion.js';
 export * from './ViewHeader.js';
 export * from './ViewList.js';
 export * from './ViewSwitcher.js';

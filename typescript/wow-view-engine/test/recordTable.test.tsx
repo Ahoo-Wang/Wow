@@ -831,6 +831,10 @@ describe('the table chrome', () => {
     // rather than between them and the rows.
     const area = container.querySelector('[data-slot="record-table"]')!;
     expect(area.className).toContain('overflow-auto');
+    // Said on the element as well as in the class list: the expanded
+    // workbench hands the remaining height to the table that is its own
+    // scrollport, and it has to be able to tell which one that is.
+    expect(area.hasAttribute('data-scrolls')).toBe(true);
     expect(container.querySelector('thead')!.className).toContain('sticky');
     expect(container.querySelector('thead')!.className).toContain('top-0');
     expect(container.querySelector('tfoot')!.className).toContain('bottom-0');
@@ -854,6 +858,9 @@ describe('the table chrome', () => {
     const area = container.querySelector('[data-slot="record-table"]')!;
     expect(area.className).not.toContain('overflow-auto');
     expect(area.className).not.toContain('max-h-');
+    // And it says so, so that an expanded workbench around it does not give
+    // it a height and put a second scrollport back under the sticky layers.
+    expect(area.hasAttribute('data-scrolls')).toBe(false);
     // The registry's own container stays out of the way either way, and the
     // header and summaries still hold — against whatever really scrolls.
     expect(area.className).toContain('overflow-visible');

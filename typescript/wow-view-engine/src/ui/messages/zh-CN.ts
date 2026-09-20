@@ -626,9 +626,13 @@ export const zhCN: ViewMessages = {
   'definition.view.id-separator': '视图 id 不能带 {separator}。',
   'definition.view.kind-mismatch': '{kind} 视图不属于 {definition} 定义。',
 
-  // 工作台骨架：侧栏的两种状态，以及侧栏收起后顶替它的切换器。
+  // 工作台骨架：侧栏的两种状态、侧栏收起后顶替它的切换器，以及视图铺满整屏
+  // 的两种状态。「铺满屏幕」而不是「全屏」：全屏是浏览器自己那个（F11），连
+  // 地址栏一起收走，这里只是视图占满它所在的这一页。
   'label.workbench.collapse-sidebar': '收起视图列表',
   'label.workbench.expand-sidebar': '展开视图列表',
+  'label.workbench.expand-view': '铺满屏幕',
+  'label.workbench.collapse-view': '退出铺满',
   'label.workbench.switch-view': '切换视图',
   'label.workbench.editor-modes': '编辑器选项',
 } satisfies Record<MessageKey, string>;

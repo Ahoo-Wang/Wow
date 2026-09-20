@@ -22,6 +22,10 @@ import displayMeta, {
   CannotOpen as DisplayCannotOpen,
   CollapsedSidebar as DisplayCollapsedSidebar,
   EmptyResult as DisplayEmptyResult,
+  FillTheScreen as DisplayFillTheScreen,
+  FillTheScreenInScaledHost as DisplayFillTheScreenInScaledHost,
+  FillTheScreenInTransformedHost as DisplayFillTheScreenInTransformedHost,
+  FillTheScreenWithPopups as DisplayFillTheScreenWithPopups,
   Loading as DisplayLoading,
   Localized as DisplayLocalized,
   ManageViews as DisplayManageViews,
@@ -965,3 +969,414 @@ export const PickSeveralFields: Story = {
     );
   },
 };
+
+/**
+ * The view filling the screen, and the page given back.
+ *
+ * The three things that go wrong here are all asserted rather than looked
+ * at: the surface must expand **in place** (the same table node, under the
+ * same parent — a portal would remount it and take the draft with it), the
+ * document's scrolling must be locked while it is open and handed back
+ * exactly as it was, and the table's sticky layers must still hold against
+ * whatever actually scrolls, in both states.
+ */
+export const FillTheScreen: Story = {
+  ...DisplayFillTheScreen,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    const doc = canvasElement.ownerDocument;
+    const surface = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-surface"]',
+    )!;
+    const parent = surface.parentElement;
+    const before = held(doc);
+
+    // Which column is frozen, read off the header that declares it: only the
+    // headers carry `data-pin`, and a body cell is sticky one cell at a time
+    // — freezing the header and letting the cells under it slide away is
+    // worse than not freezing at all, so the cell is what is checked.
+    const pinnedHead = table.querySelector<HTMLTableCellElement>(
+      'thead th[data-pin-index]',
+    )!;
+    const cellUnder = (section: string) =>
+      table.querySelector<HTMLTableRowElement>(`${section} tr`)!.cells[
+        pinnedHead.cellIndex
+      ];
+    /** The three layers that must not come unstuck, whatever is tall. */
+    const sticky = () => ({
+      header: getComputedStyle(pinnedHead).position,
+      summary: getComputedStyle(table.querySelector('tfoot td')!).position,
+      pinned: getComputedStyle(cellUnder('tbody')).position,
+    });
+    const STUCK = { header: 'sticky', summary: 'sticky', pinned: 'sticky' };
+    await expect(sticky()).toEqual(STUCK);
+    const before70vh = table
+      .closest<HTMLElement>('[data-slot="record-table"]')!
+      .getBoundingClientRect();
+
+    const toggle = canvas.getByRole('button', {
+      name: defaultMessages['label.workbench.expand-view'],
+    });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(toggle);
+
+    // Pinned to the viewport, and nowhere else: `position: fixed` is the
+    // whole of the visual change, and it is one attribute on the element
+    // that was already there.
+    await waitFor(() =>
+      expect(surface).toHaveAttribute('data-view-expanded', 'true'),
+    );
+    await expect(getComputedStyle(surface).position).toBe('fixed');
+    await expect(surface.parentElement).toBe(parent);
+    await expect(canvas.getByRole('table')).toBe(table);
+    await expect(onViewport(surface)).toBe(true);
+    // The background cannot be scrolled out from under it — and as important
+    // as the value, the priority: a host stylesheet's `!important` would
+    // otherwise outrank a plain inline declaration and go on scrolling. It is
+    // taken on whatever actually scrolls this document (`<html>` here) and
+    // one axis at a time, because the shorthand can neither read back nor
+    // hand back a page that set only one of them.
+    await expect(held(doc)).toEqual(['hidden !important', 'hidden !important']);
+    // Expanding changes which box is tall; it must not change what sticks.
+    await expect(sticky()).toEqual(STUCK);
+
+    // And the height goes where the expansion was for. The rows are the
+    // point of a bigger screen, so the table takes what the header, the
+    // strips, the toolbar and the pagination left — not 70vh of it and a
+    // blank half-screen underneath.
+    const area = table.closest<HTMLElement>('[data-slot="record-table"]')!;
+    await expect(area).toHaveAttribute('data-scrolls');
+    await expect(getComputedStyle(area).maxHeight).toBe('none');
+    const filled = area.getBoundingClientRect();
+    await expect(filled.height).toBeGreaterThan(before70vh.height);
+    // Everything still fits inside one screen: the page under it is locked,
+    // so anything spilling past the fold would be unreachable.
+    await expect(Math.round(filled.bottom)).toBeLessThanOrEqual(
+      Math.round(surface.getBoundingClientRect().bottom) + 1,
+    );
+
+    // Not a modal, and it says so by omission: nothing here claims one.
+    await expect(surface.getAttribute('aria-modal')).toBeNull();
+    await expect(surface.getAttribute('role')).toBeNull();
+    await expect(doc.body.querySelector('[inert]')).toBeNull();
+
+    // Escape is the way out, and focus comes back to the control that opened
+    // it — the key is announced on the button rather than spent on a tooltip.
+    const back = canvas.getByRole('button', {
+      name: defaultMessages['label.workbench.collapse-view'],
+    });
+    await expect(back).toBe(toggle);
+    await expect(back).toHaveAttribute('aria-keyshortcuts', 'Escape');
+    back.focus();
+    await userEvent.keyboard('{Escape}');
+
+    await waitFor(() =>
+      expect(surface).not.toHaveAttribute('data-view-expanded'),
+    );
+    await expect(doc.activeElement).toBe(toggle);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    // The page is the page it was, and the table is still stuck together.
+    await expect(held(doc)).toEqual(before);
+    await expect(sticky()).toEqual(STUCK);
+  },
+};
+
+/**
+ * The overflow the page is actually holding, one axis at a time.
+ *
+ * Read off whatever scrolls this document — `<html>` in standards mode, which
+ * is the element whose overflow the viewport takes; body's reaches it only
+ * while html's is `visible`. Both axes and both priorities, because the
+ * shorthand can describe neither a host that set one of them nor a host that
+ * gave them different priorities.
+ */
+function held(doc: Document): string[] {
+  const style = (
+    (doc.scrollingElement as HTMLElement | null) ?? doc.documentElement
+  ).style;
+  return ['overflow-x', 'overflow-y'].map(name => {
+    const priority = style.getPropertyPriority(name);
+    return style.getPropertyValue(name) + (priority ? ` !${priority}` : '');
+  });
+}
+
+/**
+ * Whether an element covers the viewport, to the pixel.
+ *
+ * This is the assertion `position: fixed` cannot be trusted to satisfy on its
+ * own: it resolves against the viewport only while no ancestor has made
+ * itself the containing block.
+ */
+function onViewport(element: HTMLElement): boolean {
+  const view = element.ownerDocument.defaultView!;
+  const box = element.getBoundingClientRect();
+  return (
+    Math.abs(box.left) < 1 &&
+    Math.abs(box.top) < 1 &&
+    Math.abs(box.width - view.innerWidth) < 1 &&
+    Math.abs(box.height - view.innerHeight) < 1
+  );
+}
+
+/**
+ * The same expansion inside a host that owns the containing block.
+ *
+ * `transform` — and `filter`, `perspective`, `backdrop-filter`,
+ * `will-change`, `contain`, `container-type` — makes an ancestor the
+ * containing block for every `position: fixed` inside it, so "fill the
+ * screen" would fill *that container*. Animated panels and GPU-hinted grid
+ * shells do it as a matter of course, and an embedded view is meant to sit
+ * in an arbitrary host, so this is the case that decides whether the feature
+ * works at all outside a plain page.
+ *
+ * Enumerating the triggers is a list that goes stale with the next CSS
+ * module, so the hook measures the box the browser actually gave it: the
+ * difference from the viewport *is* the correction. This play is the check
+ * that the measurement is real.
+ */
+export const FillTheScreenInTransformedHost: Story = {
+  ...DisplayFillTheScreenInTransformedHost,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const doc = canvasElement.ownerDocument;
+    const host = canvasElement.querySelector<HTMLElement>(
+      '[data-transformed-host]',
+    )!;
+    const surface = host.querySelector<HTMLElement>(
+      '[data-slot="view-surface"]',
+    )!;
+
+    // The premise: this host really is a containing block, and it really is
+    // smaller than the screen. Without both, the test proves nothing.
+    await expect(getComputedStyle(host).transform).not.toBe('none');
+    const hostBox = host.getBoundingClientRect();
+    await expect(hostBox.height).toBeLessThan(window.innerHeight);
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: defaultMessages['label.workbench.expand-view'],
+      }),
+    );
+    await waitFor(() =>
+      expect(surface).toHaveAttribute('data-view-expanded', 'true'),
+    );
+
+    // Still in place — the node never moved, which is the point of the whole
+    // design — and still on the viewport rather than on its host's box.
+    await expect(surface.parentElement).toBe(host);
+    await expect(onViewport(surface)).toBe(true);
+    await expect(held(doc)).toEqual(['hidden !important', 'hidden !important']);
+    // The correction is written back as geometry, not guessed from a list of
+    // properties that would go stale.
+    await expect(surface.style.getPropertyValue('--fve-expanded-w')).toBe(
+      `${window.innerWidth}px`,
+    );
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(surface).not.toHaveAttribute('data-view-expanded'),
+    );
+    // And the host's element is handed back without our arithmetic on it.
+    await expect(surface.style.getPropertyValue('--fve-expanded-w')).toBe('');
+    await expect(
+      Math.round(surface.getBoundingClientRect().width),
+    ).toBeLessThanOrEqual(Math.round(hostBox.width));
+  },
+};
+
+/**
+ * The same correction, through a host that *scales* rather than only moves.
+ *
+ * `translateZ(0)` above makes an ancestor the containing block without
+ * changing any size, so it exercises only half of `transform`. A
+ * `scale(.75)` host exercises the other half, and it is the half that reads
+ * backwards: `getBoundingClientRect()` already reports screen pixels, while
+ * the four `--fve-expanded-*` are read in the element's own coordinates,
+ * where one pixel is `.75` of a screen pixel. Handing the measured difference
+ * straight back would leave the surface at three quarters of the screen and
+ * still short of the corner — so the ratio between what was asked for and
+ * what appeared is measured too, and divided out.
+ */
+export const FillTheScreenInScaledHost: Story = {
+  ...DisplayFillTheScreenInScaledHost,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const host =
+      canvasElement.querySelector<HTMLElement>('[data-scaled-host]')!;
+    const surface = host.querySelector<HTMLElement>(
+      '[data-slot="view-surface"]',
+    )!;
+
+    // The premise: this host really does scale, and by the ratio the story
+    // set. Without it the test proves nothing.
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(host).transform);
+    await expect(matrix.a).toBeCloseTo(0.75, 2);
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: defaultMessages['label.workbench.expand-view'],
+      }),
+    );
+    await waitFor(() =>
+      expect(surface).toHaveAttribute('data-view-expanded', 'true'),
+    );
+
+    // In screen pixels — the only ones a reader has — exactly the viewport.
+    await expect(onViewport(surface)).toBe(true);
+    // And the written width is *larger* than the viewport by the ratio,
+    // which is the whole of the second pass: the naive value would have been
+    // the viewport's own width and would have painted three quarters of it.
+    const written = Number.parseFloat(
+      surface.style.getPropertyValue('--fve-expanded-w'),
+    );
+    await expect(written).toBeGreaterThan(window.innerWidth);
+    await expect(written * 0.75).toBeCloseTo(window.innerWidth, 0);
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(surface).not.toHaveAttribute('data-view-expanded'),
+    );
+    await expect(surface.style.getPropertyValue('--fve-expanded-w')).toBe('');
+  },
+};
+
+/**
+ * The promise the whole normal-layer decision was made to keep: a popup still
+ * opens *in front of* a view that fills the screen.
+ *
+ * Every popup here is portalled to `document.body` inside a positioner the
+ * layout engine gives `transform: translate(...)` — which makes the
+ * positioner a stacking context — and the `isolate z-50` on it is a Tailwind
+ * utility this package pins to `:where(.fve-root, .fve-root *)`. The popup's
+ * *content* carries `fve-root`; the positioner does not, so its `z-50`
+ * matches nothing and it stays at `z-index: auto`. Any positive `z-index` on
+ * the expanded surface therefore buries every popup in the package, content
+ * `z-50` and all, because a `z-index` inside a transformed ancestor cannot
+ * escape it. The column-settings and sort popovers did not exist when that
+ * decision was written down, so this is the play that holds it.
+ *
+ * It also holds the sticky layers against a column the *config* froze rather
+ * than the row key, which the projection pins left whatever anyone asked for.
+ */
+export const FillTheScreenWithPopups: Story = {
+  ...DisplayFillTheScreenWithPopups,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    const surface = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-surface"]',
+    )!;
+
+    // The premise: `金额` is frozen because the saved config says so, and it
+    // is not the row key.
+    const pinned = headerOf(table, '金额');
+    await expect(pinned).toHaveAttribute('data-pin', 'left');
+    await expect(headerOf(table, '订单号')).toHaveAttribute('data-pin', 'left');
+
+    /** Every layer that must keep holding, whichever box is the tall one. */
+    const sticky = () => ({
+      header: getComputedStyle(pinned).position,
+      summary: getComputedStyle(table.querySelector('tfoot td')!).position,
+      cell: getComputedStyle(
+        table.querySelector<HTMLTableRowElement>('tbody tr')!.cells[
+          pinned.cellIndex
+        ],
+      ).position,
+    });
+    const STUCK = { header: 'sticky', summary: 'sticky', cell: 'sticky' };
+    await expect(sticky()).toEqual(STUCK);
+
+    const toggle = canvas.getByRole('button', {
+      name: defaultMessages['label.workbench.expand-view'],
+    });
+    // Still where the toolbar row puts it, after the editor's fold and before
+    // whatever the host adds — #1555 rearranged the row under it, not this.
+    const controls = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-controls"]',
+    )!;
+    await expect(controls.contains(toggle)).toBe(true);
+    await expect(
+      [
+        ...controls.querySelectorAll(
+          '[data-slot="editor-toggle"], [data-slot="view-expand"]',
+        ),
+      ].map(node => node.getAttribute('data-slot')),
+    ).toEqual(['editor-toggle', 'view-expand']);
+
+    await userEvent.click(toggle);
+    await waitFor(() =>
+      expect(surface).toHaveAttribute('data-view-expanded', 'true'),
+    );
+    await expect(onViewport(surface)).toBe(true);
+
+    // Each popover, opened over the expanded view and found by the only test
+    // that matters: what the browser hands back at the middle of its own box.
+    for (const trigger of canvasElement.querySelectorAll<HTMLElement>(
+      '[data-slot="result-toolbar"] [data-slot="popover-trigger"]',
+    )) {
+      await userEvent.click(trigger);
+      const popup = await waitFor(() => {
+        const found = document.body.querySelector<HTMLElement>(
+          '[data-slot="popover-content"]',
+        );
+        if (!found) throw new Error('no popover');
+        return found;
+      });
+      // Portalled out of the surface, which is exactly why this can go wrong.
+      await expect(popup.closest('[data-slot="view-surface"]')).toBeNull();
+      await expect(inFrontOf(popup)).toBe(true);
+      await userEvent.keyboard('{Escape}');
+      // The popup took the key, and only the popup.
+      await waitFor(() =>
+        expect(
+          document.body.querySelector('[data-slot="popover-content"]'),
+        ).toBeNull(),
+      );
+      await expect(surface).toHaveAttribute('data-view-expanded', 'true');
+    }
+    // Level 0 and no higher, which is the whole of the fix — said here as
+    // well, so a regression names the cause and not only the symptom.
+    await expect(getComputedStyle(surface).zIndex).toBe('0');
+
+    // And the layers still hold once a different box is the tall one — with
+    // the scrollport scrolled as far as it goes, in both directions, so this
+    // is what the rows actually do and not only what the rule says.
+    const area = table.closest<HTMLElement>('[data-slot="record-table"]')!;
+    const port = table.parentElement!;
+    port.scrollTop = port.scrollHeight;
+    port.scrollLeft = port.scrollWidth;
+    await expect(area).toHaveAttribute('data-scrolls');
+    await expect(sticky()).toEqual(STUCK);
+    // The frozen header stays inside the scrollport's own left edge rather
+    // than riding away with the columns beside it.
+    await expect(
+      Math.round(pinned.getBoundingClientRect().left),
+    ).toBeGreaterThanOrEqual(Math.round(port.getBoundingClientRect().left) - 1);
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(surface).not.toHaveAttribute('data-view-expanded'),
+    );
+    await expect(sticky()).toEqual(STUCK);
+  },
+};
+
+/**
+ * Whether the browser would hand a click at the middle of this box to the box
+ * itself.
+ *
+ * The one question `z-index` cannot be read off a stylesheet to answer: what
+ * paints in front depends on every stacking context between here and the
+ * root, and this asks the engine that decides it.
+ */
+function inFrontOf(element: HTMLElement): boolean {
+  const box = element.getBoundingClientRect();
+  const hit = element.ownerDocument.elementFromPoint(
+    Math.round(box.left + box.width / 2),
+    Math.round(box.top + box.height / 2),
+  );
+  return hit !== null && element.contains(hit);
+}

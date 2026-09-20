@@ -33,6 +33,7 @@ import { LeaveDialog } from './LeaveGuard.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
+import { useViewExpansion, ViewExpandToggle } from './ViewExpansion.js';
 import { ViewHeader } from './ViewHeader.js';
 import { ViewList } from './ViewList.js';
 import { ViewManager } from './ViewManager.js';
@@ -117,6 +118,14 @@ export interface WorkbenchShellProps {
   /** Told whenever the sidebar opens or closes, for a host that mirrors it. */
   onSidebarOpenChange?(open: boolean): void;
   /**
+   * Whether the workbench offers to fill the screen. It is the same kind of
+   * state as the sidebar's fold — this screen at this moment, never saved,
+   * never asked about by the leave guard — so the shell holds it; the host
+   * only says whether the control is there at all. A page that is already a
+   * full-screen view of one thing has nothing to gain from it.
+   */
+  expandable?: boolean;
+  /**
    * Whether the result below was ever asked for; the applied bar renders
    * nothing until it was. The open view's own result when left out — a
    * dashboard has none of its own and answers from its panels instead.
@@ -179,6 +188,7 @@ export function WorkbenchShell({
   resultSurface = true,
   defaultSidebarOpen = true,
   onSidebarOpenChange,
+  expandable = true,
   hasResult,
   warnings,
   className,
@@ -203,6 +213,23 @@ export function WorkbenchShell({
 
   const collapseRef = useRef<HTMLButtonElement>(null);
   const expandRef = useRef<HTMLButtonElement>(null);
+
+  // Filling the screen. The surface expands where it already is — the whole
+  // point of the decision, since re-parenting it would remount the editor
+  // and take the draft with it — so the shell needs a handle on its own root
+  // and on the button that governs it, and nothing else moves.
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  const expandViewRef = useRef<HTMLButtonElement>(null);
+  // Off while there is no view: the toggle lives in the title bar, which is
+  // not drawn then, and an expansion nobody can see a way out of is a trap.
+  // Passing the condition in rather than hiding the button releases one that
+  // is already in force — switching to a view that will not open puts the
+  // page back instead of stranding it.
+  const expansion = useViewExpansion(
+    surfaceRef,
+    expandViewRef,
+    expandable && open,
+  );
   // The state the last run saw, not "has this run before". StrictMode does
   // setup, cleanup, setup on mount, so a "first run" flag is already spent
   // by the second setup and the effect would take focus off the host's page
@@ -289,6 +316,7 @@ export function WorkbenchShell({
 
   return (
     <ViewSurface
+      ref={surfaceRef}
       theme={theme}
       messages={wording}
       locale={locale}
@@ -362,16 +390,30 @@ export function WorkbenchShell({
                 namesView={sidebarOpen}
                 leading={collapsed || undefined}
                 trailing={
-                  folded && (
-                    <EditorBandToggle
-                      open={editorIsOpen.open}
-                      onOpenChange={editorIsOpen.set}
-                      controls={editorId}
-                      label={editorLabel}
-                      modeLabel={editorModeLabel}
-                      modes={editorModes}
-                      pending={editorPending}
-                    />
+                  // Both are answers to *how am I looking at this*, which is
+                  // what this group is, and they read outwards: the editor
+                  // governs what the view asks, filling the screen governs
+                  // the room the answer gets.
+                  (folded || expandable) && (
+                    <>
+                      {folded && (
+                        <EditorBandToggle
+                          open={editorIsOpen.open}
+                          onOpenChange={editorIsOpen.set}
+                          controls={editorId}
+                          label={editorLabel}
+                          modeLabel={editorModeLabel}
+                          modes={editorModes}
+                          pending={editorPending}
+                        />
+                      )}
+                      {expandable && (
+                        <ViewExpandToggle
+                          expansion={expansion}
+                          ref={expandViewRef}
+                        />
+                      )}
+                    </>
                   )
                 }
                 onSaved={workbench.onSaved}

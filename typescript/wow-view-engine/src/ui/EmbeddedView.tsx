@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ReactNode } from 'react';
+import type { Ref, ReactNode } from 'react';
 import type { FilterTree } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
 import {
@@ -61,6 +61,17 @@ export interface EmbeddedViewProps {
   locale?: string;
   className?: string;
   /**
+   * The surface this draws on, handed back.
+   *
+   * An embed is the result and nothing else — no title bar, no toolbar, no
+   * save — so it grows no control of its own for filling the screen: a
+   * button floating over somebody's order page is chrome that page did not
+   * ask for and cannot place. What it owes a host that wants one is the
+   * means, which is this: put the control where your own chrome is, and
+   * point `useViewExpansion` at the element you get here.
+   */
+  ref?: Ref<HTMLDivElement>;
+  /**
    * What the host offers on one row of a record view. An embed has no
    * toolbar and no save, but the rows it shows are still records somebody
    * may want to act on; the slot takes the row alone, because there is no
@@ -89,6 +100,7 @@ export function EmbeddedView({
   messages: wording,
   locale,
   className,
+  ref,
   rowActions,
 }: EmbeddedViewProps) {
   // The condition goes in with the config, not after it: `useOpenView` hands
@@ -100,6 +112,7 @@ export function EmbeddedView({
 
   return (
     <ViewSurface
+      ref={ref}
       theme={theme}
       messages={wording}
       locale={locale}

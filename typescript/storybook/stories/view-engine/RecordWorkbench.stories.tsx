@@ -47,6 +47,30 @@ const pagedView = {
   }),
 };
 
+/**
+ * Every column the definition offers, with `金额` frozen beside the row key.
+ *
+ * The row key is pinned left by the projection whatever the config says, so a
+ * view that only froze it would prove nothing about the config's own
+ * `pinned` — and it is the config's pin that has to keep holding once the
+ * view fills the screen and a different box is the tall one.
+ */
+const pinnedView = {
+  ...savedViews[0],
+  title: '冻结两列',
+  config: recordConfig({
+    table: {
+      columns: [
+        { field: 'id' as const, pinned: 'left' as const },
+        { field: 'amount' as const, pinned: 'left' as const },
+        { field: 'warehouse' as const },
+        { field: 'status' as const },
+        { field: 'createdAt' as const },
+      ],
+    },
+  }),
+};
+
 function RecordWorkbenchDemo({
   behaviour = 'data',
   instanceId,
@@ -56,6 +80,9 @@ function RecordWorkbenchDemo({
   localized = false,
   keepStore = false,
   collapsed = false,
+  transformedHost = false,
+  scaledHost = false,
+  pinnedColumn = false,
 }: {
   behaviour?: SourceBehaviour;
   instanceId?: string;
@@ -71,8 +98,25 @@ function RecordWorkbenchDemo({
   keepStore?: boolean;
   /** Opens with the view list folded away, as a narrow page would. */
   collapsed?: boolean;
+  /**
+   * Puts the workbench inside a host container that owns its own containing
+   * block, the way an animated panel or a GPU-hinted grid shell does.
+   */
+  transformedHost?: boolean;
+  /**
+   * The same, but with a host that *scales* rather than only moves. A pure
+   * translate changes where a box is; a scale changes how big the browser
+   * makes what we write, which is the other half of `transform`.
+   */
+  scaledHost?: boolean;
+  /**
+   * Saves a config that freezes a column the projection would not freeze on
+   * its own. The row key is pinned left whatever the config says, so it
+   * proves nothing about `pinned` — this pins `金额` as well.
+   */
+  pinnedColumn?: boolean;
 }) {
-  return (
+  const workbench = (
     <StoryEngine
       create={() => {
         const store = keepStore
@@ -94,7 +138,9 @@ function RecordWorkbenchDemo({
               ]
             : paged
               ? [pagedView]
-              : savedViews,
+              : pinnedColumn
+                ? [pinnedView]
+                : savedViews,
         });
       }}
     >
@@ -110,6 +156,31 @@ function RecordWorkbenchDemo({
       )}
     </StoryEngine>
   );
+  // `transform` makes this div the containing block for every `position:
+  // fixed` inside it, so a surface that assumed the viewport would fill the
+  // div instead. `data-transformed-host` is what the regression play looks
+  // for; the style is the whole of the scenario.
+  if (transformedHost)
+    return (
+      <div data-transformed-host style={{ transform: 'translateZ(0)' }}>
+        {workbench}
+      </div>
+    );
+  // A scaling host changes the *size* the browser makes of what we write, not
+  // only where it lands: `getBoundingClientRect` already reports screen
+  // pixels, while `--fve-expanded-*` are read in the element's own
+  // coordinates. `translateZ(0)` above never exercised that half.
+  if (scaledHost)
+    return (
+      <div
+        data-transformed-host
+        data-scaled-host
+        style={{ transform: 'scale(0.75)', transformOrigin: 'top left' }}
+      >
+        {workbench}
+      </div>
+    );
+  return workbench;
 }
 
 /**
@@ -191,6 +262,7 @@ const meta = {
     localized: { table: { disable: true } },
     keepStore: { table: { disable: true } },
     collapsed: { table: { disable: true } },
+    transformedHost: { table: { disable: true } },
   },
 } satisfies Meta<typeof RecordWorkbenchDemo>;
 
@@ -273,3 +345,66 @@ export const TableSettings: Story = { args: { keepStore: true } };
  * 视图」——和侧栏齿轮开的是同一个对话框。切换照样先过离开守卫。
  */
 export const CollapsedSidebar: Story = { args: { collapsed: true } };
+
+/**
+ * 铺满屏幕：按标题栏右端那个方框按钮（「铺满屏幕」），视图就地撑满整页；再按
+ * 一次、或按 Esc 回来。
+ *
+ * **就地**是这件事的全部要点——视图不被搬到 portal 里去，什么都不重新挂载，
+ * 所以半句没写完的筛选、选中的行、开着的弹层全都还在原处。它**不是模态**：
+ * 没有 `aria-modal`、不困住焦点、也不把页面其余部分设成 inert——什么也没在
+ * 问，它还是刚才那些内容、还站在宿主页面里。唯一借来的是背景不滚：一次看不
+ * 见效果的滚动就是一个悄悄丢掉的滚动位置。收起时连 `!important` 一起原样还
+ * 回去，同一页上两个铺满的面各记各的数，谁先收都不会把另一个锁在那里。
+ *
+ * 表格的粘性在两种状态下都成立：表头粘在顶、两行汇总粘在底、`订单号` 冻结在
+ * 左。铺满改变的是「哪个盒子高」，不是谁在滚。
+ */
+export const FillTheScreen: Story = { args: { behaviour: 'data' } };
+
+/**
+ * 同一件事，但工作台被放进一个自带 containing block 的宿主容器里（这里是
+ * `transform: translateZ(0)`，动画面板与要 GPU 提示的栅格外壳天天这么写）。
+ *
+ * 这种祖先会接管 `position: fixed` 的坐标系，于是「铺满屏幕」本来只会铺满**那
+ * 个容器**。`transform`、`filter`、`perspective`、`backdrop-filter`、
+ * `will-change`、`contain`、`container-type` 都算，逐个列举是一份会过期的清
+ * 单，所以 `useViewExpansion` 改为**量**浏览器实际给的那个盒子：不是视口，差
+ * 值就是修正量，一次到位。按下按钮，面仍然落在视口上。
+ */
+export const FillTheScreenInTransformedHost: Story = {
+  args: { transformedHost: true },
+};
+
+/**
+ * 同一件事，但宿主容器把孩子**缩放**了（`transform: scale(.75)`，缩略预览、
+ * 演示模式与自适应画布常见的一种写法）。
+ *
+ * 这一半和平移不同：`getBoundingClientRect()` 报的已经是屏幕像素，而
+ * `--fve-expanded-*` 是按元素自己的坐标读的——一个本地像素等于 `scale` 个屏幕
+ * 像素。把量到的差值原样写回去，面会照这个比例缩水，偏移也差同一个倍数。所以
+ * 修正量本身也是**量**出来的：先写朴素值，再看浏览器把它变成了多大，要的和到
+ * 手的之比就是那个 scale。按下按钮，面仍然正好落在视口上。
+ */
+export const FillTheScreenInScaledHost: Story = {
+  args: { scaledHost: true },
+};
+
+/**
+ * 铺满屏幕时，弹层仍然在面的**前面**——这正是「不进 top layer」当初要保住的东
+ * 西，而列设置与排序这两个弹层是后来才有的。
+ *
+ * 本包所有弹层都 portal 到 `document.body`，外面那层 positioner 由布局引擎写上
+ * `transform: translate(...)`，于是它自己就是一个 stacking context；它上面的
+ * `isolate z-50` 是 Tailwind utility，而构建把本样式表的每条规则都钉在
+ * `:where(.fve-root, .fve-root *)` 里——弹层的**内容**带着 `fve-root`，外面的
+ * positioner 不带，所以那个 `z-50` 谁也没匹配上，它停在 `z-index: auto`。结论
+ * 是：铺满的面只要有一个正的 `z-index`，就会把本包所有弹层埋掉。它因此取
+ * `z-index: 0`——自成一个 stacking context，但不高出一级。
+ *
+ * 顺带把冻结列也换成配置自己指定的那一列：行键无论如何都会被投影钉在左边，只
+ * 钉行键证明不了 `pinned` 还管不管用。
+ */
+export const FillTheScreenWithPopups: Story = {
+  args: { pinnedColumn: true },
+};

@@ -65,6 +65,13 @@
 - **依据**：留下一张空白正文比直说打不开更难理解；而 `reorder` 提交的仍是 `all`（未经 `kind` 过滤的完整顺序），否则记录工作台调一次序就会把所有分析实例从 `order` 里抹掉。
 - **落点**：[management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)、[react.md#useviewlist](react.md#useviewlist)
 
+## D10 铺满屏幕是就地展开，而且不是模态
+
+- **日期**：2026-09-19
+- **决定**：视图铺满屏幕由 `useViewExpansion` 在 `ViewSurface` 的根上写一个 `data-view-expanded`，一条不进 layer 的 CSS 把它钉在视口上——**不 portal、不重新挂载、不进 top layer**，并且 `z-index: 0`：自成一个 stacking context，但不比本包那些 portal 出去的弹层高一级，否则它们会整片被埋掉。`position: fixed` 会被带 `transform`／`filter`／`contain` 之类的祖先接管，所以面上去之后**量**一次实际盒子，差值写回 `--fve-expanded-x/y/w/h`；祖先还缩放的话再量一遍，要的和到手的之比就是那个 scale。它**不声明模态**：没有 `aria-modal`、不困住焦点、其余部分不设 inert；只借走"背景不滚"这一样，写在真正滚这一页的那个元素上、两个轴分开、以 `!important` 写入、按 `document` 计数、连原来的值和优先级一起原样还回去。Esc 收起，但只由**文档顺序上最靠后**（也就是实际盖在最上面）的那个面回答，且对话框／菜单／列表框／原生 `<dialog open>`（含焦点仍在 `data-popup-open` 触发器上的）先于它拿到这个键，输入法组字期间也不归它，判定用事件自己文档的 `Element`；收起后焦点交给仍在前面的那个面的控件，都收完了才回到自己那个。开关不在面里时（嵌入视图的唯一形态），面自己露出一个出口，否则触屏上就是一块没有出路的屏幕。铺满时这条链成为定高弹性列，结果块与 `RecordTable` 接住剩余高度——铺满是为了行。状态归 `WorkbenchShell`，与侧栏折叠同一类：不入库、不记忆、不经离开守卫，控件一没就结束而不是存着；三个工作台透传 `expandable`。`EmbeddedView` 不长自己的开关，只把 `ref` 与这个 hook 交给宿主。
+- **依据**：重新挂载会把用户正看着的草稿连同选择、滚动位置与正在组字的 IME 一起丢掉，而那份草稿只活在这一次打开里。top layer（`requestFullscreen`／`popover`）本可一举绕开 containing block，但本包所有弹层都 portal 到 `document.body`，进了 top layer 它们会整片落到面后头（全屏下干脆不渲染）——一个打不开菜单的视图不算铺开了；剩下的路就是不假设视口而是量它。留在普通层这件事只有在面不比弹层高一级时才算数：弹层的 positioner 被布局引擎写上 `transform` 因而自成 stacking context，而它那句 `isolate z-50` 是 Tailwind utility、构建又把每条规则钉在 `.fve-root` 里，positioner 不带这个类，于是停在 `z-index: auto`——Chromium 1280×800 实测，面取 `1` 或 `40` 时列设置弹层都在它后面，取 `0` 时在前面。声称模态是一个关于内容的承诺——这块内容还是宿主 DOM 的后代，页面其余部分并没有不可用——把"其余部分"设成 inert 则要一路向上在每层给兄弟节点加 inert，那正是 portal 的活。只有根被拉高而结果停在自己的 `max-height`，换来的是更多的列而不是更多的行。嵌入视图是结果本身、别无他物，为一个按钮给它造一行 chrome，就是在宿主页面上摆一件它没要的东西。
+- **落点**：[ui/README.md#工作台骨架](ui/README.md#工作台骨架)
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

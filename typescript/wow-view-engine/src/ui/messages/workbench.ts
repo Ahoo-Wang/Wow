@@ -13,15 +13,21 @@
 
 /**
  * The frame around a view rather than the view itself: the sidebar's two
- * states, and the switcher that stands in for the list once it is away.
+ * states, the switcher that stands in for the list once it is away, and the
+ * two states of the view filling the screen.
  *
- * All three are accessible names of icon-only controls, which is why they
+ * They are the accessible names of icon-only controls, which is why they
  * describe what happens rather than what is drawn: "Hide the view list" is
  * what the button does, "Collapse" is only where it points.
  */
 export const workbenchMessages = {
   'label.workbench.collapse-sidebar': 'Hide the view list',
   'label.workbench.expand-sidebar': 'Show the view list',
+  // Not "Full screen": that is the browser's own, on F11, and it takes the
+  // address bar with it. This one says what actually happens — the view
+  // fills the page it is on — and the way back says the same in reverse.
+  'label.workbench.expand-view': 'Fill the screen',
+  'label.workbench.collapse-view': 'Leave full screen',
   // The switcher is the list while the list is away, so it is named for the
   // job and not for the shape: a user never reads "dropdown".
   'label.workbench.switch-view': 'Switch view',

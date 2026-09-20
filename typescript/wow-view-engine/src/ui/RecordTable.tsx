@@ -186,6 +186,11 @@ export function RecordTable({
   return (
     <div
       data-slot="record-table"
+      // Which of the two shapes above this is, said on the element rather
+      // than left to be guessed from the class list: the expanded workbench
+      // hands the remaining height to the table that is its own scrollport,
+      // and must not hand it to the one holding on against a panel.
+      data-scrolls={scrolls ? '' : undefined}
       className={scrolls ? SCROLL_AREA : STATIC_AREA}
     >
       <Table ref={element}>

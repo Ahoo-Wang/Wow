@@ -189,6 +189,158 @@
   }
 }
 
+/*
+ * A view filling the screen, pinned where it already stands.
+ *
+ * Unlayered on purpose: it has to outrank whatever utility gave the surface
+ * its place in the host's page, and a layer would put it under them. It is
+ * the whole of the visual change — expanding is one attribute, written by
+ * `useViewExpansion` onto the `.fve-root` at or above the element it was
+ * pointed at, because nothing may be re-parented: a portal would recreate
+ * every node under it and take focus, the scroll position and any IME
+ * composition with them.
+ *
+ * The four `--fve-expanded-*` properties are normally absent, and the
+ * fallbacks below are then plain `inset: 0` written the long way: for a fixed
+ * box with no ancestor containing block, `100%` *is* the viewport. When an
+ * ancestor has made itself the containing block — `transform`, `filter`,
+ * `contain` and the rest — `useViewExpansion` measures the box the browser
+ * actually gave us and writes the difference into these four, so the surface
+ * lands on the viewport either way rather than on the ancestor.
+ *
+ * The surface itself never scrolls: it is a definite-height flex box whose
+ * parts each take their share, and what scrolls is the result.
+ * `overscroll-behavior: contain` stops a scroll that reaches its end from
+ * being handed to the page underneath — which is locked while this is open
+ * and has nowhere to go with it.
+ *
+ * `z-index: 0` — a stacking context of its own, and not one step higher.
+ *
+ * This is the rule the whole normal-layer decision rests on, and it is
+ * counter-intuitive enough to be worth the paragraph. Every popup this
+ * package opens is portalled to `document.body` inside a Base UI
+ * *positioner*, and the positioner carries `transform: translate(x, y)` from
+ * the layout engine — so it is a stacking context. Its `isolate z-50` are
+ * Tailwind utilities, and the build pins every utility in this stylesheet to
+ * `:where(.fve-root, .fve-root *)`; the popup *content* carries `fve-root`
+ * (see `popups.tsx`), but the positioner around it does not, so its `z-50`
+ * matches nothing and it sits at `z-index: auto`. A `z-index: 50` on the
+ * content inside cannot escape a transformed ancestor either.
+ *
+ * So every popup in this package paints at level 0, in tree order, and wins
+ * only because a portal appends it to the end of the body. Any positive
+ * `z-index` here buries all of them — measured in Chromium at 1280×800, a
+ * column-settings popover over an expanded view was behind the surface at
+ * `z-index: 1` and at `40`, and in front of it at `0`. Level 0 with a
+ * stacking context of its own is what leaves the popups on top while still
+ * covering the host's ordinary content, which is the promise this feature
+ * was designed around: a view you cannot open a menu in is not an expanded
+ * view. What a host raises deliberately — a sticky bar at `z-index: 10` —
+ * still covers it, exactly as it already covers every popup here.
+ */
+.fve-root[data-view-expanded='true'] {
+  position: fixed;
+  top: var(--fve-expanded-y, 0);
+  left: var(--fve-expanded-x, 0);
+  z-index: 0;
+  margin: 0;
+  width: var(--fve-expanded-w, 100%);
+  height: var(--fve-expanded-h, 100%);
+  max-width: none;
+  max-height: none;
+  border-radius: 0;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+/*
+ * Filling the screen is for the rows, so the rows get the height.
+ *
+ * A taller viewport buys nothing while the result stops at its own
+ * `max-height` and the space below it stays blank — the expansion would be
+ * more columns and not one more row. So the chain from the surface down to
+ * the table becomes a definite-height flex column, and each part says what
+ * it does with the height it is handed.
+ */
+.fve-root[data-view-expanded='true'] > [data-slot='view-sidebar'],
+.fve-root[data-view-expanded='true'] > main {
+  /* `min-height: auto` is the default for a flex item, so without this the
+     column refuses to shrink below its content and the surface's own
+     `overflow: hidden` clips it instead of letting it scroll. */
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/*
+ * The editor takes at most half the screen and scrolls inside that. It is a
+ * fold over the conditions, not the reason the view was expanded; a long
+ * filter tree that pushed the rows off the bottom would undo the whole
+ * gesture.
+ */
+.fve-root[data-view-expanded='true'] [data-slot='editor-band'],
+.fve-root[data-view-expanded='true'] [data-slot='condition-block'] {
+  max-height: 50%;
+  overflow-y: auto;
+}
+
+/* Everything the parts above did not take belongs to the result. */
+.fve-root[data-view-expanded='true'] [data-slot='result-block'] {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/*
+ * And the table fills the result instead of stopping at 70vh — but only the
+ * variant that is its own scrollport. A `scrolls={false}` table inside a
+ * dashboard panel holds its sticky layers against the panel, and giving it a
+ * height here would put a second scrollport back under them.
+ */
+.fve-root[data-view-expanded='true'] [data-slot='record-table'][data-scrolls] {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+/*
+ * An embedded view has no `main` to hand the height to.
+ *
+ * The rules above give the height to a workbench's column and, inside it, to
+ * the table that is its own scrollport. An `EmbeddedView` draws the result
+ * straight onto the root — there is no `main`, and `RecordCards`,
+ * `AnalysisTable` and `DashboardGrid` match nothing here — so a tall result
+ * would be cut off at the fold by the root's own `overflow: hidden`, with the
+ * page behind it locked and no way to reach the rest. The root is the
+ * scrollport in that shape. A record table inside an embed still takes the
+ * rule above and scrolls itself, so this one only ever carries what that does
+ * not.
+ */
+.fve-root[data-view-expanded='true']:not(:has(> main)) {
+  overflow-y: auto;
+}
+
+/*
+ * The way out of a surface whose control is underneath it.
+ *
+ * `ViewSurface` renders one on every surface; `useViewExpansion` un-hides it
+ * only when the control governing this expansion is outside the element. It
+ * takes a row of its own rather than floating over the content — a button
+ * laid on top of somebody's first table row is the chrome an embed exists not
+ * to add — and sticks to the top, because the root above is the scrollport in
+ * exactly the shape this appears in, and an exit that scrolls away is not one.
+ */
+.fve-root [data-slot='view-exit'][hidden] {
+  display: none;
+}
+
+.fve-root[data-view-expanded='true'] > [data-slot='view-exit'] {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: none;
+  order: -1;
+  align-self: flex-end;
+}
+
 @layer components {
   /* Upstream paints the drop placeholder red; the theme owns that colour. */
   .fve-root .react-grid-item.react-grid-placeholder {

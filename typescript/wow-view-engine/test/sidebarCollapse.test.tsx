@@ -223,12 +223,20 @@ describe('collapsing the sidebar', () => {
   it('gives the result the width the list was taking', async () => {
     const user = await open(engineWith());
     const main = document.querySelector<HTMLElement>('main')!;
-    expect(main.previousElementSibling).not.toBeNull();
+    // What the surface actually lays out beside the main column. The exit
+    // control the surface always carries is `hidden` unless the view is
+    // filling the screen with its toggle underneath it, so it takes no room
+    // and is not one of them.
+    const beside = () =>
+      [...main.parentElement!.children].filter(
+        node => node !== main && !node.hasAttribute('hidden'),
+      );
+    expect(beside()).not.toHaveLength(0);
 
     await user.click(screen.getByRole('button', { name: COLLAPSE }));
     // Nothing fixed-width is left beside it, which is the whole point on a
     // narrow screen: `w-56` of list is `w-56` the rows do not get.
-    expect(main.previousElementSibling).toBeNull();
+    expect(beside()).toHaveLength(0);
   });
 });
 

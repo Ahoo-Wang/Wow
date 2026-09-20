@@ -59,6 +59,13 @@ export interface RecordWorkbenchProps {
   /** Told whenever the sidebar opens or closes, for a host that mirrors it. */
   onSidebarOpenChange?(open: boolean): void;
   /**
+   * Whether this workbench offers to fill the screen. On by default, and the
+   * fold itself belongs to the shell — a host only says whether the control
+   * exists, because a page that is already one full-screen view of one thing
+   * has nothing to gain from a second way to say so.
+   */
+  expandable?: boolean;
+  /**
    * The host's own business actions: one over the view, one over a selection,
    * one per row. They are render functions rather than names in a config —
    * what may be *done* to a record belongs to the application that mounted
@@ -85,6 +92,7 @@ export function RecordWorkbench({
   optionsFor,
   defaultSidebarOpen,
   onSidebarOpenChange,
+  expandable,
   actions,
 }: RecordWorkbenchProps) {
   // The host's wording, resolved here rather than read off the provider:
@@ -115,6 +123,7 @@ export function RecordWorkbench({
       timeZone={engine.environment.timeZone}
       defaultSidebarOpen={defaultSidebarOpen}
       onSidebarOpenChange={onSidebarOpenChange}
+      expandable={expandable}
       className="gap-2"
       // What the config says, plus what this result says about itself: a
       // summary row that had to fall back to the page is a fact about the
