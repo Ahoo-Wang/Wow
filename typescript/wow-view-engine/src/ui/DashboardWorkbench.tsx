@@ -11,13 +11,12 @@
  * limitations under the License.
  */
 
-import { RefreshCwIcon } from 'lucide-react';
 import type { FieldOption, Issue } from '../model/index.js';
 import type { ViewEngine } from '../runtime/index.js';
 import { useDashboard, useWorkbench } from '../react/index.js';
-import { Button } from './components/button.js';
 import { DashboardGrid } from './DashboardGrid.js';
 import { FilterPanel } from './FilterPanel.js';
+import { RefreshControl } from './RefreshControl.js';
 import { FilterModes, filterModeLabel } from './filter/FilterModes.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
@@ -131,16 +130,23 @@ export function DashboardWorkbench({
       hasResult={hasResult}
       resultSurface={false}
       warnings={warnings}
-      actions={
-        <Button
+      // The dashboard's own interval, which is the only one that runs here:
+      // `DashboardRuntime` holds one timer for the whole board and ignores
+      // what a referenced view saved for itself, so the menu says which one
+      // it is setting rather than letting the control imply it reaches into
+      // the panels (`docs/design/runtime.md`, "Dashboard").
+      freshness={
+        <RefreshControl
+          refresh={workbench.refresh}
           variant="outline"
-          size="sm"
-          onClick={dashboard.refresh}
-          disabled={dashboard.resolving}
-        >
-          <RefreshCwIcon data-icon="inline-start" />
-          {messages.label('label.toolbar.refresh')}
-        </Button>
+          // A dashboard runs no query of its own, so "something is out"
+          // is the panels' answer: while any of them is querying, pressing
+          // refresh would only replace requests that are already on their
+          // way, and the spinner is the only sign the user gets that they
+          // were.
+          busy={dashboard.resolving || dashboard.loading}
+          note={messages.label('label.refresh.panels')}
+        />
       }
       editorLabel={
         hasGlobalFilter ? messages.label('label.filter.panel') : undefined

@@ -71,6 +71,16 @@ const pinnedView = {
   }),
 };
 
+/**
+ * A view saved with an interval, so the refresh button opens already wearing
+ * its credential — the thing a wall-mounted view exists for.
+ */
+const refreshingView = {
+  ...savedViews[0],
+  title: '每 30 秒自刷',
+  config: recordConfig({ refresh: { interval: 30 } }),
+};
+
 function RecordWorkbenchDemo({
   behaviour = 'data',
   instanceId,
@@ -83,6 +93,7 @@ function RecordWorkbenchDemo({
   transformedHost = false,
   scaledHost = false,
   pinnedColumn = false,
+  refreshing = false,
 }: {
   behaviour?: SourceBehaviour;
   instanceId?: string;
@@ -115,6 +126,8 @@ function RecordWorkbenchDemo({
    * proves nothing about `pinned` — this pins `金额` as well.
    */
   pinnedColumn?: boolean;
+  /** Opens a view whose config already carries an auto-refresh interval. */
+  refreshing?: boolean;
 }) {
   const workbench = (
     <StoryEngine
@@ -140,7 +153,9 @@ function RecordWorkbenchDemo({
               ? [pagedView]
               : pinnedColumn
                 ? [pinnedView]
-                : savedViews,
+                : refreshing
+                  ? [refreshingView]
+                  : savedViews,
         });
       }}
     >
@@ -263,6 +278,7 @@ const meta = {
     keepStore: { table: { disable: true } },
     collapsed: { table: { disable: true } },
     transformedHost: { table: { disable: true } },
+    refreshing: { table: { disable: true } },
   },
 } satisfies Meta<typeof RecordWorkbenchDemo>;
 
@@ -345,6 +361,23 @@ export const TableSettings: Story = { args: { keepStore: true } };
  * 视图」——和侧栏齿轮开的是同一个对话框。切换照样先过离开守卫。
  */
 export const CollapsedSidebar: Story = { args: { collapsed: true } };
+
+/**
+ * 自动刷新：工具栏「数据新鲜度」那一组里，刷新按钮右边多了一个 `▾`。
+ *
+ * 主键还是原来那一下——点一次，跑一次。`▾` 里是间隔：关闭，以及一梯档位。
+ * 档位按 `runtime.limits` 的 `minRefreshInterval`／`maxRefreshInterval` 裁
+ * 剪，**限制不允许的档位根本不出现**，而不是灰着让人点一下才知道不行（D4）。
+ *
+ * 选中即改视图自己的 `refresh.interval`——和排序、列设置一样，是一次 `edit`
+ * 加 `apply`，因此标题旁立刻出现「已修改」，`Save` 才会把它存下来。开着的时
+ * 候按钮上带着那一处凭据（「30s」），说的是「这个视图在自己刷新」，与三态凭
+ * 据不是一回事。
+ *
+ * 什么时候停表由运行时说了算，界面不另立规矩：草稿有 error、编辑器正被输入、
+ * 页面不可见、上一次请求还在途——四种情况下计时器暂停（见 runtime.md）。
+ */
+export const AutoRefresh: Story = { args: { refreshing: true } };
 
 /**
  * 铺满屏幕：按标题栏右端那个方框按钮（「铺满屏幕」），视图就地撑满整页；再按

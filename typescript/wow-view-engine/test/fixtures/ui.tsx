@@ -19,7 +19,10 @@
 
 import { MemoryViewStore, ViewEngine } from '../../src/index.js';
 import type { ViewInstance, ViewSource } from '../../src/index.js';
-import type { RecordTableController } from '../../src/react/index.js';
+import type {
+  RecordTableController,
+  RefreshController,
+} from '../../src/react/index.js';
 import { ordersDefinition, recordConfig, testSource } from '../fixtures.js';
 
 export const mine: ViewInstance = {
@@ -103,6 +106,25 @@ export function recordTableController(
     next: () => {},
     previous: () => {},
     refresh: () => {},
+    ...overrides,
+  };
+}
+
+/**
+ * A view that refreshes only when asked, with the default ladder on offer.
+ * The suites that assert the interval override `interval` and `setInterval`.
+ */
+export function refreshController(
+  overrides: Partial<RefreshController> = {},
+): RefreshController {
+  return {
+    interval: null,
+    chosen: null,
+    unsound: false,
+    intervals: [10, 30, 60, 300, 900, 1800, 3600],
+    setInterval: () => {},
+    now: () => {},
+    loading: false,
     ...overrides,
   };
 }

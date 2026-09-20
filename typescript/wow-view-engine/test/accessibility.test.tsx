@@ -246,6 +246,23 @@ describe('the states behind a click pass axe', () => {
     expect(await violations(document.body)).toEqual([]);
   });
 
+  /**
+   * The freshness control is a split button, and the half that opens is a
+   * menu of radio items over a portal — the shape most likely to lose its
+   * name or its grouping.
+   */
+  it('the refresh interval menu open', async () => {
+    const user = await workbench();
+    await user.click(
+      screen.getByRole('button', {
+        name: defaultMessages['label.refresh.auto'],
+      }),
+    );
+    await screen.findByRole('menu');
+
+    expect(await violations(document.body)).toEqual([]);
+  });
+
   it('the editor open, with its modes menu showing', async () => {
     const user = await workbench();
     await user.click(

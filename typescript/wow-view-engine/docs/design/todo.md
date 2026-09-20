@@ -13,7 +13,7 @@
 
 每条的判据以这条基线读，**但只取适用的那几项**：一条只补回归的条目不必造文案，一条只看不改的条目没有并发路径。基线是——新出现的行为，其错误、空、权限、并发路径各有定义也有测试；新出现的界面键盘可达并过 axe；新出现的文案中英齐全；新出现的交互有故事既能手动操作也有回归；design 对应页与本页同步；全门绿。哪几项适用，由各条自己的判据说了算。
 
-顺序：**自动刷新 → 打磨清单（先看后改）→ 筛选三条（日期时刻／IN 多值／软删除）→ ErrorBoundary → 单元格渲染器族 → 列宽・隐藏字段排序・指针拖动回归 → 写入结局故事・视图管理拖动排序**。打磨排在新功能之前：先把已经有的做对，再加没有的。
+顺序：**打磨清单（先看后改）→ 筛选三条（日期时刻／IN 多值／软删除）→ ErrorBoundary → 单元格渲染器族 → 列宽・隐藏字段排序・指针拖动回归 → 写入结局故事・视图管理拖动排序**。打磨排在新功能之前：先把已经有的做对，再加没有的。
 
 ## 重构（小步，每步一个 PR，零行为变化）
 
@@ -37,7 +37,6 @@
 
 ## 全局功能（外壳）
 
-- **自动刷新缺的只是入口**——为什么：合同早已落地——`ViewConfigBase.refresh.interval` 随视图配置保存，取值由 `RuntimeLimits` 的 `minRefreshInterval`／`maxRefreshInterval` 兜住，runtime 按它持有唯一一个计时器并在四种情况暂停（[runtime.md](runtime.md)、[model.md](model.md)）。缺的只有界面：结果工具栏只有一次性的刷新按钮，看板式的用法只能靠人手点。判据：刷新改为拆分按钮（主键一次刷新、`▾` 选间隔），选中即 `edit({ refresh: { interval } })` 加 `apply`——改的是**现有的** `refresh.interval`，不得另起一套临时状态；可选间隔按 `runtime.limits` 裁剪，限制不允许的间隔是**不存在**而不是禁用（D4）；开启时刷新按钮上有一处在走的凭据（它说的是“这个视图在自己刷新”，与三态凭据不冲突）；暂停与停表的时机沿用 runtime 已有的四条，界面不自己发明第五条。三种视图都要有入口，因为 `refresh` 在 `ViewConfigBase` 上：Record 走 `ResultToolbar`（刷新那一组已经给它留了位置）；Analysis 不用这个工具栏，入口落在它自己的那一处刷新旁；Dashboard 的计时器由 `DashboardRuntime` 统一持有、被引用实例自身的 `refresh` 在其中被忽略（[runtime.md](runtime.md)），所以它编辑的是仪表盘自己的 `refresh.interval`，并要在界面上说清这一层关系。落点：`src/ui/ResultToolbar.tsx`、`src/ui/AnalysisWorkbench.tsx`、`src/ui/DashboardWorkbench.tsx`、`src/react/`、[ui/README.md](ui/README.md)。
 - **带时刻的日期条件筛不准边界**——为什么：日期条件只有日历，没有 `HH:mm:ss` 控件，`withTime` 于是直接取日历给的那一刻（零点），"今天下午三点之后"写不出来，边界上的记录要么全进要么全不进。判据：`withTime` 为真的字段在日历旁给出时刻输入（与日历同属一个控件，一次提交），未填时刻时的缺省语义**按 [decisions.md](decisions.md) 的 Q10 执行**，不在实现时二选一（它决定哪些记录命中，不是实现细节）；相对日期与预设不受影响；`test/filter*.test.ts` 覆盖边界两侧各一条。落点：`src/ui/filter/`、[ui/README.md](ui/README.md)、[kernels.md](kernels.md)。
 - **数值 `IN`／`NOT_IN` 只能录两个值**——为什么：内核早就收任意长度的数值数组，是 `src/ui/filter/inputs/number.tsx` 的 `NumberValue` 把 `multiple` 和 `range` 并在同一个分支里（`if (range || multiple)`）截成两个输入框，第三个值无处可填。判据：`multiple` 走自己的渲染——可增删的值列表，空值不提交；`range` 保持两端点；回归落在 **jsdom 的界面套件 `test/filterValueEditor.test.tsx`**（必要时加 `test/filterPanel.test.tsx`），不能只加一条内核用例——界面仍只能输入两个值时那种用例照样会过。落点：`src/ui/filter/inputs/number.tsx`、[ui/README.md](ui/README.md)。
 - **软删除条件没了**——为什么：legacy 有 `DELETION` 条件（只看未删除／只看已删除／全都看），现在没有，列表会默不作声地混进已删除记录——这是数据口径的沉默，比少一个筛选项严重。判据：定义能声明这一维（能力决定它存不存在，D4），未声明时界面上没有这个东西；声明了则条件区有一处显式选择；**缺省口径与旧配置缺这一维时的读法按 [decisions.md](decisions.md) 的 Q11 执行**，并要在已应用条上说得出来；`test/` 覆盖三种口径各一条。落点：[model.md](model.md)、`src/filter/`、[kernels.md](kernels.md)。
@@ -65,6 +64,8 @@
 - **枚举徽章的颜色要由定义说了算**——为什么：状态单元格已经是徽章，但一律中性 `secondary`——哪一个状态是好消息属于业务，渲染层猜不得；而 legacy 的状态列是有颜色的。判据：`FieldOption` 带上一个闭合的语气字段（如 `tone?: 'neutral' | 'success' | 'warning' | 'danger'`，映射到主题已有的 token，不收任意颜色值），`badgeEntries` 连同语气一起交出，`RecordTable` 按它选 variant；定义准入拒绝未知语气；`test/display.test.ts` 与 `test/recordTable.test.tsx` 各补一条。落点：`src/model/field.ts`、`src/ui/display.ts`、`src/ui/RecordTable.tsx`、[ui/record.md#枚举单元格是徽章](ui/record.md#枚举单元格是徽章)。
 
 ## 小修
+
+- **「改过、没应用」只有筛选树说得出来**——为什么：这一态的凭据（D2）是条件 pill 与 Apply 上的那个点，而算出它的 `useFilterEditor.pendingCount` 只比两棵筛选树；配置里**其余任何成员**与 `applied` 分开时，屏幕上没有一处说得出来。两类分开的路子：其一是 `edit` 之后**不** `apply` 的控件——`setMode`（`filterMode`）、记录视图的 `setLayout`（只在什么都没跑过时顺带 apply），以及**整个分析编辑器**（分组、指标、排序、`limit`、图表规格、合计全都等 Run；`AnalysisEditor` 的 Run 按钮上没有任何待运行标记，`AnalysisWorkbench` 也不给 `editorLabel`，连能挂那个点的折叠带都没有）——分析编辑器这一条是常态而不是边角；其二是 `edit` 加 `apply` 的控件在 **apply 被拒**时分开：草稿里有 error 时 `apply` 不落地，于是表头读草稿的 `sort`、分页条读草稿的 `pageSize`、列设置读草稿的列，而行还是上一次执行的口径。标题旁那个「未保存」不顶这个用——它答的是另一个问题（没存过，而不是没跑过），未保存的新视图上它还一直亮着。**自动刷新的那个控件是这件事的一个实例，不是起因**：它的凭据现在读 `applied`（[ui/README.md#刷新是一个拆分按钮](ui/README.md#刷新是一个拆分按钮)），正是因为没有第二处凭据可以说"草稿不是这个数"。判据：先说清 D2 的「草稿未应用」管的是筛选树还是整份配置——**这是产品决定，先在 [decisions.md](decisions.md) 给结论，不要在实现时二选一**，因为它决定要不要在分析编辑器与记录工具栏上新增凭据，而 D2 的另一半规矩是一态只留一处；若判为整份配置，则 `pending`／`pendingCount` 的基准从筛选树扩到 draft 与 applied 的逐成员比较，分析的 Run 与被拒时的表头／分页条各自说得出来，且不与三态的另外两处重复；若判为只管筛选树，则把「其余成员只由 `dirty` 负责」连同分析编辑器为什么可以没有写进 [ui/README.md#三态各有一处凭据](ui/README.md#三态各有一处凭据)，这一条就此了结。两种结论都要在 `test/reactHooks.test.tsx`（`useFilterEditor`／`useRecordTable`）与 `test/analysisUi.test.tsx` 各留一条把它钉住。落点：`src/react/useFilterEditor.ts`、`src/react/useAnalysisEditor.ts`、`src/ui/AnalysisEditor.tsx`、[ui/README.md#三态各有一处凭据](ui/README.md#三态各有一处凭据)、[decisions.md](decisions.md)。
 
 - **Dashboard 面板不说结果自身的 warning**——为什么：`ProjectedView.issues`（汇总退回本页 `runtime.summary.page-only`、分析填满上限 `analysis.result.at-limit`）在两个工作台与 `EmbeddedView` 上都会说出来，面板不会：`DashboardPanelState.issues` 是 `dashboardRuntime` 从准入结果重建的，只含配置级发现，面板 chrome 的那个告警图标因此看不见这两条。于是同一个被截断的饼图，单开一个分析视图会说，放进仪表盘就不说了。判据：面板的 issues 合并子 runtime 当前结果的 `resultIssues(...)`（随子 runtime 的通知一起重建，不等下一次 Dashboard 同步），路径按面板重定址成 `['panels', index, ...]`，`test/dashboardRuntime.test.ts` 覆盖"子面板结果退回本页口径"与"子面板分析填满上限"两条；注意 `src/runtime/dashboardRuntime.ts` 已在 `max-lines` 豁免名单里（R11），这条要么先做 R11 的拆分，要么把合并逻辑放进新文件。落点：`src/runtime/dashboardRuntime.ts`、`src/ui/DashboardGrid.tsx`、[ui/dashboard.md](ui/dashboard.md)、[runtime.md#dashboard](runtime.md#dashboard)。
 

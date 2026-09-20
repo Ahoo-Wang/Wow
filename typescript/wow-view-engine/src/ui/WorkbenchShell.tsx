@@ -61,6 +61,14 @@ export interface WorkbenchShellProps {
   timeZone?: string;
   /** The host's own global actions, at the end of the right-hand group. */
   actions?: ReactNode;
+  /**
+   * How this view is renewed, as the last of the view-level controls. It is
+   * a slot rather than something the shell builds from `workbench.refresh`,
+   * because a Record workbench already carries the same control in its
+   * result toolbar, where the freshness group is, and one view with two
+   * entries to one setting is one entry too many.
+   */
+  freshness?: ReactNode;
   /** The view's own editor, between the title bar and the strips. */
   editor?: ReactNode;
   /**
@@ -175,6 +183,7 @@ export function WorkbenchShell({
   locale,
   timeZone,
   actions,
+  freshness,
   editor,
   editorLabel,
   editorModeLabel,
@@ -390,11 +399,12 @@ export function WorkbenchShell({
                 namesView={sidebarOpen}
                 leading={collapsed || undefined}
                 trailing={
-                  // Both are answers to *how am I looking at this*, which is
-                  // what this group is, and they read outwards: the editor
-                  // governs what the view asks, filling the screen governs
-                  // the room the answer gets.
-                  (folded || expandable) && (
+                  // All three are answers to *how am I looking at this*,
+                  // which is what this group is, and they read outwards: the
+                  // editor governs what the view asks, filling the screen
+                  // governs the room the answer gets, and the refresh
+                  // governs how often it is renewed.
+                  (folded || expandable || freshness !== undefined) && (
                     <>
                       {folded && (
                         <EditorBandToggle
@@ -413,6 +423,7 @@ export function WorkbenchShell({
                           ref={expandViewRef}
                         />
                       )}
+                      {freshness}
                     </>
                   )
                 }

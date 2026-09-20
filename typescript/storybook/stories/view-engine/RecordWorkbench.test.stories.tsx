@@ -19,6 +19,7 @@ import {
 } from '@ahoo-wang/fetcher-view-engine/ui';
 import type { RecordViewConfig } from '@ahoo-wang/fetcher-view-engine';
 import displayMeta, {
+  AutoRefresh as DisplayAutoRefresh,
   CannotOpen as DisplayCannotOpen,
   CollapsedSidebar as DisplayCollapsedSidebar,
   EmptyResult as DisplayEmptyResult,
@@ -1363,6 +1364,92 @@ export const FillTheScreenWithPopups: Story = {
     await expect(sticky()).toEqual(STUCK);
   },
 };
+
+/**
+ * The way in to auto refresh: the `▾` beside the refresh button.
+ *
+ * jsdom can say what the menu holds; only a browser can say that it opens in
+ * front of the workbench and that a click on a rung lands on the rung — this
+ * package's popups paint at level 0 and win on tree order alone, so a control
+ * added to a toolbar is exactly where that goes wrong.
+ */
+export const AutoRefresh: Story = {
+  ...DisplayAutoRefresh,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const cadence = () =>
+      canvasElement.querySelector<HTMLElement>('[data-slot="refresh-cadence"]');
+    const seconds = say('label.refresh.seconds', { count: 30 });
+
+    // The saved view already refreshes itself, so the credential is on the
+    // button before anything is pressed: it says which cadence, not only
+    // that there is one.
+    await expect(cadence()).toHaveTextContent(seconds);
+    await expect(
+      canvasElement.querySelector('[data-slot="refresh-now"]'),
+    ).toHaveAttribute(
+      'aria-description',
+      say('label.refresh.on', { interval: seconds }),
+    );
+
+    const chevron = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="refresh-interval"]',
+    )!;
+    await userEvent.click(chevron);
+    const menu = await within(document.body).findByRole('menu');
+    // Portalled out of the surface, and still the thing a click at its
+    // middle reaches.
+    await expect(menu.closest('[data-slot="view-surface"]')).toBeNull();
+    await expect(inFrontOf(menu)).toBe(true);
+
+    // Off, then the ladder the limits admit — nothing disabled, because an
+    // interval the kernel would refuse is not offered at all.
+    await expect(
+      within(menu)
+        .getAllByRole('menuitemradio')
+        .map(item => item.textContent),
+    ).toEqual([defaultMessages['label.refresh.off'], ...LADDER.map(cadenceOf)]);
+    // The one in force is the one marked.
+    await expect(
+      within(menu).getByRole('menuitemradio', { name: seconds }),
+    ).toHaveAttribute('aria-checked', 'true');
+
+    // Choosing edits the view's own config and applies it, so the cadence
+    // moves and the title bar says the view is now unsaved.
+    const minutes = say('label.refresh.minutes', { count: 5 });
+    await userEvent.click(
+      within(menu).getByRole('menuitemradio', { name: minutes }),
+    );
+    await waitFor(() => expect(cadence()).toHaveTextContent(minutes));
+    await expect(
+      canvas.getByText(defaultMessages['label.header.unsaved']),
+    ).toBeVisible();
+
+    // And off again, from the keyboard: the chevron opens on Enter and hands
+    // focus to the options.
+    chevron.focus();
+    await userEvent.keyboard('{Enter}');
+    const reopened = await within(document.body).findByRole('menu');
+    await userEvent.click(
+      within(reopened).getByRole('menuitemradio', {
+        name: defaultMessages['label.refresh.off'],
+      }),
+    );
+    await waitFor(() => expect(cadence()).toBeNull());
+  },
+};
+
+/** The intervals the default limits admit, as the menu lists them. */
+const LADDER = [10, 30, 60, 300, 900, 1800, 3600];
+
+/** One interval as the control writes it: "30s", "5 min", "1 h". */
+const cadenceOf = (seconds: number): string =>
+  seconds >= 3600
+    ? say('label.refresh.hours', { count: seconds / 3600 })
+    : seconds >= 60
+      ? say('label.refresh.minutes', { count: seconds / 60 })
+      : say('label.refresh.seconds', { count: seconds });
 
 /**
  * Whether the browser would hand a click at the middle of this box to the box

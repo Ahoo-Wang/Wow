@@ -12,7 +12,6 @@
  */
 
 import type * as React from 'react';
-import { RefreshCwIcon } from 'lucide-react';
 import type {
   FieldDefinition,
   FieldGroupDefinition,
@@ -21,14 +20,15 @@ import type {
 import type {
   RecordBulkActionContext,
   RecordTableController,
+  RefreshController,
 } from '../react/index.js';
 import type { RecordViewRuntime } from '../runtime/index.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import { ButtonGroup } from './components/button-group.js';
-import { Spinner } from './components/spinner.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
 import { ColumnSettings } from './ColumnSettings.js';
+import { RefreshControl } from './RefreshControl.js';
 import { SortSettings } from './SortSettings.js';
 import { SEGMENTED, SPACE } from './layout.js';
 import type { MessageKey } from './messages.js';
@@ -36,6 +36,13 @@ import { useViewMessages } from './MessagesProvider.js';
 
 export interface ResultToolbarProps {
   table: RecordTableController;
+  /**
+   * How this view is renewed: the one-shot refresh, and the interval it
+   * keeps itself up to date by. It comes from the workbench rather than off
+   * the table controller because `refresh.interval` belongs to every kind of
+   * view (`ViewConfigBase`), not to a table.
+   */
+  refresh: RefreshController;
   /** Fields the definition offers, for the column picker. */
   fields: readonly FieldDefinition[];
   /** The picker groups of the definition the fields come from. */
@@ -90,6 +97,7 @@ const LAYOUT_LABEL: Record<RecordLayout, MessageKey> = {
  */
 export function ResultToolbar({
   table,
+  refresh,
   fields,
   fieldGroups,
   rowKey,
@@ -178,23 +186,9 @@ export function ResultToolbar({
         />
       </ButtonGroup>
 
-      {/* Freshness, alone in a group of its own so the auto-refresh interval
-          can join it as a second control without moving anything. */}
-      <ButtonGroup aria-label={messages.label('label.toolbar.freshness')}>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={table.refresh}
-          disabled={table.loading}
-        >
-          {table.loading ? (
-            <Spinner data-icon="inline-start" />
-          ) : (
-            <RefreshCwIcon data-icon="inline-start" />
-          )}
-          {messages.label('label.toolbar.refresh')}
-        </Button>
-      </ButtonGroup>
+      {/* Freshness: the press that refreshes now, and the interval that
+          keeps doing it. One group, because they are one question. */}
+      <RefreshControl refresh={refresh} busy={table.loading} />
     </div>
   );
 }

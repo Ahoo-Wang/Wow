@@ -19,6 +19,7 @@ import { filterMessages } from './filter.js';
 import { headerMessages } from './header.js';
 import { manageMessages } from './manage.js';
 import { recordMessages } from './record.js';
+import { refreshMessages } from './refresh.js';
 import { saveMessages } from './save.js';
 import { scopeMessages } from './scope.js';
 import { statusMessages } from './status.js';
@@ -41,6 +42,7 @@ export const en = {
   ...saveMessages,
   ...headerMessages,
   ...recordMessages,
+  ...refreshMessages,
   ...filterMessages,
   ...configMessages,
   ...scopeMessages,

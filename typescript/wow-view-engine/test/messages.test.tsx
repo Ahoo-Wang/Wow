@@ -16,6 +16,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cleanup, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import { refreshController } from './fixtures/ui.js';
 import {
   AggregationFunction,
   AggregationGroupType,
@@ -523,6 +524,7 @@ describe('an application rewords what the components write', () => {
       <MessagesProvider messages={{ 'label.toolbar.refresh': '刷新' }}>
         <ResultToolbar
           table={tableController()}
+          refresh={refreshController()}
           fields={[]}
           runtime={{ id: 'r-1' } as unknown as RecordViewRuntime}
         />

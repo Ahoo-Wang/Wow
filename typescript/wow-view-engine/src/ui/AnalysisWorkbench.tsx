@@ -19,6 +19,7 @@ import { AnalysisChart } from './AnalysisChart.js';
 import { AnalysisEditor } from './AnalysisEditor.js';
 import { AnalysisTable } from './AnalysisTable.js';
 import { FilterPanel } from './FilterPanel.js';
+import { RefreshControl } from './RefreshControl.js';
 import { QueryStrip } from './StatusStrip.js';
 import type { ViewMessages } from './messages.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
@@ -100,6 +101,12 @@ export function AnalysisWorkbench({
       defaultSidebarOpen={defaultSidebarOpen}
       onSidebarOpenChange={onSidebarOpenChange}
       expandable={expandable}
+      // This workbench has no result toolbar to put it in — the analysis
+      // result is a table or a chart, not a bar of controls — so the
+      // refresh sits with the other view-level controls in the title bar.
+      freshness={
+        <RefreshControl refresh={workbench.refresh} variant="outline" />
+      }
       // A grouping that filled its limit is a fact about this result, so it
       // is said beside the config's own findings and stays until the next
       // result replaces it. The strip sits above both layouts, which is why

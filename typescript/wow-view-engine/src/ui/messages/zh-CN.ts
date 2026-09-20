@@ -84,6 +84,16 @@ export const zhCN: ViewMessages = {
   'label.toolbar.selected': '已选 {count} 项',
   'label.toolbar.clear-selection': '清除选择',
   'label.toolbar.actions': '操作',
+
+  // 自动刷新：刷新按钮 ▾ 里的间隔菜单，以及开启时按钮上的那处凭据。
+  'label.refresh.auto': '自动刷新',
+  'label.refresh.off': '关闭',
+  'label.refresh.seconds': '{count} 秒',
+  'label.refresh.minutes': '{count} 分钟',
+  'label.refresh.hours': '{count} 小时',
+  'label.refresh.on': '这个视图每 {interval} 自己刷新一次。',
+  'label.refresh.panels':
+    '整个仪表盘共用一个计时器；被引用视图自己保存的间隔在这里不生效。',
   'label.toolbar.page': '第 {index} 页',
   'label.toolbar.page-of': '第 {index} / {pages} 页',
   'label.toolbar.previous': '上一页',

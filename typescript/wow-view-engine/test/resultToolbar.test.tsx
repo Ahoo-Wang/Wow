@@ -21,6 +21,7 @@ import type {
 } from '../src/react/index.js';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
 import { ResultToolbar } from '../src/ui/ResultToolbar.js';
+import { refreshController } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -96,6 +97,7 @@ describe('ResultToolbar selection side', () => {
   it('shows nothing about a selection there is none of, and still holds its height', () => {
     const { container } = render(
       <ResultToolbar
+        refresh={refreshController()}
         table={tableController()}
         fields={FIELDS}
         runtime={runtime}
@@ -131,6 +133,7 @@ describe('ResultToolbar selection side', () => {
 
     render(
       <ResultToolbar
+        refresh={refreshController()}
         table={table}
         fields={FIELDS}
         runtime={runtime}
@@ -156,6 +159,7 @@ describe('ResultToolbar selection side', () => {
     const user = userEvent.setup();
     render(
       <ResultToolbar
+        refresh={refreshController()}
         table={tableController({ selection: ['o-1'], clearSelection })}
         fields={FIELDS}
         runtime={runtime}
@@ -171,6 +175,7 @@ describe('ResultToolbar layout switcher', () => {
   it('offers nothing when the definition allows one layout', () => {
     render(
       <ResultToolbar
+        refresh={refreshController()}
         table={tableController({ layouts: ['table'] })}
         fields={FIELDS}
         runtime={runtime}
@@ -189,6 +194,7 @@ describe('ResultToolbar layout switcher', () => {
   it('stays when the layout in force is one the definition dropped', () => {
     render(
       <ResultToolbar
+        refresh={refreshController()}
         table={tableController({ layouts: ['table'], layout: 'card' })}
         fields={FIELDS}
         runtime={runtime}
@@ -208,6 +214,7 @@ describe('ResultToolbar layout switcher', () => {
   it('offers the allowed layouts in the definition order', () => {
     render(
       <ResultToolbar
+        refresh={refreshController()}
         table={tableController({ layouts: ['card', 'table'], layout: 'card' })}
         fields={FIELDS}
         runtime={runtime}
@@ -225,6 +232,7 @@ describe('ResultToolbar layout switcher', () => {
     const user = userEvent.setup();
     render(
       <ResultToolbar
+        refresh={refreshController()}
         table={tableController({ setLayout })}
         fields={FIELDS}
         runtime={runtime}
@@ -246,6 +254,7 @@ describe('ResultToolbar grouping and weight', () => {
   it('groups the controls on the right by what they are for', () => {
     render(
       <ResultToolbar
+        refresh={refreshController()}
         table={tableController()}
         fields={FIELDS}
         runtime={runtime}
@@ -267,6 +276,7 @@ describe('ResultToolbar grouping and weight', () => {
   it('keeps every button ghost but the layout switch', () => {
     const { container } = render(
       <ResultToolbar
+        refresh={refreshController()}
         table={tableController()}
         fields={FIELDS}
         runtime={runtime}
@@ -293,6 +303,7 @@ describe('ResultToolbar columns and refresh', () => {
     const user = userEvent.setup();
     render(
       <ResultToolbar
+        refresh={refreshController()}
         table={tableController({ setColumns })}
         fields={FIELDS}
         runtime={runtime}
@@ -313,6 +324,7 @@ describe('ResultToolbar columns and refresh', () => {
   it('leaves the sort out when the definition sorts on nothing', () => {
     render(
       <ResultToolbar
+        refresh={refreshController()}
         table={tableController()}
         fields={FIELDS}
         runtime={runtime}
@@ -322,23 +334,30 @@ describe('ResultToolbar columns and refresh', () => {
     expect(screen.queryByRole('button', { name: /Sort/ })).toBeNull();
   });
 
+  /**
+   * The freshness group is one control with two halves now, and the
+   * primary half is the one-shot refresh it always was: it runs the view's
+   * own refresh rather than anything the interval menu does.
+   */
   it('refreshes, and says so while the query is out', async () => {
-    const refresh = vi.fn();
+    const now = vi.fn();
     const user = userEvent.setup();
     const { rerender } = render(
       <ResultToolbar
-        table={tableController({ refresh })}
+        refresh={refreshController({ now })}
+        table={tableController()}
         fields={FIELDS}
         runtime={runtime}
       />,
     );
 
     await user.click(screen.getByRole('button', { name: /Refresh/ }));
-    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(now).toHaveBeenCalledTimes(1);
 
     rerender(
       <ResultToolbar
-        table={tableController({ refresh, loading: true })}
+        refresh={refreshController({ now })}
+        table={tableController({ loading: true })}
         fields={FIELDS}
         runtime={runtime}
       />,

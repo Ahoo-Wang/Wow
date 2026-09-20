@@ -25,6 +25,7 @@ import type {
   WriteAction,
 } from '../runtime/index.js';
 import { kindMismatch } from './issues.js';
+import { useAutoRefresh, type RefreshController } from './useAutoRefresh.js';
 import {
   useFilterEditor,
   type FilterEditorController,
@@ -86,6 +87,13 @@ export interface WorkbenchController {
   unopenable: Issue | null;
   commands: SaveCommands;
   /**
+   * How the open view renews its own answer: one refresh now, and the
+   * interval it keeps itself up to date by. It is assembled here rather than
+   * in each workbench because `refresh` lives on `ViewConfigBase` — every
+   * kind has one, and every kind reaches it the same way.
+   */
+  refresh: RefreshController;
+  /**
    * The open view's filter editor. One per opening, built here because the
    * shell needs it too — the applied bar describes it, and the error strip
    * shows exactly the errors it does not mark (`filter.unmarked`).
@@ -135,6 +143,7 @@ export function useWorkbench(
   const runtime = wrongKind ? null : opened.runtime;
   const state: ViewRuntimeState<ViewConfig> | null = useViewRuntime(runtime);
   const filter = useFilterEditor(runtime);
+  const refresh = useAutoRefresh(runtime);
   const commands = useSaveCommands(engine, runtime);
   const manager = useViewManager(engine, definitionId, list);
   const leave = useLeaveGuard(
@@ -174,6 +183,7 @@ export function useWorkbench(
     unopenable: opened.error ?? wrongKind,
     commands,
     filter,
+    refresh,
     leave,
     onSaved: open,
     onRenamed: open,

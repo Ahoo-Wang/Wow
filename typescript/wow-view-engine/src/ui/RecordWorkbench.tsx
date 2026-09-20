@@ -159,6 +159,7 @@ export function RecordWorkbench({
           <>
             <ResultToolbar
               table={table}
+              refresh={workbench.refresh}
               fields={fields}
               fieldGroups={record.definition.fieldGroups}
               rowKey={record.definition.record?.rowKey}

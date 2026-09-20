@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import {
   DASHBOARD_GRID_COLUMNS,
   type DashboardPanel,
@@ -51,6 +51,16 @@ export interface DashboardController {
   issues: Issue[];
   /** True while a panel reference is still loading. */
   resolving: boolean;
+  /**
+   * True while any panel has a query in flight.
+   *
+   * A dashboard runs nothing of its own — `state.query` never leaves `idle`
+   * — so "is something running here" is only answerable by asking the
+   * panels, which is what the dashboard's own timer does before it fires
+   * (`DashboardViewRuntime.loading`). A control that read the dashboard's
+   * query state instead would call a board of twelve loading panels idle.
+   */
+  loading: boolean;
   dirty: boolean;
   /** Moves and resizes panels: an edit and an apply, like sorting a table. */
   place(placements: readonly PanelPlacement[]): void;
@@ -73,6 +83,34 @@ export function useDashboard(
 ): DashboardController {
   const state = useViewRuntime(runtime);
   const panels = state?.panels ?? EMPTY_PANELS;
+
+  // The children, watched here rather than left to the panels that draw
+  // them: a child's query moving does not notify this runtime's subscribers
+  // (it re-syncs the timer and the panel's issues, deliberately, so a grid
+  // does not re-render on every panel request), so anything above the grid
+  // that must know a request is out has to subscribe to the children itself.
+  // The panels array keeps its identity while the set of panels is
+  // unchanged, so neither memo churns as queries come and go.
+  const children = useMemo(
+    () =>
+      panels
+        .map(panel => panel.runtime)
+        .filter((child): child is DataViewRuntime => child !== null),
+    [panels],
+  );
+  const watch = useCallback(
+    (listener: () => void) => {
+      const drop = children.map(child => child.subscribe(listener));
+      return () => drop.forEach(stop => stop());
+    },
+    [children],
+  );
+  const anyLoading = useCallback(
+    () =>
+      children.some(child => child.getSnapshot().query.status === 'loading'),
+    [children],
+  );
+  const loading = useSyncExternalStore(watch, anyLoading, anyLoading);
 
   const place = useCallback(
     (placements: readonly PanelPlacement[]) => {
@@ -98,6 +136,7 @@ export function useDashboard(
     // A panel's own issues travel with the panel; what is left belongs here.
     issues: (state?.issues ?? []).filter(found => found.path[0] !== 'panels'),
     resolving: state?.resolving ?? false,
+    loading,
     dirty: state?.dirty ?? false,
     place,
     refresh: useCallback(() => runtime?.refresh(), [runtime]),
