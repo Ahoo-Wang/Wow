@@ -22,10 +22,31 @@ export function readColumn(table: HTMLElement, header: string): string[] {
   );
 }
 
-/** The totals row's cell under a header. */
+/**
+ * The cell under a header in the row summarising everything the conditions
+ * match. A record table shows the page beside it and says which is which on
+ * the row, so the scope is read rather than the position; an analysis table
+ * has one totals row and no scope to name.
+ */
 export function readTotal(table: HTMLElement, header: string): string {
-  const row = (table as HTMLTableElement).tFoot?.rows[0];
-  if (!row) throw new Error('The table has no totals row.');
+  return readSummary(table, header, 'total');
+}
+
+/** The same cell in the row summarising the rows on screen. */
+export function readPage(table: HTMLElement, header: string): string {
+  return readSummary(table, header, 'page');
+}
+
+function readSummary(
+  table: HTMLElement,
+  header: string,
+  scope: 'page' | 'total',
+): string {
+  const foot = (table as HTMLTableElement).tFoot;
+  const row =
+    foot?.querySelector<HTMLTableRowElement>(`tr[data-scope="${scope}"]`) ??
+    (scope === 'total' ? foot?.rows[0] : undefined);
+  if (!row) throw new Error(`The table has no ${scope} summary row.`);
   return cellText(row, columnIndex(table, header));
 }
 
@@ -38,11 +59,18 @@ export function amountOf(text: string): number {
   return Number(text.replace(/\D/g, '')) / 100;
 }
 
+/**
+ * A header carries more than its name — a sort mark, and its place in the
+ * sort once several columns order the table — so the column's own label is
+ * read from the element that holds it, and the whole cell only where there
+ * is no such element to read.
+ */
 function columnIndex(table: HTMLElement, header: string): number {
   const cells = (table as HTMLTableElement).tHead?.rows[0]?.cells ?? [];
-  const index = [...cells].findIndex(
-    cell => cell.textContent?.trim() === header,
-  );
+  const index = [...cells].findIndex(cell => {
+    const label = cell.querySelector('[data-slot="column-label"]');
+    return (label ?? cell).textContent?.trim() === header;
+  });
   if (index < 0) throw new Error(`No column is headed "${header}".`);
   return index;
 }

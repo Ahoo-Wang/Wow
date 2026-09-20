@@ -216,3 +216,28 @@ function readNumber(row: RecordData | undefined, alias: string): number | null {
   const value = row?.[alias];
   return typeof value === 'number' ? value : null;
 }
+
+/**
+ * The same cells read over the rows on screen.
+ *
+ * A table shows both scopes at once — this page beside everything the
+ * conditions match — and only the second one costs a query. The first is the
+ * visible rows added up, so it is derived from the cells the executed config
+ * already named rather than from the config itself, which a renderer holding
+ * a result does not have. Reducing the rows a second time is the same
+ * arithmetic `projectSummaries` does for a `page` source, kept here with it
+ * so the two scopes can never drift apart.
+ */
+export function pageSummaries(
+  cells: readonly SummaryCell[],
+  rows: readonly RecordRow[],
+): SummaryRow {
+  const data = rows.map(row => row.data);
+  return {
+    scope: 'page',
+    cells: cells.map(cell => ({
+      ...cell,
+      value: reduceRows(data, cell.field, cell.fn),
+    })),
+  };
+}

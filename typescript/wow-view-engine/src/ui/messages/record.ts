@@ -54,11 +54,28 @@ export const recordMessages = {
   'label.value.yes': 'Yes',
   'label.value.no': 'No',
 
-  // A summary's scope belongs on screen: a total comes from its own query
-  // over everything the conditions match, a page total only from the rows
-  // in front of you, and the two are not interchangeable.
+  // Sorting from the headers. The name says what a click does rather than
+  // what the column is called, because that is what the button is for; the
+  // column's own label is inside the sentence, so what is heard still
+  // contains what is seen. `label.sort.at` is appended to it while several
+  // columns are sorted, which is the only time a position means anything.
+  'label.sort.ascending': 'Sort by {field}, ascending',
+  'label.sort.descending': 'Sort by {field}, descending',
+  'label.sort.none': 'Stop sorting by {field}',
+  'label.sort.at': 'sort {position} of {count}',
+
+  // A summary's scope belongs on screen: `all` comes from its own query over
+  // everything the conditions match, `page` only from the rows in front of
+  // you, and the two are not interchangeable. `label.summary.total` is the
+  // analysis table's totals row and stays its own wording.
   'label.summary.total': 'Total',
-  'label.summary.page': 'This page',
+  'label.summary.scope.page': 'This page',
+  'label.summary.scope.total': 'All records',
+  'label.summary.fn.SUM': 'Sum',
+  'label.summary.fn.AVG': 'Average',
+  'label.summary.fn.MIN': 'Min',
+  'label.summary.fn.MAX': 'Max',
+  'label.summary.fn.COUNT': 'Count',
   'label.summary.unavailable': '—',
 
   // Record kernel.

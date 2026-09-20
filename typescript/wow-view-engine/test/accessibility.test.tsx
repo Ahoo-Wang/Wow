@@ -58,6 +58,22 @@ const pendingOrders: ViewInstance = {
   config: recordConfig(),
 };
 
+/** The same rows under two sorted columns, with both summary scopes. */
+const sortedOrders: ViewInstance = {
+  id: 'sorted',
+  definitionId: 'orders',
+  title: 'Sorted',
+  scope: 'shared',
+  revision: '1',
+  config: recordConfig({
+    sort: [
+      { field: 'amount', direction: 'DESC' },
+      { field: 'id', direction: 'ASC' },
+    ],
+    summaries: [{ field: 'amount', fn: 'SUM' }],
+  }),
+};
+
 const warehouseTotals: ViewInstance = {
   id: 'totals',
   definitionId: 'orders',
@@ -272,6 +288,54 @@ describe('the default workbenches pass axe', () => {
     );
     await waitFor(() => expect(container.querySelector('table')).toBeTruthy());
 
+    expect(await violations(container)).toEqual([]);
+  });
+
+  /**
+   * The table as it is actually read: ordered by two columns, with both
+   * summary scopes under it. Sorting adds `aria-sort` to a cell and a button
+   * inside a header, and the summaries add a footer whose first cell is a
+   * label rather than a number — three ways to put a table wrong that the
+   * plain record case above would never reach.
+   */
+  it('record, sorted on two columns and summarised', async () => {
+    // Two sortable columns, so the headers carry positions as well as
+    // directions; the shared definition sorts on `amount` alone.
+    const definition = ordersDefinition();
+    const engine = new ViewEngine({
+      definitions: [
+        {
+          ...definition,
+          fields: definition.fields.map(field =>
+            field.name === 'id' ? { ...field, sortable: true } : field,
+          ),
+        },
+      ],
+      store: new MemoryViewStore({ instances: [sortedOrders] }),
+      resolveSource: () => testSource(),
+    });
+    const { container } = render(
+      <ViewSurface>
+        <RecordWorkbench
+          engine={engine}
+          definitionId="orders"
+          instanceId="sorted"
+        />
+      </ViewSurface>,
+    );
+    await waitFor(() => expect(container.querySelector('tfoot')).toBeTruthy());
+
+    // One `aria-sort`, on the column the table is ordered by; the column
+    // that breaks its ties carries its place in the button's name instead.
+    expect(
+      [...container.querySelectorAll('thead [aria-sort]')].map(cell =>
+        cell.getAttribute('aria-sort'),
+      ),
+    ).toEqual(['descending']);
+    expect(
+      container.querySelectorAll('[data-slot="sort-position"]'),
+    ).toHaveLength(2);
+    expect(container.querySelectorAll('tfoot tr[data-scope]')).toHaveLength(2);
     expect(await violations(container)).toEqual([]);
   });
 

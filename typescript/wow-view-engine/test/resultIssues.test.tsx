@@ -272,6 +272,13 @@ describe('what the screen says about a downgraded total', () => {
     return found;
   }
 
+  /** The scope each summary row carries, top to bottom. */
+  function scopes(): (string | undefined)[] {
+    return [...footer().querySelectorAll<HTMLTableRowElement>('tr')].map(
+      row => row.dataset.scope,
+    );
+  }
+
   it('labels the row "this page" and says why in the strip', async () => {
     render(
       <RecordWorkbench
@@ -284,8 +291,13 @@ describe('what the screen says about a downgraded total', () => {
     expect(
       await screen.findByText(said('runtime.summary.page-only')),
     ).toBeDefined();
-    expect(footer().dataset.scope).toBe('page');
-    expect(footer().textContent).toContain(said('label.summary.page'));
+    // Only the page is left: the row that would have covered everything the
+    // conditions match has no number to show, and none is invented for it.
+    expect(scopes()).toEqual(['page']);
+    expect(footer().textContent).toContain(said('label.summary.scope.page'));
+    expect(footer().textContent).not.toContain(
+      said('label.summary.scope.total'),
+    );
   });
 
   it('labels it "total" and says nothing when the query answered', async () => {
@@ -297,8 +309,9 @@ describe('what the screen says about a downgraded total', () => {
       />,
     );
 
-    await waitFor(() => expect(footer().dataset.scope).toBe('total'));
-    expect(footer().textContent).toContain(said('label.summary.total'));
+    // Both scopes, so the reader can tell this page from all of it.
+    await waitFor(() => expect(scopes()).toEqual(['page', 'total']));
+    expect(footer().textContent).toContain(said('label.summary.scope.total'));
     expect(screen.queryByText(said('runtime.summary.page-only'))).toBeNull();
   });
 

@@ -31,7 +31,7 @@ import displayMeta, {
   WithActions as DisplayWithActions,
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
-import { amountOf, readColumn, readTotal } from './readTable.js';
+import { amountOf, readColumn, readPage, readTotal } from './readTable.js';
 
 const meta = {
   ...displayMeta,
@@ -62,8 +62,59 @@ export const WithData: Story = {
     await waitFor(() =>
       expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
     );
-    // The total covers what the conditions select, not every order.
+    // Two scopes, side by side: the total covers what the conditions select
+    // rather than every order, and the page covers the four rows on screen —
+    // here the same four, which is exactly what the labels let a reader tell.
     await expect(amountOf(readTotal(table, '金额'))).toBe(6470);
+    await expect(amountOf(readPage(table, '金额'))).toBe(6470);
+    await expect(scopeLabels(table)).toEqual([
+      defaultMessages['label.summary.scope.page'],
+      defaultMessages['label.summary.scope.total'],
+    ]);
+    // The function is named rather than left as the config's token.
+    await expect(readTotal(table, '金额')).toContain(
+      defaultMessages['label.summary.fn.SUM'],
+    );
+
+    // A status is one of a set the definition names, so it reads as a badge
+    // with the option's label rather than as the stored `PENDING`.
+    await expect(badgeIn(table, '状态')).toHaveTextContent('待出库');
+    // The number beside it is not a set, and wears no pill.
+    await expect(badgeIn(table, '金额')).toBeNull();
+
+    // The saved view orders by amount; clicking another sortable header adds
+    // it, and each header then says where it sits in that order.
+    await expect(headerOf(table, '金额')).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    );
+    // A sortable column nobody sorted offers the affordance before it is
+    // used, and says what a click would do.
+    await expect(
+      headerOf(table, '订单号').querySelector('[data-slot="sort-available"]'),
+    ).not.toBeNull();
+    // Nothing else claims to be sorted: ARIA marks the column the table is
+    // ordered by, and there is one of those.
+    await expect(headerOf(table, '订单号')).not.toHaveAttribute('aria-sort');
+
+    await userEvent.click(headerOf(table, '订单号').querySelector('button')!);
+    await waitFor(() => expect(positionOf(table, '订单号')).toBe('2'));
+    // Amount still decides, so it keeps the attribute and the first place;
+    // the column that breaks its ties says where it sits in its own name.
+    await expect(positionOf(table, '金额')).toBe('1');
+    await expect(headerOf(table, '金额')).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    );
+    await expect(headerOf(table, '订单号')).not.toHaveAttribute('aria-sort');
+    await expect(
+      headerOf(table, '订单号')
+        .querySelector('button')!
+        .getAttribute('aria-label'),
+    ).toContain(say('label.sort.at', { position: 2, count: 2 }));
+    // Amount still decides, and the second column only breaks its ties, so
+    // the rows are where they were.
+    await expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT);
 
     // The page reads from what the view is down to the rows and their
     // paging. A saved view opens folded, and folding unmounts the band
@@ -411,18 +462,18 @@ export const TotalCoversThisPageOnly: Story = {
       expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
     );
 
-    // The footer names the scope it really answers for, and carries it in
-    // the attribute a host can style on.
+    // One row, naming the scope it really answers for and carrying it in the
+    // attribute a host can style on: the row that would have covered every
+    // matching record has no number, and none is invented for it.
     const footer = table.querySelector<HTMLElement>('tfoot')!;
-    await expect(footer.dataset.scope).toBe('page');
-    await expect(footer).toHaveTextContent(
-      defaultMessages['label.summary.page'],
-    );
-    await expect(footer).not.toHaveTextContent(
-      defaultMessages['label.summary.total'],
-    );
-    // The rows on screen add up to exactly what the row shows.
-    await expect(amountOf(readTotal(table, '金额'))).toBe(6470);
+    await expect(scopeLabels(table)).toEqual([
+      defaultMessages['label.summary.scope.page'],
+    ]);
+    await expect(
+      [...footer.querySelectorAll('tr')].map(row => row.dataset.scope),
+    ).toEqual(['page']);
+    // The rows on screen add up to exactly what that row shows.
+    await expect(amountOf(readPage(table, '金额'))).toBe(6470);
 
     // And one line above the result says why it is only a page total. It is
     // a warning, not an alert: nothing was blocked.
@@ -541,6 +592,40 @@ const LAYOUT_SLOTS = [
   'result-toolbar',
   'record-pagination',
 ];
+
+/** One column header, found by the label it shows. */
+function headerOf(table: HTMLElement, label: string): HTMLTableCellElement {
+  const found = [
+    ...table.querySelectorAll<HTMLTableCellElement>('thead th'),
+  ].find(
+    cell =>
+      cell.querySelector('[data-slot="column-label"]')?.textContent?.trim() ===
+      label,
+  );
+  if (!found) throw new Error(`No column is headed "${label}".`);
+  return found;
+}
+
+/** The badge in the first row's cell under a column, if it wears one. */
+function badgeIn(table: HTMLElement, label: string): HTMLElement | null {
+  const row = (table as HTMLTableElement).tBodies[0]?.rows[0];
+  const cell = row?.cells[headerOf(table, label).cellIndex];
+  return cell?.querySelector<HTMLElement>('[data-slot="badge"]') ?? null;
+}
+
+/** Where a sorted column sits in the order, as its header shows it. */
+function positionOf(table: HTMLElement, label: string): string | undefined {
+  return headerOf(table, label)
+    .querySelector('[data-slot="sort-position"]')
+    ?.textContent?.trim();
+}
+
+/** The scope each summary row is labelled with, top to bottom. */
+function scopeLabels(table: HTMLElement): string[] {
+  return [...table.querySelectorAll('tfoot [data-slot="summary-scope"]')].map(
+    node => node.textContent?.trim() ?? '',
+  );
+}
 
 function slots(canvasElement: HTMLElement): string[] {
   return [...canvasElement.querySelectorAll('[data-slot]')]

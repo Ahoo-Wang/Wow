@@ -48,7 +48,7 @@ export const ordersDefinition: DataViewDefinition = {
   kind: 'data',
   source: 'orders',
   fields: [
-    { name: 'id', label: '订单号', kind: 'string' },
+    { name: 'id', label: '订单号', kind: 'string', sortable: true },
     {
       name: 'warehouse',
       label: '仓库',
@@ -157,7 +157,9 @@ export function recordConfig(
     summaries: [{ field: 'amount', fn: 'SUM' }],
     table: {
       columns: [
-        { field: 'id' },
+        // The row key stays put while the middle scrolls, which is what the
+        // pin is for; the host's action column does the same on the far side.
+        { field: 'id', pinned: 'left' },
         { field: 'warehouse' },
         { field: 'status' },
         { field: 'amount' },

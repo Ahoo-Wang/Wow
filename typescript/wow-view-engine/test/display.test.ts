@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import type { MessageFormatters } from '../src/ui/index.js';
 import type { FilterSummaryItem } from '../src/index.js';
 import {
+  badgeEntries,
   displayValue,
   formatNumber,
   summaryText,
@@ -307,6 +308,73 @@ describe('displayValue', () => {
         { locale: 'en-GB', timeZone: 'Mars/Olympus_Mons' },
       ),
     ).toBe(formatted(INSTANT, 'en-GB', DATE_TIME));
+  });
+});
+
+/**
+ * Which values wear a badge. A status is one of a set the definition names,
+ * and a pill says exactly that; a string that merely happens to be short is
+ * not a status, and neither is a code nobody listed.
+ */
+describe('badgeEntries', () => {
+  /** What each badge says, which is all most of these cases are about. */
+  const labelsOf = (entries: { label: string }[] | undefined) =>
+    entries?.map(entry => entry.label);
+
+  const STATUS = {
+    kind: 'enum',
+    options: [
+      { value: 'PENDING', label: 'Pending' },
+      { value: 'SHIPPED', label: 'Shipped' },
+    ],
+  };
+
+  it('answers with the option label of an enum the definition named', () => {
+    // The raw value rides along: labels are free text a definition may
+    // repeat, so a caller needs something better to tell two badges apart.
+    expect(badgeEntries('PENDING', STATUS)).toEqual([
+      { value: 'PENDING', label: 'Pending' },
+    ]);
+  });
+
+  it('answers with one label per value of an array', () => {
+    expect(badgeEntries(['PENDING', 'SHIPPED'], STATUS)).toEqual([
+      { value: 'PENDING', label: 'Pending' },
+      { value: 'SHIPPED', label: 'Shipped' },
+    ]);
+    // A code the definition dropped is shown as it came, beside the ones it
+    // still names — the row holds it either way.
+    expect(badgeEntries(['PENDING', 'LOST'], STATUS)).toEqual([
+      { value: 'PENDING', label: 'Pending' },
+      { value: 'LOST', label: 'LOST' },
+    ]);
+  });
+
+  it('follows the renderer key before the kind', () => {
+    expect(
+      badgeEntries('PENDING', { ...STATUS, cell: 'string' }),
+    ).toBeUndefined();
+    expect(
+      labelsOf(
+        badgeEntries('PENDING', {
+          kind: 'string',
+          cell: 'enum',
+          options: STATUS.options,
+        }),
+      ),
+    ).toEqual(['Pending']);
+  });
+
+  it('leaves everything else to the caller', () => {
+    // No choices declared, so nothing says this string is one of a set.
+    expect(badgeEntries('PENDING', { kind: 'enum' })).toBeUndefined();
+    expect(
+      badgeEntries('PENDING', { kind: 'enum', options: [] }),
+    ).toBeUndefined();
+    // A value none of the choices name is a code, not a status.
+    expect(badgeEntries('LOST', STATUS)).toBeUndefined();
+    expect(badgeEntries(null, STATUS)).toBeUndefined();
+    expect(badgeEntries(undefined, STATUS)).toBeUndefined();
   });
 });
 
