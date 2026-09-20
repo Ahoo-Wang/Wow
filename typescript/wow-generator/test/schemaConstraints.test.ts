@@ -178,6 +178,68 @@ describe('review regressions', () => {
     ).toBe(false);
   });
 
+  // Every property is required now, so the optional-property escape that used
+  // to send these schemas to the intersection form is gone. A property whose
+  // kind cannot be read off the schema has to take it instead, or the named
+  // property sits beside an index signature it does not satisfy (TS2411).
+  it.each([
+    ['the 3.0 nullable flag', { type: 'string', nullable: true }],
+    ['a null entry in a type array', { type: ['string', 'null'] }],
+    ['an enum of another primitive', { type: 'string', enum: ['a'] }],
+  ] as [string, Schema][])(
+    'keeps a property beside a primitive index legal: %s',
+    (_, property) => {
+      const { diagnostics, file } = generateModel(
+        {
+          type: 'object',
+          properties: { name: property },
+          additionalProperties: { type: 'number' },
+        },
+        '',
+      );
+      expect(diagnostics).toEqual([]);
+      // The intersection carries it; an interface could not.
+      expect(file.getInterface('Model')).toBeUndefined();
+      expect(
+        file.getTypeAliasOrThrow('Model').getTypeNodeOrThrow().getText(),
+      ).toContain('globalThis.Record<string, number>');
+    },
+  );
+
+  it.each([
+    ['an enum', { type: 'string', enum: ['a', 'b'] }],
+    ['an allOf its branches agree on', { allOf: [{ type: 'string' }] }],
+  ] as [string, Schema][])(
+    'keeps a property the index accepts in the interface: %s',
+    (_, property) => {
+      const { diagnostics, file } = generateModel(
+        {
+          type: 'object',
+          properties: { name: property },
+          additionalProperties: { type: 'string' },
+        },
+        "const value: Model = { name: 'a', extra: 'x' };",
+      );
+      expect(diagnostics).toEqual([]);
+      expect(file.getInterface('Model')).toBeDefined();
+    },
+  );
+
+  it('keeps an enum beside the primitive it narrows in the interface', () => {
+    const { diagnostics, file } = generateModel(
+      {
+        type: 'object',
+        properties: { name: { type: 'string', enum: ['a', 'b'] } },
+        additionalProperties: { type: 'string' },
+      },
+      "const value: Model = { name: 'a', extra: 'x' };",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(
+      file.getInterfaceOrThrow('Model').getPropertyOrThrow('name').getText(),
+    ).toContain("'a' | 'b'");
+  });
+
   it('requires declared properties alongside additional properties', () => {
     const schema: Schema = {
       type: 'object',

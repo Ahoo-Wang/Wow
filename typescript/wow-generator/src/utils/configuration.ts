@@ -76,7 +76,7 @@ export async function loadConfiguration(
   }
   let parsed: unknown;
   try {
-    parsed = parseContent(content, source.path);
+    parsed = parseContent(content);
   } catch (error) {
     throw new Error(`Cannot parse configuration ${origin}: ${reason(error)}`, {
       cause: error,

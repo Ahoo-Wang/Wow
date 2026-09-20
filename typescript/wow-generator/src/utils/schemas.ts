@@ -11,7 +11,14 @@
  * limitations under the License.
  */
 
-import type { Reference, Schema, SchemaType } from '@ahoo-wang/fetcher-openapi';
+import type {
+  Components,
+  Reference,
+  Schema,
+  SchemaType,
+} from '@ahoo-wang/fetcher-openapi';
+import { extractSchema } from './components';
+import { isReference } from './references';
 
 /** List of primitive schema types */
 const PRIMITIVE_TYPES: SchemaType[] = [
@@ -204,10 +211,60 @@ export function resolvePrimitiveType(type: SchemaType | SchemaType[]): string {
   }
 }
 
-export function resolveOptionalFields(schema: Schema): string[] {
-  if (!isObject(schema)) {
-    return [];
-  }
-  const required = schema.required || [];
-  return Object.keys(schema.properties).filter(it => !required.includes(it));
+/**
+ * Lists the property names a command body may omit.
+ *
+ * A command type wraps its body in `PartialBy<Command, ...>` built from this
+ * list, which is where a request's declared optionality lives: generated model
+ * properties are always required. The walk follows `allOf` branches and
+ * references, because a command that inherits a base schema declares its
+ * properties there - reading only the top level would demand fields the
+ * document leaves optional.
+ *
+ * A property is optional when no branch requires it. `anyOf` and `oneOf` are
+ * not followed: a branch an instance need not match says nothing about the
+ * properties a command carries.
+ *
+ * @param schema - The command body schema, or a reference to it
+ * @param components - The components a reference resolves against
+ * @returns The declared property names absent from every `required` list
+ */
+export function resolveOptionalFields(
+  schema: Schema | Reference,
+  components?: Components,
+): string[] {
+  const declared: string[] = [];
+  const required = new Set<string>();
+  const visited = new Set<Schema | Reference>();
+  // A schema that admits null generates `T | null`, whose `keyof` is `never`:
+  // naming a field of it would make `PartialBy<Model, 'field'>` violate
+  // `K extends keyof T` (TS2344). Such a command takes no PartialBy at all.
+  let admitsNull = false;
+  const walk = (current: Schema | Reference | undefined): void => {
+    if (!current || visited.has(current) || admitsNull) {
+      return;
+    }
+    visited.add(current);
+    if (isReference(current)) {
+      // A reference the document does not carry contributes nothing rather
+      // than making every property of the command look required.
+      walk(components && extractSchema(current, components));
+      return;
+    }
+    if (current.nullable || Array.isArray(current.type)) {
+      admitsNull = true;
+      return;
+    }
+    for (const name of current.required ?? []) {
+      required.add(name);
+    }
+    for (const name of Object.keys(current.properties ?? {})) {
+      if (!declared.includes(name)) {
+        declared.push(name);
+      }
+    }
+    current.allOf?.forEach(walk);
+  };
+  walk(schema);
+  return admitsNull ? [] : declared.filter(name => !required.has(name));
 }

@@ -31,6 +31,7 @@ import {
   extractSchema,
   getEnumText,
   getMapKeySchema,
+  isAllOf,
   isArray,
   isComposition,
   isEnum,
@@ -55,13 +56,23 @@ import type { Generator } from '../generateContext';
  */
 type SchemaKind = 'object' | 'array' | { primitive: string };
 
+/** Tells whether two classifications describe the same generated shape. */
+function sameKind(left: SchemaKind | undefined, right: SchemaKind): boolean {
+  if (left === undefined) return false;
+  if (typeof left === 'string' || typeof right === 'string') {
+    return left === right;
+  }
+  return left.primitive === right.primitive;
+}
+
 /**
  * Classifies a schema, following references through the components.
  *
  * Returns undefined - undecided - for anything whose assignability cannot be
- * read off the schema: a composition, an enum, a const, a nullable schema, a
- * type union, a missing `type`, a reference that cannot be resolved and a
- * reference cycle.
+ * read off the schema: a composition, a const, a nullable schema, a type
+ * union, a missing `type`, a reference that cannot be resolved and a
+ * reference cycle. An enum is decided by the type it sits beside, since it
+ * generates literals of exactly that type.
  *
  * @param schema - The schema to classify
  * @param components - The components a reference resolves against
@@ -79,16 +90,30 @@ function schemaKind(
     const resolved = extractSchema(schema, components);
     return resolved ? schemaKind(resolved, components, seen) : undefined;
   }
+  if (schema.nullable || Array.isArray(schema.type)) {
+    return undefined;
+  }
+  // An `allOf` narrows to whatever its branches agree on, so it is decided
+  // when every one of them decides and they all say the same thing. `anyOf`
+  // and `oneOf` widen instead, and stay undecided.
+  if (isAllOf(schema) && schema.type === undefined) {
+    const kinds = schema.allOf.map(member =>
+      schemaKind(member, components, seen),
+    );
+    const [first] = kinds;
+    return first !== undefined && kinds.every(kind => sameKind(kind, first))
+      ? first
+      : undefined;
+  }
   if (
     isComposition(schema) ||
-    isEnum(schema) ||
     schema.const !== undefined ||
-    schema.nullable ||
-    schema.type === undefined ||
-    Array.isArray(schema.type)
+    schema.type === undefined
   ) {
     return undefined;
   }
+  // An enum beside a sibling type generates literals of that type, which a
+  // matching primitive index accepts - `'a' | 'b'` sits beside `string`.
   if (schema.type === 'object') return 'object';
   if (schema.type === 'array') return 'array';
   return { primitive: resolvePrimitiveType(schema.type) };
@@ -104,15 +129,18 @@ function schemaKind(
  * itself, because an object member defers.
  *
  * Against a primitive index, an object and an array are as incompatible as a
- * different primitive is. Everything undecided stays in the interface: an enum
- * narrows the primitive it sits beside (`'a' | 'b'` against `string`) and a
- * composition may admit it (`null` against `Model | null`), so calling either a
- * clash would move a schema the interface expresses perfectly well.
+ * different primitive is, and so is a property whose kind cannot be read off
+ * the schema: a nullable property generates `T | null`, a type array and a
+ * typeless enum generate a union, and none of those is assignable to a
+ * primitive index (TS2411). Undecided therefore takes the intersection, which
+ * has no index-assignability rule to break. It cannot be circular either
+ * (TS2456), because the index resolved to a primitive before we got here, so
+ * the `Record` this generates can never lead back to the alias.
  *
  * @param propSchema - The named property's schema
  * @param additionalProperties - The additional-property schema
  * @param components - The components a reference resolves against
- * @returns True when the property cannot be assignable to the index type
+ * @returns True when the property may not be assignable to the index type
  */
 function clashesWithIndexSignature(
   propSchema: Schema | Reference,
@@ -122,7 +150,7 @@ function clashesWithIndexSignature(
   const indexKind = schemaKind(additionalProperties, components);
   if (typeof indexKind !== 'object') return false;
   const propertyKind = schemaKind(propSchema, components);
-  if (propertyKind === undefined) return false;
+  if (propertyKind === undefined) return true;
   return (
     typeof propertyKind === 'string' ||
     propertyKind.primitive !== indexKind.primitive

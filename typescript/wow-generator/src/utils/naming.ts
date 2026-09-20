@@ -152,3 +152,17 @@ export function resolveEnumMemberName(name: string): string {
   }
   return resolvePropertyName(upperSnakeCase(name) || name);
 }
+
+/**
+ * Renders a value as a single-quoted TypeScript string literal.
+ *
+ * A property name is whatever the document says it is, so one carrying a
+ * quote or a backslash has to be escaped rather than wrapped - `owner'sName`
+ * would otherwise close the literal and generate a syntax error.
+ *
+ * @param value - The string to render
+ * @returns The escaped string literal, quotes included
+ */
+export function quoteStringLiteral(value: string): string {
+  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+}

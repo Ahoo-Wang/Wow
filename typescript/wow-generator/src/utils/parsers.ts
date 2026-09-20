@@ -22,25 +22,26 @@ import { loadResource } from './resources';
  * @returns A promise that resolves to the parsed OpenAPI object
  */
 export async function parseOpenAPI(inputPath: string): Promise<OpenAPI> {
-  return parseContent<OpenAPI>(await loadResource(inputPath), inputPath);
+  return parseContent<OpenAPI>(await loadResource(inputPath));
 }
 
 /**
  * Parses already-loaded document content in whichever format it is written.
  *
+ * Callers name the source in their own error, so a failure here carries only
+ * what went wrong with the text.
+ *
  * @param content - The document text
- * @param source - Where it came from, named in the error when the format is unsupported
  * @returns The parsed document
  */
-export function parseContent<T>(content: string, source: string): T {
-  const fileFormat = inferFileFormat(content);
-  switch (fileFormat) {
+export function parseContent<T>(content: string): T {
+  // inferFileFormat answers with a format or throws, so the switch is
+  // exhaustive - a `default` here would be a branch no input can reach.
+  switch (inferFileFormat(content)) {
     case FileFormat.JSON:
       return JSON.parse(content);
     case FileFormat.YAML:
       return parse(content);
-    default:
-      throw new Error(`Unsupported file format: ${source}`);
   }
 }
 

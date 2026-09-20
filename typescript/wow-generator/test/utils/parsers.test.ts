@@ -113,24 +113,18 @@ describe('openAPIParser', () => {
       expect(
         parseContent(
           '{ "apiClients": { "test": { "ignorePathParameters": [] } } }',
-          'config.json',
         ),
       ).toEqual({ apiClients: { test: { ignorePathParameters: [] } } });
     });
 
     it('should parse YAML content', () => {
       expect(
-        parseContent(
-          'apiClients:\n  test:\n    ignorePathParameters: []',
-          'config.yaml',
-        ),
+        parseContent('apiClients:\n  test:\n    ignorePathParameters: []'),
       ).toEqual({ apiClients: { test: { ignorePathParameters: [] } } });
     });
 
-    it('should name the source when the format cannot be inferred', () => {
-      expect(() => parseContent('', 'config.json')).toThrow(
-        'Unable to infer file format',
-      );
+    it('should throw when the format cannot be inferred', () => {
+      expect(() => parseContent('')).toThrow('Unable to infer file format');
     });
   });
 });

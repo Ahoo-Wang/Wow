@@ -39,6 +39,7 @@ import {
   isEmptyObject,
   resolveOptionalFields,
   resolvePathParameterType,
+  quoteStringLiteral,
 } from '../utils';
 import {
   addApiMetadataCtor,
@@ -230,8 +231,11 @@ export class CommandClientGenerator implements Generator {
     }
     addImportRefModel(clientFile, this.context.outputDir, commandModelInfo);
     let commandType = `${commandModelInfo.name}`;
-    const optionalFields = resolveOptionalFields(definition.schema.schema)
-      .map(fieldName => `'${fieldName}'`)
+    const optionalFields = resolveOptionalFields(
+      definition.schema.schema,
+      this.context.openAPI.components,
+    )
+      .map(quoteStringLiteral)
       .join(' | ');
     if (optionalFields !== '') {
       commandType = `PartialBy<${commandType},${optionalFields}>`;
