@@ -12,82 +12,158 @@
  */
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { EditorBand } from '../src/ui/EditorBand.js';
+import { EditorBand, EditorBandToggle } from '../src/ui/EditorBand.js';
+import { DropdownMenuItem } from '../src/ui/components/dropdown-menu.js';
 import { MessagesProvider } from '../src/ui/MessagesProvider.js';
+import { ViewSurface } from '../src/ui/ViewSurface.js';
 
 afterEach(cleanup);
 
-/** The band as a workbench drives it: open state owned outside. */
-function Band(props: { initial?: boolean; pending?: number }) {
-  const [open, setOpen] = useState(props.initial ?? false);
+const BAND_ID = 'editor-band';
+
+/**
+ * The fold as a workbench drives it: the handle in the title bar, the band
+ * below it, and the one piece of state they share held above both.
+ */
+function Fold({
+  initial = false,
+  pending = 0,
+  modeLabel,
+  modes = false,
+}: {
+  initial?: boolean;
+  pending?: number;
+  modeLabel?: string;
+  modes?: boolean;
+}) {
+  const [open, setOpen] = useState(initial);
   return (
-    <EditorBand
-      open={open}
-      onOpenChange={setOpen}
-      label="Filter"
-      pending={props.pending ?? 0}
-    >
-      <p>The editor</p>
-    </EditorBand>
+    <ViewSurface>
+      <EditorBandToggle
+        open={open}
+        onOpenChange={setOpen}
+        controls={BAND_ID}
+        label="Filter"
+        modeLabel={modeLabel}
+        modes={
+          modes ? <DropdownMenuItem>Advanced</DropdownMenuItem> : undefined
+        }
+        pending={pending}
+      />
+      <EditorBand id={BAND_ID} open={open}>
+        {/* Whatever a workbench folds away names itself; the band does not
+            name it a second time. */}
+        <section aria-label="Filter">The editor</section>
+      </EditorBand>
+    </ViewSurface>
   );
 }
 
-describe('EditorBand', () => {
-  it('keeps its content out of the way until the row is opened', () => {
-    render(<Band />);
-    const row = screen.getByRole('button', { name: /Filter/ });
+/** The handle, by the name it wears with or without a mode appended. */
+function toggle(): HTMLElement {
+  return screen.getByRole('button', { name: /Filter/ });
+}
 
-    expect(row.ariaExpanded).toBe('false');
+/** The fold itself, which has no role to be found by. */
+function band(): HTMLElement {
+  const found = document.querySelector('[data-slot="editor-band"]');
+  if (!found) throw new Error('no band');
+  return found as HTMLElement;
+}
+
+describe('EditorBand', () => {
+  it('keeps its content out of the way until the fold is opened', () => {
+    render(<Fold />);
+
     expect(screen.queryByText('The editor')).toBeNull();
 
-    fireEvent.click(row);
+    fireEvent.click(toggle());
 
-    expect(row.ariaExpanded).toBe('true');
     expect(screen.getByText('The editor')).toBeDefined();
   });
 
+  /**
+   * Unmounted rather than hidden: the editor's inputs are the view's draft,
+   * and a folded band that kept them would leave focusable controls on a
+   * page that shows no editor.
+   */
+  it('leaves nothing of the folded editor in the document', () => {
+    render(<Fold />);
+
+    expect(document.querySelector('[data-slot="editor-band"]')).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Filter' })).toBeNull();
+  });
+
+  /**
+   * No landmark of its own: the editor inside already names itself, and a
+   * band wrapped round it under the same name is a second landmark a screen
+   * reader cannot tell from the first.
+   */
+  it('adds no name of its own over the editor that has one', () => {
+    render(<Fold initial />);
+
+    expect(screen.getAllByRole('region', { name: 'Filter' })).toHaveLength(1);
+    expect(band().getAttribute('role')).toBeNull();
+    expect(band().getAttribute('aria-label')).toBeNull();
+  });
+
   it('opens with the state its caller gave it', () => {
-    render(<Band initial />);
+    render(<Fold initial />);
 
     // A view that was never saved opens on its editor; the band holds no
     // opinion about which, and takes the answer from above.
     expect(screen.getByText('The editor')).toBeDefined();
   });
 
-  it('reports the open state where the chevron can turn on it', () => {
-    render(<Band initial />);
+  /** The band carries the id and nothing else, so the handle in the title
+   * bar can say what it opens. */
+  it('wears the id the handle points at', () => {
+    render(<Fold initial />);
 
-    // Base UI publishes the panel's state on the trigger; the chevron's
-    // rotation is a variant of that attribute rather than a second copy of
-    // the state kept in the band.
-    const row = screen.getByRole('button', { name: /Filter/ });
-    expect(row.hasAttribute('data-panel-open')).toBe(true);
+    expect(band().id).toBe(BAND_ID);
+    expect(toggle().getAttribute('aria-controls')).toBe(BAND_ID);
+  });
+});
+
+describe('EditorBandToggle', () => {
+  it('reports the open state of the fold it is the handle of', () => {
+    render(<Fold />);
+
+    expect(toggle().getAttribute('aria-expanded')).toBe('false');
+    // Nothing to control while the band is unmounted: an `aria-controls`
+    // pointing at no element is a broken reference, not an empty one.
+    expect(toggle().getAttribute('aria-controls')).toBeNull();
+
+    fireEvent.click(toggle());
+
+    expect(toggle().getAttribute('aria-expanded')).toBe('true');
+    expect(toggle().getAttribute('aria-controls')).toBe(BAND_ID);
   });
 
   it('tells its caller about every change rather than keeping its own', () => {
     const onOpenChange = vi.fn();
     render(
-      <EditorBand
+      <EditorBandToggle
         open={false}
         onOpenChange={onOpenChange}
+        controls={BAND_ID}
         label="Filter"
         pending={0}
-      >
-        <p>The editor</p>
-      </EditorBand>,
+      />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Filter/ }));
+    fireEvent.click(toggle());
 
-    // Controlled: the band did not open itself, it asked.
+    // Controlled: the handle did not open itself, it asked.
     expect(onOpenChange).toHaveBeenCalledWith(true);
-    expect(screen.queryByText('The editor')).toBeNull();
+    expect(toggle().getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('carries the count of what is not applied on the folded row', () => {
-    render(<Band pending={3} />);
+  it('carries the count of what is not applied while the editor is away', () => {
+    render(<Fold pending={3} />);
 
     // The whole point of the fold is that the editor can be away; a draft
     // nobody can see is one the user has no reason to remember.
@@ -95,7 +171,7 @@ describe('EditorBand', () => {
   });
 
   it('says nothing about pending when nothing is', () => {
-    render(<Band pending={0} />);
+    render(<Fold pending={0} />);
 
     expect(screen.queryByText(/not applied/)).toBeNull();
   });
@@ -105,10 +181,58 @@ describe('EditorBand', () => {
       <MessagesProvider
         messages={{ 'label.editor.pending': '{count} waiting' }}
       >
-        <Band pending={2} />
+        <Fold pending={2} />
       </MessagesProvider>,
     );
 
     expect(screen.getByText('2 waiting')).toBeDefined();
+  });
+
+  /**
+   * The mode is part of the handle's name rather than a second control to
+   * find: "Filter · Simple" answers both "what is this" and "how is it set"
+   * without the menu having to be opened.
+   */
+  it('says which mode the editor is in without being opened', () => {
+    render(<Fold modeLabel="Simple" />);
+
+    expect(
+      screen.getByRole('button', { name: 'Filter · Simple' }),
+    ).toBeDefined();
+    expect(screen.getByText('· Simple')).toBeDefined();
+  });
+
+  it('leaves the name to the content when there is no mode to say', () => {
+    render(<Fold />);
+
+    expect(toggle().getAttribute('aria-label')).toBeNull();
+    expect(toggle().textContent).toContain('Filter');
+  });
+
+  it('offers no modes menu when the editor has no modes', () => {
+    render(<Fold />);
+
+    expect(screen.queryByRole('button', { name: 'Editor options' })).toBeNull();
+  });
+
+  it('hangs the modes off a chevron beside it when there are some', async () => {
+    const user = userEvent.setup();
+    render(<Fold modes />);
+
+    await user.click(screen.getByRole('button', { name: 'Editor options' }));
+
+    expect(await screen.findByText('Advanced')).toBeDefined();
+  });
+
+  it("takes the chevron's name from the catalogue in force", () => {
+    render(
+      <MessagesProvider
+        messages={{ 'label.workbench.editor-modes': 'Ways to edit' }}
+      >
+        <Fold modes />
+      </MessagesProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Ways to edit' })).toBeDefined();
   });
 });

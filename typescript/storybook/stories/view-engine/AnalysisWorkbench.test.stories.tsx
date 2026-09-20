@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, waitFor, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { defaultMessages } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   BarChart as DisplayBarChart,
@@ -171,5 +171,51 @@ export const QueryFailed: Story = {
     // The strip says the failure itself, in one line above the result.
     const alert = await within(canvasElement).findByRole('alert');
     await expect(alert).toHaveTextContent('仓储服务暂时不可用');
+  },
+};
+
+/**
+ * An analysis view can still reach advanced mode.
+ *
+ * The mode moved into the title bar's fold for the two workbenches whose
+ * only editor is the condition panel. This one's editor is that panel *and*
+ * the aggregation editor, so it has no such fold and the panel keeps its own
+ * control. Without it, `defaultAnalysisConfig` starting at simple would mean
+ * an analysis view could never express OR, NOR or a nested group at all —
+ * which is a capability lost, not a tidier screen.
+ */
+export const ReachesAdvancedMode: Story = {
+  ...DisplayTableWithTotals,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+
+    const panel = canvas.getByRole('region', {
+      name: defaultMessages['label.filter.panel'],
+    });
+    await expect(
+      within(panel).queryByRole('group', {
+        name: defaultMessages['label.filter.all-conditions'],
+      }),
+    ).toBeNull();
+
+    await userEvent.click(
+      within(panel).getByRole('button', {
+        name: defaultMessages['label.filter.advanced'],
+      }),
+    );
+
+    // Advanced draws the root as a group, which is what carries the operator.
+    await waitFor(() =>
+      expect(
+        within(
+          canvas.getByRole('region', {
+            name: defaultMessages['label.filter.panel'],
+          }),
+        ).getByRole('group', {
+          name: defaultMessages['label.filter.all-conditions'],
+        }),
+      ).toBeVisible(),
+    );
   },
 };

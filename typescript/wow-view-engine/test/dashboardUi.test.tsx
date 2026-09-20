@@ -21,6 +21,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -837,6 +838,7 @@ describe('DashboardWorkbench', () => {
   }
 
   it('opens a dashboard, shows its panels and its global filter', async () => {
+    const user = userEvent.setup();
     const { engine } = setup();
 
     render(
@@ -848,7 +850,6 @@ describe('DashboardWorkbench', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Pending')).toBeTruthy());
-    expect(screen.getByRole('button', { name: /Apply/ })).toBeTruthy();
     // Refresh moved into the title bar with the save commands; the row of
     // buttons between the editor and the panels is gone.
     const header = document.querySelector(
@@ -859,6 +860,18 @@ describe('DashboardWorkbench', () => {
     ).toBeTruthy();
     expect(header.textContent).toContain('Operations');
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+
+    // The global filter lives in the title bar's fold now, and a saved view
+    // opens folded: the panels are what the dashboard is for, so nothing of
+    // the editor is on the page until the handle beside the name asks for
+    // it.
+    expect(screen.queryByRole('button', { name: /Apply/ })).toBeNull();
+
+    await user.click(
+      within(header).getByRole('button', { name: 'Filter · Simple' }),
+    );
+
+    expect(screen.getByRole('button', { name: /Apply/ })).toBeTruthy();
   });
 
   /**

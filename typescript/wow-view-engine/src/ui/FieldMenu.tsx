@@ -12,134 +12,13 @@
  */
 
 import type { ReactNode } from 'react';
-import { PlusIcon } from 'lucide-react';
 import type { FieldGroupDefinition } from '../model/index.js';
 import { fieldGroups } from '../filter/index.js';
-import { Button } from './components/button.js';
-import {
-  Combobox,
-  ComboboxCollection,
-  ComboboxEmpty,
-  ComboboxGroup,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxLabel,
-  ComboboxList,
-  ComboboxTrigger,
-} from './components/combobox.js';
 import {
   DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from './components/dropdown-menu.js';
-import { ComboboxContent } from './popups.js';
-import { useViewMessages } from './MessagesProvider.js';
-
-/** One line of the picker: what it says, and what picking it does. */
-export interface PickerEntry {
-  key: string;
-  label: string;
-  pick(): void;
-}
-
-/** A picker's groups as the combobox takes them: a heading and its items. */
-interface PickerGroup {
-  value: string;
-  label: string | undefined;
-  items: PickerEntry[];
-}
-
-/**
- * Something to add, picked by name. A button opens a list with a search box
- * above it: the fields under their groups, and after them whatever else the
- * caller offers — a group to nest, say — under a heading of its own. Typing
- * narrows the whole list. Picking adds and closes; nothing is "selected"
- * afterwards, so the same entry can be picked again where that is allowed.
- * A menu did this until fields had groups; a list long enough to need
- * groups is long enough to need a search.
- */
-export function FieldPicker<T>({
-  items,
-  groups,
-  extras,
-  label,
-  disabled,
-  itemKey,
-  itemLabel,
-  onPick,
-}: {
-  items: readonly T[];
-  groups: readonly FieldGroupDefinition[];
-  /** A trailing section, such as the groups a condition can be nested in. */
-  extras?: { label: string; entries: PickerEntry[] };
-  /** The button's text, which is also its accessible name. */
-  label: string;
-  disabled?: boolean;
-  itemKey(item: T): string;
-  itemLabel(item: T): string;
-  onPick(item: T): void;
-}) {
-  const messages = useViewMessages();
-  const grouped: PickerGroup[] = fieldGroups(items, groups, itemKey).map(
-    entry => ({
-      value: entry.group?.id ?? '',
-      label: entry.group?.label,
-      items: entry.items.map(item => ({
-        key: itemKey(item),
-        label: itemLabel(item),
-        pick: () => onPick(item),
-      })),
-    }),
-  );
-  if (extras && extras.entries.length > 0)
-    grouped.push({
-      value: '\u0000extras',
-      label: extras.label,
-      items: extras.entries,
-    });
-
-  return (
-    <Combobox
-      items={grouped}
-      value={null}
-      onValueChange={(picked: PickerEntry | null) => picked?.pick()}
-      itemToStringLabel={(entry: PickerEntry) => entry.label}
-      itemToStringValue={(entry: PickerEntry) => entry.key}
-    >
-      <ComboboxTrigger
-        aria-label={label}
-        render={<Button variant="outline" size="sm" disabled={disabled} />}
-      >
-        <PlusIcon data-icon="inline-start" />
-        {label}
-      </ComboboxTrigger>
-      <ComboboxContent>
-        <ComboboxInput
-          placeholder={messages.label('label.field.search')}
-          showTrigger={false}
-          aria-label={messages.label('label.field.search')}
-        />
-        <ComboboxEmpty>{messages.label('label.field.none')}</ComboboxEmpty>
-        <ComboboxList>
-          {(group: PickerGroup) => (
-            <ComboboxGroup key={group.value} items={group.items}>
-              {group.label !== undefined && (
-                <ComboboxLabel>{group.label}</ComboboxLabel>
-              )}
-              <ComboboxCollection>
-                {(entry: PickerEntry) => (
-                  <ComboboxItem key={entry.key} value={entry}>
-                    {entry.label}
-                  </ComboboxItem>
-                )}
-              </ComboboxCollection>
-            </ComboboxGroup>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
-    </Combobox>
-  );
-}
 
 /**
  * A picker's entries by group: the fields outside any group first, then
@@ -147,6 +26,12 @@ export function FieldPicker<T>({
  * in; this only lays them out, the same way in every picker that lists
  * fields, so a user finds a field in the same place whether adding a
  * condition, a column or a grouping.
+ *
+ * A searchable combobox of one-shot picks lived here too, until the
+ * condition editor's field list became a set of ticks a user works through
+ * without the list closing (`filter/FieldChecklist.tsx`). Nothing picks a
+ * field one at a time any more, so it is gone rather than kept for a caller
+ * that does not exist.
  */
 export function GroupedMenu<T>({
   items,

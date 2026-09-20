@@ -39,6 +39,7 @@ export function NumberInput({
   disabled?: boolean;
   className?: string;
 }) {
+  const messages = useViewMessages();
   // The draft stands while the value in force is either the one it produced
   // or the one it was written over. The second case is a caller that refused
   // it — a row limit has no blank — and the field still has to clear.
@@ -60,6 +61,9 @@ export function NumberInput({
       className={className}
       disabled={disabled}
       value={text}
+      // A condition with no value yet is a normal editing state rather than
+      // a mistake, so the box says what is missing.
+      placeholder={messages.label('label.filter.not-set')}
       onChange={event => {
         const typed = event.target.value;
         const parsed = parseNumber(typed);

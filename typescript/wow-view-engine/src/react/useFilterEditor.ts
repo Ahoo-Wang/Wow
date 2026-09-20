@@ -136,6 +136,22 @@ export interface FilterEditorController extends FilterTreeController {
   clear(): void;
   /** Applies the draft, which is what runs the query. */
   submit(): void;
+  /**
+   * Puts the draft conditions back to the ones last applied, and runs
+   * nothing.
+   *
+   * It is an `edit` with no `apply` on purpose: the result on screen was
+   * already fetched under `state.applied.filter`, so restoring that tree
+   * leaves the query and the rows exactly as they are — re-running would
+   * spend a request to arrive at the answer already there. `pending` falls
+   * to false because the two trees agree again, which is the whole point.
+   *
+   * It is not `commands.revert`, which is about the *saved* config: revert
+   * throws away every unsaved edit of the view and makes the stored one the
+   * draft again. This throws away the unapplied conditions alone and touches
+   * neither the saved config nor the columns, sort or paging.
+   */
+  discard(): void;
   /** Auto-refresh pauses between these two, so typing is never interrupted. */
   focus(): void;
   blur(): void;
@@ -398,6 +414,13 @@ export function useFilterEditor(
     ),
     clear: useCallback(() => change(clearFilter), [change]),
     submit: useCallback(() => runtime?.apply(), [runtime]),
+    // Read off the snapshot rather than off `inForce`, for the same reason
+    // every other command here does: `edit` is synchronous, so the tree put
+    // back is the one the runtime holds at the moment of the click.
+    discard: useCallback(() => {
+      if (!runtime) return;
+      runtime.edit({ filter: runtime.getSnapshot().applied.filter });
+    }, [runtime]),
     focus: useCallback(() => runtime?.setEditing(true), [runtime]),
     blur: useCallback(() => runtime?.setEditing(false), [runtime]),
     operatorsFor: useCallback(

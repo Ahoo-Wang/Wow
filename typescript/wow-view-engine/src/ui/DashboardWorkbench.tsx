@@ -18,6 +18,7 @@ import { useDashboard, useWorkbench } from '../react/index.js';
 import { Button } from './components/button.js';
 import { DashboardGrid } from './DashboardGrid.js';
 import { FilterPanel } from './FilterPanel.js';
+import { FilterModes, filterModeLabel } from './filter/FilterModes.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
@@ -38,6 +39,14 @@ export interface DashboardWorkbenchProps {
    */
   locale?: string;
   optionsFor?(remote: string): FieldOption[] | undefined;
+  /**
+   * The sidebar this workbench opens on. It is view state and nothing else —
+   * never saved, never asked about by the leave guard — so a host sets where
+   * it starts and the shell owns it from there.
+   */
+  defaultSidebarOpen?: boolean;
+  /** Told whenever the sidebar opens or closes, for a host that mirrors it. */
+  onSidebarOpenChange?(open: boolean): void;
 }
 
 /**
@@ -59,6 +68,8 @@ export function DashboardWorkbench({
   messages: wording,
   locale,
   optionsFor,
+  defaultSidebarOpen,
+  onSidebarOpenChange,
 }: DashboardWorkbenchProps) {
   const workbench = useWorkbench(engine, definitionId, {
     kind: 'dashboard',
@@ -85,6 +96,10 @@ export function DashboardWorkbench({
   // what the applied bar describes is whether the panels were asked at all.
   // One panel that has answered, or that is asking, is an answer: the global
   // condition it went out under is exactly what the bar says.
+  // Nothing to filter without global fields, and an empty fold in the title
+  // bar is a control that opens on nothing.
+  const hasGlobalFilter =
+    dashboard.panels.length > 0 && filter.fields.length > 0;
   const hasResult = dashboard.panels.some(panel => {
     const panelState = panel.runtime?.getSnapshot();
     return (
@@ -102,7 +117,10 @@ export function DashboardWorkbench({
       messages={wording}
       locale={locale}
       timeZone={engine.environment.timeZone}
+      defaultSidebarOpen={defaultSidebarOpen}
+      onSidebarOpenChange={onSidebarOpenChange}
       hasResult={hasResult}
+      resultSurface={false}
       warnings={warnings}
       actions={
         <Button
@@ -115,12 +133,21 @@ export function DashboardWorkbench({
           {messages.label('label.toolbar.refresh')}
         </Button>
       }
+      editorLabel={
+        hasGlobalFilter ? messages.label('label.filter.panel') : undefined
+      }
+      editorModeLabel={
+        hasGlobalFilter ? filterModeLabel(filter, messages) : undefined
+      }
+      editorModes={
+        hasGlobalFilter ? <FilterModes filter={filter} /> : undefined
+      }
+      editorPending={filter.pendingCount}
       editor={
         /* Without global fields there is nothing to filter, and an empty
            panel would only take up room. */
-        dashboard.panels.length > 0 &&
-        filter.fields.length > 0 && (
-          <FilterPanel filter={filter} optionsFor={optionsFor} />
+        hasGlobalFilter && (
+          <FilterPanel filter={filter} optionsFor={optionsFor} modes={false} />
         )
       }
       result={<DashboardGrid dashboard={dashboard} editable={editable} />}

@@ -52,6 +52,7 @@ export * from './SaveAsDialog.js';
 export * from './StatusStrip.js';
 export * from './ViewHeader.js';
 export * from './ViewList.js';
+export * from './ViewSwitcher.js';
 export * from './ViewManager.js';
 export * from './ViewSurface.js';
 export * from './WorkbenchShell.js';

@@ -67,18 +67,31 @@
 - 列出字段的三个选择器（添加条件、列选择、分析的分组与指标）都经 `fieldGroups(fields, definition.fieldGroups, key)` 分组：未被任何分组列出的字段在前、无标题，其后按目录顺序列出各分组并带标题，组内按该分组自己的 `fields` 顺序；
 - 选择器常常只列一个子集（尚未成为条件的字段、能做列的字段），所以没有字段的分组不显示。目录声明在 `DataViewDefinition.fieldGroups`（`{ id, label, fields }[]`），字段定义本身不记录归属：一个组有哪些字段在一处读完，组序与组内序都不被字段顺序绑住（字段顺序同时决定默认列序），列了未声明的字段名或把一个字段列进两个组都在定义准入时报错。Dashboard 的全局字段与元素字段没有目录，不分组。
 
+## 版式：三块、一套间距、一种选项控件
+
+三条规则，后来的改动按它们判。落到代码上是 `ui/layout.ts` 一处（`SPACE`、`SURFACE`、`SEGMENTED`），不是各处手写的 class。
+
+- **主列是三块，不是一摞行**。视图头（identity + 保存 + 视图级控件）是 **banner**：`border-b` 划一条线，不做卡片——给"说明这是哪一页"的那一行套个卡片，等于给整页套卡片。条件区与结果区各是一个 **surface**：`rounded-lg border border-border bg-card`、`p-3`。块只在有内容时才存在：空卡片是一个"这儿有东西"的空头承诺。这条对结果块同样成立——分析视图跑之前既没有结果、也没有已应用条件条、也没有状态条，三样都不画的时候整块就不渲染，而不是留一个空边框。结果块由工作台组合，外壳只给框，`resultSurface={false}` 可以不要那层框——**Dashboard 就不要**，它的结果本来就是一格格面板卡片，再套一层是框里套框。
+- **间距是一把有级差的尺子**，不是到处 `gap-2`：块与块 16px（`SPACE.BLOCKS`）、块内行与行 12px（`SPACE.ROWS`）、行内控件组之间 8px（`SPACE.GROUPS`）、组内 4px（`SPACE.WITHIN`）。分组要看得见，而两块之间的距离若等于两个按钮之间的距离，就没有什么是成组的，眼睛无处落脚。
+- **互斥选项是一个控件，永远不是一排按钮**。判据按选项的多少与长短走：**≤3 个短选项** → 分段控件（segmented），一圈外框、内部无缝（`SEGMENTED`）；**选项是一句话，或多于三个** → `Select`；**同一职责下的几个动作** → `ButtonGroup`；**一个主动作带几种变体** → 拆分按钮（`SaveActions` 就是）。踩过的坑是 `ToggleGroup variant="outline"`：每一项自带边框、组又给了 gap，读起来就是三个各自独立、碰巧挨着的按钮。vendored 的 `ui/components/**` 不手改，所以缝在调用处合——`className={SEGMENTED}`。筛选的简单／高级已经进了标题栏下拉，分组操作符已经是"满足…"选择器，剩下的两处（结果工具栏的布局、分析编辑器的表／图）都用 `SEGMENTED` 合成一个控件。
+
 ## 工作台骨架
 
 - 工作台的骨架自上而下是：**标题栏 → 编辑带 → 状态条 → 已应用条件条 → 结果工具栏 → 结果 → 分页**，顺序按"离结果多近"排：结果是视图的目的，它上面的每一样都要为自己的高度负责。`ViewHeader` 一行说清这是哪个视图——种类图标、受众标签、标题，以及"屏幕上的东西存过没有"的标记（`saved === null` 是 `label.header.new-view`，`saved && dirty` 是 `label.header.unsaved`），右端是宿主的全局动作与 `SaveActions`，上一次写入的结局（`WriteOutcome`：冲突、未知、拒绝）落在标题栏下方一行而不是压在结果上。`EditorBand` 是编辑器所在的折叠带：已保存的视图打开时折起——作者已经决定过了，结果才是要看的东西——没存过的展开，折叠状态属于这一次打开，以 `runtime.id` 为 key 重置，不入库也不记忆。（见 test/editorBand.test.tsx「EditorBand」与 test/viewHeader.test.tsx「ViewHeader」）Analysis 与 Dashboard 本轮只接标题栏、状态条与已应用条件条，编辑器形态照旧。
 
-- 这副骨架由 `WorkbenchShell` 画，三个工作台共用一份：侧栏（`ViewList`，`manager` 只在 `manager.can.anything` 时交出去）、`LeaveDialog`，以及主列——打不开时只有一条 `label.view.unopenable` 的 Alert，否则是 `ViewHeader` → `editor` 槽 → `ErrorStrip`(`filter.unmarked`) + `WarningStrip` + `strips` 槽（只有一种视图才有的，如 Record 的查询失败条） → `AppliedBar` → `result` 槽。props 是 `{ workbench, kind, title, theme?, messages?, locale?, timeZone, actions?, editor, strips?, result, sidebarOpen?, hasResult?, warnings?, className? }`——`hasResult` 与 `warnings` 留给自己没有结果、且告警由面板分担的 Dashboard 覆盖，其余两种读开着的那个视图本身。它不持有任何状态，要画什么全部读自一个 `WorkbenchController`（[react.md#useworkbench](../react.md#useworkbench)）；
+- 这副骨架由 `WorkbenchShell` 画，三个工作台共用一份：侧栏（`ViewList`，`manager` 只在 `manager.can.anything` 时交出去）、`LeaveDialog`，以及主列——打不开时只有一条 `label.view.unopenable` 的 Alert，否则是 `ViewHeader` → `editor` 槽 → `ErrorStrip`(`filter.unmarked`) + `WarningStrip` + `strips` 槽（只有一种视图才有的，如 Record 的查询失败条） → `AppliedBar` → `result` 槽。props 是 `{ workbench, kind, title, theme?, messages?, locale?, timeZone, actions?, editor, editorLabel?, editorModeLabel?, editorModes?, editorOpen?, defaultEditorOpen?, onEditorOpenChange?, editorPending?, strips?, result, defaultSidebarOpen?, onSidebarOpenChange?, hasResult?, warnings?, className? }`——`hasResult` 与 `warnings` 留给自己没有结果、且告警由面板分担的 Dashboard 覆盖，其余两种读开着的那个视图本身。要画什么几乎全部读自一个 `WorkbenchController`（[react.md#useworkbench](../react.md#useworkbench)），只有两样例外，因为它们既不属于视图也不属于列表：**侧栏收起没有**、**编辑带展开没有**。这两样都只属于此刻这一屏——不入库、也没有一条离开守卫要问的东西——所以由外壳自己持有，而不是让三个工作台各写一遍同样的 `useState`；
 - `ViewHeader` 的视图名是 `h2`（`headingLevel` 可由宿主定级），`main` 以它的 id `aria-labelledby`——只在标题真的在屏幕上时才指，指向不存在的 id 是一个坏标签而不是一个缺标签。（见 test/accessibility.test.tsx「the open view names the region it is drawn in」）
-- 留给扩展的缝还在：`ViewHeader.leading`（折叠侧栏后留在标题栏最左的那一块）、`data-slot="view-sidebar"`、以及 `sidebarOpen` 这一个布尔——折叠是一处的改动，不是它旁边每一块的布局改动。
+- **标题栏是两组，之间不串**。左边是「我在看哪个视图」：`data-slot="view-identity"`——`leading` 槽、种类图标、受众标签、视图名（`h2`）、未保存标记，以及 `SaveActions`。保存命令跟着视图名走而不是站在行尾：它改的就是这个名字底下的那份配置。右边是「我在怎么看它」：`data-slot="view-controls"`——先是视图级控件（当下只有编辑带的开关），宿主自己的全局动作永远排在最后，这样宿主加一个按钮不必知道它挨着什么。（自动刷新间隔与放大视图两个控件将来落在这一组里，本轮不做。）
+- **侧栏可折叠**。`ViewList` 的标题行带一个折叠按钮（`onCollapse` + `collapseRef`）；收起后 `aside` 与它的 `Separator` 都不渲染，标题栏的 `leading` 槽接过三样东西：展开按钮、定义标题（窄于 `sm` 时先让位）、以及 `ViewSwitcher`。收起时 `ViewHeader` 收到 `namesView={false}`：种类图标不画、`h2` 转 `sr-only`——它仍在 DOM 里、仍带着 `main` 指过来的那个 id，只是不再和切换器把同一个名字说两遍。折叠是视图状态，不入库、不记忆、不经离开守卫。
+- **`ViewSwitcher` 是侧栏收起后的那份列表**：触发器是种类图标 + 当前视图标题 + chevron，菜单按受众分两组（个人在前）、当前项打勾、系统视图带标签，末尾用分隔线隔出「管理视图」。选择一律走 `workbench.choose`，所以离开守卫照样先问一句——快捷方式是同一扇门的近路，不是绕过去的路。
+- **管理器一个对话框、两个入口**：侧栏的齿轮与切换器的末项开的是同一个 `ViewManager`，所以它的开关状态被提到 `WorkbenchShell`，`ViewList` 只负责给出入口（`onManage`）而不再自己渲染对话框。两个入口各自持有状态就是两个对话框。入口本身仍按 `manager.can.anything` 决定给不给。
+- **编辑带的开关在标题栏**，不在编辑器上方自占一行：`EditorBandToggle`（图标 + 名字 + `aria-expanded` + `aria-controls`）带着 `pending > 0` 时的那个点与计数——折起来时那是「改过、没应用」的唯一凭据，不能跟着编辑器一起消失。开关右侧可挂一个 chevron 下拉（`editorModes`，`ButtonGroup` 里的第二个按钮，形状同 `SaveActions`），装这个编辑器提供的几种编辑方式；Record 与 Dashboard 把筛选的简单／高级放进去，Analysis 本轮不给（编辑器形态仍是 [decisions.md](../decisions.md) 的 Q2）。`EditorBand` 自此只画内容：折起时整段**不挂载**而不是隐藏，编辑器的输入就是视图的草稿，折起的带子不该在页面上留下可聚焦的控件。默认展开与否照旧——没存过的展开，存过的折起——并以 `runtime.id` 为准重置。
+- 留给扩展的缝还在：`ViewHeader.leading` 与 `ViewHeader.trailing`、`data-slot="view-sidebar"`、以及 `defaultSidebarOpen` 这一个布尔——折叠是一处的改动，不是它旁边每一块的布局改动。
 
 ## 三态各有一处凭据
 
 - 三种状态各有一处凭据，互不重复：**草稿未应用**是条件 pill 与应用按钮上的那个点（`data-pending`，基准是 `state.applied`），折起来时汇总成折叠行上的 `label.editor.pending` 计数；
-- **已应用**是结果上方的 `AppliedBar`，它读 `state.result.own.filter` 而不是 `applied`——应用会启动一次查询，在查询答复之前 `applied` 已经走在前面，跟着它的条会描述还没到屏幕上的行；
+- **已应用**是结果块顶部的 `AppliedBar`——它是这批行的说明文字，所以属于结果块而不是浮在编辑器与工具栏之间；它读 `state.result.own.filter` 而不是 `applied`——应用会启动一次查询，在查询答复之前 `applied` 已经走在前面，跟着它的条会描述还没到屏幕上的行；
 - Dashboard 没有自己的结果，面板各跑各的查询，所以那里读 `state.applied.filter`，而「有没有结果可描述」由工作台看面板来答（任一面板已有结果或已经开始查询）；
 - **未保存**是标题旁的标记，Save 按钮只在 `dirty && can.save && !pending` 时可按。AppliedBar 保留树的逻辑：根下每个直接子节点一个 badge，分组子节点合成一个；
 - badge 的文字由 `ui/display.ts` 的 `summaryText` 按部件拼，不是 `FilterSummaryItem.text`——那句是内核给宿主的英文兜底，摆在中文页面上就是唯一没被翻译的一行。字段名来自定义，操作符走 `label.operator.<OP>`（未知成员仍回退到派生拼写），值按 [值按字段显示](#值按字段显示) 的规则，与表格里同一套：定义给过名字的值用那个名字，其余按 `cell ?? kind`——所以 `cell` 和 `kind`、`numberFormat` 一样跟着摘要项走，否则声明了 `cell: 'date'` 的数字字段在表里是日期、在条上是十三位数——日期按 `ViewSurface` 的 `locale`／`timeZone` 显示，数字按 `numberFormat`，相对值按 `bound` 分成两句——区间用 `label.relative.window.<direction>`（`last {amount} {unit}`／最近 {amount} {unit}），边界用 `label.relative.instant.<direction>`（`{amount} {unit} ago`／{amount} {unit}前）——命名时段用 `label.relative.preset.*`。多值与组内各项之间的分隔符本身也是措辞（`label.filter.join`：英文 `, `，中文 `、`）；
@@ -109,12 +122,16 @@
 
 ## FilterPanel 的布局
 
-- `FilterPanel` 的布局：分组是带边框的块，头部是操作符切换（All of／Any of／None of）与删除，主体是一条条件带：等宽栅格，能放几列放几列，pill 在格子里对齐，字段名、操作符、值上下对齐；
+- `FilterPanel` 的布局：分组是带边框的块，头部是**操作符选择器**与删除，主体是一条条件带：等宽栅格，能放几列放几列，pill 在格子里对齐，字段名、操作符、值上下对齐；操作符读作它对底下条件下的那句话——「满足全部条件」／「满足任一条件」／「全部条件均不满足」——而不是编译成的那个布尔：一次只显示一个，它就得自己把意思说全。三个操作符在任何位置、任何模式下内核都受理，所以没有一个会以禁用的样子出现（`filter/validate.ts` 的 `GROUP_OPERATORS` 是平的一组）；
 - 持双输入的条件（区间、日期）在条件带放得下两列时占两格；
 - 条件是内联的紧凑 pill（字段 · 操作符 · 值编辑器 · 删除），不独占一行，未填写时虚线边框，校验有 error 时标为 invalid（`data-invalid`，destructive 色），只有 warning 时标为 `data-warning`（主题的 `warning` 色）——条件照常执行，颜色只说"值得看一眼"；
-- 持有谓词的 `ELEMENT_MATCH` 条件和分组一样渲染为块，头部是字段与操作符，主体是它持有的分组。简单模式只显示根分组的条件带，高级模式显示根分组的块。面板顶部只留模式切换，唯一的出口在底部一行：左边是添加字段，右边是 Clear 与 Apply。Apply 是同屏唯一的 primary 按钮——提交是显式的，面板里的任何输入都不会自己重跑查询；
+- 持有谓词的 `ELEMENT_MATCH` 条件和分组一样渲染为块，头部是字段与操作符，主体是它持有的分组。简单模式只显示根分组的条件带，高级模式显示根分组的块。**模式切换看外面有没有地方放**：它是「怎么编辑」而不是条件本身，所以外面一旦有更合适的位置，面板就把它交出去（`modes={false}`）——Record 与 Dashboard 的编辑器就是这块面板，模式因此挂在标题栏折叠带的下拉里（[工作台骨架](#工作台骨架)）。Analysis 不交：它的编辑器是这块面板**加上**分析编辑器，没有哪一个折叠带能用「筛选」这一个名字把两块都折起来，所以控件留在面板顶部（分段控件，见[版式](#版式三块一套间距一种选项控件)）。**一个存在却够不着的模式是丢掉的能力，不是更干净的界面**——`defaultAnalysisConfig` 从 `simple` 起步，控件一旦两头都没有，分析视图就再也写不出 OR／NOR 与嵌套分组。两处控件读的都是**生效的**模式而不是存下来的那个，简单模式画不出这棵树时那一项禁用，并把原因（`config.filterMode.not-simple`）挂在项上，而不是摊在旁边当一段散文。唯一的出口在底部一行：**添加筛选 · 撤销筛选修改 · 清空条件 · 查询**。Apply 是同屏唯一的 primary 按钮——提交是显式的，面板里的任何输入都不会自己重跑查询；
+- **添加筛选是一张勾选表，不是一次性的菜单**。点开是一个浮层：标题「选择筛选字段」、右上角「完成」、一个搜索框，底下是按目录分组的字段（未分组的在前、无标题，与其余字段选择器同一套 `fieldGroups` 布局），两列复选框、可滚动。已经在面板上的字段是勾上的：勾上加一条条件（`addLeaf`），取消勾选把那条拿掉（`remove`）——「一个分组一个字段一条条件」这条规则让这个映射唯一，所以不存在「取消的是哪一条」的问题；已经填了值的字段也一样，勾就是这条条件在不在。浮层一直开着，`完成` 或 Escape 关闭，焦点回到触发它的按钮。建一个筛选本来就是挑好几个字段，每挑一个就关一次的菜单，四条条件要来回四趟；
+- **嵌套分组另起一个控件**：「添加筛选」右边紧挨一个 chevron，菜单是 `AND 满足全部条件`／`OR 满足任一条件`／`NOR 全部条件均不满足`（操作符代码在前，句子在后：已经用 AND／OR 思考的人一眼找到，没有的人读那句话）。它不再是字段列表的最后一段——一张让人勾字段的表里，容不下一个不是字段的条目；
+- **Enter 即提交**：面板根上一个键处理器，`aria-keyshortcuts="Enter"`。四种情况不算：IME 组字中（`isComposing`）、按着修饰键、落在面板自己控件的弹层里（弹层 portal 到面板之外，React 事件却照样冒泡回来；判据与 `leavesEditor` 同一个 `[data-popup-open]` 标记），以及目标本身就吃 Enter 的控件（按钮、链接、textarea——在「添加筛选」上按 Enter 是打开选择器，不能顺带把查询也跑了）。`blocked > 0` 时和 Apply 按钮一样拒绝；
+- **未填写的值显示「未设置」**（`label.filter.not-set`）：没填值是正常的编辑状态而不是错误，框里说清缺的是什么，比空着看起来已经填完要好；
 - 落在条件上的 error 数（`filter.blocked`）大于零时它禁用，并在左侧以 `label.filter.blocked` 说还有几条要改；
 - 草稿与已应用不一致时按钮上也带那个点。`submit={false}` 时底行整行不渲染，留给从别处提交的编辑器（比如 Dashboard 的全局条件带）。已应用条件的摘要不在面板里，在结果上方的 `AppliedBar`：根是 OR／NOR 时整体折成一个 badge 并说明；
 - 宿主注入的作用域条件在那里另起一组只读呈现，不带删除。（见 test/ui.test.tsx「FilterPanel tree editing」）
 
-落到文件上：`ui/FilterPanel.tsx` 只留根——模式切换、焦点边界、超预算提示与底行；块与 pill 在 `ui/filter/` 下分为 `GroupBlock.tsx`（含条件带）、`ConditionPill.tsx`（含元素匹配块与 `PendingDot`）、`AddEntry.tsx` 与 `FilterActions.tsx`。值编辑器同理：`ui/FilterValueEditor.tsx` 只剩按 `EditorDescriptor.input` 分派的 switch——**这是全包唯一知道这个封闭联合的地方**，也是 [extension.md](../extension.md) 所说的按 kind 注册渲染器将来要切开的缝——每种输入各自一个文件在 `ui/filter/inputs/`（`text`／`number`／`select`／`remote`／`date`／`daterange`／`relative`，公共部分在 `shared.tsx`）。
+落到文件上：`ui/FilterPanel.tsx` 只留根——焦点边界、Enter 提交、超预算提示与底行；块与 pill 在 `ui/filter/` 下分为 `GroupBlock.tsx`（含条件带）、`ConditionPill.tsx`（含元素匹配块与 `PendingDot`）、`AddEntry.tsx`（字段选择器 + 加分组菜单两个控件的装配）、`FieldChecklist.tsx`（那张勾选表本身，单独成文件是因为它是整段浮层而不是一个按钮）、`FilterModes.tsx`（标题栏下拉里的那两项）、`groupOperators.ts`（三个操作符的措辞，选择器与加分组菜单共用一份）与 `FilterActions.tsx`（撤销、清空、查询）。值编辑器同理：`ui/FilterValueEditor.tsx` 只剩按 `EditorDescriptor.input` 分派的 switch——**这是全包唯一知道这个封闭联合的地方**，也是 [extension.md](../extension.md) 所说的按 kind 注册渲染器将来要切开的缝——每种输入各自一个文件在 `ui/filter/inputs/`（`text`／`number`／`select`／`remote`／`date`／`daterange`／`relative`，公共部分在 `shared.tsx`）。

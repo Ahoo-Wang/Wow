@@ -29,6 +29,25 @@ export const filterMessages = {
   'label.filter.mode': 'Filter mode',
   'label.filter.clear': 'Clear',
   'label.filter.apply': 'Apply',
+  // Not "revert": that one is about the saved config, and this one is about
+  // the draft filter alone — it puts the conditions back to what the rows on
+  // screen were fetched under and leaves everything else where it is.
+  'label.filter.discard': 'Discard edits',
+  // A group's operator, read as the sentence it makes of the conditions
+  // under it rather than as the boolean it compiles to. "All of" was the
+  // word for a toggle in a row of three; a select shows one at a time, and
+  // one at a time it has to say what it means on its own.
+  'label.filter.all-conditions': 'All conditions',
+  'label.filter.any-condition': 'Any condition',
+  'label.filter.no-condition': 'No condition',
+  // The field picker, which stays open while several fields are chosen.
+  'label.filter.pick-fields': 'Choose filter fields',
+  'label.filter.pick-done': 'Done',
+  'label.filter.add-group': 'Add a group',
+  // A condition with no value yet. It is a normal editing state and not an
+  // error, so the pill says what is missing rather than that anything is
+  // wrong.
+  'label.filter.not-set': 'Not set',
   // An edited condition changes nothing until it is applied, and a condition
   // with an error stops the whole submission; both are marked where they are.
   'label.filter.pending': 'Not applied yet',

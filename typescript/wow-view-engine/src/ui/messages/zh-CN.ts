@@ -128,6 +128,14 @@ export const zhCN: ViewMessages = {
   'label.filter.mode': '筛选模式',
   'label.filter.clear': '清空',
   'label.filter.apply': '应用',
+  'label.filter.discard': '撤销筛选修改',
+  'label.filter.all-conditions': '满足全部条件',
+  'label.filter.any-condition': '满足任一条件',
+  'label.filter.no-condition': '全部条件均不满足',
+  'label.filter.pick-fields': '选择筛选字段',
+  'label.filter.pick-done': '完成',
+  'label.filter.add-group': '添加分组',
+  'label.filter.not-set': '未设置',
   'label.filter.pending': '尚未应用',
   'label.filter.blocked': '{count} 项待修正',
   'label.filter.group-operator': '分组操作符',
@@ -574,4 +582,10 @@ export const zhCN: ViewMessages = {
   'definition.view.id-duplicate': '两个视图共用了 id {id}。',
   'definition.view.id-separator': '视图 id 不能带 {separator}。',
   'definition.view.kind-mismatch': '{kind} 视图不属于 {definition} 定义。',
+
+  // 工作台骨架：侧栏的两种状态，以及侧栏收起后顶替它的切换器。
+  'label.workbench.collapse-sidebar': '收起视图列表',
+  'label.workbench.expand-sidebar': '展开视图列表',
+  'label.workbench.switch-view': '切换视图',
+  'label.workbench.editor-modes': '编辑器选项',
 } satisfies Record<MessageKey, string>;

@@ -19,6 +19,7 @@ import {
 } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   CannotOpen as DisplayCannotOpen,
+  CollapsedSidebar as DisplayCollapsedSidebar,
   EmptyResult as DisplayEmptyResult,
   Loading as DisplayLoading,
   Localized as DisplayLocalized,
@@ -64,10 +65,11 @@ export const WithData: Story = {
     // The total covers what the conditions select, not every order.
     await expect(amountOf(readTotal(table, '金额'))).toBe(6470);
 
-    // The page reads from what the view is down to the rows and their paging.
+    // The page reads from what the view is down to the rows and their
+    // paging. A saved view opens folded, and folding unmounts the band
+    // rather than hiding it, so it is not in this list yet.
     await expect(slots(canvasElement)).toEqual([
       'view-header',
-      'editor-band',
       'applied-bar',
       'result-toolbar',
       'record-pagination',
@@ -106,13 +108,21 @@ export const WithData: Story = {
       say('label.toolbar.page-of', { index: 1, pages: 1 }),
     );
 
-    // Opening the fold brings back the one way out of the editor.
+    // Opening the fold brings the editor back, in its own block between the
+    // title bar and the result, with the one way out of it.
     await userEvent.click(band);
     await expect(
       await canvas.findByRole('button', {
         name: defaultMessages['label.filter.apply'],
       }),
     ).toBeVisible();
+    await expect(slots(canvasElement)).toEqual([
+      'view-header',
+      'editor-band',
+      'applied-bar',
+      'result-toolbar',
+      'record-pagination',
+    ]);
   },
 };
 
@@ -537,3 +547,215 @@ function slots(canvasElement: HTMLElement): string[] {
     .map(node => node.getAttribute('data-slot') ?? '')
     .filter(slot => LAYOUT_SLOTS.includes(slot));
 }
+
+/**
+ * The sidebar folded away, and the list still reachable.
+ *
+ * Folding takes the one control that opens another view off the screen, so
+ * the title bar has to grow its replacement in the same gesture: the way
+ * back, the definition's name, and the list as one dropdown. This walks the
+ * whole round trip — fold, switch, unfold — because the failure worth
+ * catching is the one where a user folds the list and cannot get back to it.
+ */
+export const CollapseAndSwitch: Story = {
+  ...DisplayCollapsedSidebar,
+  // Starts open on purpose: the fold itself is half of what is asserted.
+  args: { ...DisplayCollapsedSidebar.args, collapsed: false },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+
+    const sidebar = () =>
+      canvasElement.querySelector('[data-slot="view-sidebar"]');
+    await expect(sidebar()).not.toBeNull();
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: defaultMessages['label.workbench.collapse-sidebar'],
+      }),
+    );
+    await expect(sidebar()).toBeNull();
+
+    // What the sidebar was carrying is now in the title bar, in one group
+    // with the commands that save the view.
+    const identity = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-identity"]',
+    )!;
+    await expect(identity).toHaveTextContent('订单');
+    await expect(
+      within(identity).getByRole('button', {
+        name: defaultMessages['label.workbench.switch-view'],
+      }),
+    ).toBeVisible();
+    // The save group moved left, next to the view's name: it changes the
+    // config under that name, so it belongs to it rather than to the row's end.
+    await expect(
+      identity.querySelector('[data-slot="save-actions"]'),
+    ).not.toBeNull();
+
+    // The switcher opens the same views the sidebar listed, grouped the same
+    // way, and choosing one opens it.
+    await userEvent.click(
+      within(identity).getByRole('button', {
+        name: defaultMessages['label.workbench.switch-view'],
+      }),
+    );
+    const menu = await within(document.body).findByRole('menu');
+    await expect(menu).toHaveTextContent(
+      defaultMessages['label.scope.group.personal'],
+    );
+    await expect(menu).toHaveTextContent(
+      defaultMessages['label.scope.tag.system'],
+    );
+    await userEvent.click(
+      within(menu).getByRole('menuitemradio', { name: /我盯的大额单/ }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="view-title"]'),
+      ).toHaveTextContent('我盯的大额单'),
+    );
+
+    // And back: the list returns, and the header gives up the switcher.
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: defaultMessages['label.workbench.expand-sidebar'],
+      }),
+    );
+    await expect(sidebar()).not.toBeNull();
+    await expect(
+      canvas.queryByRole('button', {
+        name: defaultMessages['label.workbench.switch-view'],
+      }),
+    ).toBeNull();
+    // Nothing left open: Base UI parks focus-guard sentinels beside an open
+    // popup, and axe judges the page as the play leaves it.
+    await waitFor(() =>
+      expect(document.body.querySelector('[role="menu"]')).toBeNull(),
+    );
+  },
+};
+
+/**
+ * The editor's fold is driven from the title bar, and its mode from the
+ * chevron beside it.
+ *
+ * Both moved out of the panel: the panel is the conditions, and a control
+ * for *how to edit them* sitting among them was a line of chrome over every
+ * filter ever written. The dot on the toggle is the one credential a folded
+ * editor can still show, so it is asserted here rather than assumed.
+ */
+export const EditorToggleAndModes: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+
+    // A saved view opens folded, so the panel is not on the page at all.
+    await expect(
+      canvasElement.querySelector('[data-slot="editor-band"]'),
+    ).toBeNull();
+
+    const toggle = canvas.getByRole('button', {
+      name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+    });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(toggle);
+    await expect(
+      canvasElement.querySelector('[data-slot="editor-band"]'),
+    ).not.toBeNull();
+
+    // The mode lives beside the toggle now, and drives the panel below it.
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: defaultMessages['label.workbench.editor-modes'],
+      }),
+    );
+    const modes = await within(document.body).findByRole('menu');
+    await userEvent.click(
+      within(modes).getByRole('menuitemradio', {
+        name: defaultMessages['label.filter.advanced'],
+      }),
+    );
+
+    // Advanced draws the root as a framed block with its operator on it.
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="filter-group"]'),
+      ).not.toBeNull(),
+    );
+    // The menu is gone before the story settles. Base UI parks focus-guard
+    // sentinels beside an open popup, and axe judges the page as the play
+    // leaves it — so a play that opened something closes it, which is what
+    // a user does anyway.
+    await waitFor(() =>
+      expect(document.body.querySelector('[role="menu"]')).toBeNull(),
+    );
+    await expect(
+      canvas.getByRole('button', {
+        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+      }),
+    ).toHaveAccessibleName(
+      `${defaultMessages['label.filter.panel']} · ${defaultMessages['label.filter.advanced']}`,
+    );
+  },
+};
+
+/**
+ * Two fields ticked in one visit to the picker, and two pills to show for it.
+ *
+ * The picker used to close on every pick, which made four conditions four
+ * round trips. It stays open now, so the thing worth regressing is that a
+ * second tick lands while the first is still on screen.
+ */
+export const PickSeveralFields: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+      }),
+    );
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: defaultMessages['label.filter.add'],
+      }),
+    );
+
+    const picker = await within(document.body).findByRole('dialog');
+    await expect(picker).toHaveTextContent(
+      defaultMessages['label.filter.pick-fields'],
+    );
+    // The view's saved condition is already a tick, which is what makes the
+    // list a statement about the filter rather than a menu of things to add.
+    await expect(
+      within(picker).getByRole('checkbox', { name: '状态' }),
+    ).toBeChecked();
+
+    await userEvent.click(
+      within(picker).getByRole('checkbox', { name: '仓库' }),
+    );
+    await userEvent.click(
+      within(picker).getByRole('checkbox', { name: '金额' }),
+    );
+    await userEvent.click(
+      within(picker).getByRole('button', {
+        name: defaultMessages['label.filter.pick-done'],
+      }),
+    );
+
+    // Three conditions now: the saved one and the two just ticked.
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelectorAll('[data-slot="filter-condition"]'),
+      ).toHaveLength(3),
+    );
+    // And the picker is shut, sentinels and all — see CollapseAndSwitch.
+    await waitFor(() =>
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull(),
+    );
+  },
+};

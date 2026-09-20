@@ -11,16 +11,18 @@
  * limitations under the License.
  */
 
-import { FilterIcon } from 'lucide-react';
+import { FilterIcon, Undo2Icon } from 'lucide-react';
 import type { FilterEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import { useViewMessages } from '../MessagesProvider.js';
 
 /**
- * The pair that ends an edit, and the count that stands in the way of it.
+ * The ways an edit can end, and the count that stands in the way of one.
  *
  * Apply is the one primary button on the screen — submitting is explicit, and
- * nothing in the panel re-runs the query by itself.
+ * nothing in the panel re-runs the query by itself. Discard is the other end
+ * of the same decision and appears only when there is an edit to discard, so
+ * the row never offers to undo nothing.
  */
 export function FilterActions({
   filter,
@@ -47,6 +49,20 @@ export function FilterActions({
             count: filter.blocked,
           })}
         </span>
+      )}
+      {filter.pending && (
+        // Only while the draft says something the rows do not: with nothing
+        // unapplied there is nothing to put back, and a button that would
+        // change nothing is a button that teaches nothing.
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={disabled}
+          onClick={filter.discard}
+        >
+          <Undo2Icon data-icon="inline-start" />
+          {messages.label('label.filter.discard')}
+        </Button>
       )}
       <Button
         variant="outline"

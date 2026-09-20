@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-import { cleanup, render, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import axe from 'axe-core';
 import {
@@ -22,6 +23,7 @@ import {
 import {
   AnalysisWorkbench,
   DashboardWorkbench,
+  defaultMessages,
   RecordPagination,
   RecordWorkbench,
   ViewSurface,
@@ -106,7 +108,15 @@ function engineWith(instances: ViewInstance[]): ViewEngine {
 
 /** Rule ids that were violated, with how many nodes each one covers. */
 async function violations(node: HTMLElement): Promise<string[]> {
-  const result = await axe.run(node, { resultTypes: ['violations'] });
+  const result = await axe.run(node, {
+    resultTypes: ['violations'],
+    // `region` asks that every piece of content sit inside a landmark, which
+    // is a question about a whole page. These suites render a fragment into a
+    // bare body, and every popup this package opens is portalled to that body
+    // as a sibling of the surface — so the rule fires on the harness rather
+    // than on anything a host would ship.
+    rules: { region: { enabled: false } },
+  });
   return result.violations.map(
     found => `${found.id} (${found.nodes.length} node(s))`,
   );
@@ -163,6 +173,89 @@ describe('the open view names the region it is drawn in', () => {
       container.querySelector('main')!.hasAttribute('aria-labelledby'),
     ).toBe(false);
     expect(await violations(container)).toEqual([]);
+  });
+});
+
+/**
+ * The states a workbench only reaches after a click. Axe is run over the
+ * whole document rather than the container, because every popup this package
+ * opens is portalled to the body — checking the container alone would pass a
+ * menu nobody looked at.
+ */
+describe('the states behind a click pass axe', () => {
+  /** The record workbench, opened on a view with rows on screen. */
+  async function workbench() {
+    const user = userEvent.setup();
+    render(
+      <ViewSurface>
+        <RecordWorkbench
+          engine={engineWith([pendingOrders])}
+          definitionId="orders"
+          instanceId="pending"
+        />
+      </ViewSurface>,
+    );
+    await screen.findByRole('table');
+    return user;
+  }
+
+  it('the sidebar collapsed, with the switcher in the title bar', async () => {
+    const user = await workbench();
+    await user.click(
+      screen.getByRole('button', {
+        name: defaultMessages['label.workbench.collapse-sidebar'],
+      }),
+    );
+
+    expect(await violations(document.body)).toEqual([]);
+  });
+
+  it('the view switcher open', async () => {
+    const user = await workbench();
+    await user.click(
+      screen.getByRole('button', {
+        name: defaultMessages['label.workbench.collapse-sidebar'],
+      }),
+    );
+    await user.click(
+      screen.getByRole('button', {
+        name: defaultMessages['label.workbench.switch-view'],
+      }),
+    );
+    await screen.findByRole('menu');
+
+    expect(await violations(document.body)).toEqual([]);
+  });
+
+  it('the editor open, with its modes menu showing', async () => {
+    const user = await workbench();
+    await user.click(
+      screen.getByRole('button', {
+        name: defaultMessages['label.workbench.editor-modes'],
+      }),
+    );
+    await screen.findByRole('menu');
+
+    expect(await violations(document.body)).toEqual([]);
+  });
+
+  it('the field picker open, which is a popover of checkboxes', async () => {
+    const user = await workbench();
+    // The editor opens folded on a saved view, so the panel is not in the
+    // document until the title bar's toggle is pressed.
+    await user.click(
+      screen.getByRole('button', {
+        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+      }),
+    );
+    await user.click(
+      await screen.findByRole('button', {
+        name: defaultMessages['label.filter.add'],
+      }),
+    );
+    await screen.findByText(defaultMessages['label.filter.pick-fields']);
+
+    expect(await violations(document.body)).toEqual([]);
   });
 });
 

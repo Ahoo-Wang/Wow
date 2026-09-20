@@ -36,6 +36,14 @@ export interface AnalysisWorkbenchProps {
    */
   locale?: string;
   optionsFor?(remote: string): FieldOption[] | undefined;
+  /**
+   * The sidebar this workbench opens on. It is view state and nothing else —
+   * never saved, never asked about by the leave guard — so a host sets where
+   * it starts and the shell owns it from there.
+   */
+  defaultSidebarOpen?: boolean;
+  /** Told whenever the sidebar opens or closes, for a host that mirrors it. */
+  onSidebarOpenChange?(open: boolean): void;
 }
 
 /**
@@ -53,6 +61,8 @@ export function AnalysisWorkbench({
   messages: wording,
   locale,
   optionsFor,
+  defaultSidebarOpen,
+  onSidebarOpenChange,
 }: AnalysisWorkbenchProps) {
   const workbench = useWorkbench(engine, definitionId, {
     kind: 'analysis',
@@ -79,6 +89,8 @@ export function AnalysisWorkbench({
       messages={wording}
       locale={locale}
       timeZone={engine.environment.timeZone}
+      defaultSidebarOpen={defaultSidebarOpen}
+      onSidebarOpenChange={onSidebarOpenChange}
       // A grouping that filled its limit is a fact about this result, so it
       // is said beside the config's own findings and stays until the next
       // result replaces it. The strip sits above both layouts, which is why

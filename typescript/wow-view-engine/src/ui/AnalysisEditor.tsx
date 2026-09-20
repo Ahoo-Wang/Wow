@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from './components/select.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
+import { SEGMENTED } from './layout.js';
 import { DropdownMenuContent, SelectContent } from './popups.js';
 import { crossesBoundary, leavesEditor } from './FilterPanel.js';
 import { GroupedMenu } from './FieldMenu.js';
@@ -118,6 +119,7 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
           variant="outline"
           size="sm"
           aria-label={messages.label('label.analysis.layout')}
+          className={SEGMENTED}
         >
           <ToggleGroupItem value="table">
             {messages.label('label.layout.table')}

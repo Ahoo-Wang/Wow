@@ -33,6 +33,7 @@ import {
 } from './components/dropdown-menu.js';
 import { Spinner } from './components/spinner.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
+import { SEGMENTED } from './layout.js';
 import { GroupedMenu } from './FieldMenu.js';
 import { DropdownMenuContent } from './popups.js';
 import type { MessageKey } from './messages.js';
@@ -129,6 +130,7 @@ export function ResultToolbar({
           variant="outline"
           size="sm"
           aria-label={messages.label('label.toolbar.layout')}
+          className={SEGMENTED}
         >
           {table.layouts.map(layout => (
             <ToggleGroupItem key={layout} value={layout}>

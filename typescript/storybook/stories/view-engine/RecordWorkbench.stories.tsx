@@ -52,6 +52,7 @@ function RecordWorkbenchDemo({
   paged = false,
   withActions = false,
   localized = false,
+  collapsed = false,
 }: {
   behaviour?: SourceBehaviour;
   instanceId?: string;
@@ -63,6 +64,8 @@ function RecordWorkbenchDemo({
   withActions?: boolean;
   /** Hands the workbench the shipped Chinese catalogue. */
   localized?: boolean;
+  /** Opens with the view list folded away, as a narrow page would. */
+  collapsed?: boolean;
 }) {
   return (
     <StoryEngine
@@ -92,6 +95,7 @@ function RecordWorkbenchDemo({
           instanceId={instanceId ?? savedViews[0].id}
           actions={withActions ? businessActions : undefined}
           messages={localized ? zhCN : undefined}
+          defaultSidebarOpen={!collapsed}
         />
       )}
     </StoryEngine>
@@ -175,6 +179,7 @@ const meta = {
     instanceId: { table: { disable: true } },
     withActions: { table: { disable: true } },
     localized: { table: { disable: true } },
+    collapsed: { table: { disable: true } },
   },
 } satisfies Meta<typeof RecordWorkbenchDemo>;
 
@@ -238,3 +243,10 @@ export const ManageViews: Story = { args: { behaviour: 'data' } };
  * `thisWeek` 这些以前是原样的标识符，现在同样走目录。
  */
 export const Localized: Story = { args: { localized: true } };
+
+/**
+ * 侧栏收起后的样子：标题栏最左边是展开按钮、定义标题与视图切换下拉，结果拿回
+ * 侧栏占掉的那点宽度。下拉按受众分组、当前项打勾、系统视图带标签，末尾是「管理
+ * 视图」——和侧栏齿轮开的是同一个对话框。切换照样先过离开守卫。
+ */
+export const CollapsedSidebar: Story = { args: { collapsed: true } };

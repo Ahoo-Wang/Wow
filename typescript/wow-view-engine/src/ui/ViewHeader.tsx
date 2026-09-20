@@ -19,6 +19,7 @@ import {
   type ViewInstance,
   type ViewKind,
 } from '../model/index.js';
+import { cn } from 'cn';
 import type { ViewRuntimeState, WriteAction } from '../runtime/index.js';
 import type { SaveCommands } from '../react/index.js';
 import { Badge } from './components/badge.js';
@@ -58,6 +59,19 @@ export interface ViewHeaderProps {
    */
   leading?: ReactNode;
   /**
+   * The view-level controls of the right-hand group — the editor's fold,
+   * and in time whatever else governs how this view is being looked at.
+   * They come before the host's own actions, which always end the line.
+   */
+  trailing?: ReactNode;
+  /**
+   * Whether this bar is the thing that says which view is open. False when
+   * something in `leading` already does — a view switcher shows the kind and
+   * the title both — and the bar then drops its own icon and leaves the
+   * title as a heading a screen reader still reaches but nobody sees twice.
+   */
+  namesView?: boolean;
+  /**
    * The id the view title carries, so the region the view is drawn in can
    * name itself by it. One is generated when the caller has nothing to point
    * at it.
@@ -95,6 +109,8 @@ export function ViewHeader({
   onRecovered,
   actions,
   leading,
+  trailing,
+  namesView = true,
   titleId,
   headingLevel = 2,
 }: ViewHeaderProps) {
@@ -114,30 +130,45 @@ export function ViewHeader({
 
   return (
     <div data-slot="view-header-band" className="flex flex-col gap-2">
-      <div data-slot="view-header" className="flex min-h-10 items-center gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div
+        data-slot="view-header"
+        className="flex min-h-10 flex-wrap items-center gap-2"
+      >
+        {/* Which view this is, and the commands that keep it: one group, in
+            the order a user reads it — where it sits, what it is, what to do
+            with it. */}
+        <div
+          data-slot="view-identity"
+          className="flex min-w-0 flex-1 items-center gap-2"
+        >
           {leading}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Kind className="text-muted-foreground size-4 shrink-0" />
-              }
-            />
-            <TooltipContent>
-              {messages.label(`label.kind.${kind}`)}
-            </TooltipContent>
-          </Tooltip>
+          {namesView && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Kind className="text-muted-foreground size-4 shrink-0" />
+                }
+              />
+              <TooltipContent>
+                {messages.label(`label.kind.${kind}`)}
+              </TooltipContent>
+            </Tooltip>
+          )}
 
           <Badge variant="secondary" className="shrink-0">
             <Audience aria-hidden />
             {messages.label(`label.scope.tag.${scopeKey}`)}
           </Badge>
 
+          {/* Always a heading, because the region around it is named by its
+              id — an id that addresses nothing is a broken label. When
+              something else on the line already shows the title, the heading
+              stays for a screen reader and goes out of the layout. */}
           <Title
             id={titleId ?? generatedId}
             data-slot="view-title"
             data-dirty={state.dirty || undefined}
-            className="truncate font-medium"
+            className={cn('truncate font-medium', !namesView && 'sr-only')}
           >
             {state.title}
           </Title>
@@ -155,11 +186,7 @@ export function ViewHeader({
               </Badge>
             )
           )}
-        </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {actions}
-          {actions && <Separator orientation="vertical" className="h-4" />}
           <SaveActions
             commands={commands}
             title={state.title}
@@ -168,6 +195,20 @@ export function ViewHeader({
             onDeleted={onDeleted}
             onRecovered={onRecovered}
           />
+        </div>
+
+        {/* How it is being looked at. The host's own actions end the line:
+            everything before them is this package's, and a page that adds a
+            button does not have to know what it is standing next to. */}
+        <div
+          data-slot="view-controls"
+          className="flex shrink-0 items-center gap-2"
+        >
+          {trailing}
+          {trailing && actions && (
+            <Separator orientation="vertical" className="h-4" />
+          )}
+          {actions}
         </div>
       </div>
 

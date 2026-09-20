@@ -1122,6 +1122,34 @@ describe('AnalysisWorkbench', () => {
     return harness;
   }
 
+  /**
+   * The analysis editor is the condition panel *and* the aggregation
+   * editor, so there is no one fold to hang the mode on — the panel keeps
+   * its own. Without it an analysis view could never reach OR, NOR or a
+   * nested group, because `defaultAnalysisConfig` starts at simple.
+   */
+  it('reaches advanced mode from the panel, which keeps the control', async () => {
+    await open();
+
+    const panel = screen.getByRole('region', { name: 'Filter' });
+    expect(
+      within(panel).queryByRole('group', { name: 'All conditions' }),
+    ).toBeNull();
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Advanced' }));
+
+    // Advanced draws the root as a group, which is what carries the
+    // operator an analysis view would otherwise have no way to set.
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('region', { name: 'Filter' })).getByRole(
+          'group',
+          { name: 'All conditions' },
+        ),
+      ).toBeDefined(),
+    );
+  });
+
   it('opens an analysis view and shows its table', async () => {
     await open();
 

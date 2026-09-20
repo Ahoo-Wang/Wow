@@ -18,15 +18,28 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
 import { Dialog, DialogTitle } from '../src/ui/components/dialog.js';
+import { DropdownMenuItem } from '../src/ui/components/dropdown-menu.js';
+import { EditorBandToggle } from '../src/ui/EditorBand.js';
 import { DialogContent } from '../src/ui/popups.js';
 import { FilterPanel, ViewSurface } from '../src/ui/index.js';
 import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
 
 afterEach(cleanup);
+
+/**
+ * The field picker's popup, once it is up. It is named by its title rather
+ * than found by role, because the picker is a popover and the page may hold
+ * more than one portalled thing at a time.
+ */
+async function findFieldPicker(): Promise<Element | null> {
+  const title = await screen.findByText('Choose filter fields');
+  return title.closest('[data-slot="popover-content"]');
+}
 
 describe('popups carry the theme out of the root', () => {
   it('puts the root class and the surface theme on a popup', async () => {
@@ -49,13 +62,41 @@ describe('popups carry the theme out of the root', () => {
       </ViewSurface>,
     );
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
-    const popup = await screen.findByRole('listbox');
-    const content = popup.closest('[data-slot="combobox-content"]');
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    const content = await findFieldPicker();
 
     expect(content?.classList.contains('fve-root')).toBe(true);
     expect(content?.getAttribute('data-theme')).toBe('dark');
     // Outside the surface, as a portal is; that is the whole point.
+    expect(content?.closest('[data-slot="view-surface"]')).toBeNull();
+  });
+
+  /**
+   * A menu is a different wrapper from a popover, and the editor's modes are
+   * the one menu that stays on screen while the editor itself is folded
+   * away — so nothing else of the editor is around to carry the theme in.
+   */
+  it('puts the root class and the surface theme on a menu', async () => {
+    const user = userEvent.setup();
+    render(
+      <ViewSurface theme="dark">
+        <EditorBandToggle
+          open={false}
+          onOpenChange={() => undefined}
+          controls="band"
+          label="Filter"
+          modes={<DropdownMenuItem>Advanced</DropdownMenuItem>}
+          pending={0}
+        />
+      </ViewSurface>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Editor options' }));
+    const item = await screen.findByText('Advanced');
+    const content = item.closest('[data-slot="dropdown-menu-content"]');
+
+    expect(content?.classList.contains('fve-root')).toBe(true);
+    expect(content?.getAttribute('data-theme')).toBe('dark');
     expect(content?.closest('[data-slot="view-surface"]')).toBeNull();
   });
 
@@ -104,9 +145,8 @@ describe('popups carry the theme out of the root', () => {
       </div>,
     );
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
-    const popup = await screen.findByRole('listbox');
-    return popup.closest('[data-slot="combobox-content"]');
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    return findFieldPicker();
   }
 
   it('carries the mode a following surface resolved from the cascade', async () => {

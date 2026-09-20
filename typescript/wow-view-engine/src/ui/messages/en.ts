@@ -23,6 +23,7 @@ import { saveMessages } from './save.js';
 import { scopeMessages } from './scope.js';
 import { statusMessages } from './status.js';
 import { viewMessages } from './view.js';
+import { workbenchMessages } from './workbench.js';
 
 /**
  * English wording for everything this package can report, by area.
@@ -49,4 +50,5 @@ export const en = {
   ...dashboardMessages,
   ...statusMessages,
   ...definitionMessages,
+  ...workbenchMessages,
 } as const;

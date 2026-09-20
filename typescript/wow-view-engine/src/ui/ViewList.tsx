@@ -11,15 +11,15 @@
  * limitations under the License.
  */
 
-import { useId, useState } from 'react';
-import { LayersIcon, Settings2Icon } from 'lucide-react';
+import { useId, type RefObject } from 'react';
+import { LayersIcon, PanelLeftCloseIcon, Settings2Icon } from 'lucide-react';
 import {
   audienceOf,
   isSystemScope,
   type ViewAudience,
   type ViewInstanceSummary,
 } from '../model/index.js';
-import type { ViewListState, ViewManagerController } from '../react/index.js';
+import type { ViewListState } from '../react/index.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import {
@@ -34,7 +34,6 @@ import { useViewMessages } from './MessagesProvider.js';
 import { Skeleton } from './components/skeleton.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { TooltipContent } from './popups.js';
-import { ViewManager } from './ViewManager.js';
 
 export interface ViewListProps {
   list: ViewListState;
@@ -48,18 +47,25 @@ export interface ViewListProps {
   currentId: string | null;
   onOpen(instanceId: string): void;
   /**
-   * Renaming, deleting, reordering and the default view. Given one, the
-   * heading grows a button that opens the manager; left out, the list is a
-   * list — a host that hands out no write permissions gets no manage button
-   * rather than a dialog full of nothing.
+   * Opens the view manager — renaming, deleting, reordering and the default
+   * view. Given one, the heading grows a button for it; left out, the list is
+   * a list. The dialog itself is not the list's: the header offers the same
+   * way in while the list is collapsed away, and two entries onto two dialogs
+   * would be two dialogs, so whoever draws both holds the open state.
    */
-  manager?: ViewManagerController;
+  onManage?(): void;
   /**
-   * The open view, when it has edits that were never saved. It is the
-   * manager's to say in a delete confirmation, and only the workbench holds
-   * the runtime it is read off; the list passes it through.
+   * Folds the list away. Given one, the heading grows the button that does
+   * it; left out, the list cannot be collapsed and says so by having no
+   * control for it.
    */
-  openDirtyId?: string | null;
+  onCollapse?(): void;
+  /**
+   * The collapse button itself, so whoever owns the state can put focus on
+   * the control that undoes what it just did. Expanding lands here; the
+   * button that expands lives in the title bar and is held there.
+   */
+  collapseRef?: RefObject<HTMLButtonElement | null>;
 }
 
 /**
@@ -86,12 +92,12 @@ export function ViewList({
   title,
   currentId,
   onOpen,
-  manager,
-  openDirtyId = null,
+  onManage,
+  onCollapse,
+  collapseRef,
 }: ViewListProps) {
   const messages = useViewMessages();
   const headingId = useId();
-  const [managing, setManaging] = useState(false);
   return (
     <nav
       data-slot="view-list"
@@ -111,27 +117,30 @@ export function ViewList({
         >
           {title || messages.label('label.view.list')}
         </h2>
-        {manager && (
+        {onManage && (
           <Button
             variant="ghost"
             size="icon-sm"
             aria-label={messages.label('label.manage.open')}
-            onClick={() => setManaging(true)}
+            onClick={onManage}
           >
             <Settings2Icon />
           </Button>
         )}
+        {onCollapse && (
+          <Button
+            ref={collapseRef}
+            variant="ghost"
+            size="icon-sm"
+            aria-label={messages.label('label.workbench.collapse-sidebar')}
+            aria-expanded
+            onClick={onCollapse}
+          >
+            <PanelLeftCloseIcon />
+          </Button>
+        )}
       </div>
       <ViewListBody list={list} currentId={currentId} onOpen={onOpen} />
-      {manager && (
-        <ViewManager
-          manager={manager}
-          list={list}
-          open={managing}
-          onOpenChange={setManaging}
-          openDirtyId={openDirtyId}
-        />
-      )}
     </nav>
   );
 }

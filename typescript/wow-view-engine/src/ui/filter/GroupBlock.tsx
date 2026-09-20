@@ -20,9 +20,10 @@ import {
 } from '../../filter/index.js';
 import type { FilterTreeController } from '../../react/index.js';
 import { Button } from '../components/button.js';
-import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { AddEntry } from './AddEntry.js';
+import { ChoiceValue } from './inputs/shared.js';
+import { GROUP_OPERATOR_LABEL, GROUP_OPERATORS } from './groupOperators.js';
 import { ConditionPill, PendingDot } from './ConditionPill.js';
 
 /** One group as a framed block: its operator, its children, room to add. */
@@ -62,41 +63,36 @@ export function GroupBlock({
     <div
       data-slot="filter-group"
       role="group"
-      aria-label={messages.label(
-        group.op === 'or' ? 'label.filter.any-of' : 'label.filter.all-of',
-      )}
+      aria-label={messages.label(GROUP_OPERATOR_LABEL[group.op])}
       data-pending={pending || undefined}
       className="border-border relative flex flex-col gap-2 rounded-md border p-2"
     >
       {pending && <PendingDot />}
       <div className="flex items-center gap-1">
-        <ToggleGroup
-          value={[group.op]}
-          onValueChange={value => {
-            const next = value[0];
+        {/* One at a time rather than three abreast: the operator is a
+            sentence about the conditions below it ("All conditions"), and a
+            row of three shouted all three of them at a reader who only
+            needed to know which one was in force. Every operator is on
+            offer wherever a group is — the kernel admits all three in every
+            position — so none of them is ever shown as refused. */}
+        <ChoiceValue
+          value={group.op}
+          items={GROUP_OPERATORS.map(op => ({
+            value: op,
+            label: messages.label(GROUP_OPERATOR_LABEL[op]),
+          }))}
+          disabled={disabled}
+          onChange={next => {
             if (next === 'and' || next === 'or' || next === 'nor')
               filter.updateGroup(path, next);
           }}
-          variant="outline"
-          size="sm"
-          disabled={disabled}
-          aria-label={within(
+          label={within(
             scope,
             nested
               ? `${messages.label('label.filter.group-operator')} ${path.join('.')}`
               : messages.label('label.filter.group-operator'),
           )}
-        >
-          <ToggleGroupItem value="and">
-            {messages.label('label.filter.all-of')}
-          </ToggleGroupItem>
-          <ToggleGroupItem value="or">
-            {messages.label('label.filter.any-of')}
-          </ToggleGroupItem>
-          <ToggleGroupItem value="nor">
-            {messages.label('label.filter.none-of')}
-          </ToggleGroupItem>
-        </ToggleGroup>
+        />
 
         {nested && (
           <Button

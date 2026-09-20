@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { FieldOption } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
 import {
@@ -22,11 +22,10 @@ import {
 import {
   useRecordTable,
   useWorkbench,
-  type FilterEditorController,
   type RecordActionSlots,
 } from '../react/index.js';
-import { EditorBand } from './EditorBand.js';
 import { FilterPanel } from './FilterPanel.js';
+import { FilterModes, filterModeLabel } from './filter/FilterModes.js';
 import { RecordCards } from './RecordCards.js';
 import { RecordPagination } from './RecordPagination.js';
 import { RecordTable } from './RecordTable.js';
@@ -52,6 +51,14 @@ export interface RecordWorkbenchProps {
   locale?: string;
   optionsFor?(remote: string): FieldOption[] | undefined;
   /**
+   * The sidebar this workbench opens on. It is view state and nothing else —
+   * never saved, never asked about by the leave guard — so a host sets where
+   * it starts and the shell owns it from there.
+   */
+  defaultSidebarOpen?: boolean;
+  /** Told whenever the sidebar opens or closes, for a host that mirrors it. */
+  onSidebarOpenChange?(open: boolean): void;
+  /**
    * The host's own business actions: one over the view, one over a selection,
    * one per row. They are render functions rather than names in a config —
    * what may be *done* to a record belongs to the application that mounted
@@ -76,8 +83,15 @@ export function RecordWorkbench({
   messages: wording,
   locale,
   optionsFor,
+  defaultSidebarOpen,
+  onSidebarOpenChange,
   actions,
 }: RecordWorkbenchProps) {
+  // The host's wording, resolved here rather than read off the provider:
+  // `ViewSurface` is inside `WorkbenchShell`, so this component is above the
+  // context and would otherwise name the editor in English on a translated
+  // page.
+  const messages = useViewMessages(wording);
   const workbench = useWorkbench(engine, definitionId, {
     kind: 'record',
     instanceId,
@@ -99,6 +113,8 @@ export function RecordWorkbench({
       messages={wording}
       locale={locale}
       timeZone={engine.environment.timeZone}
+      defaultSidebarOpen={defaultSidebarOpen}
+      onSidebarOpenChange={onSidebarOpenChange}
       className="gap-2"
       // What the config says, plus what this result says about itself: a
       // summary row that had to fall back to the page is a fact about the
@@ -111,17 +127,15 @@ export function RecordWorkbench({
       actions={
         record && actions?.global?.({ runtime: record, refresh: table.refresh })
       }
+      editorLabel={messages.label('label.filter.panel')}
+      editorModeLabel={filterModeLabel(filter, messages)}
+      editorModes={<FilterModes filter={filter} />}
+      editorPending={filter.pendingCount}
       editor={
         /* Not frozen while a query runs: typing never re-queries, and a
            refresh that lands mid-edit must not take the input away. */
         runtime && (
-          <ConditionBand
-            key={runtime.id}
-            startOpen={state?.saved === null}
-            filter={filter}
-          >
-            <FilterPanel filter={filter} optionsFor={optionsFor} />
-          </ConditionBand>
+          <FilterPanel filter={filter} optionsFor={optionsFor} modes={false} />
         )
       }
       strips={
@@ -177,37 +191,4 @@ function bindRow(
   return row
     ? item => <RowActions>{row({ row: item, runtime, refresh })}</RowActions>
     : undefined;
-}
-
-/**
- * The fold the conditions live in, opened by what the view is rather than by
- * what the user last did to another one.
- *
- * It is its own component so a `key` can reset it: the open state belongs to
- * one opening of one view, and switching views has to start it over. A saved
- * view opens folded — its author already decided, and the rows are the point
- * — while a view that was never saved opens out, because there is nothing to
- * look at until it has been told what to ask for.
- */
-function ConditionBand({
-  startOpen,
-  filter,
-  children,
-}: {
-  startOpen: boolean;
-  filter: FilterEditorController;
-  children: ReactNode;
-}) {
-  const messages = useViewMessages();
-  const [open, setOpen] = useState(startOpen);
-  return (
-    <EditorBand
-      open={open}
-      onOpenChange={setOpen}
-      label={messages.label('label.filter.panel')}
-      pending={filter.pendingCount}
-    >
-      {children}
-    </EditorBand>
-  );
 }

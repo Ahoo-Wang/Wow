@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -66,12 +66,14 @@ function Harness({
   kind = 'record',
   actions,
   leading,
+  trailing,
 }: {
   engine: ViewEngine;
   runtime: AnyViewRuntime;
   kind?: ViewKind;
   actions?: ReactNode;
   leading?: ReactNode;
+  trailing?: ReactNode;
 }) {
   const state = useViewRuntime(runtime);
   const commands = useSaveCommands(engine, runtime);
@@ -83,6 +85,7 @@ function Harness({
         commands={commands}
         actions={actions}
         leading={leading}
+        trailing={trailing}
       />
     </ViewSurface>
   );
@@ -129,6 +132,13 @@ function header(): HTMLElement {
 function title(): HTMLElement {
   const found = document.querySelector('[data-slot="view-title"]');
   if (!found) throw new Error('no title');
+  return found as HTMLElement;
+}
+
+/** One of the title bar's two groups, by the slot it is drawn under. */
+function group(slot: 'view-identity' | 'view-controls'): HTMLElement {
+  const found = header().querySelector(`[data-slot="${slot}"]`);
+  if (!found) throw new Error(`no ${slot}`);
   return found as HTMLElement;
 }
 
@@ -212,7 +222,13 @@ describe('ViewHeader', () => {
     expect(await screen.findByText('Analysis view')).toBeDefined();
   });
 
-  it("puts the host's own actions before the save commands", async () => {
+  /**
+   * The bar reads as two groups and nothing crosses between them: saving a
+   * view is part of saying which view this is, and the host's own buttons
+   * end the line — so a page that adds one never has to know what this
+   * package happens to be drawing beside it.
+   */
+  it("ends the line with the host's own actions", async () => {
     const { engine } = setup();
     const runtime = await engine.open('orders-1');
     render(
@@ -223,10 +239,75 @@ describe('ViewHeader', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Export' })).toBeDefined();
+    const controls = group('view-controls');
+    expect(
+      within(controls).getByRole('button', { name: 'Export' }),
+    ).toBeDefined();
+    expect(controls.lastElementChild?.textContent).toBe('Export');
+  });
+
+  it('keeps the save commands with the view they save', async () => {
+    const { engine } = setup();
+    const runtime = await engine.open('orders-1');
+    render(
+      <Harness
+        engine={engine}
+        runtime={runtime}
+        actions={<button type="button">Export</button>}
+      />,
+    );
+
+    const identity = group('view-identity');
+    expect(identity.querySelector('[data-slot="save-actions"]')).not.toBeNull();
+    // The title they act on is in the same group and the host's button is
+    // not: the two sides of the bar are drawn apart.
+    expect(identity.contains(title())).toBe(true);
+    expect(
+      within(identity).queryByRole('button', { name: 'Export' }),
+    ).toBeNull();
+  });
+
+  /**
+   * The controls for how the view is being looked at come before the host's
+   * own, by the same rule: everything ahead of the host's buttons is this
+   * package's.
+   */
+  it('puts what governs the view before what the host added', async () => {
+    const { engine } = setup();
+    const runtime = await engine.open('orders-1');
+    render(
+      <Harness
+        engine={engine}
+        runtime={runtime}
+        trailing={<button type="button">Filter</button>}
+        actions={<button type="button">Export</button>}
+      />,
+    );
+
+    const texts = Array.from(group('view-controls').children).map(
+      child => child.textContent,
+    );
+    expect(texts[0]).toBe('Filter');
+    expect(texts[texts.length - 1]).toBe('Export');
     // A separator earns its place only when there are two sides to divide.
     expect(header().querySelectorAll('[data-slot="separator"]')).toHaveLength(
       1,
+    );
+  });
+
+  it('draws no separator with only one side to the controls', async () => {
+    const { engine } = setup();
+    const runtime = await engine.open('orders-1');
+    render(
+      <Harness
+        engine={engine}
+        runtime={runtime}
+        actions={<button type="button">Export</button>}
+      />,
+    );
+
+    expect(header().querySelectorAll('[data-slot="separator"]')).toHaveLength(
+      0,
     );
   });
 

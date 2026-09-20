@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-import type { FocusEvent } from 'react';
+import type { FocusEvent, KeyboardEvent } from 'react';
 import type { FieldOption } from '../model/index.js';
 import type { FilterEditorController } from '../react/index.js';
-import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
 import { AddEntry } from './filter/AddEntry.js';
+import { FilterModeToggle } from './filter/FilterModes.js';
 import { FilterActions } from './filter/FilterActions.js';
 import { ConditionStrip, GroupBlock } from './filter/GroupBlock.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -32,6 +32,17 @@ export interface FilterPanelProps {
    * twice.
    */
   submit?: boolean;
+  /**
+   * Whether the panel carries its own control over the editing mode.
+   *
+   * False where the surface around it has a better place for one — a
+   * workbench whose only editor is this panel puts it on the fold's toggle
+   * in the title bar. True, the default, everywhere else: a workbench whose
+   * editor is this panel *and something else* cannot fold both under the
+   * word "Filter", and a mode that exists but cannot be reached is a
+   * capability the user has lost rather than a tidier screen.
+   */
+  modes?: boolean;
 }
 
 /**
@@ -43,16 +54,24 @@ export interface FilterPanelProps {
  * since it is one. Simple mode shows the root's conditions as one strip;
  * anything the simple editor cannot show faithfully — a group anywhere — gets
  * the advanced one, where groups can be flipped between and/or, nested,
- * filled and removed.
+ * filled and removed. Where the surface around the panel has a place for the
+ * mode — the fold's toggle in a workbench whose only editor is this panel —
+ * it takes it (`modes={false}`), because a control for *how* to edit sitting
+ * among the conditions was a line of chrome over every filter ever written.
+ * Where it has not, the panel keeps its own: a mode that exists but cannot be
+ * reached is a capability lost, not a tidier screen.
  *
  * Nothing is applied until submit, which is the whole point of keeping a
- * draft apart from what ran: typing in here never re-queries.
+ * draft apart from what ran: typing in here never re-queries. Enter in a
+ * value editor is the one shortcut to that submit — the same command the
+ * Apply button runs, refused under the same conditions.
  */
 export function FilterPanel({
   filter,
   optionsFor,
   disabled,
   submit = true,
+  modes = true,
 }: FilterPanelProps) {
   const advanced = filter.mode === 'advanced' || !filter.simple;
   const messages = useViewMessages();
@@ -69,6 +88,9 @@ export function FilterPanel({
     <section
       data-slot="filter-panel"
       aria-label={messages.label('label.filter.panel')}
+      // Announced rather than only implemented: a keyboard shortcut nobody
+      // can discover is a shortcut for whoever wrote it.
+      aria-keyshortcuts={submit ? 'Enter' : undefined}
       className="flex flex-col gap-3"
       // Auto-refresh holds while any control in here has focus. Focus events
       // bubble in React, so the root sees every input; a move from one
@@ -79,29 +101,24 @@ export function FilterPanel({
       onBlur={event => {
         if (leavesEditor(event)) filter.blur();
       }}
+      // Enter in a value editor is the same decision the Apply button is, so
+      // it runs the same command under the same conditions — never while
+      // apply is refused, and never when the keystroke was already somebody
+      // else's (see `appliesOnEnter`).
+      onKeyDown={event => {
+        if (!submit || disabled || filter.blocked > 0) return;
+        if (!appliesOnEnter(event)) return;
+        // The panel has taken the keystroke; nothing above it — a host's own
+        // form, most of all — should act on it a second time.
+        event.preventDefault();
+        filter.submit();
+      }}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <ToggleGroup
-          // The effective mode, not the saved one: a simple config holding a
-          // tree the simple editor cannot show opens in the advanced one, and
-          // the toggle says so instead of contradicting the editor below.
-          value={[advanced ? 'advanced' : 'simple']}
-          onValueChange={value => {
-            const next = value[0];
-            if (next === 'simple' || next === 'advanced') filter.setMode(next);
-          }}
-          variant="outline"
-          size="sm"
-          aria-label={messages.label('label.filter.mode')}
-        >
-          <ToggleGroupItem value="simple">
-            {messages.label('label.filter.simple')}
-          </ToggleGroupItem>
-          <ToggleGroupItem value="advanced">
-            {messages.label('label.filter.advanced')}
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </div>
+      {modes && (
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterModeToggle filter={filter} disabled={disabled} />
+        </div>
+      )}
 
       {overBudget ? (
         <p
@@ -158,13 +175,61 @@ export function FilterPanel({
 }
 
 /**
+ * Whether `node` is the element the event was handled on, or something
+ * inside it. Every boundary question below is this one asked of a different
+ * node, because a React event says nothing about where in the DOM it
+ * started: it bubbles through a portal just as it bubbles through a child.
+ */
+function within(root: HTMLElement, node: EventTarget | null): boolean {
+  return node instanceof Node && root.contains(node);
+}
+
+/**
  * Whether a focus event entered or left the element it was handled on, as
  * opposed to moving between two of its descendants. `relatedTarget` is the
  * other side of the move: on focus the element left, on blur the one gained.
  */
 export function crossesBoundary(event: FocusEvent<HTMLElement>): boolean {
-  const other = event.relatedTarget;
-  return !(other instanceof Node && event.currentTarget.contains(other));
+  return !within(event.currentTarget, event.relatedTarget);
+}
+
+/**
+ * Whether this Enter means "apply".
+ *
+ * The panel listens at its root so every value editor gets the shortcut
+ * without knowing about it, and the cost of listening that high is that
+ * keystrokes arrive which were never meant for it. Four of them are not:
+ *
+ * - one an IME is using to accept the characters being composed, which is
+ *   not a press of Enter at all as far as the user is concerned;
+ * - one held with a modifier, which is some other shortcut, possibly the
+ *   host page's;
+ * - one inside a popup of one of the panel's own controls — a select's list,
+ *   a date picker, a combobox. It is portalled outside the panel, yet a
+ *   React event still bubbles here from it, and while it is open Enter is
+ *   its answer to give. Base UI marks the open trigger, which is the same
+ *   mark `leavesEditor` reads;
+ * - one on a control that acts on Enter itself. Enter on "Add" opens the
+ *   field picker and Enter on Clear clears: one keystroke, one meaning, and
+ *   the panel does not get to add a second.
+ */
+function appliesOnEnter(event: KeyboardEvent<HTMLElement>): boolean {
+  if (event.key !== 'Enter') return false;
+  if (event.nativeEvent.isComposing) return false;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
+    return false;
+  if (!within(event.currentTarget, event.target)) return false;
+  if (event.currentTarget.querySelector('[data-popup-open]') !== null)
+    return false;
+  return !actsOnEnter(event.target);
+}
+
+/** Controls whose own answer to Enter the panel must not talk over. */
+const ENTER_IS_TAKEN =
+  'button, a[href], summary, textarea, [role="button"], [role="link"]';
+
+function actsOnEnter(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(ENTER_IS_TAKEN) !== null;
 }
 
 /**

@@ -47,9 +47,12 @@ export function TextValue({
       aria-label={label}
       disabled={disabled}
       value={text}
-      placeholder={
-        multiple ? messages.label('label.filter.comma-separated') : undefined
-      }
+      // A condition with no value yet is a normal editing state rather than a
+      // mistake, so the box says what is missing instead of standing empty
+      // and looking finished.
+      placeholder={messages.label(
+        multiple ? 'label.filter.comma-separated' : 'label.filter.not-set',
+      )}
       onChange={event => {
         const raw = event.target.value;
         if (!multiple) {

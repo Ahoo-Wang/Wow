@@ -60,6 +60,30 @@ import { mine, mixed, setup } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
+/**
+ * The handle of the editor's fold, in the title bar. Its accessible name
+ * carries the mode in force — "Filter · Simple" — so it is matched by what
+ * it starts with rather than by the whole of it.
+ */
+function editorToggle(): HTMLElement {
+  return screen.getByRole('button', { name: /^Filter/ });
+}
+
+/**
+ * Conditions added the way a user adds them: the field picker is a checklist
+ * that stays open while several fields are ticked, and Done is the way out.
+ */
+async function addConditions(fields: string[]): Promise<void> {
+  fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+  const picker = await screen.findByRole('dialog', {
+    name: 'Choose filter fields',
+  });
+  for (const field of fields)
+    fireEvent.click(within(picker).getByRole('checkbox', { name: field }));
+  fireEvent.click(within(picker).getByRole('button', { name: 'Done' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+}
+
 describe('RecordWorkbench', () => {
   /** A second view to switch to, so leaving one is a thing that can happen. */
   const yours: ViewInstance = { ...mine, id: 'orders-2', title: 'Yours' };
@@ -193,9 +217,7 @@ describe('RecordWorkbench', () => {
     );
 
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
-    // The page reads top to bottom: which view this is, the conditions
-    // folded away, what the rows were fetched under, the toolbar, the rows.
-    expect(
+    const order = () =>
       [...document.querySelectorAll('[data-slot]')]
         .map(node => node.getAttribute('data-slot'))
         .filter(slot =>
@@ -206,19 +228,30 @@ describe('RecordWorkbench', () => {
             'result-toolbar',
             'record-pagination',
           ].includes(slot ?? ''),
-        ),
-    ).toEqual([
+        );
+
+    // A saved view opens folded, and the fold is an unmount rather than a
+    // hide: neither the band nor the way out of it is on the page.
+    expect(order()).toEqual([
+      'view-header',
+      'applied-bar',
+      'result-toolbar',
+      'record-pagination',
+    ]);
+    expect(screen.queryByRole('button', { name: /Apply/ })).toBeNull();
+
+    fireEvent.click(editorToggle());
+
+    // Out, the page reads top to bottom: which view this is, the conditions,
+    // what the rows were fetched under, the toolbar, the rows.
+    expect(await screen.findByRole('button', { name: /Apply/ })).toBeDefined();
+    expect(order()).toEqual([
       'view-header',
       'editor-band',
       'applied-bar',
       'result-toolbar',
       'record-pagination',
     ]);
-    // A saved view opens folded, so the way out of the editor is not on
-    // screen until the band is opened.
-    expect(screen.queryByRole('button', { name: /Apply/ })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
-    expect(await screen.findByRole('button', { name: /Apply/ })).toBeDefined();
     // The sidebar carries the definition's own title.
     expect(screen.getByRole('navigation', { name: 'Orders' })).toBeDefined();
   });
@@ -692,7 +725,7 @@ describe('RecordWorkbench interaction', () => {
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
     // Every saved view opens with its conditions folded away; the tests
     // below are about what is inside the fold.
-    fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    fireEvent.click(editorToggle());
     await screen.findByRole('button', { name: /Apply/ });
     return harness;
   }
@@ -700,8 +733,7 @@ describe('RecordWorkbench interaction', () => {
   it('adds a condition, edits it and applies it', async () => {
     const { source } = await open();
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Warehouse' }));
+    await addConditions(['Warehouse']);
 
     const value = await screen.findByLabelText('warehouse value');
     fireEvent.change(value, { target: { value: 'CN' } });
@@ -719,15 +751,13 @@ describe('RecordWorkbench interaction', () => {
   it('removes a condition and clears the tree', async () => {
     await open();
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Warehouse' }));
+    await addConditions(['Warehouse']);
     await screen.findByLabelText('warehouse value');
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove Warehouse' }));
     expect(screen.queryByLabelText('warehouse value')).toBeNull();
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Warehouse' }));
+    await addConditions(['Warehouse']);
     await screen.findByLabelText('warehouse value');
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
 
@@ -816,17 +846,30 @@ describe('RecordWorkbench interaction', () => {
     );
   });
 
+  /**
+   * The mode is a way of editing rather than part of the filter, so it is a
+   * menu on the editor's own toggle rather than a row inside the panel.
+   */
   it('switches the filter editor to advanced mode', async () => {
     const user = userEvent.setup();
     await open();
 
-    await user.click(screen.getByRole('button', { name: 'Advanced' }));
-
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Advanced' }).ariaPressed).toBe(
-        'true',
-      ),
+    await user.click(screen.getByRole('button', { name: 'Editor options' }));
+    await user.click(
+      await screen.findByRole('menuitemradio', { name: 'Advanced' }),
     );
+
+    // The toggle's own name is the mode in force, said without the menu
+    // being opened a second time.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Filter · Advanced' }),
+      ).toBeDefined(),
+    );
+    // And the panel below is the advanced editor: a group with an operator.
+    expect(
+      screen.getByRole('combobox', { name: 'Group operator' }),
+    ).toBeDefined();
   });
 
   it('keeps the filter editable while a query is still running', async () => {
@@ -839,14 +882,13 @@ describe('RecordWorkbench interaction', () => {
         instanceId="orders-1"
       />,
     );
-    fireEvent.click(await screen.findByRole('button', { name: 'Filter' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Filter/ }));
     const apply = await screen.findByRole('button', { name: /Apply/ });
 
     // The rows are still coming. Typing never re-queries and the next apply
     // supersedes the request in flight, so nothing here has to wait for it.
     expect(apply.hasAttribute('disabled')).toBe(false);
-    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Warehouse' }));
+    await addConditions(['Warehouse']);
     const value = await screen.findByLabelText('warehouse value');
     expect((value as HTMLInputElement).disabled).toBe(false);
     fireEvent.change(value, { target: { value: 'CN' } });
@@ -1406,9 +1448,11 @@ describe('the record workbench layout', () => {
     workbench([mine]);
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
 
-    const band = screen.getByRole('button', { name: /^Filter/ });
-    expect(band.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.queryByRole('combobox', { name: 'Add' })).toBeNull();
+    expect(editorToggle().getAttribute('aria-expanded')).toBe('false');
+    // Folded is unmounted, not hidden: a fold that kept the draft's inputs
+    // on the page would keep them in the tab order too.
+    expect(document.querySelector('[data-slot="editor-band"]')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
   });
 
   /**
@@ -1436,7 +1480,7 @@ describe('the record workbench layout', () => {
 
     const band = await screen.findByRole('button', { name: /^Filter/ });
     expect(band.getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByRole('combobox', { name: 'Add' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDefined();
     // And it says so beside the title, where the save button would otherwise
     // have to be read to find out.
     expect(screen.getByText('Not saved yet')).toBeDefined();
@@ -1446,20 +1490,17 @@ describe('the record workbench layout', () => {
     workbench([mine]);
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
 
-    fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
-    fireEvent.click(await screen.findByRole('combobox', { name: 'Add' }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Warehouse' }));
+    fireEvent.click(editorToggle());
+    await addConditions(['Warehouse']);
     fireEvent.change(await screen.findByLabelText('warehouse value'), {
       target: { value: 'CN' },
     });
 
     // Folded again, the count is the one thing left saying the editor holds
     // something the rows below were not fetched under.
-    fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
+    fireEvent.click(editorToggle());
     await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: /^Filter/ }).textContent,
-      ).toContain('1 not applied'),
+      expect(editorToggle().textContent).toContain('1 not applied'),
     );
   });
 

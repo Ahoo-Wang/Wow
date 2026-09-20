@@ -20,6 +20,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
@@ -99,7 +100,14 @@ function setup(permissions = permitting()) {
   return { engine, store };
 }
 
-/** The sidebar with its manager, which is how a user reaches the dialog. */
+/**
+ * The sidebar with its manager, which is how a user reaches the dialog.
+ *
+ * The list no longer renders the dialog: one dialog is opened from two
+ * places — the sidebar's gear and the collapsed header's switcher — so
+ * whoever draws both holds the open state. Here that is this harness, as it
+ * is `WorkbenchShell` in the real thing.
+ */
 function Sidebar({
   engine,
   withManager = true,
@@ -109,14 +117,23 @@ function Sidebar({
 }) {
   const list = useViewList(engine, 'orders');
   const manager = useViewManager(engine, 'orders', list);
+  const [open, setOpen] = useState(false);
   return (
     <ViewSurface>
       <ViewList
         list={list}
         currentId={null}
         onOpen={() => undefined}
-        manager={withManager ? manager : undefined}
+        onManage={withManager ? () => setOpen(true) : undefined}
       />
+      {withManager && (
+        <ViewManager
+          manager={manager}
+          list={list}
+          open={open}
+          onOpenChange={setOpen}
+        />
+      )}
     </ViewSurface>
   );
 }
@@ -188,7 +205,7 @@ async function standalone(engine: ViewEngine, openDirtyId?: string | null) {
 }
 
 describe('the manage button on the view list', () => {
-  it('is there only when a manager was given', async () => {
+  it('is there only when the list was given a way in', async () => {
     const { engine } = setup();
     render(<Sidebar engine={engine} withManager={false} />);
     await screen.findByRole('button', { name: /Mine/ });

@@ -20,6 +20,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
@@ -37,9 +38,9 @@ import {
   RecordWorkbench,
   zhCN,
 } from '../src/ui/index.js';
-import type { ViewMessages } from '../src/ui/index.js';
+import type { FilterPanelProps, ViewMessages } from '../src/ui/index.js';
 import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
-import { mine, setup } from './fixtures/ui.js';
+import { mine, mixed, setup } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -72,6 +73,8 @@ describe('FilterPanel tree editing', () => {
     disabled = false,
     definition = ordersDefinition(),
     messages?: ViewMessages,
+    /** What the surface around the panel has taken off its hands. */
+    props: Partial<FilterPanelProps> = {},
   ): PanelHarness {
     const engine = new ViewEngine({
       definitions: [definition],
@@ -89,7 +92,7 @@ describe('FilterPanel tree editing', () => {
     function Probe() {
       const filter = useFilterEditor(runtime);
       latest = filter;
-      return <FilterPanel filter={filter} disabled={disabled} />;
+      return <FilterPanel filter={filter} disabled={disabled} {...props} />;
     }
     render(
       <MessagesProvider messages={messages}>
@@ -97,6 +100,41 @@ describe('FilterPanel tree editing', () => {
       </MessagesProvider>,
     );
     return { filter: () => latest as ReturnType<typeof useFilterEditor> };
+  }
+
+  /**
+   * The field picker, opened. It is a checklist in a popover that stays open
+   * while several fields are ticked, so every field question below is asked
+   * of the one dialog rather than of the page.
+   */
+  async function openPicker(
+    name = 'Add',
+    // Every group carries an "Add in this group" of its own, so a nested
+    // one's is reached through the group rather than through the page.
+    from: HTMLElement = document.body,
+  ): Promise<HTMLElement> {
+    fireEvent.click(within(from).getByRole('button', { name }));
+    return screen.findByRole('dialog', { name: 'Choose filter fields' });
+  }
+
+  /** Ticking a field is what adds its condition; Done is the way out. */
+  async function add(
+    fields: string[],
+    name = 'Add',
+    from?: HTMLElement,
+  ): Promise<void> {
+    const picker = await openPicker(name, from);
+    for (const field of fields)
+      fireEvent.click(within(picker).getByRole('checkbox', { name: field }));
+    fireEvent.click(within(picker).getByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  }
+
+  /** A group's operator, chosen from the select that shows one at a time. */
+  async function choose(name: string, option: string): Promise<void> {
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox', { name }));
+    await user.click(await screen.findByRole('option', { name: option }));
   }
 
   it('lists the fields of the picker by the groups the definition declares', async () => {
@@ -108,8 +146,9 @@ describe('FilterPanel tree editing', () => {
     });
     panel(false, grouped);
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
-    const text = (await screen.findByRole('listbox')).textContent ?? '';
+    const picker = await openPicker();
+    const text =
+      picker.querySelector('[data-slot="field-checklist"]')?.textContent ?? '';
 
     // Ungrouped fields first, then each declared group under its label, in
     // the catalogue's order rather than the fields' own.
@@ -123,30 +162,76 @@ describe('FilterPanel tree editing', () => {
 
   it('narrows the fields to what is typed, across every group', async () => {
     panel();
-    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
-    const search = await screen.findByRole('combobox', {
+    const picker = await openPicker();
+    const search = within(picker).getByRole('textbox', {
       name: 'Search fields',
     });
 
     fireEvent.change(search, { target: { value: 'sta' } });
 
-    const names = (await screen.findAllByRole('option')).map(
-      option => option.textContent,
+    await waitFor(() =>
+      expect(within(picker).getAllByRole('checkbox')).toHaveLength(1),
     );
-    expect(names).toEqual(['Status']);
+    expect(
+      within(picker).getByRole('checkbox', { name: 'Status' }),
+    ).toBeTruthy();
   });
 
-  it('offers a field once per group when adding a condition', async () => {
+  /**
+   * A group holds at most one condition per field, and the list says so by
+   * showing the field ticked rather than by dropping it: the tick is the
+   * condition's existence, which is what makes unticking mean "take it away".
+   */
+  it('shows a field already in the group as ticked, not as a second entry', async () => {
     const { filter } = panel();
     act(() => filter().addLeaf('warehouse'));
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
+    const picker = await openPicker();
 
-    const names = (await screen.findAllByRole('option')).map(
-      item => item.textContent,
+    const box = (name: string) =>
+      within(picker).getByRole('checkbox', { name });
+    expect(
+      within(picker).getAllByRole('checkbox', { name: 'Warehouse' }),
+    ).toHaveLength(1);
+    expect(box('Warehouse').getAttribute('aria-checked')).toBe('true');
+    expect(box('Status').getAttribute('aria-checked')).toBe('false');
+  });
+
+  /** The other half of the same tick: clearing one takes the condition out. */
+  it('removes the condition of a field that is unticked', async () => {
+    const { filter } = panel();
+    act(() => filter().addLeaf('warehouse'));
+
+    const picker = await openPicker();
+    fireEvent.click(
+      within(picker).getByRole('checkbox', { name: 'Warehouse' }),
     );
-    expect(names).toContain('Status');
-    expect(names).not.toContain('Warehouse');
+
+    await waitFor(() => expect(filter().tree.children).toHaveLength(0));
+  });
+
+  /**
+   * Building a filter is choosing several fields, and a menu that closed on
+   * each one made that one round trip per condition.
+   */
+  it('stays open while more than one field is ticked', async () => {
+    const { filter } = panel();
+
+    const picker = await openPicker();
+    fireEvent.click(
+      within(picker).getByRole('checkbox', { name: 'Warehouse' }),
+    );
+    fireEvent.click(within(picker).getByRole('checkbox', { name: 'Status' }));
+
+    expect(
+      filter().tree.children.map(child => (child as { field: string }).field),
+    ).toEqual(['warehouse', 'status']);
+    expect(
+      screen.getByRole('dialog', { name: 'Choose filter fields' }),
+    ).toBeDefined();
+
+    fireEvent.click(within(picker).getByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('leaves the applied summary to the bar that owns it', () => {
@@ -170,17 +255,20 @@ describe('FilterPanel tree editing', () => {
       '[data-slot="filter-actions"]',
     ) as HTMLElement;
 
-    // The top row is the mode switch alone; everything that acts on the tree
-    // sits under the tree it acts on.
-    expect(
-      within(actions).getByRole('combobox', { name: 'Add' }),
-    ).toBeDefined();
+    // Everything that acts on the tree sits in one row under the tree it
+    // acts on.
+    expect(within(actions).getByRole('button', { name: 'Add' })).toBeDefined();
     expect(
       within(actions).getByRole('button', { name: 'Clear' }),
     ).toBeDefined();
     expect(
       within(actions).getByRole('button', { name: /Apply/ }),
     ).toBeDefined();
+    // The mode is not one of them: it is a way of editing rather than a
+    // thing done to the tree, so it keeps its own place at the top.
+    expect(
+      within(actions).queryByRole('button', { name: 'Advanced' }),
+    ).toBeNull();
     const conditions = document.querySelector(
       '[data-slot="filter-conditions"]',
     ) as HTMLElement;
@@ -208,9 +296,30 @@ describe('FilterPanel tree editing', () => {
 
     // An editor applied from elsewhere keeps its fields and loses the pair
     // that would run the query a second time.
-    expect(screen.getByRole('combobox', { name: 'Add' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Apply/ })).toBeNull();
+  });
+
+  it('keeps the mode reachable when nothing outside offers it', () => {
+    panel();
+
+    // The default. A workbench whose editor is this panel and something
+    // else besides cannot fold both under the word "Filter", so the choice
+    // stays here — a mode that exists but cannot be reached is a capability
+    // lost rather than a tidier screen.
+    const root = screen.getByRole('region', { name: 'Filter' });
+    expect(
+      within(root).getByRole('button', { name: 'Advanced' }),
+    ).toBeDefined();
+  });
+
+  it('gives the mode up to a surface that has taken it', () => {
+    panel(false, ordersDefinition(), undefined, { modes: false });
+
+    const root = screen.getByRole('region', { name: 'Filter' });
+    expect(within(root).queryByRole('button', { name: 'Simple' })).toBeNull();
+    expect(within(root).queryByRole('button', { name: 'Advanced' })).toBeNull();
   });
 
   it('marks a condition, and the button that would run it, as not applied', async () => {
@@ -234,6 +343,111 @@ describe('FilterPanel tree editing', () => {
     expect(apply().hasAttribute('data-pending')).toBe(false);
   });
 
+  /**
+   * The other end of the same decision Apply is, and only while there is one
+   * to end: a button that would change nothing teaches nothing.
+   */
+  it('offers to discard the edits only while there are some', async () => {
+    const { filter } = panel();
+    expect(screen.queryByRole('button', { name: 'Discard edits' })).toBeNull();
+
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().updateLeaf([0], { value: 'CN' });
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Discard edits' }));
+
+    // Back to what the rows on screen were fetched under, which here is
+    // nothing at all — and with nothing pending the way back goes too.
+    await waitFor(() => expect(filter().tree.children).toHaveLength(0));
+    expect(screen.queryByRole('button', { name: 'Discard edits' })).toBeNull();
+  });
+
+  /** Enter in a value editor is the same command the Apply button runs. */
+  it('applies on Enter from a value editor', () => {
+    const { filter } = panel();
+    const submit = vi.fn();
+    act(() => filter().addLeaf('warehouse'));
+    const value = screen.getByLabelText('warehouse value');
+    vi.spyOn(filter(), 'submit').mockImplementation(submit);
+
+    fireEvent.keyDown(value, { key: 'Enter' });
+
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves Enter alone on a control that answers it itself', () => {
+    const { filter } = panel();
+    const submit = vi.fn();
+    act(() => filter().addLeaf('warehouse'));
+    vi.spyOn(filter(), 'submit').mockImplementation(submit);
+
+    // Enter on "Add" opens the field picker: one keystroke, one meaning.
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Add' }), {
+      key: 'Enter',
+    });
+
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The panel listens at its root, so keystrokes reach it that were never
+   * meant for it. Each of these is one of those, and each has its own
+   * reason for not being an apply.
+   */
+  it.each([
+    // An IME uses Enter to accept the characters being composed. As far as
+    // the user is concerned that is not a press of Enter at all.
+    ['while an IME is composing', { key: 'Enter', isComposing: true }],
+    // Enter with a modifier is some other shortcut, possibly the host's.
+    ['with a modifier held', { key: 'Enter', shiftKey: true }],
+    ['with the platform modifier held', { key: 'Enter', metaKey: true }],
+    ['with control held', { key: 'Enter', ctrlKey: true }],
+    ['with alt held', { key: 'Enter', altKey: true }],
+    // Any other key is nobody's business but the input's.
+    ['on any other key', { key: 'a' }],
+  ])('does not apply %s', (_name, init) => {
+    const { filter } = panel();
+    const submit = vi.fn();
+    act(() => filter().addLeaf('warehouse'));
+    const value = screen.getByLabelText('warehouse value');
+    vi.spyOn(filter(), 'submit').mockImplementation(submit);
+
+    fireEvent.keyDown(value, init);
+
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it('does not apply from inside a popup one of its controls opened', () => {
+    const { filter } = panel();
+    const submit = vi.fn();
+    act(() => filter().addLeaf('warehouse'));
+    const value = screen.getByLabelText('warehouse value');
+    vi.spyOn(filter(), 'submit').mockImplementation(submit);
+
+    // Base UI marks the trigger of an open popup, which is the same mark
+    // `leavesEditor` reads. While one is open, Enter is its answer to give.
+    const trigger = screen.getByRole('button', { name: 'Add' });
+    trigger.setAttribute('data-popup-open', '');
+    fireEvent.keyDown(value, { key: 'Enter' });
+
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it('refuses Enter on exactly the terms the Apply button refuses', () => {
+    const { filter } = panel(true);
+    const submit = vi.fn();
+    act(() => filter().addLeaf('warehouse'));
+    const value = screen.getByLabelText('warehouse value');
+    vi.spyOn(filter(), 'submit').mockImplementation(submit);
+
+    // Disabled here; `blocked` is the other half of the same rule, and the
+    // button that will not move is the one this shortcut stands in for.
+    fireEvent.keyDown(value, { key: 'Enter' });
+
+    expect(submit).not.toHaveBeenCalled();
+  });
+
   it('marks a group that was flipped since the last apply', () => {
     const { filter } = panel();
     act(() => {
@@ -241,7 +455,7 @@ describe('FilterPanel tree editing', () => {
       filter().addGroup('or');
     });
 
-    const group = screen.getByRole('group', { name: 'Any of' });
+    const group = screen.getByRole('group', { name: 'Any condition' });
     expect(group.hasAttribute('data-pending')).toBe(true);
   });
 
@@ -350,49 +564,40 @@ describe('FilterPanel tree editing', () => {
     // The nested condition stays visible and editable rather than dropped.
     expect(screen.getByLabelText('warehouse value')).toBeDefined();
     expect(screen.getByLabelText('status value')).toBeDefined();
-    expect(screen.getByRole('group', { name: 'Any of' })).toBeDefined();
+    expect(screen.getByRole('group', { name: 'Any condition' })).toBeDefined();
   });
 
-  it('flips a group between all and any', () => {
+  it('flips a group between all and any', async () => {
     const { filter } = panel();
     act(() => filter().addGroup('and'));
-    // The root stays `All of`; the toggle inside the nested group is the one
-    // that flips, and both render an "Any of" button of their own.
-    const toggles = document.querySelector(
-      '[aria-label="Group operator 0"]',
-    ) as HTMLElement;
 
-    fireEvent.click(within(toggles).getByRole('button', { name: 'Any of' }));
+    // The root keeps its own select; the nested group's is told apart by the
+    // path in its name, and it is the one that flips.
+    await choose('Group operator 0', 'Any condition');
 
     expect(filter().tree.children[0]).toMatchObject({ op: 'or' });
   });
 
-  it('flips the root group too, not only the nested ones', () => {
+  it('flips the root group too, not only the nested ones', async () => {
     const { filter } = panel();
     act(() => {
       filter().setMode('advanced');
       filter().addLeaf('warehouse');
     });
-    const root = document.querySelector(
-      '[aria-label="Group operator"]',
-    ) as HTMLElement;
 
-    fireEvent.click(within(root).getByRole('button', { name: 'Any of' }));
+    await choose('Group operator', 'Any condition');
 
     expect(filter().tree.op).toBe('or');
   });
 
-  it('offers "none of" and writes it to the tree', () => {
+  it('offers "no condition" and writes it to the tree', async () => {
     const { filter } = panel();
     act(() => {
       filter().setMode('advanced');
       filter().addLeaf('warehouse');
     });
-    const root = document.querySelector(
-      '[aria-label="Group operator"]',
-    ) as HTMLElement;
 
-    fireEvent.click(within(root).getByRole('button', { name: 'None of' }));
+    await choose('Group operator', 'No condition');
 
     // Wow's third logical operator; a group is the only place a config can
     // say "none of these".
@@ -437,7 +642,6 @@ describe('FilterPanel tree editing', () => {
    */
   it('builds a condition inside an element match', async () => {
     const { filter } = panel(false, withItems());
-    const user = userEvent.setup();
 
     act(() => filter().addLeaf('items'));
 
@@ -447,12 +651,7 @@ describe('FilterPanel tree editing', () => {
     await waitFor(() =>
       expect(screen.getByLabelText('Items Group operator')).toBeTruthy(),
     );
-    await user.click(
-      screen.getByRole('combobox', {
-        name: 'Items Add in this group',
-      }),
-    );
-    await user.click(await screen.findByRole('option', { name: 'SKU' }));
+    await add(['SKU'], 'Items Add in this group');
 
     const predicate = filter().tree.children[0] as unknown as {
       value: FilterTree;
@@ -462,32 +661,23 @@ describe('FilterPanel tree editing', () => {
 
   it('offers the entry fields, not the view fields', async () => {
     const { filter } = panel(false, withItems());
-    const user = userEvent.setup();
 
     act(() => filter().addLeaf('items'));
-    await user.click(
-      screen.getByRole('combobox', {
-        name: 'Items Add in this group',
-      }),
-    );
+    const picker = await openPicker('Items Add in this group');
 
     // `warehouse` belongs to the order, not to a line, and a predicate that
     // named it would compile into something Wow cannot answer.
-    expect(await screen.findByRole('option', { name: 'SKU' })).toBeTruthy();
-    expect(screen.queryByRole('option', { name: 'Warehouse' })).toBeNull();
+    expect(within(picker).getByRole('checkbox', { name: 'SKU' })).toBeTruthy();
+    expect(
+      within(picker).queryByRole('checkbox', { name: 'Warehouse' }),
+    ).toBeNull();
   });
 
   it('marks the row inside a predicate that is wrong, not the one holding it', async () => {
     const { filter } = panel(false, withItems());
-    const user = userEvent.setup();
 
     act(() => filter().addLeaf('items'));
-    await user.click(
-      screen.getByRole('combobox', {
-        name: 'Items Add in this group',
-      }),
-    );
-    await user.click(await screen.findByRole('option', { name: 'Qty' }));
+    await add(['Qty'], 'Items Add in this group');
 
     // A number field given text: the kind reports it under the leaf that
     // carries the predicate, and the row inside is what has to light up.
@@ -510,27 +700,21 @@ describe('FilterPanel tree editing', () => {
   it('disables the group operator with the rest of the panel', () => {
     const { filter } = panel(true);
     act(() => filter().setMode('advanced'));
-    const root = document.querySelector(
-      '[aria-label="Group operator"]',
-    ) as HTMLElement;
-    // The panel freezes the tree while a query runs; the operator toggle is
+
+    // The panel freezes the tree while a query runs; the operator select is
     // part of the tree.
-    expect(
-      within(root).getByRole('button', { name: 'Any of' }).ariaDisabled,
-    ).toBe('true');
+    const root = screen.getByRole('combobox', {
+      name: 'Group operator',
+    }) as HTMLButtonElement;
+    expect(root.disabled).toBe(true);
   });
 
   it('adds a condition inside the group it was asked for', async () => {
     const { filter } = panel();
     act(() => filter().addGroup('or'));
-    const group = screen.getByRole('group', { name: 'Any of' });
+    const group = screen.getByRole('group', { name: 'Any condition' });
 
-    fireEvent.click(
-      within(group).getByRole('combobox', {
-        name: 'Add in this group',
-      }),
-    );
-    fireEvent.click(await screen.findByRole('option', { name: 'Warehouse' }));
+    await add(['Warehouse'], 'Add in this group', group);
 
     expect(filter().tree.children[0]).toMatchObject({
       op: 'or',
@@ -657,34 +841,6 @@ describe('FilterPanel tree editing', () => {
     ).toBe(false);
   });
 
-  it('shows the effective mode when a simple config holds an advanced tree', () => {
-    const { engine } = setup();
-    const runtime = engine.create('orders', {
-      title: 'Mixed',
-      scope: 'personal',
-      config: recordConfig({
-        filterMode: 'simple',
-        filter: {
-          op: 'or',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
-        },
-      }),
-    });
-    function Probe() {
-      return <FilterPanel filter={useFilterEditor(runtime)} />;
-    }
-    render(<Probe />);
-
-    // The tree needs the advanced editor; the mode toggle says so rather
-    // than claiming Simple over a group editor.
-    expect(screen.getByRole('button', { name: 'Advanced' }).ariaPressed).toBe(
-      'true',
-    );
-    expect(screen.getByRole('button', { name: 'Simple' }).ariaPressed).toBe(
-      'false',
-    );
-  });
-
   /**
    * The pill read every issue at its path as "invalid", so a warning — a
    * finding that blocks nothing — painted the same red as a value the kind
@@ -758,6 +914,128 @@ describe('FilterPanel tree editing', () => {
 
     expect(pill().hasAttribute('data-invalid')).toBe(true);
     expect(pill().hasAttribute('data-warning')).toBe(false);
+  });
+
+  describe('the ways into a group', () => {
+    it('nests a group from its own control, not from the field list', async () => {
+      const harness = panel(false, ordersDefinition());
+      act(() => harness.filter().setMode('advanced'));
+
+      // Nesting left the field list when that list became a set of ticks: a
+      // list of fields has no room for an entry that is not a field.
+      // The panel's own row and the root block each carry one; either does.
+      await waitFor(() =>
+        expect(
+          screen.getAllByRole('button', { name: 'Add a group' }).length,
+        ).toBeGreaterThan(0),
+      );
+      const nest = screen.getAllByRole('button', { name: 'Add a group' })[0];
+      const picker = await openPicker('Add in this group');
+      expect(within(picker).queryByText('Group')).toBeNull();
+      fireEvent.keyDown(picker, { key: 'Escape' });
+
+      fireEvent.click(nest);
+      const menu = await screen.findByRole('menu');
+      // The operator code first, then the sentence it makes of the
+      // conditions under it.
+      expect(menu.textContent).toContain('AND');
+      expect(menu.textContent).toContain('All conditions');
+      expect(menu.textContent).toContain('NOR');
+
+      // Named in full: "OR" is also the tail of "NOR".
+      fireEvent.click(
+        within(menu).getByRole('menuitem', { name: 'OR Any condition' }),
+      );
+      await waitFor(() =>
+        expect(harness.filter().tree.children).toEqual([
+          { op: 'or', children: [] },
+        ]),
+      );
+    });
+
+    it('offers no way to nest a group where groups are not shown', () => {
+      panel();
+
+      // Simple mode draws one strip of conditions, so a group it cannot
+      // show is a group it must not offer to make.
+      expect(screen.queryByRole('button', { name: 'Add a group' })).toBeNull();
+    });
+
+    it('says so when nothing in the catalogue matches what was typed', async () => {
+      const harness = panel();
+      const picker = await openPicker();
+
+      fireEvent.change(within(picker).getByRole('textbox'), {
+        target: { value: 'no such field' },
+      });
+
+      await waitFor(() =>
+        expect(within(picker).queryAllByRole('checkbox')).toHaveLength(0),
+      );
+      expect(within(picker).getByText('No field matches')).toBeDefined();
+      expect(harness.filter().tree.children).toEqual([]);
+    });
+  });
+});
+
+/**
+ * The mode is a way of *editing*, not part of the filter, which is why it
+ * left the panel: it is a menu on the editor's own toggle in the title bar,
+ * and the panel below is the conditions and nothing else.
+ */
+describe('the mode the condition editor is in', () => {
+  function openMixed(instance: ViewInstance) {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [instance] }),
+      resolveSource: () => testSource(),
+    });
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+  }
+
+  it('shows the effective mode when a simple config holds an advanced tree', async () => {
+    openMixed(mixed);
+
+    // The stored tree holds a group, which the simple editor cannot draw
+    // faithfully, so the toggle's own name says which editor is in force
+    // rather than which mode was saved.
+    expect(
+      await screen.findByRole('button', { name: 'Filter · Advanced' }),
+    ).toBeDefined();
+  });
+
+  it('says why simple is not on offer for such a tree', async () => {
+    openMixed(mixed);
+    await screen.findByRole('button', { name: 'Filter · Advanced' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editor options' }));
+
+    const simple = await screen.findByRole('menuitemradio', {
+      name: 'Simple',
+    });
+    expect(simple.getAttribute('aria-disabled')).toBe('true');
+    expect(
+      screen.getByRole('menuitemradio', { name: 'Advanced' }).ariaChecked,
+    ).toBe('true');
+  });
+
+  it('offers both ways of editing a tree the simple editor can draw', async () => {
+    openMixed(mine);
+    await screen.findByRole('button', { name: 'Filter · Simple' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editor options' }));
+
+    const simple = await screen.findByRole('menuitemradio', {
+      name: 'Simple',
+    });
+    expect(simple.getAttribute('aria-disabled')).not.toBe('true');
+    expect(simple.ariaChecked).toBe('true');
   });
 });
 
@@ -911,7 +1189,7 @@ describe('a stored condition the editor cannot draw', () => {
   it('refuses to apply while it is there', async () => {
     await openBroken();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
     const apply = (await screen.findByRole('button', {
       name: /Apply/,
     })) as HTMLButtonElement;
@@ -920,5 +1198,20 @@ describe('a stored condition the editor cannot draw', () => {
     // left out what no pill could carry would be a button disabled for
     // nothing the user can see.
     expect(screen.getByText('1 to fix')).toBeDefined();
+  });
+});
+
+describe('a filter editor with no view behind it', () => {
+  it('answers every command without a runtime to run it on', () => {
+    // The controller is built before a view opens, and a workbench renders
+    // through that gap. Nothing it offers may throw in it.
+    const { result } = renderHook(() => useFilterEditor(null));
+
+    expect(result.current.pending).toBe(false);
+    expect(() => {
+      result.current.discard();
+      result.current.submit();
+      result.current.clear();
+    }).not.toThrow();
   });
 });
