@@ -199,6 +199,14 @@ export function OrdersPage() {
 
 根默认涂 `--background`，因此嵌入在宿主卡片里的视图会露出自己的底色矩形；若想让宿主自己的底色透出来，把 `--fve-background` 设为 `transparent`（钉住暗色的视图再设 `--fve-dark-background`），根就不再在组件后面涂任何底色，而组件仍保留各自的卡片、弹层与输入框底色。
 
+弹层——菜单、下拉列表、Popover、Tooltip 与对话框——都 portal 到 `<body>`，画在 `z-index: 50` 这一层，压在周围页面之上。宿主自己的 chrome 堆得比它还高时，改一个变量即可把它们一起抬起来：
+
+```css
+:root {
+  --fve-popup-z-index: 2000;
+}
+```
+
 ### 3b. 或者自行组合 UI
 
 ```tsx

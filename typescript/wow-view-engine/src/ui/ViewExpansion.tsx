@@ -240,9 +240,10 @@ function fitToViewport(element: HTMLElement, view: Window): void {
  * every popup this package opens is portalled to `document.body`, so the
  * field picker, the filter menus, the save split button and the view switcher
  * would all render *behind* the expanded view, or under fullscreen not render
- * at all. A view you cannot open a menu in is not an expanded view. Staying
- * in the normal layer only keeps that promise while the surface does not
- * outrank those popups either — see the `z-index` note in `styles.css`.
+ * at all. A view you cannot open a menu in is not an expanded view. In the
+ * normal layer the promise is kept by the popups themselves: `popups.tsx`
+ * puts a layer of their own on every one, above the level this surface takes
+ * — see the `z-index` note in `styles.css`.
  *
  * It is **not a modal**, and says so by omission: no `aria-modal`, no focus
  * trap, no `inert` anywhere. Nothing is being asked and there is nothing to

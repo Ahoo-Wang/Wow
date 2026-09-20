@@ -216,27 +216,16 @@
  *
  * `z-index: 0` — a stacking context of its own, and not one step higher.
  *
- * This is the rule the whole normal-layer decision rests on, and it is
- * counter-intuitive enough to be worth the paragraph. Every popup this
- * package opens is portalled to `document.body` inside a Base UI
- * *positioner*, and the positioner carries `transform: translate(x, y)` from
- * the layout engine — so it is a stacking context. Its `isolate z-50` are
- * Tailwind utilities, and the build pins every utility in this stylesheet to
- * `:where(.fve-root, .fve-root *)`; the popup *content* carries `fve-root`
- * (see `popups.tsx`), but the positioner around it does not, so its `z-50`
- * matches nothing and it sits at `z-index: auto`. A `z-index: 50` on the
- * content inside cannot escape a transformed ancestor either.
- *
- * So every popup in this package paints at level 0, in tree order, and wins
- * only because a portal appends it to the end of the body. Any positive
- * `z-index` here buries all of them — measured in Chromium at 1280×800, a
- * column-settings popover over an expanded view was behind the surface at
- * `z-index: 1` and at `40`, and in front of it at `0`. Level 0 with a
- * stacking context of its own is what leaves the popups on top while still
- * covering the host's ordinary content, which is the promise this feature
- * was designed around: a view you cannot open a menu in is not an expanded
- * view. What a host raises deliberately — a sticky bar at `z-index: 10` —
- * still covers it, exactly as it already covers every popup here.
+ * The popups are settled elsewhere: `ui/popups.tsx` puts
+ * `z-index: var(--fve-popup-z-index, 50)` on every positioner it portals, so
+ * they stay in front of this whatever it takes. What is left for this number
+ * to say is how an expanded surface ranks against the *host's* page, and
+ * level 0 is the whole of the bargain a view that stays in the normal layer
+ * makes: it covers the host's ordinary content, and whatever the host raised
+ * deliberately — a sticky bar at `z-index: 10` — still covers it. The
+ * stacking context is for the parts inside, the sticky exit below among
+ * them, which are then ranked against each other rather than against the
+ * host's.
  */
 .fve-root[data-view-expanded='true'] {
   position: fixed;

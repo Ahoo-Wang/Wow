@@ -201,6 +201,14 @@ Every token reads a host-level variable with the built-in value as its fallback:
 
 The root paints `--background`, so an embedded view shows its own rectangle inside a host card; to let the host's own surface show through instead, set `--fve-background: transparent` (and `--fve-dark-background` for a surface pinned to dark), and the root then paints nothing behind the components, which keep their own card, popover and input colours.
 
+Popups — menus, lists, popovers, tooltips and dialogs — are portalled to `<body>` and paint at `z-index: 50`, above the page around them. A host whose own chrome stacks higher than that raises every one of them with a single variable:
+
+```css
+:root {
+  --fve-popup-z-index: 2000;
+}
+```
+
 ### 3b. Or compose your own UI
 
 ```tsx

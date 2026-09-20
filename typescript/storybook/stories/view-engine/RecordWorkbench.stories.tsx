@@ -92,6 +92,7 @@ function RecordWorkbenchDemo({
   collapsed = false,
   transformedHost = false,
   scaledHost = false,
+  raisedHost = false,
   pinnedColumn = false,
   refreshing = false,
 }: {
@@ -120,6 +121,11 @@ function RecordWorkbenchDemo({
    * makes what we write, which is the other half of `transform`.
    */
   scaledHost?: boolean;
+  /**
+   * Stacks a layer of the host's own over the page, the way a scrim, a chat
+   * widget or a drag ghost does: a positive `z-index`, and hit-testable.
+   */
+  raisedHost?: boolean;
   /**
    * Saves a config that freezes a column the projection would not freeze on
    * its own. The row key is pinned left whatever the config says, so it
@@ -194,6 +200,44 @@ function RecordWorkbenchDemo({
       >
         {workbench}
       </div>
+    );
+  // Whatever a host stacks over its page — a scrim, a floating panel, a drag
+  // ghost — is some element with a positive `z-index`, and every popup this
+  // package opens has to come out in front of it. It is fixed to the viewport
+  // so that a dialog, which is centred on the viewport rather than on this
+  // box, is covered as well; and it is hit-testable on purpose, because the
+  // regression asks the browser what is at the middle of each popup and a
+  // layer the hit test walked straight through would answer nothing at all.
+  if (raisedHost)
+    return (
+      <>
+        {workbench}
+        <div
+          data-raised-host
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10,
+            display: 'grid',
+            alignContent: 'end',
+            justifyItems: 'center',
+            padding: 16,
+            background: 'rgb(23 37 84 / 24%)',
+          }}
+        >
+          <span
+            style={{
+              borderRadius: 999,
+              background: '#1d39c4',
+              padding: '4px 12px',
+              color: '#fff',
+              font: '600 13px system-ui, sans-serif',
+            }}
+          >
+            宿主抬到 z-index: 10 的一层
+          </span>
+        </div>
+      </>
     );
   return workbench;
 }
@@ -279,6 +323,7 @@ const meta = {
     collapsed: { table: { disable: true } },
     transformedHost: { table: { disable: true } },
     refreshing: { table: { disable: true } },
+    raisedHost: { table: { disable: true } },
   },
 } satisfies Meta<typeof RecordWorkbenchDemo>;
 
@@ -427,17 +472,33 @@ export const FillTheScreenInScaledHost: Story = {
  * 铺满屏幕时，弹层仍然在面的**前面**——这正是「不进 top layer」当初要保住的东
  * 西，而列设置与排序这两个弹层是后来才有的。
  *
- * 本包所有弹层都 portal 到 `document.body`，外面那层 positioner 由布局引擎写上
- * `transform: translate(...)`，于是它自己就是一个 stacking context；它上面的
- * `isolate z-50` 是 Tailwind utility，而构建把本样式表的每条规则都钉在
- * `:where(.fve-root, .fve-root *)` 里——弹层的**内容**带着 `fve-root`，外面的
- * positioner 不带，所以那个 `z-50` 谁也没匹配上，它停在 `z-index: auto`。结论
- * 是：铺满的面只要有一个正的 `z-index`，就会把本包所有弹层埋掉。它因此取
- * `z-index: 0`——自成一个 stacking context，但不高出一级。
+ * 本包所有弹层都 portal 到 `document.body`，`ui/popups.tsx` 给每个 positioner
+ * 写上 `z-index: var(--fve-popup-z-index, 50)`，所以它们有自己的一层；铺满的面
+ * 取 `z-index: 0`，管的只是它与**宿主页面**的高低。两件事分开之后，这条故事问
+ * 的仍是同一句话：面铺开时，菜单打得开吗。
  *
  * 顺带把冻结列也换成配置自己指定的那一列：行键无论如何都会被投影钉在左边，只
  * 钉行键证明不了 `pinned` 还管不管用。
  */
 export const FillTheScreenWithPopups: Story = {
   args: { pinnedColumn: true },
+};
+
+/**
+ * 宿主在自己页面上抬起了一层（这里是 `z-index: 10` 的一块浮层，可命中、盖住整
+ * 个视口），弹层仍然在它**前面**。
+ *
+ * 这是弹层层级的底线。每个弹层都 portal 到 `document.body`，外面那层
+ * positioner 由布局引擎写上 `transform: translate(...)`，于是它自己就是一个
+ * stacking context——弹层内容里的 `z-50` 出不去；而 positioner 上那句
+ * `isolate z-50` 是 Tailwind utility，构建又把本样式表每条规则都钉在
+ * `:where(.fve-root, .fve-root *)` 里，positioner 不带 `fve-root`，那句话谁也没
+ * 匹配上。所以层级只能写在 positioner **自己**身上：`ui/popups.tsx` 把
+ * `z-index: var(--fve-popup-z-index, 50)` 作为 style 写上去，样式表在不在都成
+ * 立；宿主自己的 chrome 比 50 还高时，在 `:root` 上改这一个变量即可。
+ *
+ * 浮层是可命中的，所以这一屏**看而不点**：要手动操作请看上面的故事。
+ */
+export const PopupsOverRaisedHostLayer: Story = {
+  args: { raisedHost: true, paged: true },
 };

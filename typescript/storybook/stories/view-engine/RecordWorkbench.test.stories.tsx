@@ -32,6 +32,7 @@ import displayMeta, {
   ManageViews as DisplayManageViews,
   NeedsFixing as DisplayNeedsFixing,
   Paged as DisplayPaged,
+  PopupsOverRaisedHostLayer as DisplayPopupsOverRaisedHostLayer,
   QueryFailed as DisplayQueryFailed,
   TableSettings as DisplayTableSettings,
   TotalCoversThisPageOnly as DisplayTotalCoversThisPageOnly,
@@ -1369,9 +1370,10 @@ export const FillTheScreenWithPopups: Story = {
  * The way in to auto refresh: the `▾` beside the refresh button.
  *
  * jsdom can say what the menu holds; only a browser can say that it opens in
- * front of the workbench and that a click on a rung lands on the rung — this
- * package's popups paint at level 0 and win on tree order alone, so a control
- * added to a toolbar is exactly where that goes wrong.
+ * front of the workbench and that a click on a rung lands on the rung — a
+ * control added to a toolbar opens a popup portalled out of it, and where
+ * that popup paints is decided by the whole page (see
+ * `PopupsOverRaisedHostLayer` below).
  */
 export const AutoRefresh: Story = {
   ...DisplayAutoRefresh,
@@ -1450,6 +1452,203 @@ const cadenceOf = (seconds: number): string =>
     : seconds >= 60
       ? say('label.refresh.minutes', { count: seconds / 60 })
       : say('label.refresh.seconds', { count: seconds });
+
+/**
+ * Every popup kind, as the workbench opens it.
+ *
+ * One entry per wrapper in `ui/popups.tsx` that a user of this workbench can
+ * reach: a popover, a menu, a select's list, a tooltip and a dialog. The
+ * combobox is the sixth wrapper and no surface here opens one, so it is held
+ * to the same rule in `test/popups.test.tsx` instead.
+ */
+const POPUP_KINDS: readonly {
+  name: string;
+  slot: string;
+  trigger: string;
+  /** Opened by pointing at the trigger rather than by pressing it. */
+  hover?: boolean;
+}[] = [
+  {
+    name: 'popover',
+    slot: 'popover-content',
+    // The column-settings popover, which is where this first went wrong.
+    trigger: '[data-slot="result-toolbar"] [data-slot="popover-trigger"]',
+  },
+  {
+    name: 'menu',
+    slot: 'dropdown-menu-content',
+    trigger: '[data-slot="dropdown-menu-trigger"]',
+  },
+  {
+    name: 'select',
+    slot: 'select-content',
+    // The page-size control, which is why this story pages its rows.
+    trigger: '[data-slot="select-trigger"]',
+  },
+  {
+    name: 'tooltip',
+    slot: 'tooltip-content',
+    trigger: '[data-slot="tooltip-trigger"]',
+    hover: true,
+  },
+  {
+    name: 'dialog',
+    slot: 'dialog-content',
+    // The manager, behind the sidebar's gear: a dialog portals a backdrop of
+    // its own and is centred on the viewport rather than on the workbench.
+    trigger: `[aria-label="${defaultMessages['label.manage.open']}"]`,
+  },
+];
+
+/**
+ * The layer this package's popups paint on, and the one a host can move.
+ *
+ * Whatever the host raises, a popup has to come out in front of it — the fix
+ * is a `z-index` on the *positioner*, written as a style in `ui/popups.tsx`
+ * because the positioner is no `.fve-root` and every rule of the stylesheet
+ * is pinned inside one. Before it, a positioner stayed at `z-index: auto` and
+ * every popup here painted at level 0, in front of the page only because its
+ * portal is last in the body: a host layer at `z-index: 1` covered the lot.
+ *
+ * The premise is checked as carefully as the claim. A raised layer proves
+ * nothing if some ancestor trapped it in a stacking context of its own, since
+ * it would then rank by document order and the popups would win without any
+ * of this — so the layer is read for its level, for the absence of such an
+ * ancestor, and for actually covering the view before a single popup opens.
+ */
+export const PopupsOverRaisedHostLayer: Story = {
+  ...DisplayPopupsOverRaisedHostLayer,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const raised = document.querySelector<HTMLElement>('[data-raised-host]')!;
+
+    // The premise, in the three parts it has.
+    await expect(getComputedStyle(raised).zIndex).toBe('10');
+    await expect(trappedIn(raised)).toBeNull();
+    await expect(inFrontOf(raised)).toBe(true);
+
+    /** The popup of that kind, open and placed, and what opened it. */
+    async function open(kind: (typeof POPUP_KINDS)[number]) {
+      // The first trigger a pointer can reach: an icon inside a button is
+      // `pointer-events: none` by the button's own rule, and a tooltip on one
+      // is no more reachable for the user than it is here.
+      const trigger = [
+        ...canvasElement.querySelectorAll<HTMLElement>(kind.trigger),
+      ].find(candidate => getComputedStyle(candidate).pointerEvents !== 'none');
+      await expect(trigger, `no ${kind.name} to open`).toBeDefined();
+      // The raised layer covers the trigger as it covers everything else, so
+      // the event goes to the element rather than to a point on the screen.
+      if (kind.hover) await userEvent.hover(trigger!);
+      else await userEvent.click(trigger!);
+
+      // Open, and laid out: a popup is in the document before it is placed,
+      // and a hit test on a box of no size answers about the page behind it.
+      const popup = await waitFor(() => {
+        const found = document.body.querySelector<HTMLElement>(
+          `[data-slot="${kind.slot}"]`,
+        );
+        if (!found || found.hasAttribute('data-closed'))
+          throw new Error(`no open ${kind.name}`);
+        const box = found.getBoundingClientRect();
+        if (box.width === 0 || box.height === 0)
+          throw new Error(`the ${kind.name} has no box yet`);
+        return found;
+      });
+      // Portalled out of the surface, which is exactly why this can go wrong.
+      await expect(popup.closest('[data-slot="view-surface"]')).toBeNull();
+      return { popup, trigger: trigger! };
+    }
+
+    /**
+     * Shut again before the next one opens. A popup on its way out stays in
+     * the document for the length of its animation, so what is waited for is
+     * that it is no longer open.
+     */
+    async function close(
+      kind: (typeof POPUP_KINDS)[number],
+      trigger: HTMLElement,
+    ) {
+      if (kind.hover) await userEvent.unhover(trigger);
+      else await userEvent.keyboard('{Escape}');
+      await waitFor(() => {
+        const leaving = document.body.querySelector(
+          `[data-slot="${kind.slot}"]`,
+        );
+        expect(leaving === null || leaving.hasAttribute('data-closed')).toBe(
+          true,
+        );
+      });
+    }
+
+    /** The element the level is written on: a dialog has no positioner. */
+    const layerOf = (kind: (typeof POPUP_KINDS)[number], popup: HTMLElement) =>
+      kind.slot === 'dialog-content' ? popup : popup.parentElement!;
+
+    for (const kind of POPUP_KINDS) {
+      const { popup, trigger } = await open(kind);
+      // The cause, and then the effect the user sees.
+      await expect(getComputedStyle(layerOf(kind, popup)).zIndex).toBe('50');
+      await expect(inFrontOf(popup), `the ${kind.name} is buried`).toBe(true);
+      await close(kind, trigger);
+    }
+
+    // And the number really is what decides, which is what `--fve-popup-z-index`
+    // offers a host whose own chrome stacks above 50. Turned *below* what this
+    // host raised, the same popover goes behind it — the variable is read from
+    // `:root`, where a host sets it beside the colour tokens.
+    const root = document.documentElement;
+    try {
+      root.style.setProperty('--fve-popup-z-index', '3');
+      const { popup, trigger } = await open(POPUP_KINDS[0]);
+      await expect(
+        getComputedStyle(layerOf(POPUP_KINDS[0], popup)).zIndex,
+      ).toBe('3');
+      await expect(inFrontOf(popup)).toBe(false);
+      await close(POPUP_KINDS[0], trigger);
+    } finally {
+      root.style.removeProperty('--fve-popup-z-index');
+    }
+  },
+};
+
+/**
+ * The nearest ancestor that would trap this element in a stacking context of
+ * its own, or `null` when it ranks against the page directly.
+ *
+ * Not every property that makes one is listed — this is the handful a story
+ * frame or a Storybook wrapper plausibly sets, which is all it has to catch
+ * to keep the premise above honest.
+ */
+function trappedIn(element: HTMLElement): HTMLElement | null {
+  for (
+    let parent = element.parentElement;
+    parent && parent !== element.ownerDocument.documentElement;
+    parent = parent.parentElement
+  ) {
+    const style = getComputedStyle(parent);
+    if (
+      (style.position !== 'static' && style.zIndex !== 'auto') ||
+      style.transform !== 'none' ||
+      style.filter !== 'none' ||
+      style.perspective !== 'none' ||
+      style.isolation === 'isolate' ||
+      style.mixBlendMode !== 'normal' ||
+      style.contain
+        .split(' ')
+        .some(
+          part =>
+            part === 'paint' ||
+            part === 'layout' ||
+            part === 'strict' ||
+            part === 'content',
+        ) ||
+      Number.parseFloat(style.opacity) < 1
+    )
+      return parent;
+  }
+  return null;
+}
 
 /**
  * Whether the browser would hand a click at the middle of this box to the box
