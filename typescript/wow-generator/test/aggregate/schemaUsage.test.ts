@@ -18,6 +18,7 @@ import {
   referencedSchemaKeys,
   requestSchemaKeys,
   SchemaUsageResolver,
+  valueBearingSchemaKeys,
 } from '../../src/aggregate';
 import demoSpec from '../demo.spec.json';
 
@@ -99,6 +100,72 @@ describe('requestSchemaKeys', () => {
 
   it('tolerates a document without paths', () => {
     expect(requestSchemaKeys({} as any)).toEqual(new Set());
+  });
+});
+
+describe('valueBearingSchemaKeys', () => {
+  it('follows the edges an instance value flows through', () => {
+    expect(
+      [
+        ...valueBearingSchemaKeys({
+          type: 'object',
+          properties: {
+            direct: { $ref: '#/components/schemas/Direct' },
+            list: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/Item' },
+            },
+          },
+          patternProperties: {
+            '^x-': { $ref: '#/components/schemas/Patterned' },
+          },
+          additionalProperties: { $ref: '#/components/schemas/Extra' },
+          allOf: [{ $ref: '#/components/schemas/Base' }],
+          'x-map-key-schema': { $ref: '#/components/schemas/MapKey' },
+        } as any),
+      ].sort(),
+    ).toEqual(['Base', 'Direct', 'Extra', 'Item', 'MapKey', 'Patterned']);
+  });
+
+  it('follows the conditional shapes an instance can take', () => {
+    expect(
+      [
+        ...valueBearingSchemaKeys({
+          if: { $ref: '#/components/schemas/Tested' },
+          then: { $ref: '#/components/schemas/Then' },
+          else: { $ref: '#/components/schemas/Else' },
+          dependentSchemas: {
+            flag: { $ref: '#/components/schemas/Dependent' },
+          },
+          unevaluatedProperties: { $ref: '#/components/schemas/Unevaluated' },
+        } as any),
+      ].sort(),
+    ).toEqual(['Dependent', 'Else', 'Then', 'Unevaluated']);
+  });
+
+  it('ignores negative constraints and metadata', () => {
+    expect([
+      ...valueBearingSchemaKeys({
+        type: 'object',
+        not: { $ref: '#/components/schemas/Forbidden' },
+        example: { $ref: '#/components/schemas/Illustrative' },
+        'x-unrelated': { $ref: '#/components/schemas/Unrelated' },
+      } as any),
+    ]).toEqual([]);
+  });
+
+  it('stops at the reference itself rather than reading through it', () => {
+    expect([
+      ...valueBearingSchemaKeys({ $ref: '#/components/schemas/Target' }),
+    ]).toEqual(['Target']);
+  });
+
+  it('terminates on cyclic structures', () => {
+    const schema: Record<string, any> = {
+      properties: { self: { $ref: '#/components/schemas/Self' } },
+    };
+    schema.properties.parent = schema;
+    expect([...valueBearingSchemaKeys(schema)]).toEqual(['Self']);
   });
 });
 
@@ -325,6 +392,50 @@ describe('SchemaUsageResolver', () => {
     expect(resolver.usageOf('demo.Body')).toBe('write');
     expect(resolver.usageOf('demo.State')).toBe('read');
     expect(resolver.contestedKeys()).toEqual(['demo.Draft']);
+  });
+
+  it('does not read a state through a negative constraint', () => {
+    const components = {
+      schemas: {
+        'demo.State': {
+          type: 'object',
+          not: { $ref: '#/components/schemas/demo.Forbidden' },
+          properties: { item: { $ref: '#/components/schemas/demo.Item' } },
+        },
+        'demo.Forbidden': {
+          type: 'object',
+          properties: { banned: { type: 'string' } },
+        },
+        'demo.Item': {
+          type: 'object',
+          properties: { name: { type: 'string' } },
+        },
+      },
+    };
+    const contextAggregates = new Map([
+      [
+        'demo',
+        new Set([
+          {
+            state: {
+              key: 'demo.State',
+              schema: components.schemas['demo.State'],
+            },
+            commands: new Map(),
+            events: new Map(),
+          },
+        ]),
+      ],
+    ]);
+    const resolver = new SchemaUsageResolver(
+      { components } as any,
+      contextAggregates as any,
+    );
+
+    expect(resolver.usageOf('demo.Item')).toBe('read');
+    // The state says an instance must NOT look like demo.Forbidden, which is
+    // not the same as returning one.
+    expect(resolver.usageOf('demo.Forbidden')).toBe('unknown');
   });
 
   it('classifies nothing when the document has no aggregates', () => {

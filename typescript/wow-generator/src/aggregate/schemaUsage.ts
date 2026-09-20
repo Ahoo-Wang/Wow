@@ -20,6 +20,7 @@ import type {
 import {
   COMPONENTS_SCHEMAS_REF,
   extractOperationEndpoints,
+  getMapKeySchema,
   isNullableSchema,
 } from '../utils';
 import type { BoundedContextAggregates } from './aggregate';
@@ -77,8 +78,8 @@ export class SchemaUsageResolver {
         }
       }
     }
-    const write = this.closure(writeRoots);
-    const read = this.closure(readRoots);
+    const write = this.closure(writeRoots, referencedSchemaKeys);
+    const read = this.closure(readRoots, valueBearingSchemaKeys);
     for (const key of write) {
       this.usages.set(key, read.has(key) ? 'shared' : 'write');
     }
@@ -131,7 +132,24 @@ export class SchemaUsageResolver {
     });
   }
 
-  private closure(roots: Set<string>): Set<string> {
+  /**
+   * Walks the schemas reachable from a set of roots.
+   *
+   * The two sides use different edges. The write side takes every reference
+   * it can find, because treating a schema as a request only ever preserves
+   * the document's declared optionality. The read side follows only edges that
+   * carry an instance value, so a schema a state merely mentions - under
+   * `not`, in an example, in an unrelated extension - is not mistaken for part
+   * of what the server returns.
+   *
+   * @param roots - The component schema keys to start from
+   * @param edges - How to find the schemas a schema reaches
+   * @returns Every key reachable from the roots, the roots included
+   */
+  private closure(
+    roots: Set<string>,
+    edges: (schema: Schema | Reference) => Set<string>,
+  ): Set<string> {
     const reached = new Set<string>();
     const pending = [...roots];
     while (pending.length) {
@@ -144,7 +162,7 @@ export class SchemaUsageResolver {
         continue;
       }
       reached.add(key);
-      for (const referenced of referencedSchemaKeys(schema)) {
+      for (const referenced of edges(schema)) {
         if (!reached.has(referenced)) {
           pending.push(referenced);
         }
@@ -181,6 +199,91 @@ export function requestSchemaKeys(openAPI: OpenAPI): Set<string> {
   }
   collect(openAPI.components?.requestBodies);
   collect(openAPI.components?.parameters);
+  return keys;
+}
+
+/** Keywords holding one subschema that an instance value flows through. */
+const VALUE_BEARING_SCHEMA_KEYWORDS = [
+  'items',
+  'additionalItems',
+  'additionalProperties',
+  'contains',
+  'unevaluatedItems',
+  'unevaluatedProperties',
+  // `then` and `else` shape the instance once the condition has been decided.
+  // `if` is deliberately absent: it only tests the instance.
+  'then',
+  'else',
+];
+
+/** Keywords holding a map of subschemas an instance value flows through. */
+const VALUE_BEARING_MAP_KEYWORDS = [
+  'properties',
+  'patternProperties',
+  'dependentSchemas',
+];
+
+/** Keywords holding a list of subschemas an instance value flows through. */
+const VALUE_BEARING_LIST_KEYWORDS = ['allOf', 'anyOf', 'oneOf', 'prefixItems'];
+
+/**
+ * Collects the component schema keys whose shape an instance of this schema
+ * can actually contain.
+ *
+ * Only keywords a value flows through are followed - `properties`, `items`,
+ * `additionalProperties`, the positive compositions, the conditional `then` /
+ * `else` and `dependentSchemas`, and the `x-map-key-schema` extension this
+ * generator reads for map keys. `not` and `if` are excluded because they test
+ * an instance rather than shape it, and `example`, `default` and every other
+ * extension are excluded because they are metadata rather than shape.
+ *
+ * @param schema - The schema to walk
+ * @returns The component schema keys reachable through value-bearing edges
+ */
+export function valueBearingSchemaKeys(
+  schema: Schema | Reference,
+): Set<string> {
+  const keys = new Set<string>();
+  const visited = new Set<object>();
+  const walk = (node: Schema | Reference | undefined): void => {
+    if (node === null || typeof node !== 'object' || visited.has(node)) {
+      return;
+    }
+    visited.add(node);
+    const reference = (node as Reference).$ref;
+    if (
+      typeof reference === 'string' &&
+      reference.startsWith(COMPONENTS_SCHEMAS_REF)
+    ) {
+      keys.add(reference.slice(COMPONENTS_SCHEMAS_REF.length));
+      return;
+    }
+    // Indexed as a record: OpenAPI 3.1 keywords such as `prefixItems` are not
+    // modelled by the Schema type yet, but a document may still carry them.
+    const current = node as unknown as Record<string, unknown>;
+    for (const keyword of VALUE_BEARING_SCHEMA_KEYWORDS) {
+      const value = current[keyword];
+      if (value && typeof value === 'object') {
+        walk(value as Schema | Reference);
+      }
+    }
+    walk(getMapKeySchema(node as Schema));
+    for (const keyword of VALUE_BEARING_MAP_KEYWORDS) {
+      const value = current[keyword];
+      if (value && typeof value === 'object') {
+        Object.values(value as Record<string, Schema | Reference>).forEach(
+          walk,
+        );
+      }
+    }
+    for (const keyword of VALUE_BEARING_LIST_KEYWORDS) {
+      const value = current[keyword];
+      if (Array.isArray(value)) {
+        value.forEach(walk);
+      }
+    }
+  };
+  walk(schema);
   return keys;
 }
 

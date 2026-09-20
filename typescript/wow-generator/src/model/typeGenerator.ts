@@ -25,6 +25,7 @@ import type {
   ObjectSchema,
 } from '../utils';
 import {
+  acceptsNothing,
   addImportModelInfo,
   addMainSchemaJSDoc,
   addSchemaJSDoc,
@@ -73,7 +74,9 @@ export class TypeGenerator implements Generator {
    * they carry a default value.
    *
    * `writeOnly` properties are left alone: they belong to requests, so a
-   * response is entitled to omit them however their type reads.
+   * response is entitled to omit them however their type reads. So are
+   * properties no value can satisfy, which a response must omit rather than
+   * always carry.
    *
    * @param schema - The object schema owning the properties
    * @returns The effective required property names
@@ -88,6 +91,7 @@ export class TypeGenerator implements Generator {
     )) {
       if (
         !isWriteOnly(propSchema, this.components) &&
+        !acceptsNothing(propSchema, this.components) &&
         !isNullableSchema(propSchema, this.components)
       ) {
         required.add(propName);

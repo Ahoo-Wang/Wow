@@ -23,6 +23,7 @@ import {
   isAllOf,
   isComposition,
   toArrayType,
+  acceptsNothing,
   isEmptyObject,
   isNullableSchema,
   isWriteOnly,
@@ -393,5 +394,95 @@ describe('isWriteOnly', () => {
   it('stops at a schema it has already visited', () => {
     const schema: Schema = { type: 'string', writeOnly: true };
     expect(isWriteOnly(schema, undefined, new Set([schema]))).toBe(false);
+  });
+});
+
+describe('acceptsNothing', () => {
+  it.each([
+    ['an empty enum', { enum: [] }, true],
+    ['a not that constrains nothing', { not: {} }, true],
+    ['a not that constrains something', { not: { type: 'string' } }, false],
+    ['a plain schema', { type: 'string' }, false],
+    [
+      'an allOf with an impossible branch',
+      { allOf: [{ type: 'string' }, { enum: [] }] },
+      true,
+    ],
+    ['an allOf of possible branches', { allOf: [{ type: 'string' }] }, false],
+    [
+      'a union of impossible branches',
+      { anyOf: [{ enum: [] }, { not: {} }] },
+      true,
+    ],
+    [
+      'an impossible anyOf beside a possible oneOf',
+      { anyOf: [{ enum: [] }], oneOf: [{ type: 'string' }] },
+      true,
+    ],
+    [
+      'an impossible oneOf beside a possible anyOf',
+      { anyOf: [{ type: 'string' }], oneOf: [{ enum: [] }] },
+      true,
+    ],
+    [
+      'a not that constrains through a 3.1 keyword',
+      { not: { contains: {} } },
+      false,
+    ],
+    [
+      'a not carrying only annotations',
+      { not: { description: 'anything at all' } },
+      true,
+    ],
+    [
+      'a union with one possible branch',
+      { anyOf: [{ enum: [] }, { type: 'string' }] },
+      false,
+    ],
+  ] satisfies [string, Schema, boolean][])(
+    'reports %s as %s',
+    (_, schema, expected) => {
+      expect(acceptsNothing(schema)).toBe(expected);
+    },
+  );
+
+  it('resolves references on both sides of the check', () => {
+    const components = {
+      schemas: {
+        Impossible: { enum: [] },
+        Anything: {},
+        Plain: { type: 'string' },
+      },
+    };
+    expect(
+      acceptsNothing({ $ref: '#/components/schemas/Impossible' }, components),
+    ).toBe(true);
+    expect(
+      acceptsNothing(
+        { not: { $ref: '#/components/schemas/Anything' } },
+        components,
+      ),
+    ).toBe(true);
+    expect(
+      acceptsNothing(
+        { not: { $ref: '#/components/schemas/Plain' } },
+        components,
+      ),
+    ).toBe(false);
+    // Without components, and for a dangling reference, nothing can be judged.
+    expect(acceptsNothing({ $ref: '#/components/schemas/Impossible' })).toBe(
+      false,
+    );
+    expect(
+      acceptsNothing({ not: { $ref: '#/components/schemas/Anything' } }),
+    ).toBe(false);
+    expect(
+      acceptsNothing({ $ref: '#/components/schemas/Missing' }, components),
+    ).toBe(false);
+  });
+
+  it('stops at a schema it has already visited', () => {
+    const schema: Schema = { enum: [] };
+    expect(acceptsNothing(schema, undefined, new Set([schema]))).toBe(false);
   });
 });

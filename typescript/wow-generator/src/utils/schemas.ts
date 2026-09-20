@@ -270,6 +270,108 @@ export function isNullableSchema(
 }
 
 /**
+ * Checks whether a schema accepts no value at all.
+ *
+ * Only the unmistakable forms are recognised - an empty `enum`, and a `not`
+ * whose subschema constrains nothing and so rejects everything - plus the
+ * compositions built from them. Deciding satisfiability in general is beyond
+ * what a generator should attempt, and guessing wrong in the other direction
+ * costs nothing: an unrecognised contradiction simply keeps the behaviour
+ * these checks are here to refine.
+ *
+ * @param schema - The schema or reference to check
+ * @param components - Components used to resolve references
+ * @param visited - Schemas already visited, guarding against reference cycles
+ * @returns True if no value can satisfy the schema, false otherwise
+ */
+export function acceptsNothing(
+  schema: Schema | Reference,
+  components?: Components,
+  visited: Set<Schema | Reference> = new Set(),
+): boolean {
+  if (visited.has(schema)) {
+    return false;
+  }
+  visited.add(schema);
+  if (isReference(schema)) {
+    if (!components) {
+      return false;
+    }
+    const resolved = extractSchema(schema, components);
+    return resolved ? acceptsNothing(resolved, components, visited) : false;
+  }
+  if (Array.isArray(schema.enum) && schema.enum.length === 0) {
+    return true;
+  }
+  if (schema.not !== undefined && acceptsEverything(schema.not, components)) {
+    return true;
+  }
+  const acceptsNothingMember = (member: Schema | Reference) =>
+    acceptsNothing(member, components, new Set(visited));
+  if (schema.allOf?.some(acceptsNothingMember)) {
+    return true;
+  }
+  // anyOf and oneOf are separate assertions that both have to hold, so either
+  // one running out of viable branches empties the whole schema.
+  return [schema.anyOf, schema.oneOf].some(
+    members => !!members?.length && members.every(acceptsNothingMember),
+  );
+}
+
+/**
+ * Keywords that annotate a schema without narrowing which values satisfy it.
+ * Everything else is treated as a constraint, so a keyword this generator has
+ * never heard of keeps `acceptsEverything` honest instead of silently widening
+ * it.
+ */
+const ANNOTATION_KEYWORDS = new Set([
+  'title',
+  'description',
+  'default',
+  'example',
+  'examples',
+  'deprecated',
+  'readOnly',
+  'writeOnly',
+  'externalDocs',
+  'xml',
+  'discriminator',
+  '$comment',
+  '$id',
+  '$schema',
+]);
+
+/**
+ * Checks whether a schema constrains nothing, so that every value satisfies
+ * it. Used to recognise the `not: {}` that rejects everything.
+ *
+ * Rather than list the assertions - a list that would fall behind every
+ * keyword OpenAPI gains - this accepts only a schema whose keys are all
+ * annotations. An unrecognised keyword counts as a constraint, which errs
+ * towards leaving the schema alone.
+ *
+ * @param schema - The schema or reference to check
+ * @param components - Components used to resolve references
+ * @returns True if the schema asserts nothing about a value
+ */
+function acceptsEverything(
+  schema: Schema | Reference,
+  components?: Components,
+): boolean {
+  if (isReference(schema)) {
+    if (!components) {
+      return false;
+    }
+    const resolved = extractSchema(schema, components);
+    return resolved ? acceptsEverything(resolved, components) : false;
+  }
+  return Object.entries(schema).every(
+    ([keyword, value]) =>
+      value === undefined || ANNOTATION_KEYWORDS.has(keyword),
+  );
+}
+
+/**
  * Checks whether a schema is request-only.
  *
  * A `writeOnly` property belongs to requests, so a response may omit it however

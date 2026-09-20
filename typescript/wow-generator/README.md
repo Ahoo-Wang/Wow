@@ -54,7 +54,8 @@ narrow:
   required rather than optional.
 - `writeOnly` properties stay optional, including when the flag sits on the
   referenced component. They belong to the request side, so a response may omit
-  them however their type reads.
+  them however their type reads. So do properties no value can satisfy, such as
+  `{ not: {} }` or an empty `enum` - a response must omit those.
 - Request schemas are untouched, and that means every operation's body and
   parameters, not only Wow commands. Over-stating a request's required
   properties would reject a call the client is entitled to make.

@@ -190,6 +190,20 @@ describe('read-model required properties', () => {
     ).toContain('secret?: string;');
   });
 
+  it.each([
+    ['a not that constrains nothing', { not: {} }],
+    ['an empty enum', { enum: [] }],
+  ] satisfies [string, Schema][])(
+    'leaves a property optional when no value satisfies it: %s',
+    (_, propSchema) => {
+      // A response must omit such a property, so claiming the server always
+      // returns it would be a lie in the other direction.
+      expect(
+        generate({ type: 'object', properties: { removed: propSchema } }, true),
+      ).toContain('removed?:');
+    },
+  );
+
   it('leaves a write-only property optional through a reference', () => {
     const components: Components = {
       schemas: { Secret: { type: 'string', writeOnly: true } },
