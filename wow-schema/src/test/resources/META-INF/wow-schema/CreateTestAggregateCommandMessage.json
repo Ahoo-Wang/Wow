@@ -154,5 +154,5 @@
       "description" : "The time when the command message was created"
     }
   },
-  "required" : [ "id", "contextName", "aggregateName", "name", "tenantId", "aggregateId", "ownerId", "spaceId", "requestId", "isCreate", "isVoid", "allowCreate", "bodyType", "body", "createTime" ]
+  "required" : [ "id", "contextName", "aggregateName", "name", "header", "tenantId", "aggregateId", "ownerId", "spaceId", "requestId", "isCreate", "isVoid", "allowCreate", "bodyType", "body", "createTime" ]
 }

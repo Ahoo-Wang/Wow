@@ -145,7 +145,8 @@
           "format" : "int64"
         },
         "data" : {
-          "type" : "string"
+          "type" : "string",
+          "readOnly" : true
         },
         "decimalValue" : {
           "type" : "number"
@@ -224,7 +225,7 @@
           }
         }
       },
-      "required" : [ "id" ],
+      "required" : [ "data", "id" ],
       "description" : "The state data of the aggregate"
     },
     "tags" : {
@@ -242,5 +243,5 @@
       "description" : "Whether the aggregate has been deleted"
     }
   },
-  "required" : [ "id", "contextName", "aggregateName", "tenantId", "aggregateId", "ownerId", "spaceId", "version", "body", "createTime", "firstOperator", "firstEventTime", "state", "deleted" ]
+  "required" : [ "id", "contextName", "aggregateName", "header", "tenantId", "aggregateId", "ownerId", "spaceId", "commandId", "requestId", "version", "body", "createTime", "firstOperator", "firstEventTime", "state", "tags", "deleted" ]
 }

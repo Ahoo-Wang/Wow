@@ -133,6 +133,26 @@ data class KotlinFixture(
     val readOnlyByLazy: String by lazy { "lazy" }
 }
 
+// ── Accessor and constructor shape fixtures ──
+
+class PrivateSetterFixture(val id: String) {
+    var items: List<String> = emptyList()
+        private set
+    var status: String = "CREATED"
+        private set
+    var comment: String = ""
+}
+
+class SecondaryConstructorFixture {
+    val alpha: String
+    val beta: Int
+
+    constructor(alpha: String, beta: Int) {
+        this.alpha = alpha
+        this.beta = beta
+    }
+}
+
 // ── CommandRoute ignore fixtures ──
 
 data class CommandRouteFixture(

@@ -128,10 +128,30 @@ val generator = SchemaGeneratorBuilder()
 | `jakartaValidationModule` | 启用 | Jakarta 约束 |
 | `swagger2Module` | 启用 | Swagger Schema 注解 |
 | `kotlinModule` | 启用 | Kotlin nullability、required/read-only/write-only |
+| `javaModule` | 启用 | Java record 组件的 required |
 | `jodaMoneyModule` | 启用 | Joda Money 线类型 |
 | `wowModule` | 启用 | 框架定义与查询判别字段处理 |
 
 传入 `null` 会禁用可选模块。这会改变生成合同；发布前应使用 Schema snapshot 或聚焦断言覆盖自定义配置。
+
+### required 判定
+
+`required` 的含义是"该属性一定出现在载荷中"，与 `readOnly` 正交：OpenAPI 3.1 中 `readOnly` 属性同时出现在 `required` 里，表示响应必有、请求忽略。
+
+按声明形态：
+
+| 声明 | `required` | `readOnly` |
+|---|---|---|
+| Kotlin 构造参数，无默认值 | 是 | 否 |
+| Kotlin 构造参数，有默认值 | 否 | 否 |
+| Kotlin 类体属性（公开 getter） | 是 | `val` 或 setter 非公开时为是 |
+| Kotlin `lateinit var` | 是 | 是 |
+| Kotlin 无 getter 或 getter 私有 | 否 | — |
+| 无主构造函数时取唯一声明构造函数 | 同构造参数规则 | 同上 |
+| Java record 组件 | 是 | 否 |
+| 普通 Java Bean 字段 | 否 | 否 |
+
+`@Schema(requiredMode)` 与 `@Schema(accessMode)` 显式取值优先于上述推断；`@JsonProperty(required = true)` 也会将属性标记为 required。无 backing field 的计算 getter 不会进入 `required`。
 
 ## 框架类型 Schema
 

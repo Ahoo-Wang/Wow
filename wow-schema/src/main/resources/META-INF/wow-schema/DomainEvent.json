@@ -86,6 +86,11 @@
       "description": "The space ID of the aggregate resource",
       "default": ""
     },
+    "commandId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The ID of the command message."
+    },
     "version": {
       "type": "integer",
       "format": "int32",
@@ -124,10 +129,12 @@
     "contextName",
     "aggregateName",
     "name",
+    "header",
     "tenantId",
     "aggregateId",
     "ownerId",
     "spaceId",
+    "commandId",
     "version",
     "sequence",
     "revision",

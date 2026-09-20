@@ -55,6 +55,11 @@
       "format" : "int64",
       "description" : "The first event time of the aggregate, which is the time it was created"
     },
+    "eventTime" : {
+      "type" : "integer",
+      "format" : "int64",
+      "description" : "The last event time of the aggregate, represented as a Unix timestamp in milliseconds."
+    },
     "state" : {
       "type" : "object",
       "properties" : {
@@ -63,7 +68,8 @@
           "format" : "int64"
         },
         "data" : {
-          "type" : "string"
+          "type" : "string",
+          "readOnly" : true
         },
         "decimalValue" : {
           "type" : "number"
@@ -142,7 +148,7 @@
           }
         }
       },
-      "required" : [ "id" ],
+      "required" : [ "data", "id" ],
       "description" : "The state data of the aggregate"
     },
     "tags" : {
@@ -165,5 +171,5 @@
       "description" : "The snapshot time of the aggregate"
     }
   },
-  "required" : [ "contextName", "aggregateName", "tenantId", "aggregateId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "state", "deleted", "snapshotTime" ]
+  "required" : [ "contextName", "aggregateName", "tenantId", "aggregateId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state", "tags", "deleted", "snapshotTime" ]
 }

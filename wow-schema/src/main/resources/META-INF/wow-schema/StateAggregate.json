@@ -55,6 +55,11 @@
       "format": "int64",
       "description": "The first event time of the aggregate, which is the time it was created"
     },
+    "eventTime": {
+      "type": "integer",
+      "format": "int64",
+      "description": "The last event time of the aggregate, represented as a Unix timestamp in milliseconds."
+    },
     "state": {
       "type": "object",
       "description": "The state data of the aggregate"
@@ -86,7 +91,9 @@
     "firstOperator",
     "operator",
     "firstEventTime",
+    "eventTime",
     "state",
+    "tags",
     "deleted"
   ]
 }

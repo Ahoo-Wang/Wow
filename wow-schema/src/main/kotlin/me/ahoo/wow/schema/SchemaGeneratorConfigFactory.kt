@@ -28,6 +28,7 @@ internal object SchemaGeneratorConfigFactory {
             .withModuleIfPresent(builder.jakartaValidationModule)
             .withModuleIfPresent(builder.swagger2Module)
             .withModuleIfPresent(builder.kotlinModule)
+            .withModuleIfPresent(builder.javaModule)
             .withModuleIfPresent(builder.jodaMoneyModule)
             .withModuleIfPresent(builder.wowModule)
             .withModuleIfPresent(builder.schemaNamingModule)

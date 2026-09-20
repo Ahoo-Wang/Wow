@@ -20,6 +20,8 @@ import me.ahoo.wow.schema.Types.isKotlinElement
 import java.util.function.Predicate
 import kotlin.reflect.KFunction
 import kotlin.reflect.KMutableProperty
+import kotlin.reflect.KParameter
+import kotlin.reflect.KVisibility
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.kotlinProperty
 
@@ -38,7 +40,7 @@ object KotlinReadOnlyCheck : Predicate<FieldScope> {
             return true
         }
         if (property is KMutableProperty<*>) {
-            return false
+            return property.setter.visibility != KVisibility.PUBLIC
         }
         return fieldScope.isConstructorParameter().not()
     }
@@ -47,8 +49,18 @@ object KotlinReadOnlyCheck : Predicate<FieldScope> {
         return this.rawMember?.declaringClass?.kotlin?.primaryConstructor
     }
 
+    /**
+     * The constructor Jackson binds to: the primary one, or the only declared one when there is no primary.
+     */
+    fun FieldScope.declaringConstructor(): KFunction<*>? {
+        return primaryConstructor() ?: this.rawMember?.declaringClass?.kotlin?.constructors?.singleOrNull()
+    }
+
+    fun FieldScope.constructorParameter(): KParameter? {
+        return declaringConstructor()?.parameters?.firstOrNull { it.name == this.name }
+    }
+
     fun FieldScope.isConstructorParameter(): Boolean {
-        val primaryConstructor = primaryConstructor() ?: return false
-        return primaryConstructor.parameters.any { it.name == this.name }
+        return constructorParameter() != null
     }
 }

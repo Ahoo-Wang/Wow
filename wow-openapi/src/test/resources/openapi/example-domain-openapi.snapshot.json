@@ -1103,7 +1103,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "body", "commandId", "contextName", "createTime", "header", "id", "ownerId", "requestId", "spaceId", "tenantId", "version" ],
         "type" : "object"
       },
       "example.cart.CartAggregatedDomainEventStreamCursorPage" : {
@@ -1227,8 +1227,10 @@
           },
           "items" : {
             "items" : {
-              "$ref" : "#/components/schemas/example.cart.CartItem"
+              "$ref" : "#/components/schemas/example.cart.CartItem",
+              "readOnly" : true
             },
+            "readOnly" : true,
             "type" : "array"
           },
           "size" : {
@@ -1237,7 +1239,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "id" ],
+        "required" : [ "id", "items" ],
         "type" : "object"
       },
       "example.cart.CartStateCursorPage" : {
@@ -1452,6 +1454,10 @@
             "minLength" : 1,
             "type" : "string"
           },
+          "eventTime" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "firstEventTime" : {
             "format" : "int64",
             "type" : "integer"
@@ -1481,12 +1487,14 @@
               },
               "items" : {
                 "items" : {
-                  "$ref" : "#/components/schemas/example.cart.CartItem"
+                  "$ref" : "#/components/schemas/example.cart.CartItem",
+                  "readOnly" : true
                 },
+                "readOnly" : true,
                 "type" : "array"
               }
             },
-            "required" : [ "id" ],
+            "required" : [ "id", "items" ],
             "type" : "object"
           },
           "tags" : {
@@ -1507,7 +1515,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ],
         "type" : "object"
       },
       "example.cart.CartStateStateEvent" : {
@@ -1623,12 +1631,14 @@
               },
               "items" : {
                 "items" : {
-                  "$ref" : "#/components/schemas/example.cart.CartItem"
+                  "$ref" : "#/components/schemas/example.cart.CartItem",
+                  "readOnly" : true
                 },
+                "readOnly" : true,
                 "type" : "array"
               }
             },
-            "required" : [ "id" ],
+            "required" : [ "id", "items" ],
             "type" : "object"
           },
           "tags" : {
@@ -1649,7 +1659,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "body", "commandId", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "header", "id", "ownerId", "requestId", "spaceId", "state", "tags", "tenantId", "version" ],
         "type" : "object"
       },
       "example.cart.ChangeQuantity" : {
@@ -1970,7 +1980,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "body", "commandId", "contextName", "createTime", "header", "id", "ownerId", "requestId", "spaceId", "tenantId", "version" ],
         "type" : "object"
       },
       "example.order.OrderAggregatedDomainEventStreamCursorPage" : {
@@ -2178,6 +2188,7 @@
             "type" : "array"
           },
           "paidAmount" : {
+            "readOnly" : true,
             "type" : "number"
           },
           "payable" : {
@@ -2185,13 +2196,15 @@
             "type" : "number"
           },
           "status" : {
-            "$ref" : "#/components/schemas/example.order.OrderStatus"
+            "$ref" : "#/components/schemas/example.order.OrderStatus",
+            "readOnly" : true
           },
           "totalAmount" : {
+            "readOnly" : true,
             "type" : "number"
           }
         },
-        "required" : [ "id" ],
+        "required" : [ "address", "id", "items", "paidAmount", "status", "totalAmount" ],
         "type" : "object"
       },
       "example.order.WowExampleOrderStateCursorPage" : {
@@ -2406,6 +2419,10 @@
             "minLength" : 1,
             "type" : "string"
           },
+          "eventTime" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "firstEventTime" : {
             "format" : "int64",
             "type" : "integer"
@@ -2446,16 +2463,19 @@
                 "type" : "array"
               },
               "paidAmount" : {
+                "readOnly" : true,
                 "type" : "number"
               },
               "status" : {
-                "$ref" : "#/components/schemas/example.order.OrderStatus"
+                "$ref" : "#/components/schemas/example.order.OrderStatus",
+                "readOnly" : true
               },
               "totalAmount" : {
+                "readOnly" : true,
                 "type" : "number"
               }
             },
-            "required" : [ "id" ],
+            "required" : [ "address", "id", "items", "paidAmount", "status", "totalAmount" ],
             "type" : "object"
           },
           "tags" : {
@@ -2476,7 +2496,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ],
         "type" : "object"
       },
       "example.order.WowExampleOrderStateStateEvent" : {
@@ -2603,16 +2623,19 @@
                 "type" : "array"
               },
               "paidAmount" : {
+                "readOnly" : true,
                 "type" : "number"
               },
               "status" : {
-                "$ref" : "#/components/schemas/example.order.OrderStatus"
+                "$ref" : "#/components/schemas/example.order.OrderStatus",
+                "readOnly" : true
               },
               "totalAmount" : {
+                "readOnly" : true,
                 "type" : "number"
               }
             },
-            "required" : [ "id" ],
+            "required" : [ "address", "id", "items", "paidAmount", "status", "totalAmount" ],
             "type" : "object"
           },
           "tags" : {
@@ -2633,7 +2656,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "body", "commandId", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "header", "id", "ownerId", "requestId", "spaceId", "state", "tags", "tenantId", "version" ],
         "type" : "object"
       },
       "tck.mock_aggregate.MockAggregateChanged" : {
@@ -2803,7 +2826,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "body", "commandId", "contextName", "createTime", "header", "id", "ownerId", "requestId", "spaceId", "tenantId", "version" ],
         "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedDomainEventStreamCursorPage" : {
@@ -2982,7 +3005,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "body", "commandId", "contextName", "createTime", "header", "id", "ownerId", "requestId", "spaceId", "tenantId", "version" ],
         "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStreamCursorPage" : {
@@ -3157,7 +3180,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "body", "commandId", "contextName", "createTime", "header", "id", "ownerId", "requestId", "spaceId", "tenantId", "version" ],
         "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedDomainEventStreamCursorPage" : {
@@ -3318,6 +3341,7 @@
             "type" : "integer"
           },
           "data" : {
+            "readOnly" : true,
             "type" : "string"
           },
           "decimalValue" : {
@@ -3333,7 +3357,7 @@
             "type" : "array"
           }
         },
-        "required" : [ "id" ],
+        "required" : [ "data", "id" ],
         "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateCursorPage" : {
@@ -3548,6 +3572,10 @@
             "minLength" : 1,
             "type" : "string"
           },
+          "eventTime" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "firstEventTime" : {
             "format" : "int64",
             "type" : "integer"
@@ -3577,6 +3605,7 @@
                 "type" : "integer"
               },
               "data" : {
+                "readOnly" : true,
                 "type" : "string"
               },
               "decimalValue" : {
@@ -3592,7 +3621,7 @@
                 "type" : "array"
               }
             },
-            "required" : [ "id" ],
+            "required" : [ "data", "id" ],
             "type" : "object"
           },
           "tags" : {
@@ -3613,7 +3642,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ],
         "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateStateEvent" : {
@@ -3729,6 +3758,7 @@
                 "type" : "integer"
               },
               "data" : {
+                "readOnly" : true,
                 "type" : "string"
               },
               "decimalValue" : {
@@ -3744,7 +3774,7 @@
                 "type" : "array"
               }
             },
-            "required" : [ "id" ],
+            "required" : [ "data", "id" ],
             "type" : "object"
           },
           "tags" : {
@@ -3765,7 +3795,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "body", "commandId", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "header", "id", "ownerId", "requestId", "spaceId", "state", "tags", "tenantId", "version" ],
         "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithTenantId" : {
@@ -3992,6 +4022,10 @@
             "minLength" : 1,
             "type" : "string"
           },
+          "eventTime" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "firstEventTime" : {
             "format" : "int64",
             "type" : "integer"
@@ -4044,7 +4078,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ],
         "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithTenantIdStateEvent" : {
@@ -4183,7 +4217,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "body", "commandId", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "header", "id", "ownerId", "requestId", "spaceId", "state", "tags", "tenantId", "version" ],
         "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithoutCtorParameters" : {
@@ -4401,6 +4435,10 @@
             "minLength" : 1,
             "type" : "string"
           },
+          "eventTime" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "firstEventTime" : {
             "format" : "int64",
             "type" : "integer"
@@ -4444,7 +4482,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ],
         "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithoutCtorParametersStateEvent" : {
@@ -4574,7 +4612,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ],
+        "required" : [ "aggregateId", "aggregateName", "body", "commandId", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "header", "id", "ownerId", "requestId", "spaceId", "state", "tags", "tenantId", "version" ],
         "type" : "object"
       },
       "tck.mock_aggregate.MockVoidCommand" : {

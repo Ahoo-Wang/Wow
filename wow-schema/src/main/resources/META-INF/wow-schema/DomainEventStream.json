@@ -147,10 +147,13 @@
     "id",
     "contextName",
     "aggregateName",
+    "header",
     "tenantId",
     "aggregateId",
     "ownerId",
     "spaceId",
+    "commandId",
+    "requestId",
     "version",
     "body",
     "createTime"

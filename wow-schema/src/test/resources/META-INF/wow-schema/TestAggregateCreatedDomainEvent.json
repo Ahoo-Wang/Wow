@@ -79,6 +79,11 @@
       "description" : "The space ID of the aggregate resource",
       "default" : ""
     },
+    "commandId" : {
+      "type" : "string",
+      "minLength" : 1,
+      "description" : "The ID of the command message."
+    },
     "version" : {
       "type" : "integer",
       "format" : "int32",
@@ -132,5 +137,5 @@
       "description" : "The time when the domain event was created"
     }
   },
-  "required" : [ "id", "contextName", "aggregateName", "name", "tenantId", "aggregateId", "ownerId", "spaceId", "version", "sequence", "revision", "isLast", "bodyType", "body", "createTime" ]
+  "required" : [ "id", "contextName", "aggregateName", "name", "header", "tenantId", "aggregateId", "ownerId", "spaceId", "commandId", "version", "sequence", "revision", "isLast", "bodyType", "body", "createTime" ]
 }

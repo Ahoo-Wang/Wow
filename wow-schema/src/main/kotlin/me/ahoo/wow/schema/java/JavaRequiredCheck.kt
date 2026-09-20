@@ -11,38 +11,30 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.kotlin
+package me.ahoo.wow.schema.java
 
 import com.github.victools.jsonschema.generator.FieldScope
 import io.swagger.v3.oas.annotations.media.Schema
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.schema.Types.isKotlinElement
-import me.ahoo.wow.schema.kotlin.KotlinReadOnlyCheck.constructorParameter
 import java.util.function.Predicate
-import kotlin.reflect.KVisibility
-import kotlin.reflect.jvm.kotlinProperty
 
-object KotlinRequiredCheck : Predicate<FieldScope> {
+/**
+ * Marks the components of a Java record as required.
+ *
+ * A record's canonical constructor takes every component, so none of them can be omitted.
+ * Plain Java beans carry no such contract and are left to the Jackson and Swagger annotations.
+ */
+object JavaRequiredCheck : Predicate<FieldScope> {
 
     override fun test(fieldScope: FieldScope): Boolean {
-        if (!fieldScope.declaringType.erasedType.isKotlinElement()) {
+        val declaringType = fieldScope.declaringType.erasedType
+        if (declaringType.isKotlinElement() || !declaringType.isRecord) {
             return false
         }
-        val property = fieldScope.rawMember.kotlinProperty ?: return false
-        val schemaAnnotation = property.scanAnnotation<Schema>()
-
+        val schemaAnnotation = fieldScope.getAnnotationConsideringFieldAndGetter(Schema::class.java)
         if (schemaAnnotation != null && schemaAnnotation.requiredMode != Schema.RequiredMode.AUTO) {
             return schemaAnnotation.requiredMode == Schema.RequiredMode.REQUIRED
         }
-
-        fieldScope.constructorParameter()?.let {
-            return !it.isOptional
-        }
-        /*
-         * Declared in the class body instead of the constructor: it always holds a value and is always
-         * written out, so it is always present in the payload. Properties without a public getter are
-         * reported as write-only and are left out.
-         */
-        return property.getter.visibility == KVisibility.PUBLIC
+        return declaringType.recordComponents.any { it.name == fieldScope.name }
     }
 }

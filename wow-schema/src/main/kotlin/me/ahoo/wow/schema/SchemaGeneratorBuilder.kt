@@ -26,6 +26,7 @@ import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidatio
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationOption
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
 import me.ahoo.wow.schema.jackson.WowJacksonModule
+import me.ahoo.wow.schema.java.JavaModule
 import me.ahoo.wow.schema.joda.money.JodaMoneyModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
@@ -73,6 +74,8 @@ class SchemaGeneratorBuilder {
     var swagger2Module: Swagger2Module? = Swagger2Module()
         private set
     var kotlinModule: KotlinModule? = KotlinModule()
+        private set
+    var javaModule: JavaModule? = JavaModule()
         private set
     var jodaMoneyModule: JodaMoneyModule? = JodaMoneyModule()
         private set
@@ -142,6 +145,11 @@ class SchemaGeneratorBuilder {
 
     fun kotlinModule(kotlinModule: KotlinModule?): SchemaGeneratorBuilder {
         this.kotlinModule = kotlinModule
+        return this
+    }
+
+    fun javaModule(javaModule: JavaModule?): SchemaGeneratorBuilder {
+        this.javaModule = javaModule
         return this
     }
 

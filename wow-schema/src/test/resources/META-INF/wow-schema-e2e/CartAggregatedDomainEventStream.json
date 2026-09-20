@@ -233,5 +233,5 @@
       "description" : "The time when the domain event stream was created"
     }
   },
-  "required" : [ "id", "contextName", "aggregateName", "tenantId", "aggregateId", "ownerId", "spaceId", "version", "body", "createTime" ]
+  "required" : [ "id", "contextName", "aggregateName", "header", "tenantId", "aggregateId", "ownerId", "spaceId", "commandId", "requestId", "version", "body", "createTime" ]
 }

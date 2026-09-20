@@ -128,10 +128,30 @@ val generator = SchemaGeneratorBuilder()
 | `jakartaValidationModule` | enabled | Jakarta constraints |
 | `swagger2Module` | enabled | Swagger schema annotations |
 | `kotlinModule` | enabled | Kotlin nullability, required/read-only/write-only details |
+| `javaModule` | enabled | required for Java record components |
 | `jodaMoneyModule` | enabled | Joda Money wire types |
 | `wowModule` | enabled | framework definitions and query discriminator handling |
 
 Passing `null` disables an optional module. This changes generated contracts; cover custom settings with schema snapshots or focused assertions before publishing them.
+
+### Required Resolution
+
+`required` means "this property is always present in the payload" and is orthogonal to `readOnly`: in OpenAPI 3.1 a `readOnly` property listed in `required` is mandatory in responses and ignored in requests.
+
+By declaration shape:
+
+| Declaration | `required` | `readOnly` |
+|---|---|---|
+| Kotlin constructor parameter without a default | yes | no |
+| Kotlin constructor parameter with a default | no | no |
+| Kotlin class-body property with a public getter | yes | yes for `val` or a non-public setter |
+| Kotlin `lateinit var` | yes | yes |
+| Kotlin property without a public getter | no | — |
+| Class without a primary constructor, single declared one | same as constructor rules | same |
+| Java record component | yes | no |
+| Plain Java bean field | no | no |
+
+An explicit `@Schema(requiredMode)` or `@Schema(accessMode)` wins over the inference above, and `@JsonProperty(required = true)` also marks a property required. Computed getters without a backing field never enter `required`.
 
 ## Framework Type Schemas
 

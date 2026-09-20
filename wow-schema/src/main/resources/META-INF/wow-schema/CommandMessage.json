@@ -130,6 +130,7 @@
     "contextName",
     "aggregateName",
     "name",
+    "header",
     "tenantId",
     "aggregateId",
     "ownerId",

@@ -209,6 +209,7 @@ class SchemaGeneratorTest {
         required.isArray.assert().isTrue()
         required.get(0).stringValue().assert().isEqualTo("field")
         required.get(1).stringValue().assert().isEqualTo("nullableField")
+        required.get(2).stringValue().assert().isEqualTo("readOnlyField")
     }
 
     @Test
@@ -246,7 +247,9 @@ class SchemaGeneratorTest {
         val required = schema.get("required")
         required.isArray.assert().isTrue()
         required.get(0).stringValue().assert().isEqualTo("nullableField")
-        required.get(1).stringValue().assert().isEqualTo("requiredField")
+        // A mandatory constructor parameter is always present, read-only or not.
+        required.get(1).stringValue().assert().isEqualTo("readOnlyField")
+        required.get(2).stringValue().assert().isEqualTo("requiredField")
         schema.get("properties").get("ignoredProp").assert().isNull()
         schema.get("properties").get("hiddenProp").assert().isNull()
         val getterNode = schema.get("properties").get("getterProp")

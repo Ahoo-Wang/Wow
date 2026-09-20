@@ -15,8 +15,11 @@ package me.ahoo.wow.schema.kotlin
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.schema.KotlinFixture
+import me.ahoo.wow.schema.PrivateSetterFixture
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
+import me.ahoo.wow.schema.SecondaryConstructorFixture
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.JsonNode
 
 class KotlinModuleTest {
     private val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
@@ -70,19 +73,35 @@ class KotlinModuleTest {
     }
 
     @Test
-    fun `should list required fields excluding default and readonly`() {
+    fun `should list required fields excluding constructor defaults`() {
         val schema = jsonSchemaGenerator.generateSchema(KotlinFixture::class.java)
         val required = schema.get("required")
         required.isArray.assert().isTrue()
-        val requiredNames = mutableListOf<String>()
-        for (i in 0 until required.size()) {
-            requiredNames.add(required.get(i).stringValue())
-        }
+        val requiredNames = schema.requiredNames()
         requiredNames.assert().contains("field")
         requiredNames.assert().contains("nullableField")
         requiredNames.assert().doesNotContain("defaultField")
-        requiredNames.assert().doesNotContain("readOnlyField")
+        // Declared in the class body, so it always holds a value and is always written out.
+        requiredNames.assert().contains("readOnlyField")
         requiredNames.assert().doesNotContain("readOnlyGetter")
+    }
+
+    @Test
+    fun `should treat a property with a non-public setter as read-only and required`() {
+        val schema = jsonSchemaGenerator.generateSchema(PrivateSetterFixture::class.java)
+        val properties = schema.get("properties")
+        properties.get("items").get("readOnly").booleanValue().assert().isTrue()
+        properties.get("status").get("readOnly").booleanValue().assert().isTrue()
+        (properties.get("comment").get("readOnly")?.booleanValue() == true).assert().isFalse()
+        schema.requiredNames().assert().containsExactlyInAnyOrder("id", "comment", "items", "status")
+    }
+
+    @Test
+    fun `should resolve required fields from the only constructor when there is no primary one`() {
+        val schema = jsonSchemaGenerator.generateSchema(SecondaryConstructorFixture::class.java)
+        val properties = schema.get("properties")
+        (properties.get("alpha").get("readOnly")?.booleanValue() == true).assert().isFalse()
+        schema.requiredNames().assert().containsExactlyInAnyOrder("alpha", "beta")
     }
 
     @Test
@@ -109,4 +128,8 @@ class KotlinModuleTest {
         val readOnlyGetter = schema.get("properties").get("readOnlyGetter")
         readOnlyGetter.assert().isNotNull()
     }
+}
+
+private fun JsonNode.requiredNames(): List<String> {
+    return path("required").toList().map { it.stringValue() }
 }
