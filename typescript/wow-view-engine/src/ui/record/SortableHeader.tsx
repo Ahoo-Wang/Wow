@@ -210,16 +210,29 @@ function ariaSort(
 /**
  * The arrow, or the neutral pair a sortable column wears until it is used:
  * an affordance that only appears once discovered is not an affordance.
+ *
+ * **One mark, and it is always drawn.** One, because a header says one
+ * thing — which way this column orders the table — and a second glyph
+ * saying "sortable" beside an arrow already saying which way is the same
+ * sentence twice; that was `↕ 金额 ↓` on the bar's own sort button, and it
+ * is not repeated here. Always, because the alternative considered was to
+ * fade the neutral `↕` in on hover or focus: that hides the affordance from
+ * a touch screen entirely, makes the header row shift by 18px under the
+ * pointer, and contradicts the line above, which is a decision this package
+ * already made rather than a preference. The mark is `muted-foreground/60`
+ * instead — quiet enough not to compete with the column's name, present
+ * enough to be found without moving the pointer.
  */
 function SortMark({ direction }: { direction: SortDirection | null }) {
-  if (direction === 'ASC') return <ArrowUpIcon className="size-3.5" />;
-  if (direction === 'DESC') return <ArrowDownIcon className="size-3.5" />;
-  return (
-    <ArrowUpDownIcon
-      data-slot="sort-available"
-      className="text-muted-foreground/60 size-3.5"
-    />
-  );
+  if (direction === null)
+    return (
+      <ArrowUpDownIcon
+        data-slot="sort-available"
+        className="text-muted-foreground/60 size-3.5"
+      />
+    );
+  const Arrow = direction === 'ASC' ? ArrowUpIcon : ArrowDownIcon;
+  return <Arrow data-slot="sort-direction" className="size-3.5" />;
 }
 
 /** Whether the modifier that turns a click into "also sort by this" is held. */

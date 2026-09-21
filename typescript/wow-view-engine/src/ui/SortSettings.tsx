@@ -163,7 +163,6 @@ export function SortSettings({
         // that keeps its words: what it says is the sort in force.
         render={<Button variant="outline" size="sm" />}
       >
-        <ArrowDownUpIcon data-icon="inline-start" />
         <SortSummary sort={table.sort} labelOf={labelOf} messages={messages} />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80">
@@ -374,7 +373,7 @@ function SortEntry({
         aria-label={messages.label('label.sort.direction', { field: label })}
         onClick={onFlip}
       >
-        <DirectionMark direction={direction} />
+        <DirectionMark direction={direction} icon="inline-start" />
         {messages.label(DIRECTION_LABEL[direction])}
       </Button>
       <IconButton
@@ -400,6 +399,22 @@ const STEP: Record<string, -1 | 1 | undefined> = {
  * The sort on the button: the first field and its direction, plus how many
  * more there are. The whole list would not fit, and the first field is the
  * one the rows are actually in the order of.
+ *
+ * **One arrow, after the name.** The button used to lead with a neutral
+ * `↕` as well — the control's own glyph — and then draw the direction after
+ * the field, so a sorted table read `↕ 金额 ↓`: two arrows 48px apart with
+ * the word they both talk about between them, and the first of them saying
+ * nothing the second did not. The `↕` is now what the button wears while
+ * nothing is sorted and the direction replaces it once something is, so
+ * there is one mark in one place and it always means the same thing. After
+ * the name rather than before it, which is where a table header puts it
+ * (`SortableHeader`): the bar's button and the column it is talking about
+ * then say the sort the same way round.
+ *
+ * It takes the button's trailing icon slot (`data-icon="inline-end"`) only
+ * when it really is what ends the button — that slot tightens the padding on
+ * its side, and with more than one field sorted the count follows the mark,
+ * which makes the mark inline content rather than an affix.
  */
 function SortSummary({
   sort,
@@ -411,26 +426,51 @@ function SortSummary({
   messages: MessageFormatters;
 }) {
   const first = sort[0];
-  if (!first) return <>{messages.label('label.sort.title')}</>;
+  if (!first)
+    return (
+      <>
+        {messages.label('label.sort.title')}
+        <ArrowDownUpIcon data-slot="sort-available" data-icon="inline-end" />
+      </>
+    );
   const direction = directionOf(first.direction);
+  const more = sort.length - 1;
   return (
     <>
       {labelOf(first.field)}
-      <DirectionMark direction={direction} />
+      <DirectionMark
+        direction={direction}
+        {...(more === 0 ? ({ icon: 'inline-end' } as const) : {})}
+      />
       <span className="sr-only">
         {messages.label(DIRECTION_LABEL[direction])}
       </span>
-      {sort.length > 1 && (
+      {more > 0 && (
         <span className="text-muted-foreground">
-          {messages.label('label.sort.more', { count: sort.length - 1 })}
+          {messages.label('label.sort.more', { count: more })}
         </span>
       )}
     </>
   );
 }
 
-function DirectionMark({ direction }: { direction: SortDirection }) {
-  return direction === 'ASC' ? <ArrowUpIcon /> : <ArrowDownIcon />;
+/**
+ * Which way one field goes, as the arrow for it.
+ *
+ * `icon` is the button affix the arrow is — the registry sizes and spaces an
+ * icon by that slot — and it is left out where the arrow is inline content
+ * rather than an affix: on the trigger with several fields sorted, the count
+ * follows the arrow and the trailing slot's tighter padding would be a lie.
+ */
+function DirectionMark({
+  direction,
+  icon,
+}: {
+  direction: SortDirection;
+  icon?: 'inline-start' | 'inline-end';
+}) {
+  const Arrow = direction === 'ASC' ? ArrowUpIcon : ArrowDownIcon;
+  return <Arrow data-slot="sort-direction" data-icon={icon} />;
 }
 
 /** Flips one entry, reading an unreadable direction as ascending first. */

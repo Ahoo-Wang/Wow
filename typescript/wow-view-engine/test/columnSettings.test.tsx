@@ -212,13 +212,58 @@ describe('the column settings popover', () => {
     // The host's action column is the end, so `amount` is a middle column
     // in config order and only the actions row sits on the right.
     expect(listed()).toEqual(['id', 'amount', 'warehouse', ACTIONS_COLUMN]);
-    expect(
-      [...document.querySelectorAll('[data-slot="column-region"]')].map(
-        region => region.getAttribute('aria-label'),
-      ),
-    ).toEqual(['Pinned left', 'Column settings', 'Pinned right']);
     // The search handle is not something a row holds, so it is not offered.
     expect(screen.queryByRole('checkbox', { name: 'Show Search' })).toBeNull();
+  });
+
+  /**
+   * Each area is a heading somebody can see, and the same words are its
+   * accessible name because they are the same node.
+   *
+   * Three `aria-label`s and nothing on the screen was what made a column
+   * pinned to the right read as having fallen to the bottom of the list:
+   * the rows moved and nothing said where they had moved to. The words are
+   * the three pin states, the same ones a row's own pin control cycles
+   * through, so the area and the control agree.
+   */
+  it('heads each area with the pinning it is, seen and said alike', async () => {
+    const user = userEvent.setup();
+    open({}, { actions: true });
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+
+    const regions = [
+      ...document.querySelectorAll<HTMLElement>('[data-slot="column-region"]'),
+    ];
+    const headings = [
+      ...document.querySelectorAll<HTMLElement>(
+        '[data-slot="column-region-heading"]',
+      ),
+    ];
+    expect(headings.map(heading => heading.textContent)).toEqual([
+      'Pinned left',
+      'Not pinned',
+      'Pinned right',
+    ]);
+    // Drawn as a heading, not as a grey line that only looks like one.
+    expect(headings.map(heading => heading.tagName)).toEqual([
+      'H3',
+      'H3',
+      'H3',
+    ]);
+    // And the list takes its name from that heading rather than repeating
+    // the word in an attribute nobody can check against what is drawn.
+    expect(
+      regions.map(region => region.getAttribute('aria-labelledby')),
+    ).toEqual(headings.map(heading => heading.id));
+    expect(regions.some(region => region.hasAttribute('aria-label'))).toBe(
+      false,
+    );
+    expect(regions.map(region => region.dataset.region)).toEqual([
+      'left',
+      'middle',
+      'right',
+    ]);
   });
 
   it('leaves the action column out when the host offers no row actions', async () => {

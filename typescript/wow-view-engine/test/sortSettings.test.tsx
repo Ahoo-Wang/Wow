@@ -145,6 +145,39 @@ describe('what the sort button says', () => {
 
     expect(trigger().textContent).toBe('AmountDescending+1');
   });
+
+  /**
+   * One arrow, after the name, whatever the sort is.
+   *
+   * The button used to lead with a neutral `↕` *and* draw the direction
+   * after the field, so a sorted table read `↕ Amount ↓` — two arrows with
+   * the word they both talk about between them, measured 48px apart, the
+   * first saying nothing the second did not. The neutral one is now what
+   * the button wears while nothing is sorted, and the direction takes its
+   * place once something is: one mark, one place, one meaning — the way a
+   * table header carries it (`SortableHeader`).
+   */
+  it('wears one arrow, after the name, sorted or not', () => {
+    open();
+
+    const unsorted = [...trigger().querySelectorAll('svg')];
+    expect(unsorted).toHaveLength(1);
+    expect(unsorted[0].dataset.slot).toBe('sort-available');
+    // After the word, not before it: the word comes first in the button.
+    expect(trigger().firstChild!.textContent).toBe('Sort');
+
+    cleanup();
+    open([
+      { field: 'amount', direction: 'DESC' },
+      { field: 'id', direction: 'ASC' },
+    ]);
+
+    const sorted = [...trigger().querySelectorAll('svg')];
+    expect(sorted).toHaveLength(1);
+    // Neither icon slot: those tighten the button's padding on that side,
+    // and with a second field sorted the count is what ends the button.
+    expect(sorted[0].hasAttribute('data-icon')).toBe(false);
+  });
 });
 
 describe('editing the sort', () => {

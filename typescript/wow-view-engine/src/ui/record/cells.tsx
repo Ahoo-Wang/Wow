@@ -56,12 +56,47 @@ const TONE_VARIANT: Record<FieldTone, 'secondary' | 'destructive'> = {
  * clear that ratio *against the surface*, so filling with the token and
  * writing in the surface colour is the pairing they were chosen for, and it
  * flips with the theme: light text on a dark fill, dark text on a light one.
+ *
+ * `danger` says the fill twice because the registry's `destructive` variant
+ * says its own twice: `bg-destructive/10` *and* `dark:bg-destructive/20`.
+ * Only the unprefixed one is replaced by an unprefixed override, so the dark
+ * theme kept the 20% wash and a cancelled row measured **1.29:1** against
+ * the row it was on — the solid fill this paragraph describes was true in
+ * one theme out of two. This is not a hardcoded light/dark pair: it is the
+ * same semantic token written at the variant's own specificity, so a host
+ * moving `--fve-dark-destructive` still moves it.
  */
 const TONE_CLASS: Partial<Record<FieldTone, string>> = {
   success: 'bg-success text-background',
   warning: 'bg-warning text-background',
-  danger: 'bg-destructive text-background',
+  danger: 'bg-destructive dark:bg-destructive text-background',
 };
+
+/**
+ * The edge a badge with no tone is drawn with — which is the whole of it.
+ *
+ * A row is a surface that moves under the badge: `bg-muted` once it is
+ * selected, the same shade mixed in while it is hovered. The registry's
+ * `secondary` fill *is* that shade, so on a selected row the badge measured
+ * **1.00:1** against the row under it, in both themes — it stopped being a
+ * badge and became a word. Several states sharing one 3% grey is fine right
+ * up until two of them are stacked.
+ *
+ * `input` rather than `border`, although `border` is what a divider uses:
+ * the theme keeps them apart on exactly this question (`styles.css`) —
+ * `input` is the edge of a thing rather than a line between things, and it
+ * is held at ≥3:1 because an unticked checkbox is *only* its ring. A badge
+ * that has lost its fill to the row is in the same position, and `border`
+ * is not: measured on the selected row it comes to **1.155:1**, which is
+ * the same disappearance one step slower. Nothing moves either way — the
+ * registry already draws `border border-transparent` on every badge, so
+ * this only gives that line a colour.
+ *
+ * **A toned badge takes no edge.** It is a filled status surface (see
+ * `TONE_CLASS`) and clears the row by its fill alone; a grey hairline
+ * around a solid colour reads as a halo, not as an outline.
+ */
+const BADGE_EDGE = 'border-input';
 
 /**
  * How wide a `text` cell may grow before it wraps. A table lays out by
@@ -156,7 +191,7 @@ function Badges({ entries }: { entries: readonly BadgeEntry[] }) {
             // tone and a test can read one without matching on colour.
             data-tone={tone}
             variant={TONE_VARIANT[tone]}
-            className={TONE_CLASS[tone]}
+            className={TONE_CLASS[tone] ?? BADGE_EDGE}
           >
             {entry.label}
           </Badge>

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useId, useMemo, useState } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { Accessibility } from '@dnd-kit/dom';
 import { Columns3Icon } from 'lucide-react';
@@ -60,10 +60,21 @@ const GROUP: Record<ColumnRegion, string> = {
   right: 'columns-right',
 };
 
-/** Each area's accessible name, so a list of rows says which area it is. */
+/**
+ * Each area's heading — which is also its accessible name, because they are
+ * the same node.
+ *
+ * The three words are the three pin states, the same ones a row's own pin
+ * control cycles through (`nextPin`): an area *is* a pinning, so naming it
+ * with that word makes the list and the control say the same thing. The
+ * middle one used to be `label.columns.title` — the popover's own name — and
+ * as an invisible `aria-label` that only went unnoticed; said out loud under
+ * a heading already reading "Column settings" it would be the title twice
+ * and the area not at all.
+ */
 const REGION_LABEL = {
   left: 'label.columns.pin.left',
-  middle: 'label.columns.title',
+  middle: 'label.columns.pin.none',
   right: 'label.columns.pin.right',
 } as const;
 
@@ -238,40 +249,55 @@ function Region({
   onMove(field: string, toIndex: number): void;
 }) {
   const messages = useViewMessages();
+  const headingId = useId();
   const own = regionRows(rows, region);
   if (own.length === 0) return null;
 
   return (
-    <ul
-      data-slot="column-region"
-      data-region={region}
-      aria-label={messages.label(REGION_LABEL[region])}
-      className="flex flex-col"
-    >
-      {own.map(row => {
-        const shared = {
-          row,
-          shownCount: shown,
-          onToggle: () => table.setColumns(toggled(table.columnFields, row)),
-          onPin: () =>
-            table.setPinned(row.field, nextPin(columnPin(row.pinned))),
-          onSummary: (fn: SummaryFunction | null) =>
-            table.setSummary(row.field, fn),
-          onMove: (step: -1 | 1) =>
-            onMove(row.field, movableIndex(rows, row.field) + step),
-        };
-        return row.movable ? (
-          <SortableColumnRow
-            key={row.field}
-            {...shared}
-            index={movableIndex(rows, row.field)}
-            group={GROUP[row.region]}
-          />
-        ) : (
-          <ColumnRow key={row.field} {...shared} />
-        );
-      })}
-    </ul>
+    <div data-slot="column-region-group" className="flex flex-col">
+      {/* Said, and now also drawn. The areas were three `aria-label`s and
+          nothing on the screen, so a column pinned right did not read as
+          held at the edge — it read as having fallen to the bottom of the
+          list. One level under the popover's own title, and styled like the
+          sidebar's group labels: a heading of a list, not of the panel. */}
+      <h3
+        id={headingId}
+        data-slot="column-region-heading"
+        className="text-muted-foreground px-2 pt-2 pb-1 text-xs font-medium"
+      >
+        {messages.label(REGION_LABEL[region])}
+      </h3>
+      <ul
+        data-slot="column-region"
+        data-region={region}
+        aria-labelledby={headingId}
+        className="flex flex-col"
+      >
+        {own.map(row => {
+          const shared = {
+            row,
+            shownCount: shown,
+            onToggle: () => table.setColumns(toggled(table.columnFields, row)),
+            onPin: () =>
+              table.setPinned(row.field, nextPin(columnPin(row.pinned))),
+            onSummary: (fn: SummaryFunction | null) =>
+              table.setSummary(row.field, fn),
+            onMove: (step: -1 | 1) =>
+              onMove(row.field, movableIndex(rows, row.field) + step),
+          };
+          return row.movable ? (
+            <SortableColumnRow
+              key={row.field}
+              {...shared}
+              index={movableIndex(rows, row.field)}
+              group={GROUP[row.region]}
+            />
+          ) : (
+            <ColumnRow key={row.field} {...shared} />
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 

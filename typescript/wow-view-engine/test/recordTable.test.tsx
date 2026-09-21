@@ -740,6 +740,49 @@ describe('sorting from the headers', () => {
     expect(plain.querySelector('button')).toBeNull();
   });
 
+  /**
+   * One mark per header, on the inner side of the column's name.
+   *
+   * The affordance and the direction are the same sentence, so a sorted
+   * header does not keep the neutral `↕` beside its arrow — the bar's own
+   * sort button read `↕ Amount ↓` for exactly that reason. Inner side means
+   * *after* the name where a column reads from the left and *before* it
+   * where a numeric column reads from the right, which is one rule and not
+   * two: the label keeps the edge the digits under it line up on, and the
+   * mark follows it inward.
+   */
+  it('marks a header once, on the inner side of its name', () => {
+    const { container } = render(
+      <RecordTable table={sorted([{ field: 'amount', direction: 'DESC' }])} />,
+    );
+
+    const marks = (field: string) => [
+      ...header(container, field).querySelectorAll('svg'),
+    ];
+    // The resizer draws no glyph, so every svg in a header is a sort mark.
+    expect(marks('amount')).toHaveLength(1);
+    expect(marks('id')).toHaveLength(1);
+    expect(marks('warehouse')).toHaveLength(0);
+    expect(marks('amount')[0].dataset.slot).toBe('sort-direction');
+    expect(marks('id')[0].dataset.slot).toBe('sort-available');
+
+    // A left-reading column puts its name first and the mark after it; a
+    // numeric one is right-aligned and reverses that row, which puts the
+    // same mark between the name and the rest of the table.
+    const order = (field: string) =>
+      [...header(container, field).querySelector('button')!.children].map(
+        child => (child as HTMLElement).dataset.slot,
+      );
+    expect(order('id')).toEqual(['column-label', 'sort-available']);
+    expect(order('amount')).toEqual(['column-label', 'sort-direction']);
+    expect(
+      header(container, 'amount').querySelector('button')!.className,
+    ).toContain('flex-row-reverse');
+    expect(
+      header(container, 'id').querySelector('button')!.className,
+    ).not.toContain('flex-row-reverse');
+  });
+
   it('says which way one sorted column goes, and what a click would do next', () => {
     const { container } = render(
       <RecordTable table={sorted([{ field: 'amount', direction: 'ASC' }])} />,

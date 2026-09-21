@@ -3389,6 +3389,77 @@ export const DarkHairlines: Story = {
   },
 };
 
+/**
+ * 一枚徽章在它所在的行上还看得见——静息、悬停、选中都算。
+ *
+ * 行底是会动的：选中走 `bg-muted`，悬停走同一档灰的不透明 `color-mix`，而
+ * `secondary` 徽章的底色正是那一档——量到 **1.00:1**，徽章直接归零成一个词。
+ * 这里量的是徽章最外那 1px 压在行底上的层叠色（`onSurface`）：没有语气的徽章
+ * 靠 `border-input` 的边说话，有语气的那几枚边是透明的、靠自己的实底说话，
+ * 所以同一个数对两族都成立。jsdom 不套样式表，这个数只有真浏览器给得出。
+ */
+const badgesOnRows = (theme: 'light' | 'dark'): Story => ({
+  ...DisplayCellFamily,
+  args: { ...DisplayCellFamily.args, theme },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() => expect(readColumn(table, '订单号')).toHaveLength(6));
+    const rows = [...(table as HTMLTableElement).tBodies[0].rows];
+
+    /** Every badge of one row, against the ground that row is on. */
+    const onRow = (row: HTMLTableRowElement, state: string) =>
+      [...row.querySelectorAll<HTMLElement>('[data-slot="badge"]')].map(
+        badge => ({
+          name: `${state} ${badge.dataset.tone} "${badge.textContent}"`,
+          ...measureBorderContrast(badge),
+        }),
+      );
+
+    // Selected first: the row takes `--muted`, which is the untoned badge's
+    // own fill, so this is the ground that used to erase it.
+    await userEvent.click(
+      within(rows[0]).getByRole('checkbox', {
+        name: say('label.record.select', { key: 'SO-1001' }),
+      }),
+    );
+    await waitFor(() =>
+      expect(rows[0]).toHaveAttribute('data-state', 'selected'),
+    );
+    await settled(() => getComputedStyle(rows[0]).backgroundColor);
+    const measured = onRow(rows[0], 'selected');
+
+    // Hovered, which is the same grey mixed halfway into the page.
+    await userEvent.hover(rows[1]);
+    await settled(() => getComputedStyle(rows[1]).backgroundColor);
+    measured.push(...onRow(rows[1], 'hovered'));
+    await userEvent.unhover(rows[1]);
+
+    // And at rest, so the two above are read against the one they moved from.
+    measured.push(...onRow(rows[2], 'resting'));
+
+    const report = measured
+      .map(
+        ({ name, onSurface, colors }) =>
+          `${name} ${onSurface.toFixed(2)}:1 (${colors.border} over ${colors.surface})`,
+      )
+      .join('; ');
+    await expect(
+      Math.min(...measured.map(({ onSurface }) => onSurface)),
+      `${theme} — ${report}`,
+    ).toBeGreaterThanOrEqual(BADGE_ON_ROW_CONTRAST);
+  },
+});
+
+/**
+ * 徽章与行底的下限。三档行底共用一档 3% 灰是设计，徽章因此只欠"还看得出是
+ * 一枚徽章"，而不是 1.4.11 对控件要的 3:1。
+ */
+const BADGE_ON_ROW_CONTRAST = 1.5;
+
+export const BadgesOnRowsInLightTheme: Story = badgesOnRows('light');
+export const BadgesOnRowsInDarkTheme: Story = badgesOnRows('dark');
+
 /** The light theme's `--input`, over the card and the header it sits on. */
 export const ControlBordersInLightTheme: Story = controlBorders('light');
 
