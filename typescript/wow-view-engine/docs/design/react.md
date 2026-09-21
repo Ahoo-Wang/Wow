@@ -38,7 +38,7 @@ useViewList(engine, definitionId, options?: { kind }): { items; all; preferences
 
 - 给出 kind 时先按顺序排好再过滤、再解析默认，见 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)；
 - useViewManager 因此管的是过滤后的可见列表，而 move 提交的是 `all`（未过滤的完整顺序）里对调两项的结果，未列出的种类因此各守其位；
-- `all` 是未经 kind 过滤、同序的全部摘要，供 move 在完整顺序里对调；
+- `all` 是未经 kind 过滤、同序的全部摘要，供 moveTo 在完整顺序里落子；
 - reload 可带 `{ without?: id }`：重载期间把该 id 从留存的摘要里去掉，`preferences.defaultInstanceId` 命中它也读作 null，答案落地即恢复由 store 说了算——重载只刷新不清空，否则刚删掉的那一行会继续被列出、继续被当作默认视图，骑在默认视图上的工作台就会去重开一个刚被释放的 runtime（瞬时 not_found）；
 - `useViewManager.delete` 自动带上被删的 id，宿主绕过它直接用 engine 删除时同样要带。（见 test/reactHooks.test.tsx「useViewList」「narrowed to one kind」）
 
@@ -111,10 +111,10 @@ useSaveCommands(engine, runtime): { save; saveAs; rename; delete; revert; retry;
 
 ## useViewManager
 
-实现拆在 `src/react/manager/`：`outcomes.ts`（按 key 成图的结局账本；归属与替换的规则本身在 [writes.ts](#writests)，从那里直接取用）、`queue.ts`（按输入打标的串行队列，React 无关，`useSaveCommands` 同走这一份）、`order.ts`（同受众相邻项与乐观顺序）、`abilities.ts`（许可投影）、`useCommandRunner.ts`（结局账本与队列的 React 一侧）；`useViewManager.ts` 只做组合。公开面只从 `/react` 入口导出。
+实现拆在 `src/react/manager/`：`outcomes.ts`（按 key 成图的结局账本；归属与替换的规则本身在 [writes.ts](#writests)，从那里直接取用）、`queue.ts`（按输入打标的串行队列，React 无关，`useSaveCommands` 同走这一份）、`order.ts`（同受众组内的位置与乐观顺序）、`abilities.ts`（许可投影）、`useCommandRunner.ts`（结局账本与队列的 React 一侧）；`useViewManager.ts` 只做组合。公开面只从 `/react` 入口导出。
 
 ```ts
-useViewManager(engine, definitionId, list): { rename; delete; setDefault; move; canMove; outcomes; retry; abandon; resolveConflict; resubmit; canResubmit; pending; can }
+useViewManager(engine, definitionId, list): { rename; delete; setDefault; moveTo; placeOf; outcomes; retry; abandon; resolveConflict; resubmit; canResubmit; pending; can }
 ```
 
 - can 另有 anything（顺序、默认，或任一行的改名／删除中有一个可用），为假时工作台根本不把 manager 交给 ViewList——管理入口通向一屏只读的行，就是一个只能教人它通向哪儿也不去的按钮；
@@ -124,10 +124,10 @@ useViewManager(engine, definitionId, list): { rename; delete; setDefault; move; 
 - outcomes 按实例 id 或 PREFERENCES_KEY（`'system:preferences'`，取 store 不得签发的 `system:` 保留命名空间，避免与实例 id 撞键）记结局（ViewWriteError 的 state，handle 私有，供三个恢复动作寻址），引擎在发出前拒绝的记为 rejected 且无从重放——但拒绝绝不覆盖仍持有 handle 的结局，否则 [management.md#冲突与未知结果](management.md#冲突与未知结果) 的"unknown 未结清时拒绝新意图"反而会把该 unknown 的重试与放弃一并抹掉；
 - 同一 key 的结局仍持有 handle（unknown 或 conflict）时，新意图根本不入队（直接兑现 false，并在队首再查一次——排在前面的命令可能正好把这个 key 变成 unknown），只有该 key 的 retry／abandon／resolveConflict 放行：一行只有一个结局槽位，新命令记下自己的结局就会顶掉那个 handle，被它寻址的写入从此留在 engine.pendingWrites() 里而界面上无人能重试、覆盖或放弃它——unknown 是 Engine 直接拒绝，conflict 则是 Engine 照发不误、一步之后才出同样的问题；
 - rejected 不持有 handle 或只持有一个已成定论的答复，[management.md#冲突与未知结果](management.md#冲突与未知结果) 的"改正后作为新意图再保存"照常放行；
-- move 在可见列表里只与**同一受众组内**的相邻项对调（列表分个人／共享两组展示，跨组对调写了偏好却什么都没动），组的首尾不写，`canMove(id, direction)` 让 UI 据此禁用箭头；
-- 提交的却是 `list.all`（未经 kind 过滤的完整顺序）里把这两个 id 对调后的结果，store 一个定义只存一份 order，提交可见的那份会把工作台没画的种类整批抹掉；
-- move 还在 ref 里记住已提交的乐观顺序（完整顺序与对调后的可见顺序各一份）——列表要等落地后的 reload 才追上，同一行连点两次否则会算出并提交两份相同的顺序（同组的 `[A,B,C]` 中 C 连续上移两次提交 `[A,C,B]` 与 `[C,A,B]`）——找同受众邻居走它记住的可见顺序，对调走它记住的完整顺序，两个下标必须出自同一份列表，否则第二次点会拿乐观顺序里的下标去配渲染顺序里的邻居；
-- 列表身份一变（reload 已落地）即回到渲染顺序，未落地的 move 也把它撤回，而 canMove 只看渲染顺序——箭头禁不禁用要跟用户眼前的列表一致，ref 也不该在渲染里读；
+- moveTo(id, index) 把一行放到**它自己那一受众组内**的某个位置，`index` 按可见列表里该组的行计数（列表分个人／共享两组展示，跨组移动写了偏好却什么都没动，所以根本没有一个下标表达得出它）；越界的下标被夹到组内，送到它已经在的位置则不写，一律兑现 false；
+- 提交的却是 `list.all`（未经 kind 过滤的完整顺序）里把该组占的那几个位置按移动后的组序重写后的结果，store 一个定义只存一份 order，提交可见的那份会把工作台没画的种类整批抹掉；
+- moveTo 还在 ref 里记住已提交的乐观顺序（完整顺序与移动后的可见顺序各一份）——列表要等落地后的 reload 才追上，同一行连动两次否则第二次会被送到第一次已经把它放到的那个位置（同组的 `[A,B,C]` 中 C 连续上移两次提交 `[A,C,B]` 与 `[C,A,B]`）——算位置走它记住的可见顺序，重写走它记住的完整顺序，两份必须出自同一次移动；
+- 列表身份一变（reload 已落地）即回到渲染顺序，未落地的 moveTo 也把它撤回；`placeOf(id)` 读的是同一份「此刻的顺序」，因此**要在下手那一刻问，不要在渲染里读**——排队中还没落地的那一次移动屏幕上看不见，而下一次移动必须用它那一份的下标；
 - 偏好冲突按 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图) 重载后保留本次意图待再次确认（`canResubmit` 为真，按 `resubmit` 以刚读回的 revision 重新提交，它同走这条队列，且因为是一次新写入而照样受未结清守卫约束），改名／删除冲突按 [management.md#冲突与未知结果](management.md#冲突与未知结果) 推进基线后清除；
 - can 取自 list.permissions，系统视图恒不可改名、删除。（见 test/viewManager.test.tsx）
 

@@ -11,12 +11,13 @@
  * limitations under the License.
  */
 
-import { useState, type RefObject } from 'react';
+import { useState, type KeyboardEvent, type RefObject } from 'react';
+import { useSortable } from '@dnd-kit/react/sortable';
+import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import { cn } from 'cn';
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
   CheckIcon,
+  GripVerticalIcon,
   PencilIcon,
   StarIcon,
   TrashIcon,
@@ -36,7 +37,6 @@ import { ButtonGroup } from './components/button-group.js';
 import { Input } from './components/input.js';
 import { DeleteDialog } from './DeleteDialog.js';
 import { KIND_ICON } from './kinds.js';
-import { SPACE } from './layout.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { OutcomeActions } from './OutcomeActions.js';
 
@@ -44,25 +44,45 @@ import { OutcomeActions } from './OutcomeActions.js';
  * The width every row gives its actions, whether or not it has all of them.
  *
  * A column of icons looks like a column, and a user reads it as one: what
- * sits under "Move up" on the row above must be "Move up" here too. Rows do
+ * sits under "Rename" on the row above must be "Rename" here too. Rows do
  * not all carry the same actions — a system view has no rename and no delete
  * — so with the cluster sized to its contents and pushed right, a system
- * row's "Move up" landed exactly where every other row's "Set default" was,
- * and its "Set default" where their "Delete" was. Three icons, all of them
- * lying about what they do.
+ * row's one button landed exactly where every other row's "Delete" was: an
+ * icon lying about what it does.
  *
  * The fix is a slot as wide as the fullest row and contents left-aligned
- * inside it: five `icon-sm` buttons (`size-7`, 28px) plus the one
- * `SPACE.GROUPS` between the two groups — 148px. The absent actions are
- * **not** drawn as disabled buttons to make up the width: what a row offers
- * is what the store will take (decisions.md D4), and a greyed-out Delete on
- * a view that can never be deleted is an offer that was never on the table.
+ * inside it. Re-measured now that the order is dragged rather than clicked:
+ * the two arrows and the group between them are gone, so the fullest row is
+ * the three `icon-sm` buttons (`size-7`, 28px) of one group — 84px. The
+ * absent actions are **not** drawn as disabled buttons to make up the width:
+ * what a row offers is what the store will take (decisions.md D4), and a
+ * greyed-out Delete on a view that can never be deleted is an offer that was
+ * never on the table.
  */
-const ACTION_SLOT = 'w-37';
+const ACTION_SLOT = 'w-21';
+
+export interface ViewManagerRowProps {
+  item: ViewInstanceSummary;
+  manager: ViewManagerController;
+  list: ViewListState;
+  openDirtyId: string | null;
+  /**
+   * Where focus goes when this row's delete confirmation closes. The row may
+   * be gone by then — that is what was confirmed — so there is nothing on it
+   * to return to, and the manager hands down its own heading instead.
+   */
+  returnFocus?: RefObject<HTMLElement | null>;
+  /** Moves the row one place, from the arrow keys on its handle. */
+  onMove(step: -1 | 1): void;
+  /** True while the library is carrying this row, so the arrows are its. */
+  dragging?: boolean;
+  elementRef?(element: HTMLElement | null): void;
+  handleRef?(element: HTMLElement | null): void;
+}
 
 /**
- * One view in the manager: what it is, what it is called, and the writes it
- * permits.
+ * One view in the manager: where it sits, what it is, what it is called, and
+ * the writes it permits.
  *
  * Every button exists only where it is permitted rather than greyed out, so
  * what the row offers is exactly what the store will take. Renaming happens
@@ -75,18 +95,11 @@ export function ViewManagerRow({
   list,
   openDirtyId,
   returnFocus,
-}: {
-  item: ViewInstanceSummary;
-  manager: ViewManagerController;
-  list: ViewListState;
-  openDirtyId: string | null;
-  /**
-   * Where focus goes when this row's delete confirmation closes. The row may
-   * be gone by then — that is what was confirmed — so there is nothing on it
-   * to return to, and the manager hands down its own heading instead.
-   */
-  returnFocus?: RefObject<HTMLElement | null>;
-}) {
+  onMove,
+  dragging,
+  elementRef,
+  handleRef,
+}: ViewManagerRowProps) {
   const messages = useViewMessages();
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -107,8 +120,47 @@ export function ViewManagerRow({
   };
 
   return (
-    <div data-slot="view-manager-row" className="flex flex-col gap-1">
+    <div
+      ref={elementRef}
+      data-slot="view-manager-row"
+      data-dragging={dragging ? '' : undefined}
+      className="data-dragging:bg-muted flex flex-col gap-1 rounded-md"
+    >
       <div className="flex min-w-0 items-center gap-2">
+        {/* The order is the user's, and it is made by carrying a row rather
+            than by clicking it up one step at a time. The handle leads the
+            row because that is where a reader looks for one, and because the
+            action slot on the right is about what becomes of the view rather
+            than about where it sits. It is a list-wide permission, so either
+            every row has one or none does, and the rows stay aligned. */}
+        {manager.can.reorder && (
+          <Button
+            ref={handleRef}
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0 cursor-grab"
+            // Not a permission, so not an absence (D4): while a write is in
+            // flight or this row's title is being edited, the row is busy
+            // with something else and comes back as soon as it is done.
+            disabled={busy || renaming !== null}
+            aria-label={messages.label('label.manage.drag', {
+              title: item.title,
+            })}
+            onKeyDown={(event: KeyboardEvent) => {
+              // While the library is carrying the row the arrows are its:
+              // two handlers on one press would move the row twice.
+              if (dragging) return;
+              const step = STEP[event.key];
+              if (!step) return;
+              event.preventDefault();
+              onMove(step);
+            }}
+          >
+            <GripVerticalIcon />
+          </Button>
+        )}
+
         <Kind className="text-muted-foreground size-4 shrink-0" aria-hidden />
 
         {renaming === null ? (
@@ -151,13 +203,11 @@ export function ViewManagerRow({
           </Badge>
         )}
 
+        {/* One group now that the order left this slot, so there is no
+            between for `SPACE.GROUPS` to be. */}
         <div
           data-slot="view-manager-actions"
-          className={cn(
-            'flex shrink-0 items-center',
-            ACTION_SLOT,
-            SPACE.GROUPS,
-          )}
+          className={cn('flex shrink-0 items-center', ACTION_SLOT)}
         >
           {renaming !== null ? (
             <ButtonGroup>
@@ -181,34 +231,6 @@ export function ViewManagerRow({
             </ButtonGroup>
           ) : (
             <>
-              {manager.can.reorder && (
-                <ButtonGroup
-                  aria-label={messages.label('label.manage.order-group')}
-                >
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={messages.label('label.manage.move-up')}
-                    // The group the row is drawn in is what it moves within:
-                    // the arrows go dead at the top and bottom of that group,
-                    // because a swap across the boundary would store a new
-                    // order and leave the screen exactly as it was.
-                    disabled={busy || !manager.canMove(item.id, 'up')}
-                    onClick={() => void manager.move(item.id, 'up')}
-                  >
-                    <ArrowUpIcon />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={messages.label('label.manage.move-down')}
-                    disabled={busy || !manager.canMove(item.id, 'down')}
-                    onClick={() => void manager.move(item.id, 'down')}
-                  >
-                    <ArrowDownIcon />
-                  </Button>
-                </ButtonGroup>
-              )}
               {(manager.can.setDefault || can.rename || can.delete) && (
                 <ButtonGroup
                   aria-label={messages.label('label.manage.view-group')}
@@ -222,12 +244,24 @@ export function ViewManagerRow({
                           ? 'label.manage.unset-default'
                           : 'label.manage.set-default',
                       )}
+                      // It presses in and out, so it says which it is: the
+                      // name tells a reader what the press would do, and
+                      // this tells them what pressing it already did.
+                      aria-pressed={isDefault}
                       disabled={busy}
                       onClick={() =>
                         void manager.setDefault(isDefault ? null : item.id)
                       }
                     >
-                      <StarIcon data-default={isDefault || undefined} />
+                      {/* Filled rather than only marked. The attribute was
+                          there and nothing was drawn from it, so pressing
+                          "Open this one first" changed nothing on the star
+                          itself and the badge beside the title was the only
+                          thing that answered. */}
+                      <StarIcon
+                        data-default={isDefault || undefined}
+                        className={isDefault ? 'fill-current' : undefined}
+                      />
                     </Button>
                   )}
                   {can.rename && (
@@ -283,6 +317,50 @@ export function ViewManagerRow({
         }}
       />
     </div>
+  );
+}
+
+/** Arrow keys that move a row, and how far. */
+const STEP: Record<string, -1 | 1 | undefined> = {
+  ArrowUp: -1,
+  ArrowDown: 1,
+};
+
+/**
+ * A row that can be dragged, wired to the library.
+ *
+ * `group` is the audience the row is drawn under, which is how the two groups
+ * stay apart: a row of the other group is not a drop target at all, so a
+ * personal view cannot be carried in among the shared ones — the order would
+ * be stored again, the revision spent, and the rows would sit exactly where
+ * they were, because both lists draw personal views above shared ones
+ * whatever order is stored.
+ *
+ * The optimistic plugin is left out on purpose. It reorders the DOM while the
+ * pointer moves, which makes the indexes this component is rendered from
+ * stale exactly when the drop is read; without it the library still draws the
+ * drag preview, and the committed order is computed from the two ids the drop
+ * reports.
+ */
+export function SortableViewManagerRow(
+  props: ViewManagerRowProps & { index: number; group: string },
+) {
+  const { index, group, ...rest } = props;
+  const { ref, handleRef, isDragging } = useSortable({
+    id: rest.item.id,
+    index,
+    group,
+    plugins: defaults =>
+      defaults.filter(plugin => plugin !== OptimisticSortingPlugin),
+  });
+
+  return (
+    <ViewManagerRow
+      {...rest}
+      dragging={isDragging}
+      elementRef={ref}
+      handleRef={handleRef}
+    />
   );
 }
 

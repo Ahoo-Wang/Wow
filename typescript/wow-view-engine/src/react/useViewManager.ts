@@ -27,10 +27,9 @@ import { abilitiesOf, type ViewManagerAbilities } from './manager/abilities.js';
 import { kept, PREFERENCES_KEY, projectStates } from './manager/outcomes.js';
 import { UNSENT } from './writes.js';
 import {
-  neighbourOf,
-  planMove,
+  groupIndexOf,
+  planMoveTo,
   sameOrder,
-  type MoveDirection,
   type OptimisticOrder,
 } from './manager/order.js';
 import {
@@ -40,7 +39,6 @@ import {
 import type { ViewListState } from './useViewList.js';
 
 export { PREFERENCES_KEY } from './manager/outcomes.js';
-export type { MoveDirection } from './manager/order.js';
 export type {
   ManagedInstanceAbilities,
   ViewManagerAbilities,
@@ -51,17 +49,26 @@ export interface ViewManagerController {
   delete(id: string): Promise<boolean>;
   setDefault(id: string | null): Promise<boolean>;
   /**
-   * Swaps a view with its neighbour in the same audience. The order is one
-   * list, but it is read as two — personal above shared — so a swap across
-   * that boundary is a write with nothing to show for it.
+   * Puts a view at one place inside its own audience group, counted over the
+   * rows the list shows. The order is one list, but it is read as two —
+   * personal above shared — so a move across that boundary is a write with
+   * nothing to show for it, and there is no index that expresses one.
+   *
+   * It resolves false without writing when there is nothing to do: a row the
+   * list no longer holds, or one already at that place.
    */
-  move(id: string, direction: MoveDirection): Promise<boolean>;
+  moveTo(id: string, index: number): Promise<boolean>;
   /**
-   * Whether {@link move} would move anything: false at either end of the
-   * row's own audience, where the arrow is disabled rather than pressed for
-   * a write that changes nothing the user can see.
+   * Where a row sits inside its own group, which is the index {@link moveTo}
+   * is expressed in — a drag reads it off the row it was dropped on, the
+   * arrow keys off the row itself. -1 when the list does not hold the row.
+   *
+   * **Ask it as the move is made, not while rendering.** A move that is
+   * queued but has not landed is not in the list yet, and this answers for
+   * the order that move submitted — which is the one the next move has to be
+   * expressed in, and which no render can see.
    */
-  canMove(id: string, direction: MoveDirection): boolean;
+  placeOf(id: string): number;
   /**
    * Unresolved outcomes, by instance id or {@link PREFERENCES_KEY}. Empty
    * again once `definitionId` or `engine` changes: they answer for the rows
@@ -202,33 +209,37 @@ export function useViewManager(
     [definitionId, engine, preferencesIntent, run],
   );
 
-  // The arrow is disabled from what the user is looking at, so it reads the
-  // rendered order alone: a queued move's order is a ref, and reading it here
-  // would make this answer depend on something no render can see.
-  const canMove = useCallback(
-    (id: string, direction: MoveDirection) =>
-      neighbourOf(rendered, audiences, id, direction) >= 0,
-    [audiences, rendered],
+  /**
+   * The two orders a move reasons over, as they stand this instant.
+   *
+   * Moves are serialized and the list only catches up on the reload a landing
+   * triggers, so two quick moves of one row would both read the same rendered
+   * order and the second would ask for a place the first already put it in.
+   * The order a queued move computed stands in for the list until the list is
+   * no longer the one it was computed from — after which the reload has
+   * landed and the rendered order is the truth again.
+   *
+   * It reads a ref, so it answers when it is called and not before: this is
+   * for the moment a move is made, never for a render.
+   */
+  const current = useCallback(() => {
+    const ahead = optimistic.current;
+    const carried =
+      ahead && owns(ahead) && sameOrder(ahead.base, full) ? ahead : null;
+    return carried
+      ? { visible: carried.visible, order: carried.order }
+      : { visible: rendered, order: full };
+  }, [full, owns, rendered]);
+
+  const placeOf = useCallback(
+    (id: string) => groupIndexOf(current().visible, audiences, id),
+    [audiences, current],
   );
 
-  const move = useCallback(
-    (id: string, direction: MoveDirection) => {
-      const ahead = optimistic.current;
-      // Moves are serialized and the list only catches up on the reload a
-      // landing triggers, so two quick moves of one row both read the same
-      // rendered order and submit the same result twice. The order the queued
-      // move computed stands in for the list until the list is no longer the
-      // one it was computed from — after which the reload has landed and the
-      // rendered order is the truth again.
-      const carried =
-        ahead && owns(ahead) && sameOrder(ahead.base, full) ? ahead : null;
-      const planned = planMove(
-        carried ? carried.visible : rendered,
-        carried ? carried.order : full,
-        audiences,
-        id,
-        direction,
-      );
+  const moveTo = useCallback(
+    (id: string, index: number) => {
+      const { visible, order: from } = current();
+      const planned = planMoveTo(visible, from, audiences, id, index);
       if (planned === null) return Promise.resolve(false);
       const submitted: PendingOrder = {
         engine,
@@ -255,16 +266,7 @@ export function useViewManager(
       });
       return landed;
     },
-    [
-      audiences,
-      definitionId,
-      engine,
-      full,
-      owns,
-      preferencesIntent,
-      rendered,
-      run,
-    ],
+    [audiences, current, definitionId, engine, full, preferencesIntent, run],
   );
 
   const retry = useCallback(
@@ -368,8 +370,8 @@ export function useViewManager(
     rename,
     delete: remove,
     setDefault,
-    move,
-    canMove,
+    moveTo,
+    placeOf,
     outcomes: states,
     retry,
     abandon,

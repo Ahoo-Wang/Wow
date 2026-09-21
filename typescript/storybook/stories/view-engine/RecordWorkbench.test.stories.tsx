@@ -483,11 +483,11 @@ export const ManageViews: Story = {
     // A column of icons looks like a column, so the same action has to sit at
     // the same x on every row. The cluster used to be sized to its contents
     // and pushed right, and rows do not all carry the same actions: the
-    // system row's three icons landed under the other rows' last three, so
-    // "Move up" sat exactly where "Set default" sits above it and "Set
-    // default" where "Delete" does. It is left-aligned in a slot as wide as
-    // the fullest row now — and the missing actions are still missing rather
-    // than drawn greyed out, which is why this is worth measuring at all.
+    // system row's icons landed under the other rows' last ones, so each of
+    // them sat exactly where a different action sits above it. It is
+    // left-aligned in a slot as wide as the fullest row now — and the missing
+    // actions are still missing rather than drawn greyed out, which is why
+    // this is worth measuring at all.
     const drift = new Map<string, number[]>();
     for (const managed of document.querySelectorAll<HTMLElement>(
       '[data-slot="view-manager-row"]',
@@ -509,11 +509,28 @@ export const ManageViews: Story = {
     await expect(
       shared
         .map(([name]) => name)
-        .includes(defaultMessages['label.manage.move-up']),
+        .includes(defaultMessages['label.manage.set-default']),
     ).toBe(true);
     await expect(
       drift.get(defaultMessages['label.manage.delete'])!.length,
-    ).toBeLessThan(drift.get(defaultMessages['label.manage.move-up'])!.length);
+    ).toBeLessThan(
+      drift.get(defaultMessages['label.manage.set-default'])!.length,
+    );
+
+    // The handle is the other end of the row and lines up the same way: it
+    // leads every row, because a list that is dragged says so before it is
+    // read. It is a list-wide permission, so either every row has one or
+    // none does.
+    const handles = [
+      ...document.querySelectorAll<HTMLElement>(
+        '[data-slot="view-manager-row"] button[aria-label^="Reorder"]',
+      ),
+    ];
+    await expect(handles).toHaveLength(3);
+    await expect(
+      new Set(handles.map(grip => Math.round(grip.getBoundingClientRect().x)))
+        .size,
+    ).toBe(1);
 
     // Renaming happens in the row, and the list follows it.
     await userEvent.click(
@@ -545,13 +562,55 @@ export const ManageViews: Story = {
         defaultMessages['label.manage.default'],
       ),
     );
-
-    // And the order is the user's, one step at a time.
+    // Said on the star itself and not only in the badge beside the title:
+    // the attribute was there and nothing was drawn from it, so pressing the
+    // button changed nothing the button itself showed.
     await expect(
-      within(row('大额单')).getByRole('button', {
-        name: defaultMessages['label.manage.move-up'],
+      within(row('待出库订单'))
+        .getByRole('button', {
+          name: defaultMessages['label.manage.unset-default'],
+        })
+        .querySelector('svg')!.classList,
+    ).toContain('fill-current');
+    await expect(
+      within(row('全部订单'))
+        .getByRole('button', {
+          name: defaultMessages['label.manage.set-default'],
+        })
+        .querySelector('svg')!.classList,
+    ).not.toContain('fill-current');
+
+    // And the order is the user's: a row is carried by its handle rather
+    // than clicked up one step at a time. This is the half jsdom cannot
+    // run — `@dnd-kit/dom` picks its drop target by measuring boxes, and
+    // every box there is 0×0 at the origin (see pointerDrag.ts).
+    const SHARED = ['全部订单', '待出库订单'];
+    const listed = (audience: string) =>
+      [
+        ...document.querySelectorAll<HTMLElement>(
+          `[data-slot="view-manager-group"][data-audience="${audience}"] [data-slot="view-manager-row"]`,
+        ),
+      ].map(managed => managed.textContent ?? '');
+    const order = () =>
+      listed('shared').map(
+        text => SHARED.find(title => text.includes(title)) ?? text,
+      );
+    const before = order();
+    await expect(before).toHaveLength(2);
+
+    await dragHandleOnto(
+      within(row(before[1])).getByRole('button', {
+        name: say('label.manage.drag', { title: before[1] }),
       }),
-    ).toBeDefined();
+      row(before[0]),
+    );
+
+    // The shared group reordered, and the personal one did not: the two
+    // audiences are two sortable lists, so nothing can be carried across the
+    // line between them.
+    await waitFor(() => expect(order()).toEqual([before[1], before[0]]));
+    await expect(listed('personal')).toHaveLength(1);
+    await expect(listed('personal')[0]).toContain('大额单');
 
     // Deleting asks first, and says what it costs — then the scene backs out
     // of it, because nothing here is meant to be written.

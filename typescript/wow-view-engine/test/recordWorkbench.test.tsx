@@ -1320,8 +1320,12 @@ describe('managing views from the workbench', () => {
     await remove('Mine');
 
     // The row that raised the write is the one that says what became of it.
-    const outcome = await screen.findByRole('status');
-    expect(outcome.textContent).toContain('never came back');
+    // Read out of the dialog rather than off the page: the workbench behind
+    // it still shows the open view's own outcome, and the manager now keeps
+    // a live region for what a move says out loud.
+    const outcome = (
+      await within(screen.getByRole('dialog')).findByText(/never came back/)
+    ).closest('[role="status"]') as HTMLElement;
 
     fireEvent.click(within(outcome).getByRole('button', { name: 'Retry' }));
     close();

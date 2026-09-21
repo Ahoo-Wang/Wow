@@ -185,7 +185,8 @@ src/
     WriteOutcome.tsx              — The open view's last write; ConflictConfirm.tsx (mine/theirs)
     OutcomeActions.tsx            — One outcome as a line and its buttons, shared by the two above and the manager
     ViewManager.tsx               — Rename, delete, reorder and the default view, from the sidebar
-    ViewManagerRow.tsx            — One managed view: rename in place, arrows, default, delete
+    ViewManagerRow.tsx            — One managed view: drag handle, rename in place, default, delete
+    manage/drag.ts                — What the manager takes a drop to mean, and what a carried view says out loud
     DeleteDialog.tsx              — What a delete costs, said before it happens
     LeaveGuard.tsx                — `LeaveDialog`: draws the headless guard's question
     EditorBand.tsx                — The fold a view's editor lives in
@@ -205,6 +206,7 @@ src/
       FilterActions.tsx             — Clear and Apply, with the blocked count
       inputs/                       — One file per `EditorDescriptor.input`, plus shared.tsx
     ViewList.tsx, ViewSurface.tsx, EmbeddedView.tsx
+    dragAnnounce.ts               — What a screen reader hears while a row is dragged; the column settings and the manager share it
     kinds.ts                      — The icon each kind and audience wears, shared by list and header
     describeConfig.ts             — One config in a sentence, for a conflict's side-by-side
     messages.ts, MessagesProvider.tsx   — wording by key, overridable; `MessageKey` is the union

@@ -45,8 +45,8 @@ import {
 } from '../src/react/writes.js';
 import { createCommandQueue, enqueue } from '../src/react/manager/queue.js';
 import {
-  neighbourOf,
-  planMove,
+  groupIndexOf,
+  planMoveTo,
   sameOrder,
 } from '../src/react/manager/order.js';
 import { deferred } from './fixtures.js';
@@ -349,30 +349,28 @@ describe('manager/order', () => {
     expect(sameOrder(['a'], ['a', 'b'])).toBe(false);
   });
 
-  it('finds the neighbour in the audience group of the row itself', () => {
-    expect(neighbourOf(visible, audiences, 'p1', 'down')).toBe(1);
-    expect(neighbourOf(visible, audiences, 's2', 'up')).toBe(2);
-    // The ends of a group, where the arrow is disabled.
-    expect(neighbourOf(visible, audiences, 'p1', 'up')).toBe(-1);
-    expect(neighbourOf(visible, audiences, 's2', 'down')).toBe(-1);
-    // A group boundary is not a neighbour: the swap would move nothing.
-    expect(neighbourOf(visible, audiences, 'p2', 'down')).toBe(-1);
-    expect(neighbourOf(visible, audiences, 's1', 'up')).toBe(-1);
+  it('counts a row’s place inside its own audience group', () => {
+    expect(groupIndexOf(visible, audiences, 'p1')).toBe(0);
+    expect(groupIndexOf(visible, audiences, 'p2')).toBe(1);
+    // The shared group starts counting again: the two groups are drawn one
+    // under the other, each under its own heading.
+    expect(groupIndexOf(visible, audiences, 's1')).toBe(0);
+    expect(groupIndexOf(visible, audiences, 's2')).toBe(1);
     // A row the list no longer holds, and one no audience is known for.
-    expect(neighbourOf(visible, audiences, 'gone', 'up')).toBe(-1);
-    expect(neighbourOf(['x', 'p1'], audiences, 'x', 'down')).toBe(-1);
+    expect(groupIndexOf(visible, audiences, 'gone')).toBe(-1);
+    expect(groupIndexOf(['x', 'p1'], audiences, 'x')).toBe(-1);
   });
 
-  it('skips a row of the other audience to reach its own', () => {
+  it('counts past a row of the other audience', () => {
     const mixed = ['p1', 's1', 'p2'];
-    expect(neighbourOf(mixed, audiences, 'p1', 'down')).toBe(2);
+    expect(groupIndexOf(mixed, audiences, 'p2')).toBe(1);
   });
 
-  it('swaps in the full order while pairing rows in the visible one', () => {
+  it('moves in the full order while placing rows in the visible one', () => {
     // `hidden` is another kind's view: the store keeps one order per
     // definition, so it must survive a record workbench reordering.
     const full = ['p1', 'hidden', 'p2', 's1', 's2'];
-    const planned = planMove(visible, full, audiences, 'p2', 'up');
+    const planned = planMoveTo(visible, full, audiences, 'p2', 0);
     expect(planned).toEqual({
       order: ['p2', 'hidden', 'p1', 's1', 's2'],
       visible: ['p2', 'p1', 's1', 's2'],
@@ -382,12 +380,49 @@ describe('manager/order', () => {
     expect(visible[0]).toBe('p1');
   });
 
+  /**
+   * A drop is not always onto the next row down. Carrying the first of three
+   * to the last closes the two it passed up behind it, and every id that took
+   * no part keeps the place it had.
+   */
+  it('carries a row past more than one of its own', () => {
+    const three = ['p1', 'p2', 'p3', 's1'];
+    const withThird = new Map(audiences).set('p3', 'personal');
+    const full = ['p1', 'hidden', 'p2', 'p3', 's1'];
+
+    expect(planMoveTo(three, full, withThird, 'p1', 2)).toEqual({
+      order: ['p2', 'hidden', 'p3', 'p1', 's1'],
+      visible: ['p2', 'p3', 'p1', 's1'],
+    });
+  });
+
+  /** A group is as far as a row goes; past its end is its end. */
+  it('clamps an index to the row’s own group', () => {
+    expect(planMoveTo(visible, visible, audiences, 'p1', 9)?.visible).toEqual([
+      'p2',
+      'p1',
+      's1',
+      's2',
+    ]);
+    expect(planMoveTo(visible, visible, audiences, 's2', -3)?.visible).toEqual([
+      'p1',
+      'p2',
+      's2',
+      's1',
+    ]);
+  });
+
   it('plans nothing when there is nowhere to go', () => {
-    expect(planMove(visible, visible, audiences, 'p1', 'up')).toBeNull();
-    expect(planMove(visible, visible, audiences, 'gone', 'down')).toBeNull();
-    // A pair the visible list holds but the submitted order does not: the
+    // Already where it is being sent, at either end and in the middle.
+    expect(planMoveTo(visible, visible, audiences, 'p1', 0)).toBeNull();
+    expect(planMoveTo(visible, visible, audiences, 'p1', -1)).toBeNull();
+    expect(planMoveTo(visible, visible, audiences, 's2', 1)).toBeNull();
+    // A row the list no longer holds, and one no audience is known for.
+    expect(planMoveTo(visible, visible, audiences, 'gone', 1)).toBeNull();
+    expect(planMoveTo(['x', 'p1'], visible, audiences, 'x', 0)).toBeNull();
+    // Rows the visible list holds but the submitted order does not: the
     // order would be stored without them, so nothing is submitted.
-    expect(planMove(visible, ['p1', 's1'], audiences, 'p1', 'down')).toBeNull();
-    expect(planMove(visible, ['p2', 's1'], audiences, 'p1', 'down')).toBeNull();
+    expect(planMoveTo(visible, ['p1', 's1'], audiences, 'p1', 1)).toBeNull();
+    expect(planMoveTo(visible, ['p2', 's1'], audiences, 'p1', 1)).toBeNull();
   });
 });

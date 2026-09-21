@@ -26,6 +26,7 @@ import {
   MemoryViewStore,
   ViewEngine,
   ViewStoreError,
+  type ViewAudience,
   type ViewInstance,
   type ViewPermissions,
 } from '../src/index.js';
@@ -35,9 +36,12 @@ import {
   type ViewListState,
   type ViewManagerController,
 } from '../src/react/index.js';
+import { defaultMessages } from '../src/ui/messages.js';
+import { manageDragAccessibility, managerDrop } from '../src/ui/manage/drag.js';
 import { ViewList } from '../src/ui/ViewList.js';
 import { ViewManager } from '../src/ui/ViewManager.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
+import { formattersFor } from './fixtures/columns.js';
 import {
   deferred,
   ordersDefinition,
@@ -188,6 +192,37 @@ function row(title: string): HTMLElement {
   );
   if (!found) throw new Error(`no row for ${title}`);
   return found as HTMLElement;
+}
+
+/** The handle one row is dragged by, and takes its arrow keys on. */
+function handle(title: string): HTMLElement {
+  return within(row(title)).getByRole('button', { name: `Reorder ${title}` });
+}
+
+/** What the dialog has said out loud about a move, for a reader who cannot see it. */
+function announcement(): string {
+  return (
+    document.querySelector('[data-slot="view-manager-announcement"]')
+      ?.textContent ?? ''
+  );
+}
+
+/**
+ * Each row with the audience group it is drawn in. One sortable group per
+ * audience is how a drag is kept inside one: a row of the other group is not
+ * a drop target at all.
+ */
+function groupsOfRows(): [string, string][] {
+  return Array.from(
+    document.querySelectorAll('[data-slot="view-manager-group"]'),
+  ).flatMap(group =>
+    Array.from(group.querySelectorAll('[data-slot="view-manager-row"]')).map(
+      (managed): [string, string] => [
+        (managed.textContent ?? '').replace(/\s+/g, ' ').trim(),
+        group.getAttribute('data-audience') ?? '',
+      ],
+    ),
+  );
 }
 
 /** The manager opened from the sidebar, settled. */
@@ -427,31 +462,41 @@ describe('ViewManager rows', () => {
     expect(shared.textContent).not.toContain('Unsaved changes');
   });
 
-  it('moves a view one step and keeps the ends put', async () => {
-    const { engine } = setup();
+  /**
+   * The order is dragged, and the handle takes the arrow keys for the same
+   * move — the one path a pointer cannot walk, and the only one jsdom can:
+   * `@dnd-kit/dom` picks its drop target by measuring boxes against each
+   * other, and every box here is 0×0 at the origin. The pointer half is a
+   * browser story (`RecordWorkbench.test.stories.tsx`, `ManageViews`).
+   */
+  it('moves a view one place from the arrow keys on its handle', async () => {
+    const { engine, store } = setup();
     await manage(engine);
 
-    // The system view is first among the shared ones, so it is the one with
-    // nowhere to go up.
-    expect(
-      within(row('All orders'))
-        .getByRole('button', { name: 'Move up' })
-        .hasAttribute('disabled'),
-    ).toBe(true);
-
     expect(rows()[0]).toContain('Mine');
-    fireEvent.click(
-      within(row('Mine')).getByRole('button', { name: 'Move down' }),
-    );
+    fireEvent.keyDown(handle('Mine'), { key: 'ArrowDown' });
 
+    // The whole definition's order goes to the store, not the one pair that
+    // moved: the store keeps one list per definition.
+    await waitFor(async () =>
+      expect((await store.getPreferences('orders')).order).toEqual([
+        'system:orders:all',
+        'orders-2',
+        'orders-1',
+        'orders-3',
+      ]),
+    );
     await waitFor(() => expect(rows()[0]).toContain('Yours'));
+    // And it is said once, where a reader who cannot see the list will hear
+    // it: counted inside the group the row is drawn in.
+    expect(announcement()).toBe('Mine moved to position 2 of 2');
   });
 
   /**
-   * The dialog draws two groups, personal above shared, and the arrows move
-   * within the one the row is drawn in. Across the boundary there is nothing
-   * to see: the order would be stored again, the revision spent, and the
-   * rows would sit exactly where they were.
+   * The dialog draws two groups, personal above shared, and a row moves
+   * within the one it is drawn in. Across the boundary there is nothing to
+   * see: the order would be stored again, the revision spent, and the rows
+   * would sit exactly where they were.
    */
   it('moves within the audience group the row is drawn in', async () => {
     const { engine, store } = setup();
@@ -465,22 +510,30 @@ describe('ViewManager rows', () => {
       expect.stringContaining('Ours'),
     ]);
 
-    const ends = [
-      ['Mine', 'Move up'],
-      ['Yours', 'Move down'],
-      ['All orders', 'Move up'],
-      ['Ours', 'Move down'],
-    ] as const;
-    for (const [title, arrow] of ends)
-      expect(
-        within(row(title)).getByRole('button', { name: arrow }),
-      ).toHaveProperty('disabled', true);
+    // Each audience is a sortable list of its own, so a row of the other one
+    // is not a drop target at all.
+    expect(groupsOfRows()).toEqual([
+      [expect.stringContaining('Mine'), 'personal'],
+      [expect.stringContaining('Yours'), 'personal'],
+      [expect.stringContaining('All orders'), 'shared'],
+      [expect.stringContaining('Ours'), 'shared'],
+    ]);
+
+    // The ends of a group: the key is taken, and nothing is written.
+    const setPreferences = vi.spyOn(store, 'setPreferences');
+    for (const [title, key] of [
+      ['Mine', 'ArrowUp'],
+      ['Yours', 'ArrowDown'],
+      ['All orders', 'ArrowUp'],
+      ['Ours', 'ArrowDown'],
+    ] as const)
+      fireEvent.keyDown(handle(title), { key });
+    await waitFor(() => expect(rows()).toHaveLength(4));
+    expect(setPreferences).not.toHaveBeenCalled();
 
     // The shared view above it is the system one, three rows away in the
     // stored order and the row above it on screen.
-    fireEvent.click(
-      within(row('Ours')).getByRole('button', { name: 'Move up' }),
-    );
+    fireEvent.keyDown(handle('Ours'), { key: 'ArrowUp' });
 
     await waitFor(async () =>
       expect((await store.getPreferences('orders')).order[0]).toBe('orders-3'),
@@ -489,6 +542,32 @@ describe('ViewManager rows', () => {
     // The personal group never moved.
     expect(rows()[0]).toContain('Mine');
     expect(rows()[1]).toContain('Yours');
+  });
+
+  /**
+   * Nothing on screen moves before the store has taken the order — the
+   * optimistic plugin is off and the list catches up on the reload — so a
+   * refused write has nothing to roll back. What it must not do is stay
+   * silent about it: the line belongs to the list rather than to the row,
+   * because the order and the default are one record.
+   */
+  it('says a refused reorder happened and leaves the stored order alone', async () => {
+    const { engine, store } = setup();
+    vi.spyOn(store, 'setPreferences').mockRejectedValueOnce(
+      new ViewStoreError('UNAVAILABLE', 'offline'),
+    );
+    await manage(engine);
+
+    fireEvent.keyDown(handle('Mine'), { key: 'ArrowDown' });
+
+    expect(await screen.findByText('The result never came back')).toBeDefined();
+    expect(rows()[0]).toContain('Mine');
+    expect(rows()[1]).toContain('Yours');
+    await expect(store.getPreferences('orders')).resolves.toMatchObject({
+      order: [],
+    });
+    // A move that never landed says nothing about where the row went.
+    expect(announcement()).toBe('');
   });
 
   it('chooses and unchooses the view that opens first', async () => {
@@ -520,48 +599,54 @@ describe('ViewManager rows', () => {
   });
 
   /**
-   * A row's actions are two groups, not one strip of five.
-   *
-   * They used to be five ghost buttons 2px apart — a step that is on none of
-   * the package's four — so two unrelated jobs read as one run of icons:
-   * where the view sits in the list, and what is to become of it. Ordering
-   * and disposition each get a `ButtonGroup` of their own with
-   * `SPACE.GROUPS` between them; putting all five in one group would only
-   * weld the two jobs together more tightly.
+   * A row's two jobs are in two places: where the view sits in the list is
+   * the handle it is carried by, at the head of the row where a reader looks
+   * for one, and what is to become of it is one `ButtonGroup` at the end.
+   * The five ghost buttons 2px apart this started as — a step that is on
+   * none of the package's four — read as one run of icons doing one job.
    *
    * What each row *has* is still decided by what the store would take, which
-   * is why the system row's disposition group is one button rather than
-   * three greyed-out ones.
+   * is why the system row's group is one button rather than three greyed-out
+   * ones.
    */
-  it('splits a row’s actions into ordering and disposition', async () => {
+  it('keeps a row’s order handle apart from what becomes of it', async () => {
     const { engine } = setup();
     await manage(engine);
 
-    const names = (title: string, group: string) =>
-      within(within(row(title)).getByRole('group', { name: group }))
+    const names = (title: string) =>
+      within(
+        within(row(title)).getByRole('group', {
+          name: 'What to do with this view',
+        }),
+      )
         .getAllByRole('button')
         .map(button => button.getAttribute('aria-label'));
 
-    expect(names('Mine', 'Order in the list')).toEqual([
-      'Move up',
-      'Move down',
-    ]);
-    expect(names('Mine', 'What to do with this view')).toEqual([
-      'Open this one first',
-      'Rename',
-      'Delete',
-    ]);
+    expect(handle('Mine')).toBeDefined();
+    expect(names('Mine')).toEqual(['Open this one first', 'Rename', 'Delete']);
 
     // A system view ships with the definition, so the only thing to be done
-    // with it is to choose whether it opens first.
-    expect(names('All orders', 'Order in the list')).toEqual([
-      'Move up',
-      'Move down',
-    ]);
-    expect(names('All orders', 'What to do with this view')).toEqual([
-      'Open this one first',
-    ]);
-    expect(within(row('All orders')).getAllByRole('group')).toHaveLength(2);
+    // with it is to choose whether it opens first — and it is ordered like
+    // the others, which is the user's preference rather than a write to it.
+    expect(handle('All orders')).toBeDefined();
+    expect(names('All orders')).toEqual(['Open this one first']);
+    expect(within(row('All orders')).getAllByRole('group')).toHaveLength(1);
+  });
+
+  /**
+   * A dialog that opens on the first thing it can focus opens on a write:
+   * that was a row's star, and with the handle leading the row it would be a
+   * handle. Neither says what the user is looking at.
+   */
+  it('opens on the heading rather than on a row’s first button', async () => {
+    const { engine } = setup();
+    await manage(engine);
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('heading', { name: 'Manage views' }),
+      ),
+    );
   });
 
   it('offers no write a system view could not take', async () => {
@@ -572,7 +657,10 @@ describe('ViewManager rows', () => {
     expect(system.queryByRole('button', { name: 'Rename' })).toBeNull();
     expect(system.queryByRole('button', { name: 'Delete' })).toBeNull();
     // Ordering and the default are the user's own preference, so they stay.
-    expect(system.getByRole('button', { name: 'Move down' })).toBeDefined();
+    expect(handle('All orders')).toBeDefined();
+    expect(
+      system.getByRole('button', { name: 'Open this one first' }),
+    ).toBeDefined();
   });
 
   it('leaves out the buttons a permission does not cover', async () => {
@@ -586,12 +674,51 @@ describe('ViewManager rows', () => {
     await manage(engine);
 
     const mine = within(row('Mine'));
-    expect(mine.queryByRole('button', { name: 'Move up' })).toBeNull();
+    expect(mine.queryByRole('button', { name: 'Reorder Mine' })).toBeNull();
     expect(
       mine.queryByRole('button', { name: 'Open this one first' }),
     ).toBeNull();
     expect(mine.queryByRole('button', { name: 'Rename' })).toBeNull();
     expect(mine.getByRole('button', { name: 'Delete' })).toBeDefined();
+  });
+
+  /**
+   * The attribute was there and nothing was drawn from it, so "Open this one
+   * first" left the star exactly as it was and the badge beside the title
+   * was the only thing that answered.
+   */
+  it('fills the star of the view that opens first', async () => {
+    const { engine } = setup();
+    await manage(engine);
+    const star = (title: string) =>
+      within(row(title))
+        .getByRole('button', { name: /opening this one first|Open this one/ })
+        .querySelector('svg')!;
+
+    expect(star('Yours').classList.contains('fill-current')).toBe(false);
+    expect(
+      within(row('Yours'))
+        .getByRole('button', { name: 'Open this one first' })
+        .getAttribute('aria-pressed'),
+    ).toBe('false');
+
+    fireEvent.click(
+      within(row('Yours')).getByRole('button', {
+        name: 'Open this one first',
+      }),
+    );
+
+    await waitFor(() =>
+      expect(star('Yours').classList.contains('fill-current')).toBe(true),
+    );
+    expect(star('Yours').getAttribute('data-default')).toBe('true');
+    expect(
+      within(row('Yours'))
+        .getByRole('button', { name: 'Stop opening this one first' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    // And no other row claims it.
+    expect(star('Mine').classList.contains('fill-current')).toBe(false);
   });
 });
 
@@ -636,9 +763,7 @@ describe('ViewManager outcomes', () => {
       { requestId: 'other' },
     );
 
-    fireEvent.click(
-      within(row('Mine')).getByRole('button', { name: 'Move down' }),
-    );
+    fireEvent.keyDown(handle('Mine'), { key: 'ArrowDown' });
 
     await screen.findByText('Someone else saved this view first');
     fireEvent.click(screen.getByRole('button', { name: 'Reload list' }));
@@ -663,9 +788,7 @@ describe('ViewManager outcomes', () => {
       { requestId: 'other' },
     );
 
-    fireEvent.click(
-      within(row('Mine')).getByRole('button', { name: 'Move down' }),
-    );
+    fireEvent.keyDown(handle('Mine'), { key: 'ArrowDown' });
     await screen.findByText('Someone else saved this view first');
     fireEvent.click(screen.getByRole('button', { name: 'Reload list' }));
 
@@ -866,8 +989,8 @@ describe('ViewManager outcomes', () => {
       rename: () => Promise.resolve(false),
       delete: () => Promise.resolve(false),
       setDefault: () => Promise.resolve(false),
-      move: () => Promise.resolve(false),
-      canMove: () => false,
+      moveTo: () => Promise.resolve(false),
+      placeOf: () => -1,
       outcomes: new Map([
         [
           'orders-1',
@@ -911,6 +1034,103 @@ describe('ViewManager outcomes', () => {
     expect(row('Mine').textContent).toContain('A view needs a title.');
     expect(within(row('Mine')).queryByRole('button', { name: 'Retry' })).toBe(
       null,
+    );
+  });
+});
+
+/**
+ * The half of a drag a pointer decides and jsdom cannot reach:
+ * `@dnd-kit/dom` picks its drop target by measuring boxes against each other,
+ * and every box here is 0×0 at the origin. The gesture itself is a browser
+ * story (`RecordWorkbench.test.stories.tsx`, `ManageViews`); what the manager
+ * makes of the result is this.
+ */
+describe('what the manager takes a drop to mean', () => {
+  const audienceOf = (id: string) =>
+    (
+      ({
+        'orders-1': 'personal',
+        'orders-2': 'personal',
+        'orders-3': 'shared',
+      }) as Record<string, ViewAudience | undefined>
+    )[id];
+  const dropped = (source: string, target: string) =>
+    managerDrop(
+      { source: { id: source }, target: { id: target } },
+      false,
+      audienceOf,
+    );
+
+  it('takes a drop between two rows of one audience', () => {
+    expect(dropped('orders-1', 'orders-2')).toEqual({
+      source: 'orders-1',
+      target: 'orders-2',
+    });
+  });
+
+  it('refuses one that crosses the line between the two groups', () => {
+    // Both lists draw personal views above shared ones whatever order is
+    // stored, so this would spend a revision and move nothing on screen.
+    expect(dropped('orders-1', 'orders-3')).toBeNull();
+    expect(dropped('orders-3', 'orders-1')).toBeNull();
+    // And a row no audience is known for is not one of either group.
+    expect(dropped('gone', 'orders-1')).toBeNull();
+  });
+
+  it('refuses a drag given up, and one that ended where it began', () => {
+    expect(
+      managerDrop(
+        { source: { id: 'orders-1' }, target: { id: 'orders-2' } },
+        true,
+        audienceOf,
+      ),
+    ).toBeNull();
+    expect(dropped('orders-1', 'orders-1')).toBeNull();
+    expect(
+      managerDrop({ source: { id: 'orders-1' } }, false, audienceOf),
+    ).toBeNull();
+    expect(
+      managerDrop({ target: { id: 'orders-1' } }, false, audienceOf),
+    ).toBeNull();
+  });
+});
+
+describe('what a drag of a view says out loud', () => {
+  const accessibility = manageDragAccessibility(
+    formattersFor(defaultMessages),
+    id => (id === 'orders-1' ? 'Mine' : id),
+  );
+
+  it('names the view in the reader’s own words', () => {
+    expect(
+      accessibility.announcements.dragstart({
+        operation: { source: { id: 'orders-1' } },
+      }),
+    ).toBe('Mine picked up');
+  });
+
+  /** A completed drop is announced by the dialog, so it says nothing here. */
+  it('speaks only when a drag is given up', () => {
+    const drop = { operation: { source: { id: 'orders-1' } } };
+
+    expect(accessibility.announcements.dragend(drop)).toBeUndefined();
+    expect(
+      accessibility.announcements.dragend({ ...drop, canceled: true }),
+    ).toBe('Move cancelled; Mine stayed where it was');
+  });
+
+  it('says nothing about a drag with no source', () => {
+    const none = { operation: { source: null } };
+
+    expect(accessibility.announcements.dragstart(none)).toBeUndefined();
+    expect(
+      accessibility.announcements.dragend({ ...none, canceled: true }),
+    ).toBeUndefined();
+  });
+
+  it('carries the instructions a reader is given on the handle', () => {
+    expect(accessibility.screenReaderInstructions.draggable).toBe(
+      defaultMessages['label.manage.instructions'],
     );
   });
 });

@@ -443,11 +443,11 @@ describe('useViewManager', () => {
     const { engine, store } = engineWith();
     const { result } = await managed(engine);
     // The system view is first and shared; the two personal ones follow, and
-    // a move is between neighbours of the same audience.
+    // a place is counted inside the row's own audience group.
     const before = result.current.list.items.map(item => item.id);
 
     await act(async () => {
-      await expect(result.current.manager.move(before[2], 'up')).resolves.toBe(
+      await expect(result.current.manager.moveTo(before[2], 0)).resolves.toBe(
         true,
       );
     });
@@ -466,12 +466,12 @@ describe('useViewManager', () => {
 
   /**
    * A workbench manages the list it shows, and it shows one kind — but the
-   * store keeps one order for the whole definition. So the pair to swap is
-   * found among the rows on screen and the swap is made inside the *full*
-   * order: submitting the visible order alone would store a list with every
+   * store keeps one order for the whole definition. So the place is read off
+   * the rows on screen and the move is made inside the *full* order:
+   * submitting the visible order alone would store a list with every
    * analysis id missing from it.
    */
-  it('swaps inside the full order, leaving the kinds it does not list in place', async () => {
+  it('moves inside the full order, leaving the kinds it does not list in place', async () => {
     const store = new MemoryViewStore({
       instances: [
         ...instances(),
@@ -502,13 +502,13 @@ describe('useViewManager', () => {
     expect(before).not.toContain('orders-chart');
 
     await act(async () => {
-      await expect(result.current.manager.move(before[2], 'up')).resolves.toBe(
+      await expect(result.current.manager.moveTo(before[2], 0)).resolves.toBe(
         true,
       );
     });
 
     // Every id the definition has, with the analysis exactly where it was:
-    // the two record views swapped around it rather than over it.
+    // the two record views moved around it rather than over it.
     await expect(store.getPreferences('orders')).resolves.toMatchObject({
       order: [before[0], before[2], before[1], 'orders-chart'],
     });
@@ -527,10 +527,9 @@ describe('useViewManager', () => {
 
   /**
    * Both lists draw personal views above shared ones whatever order is
-   * stored, so "the row above" on screen is the row above *within the
-   * group*. Swapping across that line writes a new order, spends a revision
-   * and moves nothing anybody can see, which is the one outcome a button
-   * must never have.
+   * stored, so a place is a place *within the group*. Carrying a row across
+   * that line writes a new order, spends a revision and moves nothing
+   * anybody can see, which is the one outcome a gesture must never have.
    */
   describe('moving within an audience group', () => {
     /** The two personal views, the system view, and a shared one. */
@@ -563,18 +562,19 @@ describe('useViewManager', () => {
       };
     }
 
-    it('swaps with the nearest view of the same audience', async () => {
+    it('places a view among the ones of its own audience', async () => {
       const { store, rendered, ids, systemId } = await grouped();
       const { result } = rendered;
       // The system view is shared, and the other shared view is three rows
-      // below it in the stored order: on screen they are neighbours.
+      // below it in the stored order: on screen they are neighbours, first
+      // and second of the shared group.
       expect(ids.indexOf(systemId)).toBe(0);
       expect(ids.indexOf('orders-3')).toBe(3);
 
       await act(async () => {
-        await expect(
-          result.current.manager.move(systemId, 'down'),
-        ).resolves.toBe(true);
+        await expect(result.current.manager.moveTo(systemId, 1)).resolves.toBe(
+          true,
+        );
       });
 
       await expect(store.getPreferences('orders')).resolves.toMatchObject({
@@ -589,15 +589,16 @@ describe('useViewManager', () => {
 
       await act(async () => {
         // The first personal view has a shared one above it on the stored
-        // order, and nothing above it on screen.
+        // order, and nothing above it on screen — a place before its group's
+        // first is its group's first.
         await expect(
-          result.current.manager.move('orders-1', 'up'),
+          result.current.manager.moveTo('orders-1', -1),
         ).resolves.toBe(false);
         // And the last shared one has personal views below it, in the store.
         await expect(
-          result.current.manager.move('orders-3', 'down'),
+          result.current.manager.moveTo('orders-3', 2),
         ).resolves.toBe(false);
-        await expect(result.current.manager.move(systemId, 'up')).resolves.toBe(
+        await expect(result.current.manager.moveTo(systemId, -1)).resolves.toBe(
           false,
         );
       });
@@ -605,18 +606,17 @@ describe('useViewManager', () => {
       expect(setPreferences).not.toHaveBeenCalled();
     });
 
-    it('says in advance which arrows would move something', async () => {
+    it('says where a row sits inside its own group', async () => {
       const { rendered, systemId } = await grouped();
-      const { canMove } = rendered.result.current.manager;
+      const { placeOf } = rendered.result.current.manager;
 
-      expect(canMove('orders-1', 'up')).toBe(false);
-      expect(canMove('orders-1', 'down')).toBe(true);
-      expect(canMove('orders-2', 'down')).toBe(false);
-      expect(canMove(systemId, 'up')).toBe(false);
-      expect(canMove(systemId, 'down')).toBe(true);
-      expect(canMove('orders-3', 'down')).toBe(false);
-      // A row the list does not hold moves nowhere.
-      expect(canMove('gone', 'up')).toBe(false);
+      // Personal and shared are two groups, each counted from zero.
+      expect(placeOf('orders-1')).toBe(0);
+      expect(placeOf('orders-2')).toBe(1);
+      expect(placeOf(systemId)).toBe(0);
+      expect(placeOf('orders-3')).toBe(1);
+      // A row the list does not hold sits nowhere.
+      expect(placeOf('gone')).toBe(-1);
     });
   });
 
@@ -627,13 +627,13 @@ describe('useViewManager', () => {
     const ids = result.current.list.items.map(item => item.id);
 
     await act(async () => {
-      await expect(result.current.manager.move(ids[0], 'up')).resolves.toBe(
+      await expect(result.current.manager.moveTo(ids[0], -1)).resolves.toBe(
         false,
       );
       await expect(
-        result.current.manager.move(ids[ids.length - 1], 'down'),
+        result.current.manager.moveTo(ids[ids.length - 1], 9),
       ).resolves.toBe(false);
-      await expect(result.current.manager.move('gone', 'up')).resolves.toBe(
+      await expect(result.current.manager.moveTo('gone', 0)).resolves.toBe(
         false,
       );
     });
@@ -658,7 +658,7 @@ describe('useViewManager', () => {
       // The second personal view, which has one of its own above it: the
       // refusal has to come from the permission, not from the group's end.
       await expect(
-        result.current.manager.move(result.current.list.items[2].id, 'up'),
+        result.current.manager.moveTo(result.current.list.items[2].id, 0),
       ).resolves.toBe(false);
     });
 
@@ -790,7 +790,7 @@ describe('useViewManager', () => {
     );
 
     await act(async () => {
-      await result.current.manager.move(ids[2], 'up');
+      await result.current.manager.moveTo(ids[2], 0);
     });
     await act(async () => {
       await result.current.manager.resolveConflict(PREFERENCES_KEY, 'reload');
@@ -1094,15 +1094,18 @@ describe('useViewManager', () => {
         return write(...args);
       });
 
-    // Both clicks land before the list has reloaded, so both read the same
-    // rendered order. Computing from it twice would submit the same order
-    // twice and leave the row one step from where the user put it.
+    // Both presses land before the list has reloaded, so the rendered order
+    // is the same for both. The place has to come from the order the first
+    // one submitted — read off the screen twice, the second press asks for
+    // the place the first already gave the row, and nothing happens.
+    const up = () =>
+      result.current.manager.moveTo(
+        third,
+        result.current.manager.placeOf(third) - 1,
+      );
     let moves!: Promise<boolean[]>;
     act(() => {
-      moves = Promise.all([
-        result.current.manager.move(third, 'up'),
-        result.current.manager.move(third, 'up'),
-      ]);
+      moves = Promise.all([up(), up()]);
     });
 
     await waitFor(() => expect(setPreferences).toHaveBeenCalledTimes(1));
@@ -1119,8 +1122,8 @@ describe('useViewManager', () => {
     });
 
     expect(setPreferences).toHaveBeenCalledTimes(2);
-    // The neighbour comes from the order the first move submitted too: read
-    // off the rendered list, `third` would swap with `second` a second time.
+    // The second place comes from the order the first move submitted, so the
+    // row climbs again instead of being sent where it already is.
     expect(setPreferences.mock.calls[1][1].order).toEqual([
       system,
       third,

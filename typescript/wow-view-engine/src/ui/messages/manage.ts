@@ -25,15 +25,20 @@ export const manageMessages = {
   'label.manage.description':
     'Rename, reorder and delete views, and choose which one opens first.',
   'label.manage.default': 'Default',
-  // The two things a row's buttons are for, and the reason there are two
-  // groups rather than one strip of five: where a view sits in the list, and
-  // what is to become of it.
-  'label.manage.order-group': 'Order in the list',
+  // What is to become of a view, as against where it sits in the list — the
+  // latter is the handle a row is dragged by, which needs no group of its own.
   'label.manage.view-group': 'What to do with this view',
   'label.manage.set-default': 'Open this one first',
   'label.manage.unset-default': 'Stop opening this one first',
-  'label.manage.move-up': 'Move up',
-  'label.manage.move-down': 'Move down',
+  // Where a view sits in the list. The order is the user's, and it is made by
+  // carrying a row rather than by clicking it up one step at a time; the
+  // keyboard says the same thing on the same handle.
+  'label.manage.drag': 'Reorder {title}',
+  'label.manage.instructions':
+    'Press the arrow keys to move this view one place. Press space to pick it up, the arrow keys to move it, space again to drop it and escape to cancel.',
+  'label.manage.moved': '{title} moved to position {index} of {total}',
+  'label.manage.picked': '{title} picked up',
+  'label.manage.cancelled': 'Move cancelled; {title} stayed where it was',
   'label.manage.rename': 'Rename',
   'label.manage.rename-confirm': 'Save the title',
   'label.manage.rename-cancel': 'Keep the title',
