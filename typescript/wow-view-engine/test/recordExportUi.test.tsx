@@ -34,7 +34,10 @@ import { RecordWorkbench } from '../src/ui/index.js';
 import { ordersDefinition, testSource } from './fixtures.js';
 import { mine, setup } from './fixtures/ui.js';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 /**
  * The whole chain of an export, from the window to the blob: what it says it
@@ -159,6 +162,53 @@ describe('RecordWorkbench export', () => {
     // above the rows any more.
     await within(dialog).findByText('2 records exported');
     expect(document.querySelector('[data-slot="status-strip"]')).toBeNull();
+  });
+
+  it('keeps the promised name when the day turns over under the window', async () => {
+    // Only the clock, not the timers: the queries and `waitFor` below run on
+    // the real ones, and what this is about is the date the name carries.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    // Local times rather than UTC, so the day turns over here whatever zone
+    // the machine running this is in — `isoDay` reads the same zone.
+    vi.setSystemTime(new Date('2026-09-21T23:59:00'));
+    const { createObjectURL } = stubObjectUrls();
+    const onExported = vi.fn();
+    const { engine } = setup(testSource());
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+        onExported={onExported}
+      />,
+    );
+
+    const dialog = await openWindow();
+    expect(dialog.textContent).toContain('File: Mine-2026-09-21.csv');
+
+    // A minute and a half of reading what the file will hold, and it is
+    // tomorrow. The name was settled when the window opened, so it is still
+    // the one on screen — and still the one the browser is handed.
+    vi.setSystemTime(new Date('2026-09-22T00:00:30'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Export' }));
+
+    await waitFor(() => expect(onExported).toHaveBeenCalledTimes(1));
+    const file = onExported.mock.calls[0][0] as { name: string };
+    expect(file.name).toBe('Mine-2026-09-21.csv');
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    // The outcome names the same file the choice did — one journey, one
+    // shell, one promise (D14).
+    await within(dialog).findByText('2 records exported');
+    expect(dialog.textContent).toContain('File: Mine-2026-09-21.csv');
+
+    // The next opening is a new promise, and it is today's.
+    fireEvent.click(
+      dialog.querySelector('[data-slot="export-close"]') as HTMLElement,
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    const reopened = await screen.findByRole('dialog');
+    expect(reopened.textContent).toContain('File: Mine-2026-09-22.csv');
   });
 
   it('exports the picked rows when that is what was picked', async () => {

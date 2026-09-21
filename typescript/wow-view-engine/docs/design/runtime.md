@@ -181,7 +181,7 @@ export interface ViewEngine {
   readonly store: ViewStore;
   readonly environment: RuntimeEnvironment; // 时钟、计时器、可见性；由创建方注入
   definitions: ReadonlyMap<string, ViewDefinition>;
-  resolveSource(key: string): ViewSource; // Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'>
+  resolveSource(key: string): ViewSource; // 数据来源：QueryApi 的 paged / cursor / aggregate 三个方法，见「环境」
   resolveOptions(key: string): OptionSource; // FieldDefinition.remote 的候选来源
 
   open(
@@ -235,6 +235,25 @@ export interface ViewEngine {
 ## 环境
 
 ```ts
+/** 一个定义的数据从哪里来：QueryApi 的三个方法，Wow 的快照客户端原样就是一个 ViewSource。 */
+export interface ViewSource {
+  paged(
+    query: FilterPagedQuery,
+    attributes?: Record<string, unknown>,
+    abortController?: AbortController,
+  ): Promise<PagedList<RecordData>>;
+  cursor(
+    query: CursorQuery,
+    attributes?: Record<string, unknown>,
+    abortController?: AbortController,
+  ): Promise<CursorPage<RecordData>>;
+  aggregate(
+    query: AggregationQuery,
+    attributes?: Record<string, unknown>,
+    abortController?: AbortController,
+  ): Promise<RecordData[]>;
+}
+
 /** reference 字段的远程候选：搜索分页与按 id 回填，供内置 reference 编辑器使用。 */
 export interface OptionSource {
   search(
@@ -259,3 +278,7 @@ export interface RuntimeEnvironment {
   };
 }
 ```
+
+**`ViewSource` 是写出来的，不是从 `QueryApi` `Pick` 出来的**，理由有三条，都指向同一件事——它是每一个数据来源都要实现的那个口子，所以它得**恰好**说出本包要的东西：`QueryApi.paged` 收的是 `PagedQueryRequest`，即 `FilterPagedQuery | PagedQuery`，而 `PagedQuery` 是弃用 API——`Pick` 等于把架构测试在别处一概禁掉的东西写进这个口子；`QueryApi.aggregate` 答的是 `DynamicDocument`（`Record<string, any>`），从 `any` 里读出来的行没有任何人检查，这里答 `RecordData`，每个值都是 `unknown`、都要经字段的 kind 读一遍；`Pick` 还会把 `QueryApi` 的两个类型参数与各方法自带的泛型摊给每一个实现（包括测试里的桩），而这三个方法只在一种实例化下被用。
+
+`Pick` 本来能买到的那件事——上游改了签名这边就编译不过——改由一条编译期可赋值断言买：`test/architecture.test.ts` 的「Wow protocol」里把一个 `QueryApi<RecordData>` 赋给 `ViewSource`，`tsconfig.test.json` 会类型检查这个文件，所以 Wow 的签名一漂移就断在这里，而不是断在某个试图把查询客户端交过来的宿主身上。

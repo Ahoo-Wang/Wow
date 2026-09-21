@@ -79,7 +79,12 @@ function gatedSource(): { source: ViewSource; held: (() => void)[] } {
 interface Delivered {
   rows: readonly RecordData[];
   scope: RecordExportScope;
+  /** The name the run was started under, carried through untouched. */
+  fileName: string;
 }
+
+/** The name the window has already promised by the time `run` is called. */
+const FILE = 'Mine-2026-09-21.csv';
 
 function orders(count: number, from = 1): RecordData[] {
   return Array.from({ length: count }, (_row, index) => ({
@@ -125,9 +130,9 @@ async function openExport(
       runtime,
       table,
       exporter: useRecordExport(runtime, table, {
-        deliver: (rows, scope) => {
+        deliver: (rows, scope, fileName) => {
           options.deliver?.(rows, scope);
-          delivered.push({ rows, scope });
+          delivered.push({ rows, scope, fileName });
         },
       }),
     };
@@ -176,11 +181,14 @@ describe('useRecordExport runs', () => {
     const { result, delivered } = await openExport();
 
     act(() => result.current.table.toggle('o-2'));
-    act(() => result.current.exporter.run('selected'));
+    act(() => result.current.exporter.run('selected', FILE));
 
     await waitFor(() => expect(delivered).toHaveLength(1));
     expect(delivered[0].scope).toBe('selected');
     expect(delivered[0].rows).toEqual([ROWS[1]]);
+    // The name the run was started under reaches the delivery as it was
+    // given: the hook carries it and never works one out itself.
+    expect(delivered[0].fileName).toBe(FILE);
     expect(result.current.exporter.error).toBeNull();
     // The rows were already in hand, so what it produced is reported with
     // no fetching in between. `delivered` is filled inside `deliver`, which
@@ -211,7 +219,7 @@ describe('useRecordExport runs', () => {
       limits: { maxPageSize: 3 },
     });
 
-    act(() => result.current.exporter.run('all'));
+    act(() => result.current.exporter.run('all', FILE));
 
     await waitFor(() => expect(delivered).toHaveLength(1));
     expect(delivered[0].scope).toBe('all');
@@ -232,7 +240,7 @@ describe('useRecordExport runs', () => {
     const { source, held } = gatedSource();
     const { result, delivered } = await openExport({ source });
 
-    act(() => result.current.exporter.run('all'));
+    act(() => result.current.exporter.run('all', FILE));
 
     await waitFor(() => expect(result.current.exporter.running).toBe('all'));
     expect(result.current.exporter.progress).toEqual({
@@ -251,9 +259,9 @@ describe('useRecordExport runs', () => {
     const { source, held } = gatedSource();
     const { result, delivered } = await openExport({ source });
 
-    act(() => result.current.exporter.run('all'));
+    act(() => result.current.exporter.run('all', FILE));
     await waitFor(() => expect(result.current.exporter.running).toBe('all'));
-    act(() => result.current.exporter.run('selected'));
+    act(() => result.current.exporter.run('selected', FILE));
 
     expect(result.current.exporter.running).toBe('all');
     await act(async () => {
@@ -283,7 +291,7 @@ describe('useRecordExport limits and failures', () => {
 
     // No question to answer first: the window put the count and the ceiling
     // on screen, so pressing Export was the consent (D14).
-    act(() => result.current.exporter.run('all'));
+    act(() => result.current.exporter.run('all', FILE));
 
     await waitFor(() => expect(delivered).toHaveLength(1));
     expect(delivered[0].rows).toHaveLength(10);
@@ -304,7 +312,7 @@ describe('useRecordExport limits and failures', () => {
     const { result } = await openExport();
 
     act(() => result.current.table.toggle('o-1'));
-    act(() => result.current.exporter.run('selected'));
+    act(() => result.current.exporter.run('selected', FILE));
     await waitFor(() => expect(result.current.exporter.outcome).not.toBeNull());
     act(() => result.current.exporter.reset());
 
@@ -316,7 +324,7 @@ describe('useRecordExport limits and failures', () => {
     const { source, held } = gatedSource();
     const { result, delivered } = await openExport({ source });
 
-    act(() => result.current.exporter.run('all'));
+    act(() => result.current.exporter.run('all', FILE));
     await waitFor(() => expect(result.current.exporter.running).toBe('all'));
     act(() => result.current.exporter.reset());
 
@@ -332,7 +340,7 @@ describe('useRecordExport limits and failures', () => {
     const { source, held } = gatedSource();
     const { result, delivered } = await openExport({ source });
 
-    act(() => result.current.exporter.run('all'));
+    act(() => result.current.exporter.run('all', FILE));
     await waitFor(() => expect(result.current.exporter.running).toBe('all'));
     act(() => result.current.exporter.cancel());
     await act(async () => {
@@ -354,7 +362,7 @@ describe('useRecordExport limits and failures', () => {
       }),
     });
 
-    act(() => result.current.exporter.run('all'));
+    act(() => result.current.exporter.run('all', FILE));
 
     await waitFor(() =>
       expect(result.current.exporter.error).toMatchObject({
@@ -373,7 +381,7 @@ describe('useRecordExport limits and failures', () => {
     });
 
     act(() => result.current.table.toggle('o-1'));
-    act(() => result.current.exporter.run('selected'));
+    act(() => result.current.exporter.run('selected', FILE));
 
     await waitFor(() =>
       expect(result.current.exporter.error).toMatchObject({
@@ -390,7 +398,7 @@ describe('useRecordExport limits and failures', () => {
     );
 
     expect(result.current.scopes).toEqual({ all: null });
-    act(() => result.current.run('all'));
+    act(() => result.current.run('all', FILE));
     expect(result.current.running).toBeNull();
   });
 });

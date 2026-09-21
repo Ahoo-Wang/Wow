@@ -16,6 +16,10 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+// Type-only, so this suite still runs with nothing built — the whole point
+// of reading the Wow sources off disk below.
+import type { QueryApi } from '@ahoo-wang/fetcher-wow';
+import type { RecordData, ViewSource } from '../src/index.js';
 
 /**
  * Dependency rules from docs/design/README.md, checked on the TypeScript AST so that
@@ -598,6 +602,20 @@ describe('architecture', () => {
         )
         .map(describePath);
       expect(violations).toEqual([]);
+    });
+
+    /**
+     * `ViewSource` is written out by hand rather than picked off `QueryApi`
+     * (the reasons are in `src/runtime/source.ts`), and this is what keeps
+     * the two honest: the assignment below is the assertion, and
+     * `tsconfig.test.json` type-checks this file, so a Wow signature that
+     * drifts out from under the port fails here rather than at the host that
+     * tries to hand a query client over.
+     */
+    it('is a shape a Wow query client satisfies without an adapter', () => {
+      const client = {} as QueryApi<RecordData>;
+      const source: ViewSource = client;
+      expect(source).toBe(client);
     });
 
     it('never imports deprecated Wow APIs', () => {

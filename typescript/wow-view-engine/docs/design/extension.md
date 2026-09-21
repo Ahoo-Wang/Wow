@@ -2,13 +2,13 @@
 
 ## 扩展点
 
-| 变化轴   | 机制                                                                                                                       | 落点                                                       |
-| -------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| 字段类型 | `FieldKind` 包：操作符集、默认操作符、值校验、编译到 `FilterExpression`、编辑器描述（纯数据）                              | `filter/` 注册表；React 渲染器在 `ui/` 用同一 kind id 注册 |
-| 数据来源 | `resolveSource(key)` 返回 `Pick<QueryApi, 'paged' \| 'cursor' \| 'aggregate'>`                                             | 应用注入                                                   |
-| 持久化   | 实现 `ViewStore`                                                                                                           | 业务应用，或官方后端的客户端包                             |
-| 动作槽位 | 宿主向工作台传 render 函数 `global / bulk / row`，动作是代码，不进配置、不进 ViewInstance、不进 Dashboard 面板             | `react/actions.ts` 的类型；工作台属性                      |
-| 外观     | `:root` 上的 `--fve-<token>`（亮）与 `--fve-dark-<token>`（暗），根与 portal 弹层都读到；组件级替换通过自定义组合 `/react` | 宿主样式表；预设主题即一份这些变量的赋值文件               |
+| 变化轴   | 机制                                                                                                                                | 落点                                                       |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 字段类型 | `FieldKind` 包：操作符集、默认操作符、值校验、编译到 `FilterExpression`、编辑器描述（纯数据）                                       | `filter/` 注册表；React 渲染器在 `ui/` 用同一 kind id 注册 |
+| 数据来源 | `resolveSource(key)` 返回 `ViewSource`（`QueryApi` 的 `paged` / `cursor` / `aggregate` 三个方法，见 [runtime.md#环境](runtime.md)） | 应用注入                                                   |
+| 持久化   | 实现 `ViewStore`                                                                                                                    | 业务应用，或官方后端的客户端包                             |
+| 动作槽位 | 宿主向工作台传 render 函数 `global / bulk / row`，动作是代码，不进配置、不进 ViewInstance、不进 Dashboard 面板                      | `react/actions.ts` 的类型；工作台属性                      |
+| 外观     | `:root` 上的 `--fve-<token>`（亮）与 `--fve-dark-<token>`（暗），根与 portal 弹层都读到；组件级替换通过自定义组合 `/react`          | 宿主样式表；预设主题即一份这些变量的赋值文件               |
 
 ```ts
 export interface FieldKind {

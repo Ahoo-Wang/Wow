@@ -29,6 +29,27 @@ import type { RecordView, SummaryRow } from '../record/index.js';
  *
  * Cancellation is an `AbortController` rather than a signal because that is
  * what `QueryApi` accepts.
+ *
+ * Written out rather than `Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'>`,
+ * for three reasons that all point the same way — this is the one type every
+ * source implements, and it must say exactly what this package needs:
+ *
+ * - `QueryApi.paged` takes `PagedQueryRequest`, which is
+ *   `FilterPagedQuery | PagedQuery`, and `PagedQuery` is deprecated. Picking
+ *   it would write the deprecated Wow API into the port that every source
+ *   fills, which `test/architecture.test.ts` bans everywhere else;
+ * - `QueryApi.aggregate` answers `DynamicDocument` — `Record<string, any>` —
+ *   and a row read out of `any` is a row nothing checks. Here it is
+ *   `RecordData`, so every value arrives as `unknown` and is read through a
+ *   field's kind;
+ * - the pick would spread `QueryApi`'s two type parameters and its per-method
+ *   generics over every implementation, a test's stub included, for no gain:
+ *   all three methods are used at one instantiation only.
+ *
+ * What the pick would have bought — noticing upstream drift — is bought
+ * instead by an assignability assertion the compiler checks
+ * (`test/architecture.test.ts`, "Wow protocol"): a `QueryApi` must go on
+ * being a `ViewSource` without an adapter.
  */
 export interface ViewSource {
   paged(

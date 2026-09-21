@@ -132,7 +132,7 @@ function exportOffer(
   return {
     control: exportController(overrides),
     conditions: [],
-    fileName: 'Mine-2026-09-21.csv',
+    nameFile: () => 'Mine-2026-09-21.csv',
   };
 }
 
@@ -522,7 +522,9 @@ describe('ResultToolbar export', () => {
     expect(dialog.textContent).toContain('2 records');
 
     await user.click(within(dialog).getByRole('button', { name: 'Export' }));
-    expect(run).toHaveBeenCalledWith('selected');
+    // The run is started under the name the window has already promised,
+    // rather than one worked out when the rows are in hand (D14).
+    expect(run).toHaveBeenCalledWith('selected', 'Mine-2026-09-21.csv');
   });
 
   it('runs whichever scope was picked instead', async () => {
@@ -546,7 +548,7 @@ describe('ResultToolbar export', () => {
     );
     await user.click(within(dialog).getByRole('button', { name: 'Export' }));
 
-    expect(run).toHaveBeenCalledWith('all');
+    expect(run).toHaveBeenCalledWith('all', 'Mine-2026-09-21.csv');
   });
 
   it('says only that the conditions are in force when nobody reports a total', async () => {
@@ -696,7 +698,8 @@ describe('ResultToolbar export', () => {
 
     expect(dialog.textContent).toContain('The export failed. gateway down');
     await user.click(within(dialog).getByRole('button', { name: 'Try again' }));
-    expect(run).toHaveBeenCalledWith('all');
+    // A retry is this journey continuing, so it carries the same name.
+    expect(run).toHaveBeenCalledWith('all', 'Mine-2026-09-21.csv');
   });
 });
 

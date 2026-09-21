@@ -247,19 +247,23 @@ export function RecordWorkbench({
    * would be a second, quieter view of the data.
    */
   // Named before it exists, because the export window says what the file
-  // will be called before there is a file (D14). `now()` is read on both
-  // sides, so the name on offer is the name that is handed over.
-  const exportName = fileName(title, isoDay(now(), display), 'csv');
+  // will be called before there is a file (D14). The clock is read when the
+  // window asks — once, as it opens — rather than on every render and again
+  // at delivery: a name holds a day in it, and an export that ran across
+  // midnight used to be handed over under a name nobody was shown.
+  const nameFile = useCallback(
+    () => fileName(title, isoDay(now(), display), 'csv'),
+    [display, now, title],
+  );
   const deliver = useCallback(
-    (rows: readonly RecordData[], scope: RecordExportScope) => {
+    (rows: readonly RecordData[], scope: RecordExportScope, name: string) => {
       const text = serializeCsv(rows, columns, (value, column) =>
         cellText(value, column, messages, display),
       );
-      const name = fileName(title, isoDay(now(), display), 'csv');
       downloadFile({ name, text, type: CSV_TYPE });
       onExported?.({ name, text, scope, rows: rows.length });
     },
-    [columns, display, messages, now, onExported, title],
+    [columns, display, messages, onExported],
   );
   const exportControl = useRecordExport(record, table, { deliver });
 
@@ -353,7 +357,7 @@ export function RecordWorkbench({
                   ...filter.scoped,
                   ...filter.implied,
                 ],
-                fileName: exportName,
+                nameFile,
               }}
               runtime={record}
             />

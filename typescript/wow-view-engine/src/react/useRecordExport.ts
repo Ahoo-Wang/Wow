@@ -76,8 +76,15 @@ export interface RecordExportController {
    * failure, and says so through `outcome.capped`.
    */
   error: Issue | null;
-  /** Starts one export; a no-op while another is running. */
-  run(scope: RecordExportScope): void;
+  /**
+   * Starts one export; a no-op while another is running.
+   *
+   * `fileName` is what the window that starts the run has already promised
+   * the file will be called. It is carried to `deliver` untouched rather
+   * than worked out again when the rows are in hand: the name holds a day,
+   * and the export may outlive one (D14).
+   */
+  run(scope: RecordExportScope, fileName: string): void;
   /** Stops the run in flight. */
   cancel(): void;
   /** Forgets the last outcome or failure; it does not stop a run. */
@@ -92,10 +99,14 @@ export interface RecordExportOptions {
    * value reads and how a browser saves a file are both its answers. A
    * failure here is reported exactly like a failed fetch — from the user's
    * side "the export did not happen" is one outcome, not two.
+   *
+   * `fileName` is the name the run was started under, so the file that is
+   * handed over is the file that was promised.
    */
   deliver(
     rows: readonly RecordData[],
     scope: RecordExportScope,
+    fileName: string,
   ): void | Promise<void>;
 }
 
@@ -178,9 +189,10 @@ export function useRecordExport(
     async (
       rows: readonly RecordData[],
       outcome: RecordExportOutcome,
+      fileName: string,
     ): Promise<void> => {
       try {
-        await delivery.current(rows, outcome.scope);
+        await delivery.current(rows, outcome.scope, fileName);
         settle({ ...IDLE, outcome });
       } catch (caught) {
         settle({ ...IDLE, error: toIssue(caught, 'export.failed') });
@@ -190,7 +202,11 @@ export function useRecordExport(
   );
 
   const fetchAll = useCallback(
-    async (runtime: RecordViewRuntime, total: number | null): Promise<void> => {
+    async (
+      runtime: RecordViewRuntime,
+      total: number | null,
+      fileName: string,
+    ): Promise<void> => {
       const controller = new AbortController();
       live.current = controller;
       settle({
@@ -217,12 +233,16 @@ export function useRecordExport(
             }));
           },
         });
-        await hand(result.rows, {
-          scope: 'all',
-          rows: result.rows.length,
-          capped: result.capped,
-          ...(total === null ? {} : { total }),
-        });
+        await hand(
+          result.rows,
+          {
+            scope: 'all',
+            rows: result.rows.length,
+            capped: result.capped,
+            ...(total === null ? {} : { total }),
+          },
+          fileName,
+        );
       } catch (caught) {
         // A cancel is the user's own answer, not a finding: the window
         // closes and nothing is said about it.
@@ -239,7 +259,7 @@ export function useRecordExport(
   );
 
   const run = useCallback(
-    (scope: RecordExportScope) => {
+    (scope: RecordExportScope, fileName: string) => {
       if (!runtime || busy.current) return;
       busy.current = true;
       if (scope === 'selected') {
@@ -250,12 +270,14 @@ export function useRecordExport(
         void hand(
           picked.map(row => row.data),
           { scope, rows: picked.length, capped: false },
+          fileName,
         );
         return;
       }
       void fetchAll(
         runtime,
         paging?.mode === 'paged' ? (paging.total ?? null) : null,
+        fileName,
       );
     },
     [fetchAll, hand, paging, runtime, settle, table.selectedRows],

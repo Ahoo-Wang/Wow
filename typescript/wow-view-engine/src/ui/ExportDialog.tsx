@@ -61,8 +61,15 @@ export interface ExportOffer {
    * the rows on screen.
    */
   conditions: readonly FilterSummaryItem[];
-  /** What the file will be called: `<view name>-<yyyy-MM-dd>.csv`. */
-  fileName: string;
+  /**
+   * What the file will be called: `<view name>-<yyyy-MM-dd>.csv`.
+   *
+   * Asked **once, as the window opens**, rather than read off every render.
+   * The name carries a day in it, so a window left open across midnight
+   * would otherwise promise one name and hand over another — one journey,
+   * one shell, one promise (D14).
+   */
+  nameFile(): string;
 }
 
 export interface ExportDialogProps extends ExportOffer {
@@ -107,6 +114,12 @@ export function ExportDialog(props: ExportDialogProps) {
   const [scope, setScope] = useState<RecordExportScope | null>(null);
   const picked =
     control.scopes.selected === undefined ? 'all' : (scope ?? 'selected');
+  // The name the file will carry, fixed as the window opens and used by
+  // every step of this one journey — the line that promises it, the line
+  // that reports it, and the run that hands the file over (D14). It starts
+  // empty and is never read that way: the steps below exist only while the
+  // window is open, and opening it is the one thing that sets this.
+  const [named, setNamed] = useState('');
   const phase = phaseOf(control);
   // The control the phase is about, focused as the phase changes: the button
   // that was focused a moment ago is not in the document any more, and a
@@ -131,8 +144,10 @@ export function ExportDialog(props: ExportDialogProps) {
         // coming in: stop. Anywhere else there is nothing to stop, and
         // closing forgets what the last run produced, so the next opening
         // asks again rather than reporting an export already read.
-        if (next) setOpen(true);
-        else if (phase === 'running') {
+        if (next) {
+          setNamed(props.nameFile());
+          setOpen(true);
+        } else if (phase === 'running') {
           control.cancel();
           setOpen(false);
         } else close();
@@ -165,20 +180,22 @@ export function ExportDialog(props: ExportDialogProps) {
           </DialogDescription>
         </DialogHeader>
         {phase === 'choose' && (
-          <ChooseStep {...props} scope={picked} onScope={setScope} />
+          <ChooseStep
+            {...props}
+            fileName={named}
+            scope={picked}
+            onScope={setScope}
+          />
         )}
         {phase === 'running' && <RunningStep control={control} />}
         {phase === 'done' && (
-          <DoneStep
-            control={control}
-            fileName={props.fileName}
-            max={props.max}
-          />
+          <DoneStep control={control} fileName={named} max={props.max} />
         )}
         <ExportActions
           phase={phase}
           control={control}
           scope={picked}
+          fileName={named}
           primary={primary}
           onClose={close}
         />
@@ -222,6 +239,8 @@ function ChooseStep({
   scope,
   onScope,
 }: ExportDialogProps & {
+  /** The name this opening settled on; see `ExportOffer.nameFile`. */
+  fileName: string;
   scope: RecordExportScope;
   onScope(scope: RecordExportScope): void;
 }) {
@@ -422,12 +441,15 @@ function ExportActions({
   phase,
   control,
   scope,
+  fileName,
   primary,
   onClose,
 }: {
   phase: ExportPhase;
   control: RecordExportController;
   scope: RecordExportScope;
+  /** The name this opening settled on; see `ExportOffer.nameFile`. */
+  fileName: string;
   primary: RefObject<HTMLButtonElement | null>;
   onClose(): void;
 }) {
@@ -456,7 +478,7 @@ function ExportActions({
           ref={primary}
           data-slot="export-confirm"
           disabled={control.running !== null}
-          onClick={() => control.run(scope)}
+          onClick={() => control.run(scope, fileName)}
         >
           {messages.label('label.export.confirm')}
         </Button>
@@ -471,7 +493,9 @@ function ExportActions({
           data-slot="export-retry"
           onClick={() => {
             control.reset();
-            control.run(scope);
+            // The same name the first attempt was offered under: a retry is
+            // this journey continuing, not a second one.
+            control.run(scope, fileName);
           }}
         >
           {messages.label('label.export.retry')}
