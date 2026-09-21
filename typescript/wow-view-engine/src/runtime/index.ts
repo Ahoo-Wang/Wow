@@ -23,6 +23,7 @@ export * from './environment.js';
 export * from './execute.js';
 export * from './exportRows.js';
 export * from './pending.js';
+export * from './refreshTimer.js';
 export * from './requestRunner.js';
 export * from './source.js';
 export * from './validateDefinition.js';

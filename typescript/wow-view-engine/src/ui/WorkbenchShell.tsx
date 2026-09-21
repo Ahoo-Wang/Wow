@@ -19,19 +19,10 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from 'cn';
-import { FileQuestionMarkIcon, PanelLeftOpenIcon } from 'lucide-react';
+import { PanelLeftOpenIcon } from 'lucide-react';
 import type { Issue, ViewKind } from '../model/index.js';
 import type { WorkbenchController } from '../react/index.js';
-import { Button } from './components/button.js';
 import { IconButton } from './IconButton.js';
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from './components/empty.js';
 import { Skeleton } from './components/skeleton.js';
 import { AppliedBar } from './AppliedBar.js';
 import { EditorBand, EditorBandToggle, EditorFold } from './EditorBand.js';
@@ -47,6 +38,9 @@ import { ViewList } from './ViewList.js';
 import { ViewManager } from './ViewManager.js';
 import { ViewSurface } from './ViewSurface.js';
 import { ViewSwitcher } from './ViewSwitcher.js';
+import { ResultBlock } from './workbench/ResultBlock.js';
+import { Unopenable } from './workbench/Unopenable.js';
+import { filled, useEditorFold } from './workbench/useEditorFold.js';
 
 /**
  * The width below which the list stops being *beside* the view.
@@ -768,115 +762,3 @@ export function WorkbenchShell({
  * what the user asked for is not on screen, and a reader who cannot see the
  * page changing needs to be told that as it happens.
  */
-function Unopenable({
-  issue,
-  onDefault,
-}: {
-  issue: Issue;
-  onDefault?(): void;
-}) {
-  const messages = useViewMessages();
-  return (
-    <Empty role="alert" data-slot="view-unopenable">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <FileQuestionMarkIcon />
-        </EmptyMedia>
-        <EmptyTitle>{messages.label('label.view.unopenable')}</EmptyTitle>
-        <EmptyDescription>{messages.issue(issue)}</EmptyDescription>
-      </EmptyHeader>
-      {onDefault && (
-        <EmptyContent>
-          <Button variant="outline" size="sm" onClick={onDefault}>
-            {messages.label('label.view.open-default')}
-          </Button>
-        </EmptyContent>
-      )}
-    </Empty>
-  );
-}
-
-/**
- * The result and its caption, on no card of their own (D12).
- *
- * The card used to be here for every kind but the dashboard, and it was a
- * frame around a frame in all of them: a table draws its own header layer,
- * its own hairlines between rows and its own edges on the held columns, so a
- * border and 12px of padding around that put the first row of data behind
- * five layers of chrome. Without it the table runs to the block's edge and
- * the lines on screen are the table's own, which is the only set of lines
- * that means anything. A dashboard needed the opt-out to avoid a card of
- * cards; now nobody needs it, and the prop that carried it is gone rather
- * than left as a default nobody sets.
- */
-function ResultBlock({
-  framed,
-  children,
-}: {
-  framed: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <section
-      data-slot="result-block"
-      data-framed={framed || undefined}
-      className={cn(
-        'flex min-w-0 flex-col',
-        framed
-          ? // One frame round the result and nothing else (D12): the toolbar
-            // is its top row and the pagination its bottom row, ruled off;
-            // the rows run to its edge; what else lands in it — a query
-            // strip, an empty state, cards — keeps a margin of its own.
-            'border-border overflow-hidden rounded-lg border ' +
-              '[&>[data-slot=result-toolbar]]:border-border [&>[data-slot=result-toolbar]]:border-b [&>[data-slot=result-toolbar]]:px-3 [&>[data-slot=result-toolbar]]:py-2 ' +
-              '[&>[data-slot=record-pagination]]:border-border [&>[data-slot=record-pagination]]:bg-muted/40 [&>[data-slot=record-pagination]]:border-t [&>[data-slot=record-pagination]]:px-3 [&>[data-slot=record-pagination]]:py-2 ' +
-              '[&>[data-slot=status-strip]]:m-3 [&>[data-slot=record-empty]]:my-6 [&>[data-slot=record-cards]]:p-3'
-          : SPACE.ROWS,
-      )}
-    >
-      {children}
-    </section>
-  );
-}
-
-/**
- * The editor's fold, which belongs to one opening of one view.
- *
- * The state is tagged with the runtime it was made for rather than reset by
- * an effect: switching views re-reads the default in the same render that
- * shows the new view, so the band is never briefly the previous view's.
- */
-function useEditorFold({
-  controlled,
-  fallback,
-  runtimeId,
-  onChange,
-}: {
-  controlled: boolean | undefined;
-  fallback: boolean;
-  runtimeId: string | null;
-  onChange?(open: boolean): void;
-}): { open: boolean; set(open: boolean): void } {
-  const [held, setHeld] = useState<{ id: string | null; open: boolean } | null>(
-    null,
-  );
-  const mine = held !== null && held.id === runtimeId;
-  return {
-    open: controlled ?? (mine ? held.open : fallback),
-    set(open) {
-      setHeld({ id: runtimeId, open });
-      onChange?.(open);
-    },
-  };
-}
-
-/**
- * Whether a slot was given something that will draw.
- *
- * A workbench fills a slot with `condition && <Thing/>`, so an unfilled one
- * arrives as `false` rather than as nothing at all — and a block that
- * counted it as content would be the empty card the layout rule forbids.
- */
-function filled(slot: ReactNode): boolean {
-  return slot !== null && slot !== undefined && slot !== false;
-}

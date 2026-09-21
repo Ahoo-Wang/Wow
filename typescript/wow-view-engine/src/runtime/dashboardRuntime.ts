@@ -13,7 +13,6 @@
 
 import { dequal } from 'dequal';
 import {
-  MAX_TIMER_DELAY_MS,
   type DashboardDefinition,
   type DashboardViewConfig,
   type DashboardViewPanel,
@@ -58,13 +57,17 @@ import { PanelReferences, type PanelResolver } from './dashboard/references.js';
 import type { WriteState } from './write.js';
 import {
   hasError,
-  refreshIntervalOf,
   type DataViewRuntime,
   type ManagedViewRuntime,
   type ViewQueryState,
   type ViewRuntime,
   type ViewRuntimeState,
 } from './viewRuntime.js';
+import {
+  RefreshTimer,
+  refreshDelayOf,
+  refreshIntervalOf,
+} from './refreshTimer.js';
 
 export type { PanelResolver } from './dashboard/references.js';
 export type { PanelRuntimeFactory } from './dashboard/children.js';
@@ -143,8 +146,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
 
   private state: DashboardRuntimeState;
   private injectedScope: FilterTree | null;
-  private timer: unknown;
-  private timerDelay: number | null = null;
+  private readonly timer: RefreshTimer;
   private stopped = false;
 
   constructor(options: DashboardRuntimeOptions) {
@@ -154,6 +156,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.kinds = options.kinds;
     this.limits = options.limits;
     this.environment = options.environment;
+    this.timer = new RefreshTimer(options.environment, () => this.refresh());
     this.injectedScope = null;
     // Both talk back only through the runtime's own re-sync: a reference
     // settling re-judges the draft, and a child notifying re-times the board
@@ -376,7 +379,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.unwatchVisibility();
     this.children.disposeAll();
     // The last notification, so a subscriber reading `disposed` sees it now.
-    for (const listener of [...this.listeners]) listener();
+    this.notify();
     this.listeners.clear();
   }
 
@@ -450,7 +453,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   private refuse(refusal: Issue[]): Issue[] {
     if (sameRefusal(this.refusedScope, refusal)) return this.refusedScope;
     this.refusedScope = refusal;
-    for (const listener of [...this.listeners]) listener();
+    this.notify();
     return this.refusedScope;
   }
 
@@ -559,6 +562,11 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.state = { ...this.state, ...patch };
     this.syncTimer();
     // Commit first, notify second: a listener always reads the new snapshot.
+    this.notify();
+  }
+
+  /** A copy is walked, so a listener may unsubscribe from inside its call. */
+  private notify(): void {
     for (const listener of [...this.listeners]) listener();
   }
 
@@ -574,61 +582,36 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     const before = this.state;
     this.syncTimer();
     if (this.state === before) return;
-    for (const listener of [...this.listeners]) listener();
+    this.notify();
   }
 
   /**
    * One timer for the whole dashboard, held for the same four reasons a data
-   * view holds its own, with "a request in flight" meaning any panel's.
+   * view holds its own, with "a request in flight" meaning any panel's. As a
+   * data view's: the due time is written into the snapshot, notified by the
+   * caller.
    */
   private syncTimer(): void {
-    const delay = this.refreshDelay();
-    if (delay === null) {
-      this.stopTimer();
-      return;
-    }
-    if (this.timer !== undefined && this.timerDelay === delay) return;
-    this.stopTimer();
-    this.timerDelay = delay;
-    // Published with the timer, from the clock it runs on: the board's one
-    // countdown counts to the board's one timer.
-    this.setDueAt(this.environment.now().getTime() + delay);
-    this.timer = this.environment.setTimeout(() => {
-      this.timer = undefined;
-      this.timerDelay = null;
-      this.refresh();
-    }, delay);
-  }
-
-  private refreshDelay(): number | null {
-    const interval = refreshIntervalOf(this.state.applied);
-    if (
+    const held =
       this.stopped ||
-      interval === null ||
       this.state.editing ||
-      this.loading() ||
+      this.children.loading() ||
       hasError(this.state.issues) ||
-      !this.environment.visibility.isVisible()
-    )
-      return null;
-    return Math.min(interval * 1000, MAX_TIMER_DELAY_MS);
+      !this.environment.visibility.isVisible();
+    this.setDueAt(
+      this.timer.sync(
+        refreshDelayOf(refreshIntervalOf(this.state.applied), held),
+      ),
+    );
   }
 
-  private loading(): boolean {
-    return this.children.loading();
-  }
-
-  /** As a data view's: written into the snapshot, notified by the caller. */
   private setDueAt(at: number | null): void {
     if (this.state.nextRefreshAt === at) return;
     this.state = { ...this.state, nextRefreshAt: at };
   }
 
   private stopTimer(): void {
+    this.timer.stop();
     this.setDueAt(null);
-    if (this.timer === undefined) return;
-    this.environment.clearTimeout(this.timer);
-    this.timer = undefined;
-    this.timerDelay = null;
   }
 }

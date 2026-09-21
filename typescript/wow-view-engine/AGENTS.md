@@ -161,6 +161,7 @@ src/
     writeLedger.ts                — The write ledger: outcomes by requestId, retry, conflicts
     viewRuntime.ts                — One open view; subscribe / getSnapshot store
     dashboardRuntime.ts           — Owns one child runtime per data panel
+    refreshTimer.ts               — The one auto-refresh timer both runtimes arm; `refreshIntervalOf`, `refreshDelayOf`
     dashboard/                    — What the dashboard runtime is made of
       references.ts               — PanelReferences: loading what panels point at
       children.ts                 — PanelChildren: one child runtime per data panel
@@ -198,6 +199,7 @@ src/
       releaseDeleted.ts             — Lets a workbench's pinned id go once the view is deleted
   ui/                           — Default look; may import every layer
     WorkbenchShell.tsx            — The frame the three workbenches share, over one `useWorkbench`
+    workbench/                    — The shell's private parts: `ResultBlock`, `Unopenable`, `useEditorFold` + `filled`
     RecordWorkbench.tsx           — Default Record workbench
     AnalysisWorkbench.tsx         — Default Analysis workbench
     DashboardWorkbench.tsx        — Default Dashboard workbench

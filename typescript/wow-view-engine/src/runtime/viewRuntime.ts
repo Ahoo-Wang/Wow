@@ -13,7 +13,6 @@
 
 import { dequal } from 'dequal';
 import {
-  MAX_TIMER_DELAY_MS,
   type AnalysisViewConfig,
   type DashboardDefinition,
   type DashboardViewConfig,
@@ -59,6 +58,11 @@ import {
 } from './exportRows.js';
 import type { WriteState } from './write.js';
 import type { DashboardRuntime } from './dashboardRuntime.js';
+import {
+  RefreshTimer,
+  refreshDelayOf,
+  refreshIntervalOf,
+} from './refreshTimer.js';
 
 /**
  * One open view. A small store with `subscribe` and `getSnapshot`, so React
@@ -375,8 +379,7 @@ export class DataViewRuntime<
   private appliedAdmitted: boolean;
   private pageTarget: RecordPageTarget | undefined;
   private requestSeq = 0;
-  private timer: unknown;
-  private timerDelay: number | null = null;
+  private readonly timer: RefreshTimer;
   private stopped = false;
 
   constructor(options: ViewRuntimeOptions<C>) {
@@ -431,6 +434,7 @@ export class DataViewRuntime<
       editing: false,
       nextRefreshAt: null,
     };
+    this.timer = new RefreshTimer(options.environment, () => this.refresh());
     this.unwatchVisibility = options.environment.visibility.subscribe(() =>
       this.retime(),
     );
@@ -630,7 +634,7 @@ export class DataViewRuntime<
     this.runner.cancel(this.id);
     // The last notification: a subscriber that reads `disposed` sees it now
     // rather than on some later render it happens to get.
-    for (const listener of [...this.listeners]) listener();
+    this.notify();
     this.listeners.clear();
   }
 
@@ -653,7 +657,7 @@ export class DataViewRuntime<
   private refuse(refusal: Issue[]): Issue[] {
     if (sameRefusal(this.refusedScope, refusal)) return this.refusedScope;
     this.refusedScope = refusal;
-    for (const listener of [...this.listeners]) listener();
+    this.notify();
     return this.refusedScope;
   }
 
@@ -745,6 +749,11 @@ export class DataViewRuntime<
     this.state = { ...this.state, ...patch };
     this.syncTimer();
     // Commit first, notify second: a listener always reads the new snapshot.
+    this.notify();
+  }
+
+  /** A copy is walked, so a listener may unsubscribe from inside its call. */
+  private notify(): void {
     for (const listener of [...this.listeners]) listener();
   }
 
@@ -760,79 +769,39 @@ export class DataViewRuntime<
     const before = this.state;
     this.syncTimer();
     if (this.state === before) return;
-    for (const listener of [...this.listeners]) listener();
+    this.notify();
   }
 
   /**
-   * Auto-refresh. One timer per runtime, however many components watch it, and
-   * four reasons to hold it: an invalid draft, an editor with focus, a hidden
-   * page, and a request already in flight.
+   * Auto-refresh: the four reasons to hold the timer are this runtime's
+   * reading; arming is `RefreshTimer`'s. The due time is written into the
+   * snapshot without notifying — every caller is either inside `setState`,
+   * which notifies after it, or `retime`, which notifies for it.
    */
   private syncTimer(): void {
-    const delay = this.refreshDelay();
-    if (delay === null) {
-      this.stopTimer();
-      return;
-    }
-    if (this.timer !== undefined && this.timerDelay === delay) return;
-    this.stopTimer();
-    this.timerDelay = delay;
-    // Published with the timer, from the clock the timer runs on, so the
-    // countdown and the refresh answer to one number.
-    this.setDueAt(this.environment.now().getTime() + delay);
-    this.timer = this.environment.setTimeout(() => {
-      this.timer = undefined;
-      this.timerDelay = null;
-      this.refresh();
-    }, delay);
+    const held =
+      this.stopped ||
+      !this.autoRefresh ||
+      this.state.editing ||
+      this.state.query.status === 'loading' ||
+      hasError(this.state.issues) ||
+      !this.environment.visibility.isVisible();
+    this.setDueAt(
+      this.timer.sync(
+        refreshDelayOf(refreshIntervalOf(this.state.applied), held),
+      ),
+    );
   }
 
-  /**
-   * Writes the due time into the snapshot without notifying: every caller is
-   * either inside `setState`, which notifies after it, or `retime`, which
-   * notifies for it.
-   */
   private setDueAt(at: number | null): void {
     if (this.state.nextRefreshAt === at) return;
     this.state = { ...this.state, nextRefreshAt: at };
   }
 
-  private refreshDelay(): number | null {
-    const interval = refreshIntervalOf(this.state.applied);
-    if (
-      this.stopped ||
-      !this.autoRefresh ||
-      interval === null ||
-      this.state.editing ||
-      this.state.query.status === 'loading' ||
-      hasError(this.state.issues) ||
-      !this.environment.visibility.isVisible()
-    )
-      return null;
-    return Math.min(interval * 1000, MAX_TIMER_DELAY_MS);
-  }
-
   private stopTimer(): void {
+    this.timer.stop();
     this.setDueAt(null);
-    if (this.timer === undefined) return;
-    this.environment.clearTimeout(this.timer);
-    this.timer = undefined;
-    this.timerDelay = null;
   }
-}
-
-/**
- * The interval a config asks for, read as the untrusted thing it is. A
- * stored config with no `refresh` is admission's to report, and it is
- * reported; every state change still passes through here on the way to the
- * timer, and must not throw before the user can fix it.
- */
-export function refreshIntervalOf(config: ViewConfig): number | null {
-  const interval = (config.refresh as { interval?: unknown } | undefined)
-    ?.interval;
-  return typeof interval === 'number' && Number.isFinite(interval)
-    ? interval
-    : null;
 }
 
 /** Turns a failed execution into the Issue the UI reports. */
