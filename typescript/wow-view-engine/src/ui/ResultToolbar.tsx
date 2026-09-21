@@ -32,7 +32,7 @@ import { TooltipContent } from './popups.js';
 import { ColumnSettings } from './ColumnSettings.js';
 import { ExportDialog, type ExportOffer } from './ExportDialog.js';
 import { SortSettings } from './SortSettings.js';
-import { SEGMENTED, SPACE, TEXT_UI } from './layout.js';
+import { SPACE, TEXT_UI } from './layout.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { cn } from 'cn';
@@ -199,10 +199,10 @@ export function ResultToolbar({
           that config, and a switcher that hides itself exactly then leaves
           the user reading an error with no way to answer it. Nothing is
           pressed in that state, which is the truth — the layout in force is
-          not one of these. `SEGMENTED` is what makes it one
-          control with two positions rather than two bordered buttons that
-          happen to sit together; it is the house rule's one spelling of
-          that, applied here because `ui/components` is upstream's. */}
+          not one of these. `spacing={0}` is what makes it one control with
+          two positions rather than two bordered buttons that happen to sit
+          together: the registry's own joined group — no gap, square inner
+          corners, one shared seam — asked for by the prop it is on. */}
         {(table.layouts.length >= 2 ||
           !table.layouts.includes(table.layout)) && (
           <ToggleGroup
@@ -215,8 +215,8 @@ export function ResultToolbar({
             }}
             variant="outline"
             size="sm"
+            spacing={0}
             aria-label={messages.label('label.toolbar.layout')}
-            className={SEGMENTED}
           >
             {table.layouts.map(layout => {
               // An icon with the word in its name and its tooltip (D12): the

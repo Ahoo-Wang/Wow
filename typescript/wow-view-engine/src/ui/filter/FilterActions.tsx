@@ -15,6 +15,7 @@ import { FilterIcon, Undo2Icon } from 'lucide-react';
 import type { FilterEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { PendingDot } from '../PendingDot.js';
 import { TEXT_UI } from '../layout.js';
 import { cn } from 'cn';
 
@@ -80,15 +81,10 @@ export function FilterActions({
         disabled={disabled || filter.blocked > 0}
         onClick={filter.submit}
       >
-        {filter.pending && (
-          // The same dot the pills wear, in the one colour that shows on a
-          // filled primary button. It names nothing: the pills it summarises
-          // carry the wording.
-          <span
-            aria-hidden="true"
-            className="bg-primary-foreground size-1.5 rounded-full"
-          />
-        )}
+        {/* The same dot the pills wear, in the one colour that shows on a
+            filled primary button. It names nothing: the pills it summarises
+            carry the wording. */}
+        {filter.pending && <PendingDot tone="on-primary" />}
         <FilterIcon data-icon="inline-start" />
         {messages.label('label.filter.apply')}
       </Button>

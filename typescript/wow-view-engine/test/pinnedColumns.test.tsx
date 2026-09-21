@@ -132,8 +132,10 @@ describe('the pinned edges', () => {
     );
     const row = container.querySelector('tbody tr')!;
     expect(row.className).not.toContain('hover:bg-muted/50');
-    expect(row.className).toContain('hover:bg-[color-mix(');
-    expect(row.className).toContain('has-aria-expanded:bg-[color-mix(');
+    // The mix is a theme token now (`--row-hover`), so a host can move it
+    // and the class says which colour rather than how it was made.
+    expect(row.className).toContain('hover:bg-row-hover');
+    expect(row.className).toContain('has-aria-expanded:bg-row-hover');
     // And the pinned cell still follows the row.
     for (const cell of cellsOf(container, 'id'))
       expect(cell.className).toContain('bg-inherit');

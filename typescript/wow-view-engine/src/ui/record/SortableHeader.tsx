@@ -16,7 +16,7 @@ import type { RecordSort, SortDirection } from '../../model/index.js';
 import type { RecordColumnView } from '../../record/index.js';
 import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
-import { FOCUS_RING } from '../layout.js';
+import { Button } from '../components/button.js';
 import { TableHead } from '../components/table.js';
 import {
   HEAD_CELL,
@@ -134,8 +134,10 @@ export function SortableHeader({
       className={head}
       style={style}
     >
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="sm"
         aria-label={
           position === null
             ? name
@@ -145,8 +147,13 @@ export function SortableHeader({
               })}`
         }
         className={cn(
-          'flex max-w-full cursor-pointer items-center gap-1 rounded-sm',
-          FOCUS_RING,
+          // The button's own horizontal padding is pulled straight back out.
+          // A header cell already pads its content (`px-2`), and a control
+          // that pads it again starts the column's name 10px inside the
+          // values under it — a column that does not line up with itself.
+          // What the padding buys is kept: the ghost hover fill reaches past
+          // the label rather than hugging it.
+          '-mx-2.5 max-w-full',
           // The label keeps the column's edge; the marks follow it inward.
           numeric && 'ml-auto flex-row-reverse',
         )}
@@ -183,7 +190,7 @@ export function SortableHeader({
             {position}
           </span>
         )}
-      </button>
+      </Button>
       {resizer}
     </TableHead>
   );
@@ -226,13 +233,16 @@ function ariaSort(
 function SortMark({ direction }: { direction: SortDirection | null }) {
   if (direction === null)
     return (
+      // No size class: the button around it is the vendored `Button` at
+      // `sm`, which sizes the icons inside it — to the same 3.5 this used
+      // to ask for by hand.
       <ArrowUpDownIcon
         data-slot="sort-available"
-        className="text-muted-foreground/60 size-3.5"
+        className="text-muted-foreground/60"
       />
     );
   const Arrow = direction === 'ASC' ? ArrowUpIcon : ArrowDownIcon;
-  return <Arrow data-slot="sort-direction" className="size-3.5" />;
+  return <Arrow data-slot="sort-direction" />;
 }
 
 /** Whether the modifier that turns a click into "also sort by this" is held. */

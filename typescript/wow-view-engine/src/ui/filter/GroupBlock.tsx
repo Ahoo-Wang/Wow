@@ -24,7 +24,8 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { AddEntry } from './AddEntry.js';
 import { ChoiceValue } from './inputs/shared.js';
 import { GROUP_OPERATOR_LABEL, GROUP_OPERATORS } from './groupOperators.js';
-import { ConditionPill, PendingDot } from './ConditionPill.js';
+import { ConditionPill } from './ConditionPill.js';
+import { PendingDot, PENDING_AT_CORNER } from '../PendingDot.js';
 
 /** One group as a framed block: its operator, its children, room to add. */
 export function GroupBlock({
@@ -67,7 +68,7 @@ export function GroupBlock({
       data-pending={pending || undefined}
       className="border-border relative flex flex-col gap-2 rounded-md border p-2"
     >
-      {pending && <PendingDot />}
+      {pending && <PendingDot named className={PENDING_AT_CORNER} />}
       <div className="flex items-center gap-1">
         {/* One at a time rather than three abreast: the operator is a
             sentence about the conditions below it ("All conditions"), and a

@@ -71,7 +71,7 @@ export function SkeletonRows({
     <TableRow key={`skeleton-${index}`}>
       {selectable && (
         <TableCell>
-          <Skeleton className="h-4 w-4" />
+          <Skeleton className="size-4" />
         </TableCell>
       )}
       {columns.map(column => (

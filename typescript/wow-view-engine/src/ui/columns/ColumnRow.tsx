@@ -250,6 +250,12 @@ export function ColumnRow({
           than doing nothing — and the summary select goes the same way, for
           the same reason. A broken column answers neither: its one control
           is the checkbox that takes it out. */}
+        {/* The state travels in the name — "Pinning of Amount: Pinned
+            left" — and not as `aria-pressed`, which has two values where
+            this control cycles through three (`nextPin`: none → left →
+            right). "Pressed" would say that the column is held without
+            saying which end it is held at, which is less than the name
+            already says, and saying both would be the same fact twice. */}
         <IconButton
           type="button"
           label={messages.label('label.columns.pin', {
@@ -264,11 +270,12 @@ export function ColumnRow({
         >
           <PinIcon
             data-pinned={pinned ?? undefined}
-            className={
-              pinned === null
-                ? 'text-muted-foreground'
-                : 'fill-current text-foreground'
-            }
+            className={cn(
+              'text-muted-foreground',
+              // Pinned is a filled pin in the row's own ink; unpinned is the
+              // outline, quiet.
+              pinned !== null && 'fill-current text-foreground',
+            )}
           />
         </IconButton>
       </div>
@@ -278,11 +285,11 @@ export function ColumnRow({
           id={noteId}
           data-slot="column-note"
           data-note={note}
-          className={
+          className={cn(
             NOTES[note].shown
-              ? cn('text-muted-foreground flex items-start gap-1 pl-8', TEXT_UI)
-              : 'sr-only'
-          }
+              ? ['text-muted-foreground flex items-start gap-1 pl-8', TEXT_UI]
+              : 'sr-only',
+          )}
         >
           {row.broken && (
             // Marked as well as said, and not by colour: the icon is the

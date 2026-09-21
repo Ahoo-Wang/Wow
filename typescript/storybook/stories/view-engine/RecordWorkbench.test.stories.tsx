@@ -3446,8 +3446,8 @@ const controlBorders = (theme: 'light' | 'dark'): Story => ({
  * 焦点指示在两个主题里都 ≥3:1，而且一屏只有一种画法。
  *
  * vendored 的 `Button` 以 1px `border-ring` 加 3px 半透明光晕表示焦点；表头的排序
- * 按钮与已应用条上的 ✕ 走 `FOCUS_RING`——同一份配方（透明边聚焦时染成
- * `ring`），不另造一种。评审量到 `--ring` 在 `0.708` 时边线只有 2.59:1、光晕
+ * 按钮与已应用条上的 ✕ 从前是裸 `<button>` 各抄一份同款配方，现在就是那个
+ * `Button`（`variant="ghost"`），所以一屏只有一种画法。评审量到 `--ring` 在 `0.708` 时边线只有 2.59:1、光晕
  * 1.54:1，三处又各画各的（一处还是 UA 的 `outline: auto`）。焦点由 Tab 键送到
  * 目标上：脚本调 `focus()` 不一定算 `:focus-visible`，键盘一定算。
  */
@@ -4101,6 +4101,47 @@ export const IconButtonsSayTheirNameOnHover: Story = {
     await waitFor(() =>
       expect(toggle).toHaveAttribute('aria-expanded', 'false'),
     );
+  },
+};
+
+/**
+ * 侧栏每一行的种类图标，指上去要说得出自己是什么（D-2）。
+ *
+ * 从前 `TooltipTrigger` 直接挂在那个 `<svg>` 上，而它在 `Button` 里——
+ * `[&_svg]:pointer-events-none` 让这个 svg 根本收不到指针，标签永远打不开：
+ * 源码里写着的名字，屏幕上谁也拿不到。现在挂在外面那层 `span` 上，指针落在
+ * 图标上会穿到父元素，于是它就是触发器。jsdom 量不出这一条——`pointer-events`
+ * 要真的做命中测试才算数——所以钉在浏览器里。
+ */
+export const AViewRowSaysItsKindOnHover: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const doc = canvasElement.ownerDocument;
+
+    const row = listItem(canvasElement, '待出库订单');
+    const kind = row.querySelector<HTMLElement>('[data-slot="view-kind"]')!;
+    // The premise: the glyph itself still refuses the pointer, which is why
+    // it cannot be the trigger and the wrapper is.
+    await expect(
+      getComputedStyle(kind.querySelector('svg')!).pointerEvents,
+    ).toBe('none');
+    await expect(getComputedStyle(kind).pointerEvents).not.toBe('none');
+
+    await userEvent.hover(kind);
+    await waitFor(() =>
+      expect(tooltipOn(doc)).toHaveTextContent(zhCN['label.kind.record']),
+    );
+
+    // And the row is still called by the view it opens, not by its kind:
+    // a list where every name starts with the same two syllables is a list
+    // that has stopped distinguishing its items.
+    await expect(row).toHaveTextContent('待出库订单');
+    await expect(row.textContent).not.toContain(zhCN['label.kind.record']);
+
+    await userEvent.unhover(kind);
+    await waitFor(() => expect(tooltipOn(doc)).toBeNull());
   },
 };
 

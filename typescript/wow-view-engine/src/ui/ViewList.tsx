@@ -351,8 +351,28 @@ function ViewListItem({
       )}
       onClick={() => onOpen(item.id)}
     >
+      {/* The kind, hung off a wrapper rather than off the glyph itself.
+          `Button` draws `[&_svg]:pointer-events-none` over everything inside
+          it, so an `<svg>` that is a tooltip's trigger receives no pointer
+          at all and the label could never open — the row said its kind to a
+          pointer in the source and to nobody on screen (D-2). A span takes
+          the hover the glyph refuses, since a hit on a `pointer-events:
+          none` child lands on its parent.
+
+          The trigger stays this small rather than becoming the whole row:
+          the row already holds a second tooltip (the system tag below), and
+          two triggers one inside the other would open both labels at once
+          the moment the tag is pointed at. The kind stays out of the row's
+          *name* for the same reason it is an icon and not a word: the row
+          is called by the view it opens, and a category said in front of
+          every name is a list where every item starts with the same two
+          syllables. */}
       <Tooltip>
-        <TooltipTrigger render={<Icon data-icon="inline-start" />} />
+        <TooltipTrigger
+          render={<span data-slot="view-kind" className="flex shrink-0" />}
+        >
+          <Icon data-icon="inline-start" />
+        </TooltipTrigger>
         <TooltipContent>
           {messages.label(`label.kind.${item.kind}`)}
         </TooltipContent>

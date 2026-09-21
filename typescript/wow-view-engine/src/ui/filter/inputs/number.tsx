@@ -207,8 +207,11 @@ function NumberListValue({ value, onChange, label, disabled }: ValueProps) {
               value: String(entryValue),
             })}
             variant="ghost"
-            size="icon-sm"
-            className="size-4"
+            // The badge's own ✕, at the size the registry has for one —
+            // `icon-sm` shrunk to 16px by a class was both a variant that
+            // had been overruled and a target under the 24px WCAG 2.5.8
+            // asks of one. `AppliedBar` and `UnsavedMark` wear the same.
+            size="icon-xs"
             disabled={disabled}
             onClick={() => onChange(values.filter(kept => kept !== entryValue))}
           >

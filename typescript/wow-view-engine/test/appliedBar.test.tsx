@@ -157,7 +157,7 @@ describe('AppliedBar', () => {
     expect(badge.className).toContain('border-border');
   });
 
-  it('draws its remove at the inline icon size, focused in the shared ring', async () => {
+  it('draws its remove as the ghost icon button every badge here wears', async () => {
     const { filter } = overRuntime();
     act(() => {
       filter().addLeaf('warehouse');
@@ -167,11 +167,13 @@ describe('AppliedBar', () => {
     const remove = await screen.findByRole('button', {
       name: 'Unset Warehouse is CN',
     });
-    // Lucide's default 24px stretched the badge to 30px; the ✕ is an inline
-    // icon like every other and the button shows focus as `FOCUS_RING`.
-    expect(remove.querySelector('svg')!.getAttribute('class')).toContain(
-      'size-3.5',
+    // The vendored `Button` rather than a bare one carrying a hand-copied
+    // focus recipe: it sizes its own icon (so nothing asks for a size here)
+    // and brings the one focus indicator the whole surface shares.
+    expect(remove.querySelector('svg')!.className.baseVal).not.toContain(
+      'size-',
     );
+    expect(remove.className).toContain('size-6');
     expect(remove.className).toContain('focus-visible:border-ring');
     expect(remove.className).toContain('focus-visible:opacity-100');
   });

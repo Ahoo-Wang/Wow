@@ -63,34 +63,3 @@ export const SPACE = {
  * a row of bordered pills was the box-in-box the layout was rebuilt to lose.
  */
 export const TRAY = 'rounded-lg bg-muted/40 p-3';
-
-/**
- * A row of mutually exclusive options, joined into one control.
- *
- * The house rule (`docs/design/ui/README.md`) is that a choice between
- * options is one control and never a row of separate buttons. A vendored
- * `ToggleGroup variant="outline"` gives every item its own border and then
- * puts a gap between them, which reads as three independent buttons that
- * happen to sit near each other. This closes the gap, drops the inner
- * seams and leaves one outer frame — applied at the call site, because
- * `ui/components/**` is upstream's and is not edited by hand.
- *
- * It is for **three short options or fewer**. An option that is a sentence,
- * or a fourth option, goes in a `Select` instead: a segmented control is
- * read all at once, and there is only so much that can be.
- */
-/**
- * The focus indicator of a control that is not a vendored `Button` — the
- * sort button in a table header, the ✕ on an applied condition.
- *
- * It is the registry's own recipe, not a second one: a transparent border
- * that turns `ring` on focus, plus the 3px halo — exactly what `Button`
- * does, so every focused thing on the surface looks the same and the 1px
- * border clears the same 3:1 (`--ring` in `styles.css`). The halo is
- * emphasis; the border is the indicator.
- */
-export const FOCUS_RING =
-  'border border-transparent outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
-
-export const SEGMENTED =
-  'gap-0 [&>*]:rounded-none [&>*]:shadow-none [&>*:first-child]:rounded-l-md [&>*:last-child]:rounded-r-md [&>*+*]:-ml-px';

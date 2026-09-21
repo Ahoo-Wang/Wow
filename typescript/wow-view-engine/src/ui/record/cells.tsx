@@ -56,6 +56,10 @@ const TONE_VARIANT: Record<FieldTone, 'secondary' | 'destructive'> = {
  * clear that ratio *against the surface*, so filling with the token and
  * writing in the surface colour is the pairing they were chosen for, and it
  * flips with the theme: light text on a dark fill, dark text on a light one.
+ * The ink is each fill's own `-foreground` rather than `text-background`,
+ * which was the right value under the wrong name — a host moving
+ * `--fve-success` to a pale green got white writing on it and had nothing
+ * to move. The defaults are exactly what was written here before.
  *
  * `danger` says the fill twice because the registry's `destructive` variant
  * says its own twice: `bg-destructive/10` *and* `dark:bg-destructive/20`.
@@ -67,9 +71,9 @@ const TONE_VARIANT: Record<FieldTone, 'secondary' | 'destructive'> = {
  * moving `--fve-dark-destructive` still moves it.
  */
 const TONE_CLASS: Partial<Record<FieldTone, string>> = {
-  success: 'bg-success text-background',
-  warning: 'bg-warning text-background',
-  danger: 'bg-destructive dark:bg-destructive text-background',
+  success: 'bg-success text-success-foreground',
+  warning: 'bg-warning text-warning-foreground',
+  danger: 'bg-destructive dark:bg-destructive text-destructive-foreground',
 };
 
 /**

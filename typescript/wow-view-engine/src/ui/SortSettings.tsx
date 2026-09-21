@@ -446,9 +446,12 @@ function SortSummary({
         {messages.label(DIRECTION_LABEL[direction])}
       </span>
       {more > 0 && (
-        <span className="text-muted-foreground">
-          {messages.label('label.sort.more', { count: more })}
-        </span>
+        // No `text-muted-foreground`: this sits inside the bar's outline
+        // button, where that grey lands at 4.34:1 — under the 4.5:1 axe
+        // asks for — and the button has a foreground of its own to inherit
+        // (`EditorBand` records the same call for its mode word). It stays
+        // secondary by being a count after a name, not by being paler.
+        <span>{messages.label('label.sort.more', { count: more })}</span>
       )}
     </>
   );

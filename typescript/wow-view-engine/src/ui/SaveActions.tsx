@@ -22,7 +22,7 @@ import {
 import type { ViewInstance } from '../model/index.js';
 import type { WriteAction, WriteState } from '../runtime/index.js';
 import type { SaveCommands } from '../react/index.js';
-import { cn } from './lib/utils.js';
+import { cn } from 'cn';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import { IconButton, IconTooltip } from './IconButton.js';

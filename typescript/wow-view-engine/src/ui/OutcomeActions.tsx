@@ -251,11 +251,12 @@ function OutcomeLine({
     <section
       data-slot="write-outcome"
       role={tone}
-      className={
+      className={cn(
+        'flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm',
         tone === 'alert'
-          ? 'border-destructive text-destructive flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm'
-          : 'text-warning border-warning flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm'
-      }
+          ? 'border-destructive text-destructive'
+          : 'text-warning border-warning',
+      )}
     >
       {children}
     </section>

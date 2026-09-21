@@ -362,10 +362,17 @@ describe('ResultToolbar grouping and weight', () => {
     const columns = screen.getByRole('button', { name: 'Columns' });
     expect(columns.textContent).toBe('');
     expect(columns.querySelector('svg')).not.toBeNull();
-    // One border around the layout pair, no seam between them.
-    expect(
-      right.querySelector('[data-slot="toggle-group"]')!.className,
-    ).toContain('[&>*+*]:-ml-px');
+    // One border around the layout pair, no seam between them: the
+    // registry's own joined group, asked for by `spacing={0}` rather than
+    // hand-written at the call site.
+    const group = right.querySelector<HTMLElement>(
+      '[data-slot="toggle-group"]',
+    )!;
+    expect(group.dataset.spacing).toBe('0');
+    for (const item of group.querySelectorAll(
+      '[data-slot="toggle-group-item"]',
+    ))
+      expect(item.getAttribute('data-spacing')).toBe('0');
   });
 });
 

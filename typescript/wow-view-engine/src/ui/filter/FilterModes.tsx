@@ -19,7 +19,6 @@ import {
   DropdownMenuRadioItem,
 } from '../components/dropdown-menu.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
-import { SEGMENTED } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 
 /**
@@ -102,7 +101,7 @@ export function FilterModes({ filter }: { filter: FilterEditorController }) {
  * exists but cannot be reached is a capability the user has lost.
  *
  * Two short options, so a segmented control rather than a row of separate
- * buttons ({@link SEGMENTED}, and the house rule in `docs/design/ui`).
+ * buttons — `spacing={0}`, and the house rule in `docs/design/ui`.
  */
 export function FilterModeToggle({
   filter,
@@ -123,9 +122,9 @@ export function FilterModeToggle({
       }}
       variant="outline"
       size="sm"
+      spacing={0}
       disabled={disabled}
       aria-label={messages.label('label.filter.mode')}
-      className={SEGMENTED}
     >
       <ToggleGroupItem
         value="simple"

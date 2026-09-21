@@ -17,9 +17,9 @@ import type { FilterSummaryItem } from '../filter/index.js';
 import type { FilterEditorController } from '../react/index.js';
 import { Badge } from './components/badge.js';
 import { summaryText } from './display.js';
-import { IconTooltip } from './IconButton.js';
+import { IconButton } from './IconButton.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { FOCUS_RING, TEXT_UI } from './layout.js';
+import { TEXT_UI } from './layout.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 
 export interface AppliedBarProps {
@@ -108,45 +108,46 @@ export function AppliedBar({
         >
           {say(item)}
           {!readOnly && (
-            // A chip's ✕ is not a `Button` — it wears the badge's own
-            // geometry rather than a variant — so the tooltip is wrapped
-            // round the element there is, which is what `IconTooltip` is
-            // for. The name is the whole condition, so the label that says
-            // what this removes is worth showing to a pointer as well.
-            <IconTooltip
+            // The ✕ inside a badge, in the one shape this surface has for
+            // it: a ghost `icon-xs` button, which is what `UnsavedMark`
+            // already puts in the badge beside the view's name. It used to
+            // be a bare `<button>` carrying a hand-copied focus recipe —
+            // the recipe was the vendored `Button`'s, so this is the
+            // vendored `Button`. The name is the whole condition, so the
+            // label that says what this removes is worth showing to a
+            // pointer as well.
+            <IconButton
+              type="button"
               label={messages.label('label.filter.unset-of', {
                 condition: say(item),
               })}
-              render={
-                <button
-                  type="button"
-                  disabled={disabled}
-                  // Dimmed until pointed at, but never while focused: a
-                  // focus outline at 60% is a focus outline that fails its
-                  // own contrast.
-                  className={cn(
-                    '-mr-1 rounded-full opacity-60 hover:opacity-100 focus-visible:opacity-100',
-                    FOCUS_RING,
-                  )}
-                  onClick={() => {
-                    // A summary path interleaves the `children` key with
-                    // each index; the editor addresses nodes by the indexes
-                    // alone.
-                    filter.clearValue(
-                      item.path.filter(
-                        (segment): segment is number =>
-                          typeof segment === 'number',
-                      ),
-                    );
-                    filter.submit();
-                  }}
-                />
-              }
+              variant="ghost"
+              size="icon-xs"
+              disabled={disabled}
+              // Dimmed until pointed at, but never while focused: a focus
+              // outline at 60% is a focus outline that fails its own
+              // contrast. The pull is the badge's right padding, so the
+              // pill does not grow a second box round the button.
+              className="-mr-1.5 opacity-60 hover:opacity-100 focus-visible:opacity-100"
+              onClick={() => {
+                // A summary path interleaves the `children` key with each
+                // index; the editor addresses nodes by the indexes alone.
+                filter.clearValue(
+                  item.path.filter(
+                    (segment): segment is number => typeof segment === 'number',
+                  ),
+                );
+                filter.submit();
+              }}
             >
-              {/* Sized like every other inline icon; Lucide's default 24px
-                  stretched the badge to 30px where its neighbours are 20. */}
-              <XIcon className="size-3.5" />
-            </IconTooltip>
+              {/* No size class: the button sizes what is inside it, and at
+                  `icon-xs` that is the 3 every other badge icon wears. The
+                  pill grows with it, from 20px to 24 — which is the point.
+                  A ✕ drawn at the inline icon size was a 14px target, under
+                  the 24px WCAG 2.5.8 asks of one, and this is the control
+                  that takes a condition out of force. */}
+              <XIcon />
+            </IconButton>
           )}
         </Badge>
       ))}

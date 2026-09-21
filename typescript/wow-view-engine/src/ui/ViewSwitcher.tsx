@@ -128,7 +128,11 @@ export function ViewSwitcher({
             keeping the label off the icons beside it once the trigger is at
             its own floor above. */}
         <span className="min-w-[6em] truncate">{currentTitle}</span>
-        <ChevronDownIcon className="text-muted-foreground" />
+        {/* The trigger's own foreground, not `muted`: an icon inside a
+            button inherits the button's ink, and that grey measures 4.34:1
+            on the card this bar sits on (`EditorBand` records the same call
+            for the word beside its icon). */}
+        <ChevronDownIcon />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent className="min-w-56">

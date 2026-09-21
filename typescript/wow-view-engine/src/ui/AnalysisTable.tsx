@@ -62,7 +62,16 @@ export function AnalysisTable({ view }: AnalysisTableProps) {
   }
 
   return (
-    <div data-slot="analysis-table" className="overflow-x-auto">
+    // No scrollport of its own: the vendored `Table` already renders one
+    // (`data-slot="table-container"`, `overflow-x-auto`), and a second box
+    // around it is a scrollport that never scrolls — the inner one reaches
+    // its scrollWidth first, so the outer never has anything to move, while
+    // anything inside that wants to resolve against "the thing that
+    // scrolls" resolves against the wrong one (which is why `RecordTable`
+    // goes the other way and takes the vendored container *out* of the way
+    // rather than adding to it). This div is the slot other code finds the
+    // table by, and nothing else.
+    <div data-slot="analysis-table">
       <Table>
         <TableHeader>
           <TableRow>

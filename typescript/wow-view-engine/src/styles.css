@@ -55,6 +55,17 @@
 @custom-variant dark (&:where(.fve-root[data-theme='dark'], .fve-root[data-theme='dark'] *, .dark .fve-root:not([data-theme='light']), .dark .fve-root:not([data-theme='light']) *));
 
 @theme inline {
+  /*
+   * The ink on a filled status surface, and the two colours the record
+   * table draws itself with. They are registered here so a call site can
+   * name them as utilities (`text-success-foreground`, `bg-row-hover`,
+   * `text-quiet-foreground`) rather than reaching into `var()` by hand.
+   */
+  --color-success-foreground: var(--success-foreground);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-row-hover: var(--row-hover);
+  --color-quiet-foreground: var(--quiet-foreground);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -139,15 +150,70 @@
   /*
    * Status colours, reserved for an outcome or a state and never for a chart
    * series, which carries its own slots. Only `destructive` has a registry
-   * variant; these three are applied by class, and text on a filled status
-   * surface is `text-white`, as the registry writes it for destructive.
-   * Light takes Tailwind's 700 steps, picked so the colour clears 4.5:1 as
-   * text on the surface; dark takes the 400 steps.
+   * variant; these three are applied by class. Light takes Tailwind's 700
+   * steps, picked so the colour clears 4.5:1 as text on the surface; dark
+   * takes the 400 steps.
+   *
+   * **A fill and its ink are a pair.** A toned badge is the token as the
+   * fill and the surface colour as the writing (`record/cells.tsx`), which
+   * is the pairing these steps were chosen for and which flips with the
+   * theme by itself — light text on a dark fill, dark text on a light one.
+   * That used to be spelled `text-background` at the call site, which is
+   * the right *value* under the wrong *name*: a host moving `--fve-success`
+   * to a pale green got white writing on it and had nothing to move. Each
+   * fill that is written on therefore has a `-foreground` of its own,
+   * defaulting to exactly what the call site used to hardcode. `info` has
+   * none, because nothing fills with it — a token nothing reads is a
+   * contract nothing keeps.
    */
   --success: var(--fve-success, oklch(0.527 0.154 150.069deg));
+  --success-foreground: var(--fve-success-foreground, var(--background));
   --warning: var(--fve-warning, oklch(0.555 0.163 48.998deg));
+  --warning-foreground: var(--fve-warning-foreground, var(--background));
   --info: var(--fve-info, oklch(0.546 0.245 262.881deg));
+  --destructive-foreground: var(
+    --fve-destructive-foreground,
+    var(--background)
+  );
   --border: var(--fve-border, oklch(0.922 0 0deg));
+
+  /*
+   * The record table's own two colours, which used to be written out at the
+   * call site in `record/columns.ts`.
+   *
+   * `row-hover` is the registry's `bg-muted/50` made opaque. A pinned cell
+   * takes its colour from the row (`bg-inherit`), and over a scrolling
+   * table what sits under a pinned cell is the column it is holding the
+   * place of — a wash let that column's text show through the moment the
+   * pointer arrived. The same shade mixed in rather than laid over is
+   * opaque, and being a token it moves with a host's `--fve-muted`.
+   *
+   * `quiet-foreground` is the quiet half of a summary row — the scope, and
+   * each function's name. It dims the foreground rather than reaching for
+   * `muted-foreground`, which is toned against the page and lands at 4.34:1
+   * on the muted layer those rows are drawn on.
+   */
+  --row-hover: var(
+    --fve-row-hover,
+    color-mix(in oklab, var(--muted) 50%, var(--background))
+  );
+  --quiet-foreground: var(--fve-quiet-foreground, oklch(0.145 0 0deg / 70%));
+
+  /*
+   * The soft half of a pinned column's edge — the part that says the table
+   * continues beneath it, under the `--border` hairline that says where the
+   * column ends.
+   *
+   * Black at 30% over a white card reads 2.11:1 against it, which is a
+   * shadow. Over the dark card (`oklch(0.205)`) black is a colour the eye
+   * cannot find: at 30% it comes to 1.18:1, and *pure* black — the whole
+   * range spent — still only reaches 1.48:1. In the dark the thing that
+   * casts an edge is light, so the dark half of this token is white at 25%,
+   * which measures 2.18:1 on that card: the same edge, as visible as the
+   * light one. It was `rgb(0 0 0/0.3)` written into a class, in both
+   * themes, which is why the held columns had no frame in the dark at all.
+   */
+  --pin-shadow: var(--fve-pin-shadow, oklch(0 0 0deg / 30%));
 
   /*
    * `input` is the edge of a control, not a divider: an unticked checkbox is
@@ -180,12 +246,18 @@
    * colour-vision-deficiency separation and for contrast on both surfaces.
    * Slots are handed out in this fixed order, so the first series is always
    * the blue one.
+   *
+   * Written in `oklch` like every other colour in this file rather than in
+   * the hex they were picked as: one notation for the whole palette, so a
+   * host tuning a slot reads its lightness beside the lightness of
+   * everything around it instead of translating. The values round-trip to
+   * the same sRGB bytes — these are the same ten colours.
    */
-  --chart-1: var(--fve-chart-1, #2a78d6);
-  --chart-2: var(--fve-chart-2, #eb6834);
-  --chart-3: var(--fve-chart-3, #1baf7a);
-  --chart-4: var(--fve-chart-4, #eda100);
-  --chart-5: var(--fve-chart-5, #e87ba4);
+  --chart-1: var(--fve-chart-1, oklch(0.5753 0.1626 255.532deg));
+  --chart-2: var(--fve-chart-2, oklch(0.6708 0.175 40.642deg));
+  --chart-3: var(--fve-chart-3, oklch(0.669 0.1408 162.111deg));
+  --chart-4: var(--fve-chart-4, oklch(0.7644 0.1612 75.116deg));
+  --chart-5: var(--fve-chart-5, oklch(0.7163 0.1412 357.389deg));
   --radius: var(--fve-radius, 0.625rem);
 
   /*
@@ -231,6 +303,37 @@
   font-size: var(--text-ui);
 }
 
+/*
+ * A joined toggle group rounds like the controls it stands beside.
+ *
+ * `ToggleGroup spacing={0}` is the registry's own segmented control — no
+ * gap, square inner corners, one shared seam — and the three call sites ask
+ * for it by that prop rather than hand-writing the look. Its one loose end
+ * is the outer corner: the group's own box is size-aware
+ * (`data-[size=sm]:rounded-[min(var(--radius-md),10px)]`) while the first
+ * and last *items*, which are what actually paints, keep the default
+ * `rounded-l-lg` / `rounded-r-lg` whatever the size. At `sm` that is 10px
+ * beside 8px `sm` buttons — the segmented switch in the result toolbar sits
+ * in a row of them, and two radii in one row read as two families of
+ * control. `ui/components/**` is upstream's, so the seam is closed here,
+ * the same place the two small font sizes are pinned; a group at the
+ * default size is untouched, since there the vendored radius is already the
+ * one its neighbours wear.
+ */
+.fve-root
+  [data-slot='toggle-group'][data-size='sm'][data-spacing='0']
+  > [data-slot='toggle-group-item']:first-child {
+  border-start-start-radius: min(var(--radius-md), 12px);
+  border-end-start-radius: min(var(--radius-md), 12px);
+}
+
+.fve-root
+  [data-slot='toggle-group'][data-size='sm'][data-spacing='0']
+  > [data-slot='toggle-group-item']:last-child {
+  border-start-end-radius: min(var(--radius-md), 12px);
+  border-end-end-radius: min(var(--radius-md), 12px);
+}
+
 .dark .fve-root:not([data-theme='light']),
 .fve-root[data-theme='dark'] {
   color-scheme: dark;
@@ -270,9 +373,26 @@
   );
   --sidebar-border: var(--fve-dark-sidebar-border, oklch(1 0 0deg / 20%));
   --destructive: var(--fve-dark-destructive, oklch(0.704 0.191 22.216deg));
+  --destructive-foreground: var(
+    --fve-dark-destructive-foreground,
+    var(--background)
+  );
   --success: var(--fve-dark-success, oklch(0.792 0.209 151.711deg));
+  --success-foreground: var(--fve-dark-success-foreground, var(--background));
   --warning: var(--fve-dark-warning, oklch(0.828 0.189 84.429deg));
+  --warning-foreground: var(--fve-dark-warning-foreground, var(--background));
   --info: var(--fve-dark-info, oklch(0.707 0.165 254.624deg));
+  --row-hover: var(
+    --fve-dark-row-hover,
+    color-mix(in oklab, var(--muted) 50%, var(--background))
+  );
+  --quiet-foreground: var(
+    --fve-dark-quiet-foreground,
+    oklch(0.985 0 0deg / 70%)
+  );
+  /* White, not black — see the light half: over the dark card black tops
+     out at 1.48:1 however much of it is spent. */
+  --pin-shadow: var(--fve-dark-pin-shadow, oklch(1 0 0deg / 25%));
   /*
    * Dividers are not controls and owe no 3:1, but at 10% white the row
    * hairlines measured 1.32:1 on the dark card — a table with no visible
@@ -294,11 +414,11 @@
    * 2.67:1 against it. 0.66 clears 3:1 on the wash, the card and the page.
    */
   --ring: var(--fve-dark-ring, oklch(0.66 0 0deg));
-  --chart-1: var(--fve-dark-chart-1, #3987e5);
-  --chart-2: var(--fve-dark-chart-2, #d95926);
-  --chart-3: var(--fve-dark-chart-3, #199e70);
-  --chart-4: var(--fve-dark-chart-4, #c98500);
-  --chart-5: var(--fve-dark-chart-5, #d55181);
+  --chart-1: var(--fve-dark-chart-1, oklch(0.6221 0.1612 255.053deg));
+  --chart-2: var(--fve-dark-chart-2, oklch(0.6221 0.1726 40.112deg));
+  --chart-3: var(--fve-dark-chart-3, oklch(0.6212 0.1283 163.115deg));
+  --chart-4: var(--fve-dark-chart-4, oklch(0.6699 0.1425 73.227deg));
+  --chart-5: var(--fve-dark-chart-5, oklch(0.6224 0.1712 0.838deg));
 }
 
 @layer base {

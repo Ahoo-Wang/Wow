@@ -16,6 +16,7 @@ import { cn } from 'cn';
 import { ChevronDownIcon, SlidersHorizontalIcon } from 'lucide-react';
 import { Button } from './components/button.js';
 import { IconTooltip } from './IconButton.js';
+import { PendingDot } from './PendingDot.js';
 import { ButtonGroup } from './components/button-group.js';
 import {
   DropdownMenu,
@@ -125,10 +126,9 @@ export function EditorBandToggle({
         )}
         {pending > 0 && (
           <span className={cn('flex items-center gap-1 font-normal', TEXT_UI)}>
-            <span
-              aria-hidden="true"
-              className="bg-primary size-1.5 rounded-full"
-            />
+            {/* The same dot the pills wear. It names nothing here: the
+                count right beside it is the wording. */}
+            <PendingDot />
             {messages.label('label.editor.pending', { count: pending })}
           </span>
         )}

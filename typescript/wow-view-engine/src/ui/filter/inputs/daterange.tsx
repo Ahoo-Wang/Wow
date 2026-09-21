@@ -22,6 +22,8 @@ import { Calendar } from '../../components/calendar.js';
 import { Popover, PopoverTrigger } from '../../components/popover.js';
 import { PopoverContent } from '../../popups.js';
 import { useViewMessages } from '../../MessagesProvider.js';
+import { displayValue, type DisplayContext } from '../../display.js';
+import { useSurfaceDisplay } from '../../ViewSurface.js';
 
 /**
  * A day, or the two ends of a span of them, off a calendar.
@@ -46,6 +48,7 @@ export function AbsoluteDate({
   withTime: boolean;
 }) {
   const messages = useViewMessages();
+  const display = useSurfaceDisplay();
   const blank = messages.label('label.date.pick');
   const from = parseDate(value.from);
   const to = parseDate(value.to);
@@ -57,8 +60,8 @@ export function AbsoluteDate({
         aria-label={label}
       >
         <CalendarIcon data-icon="inline-start" />
-        {formatDate(from, withTime, blank)}
-        {range ? ` – ${formatDate(to, withTime, blank)}` : ''}
+        {formatDate(value.from, withTime, blank, display)}
+        {range ? ` – ${formatDate(value.to, withTime, blank, display)}` : ''}
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0">
         {range ? (
@@ -135,11 +138,28 @@ function storeDate(date: Date, withTime: boolean): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/**
+ * A bound as the trigger reads it back.
+ *
+ * It formats the value **as stored** rather than the `Date` the calendar
+ * holds, and through the surface's own formatter: `toLocaleString()` takes
+ * the browser's language and the browser's clock, so the same condition read
+ * one way in the picker and another in the applied bar, the pill's summary
+ * and the table cell beside it — a view pinned to `Asia/Shanghai` showed a
+ * London reader the London hour of the moment they had just picked in
+ * Shanghai. `displayValue` is the one rule for both shapes stored here: an
+ * instant reads in the surface's zone, and a bare `2026-01-31` reads as the
+ * 31st on every clock there is.
+ */
 function formatDate(
-  date: Date | undefined,
+  stored: string | undefined,
   withTime: boolean,
   blank: string,
+  display: DisplayContext,
 ): string {
-  if (!date) return blank;
-  return withTime ? date.toLocaleString() : date.toLocaleDateString();
+  if (!stored) return blank;
+  return (
+    displayValue(stored, { cell: withTime ? 'datetime' : 'date' }, display) ??
+    blank
+  );
 }

@@ -500,9 +500,11 @@ describe('FilterValueEditor', () => {
       from: '2026-09-16',
     } as unknown as FilterValue);
 
-    // Shown as the day it names, whatever zone the browser is in.
+    // Shown as the day it names, whatever zone the browser is in — and in
+    // the surface's own wording for a date, the one the applied bar and the
+    // cells beside it use, rather than the browser's `toLocaleDateString`.
     expect(screen.getByLabelText('amount').textContent).toContain(
-      new Date(2026, 8, 16).toLocaleDateString(),
+      'Sep 16, 2026',
     );
 
     const user = userEvent.setup();

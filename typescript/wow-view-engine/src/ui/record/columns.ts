@@ -13,7 +13,7 @@
 
 import { useLayoutEffect, type CSSProperties, type RefObject } from 'react';
 import type { RecordColumnView } from '../../record/index.js';
-import { cn } from '../lib/utils.js';
+import { cn } from 'cn';
 import { TEXT_UI } from '../layout.js';
 
 /**
@@ -156,11 +156,15 @@ function observeResize(
  * one that fits — then showed no frame at all, and its two held columns read
  * as a layout that had come apart. The edge says "these two ends stay put",
  * and that is true before anything moves.
+ *
+ * The soft half is `--pin-shadow` and not a literal black: black is a
+ * shadow on a white card and nothing at all on a dark one, so the token
+ * carries a value per theme (`styles.css` has the measurements).
  */
 const EDGE_LEFT =
-  'shadow-[inset_-1px_0_0_var(--border),12px_0_16px_-8px_rgb(0_0_0/0.3)]';
+  'shadow-[inset_-1px_0_0_var(--border),12px_0_16px_-8px_var(--pin-shadow)]';
 const EDGE_RIGHT =
-  'shadow-[inset_1px_0_0_var(--border),-12px_0_16px_-8px_rgb(0_0_0/0.3)]';
+  'shadow-[inset_1px_0_0_var(--border),-12px_0_16px_-8px_var(--pin-shadow)]';
 
 /**
  * The action column stays put while the rest scrolls sideways, which is the
@@ -194,18 +198,12 @@ export const TABLE_CELLS =
   'border-separate border-spacing-0 [&_th]:border-b [&_td]:border-b [&_tfoot_tr:last-child_td]:border-b-0';
 
 /**
- * The hovered row's colour, opaque.
- *
- * The registry's row hovers with `bg-muted/50` — a wash of the muted layer
- * over whatever is under it — and a pinned cell takes its colour from the
- * row (`bg-inherit`). Over a scrolling table what is under a pinned cell is
- * the column it is holding the place of, so the wash let that column's text
- * show through the moment the pointer arrived. The same shade, mixed in
- * rather than laid over, is opaque; `has-aria-expanded` is the row with a
- * menu open, which the registry washes the same way.
+ * The hovered row's colour, opaque — `--row-hover` in `styles.css`, where
+ * the reason it is a mix rather than a wash is written down and where a host
+ * can move it. `has-aria-expanded` is the row with a menu open, which the
+ * registry washes the same way.
  */
-const HOVER = 'bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))]';
-export const ROW_HOVER = `hover:${HOVER} has-aria-expanded:${HOVER}`;
+export const ROW_HOVER = 'hover:bg-row-hover has-aria-expanded:bg-row-hover';
 
 /**
  * A column header is metadata about the column rather than content in it, so

@@ -33,12 +33,12 @@ import { TEXT_UI } from '../layout.js';
 /**
  * The quiet half of a summary row — the scope, and each function's name.
  *
- * It dims the foreground rather than reaching for `muted-foreground`, which
- * is toned against the page and lands at 4.34:1 on the muted layer these
- * rows are drawn on: small grey-on-grey text is exactly where a palette
- * meant for one background fails on another.
+ * The colour is `--quiet-foreground` in `styles.css`, where the reason it
+ * is a dimmed foreground rather than `muted-foreground` is written down and
+ * where a host can move it: small grey-on-grey text is exactly where a
+ * palette meant for one background fails on another.
  */
-const QUIET = `text-foreground/70 block font-normal ${TEXT_UI}`;
+const QUIET = `text-quiet-foreground block font-normal ${TEXT_UI}`;
 
 export interface SummaryRowsProps {
   /**

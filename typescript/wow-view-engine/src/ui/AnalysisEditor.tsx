@@ -40,7 +40,7 @@ import {
   SelectValue,
 } from './components/select.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
-import { SEGMENTED, SPACE } from './layout.js';
+import { SPACE } from './layout.js';
 import { DropdownMenuContent, SelectContent } from './popups.js';
 import { crossesBoundary, leavesEditor } from './FilterPanel.js';
 import { GroupedMenu } from './FieldMenu.js';
@@ -119,8 +119,8 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
           }}
           variant="outline"
           size="sm"
+          spacing={0}
           aria-label={messages.label('label.analysis.layout')}
-          className={SEGMENTED}
         >
           <ToggleGroupItem value="table">
             {messages.label('label.layout.table')}
@@ -170,8 +170,9 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
         16px between two whole blocks, which would put a block's own rows
         further apart than the blocks themselves. `ui/components/**` is
         upstream's and is not edited by hand, so the seam is closed at the
-        call site, as `SEGMENTED` is; `cn` merges the two `gap-*` and the one
-        passed in wins.
+        call site; `cn` merges the two `gap-*` and the one passed in wins.
+        (The segmented switch above needs no such thing: its own `spacing`
+        prop is the registry's way of asking for a joined group.)
       */}
       {(analysis.groups.length > 0 || analysis.metrics.length > 0) && (
         <FieldGroup className={SPACE.ROWS}>

@@ -40,23 +40,8 @@ import {
 import { SelectContent } from '../popups.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { FilterValueEditor } from '../FilterValueEditor.js';
+import { PendingDot, PENDING_AT_CORNER } from '../PendingDot.js';
 import { GroupBlock } from './GroupBlock.js';
-
-/**
- * The one credential for "said, but not yet asked".
- *
- * A draft is only worth keeping apart from what ran if the difference is
- * visible, and it is visible in one place per node rather than in a banner
- * that says some condition somewhere has moved.
- */
-export function PendingDot() {
-  const messages = useViewMessages();
-  return (
-    <span className="bg-primary absolute -top-0.5 -right-0.5 size-1.5 rounded-full">
-      <span className="sr-only">{messages.label('label.filter.pending')}</span>
-    </span>
-  );
-}
 
 /**
  * One condition: a field, an operator and whatever value editor the kind
@@ -180,7 +165,7 @@ export function ConditionPill({
         data-pending={pending || undefined}
         className="border-border data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning relative col-span-full flex flex-col gap-1 rounded-md border p-2"
       >
-        {pending && <PendingDot />}
+        {pending && <PendingDot named className={PENDING_AT_CORNER} />}
         <div className="flex items-center gap-1">
           <span className="shrink-0 text-sm font-medium whitespace-nowrap">
             {label}
@@ -212,7 +197,7 @@ export function ConditionPill({
       data-pending={pending || undefined}
       className="border-border bg-muted/40 data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning @[40rem]:data-[wide]:col-span-2 relative flex min-w-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm"
     >
-      {pending && <PendingDot />}
+      {pending && <PendingDot named className={PENDING_AT_CORNER} />}
       <span className="w-16 shrink-0 truncate font-medium" title={label}>
         {label}
       </span>
