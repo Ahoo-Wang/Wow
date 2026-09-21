@@ -1046,8 +1046,12 @@ describe('the table chrome', () => {
     expect(table.style.getPropertyValue('--fve-pin-left-0')).toBe('77px');
 
     // The header cells that feed the offsets, and nothing else: the table
-    // itself can sit still through all of this.
-    const latest = observers[observers.length - 1];
+    // itself can sit still through all of this. (The edges keep an observer
+    // of their own on the scrollport; it is the one watching cells that the
+    // offsets are read from.)
+    const latest = observers.find(spy =>
+      spy.observed.some((node: Element) => node.tagName === 'TH'),
+    )!;
     const watching: Element[] = latest.observed;
     expect(watching.every((node: Element) => node.tagName === 'TH')).toBe(true);
     expect(watching).toContain(

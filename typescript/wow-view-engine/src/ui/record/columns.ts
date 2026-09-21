@@ -13,6 +13,7 @@
 
 import { useLayoutEffect, type CSSProperties, type RefObject } from 'react';
 import type { RecordColumnView } from '../../record/index.js';
+import { cn } from '../lib/utils.js';
 
 /**
  * Where a pinned column sits while the middle of the table scrolls.
@@ -98,6 +99,69 @@ export function usePinnedOffsets(
 }
 
 /**
+ * Says, on the table, whether anything has scrolled under its pinned columns.
+ *
+ * A pinned column's edge is a claim — "rows are passing under me" — and it is
+ * only true while they are: with the scrollport at its start nothing is under
+ * the left column, and at its end nothing is under the right one. The two
+ * flags are written as `data-scrolled-left` / `data-scrolled-right` on the
+ * table and the boundary cells read them through a group variant, so the edge
+ * appears with the first pixel of scroll and goes when the rows come back.
+ *
+ * The scrollport is the table's own area when it scrolls, and the nearest
+ * ancestor that scrolls sideways when something around it does instead
+ * (`scrolls={false}`, a dashboard panel). It is read from the DOM rather than
+ * kept in state for the same reason the offsets are: scrolling is a thing the
+ * DOM already knows, and a render per scroll event would buy nothing.
+ */
+export function usePinnedEdges(
+  table: RefObject<HTMLTableElement | null>,
+): void {
+  useLayoutEffect(() => {
+    const node = table.current;
+    const port = node && scrollportOf(node);
+    if (!node || !port) return;
+    const update = () => applyEdges(node, port);
+    update();
+    port.addEventListener('scroll', update, { passive: true });
+    const stop = observeResize([port, node], update);
+    return () => {
+      port.removeEventListener('scroll', update);
+      stop();
+    };
+  });
+}
+
+/**
+ * The box the table scrolls sideways in: its own area when that is a
+ * scrollport, else the nearest ancestor that is one. Nothing, when nothing
+ * scrolls — then no row ever passes under a pinned column.
+ */
+function scrollportOf(table: HTMLTableElement): HTMLElement | null {
+  const own = table.closest<HTMLElement>(
+    '[data-slot="record-table"][data-scrolls]',
+  );
+  if (own) return own;
+  for (
+    let node = table.parentElement;
+    node && node !== document.body;
+    node = node.parentElement
+  ) {
+    const { overflowX } = getComputedStyle(node);
+    if (overflowX === 'auto' || overflowX === 'scroll') return node;
+  }
+  return null;
+}
+
+function applyEdges(table: HTMLTableElement, port: HTMLElement): void {
+  const room = port.scrollWidth - port.clientWidth;
+  // Half a pixel of slack: subpixel layouts report a scrollport that is
+  // scrolled by a fraction while nothing has moved.
+  table.toggleAttribute('data-scrolled-left', port.scrollLeft > 0.5);
+  table.toggleAttribute('data-scrolled-right', room - port.scrollLeft > 0.5);
+}
+
+/**
  * Each pinned column stops where the sticky ones before it end. Only they
  * count: a column that scrolls away contributes nothing to stay clear of.
  */
@@ -144,14 +208,35 @@ function observeResize(
 }
 
 /**
+ * The group the pinned cells read the scroll state from: the table itself,
+ * which is where `usePinnedEdges` writes it.
+ */
+export const PIN_GROUP = 'group/table';
+
+/**
+ * The edge of a pinned column, in the direction the rows scroll away, drawn
+ * only while rows are actually passing under it. A hairline says where the
+ * column ends and the soft shadow says the content continues beneath — an
+ * edge that is there at rest as well would say "there is a line here" and
+ * nothing about what is under it.
+ */
+const EDGE_LEFT =
+  'group-data-[scrolled-left]/table:shadow-[inset_-1px_0_0_var(--border),8px_0_12px_-8px_rgb(0_0_0/0.3)]';
+const EDGE_RIGHT =
+  'group-data-[scrolled-right]/table:shadow-[inset_1px_0_0_var(--border),-8px_0_12px_-8px_rgb(0_0_0/0.3)]';
+
+/**
  * The action column stays put while the rest scrolls sideways, which is the
  * only reason it can be the last one: on a wide table, actions that scroll
- * away are actions nobody finds. The inset shadow draws its left edge — a
- * real border would move with the cell it is on and leave a gap under the
- * sticky one.
+ * away are actions nobody finds. It carries the right edge unless a column
+ * the config pinned right sits before it — then that column is the boundary
+ * with the scrolling middle, and an edge here as well would draw a seam
+ * between two columns nothing passes between.
  */
-export const ACTION_CELL =
-  'sticky right-0 z-10 w-0 bg-inherit whitespace-nowrap shadow-[inset_1px_0_0_var(--border)]';
+export function actionCell(columns: readonly RecordColumnView[]): string {
+  const edge = !columns.some(isPinned('right'));
+  return `sticky right-0 z-10 w-0 bg-inherit whitespace-nowrap${edge ? ` ${EDGE_RIGHT}` : ''}`;
+}
 
 /** The selection column, pinned along with the columns it sits beside. */
 export const SELECT_CELL = 'sticky left-0 z-10 bg-inherit';
@@ -190,22 +275,32 @@ export function columnPins(
   layout: { selectable: boolean; actions: boolean },
 ): Map<string, ColumnPin> {
   const pins = new Map<string, ColumnPin>();
+  // The boundary with the scrolling middle is the last column pinned left
+  // and the first pinned right; only those two draw an edge. The selection
+  // column is never one — a column pinned left always follows it — and the
+  // action column is the right boundary only when no column is pinned there.
+  const lastLeft = [...columns].reverse().find(isPinned('left'));
+  const firstRight = columns.find(isPinned('right'));
 
   const left: string[] = layout.selectable ? [SELECT_WIDTH] : [];
   columns.forEach((column, index) => {
     if (column.pinned !== 'left') return;
-    pins.set(column.field, pin('left', index, left));
+    pins.set(column.field, pin('left', index, left, column === lastLeft));
     if (column.width !== undefined) left.push(`${column.width}px`);
   });
 
   const right: string[] = layout.actions ? [ACTIONS_WIDTH] : [];
   [...columns.entries()].reverse().forEach(([index, column]) => {
     if (column.pinned !== 'right') return;
-    pins.set(column.field, pin('right', index, right));
+    pins.set(column.field, pin('right', index, right, column === firstRight));
     if (column.width !== undefined) right.push(`${column.width}px`);
   });
 
   return pins;
+}
+
+function isPinned(side: 'left' | 'right') {
+  return (column: RecordColumnView) => column.pinned === side;
 }
 
 /** Whether the selection column has to stay put along with a pinned column. */
@@ -217,17 +312,17 @@ function pin(
   side: 'left' | 'right',
   index: number,
   offsets: readonly string[],
+  edge: boolean,
 ): ColumnPin {
   const declared =
     offsets.length === 0 ? '0px' : `calc(${offsets.join(' + ')})`;
   return {
     side,
     index,
-    // The edge is drawn on the inside, in the direction the rows scroll away.
-    className:
-      side === 'left'
-        ? 'sticky z-10 bg-inherit shadow-[inset_-1px_0_0_var(--border)]'
-        : 'sticky z-10 bg-inherit shadow-[inset_1px_0_0_var(--border)]',
+    className: cn(
+      'sticky z-10 bg-inherit',
+      edge && (side === 'left' ? EDGE_LEFT : EDGE_RIGHT),
+    ),
     style:
       side === 'left'
         ? { left: `var(${pinVar(side, index)}, ${declared})` }

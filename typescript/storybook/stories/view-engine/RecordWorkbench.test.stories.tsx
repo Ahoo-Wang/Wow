@@ -32,6 +32,7 @@ import displayMeta, {
   ManageViews as DisplayManageViews,
   NeedsFixing as DisplayNeedsFixing,
   Paged as DisplayPaged,
+  PinnedEdges as DisplayPinnedEdges,
   PopupsOverRaisedHostLayer as DisplayPopupsOverRaisedHostLayer,
   QueryFailed as DisplayQueryFailed,
   TableSettings as DisplayTableSettings,
@@ -1249,6 +1250,76 @@ export const FillTheScreenInScaledHost: Story = {
       expect(surface).not.toHaveAttribute('data-view-expanded'),
     );
     await expect(surface.style.getPropertyValue('--fve-expanded-w')).toBe('');
+  },
+};
+
+/**
+ * 冻结列的边说的是「有行正从我下面经过」，所以它只在那是真的时候才在。
+ *
+ * `usePinnedEdges` 把滚动位置写成表上的两个属性，边界格子经 group 变体读它：
+ * 滚动条在起点时左边界没有边、在终点时右边界没有、中间两边都有；两个冻结列之
+ * 间永远没有——那道缝下面没有东西经过。表头、数据行、汇总行三层读的是同一份
+ * 属性，所以同一列在三层上要么都有边、要么都没有。jsdom 不算布局也不套样式
+ * 表，`box-shadow` 的真值只有这里量得到。
+ */
+export const PinnedEdges: Story = {
+  ...DisplayPinnedEdges,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    const area = table.closest<HTMLElement>('[data-slot="record-table"]')!;
+    await expect(area).toHaveAttribute('data-scrolls');
+
+    // The premise: two columns frozen left and the actions frozen right, and
+    // a middle that has to scroll — a table that fits has nothing under any
+    // of its columns, so the area is narrowed until it does not.
+    const inner = headerOf(table, '订单号');
+    const left = headerOf(table, '金额');
+    const right = table.querySelector<HTMLTableCellElement>(
+      'thead th[data-column="actions"]',
+    )!;
+    await expect(inner).toHaveAttribute('data-pin', 'left');
+    await expect(left).toHaveAttribute('data-pin', 'left');
+    area.style.maxWidth = '420px';
+    await waitFor(() =>
+      expect(area.scrollWidth).toBeGreaterThan(area.clientWidth),
+    );
+
+    /** Whether each cell draws an edge, on all three layers of one column. */
+    const edged = (head: HTMLTableCellElement) =>
+      ['thead', 'tbody', 'tfoot'].map(
+        layer =>
+          getComputedStyle(
+            table.querySelector<HTMLTableRowElement>(`${layer} tr`)!.cells[
+              head.cellIndex
+            ],
+          ).boxShadow !== 'none',
+      );
+    const edges = () => ({
+      inner: edged(inner),
+      left: edged(left),
+      right: edged(right),
+    });
+    const NONE = [false, false, false];
+    const ALL = [true, true, true];
+
+    // At the start nothing is under the left column and rows are under the
+    // right one; between the two frozen columns there is never anything.
+    await waitFor(() =>
+      expect(edges()).toEqual({ inner: NONE, left: NONE, right: ALL }),
+    );
+    area.scrollLeft = 40;
+    await waitFor(() =>
+      expect(edges()).toEqual({ inner: NONE, left: ALL, right: ALL }),
+    );
+    area.scrollLeft = area.scrollWidth;
+    await waitFor(() =>
+      expect(edges()).toEqual({ inner: NONE, left: ALL, right: NONE }),
+    );
+    area.scrollLeft = 0;
+    await waitFor(() =>
+      expect(edges()).toEqual({ inner: NONE, left: NONE, right: ALL }),
+    );
   },
 };
 

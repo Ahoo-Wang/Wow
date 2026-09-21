@@ -43,7 +43,8 @@ import {
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import {
-  ACTION_CELL,
+  actionCell,
+  PIN_GROUP,
   ACTIONS_COLUMN,
   HEAD_CELL,
   NUMERIC_CELL,
@@ -52,6 +53,7 @@ import {
   columnPins,
   isNumeric,
   pinsSelect,
+  usePinnedEdges,
   usePinnedOffsets,
 } from './record/columns.js';
 import { SortableHeader } from './record/SortableHeader.js';
@@ -157,6 +159,7 @@ export function RecordTable({
   const columns = table.columns;
   const element = useRef<HTMLTableElement>(null);
   usePinnedOffsets(element);
+  usePinnedEdges(element);
   const pins = useMemo(
     () =>
       columnPins(columns, { selectable, actions: rowActions !== undefined }),
@@ -211,7 +214,7 @@ export function RecordTable({
       data-scrolls={scrolls ? '' : undefined}
       className={scrolls ? SCROLL_AREA : STATIC_AREA}
     >
-      <Table ref={element}>
+      <Table ref={element} className={PIN_GROUP}>
         {/* A layer rather than a row: it stays while the rows move under it,
             and its edge is heavier than the hairlines between them. */}
         <TableHeader className="bg-background sticky top-0 z-20 [&_tr]:border-b-2">
@@ -247,7 +250,7 @@ export function RecordTable({
               <TableHead
                 data-column={ACTIONS_COLUMN}
                 data-pin="right"
-                className={cn(HEAD_CELL, ACTION_CELL)}
+                className={cn(HEAD_CELL, actionCell(columns))}
               >
                 {messages.label('label.toolbar.actions')}
               </TableHead>
@@ -313,7 +316,7 @@ export function RecordTable({
                     );
                   })}
                   {rowActions && (
-                    <TableCell className={ACTION_CELL}>
+                    <TableCell className={actionCell(columns)}>
                       <RowActions>{rowActions(row)}</RowActions>
                     </TableCell>
                   )}

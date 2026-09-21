@@ -116,7 +116,8 @@ describe('RecordTable row actions', () => {
     const head = screen.getByRole('columnheader', { name: 'Actions' });
     expect(head.className).toContain('sticky');
     expect(head.className).toContain('right-0');
-    expect(head.className).toContain('shadow-[inset_1px_0_0_var(--border)]');
+    // Its edge is the scroll-aware one: drawn only while rows pass under it.
+    expect(head.className).toContain('group-data-[scrolled-right]/table:');
 
     expect(screen.getByRole('button', { name: 'act o-1' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'act o-2' })).toBeTruthy();

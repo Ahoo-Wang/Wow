@@ -20,7 +20,7 @@ import type {
 import { formatNumber } from '../display.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { TableCell, TableFooter, TableRow } from '../components/table.js';
-import { ACTION_CELL, SELECT_CELL, type ColumnPin } from './columns.js';
+import { actionCell, SELECT_CELL, type ColumnPin } from './columns.js';
 
 /**
  * The quiet half of a summary row — the scope, and each function's name.
@@ -154,7 +154,7 @@ function SummaryLine({
       })}
       {/* Nothing to summarise about actions, but the row still has to be
           as wide as the ones above it. */}
-      {actions && <TableCell className={ACTION_CELL} />}
+      {actions && <TableCell className={actionCell(columns)} />}
     </TableRow>
   );
 }

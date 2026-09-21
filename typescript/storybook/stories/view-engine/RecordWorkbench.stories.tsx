@@ -518,6 +518,17 @@ export const FillTheScreenWithPopups: Story = {
 };
 
 /**
+ * 冻结列的边只在有行滑到它下面时才出现。
+ *
+ * 左边冻着行键与 `金额`，右边冻着宿主的操作列；把结果区拉窄到中间那几列不得不
+ * 滚，然后看两侧的边：滚动条在起点时左边没有边（没有东西在它下面），在终点时
+ * 右边没有；两个冻结列之间也没有边——那里从来没有东西经过。
+ */
+export const PinnedEdges: Story = {
+  args: { pinnedColumn: true, withActions: true },
+};
+
+/**
  * 宿主在自己页面上抬起了一层（这里是 `z-index: 10` 的一块浮层，可命中、盖住整
  * 个视口），弹层仍然在它**前面**。
  *
