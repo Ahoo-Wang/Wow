@@ -190,6 +190,11 @@ export function ViewHeader({
             id={titleId ?? generatedId}
             data-slot="view-title"
             data-dirty={state.dirty || undefined}
+            // `truncate` is visual only — a screen reader still reads the
+            // whole name, but a pointer user has no way back to it once the
+            // ellipsis lands. `ConditionPill` sets this precedent on the
+            // field name it truncates the same way.
+            title={state.title}
             className={cn(
               'truncate font-medium',
               // `sr-only` sets a width of its own, so the spring is only for

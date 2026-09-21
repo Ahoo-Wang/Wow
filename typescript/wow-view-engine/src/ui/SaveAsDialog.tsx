@@ -230,7 +230,14 @@ function SaveAsForm({
           {messages.label('label.dialog.cancel')}
         </DialogClose>
         <Button disabled={stopped} onClick={submit}>
-          {state.pending && <Spinner data-icon="inline-start" />}
+          {/* The vendored spinner hardcodes an English `aria-label`; the name
+              comes from the catalogue at the call site. */}
+          {state.pending && (
+            <Spinner
+              data-icon="inline-start"
+              aria-label={messages.label('label.status.loading')}
+            />
+          )}
           {messages.label('label.save-as.submit')}
         </Button>
       </DialogFooter>

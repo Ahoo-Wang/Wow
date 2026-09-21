@@ -735,7 +735,7 @@ describe('RecordWorkbench interaction', () => {
 
     await addConditions(['Warehouse']);
 
-    const value = await screen.findByLabelText('warehouse value');
+    const value = await screen.findByLabelText('Warehouse value');
     fireEvent.change(value, { target: { value: 'CN' } });
     fireEvent.click(screen.getByRole('button', { name: /Apply/ }));
 
@@ -752,16 +752,16 @@ describe('RecordWorkbench interaction', () => {
     await open();
 
     await addConditions(['Warehouse']);
-    await screen.findByLabelText('warehouse value');
+    await screen.findByLabelText('Warehouse value');
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove Warehouse' }));
-    expect(screen.queryByLabelText('warehouse value')).toBeNull();
+    expect(screen.queryByLabelText('Warehouse value')).toBeNull();
 
     await addConditions(['Warehouse']);
-    await screen.findByLabelText('warehouse value');
+    await screen.findByLabelText('Warehouse value');
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
 
-    expect(screen.queryByLabelText('warehouse value')).toBeNull();
+    expect(screen.queryByLabelText('Warehouse value')).toBeNull();
   });
 
   it('switches to cards and back', async () => {
@@ -889,7 +889,7 @@ describe('RecordWorkbench interaction', () => {
     // supersedes the request in flight, so nothing here has to wait for it.
     expect(apply.hasAttribute('disabled')).toBe(false);
     await addConditions(['Warehouse']);
-    const value = await screen.findByLabelText('warehouse value');
+    const value = await screen.findByLabelText('Warehouse value');
     expect((value as HTMLInputElement).disabled).toBe(false);
     fireEvent.change(value, { target: { value: 'CN' } });
     expect((value as HTMLInputElement).value).toBe('CN');
@@ -1492,7 +1492,7 @@ describe('the record workbench layout', () => {
 
     fireEvent.click(editorToggle());
     await addConditions(['Warehouse']);
-    fireEvent.change(await screen.findByLabelText('warehouse value'), {
+    fireEvent.change(await screen.findByLabelText('Warehouse value'), {
       target: { value: 'CN' },
     });
 

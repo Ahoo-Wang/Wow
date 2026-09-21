@@ -223,7 +223,12 @@ function PrimaryFace({
   if (saving)
     return (
       <>
-        <Spinner data-icon="inline-start" />
+        {/* The vendored spinner hardcodes an English `aria-label`; the name
+            comes from the catalogue at the call site. */}
+        <Spinner
+          data-icon="inline-start"
+          aria-label={messages.label('label.status.loading')}
+        />
         {messages.label('label.save.saving')}
       </>
     );

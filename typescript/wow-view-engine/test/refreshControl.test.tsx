@@ -40,9 +40,11 @@ import {
   AnalysisWorkbench,
   DashboardWorkbench,
   defaultMessages,
+  MessagesProvider,
   RecordWorkbench,
   RefreshControl,
   ViewSurface,
+  zhCN,
 } from '../src/ui/index.js';
 import {
   analysisConfig,
@@ -539,6 +541,25 @@ describe('RefreshControl', () => {
     expect(
       screen.getByRole('button', { name: AUTO }).hasAttribute('disabled'),
     ).toBe(false);
+  });
+
+  /**
+   * The spinner is vendored and hardcodes `aria-label="Loading"`, which no
+   * host catalogue could reach — the busy announcement stayed English under
+   * `messages={zhCN}`. The catalogue test only proves the key exists in both
+   * books; this one proves the call site hands it over.
+   */
+  it('announces the wait in the host catalogue, not in English', () => {
+    render(
+      <MessagesProvider messages={zhCN}>
+        <RefreshControl refresh={refreshController({ loading: true })} />
+      </MessagesProvider>,
+    );
+
+    expect(screen.getByRole('status').getAttribute('aria-label')).toBe(
+      '加载中',
+    );
+    expect(screen.queryByRole('status', { name: 'Loading' })).toBeNull();
   });
 
   it('is reachable and operable from the keyboard', async () => {

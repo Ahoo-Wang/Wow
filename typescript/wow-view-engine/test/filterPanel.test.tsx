@@ -368,7 +368,7 @@ describe('FilterPanel tree editing', () => {
     const { filter } = panel();
     const submit = vi.fn();
     act(() => filter().addLeaf('warehouse'));
-    const value = screen.getByLabelText('warehouse value');
+    const value = screen.getByLabelText('Warehouse value');
     vi.spyOn(filter(), 'submit').mockImplementation(submit);
 
     fireEvent.keyDown(value, { key: 'Enter' });
@@ -410,7 +410,7 @@ describe('FilterPanel tree editing', () => {
     const { filter } = panel();
     const submit = vi.fn();
     act(() => filter().addLeaf('warehouse'));
-    const value = screen.getByLabelText('warehouse value');
+    const value = screen.getByLabelText('Warehouse value');
     vi.spyOn(filter(), 'submit').mockImplementation(submit);
 
     fireEvent.keyDown(value, init);
@@ -422,7 +422,7 @@ describe('FilterPanel tree editing', () => {
     const { filter } = panel();
     const submit = vi.fn();
     act(() => filter().addLeaf('warehouse'));
-    const value = screen.getByLabelText('warehouse value');
+    const value = screen.getByLabelText('Warehouse value');
     vi.spyOn(filter(), 'submit').mockImplementation(submit);
 
     // Base UI marks the trigger of an open popup, which is the same mark
@@ -438,7 +438,7 @@ describe('FilterPanel tree editing', () => {
     const { filter } = panel(true);
     const submit = vi.fn();
     act(() => filter().addLeaf('warehouse'));
-    const value = screen.getByLabelText('warehouse value');
+    const value = screen.getByLabelText('Warehouse value');
     vi.spyOn(filter(), 'submit').mockImplementation(submit);
 
     // Disabled here; `blocked` is the other half of the same rule, and the
@@ -562,9 +562,29 @@ describe('FilterPanel tree editing', () => {
     });
 
     // The nested condition stays visible and editable rather than dropped.
-    expect(screen.getByLabelText('warehouse value')).toBeDefined();
-    expect(screen.getByLabelText('status value')).toBeDefined();
+    expect(screen.getByLabelText('Warehouse value')).toBeDefined();
+    expect(screen.getByLabelText('Status value')).toBeDefined();
     expect(screen.getByRole('group', { name: 'Any condition' })).toBeDefined();
+  });
+
+  /**
+   * The value editor used to be named after `leaf.field`, so one row read
+   * "Status condition / Status operator / status value" — an identifier on
+   * screen, in a word the interface says nowhere else.
+   */
+  it('names every control on a row after the field, not its id', () => {
+    const { filter } = panel();
+    act(() => filter().addLeaf('status'));
+
+    const row = screen.getByRole('group', { name: 'Status condition' });
+    expect(within(row).getByLabelText('Status value')).toBeDefined();
+    expect(screen.queryByLabelText('status value')).toBeNull();
+    expect(
+      within(row).getByRole('combobox', { name: /Status operator/i }),
+    ).toBeDefined();
+    expect(
+      within(row).getByRole('button', { name: 'Remove Status' }),
+    ).toBeDefined();
   });
 
   it('flips a group between all and any', async () => {
@@ -1075,7 +1095,7 @@ describe('FilterPanel and auto refresh', () => {
 
   it('holds the timer while an input inside has focus, and lets go after', () => {
     const { editing } = panelWithRuntime();
-    const input = screen.getByLabelText('warehouse value');
+    const input = screen.getByLabelText('Warehouse value');
 
     expect(editing()).toBe(false);
     fireEvent.focus(input, { relatedTarget: null });
@@ -1090,8 +1110,8 @@ describe('FilterPanel and auto refresh', () => {
   it('does not let go while focus moves between two inputs inside', () => {
     const { runtime, editing } = panelWithRuntime();
     const setEditing = vi.spyOn(runtime, 'setEditing');
-    const first = screen.getByLabelText('warehouse value');
-    const second = screen.getByLabelText('status value');
+    const first = screen.getByLabelText('Warehouse value');
+    const second = screen.getByLabelText('Status value');
 
     fireEvent.focus(first, { relatedTarget: null });
     // A move within the panel: the blur names the input gaining focus and
@@ -1106,7 +1126,7 @@ describe('FilterPanel and auto refresh', () => {
 
   it('keeps holding while focus is in a popup of one of its controls', () => {
     const { editing } = panelWithRuntime();
-    const input = screen.getByLabelText('warehouse value');
+    const input = screen.getByLabelText('Warehouse value');
     const trigger = screen.getByRole('combobox', {
       name: /Warehouse operator/i,
     });
@@ -1130,7 +1150,7 @@ describe('FilterPanel and auto refresh', () => {
 
   it('lets go when focus leaves the document altogether', () => {
     const { editing } = panelWithRuntime();
-    const input = screen.getByLabelText('warehouse value');
+    const input = screen.getByLabelText('Warehouse value');
 
     fireEvent.focus(input, { relatedTarget: null });
     fireEvent.blur(input, { relatedTarget: null });

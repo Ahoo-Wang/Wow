@@ -595,8 +595,10 @@ export const zhCN: ViewMessages = {
   'dashboard.url.unsupported-scheme':
     '只能显示 http、https、mailto 和相对链接。',
 
-  // 单行状态条：哪里失败了，屏幕上留着的又是什么。
+  // 视图自己要说的话：哪里失败了，屏幕上留着的又是什么，此刻有没有东西在跑。
   'label.status.more': '还有 {count} 条',
+  'label.status.less': '收起',
+  'label.status.loading': '加载中',
   'label.query.failed': '查询失败',
   'label.query.stale': '显示的是上一次成功的结果',
   'label.query.retry': '重试',

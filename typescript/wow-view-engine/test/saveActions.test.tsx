@@ -31,6 +31,7 @@ import {
   type ViewPermissions,
 } from '../src/index.js';
 import { useSaveCommands, useViewRuntime } from '../src/react/index.js';
+import { MessagesProvider, zhCN } from '../src/ui/index.js';
 import { ViewHeader } from '../src/ui/ViewHeader.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
 import { WriteOutcome } from '../src/ui/WriteOutcome.js';
@@ -192,6 +193,32 @@ describe('SaveActions, the split button group', () => {
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: /Saving/ })).toBeNull(),
     );
+  });
+
+  /**
+   * That spinner is vendored and names itself `Loading` in English, which no
+   * host catalogue could reach until the call site handed it a name.
+   */
+  it('announces the write in the host catalogue, not in English', async () => {
+    const { engine, store } = setup();
+    const held = deferred<ViewInstance>();
+    vi.spyOn(store, 'save').mockReturnValueOnce(held.promise);
+    const runtime = await engine.open('orders-1');
+    render(
+      <MessagesProvider messages={zhCN}>
+        <Harness engine={engine} runtime={runtime} />
+      </MessagesProvider>,
+    );
+    editIt(runtime);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: zhCN['label.save.save'] }),
+    );
+
+    const spinner = await screen.findByRole('status');
+    expect(spinner.getAttribute('aria-label')).toBe('加载中');
+    act(() => held.resolve({ ...mine, revision: '2' }));
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
   });
 
   /**

@@ -165,6 +165,29 @@ describe('ViewHeader', () => {
     expect(header().textContent).not.toContain('Not saved yet');
   });
 
+  /**
+   * The name is the one thing on this row that truncates, and `truncate` is
+   * visual only: a screen reader reads the whole of it, a pointer user got
+   * an ellipsis and no way past it. The attribute is what jsdom can hold —
+   * the geometry belongs to the browser story.
+   */
+  it('carries the whole name it may have to truncate', async () => {
+    const long = 'Orders awaiting warehouse confirmation in the EU region';
+    const store = new MemoryViewStore({
+      instances: [{ ...mine, title: long }],
+    });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    const runtime = await engine.open('orders-1');
+    render(<Harness engine={engine} runtime={runtime} />);
+
+    expect(title().className).toContain('truncate');
+    expect(title().getAttribute('title')).toBe(long);
+  });
+
   it('says a shared view is shared', async () => {
     const { engine } = setup();
     const runtime = await engine.open('orders-2');

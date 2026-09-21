@@ -83,6 +83,34 @@ describe('StatusStrip', () => {
     ).toBeDefined();
   });
 
+  /**
+   * "{count} more" beside findings that are already on screen points at what
+   * the reader can see and calls it withheld. The toggle folds them away, so
+   * once it is open it says that instead.
+   */
+  it('says what the press does next, not what it did last', () => {
+    render(
+      <StatusStrip
+        tone="warning"
+        title="1 thing worth noting"
+        details={['No AVG here']}
+      />,
+    );
+
+    const toggle = () => screen.getByRole('button');
+    expect(toggle().textContent).toBe('1 more');
+    expect(toggle().getAttribute('aria-expanded')).toBe('false');
+
+    fireEvent.click(toggle());
+
+    expect(toggle().getAttribute('aria-expanded')).toBe('true');
+    expect(toggle().textContent).toBe('Show less');
+
+    fireEvent.click(toggle());
+
+    expect(toggle().textContent).toBe('1 more');
+  });
+
   it('carries what to do about it at the end of the line', () => {
     const retry = vi.fn();
     render(

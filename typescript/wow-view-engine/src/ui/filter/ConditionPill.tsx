@@ -218,8 +218,11 @@ export function ConditionPill({
           <FilterValueEditor
             editor={editor}
             value={leaf.value}
+            // The field's title, as the other three names on this row use:
+            // an identifier on screen is a word the interface never says
+            // anywhere else.
             label={messages.label('label.filter.value-of', {
-              field: leaf.field,
+              field: label,
             })}
             disabled={disabled}
             options={editor.remote ? optionsFor?.(editor.remote) : undefined}

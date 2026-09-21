@@ -103,7 +103,12 @@ export function StatusStrip({
               'shrink-0 text-current',
             )}
           >
-            {messages.label('label.status.more', { count: lines.length })}
+            {/* Once they are open, the findings are on screen: "{count} more"
+                would point at them and claim they are still withheld. The
+                open state folds them away again, so it says so. */}
+            {open
+              ? messages.label('label.status.less')
+              : messages.label('label.status.more', { count: lines.length })}
           </CollapsibleTrigger>
         )}
         {action && <div className="shrink-0">{action}</div>}

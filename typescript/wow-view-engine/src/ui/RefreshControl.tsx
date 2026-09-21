@@ -124,8 +124,14 @@ export function RefreshControl({
             : messages.label('label.refresh.on', { interval: cadence })
         }
       >
+        {/* The vendored spinner announces itself as `status "Loading"` in
+            English whatever the host's catalogue says, so the name is handed
+            to it here, where the component is used. */}
         {refresh.loading ? (
-          <Spinner data-icon="inline-start" />
+          <Spinner
+            data-icon="inline-start"
+            aria-label={messages.label('label.status.loading')}
+          />
         ) : (
           <RefreshCwIcon data-icon="inline-start" />
         )}

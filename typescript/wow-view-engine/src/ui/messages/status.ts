@@ -11,9 +11,19 @@
  * limitations under the License.
  */
 
-/** The one-line status strip: what failed, and what is still on screen. */
+/**
+ * What the view says about itself: what failed, what is still on screen, and
+ * whether something is running right now.
+ */
 export const statusMessages = {
   'label.status.more': '{count} more',
+  // Said once the findings are open: the button still folds them away, and
+  // "{count} more" beside what is already on screen promises more of it.
+  'label.status.less': 'Show less',
+  // The busy announcement. `components/spinner.tsx` is vendored and hardcodes
+  // `aria-label="Loading"`, so every call site hands it this instead — the
+  // seam is sewn where the component is used.
+  'label.status.loading': 'Loading',
   'label.query.failed': 'The query failed',
   // A failed query does not clear the table: what is on screen is the last
   // result that did come back, and saying so is the only way to know.
