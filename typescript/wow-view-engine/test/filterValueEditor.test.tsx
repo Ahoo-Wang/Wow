@@ -269,6 +269,67 @@ describe('FilterValueEditor', () => {
     expect(changes).toEqual([]);
   });
 
+  /**
+   * What is in the entry field belongs to the list it is being typed into.
+   * The panel's discard puts the applied list back, and the half-typed number
+   * used to survive it — the next Add or blur wrote it into the very list the
+   * user had just restored, so the discard had not discarded.
+   */
+  it('forgets what was being typed once the list is replaced from outside', () => {
+    const { changes, replace } = editor(
+      { input: 'number', multiple: true },
+      [1],
+    );
+    const entry = () => screen.getByLabelText('New amount') as HTMLInputElement;
+
+    fireEvent.change(entry(), { target: { value: '3' } });
+    expect(entry().value).toBe('3');
+
+    // A discard, a config reload, another view opened: a fresh list arrives,
+    // equal or not to the one on screen.
+    replace([1]);
+
+    expect(entry().value).toBe('');
+    // Reaching for Apply blurs the field, and that blur commits what is in
+    // it. There is nothing in it.
+    fireEvent.blur(entry());
+    expect(changes).toEqual([]);
+  });
+
+  /**
+   * The entry field answers Enter itself, so it takes the keystroke out of
+   * the panel's reach. Only its own: Enter with a modifier held is some
+   * other shortcut, very likely the host page's, and `FilterPanel` lets it
+   * by for that reason — a field that swallowed it would be the one place in
+   * the panel where the host's shortcut stops working.
+   */
+  it('leaves a modified Enter to whatever else wants it', () => {
+    const { changes } = editor({ input: 'number', multiple: true }, [1]);
+    const entry = screen.getByLabelText('New amount');
+    let reached = 0;
+    const listen = () => {
+      reached += 1;
+    };
+    document.addEventListener('keydown', listen);
+
+    try {
+      fireEvent.change(entry, { target: { value: '3' } });
+      fireEvent.keyDown(entry, { key: 'Enter', shiftKey: true });
+
+      // Neither added, nor stopped on its way up.
+      expect(changes).toEqual([]);
+      expect(reached).toBe(1);
+
+      // A plain Enter is still this field's own answer, and still nobody
+      // else's to hear.
+      fireEvent.keyDown(entry, { key: 'Enter' });
+      expect(changes).toEqual([[1, 3]]);
+      expect(reached).toBe(1);
+    } finally {
+      document.removeEventListener('keydown', listen);
+    }
+  });
+
   it('keeps a relative window blank rather than asking for zero units', () => {
     const { changes } = editor({ input: 'relativeDate' }, {
       type: 'relative',

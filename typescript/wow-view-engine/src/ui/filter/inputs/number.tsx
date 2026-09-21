@@ -14,10 +14,12 @@
 import { useState } from 'react';
 import { PlusIcon, XIcon } from 'lucide-react';
 import { isFiniteNumber } from '../../../filter/index.js';
+import type { FilterValue } from '../../../model/index.js';
 import { Badge } from '../../components/badge.js';
 import { Button } from '../../components/button.js';
 import { Input } from '../../components/input.js';
 import { useViewMessages } from '../../MessagesProvider.js';
+import { isPlainEnter } from '../enter.js';
 import type { ValueProps } from './shared.js';
 
 /**
@@ -166,8 +168,19 @@ function NumberRangeValue({ value, onChange, label, disabled }: ValueProps) {
  */
 function NumberListValue({ value, onChange, label, disabled }: ValueProps) {
   const messages = useViewMessages();
-  const [entry, setEntry] = useState('');
+  // What is being typed belongs to the list it is being typed into, so it is
+  // held together with that list and derived rather than stored on its own.
+  // A list replaced from outside — the panel's discard, a config reload,
+  // another view opened — is a different list, and a half-typed number kept
+  // across that replacement would be written back by the next Add or blur:
+  // the discard would not have discarded.
+  const [draft, setDraft] = useState<{
+    text: string;
+    over: FilterValue;
+  } | null>(null);
   const values = (Array.isArray(value) ? value : []).filter(isFiniteNumber);
+  const entry =
+    draft !== null && Object.is(value, draft.over) ? draft.text : '';
   const typed = parseNumber(entry);
 
   // An empty entry, or half a number, is a normal editing state rather than
@@ -176,7 +189,7 @@ function NumberListValue({ value, onChange, label, disabled }: ValueProps) {
   // worse than one that has nothing to do yet.
   function add() {
     if (typeof typed !== 'number') return;
-    setEntry('');
+    setDraft(null);
     // The same number twice asks nothing more of the query, and it would
     // give two remove buttons the very same accessible name. It is taken —
     // the entry field clears — and changes nothing.
@@ -212,14 +225,18 @@ function NumberListValue({ value, onChange, label, disabled }: ValueProps) {
         disabled={disabled}
         value={entry}
         placeholder={messages.label('label.filter.not-set')}
-        onChange={event => setEntry(event.target.value)}
+        onChange={event => setDraft({ text: event.target.value, over: value })}
         // Apply is a button elsewhere on the panel, and pressing it blurs this
         // field first. A number typed and not yet added would be thrown away
         // by the very click that was meant to run the query with it, so
         // leaving the field commits it on exactly the terms Enter does.
         onBlur={add}
         onKeyDown={event => {
-          if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+          // A modified Enter is somebody else's shortcut — the host page's,
+          // most likely — and `FilterPanel` lets it by for exactly that
+          // reason; a control that swallowed it would be the one place in
+          // the panel where the host's shortcut stops working.
+          if (!isPlainEnter(event)) return;
           // `FilterPanel` applies the draft on an Enter from anywhere inside
           // it, except on a control that answers Enter itself. This is one:
           // one keystroke, one meaning, so the panel never sees this press.

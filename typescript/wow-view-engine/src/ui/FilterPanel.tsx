@@ -15,6 +15,7 @@ import type { FocusEvent, KeyboardEvent } from 'react';
 import type { FieldOption } from '../model/index.js';
 import type { FilterEditorController } from '../react/index.js';
 import { AddEntry } from './filter/AddEntry.js';
+import { isPlainEnter } from './filter/enter.js';
 import { FilterModeToggle } from './filter/FilterModes.js';
 import { FilterActions } from './filter/FilterActions.js';
 import { ConditionStrip, GroupBlock } from './filter/GroupBlock.js';
@@ -200,10 +201,11 @@ export function crossesBoundary(event: FocusEvent<HTMLElement>): boolean {
  * without knowing about it, and the cost of listening that high is that
  * keystrokes arrive which were never meant for it. Four of them are not:
  *
- * - one an IME is using to accept the characters being composed, which is
- *   not a press of Enter at all as far as the user is concerned;
- * - one held with a modifier, which is some other shortcut, possibly the
- *   host page's;
+ * - one an IME is using to accept the characters being composed, and one
+ *   held with a modifier, which is some other shortcut, possibly the host
+ *   page's. These two are `isPlainEnter`, which the value editors that
+ *   answer Enter themselves ask as well, so that a modified Enter is left
+ *   to the host wherever in the editor it was pressed;
  * - one inside a popup of one of the panel's own controls — a select's list,
  *   a date picker, a combobox. It is portalled outside the panel, yet a
  *   React event still bubbles here from it, and while it is open Enter is
@@ -214,10 +216,7 @@ export function crossesBoundary(event: FocusEvent<HTMLElement>): boolean {
  *   the panel does not get to add a second.
  */
 function appliesOnEnter(event: KeyboardEvent<HTMLElement>): boolean {
-  if (event.key !== 'Enter') return false;
-  if (event.nativeEvent.isComposing) return false;
-  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
-    return false;
+  if (!isPlainEnter(event)) return false;
   if (!within(event.currentTarget, event.target)) return false;
   if (event.currentTarget.querySelector('[data-popup-open]') !== null)
     return false;

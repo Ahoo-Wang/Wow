@@ -455,6 +455,49 @@ describe('FilterPanel tree editing', () => {
   });
 
   /**
+   * Discard is the panel's undo, and it used to leave the number list's
+   * entry field holding what was being typed when it ran — so the next blur
+   * wrote that number back into the list the discard had just restored.
+   */
+  it('discards a number that was being typed along with the edits', async () => {
+    const user = userEvent.setup();
+    const { filter } = panel();
+    act(() => {
+      filter().addLeaf('amount');
+      filter().updateLeaf([0], { operator: 'IN', value: [1] });
+    });
+    act(() => filter().submit());
+    const entry = () => screen.getByLabelText('New Amount value');
+    await waitFor(() =>
+      expect(filter().applied.map(item => item.text)).toEqual(['Amount IN 1']),
+    );
+
+    await user.type(entry(), '2{Enter}');
+    await waitFor(() =>
+      expect((filter().tree.children[0] as { value: unknown }).value).toEqual([
+        1, 2,
+      ]),
+    );
+    // Typed and not added, and the discard is pressed without leaving the
+    // field — otherwise the blur would commit it before the undo ran.
+    await user.type(entry(), '3');
+    fireEvent.click(screen.getByRole('button', { name: 'Discard edits' }));
+
+    await waitFor(() =>
+      expect((filter().tree.children[0] as { value: unknown }).value).toEqual([
+        1,
+      ]),
+    );
+    expect((entry() as HTMLInputElement).value).toBe('');
+
+    // Apply blurs the entry on its way, and that blur has nothing to add.
+    await user.click(screen.getByRole('button', { name: /Apply/ }));
+    await waitFor(() =>
+      expect(filter().applied.map(item => item.text)).toEqual(['Amount IN 1']),
+    );
+  });
+
+  /**
    * The panel listens at its root, so keystrokes reach it that were never
    * meant for it. Each of these is one of those, and each has its own
    * reason for not being an apply.
