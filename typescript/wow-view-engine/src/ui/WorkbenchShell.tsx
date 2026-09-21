@@ -446,6 +446,14 @@ export function WorkbenchShell({
       // floor, and a group allowed to be squeezed below what its contents
       // need is a group that lies to the row above it, which is exactly
       // what painted Save over the view controls before.
+      //
+      // Not `max-w-max`, though the title has it: the switcher's label is
+      // `w-0` (so a long name does not ask the row for the whole string)
+      // and gets its width only from this group growing, so capping the
+      // group at its max-content pins the switcher at its 6em floor. The
+      // cost is that the audience word and Save stand at the far end of
+      // the group rather than against the name while the list is folded —
+      // an open item in todo.md.
       className={cn('flex grow items-center', SPACE.WITHIN)}
     >
       <IconButton
@@ -459,21 +467,35 @@ export function WorkbenchShell({
         <PanelLeftOpenIcon />
       </IconButton>
       {title && (
-        // The first thing to go when the row runs out of room: the view's own
-        // name outranks the name of everything it is one of.
+        // With the list folded away this is where the page's name lives, so
+        // it is the `h1` the sidebar's heading was, at the weight of a name
+        // rather than a caption: a muted small word before the switcher
+        // read as a hint, and nothing said it was the parent of the view
+        // beside it. The slash does — the two are a path, "Orders / Pending".
         //
+        // Still the first thing to go when the row runs out of room: the
+        // view's own name outranks the name of everything it is one of.
         // "When the row runs out of room" is a fact about the bar, and the
         // viewport `sm:` this used to ask answered a different question: in
         // a 360px panel on a wide page it showed "Orders" in full while the
-        // view's own name was down to "全…". `@2xl/header` asks the bar
-        // itself (`@container/header` in `ViewHeader`), which is the only
-        // thing that knows.
-        <span
-          data-slot="definition-title"
-          className="text-muted-foreground hidden truncate text-sm @2xl/header:inline"
-        >
-          {title}
-        </span>
+        // view's own name was down to "全…". `@md/header` asks the bar
+        // itself (`@container/header` in `ViewHeader`); `@2xl` was so
+        // eager that most embeddings never saw the name at all.
+        <>
+          <h1
+            data-slot="definition-title"
+            className="hidden min-w-0 truncate text-sm font-semibold @md/header:block"
+          >
+            {title}
+          </h1>
+          <span
+            aria-hidden
+            data-slot="definition-separator"
+            className="text-muted-foreground hidden select-none @md/header:inline"
+          >
+            /
+          </span>
+        </>
       )}
       <ViewSwitcher
         list={list}

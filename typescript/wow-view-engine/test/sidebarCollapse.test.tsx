@@ -138,6 +138,11 @@ describe('collapsing the sidebar', () => {
     );
     expect(order[0]).toBe('view-collapsed');
     expect(identity.textContent).toContain('Orders');
+    // Two levels, one page: the definition is the `h1`, the view the `h2`.
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Orders' }),
+    ).toBeDefined();
+    expect(screen.getByRole('heading', { level: 2 })).toBeDefined();
     expect(switcher()).not.toBeNull();
   });
 
@@ -186,8 +191,14 @@ describe('collapsing the sidebar', () => {
       '[data-slot="definition-title"]',
     )!;
     expect(definition.className).toContain('hidden');
-    expect(definition.className).toContain('@2xl/header:inline');
+    expect(definition.className).toContain('@md/header:block');
     expect(definition.className).not.toContain('sm:inline');
+    // The page's name, at the level it has in the sidebar, and joined to
+    // the view it is the parent of.
+    expect(definition.tagName).toBe('H1');
+    expect(definition.nextElementSibling?.getAttribute('data-slot')).toBe(
+      'definition-separator',
+    );
   });
 
   it('leaves the title a heading the region still points at', async () => {

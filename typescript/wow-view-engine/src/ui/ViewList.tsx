@@ -147,13 +147,17 @@ export function ViewList({
         className="border-sidebar-border border-b px-3 pt-4 pb-3"
       >
         <div className="flex min-h-10 min-w-0 items-center gap-1">
-          <h2
+          {/* The page's own name, one level above every view in it (the
+              view's name is the `h2` in the title bar): a definition is the
+              thing this whole screen is about, and a heading the size of
+              the group labels under it read as one more of them. */}
+          <h1
             id={headingId}
             data-slot="view-list-title"
-            className="min-w-0 flex-1 truncate px-1.5 text-sm font-medium"
+            className="min-w-0 flex-1 truncate px-1.5 text-base font-semibold"
           >
             {title || messages.label('label.view.list')}
-          </h2>
+          </h1>
           {onManage && (
             <IconButton
               label={messages.label('label.manage.open')}
@@ -283,13 +287,15 @@ function ViewGroup({
           it. `sidebar-foreground/70` is the registry's own recipe for this,
           and it moves with whatever ground a host sets: 5.5:1 here, 7.1:1 in
           dark, 5.1:1 on a hovered row and 5.8:1 on the open one. */}
-      <h3
+      {/* One level under the page's name, so the outline reads h1 → h2 →
+          the views: a group is a heading of the list, not of the page. */}
+      <h2
         id={labelId}
         data-slot="view-group-heading"
         className="text-sidebar-foreground/70 px-1.5 text-xs font-medium"
       >
         {messages.label(`label.scope.group.${audience}`)}
-      </h3>
+      </h2>
       {items.map(item => (
         <ViewListItem
           key={item.id}

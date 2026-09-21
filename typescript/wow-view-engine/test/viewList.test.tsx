@@ -101,7 +101,10 @@ describe('ViewList on its own', () => {
     expect(
       screen.getByRole('navigation', { name: '订单工作台' }),
     ).toBeDefined();
-    expect(screen.getByRole('heading', { name: '订单工作台' })).toBeDefined();
+    // The page's name is the top heading; every view under it is an `h2`.
+    expect(
+      screen.getByRole('heading', { level: 1, name: '订单工作台' }),
+    ).toBeDefined();
 
     cleanup();
     render(
