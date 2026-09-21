@@ -165,7 +165,7 @@ describe('AppliedBar', () => {
       filter().submit();
     });
     const remove = await screen.findByRole('button', {
-      name: 'Unset Warehouse eq CN',
+      name: 'Unset Warehouse is CN',
     });
     // Lucide's default 24px stretched the badge to 30px; the ✕ is an inline
     // icon like every other and the button shows focus as `FOCUS_RING`.

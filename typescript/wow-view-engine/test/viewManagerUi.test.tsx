@@ -265,6 +265,73 @@ describe('ViewManager rows', () => {
     expect((await store.get('orders-1')).title).toBe('Mine');
   });
 
+  /**
+   * The rename field takes the keyboard for both of its answers. Enter was
+   * the one that did nothing: the ✓ beside the field was the only way to
+   * commit, which is not how any other single-field edit on this screen
+   * behaves — `SaveAsDialog` has taken Enter all along.
+   */
+  it('renames on Enter, by the same path as the button', async () => {
+    const { engine, store } = setup();
+    await manage(engine);
+
+    fireEvent.click(
+      within(row('Mine')).getByRole('button', { name: 'Rename' }),
+    );
+    const field = within(row('Mine')).getByLabelText('Title');
+    // Whitespace and all: Enter trims what the button trims.
+    fireEvent.change(field, { target: { value: '  Renamed  ' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+
+    await waitFor(async () =>
+      expect((await store.get('orders-1')).title).toBe('Renamed'),
+    );
+  });
+
+  /** And refuses the empty name the ✓ is disabled for. */
+  it('writes nothing when Enter is pressed on an empty name', async () => {
+    const { engine, store } = setup();
+    const rename = vi.spyOn(store, 'rename');
+    await manage(engine);
+
+    // Held rather than looked up again: the row is about to hold a name no
+    // lookup by title could find, which is the whole of what is being tested.
+    const target = row('Mine');
+    fireEvent.click(within(target).getByRole('button', { name: 'Rename' }));
+    const field = within(target).getByLabelText('Title');
+    fireEvent.change(field, { target: { value: '   ' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+
+    expect(rename).not.toHaveBeenCalled();
+    // And the row is still being renamed, rather than silently dropped.
+    expect(within(target).getByLabelText('Title')).toBeDefined();
+  });
+
+  /**
+   * Escape drops the rename and stops there. It used to reach the manager's
+   * own dismiss handler on `document` and close the whole dialog, taking the
+   * edit with it — one key, two undos, only one of them asked for.
+   */
+  it('drops the rename on Escape and leaves the manager open', async () => {
+    const { engine, store } = setup();
+    await manage(engine);
+
+    fireEvent.click(
+      within(row('Mine')).getByRole('button', { name: 'Rename' }),
+    );
+    fireEvent.change(within(row('Mine')).getByLabelText('Title'), {
+      target: { value: 'Never mind' },
+    });
+    fireEvent.keyDown(within(row('Never mind')).getByLabelText('Title'), {
+      key: 'Escape',
+    });
+
+    expect(screen.getByRole('dialog')).toBeDefined();
+    expect(rows()).toHaveLength(4);
+    expect(row('Mine')).toBeDefined();
+    expect((await store.get('orders-1')).title).toBe('Mine');
+  });
+
   it('deletes after a confirmation', async () => {
     const { engine, store } = setup();
     await manage(engine);
@@ -281,6 +348,48 @@ describe('ViewManager rows', () => {
         'orders-2',
       ),
     );
+  });
+
+  /**
+   * And leaves the keyboard somewhere. The button the confirmation was
+   * opened from belonged to the row the delete just took away, so returning
+   * focus to it returned it to nothing and left the user on `<body>` with
+   * the manager still open around them.
+   */
+  it('puts focus on the manager’s heading after a delete', async () => {
+    const { engine, store } = setup();
+    await manage(engine);
+
+    fireEvent.click(
+      within(row('Yours')).getByRole('button', { name: 'Delete' }),
+    );
+    const confirm = await screen.findByText('Delete this view?');
+    const dialog = confirm.closest('[role="dialog"]') as HTMLElement;
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(async () =>
+      expect((await store.list('orders')).map(item => item.id)).not.toContain(
+        'orders-2',
+      ),
+    );
+    const heading = screen.getByText('Manage views');
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+  });
+
+  /** The same when the confirmation is called off rather than taken. */
+  it('puts focus on the heading when a delete is called off', async () => {
+    const { engine } = setup();
+    await manage(engine);
+
+    fireEvent.click(
+      within(row('Yours')).getByRole('button', { name: 'Delete' }),
+    );
+    const confirm = await screen.findByText('Delete this view?');
+    const dialog = confirm.closest('[role="dialog"]') as HTMLElement;
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Keep it' }));
+
+    const heading = screen.getByText('Manage views');
+    await waitFor(() => expect(document.activeElement).toBe(heading));
   });
 
   /**

@@ -33,6 +33,8 @@ export interface WriteOutcomeProps {
   /** The view's title, so a copy out of a conflict can be offered from it. */
   title: string;
   onSaved?(instance: ViewInstance): void;
+  /** Called for the instance the copy out of a conflict produced. */
+  onCreated?(instance: ViewInstance): void;
   onRenamed?(instance: ViewInstance): void;
   onDeleted?(): void;
   /** Called when a recovered write (retry, overwrite, reload) landed. */
@@ -72,6 +74,7 @@ export function WriteOutcome({
   commands,
   title,
   onSaved,
+  onCreated,
   onRenamed,
   onDeleted,
   onRecovered,
@@ -195,6 +198,7 @@ export function WriteOutcome({
             original.current = null;
             commands.abandon(write);
             onSaved?.(saved);
+            onCreated?.(saved);
           }}
         />
       </>

@@ -32,6 +32,7 @@ import {
 } from '../src/index.js';
 import { useSaveCommands, useViewRuntime } from '../src/react/index.js';
 import { MessagesProvider, zhCN } from '../src/ui/index.js';
+import { RecordWorkbench } from '../src/ui/RecordWorkbench.js';
 import { ViewHeader } from '../src/ui/ViewHeader.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
 import { WriteOutcome } from '../src/ui/WriteOutcome.js';
@@ -407,6 +408,40 @@ describe('the save-as dialog', () => {
     expect(
       (within(second).getByLabelText('Title') as HTMLInputElement).value,
     ).toBe('Mine copy');
+  });
+
+  /**
+   * Where the keyboard is left once the copy lands.
+   *
+   * The dialog is controlled and has no trigger of its own — it is opened
+   * from a menu item that closes with the menu — so there was nothing to
+   * return focus to and it fell to `<body>`: no position in the document at
+   * all, while the screen had just changed to a different view. The view
+   * that was created is what the user is now looking at, so its name is
+   * where reading resumes. It cannot be done when the copy lands, either:
+   * opening it releases the previous runtime and the header unmounts until
+   * the new one is open, which is why `WorkbenchShell` holds the intent and
+   * spends it on the first render that has a title to spend it on.
+   */
+  it('puts focus on the new view’s title once the copy is open', async () => {
+    const { engine } = setup();
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await screen.findByRole('heading', { name: 'Mine' });
+
+    const dialog = await openCopy();
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Create view' }),
+    );
+
+    const title = await screen.findByRole('heading', { name: 'Mine copy' });
+    expect(title.dataset.slot).toBe('view-title');
+    await waitFor(() => expect(document.activeElement).toBe(title));
   });
 });
 

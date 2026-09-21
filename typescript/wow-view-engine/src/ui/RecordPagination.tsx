@@ -58,6 +58,18 @@ export function RecordPagination({ table }: RecordPaginationProps) {
   // nothing to press.
   const stranded = paged && paging.index > 1;
 
+  // The first load, with no result behind it: every number this bar could
+  // show would be made up. "0 on this page" counts rows that have not
+  // arrived, and beside it a live `›` offers a next page nobody — not even
+  // the runtime — knows exists. A bar that says nothing is the only honest
+  // one until a result has been counted; the skeleton above already says a
+  // query is running, and that is the whole of what is known.
+  //
+  // Narrow on purpose, and the narrowness is the point: a *refresh* keeps
+  // the rows it has not replaced yet, so its counts are last result's and
+  // true of what is on screen. Those stay.
+  if (!table.hasResult && table.status === 'loading') return null;
+
   // Nothing to page through, and nothing on the way: an empty result says so
   // on its own. While a query runs the last rows are still on screen, so the
   // counts below stay with them rather than blanking and jumping back.

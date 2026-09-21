@@ -232,6 +232,21 @@ export function WorkbenchShell({
   const collapseRef = useRef<HTMLButtonElement>(null);
   const expandRef = useRef<HTMLButtonElement>(null);
 
+  // Where the keyboard lands after a copy is created. The dialog it was made
+  // in closes, and there is nothing left of it to return focus to — the
+  // trigger was a menu item in a menu that has also gone — so focus fell to
+  // `<body>`. The view that was created is what the screen now shows, so its
+  // name is where reading resumes.
+  //
+  // It cannot be done when the copy lands: opening it releases the previous
+  // runtime, and this whole header unmounts until the new one is open. So
+  // the intent is held and spent by the effect below, on the first render
+  // where there is a title to put it on. A ref rather than state, like the
+  // two effects below it: nothing renders from it, and a `setState` in an
+  // effect is a cascading render for a value no render reads.
+  const viewTitle = useRef<HTMLHeadingElement>(null);
+  const created = useRef(false);
+
   // Filling the screen. The surface expands where it already is — the whole
   // point of the decision, since re-parenting it would remount the editor
   // and take the draft with it — so the shell needs a handle on its own root
@@ -264,6 +279,16 @@ export function WorkbenchShell({
     // document would be reaching past both of them.
     (sidebarOpen ? collapseRef : expandRef).current?.focus();
   }, [sidebarOpen]);
+
+  // Spent on the opening the copy produced: the id is in the dependencies
+  // because it is what changes when the new view finally opens, and the
+  // header is drawn again with the new title on it.
+  const openedId = workbench.runtime?.id ?? null;
+  useLayoutEffect(() => {
+    if (!created.current || !open || openedId === null) return;
+    created.current = false;
+    viewTitle.current?.focus();
+  }, [open, openedId]);
 
   const toggleSidebar = (next: boolean) => {
     setSidebarOpen(next);
@@ -411,6 +436,7 @@ export function WorkbenchShell({
                 kind={kind}
                 commands={workbench.commands}
                 titleId={titleId}
+                titleRef={viewTitle}
                 actions={
                   actions != null && (
                     <RenderBoundary
@@ -457,6 +483,9 @@ export function WorkbenchShell({
                   )
                 }
                 onSaved={workbench.onSaved}
+                onCreated={() => {
+                  created.current = true;
+                }}
                 onRenamed={workbench.onRenamed}
                 onDeleted={workbench.onDeleted}
                 onRecovered={workbench.onRecovered}

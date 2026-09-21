@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
+import { useState, type RefObject } from 'react';
 import { cn } from 'cn';
 import {
   ArrowDownIcon,
@@ -74,11 +74,18 @@ export function ViewManagerRow({
   manager,
   list,
   openDirtyId,
+  returnFocus,
 }: {
   item: ViewInstanceSummary;
   manager: ViewManagerController;
   list: ViewListState;
   openDirtyId: string | null;
+  /**
+   * Where focus goes when this row's delete confirmation closes. The row may
+   * be gone by then — that is what was confirmed — so there is nothing on it
+   * to return to, and the manager hands down its own heading instead.
+   */
+  returnFocus?: RefObject<HTMLElement | null>;
 }) {
   const messages = useViewMessages();
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -88,6 +95,16 @@ export function ViewManagerRow({
   const outcome = manager.outcomes.get(item.id);
   const busy = manager.pending !== null;
   const isDefault = list.preferences?.defaultInstanceId === item.id;
+
+  // The one rename path, so the key and the button cannot drift apart: the
+  // same trim, the same refusal of an empty name, the same write.
+  const named = renaming === null ? '' : renaming.trim();
+  const blocked = busy || named.length === 0;
+  const confirmRename = () => {
+    if (blocked) return;
+    void manager.rename(item.id, named);
+    setRenaming(null);
+  };
 
   return (
     <div data-slot="view-manager-row" className="flex flex-col gap-1">
@@ -103,6 +120,23 @@ export function ViewManagerRow({
             value={renaming}
             autoFocus
             onChange={event => setRenaming(event.target.value)}
+            // A field with one obvious answer takes Enter for it — the ✓
+            // beside it is the same call, not a different one — and Escape
+            // for "never mind". Escape is stopped here rather than allowed
+            // to bubble: the manager is a dialog, `useDismiss` listens for
+            // the key on `document`, and an Escape that got that far closed
+            // the whole manager and took the rename with it. React's
+            // `stopPropagation` stops the native event too, so the key ends
+            // at this input, where it was aimed.
+            onKeyDown={event => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                confirmRename();
+              } else if (event.key === 'Escape') {
+                event.stopPropagation();
+                setRenaming(null);
+              }
+            }}
           />
         )}
 
@@ -131,11 +165,8 @@ export function ViewManagerRow({
                 variant="ghost"
                 size="icon-sm"
                 aria-label={messages.label('label.manage.rename-confirm')}
-                disabled={busy || renaming.trim().length === 0}
-                onClick={() => {
-                  void manager.rename(item.id, renaming.trim());
-                  setRenaming(null);
-                }}
+                disabled={blocked}
+                onClick={confirmRename}
               >
                 <CheckIcon />
               </Button>
@@ -236,6 +267,7 @@ export function ViewManagerRow({
           outcomeKey={item.id}
           item={item}
           dirty={openDirtyId === item.id}
+          returnFocus={returnFocus}
         />
       )}
 
@@ -244,6 +276,7 @@ export function ViewManagerRow({
         onOpenChange={setDeleting}
         item={item}
         dirty={openDirtyId === item.id}
+        finalFocus={returnFocus}
         onConfirm={() => {
           void manager.delete(item.id);
           setDeleting(false);
@@ -269,6 +302,7 @@ export function ViewManagerOutcome({
   outcomeKey,
   item,
   dirty = false,
+  returnFocus,
 }: {
   state: WriteState;
   manager: ViewManagerController;
@@ -278,6 +312,8 @@ export function ViewManagerOutcome({
   item?: ViewInstanceSummary;
   /** True when this is the open view and it has unsaved edits. */
   dirty?: boolean;
+  /** Where focus goes when the second delete confirmation closes. */
+  returnFocus?: RefObject<HTMLElement | null>;
 }) {
   const [reconfirming, setReconfirming] = useState(false);
   // Commands run one at a time, so any write in flight — this row's or
@@ -331,6 +367,7 @@ export function ViewManagerOutcome({
           onOpenChange={setReconfirming}
           item={target}
           dirty={dirty}
+          finalFocus={returnFocus}
           onConfirm={() => {
             void manager.resolveConflict(outcomeKey, 'overwrite');
             setReconfirming(false);

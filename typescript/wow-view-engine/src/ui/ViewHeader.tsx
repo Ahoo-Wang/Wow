@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useId, type ReactNode } from 'react';
+import { useId, type ReactNode, type RefObject } from 'react';
 import {
   audienceOf,
   isSystemScope,
@@ -47,6 +47,16 @@ export interface ViewHeaderProps {
   kind: ViewKind;
   commands: SaveCommands;
   onSaved?(instance: ViewInstance): void;
+  /**
+   * Called only when a save-as actually created a view — not when a save
+   * landed in place. The two read alike from `onSaved`, and they end
+   * differently: an in-place save leaves the user on the button they
+   * pressed, while a copy closes its dialog, opens another view and has
+   * nowhere to put focus but `<body>`. This is how a host learns which one
+   * happened, and `WorkbenchShell` answers it by sending focus to the new
+   * view's title.
+   */
+  onCreated?(instance: ViewInstance): void;
   onRenamed?(instance: ViewInstance): void;
   onDeleted?(): void;
   onRecovered?(action: WriteAction): void;
@@ -84,6 +94,13 @@ export interface ViewHeaderProps {
    * the page around the workbench knows what it is nested in.
    */
   headingLevel?: HeadingLevel;
+  /**
+   * A handle on the title heading, for a host that has to put focus on the
+   * view itself — after a copy is created and opened, for one. It is a ref
+   * rather than a lookup by `titleId`, because the element belongs to this
+   * component and a caller should not have to go into the document for it.
+   */
+  titleRef?: RefObject<HTMLHeadingElement | null>;
 }
 
 type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
@@ -104,6 +121,7 @@ export function ViewHeader({
   kind,
   commands,
   onSaved,
+  onCreated,
   onRenamed,
   onDeleted,
   onRecovered,
@@ -113,6 +131,7 @@ export function ViewHeader({
   namesView = true,
   titleId,
   headingLevel = 2,
+  titleRef,
 }: ViewHeaderProps) {
   const messages = useViewMessages();
   const generatedId = useId();
@@ -187,7 +206,13 @@ export function ViewHeader({
               zero is a definite size the group can count on, which is why
               `max-w-fit` was no answer. */}
           <Title
+            ref={titleRef}
             id={titleId ?? generatedId}
+            // Focusable when focus is *sent* here and never a tab stop: a
+            // view that has just been created is what the user is now
+            // looking at, and its name is where a screen reader should
+            // resume. Tab order is untouched.
+            tabIndex={-1}
             data-slot="view-title"
             data-dirty={state.dirty || undefined}
             // `truncate` is visual only — a screen reader still reads the
@@ -223,6 +248,7 @@ export function ViewHeader({
             commands={commands}
             title={state.title}
             onSaved={onSaved}
+            onCreated={onCreated}
             onRenamed={onRenamed}
             onDeleted={onDeleted}
             onRecovered={onRecovered}
@@ -248,6 +274,7 @@ export function ViewHeader({
         commands={commands}
         title={state.title}
         onSaved={onSaved}
+        onCreated={onCreated}
         onRenamed={onRenamed}
         onDeleted={onDeleted}
         onRecovered={onRecovered}

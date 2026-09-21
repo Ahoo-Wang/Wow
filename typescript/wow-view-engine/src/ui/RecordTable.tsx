@@ -178,6 +178,17 @@ export function RecordTable({
   // nothing running to get one.
   if (!table.hasResult && table.status !== 'loading') return null;
 
+  // The first load is that same empty frame with a query running under it.
+  // It keeps the table, because the skeleton rows are worth drawing — but it
+  // has no columns to head them with, and the header it used to draw was the
+  // dead one all over again: a single cell holding a tab-reachable "Select
+  // all rows" over rows that do not exist yet. So the skeleton is drawn
+  // without a header at all. An empty `<th>` would be no better — a screen
+  // reader announces a blank column header, and axe counts it a defect —
+  // and inventing the names from the draft would be heading the rows with
+  // columns the result has not agreed to yet.
+  const firstLoad = !table.hasResult;
+
   // A result that matched nothing is a different sentence, and the user acts
   // differently on it: the conditions ran, and these are the records there
   // are. It is the table's own to say, because nothing above says it.
@@ -212,46 +223,48 @@ export function RecordTable({
       <Table ref={element} className={PIN_GROUP}>
         {/* A layer rather than a row: it stays while the rows move under it,
             and its edge is heavier than the hairlines between them. */}
-        <TableHeader className="bg-background sticky top-0 z-20 [&_tr]:border-b-2">
-          <TableRow className="bg-background hover:bg-background">
-            {selectable && (
-              <TableHead
-                data-column={SELECT_COLUMN}
-                data-pin={pinSelect ? 'left' : undefined}
-                className={cn('w-10', HEAD_CELL, pinSelect && SELECT_CELL)}
-              >
-                <Checkbox
-                  aria-label={messages.label('label.record.select-all')}
-                  checked={allSelected}
-                  indeterminate={
-                    table.selection.length > 0 && !allSelected
-                      ? true
-                      : undefined
-                  }
-                  onCheckedChange={table.toggleAll}
+        {!firstLoad && (
+          <TableHeader className="bg-background sticky top-0 z-20 [&_tr]:border-b-2">
+            <TableRow className="bg-background hover:bg-background">
+              {selectable && (
+                <TableHead
+                  data-column={SELECT_COLUMN}
+                  data-pin={pinSelect ? 'left' : undefined}
+                  className={cn('w-10', HEAD_CELL, pinSelect && SELECT_CELL)}
+                >
+                  <Checkbox
+                    aria-label={messages.label('label.record.select-all')}
+                    checked={allSelected}
+                    indeterminate={
+                      table.selection.length > 0 && !allSelected
+                        ? true
+                        : undefined
+                    }
+                    onCheckedChange={table.toggleAll}
+                  />
+                </TableHead>
+              )}
+              {columns.map(column => (
+                <SortableHeader
+                  key={column.field}
+                  column={column}
+                  sort={table.sort}
+                  onToggle={table.toggleSort}
+                  pin={pins.get(column.field)}
                 />
-              </TableHead>
-            )}
-            {columns.map(column => (
-              <SortableHeader
-                key={column.field}
-                column={column}
-                sort={table.sort}
-                onToggle={table.toggleSort}
-                pin={pins.get(column.field)}
-              />
-            ))}
-            {rowActions && (
-              <TableHead
-                data-column={ACTIONS_COLUMN}
-                data-pin="right"
-                className={cn(HEAD_CELL, actionCell(columns))}
-              >
-                {messages.label('label.toolbar.actions')}
-              </TableHead>
-            )}
-          </TableRow>
-        </TableHeader>
+              ))}
+              {rowActions && (
+                <TableHead
+                  data-column={ACTIONS_COLUMN}
+                  data-pin="right"
+                  className={cn(HEAD_CELL, actionCell(columns))}
+                >
+                  {messages.label('label.toolbar.actions')}
+                </TableHead>
+              )}
+            </TableRow>
+          </TableHeader>
+        )}
         <TableBody>
           {table.status === 'loading' && table.rows.length === 0
             ? Array.from({ length: 3 }, (_unused, index) => (

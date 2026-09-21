@@ -46,6 +46,14 @@ export interface SaveActionsProps {
   /** Called with the instance a save produced, so a host can open it. */
   onSaved?(instance: ViewInstance): void;
   /**
+   * Called only for the instance a *copy* produced. Saving in place and
+   * copying both report through `onSaved`, and only one of them leaves the
+   * user nowhere: the dialog closes, another view opens, and the button that
+   * started it is gone. A host that puts focus somewhere afterwards needs to
+   * tell the two apart, and this is the difference.
+   */
+  onCreated?(instance: ViewInstance): void;
+  /**
    * Renaming and deleting moved to the view manager, where they act on any
    * view rather than only the open one. The callbacks stay so a host keeps
    * one place to learn what landed, wherever it was started from.
@@ -70,7 +78,12 @@ export interface SaveActionsProps {
  * try/catch: an outcome that needs a decision lands in `commands.state` and
  * `WriteOutcome` keeps it on screen until the user answers it.
  */
-export function SaveActions({ commands, title, onSaved }: SaveActionsProps) {
+export function SaveActions({
+  commands,
+  title,
+  onSaved,
+  onCreated,
+}: SaveActionsProps) {
   const messages = useViewMessages();
   const [copying, setCopying] = useState(false);
   const { can, state } = commands;
@@ -107,7 +120,10 @@ export function SaveActions({ commands, title, onSaved }: SaveActionsProps) {
       onOpenChange={setCopying}
       commands={commands}
       title={title}
-      onSaved={onSaved}
+      onSaved={saved => {
+        onSaved?.(saved);
+        onCreated?.(saved);
+      }}
     />
   );
 

@@ -593,10 +593,27 @@ export const EmptyResult: Story = {
 export const Loading: Story = {
   ...DisplayLoading,
   play: async ({ canvasElement }) => {
-    const table = await within(canvasElement).findByRole('table');
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
     await expect(
       table.querySelectorAll('[data-slot=skeleton]').length,
     ).toBeGreaterThan(0);
+
+    // And nothing around the skeleton that counts rows there are not any of
+    // yet. The columns come from a result there has not been one of, so the
+    // header used to be the dead table's — one cell with a tab-reachable
+    // "Select all rows" in it — and the bar below it said "0 on this page"
+    // beside a live Next page.
+    await expect(table.querySelector('thead')).toBeNull();
+    await expect(
+      canvas.queryByRole('checkbox', {
+        name: defaultMessages['label.record.select-all'],
+      }),
+    ).toBeNull();
+    await expect(
+      canvasElement.querySelector('[data-slot=record-pagination]'),
+    ).toBeNull();
+
     await waitFor(
       () => expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
       { timeout: 5_000 },

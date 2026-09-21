@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { RefObject } from 'react';
 import { audienceOf, type ViewInstanceSummary } from '../model/index.js';
 import { Button } from './components/button.js';
 import {
@@ -37,6 +38,7 @@ export function DeleteDialog({
   onOpenChange,
   item,
   dirty,
+  finalFocus,
   onConfirm,
 }: {
   open: boolean;
@@ -44,6 +46,15 @@ export function DeleteDialog({
   item: ViewInstanceSummary;
   /** True when this is the open view and it has unsaved edits. */
   dirty: boolean;
+  /**
+   * Where focus goes once this closes. There is nowhere to send it back to
+   * by default: the button that opened it belongs to a row that a confirmed
+   * delete takes off the list, and a dialog that returns focus to an element
+   * no longer in the document leaves it on `<body>` — no keyboard position
+   * at all, and the manager still open around it. The caller names something
+   * that outlives the row.
+   */
+  finalFocus?: RefObject<HTMLElement | null>;
   onConfirm(): void;
 }) {
   const messages = useViewMessages();
@@ -55,7 +66,7 @@ export function DeleteDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent finalFocus={finalFocus}>
         <DialogHeader>
           <DialogTitle>{messages.label('label.delete.confirm')}</DialogTitle>
           <DialogDescription>{consequences.join(' ')}</DialogDescription>

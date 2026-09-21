@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { useRef } from 'react';
 import { audienceOf, type ViewAudience } from '../model/index.js';
 import {
   PREFERENCES_KEY,
@@ -61,12 +62,24 @@ export function ViewManager({
 }: ViewManagerProps) {
   const messages = useViewMessages();
   const preferences = manager.outcomes.get(PREFERENCES_KEY);
+  // Where a row's delete confirmation leaves focus. A confirmed delete takes
+  // the row — and with it the Delete button the dialog would otherwise
+  // return to — off the list, and focus on an element that has left the
+  // document is focus on `<body>`: no keyboard position at all, with this
+  // dialog still open around it. The heading is the one thing in here that
+  // outlives every row, and it is where a reader would start again anyway.
+  const heading = useRef<HTMLHeadingElement>(null);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{messages.label('label.manage.heading')}</DialogTitle>
+          {/* `tabIndex={-1}` makes it a focus target without making it a tab
+              stop: it is reachable when focus is *sent* here, and invisible
+              to Tab, which is what a heading should be. */}
+          <DialogTitle ref={heading} tabIndex={-1}>
+            {messages.label('label.manage.heading')}
+          </DialogTitle>
           <DialogDescription>
             {messages.label('label.manage.description')}
           </DialogDescription>
@@ -100,6 +113,7 @@ export function ViewManager({
                     manager={manager}
                     list={list}
                     openDirtyId={openDirtyId}
+                    returnFocus={heading}
                   />
                 ))}
               </div>

@@ -71,18 +71,41 @@ describe('RecordPagination counts the records', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('still renders on a first load, where the rows are yet to come', () => {
-    render(
+  /**
+   * The first load has no result behind it, so the bar has nothing true to
+   * say: "0 on this page" would count rows that have not arrived, and the
+   * `›` beside it would offer a page nobody knows exists.
+   */
+  it('renders nothing on a first load, where no result has been counted', () => {
+    const { container } = render(
       <RecordPagination
         table={tableController({
           rows: [],
+          hasResult: false,
           paging: { mode: 'paged', index: 1 },
           status: 'loading',
         })}
       />,
     );
 
-    expect(screen.getByText('0 on this page')).toBeTruthy();
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByText('0 on this page')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+  });
+
+  /**
+   * And the refresh it must not be mistaken for: the rows on screen are the
+   * previous ones, so the counts beside them are the previous result's and
+   * true of what the reader is looking at.
+   */
+  it('keeps the counts while a result already on screen is refreshed', () => {
+    render(
+      <RecordPagination
+        table={tableController({ hasResult: true, status: 'loading' })}
+      />,
+    );
+
+    expect(screen.getByText('42 records in all')).toBeTruthy();
   });
 
   /**

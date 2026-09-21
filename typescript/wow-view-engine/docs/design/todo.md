@@ -52,8 +52,6 @@
 
 ### 缺陷（先做）
 
-- **首次加载态说谎**——为什么：`Loading` 故事的前 500ms 里，骨架上方是一根只有「Select all rows」复选框的表头，下方分页条写着 **"0 on this page"** 外加一个 `›`。数字是错的，控件指向没有的东西。判据：`loading && !hasResult` 时不渲染分页条，表头用列名骨架（或不渲染表头）；`test/recordTable.test.tsx`／`test/recordPagination.test.tsx` 各一条。落点：`src/ui/RecordTable.tsx`、`src/ui/RecordPagination.tsx`、[ui/record.md](ui/record.md)。
-- **管理器改名对键盘不完整；三处对话框关闭后焦点落到 `body`**——为什么：改名输入框里 **Enter 无效**（只有 ✓ 能提交），**Esc 关掉整个管理对话框**并丢掉改名；另存「创建视图」之后焦点在 `BODY`；删除确认之后焦点在 `BODY`。`SaveAsDialog` 自己处理了 Enter，两处不一致。判据：`ViewManagerRow` 的输入框 Enter 提交、Escape 取消并 `stopPropagation`（不关对话框）；删除后焦点给对话框标题或相邻行；另存后焦点给新视图的 `h2`；`test/viewManagerUi.test.tsx`、`test/saveActions.test.tsx` 各钉一条。落点：`src/ui/ViewManagerRow.tsx`、`src/ui/SaveAsDialog.tsx`、`src/ui/DeleteDialog.tsx`、[management.md](management.md)。
 - **手机宽度（375）四处溢出**——为什么：根 341px、结果卡 309px 时：分页行 `nowrap`，「下一页」右缘 365.6 超出卡片右缘 342；"4 records in all" 折成三行、中文"共 4 条记录"词中断开；条件带 `minmax(20rem,1fr)` 把每列钉死 320px，pill 右缘 366 冲出编辑带；选择组不换行，「导出所选」溢出。判据：分页 `flex-wrap` + 计数 `whitespace-nowrap`；条件带 `minmax(min(20rem,100%),1fr)`；选择组 `flex-wrap`；一条 375 宽的浏览器故事断言主列 `scrollWidth <= clientWidth`（无横向溢出）。落点：`src/ui/RecordPagination.tsx`、`src/ui/filter/GroupBlock.tsx`、`src/ui/ResultToolbar.tsx`、`stories/view-engine/RecordWorkbench.test.stories.tsx`。
 - **「只有名字让步」让步到看不见**——为什么：折叠侧栏、375 宽时切换器里的名字只剩 **40px**（"待出…"），`shared` 徽章 74px、`Save ▾` 93px 一寸不让；`NarrowTitleBar` 故事（360px 容器）里 `definition-title` 用的是**视口**断点 `sm:inline`，「订单」照显、视图名挤成"全…"——约束来自容器宽度，判据却是视口。判据：识别组窄到名字不足一个最小宽度（如 6em）时右组整组换行或徽章退化为图标、Save 退化为 icon-sm；`sm:` 换成容器查询（`@container`）；[工作台骨架](ui/README.md#工作台骨架)那条"只有名字让步"补上下限；浏览器故事「标题栏/回归」加一档断言名字 ≥ 最小宽。落点：`src/ui/ViewHeader.tsx`、`src/ui/WorkbenchShell.tsx`、[ui/README.md](ui/README.md)。
 

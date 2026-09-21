@@ -1157,6 +1157,26 @@ describe('a record view with no result', () => {
     // A query in flight has something to show, and the skeleton is it.
     const table = await screen.findByRole('table');
     expect(table.querySelectorAll('tbody tr')).toHaveLength(3);
+    // But nothing to head it with, and above all no control: the columns come
+    // from a result there has not been one of, so the header this used to draw
+    // was the dead table's — one cell carrying a select-all over rows that do
+    // not exist yet.
+    expect(table.querySelector('thead')).toBeNull();
+    expect(selectAll()).toBeNull();
+    // Nor the bar under it, which would have counted those same rows.
+    expect(screen.queryByText('0 on this page')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+  });
+
+  /**
+   * The header comes back with the result, and it comes back whole — a
+   * refresh over rows already on screen never loses it.
+   */
+  it('keeps the header once a result has been counted', async () => {
+    workbench(mine);
+
+    expect(await screen.findByRole('columnheader', { name: /Amount/ }));
+    expect(selectAll()).not.toBeNull();
   });
 
   it('says in its own words that a query matched nothing', async () => {
