@@ -15,6 +15,7 @@ import { useLayoutEffect, type CSSProperties, type RefObject } from 'react';
 import type { RecordColumnView } from '../../record/index.js';
 import { cn } from 'cn';
 import { TEXT_UI } from '../layout.js';
+import { NO_RELEASE, type PinnedSlot, type ReleasedPins } from './pinCap.js';
 
 /**
  * Where a pinned column sits while the middle of the table scrolls.
@@ -174,9 +175,15 @@ const EDGE_RIGHT =
  * boundary with the scrolling middle, and an edge here as well would draw a
  * seam between two columns nothing passes between.
  */
-export function actionCell(columns: readonly RecordColumnView[]): string {
-  const edge = !heldColumns(columns, { actions: true }).some(isPinned('right'));
-  return `sticky right-0 z-10 w-0 bg-inherit whitespace-nowrap${edge ? ` ${EDGE_RIGHT}` : ''}`;
+export function actionCell(pins: TablePins): string {
+  const base = 'w-0 bg-inherit whitespace-nowrap';
+  // Let go by the cap on a narrow port: the buttons scroll with their row.
+  // The right edge goes with them unless a column the config pinned right
+  // is still holding it — a frame's end is worth less than a middle nobody
+  // can read (D17-4).
+  if (!pins.actions) return base;
+  const edge = ![...pins.columns.values()].some(pin => pin.side === 'right');
+  return `sticky right-0 z-10 ${base}${edge ? ` ${EDGE_RIGHT}` : ''}`;
 }
 
 /** The selection column, pinned along with the columns it sits beside. */
@@ -259,8 +266,52 @@ export function isNumeric(column: RecordColumnView): boolean {
   return column.cell === 'number';
 }
 
+/** What the table holds against its two edges, once the cap has had its say. */
+export interface TablePins {
+  /** The pin each data column draws, by field; absent means it scrolls. */
+  columns: ReadonlyMap<string, ColumnPin>;
+  /** Whether the selection column is held against the left edge. */
+  select: boolean;
+  /** Whether the host's action column is held against the right edge. */
+  actions: boolean;
+}
+
 /**
- * Each column's pin, by field, for the columns the config pinned.
+ * Every column the table would hold, in the order the cap lets them go.
+ *
+ * **Outermost first, and the right side before the left.** What is furthest
+ * out is what the layout added rather than what the config chose: the host's
+ * action column at one end, the selection box at the other. The left block
+ * goes last because it is the row's identity — the checkbox and the key
+ * beside it are "which row is this, and is it picked" — and the key itself
+ * is never in the cap's hands at all.
+ */
+export function pinnedSlots(
+  columns: readonly RecordColumnView[],
+  layout: { selectable: boolean; actions: boolean },
+): PinnedSlot[] {
+  const held = heldColumns(columns, layout);
+  const slot = (column: RecordColumnView): PinnedSlot => ({
+    key: column.field,
+    kind: 'column',
+    fixed: column.primary === true,
+  });
+  const chrome = (key: string, kind: 'select' | 'actions'): PinnedSlot[] => [
+    { key, kind, fixed: false },
+  ];
+  return [
+    ...(layout.actions ? chrome(ACTIONS_COLUMN, 'actions') : []),
+    ...held.filter(isPinned('right')).reverse().map(slot),
+    ...(layout.selectable && held.some(isPinned('left'))
+      ? chrome(SELECT_COLUMN, 'select')
+      : []),
+    ...held.filter(isPinned('left')).map(slot),
+  ];
+}
+
+/**
+ * Each column's pin, by field, for the columns the config pinned — and
+ * whether the two chrome columns are held along with them.
  *
  * The offset is the measured one the effect above writes, with the config's
  * own arithmetic as the fallback: declared widths added up left to right and
@@ -268,13 +319,27 @@ export function isNumeric(column: RecordColumnView): boolean {
  * measured and exactly afterwards. A pinned column with no declared width
  * contributes nothing to that fallback — the one after it would start at the
  * same place until the measurement lands.
+ *
+ * `released` is the cap's answer (D17-4). It is a rendering decision and
+ * never an edit: the config still says the column is pinned, and the pin
+ * comes back the moment the port has room for it.
  */
-export function columnPins(
+export function tablePins(
   columns: readonly RecordColumnView[],
   layout: { selectable: boolean; actions: boolean },
-): Map<string, ColumnPin> {
+  released: ReleasedPins = NO_RELEASE,
+): TablePins {
   const pins = new Map<string, ColumnPin>();
-  columns = heldColumns(columns, layout);
+  columns = heldColumns(columns, layout).map(column =>
+    released.fields.has(column.field)
+      ? { ...column, pinned: undefined }
+      : column,
+  );
+  // The selection column is held along with the columns beside it, or a
+  // column pinned left would be drawn over it.
+  const select =
+    layout.selectable && !released.select && columns.some(isPinned('left'));
+  const actions = layout.actions && !released.actions;
   // The boundary with the scrolling middle is the last column pinned left
   // and the first pinned right; only those two draw an edge. The selection
   // column is never one — a column pinned left always follows it — and the
@@ -282,21 +347,23 @@ export function columnPins(
   const lastLeft = [...columns].reverse().find(isPinned('left'));
   const firstRight = columns.find(isPinned('right'));
 
-  const left: string[] = layout.selectable ? [SELECT_WIDTH] : [];
+  // A chrome column the cap let go holds nothing, so it is nothing for the
+  // columns beside it to clear either.
+  const left: string[] = select ? [SELECT_WIDTH] : [];
   columns.forEach((column, index) => {
     if (column.pinned !== 'left') return;
     pins.set(column.field, pin('left', index, left, column === lastLeft));
     if (column.width !== undefined) left.push(`${column.width}px`);
   });
 
-  const right: string[] = layout.actions ? [ACTIONS_WIDTH] : [];
+  const right: string[] = actions ? [ACTIONS_WIDTH] : [];
   [...columns.entries()].reverse().forEach(([index, column]) => {
     if (column.pinned !== 'right') return;
     pins.set(column.field, pin('right', index, right, column === firstRight));
     if (column.width !== undefined) right.push(`${column.width}px`);
   });
 
-  return pins;
+  return { columns: pins, select, actions };
 }
 
 /**
@@ -308,7 +375,7 @@ export function columnPins(
  * doubled side. So the end column lets go and the actions take its place;
  * a column the config itself pinned right keeps its pin.
  */
-export function heldColumns(
+function heldColumns(
   columns: readonly RecordColumnView[],
   layout: { actions: boolean },
 ): readonly RecordColumnView[] {
@@ -320,11 +387,6 @@ export function heldColumns(
 
 function isPinned(side: 'left' | 'right') {
   return (column: RecordColumnView) => column.pinned === side;
-}
-
-/** Whether the selection column has to stay put along with a pinned column. */
-export function pinsSelect(columns: readonly RecordColumnView[]): boolean {
-  return columns.some(column => column.pinned === 'left');
 }
 
 function pin(

@@ -40,6 +40,7 @@ import displayMeta, {
   NeedsFixing as DisplayNeedsFixing,
   Paged as DisplayPaged,
   PinnedEdges as DisplayPinnedEdges,
+  PinnedGroupCapped as DisplayPinnedGroupCapped,
   RenderFailure as DisplayRenderFailure,
   PopupsOverRaisedHostLayer as DisplayPopupsOverRaisedHostLayer,
   QueryFailed as DisplayQueryFailed,
@@ -2761,18 +2762,46 @@ export const PinnedEdges: Story = {
     await userEvent.unhover(firstRow.cells[1]);
 
     // Narrowed until the middle really does scroll, and then scrolled from
-    // one end to the other: the same two edges, unchanged throughout.
+    // one end to the other.
+    //
+    // *Which* columns are still held is not this story's to say any more:
+    // at 420px the held group is over half the port, so the cap lets the
+    // outermost pins go until it fits (D17-4, `PinnedGroupCapped`). What
+    // this story is about holds either way — the two cells facing the
+    // middle wear the edge and nobody else does — so the expectation is
+    // read off the pinning the table is drawing rather than naming columns.
+    const boundaries = () => {
+      const held = [
+        ...table.querySelectorAll<HTMLTableCellElement>('thead th[data-pin]'),
+      ];
+      const lefts = held.filter(
+        cell => cell.dataset.pin === 'left' && cell.dataset.column !== 'select',
+      );
+      const rights = held.filter(cell => cell.dataset.pin === 'right');
+      return new Set([lefts.at(-1), rights[0]]);
+    };
+    const framed = () => {
+      const edged = boundaries();
+      return {
+        inner: edged.has(inner) ? ALL : NONE,
+        left: edged.has(left) ? ALL : NONE,
+        end: edged.has(end) ? ALL : NONE,
+        actions: edged.has(actions) ? ALL : NONE,
+      };
+    };
+
     area.style.maxWidth = '420px';
     await waitFor(() =>
       expect(area.scrollWidth).toBeGreaterThan(area.clientWidth),
     );
-    await waitFor(() => expect(edges()).toEqual(FRAMED));
-    area.scrollLeft = 40;
-    await waitFor(() => expect(edges()).toEqual(FRAMED));
-    area.scrollLeft = area.scrollWidth;
-    await waitFor(() => expect(edges()).toEqual(FRAMED));
-    area.scrollLeft = 0;
-    await waitFor(() => expect(edges()).toEqual(FRAMED));
+    // The key is what the cap may never take, so there is always a left
+    // boundary to look at.
+    await expect(inner).toHaveAttribute('data-pin', 'left');
+    await waitFor(() => expect(edges()).toEqual(framed()));
+    for (const scrolled of [40, area.scrollWidth, 0]) {
+      area.scrollLeft = scrolled;
+      await waitFor(() => expect(edges()).toEqual(framed()));
+    }
 
     // And nothing on the table says where it is scrolled to any more.
     await expect(table).not.toHaveAttribute('data-scrolled-left');
@@ -2932,6 +2961,88 @@ export const WideTable: Story = {
       Math.round(foot.getBoundingClientRect().bottom),
     ).toBeLessThanOrEqual(Math.round(area.getBoundingClientRect().bottom));
     area.scrollTop = 0;
+  },
+};
+
+/**
+ * The same 20 columns in a 420px column, where the held group is capped at
+ * half the result area (D17-4).
+ *
+ * This is the one story that can weigh the rule, because it is the only one
+ * where the held columns are a large share of the port: 232px of frozen
+ * chrome — checkbox, waybill number, the host's actions — against a result
+ * area that measures 286. jsdom lays nothing out, so the unit test can pin
+ * which pin is let go but not what it buys; the number read here is the one
+ * the reader actually gets, "middle ÷ result area", and it has a floor.
+ *
+ * Both directions, on the host's own width: the pin goes as the column
+ * narrows and comes back as it widens, from the measurement rather than from
+ * anything stored — the view is never marked unsaved, because the cap is a
+ * rendering decision and the config still says `pinned`.
+ */
+export const PinnedGroupCapped: Story = {
+  ...DisplayPinnedGroupCapped,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    const area = table.closest<HTMLElement>('[data-slot="record-table"]')!;
+    const host =
+      canvasElement.querySelector<HTMLElement>('[data-narrow-host]')!;
+    await expect(host.getBoundingClientRect().width).toBe(420);
+
+    const key = headerOf(table, '运单号');
+    const cell = (column: string) =>
+      table.querySelector<HTMLTableCellElement>(
+        `thead th[data-column="${column}"]`,
+      )!;
+    const actions = cell('actions');
+    const select = cell('select');
+
+    /** Everything still held, and what that leaves of the visible width. */
+    const held = () =>
+      [...table.querySelectorAll<HTMLElement>('thead th[data-pin]')].reduce(
+        (sum, node) => sum + node.getBoundingClientRect().width,
+        0,
+      );
+    const middleShare = () => (area.clientWidth - held()) / area.clientWidth;
+
+    // The premise: a result area far narrower than the table it holds.
+    await expect(area.clientWidth).toBeLessThan(420);
+    await waitFor(() =>
+      expect(area.scrollWidth).toBeGreaterThan(area.clientWidth),
+    );
+
+    // The rule itself. Before the cap this read 0.19 — 54px of middle
+    // against nineteen columns, the narrowest of them 44px wide.
+    await waitFor(() => expect(middleShare()).toBeGreaterThanOrEqual(0.5));
+
+    // What was let go is the outermost of the group, and what stays is the
+    // row's identity: the key, and the checkbox beside it.
+    await expect(actions).not.toHaveAttribute('data-pin');
+    await expect(key).toHaveAttribute('data-pin', 'left');
+    await expect(select).toHaveAttribute('data-pin', 'left');
+    // The whole column and not the header alone — the buttons travel with
+    // their row now.
+    await expect(getComputedStyle(actions).position).not.toBe('sticky');
+    const firstRow = table.querySelector<HTMLTableRowElement>('tbody tr')!;
+    await expect(
+      getComputedStyle(firstRow.cells[actions.cellIndex]).position,
+    ).not.toBe('sticky');
+    await expect(getComputedStyle(key).position).toBe('sticky');
+
+    // And nothing was written: the view is exactly as it was saved.
+    await expect(canvas.queryByText(zhCN['label.header.unsaved'])).toBeNull();
+
+    // Widened, the pin comes back on its own.
+    host.style.width = '1200px';
+    await waitFor(() => expect(actions).toHaveAttribute('data-pin', 'right'));
+    await expect(getComputedStyle(actions).position).toBe('sticky');
+
+    // Narrowed again, it goes again — and the floor holds a second time.
+    host.style.width = '420px';
+    await waitFor(() => expect(actions).not.toHaveAttribute('data-pin'));
+    await expect(middleShare()).toBeGreaterThanOrEqual(0.5);
+    await expect(canvas.queryByText(zhCN['label.header.unsaved'])).toBeNull();
   },
 };
 

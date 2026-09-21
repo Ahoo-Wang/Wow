@@ -151,6 +151,7 @@ function RecordWorkbenchDemo({
   pinnedColumn = false,
   refreshing = false,
   narrowHost = false,
+  narrowWidth = 375,
   writeOutcome,
   theme,
   breakable = false,
@@ -205,6 +206,12 @@ function RecordWorkbenchDemo({
    * rather than on the workbench, because that is where a host puts it.
    */
   narrowHost?: boolean;
+  /**
+   * How narrow that host is. 375 is the phone the title bar was written
+   * against; 420 is the column the pinned group's cap was measured in
+   * (D17-4), where the result area comes out 286px wide.
+   */
+  narrowWidth?: number;
   /**
    * What the store makes of the next write that can carry it: a conflict, a
    * result that never comes back, or a flat refusal. One shot — the write
@@ -327,7 +334,7 @@ function RecordWorkbenchDemo({
   // page beside it rather than clipped where it can be measured.
   if (narrowHost)
     return (
-      <div data-narrow-host style={{ width: 375, overflow: 'hidden' }}>
+      <div data-narrow-host style={{ width: narrowWidth, overflow: 'hidden' }}>
         {workbench}
       </div>
     );
@@ -503,6 +510,7 @@ const meta = {
     refreshing: { table: { disable: true } },
     raisedHost: { table: { disable: true } },
     narrowHost: { table: { disable: true } },
+    narrowWidth: { table: { disable: true } },
     writeOutcome: { table: { disable: true } },
     theme: { table: { disable: true } },
     cellFamily: { table: { disable: true } },
@@ -913,4 +921,31 @@ export const DeleteConflicted: Story = {
 export const WideTable: Story = {
   name: '宽表 · 20 列 50 行',
   args: { wide: true, withActions: true },
+};
+
+/**
+ * 同一张宽表，装进一根 420px 的柱子——手机、分屏、宿主的侧边面板都是这个宽
+ * 度。这是 **D17-4 那条封顶**唯一看得见的地方。
+ *
+ * 封顶之前：钉住的三列（勾选 42 + `运单号` 86 + 宿主操作列 104）合计 232px。
+ * 这张故事里结果区量到 371px，232 就占掉 **63%**；用户 2026-09-21 在真机
+ * 420×860 上量到的结果区只有 286px，占 **81%**，留给其余 19 列的只有 54px——
+ * 中间最窄的一列 44px、最宽的 247px，横滚到哪儿都在看半列。冻结列的宽度是固
+ * 定的，视口越窄它占的比例越大，而此前没有任何一处封顶。
+ *
+ * 封顶之后：钉住的一组不得超过结果区可视宽的**一半**，超出就从**最外侧**开始
+ * 放掉冻结——这里放掉的是宿主的操作列，剩下 128px（34%），中间拿回 243px
+ * （66%）。放掉的只是这一次的渲染，配置里那一条 `pinned` 一个字没动：把这根
+ * 柱子拉宽，操作列自己就回到右边钉住。**主键永远不放**，一行滚到哪儿都还说得
+ * 出自己是哪一单。
+ *
+ * **放得下就一个都不放**：中间要滚，冻结列才吃得掉东西；一张本来就放得下的表
+ * 上放掉冻结，一个像素也换不回来，只是把 D13 的框拆了。
+ *
+ * 代价写在这里：操作列一旦放掉冻结，右边那道 D13 的边就跟着走（除非配置自己
+ * 在右边钉了一列）。中间读不出来的时候，框的那一头没有它值钱。
+ */
+export const PinnedGroupCapped: Story = {
+  name: '宽表 · 420 窄栏里的封顶',
+  args: { wide: true, withActions: true, narrowHost: true, narrowWidth: 420 },
 };

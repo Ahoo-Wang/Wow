@@ -706,8 +706,11 @@ describe('projectRecord', () => {
         width: undefined,
         // The row key is held on the left whatever the config says: it is
         // the column that says which record a row is, so it is the one that
-        // has to stay in view while the rest scrolls sideways.
+        // has to stay in view while the rest scrolls sideways — and the one
+        // marked `primary`, so the narrow-screen cap knows the single pin it
+        // may never take back (D17-4).
         pinned: 'left',
+        primary: true,
         sortable: false,
         numberFormat: undefined,
       },

@@ -47,6 +47,17 @@ export interface RecordColumnView {
    * this one go (`ui/record/columns.ts`).
    */
   end?: true;
+  /**
+   * True on the definition's row key: the column that says which record a
+   * row is, which is why it leads the left area and is pinned there
+   * whatever the config asks.
+   *
+   * It is on the projected column rather than left to the renderer to work
+   * out, because the renderer holds a result and not a definition. The pin
+   * cap is the one that has to know (D17-4): every other pin can be let go
+   * on a narrow screen, and this one cannot.
+   */
+  primary?: true;
   sortable: boolean;
   numberFormat?: NumberFormat;
   /** An enum's choices, so a cell can show a value by its label. */
@@ -76,8 +87,7 @@ export interface RecordView {
 function columnView(
   field: FieldDefinition,
   column: RecordColumn,
-  pinned: RecordColumnPin | null,
-  end: boolean,
+  place: { pinned: RecordColumnPin | null; end: boolean; primary: boolean },
 ): RecordColumnView {
   return {
     field: field.name,
@@ -85,8 +95,9 @@ function columnView(
     kind: field.kind,
     cell: field.cell ?? field.kind,
     width: column.width,
-    pinned: pinned ?? undefined,
-    ...(end ? { end: true } : {}),
+    pinned: place.pinned ?? undefined,
+    ...(place.end ? { end: true } : {}),
+    ...(place.primary ? { primary: true } : {}),
     sortable: field.sortable === true,
     numberFormat: field.numberFormat,
     ...(field.options ? { options: field.options } : {}),
@@ -209,14 +220,14 @@ export function projectRecord(
     rowKey,
   );
   const end = placed[placed.length - 1];
-  const columns = placed.map(place =>
-    columnView(
-      place.definition,
-      place.column,
-      place.field === rowKey ? 'left' : place === end ? 'right' : place.pinned,
-      place === end && place.field !== rowKey,
-    ),
-  );
+  const columns = placed.map(place => {
+    const primary = place.field === rowKey;
+    return columnView(place.definition, place.column, {
+      pinned: primary ? 'left' : place === end ? 'right' : place.pinned,
+      end: place === end && !primary,
+      primary,
+    });
+  });
 
   const rows = page.list.map(data => ({
     key: getPropertyValue<RecordKey>(data, rowKey) as RecordKey,

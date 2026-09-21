@@ -36,12 +36,13 @@ import {
   SELECT_CELL,
   SELECT_COLUMN,
   TABLE_CELLS,
-  columnPins,
   columnWidth,
   isNumeric,
-  pinsSelect,
+  pinnedSlots,
+  tablePins,
   usePinnedOffsets,
 } from './record/columns.js';
+import { usePinnedCap } from './record/pinCap.js';
 import { cellText } from './display.js';
 import { cellValue } from './record/cells.js';
 import { EmptyResult } from './record/EmptyResult.js';
@@ -163,13 +164,21 @@ export function RecordTable({
     table.rows.length > 0 && table.selection.length === table.rows.length;
   const columns = table.columns;
   const element = useRef<HTMLTableElement>(null);
+  const port = useRef<HTMLDivElement>(null);
   usePinnedOffsets(element);
-  const pins = useMemo(
-    () =>
-      columnPins(columns, { selectable, actions: rowActions !== undefined }),
-    [columns, selectable, rowActions],
+  const layout = useMemo(
+    () => ({ selectable, actions: rowActions !== undefined }),
+    [selectable, rowActions],
   );
-  const pinSelect = selectable && pinsSelect(columns);
+  // What the table would hold, and what the port has room for it to hold:
+  // beyond half the visible width the group is capped and the outermost
+  // pins are let go, the config untouched (D17-4).
+  const slots = useMemo(() => pinnedSlots(columns, layout), [columns, layout]);
+  const released = usePinnedCap(port, element, slots);
+  const pins = useMemo(
+    () => tablePins(columns, layout, released),
+    [columns, layout, released],
+  );
   const summaries = useSummaries(table.summaries, table.rows);
 
   // No result to draw and none on the way. The table is built from the
@@ -214,6 +223,7 @@ export function RecordTable({
 
   return (
     <div
+      ref={port}
       data-slot="record-table"
       // Which of the two shapes above this is, said on the element rather
       // than left to be guessed from the class list: the expanded workbench
@@ -231,8 +241,8 @@ export function RecordTable({
               {selectable && (
                 <TableHead
                   data-column={SELECT_COLUMN}
-                  data-pin={pinSelect ? 'left' : undefined}
-                  className={cn('w-10', HEAD_CELL, pinSelect && SELECT_CELL)}
+                  data-pin={pins.select ? 'left' : undefined}
+                  className={cn('w-10', HEAD_CELL, pins.select && SELECT_CELL)}
                 >
                   <Checkbox
                     aria-label={messages.label('label.record.select-all')}
@@ -253,14 +263,14 @@ export function RecordTable({
                   sort={table.sort}
                   onToggle={table.toggleSort}
                   onResize={table.setColumnWidth}
-                  pin={pins.get(column.field)}
+                  pin={pins.columns.get(column.field)}
                 />
               ))}
               {rowActions && (
                 <TableHead
                   data-column={ACTIONS_COLUMN}
-                  data-pin="right"
-                  className={cn(HEAD_CELL, actionCell(columns))}
+                  data-pin={pins.actions ? 'right' : undefined}
+                  className={cn(HEAD_CELL, actionCell(pins))}
                 >
                   {messages.label('label.toolbar.actions')}
                 </TableHead>
@@ -293,7 +303,7 @@ export function RecordTable({
                 data-state={table.isSelected(row.key) ? 'selected' : undefined}
               >
                 {selectable && (
-                  <TableCell className={cn(pinSelect && SELECT_CELL)}>
+                  <TableCell className={cn(pins.select && SELECT_CELL)}>
                     <Checkbox
                       aria-label={messages.label('label.record.select', {
                         key: String(row.key),
@@ -304,7 +314,7 @@ export function RecordTable({
                   </TableCell>
                 )}
                 {columns.map(column => {
-                  const pin = pins.get(column.field);
+                  const pin = pins.columns.get(column.field);
                   const value = recordValue(row.data, column.field);
                   return (
                     <TableCell
@@ -334,7 +344,7 @@ export function RecordTable({
                   );
                 })}
                 {rowActions && (
-                  <TableCell className={actionCell(columns)}>
+                  <TableCell className={actionCell(pins)}>
                     <RowActions>{rowActions(row)}</RowActions>
                   </TableCell>
                 )}
@@ -349,7 +359,6 @@ export function RecordTable({
             selectable={selectable}
             actions={rowActions !== undefined}
             pins={pins}
-            pinSelect={pinSelect}
           />
         )}
       </Table>

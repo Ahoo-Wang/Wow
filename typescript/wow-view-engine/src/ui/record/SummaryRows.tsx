@@ -26,7 +26,7 @@ import {
   CLIPPED_CELL,
   SELECT_CELL,
   columnWidth,
-  type ColumnPin,
+  type TablePins,
 } from './columns.js';
 import { TEXT_UI } from '../layout.js';
 
@@ -51,9 +51,8 @@ export interface SummaryRowsProps {
   selectable: boolean;
   /** Whether the rows carry an action column the footer has to match. */
   actions: boolean;
-  pins: ReadonlyMap<string, ColumnPin>;
-  /** Whether the selection column is pinned along with a pinned column. */
-  pinSelect: boolean;
+  /** What is held against the edges, the cap's answer included. */
+  pins: TablePins;
 }
 
 /**
@@ -73,7 +72,6 @@ export function SummaryRows({
   selectable,
   actions,
   pins,
-  pinSelect,
 }: SummaryRowsProps) {
   return (
     // A layer of its own: opaque muted, so the summaries separate from the
@@ -93,7 +91,6 @@ export function SummaryRows({
           selectable={selectable}
           actions={actions}
           pins={pins}
-          pinSelect={pinSelect}
         />
       ))}
     </TableFooter>
@@ -106,7 +103,6 @@ function SummaryLine({
   selectable,
   actions,
   pins,
-  pinSelect,
 }: Omit<SummaryRowsProps, 'rows'> & { row: SummaryRow }) {
   const messages = useViewMessages();
   // A field may carry several functions — `amount` summed and averaged — and
@@ -143,10 +139,12 @@ function SummaryLine({
       className="bg-muted hover:bg-muted"
     >
       {selectable && (
-        <TableCell className={cn(pinSelect && SELECT_CELL)}>{scope}</TableCell>
+        <TableCell className={cn(pins.select && SELECT_CELL)}>
+          {scope}
+        </TableCell>
       )}
       {columns.map((column, index) => {
-        const pin = pins.get(column.field);
+        const pin = pins.columns.get(column.field);
         return (
           <TableCell
             key={column.field}
@@ -168,7 +166,7 @@ function SummaryLine({
       })}
       {/* Nothing to summarise about actions, but the row still has to be
           as wide as the ones above it. */}
-      {actions && <TableCell className={actionCell(columns)} />}
+      {actions && <TableCell className={actionCell(pins)} />}
     </TableRow>
   );
 }

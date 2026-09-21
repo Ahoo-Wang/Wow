@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import { cleanup, render } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { act, cleanup, render } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RecordColumnView } from '../src/index.js';
 import type { RecordTableController } from '../src/react/index.js';
 import { RecordTable } from '../src/ui/index.js';
@@ -156,6 +156,237 @@ describe('the pinned edges', () => {
   });
 });
 
+/**
+ * The cap on the held group (D17-4).
+ *
+ * A pinned column is a fixed number of pixels, so the narrower the port the
+ * larger its share. At 420×860 the wide fixture's three held columns —
+ * checkbox 42, the key 86, the host's actions 104 — measured 232px against a
+ * 286px result area: 81%, leaving 54px for nineteen columns none of which is
+ * that narrow. Beyond half the port the outermost pins are let go until the
+ * group fits; the key never lets go, and nothing is written to the config.
+ *
+ * jsdom lays nothing out, so the three numbers the rule turns on are
+ * injected here the way the browser would report them: the header cells'
+ * widths, and the port's visible and content widths. The browser story
+ * `PinnedGroupCapped` measures what the reader gets at 420px for real.
+ */
+describe('the pinned group against a narrow port', () => {
+  const widths: Record<string, number> = { select: 42, id: 86, actions: 104 };
+  let port = 286;
+
+  /** What the browser would measure, for the one layout jsdom cannot do. */
+  function measured(content = 2000): void {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(
+      function (this: Element) {
+        const cell = this as HTMLElement;
+        const key = cell.dataset.column ?? cell.dataset.field ?? '';
+        return { width: widths[key] ?? 0 } as DOMRect;
+      },
+    );
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(
+      function (this: HTMLElement) {
+        return this.dataset.slot === 'record-table' ? port : 0;
+      },
+    );
+    // Wider than it is visible: the middle really does scroll, which is the
+    // only shape the cap has anything to say about.
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(
+      function (this: HTMLElement) {
+        return this.dataset.slot === 'record-table' ? content : 0;
+      },
+    );
+  }
+
+  const key = (): RecordColumnView => ({
+    ...column('id', 'left'),
+    label: 'Waybill',
+    primary: true,
+  });
+
+  /** The pin each of the three held columns draws, as the DOM says it. */
+  function pins(container: HTMLElement) {
+    const head = (selector: string) =>
+      container
+        .querySelector(`thead th[${selector}]`)
+        ?.getAttribute('data-pin');
+    return {
+      select: head('data-column="select"'),
+      id: head('data-field="id"'),
+      actions: head('data-column="actions"'),
+    };
+  }
+
+  it('lets the outermost pin go, and never the key', () => {
+    port = 286;
+    measured();
+    const setPinned = vi.fn();
+    const { container } = render(
+      <RecordTable
+        table={controller([key(), column('amount')], { setPinned })}
+        rowActions={() => <button />}
+      />,
+    );
+
+    // 232 against 286 is 81%. The actions are the outermost of the group,
+    // so they go first — and once they have, 128 of 286 is under the half
+    // and the checkbox beside the key keeps its place.
+    expect(pins(container)).toEqual({
+      select: 'left',
+      id: 'left',
+      actions: null,
+    });
+    // The whole column, not the header alone: the buttons scroll with their
+    // row, and the right edge goes with them.
+    for (const cell of actionCells(container)) {
+      expect(cell.className).not.toContain('sticky');
+      expect(cell.className).not.toContain('shadow-[inset');
+    }
+    // A rendering cap and not an edit: the config still pins what it pinned.
+    expect(setPinned).not.toHaveBeenCalled();
+  });
+
+  it('gives the pin back as the port widens, and takes it again', () => {
+    port = 286;
+    measured();
+    const observers: ResizeSpy[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class extends ResizeSpy {
+        constructor(callback: ResizeObserverCallback) {
+          super(callback);
+          observers.push(this);
+        }
+      },
+    );
+
+    const { container } = render(
+      <RecordTable
+        table={controller([key(), column('amount')])}
+        rowActions={() => <button />}
+      />,
+    );
+    const area = container.querySelector<HTMLElement>(
+      '[data-slot="record-table"]',
+    )!;
+    expect(pins(container).actions).toBe(null);
+
+    // The port is watched along with the cells, so a host that widens its
+    // column gets its pins back without the table being re-mounted.
+    const watching = () => {
+      const found = observers.filter(spy => spy.observed.includes(area));
+      return found[found.length - 1];
+    };
+    port = 900;
+    act(() => watching().resize());
+    expect(pins(container)).toEqual({
+      select: 'left',
+      id: 'left',
+      actions: 'right',
+    });
+
+    port = 286;
+    act(() => watching().resize());
+    expect(pins(container).actions).toBe(null);
+    vi.unstubAllGlobals();
+  });
+
+  it('lets a config-pinned column go before the ones beside the key', () => {
+    port = 500;
+    widths.status = 90;
+    widths.amount = 70;
+    measured();
+    const { container } = render(
+      <RecordTable
+        table={controller([
+          key(),
+          column('status', 'left'),
+          column('amount', 'right'),
+        ])}
+        rowActions={() => <button />}
+      />,
+    );
+
+    // 392 against 500 is over the half by 142: the actions go, then the
+    // column held on the right — outermost first — and that is enough. The
+    // left block, which is the key and what sits beside it, is untouched.
+    expect(headerOf(container, 'amount').getAttribute('data-pin')).toBe(null);
+    expect(headerOf(container, 'status').getAttribute('data-pin')).toBe('left');
+    expect(pins(container)).toEqual({
+      select: 'left',
+      id: 'left',
+      actions: null,
+    });
+    // The column that let go scrolls with the middle, every cell of it.
+    for (const cell of cellsOf(container, 'amount'))
+      expect(cell.className).not.toContain('sticky');
+  });
+
+  it('keeps every pin where the columns all fit', () => {
+    port = 286;
+    // The same held group against the same port, and nothing to scroll: a
+    // pin let go here would buy no width at all and take D13's frame off a
+    // table standing still.
+    measured(280);
+    const { container } = render(
+      <RecordTable
+        table={controller([key(), column('amount')])}
+        rowActions={() => <button />}
+      />,
+    );
+
+    expect(pins(container)).toEqual({
+      select: 'left',
+      id: 'left',
+      actions: 'right',
+    });
+  });
+
+  it('keeps the key pinned even where it alone is more than half', () => {
+    port = 286;
+    widths.id = 200;
+    measured();
+    const { container } = render(
+      <RecordTable
+        table={controller([key(), column('amount')])}
+        rowActions={() => <button />}
+      />,
+    );
+
+    // Everything the cap may take, it takes; what is left is over the half
+    // and stays anyway. A row scrolled sideways without the column saying
+    // which record it is is a row nobody can read.
+    expect(pins(container)).toEqual({
+      select: null,
+      id: 'left',
+      actions: null,
+    });
+    widths.id = 86;
+  });
+});
+
+/** A `ResizeObserver` that reports what it was given and fires on demand. */
+class ResizeSpy {
+  readonly observed: Element[] = [];
+  constructor(private readonly callback: ResizeObserverCallback) {}
+  observe(node: Element): void {
+    this.observed.push(node);
+  }
+  unobserve(): void {}
+  disconnect(): void {}
+  resize(): void {
+    this.callback([], this as unknown as ResizeObserver);
+  }
+}
+
+function headerOf(container: HTMLElement, field: string): HTMLElement {
+  const found = container.querySelector<HTMLElement>(
+    `thead [data-field="${field}"]`,
+  );
+  if (!found) throw new Error(`no header for ${field}`);
+  return found;
+}
+
 function column(field: string, pinned?: 'left' | 'right'): RecordColumnView {
   return {
     field,
@@ -167,7 +398,10 @@ function column(field: string, pinned?: 'left' | 'right'): RecordColumnView {
   };
 }
 
-function controller(columns: RecordColumnView[]): RecordTableController {
+function controller(
+  columns: RecordColumnView[],
+  overrides: Partial<RecordTableController> = {},
+): RecordTableController {
   const data = Object.fromEntries(columns.map(entry => [entry.field, 'x']));
   return {
     columns,
@@ -200,6 +434,7 @@ function controller(columns: RecordColumnView[]): RecordTableController {
     next: () => {},
     previous: () => {},
     refresh: () => {},
+    ...overrides,
   } as unknown as RecordTableController;
 }
 
