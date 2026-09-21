@@ -49,6 +49,7 @@ import displayMeta, {
   SaveResultUnknown as DisplaySaveResultUnknown,
   TableSettings as DisplayTableSettings,
   TotalCoversThisPageOnly as DisplayTotalCoversThisPageOnly,
+  WideTable as DisplayWideTable,
   WithActions as DisplayWithActions,
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
@@ -2784,6 +2785,174 @@ export const PinnedEdges: Story = {
     await expect(table).not.toHaveAttribute('data-scrolled-right');
   },
 };
+
+/** The 20 columns the wide view saves, left to right. */
+const WIDE_COLUMNS = [
+  '运单号',
+  '订单号',
+  '客户',
+  '收件人',
+  '目的城市',
+  '发货仓',
+  '承运商',
+  '运输方式',
+  '状态',
+  '时效',
+  '标记',
+  '件数',
+  '重量',
+  '运费',
+  '已保价',
+  '已签单',
+  '发运日期',
+  '创建时间',
+  '跟踪链接',
+  '备注',
+];
+
+/**
+ * 20 columns and 50 rows: the shape every sticky rule was written for and
+ * none of them could be checked against.
+ *
+ * Until this fixture existed the widest story was five columns, so "the
+ * header stays put", "both summary rows stay put" and "the two frozen edges
+ * hold while the middle scrolls" were only ever exercised on a table with
+ * nothing much to scroll. Here the middle really does scroll, in both
+ * directions at once, and the frozen edges have 18 columns passing under
+ * them.
+ */
+export const WideTable: Story = {
+  ...DisplayWideTable,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    const area = table.closest<HTMLElement>('[data-slot="record-table"]')!;
+
+    // The premise, both halves of it: 20 columns and 50 rows on one page.
+    await waitFor(() =>
+      expect(table.querySelectorAll('tbody tr')).toHaveLength(50),
+    );
+    await expect(columnLabels(table)).toEqual(WIDE_COLUMNS);
+    // Sorted by ship date, then by amount, then by number: the two orders
+    // that left on the 20th, dearest first.
+    await expect(readColumn(table, '运单号').slice(0, 2)).toEqual([
+      'YD-1040',
+      'YD-1020',
+    ]);
+    // The three summaries are over all 50 rows, not over what fits.
+    await expect(amountOf(readTotal(table, '运费'))).toBe(34480);
+    await expect(readTotal(table, '件数')).toContain('197');
+    await expect(readTotal(table, '重量')).toContain('558.5');
+
+    // It scrolls sideways — which is the point of the fixture, and what no
+    // other story could produce.
+    await expect(area).toHaveAttribute('data-scrolls');
+    await waitFor(() =>
+      expect(area.scrollWidth).toBeGreaterThan(area.clientWidth),
+    );
+
+    const head = (table as HTMLTableElement).tHead!;
+    const foot = (table as HTMLTableElement).tFoot!;
+    const key = headerOf(table, '运单号');
+    const middle = headerOf(table, '状态');
+    const actions = table.querySelector<HTMLTableCellElement>(
+      'thead th[data-column="actions"]',
+    )!;
+    await expect(key).toHaveAttribute('data-pin', 'left');
+    await expect(middle).not.toHaveAttribute('data-pin');
+    await expect(actions).toHaveAttribute('data-pin', 'right');
+
+    /** Whether each cell draws an edge, on all three layers of one column. */
+    const edged = (head: HTMLTableCellElement) =>
+      ['thead', 'tbody', 'tfoot'].map(
+        layer =>
+          getComputedStyle(
+            table.querySelector<HTMLTableRowElement>(`${layer} tr`)!.cells[
+              head.cellIndex
+            ],
+          ).boxShadow !== 'none',
+      );
+    const ALL = [true, true, true];
+    const NONE = [false, false, false];
+    const edges = () => ({
+      key: edged(key),
+      middle: edged(middle),
+      actions: edged(actions),
+    });
+    const FRAMED = { key: ALL, middle: NONE, actions: ALL };
+    await waitFor(() => expect(edges()).toEqual(FRAMED));
+
+    /**
+     * Every layer that has to keep holding while the middle moves.
+     *
+     * The header sticks as a `<thead>` and the summaries as a `<tfoot>` —
+     * an unpinned `<th>` is `relative`, which is what lets a pinned one be
+     * its own positioned ancestor — so the rows are what is read here, and
+     * the cells only where the pinning is what makes them stick.
+     */
+    const sticky = () => ({
+      head: getComputedStyle(head).position,
+      foot: getComputedStyle(foot).position,
+      key: getComputedStyle(key).position,
+      cell: getComputedStyle(
+        table.querySelector<HTMLTableRowElement>('tbody tr')!.cells[
+          key.cellIndex
+        ],
+      ).position,
+    });
+    const STUCK = {
+      head: 'sticky',
+      foot: 'sticky',
+      key: 'sticky',
+      cell: 'sticky',
+    };
+    await expect(sticky()).toEqual(STUCK);
+
+    /** Where the three layers actually sit, to the pixel. */
+    const held = () => ({
+      headTop: Math.round(head.getBoundingClientRect().top),
+      areaTop: Math.round(area.getBoundingClientRect().top),
+      keyLeft: Math.round(key.getBoundingClientRect().left),
+    });
+    const resting = held();
+    await expect(resting.headTop).toBe(resting.areaTop);
+
+    // Scrolled to each end and back: the same two edges throughout, and the
+    // frozen column has not moved a pixel.
+    for (const left of [40, area.scrollWidth, area.scrollWidth / 2, 0]) {
+      area.scrollLeft = left;
+      await waitFor(() => expect(edges()).toEqual(FRAMED));
+      await expect(sticky()).toEqual(STUCK);
+      await expect(held().keyLeft).toBe(resting.keyLeft);
+    }
+
+    // And down past the fortieth row, which is the half no five-column story
+    // could reach: the header is still at the top of the box.
+    area.scrollTop = area.scrollHeight;
+    await waitFor(() => expect(held().headTop).toBe(resting.areaTop));
+    await expect(sticky()).toEqual(STUCK);
+    // The header is still the header: at 20 columns, a column nobody can
+    // name any more is a column nobody can read.
+    await expect(columnLabels(table)).toEqual(WIDE_COLUMNS);
+    await expect(
+      Math.round(foot.getBoundingClientRect().bottom),
+    ).toBeLessThanOrEqual(Math.round(area.getBoundingClientRect().bottom));
+    area.scrollTop = 0;
+  },
+};
+
+/**
+ * The column names alone, without the sort marks beside them.
+ *
+ * `readHeaders` reads the whole header cell, and three sorted columns carry
+ * their place in that order as text — `发运日期1` — so a wide table sorted
+ * three ways cannot be read by name any other way.
+ */
+function columnLabels(table: HTMLElement): string[] {
+  return [
+    ...table.querySelectorAll<HTMLElement>('thead [data-slot="column-label"]'),
+  ].map(label => label.textContent?.trim() ?? '');
+}
 
 /**
  * The promise the whole normal-layer decision was made to keep: a popup still

@@ -56,9 +56,63 @@
 
 ### 打磨
 
-- **没有多列夹具，"20 列 50 行"验不了**——为什么：故事里最多五列，`PinnedEdges` 里 `创建时间` 已被右钉列裁成 `7:10:0|`。判据：`stories/view-engine/fixtures.ts` 加一个 12 列以上的定义与一条故事，逐屏过一遍后把量到的记回这里。落点：`stories/view-engine/`。
-
 ### 视觉
+
+## 打磨（第三轮：2026-09-21 宽表与 `EmbeddedView` 逐屏）
+
+这一组来自补齐那两块夹具之后的一次逐屏：`stories/view-engine/` 新增的「宽表 ·
+20 列 50 行」（`waybillsDefinition`，21 个字段、保存的视图摆 20 列、50 行，外加
+宿主的操作列）与 `EmbeddedView.stories.tsx`（默认／宿主收窄／收窄被拒／空／失
+败／加载／铺满／分析／汇总退回本页），在 Chromium 上按 1280×900 与 420×860 两
+档各走了一遍（基线 `main` 的 bad9c676，#1616 之后），数字全部由
+`getComputedStyle` 与 `getBoundingClientRect` 量出。
+**先看后改**对这一组同样成立：量到的数会随别的改动变，改之前自己再看一眼那一
+屏。走下来对的那些不记在这里（表头与两行汇总在纵滚 2000px 后仍钉在
+`areaTop`=523；左右两条冻结边在横滚到两头时都在、中间列始终没有边；中间列
+用键盘拖宽 73 → 201px 后 `scrollWidth` 1939 → 2067 且冻结列没动，标题旁立刻
+出现「已修改」；导出窗口在 20 列上是 365×294、列清单四行读完不滚；排序弹层
+列齐三条并只提供剩下四个可排序字段；卡片布局 3 × 214px 无横向溢出）。
+
+- **窄栏里两条冻结列把中间吃光**——为什么：420×860 上量到结果区可视宽 286px，而
+  钉住的三列（勾选 42 + `运单号` 86 + 宿主操作列 104）合计 **232px，占 81%**，留
+  给其余 19 列的只有 **54px**——中间最窄的一列 44px、最宽的 247px，也就是说一屏
+  里看不全任何一个中间列，横滚到哪儿都在看半列。冻结列的宽度是固定的，视口越窄
+  它占的比例越大，而现在没有任何一处封顶。（这是**宽表**才暴露得出来的：五列的
+  故事里中间本来就不用滚。）判据：**窄到某个宽度时表格自己放掉冻结**，或者把钉
+  住的那一组按可视宽度封顶（例如不超过一半），两者选哪个先在
+  [decisions.md](decisions.md) 给结论——它决定的是「窄屏上主键还跟不跟着走」，不
+  是实现细节；定了之后浏览器故事在 420 档量「中间可视宽 ÷ 结果区可视宽」有下
+  限，`test/recordTable.test.tsx` 钉住放掉冻结时 `data-pin` 的变化。落点：
+  `src/ui/RecordTable.tsx`、`src/record/project.ts`、[ui/record.md](ui/record.md)。
+- **一开就被拒的宿主收窄，说错了该修的是谁**——为什么：`EmbeddedView` 带着一个定
+  义不认的 `scopeFilter` **第一次打开**时，屏幕上是「这个视图要先修正才能运行」
+  （`label.view.needs-fixing`）外加一片空白；而同一个条件在视图已经跑起来之后换
+  上去，说的才是「页面的作用域条件对这个视图不适用」（`label.scope.refused`）并
+  且**上一次被接受的结果还留在屏幕上**。前一句指认的是视图，可视图好好的，坏的是
+  宿主加上去的那一条；而宿主看着这句话没有任何可做的事——它改不了别人存的视图。
+  路径上的原因是收窄跟着配置一起进第一次准入（`useOpenView` 交给 `engine.open`），
+  于是失败被记成配置级 error 而不是一次被拒的收窄。判据：第一次打开时被拒的收窄
+  与后来被拒的收窄说同一句话，并且和后者一样**把没收窄的那一份结果留在屏幕上**
+  （不能因为页面要的范围没生效就连宽的那份也不给——那正是这条 alert 存在的理
+  由）；`test/embeddedView.test.tsx` 补一条「一开就被拒」与现有那条「后来被拒」
+  对齐，`stories/view-engine/EmbeddedView.test.stories.tsx` 里 `ScopeRefusedOnOpen`
+  钉着的是**现状**，改完要跟着改。落点：`src/react/useViewEngine.ts`、
+  `src/ui/EmbeddedView.tsx`、[ui/README.md](ui/README.md)。
+- **宿主拿本包的原语画自己的 chrome，就得套两层 `.fve-root`**——为什么：
+  `scripts/scope-utilities.mjs` 把样式表每一条规则都钉在
+  `:where(.fve-root, .fve-root *)` 里（`verify-package.mjs` 还守着这一条），所以
+  `Card`／`Button`／`Separator` 乃至 `grid`、`gap-4` 这些排版 utility **只有在一
+  块 `.fve-root` 里面才画得出来**。宿主想用这些原语搭自己的页面、再把
+  `EmbeddedView` 嵌进去，就只能让自己的页面也成为一块 `.fve-root`——
+  `EmbeddedView.stories.tsx` 的假宿主页正是这么写的，于是真的套了两层，而
+  [ui/README.md](ui/README.md) 写的是「surfaces do not nest」。两层都不钉 `theme`
+  时跟着同一份级联走，看上去是对的；一旦内层钉了相反的模式，`dark:` utility 认的
+  是外层那个根，就会错。判据：先在 [decisions.md](decisions.md) 给结论——要么明确
+  「嵌套是支持的，代价是 `theme` 只能由最外层的根钉」并写进 ui/README.md 与
+  `ViewSurface` 的注释，要么给出一个**不是 surface 的样式边界**（例如一个只带
+  token、不带 `data-theme` 语义的类）供宿主使用；定了哪一条，`test/popups.test.tsx`
+  或新增的一条套件钉住嵌套时 `useSurfaceTheme` 与 `dark:` 的实际取值。落点：
+  `src/ui/ViewSurface.tsx`、[ui/README.md](ui/README.md)、[decisions.md](decisions.md)。
 
 ## 功能（legacy 形态）
 
@@ -70,5 +124,4 @@
 - **「改过、没应用」只有筛选树说得出来**——为什么：这一态的凭据（D2）是条件 pill 与 Apply 上的那个点，而算出它的 `useFilterEditor.pendingCount` 只比两棵筛选树；配置里**其余任何成员**与 `applied` 分开时，屏幕上没有一处说得出来。两类分开的路子：其一是 `edit` 之后**不** `apply` 的控件——`setMode`（`filterMode`）、记录视图的 `setLayout`（只在什么都没跑过时顺带 apply），以及**整个分析编辑器**（分组、指标、排序、`limit`、图表规格、合计全都等 Run；`AnalysisEditor` 的 Run 按钮上没有任何待运行标记，`AnalysisWorkbench` 也不给 `editorLabel`，连能挂那个点的折叠带都没有）——分析编辑器这一条是常态而不是边角；其二是 `edit` 加 `apply` 的控件在 **apply 被拒**时分开：草稿里有 error 时 `apply` 不落地，于是表头读草稿的 `sort`、分页条读草稿的 `pageSize`、列设置读草稿的列，而行还是上一次执行的口径。标题旁那个「未保存」不顶这个用——它答的是另一个问题（没存过，而不是没跑过），未保存的新视图上它还一直亮着。**自动刷新的那个控件是这件事的一个实例，不是起因**：它的凭据现在读 `applied`（[ui/README.md#刷新是一个拆分按钮](ui/README.md#刷新是一个拆分按钮)），正是因为没有第二处凭据可以说"草稿不是这个数"。判据：先说清 D2 的「草稿未应用」管的是筛选树还是整份配置——**这是产品决定，先在 [decisions.md](decisions.md) 给结论，不要在实现时二选一**，因为它决定要不要在分析编辑器与记录工具栏上新增凭据，而 D2 的另一半规矩是一态只留一处；若判为整份配置，则 `pending`／`pendingCount` 的基准从筛选树扩到 draft 与 applied 的逐成员比较，分析的 Run 与被拒时的表头／分页条各自说得出来，且不与三态的另外两处重复；若判为只管筛选树，则把「其余成员只由 `dirty` 负责」连同分析编辑器为什么可以没有写进 [ui/README.md#三态各有一处凭据](ui/README.md#三态各有一处凭据)，这一条就此了结。两种结论都要在 `test/reactHooks.test.tsx`（`useFilterEditor`／`useRecordTable`）与 `test/analysisUi.test.tsx` 各留一条把它钉住。落点：`src/react/useFilterEditor.ts`、`src/react/useAnalysisEditor.ts`、`src/ui/AnalysisEditor.tsx`、[ui/README.md#三态各有一处凭据](ui/README.md#三态各有一处凭据)、[decisions.md](decisions.md)。
 
 - **仪表盘的编排只有鼠标能用**——为什么：`EditableLayout` 上量到三个 `.react-resizable-handle` 全是裸 `div`，**没有一个 `tabindex ≥ 0`**，也没有 `role` 与 `aria-label`；可拖的 `.react-grid-item` 同样没有 `role`／`tabindex`／`aria-label`；面板头上也没有"移动／调整大小"之类的菜单。面板的位置和大小只能用指针改，键盘完全没有入口。Dashboard 编排不在本轮范围，所以记在这里而不是[打磨](#打磨先看后改不凭想象改)——它不是难看，是一整块能力对键盘不存在。判据：移动与缩放各有键盘等价物（库的键盘传感器，或面板菜单里的一组命令），手柄有名字；`test/dashboardUi.test.tsx` 覆盖键盘改位置与改大小各一条——它已经在 jsdom 里驱动这张网格并断言 `controller().panels[0].layout`，键盘改的是同一个 layout，所以这一条不必上浏览器。落点：`src/ui/DashboardGrid.tsx`、`test/dashboardUi.test.tsx`、[ui/dashboard.md](ui/dashboard.md)。
-- **`EmbeddedView` 没有故事，逐屏那一轮没看成**——为什么：对着 `main` 逐屏过的时候发现 `EmbeddedView` 只出现在 `test/embeddedView.test.tsx` 与 `test/viewExpansion.test.tsx` 里，`stories/` 一个都没有，于是九种条件没有一条在它身上看过——而它正是宿主把一个视图嵌进自己页面时用的那一个。判据：`stories/view-engine/` 给 `EmbeddedView` 至少一组故事（默认、空、失败、铺满屏幕），能手动操作也有回归；补齐之后按[打磨](#打磨先看后改不凭想象改)开头那条规矩再看它一遍。落点：`stories/view-engine/`、[ui/README.md](ui/README.md)。
 - **列表变化改由引擎通知（D15）**——为什么：`useViewList` 只在自己发起的命令后重载，宿主直接经引擎删除／改名时要记得调 `reload({ without })`，这条合同写在文档里、不在类型里，漏了就是刚删的那一行留在列表上。判据：`ViewEngine.subscribe(listener)`，创建／保存／改名／删除以及账本的重试与覆盖落地时通知 `{ definitionId, kind, id }`；`useViewList` 订阅并按 kind 重载（删除带 `without`）；`useViewManager.delete` 不再自己传 `without`；`test/engine.test.ts` 覆盖四种通知各一条，`test/reactHooks*`（`useViewList`）覆盖「宿主直接删除后列表自动少一行」；[react.md#useviewlist](react.md#useviewlist) 删掉那句合同，[runtime.md#viewengine](runtime.md#viewengine) 写订阅面。落点：`src/runtime/viewEngine.ts`、`src/runtime/writeLedger.ts`、`src/react/useViewList.ts`。

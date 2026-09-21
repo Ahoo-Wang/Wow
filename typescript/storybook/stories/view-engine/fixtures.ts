@@ -21,6 +21,7 @@ import {
   type DashboardViewConfig,
   type DataViewDefinition,
   type DashboardDefinition,
+  type FieldOption,
   type RecordData,
   type RecordViewConfig,
   type RuntimeLimits,
@@ -387,7 +388,19 @@ export type SourceBehaviour =
  * shows is what those conditions select.
  */
 export function storySource(behaviour: SourceBehaviour = 'data'): ViewSource {
-  const source = rowSource(behaviour === 'empty' ? [] : ORDERS);
+  return behavingSource(ORDERS, behaviour);
+}
+
+/**
+ * The same five behaviours over any set of rows, so a second dataset — the
+ * wide one below — reaches every state this one does without a second copy
+ * of the rules for what each state means.
+ */
+function behavingSource(
+  rows: readonly RecordData[],
+  behaviour: SourceBehaviour,
+): ViewSource {
+  const source = rowSource(behaviour === 'empty' ? [] : rows);
   const answer = async <T>(query: () => Promise<T>): Promise<T> => {
     if (behaviour === 'failing')
       throw new ViewStoreError('UNAVAILABLE', '仓储服务暂时不可用');
@@ -493,4 +506,335 @@ export function createStoryEngine(
       ? { limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits } }
       : {}),
   });
+}
+
+/* --------------------------------------------------------------------------
+ * 宽表：一个真的很宽的定义，外加 50 行。
+ *
+ * 订单那套只有八个字段，故事里最多摆五列，于是每一条与"宽"有关的规矩——表头
+ * 粘在顶、两行汇总粘在底、左右两侧的冻结边、中间横滚、列宽拖动、导出窗口里的
+ * 列清单、排序弹层里的好几个字段——都只在"没什么可滚"的桌面上验过。这份定义
+ * 声明 21 个字段（保存的视图摆出其中 20 列），数据 50 行，正好是原始条目里那
+ * 句「20 列 50 行」说的那张表。
+ *
+ * 数据是**算出来**的而不是抄出来的，但每一格只由行号决定，所以它和手写的常量
+ * 一样确定：同一行永远是同一单，回归可以按值断言。
+ * ------------------------------------------------------------------------ */
+
+const WAYBILL_WAREHOUSES: FieldOption[] = [
+  { value: 'CN-EAST', label: '华东仓' },
+  { value: 'CN-NORTH', label: '华北仓' },
+  { value: 'CN-SOUTH', label: '华南仓' },
+  { value: 'CN-WEST', label: '西南仓' },
+];
+
+const WAYBILL_CARRIERS: FieldOption[] = [
+  { value: 'SF', label: '顺丰' },
+  { value: 'JD', label: '京东物流' },
+  { value: 'YTO', label: '圆通' },
+  { value: 'ZTO', label: '中通' },
+];
+
+const WAYBILL_CHANNELS: FieldOption[] = [
+  { value: 'ROAD', label: '陆运' },
+  { value: 'AIR', label: '空运' },
+  { value: 'SEA', label: '海运' },
+];
+
+/** 四档状态，语气三档齐：好消息、坏消息，外加两档不带语气的过程态。 */
+const WAYBILL_STATUSES: FieldOption[] = [
+  { value: 'PENDING', label: '待揽收', tone: 'warning' },
+  { value: 'IN_TRANSIT', label: '在途' },
+  { value: 'DELIVERED', label: '已签收', tone: 'success' },
+  { value: 'RETURNED', label: '已退回', tone: 'danger' },
+];
+
+const WAYBILL_PRIORITIES: FieldOption[] = [
+  { value: 'P0', label: '加急' },
+  { value: 'P1', label: '常规' },
+  { value: 'P2', label: '次日达' },
+];
+
+const WAYBILL_TAGS: FieldOption[] = [
+  { value: 'rush', label: '加急', tone: 'warning' },
+  { value: 'cold', label: '冷链' },
+  { value: 'fragile', label: '易碎', tone: 'danger' },
+  { value: 'gift', label: '礼品' },
+];
+
+/**
+ * 21 个字段，十种读法：主键、几段纯文本、四套枚举、一个数组、三个数字（格式
+ * 与汇总函数各不相同）、两个布尔、一个日期、一个时刻、一个外链、一段多行备
+ * 注。宽表要看的正是「读法各不相同的列横着排在一起」。
+ */
+export const waybillsDefinition: DataViewDefinition = {
+  id: 'waybills',
+  title: '运单',
+  kind: 'data',
+  source: 'waybills',
+  fields: [
+    { name: 'id', label: '运单号', kind: 'string', sortable: true },
+    { name: 'orderNo', label: '订单号', kind: 'string', sortable: true },
+    { name: 'customer', label: '客户', kind: 'string' },
+    { name: 'receiver', label: '收件人', kind: 'string' },
+    // 不在保存的列里：列设置的「还能加进来」那一区得有东西可加，导出窗口的
+    // 列清单也才有得比——它只列屏幕上看得见的那几列。
+    { name: 'phone', label: '联系电话', kind: 'string' },
+    { name: 'destination', label: '目的城市', kind: 'string' },
+    {
+      name: 'warehouse',
+      label: '发货仓',
+      kind: 'enum',
+      options: WAYBILL_WAREHOUSES,
+    },
+    {
+      name: 'carrier',
+      label: '承运商',
+      kind: 'enum',
+      options: WAYBILL_CARRIERS,
+    },
+    {
+      name: 'channel',
+      label: '运输方式',
+      kind: 'enum',
+      options: WAYBILL_CHANNELS,
+    },
+    {
+      name: 'status',
+      label: '状态',
+      kind: 'enum',
+      cell: 'status',
+      options: WAYBILL_STATUSES,
+    },
+    {
+      name: 'priority',
+      label: '时效',
+      kind: 'enum',
+      options: WAYBILL_PRIORITIES,
+    },
+    {
+      name: 'tags',
+      label: '标记',
+      kind: 'array',
+      cell: 'tags',
+      options: WAYBILL_TAGS,
+    },
+    {
+      name: 'pieces',
+      label: '件数',
+      kind: 'number',
+      sortable: true,
+      summary: ['SUM'],
+    },
+    {
+      name: 'weight',
+      label: '重量',
+      kind: 'number',
+      sortable: true,
+      summary: ['SUM', 'AVG'],
+      numberFormat: {
+        style: 'unit',
+        unit: 'kilogram',
+        maximumFractionDigits: 1,
+      },
+    },
+    {
+      name: 'amount',
+      label: '运费',
+      kind: 'number',
+      sortable: true,
+      summary: ['SUM', 'AVG'],
+      numberFormat: { style: 'currency', currency: 'CNY' },
+    },
+    { name: 'insured', label: '已保价', kind: 'boolean' },
+    { name: 'signed', label: '已签单', kind: 'boolean' },
+    { name: 'shipDate', label: '发运日期', kind: 'date', sortable: true },
+    { name: 'createdAt', label: '创建时间', kind: 'datetime', sortable: true },
+    { name: 'trackingUrl', label: '跟踪链接', kind: 'string', cell: 'link' },
+    { name: 'note', label: '备注', kind: 'string', cell: 'text' },
+  ],
+  record: { rowKey: 'id', paging: 'paged', layouts: ['table', 'card'] },
+};
+
+/** 六段备注，含一条空的与一条要被截到三行的。 */
+const WAYBILL_NOTES = [
+  '',
+  '收件人要求工作日上午送达。',
+  '整箱冷链，途中不得转普货。\n温控记录随单回传。',
+  '客户自提，到仓后电话通知。',
+  '易碎品，外箱已加气柱。\n第二行说清楚谁签的字。\n第三行是最后看得见的一行。\n第四行看不见。',
+  '与上一单合并配送，运费已分摊。',
+];
+
+const WAYBILL_CITIES = [
+  '杭州',
+  '上海',
+  '南京',
+  '北京',
+  '天津',
+  '广州',
+  '深圳',
+  '成都',
+  '重庆',
+  '西安',
+];
+
+const WAYBILL_CUSTOMERS = [
+  '明远商贸',
+  '恒通电子',
+  '四海食品',
+  '云图科技',
+  '长风家居',
+  '南山医药',
+  '朝晖纺织',
+  '临江重工',
+];
+
+const WAYBILL_RECEIVERS = [
+  '张伟',
+  '李娜',
+  '王强',
+  '刘洋',
+  '陈静',
+  '赵磊',
+  '孙倩',
+  '周涛',
+  '吴敏',
+  '郑凯',
+];
+
+/** 五套标记，含一套空的：数组单元格也要画得出「什么都没有」。 */
+const WAYBILL_TAG_SETS = [
+  [],
+  ['rush'],
+  ['fragile', 'cold'],
+  ['gift'],
+  ['rush', 'fragile'],
+];
+
+/** 状态不跟发货仓同周期，否则一列能从另一列猜出来。 */
+const WAYBILL_STATUS_CYCLE = [0, 1, 2, 1, 3, 2, 0, 1, 2, 0];
+
+const pad2 = (value: number) => String(value).padStart(2, '0');
+
+/** 一行运单，只由行号决定。 */
+function waybill(index: number): RecordData {
+  const day = 1 + (index % 20);
+  const status = WAYBILL_STATUSES[WAYBILL_STATUS_CYCLE[index % 10]].value;
+  const id = `YD-${1001 + index}`;
+  return {
+    id,
+    orderNo: `SO-${2001 + index}`,
+    customer: WAYBILL_CUSTOMERS[index % WAYBILL_CUSTOMERS.length],
+    receiver: WAYBILL_RECEIVERS[(index * 7) % WAYBILL_RECEIVERS.length],
+    phone: `138${20250000 + index * 137}`,
+    destination: WAYBILL_CITIES[(index * 3) % WAYBILL_CITIES.length],
+    warehouse: WAYBILL_WAREHOUSES[index % 4].value,
+    carrier: WAYBILL_CARRIERS[(index * 3 + 1) % 4].value,
+    channel: WAYBILL_CHANNELS[index % 3].value,
+    status,
+    priority: WAYBILL_PRIORITIES[(index * 2) % 3].value,
+    tags: WAYBILL_TAG_SETS[index % WAYBILL_TAG_SETS.length],
+    pieces: 1 + (index % 7),
+    weight: Number((2.5 + (index % 13) * 1.5).toFixed(1)),
+    amount: 180 + (index % 17) * 65,
+    insured: index % 3 === 0,
+    signed: status === 'DELIVERED',
+    shipDate: `2026-09-${pad2(day)}`,
+    createdAt: `2026-09-${pad2(day)}T${pad2(6 + (index % 12))}:${pad2(
+      (index * 7) % 60,
+    )}:00.000Z`,
+    trackingUrl: `https://example.com/track/${id}`,
+    note: WAYBILL_NOTES[index % WAYBILL_NOTES.length],
+  };
+}
+
+/** 50 行运单。 */
+export const WAYBILLS: RecordData[] = Array.from({ length: 50 }, (_, index) =>
+  waybill(index),
+);
+
+/**
+ * 20 列、每页 50 条、三行汇总里的三个数字、三重排序。
+ *
+ * 左边只钉主键一列：宽表在 420px 的一栏里也要能看，左侧再多钉一列就把中间挤
+ * 没了。右边那条边由宿主的操作列提供（D13），所以这条故事带着行动作开。
+ */
+export function waybillConfig(
+  overrides: Partial<RecordViewConfig> = {},
+): RecordViewConfig {
+  return {
+    kind: 'record',
+    filter: { op: 'and', children: [] },
+    filterMode: 'simple',
+    refresh: { interval: null },
+    sort: [
+      { field: 'shipDate', direction: 'DESC' },
+      { field: 'amount', direction: 'DESC' },
+      { field: 'id', direction: 'ASC' },
+    ],
+    pageSize: 50,
+    layout: 'table',
+    summaries: [
+      { field: 'pieces', fn: 'SUM' },
+      { field: 'weight', fn: 'SUM' },
+      { field: 'amount', fn: 'SUM' },
+    ],
+    table: {
+      columns: [
+        { field: 'id', pinned: 'left' },
+        { field: 'orderNo' },
+        { field: 'customer' },
+        { field: 'receiver' },
+        { field: 'destination' },
+        { field: 'warehouse' },
+        { field: 'carrier' },
+        { field: 'channel' },
+        { field: 'status' },
+        { field: 'priority' },
+        { field: 'tags' },
+        { field: 'pieces' },
+        { field: 'weight' },
+        { field: 'amount' },
+        { field: 'insured' },
+        { field: 'signed' },
+        { field: 'shipDate' },
+        { field: 'createdAt' },
+        { field: 'trackingUrl' },
+        { field: 'note' },
+      ],
+    },
+    card: {
+      title: 'id',
+      fields: [
+        'customer',
+        'destination',
+        'warehouse',
+        'carrier',
+        'status',
+        'pieces',
+        'weight',
+        'amount',
+        'shipDate',
+      ],
+    },
+    ...overrides,
+  };
+}
+
+/** 保存在这份定义上的那个视图。 */
+export const savedWaybillViews: ViewInstance[] = [
+  {
+    id: 'waybills-all',
+    definitionId: 'waybills',
+    title: '全部运单',
+    scope: 'shared',
+    revision: '1',
+    config: waybillConfig(),
+  },
+];
+
+/** 50 行运单背后的数据源；五档行为与 `storySource` 的同义。 */
+export function waybillSource(behaviour: SourceBehaviour = 'data'): ViewSource {
+  return behavingSource(WAYBILLS, behaviour);
 }

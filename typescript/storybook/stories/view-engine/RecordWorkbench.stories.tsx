@@ -27,8 +27,11 @@ import {
   createStoryEngine,
   recordConfig,
   savedViews,
+  savedWaybillViews,
   storyExportSource,
   tableSettingsStore,
+  waybillSource,
+  waybillsDefinition,
   type SourceBehaviour,
 } from './fixtures.js';
 import {
@@ -153,6 +156,7 @@ function RecordWorkbenchDemo({
   breakable = false,
   cellFamily = false,
   exporting,
+  wide = false,
 }: {
   behaviour?: SourceBehaviour;
   instanceId?: string;
@@ -223,10 +227,21 @@ function RecordWorkbenchDemo({
    * export while the view itself keeps answering.
    */
   exporting?: 'slow' | 'capped' | 'failing';
+  /**
+   * Opens the 20-column, 50-row definition instead of the six orders: the
+   * one scenario where the table has to scroll in both directions at once.
+   */
+  wide?: boolean;
 }) {
   const workbench = (
     <StoryEngine
       create={() => {
+        if (wide)
+          return createStoryEngine({
+            definitions: [waybillsDefinition],
+            instances: savedWaybillViews,
+            source: waybillSource(behaviour),
+          });
         if (writeOutcome) {
           const staged = new OutcomeViewStore({ instances: savedViews });
           staged.stage(writeOutcome);
@@ -280,8 +295,10 @@ function RecordWorkbenchDemo({
       {engine => (
         <RecordWorkbench
           engine={engine}
-          definitionId="orders"
-          instanceId={instanceId ?? savedViews[0].id}
+          definitionId={wide ? waybillsDefinition.id : 'orders'}
+          instanceId={
+            instanceId ?? (wide ? savedWaybillViews[0].id : savedViews[0].id)
+          }
           actions={
             breakable
               ? breakableActions
@@ -490,6 +507,7 @@ const meta = {
     theme: { table: { disable: true } },
     cellFamily: { table: { disable: true } },
     exporting: { table: { disable: true } },
+    wide: { table: { disable: true } },
   },
 } satisfies Meta<typeof RecordWorkbenchDemo>;
 
@@ -867,4 +885,32 @@ export const RenameConflicted: Story = { args: { writeOutcome: 'conflict' } };
  */
 export const DeleteConflicted: Story = {
   args: { writeOutcome: 'conflict', instanceId: savedViews[2].id },
+};
+
+/**
+ * 一张真的很宽的表：20 列、50 行，外加宿主的操作列。
+ *
+ * 订单那套定义只有八个字段，故事里最多摆五列，于是每一条与「宽」有关的规矩都
+ * 只在没什么可滚的桌面上看过。这一条把它们摆在一起看：
+ *
+ * - **横滚只发生在中间**。左边冻着运单号（配置自己钉的，也正好是行键），右边
+ *   冻着宿主的操作列（D13），中间 19 列随滚动条走。两侧的边只在真有东西滑到
+ *   它下面时才出现。
+ * - **表头粘在顶、两行汇总粘在底**。50 行一页放不下，纵向滚起来之后列名和
+ *   「件数／重量／运费」三个合计都还在原地——一张 20 列的表，滚到第 40 行还认
+ *   得出哪一列是哪一列，靠的就是这个。
+ * - **一列一种读法**。枚举四套（发货仓／承运商／运输方式／时效）、带语气的状
+ *   态徽章、一列标记数组、三种数字格式（整数件数、公斤、人民币）、两列布尔、
+ *   一个日期与一个时刻、一个外链、一段截到三行的备注。
+ * - **列设置、排序、导出这三个弹层在 20 列上才有分量**：列设置里 20 行可拖加
+ *   一行还没加进来的「联系电话」，排序弹层里已经堆了三个字段（发运日期、运
+ *   费、运单号），导出窗口的列清单要一口气念完这 20 列。
+ *
+ * 窄到 420px（手机、分屏、宿主的侧边面板）时这张表不会变窄，它**就是**要横
+ * 滚：把 20 列挤进一柱宽度只会把每一列都挤成看不懂的样子。窄屏要验的是两条冻
+ * 结列没有把中间吃光，以及滚动条到得了两头。
+ */
+export const WideTable: Story = {
+  name: '宽表 · 20 列 50 行',
+  args: { wide: true, withActions: true },
 };
