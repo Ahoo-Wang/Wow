@@ -31,9 +31,14 @@ import type { ViewInstance, ViewPreferences } from '../model/index.js';
 import type { WriteState } from '../runtime/index.js';
 import type { ViewListState, ViewManagerController } from '../react/index.js';
 import { Badge } from './components/badge.js';
-import { IconButton } from './IconButton.js';
+import { IconButton, IconTooltip } from './IconButton.js';
 import { ButtonGroup } from './components/button-group.js';
-import { Input } from './components/input.js';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from './components/input-group.js';
 import {
   ItemActions,
   ItemContent,
@@ -185,30 +190,63 @@ export function ViewManagerRow({
           {renaming === null ? (
             <ItemTitle className="max-w-full">{item.title}</ItemTitle>
           ) : (
-            <Input
-              className="h-7 w-full min-w-0"
-              aria-label={messages.label('label.save.title')}
-              value={renaming}
-              autoFocus
-              onChange={event => setRenaming(event.target.value)}
-              // A field with one obvious answer takes Enter for it — the ✓
-              // beside it is the same call, not a different one — and Escape
-              // for "never mind". Escape is stopped here rather than allowed
-              // to bubble: the manager is a dialog, `useDismiss` listens for
-              // the key on `document`, and an Escape that got that far closed
-              // the whole manager and took the rename with it. React's
-              // `stopPropagation` stops the native event too, so the key ends
-              // at this input, where it was aimed.
-              onKeyDown={event => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  confirmRename();
-                } else if (event.key === 'Escape') {
-                  event.stopPropagation();
-                  setRenaming(null);
-                }
-              }}
-            />
+            // The two answers to the field sit **in** the field
+            // (`InputGroup`, the registry's own part for it), not in the
+            // action cells at the end of the row: they are this input's ✓
+            // and ✕, not two more of the row's actions, and the grid they
+            // used to borrow a cell from exists to keep "Rename" above
+            // "Rename" down the column — which is a promise about a row
+            // that is not being renamed.
+            <InputGroup className="h-7 w-full min-w-0">
+              <InputGroupInput
+                aria-label={messages.label('label.save.title')}
+                value={renaming}
+                autoFocus
+                onChange={event => setRenaming(event.target.value)}
+                // A field with one obvious answer takes Enter for it — the ✓
+                // beside it is the same call, not a different one — and Escape
+                // for "never mind". Escape is stopped here rather than allowed
+                // to bubble: the manager is a dialog, `useDismiss` listens for
+                // the key on `document`, and an Escape that got that far closed
+                // the whole manager and took the rename with it. React's
+                // `stopPropagation` stops the native event too, so the key ends
+                // at this input, where it was aimed.
+                onKeyDown={event => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    confirmRename();
+                  } else if (event.key === 'Escape') {
+                    event.stopPropagation();
+                    setRenaming(null);
+                  }
+                }}
+              />
+              <InputGroupAddon align="inline-end">
+                <IconTooltip
+                  label={messages.label('label.manage.rename-confirm')}
+                  render={
+                    <InputGroupButton
+                      size="icon-xs"
+                      disabled={blocked}
+                      onClick={confirmRename}
+                    />
+                  }
+                >
+                  <CheckIcon />
+                </IconTooltip>
+                <IconTooltip
+                  label={messages.label('label.manage.rename-cancel')}
+                  render={
+                    <InputGroupButton
+                      size="icon-xs"
+                      onClick={() => setRenaming(null)}
+                    />
+                  }
+                >
+                  <XIcon />
+                </IconTooltip>
+              </InputGroupAddon>
+            </InputGroup>
           )}
         </ItemContent>
 
@@ -224,91 +262,71 @@ export function ViewManagerRow({
         )}
 
         {/* One group now that the order left this slot, so there is no
-            between for `SPACE.GROUPS` to be. */}
-        <ItemActions data-slot="view-manager-actions">
-          {renaming !== null ? (
-            <ButtonGroup className={ACTION_CELLS}>
-              <IconButton
-                label={messages.label('label.manage.rename-confirm')}
-                variant="ghost"
-                size="icon-sm"
-                disabled={blocked}
-                onClick={confirmRename}
+            between for `SPACE.GROUPS` to be. While the title is being
+            renamed there is nothing here at all: the ✓ and the ✕ belong to
+            the field and are drawn inside it. */}
+        {renaming === null && (
+          <ItemActions data-slot="view-manager-actions">
+            {(manager.can.setDefault || can.rename || can.delete) && (
+              <ButtonGroup
+                className={ACTION_CELLS}
+                aria-label={messages.label('label.manage.view-group')}
               >
-                <CheckIcon />
-              </IconButton>
-              <IconButton
-                label={messages.label('label.manage.rename-cancel')}
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setRenaming(null)}
-              >
-                <XIcon />
-              </IconButton>
-            </ButtonGroup>
-          ) : (
-            <>
-              {(manager.can.setDefault || can.rename || can.delete) && (
-                <ButtonGroup
-                  className={ACTION_CELLS}
-                  aria-label={messages.label('label.manage.view-group')}
-                >
-                  {manager.can.setDefault && (
-                    <IconButton
-                      label={messages.label(
-                        isDefault
-                          ? 'label.manage.unset-default'
-                          : 'label.manage.set-default',
-                      )}
-                      variant="ghost"
-                      size="icon-sm"
-                      // It presses in and out, so it says which it is: the
-                      // name tells a reader what the press would do, and
-                      // this tells them what pressing it already did.
-                      aria-pressed={isDefault}
-                      disabled={busy}
-                      onClick={() =>
-                        void manager.setDefault(isDefault ? null : item.id)
-                      }
-                    >
-                      {/* Filled rather than only marked. The attribute was
+                {manager.can.setDefault && (
+                  <IconButton
+                    label={messages.label(
+                      isDefault
+                        ? 'label.manage.unset-default'
+                        : 'label.manage.set-default',
+                    )}
+                    variant="ghost"
+                    size="icon-sm"
+                    // It presses in and out, so it says which it is: the
+                    // name tells a reader what the press would do, and
+                    // this tells them what pressing it already did.
+                    aria-pressed={isDefault}
+                    disabled={busy}
+                    onClick={() =>
+                      void manager.setDefault(isDefault ? null : item.id)
+                    }
+                  >
+                    {/* Filled rather than only marked. The attribute was
                           there and nothing was drawn from it, so pressing
                           "Open this one first" changed nothing on the star
                           itself and the badge beside the title was the only
                           thing that answered. */}
-                      <StarIcon
-                        data-default={isDefault || undefined}
-                        className={isDefault ? 'fill-current' : undefined}
-                      />
-                    </IconButton>
-                  )}
-                  {can.rename && (
-                    <IconButton
-                      label={messages.label('label.manage.rename')}
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled={busy}
-                      onClick={() => setRenaming(item.title)}
-                    >
-                      <PencilIcon />
-                    </IconButton>
-                  )}
-                  {can.delete && (
-                    <IconButton
-                      label={messages.label('label.manage.delete')}
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled={busy}
-                      onClick={() => setDeleting(true)}
-                    >
-                      <TrashIcon />
-                    </IconButton>
-                  )}
-                </ButtonGroup>
-              )}
-            </>
-          )}
-        </ItemActions>
+                    <StarIcon
+                      data-default={isDefault || undefined}
+                      className={isDefault ? 'fill-current' : undefined}
+                    />
+                  </IconButton>
+                )}
+                {can.rename && (
+                  <IconButton
+                    label={messages.label('label.manage.rename')}
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={busy}
+                    onClick={() => setRenaming(item.title)}
+                  >
+                    <PencilIcon />
+                  </IconButton>
+                )}
+                {can.delete && (
+                  <IconButton
+                    label={messages.label('label.manage.delete')}
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={busy}
+                    onClick={() => setDeleting(true)}
+                  >
+                    <TrashIcon />
+                  </IconButton>
+                )}
+              </ButtonGroup>
+            )}
+          </ItemActions>
+        )}
 
         {/* The line the row's last write left behind, wrapped underneath it
             rather than squeezed in beside the actions: `ItemFooter` is the

@@ -15,7 +15,11 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { EditorBand, EditorBandToggle } from '../src/ui/EditorBand.js';
+import {
+  EditorBand,
+  EditorBandToggle,
+  EditorFold,
+} from '../src/ui/EditorBand.js';
 import { DropdownMenuItem } from '../src/ui/components/dropdown-menu.js';
 import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
@@ -42,22 +46,24 @@ function Fold({
   const [open, setOpen] = useState(initial);
   return (
     <ViewSurface>
-      <EditorBandToggle
-        open={open}
-        onOpenChange={setOpen}
-        controls={BAND_ID}
-        label="Filter"
-        modeLabel={modeLabel}
-        modes={
-          modes ? <DropdownMenuItem>Advanced</DropdownMenuItem> : undefined
-        }
-        pending={pending}
-      />
-      <EditorBand id={BAND_ID} open={open}>
-        {/* Whatever a workbench folds away names itself; the band does not
-            name it a second time. */}
-        <section aria-label="Filter">The editor</section>
-      </EditorBand>
+      {/* One root around both ends: the handle is in the title bar and the
+          band is below it, with blocks in between, so they are wrapped
+          rather than nested. */}
+      <EditorFold open={open} onOpenChange={setOpen}>
+        <EditorBandToggle
+          label="Filter"
+          modeLabel={modeLabel}
+          modes={
+            modes ? <DropdownMenuItem>Advanced</DropdownMenuItem> : undefined
+          }
+          pending={pending}
+        />
+        <EditorBand id={BAND_ID}>
+          {/* Whatever a workbench folds away names itself; the band does not
+              name it a second time. */}
+          <section aria-label="Filter">The editor</section>
+        </EditorBand>
+      </EditorFold>
     </ViewSurface>
   );
 }
@@ -146,13 +152,9 @@ describe('EditorBandToggle', () => {
   it('tells its caller about every change rather than keeping its own', () => {
     const onOpenChange = vi.fn();
     render(
-      <EditorBandToggle
-        open={false}
-        onOpenChange={onOpenChange}
-        controls={BAND_ID}
-        label="Filter"
-        pending={0}
-      />,
+      <EditorFold open={false} onOpenChange={onOpenChange}>
+        <EditorBandToggle label="Filter" pending={0} />
+      </EditorFold>,
     );
 
     fireEvent.click(toggle());

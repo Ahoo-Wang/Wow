@@ -2412,6 +2412,115 @@ export const EditorToggleAndModes: Story = {
 };
 
 /**
+ * 键盘上的两件事，只有真浏览器答得出来：原生按钮被 Enter／空格激活是浏览器的
+ * 默认动作，漫游焦点是 Base UI 在真实 keydown 上做的事。
+ *
+ * 一、**结果工具栏是一条 toolbar**：整条栏只有一个 Tab 站，方向键在栏内左右
+ * 走并在两端回绕，走过去只移动焦点——布局切换的档位不会被走成按下；离开这条
+ * 栏的 Tab 直接落到表上。二、**折叠带的开关是 `CollapsibleTrigger`**：Enter
+ * 开、空格关，`aria-expanded` 跟着翻，`aria-controls` 只在带子在页面上时存在。
+ */
+export const ToolbarAndFoldByKeyboard: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+
+    // The fold, from the handle in the title bar. A saved view opens folded.
+    const toggle = canvas.getByRole('button', {
+      name: new RegExp(`^${zhCN['label.filter.panel']}`),
+    });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle).not.toHaveAttribute('aria-controls');
+    await tabTo(toggle);
+    await userEvent.keyboard('{Enter}');
+    const band = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="editor-band"]',
+      );
+      if (!found) throw new Error('the band did not open');
+      return found;
+    });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(toggle).toHaveAttribute('aria-controls', band.id);
+    // Space closes it again, and the panel leaves the page with it — so the
+    // reference the handle was making leaves too.
+    await userEvent.keyboard(' ');
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="editor-band"]'),
+      ).toBeNull(),
+    );
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle).not.toHaveAttribute('aria-controls');
+
+    // The bar: one stop, the arrows inside it.
+    const bar = canvas.getByRole('toolbar', {
+      name: zhCN['label.toolbar.title'],
+    });
+    await expect(bar).toHaveAttribute('aria-orientation', 'horizontal');
+    const controls = [...bar.querySelectorAll('button')];
+    await expect(
+      controls.filter(control => control.tabIndex === 0),
+    ).toHaveLength(1);
+
+    await tabTo(controls[0]!);
+    for (let at = 1; at < controls.length; at += 1) {
+      await userEvent.keyboard('{ArrowRight}');
+      await expect(document.activeElement).toBe(controls[at]);
+    }
+    // Both ends wrap.
+    await userEvent.keyboard('{ArrowRight}');
+    await expect(document.activeElement).toBe(controls[0]);
+    await userEvent.keyboard('{ArrowLeft}');
+    await expect(document.activeElement).toBe(controls[controls.length - 1]);
+
+    // Walking moves focus and nothing else: the layout switch is still on
+    // the layout it was on, and the rows are still a table.
+    await expect(
+      canvas.getByRole('button', { name: zhCN['label.layout.table'] }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(canvas.getByRole('table')).toBeInTheDocument();
+
+    // Tab leaves the whole bar rather than stepping to the next control in
+    // it, and comes back to the one the bar was left on.
+    await userEvent.tab();
+    await expect(bar.contains(document.activeElement)).toBe(false);
+    await userEvent.tab({ shift: true });
+    await expect(document.activeElement).toBe(controls[controls.length - 1]);
+
+    // An item of the bar is still the popup's trigger.
+    await tabTo(
+      canvas.getByRole('button', { name: zhCN['label.toolbar.columns'] }),
+    );
+    await userEvent.keyboard('{Enter}');
+    await within(document.body).findByText(zhCN['label.columns.title']);
+    // One live region of this package's own, however many lists the popup
+    // holds. `@dnd-kit` keeps its own beside it (`#dnd-kit-announcement-*`)
+    // and says what the library itself drives — pick up, drop, cancel.
+    await expect(
+      document.querySelectorAll('[aria-live]:not([id^="dnd-kit"])'),
+    ).toHaveLength(1);
+    // Closed again before the story settles, as every play that opens a
+    // popup does: axe judges the page as the play leaves it. Twice, because
+    // a control reached by the keyboard is showing its own tooltip and that
+    // is the top layer — the first Escape is the tooltip's.
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(
+        document.body.querySelector('[data-slot="tooltip-content"]'),
+      ).toBeNull(),
+    );
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(
+        document.body.querySelector('[data-slot="popover-content"]'),
+      ).toBeNull(),
+    );
+  },
+};
+
+/**
  * Two fields ticked in one visit to the picker, and two pills to show for it.
  *
  * The picker used to close on every pick, which made four conditions four
@@ -3720,12 +3829,26 @@ async function settled(read: () => string): Promise<void> {
   });
 }
 
-/** Presses Tab until the element has focus, so `:focus-visible` holds. */
+/**
+ * Presses Tab until the element has focus, so `:focus-visible` holds.
+ *
+ * A control inside a `role="toolbar"` is not its own tab stop — the bar is
+ * one stop and the arrows move along it (Base UI's `Toolbar`) — so the keys
+ * pressed here are the keys a keyboard would actually press: Tab as far as
+ * the bar, then ArrowRight to the control.
+ */
 async function tabTo(target: HTMLElement): Promise<void> {
+  const toolbar = target.closest('[role="toolbar"]');
   for (let presses = 0; presses < 80; presses += 1) {
     if (document.activeElement === target) return;
+    if (toolbar?.contains(document.activeElement)) break;
     await userEvent.tab();
   }
+  for (let presses = 0; toolbar && presses < 20; presses += 1) {
+    if (document.activeElement === target) return;
+    await userEvent.keyboard('{ArrowRight}');
+  }
+  if (document.activeElement === target) return;
   throw new Error('Tab never reached the target.');
 }
 

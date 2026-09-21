@@ -25,11 +25,54 @@ import {
 import { useViewMessages } from './MessagesProvider.js';
 import { DropdownMenuContent } from './popups.js';
 import { TEXT_UI } from './layout.js';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from './components/collapsible.js';
+
+export interface EditorFoldProps {
+  open: boolean;
+  /**
+   * Base UI hands a reason along with the new state; this package has one
+   * question — is the editor open — and the workbench answers it the same
+   * way whoever asked.
+   */
+  onOpenChange(open: boolean): void;
+  children: ReactNode;
+}
+
+/**
+ * The one fold the handle and the band are two halves of.
+ *
+ * The handle sits in the title bar and the band below the status line, with
+ * other blocks between them, so they cannot be nested one in the other —
+ * which is why the pair used to be wired by hand: the open state held above
+ * both, `aria-expanded` and `aria-controls` written out at the trigger, the
+ * panel unmounted with an early `return null`. That is a disclosure, and
+ * `Collapsible` is the disclosure this project already has: one root around
+ * both ends gives the trigger its ARIA pair, drops `aria-controls` while the
+ * panel is away, and unmounts the panel itself.
+ *
+ * The root draws nothing. `contents` keeps it out of the layout entirely, so
+ * the blocks it spans stay direct flex children of the column they were in
+ * and the spacing ruler is untouched.
+ */
+export function EditorFold({ open, onOpenChange, children }: EditorFoldProps) {
+  return (
+    <Collapsible
+      className="contents"
+      open={open}
+      onOpenChange={next => onOpenChange(next)}
+    >
+      {children}
+    </Collapsible>
+  );
+}
 
 export interface EditorBandProps {
   /** The id the header's toggle points `aria-controls` at. */
   id: string;
-  open: boolean;
   children: ReactNode;
   className?: string;
 }
@@ -45,17 +88,20 @@ export interface EditorBandProps {
  * in the title bar ({@link EditorBandToggle}), with the other controls for
  * *how this view is being looked at*, rather than on a row of its own above
  * the editor: a fold whose handle takes a line is a fold that saved nothing.
+ * Both ends live under one {@link EditorFold}.
  *
  * It is a shell and nothing else. It holds no idea of conditions, panels or
  * aggregations, which is what lets the three workbenches share it while their
  * editors stay their own.
  */
-export function EditorBand({ id, open, children, className }: EditorBandProps) {
-  // Unmounted rather than hidden: the editor's inputs are the view's draft,
-  // and a folded band must not keep a focusable control on the page.
-  if (!open) return null;
+export function EditorBand({ id, children, className }: EditorBandProps) {
   return (
-    <div
+    // Unmounted rather than hidden, which is `Collapsible.Panel`'s own
+    // default: the editor's inputs are the view's draft, and a folded band
+    // must not keep a focusable control on the page. Nothing animates — the
+    // fold is instant here as it is in `StatusStrip`, so there is no motion
+    // for `prefers-reduced-motion` to have an opinion about.
+    <CollapsibleContent
       id={id}
       data-slot="editor-band"
       // No landmark of its own. The editor inside already names itself — a
@@ -66,15 +112,11 @@ export function EditorBand({ id, open, children, className }: EditorBandProps) {
       className={cn('flex flex-col', className)}
     >
       {children}
-    </div>
+    </CollapsibleContent>
   );
 }
 
 export interface EditorBandToggleProps {
-  open: boolean;
-  onOpenChange(open: boolean): void;
-  /** The band this opens, for `aria-controls`. */
-  controls: string;
   label: string;
   /** The editor's current mode, said without opening the menu. */
   modeLabel?: string;
@@ -91,11 +133,12 @@ export interface EditorBandToggleProps {
  * the dot and the count for "edited, not applied". Everything else about it
  * is a button — which is why the mode menu hangs off it as a second button
  * in one group rather than as an item inside a menu of its own.
+ *
+ * It is the {@link EditorFold}'s trigger, so `aria-expanded`, the
+ * `aria-controls` that points at the band only while the band is there, and
+ * the click that flips the state all come from the primitive.
  */
 export function EditorBandToggle({
-  open,
-  onOpenChange,
-  controls,
   label,
   modeLabel,
   modes,
@@ -104,15 +147,11 @@ export function EditorBandToggle({
   const messages = useViewMessages();
   return (
     <ButtonGroup data-slot="editor-toggle">
-      <Button
-        variant="outline"
-        size="sm"
-        aria-expanded={open}
-        aria-controls={open ? controls : undefined}
+      <CollapsibleTrigger
+        render={<Button variant="outline" size="sm" />}
         // The mode is part of the name rather than a second control to find:
         // "Filter · Simple" answers both "what is this" and "how is it set".
         aria-label={modeLabel ? `${label} · ${modeLabel}` : undefined}
-        onClick={() => onOpenChange(!open)}
       >
         <SlidersHorizontalIcon data-icon="inline-start" />
         <span className="truncate">{label}</span>
@@ -132,7 +171,7 @@ export function EditorBandToggle({
             {messages.label('label.editor.pending', { count: pending })}
           </span>
         )}
-      </Button>
+      </CollapsibleTrigger>
 
       {modes && (
         <DropdownMenu>

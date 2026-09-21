@@ -45,6 +45,7 @@ import { summaryText } from './display.js';
 import { IconTooltip } from './IconButton.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
+import { ToolbarItem } from './toolbar.js';
 
 /**
  * What a surface hands over to offer an export of its result — the run
@@ -140,9 +141,16 @@ export function ExportDialog(props: ExportDialogProps) {
       <IconTooltip
         label={messages.label('label.export.title')}
         render={
-          <DialogTrigger
-            data-control="export"
-            render={<Button variant="outline" size="icon-sm" />}
+          // A toolbar item where a toolbar is around it, an ordinary button
+          // anywhere else: the bar owns the roving focus order and this is
+          // one of the stops in it.
+          <ToolbarItem
+            render={
+              <DialogTrigger
+                data-control="export"
+                render={<Button variant="outline" size="icon-sm" />}
+              />
+            }
           />
         }
       >

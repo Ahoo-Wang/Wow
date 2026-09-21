@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { Accessibility } from '@dnd-kit/dom';
 import {
@@ -32,6 +32,7 @@ import {
 } from './components/dialog.js';
 import { manageDragAccessibility, managerDrop } from './manage/drag.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { useAnnouncer } from './Announcer.js';
 import { DialogContent } from './popups.js';
 import {
   SortableViewManagerRow,
@@ -93,7 +94,9 @@ export function ViewManager({
   openDirtyId = null,
 }: ViewManagerProps) {
   const messages = useViewMessages();
-  const [announcement, setAnnouncement] = useState('');
+  const { say: announce, region: announcement } = useAnnouncer(
+    'view-manager-announcement',
+  );
   const preferences = manager.outcomes.get(PREFERENCES_KEY);
   // Where a row's delete confirmation leaves focus. A confirmed delete takes
   // the row — and with it the Delete button the dialog would otherwise
@@ -130,7 +133,7 @@ export function ViewManager({
       // Counted inside the group and from one, because that is the list the
       // user is looking at: "second of two personal views", never a place in
       // a flat order that no heading names.
-      setAnnouncement(
+      announce(
         messages.label('label.manage.moved', {
           title: titleOf(id),
           index: to + 1,
@@ -246,14 +249,7 @@ export function ViewManager({
 
             {/* One voice for a move the user asked for with the arrow keys;
                 the library announces its own pick-up and cancel. */}
-            <div
-              data-slot="view-manager-announcement"
-              role="status"
-              aria-live="polite"
-              className="sr-only"
-            >
-              {announcement}
-            </div>
+            {announcement}
           </>
         ) : (
           rows

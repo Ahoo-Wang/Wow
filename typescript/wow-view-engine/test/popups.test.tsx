@@ -54,7 +54,7 @@ import {
   Tooltip,
   TooltipContent as VendoredTooltipContent,
 } from '../src/ui/components/tooltip.js';
-import { EditorBandToggle } from '../src/ui/EditorBand.js';
+import { EditorBandToggle, EditorFold } from '../src/ui/EditorBand.js';
 import {
   AlertDialogContent,
   ComboboxContent,
@@ -118,14 +118,13 @@ describe('popups carry the theme out of the root', () => {
     const user = userEvent.setup();
     render(
       <ViewSurface theme="dark">
-        <EditorBandToggle
-          open={false}
-          onOpenChange={() => undefined}
-          controls="band"
-          label="Filter"
-          modes={<DropdownMenuItem>Advanced</DropdownMenuItem>}
-          pending={0}
-        />
+        <EditorFold open={false} onOpenChange={() => undefined}>
+          <EditorBandToggle
+            label="Filter"
+            modes={<DropdownMenuItem>Advanced</DropdownMenuItem>}
+            pending={0}
+          />
+        </EditorFold>
       </ViewSurface>,
     );
 

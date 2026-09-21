@@ -18,7 +18,10 @@ export const recordMessages = {
   'label.layout.chart': 'Chart',
   'label.layout.cards': 'Cards',
 
-  // The record toolbar.
+  // The record toolbar. The bar itself has a name because it is one stop
+  // with the arrows inside it: a reader that lands there is told what it
+  // has landed in before it starts moving along it.
+  'label.toolbar.title': 'Result toolbar',
   'label.toolbar.layout': 'Layout',
   'label.toolbar.columns': 'Columns',
   'label.toolbar.refresh': 'Refresh',

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useState, type KeyboardEvent } from 'react';
+import type { KeyboardEvent } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { Accessibility } from '@dnd-kit/dom';
@@ -65,6 +65,8 @@ import {
 import type { MessageKey } from './messages.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { TEXT_UI } from './layout.js';
+import { ToolbarItem } from './toolbar.js';
+import { useAnnouncer } from './Announcer.js';
 import { cn } from 'cn';
 
 /**
@@ -108,7 +110,8 @@ export function SortSettings({
   fieldGroups,
 }: SortSettingsProps) {
   const messages = useViewMessages();
-  const [announcement, setAnnouncement] = useState('');
+  const { say: announce, region: announcement } =
+    useAnnouncer('sort-announcement');
   const sortable = fields.filter(field => field.sortable === true);
   // Nothing to offer *and* nothing to take back: a button that opens an
   // empty editor leads nowhere. A definition that stopped declaring a field
@@ -154,7 +157,7 @@ export function SortSettings({
     const order = reorderSort(table.sort, from, to);
     if (!order) return;
     table.setSort(order);
-    setAnnouncement(
+    announce(
       messages.label('label.sort.moved', {
         field: named(sortEntryId(from)),
         index: to + 1,
@@ -165,14 +168,21 @@ export function SortSettings({
 
   return (
     <Popover>
-      <PopoverTrigger
-        data-control="sort"
-        // Bordered like every other function on the bar (D12 Ⅳ), and the one
-        // that keeps its words: what it says is the sort in force.
-        render={<Button variant="outline" size="sm" />}
+      {/* A toolbar item where a toolbar is around it, an ordinary button
+          anywhere else: the bar owns the roving focus order and this is one
+          of the stops in it. */}
+      <ToolbarItem
+        render={
+          <PopoverTrigger
+            data-control="sort"
+            // Bordered like every other function on the bar (D12 Ⅳ), and the
+            // one that keeps its words: what it says is the sort in force.
+            render={<Button variant="outline" size="sm" />}
+          />
+        }
       >
         <SortSummary sort={table.sort} labelOf={labelOf} messages={messages} />
-      </PopoverTrigger>
+      </ToolbarItem>
       <PopoverContent align="end" className="w-80">
         <PopoverHeader>
           <PopoverTitle>{messages.label('label.sort.title')}</PopoverTitle>
@@ -257,14 +267,7 @@ export function SortSettings({
 
         {/* One voice for a move the user asked for with the arrow keys; the
             library announces its own pick-up and cancel. */}
-        <div
-          data-slot="sort-announcement"
-          role="status"
-          aria-live="polite"
-          className="sr-only"
-        >
-          {announcement}
-        </div>
+        {announcement}
 
         {/* A new field joins at the end, ascending: it breaks the ties of
             the fields already there, and anywhere else would quietly change

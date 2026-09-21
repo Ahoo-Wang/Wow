@@ -33,6 +33,7 @@ import { ColumnSettings } from './ColumnSettings.js';
 import { ExportDialog, type ExportOffer } from './ExportDialog.js';
 import { SortSettings } from './SortSettings.js';
 import { SPACE, TEXT_UI } from './layout.js';
+import { Toolbar, ToolbarItem } from './toolbar.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { cn } from 'cn';
@@ -99,6 +100,19 @@ const LAYOUT_ICON: Record<RecordLayout, typeof Rows3Icon> = {
  * The bar above the result: what is selected on the left, how the result is
  * shown on the right.
  *
+ * **It is a `Toolbar`, not a row of buttons that looks like one.** Base UI's
+ * primitive (`ui/toolbar.tsx`; the registry carries no `toolbar`) makes the
+ * whole bar one tab stop with the arrows moving inside it, and writes the
+ * `role` and `aria-orientation` that used to be missing. On a wide record
+ * view this was eight or nine stops between the rows and everything above
+ * them. The layout switch needs nothing said about it: Base UI's own
+ * `ToggleGroup` is toolbar-aware — inside one it draws a plain `role=group`
+ * and its segments register with the bar's roving order rather than opening
+ * a second one. The two grouped functions keep `ButtonGroup`, which is what
+ * draws their shared seam; `Toolbar.Group`'s only behaviour beyond the
+ * `role="group"` both give is disabling a whole group at once, which nothing
+ * here does.
+ *
  * Layout and column changes are edits to the view — they make it dirty and,
  * once saved, come back with it. The selection is not: it lives for one
  * opening, which is why nothing here reaches a saved config. Paging sits
@@ -139,8 +153,9 @@ export function ResultToolbar({
   const selected = table.selection.length > 0;
 
   return (
-    <div
+    <Toolbar
       data-slot="result-toolbar"
+      aria-label={messages.label('label.toolbar.title')}
       className={`flex flex-wrap items-center ${SPACE.GROUPS}`}
     >
       {/* Nothing at all when nothing is selected: the empty box that used to
@@ -174,9 +189,22 @@ export function ResultToolbar({
               count: table.selection.length,
             })}
           </Badge>
-          <Button variant="ghost" size="sm" onClick={table.clearSelection}>
+          <ToolbarItem
+            render={
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={table.clearSelection}
+              />
+            }
+          >
             {messages.label('label.toolbar.clear-selection')}
-          </Button>
+          </ToolbarItem>
+          {/* The host's own controls stay as they came: a bulk slot holds
+              arbitrary nodes, and an item can only be made of an element
+              this file renders. They are ordinary tab stops between the two
+              ends of the bar, which is the honest reading — the toolbar
+              does not own them. */}
           {bulkActions?.({
             rows: table.selectedRows,
             keys: table.selection,
@@ -270,6 +298,6 @@ export function ResultToolbar({
           />
         )}
       </div>
-    </div>
+    </Toolbar>
   );
 }

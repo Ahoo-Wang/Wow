@@ -22,6 +22,7 @@ import type {
 } from '../src/react/index.js';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
 import type { ExportOffer } from '../src/ui/ExportDialog.js';
+import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import { ResultToolbar } from '../src/ui/ResultToolbar.js';
 
 afterEach(cleanup);
@@ -696,5 +697,58 @@ describe('ResultToolbar export', () => {
     expect(dialog.textContent).toContain('The export failed. gateway down');
     await user.click(within(dialog).getByRole('button', { name: 'Try again' }));
     expect(run).toHaveBeenCalledWith('all');
+  });
+});
+
+/**
+ * The bar is a toolbar in the ARIA sense — Base UI's `Toolbar`, not a row of
+ * buttons that looks like one: one tab stop for the whole bar, the arrows
+ * moving between the controls inside it.
+ */
+describe('ResultToolbar keyboard', () => {
+  it('is one tab stop with the arrows inside it', async () => {
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController()}
+        fields={FIELDS}
+        runtime={runtime}
+        exporter={exportOffer()}
+      />,
+    );
+
+    const bar = screen.getByRole('toolbar', { name: 'Result toolbar' });
+    expect(bar.getAttribute('aria-orientation')).toBe('horizontal');
+
+    // Exactly one of the controls is reachable by Tab; the rest are not,
+    // which is what "one stop" means.
+    const controls = [...bar.querySelectorAll('button')];
+    expect(controls.length).toBeGreaterThan(3);
+    expect(controls.filter(button => button.tabIndex === 0)).toHaveLength(1);
+
+    await user.tab();
+    expect(document.activeElement).toBe(controls[0]);
+    // The layout switch is Base UI's own `ToggleGroup`, which joins the
+    // bar's order rather than opening a second one, so the arrows walk
+    // straight out of it and on to the next function along.
+    for (let at = 1; at < controls.length; at += 1) {
+      await user.keyboard('{ArrowRight}');
+      expect(document.activeElement).toBe(controls[at]);
+    }
+  });
+
+  /** The bar's name is the catalogue's, like every other word on it. */
+  it('takes its name from the catalogue in force', () => {
+    render(
+      <MessagesProvider messages={{ 'label.toolbar.title': 'Row tools' }}>
+        <ResultToolbar
+          table={tableController()}
+          fields={FIELDS}
+          runtime={runtime}
+        />
+      </MessagesProvider>,
+    );
+
+    expect(screen.getByRole('toolbar', { name: 'Row tools' })).toBeDefined();
   });
 });

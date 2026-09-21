@@ -34,7 +34,7 @@ import {
 } from './components/empty.js';
 import { Skeleton } from './components/skeleton.js';
 import { AppliedBar } from './AppliedBar.js';
-import { EditorBand, EditorBandToggle } from './EditorBand.js';
+import { EditorBand, EditorBandToggle, EditorFold } from './EditorBand.js';
 import { SPACE, TRAY } from './layout.js';
 import { LeaveDialog } from './LeaveGuard.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
@@ -575,131 +575,134 @@ export function WorkbenchShell({
 
         {open && (
           <>
-            {/* A banner, ruled off rather than boxed: a card around the thing
-                that names the page is a card around the page. */}
-            <div
-              data-slot="view-header-block"
-              // The rule runs the whole width of the column, under `main`'s own
-              // padding, so it meets the sidebar's edge and the two heads end
-              // on one continuous line rather than two dashes with a gap.
-              className="border-border -mx-4 border-b px-4 pb-3"
+            {/* The handle is in the title bar and the band is under the
+                status line, so the two ends of the fold cannot be nested one
+                inside the other — they are wrapped instead. The root draws
+                nothing (`contents`), and where a workbench does not fold its
+                editor it simply holds neither trigger nor panel. */}
+            <EditorFold
+              open={editorIsOpen.open}
+              onOpenChange={editorIsOpen.set}
             >
-              <ViewHeader
-                state={state}
-                kind={kind}
-                commands={workbench.commands}
-                titleId={titleId}
-                titleRef={viewTitle}
-                actions={
-                  actions != null && (
-                    <RenderBoundary
-                      name="actions"
-                      compact
-                      resetKeys={resetKeys}
-                      onFailure={onRenderFailure}
-                    >
-                      {actions}
-                    </RenderBoundary>
-                  )
-                }
-                // Something in `leading` already shows the kind and the name,
-                // so the bar does not show them a second time.
-                namesView={sidebarOpen}
-                leading={collapsed || undefined}
-                trailing={
-                  // All three are answers to *how am I looking at this*,
-                  // which is what this group is, and they read outwards: the
-                  // editor governs what the view asks, filling the screen
-                  // governs the room the answer gets, and the refresh
-                  // governs how often it is renewed.
-                  (folded || expandable || freshness !== undefined) && (
-                    <>
-                      {folded && (
-                        <EditorBandToggle
-                          open={editorIsOpen.open}
-                          onOpenChange={editorIsOpen.set}
-                          controls={editorId}
-                          label={editorLabel}
-                          modeLabel={editorModeLabel}
-                          modes={editorModes}
-                          pending={editorPending}
-                        />
-                      )}
-                      {freshness}
-                      {expandable && (
-                        <ViewExpandToggle
-                          expansion={fill}
-                          ref={expandViewRef}
-                        />
-                      )}
-                    </>
-                  )
-                }
-                onSaved={workbench.onSaved}
-                onCreated={() => {
-                  created.current = true;
-                }}
-                onRenamed={workbench.onRenamed}
-                onDeleted={workbench.onDeleted}
-                onRecovered={workbench.onRecovered}
-              />
-            </div>
+              {/* A banner, ruled off rather than boxed: a card around the thing
+                that names the page is a card around the page. */}
+              <div
+                data-slot="view-header-block"
+                // The rule runs the whole width of the column, under `main`'s own
+                // padding, so it meets the sidebar's edge and the two heads end
+                // on one continuous line rather than two dashes with a gap.
+                className="border-border -mx-4 border-b px-4 pb-3"
+              >
+                <ViewHeader
+                  state={state}
+                  kind={kind}
+                  commands={workbench.commands}
+                  titleId={titleId}
+                  titleRef={viewTitle}
+                  actions={
+                    actions != null && (
+                      <RenderBoundary
+                        name="actions"
+                        compact
+                        resetKeys={resetKeys}
+                        onFailure={onRenderFailure}
+                      >
+                        {actions}
+                      </RenderBoundary>
+                    )
+                  }
+                  // Something in `leading` already shows the kind and the name,
+                  // so the bar does not show them a second time.
+                  namesView={sidebarOpen}
+                  leading={collapsed || undefined}
+                  trailing={
+                    // All three are answers to *how am I looking at this*,
+                    // which is what this group is, and they read outwards: the
+                    // editor governs what the view asks, filling the screen
+                    // governs the room the answer gets, and the refresh
+                    // governs how often it is renewed.
+                    (folded || expandable || freshness !== undefined) && (
+                      <>
+                        {folded && (
+                          <EditorBandToggle
+                            label={editorLabel}
+                            modeLabel={editorModeLabel}
+                            modes={editorModes}
+                            pending={editorPending}
+                          />
+                        )}
+                        {freshness}
+                        {expandable && (
+                          <ViewExpandToggle
+                            expansion={fill}
+                            ref={expandViewRef}
+                          />
+                        )}
+                      </>
+                    )
+                  }
+                  onSaved={workbench.onSaved}
+                  onCreated={() => {
+                    created.current = true;
+                  }}
+                  onRenamed={workbench.onRenamed}
+                  onDeleted={workbench.onDeleted}
+                  onRecovered={workbench.onRecovered}
+                />
+              </div>
 
-            {/* The status line (D12 Ⅰ′): what the view reports about itself,
+              {/* The status line (D12 Ⅰ′): what the view reports about itself,
                 under the title bar and only when there is something to say —
                 a config that will not run, a warning that does not block.
                 The last write's outcome is the title bar's own line above.
                 `empty:hidden` keeps the row out of the flow when every strip
                 rendered nothing, so the ruler's 16px does not stack twice. */}
-            <div
-              data-slot="status-line"
-              className={cn('flex flex-col empty:hidden', SPACE.ROWS)}
-            >
-              <ErrorStrip
-                issues={filter.unmarked}
-                title={
-                  kind === 'dashboard'
-                    ? messages.label('label.dashboard.needs-fixing')
-                    : undefined
-                }
-              />
-              {/* Warnings block nothing — the result below is the real one —
+              <div
+                data-slot="status-line"
+                className={cn('flex flex-col empty:hidden', SPACE.ROWS)}
+              >
+                <ErrorStrip
+                  issues={filter.unmarked}
+                  title={
+                    kind === 'dashboard'
+                      ? messages.label('label.dashboard.needs-fixing')
+                      : undefined
+                  }
+                />
+                {/* Warnings block nothing — the result below is the real one —
                   so they sit under the errors and never replace it. */}
-              <WarningStrip issues={warnings ?? state.issues} />
-            </div>
+                <WarningStrip issues={warnings ?? state.issues} />
+              </div>
 
-            {/* The conditions, on a surface of their own. The block exists
+              {/* The conditions, on a surface of their own. The block exists
                 only where there is something in it: an empty card is the
                 promise of an editor that is not there. */}
-            {editor != null &&
-              (folded ? (
-                <EditorBand
-                  id={editorId}
-                  open={editorIsOpen.open}
-                  className={cn(TRAY, SPACE.ROWS)}
-                >
-                  <RenderBoundary
-                    name="editor"
-                    resetKeys={resetKeys}
-                    onFailure={onRenderFailure}
+              {editor != null &&
+                (folded ? (
+                  <EditorBand id={editorId} className={cn(TRAY, SPACE.ROWS)}>
+                    <RenderBoundary
+                      name="editor"
+                      resetKeys={resetKeys}
+                      onFailure={onRenderFailure}
+                    >
+                      {editor}
+                    </RenderBoundary>
+                  </EditorBand>
+                ) : (
+                  <section
+                    data-slot="condition-block"
+                    className={cn('flex flex-col', TRAY, SPACE.ROWS)}
                   >
-                    {editor}
-                  </RenderBoundary>
-                </EditorBand>
-              ) : (
-                <section
-                  data-slot="condition-block"
-                  className={cn('flex flex-col', TRAY, SPACE.ROWS)}
-                >
-                  <RenderBoundary
-                    name="editor"
-                    resetKeys={resetKeys}
-                    onFailure={onRenderFailure}
-                  >
-                    {editor}
-                  </RenderBoundary>
-                </section>
-              ))}
+                    <RenderBoundary
+                      name="editor"
+                      resetKeys={resetKeys}
+                      onFailure={onRenderFailure}
+                    >
+                      {editor}
+                    </RenderBoundary>
+                  </section>
+                ))}
+            </EditorFold>
 
             {/* The applied-conditions band (D12 Ⅲ): what the rows on screen
                 were fetched under, a line of its own between the editor and

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useId, useMemo, useState } from 'react';
+import { useCallback, useId, useMemo } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { Accessibility } from '@dnd-kit/dom';
 import { Columns3Icon } from 'lucide-react';
@@ -48,6 +48,8 @@ import {
   type ColumnSettingRow,
 } from './columns/rows.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { ToolbarItem } from './toolbar.js';
+import { useAnnouncer } from './Announcer.js';
 
 /**
  * One sortable group per area, so a drag cannot cross one: what is held on
@@ -106,7 +108,9 @@ export function ColumnSettings({
   actions = false,
 }: ColumnSettingsProps) {
   const messages = useViewMessages();
-  const [announcement, setAnnouncement] = useState('');
+  const { say: announce, region: announcement } = useAnnouncer(
+    'column-announcement',
+  );
 
   const rows = useMemo(
     () =>
@@ -146,7 +150,7 @@ export function ColumnSettings({
       // Counted over every column the table shows rather than over the
       // movable ones alone: "second of four" is what the user is looking at,
       // and "first of three" names a place the table does not have.
-      setAnnouncement(
+      announce(
         messages.label('label.columns.moved', {
           field: labelOf(rows, field),
           index: renderedIndex(reordered(rows, order), field),
@@ -154,7 +158,7 @@ export function ColumnSettings({
         }),
       );
     },
-    [messages, onScreen, rows, table],
+    [announce, messages, onScreen, rows, table],
   );
 
   return (
@@ -164,10 +168,17 @@ export function ColumnSettings({
       <Tooltip>
         <TooltipTrigger
           render={
-            <PopoverTrigger
-              data-control="columns"
-              aria-label={messages.label('label.toolbar.columns')}
-              render={<Button variant="outline" size="icon-sm" />}
+            // A toolbar item where a toolbar is around it, an ordinary
+            // button anywhere else: the bar owns the roving focus order and
+            // this is one of the stops in it.
+            <ToolbarItem
+              render={
+                <PopoverTrigger
+                  data-control="columns"
+                  aria-label={messages.label('label.toolbar.columns')}
+                  render={<Button variant="outline" size="icon-sm" />}
+                />
+              }
             />
           }
         >
@@ -226,14 +237,7 @@ export function ColumnSettings({
 
         {/* One voice for a move the user asked for with the arrow keys; the
             library announces its own pick-up and cancel. */}
-        <div
-          data-slot="column-announcement"
-          role="status"
-          aria-live="polite"
-          className="sr-only"
-        >
-          {announcement}
-        </div>
+        {announcement}
       </PopoverContent>
     </Popover>
   );

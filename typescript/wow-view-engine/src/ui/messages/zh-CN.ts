@@ -76,6 +76,7 @@ export const zhCN: ViewMessages = {
   'label.layout.table': '表格',
   'label.layout.chart': '图表',
   'label.layout.cards': '卡片',
+  'label.toolbar.title': '结果工具栏',
   'label.toolbar.layout': '布局',
   'label.toolbar.columns': '列设置',
   'label.toolbar.refresh': '刷新',
