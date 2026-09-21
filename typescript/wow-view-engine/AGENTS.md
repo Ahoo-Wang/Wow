@@ -152,7 +152,12 @@ src/
     defaults.ts                   — emptyDashboardConfig
     index.ts
   runtime/                      — Stateful layer; never imports react or ui
-    viewEngine.ts                 — ViewEngine — registry, open/create/list, permissions
+    viewEngine.ts                 — ViewEngine — the command surface: admission, then one dispatch
+    definitions.ts                — The definition registry: judged once, refused at the point of use
+    permissions.ts                — What a command is allowed to do; a system view is read-only
+    preferences.ts                — The preference cache, the list order and the default view
+    openRuntimes.ts               — The views one engine has open, and who holds an instance
+    runtimeFactory.ts             — How one runtime is assembled, `open` and `create` alike
     writeLedger.ts                — The write ledger: outcomes by requestId, retry, conflicts
     viewRuntime.ts                — One open view; subscribe / getSnapshot store
     dashboardRuntime.ts           — Owns one child runtime per data panel

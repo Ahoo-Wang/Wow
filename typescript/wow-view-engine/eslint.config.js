@@ -43,12 +43,10 @@ const withMargin = lines => Math.ceil((lines * 1.1) / 10) * 10;
 /**
  * 绊线管辖内、当下就超阈值的文件，`lines` 是本次实测的代码行数。
  * 每条都在 `docs/design/todo.md` 的「`max-lines` 存量豁免」里有对应的拆分项——
- * 拆到阈值以内后，连同那一条一起删掉。
+ * 拆到阈值以内后，连同那一条一起删掉。R8 与 R9 拆完之后这里空着：
+ * 管辖内的文件全部在 500 代码行以内。
  */
-const maxLinesWaivers = [
-  // 抽走 writeLedger 之后仍是注册表 + 打开/创建 + 偏好缓存 —— todo.md「R9」
-  { file: 'src/runtime/viewEngine.ts', lines: 635 },
-];
+const maxLinesWaivers = [];
 
 export default tseslint.config(
   {

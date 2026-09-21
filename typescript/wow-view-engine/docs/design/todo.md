@@ -25,9 +25,7 @@
 
 绊线已落地：`src` 上限 500 代码行、`test` 上限 1200，只数代码行（跳过空行与注释）；vendored 的 `ui/components`、`ui/lib` 与纯文案目录 `ui/messages/` 不在管辖内。
 
-下面列出的文件当下就超线，各自在 `eslint.config.js` 里有一条 override。**上限不钉死在实测值，而是实测代码行 × 1.1 向上取到十位**：改个 bug 多两行不该把 CI 打红，但 10% 攒不回一个新主题。拆完一轮要重新实测、重新收紧这些数字。**新增一条 override 必须同时在这里新增一条 TODO**，否则绊线就成了摆设。
-
-- **R9 `src/runtime/viewEngine.ts` 下线**——为什么：抽走 `writeLedger.ts` 之后还有 635 代码行，注册表、打开/创建、权限与偏好缓存仍同在一个类里。判据：偏好缓存与系统实例的构造抽出独立模块，`ViewEngine` 公开面不变，`test/engine.test.ts` 不改断言；下线到 500 代码行以内并删除 override。落点：`src/runtime/`、[runtime.md#viewengine](runtime.md#viewengine)。
+当下一条 override 也没有：绊线管辖内的文件全部在阈值以内，`eslint.config.js` 里的豁免表空着。**新增一条 override 必须同时在这里新增一条 TODO**，否则绊线就成了摆设；**上限不钉死在实测值，而是实测代码行 × 1.1 向上取到十位**——改个 bug 多两行不该把 CI 打红，但 10% 攒不回一个新主题，拆完一轮要重新实测、重新收紧这些数字。
 
 （架构测试里「`*Workbench.tsx` 不得绕过 `useWorkbench` 直接 import 装配用的钩子」那一条已随 R3 落地。）
 
@@ -61,9 +59,5 @@
 用键盘拖宽 73 → 201px 后 `scrollWidth` 1939 → 2067 且冻结列没动，标题旁立刻
 出现「已修改」；导出窗口在 20 列上是 365×294、列清单四行读完不滚；排序弹层
 列齐三条并只提供剩下四个可排序字段；卡片布局 3 × 214px 无横向溢出）。
-
-## 功能（legacy 形态）
-
-- **隐藏字段排不了序**——为什么：配置只记已显示的列，所以列设置里隐藏的那几行没有顺序可拖，勾上之后一律落在中间区末尾；想把一个字段放到第三列，得先勾上再拖一次。判据：想清楚"隐藏字段的位置"要不要进配置（这是一个模型问题，先在 [decisions.md](decisions.md) 里给结论），若要，则 `table.columns` 增加 `hidden?: true` 一类的表达，`projectRecord` 跳过它们，列设置对隐藏行照常开放拖拽。落点：[model.md](model.md)、`src/record/project.ts`、`src/ui/columns/rows.ts`。
 
 ## 小修

@@ -13,17 +13,10 @@
 
 import {
   DEFAULT_RUNTIME_LIMITS,
-  audienceOf,
-  isSystemScope,
-  type DashboardViewConfig,
-  type DataViewDefinition,
-  type FieldDefinition,
   type FilterTree,
   isSystemInstanceId,
   parseSystemInstanceId,
-  systemInstanceId,
   toSummary,
-  CODE_REVISION,
   type Issue,
   type RuntimeLimits,
   type ViewConfig,
@@ -32,7 +25,6 @@ import {
   type ViewAudience,
   type ViewInstanceSummary,
   type ViewPreferences,
-  type ViewScope,
 } from '../model/index.js';
 import {
   builtinFieldKinds,
@@ -49,25 +41,14 @@ import {
   type RuntimeEnvironment,
 } from './environment.js';
 import { RequestRunner } from './requestRunner.js';
-import { analysisScope } from '../analysis/index.js';
 import type { OptionSource, ViewSource } from './source.js';
-import type { DataViewConfig } from './execute.js';
-import {
-  DataViewRuntime,
-  type AnyViewRuntime,
-  type ManagedViewRuntime,
-  type RuntimeFor,
-  type ViewRuntime,
+import type {
+  AnyViewRuntime,
+  ManagedViewRuntime,
+  RuntimeFor,
+  ViewRuntime,
 } from './viewRuntime.js';
-import {
-  DashboardViewRuntime,
-  type PanelResolver,
-  type PanelRuntimeFactory,
-} from './dashboardRuntime.js';
-import {
-  isUsableDefinition,
-  validateDefinition,
-} from './validateDefinition.js';
+import { DashboardViewRuntime } from './dashboardRuntime.js';
 import {
   ViewCommandError,
   type WritePayload,
@@ -80,15 +61,11 @@ import {
   type WriteTarget,
 } from './writeLedger.js';
 import { ViewChanges, type ViewChangeListener } from './viewChanges.js';
-
-/** Everything is allowed when a store declares no permissions. */
-const ALLOW_ALL: ViewPermissions = {
-  createPersonal: true,
-  createShared: true,
-  reorder: true,
-  setDefault: true,
-  instance: () => ({ save: true, rename: true, delete: true }),
-};
+import { DefinitionRegistry, systemInstances } from './definitions.js';
+import { PermissionGuard } from './permissions.js';
+import { PreferenceCache, resolveDefault } from './preferences.js';
+import { OpenRuntimes } from './openRuntimes.js';
+import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
 
 export interface ViewEngineOptions {
   definitions: readonly ViewDefinition[];
@@ -119,12 +96,9 @@ export interface OpenOptions {
 /** The ledger names what a write command is addressed to; the engine takes it. */
 export type { ConflictChoice, WriteTarget } from './writeLedger.js';
 
-/** Who a runtime is, apart from the config it holds. */
-interface RuntimeIdentity {
-  title: string;
-  scope: ViewScope;
-  saved: ViewInstance | null;
-}
+/** Instances a definition declares in code, and the order a user put them in. */
+export { systemInstances } from './definitions.js';
+export { orderSummaries } from './preferences.js';
 
 export interface CreateInput<C extends ViewConfig> {
   title: string;
@@ -136,6 +110,13 @@ export interface CreateInput<C extends ViewConfig> {
 /**
  * The registry and the command entry point: definitions in, runtimes and
  * writes out.
+ *
+ * What the commands stand on lives beside this file, one concern each: the
+ * definition registry (`definitions.ts`), the permission checks
+ * (`permissions.ts`), the preference cache (`preferences.ts`), the open views
+ * (`openRuntimes.ts`), how one runtime is assembled (`runtimeFactory.ts`) and
+ * the write ledger (`writeLedger.ts`). What is left here is the command
+ * surface itself: admission, then one dispatch.
  *
  * Every write goes through one path, so the default UI and a hand-built one
  * behave the same, and every non-success outcome lands in the same three
@@ -155,16 +136,16 @@ export class ViewEngine {
 
   private readonly options: ViewEngineOptions;
   private readonly runner: RequestRunner;
-  private readonly runtimes = new Set<ManagedViewRuntime>();
+  private readonly registry: DefinitionRegistry;
+  private readonly guard: PermissionGuard;
+  private readonly preferenceCache: PreferenceCache;
+  private readonly runtimes = new OpenRuntimes();
+  private readonly factory: RuntimeFactory;
   /** Every write that left, and every outcome not yet settled. */
   private readonly ledger: WriteLedger;
   /** Who is told that a definition's list has changed; see `subscribe`. */
   private readonly changes = new ViewChanges(found => this.report(found));
-  private readonly preferencesCache = new Map<string, ViewPreferences>();
-  /** `validateDefinition` per registered definition, computed once. */
-  private readonly definitionFindings = new Map<string, Issue[]>();
   private readonly summaries = new Map<string, ViewInstanceSummary>();
-  private sequence = 0;
 
   constructor(options: ViewEngineOptions) {
     this.options = options;
@@ -172,27 +153,31 @@ export class ViewEngine {
     this.kinds = options.kinds ?? builtinFieldKinds;
     this.limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
     this.environment = options.environment ?? defaultRuntimeEnvironment();
-    this.definitions = new Map(
-      options.definitions.map(definition => [definition.id, definition]),
-    );
     this.runner = new RequestRunner(this.limits);
+    this.guard = new PermissionGuard(this.store);
+    this.preferenceCache = new PreferenceCache(this.store);
     this.ledger = new WriteLedger(this.ledgerHost());
-
-    // Definitions are code, so they are judged once, here, rather than on
-    // every open. One that fails is kept but refused at the point of use:
-    // that beats a blank registry, and beats a crash at application start.
-    for (const definition of options.definitions) {
-      const found = validateDefinition(definition, this.kinds, {
-        limits: this.limits,
-      });
-      this.definitionFindings.set(definition.id, found);
-      for (const entry of found) this.report(entry);
-    }
+    this.registry = new DefinitionRegistry(
+      options.definitions,
+      this.kinds,
+      this.limits,
+      found => this.report(found),
+    );
+    this.definitions = this.registry.definitions;
+    this.factory = new RuntimeFactory({
+      definitions: this.registry,
+      kinds: this.kinds,
+      limits: this.limits,
+      environment: this.environment,
+      runner: this.runner,
+      resolveSource: key => this.resolveSource(key),
+      readInstance: id => this.readInstance(id),
+    });
   }
 
   /** What `validateDefinition` said about one definition, for a host to show. */
   definitionIssues(definitionId: string): Issue[] {
-    return this.definitionFindings.get(definitionId) ?? [];
+    return this.registry.issues(definitionId);
   }
 
   resolveSource(key: string): ViewSource {
@@ -209,7 +194,7 @@ export class ViewEngine {
   }
 
   permissions(definitionId: string): ViewPermissions {
-    return this.store.permissions?.(definitionId) ?? ALLOW_ALL;
+    return this.guard.of(definitionId);
   }
 
   /**
@@ -218,7 +203,7 @@ export class ViewEngine {
    * declare one.
    */
   async list(definitionId: string): Promise<ViewInstanceSummary[]> {
-    const definition = this.requireDefinition(definitionId);
+    const definition = this.registry.require(definitionId);
     const declared = systemInstances(definition).map(toSummary);
     const stored = await this.store.list(definitionId);
     const accepted = stored.filter(summary => {
@@ -244,9 +229,7 @@ export class ViewEngine {
   }
 
   async preferences(definitionId: string): Promise<ViewPreferences> {
-    const preferences = await this.store.getPreferences(definitionId);
-    this.preferencesCache.set(definitionId, preferences);
-    return preferences;
+    return this.preferenceCache.read(definitionId);
   }
 
   /** Opens a saved view, or a code-declared one without touching the store. */
@@ -265,7 +248,7 @@ export class ViewEngine {
         // `attach` already registered it, and a dashboard may have children
         // querying by now. Nobody is handed a runtime that failed to open,
         // so nobody could close one: it is dropped here instead of leaking.
-        this.forget(runtime);
+        this.runtimes.forget(runtime);
         throw error;
       }
     runtime.apply();
@@ -276,7 +259,7 @@ export class ViewEngine {
   private async readInstance(instanceId: string): Promise<ViewInstance> {
     const declared = parseSystemInstanceId(instanceId);
     return declared
-      ? this.systemInstance(declared.definitionId, declared.viewId)
+      ? this.registry.systemInstance(declared.definitionId, declared.viewId)
       : this.store.get(instanceId);
   }
 
@@ -289,9 +272,9 @@ export class ViewEngine {
     definitionId: string,
     input: CreateInput<C>,
   ): RuntimeFor<C> {
-    const definition = this.requireDefinition(definitionId);
+    const definition = this.registry.require(definitionId);
     this.requireTitle(input.title);
-    this.requireCreatePermission(definitionId, input.scope);
+    this.guard.requireCreate(definitionId, input.scope);
 
     const runtime = this.build(definition, input.config, {
       title: input.title,
@@ -306,7 +289,7 @@ export class ViewEngine {
 
   /** First save creates, later saves overwrite. Both need a clean draft. */
   async save(runtime: ViewRuntime): Promise<ViewInstance> {
-    const target = this.requireRuntime(runtime);
+    const target = this.runtimes.require(runtime);
     const state = target.getSnapshot();
     this.requireValid(target.issuesAt(state.scope));
 
@@ -317,7 +300,7 @@ export class ViewEngine {
         scope: state.scope,
         config: state.draft,
       };
-      this.requireCreatePermission(target.definition.id, state.scope);
+      this.guard.requireCreate(target.definition.id, state.scope);
       return (await this.ledger.dispatch(
         { action: 'create', input, intent: 'first-save' },
         target,
@@ -325,7 +308,7 @@ export class ViewEngine {
     }
 
     const saved = state.saved;
-    this.requireInstancePermission(saved, 'save');
+    this.guard.requireInstance(saved, 'save');
     const payload: WritePayload = {
       action: 'save',
       id: saved.id,
@@ -340,12 +323,12 @@ export class ViewEngine {
     runtime: ViewRuntime,
     input: { title: string; scope: ViewAudience },
   ): Promise<ViewInstance> {
-    const target = this.requireRuntime(runtime);
+    const target = this.runtimes.require(runtime);
     const state = target.getSnapshot();
     // Judged at the scope it is going to, not the one it came from.
     this.requireValid(target.issuesAt(input.scope));
     this.requireTitle(input.title);
-    this.requireCreatePermission(target.definition.id, input.scope);
+    this.guard.requireCreate(target.definition.id, input.scope);
 
     return (await this.ledger.dispatch(
       {
@@ -386,11 +369,11 @@ export class ViewEngine {
     definitionId: string,
     order: string[],
   ): Promise<ViewPreferences> {
-    this.requirePermission(
+    this.guard.require(
       this.permissions(definitionId).reorder,
       'view.preferences.reorder-forbidden',
     );
-    const current = await this.currentPreferences(definitionId);
+    const current = await this.preferenceCache.current(definitionId);
     return this.writePreferences(definitionId, { ...current, order });
   }
 
@@ -398,11 +381,11 @@ export class ViewEngine {
     definitionId: string,
     instanceId: string | null,
   ): Promise<ViewPreferences> {
-    this.requirePermission(
+    this.guard.require(
       this.permissions(definitionId).setDefault,
       'view.preferences.default-forbidden',
     );
-    const current = await this.currentPreferences(definitionId);
+    const current = await this.preferenceCache.current(definitionId);
     return this.writePreferences(definitionId, {
       ...current,
       defaultInstanceId: instanceId,
@@ -419,11 +402,7 @@ export class ViewEngine {
     preferences: ViewPreferences,
     explicit?: string,
   ): string | null {
-    const ids = new Set(summaries.map(summary => summary.id));
-    if (explicit && ids.has(explicit)) return explicit;
-    if (preferences.defaultInstanceId && ids.has(preferences.defaultInstanceId))
-      return preferences.defaultInstanceId;
-    return orderSummaries(summaries, preferences)[0]?.id ?? null;
+    return resolveDefault(summaries, preferences, explicit);
   }
 
   /** Writes still waiting for a decision, by handle id. */
@@ -457,8 +436,7 @@ export class ViewEngine {
 
   /** Open runtimes, for a workbench that tracks its own tabs. */
   openRuntimes(): readonly ViewRuntime[] {
-    this.prune();
-    return [...this.runtimes];
+    return this.runtimes.all();
   }
 
   /**
@@ -469,16 +447,11 @@ export class ViewEngine {
    * against, so this is the way to let one go.
    */
   close(runtime: ViewRuntime): void {
-    if (isManagedRuntime(runtime) && this.runtimes.has(runtime)) {
-      this.forget(runtime);
-      return;
-    }
-    runtime.dispose();
+    this.runtimes.close(runtime);
   }
 
   dispose(): void {
-    for (const runtime of [...this.runtimes]) runtime.dispose();
-    this.runtimes.clear();
+    this.runtimes.disposeAll();
     this.runner.cancelAll();
     // Nothing more will be written through it, so nothing more is announced:
     // a host that forgot to unsubscribe leaves no listener behind here.
@@ -489,7 +462,7 @@ export class ViewEngine {
     instance: ViewInstance,
     scopeFilter: FilterTree | null = null,
   ): ManagedViewRuntime {
-    const definition = this.requireDefinition(instance.definitionId);
+    const definition = this.registry.require(instance.definitionId);
     return this.build(
       definition,
       instance.config,
@@ -508,131 +481,9 @@ export class ViewEngine {
     identity: RuntimeIdentity,
     scopeFilter: FilterTree | null = null,
   ): ManagedViewRuntime {
-    const runtime =
-      config.kind === 'dashboard'
-        ? this.buildDashboard(definition, config, identity, scopeFilter)
-        : this.buildData(definition, config, identity, scopeFilter);
-    this.runtimes.add(runtime);
-    return runtime;
-  }
-
-  private buildData(
-    definition: ViewDefinition,
-    config: DataViewConfig,
-    identity: RuntimeIdentity,
-    scopeFilter: FilterTree | null = null,
-  ): DataViewRuntime {
-    if (definition.kind !== 'data' || !capabilityOf(definition, config))
-      throw new ViewCommandError(
-        issue('runtime.kind.not-declared', [], {
-          definition: definition.id,
-          kind: config.kind,
-        }),
-      );
-
-    return new DataViewRuntime<DataViewConfig>({
-      id: this.newRuntimeId(),
-      definition,
-      config,
-      title: identity.title,
-      scope: identity.scope,
-      saved: identity.saved,
-      kinds: this.kinds,
-      limits: this.limits,
-      environment: this.environment,
-      source: this.resolveSource(definition.source),
-      runner: this.runner,
-      scopeFilter,
-    });
-  }
-
-  private buildDashboard(
-    definition: ViewDefinition,
-    config: DashboardViewConfig,
-    identity: RuntimeIdentity,
-    scopeFilter: FilterTree | null = null,
-  ): DashboardViewRuntime {
-    // A dashboard config belongs to a dashboard definition: the catalogue
-    // entry it is listed under, which declares no fields of its own.
-    if (definition.kind !== 'dashboard')
-      throw new ViewCommandError(
-        issue('runtime.kind.not-declared', [], {
-          definition: definition.id,
-          kind: config.kind,
-        }),
-      );
-
-    return new DashboardViewRuntime({
-      id: this.newRuntimeId(),
-      definition,
-      config,
-      title: identity.title,
-      scope: identity.scope,
-      saved: identity.saved,
-      kinds: this.kinds,
-      limits: this.limits,
-      environment: this.environment,
-      resolve: this.resolvePanel,
-      createPanelRuntime: this.createPanelRuntime,
-      scopeFilter,
-    });
-  }
-
-  /** What a panel references: the instance and the definition behind it. */
-  private readonly resolvePanel: PanelResolver = async instanceId => {
-    const instance = await this.readInstance(instanceId);
-    const definition = this.requireDefinition(instance.definitionId);
-    return { instance, definition, fields: panelFields(instance, definition) };
-  };
-
-  /**
-   * One panel's child runtime. It is owned by its dashboard rather than by
-   * the engine: it is not saved, renamed or deleted through a command, and it
-   * runs no timer of its own, because the dashboard times every panel.
-   */
-  private readonly createPanelRuntime: PanelRuntimeFactory = (
-    reference,
-    scopeFilter: FilterTree | null,
-  ) => {
-    const { instance, definition } = reference;
-    return new DataViewRuntime<DataViewConfig>({
-      id: this.newRuntimeId(),
-      // `validateDashboard` admitted this panel, so the reference is a data
-      // view of a data definition by the time a runtime is built for it.
-      definition: definition as DataViewDefinition,
-      config: instance.config as DataViewConfig,
-      title: instance.title,
-      scope: instance.scope,
-      saved: instance,
-      kinds: this.kinds,
-      limits: this.limits,
-      environment: this.environment,
-      source: this.resolveSource((definition as DataViewDefinition).source),
-      runner: this.runner,
-      scopeFilter,
-      autoRefresh: false,
-    });
-  };
-
-  private newRuntimeId(): string {
-    return `runtime-${(this.sequence += 1)}`;
-  }
-
-  private systemInstance(definitionId: string, viewId: string): ViewInstance {
-    const definition = this.requireDefinition(definitionId);
-    const view = definition.views?.find(entry => entry.id === viewId);
-    if (!view)
-      throw new ViewCommandError(
-        issue('view.open.not-found', [], { id: viewId }),
-      );
-    return {
-      id: systemInstanceId(definitionId, viewId),
-      definitionId,
-      title: view.title,
-      scope: 'system',
-      revision: CODE_REVISION,
-      config: view.config,
-    };
+    return this.runtimes.add(
+      this.factory.build(definition, config, identity, scopeFilter),
+    );
   }
 
   private async writePreferences(
@@ -641,15 +492,6 @@ export class ViewEngine {
   ): Promise<ViewPreferences> {
     const payload: WritePayload = { action: 'preferences', definitionId, next };
     return (await this.ledger.dispatch(payload, undefined)) as ViewPreferences;
-  }
-
-  private async currentPreferences(
-    definitionId: string,
-  ): Promise<ViewPreferences> {
-    return (
-      this.preferencesCache.get(definitionId) ??
-      (await this.preferences(definitionId))
-    );
   }
 
   /**
@@ -666,12 +508,13 @@ export class ViewEngine {
         this.summaries.set(instance.id, toSummary(instance)),
       dropInstance: (id, owner) => {
         this.summaries.delete(id);
-        for (const holder of this.holders(id, owner)) this.forget(holder);
+        for (const holder of this.runtimes.holders(id, owner))
+          this.runtimes.forget(holder);
       },
       notePreferences: (definitionId, preferences) =>
-        this.preferencesCache.set(definitionId, preferences),
+        this.preferenceCache.note(definitionId, preferences),
       readPreferences: definitionId => this.preferences(definitionId),
-      holders: id => this.holders(id),
+      holders: id => this.runtimes.holders(id),
       noteChange: change => this.changes.emit(change),
     };
   }
@@ -695,11 +538,11 @@ export class ViewEngine {
       throw new ViewCommandError(
         issue('view.system.read-only', [], { action }),
       );
-    this.prune();
-    const [runtime] = this.holders(id);
+    this.runtimes.prune();
+    const [runtime] = this.runtimes.holders(id);
     const known = runtime?.getSnapshot().saved ?? this.summaries.get(id);
     const summary = known ?? (await this.store.get(id));
-    this.requireInstancePermission(summary, action);
+    this.guard.requireInstance(summary, action);
     return {
       revision: summary.revision,
       definitionId: summary.definitionId,
@@ -707,59 +550,8 @@ export class ViewEngine {
     };
   }
 
-  /**
-   * Open runtimes whose baseline is this instance, `first` ahead of the rest.
-   * The engine allows an instance to be open more than once, and a confirmed
-   * write to it concerns each of them.
-   */
-  private holders(
-    id: string,
-    first?: ManagedViewRuntime,
-  ): ManagedViewRuntime[] {
-    const found = [...this.runtimes].filter(
-      entry => entry !== first && entry.getSnapshot().saved?.id === id,
-    );
-    return first && this.runtimes.has(first) ? [first, ...found] : found;
-  }
-
-  private forget(runtime: ManagedViewRuntime): void {
-    runtime.dispose();
-    this.runtimes.delete(runtime);
-  }
-
-  /** Drops runtimes a caller disposed directly, which the registry cannot see. */
-  private prune(): void {
-    for (const runtime of [...this.runtimes])
-      if (runtime.disposed) this.runtimes.delete(runtime);
-  }
-
   private report(found: Issue): void {
     this.options.onIssue?.(found);
-  }
-
-  private requireDefinition(id: string): ViewDefinition {
-    const definition = this.definitions.get(id);
-    if (!definition)
-      throw new ViewCommandError(
-        issue('view.definition.not-found', [], { id }),
-      );
-    // A definition that failed admission cannot produce a usable view: its
-    // defaults, its system views or its compiled queries would throw instead.
-    const found = this.definitionFindings.get(id) ?? [];
-    if (!isUsableDefinition(found))
-      throw new ViewCommandError(
-        issue('view.definition.invalid', [], {
-          id,
-          issues: found.filter(entry => entry.severity === 'error').length,
-        }),
-      );
-    return definition;
-  }
-
-  private requireRuntime(runtime: ViewRuntime): ManagedViewRuntime {
-    if (!isManagedRuntime(runtime) || !this.runtimes.has(runtime))
-      throw new ViewCommandError(issue('view.runtime.not-owned', []));
-    return runtime;
   }
 
   private requireTitle(title: string): void {
@@ -771,98 +563,4 @@ export class ViewEngine {
     if (issues.some(entry => entry.severity === 'error'))
       throw new ViewCommandError(issue('view.config.invalid', []));
   }
-
-  private requireCreatePermission(
-    definitionId: string,
-    scope: ViewScope,
-  ): void {
-    const permissions = this.permissions(definitionId);
-    this.requirePermission(
-      audienceOf(scope) === 'shared'
-        ? permissions.createShared
-        : permissions.createPersonal,
-      'view.create.forbidden',
-    );
-  }
-
-  /** Asks for identity and scope alone, so an instance answers as well as a summary. */
-  private requireInstancePermission(
-    instance: Pick<ViewInstanceSummary, 'id' | 'definitionId' | 'scope'>,
-    action: keyof InstancePermissions,
-  ): void {
-    if (isSystemScope(instance.scope))
-      throw new ViewCommandError(
-        issue('view.system.read-only', [], { action }),
-      );
-    this.requirePermission(
-      this.permissions(instance.definitionId).instance(instance.id)[action],
-      `view.${action}.forbidden`,
-    );
-  }
-
-  private requirePermission(allowed: boolean, code: string): void {
-    if (!allowed) throw new ViewCommandError(issue(code, []));
-  }
-}
-
-function isManagedRuntime(runtime: ViewRuntime): runtime is ManagedViewRuntime {
-  return (
-    runtime instanceof DataViewRuntime ||
-    runtime instanceof DashboardViewRuntime
-  );
-}
-
-function capabilityOf(definition: ViewDefinition, config: ViewConfig): boolean {
-  if (definition.kind !== 'data') return false;
-  return config.kind === 'record'
-    ? definition.record !== undefined
-    : definition.analysis !== undefined;
-}
-
-/**
- * What a panel's view is judged against. An analysis reaches the element
- * fields its config expands, and its filter may already stand on one; the
- * dashboard kernel cannot ask the analysis kernel, so the answer travels
- * with the reference.
- */
-function panelFields(
-  instance: ViewInstance,
-  definition: ViewDefinition,
-): readonly FieldDefinition[] {
-  if (definition.kind !== 'data') return [];
-  const { config } = instance;
-  if (config.kind === 'analysis' && definition.analysis)
-    return [
-      ...analysisScope(definition, definition.analysis, config).fields.values(),
-    ];
-  return definition.fields;
-}
-
-/** Instances a definition declares in code, in declaration order. */
-export function systemInstances(definition: ViewDefinition): ViewInstance[] {
-  return (definition.views ?? []).map(view => ({
-    id: systemInstanceId(definition.id, view.id),
-    definitionId: definition.id,
-    title: view.title,
-    scope: 'system' as const,
-    revision: CODE_REVISION,
-    config: view.config,
-  }));
-}
-
-/**
- * Preferred order first, then whatever the server returned. An id that no
- * longer exists is ignored rather than removed: the next write cleans it up.
- */
-export function orderSummaries(
-  summaries: readonly ViewInstanceSummary[],
-  preferences: ViewPreferences,
-): ViewInstanceSummary[] {
-  const byId = new Map(summaries.map(summary => [summary.id, summary]));
-  const ordered = preferences.order.flatMap(id => {
-    const summary = byId.get(id);
-    if (summary) byId.delete(id);
-    return summary ? [summary] : [];
-  });
-  return [...ordered, ...byId.values()];
 }
