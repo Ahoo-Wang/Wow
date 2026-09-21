@@ -103,9 +103,11 @@ describe('FilterPanel tree editing', () => {
   }
 
   /**
-   * The field picker, opened. It is a checklist in a popover that stays open
-   * while several fields are ticked, so every field question below is asked
-   * of the one dialog rather than of the page.
+   * The field picker, opened. It is a Combobox in multiple mode with its
+   * input inside the popup (a dialog) that stays open while several fields
+   * are ticked, so every field question below is asked of the one dialog
+   * rather than of the page. Its trigger is the primitive's — role
+   * `combobox` with `aria-haspopup="dialog"` — named by the button's text.
    */
   async function openPicker(
     name = 'Add',
@@ -113,7 +115,7 @@ describe('FilterPanel tree editing', () => {
     // one's is reached through the group rather than through the page.
     from: HTMLElement = document.body,
   ): Promise<HTMLElement> {
-    fireEvent.click(within(from).getByRole('button', { name }));
+    fireEvent.click(within(from).getByRole('combobox', { name }));
     return screen.findByRole('dialog', { name: 'Choose filter fields' });
   }
 
@@ -125,7 +127,7 @@ describe('FilterPanel tree editing', () => {
   ): Promise<void> {
     const picker = await openPicker(name, from);
     for (const field of fields)
-      fireEvent.click(within(picker).getByRole('checkbox', { name: field }));
+      fireEvent.click(within(picker).getByRole('option', { name: field }));
     fireEvent.click(within(picker).getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   }
@@ -163,18 +165,16 @@ describe('FilterPanel tree editing', () => {
   it('narrows the fields to what is typed, across every group', async () => {
     panel();
     const picker = await openPicker();
-    const search = within(picker).getByRole('textbox', {
+    const search = within(picker).getByRole('combobox', {
       name: 'Search fields',
     });
 
     fireEvent.change(search, { target: { value: 'sta' } });
 
     await waitFor(() =>
-      expect(within(picker).getAllByRole('checkbox')).toHaveLength(1),
+      expect(within(picker).getAllByRole('option')).toHaveLength(1),
     );
-    expect(
-      within(picker).getByRole('checkbox', { name: 'Status' }),
-    ).toBeTruthy();
+    expect(within(picker).getByRole('option', { name: 'Status' })).toBeTruthy();
   });
 
   /**
@@ -188,13 +188,12 @@ describe('FilterPanel tree editing', () => {
 
     const picker = await openPicker();
 
-    const box = (name: string) =>
-      within(picker).getByRole('checkbox', { name });
+    const box = (name: string) => within(picker).getByRole('option', { name });
     expect(
-      within(picker).getAllByRole('checkbox', { name: 'Warehouse' }),
+      within(picker).getAllByRole('option', { name: 'Warehouse' }),
     ).toHaveLength(1);
-    expect(box('Warehouse').getAttribute('aria-checked')).toBe('true');
-    expect(box('Status').getAttribute('aria-checked')).toBe('false');
+    expect(box('Warehouse').getAttribute('aria-selected')).toBe('true');
+    expect(box('Status').getAttribute('aria-selected')).toBe('false');
   });
 
   /** The other half of the same tick: clearing one takes the condition out. */
@@ -203,9 +202,7 @@ describe('FilterPanel tree editing', () => {
     act(() => filter().addLeaf('warehouse'));
 
     const picker = await openPicker();
-    fireEvent.click(
-      within(picker).getByRole('checkbox', { name: 'Warehouse' }),
-    );
+    fireEvent.click(within(picker).getByRole('option', { name: 'Warehouse' }));
 
     await waitFor(() => expect(filter().tree.children).toHaveLength(0));
   });
@@ -218,10 +215,8 @@ describe('FilterPanel tree editing', () => {
     const { filter } = panel();
 
     const picker = await openPicker();
-    fireEvent.click(
-      within(picker).getByRole('checkbox', { name: 'Warehouse' }),
-    );
-    fireEvent.click(within(picker).getByRole('checkbox', { name: 'Status' }));
+    fireEvent.click(within(picker).getByRole('option', { name: 'Warehouse' }));
+    fireEvent.click(within(picker).getByRole('option', { name: 'Status' }));
 
     expect(
       filter().tree.children.map(child => (child as { field: string }).field),
@@ -257,7 +252,9 @@ describe('FilterPanel tree editing', () => {
 
     // Everything that acts on the tree sits in one row under the tree it
     // acts on.
-    expect(within(actions).getByRole('button', { name: 'Add' })).toBeDefined();
+    expect(
+      within(actions).getByRole('combobox', { name: 'Add' }),
+    ).toBeDefined();
     expect(
       within(actions).getByRole('button', { name: 'Clear' }),
     ).toBeDefined();
@@ -302,7 +299,7 @@ describe('FilterPanel tree editing', () => {
 
     // An editor applied from elsewhere keeps its fields and loses the pair
     // that would run the query a second time.
-    expect(screen.getByRole('button', { name: 'Add' })).toBeDefined();
+    expect(screen.getByRole('combobox', { name: 'Add' })).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Apply/ })).toBeNull();
   });
@@ -389,7 +386,7 @@ describe('FilterPanel tree editing', () => {
     vi.spyOn(filter(), 'submit').mockImplementation(submit);
 
     // Enter on "Add" opens the field picker: one keystroke, one meaning.
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Add' }), {
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Add' }), {
       key: 'Enter',
     });
 
@@ -540,7 +537,7 @@ describe('FilterPanel tree editing', () => {
 
     // Base UI marks the trigger of an open popup, which is the same mark
     // `leavesEditor` reads. While one is open, Enter is its answer to give.
-    const trigger = screen.getByRole('button', { name: 'Add' });
+    const trigger = screen.getByRole('combobox', { name: 'Add' });
     trigger.setAttribute('data-popup-open', '');
     fireEvent.keyDown(value, { key: 'Enter' });
 
@@ -800,9 +797,9 @@ describe('FilterPanel tree editing', () => {
 
     // `warehouse` belongs to the order, not to a line, and a predicate that
     // named it would compile into something Wow cannot answer.
-    expect(within(picker).getByRole('checkbox', { name: 'SKU' })).toBeTruthy();
+    expect(within(picker).getByRole('option', { name: 'SKU' })).toBeTruthy();
     expect(
-      within(picker).queryByRole('checkbox', { name: 'Warehouse' }),
+      within(picker).queryByRole('option', { name: 'Warehouse' }),
     ).toBeNull();
   });
 
@@ -1089,13 +1086,16 @@ describe('FilterPanel tree editing', () => {
       // pair below it did the same two things a second time, so one screen
       // held four entries into one group.
       const root = screen.getByRole('region', { name: 'Filter' });
+      // Two ways in and no more: the field picker (a combobox trigger, since
+      // it opens a searchable list) and the nest-a-group button.
       await waitFor(() =>
-        expect(
-          within(root).getAllByRole('button', { name: /^Add/ }),
-        ).toHaveLength(2),
+        expect([
+          ...within(root).queryAllByRole('combobox', { name: /^Add/ }),
+          ...within(root).queryAllByRole('button', { name: /^Add/ }),
+        ]).toHaveLength(2),
       );
       expect(
-        within(root).getByRole('button', { name: 'Add in this group' }),
+        within(root).getByRole('combobox', { name: 'Add in this group' }),
       ).toBeDefined();
       expect(
         within(root).getByRole('button', { name: 'Add a group' }),
@@ -1105,6 +1105,9 @@ describe('FilterPanel tree editing', () => {
       const actions = document.querySelector(
         '[data-slot="filter-actions"]',
       ) as HTMLElement;
+      expect(
+        within(actions).queryByRole('combobox', { name: /^Add/ }),
+      ).toBeNull();
       expect(
         within(actions).queryByRole('button', { name: /^Add/ }),
       ).toBeNull();
@@ -1122,11 +1125,12 @@ describe('FilterPanel tree editing', () => {
       const actions = document.querySelector(
         '[data-slot="filter-actions"]',
       ) as HTMLElement;
+      expect([
+        ...within(actions).queryAllByRole('combobox', { name: /^Add/ }),
+        ...within(actions).queryAllByRole('button', { name: /^Add/ }),
+      ]).toHaveLength(1);
       expect(
-        within(actions).getAllByRole('button', { name: /^Add/ }),
-      ).toHaveLength(1);
-      expect(
-        within(actions).getByRole('button', { name: 'Add' }),
+        within(actions).getByRole('combobox', { name: 'Add' }),
       ).toBeDefined();
     });
 
@@ -1142,12 +1146,15 @@ describe('FilterPanel tree editing', () => {
       const harness = panel();
       const picker = await openPicker();
 
-      fireEvent.change(within(picker).getByRole('textbox'), {
-        target: { value: 'no such field' },
-      });
+      fireEvent.change(
+        within(picker).getByRole('combobox', { name: 'Search fields' }),
+        {
+          target: { value: 'no such field' },
+        },
+      );
 
       await waitFor(() =>
-        expect(within(picker).queryAllByRole('checkbox')).toHaveLength(0),
+        expect(within(picker).queryAllByRole('option')).toHaveLength(0),
       );
       expect(within(picker).getByText('No field matches')).toBeDefined();
       expect(harness.filter().tree.children).toEqual([]);

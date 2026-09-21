@@ -12,6 +12,7 @@
  */
 
 import { useId, useState } from 'react';
+import { Combobox as ComboboxPrimitive } from '@base-ui/react';
 import { PlusIcon } from 'lucide-react';
 import type { FieldDefinition } from '../../model/index.js';
 import {
@@ -23,18 +24,25 @@ import {
 } from '../../filter/index.js';
 import type { FilterTreeController } from '../../react/index.js';
 import { Button } from '../components/button.js';
-import { Checkbox } from '../components/checkbox.js';
-import { Input } from '../components/input.js';
-import { Label } from '../components/label.js';
 import {
-  Popover,
-  PopoverTitle,
-  PopoverTrigger,
-} from '../components/popover.js';
+  Combobox,
+  ComboboxCollection,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+} from '../components/combobox.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { PopoverContent } from '../popups.js';
-import { TEXT_UI } from '../layout.js';
-import { cn } from 'cn';
+import { ComboboxContent } from '../popups.js';
+
+/** One section of the catalogue as the list draws it: a heading and its fields. */
+interface FieldSection {
+  /** The group's label, or the empty string for the ungrouped fields in front. */
+  value: string;
+  items: FieldDefinition[];
+}
 
 /**
  * The fields of a group, as a list to tick rather than a menu to pick from.
@@ -48,12 +56,18 @@ import { cn } from 'cn';
  * the tick is the condition's existence, and a user who unticks one is
  * asking for it to go.
  *
+ * It is Base UI's `Combobox` in `multiple` mode with the input inside the
+ * popup — "a searchable list the user ticks several things in without it
+ * closing" is exactly that primitive's brief, and it brings what the
+ * hand-written checklist never had: arrow keys and typeahead over the list,
+ * `aria-activedescendant`, a filter that follows the label, grouping, and an
+ * empty state, each of which was either missing or re-implemented here
+ * before (D16). What stays this file's own is the meaning of a tick.
+ *
  * The catalogue is laid out exactly as every other field picker lays it out
  * — ungrouped fields first and without a heading, then each declared group —
  * so a field is found in the same place whether it is being added as a
- * condition, a column or a grouping. Two columns, because a checkbox and a
- * label leave half a row empty and a long catalogue then scrolls twice as
- * far as it needs to.
+ * condition, a column or a grouping.
  */
 export function FieldChecklist({
   filter,
@@ -69,7 +83,7 @@ export function FieldChecklist({
 }) {
   const messages = useViewMessages();
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
+  const titleId = useId();
 
   // Everything the group could hold, in catalogue order: what may still be
   // added, plus what is already there. `fieldsFor` answers only the first
@@ -86,39 +100,77 @@ export function FieldChecklist({
   const candidates = filter.fields.filter(
     field => addable.has(field.name) || held.has(field.name),
   );
-  const needle = query.trim().toLocaleLowerCase();
-  const matching = needle
-    ? candidates.filter(field =>
-        field.label.toLocaleLowerCase().includes(needle),
-      )
-    : candidates;
+  const sections: FieldSection[] = fieldGroups(
+    candidates,
+    filter.fieldGroups,
+    field => field.name,
+  ).map(entry => ({ value: entry.group?.label ?? '', items: entry.items }));
+  const ticked = candidates.filter(field => held.has(field.name));
 
-  const toggle = (field: FieldDefinition, checked: boolean) => {
-    const at = held.get(field.name);
-    if (checked) {
-      if (at === undefined) filter.addLeaf(field.name, parent);
+  // One press changes one field, so the difference between what the list
+  // reports and what the group holds is one addition or one removal. The
+  // tree is the source of truth: the list re-reads it on the next render
+  // rather than keeping a selection of its own.
+  const onValueChange = (next: readonly FieldDefinition[]) => {
+    const chosen = new Set(next.map(field => field.name));
+    const added = next.find(field => !held.has(field.name));
+    if (added) {
+      filter.addLeaf(added.name, parent);
       return;
     }
+    const removed = ticked.find(field => !chosen.has(field.name));
+    const at = removed && held.get(removed.name);
     if (at !== undefined) filter.remove([...parent, at]);
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
+    <Combobox
+      multiple
+      items={sections}
+      value={ticked}
+      onValueChange={onValueChange}
+      isItemEqualToValue={(item, value) => item.name === value.name}
+      itemToStringLabel={field => field.label}
+      open={open}
+      onOpenChange={(next, details) => {
+        // Ticking a field is not leaving the list: the popup stays open on
+        // an item press, and closes on Escape, outside, or Done.
+        if (!next && details.reason === 'item-press') {
+          details.cancel();
+          return;
+        }
+        setOpen(next);
+      }}
+      onInputValueChange={(_value, details) => {
+        // Nor does a tick wipe what was typed: the filter survives the press
+        // and resets when the popup closes, as the primitive has it.
+        if (details.isItemPress) details.cancel();
+      }}
+      disabled={disabled}
+    >
+      {/* The primitive's trigger rather than the vendored `ComboboxTrigger`:
+          that one is a select-like field with a chevron, and this is the
+          "add" button the tray already had — an icon, a word, no chevron. */}
+      <ComboboxPrimitive.Trigger
         aria-label={label}
         render={<Button variant="outline" size="sm" disabled={disabled} />}
       >
         <PlusIcon data-icon="inline-start" />
         {label}
-      </PopoverTrigger>
-      <PopoverContent
+      </ComboboxPrimitive.Trigger>
+      <ComboboxContent
         align="start"
-        className="flex w-(--available-width) max-w-100 flex-col gap-2 p-3"
+        aria-label={messages.label('label.filter.pick-fields')}
+        className="flex w-(--available-width) max-w-100 flex-col"
       >
-        <div className="flex items-center gap-2">
-          <PopoverTitle className="flex-1 truncate text-sm font-medium">
+        <div className="flex items-center gap-2 px-3 pt-3 pb-1">
+          <span
+            id={titleId}
+            data-slot="field-checklist-title"
+            className="flex-1 truncate text-sm font-medium"
+          >
             {messages.label('label.filter.pick-fields')}
-          </PopoverTitle>
+          </span>
           {/* The way out is a button rather than only the Escape key: the
               list stays open on purpose, so it has to say when it is done.
               Base UI puts focus back on the trigger either way. */}
@@ -132,102 +184,40 @@ export function FieldChecklist({
           </Button>
         </div>
 
-        <Input
-          value={query}
-          onChange={event => setQuery(event.target.value)}
-          placeholder={messages.label('label.field.search')}
-          aria-label={messages.label('label.field.search')}
-        />
-
-        {matching.length === 0 ? (
-          <p className="text-muted-foreground py-2 text-sm">
-            {messages.label('label.field.none')}
-          </p>
-        ) : (
-          <div
-            data-slot="field-checklist"
-            className="flex max-h-72 flex-col gap-2 overflow-y-auto"
-          >
-            {fieldGroups(matching, filter.fieldGroups, field => field.name).map(
-              entry => (
-                <FieldColumns
-                  key={entry.group?.id ?? ''}
-                  title={entry.group?.label}
-                  fields={entry.items}
-                  held={held}
-                  disabled={disabled}
-                  onToggle={toggle}
-                />
-              ),
-            )}
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-/** One section of the catalogue: its heading, and its fields in two columns. */
-function FieldColumns({
-  title,
-  fields,
-  held,
-  disabled,
-  onToggle,
-}: {
-  title: string | undefined;
-  fields: readonly FieldDefinition[];
-  held: ReadonlyMap<string, number>;
-  disabled?: boolean;
-  onToggle(field: FieldDefinition, checked: boolean): void;
-}) {
-  const labelId = useId();
-  return (
-    <div role="group" aria-labelledby={title ? labelId : undefined}>
-      {title !== undefined && (
-        <span
-          id={labelId}
-          className={cn('text-muted-foreground px-1', TEXT_UI)}
-        >
-          {title}
-        </span>
-      )}
-      <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-        {fields.map(field => (
-          <FieldCheck
-            key={field.name}
-            field={field}
-            checked={held.has(field.name)}
-            disabled={disabled}
-            onToggle={onToggle}
+        {/* In a box of its own rather than as the popup's direct child: the
+            registry tints an input that sits directly in a combobox popup
+            (`border-input/30`, `bg-input/30`) into a quiet search line, and
+            that edge measures under the 3:1 this package holds text inputs
+            to (WCAG 1.4.11, `styles.css` on `--input`). One level down the
+            input keeps its ordinary border. Layout only; no colour is set. */}
+        <div className="px-3 pb-2">
+          <ComboboxInput
+            showTrigger={false}
+            placeholder={messages.label('label.field.search')}
+            aria-label={messages.label('label.field.search')}
           />
-        ))}
-      </div>
-    </div>
-  );
-}
+        </div>
 
-function FieldCheck({
-  field,
-  checked,
-  disabled,
-  onToggle,
-}: {
-  field: FieldDefinition;
-  checked: boolean;
-  disabled?: boolean;
-  onToggle(field: FieldDefinition, checked: boolean): void;
-}) {
-  const id = useId();
-  return (
-    <Label htmlFor={id} className="min-w-0 py-1 font-normal">
-      <Checkbox
-        id={id}
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={next => onToggle(field, next === true)}
-      />
-      <span className="truncate">{field.label}</span>
-    </Label>
+        <ComboboxEmpty>{messages.label('label.field.none')}</ComboboxEmpty>
+        {/* The listbox is named by the title above it: an ARIA input field
+            without a name is what axe flagged in the browser story. */}
+        <ComboboxList data-slot="field-checklist" aria-labelledby={titleId}>
+          {(section: FieldSection) => (
+            <ComboboxGroup key={section.value} items={section.items}>
+              {section.value !== '' && (
+                <ComboboxLabel>{section.value}</ComboboxLabel>
+              )}
+              <ComboboxCollection>
+                {(field: FieldDefinition) => (
+                  <ComboboxItem key={field.name} value={field}>
+                    <span className="truncate">{field.label}</span>
+                  </ComboboxItem>
+                )}
+              </ComboboxCollection>
+            </ComboboxGroup>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }

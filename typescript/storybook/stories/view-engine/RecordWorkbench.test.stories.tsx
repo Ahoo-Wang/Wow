@@ -2337,9 +2337,7 @@ export const PickSeveralFields: Story = {
       }),
     );
     await userEvent.click(
-      await canvas.findByRole('button', {
-        name: zhCN['label.filter.add'],
-      }),
+      await canvas.findByRole('combobox', { name: zhCN['label.filter.add'] }),
     );
 
     const picker = await within(document.body).findByRole('dialog');
@@ -2347,15 +2345,11 @@ export const PickSeveralFields: Story = {
     // The view's saved condition is already a tick, which is what makes the
     // list a statement about the filter rather than a menu of things to add.
     await expect(
-      within(picker).getByRole('checkbox', { name: '状态' }),
-    ).toBeChecked();
+      within(picker).getByRole('option', { name: '状态' }),
+    ).toHaveAttribute('aria-selected', 'true');
 
-    await userEvent.click(
-      within(picker).getByRole('checkbox', { name: '仓库' }),
-    );
-    await userEvent.click(
-      within(picker).getByRole('checkbox', { name: '金额' }),
-    );
+    await userEvent.click(within(picker).getByRole('option', { name: '仓库' }));
+    await userEvent.click(within(picker).getByRole('option', { name: '金额' }));
     await userEvent.click(
       within(picker).getByRole('button', {
         name: zhCN['label.filter.pick-done'],
@@ -3390,22 +3384,20 @@ const controlBorders = (theme: 'light' | 'dark'): Story => ({
       }),
     );
     await userEvent.click(
-      await canvas.findByRole('button', {
-        name: zhCN['label.filter.add'],
-      }),
+      await canvas.findByRole('combobox', { name: zhCN['label.filter.add'] }),
     );
     const picker = await within(document.body).findByRole('dialog');
-    await userEvent.click(
-      within(picker).getByRole('checkbox', { name: '金额' }),
-    );
+    await userEvent.click(within(picker).getByRole('option', { name: '金额' }));
     // A text input that stands on its own: the picker's search field. The
     // one inside a condition pill is borderless by design (D12 — the pill
     // is the field, and draws the one border), so it is not what 1.4.11
     // asks about; its edge is the pill's.
+    // The picker's search field is a Base UI combobox input inside an
+    // `InputGroup`, which is what draws the border; measure that box.
     const input = measureBorderContrast(
-      within(picker).getByRole('textbox', {
-        name: zhCN['label.field.search'],
-      }),
+      within(picker)
+        .getByRole('combobox', { name: zhCN['label.field.search'] })
+        .closest<HTMLElement>('[data-slot="input-group"]')!,
     );
     // Shut behind itself, so nothing is measured through a popup and axe
     // judges the page as a user would leave it.

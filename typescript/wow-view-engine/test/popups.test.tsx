@@ -76,7 +76,7 @@ afterEach(cleanup);
  */
 async function findFieldPicker(): Promise<Element | null> {
   const title = await screen.findByText('Choose filter fields');
-  return title.closest('[data-slot="popover-content"]');
+  return title.closest('[data-slot="combobox-content"]');
 }
 
 describe('popups carry the theme out of the root', () => {
@@ -100,7 +100,7 @@ describe('popups carry the theme out of the root', () => {
       </ViewSurface>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
     const content = await findFieldPicker();
 
     expect(content?.classList.contains('fve-root')).toBe(true);
@@ -183,7 +183,7 @@ describe('popups carry the theme out of the root', () => {
       </div>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
     return findFieldPicker();
   }
 

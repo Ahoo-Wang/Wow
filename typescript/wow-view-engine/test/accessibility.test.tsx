@@ -335,10 +335,10 @@ describe('the states behind a click pass axe', () => {
     expect(await violations(document.body)).toEqual([]);
   });
 
-  it('the field picker open, which is a popover of checkboxes', async () => {
+  it('the field picker open, which is a multi-select combobox in a dialog', async () => {
     const user = await openEditor();
     await user.click(
-      await screen.findByRole('button', {
+      await screen.findByRole('combobox', {
         name: defaultMessages['label.filter.add'],
       }),
     );

@@ -390,12 +390,12 @@ describe('the view switcher', () => {
       }),
     );
     await user.click(
-      screen.getByRole('button', { name: defaultMessages['label.filter.add'] }),
+      screen.getByRole('combobox', {
+        name: defaultMessages['label.filter.add'],
+      }),
     );
     const picker = await screen.findByRole('dialog');
-    await user.click(
-      within(picker).getByRole('checkbox', { name: 'Warehouse' }),
-    );
+    await user.click(within(picker).getByRole('option', { name: 'Warehouse' }));
     await user.click(
       screen.getByRole('button', {
         name: defaultMessages['label.filter.pick-done'],
