@@ -152,7 +152,7 @@
 
 ## 动作槽位
 
-- 三层业务动作走 render 槽位（`RecordActionSlots`）：`global` 在标题栏，`bulk` 在有选择时的结果工具栏，`row` 在表格最后一列（sticky，滚不走）与卡片页脚，统一裹在 `RowActions` 里。动作是代码——它开表单、发命令、跳页面——所以由宿主交出来，不按字符串键注册，也不进配置：存下来的是"看法"，能对记录做什么属于挂载工作台的那个应用。（见 test/rowActions.test.tsx「RowActions」）
+- 三层业务动作走 render 槽位（`RecordActionSlots`）：`global` 在标题栏，`bulk` 在有选择时的结果工具栏，`row` 在表格最后一列（sticky，滚不走）与卡片页脚，统一裹在 `RowActions` 里。**槽位里的按钮不要用 primary**：同屏唯一的 primary 是编辑带里的 Apply（[版式](#版式三块一套间距一种选项控件)），宿主的全局动作用 `outline`／`secondary`，否则编辑带一展开就是两个 primary。动作是代码——它开表单、发命令、跳页面——所以由宿主交出来，不按字符串键注册，也不进配置：存下来的是"看法"，能对记录做什么属于挂载工作台的那个应用。（见 test/rowActions.test.tsx「RowActions」）
 
 ## 渲染边界
 
