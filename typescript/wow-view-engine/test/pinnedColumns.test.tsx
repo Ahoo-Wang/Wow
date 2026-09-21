@@ -20,6 +20,7 @@ import {
   ACTIONS_COLUMN,
   pinnedSlots,
   SELECT_COLUMN,
+  tablePins,
 } from '../src/ui/record/columns.js';
 
 afterEach(cleanup);
@@ -399,6 +400,22 @@ describe('the pinned group against a narrow port', () => {
     expect(
       names(pinnedSlots(columns, { selectable: true, actions: true })),
     ).toEqual([ACTIONS_COLUMN, 'amount', SELECT_COLUMN, 'id!', 'warehouse']);
+  });
+
+  it("holds a right pin the config asked for beside the host's actions", () => {
+    // Only the projection's own end pin (`end: true`) gives way to the
+    // action column; a pin the config wrote stays, next to it.
+    const held = tablePins([key(), column('amount', 'right')], {
+      selectable: false,
+      actions: true,
+    });
+    const letGo = tablePins(
+      [key(), { ...column('amount', 'right'), end: true }],
+      { selectable: false, actions: true },
+    );
+
+    expect(held.columns.get('amount')?.side).toBe('right');
+    expect(letGo.columns.has('amount')).toBe(false);
   });
 
   it('keeps the key pinned even where it alone is more than half', () => {

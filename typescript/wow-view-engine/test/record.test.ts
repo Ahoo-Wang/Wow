@@ -753,6 +753,32 @@ describe('projectRecord', () => {
   });
 
   /**
+   * `end` means "held right for being last", so a host's action column can
+   * take that place. A column the config pinned right is the last one too —
+   * the right area comes last — but it is held because the config says so,
+   * and it keeps that pin beside the action column. Before, it carried
+   * `end` all the same, and the moment a host added row actions every right
+   * pin vanished from the table while the settings went on saying "pinned".
+   */
+  it('keeps a right pin the config asked for off the end flag', () => {
+    const view = projectRecord(
+      definition(),
+      config({
+        table: {
+          columns: [{ field: 'id' }, { field: 'warehouse', pinned: 'right' }],
+        },
+      }),
+      { total: 0, list: [] },
+    );
+
+    expect(view.columns[1]).toMatchObject({
+      field: 'warehouse',
+      pinned: 'right',
+    });
+    expect(view.columns[1]).not.toHaveProperty('end');
+  });
+
+  /**
    * A column pinned nowhere in particular is a finding the user can fix,
    * and a projection that says "not pinned" in the meantime — never a side
    * the table would then try to stick it to.

@@ -228,9 +228,15 @@ export function projectRecord(
   const end = placed[placed.length - 1];
   const columns = placed.map(place => {
     const primary = place.field === rowKey;
+    // `end` marks the column held right only because it is drawn last — a
+    // column the config pinned right and that happens to be last is held
+    // because the config says so, and keeps that pin beside a host's action
+    // column too (`ui/record/columns.ts`). Any column pinned right is the
+    // last one, so without this every right pin would vanish the moment a
+    // host adds row actions, while the settings went on saying "pinned".
     return columnView(place.definition, place.column, {
       pinned: primary ? 'left' : place === end ? 'right' : place.pinned,
-      end: place === end && !primary,
+      end: place === end && !primary && place.pinned !== 'right',
       primary,
     });
   });

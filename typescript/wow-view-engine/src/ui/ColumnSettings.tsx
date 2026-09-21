@@ -295,7 +295,12 @@ function Region({
                 : table.setColumns(toggled(rows, row)),
             onPin: () =>
               table.setPinned(row.field, nextPin(columnPin(row.pinned))),
-            released: released.fields.has(row.field),
+            // The action column is the host's, not a field: the cap reports
+            // it on its own flag, and its row is marked like any other.
+            released:
+              row.field === ACTIONS_COLUMN
+                ? released.actions
+                : released.fields.has(row.field),
             onSummary: (fn: SummaryFunction | null) =>
               table.setSummary(row.field, fn),
             onMove: (step: -1 | 1) =>

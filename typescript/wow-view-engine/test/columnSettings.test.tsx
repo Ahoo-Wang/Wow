@@ -457,6 +457,26 @@ describe('the column settings popover', () => {
     ).toBe(false);
   });
 
+  it('marks the action column too when the cap let its pin go', async () => {
+    const user = userEvent.setup();
+    open(
+      {},
+      {
+        actions: true,
+        released: { fields: new Set(), select: false, actions: true },
+      },
+    );
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    expect(
+      screen
+        .getByRole('button', {
+          name: `Pinning of Actions: Pinned right · ${defaultMessages['label.columns.pin-released']}`,
+        })
+        .hasAttribute('data-released'),
+    ).toBe(true);
+  });
+
   /**
    * `setPinned` maps the columns the draft holds and `config.summaries` is
    * only shown under a column that is there, so both controls on a hidden
