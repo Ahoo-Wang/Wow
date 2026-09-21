@@ -113,8 +113,11 @@ export function ConditionPill({
   const warned = !invalid && own.some(found => found.severity === 'warning');
   const holdsTree = editor?.input === 'predicate';
   // Two inputs need two cells' room; below two columns there is only the one.
+  // A list of numbers asks for the same room: its values sit beside the field
+  // they are typed into, and in one cell they wrap after the first.
   const wide =
     editor?.range === true ||
+    (editor?.input === 'number' && editor.multiple === true) ||
     editor?.input === 'date' ||
     editor?.input === 'dateRange' ||
     editor?.input === 'relativeDate';

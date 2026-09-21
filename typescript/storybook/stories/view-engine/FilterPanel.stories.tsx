@@ -110,13 +110,29 @@ const simpleView: ViewInstance = {
   }),
 };
 
+/**
+ * A numeric `IN`, which takes as many values as the kernel compiles rather
+ * than the two a range has ends.
+ */
+const numberListView: ViewInstance = {
+  ...savedViews[0],
+  id: 'orders-number-list',
+  title: '数值多选',
+  config: recordConfig({
+    filter: {
+      op: 'and',
+      children: [{ field: 'amount', operator: 'IN', value: [100, 1200, 5000] }],
+    },
+  }),
+};
+
 function FilterPanelDemo({ instanceId }: { instanceId: string }) {
   return (
     <StoryEngine
       create={() =>
         createStoryEngine({
           definitions: [withItems],
-          instances: [richView, simpleView],
+          instances: [richView, simpleView, numberListView],
         })
       }
     >
@@ -164,3 +180,10 @@ export const Advanced: Story = { args: { instanceId: 'orders-rich' } };
 
 /** Simple mode: the root's conditions as one strip, nothing else. */
 export const Simple: Story = { args: { instanceId: 'orders-simple' } };
+
+/**
+ * A numeric `IN` as a list that grows: one chip per value with a remove
+ * button of its own, an entry field, and the button that commits it. Unfold
+ * 筛选 in the title bar to type a fourth value.
+ */
+export const NumberList: Story = { args: { instanceId: 'orders-number-list' } };

@@ -26,6 +26,7 @@ import {
   DashboardWorkbench,
   defaultMessages,
   EmbeddedView,
+  formatMessage,
   RecordPagination,
   RecordWorkbench,
   useViewExpansion,
@@ -74,6 +75,25 @@ const sortedOrders: ViewInstance = {
       { field: 'id', direction: 'ASC' },
     ],
     summaries: [{ field: 'amount', fn: 'SUM' }],
+  }),
+};
+
+/**
+ * A numeric `IN`, which is a list rather than a pair of ends: one chip per
+ * value with a remove button of its own, an entry field, and the button that
+ * commits what is in it.
+ */
+const amountsIn: ViewInstance = {
+  id: 'amounts',
+  definitionId: 'orders',
+  title: 'Amounts',
+  scope: 'shared',
+  revision: '1',
+  config: recordConfig({
+    filter: {
+      op: 'and',
+      children: [{ field: 'amount', operator: 'IN', value: [100, 200, 300] }],
+    },
   }),
 };
 
@@ -203,18 +223,31 @@ describe('the open view names the region it is drawn in', () => {
  */
 describe('the states behind a click pass axe', () => {
   /** The record workbench, opened on a view with rows on screen. */
-  async function workbench() {
+  async function workbench(instance: ViewInstance = pendingOrders) {
     const user = userEvent.setup();
     render(
       <ViewSurface>
         <RecordWorkbench
-          engine={engineWith([pendingOrders])}
+          engine={engineWith([instance])}
           definitionId="orders"
-          instanceId="pending"
+          instanceId={instance.id}
         />
       </ViewSurface>,
     );
     await screen.findByRole('table');
+    return user;
+  }
+
+  /** The editor unfolded, which is where the condition pills are. */
+  async function openEditor(instance?: ViewInstance) {
+    const user = await workbench(instance);
+    // A saved view opens with the editor folded, so the panel is not in the
+    // document until the title bar's toggle is pressed.
+    await user.click(
+      screen.getByRole('button', {
+        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+      }),
+    );
     return user;
   }
 
@@ -275,15 +308,24 @@ describe('the states behind a click pass axe', () => {
     expect(await violations(document.body)).toEqual([]);
   });
 
-  it('the field picker open, which is a popover of checkboxes', async () => {
-    const user = await workbench();
-    // The editor opens folded on a saved view, so the panel is not in the
-    // document until the title bar's toggle is pressed.
-    await user.click(
-      screen.getByRole('button', {
-        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+  /**
+   * A numeric `IN` is a list that grows, and every part of it is a control
+   * with a name to get wrong: a chip per value carrying its own remove
+   * button, the entry field, and the button that commits what is in it.
+   */
+  it('the editor open on a numeric IN of several values', async () => {
+    await openEditor(amountsIn);
+    await screen.findByRole('button', {
+      name: formatMessage(defaultMessages, 'label.filter.remove-value', {
+        value: '200',
       }),
-    );
+    });
+
+    expect(await violations(document.body)).toEqual([]);
+  });
+
+  it('the field picker open, which is a popover of checkboxes', async () => {
+    const user = await openEditor();
     await user.click(
       await screen.findByRole('button', {
         name: defaultMessages['label.filter.add'],

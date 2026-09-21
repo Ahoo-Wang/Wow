@@ -11,10 +11,14 @@
  * limitations under the License.
  */
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, waitFor, within } from 'storybook/test';
-import { defaultMessages } from '@ahoo-wang/fetcher-view-engine/ui';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
+import {
+  defaultMessages,
+  formatMessage,
+} from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   Advanced as DisplayAdvanced,
+  NumberList as DisplayNumberList,
   Simple as DisplaySimple,
 } from './FilterPanel.stories.js';
 import { amountOf, readColumn, readTotal } from './readTable.js';
@@ -90,5 +94,53 @@ export const Advanced: Story = {
       // operator it holds them by.
       '商品行 has an entry where All of SKU eq A-1, 数量 gt 2',
     ]);
+  },
+};
+
+/**
+ * A numeric `IN` takes as many values as the kernel compiles. The editor used
+ * to borrow the range's pair of boxes, so a third value had nowhere to go —
+ * and only a test that types into the editor catches that, because the kernel
+ * itself never refused the array.
+ */
+export const NumberList: Story = {
+  ...DisplayNumberList,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // A saved view opens with its editor folded.
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+      }),
+    );
+
+    const removes = () =>
+      canvas
+        .queryAllByRole('button', { name: /^Remove \d/ })
+        .map(button => button.getAttribute('aria-label'));
+    const remove = (value: number) =>
+      canvas.getByRole('button', {
+        name: formatMessage(defaultMessages, 'label.filter.remove-value', {
+          value: String(value),
+        }),
+      });
+
+    // Three values, which the two boxes of a range could never have held.
+    await waitFor(() =>
+      expect(removes()).toEqual(['Remove 100', 'Remove 1200', 'Remove 5000']),
+    );
+
+    // A fourth, entered by hand: Enter commits it and clears the field, and
+    // it does not double as the panel's apply.
+    const entry = canvas.getByLabelText('New 金额 value');
+    await userEvent.type(entry, '8888{Enter}');
+    await waitFor(() => expect(removes()).toContain('Remove 8888'));
+    await expect(entry).toHaveValue(null);
+
+    // And one taken back out, by the button that names it.
+    await userEvent.click(remove(1200));
+    await waitFor(() =>
+      expect(removes()).toEqual(['Remove 100', 'Remove 5000', 'Remove 8888']),
+    );
   },
 };
