@@ -60,4 +60,55 @@
 出现「已修改」；导出窗口在 20 列上是 365×294、列清单四行读完不滚；排序弹层
 列齐三条并只提供剩下四个可排序字段；卡片布局 3 × 214px 无横向溢出）。
 
+## 阶段 1 审计（2026-09-21）：布局与记录视图的 review
+
+这一组来自 2026-09-21 对 `main`（#1660 之后）做的阶段 1 审计——三份报告（体验与视觉、功能与宿主集成、架构与测试）合成一张清单，十二个产品拍板已记为 [decisions.md#D18](decisions.md#d18-阶段一审计的十二条裁定2026-09-21)。编号沿用那张清单（F 缺陷、P 打磨、A 架构）；每条的判据以本页开头的基线读，只取适用的几项。**先看后改**对这一组同样成立。已合并的（A-01、F-02、F-03）与已开 PR 的（F-08／09／10／12／13／15／16／17／18）不在这里，进度见 [progress.md](progress.md)。
+
+### 缺陷（先做）
+
+- **F-01 侧栏／新建视图**（拍板 Ⅰ 与 Ⅱ）：整个包没有「新建视图」入口，定义不声明 `views` 且 store 为空时主列整块不渲染。判据：`useWorkbench.create(kind)` 走 `engine.create`；侧栏头 `+`、空态按钮、切换器菜单三处入口；新视图编辑带默认展开；按 `defaultRecordConfig` 起草；样例与故事各一条；入口的形态按阶段 2「记录与分析同一列表切换」的方向设计。落点：`src/react/useWorkbench.ts`、`src/ui/ViewList.tsx`、`src/ui/ViewSwitcher.tsx`、[management.md](management.md)。
+- **F-04 筛选／reference 与远程候选**：`reference` 值是 `{items:[{id,label}]}`，UI 直接交给 `OptionValue`／`TextValue`，选一个候选就把叶子写成数组、Apply 与 Save 双双被挡；已存 label 读不出来；运行时定义好的 `OptionSource`（search／resolve／cursor／AbortSignal）在 UI 里一次都没被调用。判据：`RemoteValue` 做值适配并走 `engine.resolveOptions`：`Combobox multiple` + 防抖搜索 + 加载更多 + 加载／空／失败三态；`optionsFor` 保留为全量近路；`OptionValue` 换 `Combobox multiple`；UI 回归与故事（cursor 源）。落点：`src/ui/filter/inputs/`、`src/ui/FilterValueEditor.tsx`、[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)。
+- **F-05 侧栏／列表失败**：store 一抛错，代码声明的系统视图一起丢；保存后重读失败 → 侧栏清空 → 默认视图变 null → runtime 被释放，未保存草稿静默消失且不经离开守卫；失败原因、`preferencesError`、`definitionIssues` 都不显示。判据：`engine.list` 用 allSettled 语义并报 Issue；`useViewList` 失败时保留上一份；空态显示原因 + 重试；偏好与定义错误并入状态行。落点：`src/runtime/viewEngine.ts`、`src/react/useViewList.ts`、[management.md](management.md)。
+- **F-06 筛选／未注册 kind**：红 pill 没有值编辑器、空的操作符下拉、解释句被滤掉；添加列表仍列出该字段；`FilterValueEditor` 的 `default:` 静默退回文本框，与 [extension.md](extension.md) 承诺相反。判据：无 editor 时画只读原值 + `label.filter.kind-unregistered`；`addableFields` 按注册表过滤；`default:` 改为只读 + Issue；文档对齐。落点：`src/ui/filter/`、`src/ui/FilterValueEditor.tsx`、[extension.md](extension.md)。
+- **F-07 卡片布局**（拍板 Ⅴ 与 Ⅵ）：零行时空 grid，无空态／骨架／出口；`config.card` 没有任何编辑器，列设置按钮在卡片下按了不动；卡片标题的值读法与表格不同；切卡片后汇总行整块消失且不说明。判据：接入空态与骨架；列设置按布局换内容（卡片下编辑 `config.card`）；卡片标题改走 `cellValue`；`RecordCards` 加同签名 `renderCell`；卡片下保留汇总行。落点：`src/ui/RecordCards.tsx`、`src/ui/ColumnSettings.tsx`、[ui/record.md](ui/record.md)。
+- **F-11 侧栏／折叠判定**：只在挂载时量一次，1280 挂载后拖到 608 侧栏仍展开并堆到工作区上方；反向也不回来。判据：`ResizeObserver` 跟随宽度，用户按过折叠后以其选择为准；文档改写「量一次」。落点：`src/ui/WorkbenchShell.tsx`、[ui/README.md](ui/README.md)。
+- **F-14 状态行与结果块**：配置跑不起来时画一圈空外框只装工具栏且导出仍可按；只有一条 error 也折叠成「还有 1 条」且无修法出口；失败条右缘被裁 22px；失败时红条在工具栏之上，与 D12「工具栏是第一行」矛盾。判据：无结果且无在途时不画结果块；单条 error 直接说 + 「打开列设置」动作；`LineAlert` 宽按容器；strips 槽顺序改为工具栏在上。落点：`src/ui/workbench/ResultBlock.tsx`、`src/ui/alerts.tsx`、[ui/record.md](ui/record.md)。
+
+### 打磨
+
+- **P-01 标题栏 ↺**：还原整份草稿无确认、无撤销，而同样丢草稿的切视图要弹确认。判据：↺ 走 `AlertDialog`（与离开守卫同形），或还原后留 5 秒「已还原 · 撤销」。落点：`src/ui/ViewHeader.tsx`。
+- **P-02 表头／列宽把手**：每列一个 Tab 站，20 列就是 20 个。判据：把手 `tabindex=-1`，表头 roving 组 + Alt+←/→。落点：`src/ui/record/ColumnResizer.tsx`、`SortableHeader.tsx`。
+- **P-03 字段选择表**：单列、未选项无勾选指示，看起来像单选菜单；文档说两列复选框。判据：未选项画空勾选框，宽处两列。落点：`src/ui/filter/FieldChecklist.tsx`、[ui/README.md#字段目录与选择器分组](ui/README.md#字段目录与选择器分组)。
+- **P-04 多值录入框**：chips 后的录入框无 placeholder、无 `inputMode`；文档说的「添加按钮」不存在。判据：placeholder + `inputMode=decimal`；文档删掉按钮那半句。落点：`src/ui/filter/inputs/chips.tsx`。
+- **P-05 工具栏左端**：「清除选择」是 ghost，读起来像标签不像按钮。判据：outline，或做成徽章旁的 ✕ 图标按钮。落点：`src/ui/ResultToolbar.tsx`。
+- **P-06 动效**：包级没有 `prefers-reduced-motion`。判据：`styles.css` 两个边界里加一条 reduce 规则；文档改写。落点：`src/styles.css`、[ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。
+- **P-07 筛选托盘／高级**：高级模式托盘约 620px 高，800×900 上结果整个掉出首屏。判据：封顶（`max-h-[40vh] overflow-auto`）或多条件时默认折起内层分组。落点：`src/ui/FilterPanel.tsx`、[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)。
+- **P-08 收起侧栏后的标题**：定义名 16→14px、视图名 16→13px，两级标题被压成一级半。判据：`definition-title` 16/600，切换器 14/500。落点：`src/ui/ViewHeader.tsx`。
+- **P-09 标题栏分隔线**：1×16px、`--border` 约 1.2:1 基本看不见。判据：提到 20–24px 用 `--input`，或用间距说话不画线。落点：`src/ui/ViewHeader.tsx`。
+- **P-10 已应用条／徽章**：outline 徽章的边是 `--border`（≈1.2:1），表内徽章已改 `--input`，这里没改。判据：`ToneBadge` outline 档换 `--input`。落点：`src/ui/variants.tsx`。
+- **P-11 表格／宽屏**：四列表在 1600 下金额列 547px。判据：表 `max-width` 或末尾一个吃余量的空列。落点：`src/ui/RecordTable.tsx`、[ui/record.md](ui/record.md)。
+- **P-12 「无法打开」那一屏**：切换器标签空白，定义名在任何宽度都不显示。判据：占位标签「选择视图」；把该分支放进 `@container/header`。落点：`src/ui/workbench/Unopenable.tsx`。
+- **P-13 打开视图时**：整页只有一条 `h-8` 骨架。判据：标题栏 + 结果块骨架，结构与打开后一致。落点：`src/ui/WorkbenchShell.tsx`。
+- **P-14 分页**（拍板 Ⅷ）：只能一页页翻。判据：总数已知时给页码输入。落点：`src/ui/RecordPagination.tsx`。
+- **P-15 筛选／取反**（拍板 Ⅶ）：简单模式写不出「不在这段时间内」。判据：pill 上的取反开关，写成 `nor`。落点：`src/ui/filter/ConditionPill.tsx`、`src/filter/`、[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)。
+- **P-16 离开保护**（拍板 Ⅸ）：关标签／后退丢草稿。判据：草稿脏或未知时挂 `beforeunload`，嵌入模式关闭。落点：`src/ui/LeaveGuard.tsx`、`src/react/useWorkbench.ts`、[ui/README.md#离开保护](ui/README.md#离开保护)。
+- **P-17 产品可配置项**（拍板 Ⅺ）：每页条数／刷新梯子／默认列数是模块常量；只有 `expandable` 一个开关；空结果动作写死。判据：梯子进 `RuntimeLimits`；`features` props；空结果动作提成 prop；权限留阶段 6。落点：`src/react/useAutoRefresh.ts`、`src/react/useRecordTable.ts`、`src/ui/RecordWorkbench.tsx`。
+- **P-18 宿主集成**：批量动作每个宿主重写 87 行；`FetcherViewStore` 示例 253 行且没实现 `permissions`；参考宿主复制整份定义的过时变通。判据：`useBulkCommand` + 标准结局条；端口 `remote` 拆两个成员、`revision` 对齐、示例补 `permissions`；删过时变通。落点：`src/react/`、`examples/`。
+- **P-19 文案**：文档引文与目录不一致（「新视图」vs「尚未保存」、「N 条」vs「N 项」）；`label.refresh.on` 多一个空格。判据：统一量词、修目录。落点：`src/ui/messages/`。
+
+### 架构与测试（零行为变化，防腐化）
+
+- **A-02 `SaveActionsProps`**：声明并写了 doc 的 `onRenamed/onDeleted/onRecovered` 组件根本不解构；同组回调透传两遍。判据：删三个 prop，只传给 `WriteOutcome`；抽 `ViewWriteCallbacks`。落点：`src/ui/SaveActions.tsx`。
+- **A-03 `writes.ts` 的「nowhere else」**：写入结局规则在 `SaveActions`、`leaveGuard`、`outcomes.ts` 各重写一次。判据：导出 `unsettled()`，三处改调 `blocksNewIntent`／`holdsHandle`。落点：`src/react/writes.ts`。
+- **A-04 同名不同义**：两个 `ACTIONS_COLUMN`、两个 `ColumnPin`；`AGENTS.md` 的目录树漏了 62 个文件含三个整目录。判据：改名 + 重新生成目录树（脚本化）。落点：`src/ui/record/`、`src/ui/columns/`、`AGENTS.md`。
+- **A-05 三份拖动把手、三份放下守卫**：视图管理／列设置／排序各一份逐字相同的把手与 `STEP`，两份 `DropOperation`。判据：抽 `ui/DragHandle.tsx` 与 `dropped()`，三处改调。落点：`src/ui/`。
+- **A-06 `useFilterEditor`**：同一文件把 `FilterTreeController` 实现了两遍，嵌套编辑器走的是不显眼的那份。判据：`treeController` 加 `current()`，hook 复用它删掉九个重复实现。落点：`src/react/useFilterEditor.ts`。
+- **A-07 零行为小收口批次**：三处 `hasResult`、三份 `GROUPS`、三处路径谓词、四次重建 `RecordColumn`、四处 `notify`、三段同样的 Badge、六个只自用的 export、五条过时／说反的注释、死 eslint 配置、三处指向已删测试文件的「见 test/…」。判据：合成一到两个 PR，全程不该有屏幕差异。落点：分散，见审计报告。
+- **A-08 `RecordWorkbench` 导出**：render 期间读时钟算文件名，窗口里承诺的名字与交出去的可能跨午夜不同（违背 D14）。判据：文件名在打开窗口时定下，`deliver` 用同一值。落点：`src/ui/ExportDialog.tsx`。
+- **A-09 jsdom 里的 className 断言（159 处）**：断言 Tailwind 类名证明不了回归，且会在把颜色搬进 cva 时整片变红；表格上色配方在两个文件重复五次。判据：先把断言改成 `data-slot`／状态／可达名；再抽 `StickyTableLayer` 等封装；文档承认第四落点。顺序不能反。落点：`test/`、`src/ui/record/`。
+- **A-10 覆盖洞与无合同测试**：`RecordCards` 78% 全包最低、`ColumnResizer` 指针拖动整段未覆盖、`useWorkbench.onRecovered` 从未被调用；`ViewSwitcher` 与 `ExportDialog` 没有直接测试。判据：补五处。落点：`test/`。
+- **A-11 测试质量**：14 处 `waitFor(async …)` 每 50ms 重发 store 请求；七个测试文件在 1200 行绊线的 83–92%；文案目录只查正向，两条死 key。判据：整改 waitFor；拆 `recordTable`／`viewManagerUi`；反向 key 检查。落点：`test/`。
+- **A-12 `display.ts`**：435/500，值显示与已应用条措辞两件事共用一个文件。判据：措辞搬去 `ui/summary.ts`。落点：`src/ui/display.ts`。
+- **A-13 `ViewSource`**：手写的结构等价物，不从 wow 的 `QueryApi` 推导。判据：`Pick<QueryApi,…>` 或架构测试里加一条可赋值断言。落点：`src/runtime/source.ts`、`test/architecture.test.ts`。
+
 ## 小修
