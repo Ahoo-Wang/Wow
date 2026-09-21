@@ -1,0 +1,80 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import type { HeatmapData } from '../../analysis/index.js';
+import { cn } from 'cn';
+import { useViewMessages } from '../MessagesProvider.js';
+import { labelOf, type FamilyProps } from './family.js';
+
+/**
+ * A grid rather than a chart library: a heatmap is cells with a background,
+ * and every library's version of that costs more than it saves.
+ */
+export function Heatmap({
+  data,
+  spec,
+  className,
+  label,
+}: FamilyProps<HeatmapData>) {
+  const messages = useViewMessages();
+  const values = data.cells
+    .flat()
+    .filter((cell): cell is number => cell !== null);
+  const max = values.length > 0 ? Math.max(...values) : 0;
+  const min = values.length > 0 ? Math.min(...values) : 0;
+  const span = max - min || 1;
+
+  return (
+    <div
+      data-slot="heatmap"
+      className={cn('flex flex-col gap-1 overflow-x-auto', className)}
+    >
+      {data.ys.map((y, row) => (
+        <div key={labelOf(y) || row} className="flex items-center gap-1">
+          <span className="text-muted-foreground w-24 shrink-0 truncate text-xs">
+            {label(spec?.heatmap?.y, y)}
+          </span>
+          {data.xs.map((x, column) => {
+            const cell = data.cells[row]?.[column] ?? null;
+            return (
+              <div
+                key={labelOf(x) || column}
+                title={messages.label('label.chart.cell', {
+                  y: label(spec?.heatmap?.y, y),
+                  x: label(spec?.heatmap?.x, x),
+                  value: cell ?? messages.label('label.summary.unavailable'),
+                })}
+                className="bg-primary size-8 shrink-0 rounded-sm"
+                style={{
+                  opacity:
+                    cell === null ? 0.06 : 0.15 + ((cell - min) / span) * 0.85,
+                }}
+              />
+            );
+          })}
+        </div>
+      ))}
+      <div className="flex items-center gap-1">
+        <span className="w-24 shrink-0" />
+        {data.xs.map((x, column) => (
+          <span
+            key={labelOf(x) || column}
+            className="text-muted-foreground w-8 shrink-0 truncate text-center text-xs"
+          >
+            {label(spec?.heatmap?.x, x)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}

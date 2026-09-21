@@ -199,7 +199,14 @@ src/
     ResultToolbar.tsx             — Selection, bulk slot, layout, columns, refresh
     RowActions.tsx, RecordPagination.tsx
     RecordTable.tsx, RecordCards.tsx
-    AnalysisTable.tsx, AnalysisChart.tsx, AnalysisEditor.tsx
+    AnalysisTable.tsx, AnalysisEditor.tsx
+    AnalysisChart.tsx             — Dispatches by chart family; nothing else
+    charts/                       — One file per family, plus what they share
+      Cartesian.tsx, PieSlices.tsx, ScatterPoints.tsx,
+      Heatmap.tsx, Funnel.tsx, MetricCard.tsx
+      palette.ts                    — Slot colours and the spec's overrides
+      axis.ts                       — Value format, axis domain and ticks
+      family.ts                     — `FamilyProps` and the category labeller
     DashboardGrid.tsx, DashboardPanels.tsx
     FilterPanel.tsx               — Condition builder root: mode, focus boundary, actions row
     FilterValueEditor.tsx         — The switch over `EditorDescriptor.input`; the only place that knows the union

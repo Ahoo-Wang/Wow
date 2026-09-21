@@ -50,8 +50,6 @@ const maxLinesWaivers = [
   { file: 'src/analysis/validate.ts', lines: 701 },
   // 抽走 writeLedger 之后仍是注册表 + 打开/创建 + 偏好缓存 —— todo.md「R9」
   { file: 'src/runtime/viewEngine.ts', lines: 635 },
-  // 六个图表家族的渲染器与调色、坐标轴工具同居一处 —— todo.md「R10」
-  { file: 'src/ui/AnalysisChart.tsx', lines: 599 },
   // 十个顶层 describe，从 defaults 一路盖到图表投影 —— todo.md「R12」
   { file: 'test/analysis.test.ts', lines: 1882 },
   // 十一个钩子的套件挤在一个文件里 —— todo.md「R13」
