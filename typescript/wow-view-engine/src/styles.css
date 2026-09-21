@@ -587,6 +587,18 @@
   }
 
   /*
+   * The corner is a real control now, and upstream only paints it while a
+   * pointer is over the panel — so a keyboard reaching it would land on a
+   * 20px square of nothing. Focus shows it, and rings it like every other
+   * control here.
+   */
+  .fve-root .react-grid-item > .react-resizable-handle:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+
+  /*
    * Axis ticks. The registry's chart container styles them through
    * `.recharts-cartesian-axis-tick text`, but recharts 3 no longer wraps a tick
    * in that class, so the rule matches nothing and the ticks keep the

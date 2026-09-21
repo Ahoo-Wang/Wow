@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, waitFor, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   AllPanels as DisplayAllPanels,
+  EditableLayout as DisplayEditableLayout,
   EmptyDashboard as DisplayEmptyDashboard,
   GlobalFilter as DisplayGlobalFilter,
   PanelUnavailable as DisplayPanelUnavailable,
@@ -91,6 +92,53 @@ export const QueryFailed: Story = {
     await expect(
       canvas.getByRole('link', { name: '出库异常处理' }),
     ).toBeVisible();
+  },
+};
+
+/**
+ * The keyboard path, in a real browser.
+ *
+ * jsdom already holds the contract — `test/dashboardUi.test.tsx` presses the
+ * arrows on both handles and reads `controller().panels[0].layout` back. The
+ * two things it cannot hold are the two this story is for. jsdom lays nothing
+ * out, so every box is 0×0 at the origin and a panel that moved is
+ * indistinguishable from one that did not; and it applies no stylesheet, so
+ * the corner upstream paints only while a pointer is over the panel would
+ * look reachable whether or not focus shows it.
+ *
+ * The panel is measured against the grid rather than in pixels: applying a
+ * placement re-runs the panels, and the container is re-measured as their
+ * contents settle, so two pixel widths taken either side of a keypress are
+ * not comparable. Where the panel starts within the grid is.
+ */
+export const KeyboardLayout: Story = {
+  ...DisplayEditableLayout,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const grip = canvas.getByLabelText(
+      zhCN['label.panel.move'].replace('{title}', '待出库明细'),
+    );
+    const panel = grip.closest('.react-grid-item') as HTMLElement;
+    const grid = canvasElement.querySelector(
+      '[data-slot="dashboard-grid"]',
+    ) as HTMLElement;
+    /** How far into the grid the panel starts, as a fraction of its width. */
+    const from = () =>
+      (panel.getBoundingClientRect().left - grid.getBoundingClientRect().left) /
+      grid.getBoundingClientRect().width;
+
+    // The first column, give or take the grid's own padding.
+    await expect(from()).toBeLessThan(0.03);
+    grip.focus();
+    await userEvent.keyboard('{ArrowRight}');
+    // The second, once the grid has finished sliding it there.
+    await waitFor(() => expect(from()).toBeGreaterThan(0.06));
+
+    const corner = within(panel).getByLabelText(zhCN['label.panel.resize']);
+    corner.focus();
+    // Upstream keeps the corner at `opacity: 0` until a pointer is over the
+    // panel; a keyboard that can reach it must be able to see it.
+    await expect(getComputedStyle(corner).opacity).toBe('1');
   },
 };
 

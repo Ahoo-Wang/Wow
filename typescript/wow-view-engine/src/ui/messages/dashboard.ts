@@ -19,7 +19,23 @@ export const dashboardMessages = {
     'Add a saved record or analysis view to see it here.',
   'label.panel.unavailable': 'This panel is unavailable',
   'label.panel.unavailable-hint': 'The view it shows could not be opened.',
-  'label.panel.move': 'Move panel',
+  // Placing a panel: the two handles, the menu that says the same commands
+  // in words, and what a keyboard hears once a command has landed.
+  'label.panel.move': 'Move {title} with the arrow keys',
+  'label.panel.resize': 'Resize this panel with the arrow keys',
+  'label.panel.arrange': 'Place {title}',
+  'label.panel.arrange-move': 'Move',
+  'label.panel.arrange-size': 'Size',
+  'label.panel.move-up': 'Move up',
+  'label.panel.move-down': 'Move down',
+  'label.panel.move-left': 'Move left',
+  'label.panel.move-right': 'Move right',
+  'label.panel.wider': 'Wider',
+  'label.panel.narrower': 'Narrower',
+  'label.panel.taller': 'Taller',
+  'label.panel.shorter': 'Shorter',
+  'label.panel.placed':
+    '{title} is at column {column}, row {row}, {w} columns by {h} rows',
 
   // Dashboard kernel.
   'dashboard.binding.global-duplicate':

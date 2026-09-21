@@ -209,6 +209,7 @@ src/
       axis.ts                       — Value format, axis domain and ticks
       family.ts                     — `FamilyProps` and the category labeller
     DashboardGrid.tsx, DashboardPanels.tsx
+    DashboardArrange.tsx          — Placing a panel without a pointer: the two named handles, and the menu
     FilterPanel.tsx               — Condition builder root: mode, focus boundary, actions row
     FilterValueEditor.tsx         — The switch over `EditorDescriptor.input`; the only place that knows the union
     filter/                       — What the panel is made of

@@ -91,5 +91,3 @@
 - **隐藏字段排不了序**——为什么：配置只记已显示的列，所以列设置里隐藏的那几行没有顺序可拖，勾上之后一律落在中间区末尾；想把一个字段放到第三列，得先勾上再拖一次。判据：想清楚"隐藏字段的位置"要不要进配置（这是一个模型问题，先在 [decisions.md](decisions.md) 里给结论），若要，则 `table.columns` 增加 `hidden?: true` 一类的表达，`projectRecord` 跳过它们，列设置对隐藏行照常开放拖拽。落点：[model.md](model.md)、`src/record/project.ts`、`src/ui/columns/rows.ts`。
 
 ## 小修
-
-- **仪表盘的编排只有鼠标能用**——为什么：`EditableLayout` 上量到三个 `.react-resizable-handle` 全是裸 `div`，**没有一个 `tabindex ≥ 0`**，也没有 `role` 与 `aria-label`；可拖的 `.react-grid-item` 同样没有 `role`／`tabindex`／`aria-label`；面板头上也没有"移动／调整大小"之类的菜单。面板的位置和大小只能用指针改，键盘完全没有入口。Dashboard 编排不在本轮范围，所以记在这里而不是[打磨](#打磨先看后改不凭想象改)——它不是难看，是一整块能力对键盘不存在。判据：移动与缩放各有键盘等价物（库的键盘传感器，或面板菜单里的一组命令），手柄有名字；`test/dashboardUi.test.tsx` 覆盖键盘改位置与改大小各一条——它已经在 jsdom 里驱动这张网格并断言 `controller().panels[0].layout`，键盘改的是同一个 layout，所以这一条不必上浏览器。落点：`src/ui/DashboardGrid.tsx`、`test/dashboardUi.test.tsx`、[ui/dashboard.md](ui/dashboard.md)。

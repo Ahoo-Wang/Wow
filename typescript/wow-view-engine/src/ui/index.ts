@@ -25,6 +25,7 @@ export * from './AnalysisTable.js';
 export * from './AnalysisWorkbench.js';
 export * from './AppliedBar.js';
 export * from './ColumnSettings.js';
+export * from './DashboardArrange.js';
 export * from './DashboardGrid.js';
 export * from './DashboardPanels.js';
 export * from './DashboardWorkbench.js';

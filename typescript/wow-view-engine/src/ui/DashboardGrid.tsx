@@ -11,20 +11,21 @@
  * limitations under the License.
  */
 
+import { useState, type Ref } from 'react';
 import { cn } from 'cn';
 import GridLayout, {
   noCompactor,
   useContainerWidth,
   type Layout,
+  type ResizeHandleAxis,
 } from 'react-grid-layout';
 import {
-  GripVerticalIcon,
   LayoutDashboardIcon,
   TriangleAlertIcon,
   UnplugIcon,
 } from 'lucide-react';
 import type { AnalysisView } from '../analysis/index.js';
-import type { Issue } from '../model/index.js';
+import { DASHBOARD_GRID_COLUMNS, type Issue } from '../model/index.js';
 import type {
   DashboardController,
   DashboardPanelView,
@@ -37,6 +38,13 @@ import {
 import type { DataViewRuntime, RecordViewRuntime } from '../runtime/index.js';
 import { AnalysisChart } from './AnalysisChart.js';
 import { AnalysisTable } from './AnalysisTable.js';
+import {
+  arrangeLayout,
+  PanelArrangeMenu,
+  PanelGrip,
+  PanelResizeHandle,
+  type ArrangeStep,
+} from './DashboardArrange.js';
 import { ContentPanel } from './DashboardPanels.js';
 import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
 import { IconTooltip } from './IconButton.js';
@@ -92,8 +100,32 @@ export function DashboardGrid({
   // and it coalesces a burst of resizes into one frame.
   const { containerRef, width } = useContainerWidth();
   const messages = useViewMessages();
+  // What the last keyboard command did, said once. A pointer sees the panel
+  // move under it; a keyboard has only the layout, which is not on screen,
+  // so the new place is read out. It starts empty, so opening a dashboard
+  // announces nothing.
+  const [arranged, setArranged] = useState('');
   const placed = (next: Layout) => {
     if (editable) dashboard.place(next.map(toPlacement));
+  };
+
+  /** One keyboard command: the same edit and apply a gesture lands. */
+  const arrange = (panelId: string, step: ArrangeStep) => {
+    const panel = dashboard.panels.find(found => found.id === panelId);
+    if (!panel) return;
+    const next = arrangeLayout(panel.layout, step, dashboard.columns);
+    if (!next) return;
+    dashboard.place([{ id: panelId, ...next }]);
+    setArranged(
+      messages.label('label.panel.placed', {
+        title: panel.title ?? panel.id,
+        // Said as a reader counts them, from one.
+        column: next.x + 1,
+        row: next.y + 1,
+        w: next.w,
+        h: next.h,
+      }),
+    );
   };
 
   if (dashboard.panels.length === 0)
@@ -128,21 +160,47 @@ export function DashboardGrid({
         gridConfig={{ cols: dashboard.columns, rowHeight }}
         // Dragging by the header alone leaves the panel body clickable.
         dragConfig={{ enabled: editable, handle: '[data-slot="panel-grip"]' }}
-        resizeConfig={{ enabled: editable }}
+        resizeConfig={{
+          enabled: editable,
+          // The corner is a named, focusable control while the layout may
+          // be edited, and nothing at all while it may not — upstream's
+          // bare `span` has no name to give and no key to answer.
+          handleComponent: (axis: ResizeHandleAxis, ref: Ref<HTMLElement>) =>
+            editable ? (
+              <PanelResizeHandle axis={axis} ref={ref} onStep={arrange} />
+            ) : (
+              <span
+                ref={ref}
+                aria-hidden="true"
+                className={`react-resizable-handle react-resizable-handle-${axis}`}
+              />
+            ),
+        }}
         compactor={noCompactor}
         onDragStop={placed}
         onResizeStop={placed}
       >
         {dashboard.panels.map(panel => (
-          <div key={panel.id} className="min-h-0">
+          // The id is stamped on the item because the resize corner is
+          // appended here by the library, outside anything we render, and
+          // it has to be able to say which panel it was dropped into.
+          <div key={panel.id} data-panel-id={panel.id} className="min-h-0">
             <DashboardPanel
               panel={panel}
               editable={editable}
+              columns={dashboard.columns}
+              onArrange={step => arrange(panel.id, step)}
               onRenderFailure={onRenderFailure}
             />
           </div>
         ))}
       </GridLayout>
+      {/* One region for the whole grid rather than one per panel: only one
+          panel is ever being placed, and the rest would be a dozen empty
+          regions for a reader to walk past. */}
+      <span aria-live="polite" className="sr-only">
+        {arranged}
+      </span>
     </div>
   );
 }
@@ -154,13 +212,22 @@ function toPlacement(item: Layout[number]) {
 export interface DashboardPanelProps {
   panel: DashboardPanelView;
   editable?: boolean;
+  /** Columns the grid places in; what the arrange commands run up against. */
+  columns?: number;
+  /** One arrange command, when the layout may be edited. */
+  onArrange?: (step: ArrangeStep) => void;
   onRenderFailure?: RenderFailureHandler;
 }
 
-/** One framed panel: a title, a grip when the layout is editable, a body. */
+/**
+ * One framed panel: a title, the two arrange controls when the layout is
+ * editable, a body.
+ */
 export function DashboardPanel({
   panel,
   editable,
+  columns = DASHBOARD_GRID_COLUMNS,
+  onArrange,
   onRenderFailure,
 }: DashboardPanelProps) {
   const messages = useViewMessages();
@@ -207,21 +274,22 @@ export function DashboardPanel({
             </IconTooltip>
           )}
           {/*
-            Decorative on purpose. Dragging is a pointer gesture with no
-            keyboard equivalent yet, and naming the grip for a screen reader
-            would announce an affordance its user cannot reach. The title
-            serves the pointer; when keyboard moving exists, this becomes a
-            real control with a real action behind it.
+            The grip was decorative while dragging was a pointer gesture
+            with no keyboard equivalent — naming it would have announced an
+            affordance its user could not reach. It answers the arrow keys
+            now, so it is a named control, and the menu beside it says the
+            same commands in words for anyone who does not know the keys.
           */}
-          {editable && (
-            <span
-              data-slot="panel-grip"
-              title={messages.label('label.panel.move')}
-              aria-hidden="true"
-              className="text-muted-foreground cursor-move"
-            >
-              <GripVerticalIcon className="size-4" />
-            </span>
+          {editable && onArrange && (
+            <>
+              <PanelGrip title={panel.title ?? panel.id} onStep={onArrange} />
+              <PanelArrangeMenu
+                title={panel.title ?? panel.id}
+                layout={panel.layout}
+                columns={columns}
+                onStep={onArrange}
+              />
+            </>
           )}
           {panel.title ?? panel.id}
         </CardTitle>

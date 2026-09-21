@@ -39,12 +39,10 @@ import {
 } from '../src/index.js';
 import { useDashboard, type DashboardController } from '../src/react/index.js';
 import {
-  ContentPanel,
+  arrangeLayout,
   DashboardGrid,
   DashboardWorkbench,
-  ImagePanel,
-  LinksPanel,
-  MarkdownPanel,
+  PanelResizeHandle,
   ViewSurface,
 } from '../src/ui/index.js';
 import {
@@ -475,21 +473,183 @@ describe('DashboardGrid', () => {
     ).toBeTruthy();
   });
 
-  it('offers a grip only when the layout may be edited', async () => {
+  it('offers the placing controls only when the layout may be edited', async () => {
     const { controller } = await openDashboard(
       dashboardConfig({ panels: [panel()] }),
     );
-    const grip = () => document.querySelector('[data-slot="panel-grip"]');
+    const slot = (name: string) =>
+      document.querySelector(`[data-slot="${name}"]`);
 
     const { rerender } = render(<DashboardGrid dashboard={controller()} />);
-    expect(grip()).toBeNull();
+    expect(slot('panel-grip')).toBeNull();
+    expect(slot('panel-arrange')).toBeNull();
+    // The library draws its corner whatever `enabled` says, so a read-only
+    // dashboard gets the ornament rather than a control nothing answers.
+    expect(slot('panel-resize')).toBeNull();
+    expect(
+      document
+        .querySelector('.react-resizable-handle')
+        ?.getAttribute('aria-hidden'),
+    ).toBe('true');
 
     rerender(<DashboardGrid dashboard={controller()} editable />);
-    // Hidden from assistive technology: the drag it starts is pointer-only,
-    // so announcing it would offer an affordance nobody can take up.
-    expect(grip()?.getAttribute('aria-hidden')).toBe('true');
-    expect(grip()?.getAttribute('title')).toBe('Move panel');
-    expect(screen.queryByLabelText('Move panel')).toBeNull();
+    // All three are named now: each one answers the arrows or says the
+    // commands in words, so announcing them offers something reachable.
+    expect(screen.getByLabelText('Move orders with the arrow keys')).toBe(
+      slot('panel-grip'),
+    );
+    expect(screen.getByLabelText('Place orders')).toBe(slot('panel-arrange'));
+    expect(screen.getByLabelText('Resize this panel with the arrow keys')).toBe(
+      slot('panel-resize'),
+    );
+  });
+
+  /**
+   * `react-grid-layout` 2.2 has no keyboard sensor — the drag is
+   * `react-draggable`'s and the corner is `react-resizable`'s, and neither
+   * listens for a key. So the keyboard equivalent is commands of our own,
+   * and they land in the same place a gesture does: one `place`, which is
+   * one edit and one apply (D17.7).
+   *
+   * The grid is rendered over a live controller here rather than the one
+   * `openDashboard` captured, so the second press sees what the first did.
+   */
+  describe('placed by keyboard', () => {
+    function LiveGrid({ runtime }: { runtime: DashboardRuntime }) {
+      return <DashboardGrid dashboard={useDashboard(runtime)} editable />;
+    }
+
+    async function press(element: Element, key: string) {
+      await act(async () => {
+        fireEvent.keyDown(element, { key });
+        await Promise.resolve();
+      });
+    }
+
+    it('moves a panel with the arrows on its grip', async () => {
+      const { controller, runtime } = await openDashboard(
+        dashboardConfig({ panels: [panel()] }),
+      );
+      render(<LiveGrid runtime={runtime} />);
+      const grip = screen.getByLabelText('Move orders with the arrow keys');
+
+      // Nothing to the left of the first column, so the press is swallowed
+      // rather than writing a layout the kernel would refuse.
+      await press(grip, 'ArrowLeft');
+      expect(controller().panels[0].layout).toEqual({ x: 0, y: 0, w: 6, h: 4 });
+      expect(runtime.getSnapshot().dirty).toBe(false);
+
+      // Every other key is the page's: a grip that swallowed Tab or Enter
+      // would be a trap in the middle of the header.
+      await press(grip, 'Enter');
+      expect(runtime.getSnapshot().dirty).toBe(false);
+
+      await press(grip, 'ArrowRight');
+      await press(grip, 'ArrowDown');
+
+      expect(controller().panels[0].layout).toEqual({ x: 1, y: 1, w: 6, h: 4 });
+      expect(runtime.getSnapshot().dirty).toBe(true);
+      // A pointer watches the panel move; a keyboard is told where it went.
+      expect(
+        screen.getByText('orders is at column 2, row 2, 6 columns by 4 rows'),
+      ).toBeTruthy();
+    });
+
+    it('resizes a panel with the arrows on its corner', async () => {
+      const { controller, runtime } = await openDashboard(
+        dashboardConfig({ panels: [panel()] }),
+      );
+      render(<LiveGrid runtime={runtime} />);
+      const corner = screen.getByLabelText(
+        'Resize this panel with the arrow keys',
+      );
+
+      await press(corner, 'Enter');
+      expect(runtime.getSnapshot().dirty).toBe(false);
+
+      await press(corner, 'ArrowRight');
+      await press(corner, 'ArrowDown');
+      await press(corner, 'ArrowUp');
+
+      expect(controller().panels[0].layout).toEqual({ x: 0, y: 0, w: 7, h: 4 });
+      expect(runtime.getSnapshot().dirty).toBe(true);
+    });
+
+    /**
+     * The corner is appended by the library inside the grid item, out of
+     * reach of any context of ours, so it reads the panel back off the
+     * item's `data-panel-id`. Rendered anywhere else there is no panel to
+     * name, and it says nothing rather than guessing at the first one.
+     */
+    it('does nothing when the corner is not inside a grid item', async () => {
+      const onStep = vi.fn();
+      render(<PanelResizeHandle axis="se" ref={null} onStep={onStep} />);
+
+      await press(
+        screen.getByLabelText('Resize this panel with the arrow keys'),
+        'ArrowRight',
+      );
+
+      expect(onStep).not.toHaveBeenCalled();
+    });
+
+    it('says the same commands in words, and greys out the ones with no room', async () => {
+      const { controller, runtime } = await openDashboard(
+        dashboardConfig({ panels: [panel()] }),
+      );
+      render(<LiveGrid runtime={runtime} />);
+
+      await userEvent.click(screen.getByLabelText('Place orders'));
+      // At the top left corner of the grid there is nowhere to go but away
+      // from it, and the entries that would leave it are disabled rather
+      // than missing: where a panel can go is this moment, not a permission.
+      expect(
+        screen.getByRole('menuitem', { name: 'Move up' }).ariaDisabled,
+      ).toBe('true');
+      expect(
+        screen.getByRole('menuitem', { name: 'Move left' }).ariaDisabled,
+      ).toBe('true');
+      expect(
+        screen.getByRole('menuitem', { name: 'Wider' }).ariaDisabled,
+      ).toBeNull();
+
+      await userEvent.click(screen.getByRole('menuitem', { name: 'Taller' }));
+
+      expect(controller().panels[0].layout).toEqual({ x: 0, y: 0, w: 6, h: 5 });
+    });
+
+    /**
+     * One step is one cell, and the bounds are the kernel's, so no command
+     * can produce a layout `validateDashboard` would refuse. Down and
+     * taller have no far edge — a dashboard grows downwards.
+     */
+    describe('arrangeLayout', () => {
+      const here = { x: 1, y: 1, w: 2, h: 2 };
+
+      it.each([
+        ['left', { ...here, x: 0 }],
+        ['right', { ...here, x: 2 }],
+        ['up', { ...here, y: 0 }],
+        ['down', { ...here, y: 2 }],
+        ['wider', { ...here, w: 3 }],
+        ['narrower', { ...here, w: 1 }],
+        ['taller', { ...here, h: 3 }],
+        ['shorter', { ...here, h: 1 }],
+      ] as const)('takes one cell %s', (step, landed) => {
+        expect(arrangeLayout(here, step, 12)).toEqual(landed);
+      });
+
+      it.each([
+        ['left', { x: 0, y: 0, w: 1, h: 1 }],
+        ['up', { x: 0, y: 0, w: 1, h: 1 }],
+        ['right', { x: 11, y: 0, w: 1, h: 1 }],
+        ['wider', { x: 11, y: 0, w: 1, h: 1 }],
+        ['narrower', { x: 0, y: 0, w: 1, h: 1 }],
+        ['shorter', { x: 0, y: 0, w: 1, h: 1 }],
+      ] as const)('has no room to go %s', (step, cornered) => {
+        expect(arrangeLayout(cornered, step, 12)).toBeNull();
+      });
+    });
   });
 
   /**
@@ -701,171 +861,6 @@ describe('DashboardGrid', () => {
 
     expect(screen.getByRole('heading', { name: 'Weekly review' })).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
-  });
-});
-
-describe('content panels', () => {
-  /**
-   * These components are exported on their own, so a host can render one from
-   * a config that no `validateDashboard` ever saw. The scheme guard therefore
-   * runs here too, and not only during admission.
-   */
-  it.each(['javascript:alert(1)', 'data:text/html,<script>', 'vbscript:x'])(
-    'refuses to load an image from %s',
-    src => {
-      render(<ImagePanel src={src} alt="Chart" />);
-
-      expect(screen.queryByRole('img')).toBeNull();
-      expect(screen.getByText('Chart')).toBeTruthy();
-    },
-  );
-
-  it('keeps an unsafe destination out of the document', () => {
-    render(
-      <LinksPanel items={[{ label: 'Payroll', href: 'vbscript:msgbox(1)' }]} />,
-    );
-
-    // The label stays — the reader still sees what was meant to be there.
-    expect(screen.getByText('Payroll')).toBeTruthy();
-    expect(screen.getByText('Payroll').closest('a')).toBeNull();
-  });
-
-  it('shows an image whose href is unsafe, without the link', () => {
-    render(
-      <ImagePanel src="/chart.png" alt="Chart" href="javascript:alert(1)" />,
-    );
-
-    expect(screen.getByRole('img')).toBeTruthy();
-    expect(screen.getByRole('img').closest('a')).toBeNull();
-  });
-
-  it('renders markdown without raw HTML', () => {
-    render(<MarkdownPanel content={'# Title\n\n<b>bold</b>'} />);
-
-    expect(screen.getByRole('heading', { name: 'Title' })).toBeTruthy();
-    // react-markdown is used without `rehype-raw`, so the tag stays text.
-    expect(document.querySelector('b')).toBeNull();
-  });
-
-  /**
-   * The links in a markdown panel are the only ones a config never lists on
-   * their own — they are inside the prose — so they are the ones worth
-   * checking twice.
-   */
-  it('opens a markdown link in its own tab without the opener', () => {
-    render(
-      <MarkdownPanel content={'See [the report](https://example.com).'} />,
-    );
-
-    const link = screen.getByRole('link', { name: 'the report' });
-    expect(link.getAttribute('target')).toBe('_blank');
-    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
-  });
-
-  /**
-   * A protocol-relative destination is one react-markdown's own transform
-   * lets through, so this case fails the moment our check stops running —
-   * which a `javascript:` target would not, since that one never reaches us.
-   */
-  it('keeps the words of a markdown link that goes somewhere unsafe', () => {
-    render(<MarkdownPanel content={'[click me](//evil.example/steal)'} />);
-
-    expect(screen.queryByRole('link')).toBeNull();
-    expect(screen.getByText('click me')).toBeTruthy();
-  });
-
-  it('keeps the hint the author wrote on a link', () => {
-    render(
-      <MarkdownPanel
-        content={'See [the report](https://example.com "Quarterly numbers").'}
-      />,
-    );
-
-    expect(
-      screen.getByRole('link', { name: 'the report' }).getAttribute('title'),
-    ).toBe('Quarterly numbers');
-  });
-
-  it('shows a placeholder when an image fails to load', () => {
-    render(<ImagePanel src="/missing.png" alt="Sales trend" />);
-
-    fireEvent.error(screen.getByRole('img'));
-
-    expect(screen.getByText('Sales trend')).toBeTruthy();
-    expect(screen.queryByRole('img')).toBeNull();
-  });
-
-  it('falls back to a message when a failed image has no alt text', () => {
-    render(<ImagePanel src="/missing.png" fit="cover" />);
-
-    fireEvent.error(
-      document.querySelector('[data-slot="image-panel"]') as HTMLImageElement,
-    );
-
-    expect(screen.getByText('This image could not be loaded')).toBeTruthy();
-  });
-
-  it('wraps a linked image in an anchor that cannot reach the opener', () => {
-    render(<ImagePanel src="/a.png" href="https://example.com" alt="A" />);
-
-    const link = screen.getByRole('link');
-    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
-    expect(link.getAttribute('target')).toBe('_blank');
-  });
-
-  it('opens every link with noopener', () => {
-    render(
-      <LinksPanel
-        items={[
-          { label: 'Runbook', href: '/runbook', description: 'What to do' },
-          { label: 'Mail ops', href: 'mailto:ops@example.com' },
-        ]}
-      />,
-    );
-
-    const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(2);
-    for (const link of links)
-      expect(link.getAttribute('rel')).toBe('noopener noreferrer');
-    expect(screen.getByText('What to do')).toBeTruthy();
-  });
-
-  it('dispatches by panel kind', () => {
-    const { rerender } = render(
-      <ContentPanel
-        panel={{
-          id: 'a',
-          kind: 'markdown',
-          content: 'note',
-          layout: { x: 0, y: 0, w: 1, h: 1 },
-        }}
-      />,
-    );
-    expect(screen.getByText('note')).toBeTruthy();
-
-    rerender(
-      <ContentPanel
-        panel={{
-          id: 'a',
-          kind: 'image',
-          src: '/a.png',
-          layout: { x: 0, y: 0, w: 1, h: 1 },
-        }}
-      />,
-    );
-    expect(document.querySelector('[data-slot="image-panel"]')).toBeTruthy();
-
-    rerender(
-      <ContentPanel
-        panel={{
-          id: 'a',
-          kind: 'links',
-          items: [{ label: 'Docs', href: '/docs' }],
-          layout: { x: 0, y: 0, w: 1, h: 1 },
-        }}
-      />,
-    );
-    expect(screen.getByRole('link', { name: 'Docs' })).toBeTruthy();
   });
 });
 

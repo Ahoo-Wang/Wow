@@ -123,7 +123,12 @@ export const AllPanels: Story = { args: { variant: 'panels' } };
  */
 export const GlobalFilter: Story = { args: { variant: 'filtered' } };
 
-/** Drag by a panel's grip, or resize it; both apply at once, like sorting. */
+/**
+ * Drag by a panel's grip, or resize it by its corner — or do either from the
+ * keyboard: both handles answer the arrow keys, and the menu beside the grip
+ * says the same eight commands in words. Each one applies at once, like
+ * sorting a table.
+ */
 export const EditableLayout: Story = { args: { editable: true } };
 
 /** A referenced view that was deleted: only that panel says so. */
