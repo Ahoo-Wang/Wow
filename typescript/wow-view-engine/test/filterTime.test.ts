@@ -1,0 +1,602 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * When a time condition means, resolved at compile time against the injected
+ * clock: relative amounts and presets, the windows and named periods they
+ * open, a relative value used as one bound, an absolute value in the zone it
+ * was written in, and a calendar day standing for the whole day.
+ */
+
+import { FilterOperator } from '@ahoo-wang/fetcher-wow';
+import { describe, expect, it } from 'vitest';
+import type { FilterOperatorName } from '../src/model/index.js';
+import {
+  builtinFieldKinds,
+  compileFilter,
+  DATE_TIME_PRESETS,
+  describeFilter,
+  MAX_RELATIVE_DATE_AMOUNT,
+  RELATIVE_DATE_UNITS,
+  resolveDateTimeBound,
+  resolveDateTimeRange,
+  validateFilter,
+  type FieldDefinition,
+} from '../src/index.js';
+import {
+  andTree as tree,
+  errorCodes as errors,
+  filterContext as context,
+  filterFields as fields,
+} from './fixtures/filter.js';
+
+describe('relative and preset dates', () => {
+  const now = new Date('2026-09-16T10:30:00.000Z');
+
+  it('evaluates a relative window against the injected moment', () => {
+    const range = resolveDateTimeRange(
+      { type: 'relative', amount: 7, unit: 'day' },
+      now,
+      'UTC',
+    );
+    expect(range).toEqual({
+      from: '2026-09-09T10:30:00.000Z',
+      to: '2026-09-16T10:30:00.000Z',
+    });
+  });
+
+  it('keeps a quarter equal to three months', () => {
+    const quarter = resolveDateTimeRange(
+      { type: 'relative', amount: 1, unit: 'quarter' },
+      now,
+      'UTC',
+    );
+    const months = resolveDateTimeRange(
+      { type: 'relative', amount: 3, unit: 'month' },
+      now,
+      'UTC',
+    );
+    expect(quarter).toEqual(months);
+  });
+
+  it('resolves presets on calendar boundaries of the given zone', () => {
+    expect(
+      resolveDateTimeRange({ type: 'preset', preset: 'today' }, now, 'UTC')
+        .from,
+    ).toBe('2026-09-16T00:00:00.000Z');
+
+    // Shanghai is UTC+8, so its day started the previous UTC evening.
+    expect(
+      resolveDateTimeRange(
+        { type: 'preset', preset: 'today' },
+        now,
+        'Asia/Shanghai',
+      ).from,
+    ).toBe('2026-09-15T16:00:00.000Z');
+
+    // 16 September 2026 is a Wednesday; the ISO week starts on the Monday.
+    expect(
+      resolveDateTimeRange({ type: 'preset', preset: 'thisWeek' }, now, 'UTC')
+        .from,
+    ).toBe('2026-09-14T00:00:00.000Z');
+
+    expect(
+      resolveDateTimeRange(
+        { type: 'preset', preset: 'thisQuarter' },
+        now,
+        'UTC',
+      ),
+    ).toEqual({
+      from: '2026-07-01T00:00:00.000Z',
+      to: '2026-09-30T23:59:59.999Z',
+    });
+
+    expect(
+      resolveDateTimeRange({ type: 'preset', preset: 'yesterday' }, now, 'UTC'),
+    ).toEqual({
+      from: '2026-09-15T00:00:00.000Z',
+      to: '2026-09-15T23:59:59.999Z',
+    });
+  });
+
+  it('supports every relative unit', () => {
+    const from = (unit: 'hour' | 'day' | 'week' | 'month' | 'year') =>
+      resolveDateTimeRange({ type: 'relative', amount: 2, unit }, now, 'UTC')
+        .from;
+    expect(from('hour')).toBe('2026-09-16T08:30:00.000Z');
+    expect(from('day')).toBe('2026-09-14T10:30:00.000Z');
+    expect(from('week')).toBe('2026-09-02T10:30:00.000Z');
+    expect(from('month')).toBe('2026-07-16T10:30:00.000Z');
+    expect(from('year')).toBe('2024-09-16T10:30:00.000Z');
+  });
+
+  it('supports every calendar preset', () => {
+    const range = (preset: 'thisMonth' | 'thisYear') =>
+      resolveDateTimeRange({ type: 'preset', preset }, now, 'UTC');
+    expect(range('thisMonth')).toEqual({
+      from: '2026-09-01T00:00:00.000Z',
+      to: '2026-09-30T23:59:59.999Z',
+    });
+    expect(range('thisYear')).toEqual({
+      from: '2026-01-01T00:00:00.000Z',
+      to: '2026-12-31T23:59:59.999Z',
+    });
+  });
+
+  it('leaves an absolute value alone and allows an open upper bound', () => {
+    expect(
+      resolveDateTimeRange(
+        { type: 'absolute', from: '2026-01-01T00:00:00.000Z' },
+        now,
+        'UTC',
+      ),
+    ).toEqual({ from: '2026-01-01T00:00:00.000Z' });
+  });
+
+  it('compiles an open-ended range to GTE and a closed one to BETWEEN', () => {
+    const open = compileFilter(
+      fields,
+      tree({
+        field: 'createdAt',
+        operator: 'BETWEEN',
+        value: { type: 'absolute', from: '2026-01-01T00:00:00.000Z' },
+      }),
+      builtinFieldKinds,
+      context,
+    );
+    expect(open).toMatchObject({ op: FilterOperator.GTE, field: 'createdAt' });
+
+    const closed = compileFilter(
+      fields,
+      tree({
+        field: 'createdAt',
+        operator: 'BETWEEN',
+        value: { type: 'preset', preset: 'today' },
+      }),
+      builtinFieldKinds,
+      context,
+    );
+    expect(closed).toMatchObject({
+      op: FilterOperator.BETWEEN,
+      field: 'createdAt',
+      lowerBound: '2026-09-16T00:00:00.000Z',
+    });
+  });
+});
+
+/**
+ * A window measured from now, in either direction. "The last 7 days" asks
+ * what happened; "the next 7 days" asks what is due, and only the second was
+ * inexpressible — `amount` had to be positive and the window always ran
+ * backwards.
+ */
+describe('relative windows and named periods', () => {
+  const resolve = (value: unknown) =>
+    compileFilter(
+      fields,
+      tree({
+        field: 'createdAt',
+        operator: `${FilterOperator.BETWEEN}`,
+        value: value as never,
+      }),
+      builtinFieldKinds,
+      context,
+    ) as { lowerBound: string; upperBound: string };
+
+  it('runs a relative window backwards by default', () => {
+    const past = resolve({ type: 'relative', amount: 7, unit: 'day' });
+
+    expect(past.upperBound).toBe(context.now.toISOString());
+    expect(Date.parse(past.lowerBound)).toBeLessThan(context.now.getTime());
+  });
+
+  it('runs it forwards when the condition says so', () => {
+    const future = resolve({
+      type: 'relative',
+      amount: 7,
+      unit: 'day',
+      direction: 'future',
+    });
+
+    expect(future.lowerBound).toBe(context.now.toISOString());
+    expect(Date.parse(future.upperBound)).toBeGreaterThan(
+      context.now.getTime(),
+    );
+  });
+
+  it('refuses a direction it does not know', () => {
+    expect(
+      errors(
+        validateFilter(
+          fields,
+          tree({
+            field: 'createdAt',
+            operator: `${FilterOperator.BETWEEN}`,
+            value: {
+              type: 'relative',
+              amount: 7,
+              unit: 'day',
+              direction: 'sideways',
+            } as never,
+          }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['filter.value.expected-date']);
+  });
+
+  it.each(DATE_TIME_PRESETS)('resolves the %s period', preset => {
+    const window = resolve({ type: 'preset', preset });
+
+    // Every named period is a real window, and none of them is inverted.
+    expect(Date.parse(window.lowerBound)).toBeLessThan(
+      Date.parse(window.upperBound),
+    );
+  });
+
+  it('places last, this and next in order', () => {
+    const last = resolve({ type: 'preset', preset: 'lastMonth' });
+    const current = resolve({ type: 'preset', preset: 'thisMonth' });
+    const next = resolve({ type: 'preset', preset: 'nextMonth' });
+
+    expect(Date.parse(last.upperBound)).toBeLessThan(
+      Date.parse(current.lowerBound),
+    );
+    expect(Date.parse(current.upperBound)).toBeLessThan(
+      Date.parse(next.lowerBound),
+    );
+  });
+
+  it.each([
+    [undefined, 'last 7 day'],
+    ['past', 'last 7 day'],
+    ['future', 'next 7 day'],
+  ])('summarises a %s window as %s', (direction, want) => {
+    // A forward window described as "last" would contradict the query that
+    // actually ran, in the one place a user checks what is in force.
+    expect(
+      describeFilter(
+        fields,
+        tree({
+          field: 'createdAt',
+          operator: `${FilterOperator.BETWEEN}`,
+          value: {
+            type: 'relative',
+            amount: 7,
+            unit: 'day',
+            ...(direction === undefined ? {} : { direction }),
+          } as never,
+        }),
+        builtinFieldKinds,
+      )[0].text,
+    ).toContain(want);
+  });
+
+  it('summarises a period as words rather than as its key', () => {
+    expect(
+      describeFilter(
+        fields,
+        tree({
+          field: 'createdAt',
+          operator: `${FilterOperator.BETWEEN}`,
+          value: { type: 'preset', preset: 'nextQuarter' } as never,
+        }),
+        builtinFieldKinds,
+      )[0].text,
+    ).toContain('next quarter');
+  });
+
+  it('keeps a quarter three months wide either side of this one', () => {
+    const last = resolve({ type: 'preset', preset: 'lastQuarter' });
+    const next = resolve({ type: 'preset', preset: 'nextQuarter' });
+
+    // September 2026 sits in Q3, so its neighbours are Q2 and Q4.
+    expect(last.lowerBound.slice(0, 7)).toBe('2026-04');
+    expect(next.lowerBound.slice(0, 7)).toBe('2026-10');
+  });
+});
+
+/**
+ * "7 days" is a distance from now. A window has one edge at now and one at
+ * that distance, and a single bound at now is not what anyone typed, so a
+ * relative value stands on its far edge whichever operator asks. A preset
+ * is a calendar period and keeps the edge the operator asks for.
+ */
+describe('a relative value as a single bound', () => {
+  const last = { type: 'relative', amount: 7, unit: 'day' };
+  const next = { ...last, direction: 'future' };
+  const today = { type: 'preset', preset: 'today' };
+  const weekAgo = '2026-09-09T10:30:00.000Z';
+  const weekAhead = '2026-09-23T10:30:00.000Z';
+  const bound = (operator: 'GTE' | 'LTE', value: unknown) =>
+    (
+      compileFilter(
+        fields,
+        tree({ field: 'createdAt', operator, value: value as never }),
+        builtinFieldKinds,
+        context,
+      ) as { value: string }
+    ).value;
+  const text = (operator: string, value: unknown) =>
+    describeFilter(
+      fields,
+      tree({ field: 'createdAt', operator, value } as never),
+      builtinFieldKinds,
+    )[0].text;
+
+  it('stands on the edge that is not now', () => {
+    expect(bound('GTE', last)).toBe(weekAgo);
+    expect(bound('LTE', last)).toBe(weekAgo);
+    expect(bound('GTE', next)).toBe(weekAhead);
+    expect(bound('LTE', next)).toBe(weekAhead);
+    expect(resolveDateTimeBound(last as never, context.now, 'UTC', 'end')).toBe(
+      weekAgo,
+    );
+  });
+
+  it('keeps a preset on the edge asked for', () => {
+    expect(bound('GTE', today)).toBe('2026-09-16T00:00:00.000Z');
+    expect(bound('LTE', today)).toBe('2026-09-16T23:59:59.999Z');
+  });
+
+  it('says which instant it compares against', () => {
+    expect(text('GTE', last)).toBe('Created on or after 7 day ago');
+    expect(text('LTE', last)).toBe('Created on or before 7 day ago');
+    expect(text('GTE', next)).toBe('Created on or after 7 day ahead');
+    expect(text('LTE', next)).toBe('Created on or before 7 day ahead');
+    expect(text('GTE', today)).toBe('Created on or after today');
+    expect(text('LTE', today)).toBe('Created on or before today');
+    expect(text('BETWEEN', last)).toBe('Created last 7 day');
+  });
+
+  it('names the bound an absolute value stands on', () => {
+    const day = { type: 'absolute', from: '2026-01-01' };
+    const range = { ...day, to: '2026-01-31' };
+    expect(text('GTE', day)).toBe('Created on or after 2026-01-01');
+    expect(text('LTE', day)).toBe('Created on or before 2026-01-01');
+    expect(text('GTE', range)).toBe('Created on or after 2026-01-01');
+    expect(text('LTE', range)).toBe('Created on or before 2026-01-31');
+  });
+});
+
+/**
+ * A relative amount past what a `Date` can hold made dayjs produce an
+ * invalid instant, and `compileFilter` threw `RangeError` on a tree the
+ * validator had admitted. The validator is the gate; the compiler is total.
+ */
+describe('an unbounded relative amount', () => {
+  const huge = { type: 'relative', amount: 1e15, unit: 'day' } as const;
+  const ahead = { ...huge, direction: 'future' } as const;
+  const at = (operator: string, value: unknown) =>
+    tree({ field: 'createdAt', operator, value } as never);
+
+  it('is refused by validation, with the bound it crossed', () => {
+    expect(
+      validateFilter(fields, at('BETWEEN', huge), builtinFieldKinds),
+    ).toEqual([
+      {
+        code: 'filter.value.relative-too-large',
+        severity: 'error',
+        path: ['children', 0],
+        params: { max: MAX_RELATIVE_DATE_AMOUNT },
+      },
+    ]);
+  });
+
+  it('admits the bound itself in every unit and direction', () => {
+    for (const unit of RELATIVE_DATE_UNITS)
+      for (const direction of ['past', 'future']) {
+        const value = {
+          type: 'relative',
+          amount: MAX_RELATIVE_DATE_AMOUNT,
+          unit,
+          direction,
+        };
+        expect(
+          validateFilter(fields, at('BETWEEN', value), builtinFieldKinds),
+        ).toEqual([]);
+        const range = resolveDateTimeRange(value as never, context.now, 'UTC');
+        expect(Number.isNaN(Date.parse(range.from))).toBe(false);
+        expect(Number.isNaN(Date.parse(range.to as string))).toBe(false);
+      }
+  });
+
+  it('does not make compilation throw', () => {
+    const earliest = new Date(-8.64e15).toISOString();
+    const latest = new Date(8.64e15).toISOString();
+
+    expect(() =>
+      compileFilter(fields, at('BETWEEN', huge), builtinFieldKinds, context),
+    ).not.toThrow();
+    expect(() =>
+      compileFilter(fields, at('LTE', ahead), builtinFieldKinds, context),
+    ).not.toThrow();
+    expect(resolveDateTimeRange(huge, context.now, 'UTC')).toEqual({
+      from: earliest,
+      to: context.now.toISOString(),
+    });
+    expect(resolveDateTimeRange(ahead, context.now, 'UTC')).toEqual({
+      from: context.now.toISOString(),
+      to: latest,
+    });
+  });
+});
+
+/**
+ * An absolute value is the one place a stored string still needs reading, and
+ * for a while its `timeZone` was stored, validated and then ignored: two
+ * conditions differing only by zone compiled to the same query.
+ */
+
+describe('absolute dates and their zone', () => {
+  const between = (from: string, to: string, timeZone?: string) =>
+    compileFilter(
+      fields,
+      tree({
+        field: 'createdAt',
+        operator: `${FilterOperator.BETWEEN}`,
+        value: {
+          type: 'absolute',
+          from,
+          to,
+          ...(timeZone ? { timeZone } : {}),
+        },
+      }),
+      builtinFieldKinds,
+      context,
+    );
+
+  it('reads a wall-clock string in the zone the condition names', () => {
+    const tokyo = between('2026-01-01', '2026-01-02', 'Asia/Tokyo');
+
+    // Midnight in Tokyo is 15:00 the previous day in UTC, and a day named
+    // as the upper bound runs to its last millisecond.
+    expect(tokyo).toMatchObject({
+      lowerBound: '2025-12-31T15:00:00.000Z',
+      upperBound: '2026-01-02T14:59:59.999Z',
+    });
+    expect(tokyo).not.toEqual(between('2026-01-01', '2026-01-02'));
+  });
+
+  it('falls back to the runtime zone when the condition names none', () => {
+    expect(between('2026-01-01', '2026-01-02')).toMatchObject({
+      lowerBound: '2026-01-01T00:00:00.000Z',
+    });
+  });
+
+  it('leaves an instant that carries its own offset alone', () => {
+    // `...Z` already names one moment; resolving it again would move it.
+    expect(
+      between('2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z', 'Asia/Tokyo'),
+    ).toMatchObject({ lowerBound: '2026-01-01T00:00:00Z' });
+  });
+
+  it('refuses a zone no runtime can resolve', () => {
+    const found = validateFilter(
+      fields,
+      tree({
+        field: 'createdAt',
+        operator: `${FilterOperator.GTE}`,
+        value: { type: 'absolute', from: '2026-01-01', timeZone: 'Not/AZone' },
+      }),
+      builtinFieldKinds,
+    );
+
+    // Without this the compiler throws a RangeError where a query was due.
+    expect(errors(found)).toEqual(['filter.value.unknown-time-zone']);
+  });
+});
+
+/**
+ * A bound written as a calendar day means the whole day. Resolving `to:
+ * 2026-01-31` to that day's first instant made `BETWEEN 01-01..01-31` stop
+ * before the 31st began, and `LTE 01-31` exclude the very day it named.
+ */
+describe('a calendar day as a bound', () => {
+  const dayFields: FieldDefinition[] = [
+    { name: 'orderedOn', label: 'Ordered', kind: 'date' },
+  ];
+  const shanghai = { ...context, timeZone: 'Asia/Shanghai' };
+  const compileDay = (
+    operator: FilterOperatorName,
+    value: Record<string, unknown>,
+  ) =>
+    compileFilter(
+      dayFields,
+      tree({
+        field: 'orderedOn',
+        operator,
+        value: { type: 'absolute', ...value },
+      }),
+      builtinFieldKinds,
+      shanghai,
+    );
+
+  it('runs a range through the last millisecond of its final day', () => {
+    expect(
+      compileDay('BETWEEN', { from: '2026-01-01', to: '2026-01-31' }),
+    ).toEqual({
+      op: FilterOperator.BETWEEN,
+      field: 'orderedOn',
+      lowerBound: '2025-12-31T16:00:00.000Z',
+      upperBound: '2026-01-31T15:59:59.999Z',
+    });
+  });
+
+  it('takes "on or before a day" to the end of it, and "on or after" to its start', () => {
+    expect(compileDay('LTE', { from: '2026-01-31' })).toMatchObject({
+      op: FilterOperator.LTE,
+      value: '2026-01-31T15:59:59.999Z',
+    });
+    expect(compileDay('GTE', { from: '2026-01-31' })).toMatchObject({
+      op: FilterOperator.GTE,
+      value: '2026-01-30T16:00:00.000Z',
+    });
+  });
+
+  it('keeps a bound with a time of day at that time', () => {
+    expect(
+      compileDay('BETWEEN', { from: '2026-01-01', to: '2026-01-31T09:00' }),
+    ).toMatchObject({ upperBound: '2026-01-31T01:00:00.000Z' });
+    expect(compileDay('LTE', { from: '2026-01-31T09:00' })).toMatchObject({
+      value: '2026-01-31T01:00:00.000Z',
+    });
+  });
+
+  it('leaves a bound that names its own offset untouched', () => {
+    expect(
+      compileDay('BETWEEN', {
+        from: '2026-01-01',
+        to: '2026-01-31T00:00:00+08:00',
+      }),
+    ).toMatchObject({ upperBound: '2026-01-31T00:00:00+08:00' });
+    expect(
+      compileDay('LTE', { from: '2026-01-31T00:00:00-05:00' }),
+    ).toMatchObject({ value: '2026-01-31T00:00:00-05:00' });
+  });
+
+  it('does not mistake the dashes of a plain date for an offset', () => {
+    // Had `-01-31` matched as an offset, the day would have passed through
+    // as-is instead of being read in the zone and widened to its end.
+    const value = { type: 'absolute' as const, from: '2026-01-31' };
+    expect(resolveDateTimeRange(value, context.now, 'Asia/Shanghai')).toEqual({
+      from: '2026-01-30T16:00:00.000Z',
+    });
+    expect(
+      resolveDateTimeBound(value, context.now, 'Asia/Shanghai', 'end'),
+    ).toBe('2026-01-31T15:59:59.999Z');
+  });
+
+  it("still lets the condition's own zone win over the runtime's", () => {
+    expect(
+      compileDay('BETWEEN', {
+        from: '2026-01-01',
+        to: '2026-01-31',
+        timeZone: 'Asia/Tokyo',
+      }),
+    ).toMatchObject({
+      lowerBound: '2025-12-31T15:00:00.000Z',
+      upperBound: '2026-01-31T14:59:59.999Z',
+    });
+  });
+
+  it('gives a relative or preset value the edge asked for', () => {
+    const today = { type: 'preset' as const, preset: 'today' as const };
+    expect(resolveDateTimeBound(today, context.now, 'UTC', 'start')).toBe(
+      '2026-09-16T00:00:00.000Z',
+    );
+    expect(resolveDateTimeBound(today, context.now, 'UTC', 'end')).toBe(
+      '2026-09-16T23:59:59.999Z',
+    );
+  });
+});
