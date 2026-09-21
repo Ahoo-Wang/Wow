@@ -25,6 +25,7 @@ import type {
   DashboardViewConfig,
   Issue,
 } from '../../model/index.js';
+import { resultIssues } from '../source.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
 
 /** One panel as the grid renders it. */
@@ -75,25 +76,36 @@ export function reasonOf(error: unknown): string {
  * a kind that warns is heard twice. The panel shows the wording, and the
  * same sentence twice tells nobody anything more, so a warning the
  * dashboard already reported is not repeated.
+ *
+ * Then what the child's **last result** has to say (`resultIssues`): the
+ * summaries that fell back to this page because their query failed, an
+ * analysis that filled its limit. Both workbenches and `EmbeddedView` say
+ * these; a panel showing the very same truncated pie must not fall silent
+ * because it hangs in a dashboard. They are read off the snapshot on every
+ * rebuild, and a child notifying on a result is what rebuilds, so the
+ * marker on the panel follows the result it sits over.
  */
 export function panelIssues(
   index: number,
   own: readonly Issue[],
   runtime: DataViewRuntime,
 ): Issue[] {
-  const caveats = runtime
-    .getSnapshot()
-    .issues.filter(
-      found =>
-        found.severity === 'warning' &&
-        !own.some(
-          said =>
-            said.severity === 'warning' &&
-            said.code === found.code &&
-            dequal(said.params, found.params),
-        ),
-    );
-  return [...own, ...atPanel(index, caveats)];
+  const snapshot = runtime.getSnapshot();
+  const caveats = snapshot.issues.filter(
+    found =>
+      found.severity === 'warning' &&
+      !own.some(
+        said =>
+          said.severity === 'warning' &&
+          said.code === found.code &&
+          dequal(said.params, found.params),
+      ),
+  );
+  return [
+    ...own,
+    ...atPanel(index, caveats),
+    ...atPanel(index, resultIssues(snapshot.result?.data)),
+  ];
 }
 
 /** A child's issues, addressed from the dashboard's config. */

@@ -508,6 +508,53 @@ describe('DashboardViewRuntime unavailable references', () => {
   });
 });
 
+describe('DashboardViewRuntime child results', () => {
+  /**
+   * What a child's last result has to say travels to the panel as its
+   * config caveats do: both workbenches and `EmbeddedView` say these, and
+   * the same truncated pie must not fall silent because it hangs in a
+   * dashboard. The panel's issues are rebuilt on the child's notification,
+   * which a result landing is, so nothing waits for a dashboard sync.
+   */
+  it('carries a child result warning on the panel: summaries fell back to the page', async () => {
+    const board = await harness({
+      instances: [
+        pending({
+          config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+        }),
+      ],
+      source: testSource({
+        aggregate: vi.fn(() => Promise.reject(new Error('offline'))),
+      }),
+    });
+    const runtime = await board.open(dashboardConfig({ panels: [panel()] }));
+    await flush();
+
+    const first = runtime.getSnapshot().panels[0];
+    expect(first.runtime?.getSnapshot().query.status).toBe('success');
+    expect(first.issues).toEqual([
+      expect.objectContaining({
+        code: 'runtime.summary.page-only',
+        severity: 'warning',
+        path: ['panels', 0, 'summaries'],
+      }),
+    ]);
+  });
+
+  it('carries a child result warning on the panel: an analysis filled its limit', async () => {
+    const board = await harness({
+      instances: [pending({ config: analysisConfig({ limit: 1 }) })],
+    });
+    const runtime = await board.open(dashboardConfig({ panels: [panel()] }));
+    await flush();
+
+    const first = runtime.getSnapshot().panels[0];
+    expect(codes(first.issues)).toEqual(['analysis.result.at-limit']);
+    expect(first.issues[0].path).toEqual(['panels', 0, 'limit']);
+    expect(first.issues[0].severity).toBe('warning');
+  });
+});
+
 describe('DashboardViewRuntime editing', () => {
   it('re-runs the panels when the applied global filter changes', async () => {
     const board = await harness();

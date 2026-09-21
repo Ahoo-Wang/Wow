@@ -161,7 +161,7 @@ export class ViewWriteError extends Error {
 
 - `dashboard.panels.too-many` 这类路径为 `['panels']`、不属于任何一个面板的 Issue 按 Dashboard 整体的 error 处理，阻止全部面板执行。
 - 子 runtime 拒绝注入的作用域时，该子 runtime 被释放而不是继续跑旧口径，拒绝理由以 `['panels', index, ...]` 为路径记在该面板的 `issues` 里，其余面板不受影响。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime child refusal」）
-- 子 runtime 接受作用域后，它对自身已存配置的 warning 同样重定址到该路径记入面板的 `issues`，面板照常运行——从子 runtime 的快照读取，因为 `setScopeFilter` 对未变化的作用域返回空，而布局编辑会以同一作用域重新同步每个面板。
+- 子 runtime 接受作用域后，它对自身已存配置的 warning 同样重定址到该路径记入面板的 `issues`，面板照常运行；**子 runtime 上一次结果自身的 warning**（`resultIssues`：汇总退回本页 `runtime.summary.page-only`、分析填满上限 `analysis.result.at-limit`）也并入，同样重定址——两个工作台与 `EmbeddedView` 都会说这两条，同一张被截断的饼图放进仪表盘不能就不说了；子 runtime 一通知（结果落地就是一次）面板的 `issues` 就重建，不等下一次 Dashboard 同步（见 test/dashboardRuntime.test.ts「carries a child result warning on the panel」）——从子 runtime 的快照读取，因为 `setScopeFilter` 对未变化的作用域返回空，而布局编辑会以同一作用域重新同步每个面板。
 - `validateDashboard` 对映射后筛选的复验与子 runtime 对同一棵合并树的准入会让一个 kind 的 warning 出现两次，同 code 同 params 的只记面板校验的那一条。
 - 宿主经 `panelRuntime` 驱动子 runtime（`edit`／`apply`）改变其 issues 时，面板的 `issues` 随子 runtime 的通知重建，不等下一次 Dashboard 同步。
 - 作用域条件不进入子 runtime 的 `draft` 或 `saved`，面板因此不会变脏，也不会把 Dashboard 条件保存回被引用实例，执行的有效配置记录在 `result.config`。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime scope filter」）
