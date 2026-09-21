@@ -145,6 +145,10 @@ src/
     writeLedger.ts                — The write ledger: outcomes by requestId, retry, conflicts
     viewRuntime.ts                — One open view; subscribe / getSnapshot store
     dashboardRuntime.ts           — Owns one child runtime per data panel
+    dashboard/                    — What the dashboard runtime is made of
+      references.ts               — PanelReferences: loading what panels point at
+      children.ts                 — PanelChildren: one child runtime per data panel
+      panels.ts                   — Panel helpers: reading, addressing, comparing
     requestRunner.ts              — Scheduling; a newer request supersedes a key
     execute.ts                    — The two execution kinds a runtime drives
     source.ts                     — resolveSource — three QueryApi methods

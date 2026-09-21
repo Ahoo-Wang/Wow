@@ -155,6 +155,8 @@ export class ViewWriteError extends Error {
 
 ## Dashboard
 
+实现拆在 `src/runtime/dashboard/`：`references.ts`（`PanelReferences`——面板引用的加载：未问／在加载／已加载（读不到为 `null`）三态，外加「到了却用不上」的失败原因；每一次落定回调一次，由 runtime 重新判草稿）、`children.ts`（`PanelChildren`——每个数据面板的子 runtime 与其生命周期：随每次 sync 对齐面板与作用域、面板没了或指向别处就释放、随仪表盘一起 dispose；子 runtime 一通知就回调 runtime 重排计时器并重建该面板的 issues）、`panels.ts`（无状态的读法与寻址：`panelsOf`、`panelOf`、`panelIssues`、`atPanel`、`samePanels`）。`DashboardViewRuntime` 只剩准入、状态与计时器，公开面不变。
+
 `DashboardRuntime` 持有 N 个子 `ViewRuntime` 加一个全局筛选草稿。`apply()` 校验全局筛选，为每个面板计算 `mergeGlobalFilter` 后经 `setScopeFilter` 注入再触发子 runtime 执行；宿主注入给 Dashboard 的作用域条件与数据视图同样从打开起就并入校验。
 
 - `dashboard.panels.too-many` 这类路径为 `['panels']`、不属于任何一个面板的 Issue 按 Dashboard 整体的 error 处理，阻止全部面板执行。
