@@ -106,6 +106,21 @@
 - **决定**：`ViewEngine` 增加一个订阅面（`engine.subscribe(listener)`，与 runtime 的 `subscribe` 同形），在**任何**改变某个定义下列表的写入落地时通知——创建、保存（标题／受众变了）、改名、删除，账本里的重试与覆盖同样经此通知——通知带 `{ definitionId, kind, id }`。`useViewList` 订阅它：删除到来时自动 `reload({ without: id })`，其余到来时 `reload()`；`useViewManager.delete` 与宿主直接调 `engine.delete` 因此走同一条路，[react.md#useviewlist](react.md#useviewlist) 里「宿主绕过它直接删除时也要带 `without`」这句合同随之删除。`reload` 仍公开——它是「我知道外面变了」的入口，比如宿主自己的服务端推送。
 - **依据**：合同写在文档里而不在类型里，就会漏：一个宿主用引擎删了实例又没调 `reload`，刚删掉的那一行留在列表上，点进去是「打不开」。引擎是唯一知道每一次写入何时落地的地方，由它说「列表变了」既不重复也不会漏；让每个调用方记得通知，是把引擎的知识摊给所有人再各自复述一遍。先记录、不急着改：这条改的是 `/runtime` 的公开面，与本轮正在做的 UI 打磨互不相干，在 [todo.md](todo.md) 里有实现条目。
 
+## D16 站在 shadcn／Base UI 肩膀上：审计后的八条裁定
+
+- **日期**：2026-09-21
+- **决定**：本包 UI 一律先找 shadcn 组件与 Base UI 原语再动手（原则见 [AGENTS.md](../../AGENTS.md) Code Style），**但复用是尽量不是必须**——每一次复用都要回答「换了解决什么」，组件不符合场景就不用，不为复用而复用。两路审计（按规则 42 条、逐文件 73 条）合并后由用户逐条裁定：
+  1. **记录表不接 `@tanstack/react-table`**（[ui/record.md](ui/record.md) 有完整理由）：只换来一份与视图配置重复的列状态，行模型一样都用不上。
+  2. **侧栏不接 `@shadcn/sidebar`**：能顶替手写当前项／悬停色的 `SidebarMenuButton` 依赖 `SidebarProvider`，而 provider 写 cookie、注册全局 ⌘B、fixed 定位，是整页假设，对嵌入式表面是错的；只修两处真实缺陷（视图项图标 tooltip 触发器在 `pointer-events-none` 的 svg 上；当前项色用 className 覆盖 Button）。
+  3. **引入 `@shadcn/item`，五处「行」一次统一**：视图管理行、列设置行、排序条目、卡片正文、链接面板；`w-21` 对齐槽随之删除。
+  4. **收起态「定义 / 视图」不用 `Breadcrumb`**：两项是标题与菜单按钮、不是链接，且必须是标题左组的直接 flex 项（#1609）。
+  5. **分页条借 `@shadcn/pagination` 的外框与语义**，内容不变（TanStack 不引入，也不带分页 UI）。
+  6. **九处 `title=`：chrome 上六处换 `Tooltip`**，表格单元格与热力格保留 `title`（每格一个实例不值）。
+  7. **状态行与写入结局的手写 callout 合成 `Alert` 的紧凑变体**，动作走 `AlertAction`；D1「一行高」的约束保留，改的是壳不是决定；ExportDialog 超限、FilterPanel 超预算、RenderBoundary compact 同改。
+  8. **vendored 组件的颜色／边框覆盖走第三条路**：`src/ui/` 放薄包装持有 cva 扩展（`ToneBadge`、条件 pill 的无边框 Input／SelectTrigger 包装、侧栏当前项包装），vendored 不动、调用处不带颜色。
+     其余不需裁定的替换（`ToggleGroup spacing={0}` 代替手写 `SEGMENTED`、三个破坏性确认改 `AlertDialog`、`DropdownMenuGroup`、表单 `Field*` 规则、`Combobox multiple` 代替手写字段勾选列表、Base UI `NumberField` 与 `Combobox` chips 代替手写数字／多值输入、Base UI `Toolbar`、`Collapsible` 代替手写折叠带、`react-grid-layout` 自带的 `useContainerWidth`、`Progress`、`Empty`、`InputGroup` 就地改名）按三波推进；有记录且理由成立的保留项（`popups.tsx` 的弹层副本、`ViewExpansion` 的就地铺满、`RecordTable` 的滚动口、`styles.css` 的对比度校正 token、结果区的槽位选择器）不动。
+- **依据**：用户 2026-09-21 的原话「我们应该站在 shadcn、Base UI 肩膀上」「复用不是必须，而是尽量。当 shadcn 组件不符合我们的场景时，则不能复用。不能为了复用而复用」，以及对审计页八条的逐一批注。裁定标准只有一条：换了解决什么。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
