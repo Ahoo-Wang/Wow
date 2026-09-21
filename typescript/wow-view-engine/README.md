@@ -187,9 +187,9 @@ Every token reads a host-level variable with the built-in value as its fallback:
 | `success`              | Positive outcome                     | `oklch(0.527 0.154 150.069deg)` | `oklch(0.792 0.209 151.711deg)` |
 | `warning`              | Needs attention, not blocking        | `oklch(0.555 0.163 48.998deg)`  | `oklch(0.828 0.189 84.429deg)`  |
 | `info`                 | Neutral notice                       | `oklch(0.546 0.245 262.881deg)` | `oklch(0.707 0.165 254.624deg)` |
-| `border`               | Borders and dividers                 | `oklch(0.922 0 0deg)`           | `oklch(1 0 0deg / 10%)`         |
+| `border`               | Borders and dividers                 | `oklch(0.922 0 0deg)`           | `oklch(1 0 0deg / 20%)`         |
 | `input`                | Input and control borders            | `oklch(0.62 0 0deg)`            | `oklch(1 0 0deg / 40%)`         |
-| `ring`                 | Focus ring                           | `oklch(0.708 0 0deg)`           | `oklch(0.556 0 0deg)`           |
+| `ring`                 | Focus ring                           | `oklch(0.62 0 0deg)`            | `oklch(0.556 0 0deg)`           |
 | `chart-1`              | Chart slot 1, blue                   | `#2a78d6`                       | `#3987e5`                       |
 | `chart-2`              | Chart slot 2, orange                 | `#eb6834`                       | `#d95926`                       |
 | `chart-3`              | Chart slot 3, aqua                   | `#1baf7a`                       | `#199e70`                       |

@@ -134,7 +134,16 @@
    * question and keeps the registry's value.
    */
   --input: var(--fve-input, oklch(0.62 0 0deg));
-  --ring: var(--fve-ring, oklch(0.708 0 0deg));
+  /*
+   * The focus indicator is the 1px `border-ring` a focused control puts on;
+   * the 3px `ring-ring/50` halo around it is emphasis, not the indicator.
+   * At the registry's `0.708` that border measured 2.59:1 on white, under
+   * the 3:1 WCAG 1.4.11 asks of a focus indicator; this grey measures the
+   * same ≥3:1 as `input`. Held by `FocusIndicatorsInLightTheme` /
+   * `FocusIndicatorsInDarkTheme` in the record workbench stories, which
+   * focus a control and measure the cascaded colour.
+   */
+  --ring: var(--fve-ring, oklch(0.62 0 0deg));
 
   /*
    * The five chart slots carry the same hues in both modes — blue, orange,
@@ -178,7 +187,13 @@
   --success: var(--fve-dark-success, oklch(0.792 0.209 151.711deg));
   --warning: var(--fve-dark-warning, oklch(0.828 0.189 84.429deg));
   --info: var(--fve-dark-info, oklch(0.707 0.165 254.624deg));
-  --border: var(--fve-dark-border, oklch(1 0 0deg / 10%));
+  /*
+   * Dividers are not controls and owe no 3:1, but at 10% white the row
+   * hairlines measured 1.32:1 on the dark card — a table with no visible
+   * rows. 20% keeps them a hairline and makes them one; `DarkHairlines` in
+   * the record workbench stories measures the cascaded colour.
+   */
+  --border: var(--fve-dark-border, oklch(1 0 0deg / 20%));
 
   /*
    * The dark half of the same rule: 15% white measured 1.47:1 on the dark

@@ -221,9 +221,9 @@ export const PIN_GROUP = 'group/table';
  * nothing about what is under it.
  */
 const EDGE_LEFT =
-  'group-data-[scrolled-left]/table:shadow-[inset_-1px_0_0_var(--border),8px_0_12px_-8px_rgb(0_0_0/0.3)]';
+  'group-data-[scrolled-left]/table:shadow-[inset_-1px_0_0_var(--border),12px_0_16px_-8px_rgb(0_0_0/0.3)]';
 const EDGE_RIGHT =
-  'group-data-[scrolled-right]/table:shadow-[inset_1px_0_0_var(--border),-8px_0_12px_-8px_rgb(0_0_0/0.3)]';
+  'group-data-[scrolled-right]/table:shadow-[inset_1px_0_0_var(--border),-12px_0_16px_-8px_rgb(0_0_0/0.3)]';
 
 /**
  * The action column stays put while the rest scrolls sideways, which is the

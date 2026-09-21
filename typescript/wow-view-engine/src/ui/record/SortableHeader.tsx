@@ -16,6 +16,7 @@ import type { RecordSort, SortDirection } from '../../model/index.js';
 import type { RecordColumnView } from '../../record/index.js';
 import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
+import { FOCUS_RING } from '../layout.js';
 import { TableHead } from '../components/table.js';
 import {
   HEAD_CELL,
@@ -122,7 +123,8 @@ export function SortableHeader({
               })}`
         }
         className={cn(
-          'flex max-w-full cursor-pointer items-center gap-1',
+          'flex max-w-full cursor-pointer items-center gap-1 rounded-sm',
+          FOCUS_RING,
           // The label keeps the column's edge; the marks follow it inward.
           numeric && 'ml-auto flex-row-reverse',
         )}

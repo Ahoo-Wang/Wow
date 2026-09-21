@@ -64,6 +64,7 @@
 - 宿主若把钉成相反模式的面嵌进另一个面里，`dark:` 工具类会跟随外层根——CSS 没有"最近祖先"选择器——这不受支持，同一模式或跟随宿主的嵌套则正常。每个 token 读 `--fve-<token>`（暗色块读 `--fve-dark-<token>`）并以内置值兜底，宿主在 `:root` 上赋值即可定制，portal 弹层同样继承到；`--fve-popup-z-index` 是同一条路上的第二个旋钮：宿主自己的 chrome 堆得比 50 还高时，在 `:root` 上改这一个值，所有弹层一起抬；
 - （见 test/popups.test.tsx「popups carry the theme out of the root」「a dialog themes its backdrop as well as its surface」）`verify-package` 断言两个 token 块无一例外。根默认涂 `--background`——钉住另一种模式的视图必须自带底色——宿主要让嵌入视图透出自己的底色，就把 `--fve-background` 设为 `transparent`；
 - 控件的那圈边（未勾选的 `Checkbox`／`RadioGroupItem`、`Input`、`Select` 触发器）画的是 `--input` 而不是 `--border`——分隔线可以淡，而"边就是控件"的那一类按 WCAG 1.4.11 要 3:1，两个主题都钉在 ≥3:1 上，由 `RecordWorkbench.test.stories.tsx` 的 `ControlBordersInLightTheme`／`ControlBordersInDarkTheme` 在真浏览器里量层叠之后的真颜色（连控件自己那层 `bg-input/30` 一起合成）守住；宿主覆盖 `--fve-input`／`--fve-dark-input` 时同样欠这一条。
+- **焦点是同一个 token 的两种画法**。vendored `Button` 以 1px `border-ring` 加 3px `ring-ring/50` 光晕表示焦点，指示的是那 1px 边、光晕只是强调；裸按钮（表头排序、已应用条的 ✕）用 `ui/layout.ts` 的 `FOCUS_RING`——**同一份配方**（透明边聚焦时染成 `ring`，加同一圈光晕），不另造一种画法：能复用 shadcn 的就复用。`--ring` 与 `--input` 一样钉在两个主题都 ≥3:1（WCAG 1.4.11 对焦点指示的要求），由浏览器故事 `FocusIndicatorsInLightTheme`／`InDarkTheme` 聚焦三种控件量层叠色；暗色的 `--border` 提到 20% 白，行线在暗色卡片上 ≥1.5:1（`DarkHairlines`）。分隔线不是控件，不欠 3:1，但看不见的行线就是没有行线。
 
 ## 字段目录与选择器分组
 

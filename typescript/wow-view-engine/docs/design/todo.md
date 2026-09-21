@@ -62,7 +62,6 @@
 
 ### 打磨
 
-- **焦点指示低于 3:1，且一屏三种样式**——为什么：`Button` 的焦点是 `ring-3 ring-ring/50`——`oklch(0.708)` 打 50% 对白量到 **1.54:1**，`border-ring` 边 2.59:1（暗色 1.87／3.79）；表头排序按钮走的是 UA 的 `outline: auto`；已应用条的 ✕ 走 `outline 1px 50%`。#1577 只抬了 `--input`，明说 focus 仍用 `--ring`。判据：`--ring`／`--fve-dark-ring` 抬到两个主题都 ≥3:1 且去掉 `/50`；表头排序按钮与应用条 ✕ 用同一套 focus 类；浏览器故事按 #1577 的路子量焦点环的层叠色。落点：`src/styles.css`、`src/ui/record/SortableHeader.tsx`、`src/ui/AppliedBar.tsx`、`stories/view-engine/`。
 - **选中／悬停行上枚举徽章消失；侧栏悬停项与当前项同色**——为什么：`secondary` 徽章底色 = 行选中 `bg-muted` = `oklch(0.97)`，**1.00:1**（暗色 0.269 同样 1.00）；侧栏当前项 `secondary`(0.97) = 悬停 `accent`(0.97)。四个状态（分段按下 1.09、行悬停 1.04、行选中 1.09、侧栏当前 1.09）共用一档 3% 灰，叠在一起就归零。判据：单元格徽章带 `border-border`（带语气的徽章由 #1580 改成实底，已不受影响）；侧栏当前项 `font-medium` + 左侧 2px `primary` 条；浏览器故事量选中行上的徽章与行底 ≥1.5:1、当前项与悬停项可分辨。落点：`src/ui/record/cells.tsx`、`src/ui/ViewList.tsx`、[ui/README.md](ui/README.md)。
 - **结果工具栏换行是散的**——为什么：`[选择组][flex-1 撑条][布局][列／排序][刷新]`——放不下时撑条把 Table|Cards 单独顶到第一行右端，其余掉到第二行左对齐，Refresh 再掉第三行：1280 有选择时 2 行、768 时 3 行、375 时三行 **104px**；无选择时 `min-h-8` 占位仍占 32px。判据：右侧三组包进 `ml-auto flex flex-wrap justify-end`，无选择时不渲染占位；浏览器故事在 768／375 断言工具栏 ≤2 行且右组右对齐。落点：`src/ui/ResultToolbar.tsx`、[ui/record.md](ui/record.md)。
 - **折叠侧栏时切换器撑满 470px、内容居中**——为什么：`view-collapsed` 组 `w-0 grow` 加上触发器 `justify-center`，一个 470px 的居中胶囊是这一轮最"没设计过"的一处；768 时标题栏换行后右组落到第二行**左对齐**（`view-controls` 缺 `ml-auto`）。判据：切换器按内容定宽、左对齐；`view-controls` 加 `ml-auto`；「标题栏/回归」故事补两档断言。落点：`src/ui/WorkbenchShell.tsx`、`src/ui/ViewSwitcher.tsx`、[ui/README.md](ui/README.md)。
@@ -77,11 +76,8 @@
 ### 视觉
 
 - **字号阶梯里 12.8 与 12 挨得太近**——为什么：一屏 12 / 12.8 / 14 / 16 四档，12.8（shadcn 的 `sm` 按钮）与 12 只差 0.8px，侧栏视图名 12.8 压在 12 的分组标签上，中文在 12.8 渲染发虚。判据：`sm` 按钮与侧栏项统一到 13 或 12（在调用处或 `styles.css` 的 token 上，不改 vendored 文件），四档变三档；浏览器故事量侧栏项字号。落点：`src/styles.css`、`src/ui/layout.ts`。
-- **暗色是反相不是主题**——为什么：发丝线 `oklch(1 0 0/10%)` 对卡片 **1.32:1**、卡片对页面 1.1:1、`secondary` 徽章 1.19:1——暗色下行线几乎不可见；语义色反而很好（warning 10.4、destructive 6.2）。#1577 明说不动 `--border`。判据：`--fve-dark-border` ≥18%（量到 ≥1.5:1）、暗色卡片与页面拉开一档；浏览器故事在暗色量表格行线与卡片边。落点：`src/styles.css`、[ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。
-- **图标四种尺寸，应用条的 ✕ 是 24px**——为什么：12 / 14 / 16 / 24 四种；应用条 badge 里的 ✕ 是 Lucide 默认 24px（没有 size 类），把徽章撑到 **30px**（其它 20px）。判据：✕ 取 `size-3.5`，全包图标只剩 14／16 两档（按钮内 `[&_svg]:size-4` 由 vendored 按钮给）；`test/appliedBar.test.tsx` 钉 class。落点：`src/ui/AppliedBar.tsx`。
 - **条件 pill 盒中盒**——为什么：pill 有边、操作符选择器无边、值选择器又有边，空值时再叠一圈虚线。判据：值控件与操作符一样走无边（`ghost`）样式，只有 pill 一圈边；截图对比亮暗两态。落点：`src/ui/filter/ConditionPill.tsx`、`src/ui/FilterValueEditor.tsx`、[ui/README.md](ui/README.md)。
 - **空态与「无法打开」是最"默认 shadcn"的两屏**——为什么：空态是默认 `Empty`；「无法打开」整块红字、无动作。加载骨架三条等宽灰条，暗色对卡片 1.19:1。判据：「无法打开」给出一个动作（回到默认视图／打开列表），文案与图标与空态同一形制；骨架按列名给不等宽条；暗色骨架 ≥1.5:1。落点：`src/ui/WorkbenchShell.tsx`、`src/ui/RecordTable.tsx`、[ui/README.md](ui/README.md)。
-- **冻结列边可以再宽一档**——为什么：#1574 的边克制且正确，但 `创建时间` 被裁成 `7:10:0|` 时只有 1px 线提示"在滚"，读者会当布局坏了。判据：阴影从 `8px 0 12px -8px` 放宽到 `12px 0 16px -8px` 一档，`PinnedEdges` 故事截图对比。落点：`src/ui/record/columns.ts`。
 
 ## 功能（legacy 形态）
 

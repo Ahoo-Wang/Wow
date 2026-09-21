@@ -56,14 +56,21 @@ export interface BorderContrast {
  * theme gives inputs a `bg-input/30` wash, which is the same token at another
  * opacity and therefore moves with it.
  */
-export function measureBorderContrast(element: Element): BorderContrast {
+export function measureBorderContrast(
+  element: Element,
+  side: 'top' | 'bottom' = 'top',
+): BorderContrast {
   const style = getComputedStyle(element);
-  if (parseFloat(style.borderTopWidth) === 0)
+  const width = side === 'top' ? style.borderTopWidth : style.borderBottomWidth;
+  if (parseFloat(width) === 0)
     throw new Error('The element draws no border to measure.');
 
   const surface = surfaceUnder(element.parentElement);
   const fill = composite(layer(style.backgroundColor), surface);
-  const border = composite(layer(style.borderTopColor), fill);
+  const border = composite(
+    layer(side === 'top' ? style.borderTopColor : style.borderBottomColor),
+    fill,
+  );
   const onFill = contrastRatio(border, fill);
   const onSurface = contrastRatio(border, surface);
   return {
