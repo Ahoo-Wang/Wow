@@ -18,7 +18,24 @@
 
 这轮复验修了两个缺陷：#1637（隐藏列保位）曾被 #1639 的压缩提交整份回退，以 #1653 原样重放；布局／模式切换曾亮「未应用」，以 #1654 修正。教训：压缩提交只用 `git reset --soft $(git merge-base HEAD origin/main)` 或 `rebase -i`，不要 reset 到一次 fetch 之后前进了的 `origin/main`。
 
-## 暂停点与下一步
+## 主线：后续阶段（2026-09-21 与用户对齐）
+
+按此顺序推进，最终达到生产级；上层目标是**项目目标**（[README.md#定位与第一性原理](README.md#定位与第一性原理)）与**用户体验**：
+
+1. 布局与记录视图的 review
+2. 分析视图
+3. 仪表盘
+4. 嵌入视图
+5. 内置多主题
+6. Wow 存储后端（`ViewStore` 的宿主服务，入口在 [management.md](management.md)）
+7. 文档
+8. view-engine skills
+
+每个阶段：进一步打磨 **UI 视觉、UX、功能、架构质量、扩展点**。节奏是——审计清单（先给用户看，再分派）→ 条目进 [todo.md](todo.md) → 做与派 → 合并后真浏览器逐控件复验 → **阶段审查（架构、代码质量、UI、视觉、UX 五个维度）**，防止架构腐化，及时重构 → 重写本页。
+
+**当前阶段：1. 布局与记录视图的 review**（审计进行中）。
+
+## 上一个暂停点（已过）
 
 1. ~~验证项目级 shadcn skill~~ **已验证**（2026-09-21，新会话）：`Skill(shadcn)` 解析到仓库的 `.claude/skills/shadcn`，preamble 带 `-c` 的 `shadcn info` 返回 base-nova / base / neutral / lucide，cwd 落在 `packages/view-engine`；全局副本已删除，`AGENTS.md` 规定不得再全局安装（同名全局副本会遮蔽仓库副本）。
 2. **Wow 存储后端**（`ViewStore` 的宿主服务）是否开始，等用户决定；设计入口在 [management.md](management.md) 的 `ViewStore` 一节。
