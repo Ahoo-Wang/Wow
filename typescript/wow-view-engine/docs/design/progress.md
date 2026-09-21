@@ -20,6 +20,6 @@
 
 ## 暂停点与下一步
 
-1. **验证项目级 shadcn skill**：`.claude/skills/shadcn`（preamble 带 `-c "$(git rev-parse --show-toplevel)/packages/view-engine"`）只能在新会话里验证是否被 `Skill(shadcn)` 解析到。
+1. **验证项目级 shadcn skill**：新会话已证明同名的项目级 `shadcn` 永远解析到全局副本，于是仓库副本改名为 `.claude/skills/shadcn-view-engine`（preamble 带 `-c "$(git rev-parse --show-toplevel)/packages/view-engine"`，`AGENTS.md` 的规则改为 `Skill(shadcn-view-engine)`）；再开一个新会话确认它被解析到。
 2. **Wow 存储后端**（`ViewStore` 的宿主服务）是否开始，等用户决定；设计入口在 [management.md](management.md) 的 `ViewStore` 一节。
 3. 搁置待议的产品问题仍在 [decisions.md#搁置待议](decisions.md#搁置待议)。
