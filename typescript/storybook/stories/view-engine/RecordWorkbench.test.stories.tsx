@@ -25,12 +25,12 @@ import displayMeta, {
   CollapsedSidebar as DisplayCollapsedSidebar,
   DeleteConflicted as DisplayDeleteConflicted,
   EmptyResult as DisplayEmptyResult,
+  English as DisplayEnglish,
   FillTheScreen as DisplayFillTheScreen,
   FillTheScreenInScaledHost as DisplayFillTheScreenInScaledHost,
   FillTheScreenInTransformedHost as DisplayFillTheScreenInTransformedHost,
   FillTheScreenWithPopups as DisplayFillTheScreenWithPopups,
   Loading as DisplayLoading,
-  Localized as DisplayLocalized,
   ManageViews as DisplayManageViews,
   NarrowTitleBar as DisplayNarrowTitleBar,
   NeedsFixing as DisplayNeedsFixing,
@@ -75,7 +75,7 @@ const PENDING_BY_AMOUNT = ['SO-1003', 'SO-1005', 'SO-1001', 'SO-1006'];
 
 /** One catalogue sentence with its numbers filled in, as the bar writes it. */
 const say = (key: string, params: Record<string, string | number>) =>
-  formatMessage(defaultMessages, key, params);
+  formatMessage(zhCN, key, params);
 
 /** The bar under the rows. */
 const paginationBar = (canvasElement: HTMLElement) =>
@@ -95,12 +95,12 @@ export const WithData: Story = {
     await expect(amountOf(readTotal(table, '金额'))).toBe(6470);
     await expect(amountOf(readPage(table, '金额'))).toBe(6470);
     await expect(scopeLabels(table)).toEqual([
-      defaultMessages['label.summary.scope.page'],
-      defaultMessages['label.summary.scope.total'],
+      zhCN['label.summary.scope.page'],
+      zhCN['label.summary.scope.total'],
     ]);
     // The function is named rather than left as the config's token.
     await expect(readTotal(table, '金额')).toContain(
-      defaultMessages['label.summary.fn.SUM'],
+      zhCN['label.summary.fn.SUM'],
     );
 
     // A status is one of a set the definition names, so it reads as a badge
@@ -159,19 +159,17 @@ export const WithData: Story = {
       '[data-slot="view-header"]',
     );
     await expect(header).toHaveTextContent('待出库订单');
-    await expect(header).toHaveTextContent(
-      defaultMessages['label.scope.tag.shared'],
-    );
+    await expect(header).toHaveTextContent(zhCN['label.scope.tag.shared']);
 
     // A saved view opens folded, and the bar above the rows says what they
     // were fetched under rather than what the editor now holds.
     const band = canvas.getByRole('button', {
-      name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+      name: new RegExp(`^${zhCN['label.filter.panel']}`),
     });
     await expect(band).toHaveAttribute('aria-expanded', 'false');
     await expect(
       canvas.getByRole('region', {
-        name: defaultMessages['label.applied.title'],
+        name: zhCN['label.applied.title'],
       }),
     ).toHaveTextContent('待出库');
 
@@ -191,7 +189,7 @@ export const WithData: Story = {
     await userEvent.click(band);
     await expect(
       await canvas.findByRole('button', {
-        name: defaultMessages['label.filter.apply'],
+        name: zhCN['label.filter.apply'],
       }),
     ).toBeVisible();
     await expect(slots(canvasElement)).toEqual([
@@ -229,7 +227,7 @@ export const BlockSpacing: Story = {
     // Out, so all three blocks of the column are on the page at once.
     await userEvent.click(
       canvas.getByRole('button', {
-        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
       }),
     );
     await waitFor(() =>
@@ -348,16 +346,16 @@ export const Paged: Story = {
     // The size in force is offered back with its unit attached.
     await expect(
       within(bar).getByRole('combobox', {
-        name: defaultMessages['label.pagination.page-size'],
+        name: zhCN['label.pagination.page-size'],
       }),
     ).toHaveTextContent(say('label.pagination.page-size-option', { size: 2 }));
 
     // Page one has nowhere to go back to.
     const previous = within(bar).getByRole('button', {
-      name: defaultMessages['label.toolbar.previous'],
+      name: zhCN['label.toolbar.previous'],
     });
     const next = within(bar).getByRole('button', {
-      name: defaultMessages['label.toolbar.next'],
+      name: zhCN['label.toolbar.next'],
     });
     await expect(previous).toBeDisabled();
 
@@ -376,12 +374,12 @@ export const Paged: Story = {
     // And back again, which is now open.
     await expect(
       within(paginationBar(canvasElement)).getByRole('button', {
-        name: defaultMessages['label.toolbar.previous'],
+        name: zhCN['label.toolbar.previous'],
       }),
     ).toBeEnabled();
     await userEvent.click(
       within(paginationBar(canvasElement)).getByRole('button', {
-        name: defaultMessages['label.toolbar.previous'],
+        name: zhCN['label.toolbar.previous'],
       }),
     );
     await waitFor(() =>
@@ -419,12 +417,12 @@ export const WithActions: Story = {
     );
     await expect(
       canvas.getByRole('columnheader', {
-        name: defaultMessages['label.toolbar.actions'],
+        name: zhCN['label.toolbar.actions'],
       }).className,
     ).toContain('sticky');
 
     await userEvent.click(
-      canvas.getByLabelText(defaultMessages['label.record.select-all']),
+      canvas.getByLabelText(zhCN['label.record.select-all']),
     );
     await expect(
       await canvas.findByRole('button', { name: '导出所选' }),
@@ -445,7 +443,7 @@ export const ManageViews: Story = {
 
     await userEvent.click(
       canvas.getByRole('button', {
-        name: defaultMessages['label.manage.open'],
+        name: zhCN['label.manage.open'],
       }),
     );
     // The dialog portals out of the canvas, so it is found on the document.
@@ -476,7 +474,7 @@ export const ManageViews: Story = {
     await expect(() => row('仓库金额分布')).toThrow();
     await expect(
       within(row('全部订单')).queryByRole('button', {
-        name: defaultMessages['label.manage.delete'],
+        name: zhCN['label.manage.delete'],
       }),
     ).toBeNull();
 
@@ -507,23 +505,22 @@ export const ManageViews: Story = {
     // And the check is not vacuous: the rows really do differ in what they
     // carry, which is the only reason any of them could drift.
     await expect(
-      shared
-        .map(([name]) => name)
-        .includes(defaultMessages['label.manage.set-default']),
+      shared.map(([name]) => name).includes(zhCN['label.manage.set-default']),
     ).toBe(true);
-    await expect(
-      drift.get(defaultMessages['label.manage.delete'])!.length,
-    ).toBeLessThan(
-      drift.get(defaultMessages['label.manage.set-default'])!.length,
+    await expect(drift.get(zhCN['label.manage.delete'])!.length).toBeLessThan(
+      drift.get(zhCN['label.manage.set-default'])!.length,
     );
 
     // The handle is the other end of the row and lines up the same way: it
     // leads every row, because a list that is dragged says so before it is
     // read. It is a list-wide permission, so either every row has one or
     // none does.
+    // The handle's name is the catalogue's, so the selector is built from
+    // the part of it that comes before the title.
+    const DRAG = zhCN['label.manage.drag'].split('{title}')[0];
     const handles = [
       ...document.querySelectorAll<HTMLElement>(
-        '[data-slot="view-manager-row"] button[aria-label^="Reorder"]',
+        `[data-slot="view-manager-row"] button[aria-label^="${DRAG}"]`,
       ),
     ];
     await expect(handles).toHaveLength(3);
@@ -535,17 +532,17 @@ export const ManageViews: Story = {
     // Renaming happens in the row, and the list follows it.
     await userEvent.click(
       within(row('我盯的大额单')).getByRole('button', {
-        name: defaultMessages['label.manage.rename'],
+        name: zhCN['label.manage.rename'],
       }),
     );
     const title = within(row('我盯的大额单')).getByLabelText(
-      defaultMessages['label.save.title'],
+      zhCN['label.save.title'],
     );
     await userEvent.clear(title);
     await userEvent.type(title, '大额单');
     await userEvent.click(
       within(row('大额单')).getByRole('button', {
-        name: defaultMessages['label.manage.rename-confirm'],
+        name: zhCN['label.manage.rename-confirm'],
       }),
     );
     await waitFor(() => expect(row('大额单').textContent).toContain('大额单'));
@@ -554,13 +551,11 @@ export const ManageViews: Story = {
     // it is set.
     await userEvent.click(
       within(row('待出库订单')).getByRole('button', {
-        name: defaultMessages['label.manage.set-default'],
+        name: zhCN['label.manage.set-default'],
       }),
     );
     await waitFor(() =>
-      expect(row('待出库订单')).toHaveTextContent(
-        defaultMessages['label.manage.default'],
-      ),
+      expect(row('待出库订单')).toHaveTextContent(zhCN['label.manage.default']),
     );
     // Said on the star itself and not only in the badge beside the title:
     // the attribute was there and nothing was drawn from it, so pressing the
@@ -568,14 +563,14 @@ export const ManageViews: Story = {
     await expect(
       within(row('待出库订单'))
         .getByRole('button', {
-          name: defaultMessages['label.manage.unset-default'],
+          name: zhCN['label.manage.unset-default'],
         })
         .querySelector('svg')!.classList,
     ).toContain('fill-current');
     await expect(
       within(row('全部订单'))
         .getByRole('button', {
-          name: defaultMessages['label.manage.set-default'],
+          name: zhCN['label.manage.set-default'],
         })
         .querySelector('svg')!.classList,
     ).not.toContain('fill-current');
@@ -616,24 +611,20 @@ export const ManageViews: Story = {
     // of it, because nothing here is meant to be written.
     await userEvent.click(
       within(row('大额单')).getByRole('button', {
-        name: defaultMessages['label.manage.delete'],
+        name: zhCN['label.manage.delete'],
       }),
     );
     const confirm = (
-      await within(document.body).findByText(
-        defaultMessages['label.delete.consequence'],
-      )
+      await within(document.body).findByText(zhCN['label.delete.consequence'])
     ).closest('[role="dialog"]') as HTMLElement;
     await userEvent.click(
       within(confirm).getByRole('button', {
-        name: defaultMessages['label.delete.keep'],
+        name: zhCN['label.delete.keep'],
       }),
     );
     await waitFor(() =>
       expect(
-        within(document.body).queryByText(
-          defaultMessages['label.delete.consequence'],
-        ),
+        within(document.body).queryByText(zhCN['label.delete.consequence']),
       ).toBeNull(),
     );
   },
@@ -643,9 +634,7 @@ export const EmptyResult: Story = {
   ...DisplayEmptyResult,
   play: async ({ canvasElement }) => {
     await expect(
-      await within(canvasElement).findByText(
-        defaultMessages['label.record.empty-hint'],
-      ),
+      await within(canvasElement).findByText(zhCN['label.record.empty-hint']),
     ).toBeVisible();
   },
 };
@@ -667,7 +656,7 @@ export const Loading: Story = {
     await expect(table.querySelector('thead')).toBeNull();
     await expect(
       canvas.queryByRole('checkbox', {
-        name: defaultMessages['label.record.select-all'],
+        name: zhCN['label.record.select-all'],
       }),
     ).toBeNull();
     await expect(
@@ -690,7 +679,7 @@ export const QueryFailed: Story = {
     await expect(alert).toHaveTextContent('仓储服务暂时不可用');
     await expect(
       within(alert).getByRole('button', {
-        name: defaultMessages['label.query.retry'],
+        name: zhCN['label.query.retry'],
       }),
     ).toBeVisible();
     // Only the data is gone: the view stays open under its conditions.
@@ -722,7 +711,7 @@ export const TotalCoversThisPageOnly: Story = {
     // matching record has no number, and none is invented for it.
     const footer = table.querySelector<HTMLElement>('tfoot')!;
     await expect(scopeLabels(table)).toEqual([
-      defaultMessages['label.summary.scope.page'],
+      zhCN['label.summary.scope.page'],
     ]);
     await expect(
       [...footer.querySelectorAll('tr')].map(row => row.dataset.scope),
@@ -733,9 +722,7 @@ export const TotalCoversThisPageOnly: Story = {
     // And one line above the result says why it is only a page total. It is
     // a warning, not an alert: nothing was blocked.
     const strip = await canvas.findByRole('status');
-    await expect(strip).toHaveTextContent(
-      defaultMessages['runtime.summary.page-only'],
-    );
+    await expect(strip).toHaveTextContent(zhCN['runtime.summary.page-only']);
   },
 };
 
@@ -744,9 +731,7 @@ export const NeedsFixing: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const alert = await canvas.findByRole('alert');
-    await expect(alert).toHaveTextContent(
-      defaultMessages['label.view.needs-fixing'],
-    );
+    await expect(alert).toHaveTextContent(zhCN['label.view.needs-fixing']);
     // The findings fold behind a count so the result keeps its room.
     await userEvent.click(within(alert).getByRole('button', { name: /1/ }));
     await expect(alert).toHaveTextContent('removedColumn');
@@ -758,7 +743,7 @@ export const NeedsFixing: Story = {
     await expect(canvas.queryByRole('table')).toBeNull();
     await expect(
       canvas.queryByRole('checkbox', {
-        name: defaultMessages['label.record.select-all'],
+        name: zhCN['label.record.select-all'],
       }),
     ).toBeNull();
   },
@@ -769,17 +754,22 @@ export const CannotOpen: Story = {
   play: async ({ canvasElement }) => {
     await expect(
       await within(canvasElement).findByRole('alert'),
-    ).toHaveTextContent(defaultMessages['label.view.unopenable']);
+    ).toHaveTextContent(zhCN['label.view.unopenable']);
   },
 };
 
 /**
- * The shipped Chinese catalogue, handed to the workbench the way a host does.
- * The stories above assert the English wording, so this one is separate: it
- * says the same screen reads in Chinese when `messages` says so.
+ * The English catalogue — what the package ships, and what every story here
+ * now opts out of.
+ *
+ * The fixtures are Chinese, so the rest of this file asserts the Chinese
+ * wording; this one screen is what keeps the shipped default covered. The
+ * field labels and the option labels stay Chinese either way: they come from
+ * the definition, which is the application's data rather than the package's
+ * wording.
  */
-export const Localized: Story = {
-  ...DisplayLocalized,
+export const English: Story = {
+  ...DisplayEnglish,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');
@@ -787,58 +777,65 @@ export const Localized: Story = {
     // The audience tag and the fold above the rows, both from the catalogue.
     await expect(
       canvasElement.querySelector<HTMLElement>('[data-slot="view-header"]'),
-    ).toHaveTextContent(zhCN['label.scope.tag.shared']);
+    ).toHaveTextContent(defaultMessages['label.scope.tag.shared']);
     await expect(
       canvas.getByRole('button', {
-        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
       }),
     ).toBeVisible();
     await expect(
-      canvas.getByRole('button', { name: zhCN['label.toolbar.refresh'] }),
+      canvas.getByRole('button', {
+        name: defaultMessages['label.toolbar.refresh'],
+      }),
     ).toBeVisible();
 
-    // The bar under the rows, where the measure word has to ride with the
-    // number: `共 4 条记录`, and `每页` beside `20 条` rather than `每页 20`.
+    // The bar under the rows, where the count and the page size are sentences
+    // with numbers in them rather than numbers with words beside them.
     const bar = paginationBar(canvasElement);
     await expect(bar).toHaveTextContent(
-      formatMessage(zhCN, 'label.pagination.total', { total: 4 }),
+      formatMessage(defaultMessages, 'label.pagination.total', { total: 4 }),
     );
     await expect(
       within(bar).getByRole('combobox', {
-        name: zhCN['label.pagination.page-size'],
+        name: defaultMessages['label.pagination.page-size'],
       }),
     ).toHaveTextContent(
-      formatMessage(zhCN, 'label.pagination.page-size-option', { size: 20 }),
+      formatMessage(defaultMessages, 'label.pagination.page-size-option', {
+        size: 20,
+      }),
     );
 
-    // And nothing is left in English behind it.
+    // And nothing is left in Chinese behind it.
     await expect(
-      canvas.queryByRole('button', {
-        name: defaultMessages['label.toolbar.refresh'],
-      }),
+      canvas.queryByRole('button', { name: zhCN['label.toolbar.refresh'] }),
     ).toBeNull();
 
     // The most visible line of the result area, which each kind used to hand
     // over as a finished English sentence: field label from the definition,
     // operator from the catalogue, option label from the definition again.
     const applied = canvas.getByRole('region', {
-      name: zhCN['label.applied.title'],
+      name: defaultMessages['label.applied.title'],
     });
-    const badge = `状态 ${zhCN['label.operator.IN']} 待出库`;
+    const badge = `状态 ${defaultMessages['label.operator.IN']} 待出库`;
     await expect(applied).toHaveTextContent(badge);
-    await expect(applied).not.toHaveTextContent(/Status|IN Pending/);
+    await expect(applied).not.toHaveTextContent(zhCN['label.operator.IN']);
 
     // And it is operable: the ✕ takes the condition out of force and the
     // query runs again, which is what leaves every order on screen.
     await userEvent.click(
       within(applied).getByRole('button', {
-        name: zhCN['label.filter.unset-of'].replace('{condition}', badge),
+        name: defaultMessages['label.filter.unset-of'].replace(
+          '{condition}',
+          badge,
+        ),
       }),
     );
     await waitFor(() =>
       expect(
-        canvas.getByRole('region', { name: zhCN['label.applied.title'] }),
-      ).toHaveTextContent(zhCN['label.applied.all']),
+        canvas.getByRole('region', {
+          name: defaultMessages['label.applied.title'],
+        }),
+      ).toHaveTextContent(defaultMessages['label.applied.all']),
     );
     await waitFor(() =>
       expect(readColumn(canvas.getByRole('table'), '订单号')).toHaveLength(6),
@@ -875,30 +872,42 @@ export const TableSettings: Story = {
     // to change it; the rest of the list is the order the table is in.
     await expect(
       popover.getByRole('button', {
-        name: `Pinning of 订单号: ${defaultMessages['label.columns.pin.left']}`,
+        name: say('label.columns.pin', {
+          field: '订单号',
+          state: zhCN['label.columns.pin.left'],
+        }),
       }),
     ).toBeDisabled();
 
     // Reorder by keyboard: 状态 up one place, past 仓库.
-    const handle = popover.getByRole('button', { name: 'Reorder 状态' });
+    const handle = popover.getByRole('button', {
+      name: say('label.columns.drag', { field: '状态' }),
+    });
     handle.focus();
     await userEvent.keyboard('{ArrowUp}');
     await expect(
       document.querySelector('[data-slot="column-announcement"]'),
-    ).toHaveTextContent('状态 moved to position 2 of 4');
+    ).toHaveTextContent(
+      say('label.columns.moved', { field: '状态', index: 2, total: 4 }),
+    );
 
     // Pin 金额, then summarise it as an average rather than a sum.
     await userEvent.click(
       popover.getByRole('button', {
-        name: `Pinning of 金额: ${defaultMessages['label.columns.pin.none']}`,
+        name: say('label.columns.pin', {
+          field: '金额',
+          state: zhCN['label.columns.pin.none'],
+        }),
       }),
     );
     await userEvent.click(
-      popover.getByRole('combobox', { name: 'Summary under 金额' }),
+      popover.getByRole('combobox', {
+        name: say('label.columns.summary', { field: '金额' }),
+      }),
     );
     await userEvent.click(
       await popover.findByRole('option', {
-        name: defaultMessages['label.summary.fn.AVG'],
+        name: zhCN['label.summary.fn.AVG'],
       }),
     );
     await userEvent.keyboard('{Escape}');
@@ -910,7 +919,7 @@ export const TableSettings: Story = {
     );
     await userEvent.click(
       await within(document.body).findByRole('button', {
-        name: 'Direction of 金额',
+        name: say('label.sort.direction', { field: '金额' }),
       }),
     );
     await userEvent.keyboard('{Escape}');
@@ -935,7 +944,7 @@ export const TableSettings: Story = {
 
     // And what was written: all four changes, in the saved config.
     await userEvent.click(
-      canvas.getByRole('button', { name: defaultMessages['label.save.save'] }),
+      canvas.getByRole('button', { name: zhCN['label.save.save'] }),
     );
     await waitFor(async () => {
       const saved = await tableSettingsStore.current!.get('orders-pending');
@@ -1022,7 +1031,7 @@ export const TableSettingsPointerDrag: Story = {
 
     await userEvent.keyboard('{Escape}');
     await userEvent.click(
-      canvas.getByRole('button', { name: defaultMessages['label.save.save'] }),
+      canvas.getByRole('button', { name: zhCN['label.save.save'] }),
     );
     await waitFor(async () => {
       const saved = await tableSettingsStore.current!.get('orders-pending');
@@ -1059,14 +1068,14 @@ export const SaveConflictKeepsMine: Story = {
         button.textContent?.trim(),
       ),
     ).toEqual([
-      defaultMessages['label.conflict.theirs'],
-      defaultMessages['label.conflict.copy'],
-      defaultMessages['label.conflict.mine'],
+      zhCN['label.conflict.theirs'],
+      zhCN['label.conflict.copy'],
+      zhCN['label.conflict.mine'],
     ]);
 
     await pressWhenEnabled(
       within(band).getByRole('button', {
-        name: defaultMessages['label.conflict.mine'],
+        name: zhCN['label.conflict.mine'],
       }),
     );
 
@@ -1074,15 +1083,13 @@ export const SaveConflictKeepsMine: Story = {
     // costs: the two configs are summarised beside each other, and here they
     // differ in three of the four things the summary counts.
     const dialog = await within(document.body).findByRole('dialog');
-    await expect(dialog).toHaveTextContent(
-      defaultMessages['label.conflict.confirm-mine'],
-    );
+    await expect(dialog).toHaveTextContent(zhCN['label.conflict.confirm-mine']);
     await expect(dialog).toHaveTextContent(MINE);
     await expect(dialog).toHaveTextContent(THEIRS);
 
     await userEvent.click(
       within(dialog).getByRole('button', {
-        name: defaultMessages['label.conflict.mine'],
+        name: zhCN['label.conflict.mine'],
       }),
     );
 
@@ -1104,9 +1111,7 @@ export const SaveConflictKeepsMine: Story = {
       expect((saved.config as RecordViewConfig).sort).toHaveLength(2);
     });
     await waitFor(() =>
-      expect(
-        canvas.queryByText(defaultMessages['label.write.conflict']),
-      ).toBeNull(),
+      expect(canvas.queryByText(zhCN['label.write.conflict'])).toBeNull(),
     );
   },
 };
@@ -1129,29 +1134,25 @@ export const SaveConflictTakesTheirs: Story = {
     const band = await conflictBand(canvasElement);
     await pressWhenEnabled(
       within(band).getByRole('button', {
-        name: defaultMessages['label.conflict.theirs'],
+        name: zhCN['label.conflict.theirs'],
       }),
     );
     const dialog = await within(document.body).findByRole('dialog');
     await expect(dialog).toHaveTextContent(
-      defaultMessages['label.conflict.confirm-theirs'],
+      zhCN['label.conflict.confirm-theirs'],
     );
     await userEvent.click(
       within(dialog).getByRole('button', {
-        name: defaultMessages['label.conflict.theirs'],
+        name: zhCN['label.conflict.theirs'],
       }),
     );
 
     // The line is settled, and with it the edit that caused it: the draft is
     // theirs now, so there is nothing unsaved left to mark.
     await waitFor(() =>
-      expect(
-        canvas.queryByText(defaultMessages['label.write.conflict']),
-      ).toBeNull(),
+      expect(canvas.queryByText(zhCN['label.write.conflict'])).toBeNull(),
     );
-    await expect(
-      canvas.queryByText(defaultMessages['label.header.unsaved']),
-    ).toBeNull();
+    await expect(canvas.queryByText(zhCN['label.header.unsaved'])).toBeNull();
 
     // And the draft really is theirs: the column settings read it, and the
     // one column this view never showed is shown in it. The rows on screen
@@ -1186,22 +1187,16 @@ export const SaveResultNeverCameBack: Story = {
     await dirtyTheDraft(canvasElement);
     await save(canvas);
 
-    const band = await outcomeBand(
-      canvasElement,
-      defaultMessages['label.write.unknown'],
-    );
+    const band = await outcomeBand(canvasElement, zhCN['label.write.unknown']);
     await expect(
       [...band.querySelectorAll('button')].map(button =>
         button.textContent?.trim(),
       ),
-    ).toEqual([
-      defaultMessages['label.unknown.retry'],
-      defaultMessages['label.unknown.leave'],
-    ]);
+    ).toEqual([zhCN['label.unknown.retry'], zhCN['label.unknown.leave']]);
 
     await pressWhenEnabled(
       within(band).getByRole('button', {
-        name: defaultMessages['label.unknown.retry'],
+        name: zhCN['label.unknown.retry'],
       }),
     );
 
@@ -1212,9 +1207,7 @@ export const SaveResultNeverCameBack: Story = {
       expect((saved.config as RecordViewConfig).sort).toHaveLength(2);
     });
     await waitFor(() =>
-      expect(
-        canvas.queryByText(defaultMessages['label.write.unknown']),
-      ).toBeNull(),
+      expect(canvas.queryByText(zhCN['label.write.unknown'])).toBeNull(),
     );
   },
 };
@@ -1234,10 +1227,7 @@ export const SaveRefusedByTheStore: Story = {
     await dirtyTheDraft(canvasElement);
     await save(canvas);
 
-    const band = await outcomeBand(
-      canvasElement,
-      defaultMessages['view.write.invalid'],
-    );
+    const band = await outcomeBand(canvasElement, zhCN['view.write.invalid']);
     // The catalogue's sentence, and the store's own reason after it: an open
     // view has room for both, and the reason is the only part that says
     // *what* was wrong.
@@ -1246,16 +1236,16 @@ export const SaveRefusedByTheStore: Story = {
       [...band.querySelectorAll('button')].map(button =>
         button.textContent?.trim(),
       ),
-    ).toEqual([defaultMessages['label.rejected.dismiss']]);
+    ).toEqual([zhCN['label.rejected.dismiss']]);
 
     await pressWhenEnabled(
       within(band).getByRole('button', {
-        name: defaultMessages['label.rejected.dismiss'],
+        name: zhCN['label.rejected.dismiss'],
       }),
     );
     await waitFor(() =>
       expect(
-        canvas.queryByText(defaultMessages['view.write.invalid'], {
+        canvas.queryByText(zhCN['view.write.invalid'], {
           exact: false,
         }),
       ).toBeNull(),
@@ -1287,17 +1277,17 @@ export const RenameConflictedInTheManager: Story = {
 
     await userEvent.click(
       within(managerRow('我盯的大额单')).getByRole('button', {
-        name: defaultMessages['label.manage.rename'],
+        name: zhCN['label.manage.rename'],
       }),
     );
     const title = within(managerRow('我盯的大额单')).getByLabelText(
-      defaultMessages['label.save.title'],
+      zhCN['label.save.title'],
     );
     await userEvent.clear(title);
     await userEvent.type(title, '大额单');
     await userEvent.click(
       within(managerRow('大额单')).getByRole('button', {
-        name: defaultMessages['label.manage.rename-confirm'],
+        name: zhCN['label.manage.rename-confirm'],
       }),
     );
 
@@ -1306,23 +1296,23 @@ export const RenameConflictedInTheManager: Story = {
       [...line.querySelectorAll('button')].map(button =>
         button.textContent?.trim(),
       ),
-    ).toContain(defaultMessages['label.manage.reload']);
+    ).toContain(zhCN['label.manage.reload']);
     // The list is what comes back, so the row says that rather than "take
     // theirs"; and a row has nowhere to put a copy, so none is offered.
     await expect(
       within(line).queryByRole('button', {
-        name: defaultMessages['label.conflict.theirs'],
+        name: zhCN['label.conflict.theirs'],
       }),
     ).toBeNull();
     await expect(
       within(line).queryByRole('button', {
-        name: defaultMessages['label.conflict.copy'],
+        name: zhCN['label.conflict.copy'],
       }),
     ).toBeNull();
 
     await pressWhenEnabled(
       within(line).getByRole('button', {
-        name: defaultMessages['label.conflict.mine'],
+        name: zhCN['label.conflict.mine'],
       }),
     );
     await waitFor(async () =>
@@ -1349,17 +1339,17 @@ export const DeleteConflictAsksTwice: Story = {
 
     await userEvent.click(
       within(managerRow('待出库订单')).getByRole('button', {
-        name: defaultMessages['label.manage.delete'],
+        name: zhCN['label.manage.delete'],
       }),
     );
     const first = await deleteDialog();
     // A shared view is somebody else's too, and the first question says so.
     await expect(first).toHaveTextContent(
-      defaultMessages['label.delete.shared-consequence'],
+      zhCN['label.delete.shared-consequence'],
     );
     await userEvent.click(
       within(first).getByRole('button', {
-        name: defaultMessages['label.manage.delete'],
+        name: zhCN['label.manage.delete'],
       }),
     );
 
@@ -1368,15 +1358,13 @@ export const DeleteConflictAsksTwice: Story = {
     // is what makes "twice" mean anything.
     await waitFor(() =>
       expect(
-        within(document.body).queryByText(
-          defaultMessages['label.delete.confirm'],
-        ),
+        within(document.body).queryByText(zhCN['label.delete.confirm']),
       ).toBeNull(),
     );
 
     await pressWhenEnabled(
       within(line).getByRole('button', {
-        name: defaultMessages['label.conflict.mine'],
+        name: zhCN['label.conflict.mine'],
       }),
     );
 
@@ -1389,7 +1377,7 @@ export const DeleteConflictAsksTwice: Story = {
 
     await userEvent.click(
       within(second).getByRole('button', {
-        name: defaultMessages['label.manage.delete'],
+        name: zhCN['label.manage.delete'],
       }),
     );
     await waitFor(async () =>
@@ -1403,7 +1391,7 @@ export const DeleteConflictAsksTwice: Story = {
 /** The user's way of looking, as the conflict dialog summarises it. */
 const MINE = say('label.conflict.summary.record', {
   pageSize: 20,
-  layout: defaultMessages['label.layout.table'],
+  layout: zhCN['label.layout.table'],
   columns: 4,
   sorts: 2,
 });
@@ -1411,7 +1399,7 @@ const MINE = say('label.conflict.summary.record', {
 /** And the one the store had already taken, from `competingConfig`. */
 const THEIRS = say('label.conflict.summary.record', {
   pageSize: 50,
-  layout: defaultMessages['label.layout.table'],
+  layout: zhCN['label.layout.table'],
   columns: 5,
   sorts: 0,
 });
@@ -1438,7 +1426,7 @@ async function dirtyTheDraft(canvasElement: HTMLElement): Promise<void> {
 /** Presses Save, whatever it is about to come to. */
 async function save(canvas: ReturnType<typeof within>): Promise<void> {
   await pressWhenEnabled(
-    canvas.getByRole('button', { name: defaultMessages['label.save.save'] }),
+    canvas.getByRole('button', { name: zhCN['label.save.save'] }),
   );
 }
 
@@ -1467,7 +1455,7 @@ async function outcomeBand(
 
 /** The same band, for the outcome all three stories above start from. */
 function conflictBand(canvasElement: HTMLElement): Promise<HTMLElement> {
-  return outcomeBand(canvasElement, defaultMessages['label.write.conflict']);
+  return outcomeBand(canvasElement, zhCN['label.write.conflict']);
 }
 
 /**
@@ -1484,7 +1472,7 @@ async function openManager(
 ): Promise<HTMLElement> {
   await userEvent.click(
     await canvas.findByRole('button', {
-      name: defaultMessages['label.manage.open'],
+      name: zhCN['label.manage.open'],
     }),
   );
   await within(document.body).findByRole('dialog');
@@ -1512,16 +1500,14 @@ function managerRow(title: string): HTMLElement {
 
 /** The conflict reported under one manager row, once it appears. */
 async function conflictLine(title: string): Promise<HTMLElement> {
-  await within(document.body).findByText(
-    defaultMessages['label.write.conflict'],
-  );
+  await within(document.body).findByText(zhCN['label.write.conflict']);
   return managerRow(title);
 }
 
 /** Whichever delete confirmation is on screen. */
 async function deleteDialog(): Promise<HTMLElement> {
   const asked = await within(document.body).findByText(
-    defaultMessages['label.delete.confirm'],
+    zhCN['label.delete.confirm'],
   );
   return asked.closest<HTMLElement>('[role="dialog"]')!;
 }
@@ -1618,7 +1604,7 @@ export const CollapseAndSwitch: Story = {
 
     await userEvent.click(
       canvas.getByRole('button', {
-        name: defaultMessages['label.workbench.collapse-sidebar'],
+        name: zhCN['label.workbench.collapse-sidebar'],
       }),
     );
     await expect(sidebar()).toBeNull();
@@ -1631,7 +1617,7 @@ export const CollapseAndSwitch: Story = {
     await expect(identity).toHaveTextContent('订单');
     await expect(
       within(identity).getByRole('button', {
-        name: defaultMessages['label.workbench.switch-view'],
+        name: zhCN['label.workbench.switch-view'],
       }),
     ).toBeVisible();
     // The save group moved left, next to the view's name: it changes the
@@ -1644,16 +1630,12 @@ export const CollapseAndSwitch: Story = {
     // way, and choosing one opens it.
     await userEvent.click(
       within(identity).getByRole('button', {
-        name: defaultMessages['label.workbench.switch-view'],
+        name: zhCN['label.workbench.switch-view'],
       }),
     );
     const menu = await within(document.body).findByRole('menu');
-    await expect(menu).toHaveTextContent(
-      defaultMessages['label.scope.group.personal'],
-    );
-    await expect(menu).toHaveTextContent(
-      defaultMessages['label.scope.tag.system'],
-    );
+    await expect(menu).toHaveTextContent(zhCN['label.scope.group.personal']);
+    await expect(menu).toHaveTextContent(zhCN['label.scope.tag.system']);
     await userEvent.click(
       within(menu).getByRole('menuitemradio', { name: /我盯的大额单/ }),
     );
@@ -1666,13 +1648,13 @@ export const CollapseAndSwitch: Story = {
     // And back: the list returns, and the header gives up the switcher.
     await userEvent.click(
       canvas.getByRole('button', {
-        name: defaultMessages['label.workbench.expand-sidebar'],
+        name: zhCN['label.workbench.expand-sidebar'],
       }),
     );
     await expect(sidebar()).not.toBeNull();
     await expect(
       canvas.queryByRole('button', {
-        name: defaultMessages['label.workbench.switch-view'],
+        name: zhCN['label.workbench.switch-view'],
       }),
     ).toBeNull();
     // Nothing left open: Base UI parks focus-guard sentinels beside an open
@@ -1704,7 +1686,7 @@ export const EditorToggleAndModes: Story = {
     ).toBeNull();
 
     const toggle = canvas.getByRole('button', {
-      name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+      name: new RegExp(`^${zhCN['label.filter.panel']}`),
     });
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(toggle);
@@ -1715,13 +1697,13 @@ export const EditorToggleAndModes: Story = {
     // The mode lives beside the toggle now, and drives the panel below it.
     await userEvent.click(
       canvas.getByRole('button', {
-        name: defaultMessages['label.workbench.editor-modes'],
+        name: zhCN['label.workbench.editor-modes'],
       }),
     );
     const modes = await within(document.body).findByRole('menu');
     await userEvent.click(
       within(modes).getByRole('menuitemradio', {
-        name: defaultMessages['label.filter.advanced'],
+        name: zhCN['label.filter.advanced'],
       }),
     );
 
@@ -1740,10 +1722,10 @@ export const EditorToggleAndModes: Story = {
     );
     await expect(
       canvas.getByRole('button', {
-        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
       }),
     ).toHaveAccessibleName(
-      `${defaultMessages['label.filter.panel']} · ${defaultMessages['label.filter.advanced']}`,
+      `${zhCN['label.filter.panel']} · ${zhCN['label.filter.advanced']}`,
     );
   },
 };
@@ -1763,19 +1745,17 @@ export const PickSeveralFields: Story = {
 
     await userEvent.click(
       canvas.getByRole('button', {
-        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
       }),
     );
     await userEvent.click(
       await canvas.findByRole('button', {
-        name: defaultMessages['label.filter.add'],
+        name: zhCN['label.filter.add'],
       }),
     );
 
     const picker = await within(document.body).findByRole('dialog');
-    await expect(picker).toHaveTextContent(
-      defaultMessages['label.filter.pick-fields'],
-    );
+    await expect(picker).toHaveTextContent(zhCN['label.filter.pick-fields']);
     // The view's saved condition is already a tick, which is what makes the
     // list a statement about the filter rather than a menu of things to add.
     await expect(
@@ -1790,7 +1770,7 @@ export const PickSeveralFields: Story = {
     );
     await userEvent.click(
       within(picker).getByRole('button', {
-        name: defaultMessages['label.filter.pick-done'],
+        name: zhCN['label.filter.pick-done'],
       }),
     );
 
@@ -1853,7 +1833,7 @@ export const FillTheScreen: Story = {
       .getBoundingClientRect();
 
     const toggle = canvas.getByRole('button', {
-      name: defaultMessages['label.workbench.expand-view'],
+      name: zhCN['label.workbench.expand-view'],
     });
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(toggle);
@@ -1901,7 +1881,7 @@ export const FillTheScreen: Story = {
     // Escape is the way out, and focus comes back to the control that opened
     // it — the key is announced on the button rather than spent on a tooltip.
     const back = canvas.getByRole('button', {
-      name: defaultMessages['label.workbench.collapse-view'],
+      name: zhCN['label.workbench.collapse-view'],
     });
     await expect(back).toBe(toggle);
     await expect(back).toHaveAttribute('aria-keyshortcuts', 'Escape');
@@ -1993,7 +1973,7 @@ export const FillTheScreenInTransformedHost: Story = {
 
     await userEvent.click(
       canvas.getByRole('button', {
-        name: defaultMessages['label.workbench.expand-view'],
+        name: zhCN['label.workbench.expand-view'],
       }),
     );
     await waitFor(() =>
@@ -2054,7 +2034,7 @@ export const FillTheScreenInScaledHost: Story = {
 
     await userEvent.click(
       canvas.getByRole('button', {
-        name: defaultMessages['label.workbench.expand-view'],
+        name: zhCN['label.workbench.expand-view'],
       }),
     );
     await waitFor(() =>
@@ -2105,12 +2085,12 @@ export const RenderFailure: Story = {
       canvasElement.querySelector('[data-slot="view-title"]'),
     ).toBeVisible();
     await expect(
-      canvas.getByRole('button', { name: defaultMessages['label.save.save'] }),
+      canvas.getByRole('button', { name: zhCN['label.save.save'] }),
     ).toBeVisible();
 
     await userEvent.click(
       within(alert).getByRole('button', {
-        name: defaultMessages['label.render.retry'],
+        name: zhCN['label.render.retry'],
       }),
     );
     await canvas.findByRole('table');
@@ -2235,7 +2215,7 @@ export const FillTheScreenWithPopups: Story = {
     await expect(sticky()).toEqual(STUCK);
 
     const toggle = canvas.getByRole('button', {
-      name: defaultMessages['label.workbench.expand-view'],
+      name: zhCN['label.workbench.expand-view'],
     });
     // Still where the toolbar row puts it, after the editor's fold and before
     // whatever the host adds — #1555 rearranged the row under it, not this.
@@ -2354,7 +2334,7 @@ export const AutoRefresh: Story = {
       within(menu)
         .getAllByRole('menuitemradio')
         .map(item => item.textContent),
-    ).toEqual([defaultMessages['label.refresh.off'], ...LADDER.map(cadenceOf)]);
+    ).toEqual([zhCN['label.refresh.off'], ...LADDER.map(cadenceOf)]);
     // The one in force is the one marked.
     await expect(
       within(menu).getByRole('menuitemradio', { name: seconds }),
@@ -2367,9 +2347,7 @@ export const AutoRefresh: Story = {
       within(menu).getByRole('menuitemradio', { name: minutes }),
     );
     await waitFor(() => expect(cadence()).toHaveTextContent(minutes));
-    await expect(
-      canvas.getByText(defaultMessages['label.header.unsaved']),
-    ).toBeVisible();
+    await expect(canvas.getByText(zhCN['label.header.unsaved'])).toBeVisible();
 
     // And off again, from the keyboard: the chevron opens on Enter and hands
     // focus to the options.
@@ -2378,7 +2356,7 @@ export const AutoRefresh: Story = {
     const reopened = await within(document.body).findByRole('menu');
     await userEvent.click(
       within(reopened).getByRole('menuitemradio', {
-        name: defaultMessages['label.refresh.off'],
+        name: zhCN['label.refresh.off'],
       }),
     );
     await waitFor(() => expect(cadence()).toBeNull());
@@ -2439,7 +2417,7 @@ const POPUP_KINDS: readonly {
     slot: 'dialog-content',
     // The manager, behind the sidebar's gear: a dialog portals a backdrop of
     // its own and is centred on the viewport rather than on the workbench.
-    trigger: `[aria-label="${defaultMessages['label.manage.open']}"]`,
+    trigger: `[aria-label="${zhCN['label.manage.open']}"]`,
   },
 ];
 
@@ -2588,12 +2566,12 @@ const controlBorders = (theme: 'light' | 'dark'): Story => ({
 
     await userEvent.click(
       canvas.getByRole('button', {
-        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
       }),
     );
     await userEvent.click(
       await canvas.findByRole('button', {
-        name: defaultMessages['label.filter.add'],
+        name: zhCN['label.filter.add'],
       }),
     );
     const picker = await within(document.body).findByRole('dialog');
@@ -2604,7 +2582,7 @@ const controlBorders = (theme: 'light' | 'dark'): Story => ({
     // judges the page as a user would leave it.
     await userEvent.click(
       within(picker).getByRole('button', {
-        name: defaultMessages['label.filter.pick-done'],
+        name: zhCN['label.filter.pick-done'],
       }),
     );
     const band = await waitFor(() => {
@@ -2618,7 +2596,7 @@ const controlBorders = (theme: 'light' | 'dark'): Story => ({
     // Ticked, a checkbox is a filled square and this stops being the whole
     // of it; the measurement is about the state that has nothing else.
     const checkbox = canvas.getByRole('checkbox', {
-      name: defaultMessages['label.record.select-all'],
+      name: zhCN['label.record.select-all'],
     });
     await expect(checkbox).not.toBeChecked();
 
@@ -2626,7 +2604,7 @@ const controlBorders = (theme: 'light' | 'dark'): Story => ({
       checkbox,
       input: within(band).getByRole('spinbutton'),
       select: within(paginationBar(canvasElement)).getByRole('combobox', {
-        name: defaultMessages['label.pagination.page-size'],
+        name: zhCN['label.pagination.page-size'],
       }),
     };
 
@@ -2671,13 +2649,11 @@ const focusIndicators = (theme: 'light' | 'dark'): Story => ({
     // A vendored `Button` that is always enabled here — the editor's toggle
     // is a Base UI toggle with an `input` border of its own, not this.
     const columnsButton = canvas.getByRole('button', {
-      name: defaultMessages['label.toolbar.columns'],
+      name: zhCN['label.toolbar.columns'],
     });
     const sortButton = table.querySelector<HTMLElement>('thead button')!;
     const unset = canvas.getAllByRole('button', {
-      name: new RegExp(
-        `^${defaultMessages['label.filter.unset-of'].split(' ')[0]}`,
-      ),
+      name: new RegExp(`^${zhCN['label.filter.unset-of'].split(' ')[0]}`),
     })[0];
 
     const measured: { name: string; ratio: number; colors: object }[] = [];
@@ -2906,7 +2882,7 @@ export const NarrowColumnHoldsTheWidth: Story = {
     // a saved view, and the grid that pinned its tracks is inside it.
     await userEvent.click(
       canvas.getByRole('button', {
-        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
       }),
     );
     await waitFor(() =>
@@ -2918,7 +2894,7 @@ export const NarrowColumnHoldsTheWidth: Story = {
     // And the toolbar has to be carrying its heaviest row: a count, a way to
     // drop the selection, and the host's bulk action.
     await userEvent.click(
-      canvas.getByLabelText(defaultMessages['label.record.select-all']),
+      canvas.getByLabelText(zhCN['label.record.select-all']),
     );
     await canvas.findByRole('button', { name: '导出所选' });
 
@@ -2998,7 +2974,7 @@ export const ToolbarWrapsAsGroups: Story = {
     // never takes more than two lines of its own, and it ends the bar.
     host.style.width = '768px';
     await userEvent.click(
-      canvas.getByLabelText(defaultMessages['label.record.select-all']),
+      canvas.getByLabelText(zhCN['label.record.select-all']),
     );
     await canvas.findByRole('button', { name: '导出所选' });
 

@@ -15,6 +15,7 @@ import { SortDirection } from '@ahoo-wang/fetcher-wow';
 import { AnalysisWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
+  HOST_LANGUAGE,
   analysisConfig,
   createStoryEngine,
   savedViews,
@@ -111,6 +112,7 @@ function AnalysisWorkbenchDemo({
           engine={engine}
           definitionId="orders"
           instanceId={savedViews[1].id}
+          {...HOST_LANGUAGE}
         />
       )}
     </StoryEngine>

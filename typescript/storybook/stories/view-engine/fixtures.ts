@@ -30,11 +30,25 @@ import {
   AggregationFunction,
   AggregationGroupType,
 } from '@ahoo-wang/fetcher-wow';
+import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import { rowSource } from './rowSource.js';
 
 // Wow's names for what the analysis side may group and compute by.
 const { TERMS } = AggregationGroupType;
 const { SUM, AVG } = AggregationFunction;
+
+/**
+ * The language every View Engine story is in.
+ *
+ * The fixtures below are Chinese — 订单号, 待出库, 华东仓 — so a workbench
+ * left on the English catalogue puts two languages on one screen, which is a
+ * screen nobody's application looks like. The shipped `zhCN` catalogue is
+ * handed over the way a host hands it over, and `locale` goes with it so the
+ * dates and the currency are read in the same language as the words around
+ * them. `RecordWorkbench`'s `English` story is the one that opts out, and it
+ * is what keeps the English catalogue covered.
+ */
+export const HOST_LANGUAGE = { messages: zhCN, locale: 'zh-CN' } as const;
 
 /**
  * One warehouse dataset, shared by every View Engine story.

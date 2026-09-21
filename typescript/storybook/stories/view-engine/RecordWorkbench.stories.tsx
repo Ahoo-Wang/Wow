@@ -14,12 +14,13 @@ import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { MemoryViewStore } from '@ahoo-wang/fetcher-view-engine';
 import type { RecordActionSlots } from '@ahoo-wang/fetcher-view-engine/react';
-import { RecordWorkbench, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+import { RecordWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 // View Engine's own button, so the host's commands sit in its toolbar rather
 // than beside it — exactly what an application does with the action slots.
 import { Button } from '@/ui/components/button';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
+  HOST_LANGUAGE,
   createStoryEngine,
   recordConfig,
   savedViews,
@@ -38,6 +39,11 @@ import '@ahoo-wang/fetcher-view-engine/styles.css';
  * The Record workbench in one state at a time. Every state below follows from
  * what the backend does or from what the saved config says, so a story sets
  * one of those two and changes nothing else.
+ *
+ * The wording is one of neither: the orders are Chinese, so every story runs
+ * on the shipped `zhCN` catalogue and a `zh-CN` locale (`HOST_LANGUAGE`).
+ * `English` is the one story that opts out, and it is what keeps the English
+ * catalogue on screen somewhere.
  */
 /**
  * Six orders two at a time, oldest first: the one scenario where the bar
@@ -129,7 +135,7 @@ function RecordWorkbenchDemo({
   broken = false,
   paged = false,
   withActions = false,
-  localized = false,
+  english = false,
   keepStore = false,
   collapsed = false,
   transformedHost = false,
@@ -151,8 +157,11 @@ function RecordWorkbenchDemo({
   paged?: boolean;
   /** Fills the three action slots, the way a business page would. */
   withActions?: boolean;
-  /** Hands the workbench the shipped Chinese catalogue. */
-  localized?: boolean;
+  /**
+   * Opts this story out of `HOST_LANGUAGE` and back onto the English
+   * catalogue the package ships as its default.
+   */
+  english?: boolean;
   /** Publishes the store on `tableSettingsStore`, for a play to read. */
   keepStore?: boolean;
   /** Opens with the view list folded away, as a narrow page would. */
@@ -256,7 +265,10 @@ function RecordWorkbenchDemo({
                 ? businessActions
                 : undefined
           }
-          messages={localized ? zhCN : undefined}
+          // zh-CN by default, because the fixtures are Chinese; the one
+          // story that says `english` gets the shipped defaults instead.
+          messages={english ? undefined : HOST_LANGUAGE.messages}
+          locale={english ? 'en-US' : HOST_LANGUAGE.locale}
           theme={theme}
           // A narrow column is a column with no room for a 224px sidebar
           // beside it, so it opens the way a phone does: the list folded
@@ -442,7 +454,7 @@ const meta = {
     paged: { table: { disable: true } },
     instanceId: { table: { disable: true } },
     withActions: { table: { disable: true } },
-    localized: { table: { disable: true } },
+    english: { table: { disable: true } },
     keepStore: { table: { disable: true } },
     collapsed: { table: { disable: true } },
     transformedHost: { table: { disable: true } },
@@ -518,15 +530,22 @@ export const WithActions: Story = { args: { withActions: true } };
 export const ManageViews: Story = { args: { behaviour: 'data' } };
 
 /**
- * 中文文案。包里带了 `zhCN`，宿主把它交给 `messages` 就换掉整面的措辞；要改其
- * 中几句，铺开再覆盖：`{ ...zhCN, 'label.filter.apply': '确定' }`。
+ * 英文目录。这些故事的数据是中文的（订单号、待出库、华东仓），所以整册默认把
+ * 包里带的 `zhCN` 交给 `messages`、把 `locale` 设成 `zh-CN`；这一条是唯一反过
+ * 来的——什么都不传，于是用的是包自己的 `defaultMessages` 与 `en-US`。
  *
- * 打开的是那个带条件的共享视图，所以结果上方的「正在显示」里就有一枚可操作的
- * 条件 badge：字段名来自定义，操作符与候选项标签分别来自目录与定义，按 ✕ 把它
- * 撤下会立刻重跑查询。展开筛选带还能看到相对日期的单位与时间段——`day`、
- * `thisWeek` 这些以前是原样的标识符，现在同样走目录。
+ * 它存在是为了让英文目录仍然有人看着：`messages` 是本地化的入口，两本目录里
+ * 任何一本掉了键，都应该有一屏能看出来。要改其中几句，铺开再覆盖：
+ * `{ ...zhCN, 'label.filter.apply': '确定' }`。
+ *
+ * 打开的是那个带条件的共享视图，所以结果上方的 Showing 里就有一枚可操作的条件
+ * badge：字段名与候选项标签来自定义（它们是数据，仍然是中文），操作符来自目
+ * 录，按 ✕ 把它撤下会立刻重跑查询。
  */
-export const Localized: Story = { args: { localized: true } };
+export const English: Story = {
+  name: '英文目录',
+  args: { english: true },
+};
 
 /**
  * 表格设置：工具栏右端的「列设置」与「排序」。

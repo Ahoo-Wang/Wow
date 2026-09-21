@@ -12,7 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, waitFor, within } from 'storybook/test';
-import { defaultMessages } from '@ahoo-wang/fetcher-view-engine/ui';
+import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   AllPanels as DisplayAllPanels,
   EmptyDashboard as DisplayEmptyDashboard,
@@ -74,9 +74,7 @@ export const PanelUnavailable: Story = {
   ...DisplayPanelUnavailable,
   play: async ({ canvasElement }) => {
     await expect(
-      await within(canvasElement).findByText(
-        defaultMessages['label.panel.unavailable'],
-      ),
+      await within(canvasElement).findByText(zhCN['label.panel.unavailable']),
     ).toBeVisible();
     // The other data panel is not taken down with it.
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
@@ -88,9 +86,7 @@ export const QueryFailed: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() =>
-      expect(
-        canvas.getAllByText(defaultMessages['label.query.failed']),
-      ).toHaveLength(2),
+      expect(canvas.getAllByText(zhCN['label.query.failed'])).toHaveLength(2),
     );
     await expect(
       canvas.getByRole('link', { name: '出库异常处理' }),
@@ -102,9 +98,7 @@ export const EmptyDashboard: Story = {
   ...DisplayEmptyDashboard,
   play: async ({ canvasElement }) => {
     await expect(
-      await within(canvasElement).findByText(
-        defaultMessages['label.dashboard.empty'],
-      ),
+      await within(canvasElement).findByText(zhCN['label.dashboard.empty']),
     ).toBeVisible();
   },
 };

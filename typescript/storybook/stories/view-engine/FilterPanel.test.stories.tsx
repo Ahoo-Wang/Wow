@@ -12,10 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import {
-  defaultMessages,
-  formatMessage,
-} from '@ahoo-wang/fetcher-view-engine/ui';
+import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   Advanced as DisplayAdvanced,
   NumberList as DisplayNumberList,
@@ -29,12 +26,19 @@ const meta = {
   tags: ['!dev', '!autodocs', 'test'],
 };
 
-/** The amount field's declared format, as the bar itself formats it. */
+/**
+ * The amount field's declared format, as the bar itself formats it. The
+ * field's `numberFormat` names no language, so this is the host's own —
+ * the surface's `locale` reaches the dates, not a format that set its own.
+ */
 const yuan = (value: number) =>
   new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency: 'CNY',
   }).format(value);
+
+/** What the catalogue in force puts between two conditions. */
+const JOIN = zhCN['label.filter.join'];
 
 export default meta;
 
@@ -66,7 +70,7 @@ export const Advanced: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      await canvas.findByText(defaultMessages['label.record.empty-hint']),
+      await canvas.findByText(zhCN['label.record.empty-hint']),
     ).toBeVisible();
 
     // The bar over the result is the one place this tree is read back as
@@ -74,25 +78,31 @@ export const Advanced: Story = {
     // is the only fixture carrying all three of the shapes that get it
     // wrong: a named period, a nested group, and a predicate.
     const applied = canvas.getByRole('region', {
-      name: defaultMessages['label.applied.title'],
+      name: zhCN['label.applied.title'],
     });
     const badges = [...applied.querySelectorAll('[data-slot="badge"]')].map(
       badge => badge.textContent?.trim(),
     );
 
+    // Every word below is read back out of the catalogue rather than typed
+    // in: the badge is the one line that has to change with `messages`, so a
+    // hard-coded expectation would only ever prove that nothing changed.
     await expect(badges).toEqual([
-      '仓库 is any of 华东',
-      '状态 is any of 待出库, 已发运',
+      `仓库 ${zhCN['label.operator.IN']} 华东`,
+      `状态 ${zhCN['label.operator.IN']} 待出库${JOIN}已发运`,
       // The field's own `numberFormat`, from the same Intl call the bar
       // makes — which currency symbol ICU picks is not what this is about.
-      `金额 between ${yuan(100)} ~ ${yuan(5000)}`,
+      `金额 ${zhCN['label.operator.BETWEEN']} ${yuan(100)} ~ ${yuan(5000)}`,
       // A period, not a range: the operator asks for the window it names.
-      '创建时间 between this month',
+      `创建时间 ${zhCN['label.operator.BETWEEN']} ${zhCN['label.relative.preset.thisMonth']}`,
       // A group says how its conditions combine before it lists them.
-      `Any of 仓库 is any of 华北, 金额 more than ${yuan(20000)}`,
+      `${zhCN['label.filter.any-of']} 仓库 ${zhCN['label.operator.IN']} 华北` +
+        `${JOIN}金额 ${zhCN['label.operator.GT']} ${yuan(20000)}`,
       // And a predicate reads its own conditions out once, under the one
       // operator it holds them by.
-      '商品行 has an entry where All of SKU is A-1, 数量 more than 2',
+      `商品行 ${zhCN['label.operator.ELEMENT_MATCH']} ` +
+        `${zhCN['label.filter.all-of']} SKU ${zhCN['label.operator.EQ']} A-1` +
+        `${JOIN}数量 ${zhCN['label.operator.GT']} 2`,
     ]);
   },
 };
@@ -110,37 +120,46 @@ export const NumberList: Story = {
     // A saved view opens with its editor folded.
     await userEvent.click(
       await canvas.findByRole('button', {
-        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
       }),
     );
 
+    // Each chip's ✕ names the value it drops, in the wording in force.
+    const removeLabel = (value: number) =>
+      formatMessage(zhCN, 'label.filter.remove-value', {
+        value: String(value),
+      });
+    const ANY_VALUE = new RegExp(
+      `^${zhCN['label.filter.remove-value'].replace('{value}', String.raw`\d+`)}$`,
+    );
     const removes = () =>
       canvas
-        .queryAllByRole('button', { name: /^Remove \d/ })
+        .queryAllByRole('button', { name: ANY_VALUE })
         .map(button => button.getAttribute('aria-label'));
     const remove = (value: number) =>
-      canvas.getByRole('button', {
-        name: formatMessage(defaultMessages, 'label.filter.remove-value', {
-          value: String(value),
-        }),
-      });
+      canvas.getByRole('button', { name: removeLabel(value) });
 
     // Three values, which the two boxes of a range could never have held.
     await waitFor(() =>
-      expect(removes()).toEqual(['Remove 100', 'Remove 1200', 'Remove 5000']),
+      expect(removes()).toEqual([100, 1200, 5000].map(removeLabel)),
     );
 
     // A fourth, entered by hand: Enter commits it and clears the field, and
-    // it does not double as the panel's apply.
-    const entry = canvas.getByLabelText('New 金额 value');
+    // it does not double as the panel's apply. The entry field is named after
+    // the field it adds to, which is two catalogue entries deep.
+    const entry = canvas.getByLabelText(
+      formatMessage(zhCN, 'label.filter.new-value-of', {
+        field: formatMessage(zhCN, 'label.filter.value-of', { field: '金额' }),
+      }),
+    );
     await userEvent.type(entry, '8888{Enter}');
-    await waitFor(() => expect(removes()).toContain('Remove 8888'));
+    await waitFor(() => expect(removes()).toContain(removeLabel(8888)));
     await expect(entry).toHaveValue(null);
 
     // And one taken back out, by the button that names it.
     await userEvent.click(remove(1200));
     await waitFor(() =>
-      expect(removes()).toEqual(['Remove 100', 'Remove 5000', 'Remove 8888']),
+      expect(removes()).toEqual([100, 5000, 8888].map(removeLabel)),
     );
   },
 };

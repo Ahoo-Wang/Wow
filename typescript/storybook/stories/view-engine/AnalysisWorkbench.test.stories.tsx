@@ -12,7 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { defaultMessages } from '@ahoo-wang/fetcher-view-engine/ui';
+import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   BarChart as DisplayBarChart,
   CutShort as DisplayCutShort,
@@ -91,7 +91,8 @@ export const PieChart: Story = {
       expect(slices(canvasElement).map(slice => slice.name)).toEqual([
         '华南',
         '华北',
-        'Other',
+        // The tail the kernel merges is named by the catalogue in force.
+        zhCN['label.chart.other'],
       ]),
     );
   },
@@ -108,10 +109,7 @@ export const PinnedCategoryColor: Story = {
 };
 
 /** The sentence the strip says when a result fills its limit exactly. */
-const CUT_SHORT = defaultMessages['analysis.result.at-limit'].replace(
-  '{limit}',
-  '2',
-);
+const CUT_SHORT = zhCN['analysis.result.at-limit'].replace('{limit}', '2');
 
 /**
  * A pie drawn from a grouping that may not be the whole grouping. Two of the
@@ -158,9 +156,7 @@ export const EmptyResult: Story = {
   ...DisplayEmptyResult,
   play: async ({ canvasElement }) => {
     await expect(
-      await within(canvasElement).findByText(
-        defaultMessages['label.analysis.empty'],
-      ),
+      await within(canvasElement).findByText(zhCN['label.analysis.empty']),
     ).toBeVisible();
   },
 };
@@ -191,17 +187,17 @@ export const ReachesAdvancedMode: Story = {
     await canvas.findByRole('table');
 
     const panel = canvas.getByRole('region', {
-      name: defaultMessages['label.filter.panel'],
+      name: zhCN['label.filter.panel'],
     });
     await expect(
       within(panel).queryByRole('group', {
-        name: defaultMessages['label.filter.all-conditions'],
+        name: zhCN['label.filter.all-conditions'],
       }),
     ).toBeNull();
 
     await userEvent.click(
       within(panel).getByRole('button', {
-        name: defaultMessages['label.filter.advanced'],
+        name: zhCN['label.filter.advanced'],
       }),
     );
 
@@ -210,10 +206,10 @@ export const ReachesAdvancedMode: Story = {
       expect(
         within(
           canvas.getByRole('region', {
-            name: defaultMessages['label.filter.panel'],
+            name: zhCN['label.filter.panel'],
           }),
         ).getByRole('group', {
-          name: defaultMessages['label.filter.all-conditions'],
+          name: zhCN['label.filter.all-conditions'],
         }),
       ).toBeVisible(),
     );
@@ -240,7 +236,7 @@ export const EditorRowSpacing: Story = {
     await canvas.findByRole('table');
 
     const editor = canvas.getByRole('region', {
-      name: defaultMessages['label.analysis.editor'],
+      name: zhCN['label.analysis.editor'],
     });
     const rows = editor.querySelector<HTMLElement>(
       '[data-slot="field-group"]',

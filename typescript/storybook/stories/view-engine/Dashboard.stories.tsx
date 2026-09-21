@@ -14,6 +14,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { DashboardWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
+  HOST_LANGUAGE,
   createStoryEngine,
   dashboardConfig,
   emptyDashboard,
@@ -60,6 +61,7 @@ function DashboardDemo({
           definitionId="overview"
           instanceId={savedDashboard.id}
           editable={editable}
+          {...HOST_LANGUAGE}
         />
       )}
     </StoryEngine>

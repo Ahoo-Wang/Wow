@@ -19,6 +19,7 @@ import type {
 import { RecordWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
+  HOST_LANGUAGE,
   createStoryEngine,
   ordersDefinition,
   recordConfig,
@@ -141,6 +142,7 @@ function FilterPanelDemo({ instanceId }: { instanceId: string }) {
           engine={engine}
           definitionId="orders"
           instanceId={instanceId}
+          {...HOST_LANGUAGE}
         />
       )}
     </StoryEngine>

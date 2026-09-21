@@ -49,6 +49,7 @@ import {
   type CommandOutcome,
   type CompensationCommands,
 } from './compensation.js';
+import { HOST_LANGUAGE } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
@@ -204,6 +205,7 @@ function CompensationConsole({
         engine={engine}
         definitionId={EXECUTION_FAILED}
         actions={actions}
+        {...HOST_LANGUAGE}
       />
     </div>
   );
@@ -248,6 +250,7 @@ function AnalysisConsole({ host }: { host: string }) {
           engine={engine}
           definitionId={EXECUTION_FAILED_ANALYSIS}
           instanceId={systemInstanceId(EXECUTION_FAILED_ANALYSIS, 'by-status')}
+          {...HOST_LANGUAGE}
         />
       )}
     </Console>
