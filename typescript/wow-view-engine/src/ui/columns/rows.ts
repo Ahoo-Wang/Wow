@@ -55,6 +55,18 @@ export interface ColumnSettingRow {
   region: ColumnRegion;
   /** Whether the table shows this column. */
   visible: boolean;
+  /**
+   * Whether the config knows this column, and it therefore has a place in
+   * the table's order.
+   *
+   * It is not `visible`: a column switched off keeps its entry, so it keeps
+   * its place and can be dragged while it is off, and a summary-only row
+   * (D17-9) is shown and is in no column list at all. What else has no
+   * place is a field the definition offers that the config has never
+   * mentioned — it joins the end of the list when it is switched on, and
+   * until then there is nothing to drag it between.
+   */
+  placed: boolean;
   pinned: ColumnPin | null;
   /**
    * True for the columns whose place is decided for the user rather than by
@@ -105,18 +117,25 @@ export interface ColumnSettingInput {
   /** Every field `config.summaries` names, in the order it names them. */
   summaryFields: readonly string[];
   pinnedOf(field: string): ColumnPin | null;
+  /** Whether the config has this column switched off. */
+  hiddenOf(field: string): boolean;
   summaryOf(field: string): SummaryFunction | null;
 }
 
 /**
  * Every column the settings can offer, in the order they are listed.
  *
- * Shown columns come first in the order the table shows them, then the
- * fields that could be columns and are not — a hidden field has no place in
- * `table.columns`, so it has no order to drag either, and it joins the end
- * when it is switched on. Field-less kinds (a search box, a tenant handle)
- * are left out entirely: their name addresses an editor, not something a row
- * holds, so a column on one would be empty for every record ever shown.
+ * The config's columns come first, in the order the table lays them out,
+ * **switched off ones among them**: a column the user hid keeps its entry
+ * and therefore its place, so it is listed where it sits and dragged like
+ * any other, and switching it back on shows it there rather than at the
+ * end. After them come the summaries that are not columns at all (D17-9),
+ * and then the fields that could be columns and are not — neither has a
+ * place in `table.columns`, so neither has an order to drag, and a field
+ * joins the end of the list when it is switched on. Field-less kinds (a
+ * search box, a tenant handle) are left out entirely: their name addresses an editor, not
+ * something a row holds, so a column on one would be empty for every record
+ * ever shown.
  */
 export function columnSettingRows(
   input: ColumnSettingInput,
@@ -132,7 +151,7 @@ export function columnSettingRows(
   // In the order the table shows them, and one row per column: a config
   // that lists a field twice is two columns claiming one identity, and one
   // checkbox takes both of them out.
-  const shown = input.columns.flatMap(name => {
+  const placed = input.columns.flatMap(name => {
     if (seen.has(name)) return [];
     seen.add(name);
     const field = byName.get(name);
@@ -147,11 +166,11 @@ export function columnSettingRows(
   const orphans = [...new Set(input.summaryFields)]
     .filter(name => !seen.has(name) && !byName.has(name))
     .map(name => broken(name, input, true));
-  const hidden = candidates
+  const unplaced = candidates
     .filter(field => !seen.has(field.name))
     .map(field => row(field, false, input, end));
 
-  const rows = [...shown, ...orphans, ...hidden];
+  const rows = [...placed, ...orphans, ...unplaced];
   if (!input.actions) return rows;
   return [
     ...rows,
@@ -160,6 +179,7 @@ export function columnSettingRows(
       label: '',
       region: 'right',
       visible: true,
+      placed: false,
       pinned: 'right',
       fixed: true,
       functions: [],
@@ -192,7 +212,14 @@ function broken(
     field,
     label: field,
     region: 'middle',
-    visible: true,
+    // A broken column can be switched off like any other — and unlike any
+    // other, switching it off takes it out of the config rather than hiding
+    // it, because a column the definition dropped has nowhere to come back
+    // to. A summary-only row is not a column at all, so it is shown because
+    // the setting it stands for is in force, and it is in no column order:
+    // `placed` is what keeps it out of the one the panel writes back.
+    visible: summaryOnly || !input.hiddenOf(field),
+    placed: !summaryOnly,
     pinned: null,
     fixed: false,
     functions: [],
@@ -209,8 +236,10 @@ function broken(
  *
  * It is computed over the same list `projectRecord` lays out — the drawn
  * columns, each without a duplicate, the ones the definition no longer
- * offers left out — so the panel and the table can never name a different
- * column as the last one.
+ * offers and the ones the config switched off left out — so the panel and
+ * the table can never name a different column as the last one. D13's "last
+ * drawn column" is the last **visible** one: a hidden column is drawn
+ * nowhere, so it is never the end the table holds.
  */
 function lastColumn(
   input: ColumnSettingInput,
@@ -221,7 +250,7 @@ function lastColumn(
   if (input.actions) return null;
   const seen = new Set<string>();
   const drawn = input.columns.flatMap(name => {
-    if (seen.has(name) || !byName.has(name)) return [];
+    if (seen.has(name) || !byName.has(name) || input.hiddenOf(name)) return [];
     seen.add(name);
     return [
       {
@@ -236,10 +265,11 @@ function lastColumn(
 
 function row(
   field: FieldDefinition,
-  visible: boolean,
+  placed: boolean,
   input: ColumnSettingInput,
   end: string | null,
 ): ColumnSettingRow {
+  const visible = placed && !input.hiddenOf(field.name);
   const fixed = field.name === input.rowKey || field.name === end;
   // A fixed column shows the side it is held on rather than what the config
   // happens to say, so the two never disagree on screen. Read through
@@ -254,16 +284,23 @@ function row(
   return {
     field: field.name,
     label: field.label,
-    // A hidden column is drawn nowhere, so it is listed in the middle
-    // whatever it is pinned to: an area is where the table puts it, and a
-    // hidden column is put nowhere.
-    region: visible ? (pinned ?? 'middle') : 'middle',
+    // An area is a pinning, and a column switched off keeps the one it
+    // had: hiding a column clears nothing, so it is listed in the area it
+    // will come back to rather than falling into the middle and then
+    // jumping sideways the moment it is switched on again. A field with no
+    // place in the config has no pinning either, so it is listed in the
+    // middle, which is where it joins the table.
+    region: placed ? (pinned ?? 'middle') : 'middle',
     visible,
+    placed,
     pinned,
     fixed,
     functions: field.summary ?? [],
     summary: input.summaryOf(field.name),
-    movable: visible && !fixed,
+    // A place in the order is what there is to drag, and a switched-off
+    // column has one — which is the whole of "a hidden field cannot be
+    // ordered" going away.
+    movable: placed && !fixed,
     broken: false,
     summaryOnly: false,
   };
@@ -326,11 +363,13 @@ export function renderedIndex(
  * it started from.
  *
  * The move happens inside the row's own area, and the answer covers every
- * shown column with the areas in the order the table draws them. That is
- * the order `projectRecord` lays out, so what is saved and what is drawn
- * are the same list rather than two that agree by luck. A shown row that
- * cannot be dragged — the row key, a broken column — keeps its slot while
- * the movable ones move around it.
+ * column the config knows — the switched-off ones among them — with the
+ * areas in the order the table draws them. That is the order
+ * `projectRecord` lays out, so what is saved and what is drawn are the same
+ * list rather than two that agree by luck, and a hidden column comes out of
+ * it with the place it will come back to. A row that cannot be dragged —
+ * the row key, a broken column — keeps its slot while the movable ones move
+ * around it.
  */
 export function reorderColumns(
   rows: readonly ColumnSettingRow[],
@@ -347,21 +386,25 @@ export function reorderColumns(
   const moved = [...rest.slice(0, toIndex), field, ...rest.slice(toIndex)];
   let at = 0;
   return REGIONS.flatMap(area => {
-    const shown = shownOf(rows, area);
+    const placed = placedOf(rows, area);
     return area === region
-      ? shown.map(name => (movable.includes(name) ? moved[at++] : name))
-      : shown;
+      ? placed.map(name => (movable.includes(name) ? moved[at++] : name))
+      : placed;
   });
 }
 
 /**
- * The shown config columns of one area, in the order they are listed.
+ * The config columns of one area, in the order they are listed — the
+ * switched-off ones among them, because a hidden column has a place in
+ * `table.columns` and the order written back has to keep it there.
  *
- * A summary-only row is shown and is not one of them: it is not in
- * `table.columns`, and letting it into an order that is written straight
- * back would turn a leftover summary into a column the user never added.
+ * What is *not* one of them is a row that is in no column list: a
+ * summary-only row (D17-9) and a field the config has never mentioned are
+ * both listed and neither is placed, and letting either into an order that
+ * is written straight back would turn it into a column the user never
+ * added.
  */
-function shownOf(
+function placedOf(
   rows: readonly ColumnSettingRow[],
   region: ColumnRegion,
 ): string[] {
@@ -369,8 +412,7 @@ function shownOf(
     .filter(
       entry =>
         entry.region === region &&
-        entry.visible &&
-        !entry.summaryOnly &&
+        entry.placed &&
         entry.field !== ACTIONS_COLUMN,
     )
     .map(entry => entry.field);

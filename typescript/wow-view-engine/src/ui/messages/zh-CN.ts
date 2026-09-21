@@ -160,7 +160,7 @@ export const zhCN: ViewMessages = {
   'label.columns.cancelled': '移动已取消，{field} 保持原位',
   'label.columns.show': '显示 {field}',
   'label.columns.last-visible': '表格至少需要保留一列。',
-  'label.columns.hidden': '先把这一列显示出来，才能调整顺序、固定或加汇总。',
+  'label.columns.hidden': '先把这一列显示出来，才能固定或加汇总。',
   'label.columns.unknown': '这一列已不在这份数据里，取消勾选即可移除。',
   'label.columns.summary-unknown':
     '只剩一条汇总指向这个字段，而它已不在这份数据里；取消勾选即可移除这条汇总。',
@@ -189,6 +189,8 @@ export const zhCN: ViewMessages = {
   'record.capability.missing': '{definition} 不再提供记录视图。',
   'record.card.invalid': '卡片设置无法读取。',
   'record.column.duplicate': '列 {field} 列了两次。',
+  'record.column.hidden-invalid':
+    '列 {field} 的隐藏值是 {hidden}，那不是隐藏一列的写法。',
   'record.column.pin-invalid':
     '列 {field} 固定在 {pinned}，那不是左右任何一侧。',
   'record.column.width-invalid': '列 {field} 的宽度是 {width}，那不是像素数。',

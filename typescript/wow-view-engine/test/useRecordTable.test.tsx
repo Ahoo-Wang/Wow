@@ -302,7 +302,14 @@ describe('useRecordTable', () => {
         'warehouse',
       ]),
     );
-    expect(result.current.table.columnFields).toEqual(['id', 'warehouse']);
+    // The columns of the draft are all of them, the switched-off one among
+    // them: `amount` keeps its place so it can be switched back on there.
+    expect(result.current.table.columnFields).toEqual([
+      'id',
+      'amount',
+      'warehouse',
+    ]);
+    expect(result.current.table.hiddenOf('amount')).toBe(true);
 
     act(() => result.current.table.setPageSize(5));
     await waitFor(() => expect(result.current.table.pageSize).toBe(5));

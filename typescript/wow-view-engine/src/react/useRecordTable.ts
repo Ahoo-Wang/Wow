@@ -26,13 +26,19 @@ import type {
   SummaryFunction,
   ViewInstance,
 } from '../model/index.js';
-import { columnPin, type RecordColumnPin } from '../model/index.js';
+import {
+  columnHidden,
+  columnPin,
+  isFieldlessKind,
+  type RecordColumnPin,
+} from '../model/index.js';
 import {
   recordColumns,
   recordSort,
   recordSummaries,
   wasSound,
 } from './recordDraft.js';
+import { repinned, resized, withColumnsShown } from './recordColumns.js';
 import { maxSortFields } from '../record/index.js';
 // The side a column is held on, named once in the model and offered here so
 // a control can talk about pinning without importing the kernel's types.
@@ -81,39 +87,6 @@ export interface RecordCardField {
   cell?: string;
   options?: readonly FieldOption[];
   numberFormat?: NumberFormat;
-}
-
-/**
- * One column with its pinning changed.
- *
- * The member is rebuilt rather than spread over, because a config is JSON
- * and `{ pinned: undefined }` is not the same object as one without the key:
- * it survives a `dequal` against the saved baseline as a difference, and a
- * view that was only unpinned back to where it started would stay marked as
- * unsaved for the rest of the session.
- */
-function repinned(
-  column: RecordColumn,
-  pinned: RecordColumnPin | null,
-): RecordColumn {
-  return {
-    field: column.field,
-    ...(column.width === undefined ? {} : { width: column.width }),
-    ...(pinned === null ? {} : { pinned }),
-  };
-}
-
-/**
- * One column with its width changed, rebuilt for the same reason
- * {@link repinned} is: a config is JSON, and a column back at its automatic
- * width has no `width` key rather than a `width` of `undefined`.
- */
-function resized(column: RecordColumn, width: number | null): RecordColumn {
-  return {
-    field: column.field,
-    ...(width === null ? {} : { width }),
-    ...(column.pinned === undefined ? {} : { pinned: column.pinned }),
-  };
 }
 
 /**
@@ -259,15 +232,37 @@ export interface RecordTableController {
    */
   layouts: RecordLayout[];
   setLayout(layout: RecordLayout): void;
-  /** Fields of the draft's table layout, in order. */
-  columnFields: string[];
   /**
-   * Which columns the table shows, in order, and applies at once.
+   * Fields of the draft's table layout, in order — the columns switched
+   * off among them, because a hidden column keeps its place in the order
+   * and a control that lists the table's columns has to list it there.
+   */
+  columnFields: string[];
+  /** Whether the draft has this column switched off. */
+  hiddenOf(field: string): boolean;
+  /**
+   * Which columns the table shows, and applies at once.
+   *
+   * A column the config already knows is switched off **in place** —
+   * `hidden: true`, its entry kept — rather than taken out of the list, so
+   * switching it back on puts it back where it was rather than at the end.
+   * Which is also why this says nothing about the order: that is
+   * {@link setColumnOrder}'s, and a column that is not in the list has no
+   * order to give. A named field the config does not know yet joins at the
+   * end, as a column has to start somewhere.
    *
    * A column that goes takes its summary with it: a summary belongs to a
    * column, so one left behind buys an aggregation query with nowhere to
    * appear. Each column that stays is reused as it was configured, so its
-   * width and pinning survive.
+   * width and pinning survive being switched off and on again.
+   *
+   * The two entries that have nowhere to come back to leave the list
+   * instead: a column the definition no longer offers, and a second entry
+   * for a column already kept. Both are one row in the settings and both
+   * are configs the kernel refuses (`record.field.unknown`,
+   * `record.column.duplicate`), so switching them off is the repair it has
+   * always been — hiding one would leave the query and the save blocked by
+   * the control that had just run.
    */
   setColumns(fields: string[]): void;
   /**
@@ -277,6 +272,11 @@ export interface RecordTableController {
    * unnamed keeps its place at the end, so a control that knows about part
    * of the table — one area of the column settings — cannot drop the rest
    * of it by saying nothing about it.
+   *
+   * The columns are all of them, the switched-off ones included: a hidden
+   * column has a place in the order, which is what makes switching it back
+   * on put it back where it was, so a caller that means to order the whole
+   * table names it along with the rest.
    */
   setColumnOrder(fields: string[]): void;
   /** Which side the draft holds a column on, or null when it is unpinned. */
@@ -561,30 +561,44 @@ export function useRecordTable(
       () => tableColumns.map(column => column.field),
       [tableColumns],
     ),
+    // Read through `columnHidden`, so a config that came out of a store
+    // saying `hidden: 'yes'` answers "shown" rather than making the type
+    // this declares a lie. `validateRecord` reports the value separately.
+    hiddenOf: useCallback(
+      (field: string) =>
+        columnHidden(
+          tableColumns.find(column => column.field === field)?.hidden,
+        ),
+      [tableColumns],
+    ),
     setColumns: useCallback(
       (fields: string[]) => {
         if (!runtime) return;
-        // Reuse each column as it was configured: rebuilding from the field
-        // name alone would drop its width and pinning on the next save.
-        const existing = new Map(
-          recordColumns(runtime.getSnapshot().draft.table?.columns).map(
-            column => [column.field, column],
-          ),
+        const state = runtime.getSnapshot();
+        const visible = new Set(fields);
+        // What a switched-off column can come back to: a field the
+        // definition still offers, and that a row actually holds.
+        const offered = new Set(
+          (runtime.definition.kind === 'data' ? runtime.definition.fields : [])
+            .filter(field => !isFieldlessKind(field.kind))
+            .map(field => field.name),
         );
         // A summary belongs to a column, so a column that goes takes its
         // summary with it — in this one update. Left behind, the runtime
         // keeps asking for an aggregate with nowhere to appear: the scope
         // row stands empty, a failed aggregate warns about a summary nobody
         // can see, and the settings disable the select that would clear it.
-        const shown = new Set(fields);
-        const state = runtime.getSnapshot();
         editAndApply({
           table: {
-            columns: fields.map(field => existing.get(field) ?? { field }),
+            columns: withColumnsShown(
+              recordColumns(state.draft.table?.columns),
+              fields,
+              offered,
+            ),
           },
           summaries: summariesOf(
             recordSummaries(state.draft.summaries).filter(summary =>
-              shown.has(summary.field),
+              visible.has(summary.field),
             ),
             state.saved,
           ),

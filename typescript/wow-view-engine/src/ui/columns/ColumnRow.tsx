@@ -61,7 +61,7 @@ const PIN_LABEL = {
  * drawn in was the only difference, which is no difference at all to anyone
  * who cannot tell those two greys apart — and the second names the one
  * checkbox that has just refused. `hidden` is read out only: every switched
- * off field would draw it, so a panel with five of them would say the same
+ * off column would draw it, so a panel with five of them would say the same
  * sentence five times, while its controls already show that they are off.
  */
 const NOTES = {
@@ -135,9 +135,11 @@ export function ColumnRow({
   // action column is refused for being the host's rather than for being the
   // last, so the sentence about the last one is not its.
   const last = row.visible && !row.broken && !actions && shownCount <= 1;
-  // Why the handle, the pin and the summary on this row are refused, when
-  // they are — the one reason all three share, since all three want a
-  // column that is shown and can render.
+  // Why the pin and the summary on this row are refused, when they are —
+  // the one reason both share, since both want a column that is shown and
+  // can render. The handle takes it too when it is refused, which is when
+  // the row has no place in the order at all: a column switched off keeps
+  // one, so it is dragged like any other and says nothing about it.
   const refused: NoteKind | null = row.broken
     ? row.summaryOnly
       ? 'summary-unknown'
@@ -184,7 +186,7 @@ export function ColumnRow({
           size="icon-xs"
           className="cursor-grab"
           disabled={!row.movable}
-          aria-describedby={refused ? noteId : undefined}
+          aria-describedby={refused && !row.movable ? noteId : undefined}
           onKeyDown={(event: KeyboardEvent) => {
             // While the library is carrying the row the arrows are its: two
             // handlers on one press would move the column twice.
@@ -256,13 +258,15 @@ export function ColumnRow({
           </Select>
         )}
 
-        {/* A pin is a property of a column, and a hidden field is not one:
-          `setPinned` maps the columns the draft holds, so pinning one that is
-          switched off writes nothing, however many times it is pressed.
-          Showing it first is the move, so the toggle says it cannot rather
-          than doing nothing — and the summary select goes the same way, for
-          the same reason. A broken column answers neither: its one control
-          is the checkbox that takes it out. */}
+        {/* A pin is where a column is held while the rest scrolls, and a
+          column the table does not draw is held nowhere: the area it would
+          move to shows nothing of it, and `config.summaries` has no cell to
+          fill under a column that is not there either. Showing it first is
+          the move, so both controls say they cannot rather than writing
+          something no reader can see. The handle is not like them any more —
+          a switched-off column keeps its place in the order, so it has an
+          order to drag. A broken column answers none of the three: its one
+          control is the checkbox that takes it out. */}
         {/* The state travels in the name — "Pinning of Amount: Pinned
             left" — and not as `aria-pressed`, which has two values where
             this control cycles through three (`nextPin`: none → left →

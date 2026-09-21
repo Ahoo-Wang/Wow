@@ -157,7 +157,13 @@ describe('closed loop one', () => {
     const saved = await store.get(summary.id);
     const config = saved.config as RecordViewConfig;
     expect(config.sort).toEqual([{ field: 'amount', direction: 'ASC' }]);
-    expect(config.table.columns).toEqual([{ field: 'id' }]);
+    // The column that was switched off is still in the list, switched off:
+    // its entry is its place in the order, so reopening the view and
+    // switching it on again puts it back where it was (D17-8).
+    expect(config.table.columns).toEqual([
+      { field: 'id' },
+      { field: 'amount', hidden: true },
+    ]);
 
     // 5. Reopening restores the configuration, and nothing else.
     view.unmount();

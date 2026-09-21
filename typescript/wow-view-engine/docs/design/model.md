@@ -129,7 +129,16 @@ export interface RecordViewConfig extends ViewConfigBase {
   summaries?: { field: string; fn: SummaryFunction }[];
   layout: 'table' | 'card'; // 当前布局；切换只改此字段
   table: {
-    columns: { field: string; width?: number; pinned?: 'left' | 'right' }[];
+    // hidden 为 true 时表格不画这一列，但它仍**留在列表里**，也就保住了自己的位
+    // 置（D17-8）：再打开时回到原处而不是排到末尾，关着也照样能拖。缺这个成员
+    // （旧配置）读作显示；除 true 外的任何值都读作显示，另由 validateColumns 报
+    // record.column.hidden-invalid。
+    columns: {
+      field: string;
+      width?: number;
+      pinned?: 'left' | 'right';
+      hidden?: true;
+    }[];
   };
   card: {
     title: string; // 作为卡片标题的字段
