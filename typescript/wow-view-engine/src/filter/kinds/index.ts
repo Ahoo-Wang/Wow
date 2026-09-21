@@ -15,6 +15,7 @@ import { createFieldKindRegistry, type FieldKind } from '../fieldKind.js';
 import { arrayFieldKind } from './array.js';
 import { booleanFieldKind } from './boolean.js';
 import { dateFieldKind, dateTimeFieldKind } from './dateTime.js';
+import { deletionFieldKind } from './deletion.js';
 import { elementMatchFieldKind } from './elementMatch.js';
 import { enumFieldKind } from './enum.js';
 import { METADATA_FIELD_KINDS } from './metadata.js';
@@ -25,6 +26,7 @@ import { stringFieldKind } from './string.js';
 
 export * from './boolean.js';
 export * from './dateTime.js';
+export * from './deletion.js';
 export * from './array.js';
 export * from './elementMatch.js';
 export * from './enum.js';
@@ -48,6 +50,7 @@ export const BUILTIN_FIELD_KINDS: readonly FieldKind[] = [
   elementMatchFieldKind,
   searchFieldKind,
   ...METADATA_FIELD_KINDS,
+  deletionFieldKind,
 ];
 
 /** Ready-to-use registry; extend it with `withFieldKinds`. */

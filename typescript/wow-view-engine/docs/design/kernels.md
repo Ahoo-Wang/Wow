@@ -110,6 +110,10 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 
 带时刻的字段（`withTime`，即 `datetime` kind）在界面上于日历旁给出时刻输入，**未填时刻存下来的就是只有日子的那个字符串**，于是走上面第三条；旧配置里只存了日子的值读法完全相同，不另作一份"保持原状"的读法。相对日期与预设不受这条影响：它们本来就是按 `ctx.now` 求出的一段区间，`BETWEEN` 取整段，`GTE`／`LTE` 取远端那一刻（见[已应用摘要](#已应用摘要是部件不是句子)）。摘要侧同样分得清两者：`describeFilter` 交出的仍是存下来的字符串，带时刻的带着时刻，`/ui` 据此决定显示到日还是显示到秒。（见 test/filterTime.test.ts「a calendar day as a bound」「a bound with a time of day」）
 
+## 软删除口径（D17-2）
+
+`deletion` kind（`filter/kinds/deletion.ts`）编译成 Wow 的 `DELETION` 根筛选：`ACTIVE`／`DELETED`／`ALL` 三个值原样成为 `state`，别的值以 `filter.value.expected-deletion-state` 拒绝；空值走「未填写的条件不是错误」那条路——`compileFilter` 丢掉它，查询里没有 `DELETION`，源按自己的缺省只回未删除的记录。三种口径因此都有确定的查询：缺省与显式 `ACTIVE` 是同一个查询，只差前者是「没人写」。`impliedDeletion(fields, trees, kinds)` 回答「哪些声明了的 deletion 字段在这些树里都没被作答」，给已应用条说缺省口径用；它读的树与 `describeFilter` 描述的是同一批（跑出结果的那份自有条件、宿主的作用域）。作为根筛选，它在元素谓词与元素筛选里被 Wow 拒绝，与其它元数据种类相同。（见 test/deletionKind.test.ts）
+
 ## Record 内核的规则
 
 `validateRecord` 先检查骨架：`sort` 必须是数组且每项是带字符串 `field` 的对象，`table.columns` 同样，`card` 必须是对象且 `title` 为字符串、`fields` 为字符串数组，`summaries` 若存在必须是数组且每项带字符串 `field` 与 `fn`，否则以 `record.sort.invalid`／`record.table.invalid`／`record.card.invalid`／`record.summaries.invalid` 在出错路径报 error，共享配置的 Issue 照常保留，其余规则不再运行。骨架完好时的规则：

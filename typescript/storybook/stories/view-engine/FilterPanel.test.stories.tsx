@@ -104,7 +104,89 @@ export const Advanced: Story = {
       `商品行 ${zhCN['label.operator.ELEMENT_MATCH']} ` +
         `${zhCN['label.filter.all-of']} SKU ${zhCN['label.operator.EQ']} A-1` +
         `${JOIN}数量 ${zhCN['label.operator.GT']} 2`,
+      // Last, the reading nobody wrote: the definition declares the
+      // soft-delete dimension and this tree leaves it blank, so the rows
+      // are the ones not deleted, and the bar says so (D17-2). The trailing
+      // words are the reader's note that this is the default.
+      `删除状态 ${zhCN['label.operator.DELETION']} ${zhCN['label.deletion.active']} ` +
+        zhCN['label.applied.implied'],
     ]);
+  },
+};
+
+/**
+ * D17-2: a definition that declares the soft-delete dimension shows the
+ * records that are not deleted unless a view says otherwise, and the bar
+ * says that default without offering to remove it. Choosing «deleted
+ * included» is then an ordinary condition — added through the picker,
+ * answered in the pill, applied, and removable from the bar.
+ */
+export const DeletionReading: Story = {
+  ...DisplaySimple,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+    await canvas.findByRole('table');
+    const bar = () =>
+      canvas.getByRole('region', { name: zhCN['label.applied.title'] });
+    const implied = () =>
+      bar().querySelector('[data-slot="badge"][data-implied]');
+
+    // Nothing written: the default reading is in force, said, and not
+    // removable.
+    await waitFor(() => expect(implied()).not.toBeNull());
+    await expect(implied()?.textContent).toContain(
+      `删除状态 ${zhCN['label.operator.DELETION']} ${zhCN['label.deletion.active']}`,
+    );
+    await expect(implied()?.querySelector('button')).toBeNull();
+
+    // Add the field, answer it, apply.
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+    await userEvent.click(
+      canvas.getByRole('combobox', { name: zhCN['label.filter.add'] }),
+    );
+    await userEvent.click(
+      await body.findByRole('option', { name: '删除状态' }),
+    );
+    await userEvent.click(
+      body.getByRole('button', { name: zhCN['label.filter.pick-done'] }),
+    );
+    await userEvent.click(
+      canvas.getByRole('combobox', {
+        name: formatMessage(zhCN, 'label.filter.value-of', {
+          field: '删除状态',
+        }),
+      }),
+    );
+    await userEvent.click(
+      await body.findByRole('option', { name: zhCN['label.deletion.all'] }),
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.filter.apply'] }),
+    );
+
+    // Written, it is a condition like any other, and no longer the default.
+    await waitFor(() =>
+      expect(bar().textContent).toContain(zhCN['label.deletion.all']),
+    );
+    await expect(implied()).toBeNull();
+    // And the rows answer it: the soft-deleted order the default hid is in.
+    await waitFor(() =>
+      expect(readColumn(canvas.getByRole('table'), '订单号')).toContain(
+        'SO-1007',
+      ),
+    );
+    await expect(
+      within(bar()).getByRole('button', {
+        name: formatMessage(zhCN, 'label.filter.unset-of', {
+          condition: `删除状态 ${zhCN['label.operator.DELETION']} ${zhCN['label.deletion.all']}`,
+        }),
+      }),
+    ).toBeVisible();
   },
 };
 
@@ -189,6 +271,10 @@ export const WithTime: Story = {
         `创建时间 ${zhCN['label.operator.BETWEEN']} ` +
           `${shown(Date.UTC(2026, 8, 15, 15, 30), true)} ~ ` +
           shown(Date.UTC(2026, 8, 17), false),
+        // The definition's soft-delete dimension, left blank: said as the
+        // default (D17-2).
+        `删除状态 ${zhCN['label.operator.DELETION']} ${zhCN['label.deletion.active']} ` +
+          zhCN['label.applied.implied'],
       ]),
     );
   },

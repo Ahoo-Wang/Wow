@@ -147,7 +147,7 @@
 - 分组以自己的操作符词起头（`label.filter.all-of`／`any-of`／`none-of`）再接各项，再嵌套的分组加括号；只有一条条件时 `all-of` 与 `any-of` 都不加那个词——它们什么也没多说——而 `none-of` 是否定不是连接词，有几条都要说。谓词条件（`ELEMENT_MATCH`）按同样的方式读出它持有的那些条件，谓词里什么也没问时说 `label.filter.any-entry`；
 - 值读不出来的那一项只说字段名（这正是内核给的 `blank`）；字段已消失的那一项连操作符一起说——值读不出来，问题还在。✕ 的可访问名用的是同一段文字，所以读屏器听到的与屏幕上的一致；
 - 每个 badge 带一个 ✕，把对应条件的值设回未填写（分组则组内每条）并重新应用，字段行留在编辑器里，这是 `clearValue(path)` + `submit()`；
-- 没有条件而已有结果时显示 `label.applied.all`，还没有结果时整条不渲染。宿主注入的作用域条件（`scoped`）排在可编辑 badge 之后，以 `variant="outline"` 加 `data-scoped` 单独成组，不带 ✕，并由 `label.applied.scoped` 说明它由页面设定——它不在 draft 里，也没有一条编辑器的路径指向它，给一个删不掉的 ✕ 等于许诺一次做不到的放宽；
+- 没有条件而已有结果时显示 `label.applied.all`，还没有结果时整条不渲染。宿主注入的作用域条件（`scoped`）排在可编辑 badge 之后，以 `variant="outline"` 加 `data-scoped` 单独成组，不带 ✕，并由 `label.applied.scoped` 说明它由页面设定——它不在 draft 里，也没有一条编辑器的路径指向它，给一个删不掉的 ✕ 等于许诺一次做不到的放宽；再往后是**没人写下却在生效的口径**（`implied`，`variant="outline"` 加 `data-implied`，读屏附 `label.applied.implied`「缺省口径」）：定义声明了 `deletion` 一维而视图自有条件与作用域都没作答时，源只回未删除的记录，条上就要说「仅未删除」（D17-2）——它不在配置里，没有 ✕；改口径的办法是把那个字段加进条件并作答。三组都空才显示 `label.applied.all`；
 - 嵌入式视图（`EmbeddedView`）整条 bar 都是只读的（`readOnly`），连自有条件的 ✕ 也不渲染。（见 test/appliedBar.test.tsx「AppliedBar」）
 
 ## 保存与视图管理

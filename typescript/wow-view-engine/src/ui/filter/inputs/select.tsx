@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from '../../components/select.js';
 import { SelectContent } from '../../popups.js';
+import { DELETION_STATES, isDeletionState } from '../../../filter/index.js';
+import { deletionLabel } from '../../display.js';
 import { useViewMessages } from '../../MessagesProvider.js';
 import { ChoiceValue, scalarText, type ValueProps } from './shared.js';
 
@@ -51,6 +53,35 @@ export function BooleanValue({
         { label: messages.label('label.boolean.false'), value: 'false' },
       ]}
       onChange={next => onChange(next === 'true')}
+    />
+  );
+}
+
+/**
+ * Which records a soft-deleting source shows: the three readings of Wow's
+ * `DELETION` filter, worded by the catalogue. Blank is the source's own
+ * default, not deleted, which the applied bar says on its own (D17-2).
+ */
+export function DeletionValue({
+  value,
+  onChange,
+  label,
+  disabled,
+  invalid,
+}: ValueProps) {
+  const messages = useViewMessages();
+  return (
+    <ChoiceValue
+      label={label}
+      disabled={disabled}
+      invalid={invalid}
+      value={isDeletionState(value) ? value : null}
+      placeholder={messages.label('label.filter.not-set')}
+      items={DELETION_STATES.map(state => ({
+        label: messages.label(deletionLabel(state)),
+        value: state,
+      }))}
+      onChange={next => onChange(next)}
     />
   );
 }

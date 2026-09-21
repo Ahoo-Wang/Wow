@@ -154,6 +154,22 @@ describe('FilterValueEditor', () => {
     expect(entry().value).toBe('');
   });
 
+  it("offers the three deletion readings in the catalogue's words", async () => {
+    const user = userEvent.setup();
+    const { changes } = editor({ input: 'deletion' }, null);
+
+    await user.click(screen.getByLabelText('amount'));
+    const options = await screen.findAllByRole('option');
+    expect(options.map(option => option.textContent)).toEqual([
+      'Not deleted',
+      'Deleted only',
+      'Deleted included',
+    ]);
+    await user.click(screen.getByRole('option', { name: 'Deleted only' }));
+
+    expect(changes).toEqual(['DELETED']);
+  });
+
   it('collects one number and a range of two', () => {
     const single = editor({ input: 'number' }, 3);
     fireEvent.change(screen.getByLabelText('amount'), {

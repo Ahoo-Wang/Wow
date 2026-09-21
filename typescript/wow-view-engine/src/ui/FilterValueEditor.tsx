@@ -16,7 +16,11 @@ import type { EditorDescriptor } from '../filter/index.js';
 import { DateValue } from './filter/inputs/date.js';
 import { NumberValue } from './filter/inputs/number.js';
 import { RemoteValue } from './filter/inputs/remote.js';
-import { BooleanValue, OptionValue } from './filter/inputs/select.js';
+import {
+  BooleanValue,
+  DeletionValue,
+  OptionValue,
+} from './filter/inputs/select.js';
 import { TextValue } from './filter/inputs/text.js';
 
 /**
@@ -85,6 +89,17 @@ export function FilterValueEditor({
     case 'boolean':
       return (
         <BooleanValue
+          value={value}
+          onChange={onChange}
+          label={label}
+          disabled={disabled}
+          invalid={invalid}
+        />
+      );
+
+    case 'deletion':
+      return (
+        <DeletionValue
           value={value}
           onChange={onChange}
           label={label}

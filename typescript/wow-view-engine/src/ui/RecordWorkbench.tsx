@@ -295,7 +295,11 @@ export function RecordWorkbench({
                 control: exportControl,
                 // The host's scope narrows the export exactly as it narrows
                 // the rows, so the window names both kinds of condition.
-                conditions: [...filter.applied, ...filter.scoped],
+                conditions: [
+                  ...filter.applied,
+                  ...filter.scoped,
+                  ...filter.implied,
+                ],
                 fileName: exportName,
               }}
               runtime={record}

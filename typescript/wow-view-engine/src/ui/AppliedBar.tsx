@@ -68,7 +68,7 @@ export function AppliedBar({
   // The host's own conditions, which are in force beside the view's own but
   // belong to the page rather than to the view. They read as `scoped` on the
   // controller precisely because no path here addresses them.
-  const { applied, scoped } = filter;
+  const { applied, scoped, implied } = filter;
   // Nothing has been fetched, so there is nothing to say the fetch ran under.
   if (!hasResult) return null;
 
@@ -84,7 +84,7 @@ export function AppliedBar({
       </span>
       {/* "All records" answers for everything in force, so a scope counts:
           rows narrowed by the page are not all of them. */}
-      {applied.length === 0 && scoped.length === 0 && (
+      {applied.length === 0 && scoped.length === 0 && implied.length === 0 && (
         <span className="text-muted-foreground">
           {messages.label('label.applied.all')}
         </span>
@@ -167,6 +167,25 @@ export function AppliedBar({
           <span className="sr-only">
             {' '}
             {messages.label('label.applied.scoped')}
+          </span>
+        </Badge>
+      ))}
+      {/* Last, the readings nobody wrote and the source applies on its own —
+          today, that a declared deletion dimension left blank shows the
+          records that are not deleted (D17-2). Worn like the scope, with
+          no ✕: it is not in the config to take out. Choosing otherwise is
+          adding the field and answering it. */}
+      {implied.map(item => (
+        <Badge
+          key={`implied:${item.field ?? ''}`}
+          variant="outline"
+          data-implied
+          className="h-auto max-w-full text-left whitespace-normal"
+        >
+          {say(item)}
+          <span className="sr-only">
+            {' '}
+            {messages.label('label.applied.implied')}
           </span>
         </Badge>
       ))}

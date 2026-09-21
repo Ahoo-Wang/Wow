@@ -43,7 +43,13 @@ export type BuiltinFieldKindId =
  * the kinds and lets each definition decide which of them a view may use.
  */
 export type MetadataFieldKindId =
-  'documentId' | 'aggregateId' | 'tenantId' | 'ownerId' | 'spaceId';
+  | 'documentId'
+  | 'aggregateId'
+  | 'tenantId'
+  | 'ownerId'
+  | 'spaceId'
+  /** Whether soft-deleted records are shown: Wow's `DELETION` filter (D17-2). */
+  | 'deletion';
 
 /**
  * Kinds whose `name` is a handle for the editor and the label rather than a
@@ -56,6 +62,7 @@ export const FIELDLESS_FIELD_KIND_IDS: readonly FieldKindId[] = [
   'tenantId',
   'ownerId',
   'spaceId',
+  'deletion',
   'search',
 ];
 
@@ -86,6 +93,7 @@ export const METADATA_FIELD_KIND_IDS: readonly MetadataFieldKindId[] = [
   'tenantId',
   'ownerId',
   'spaceId',
+  'deletion',
 ];
 
 export const BUILTIN_FIELD_KIND_IDS: readonly BuiltinFieldKindId[] = [

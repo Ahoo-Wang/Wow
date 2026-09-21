@@ -62,6 +62,7 @@ function stub(
   return {
     applied,
     scoped: [],
+    implied: [],
     clearValue: vi.fn(),
     submit: vi.fn(),
     ...actions,
@@ -79,9 +80,9 @@ function customer(): FilterSummaryItem {
 }
 
 /** The bar over a live runtime, with the editor in reach. */
-function overRuntime() {
+function overRuntime(definition = ordersDefinition()) {
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    definitions: [definition],
     store: new MemoryViewStore({ instances: [] }),
     resolveSource: () => testSource(),
   });
@@ -298,6 +299,70 @@ describe('AppliedBar', () => {
    * saved, and a ✕ that is only ever grey still tells the reader there is a
    * condition here they might get to drop.
    */
+  /**
+   * D17-2: a declared deletion dimension left blank shows the records that
+   * are not deleted. That reading is in force, so the bar says it — worn
+   * like the scope, with no ✕, since it is not in the config to take out.
+   */
+  it('says the default reading of a declared deletion dimension', () => {
+    const implied: FilterSummaryItem = condition({
+      path: [],
+      text: 'Deleted ACTIVE',
+      field: '@deleted',
+      label: 'Deleted',
+      kind: 'deletion',
+      operator: 'DELETION',
+      value: { kind: 'text', value: 'ACTIVE' },
+    });
+    render(<AppliedBar filter={stub([], { implied: [implied] })} hasResult />);
+
+    const badge = screen.getByText(/Deleted/).closest('[data-slot="badge"]');
+    expect(badge?.hasAttribute('data-implied')).toBe(true);
+    expect(badge?.textContent).toContain('Deleted is Not deleted');
+    expect(badge?.textContent).toContain('By default');
+    expect(screen.queryByRole('button')).toBeNull();
+    // Rows narrowed by the default are not all of them.
+    expect(screen.queryByText('All records')).toBeNull();
+  });
+
+  it('stops implying the reading once the view has written one', async () => {
+    const { filter } = overRuntime(
+      ordersDefinition({
+        fields: [
+          ...ordersDefinition().fields,
+          { name: '@deleted', label: 'Deleted', kind: 'deletion' },
+        ],
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Deleted/).closest('[data-slot="badge"]'),
+      ).toBeTruthy(),
+    );
+    expect(
+      screen
+        .getByText(/Deleted/)
+        .closest('[data-slot="badge"]')
+        ?.hasAttribute('data-implied'),
+    ).toBe(true);
+
+    act(() => {
+      filter().addLeaf('@deleted');
+      filter().updateLeaf([0], { value: 'ALL' });
+    });
+    act(() => filter().submit());
+
+    // Written, it is a condition like any other: removable, and no longer
+    // said to be the default.
+    await waitFor(() =>
+      expect(screen.getByText(/Deleted included/)).toBeTruthy(),
+    );
+    expect(screen.queryByText('By default')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: /Deleted is Deleted included/ }),
+    ).toBeTruthy();
+  });
+
   it('renders no remove at all when it is read-only', () => {
     render(<AppliedBar filter={stub([condition()])} hasResult readOnly />);
 

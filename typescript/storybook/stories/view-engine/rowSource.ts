@@ -19,6 +19,7 @@ import {
   AggregationGroupType,
   AggregationMetricType,
   DEFAULT_PAGINATION,
+  DeletionState,
   FilterOperator,
   SortDirection,
   StringComparison,
@@ -75,7 +76,7 @@ function select(
   filter: FilterExpression,
   sort: readonly FieldSort[] = [],
 ): RecordData[] {
-  const cursor = find<RecordData>([...rows], criteria(filter));
+  const cursor = find<RecordData>([...rows], withDeletionDefault(filter));
   return (sort.length > 0 ? cursor.sort(sortSpec(sort)) : cursor).all();
 }
 
@@ -105,7 +106,11 @@ function summarise(
     [...rows],
     [
       // An aggregation without a filter reads every row.
-      { $match: query.filter ? criteria(query.filter) : {} },
+      {
+        $match: withDeletionDefault(
+          query.filter ?? { op: FilterOperator.MATCH_ALL },
+        ),
+      },
       {
         $group: {
           _id:
@@ -164,6 +169,31 @@ function accumulator(metric: AggregationMetric): AnyObject {
 }
 
 type Filter = FilterExpression | ElementFilterExpression;
+
+/**
+ * A Wow source answers only the records that are not deleted unless the
+ * query carries a `DELETION` filter of its own — that reading is the
+ * source's, not the engine's, which is why a blank deletion condition
+ * compiles to nothing (D17-2). The story source keeps the same contract.
+ */
+function withDeletionDefault(filter: FilterExpression): AnyObject {
+  return mentionsDeletion(filter)
+    ? criteria(filter)
+    : { $and: [criteria(filter), { deleted: { $ne: true } }] };
+}
+
+function mentionsDeletion(filter: Filter): boolean {
+  switch (filter.op) {
+    case FilterOperator.DELETION:
+      return true;
+    case FilterOperator.AND:
+    case FilterOperator.OR:
+    case FilterOperator.NOR:
+      return filter.operands.some(mentionsDeletion);
+    default:
+      return false;
+  }
+}
 
 /**
  * Wow's filter as a MongoDB predicate. `relative` rewrites a field path: an
@@ -230,6 +260,11 @@ function criteria(
       return { [relative(filter.field)]: { $eq: null } };
     case FilterOperator.IS_NOT_NULL:
       return { [relative(filter.field)]: { $ne: null } };
+    // The three readings of Wow's `DELETION`, over a `deleted` flag.
+    case FilterOperator.DELETION:
+      return filter.state === DeletionState.ALL
+        ? {}
+        : { deleted: { $eq: filter.state === DeletionState.DELETED } };
     case FilterOperator.ELEMENT_MATCH: {
       const prefix = `${filter.field}.`;
       return {

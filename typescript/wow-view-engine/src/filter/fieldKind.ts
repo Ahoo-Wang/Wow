@@ -184,6 +184,8 @@ export interface EditorDescriptor {
     | 'text'
     | 'number'
     | 'boolean'
+    /** One of the three deletion readings, worded by the catalogue. */
+    | 'deletion'
     | 'select'
     | 'remote'
     | 'date'

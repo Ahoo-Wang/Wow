@@ -91,6 +91,11 @@ export const filterMessages = {
   // silently empty.
   'label.filter.already-listed': 'Already in the list',
   'label.filter.not-a-number': 'Not a number',
+  // The three answers of a deletion condition; the stored value is Wow's
+  // `DeletionState`, and these are its words.
+  'label.deletion.active': 'Not deleted',
+  'label.deletion.deleted': 'Deleted only',
+  'label.deletion.all': 'Deleted included',
   'label.boolean.true': 'True',
   'label.boolean.false': 'False',
   'label.filter.too-large': 'This filter is too large to edit here.',
@@ -102,6 +107,9 @@ export const filterMessages = {
   // A condition the host put in force, which the reader cannot take out:
   // it is not in the draft, and no path of this editor addresses it.
   'label.applied.scoped': 'Set by the page',
+  // A reading the source applies when nothing was written: said, since the
+  // rows on screen obey it (D17-2).
+  'label.applied.implied': 'By default',
 
   // The three date shapes, the side of now a relative window lies on, and
   // the controls that edit them.
@@ -218,7 +226,7 @@ export const filterMessages = {
   'label.operator.IS_NOT_NULL': 'is not empty',
   'label.operator.EXISTS': 'exists',
   'label.operator.NOT_EXISTS': 'does not exist',
-  'label.operator.DELETION': 'deletion state',
+  'label.operator.DELETION': 'is',
   'label.operator.ELEMENT_MATCH': 'has an entry where',
   'label.operator.SEARCH': 'contains',
   'label.operator.TODAY': 'today',
@@ -250,6 +258,8 @@ export const filterMessages = {
   'filter.tree.too-deep': 'The conditions nest deeper than {max} levels.',
   'filter.tree.too-many-nodes': 'The conditions exceed {max} entries.',
   'filter.value.expected-boolean': 'Choose yes or no.',
+  'filter.value.expected-deletion-state':
+    'Choose which records to show: not deleted, deleted only, or both.',
   'filter.value.expected-date': 'Enter a date.',
   'filter.value.expected-id': 'Enter an id, or pick a candidate.',
   'filter.value.expected-id-list': 'Enter one or more ids.',

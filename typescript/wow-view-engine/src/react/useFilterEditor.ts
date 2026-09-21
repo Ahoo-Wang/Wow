@@ -27,6 +27,7 @@ import {
   clearFilter,
   countLeaves,
   describeFilter,
+  impliedDeletion,
   insertAt,
   isSimpleTree,
   nodeAt,
@@ -89,6 +90,14 @@ export interface FilterEditorController extends FilterTreeController {
    * promise a narrowing the user cannot undo. Empty when no scope is injected.
    */
   scoped: FilterSummaryItem[];
+  /**
+   * Readings in force that nobody wrote: a declared deletion dimension the
+   * view's own conditions and the host's scope both leave unanswered reads
+   * as "not deleted" (D17-2), and a bar that kept quiet about it would be
+   * describing rows it does not show. Like `scoped`, nothing here is the
+   * editor's to remove; unlike it, adding the field is how it changes.
+   */
+  implied: FilterSummaryItem[];
   count: number;
   /** False when the tree needs the advanced editor to be shown faithfully. */
   simple: boolean;
@@ -374,6 +383,17 @@ export function useFilterEditor(
       // eslint-disable-next-line react-hooks/exhaustive-deps -- `scopeFilter` is a getter the runtime notifies through
       [runtime, state, fields, kinds],
     ),
+    // Against the same trees the two lists above describe: what ran, and
+    // what the host holds in force beside it.
+    implied: useMemo(() => {
+      const ran =
+        runtime?.kind === 'dashboard'
+          ? state?.applied.filter
+          : state?.result?.own.filter;
+      return !ran || !kinds
+        ? []
+        : impliedDeletion(fields, [ran, runtime?.scopeFilter], kinds);
+    }, [runtime, state, fields, kinds]),
     count: countLeaves(tree),
     simple: isSimpleTree(tree),
     pending: pending.pending,

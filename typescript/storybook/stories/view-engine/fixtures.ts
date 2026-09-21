@@ -198,6 +198,20 @@ export const ORDERS: RecordData[] = [
     amount: 980,
     createdAt: '2026-09-17T08:45:00.000Z',
   },
+  // A soft-deleted order. A Wow source answers only the records that are
+  // not deleted unless the query says otherwise, and the story source does
+  // the same (`rowSource.ts`), so this row is in no story until a view
+  // asks for «deleted included» (D17-2).
+  {
+    id: 'SO-1007',
+    warehouse: 'CN-EAST',
+    status: 'PENDING',
+    tags: [],
+    note: '重复下单，已作废。',
+    amount: 320,
+    createdAt: '2026-09-17T09:10:00.000Z',
+    deleted: true,
+  },
 ];
 
 export function recordConfig(

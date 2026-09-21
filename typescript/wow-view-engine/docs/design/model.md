@@ -33,7 +33,8 @@ export interface FieldDefinition {
   label: string;
   kind: FieldKindId; // 'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'enum'
   //                  | 'reference' | 'array' | 'elementMatch' | 'search'
-  //                  | 'documentId' | 'aggregateId' | 'tenantId' | 'ownerId' | 'spaceId' | 自定义
+  //                  | 'documentId' | 'aggregateId' | 'tenantId' | 'ownerId' | 'spaceId'
+  //                  | 'deletion' | 自定义
   operators?: FilterOperator[]; // 缺省取 FieldKind 的默认集
   options?: FieldOption[]; // enum 的静态候选；每一项可带一档闭合的语气 tone
   remote?: string; // reference 的远程候选源键，由 resolveOptions 解析
@@ -107,6 +108,16 @@ export interface AggregationFieldCapability {
   percentile?: boolean;
 }
 ```
+
+### 软删除是定义声明的一维（D17-2）
+
+Wow 的源对没有说明的查询只回未删除的记录；一份把已删除记录悄悄混进来的列表是**数据口径的沉默**，比少一个筛选项严重。所以「看不看已删除」不是每个视图天生带着的开关，而是定义按 D4 声明的一维：字段 `kind: 'deletion'`（无字段种类，`name` 只是编辑器与标签的把手，编译成 Wow 的 `DELETION` 根筛选，与 `tenantId`／`ownerId` 同一族）。
+
+- **未声明**：界面上没有这个东西——选择器里没有，已应用条上也不说。
+- **声明了**：它是一个普通条件——一个操作符（`DELETION`），三个答案（`ACTIVE` 仅未删除／`DELETED` 仅已删除／`ALL` 含已删除，措辞在目录里）；空值编译成**没有条件**，由源的缺省作答。
+- **缺省口径是「仅未删除」**：视图自己的条件与宿主的作用域都没答这一维时（旧配置、新配置、留空的 pill 都算），`impliedDeletion` 给已应用条一枚不可删的 badge 说出来（[ui/README.md#三态各有一处凭据](ui/README.md#三态各有一处凭据)）——一个在生效却没人写下的口径仍然在生效。「仅已删除」「含已删除」是显式选择。
+
+（见 test/deletionKind.test.ts）
 
 ## 配置
 

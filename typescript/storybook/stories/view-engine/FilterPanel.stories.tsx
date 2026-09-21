@@ -52,6 +52,10 @@ const withItems: DataViewDefinition = {
         { name: 'qty', label: '数量', kind: 'number' },
       ],
     },
+    // The definition declares the soft-delete dimension (D17-2): until a
+    // view says otherwise, the rows are the ones not deleted, and the bar
+    // says so on its own.
+    { name: '@deleted', label: '删除状态', kind: 'deletion' },
   ],
 };
 

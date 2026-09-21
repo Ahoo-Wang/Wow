@@ -20,6 +20,7 @@ import type {
   NumberFormat,
 } from '../model/index.js';
 import {
+  isDeletionState,
   isGroupItem,
   type FilterSummaryItem,
   type FilterSummaryValue,
@@ -302,6 +303,24 @@ function optionOf(
  * labels the kind already resolved, dates in the surface's language and zone,
  * numbers in their field's format.
  */
+/**
+ * The catalogue key for one deletion reading. The stored value is Wow's
+ * `DeletionState` token; a boolean's words are chosen the same way. Spelt
+ * as the tokens rather than the enum, because `/ui` does not import the
+ * protocol package — the kind that admits the token is the one that does.
+ */
+const DELETION_LABELS = {
+  ACTIVE: 'label.deletion.active',
+  DELETED: 'label.deletion.deleted',
+  ALL: 'label.deletion.all',
+} as const;
+
+export function deletionLabel(
+  state: keyof typeof DELETION_LABELS,
+): (typeof DELETION_LABELS)[keyof typeof DELETION_LABELS] {
+  return DELETION_LABELS[state];
+}
+
 export function summaryText(
   item: FilterSummaryItem,
   messages: MessageFormatters,
@@ -417,6 +436,10 @@ function summaryValue(
     case 'blank':
       return '';
     case 'text':
+      // The three readings of a deletion condition are the catalogue's words,
+      // as a boolean's are: the stored `ACTIVE` is a protocol token.
+      if (item.kind === 'deletion' && isDeletionState(value.value))
+        return messages.label(deletionLabel(value.value));
       return value.label ?? asField(value.value, item, messages, context);
     case 'list':
       return value.values
