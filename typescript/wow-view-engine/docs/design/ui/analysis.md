@@ -6,7 +6,7 @@
 
 - 工作台交给 `AnalysisChart` 的是产生当前结果的那份图表配置（`ViewResult.config`），不是正在编辑的草稿：类目按别名找列取标签，草稿的别名在 Run 之前可能已指向别的列。图表只画内核已经整形好的数据：透视、合并"其他"、漏斗累计与转化率、热力图矩阵、比较值都在 `shapeChart` 里完成，`AnalysisChart` 只选标记与配色，换一个图表库不触碰任何规则。`AnalysisChart` 按 `spec.colors` 给系列或分类上色，其余按 `--chart-1..5` 顺序取用；
 - 五档色相在亮暗两种模式下各自校过分离度与对比度。热力图与漏斗自绘，用图表库画它们的成本高于收益。`projectAnalysis` 只在 `layout === 'chart'` 时整形图表，因此切换 Table／Chart 是一次新的执行而不是重绘，`useAnalysisEditor.setLayout` 据此直接 apply；
-- 其余改动等 Run，等着的时候 Run 带着筛选面板的 Apply 上那颗点（`data-pending`，`useAnalysisEditor.pending`，基准是整份配置，见 [ui/README.md#三态各有一处凭据](README.md#三态各有一处凭据)），被拒的 Run 同样算没应用。**Run 是 `outline`，不是 primary**（D17-3）：分析的编辑带是筛选面板**加上**分析编辑器，两个提交按钮叠在一屏上，而 `useAnalysisEditor.submit` 与 `useFilterEditor.submit` 调的是同一个 `runtime.apply()`——一次执行的两个入口，所以同屏唯一的 primary 是 Apply（[版式](README.md#版式三块一套间距一种选项控件)），这一条只动分量、不动提交语义。（见 test/analysisUi.test.tsx「AnalysisChart」「useAnalysisEditor」「carries one primary button on the screen, and it is Apply」与 test/analysisChart.test.ts「shapeChart」）
+- 其余改动等 Run，等着的时候 Run 带着筛选面板的 Apply 上那颗点（`data-pending`，`useAnalysisEditor.pending`，基准是整份配置，见 [ui/README.md#三态各有一处凭据](README.md#三态各有一处凭据)），被拒的 Run 同样算没应用。**Run 是 `outline`，不是 primary**（D17-3）：分析的编辑带是筛选面板**加上**分析编辑器，两个提交按钮叠在一屏上，而 `useAnalysisEditor.submit` 与 `useFilterEditor.submit` 调的是同一个 `runtime.apply()`——一次执行的两个入口，所以同屏唯一的 primary 是 Apply（[版式](README.md#版式三块一套间距一种选项控件)），这一条只动分量、不动提交语义。（见 test/analysisChart.test.tsx「AnalysisChart」、test/analysisUi.test.tsx「useAnalysisEditor」「carries one primary button on the screen, and it is Apply」与 test/analysisChart.test.ts「shapeChart」）
 
 ### 一个家族一个文件
 
@@ -25,7 +25,7 @@
 | `ui/charts/axis.ts`           | 数值格式、轴域与刻度格式、左右轴归属                                       |
 | `ui/charts/family.ts`         | `FamilyProps`（每个家族收到的同一份 props）与类目标签器 `useCategoryLabel` |
 
-- 家族组件都不导出到包外：`/ui` 的出口只有 `AnalysisChart`，换一种画法是换 `charts/` 下的文件，不是换一个公开 API。（见 test/analysisUi.test.tsx「AnalysisChart」）
+- 家族组件都不导出到包外：`/ui` 的出口只有 `AnalysisChart`，换一种画法是换 `charts/` 下的文件，不是换一个公开 API。（见 test/analysisChart.test.tsx「AnalysisChart」）
 
 ## 图表怎么被读出来
 

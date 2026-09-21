@@ -348,3 +348,15 @@ export function deferred<T>(): {
   });
   return { promise, resolve, reject };
 }
+
+/**
+ * Queries that see only what is drawn.
+ *
+ * Every chart renders an `sr-only` table of the same numbers beside it, so a
+ * plain text query finds each value twice; these assertions are about the
+ * drawing. What the reading says is pinned in
+ * `test/analysisChartA11y.test.tsx`.
+ */
+export const DRAWN = {
+  ignore: 'script, style, [data-slot="chart-reading"] *',
+} as const;
