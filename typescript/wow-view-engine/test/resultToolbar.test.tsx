@@ -95,7 +95,7 @@ function tableController(
 }
 
 describe('ResultToolbar selection side', () => {
-  it('shows nothing about a selection there is none of, and still holds its height', () => {
+  it('shows nothing about a selection there is none of, and no box where it would go', () => {
     const { container } = render(
       <ResultToolbar
         refresh={refreshController()}
@@ -109,11 +109,40 @@ describe('ResultToolbar selection side', () => {
     expect(
       screen.queryByRole('button', { name: 'Clear selection' }),
     ).toBeNull();
-    // The row keeps a button's height so picking the first row does not
-    // shove the result down a line.
+    // Not even an empty box: the placeholder that used to hold a button's
+    // height was 32px of nothing that a narrow bar could give a line of its
+    // own to, and the groups on the right are buttons that hold that same
+    // height whether or not anything is selected.
     expect(
-      container.querySelector('[data-slot="result-toolbar"] .min-h-8'),
-    ).toBeTruthy();
+      container.querySelector('[data-slot="toolbar-selection"]'),
+    ).toBeNull();
+  });
+
+  /**
+   * The three groups on the right are one block, not three siblings of a
+   * spacer: a spacer takes a line of its own width when the bar wraps, which
+   * is what used to strand the layout switch alone on the first line and
+   * push the refresh button down to a third.
+   */
+  it('keeps the three right-hand groups in one block that ends the bar', () => {
+    const { container } = render(
+      <ResultToolbar
+        refresh={refreshController()}
+        table={tableController()}
+        fields={FIELDS}
+        runtime={runtime}
+      />,
+    );
+
+    const right = container.querySelector<HTMLElement>(
+      '[data-slot="toolbar-arrangement"]',
+    )!;
+    expect(right.className).toContain('ml-auto');
+    expect(right.className).toContain('flex-wrap');
+    expect(right.className).toContain('justify-end');
+    expect(
+      [...right.children].map(node => node.getAttribute('aria-label')),
+    ).toEqual(['Layout', 'Table settings', 'Freshness']);
   });
 
   /**

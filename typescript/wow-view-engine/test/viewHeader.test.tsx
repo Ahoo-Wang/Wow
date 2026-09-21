@@ -188,6 +188,77 @@ describe('ViewHeader', () => {
     expect(title().getAttribute('title')).toBe(long);
   });
 
+  /**
+   * The spring has a floor. The name is the one thing that gives, and
+   * without a floor it gave until there was nothing left of it — 40px of
+   * "待出…" beside a 74px tag and 93px of save commands. `min-width` is
+   * also what a flex item reports upwards, so this is the same declaration
+   * that makes the identity group ask honestly for what it needs and the
+   * bar wrap its controls rather than eat into the name. The pixels are the
+   * browser story's; what jsdom can hold is the declaration.
+   */
+  it('puts a floor under the name it lets shrink', async () => {
+    const { engine } = setup();
+    const runtime = await engine.open('orders-1');
+    render(<Harness engine={engine} runtime={runtime} />);
+
+    expect(title().className).toContain('w-0');
+    expect(title().className).toContain('grow');
+    expect(title().className).toContain('min-w-[6em]');
+  });
+
+  /**
+   * How much room this bar has is a fact about the bar. A viewport breakpoint
+   * answered a different question — in a 360px panel on a wide page it kept
+   * showing what it should have dropped — so the bar declares itself a query
+   * container and everything that gives way reads `@…/header`.
+   */
+  it('is the container the parts that give way measure themselves against', async () => {
+    const { engine } = setup();
+    const runtime = await engine.open('orders-1');
+    render(<Harness engine={engine} runtime={runtime} />);
+
+    const band = document.querySelector<HTMLElement>(
+      '[data-slot="view-header-band"]',
+    )!;
+    expect(band.className).toContain('@container/header');
+
+    // The tag keeps its word in the accessible name at every width and puts
+    // it back on screen above `@md`: a clipped "personal" would be worse
+    // than the honest overflow this bar prefers, so it is the icon or the
+    // whole of it, never half.
+    const tag = within(group('view-identity')).getByText('personal');
+    expect(tag.className).toContain('sr-only');
+    expect(tag.className).toContain('@md/header:not-sr-only');
+
+    // Save is the command a narrow screen most needs; below `@md` it is its
+    // icon, and its name is still the word.
+    expect(
+      screen.getByRole('button', { name: 'Save' }).querySelector('span')!
+        .className,
+    ).toContain('@max-md/header:sr-only');
+  });
+
+  /**
+   * On one line the identity group's `flex-1` already ends the bar with this
+   * group. On two — which is what the bar does now rather than paint one
+   * group over the other — it would otherwise start hard left, under the
+   * kind icon, reading as a second row of the identity group.
+   */
+  it('keeps the view controls at the end of whichever line they land on', async () => {
+    const { engine } = setup();
+    const runtime = await engine.open('orders-1');
+    render(
+      <Harness
+        engine={engine}
+        runtime={runtime}
+        trailing={<button>Fold</button>}
+      />,
+    );
+
+    expect(group('view-controls').className).toContain('ml-auto');
+  });
+
   it('says a shared view is shared', async () => {
     const { engine } = setup();
     const runtime = await engine.open('orders-2');

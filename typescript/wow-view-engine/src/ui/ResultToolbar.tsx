@@ -94,6 +94,18 @@ const LAYOUT_LABEL: Record<RecordLayout, MessageKey> = {
  * control with two positions rather than two buttons. The host's bulk
  * actions are the only `outline` in the row, and the one primary button on
  * screen stays the filter's Apply.
+ *
+ * **The three right-hand groups wrap together, as one block.** They used to
+ * be siblings of a `flex-1` spacer, and a spacer is the worst thing to wrap
+ * around: it took a full line of its own width, pushed the layout switch to
+ * the far right of the first line by itself, dropped the arrange group to
+ * the left of the second and the refresh split button to a third — three
+ * rows of 104px at a phone's width, and still three at 768px. Sitting in one
+ * `ml-auto ... justify-end` box, they stay a block that ends where the bar
+ * ends, and the selection keeps the left. 768px is one line now; 375px with
+ * a selection is still three, because 406px of controls does not go into a
+ * 317px bar however it wraps — but they are three grouped lines rather than
+ * three scattered ones.
  */
 export function ResultToolbar({
   table,
@@ -113,33 +125,44 @@ export function ResultToolbar({
       data-slot="result-toolbar"
       className={`flex flex-wrap items-center ${SPACE.GROUPS}`}
     >
-      {/* Kept at a button's height whether or not anything is selected, so
-          picking the first row does not push the result down a line. */}
-      <div className={`flex min-h-8 items-center ${SPACE.GROUPS}`}>
-        {selected && (
-          <>
-            <Badge variant="secondary" role="status">
-              {messages.label('label.toolbar.selected', {
-                count: table.selection.length,
-              })}
-            </Badge>
-            <Button variant="ghost" size="sm" onClick={table.clearSelection}>
-              {messages.label('label.toolbar.clear-selection')}
-            </Button>
-            {bulkActions?.({
-              rows: table.selectedRows,
-              keys: table.selection,
-              runtime,
-              clearSelection: table.clearSelection,
-              refresh: table.refresh,
+      {/* Nothing at all when nothing is selected: the empty box that used to
+          stand here held a button's height so that picking the first row did
+          not shove the result down a line, but the groups on the right are
+          buttons too and hold the same 32px whatever the selection is — so
+          it was 32px of nothing, and at a phone's width it was 32px of
+          nothing that could take a line to itself. Its own contents wrap:
+          a count, a way to drop it, and however many bulk actions the host
+          brought are more than one narrow line holds. */}
+      {selected && (
+        <div
+          data-slot="toolbar-selection"
+          className={`flex flex-wrap items-center ${SPACE.GROUPS}`}
+        >
+          <Badge variant="secondary" role="status">
+            {messages.label('label.toolbar.selected', {
+              count: table.selection.length,
             })}
-          </>
-        )}
-      </div>
+          </Badge>
+          <Button variant="ghost" size="sm" onClick={table.clearSelection}>
+            {messages.label('label.toolbar.clear-selection')}
+          </Button>
+          {bulkActions?.({
+            rows: table.selectedRows,
+            keys: table.selection,
+            runtime,
+            clearSelection: table.clearSelection,
+            refresh: table.refresh,
+          })}
+        </div>
+      )}
 
-      <div className="flex-1" />
-
-      {/* Only the definition's layouts, in its order — and nothing at all
+      {/* How the result is shown: one block of three groups, ending where
+          the bar ends whether it took one line or two. */}
+      <div
+        data-slot="toolbar-arrangement"
+        className={`ml-auto flex flex-wrap items-center justify-end ${SPACE.GROUPS}`}
+      >
+        {/* Only the definition's layouts, in its order — and nothing at all
           when there is no choice to make, unless the view is saved in a
           layout the definition has since dropped: `validateRecord` refuses
           that config, and a switcher that hides itself exactly then leaves
@@ -149,46 +172,48 @@ export function ResultToolbar({
           control with two positions rather than two bordered buttons that
           happen to sit together; it is the house rule's one spelling of
           that, applied here because `ui/components` is upstream's. */}
-      {(table.layouts.length >= 2 || !table.layouts.includes(table.layout)) && (
-        <ToggleGroup
-          value={[table.layout]}
-          onValueChange={value => {
-            // Matched against the allowed layouts rather than cast: the
-            // group is built from them, so anything else is not a layout.
-            const next = table.layouts.find(layout => layout === value[0]);
-            if (next) table.setLayout(next);
-          }}
-          variant="outline"
-          size="sm"
-          aria-label={messages.label('label.toolbar.layout')}
-          className={SEGMENTED}
-        >
-          {table.layouts.map(layout => (
-            <ToggleGroupItem key={layout} value={layout}>
-              {messages.label(LAYOUT_LABEL[layout])}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      )}
+        {(table.layouts.length >= 2 ||
+          !table.layouts.includes(table.layout)) && (
+          <ToggleGroup
+            value={[table.layout]}
+            onValueChange={value => {
+              // Matched against the allowed layouts rather than cast: the
+              // group is built from them, so anything else is not a layout.
+              const next = table.layouts.find(layout => layout === value[0]);
+              if (next) table.setLayout(next);
+            }}
+            variant="outline"
+            size="sm"
+            aria-label={messages.label('label.toolbar.layout')}
+            className={SEGMENTED}
+          >
+            {table.layouts.map(layout => (
+              <ToggleGroupItem key={layout} value={layout}>
+                {messages.label(LAYOUT_LABEL[layout])}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        )}
 
-      {/* How the table shows what it has: one responsibility, one group. */}
-      <ButtonGroup aria-label={messages.label('label.toolbar.arrange')}>
-        <ColumnSettings
-          table={table}
-          fields={fields}
-          {...(rowKey === undefined ? {} : { rowKey })}
-          actions={hasRowActions}
-        />
-        <SortSettings
-          table={table}
-          fields={fields}
-          {...(fieldGroups ? { fieldGroups } : {})}
-        />
-      </ButtonGroup>
+        {/* How the table shows what it has: one responsibility, one group. */}
+        <ButtonGroup aria-label={messages.label('label.toolbar.arrange')}>
+          <ColumnSettings
+            table={table}
+            fields={fields}
+            {...(rowKey === undefined ? {} : { rowKey })}
+            actions={hasRowActions}
+          />
+          <SortSettings
+            table={table}
+            fields={fields}
+            {...(fieldGroups ? { fieldGroups } : {})}
+          />
+        </ButtonGroup>
 
-      {/* Freshness: the press that refreshes now, and the interval that
-          keeps doing it. One group, because they are one question. */}
-      <RefreshControl refresh={refresh} busy={table.loading} />
+        {/* Freshness: the press that refreshes now, and the interval that
+            keeps doing it. One group, because they are one question. */}
+        <RefreshControl refresh={refresh} busy={table.loading} />
+      </div>
     </div>
   );
 }

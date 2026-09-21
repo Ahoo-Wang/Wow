@@ -148,7 +148,18 @@ export function ViewHeader({
   const scopeKey = isSystemScope(state.scope) ? 'system' : audience;
 
   return (
-    <div data-slot="view-header-band" className="flex flex-col gap-2">
+    // The bar is a query container named `header`, and it is the *only*
+    // thing the parts inside it are allowed to ask about. What they need to
+    // know is how much room this bar has, which the viewport does not
+    // answer: a 360px panel on a 1440px page had `definition-title`'s
+    // viewport `sm:inline` showing "Orders" while the view's own name was
+    // squeezed to "全…". Everything that gives way below a width — the
+    // definition's title in `WorkbenchShell`, the audience tag here, the
+    // words on the save commands — reads `@…/header`.
+    <div
+      data-slot="view-header-band"
+      className="@container/header flex flex-col gap-2"
+    >
       <div
         data-slot="view-header"
         className="flex min-h-10 flex-wrap items-center gap-2"
@@ -186,9 +197,17 @@ export function ViewHeader({
             </Tooltip>
           )}
 
+          {/* Below `@md` the tag is its icon and nothing else. It is not a
+              truncation — a clipped "Shared" is worse than an honest
+              overflow, which is why this badge has always been `shrink-0` —
+              it is the same fact in fewer pixels, and the word stays in the
+              accessible name, so what a screen reader hears never changes
+              with the width of the column. */}
           <Badge variant="secondary" className="shrink-0">
             <Audience aria-hidden />
-            {messages.label(`label.scope.tag.${scopeKey}`)}
+            <span className="sr-only @md/header:not-sr-only">
+              {messages.label(`label.scope.tag.${scopeKey}`)}
+            </span>
           </Badge>
 
           {/* Always a heading, because the region around it is named by its
@@ -204,7 +223,17 @@ export function ViewHeader({
               its contents would then grow with the title rather than clip
               it, which is the same overflow by another route. A width of
               zero is a definite size the group can count on, which is why
-              `max-w-fit` was no answer. */}
+              `max-w-fit` was no answer.
+
+              And a spring with no floor is a name that gives until there is
+              nothing left of it: at 375px the switcher's label was 40px —
+              "待出…" — while the tag beside it held 74px and the save
+              commands 93px, so the one thing the bar exists to say was the
+              one thing not on it. `min-w-[6em]` is that floor. It is a
+              floor on the *group* as much as on the name: `min-width` is
+              what a flex item reports upwards, so an identity group that
+              cannot spare 6em now says so, and `flex-wrap` above puts the
+              controls on their own line instead. */}
           <Title
             ref={titleRef}
             id={titleId ?? generatedId}
@@ -224,7 +253,7 @@ export function ViewHeader({
               'truncate font-medium',
               // `sr-only` sets a width of its own, so the spring is only for
               // the title that is actually on the line.
-              namesView ? 'w-0 grow' : 'sr-only',
+              namesView ? 'w-0 min-w-[6em] grow' : 'sr-only',
             )}
           >
             {state.title}
@@ -257,10 +286,17 @@ export function ViewHeader({
 
         {/* How it is being looked at. The host's own actions end the line:
             everything before them is this package's, and a page that adds a
-            button does not have to know what it is standing next to. */}
+            button does not have to know what it is standing next to.
+
+            `ml-auto` is for the line this group gets to itself: on one line
+            the identity group's `flex-1` already pushes it to the end, but
+            once the bar wraps this group starts a line of its own and
+            without it lands hard left — under the kind icon, reading as a
+            second row of the identity group rather than as the other half
+            of the bar. */}
         <div
           data-slot="view-controls"
-          className="flex shrink-0 items-center gap-2"
+          className="ml-auto flex shrink-0 items-center gap-2"
         >
           {trailing}
           {trailing && actions && (

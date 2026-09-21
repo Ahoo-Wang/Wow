@@ -52,14 +52,9 @@
 
 ### 缺陷（先做）
 
-- **手机宽度（375）四处溢出**——为什么：根 341px、结果卡 309px 时：分页行 `nowrap`，「下一页」右缘 365.6 超出卡片右缘 342；"4 records in all" 折成三行、中文"共 4 条记录"词中断开；条件带 `minmax(20rem,1fr)` 把每列钉死 320px，pill 右缘 366 冲出编辑带；选择组不换行，「导出所选」溢出。判据：分页 `flex-wrap` + 计数 `whitespace-nowrap`；条件带 `minmax(min(20rem,100%),1fr)`；选择组 `flex-wrap`；一条 375 宽的浏览器故事断言主列 `scrollWidth <= clientWidth`（无横向溢出）。落点：`src/ui/RecordPagination.tsx`、`src/ui/filter/GroupBlock.tsx`、`src/ui/ResultToolbar.tsx`、`stories/view-engine/RecordWorkbench.test.stories.tsx`。
-- **「只有名字让步」让步到看不见**——为什么：折叠侧栏、375 宽时切换器里的名字只剩 **40px**（"待出…"），`shared` 徽章 74px、`Save ▾` 93px 一寸不让；`NarrowTitleBar` 故事（360px 容器）里 `definition-title` 用的是**视口**断点 `sm:inline`，「订单」照显、视图名挤成"全…"——约束来自容器宽度，判据却是视口。判据：识别组窄到名字不足一个最小宽度（如 6em）时右组整组换行或徽章退化为图标、Save 退化为 icon-sm；`sm:` 换成容器查询（`@container`）；[工作台骨架](ui/README.md#工作台骨架)那条"只有名字让步"补上下限；浏览器故事「标题栏/回归」加一档断言名字 ≥ 最小宽。落点：`src/ui/ViewHeader.tsx`、`src/ui/WorkbenchShell.tsx`、[ui/README.md](ui/README.md)。
-
 ### 打磨
 
 - **选中／悬停行上枚举徽章消失；侧栏悬停项与当前项同色**——为什么：`secondary` 徽章底色 = 行选中 `bg-muted` = `oklch(0.97)`，**1.00:1**（暗色 0.269 同样 1.00）；侧栏当前项 `secondary`(0.97) = 悬停 `accent`(0.97)。四个状态（分段按下 1.09、行悬停 1.04、行选中 1.09、侧栏当前 1.09）共用一档 3% 灰，叠在一起就归零。判据：单元格徽章带 `border-border`（带语气的徽章由 #1580 改成实底，已不受影响）；侧栏当前项 `font-medium` + 左侧 2px `primary` 条；浏览器故事量选中行上的徽章与行底 ≥1.5:1、当前项与悬停项可分辨。落点：`src/ui/record/cells.tsx`、`src/ui/ViewList.tsx`、[ui/README.md](ui/README.md)。
-- **结果工具栏换行是散的**——为什么：`[选择组][flex-1 撑条][布局][列／排序][刷新]`——放不下时撑条把 Table|Cards 单独顶到第一行右端，其余掉到第二行左对齐，Refresh 再掉第三行：1280 有选择时 2 行、768 时 3 行、375 时三行 **104px**；无选择时 `min-h-8` 占位仍占 32px。判据：右侧三组包进 `ml-auto flex flex-wrap justify-end`，无选择时不渲染占位；浏览器故事在 768／375 断言工具栏 ≤2 行且右组右对齐。落点：`src/ui/ResultToolbar.tsx`、[ui/record.md](ui/record.md)。
-- **折叠侧栏时切换器撑满 470px、内容居中**——为什么：`view-collapsed` 组 `w-0 grow` 加上触发器 `justify-center`，一个 470px 的居中胶囊是这一轮最"没设计过"的一处；768 时标题栏换行后右组落到第二行**左对齐**（`view-controls` 缺 `ml-auto`）。判据：切换器按内容定宽、左对齐；`view-controls` 加 `ml-auto`；「标题栏/回归」故事补两档断言。落点：`src/ui/WorkbenchShell.tsx`、`src/ui/ViewSwitcher.tsx`、[ui/README.md](ui/README.md)。
 - **铺满屏幕在 375 上没收起侧栏**——为什么：侧栏堆在上方占 204px，表从 y≈440 才开始——"铺满是为了行"在手机上换来的行最少。与 Q7 无关。判据：铺满时窄于 `md` 的布局把侧栏折起（退出时还原），`test/viewExpansion.test.tsx` 加一条；浏览器故事在 375 断言表头 y < 120。落点：`src/ui/WorkbenchShell.tsx`、[ui/README.md](ui/README.md)。
 - **两种状态条画在两处**——为什么：配置错误／告警条画在块间，查询失败条（`QueryStrip`）画在结果卡内、`AppliedBar` 之下——同色同形的两根条出现在两个位置；而 `NeedsFixing`／`QueryFailed` 没有历史结果时结果卡只剩一根 54px 的工具栏，像坏了。判据：定一个位置（建议都在块间，结果卡只在有结果或加载中时存在），[工作台骨架](ui/README.md#工作台骨架)那句顺序随之改；`test/recordWorkbench.test.tsx` 钉住失败且无结果时不画空卡。落点：`src/ui/WorkbenchShell.tsx`、`src/ui/RecordWorkbench.tsx`、[ui/README.md](ui/README.md)。
 - **高级模式根分组有两套「添加」**——为什么：`Add in this group / Add a group / Add / Add a group` 四个入口挤在一屏。判据：根分组只留一套（分组块自己的那套），`test/filterPanel.test.tsx` 断言高级模式下"添加"入口的数量。落点：`src/ui/FilterPanel.tsx`、`src/ui/filter/GroupBlock.tsx`、[ui/README.md](ui/README.md)。

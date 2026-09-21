@@ -141,6 +141,55 @@ describe('collapsing the sidebar', () => {
     expect(switcher()).not.toBeNull();
   });
 
+  /**
+   * The switcher is the collapsed group's spring, and it stops at its own
+   * contents. `grow` alone stretched it across the group whatever it had to
+   * say, and the vendored button centres, so a short name floated in the
+   * middle of a 470px pill: `max-w-fit` caps it at the name it shows and
+   * `justify-start` puts the label where the icon leaves off.
+   */
+  it('sizes the switcher to what it says, not to the room it is given', async () => {
+    const user = await open(engineWith());
+    await user.click(screen.getByRole('button', { name: COLLAPSE }));
+
+    const trigger = switcher()!;
+    expect(trigger.className).toContain('max-w-fit');
+    expect(trigger.className).toContain('justify-start');
+
+    // The floor is on the trigger, because `w-0` is also what stops the
+    // label's `nowrap` asking the group for the whole string — so it has to
+    // be the label's 6em plus the furniture around it. The label keeps its
+    // own 6em to stay clear of the icons.
+    expect(trigger.className).toContain('min-w-[calc(6em+3.25rem)]');
+    const label = within(trigger).getByText('Mine');
+    expect(label.className).toContain('min-w-[6em]');
+
+    // And the group around it may not be squeezed below that floor, or it
+    // reports a width it cannot keep and the bar never wraps.
+    const collapsed = document.querySelector<HTMLElement>(
+      '[data-slot="view-collapsed"]',
+    )!;
+    expect(collapsed.className).not.toContain('min-w-0');
+  });
+
+  /**
+   * The definition's title is the first thing to go when the row runs out of
+   * room, and "the row" is this bar rather than the page: a viewport
+   * breakpoint kept it on screen in a 360px panel on a wide page while the
+   * view's own name was down to two characters.
+   */
+  it('measures the definition title against the bar rather than the viewport', async () => {
+    const user = await open(engineWith());
+    await user.click(screen.getByRole('button', { name: COLLAPSE }));
+
+    const definition = document.querySelector<HTMLElement>(
+      '[data-slot="definition-title"]',
+    )!;
+    expect(definition.className).toContain('hidden');
+    expect(definition.className).toContain('@2xl/header:inline');
+    expect(definition.className).not.toContain('sm:inline');
+  });
+
   it('leaves the title a heading the region still points at', async () => {
     const user = await open(engineWith());
     await user.click(screen.getByRole('button', { name: COLLAPSE }));

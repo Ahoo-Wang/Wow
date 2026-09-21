@@ -330,10 +330,16 @@ export function WorkbenchShell({
       // The identity group's spring while it is there: with the sidebar
       // away the view's name is the switcher's label rather than the
       // heading beside it, so this is the part of the line that may give.
-      // `min-w-0` is safe here because the switcher below it can shrink to
-      // its icons — a group whose contents cannot shrink and which is
-      // allowed to be squeezed is exactly what put Save under the controls.
-      className={cn('flex min-w-0 grow items-center', SPACE.WITHIN)}
+      //
+      // It carries `grow` but no longer `min-w-0`. `grow` is how the
+      // leftover room reaches the switcher at all; what the switcher does
+      // with it is its own business, and it now stops at its contents
+      // rather than stretching into a 470px pill. `min-w-0` was safe only
+      // while the switcher could shrink to its icons — now the name keeps a
+      // floor, and a group allowed to be squeezed below what its contents
+      // need is a group that lies to the row above it, which is exactly
+      // what painted Save over the view controls before.
+      className={cn('flex grow items-center', SPACE.WITHIN)}
     >
       <Button
         ref={expandRef}
@@ -348,9 +354,16 @@ export function WorkbenchShell({
       {title && (
         // The first thing to go when the row runs out of room: the view's own
         // name outranks the name of everything it is one of.
+        //
+        // "When the row runs out of room" is a fact about the bar, and the
+        // viewport `sm:` this used to ask answered a different question: in
+        // a 360px panel on a wide page it showed "Orders" in full while the
+        // view's own name was down to "全…". `@2xl/header` asks the bar
+        // itself (`@container/header` in `ViewHeader`), which is the only
+        // thing that knows.
         <span
           data-slot="definition-title"
-          className="text-muted-foreground hidden truncate text-sm sm:inline"
+          className="text-muted-foreground hidden truncate text-sm @2xl/header:inline"
         >
           {title}
         </span>

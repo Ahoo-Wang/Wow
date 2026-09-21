@@ -98,11 +98,18 @@ export function RecordPagination({ table }: RecordPaginationProps) {
   return (
     <div
       data-slot="record-pagination"
-      className="text-muted-foreground flex items-center justify-between gap-4 text-xs"
+      // One line while there is room for one, two when there is not. A row
+      // that could not wrap put Next's right edge 24px past the result card
+      // it sits in at a phone's width, and `justify-between` squeezed the
+      // count instead: "4 records in all" broke over three lines and the
+      // Chinese "共 4 条记录" broke mid-word. The sentence keeps itself
+      // whole, the controls take the line below it, and `ml-auto` keeps
+      // them at the end of whichever line they land on.
+      className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 text-xs"
     >
-      <span>{count}</span>
+      <span className="whitespace-nowrap">{count}</span>
 
-      <div className="flex items-center gap-2">
+      <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
         <span id={sizeLabelId}>
           {messages.label('label.pagination.page-size')}
         </span>

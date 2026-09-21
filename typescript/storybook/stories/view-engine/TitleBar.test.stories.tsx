@@ -66,10 +66,32 @@ function saveOwns(save: HTMLElement, x: number, y: number): boolean {
   return found !== null && found.closest('[data-slot="save-actions"]') !== null;
 }
 
-interface Complaint {
-  width: number;
-  what: string;
+/**
+ * The name on the bar right now.
+ *
+ * With the list beside it that is the heading; with the list folded away the
+ * heading is `sr-only` and the name is the switcher's label. Two places, one
+ * thing — and the floor is under whichever of them is on screen.
+ */
+function nameOn(host: HTMLElement): HTMLElement {
+  const switcher = host.querySelector<HTMLElement>(
+    '[data-slot="view-switcher"]',
+  );
+  return (
+    switcher?.querySelector<HTMLElement>('span') ??
+    host.querySelector<HTMLElement>('[data-slot="view-title"]')!
+  );
 }
+
+/**
+ * The floor the name keeps, in pixels, read off the element that keeps it.
+ *
+ * 6em rather than 96px: the two places the name can be are set at different
+ * sizes, and the floor is a number of characters — enough of a name to tell
+ * two views apart — not a number of pixels.
+ */
+const floorOf = (name: HTMLElement) =>
+  6 * parseFloat(getComputedStyle(name).fontSize);
 
 /** How wide that element is once the column is this wide. */
 function widthAt(host: HTMLElement, width: number, element: Element): number {
@@ -86,13 +108,8 @@ function widthAt(host: HTMLElement, width: number, element: Element): number {
  * pixel — "overlapping from 344px down" is a description of the bug, and
  * "344px" alone is a description of one screenshot.
  */
-function walk(
-  host: HTMLElement,
-  from: number,
-  to: number,
-  step = 4,
-): Complaint[] {
-  const found: Complaint[] = [];
+function walk(host: HTMLElement, from: number, to: number, step = 4): string[] {
+  const found: string[] = [];
   for (let width = from; width >= to; width -= step) {
     host.style.width = `${width}px`;
     const header = host.querySelector<HTMLElement>(
@@ -109,7 +126,7 @@ function walk(
     // in the viewport for the engine to have anything to answer about.
     header.scrollIntoView({ block: 'center' });
 
-    const say = (what: string) => found.push({ width, what });
+    const say = (what: string) => found.push(`${width}px: ${what}`);
 
     // Which view this is, and how it is being looked at: two groups, and at
     // no width may one be painted over the other.
@@ -124,7 +141,29 @@ function walk(
         say(`${child.getAttribute('data-slot') ?? child.tagName} spills out`);
     }
     if (!inside(box(identity), box(header)))
-      say('the identity group is wider than the bar it is in');
+      say(
+        `the identity group is ${Math.round(box(identity).width)}px in a ` +
+          `${Math.round(box(header).width)}px bar`,
+      );
+
+    // The name is what gives, and it gives down to a floor. Without one it
+    // gave to 40px — "待出…" — beside a 74px audience tag and 93px of save
+    // commands: the one thing the bar exists to say was the one thing not
+    // on it. The floor is also what makes the bar wrap instead of squeeze,
+    // since `min-width` is what a flex item reports to the row above it.
+    const name = nameOn(host);
+    if (box(name).width < floorOf(name) - 1)
+      say(`the name is down to ${Math.round(box(name).width)}px`);
+
+    // The right-hand group ends the bar on whichever line it lands on. On
+    // one line the identity group's `flex-1` does it; on two it needs
+    // `ml-auto`, or the controls start hard left under the kind icon and
+    // read as a second row of the identity group.
+    if (
+      inside(box(identity), box(header)) &&
+      Math.abs(box(controls).right - box(header).right) > 1
+    )
+      say('the view controls do not end the bar');
 
     // Save is the command a narrow screen most needs and the one that was
     // lost: reachable by keyboard the whole time, and by nothing else.
@@ -184,13 +223,41 @@ export const NarrowColumn: Story = {
     const switcher = canvasElement.querySelector<HTMLElement>(
       '[data-slot="view-switcher"]',
     )!;
-    await expect(widthAt(host, 760, switcher)).toBeGreaterThan(
-      widthAt(host, 320, switcher),
-    );
+    await expect(
+      widthAt(host, 760, switcher),
+      'switcher shrinks',
+    ).toBeGreaterThan(widthAt(host, 320, switcher));
+
+    // And it is a button, not the room around it: `grow` used to hand it the
+    // whole collapsed group, which at 470px was a pill with a short name
+    // centred in it. Sized to what it says, the label starts where the icon
+    // ends and the group ends where the label does.
+    host.style.width = '760px';
+    await expect(getComputedStyle(switcher).justifyContent).toBe('flex-start');
+    const label = switcher.querySelector<HTMLElement>('span')!;
+    await expect(
+      box(switcher).right - box(label).right,
+      'trigger ends at its label',
+    ).toBeLessThan(40);
+
+    // The definition's title is measured against this bar, not the page it is
+    // on: the window here is far wider than the old viewport `sm:`, and the
+    // 360px column is what decides.
+    const definition = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="definition-title"]',
+    )!;
+    host.style.width = '360px';
+    await expect(getComputedStyle(definition).display).toBe('none');
+    host.style.width = '760px';
+    await expect(getComputedStyle(definition).display).not.toBe('none');
 
     // Edited, which is the state a narrow screen most needs the bar in: Save
     // is a live command rather than a disabled one, and the "Edited" badge
-    // has joined the line, so the same walk is over wider contents.
+    // has joined the line, so the same walk is over wider contents — four
+    // pixels' worth, which is why this rung stops at 364 and the one above
+    // reaches 300. The badge is a word with no icon to fall back to, so it
+    // is one of the irreducible things the bar would rather overflow than
+    // clip.
     await userEvent.click(canvas.getAllByRole('button', { name: /订单号/ })[0]);
     await waitFor(() =>
       expect(
@@ -199,7 +266,7 @@ export const NarrowColumn: Story = {
         }),
       ).toBeEnabled(),
     );
-    await expect(walk(host, 760, 360)).toEqual([]);
+    await expect(walk(host, 760, 364)).toEqual([]);
 
     // And the same bar with the view list beside it, which is the third set
     // of contents: the heading is on the line, and the switcher is not. The
@@ -219,12 +286,15 @@ export const NarrowColumn: Story = {
     // The name is what gives here too, and it is *clipped* rather than laid
     // out at its full width: the group is sized to its contents, so a title
     // that went on asking for its whole string would push the save commands
-    // out of the column instead of truncating. This is the half `max-w-fit`
-    // could not deliver.
-    await expect(widthAt(host, 1000, title)).toBeGreaterThan(
+    // out of the column instead of truncating. A `max-w-fit` on the heading
+    // could not have delivered this half — it caps growth, it does not stop
+    // a nowrap heading asking for its whole text.
+    await expect(widthAt(host, 1000, title), 'title shrinks').toBeGreaterThan(
       widthAt(host, 680, title),
     );
-    await expect(title.scrollWidth).toBeGreaterThan(title.clientWidth);
+    await expect(title.scrollWidth, 'title clipped').toBeGreaterThan(
+      title.clientWidth,
+    );
     host.style.width = '360px';
   },
 };

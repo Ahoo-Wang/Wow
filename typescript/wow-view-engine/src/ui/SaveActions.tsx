@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -224,6 +224,21 @@ export function SaveActions({
   );
 }
 
+/**
+ * The word on the primary button, which is the first thing it gives up.
+ *
+ * Below `@md` of the title bar (`@container/header`, `ViewHeader`) the
+ * button is its icon: at a phone's width the bar's irreducible parts —
+ * icons, the audience tag and these commands — added up to more than the
+ * column, and Save is the one command a narrow screen most needs to keep.
+ * `sr-only` takes the word out of the layout and leaves it in the
+ * accessible name, so the button is still "Save" to a screen reader and
+ * still `label.save.save` to a test; only the pixels go.
+ */
+function Face({ children }: { children: ReactNode }) {
+  return <span className="@max-md/header:sr-only">{children}</span>;
+}
+
 /** What the primary button wears right now: saving, saved, or its own name. */
 function PrimaryFace({
   saving,
@@ -245,25 +260,25 @@ function PrimaryFace({
           data-icon="inline-start"
           aria-label={messages.label('label.status.loading')}
         />
-        {messages.label('label.save.saving')}
+        <Face>{messages.label('label.save.saving')}</Face>
       </>
     );
   if (saved)
     return (
       <>
         <CheckIcon data-icon="inline-start" />
-        {messages.label('label.save.saved')}
+        <Face>{messages.label('label.save.saved')}</Face>
       </>
     );
   return writes ? (
     <>
       <SaveIcon data-icon="inline-start" />
-      {messages.label('label.save.save')}
+      <Face>{messages.label('label.save.save')}</Face>
     </>
   ) : (
     <>
       <CopyIcon data-icon="inline-start" />
-      {messages.label('label.save.save-as')}
+      <Face>{messages.label('label.save.save-as')}</Face>
     </>
   );
 }

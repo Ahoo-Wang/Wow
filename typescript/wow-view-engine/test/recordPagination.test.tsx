@@ -36,6 +36,30 @@ describe('RecordPagination counts the records', () => {
     expect(screen.queryByText(/on this page/)).toBeNull();
   });
 
+  /**
+   * One line while there is room for one, two when there is not — and the
+   * sentence is never what gives. A row that could not wrap put Next 24px
+   * past the result card at a phone's width while `justify-between`
+   * squeezed the count into three lines, breaking the Chinese "共 4 条记录"
+   * mid-word. The pixels belong to the browser story; the declarations are
+   * what jsdom can hold.
+   */
+  it('wraps rather than overflows, and never breaks the count', () => {
+    const { container } = render(
+      <RecordPagination table={tableController()} />,
+    );
+
+    const bar = container.querySelector<HTMLElement>(
+      '[data-slot="record-pagination"]',
+    )!;
+    expect(bar.className).toContain('flex-wrap');
+    expect(screen.getByText('42 records in all').className).toContain(
+      'whitespace-nowrap',
+    );
+    // The controls end the line they land on, first or second.
+    expect(bar.lastElementChild!.className).toContain('ml-auto');
+  });
+
   /** A cursor source was never asked for a total, so it claims none. */
   it('says what it can see when the source reports no total', () => {
     render(

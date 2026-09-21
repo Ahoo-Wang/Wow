@@ -157,7 +157,13 @@ export function ConditionStrip({
   return (
     <div
       data-slot="filter-conditions"
-      className="@container grid grid-cols-[repeat(auto-fill,minmax(20rem,1fr))] gap-1.5"
+      // `min(20rem,100%)` rather than `20rem`: a bare 20rem is a floor the
+      // track keeps even when the band is narrower than it, so at a phone's
+      // width every column was pinned to 320px and the pills hung 24px past
+      // the editor band they are in. Clamped to the band, the column is
+      // 20rem where there is 20rem and the band's own width where there is
+      // not — which is the same layout everywhere it used to be right.
+      className="@container grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-1.5"
     >
       {group.children.map((child, index) =>
         // The same reading of a node admission and the walk use: a leaf

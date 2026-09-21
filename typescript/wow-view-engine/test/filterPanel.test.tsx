@@ -276,6 +276,12 @@ describe('FilterPanel tree editing', () => {
       actions.compareDocumentPosition(conditions) &
         Node.DOCUMENT_POSITION_PRECEDING,
     ).toBeTruthy();
+    // A bare `minmax(20rem, …)` is a floor the track keeps even when the
+    // band is narrower than it, so at a phone's width every column stayed
+    // 320px and the pills hung past the editor band. Clamped to the band,
+    // the column is 20rem where there is 20rem and the band's width where
+    // there is not.
+    expect(conditions.className).toContain('minmax(min(20rem,100%),1fr)');
   });
 
   it('keeps the fields to add with when it has no way out of its own', () => {

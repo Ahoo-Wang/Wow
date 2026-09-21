@@ -32,6 +32,7 @@ import displayMeta, {
   Loading as DisplayLoading,
   Localized as DisplayLocalized,
   ManageViews as DisplayManageViews,
+  NarrowTitleBar as DisplayNarrowTitleBar,
   NeedsFixing as DisplayNeedsFixing,
   Paged as DisplayPaged,
   PinnedEdges as DisplayPinnedEdges,
@@ -2762,3 +2763,199 @@ function inFrontOf(element: HTMLElement): boolean {
   );
   return hit !== null && element.contains(hit);
 }
+
+/**
+ * Every element under this one, so nothing can hang off the surface unseen.
+ *
+ * A `scrollWidth` on the column says *that* something overflows; the walk
+ * says *what*, which is the difference between a failure that can be fixed
+ * and a failure that has to be hunted.
+ */
+function descendantsOf(root: HTMLElement): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>('*')].filter(
+    element => element.getBoundingClientRect().width > 0,
+  );
+}
+
+/** How many lines these boxes are laid out on, by where their tops are. */
+const lineCount = (boxes: HTMLElement[]) =>
+  new Set(boxes.map(node => Math.round(node.getBoundingClientRect().top))).size;
+
+/** The three groups on the right, which wrap as one block. */
+function arrangementGroups(canvasElement: HTMLElement): HTMLElement[] {
+  const right = canvasElement.querySelector<HTMLElement>(
+    '[data-slot="toolbar-arrangement"]',
+  )!;
+  return [...right.children] as HTMLElement[];
+}
+
+/** Every group in the bar: the selection when there is one, then the three. */
+function toolbarGroups(canvasElement: HTMLElement): HTMLElement[] {
+  const selection = canvasElement.querySelector<HTMLElement>(
+    '[data-slot="toolbar-selection"]',
+  );
+  return [
+    ...(selection ? [selection] : []),
+    ...arrangementGroups(canvasElement),
+  ];
+}
+
+/** The right-hand block of the toolbar ends exactly where the toolbar does. */
+function rightGroupEndsTheBar(canvasElement: HTMLElement): number {
+  const toolbar = canvasElement.querySelector<HTMLElement>(
+    '[data-slot="result-toolbar"]',
+  )!;
+  const right = canvasElement.querySelector<HTMLElement>(
+    '[data-slot="toolbar-arrangement"]',
+  )!;
+  return Math.abs(
+    right.getBoundingClientRect().right - toolbar.getBoundingClientRect().right,
+  );
+}
+
+/**
+ * The whole shell inside a phone, with nothing hanging off the side of it.
+ *
+ * Measured at 341px of root and 309px of result card, four things were
+ * painted outside the column they belong to: the pagination row could not
+ * wrap, so Next's right edge was 365.6 against a card ending at 342, and
+ * "4 records in all" broke over three lines with the Chinese "共 4 条记录"
+ * split mid-word; the condition band's `minmax(20rem, 1fr)` pinned every
+ * track to 320px, so a pill ended at 366 against an editor band ending at
+ * 342; and the toolbar's selection group could not wrap, so the host's bulk
+ * action hung off the end of it.
+ *
+ * The assertion is the general one rather than four specific ones: the main
+ * column and the result block scroll no wider than they are, and nothing
+ * under the surface ends past the surface's own right edge. The title bar is
+ * the one part allowed an honest overflow once it runs out of irreducible
+ * room — at this width it has not, because the audience tag is down to its
+ * icon and Save to its own — so it is walked here like everything else.
+ */
+export const NarrowColumnHoldsTheWidth: Story = {
+  ...DisplayNarrowTitleBar,
+  args: { ...DisplayNarrowTitleBar.args, withActions: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const host =
+      canvasElement.querySelector<HTMLElement>('[data-narrow-host]')!;
+    // The phone this is about, rather than the 360px the story opens at.
+    host.style.width = '375px';
+
+    // The conditions have to be on screen to overflow: the band is folded on
+    // a saved view, and the grid that pinned its tracks is inside it.
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="filter-conditions"]'),
+      ).not.toBeNull(),
+    );
+
+    // And the toolbar has to be carrying its heaviest row: a count, a way to
+    // drop the selection, and the host's bulk action.
+    await userEvent.click(
+      canvas.getByLabelText(defaultMessages['label.record.select-all']),
+    );
+    await canvas.findByRole('button', { name: '导出所选' });
+
+    const surface = canvasElement.querySelector<HTMLElement>('.fve-root')!;
+    const main = canvasElement.querySelector<HTMLElement>('main')!;
+    const result = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="result-block"]',
+    )!;
+
+    await expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth);
+    await expect(result.scrollWidth).toBeLessThanOrEqual(result.clientWidth);
+
+    // The table is the one thing allowed to scroll sideways — that is what a
+    // frozen column is for — so it answers for where its own box ends and
+    // the rows inside it are not walked into.
+    const edge = surface.getBoundingClientRect().right;
+    const spilling = descendantsOf(main)
+      .filter(node => node.closest('[data-slot="record-table"]') === null)
+      .filter(node => node.getBoundingClientRect().right > edge + 1)
+      .map(
+        node =>
+          `${node.getAttribute('data-slot') ?? node.tagName} ends at ` +
+          `${Math.round(node.getBoundingClientRect().right)} of ${Math.round(edge)}`,
+      );
+    await expect(spilling).toEqual([]);
+  },
+};
+
+/**
+ * The result toolbar wraps as groups, not as a spill.
+ *
+ * It used to be `[selection][flex-1 spacer][layout][columns/sort][refresh]`,
+ * and a spacer is the worst thing to wrap around: it took a line of its own
+ * width, stranded the layout switch alone at the right of the first line,
+ * dropped the arrange group to the left of the second and the refresh split
+ * button to a third — 2 lines at 1280 with a selection, 3 at 768 and 3 at
+ * 375, where it stood 104px tall; with nothing selected the placeholder box
+ * held 32px of nothing.
+ *
+ * The three right-hand groups are one block now. With nothing selected the
+ * bar is at most two lines at both widths, and at 768 it is one line even
+ * with four rows picked. At 375 with a selection it is still three, and
+ * honestly so: the three groups measure 112 + 167 + 111 with two 8px gaps,
+ * and 406px does not go into a 317px bar however it wraps. Closing that
+ * last line would mean taking the words off the toolbar's controls — the
+ * sort button's summary among them, which `ui/record.md` says has to be
+ * readable where it stands. What the block may not do, and did, is
+ * scatter.
+ */
+export const ToolbarWrapsAsGroups: Story = {
+  ...DisplayNarrowTitleBar,
+  args: { ...DisplayNarrowTitleBar.args, withActions: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const host =
+      canvasElement.querySelector<HTMLElement>('[data-narrow-host]')!;
+
+    // Nothing selected: no placeholder box, and the block still ends the bar.
+    for (const width of [768, 375]) {
+      host.style.width = `${width}px`;
+      await expect(
+        canvasElement.querySelector('[data-slot="toolbar-selection"]'),
+      ).toBeNull();
+      await expect(
+        lineCount(toolbarGroups(canvasElement)),
+        `${width}px, nothing selected`,
+      ).toBeLessThanOrEqual(2);
+      await expect(rightGroupEndsTheBar(canvasElement)).toBeLessThanOrEqual(1);
+    }
+
+    // And with a selection. At 768 the whole bar is one line; at 375 the
+    // selection takes the first and the three groups wrap between the two
+    // below it, because they measure 112 + 167 + 111 with two 8px gaps in a
+    // 317px bar and no amount of wrapping fits 406 into 317. What they may
+    // not do — and what they did — is scatter: the block stays a block, it
+    // never takes more than two lines of its own, and it ends the bar.
+    host.style.width = '768px';
+    await userEvent.click(
+      canvas.getByLabelText(defaultMessages['label.record.select-all']),
+    );
+    await canvas.findByRole('button', { name: '导出所选' });
+
+    await expect(
+      lineCount(toolbarGroups(canvasElement)),
+      '768px, four rows selected',
+    ).toBeLessThanOrEqual(2);
+
+    for (const width of [768, 375]) {
+      host.style.width = `${width}px`;
+      await expect(
+        lineCount(arrangementGroups(canvasElement)),
+        `${width}px, four rows selected`,
+      ).toBeLessThanOrEqual(2);
+      await expect(rightGroupEndsTheBar(canvasElement)).toBeLessThanOrEqual(1);
+    }
+    host.style.width = '360px';
+  },
+};

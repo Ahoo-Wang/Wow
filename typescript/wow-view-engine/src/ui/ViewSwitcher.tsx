@@ -97,17 +97,36 @@ export function ViewSwitcher({
             // *does* — a screen reader otherwise hears the view it is on as
             // though pressing it would open that one.
             aria-label={messages.label('label.workbench.switch-view')}
-            // Starts at nothing and takes what the collapsed group has
-            // left, so the current view's name is the part of that group
-            // that truncates. Sized to its label instead, it would be the
-            // whole group's floor and would push the save commands off the
-            // end of a narrow bar.
-            className="w-0 min-w-0 grow"
+            // `max-w-fit` is where the taking stops, and it is the whole of
+            // the 470px pill: `grow` alone stretched the trigger across the
+            // group whatever it had to say, and the vendored button centres
+            // its contents, so a short name floated in the middle of half a
+            // title bar. Capped at `fit-content` the button is as wide as
+            // the name it shows — no wider — and `justify-start` puts the
+            // label where the icon ends, so a truncated name reads from its
+            // beginning. A name longer than the bar still fills it, which is
+            // the difference between a control at the size of its contents
+            // and a control at the size of the room.
+            //
+            // The floor is on the button rather than on the label, because
+            // `width: 0` is also what clamps this item's intrinsic
+            // contribution: without it the label's `white-space: nowrap`
+            // asks the group for the whole string however hidden the
+            // overflow is (the same trap `ViewHeader` documents for
+            // `truncate`), the identity group inherits that as its minimum
+            // and overflows the bar at every width. With it, what the group
+            // is told is exactly this `min-width` — so it has to be the
+            // label's 6em plus the icon, the two gaps, the chevron and the
+            // padding around them, which is what the `calc` says.
+            className="w-0 min-w-[calc(6em+3.25rem)] max-w-fit grow justify-start"
           />
         }
       >
         <Kind data-icon="inline-start" />
-        <span className="truncate">{currentTitle}</span>
+        {/* The same 6em floor `ViewHeader` puts under the heading, here
+            keeping the label off the icons beside it once the trigger is at
+            its own floor above. */}
+        <span className="min-w-[6em] truncate">{currentTitle}</span>
         <ChevronDownIcon className="text-muted-foreground" />
       </DropdownMenuTrigger>
 
