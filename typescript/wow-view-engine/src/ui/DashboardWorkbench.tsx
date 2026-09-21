@@ -137,6 +137,8 @@ export function DashboardWorkbench({
       onSidebarOpenChange={onSidebarOpenChange}
       expandable={expandable}
       onRenderFailure={onRenderFailure}
+      // A grid of cards is not framed again.
+      resultFramed={false}
       hasResult={hasResult}
       warnings={warnings}
       // The dashboard's own interval, which is the only one that runs here:

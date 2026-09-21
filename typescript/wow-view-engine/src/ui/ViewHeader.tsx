@@ -244,7 +244,10 @@ export function ViewHeader({
               'truncate font-medium',
               // `sr-only` sets a width of its own, so the spring is only for
               // the title that is actually on the line.
-              namesView ? 'w-0 min-w-[6em] grow' : 'sr-only',
+              // `max-w-max` caps the spring at the name's own width, so the
+              // audience and Save stand against it rather than at the end
+              // of the row; `w-0` still keeps the group's wrap arithmetic.
+              namesView ? 'w-0 max-w-max min-w-[6em] grow' : 'sr-only',
             )}
           >
             {state.title}

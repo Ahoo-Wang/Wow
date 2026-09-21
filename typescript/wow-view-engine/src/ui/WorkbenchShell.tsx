@@ -159,6 +159,13 @@ export interface WorkbenchShellProps {
   /** The warnings to show; every one the view reports when left out. */
   warnings?: readonly Issue[];
   /**
+   * Whether the result is drawn inside one frame — toolbar on top, rows to
+   * the edge, pagination at the bottom (D12). A dashboard opts out: its
+   * result is already a grid of cards, and a frame round cards is a frame
+   * round frames.
+   */
+  resultFramed?: boolean;
+  /**
    * Where a render failure caught by one of the shell's boundaries goes —
    * the host's own action slot, the editor or the result. The part shows a
    * recoverable error state in place either way; this is how the host
@@ -226,6 +233,7 @@ export function WorkbenchShell({
   hasResult,
   warnings,
   onRenderFailure,
+  resultFramed = true,
   className,
 }: WorkbenchShellProps) {
   const messages = useViewMessages(wording);
@@ -541,7 +549,10 @@ export function WorkbenchShell({
                 that names the page is a card around the page. */}
             <div
               data-slot="view-header-block"
-              className="border-border border-b pb-3"
+              // The rule runs the whole width of the column, under `main`'s own
+              // padding, so it meets the sidebar's edge and the two heads end
+              // on one continuous line rather than two dashes with a gap.
+              className="border-border -mx-4 border-b px-4 pb-3"
             >
               <ViewHeader
                 state={state}
@@ -674,7 +685,7 @@ export function WorkbenchShell({
                 around neither of them is the empty block this package's own
                 layout rule forbids. */}
             {(describesResult || filled(strips) || filled(result)) && (
-              <ResultBlock>
+              <ResultBlock framed={resultFramed}>
                 {strips}
                 {/* The host's bulk and row slots render in here, so this is
                     where a throwing one is held: the rows go, the title bar,
@@ -765,11 +776,30 @@ function Unopenable({
  * cards; now nobody needs it, and the prop that carried it is gone rather
  * than left as a default nobody sets.
  */
-function ResultBlock({ children }: { children: ReactNode }) {
+function ResultBlock({
+  framed,
+  children,
+}: {
+  framed: boolean;
+  children: ReactNode;
+}) {
   return (
     <section
       data-slot="result-block"
-      className={cn('flex min-w-0 flex-col', SPACE.ROWS)}
+      data-framed={framed || undefined}
+      className={cn(
+        'flex min-w-0 flex-col',
+        framed
+          ? // One frame round the result and nothing else (D12): the toolbar
+            // is its top row and the pagination its bottom row, ruled off;
+            // the rows run to its edge; what else lands in it — a query
+            // strip, an empty state, cards — keeps a margin of its own.
+            'border-border overflow-hidden rounded-lg border ' +
+              '[&>[data-slot=result-toolbar]]:border-border [&>[data-slot=result-toolbar]]:border-b [&>[data-slot=result-toolbar]]:px-3 [&>[data-slot=result-toolbar]]:py-2 ' +
+              '[&>[data-slot=record-pagination]]:border-border [&>[data-slot=record-pagination]]:bg-muted/40 [&>[data-slot=record-pagination]]:border-t [&>[data-slot=record-pagination]]:px-3 [&>[data-slot=record-pagination]]:py-2 ' +
+              '[&>[data-slot=status-strip]]:m-3 [&>[data-slot=record-empty]]:my-6 [&>[data-slot=record-cards]]:p-3'
+          : SPACE.ROWS,
+      )}
     >
       {children}
     </section>

@@ -91,20 +91,30 @@ const block = (name: string) =>
   document.querySelector<HTMLElement>(`[data-slot="${name}"]`);
 
 describe('the result block', () => {
-  it('draws the result on no card, with its caption at the top', async () => {
+  it('draws the result in one frame, and a dashboard in none', async () => {
     await open();
 
     const result = block('result-block')!;
-    // The applied bar is the caption of these rows, so it is inside the
-    // block rather than floating above it.
     expect(result.querySelector('[data-slot="stub-result"]')).not.toBeNull();
-    // And the block itself is not a card (D12): a table draws its own
-    // header layer, its own hairlines and its own held edges, so a border
-    // and padding around that is a frame around a frame. It was the
-    // dashboard's opt-out before; now it is nobody's.
+    // One frame round the result (D12 Ⅴ): the toolbar is its top row and
+    // the pagination its bottom row, the rows run to its edge. Without it
+    // the toolbar, the table and the pagination read as three things that
+    // happen to be stacked, and the region has no end.
+    expect(result.dataset.framed).toBe('true');
+    expect(result.className).toContain('rounded-lg');
+    expect(result.className).toContain('border');
+    // But no padding of its own — the rows go to the edge; what needs a
+    // margin (the toolbar, the pagination, a strip) gets it by slot.
+    expect(result.className).not.toMatch(/(^|\s)p-\d/);
     expect(result.className).not.toContain('bg-card');
-    expect(result.className).not.toContain('border');
-    expect(result.className).not.toContain('rounded-lg');
+
+    cleanup();
+    await open({ resultFramed: false });
+    // A dashboard's result is a grid of cards, and a frame round cards is a
+    // frame round frames.
+    const grid = block('result-block')!;
+    expect(grid.dataset.framed).toBeUndefined();
+    expect(grid.className).not.toContain('border');
   });
 });
 

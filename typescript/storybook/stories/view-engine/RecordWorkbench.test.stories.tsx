@@ -262,11 +262,24 @@ export const BlockSpacing: Story = {
     await expect(column.rowGap).toBe('16px');
     await expect(column.gap).toBe('16px');
 
-    // And a block's own rows are the step below it, not above.
+    // And the result block is one framed region (D12 Ⅳ–Ⅶ): no row gap of
+    // its own — the toolbar is its first row and the pagination its last,
+    // each ruled off from the rows between them with a hairline, so the
+    // space inside the frame is the slots' padding, not a gap.
     const result = canvasElement.querySelector<HTMLElement>(
       '[data-slot="result-block"]',
     )!;
-    await expect(getComputedStyle(result).rowGap).toBe('12px');
+    await expect(result).toHaveAttribute('data-framed', 'true');
+    await expect(getComputedStyle(result).rowGap).toBe('normal');
+    await expect(getComputedStyle(result).borderTopWidth).toBe('1px');
+    const toolbar = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="result-toolbar"]',
+    )!;
+    await expect(getComputedStyle(toolbar).borderBottomWidth).toBe('1px');
+    const pagination = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="record-pagination"]',
+    )!;
+    await expect(getComputedStyle(pagination).borderTopWidth).toBe('1px');
   },
 };
 
@@ -3195,7 +3208,10 @@ function toolbarGroups(canvasElement: HTMLElement): HTMLElement[] {
   ];
 }
 
-/** The right-hand block of the toolbar ends exactly where the toolbar does. */
+/**
+ * The right-hand block of the toolbar ends exactly where the toolbar's
+ * content does — inside the padding the result frame gives its first row.
+ */
 function rightGroupEndsTheBar(canvasElement: HTMLElement): number {
   const toolbar = canvasElement.querySelector<HTMLElement>(
     '[data-slot="result-toolbar"]',
@@ -3203,9 +3219,10 @@ function rightGroupEndsTheBar(canvasElement: HTMLElement): number {
   const right = canvasElement.querySelector<HTMLElement>(
     '[data-slot="toolbar-arrangement"]',
   )!;
-  return Math.abs(
-    right.getBoundingClientRect().right - toolbar.getBoundingClientRect().right,
-  );
+  const edge =
+    toolbar.getBoundingClientRect().right -
+    parseFloat(getComputedStyle(toolbar).paddingRight);
+  return Math.abs(right.getBoundingClientRect().right - edge);
 }
 
 /**
