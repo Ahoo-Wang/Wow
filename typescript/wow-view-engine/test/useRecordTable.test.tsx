@@ -209,6 +209,23 @@ describe('useRecordTable', () => {
     expect(report()).toEqual({ pending: true, count: 2, conditions: true });
   });
 
+  /**
+   * Table or cards draw the same rows, so switching is complete the moment
+   * it is done: no dot, nothing to apply (D17-6 counts what the query sees).
+   */
+  it('does not count a layout switch as an edit waiting for apply', async () => {
+    const result = await openTable();
+    const runtime = () => result.current.opened.runtime as RecordViewRuntime;
+    const snapshot = () => runtime().getSnapshot();
+
+    act(() => result.current.table.setLayout('card'));
+
+    expect(snapshot().draft.layout).toBe('card');
+    expect(
+      comparePending(snapshot().draft, snapshot().applied, snapshot().issues),
+    ).toEqual({ pending: false, count: 0, conditions: false });
+  });
+
   it('cycles a column through ascending, descending and off', async () => {
     const result = await openTable();
 

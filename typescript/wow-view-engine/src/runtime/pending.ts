@@ -91,6 +91,16 @@ export function comparePending(
   const now: Record<string, unknown> = { ...draft };
   const keys = new Set([...Object.keys(now), ...Object.keys(was)]);
   for (const key of keys) {
+    // The dot says "the rows on screen do not answer the config you see".
+    // A member that never reaches the query cannot make that true: the
+    // editor's simple/advanced mode, and a record view's table-or-cards
+    // layout, both draw the same result — switching them is complete the
+    // moment it is done, and a dot that asked for an Apply with nothing
+    // to run would teach the user to press buttons that change nothing.
+    // (An analysis layout is not one of these: the kernel shapes a chart
+    // only for the layout that ran, so `setLayout` there applies at once.)
+    if (key === 'filterMode' || (key === 'layout' && draft.kind === 'record'))
+      continue;
     const before = was[key];
     const after = now[key];
     if (key === 'filter') {

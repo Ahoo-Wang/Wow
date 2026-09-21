@@ -540,13 +540,17 @@ describe('useFilterEditor pending and applied', () => {
     // back: the dot is on, the discard button is not.
     expect(filter().conditionsPending).toBe(false);
 
+    // The editor's mode never reaches the query, so switching it is not an
+    // edit waiting for Apply — nor is a record view's table-or-cards
+    // layout; both draw the same rows.
     act(() => filter().setMode('advanced'));
+    expect(filter().pendingCount).toBe(1);
     act(() => {
       filter().addLeaf('warehouse');
       filter().updateLeaf([0], { value: 'CN' });
     });
     // One per member, and the conditions node by node.
-    expect(filter().pendingCount).toBe(3);
+    expect(filter().pendingCount).toBe(2);
     expect(filter().conditionsPending).toBe(true);
 
     act(() => filter().submit());
