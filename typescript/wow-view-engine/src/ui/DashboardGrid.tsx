@@ -35,6 +35,7 @@ import type { DataViewRuntime, RecordViewRuntime } from '../runtime/index.js';
 import { AnalysisChart } from './AnalysisChart.js';
 import { AnalysisTable } from './AnalysisTable.js';
 import { ContentPanel } from './DashboardPanels.js';
+import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { Card, CardContent, CardHeader, CardTitle } from './components/card.js';
 import {
@@ -53,6 +54,8 @@ export interface DashboardGridProps {
   editable?: boolean;
   /** Pixel height of one grid row. */
   rowHeight?: number;
+  /** Told when one panel's body fails to draw; the others keep drawing. */
+  onRenderFailure?: RenderFailureHandler;
   className?: string;
 }
 
@@ -75,6 +78,7 @@ export function DashboardGrid({
   editable = false,
   rowHeight = 80,
   className,
+  onRenderFailure,
 }: DashboardGridProps) {
   const { ref, width } = useContainerWidth();
   const messages = useViewMessages();
@@ -121,7 +125,11 @@ export function DashboardGrid({
       >
         {dashboard.panels.map(panel => (
           <div key={panel.id} className="min-h-0">
-            <DashboardPanel panel={panel} editable={editable} />
+            <DashboardPanel
+              panel={panel}
+              editable={editable}
+              onRenderFailure={onRenderFailure}
+            />
           </div>
         ))}
       </GridLayout>
@@ -136,10 +144,15 @@ function toPlacement(item: Layout[number]) {
 export interface DashboardPanelProps {
   panel: DashboardPanelView;
   editable?: boolean;
+  onRenderFailure?: RenderFailureHandler;
 }
 
 /** One framed panel: a title, a grip when the layout is editable, a body. */
-export function DashboardPanel({ panel, editable }: DashboardPanelProps) {
+export function DashboardPanel({
+  panel,
+  editable,
+  onRenderFailure,
+}: DashboardPanelProps) {
   const messages = useViewMessages();
   // A panel that runs and still has something to say shows its view and
   // wears the finding in its header. A broken one says why in its body,
@@ -191,7 +204,16 @@ export function DashboardPanel({ panel, editable }: DashboardPanelProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="min-h-0 flex-1 overflow-auto px-3">
-        <PanelBody panel={panel} />
+        {/* One boundary per panel: a markdown body or a row that throws
+            takes this card's body and leaves the rest of the grid alone. */}
+        <RenderBoundary
+          name="panel"
+          panelId={panel.id}
+          resetKeys={[panel.runtime?.id ?? null]}
+          onFailure={onRenderFailure}
+        >
+          <PanelBody panel={panel} />
+        </RenderBoundary>
       </CardContent>
     </Card>
   );

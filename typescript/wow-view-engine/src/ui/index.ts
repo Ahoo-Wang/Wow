@@ -46,6 +46,7 @@ export * from './RecordCards.js';
 export * from './RecordPagination.js';
 export * from './RecordTable.js';
 export * from './RecordWorkbench.js';
+export * from './RenderBoundary.js';
 export * from './RefreshControl.js';
 export * from './ResultToolbar.js';
 export * from './RowActions.js';

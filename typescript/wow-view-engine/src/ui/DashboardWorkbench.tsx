@@ -21,6 +21,7 @@ import { FilterModes, filterModeLabel } from './filter/FilterModes.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
+import type { RenderFailureHandler } from './RenderBoundary.js';
 
 export interface DashboardWorkbenchProps {
   engine: ViewEngine;
@@ -53,6 +54,12 @@ export interface DashboardWorkbenchProps {
    * has nothing to gain from a second way to say so.
    */
   expandable?: boolean;
+  /**
+   * Told of a render failure one of the workbench's boundaries caught — the
+   * host's action slots, the editor, the result, a panel. The part shows a
+   * recoverable error state in place regardless; this is the host's copy.
+   */
+  onRenderFailure?: RenderFailureHandler;
 }
 
 /**
@@ -77,6 +84,7 @@ export function DashboardWorkbench({
   defaultSidebarOpen,
   onSidebarOpenChange,
   expandable,
+  onRenderFailure,
 }: DashboardWorkbenchProps) {
   const workbench = useWorkbench(engine, definitionId, {
     kind: 'dashboard',
@@ -127,6 +135,7 @@ export function DashboardWorkbench({
       defaultSidebarOpen={defaultSidebarOpen}
       onSidebarOpenChange={onSidebarOpenChange}
       expandable={expandable}
+      onRenderFailure={onRenderFailure}
       hasResult={hasResult}
       resultSurface={false}
       warnings={warnings}
@@ -165,7 +174,13 @@ export function DashboardWorkbench({
           <FilterPanel filter={filter} optionsFor={optionsFor} modes={false} />
         )
       }
-      result={<DashboardGrid dashboard={dashboard} editable={editable} />}
+      result={
+        <DashboardGrid
+          dashboard={dashboard}
+          editable={editable}
+          onRenderFailure={onRenderFailure}
+        />
+      }
     />
   );
 }

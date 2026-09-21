@@ -609,6 +609,9 @@ export const zhCN: ViewMessages = {
   'label.write.conflict': '别人先保存了这个视图',
   'label.write.unknown': '结果一直没有回来',
   'label.image.failed': '图片加载失败',
+  'label.render.failed': '这一块没能画出来',
+  'label.render.failed-hint': '视图的其余部分照常可用；重试会重新绘制这一块。',
+  'label.render.retry': '重试',
 
   // 定义准入。
   'definition.field.search-fields-unknown':

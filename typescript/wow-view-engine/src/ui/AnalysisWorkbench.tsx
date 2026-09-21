@@ -23,6 +23,7 @@ import { RefreshControl } from './RefreshControl.js';
 import { QueryStrip } from './StatusStrip.js';
 import type { ViewMessages } from './messages.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
+import type { RenderFailureHandler } from './RenderBoundary.js';
 
 export interface AnalysisWorkbenchProps {
   engine: ViewEngine;
@@ -52,6 +53,12 @@ export interface AnalysisWorkbenchProps {
    * has nothing to gain from a second way to say so.
    */
   expandable?: boolean;
+  /**
+   * Told of a render failure one of the workbench's boundaries caught — the
+   * host's action slots, the editor, the result, a panel. The part shows a
+   * recoverable error state in place regardless; this is the host's copy.
+   */
+  onRenderFailure?: RenderFailureHandler;
 }
 
 /**
@@ -72,6 +79,7 @@ export function AnalysisWorkbench({
   defaultSidebarOpen,
   onSidebarOpenChange,
   expandable,
+  onRenderFailure,
 }: AnalysisWorkbenchProps) {
   const workbench = useWorkbench(engine, definitionId, {
     kind: 'analysis',
@@ -101,6 +109,7 @@ export function AnalysisWorkbench({
       defaultSidebarOpen={defaultSidebarOpen}
       onSidebarOpenChange={onSidebarOpenChange}
       expandable={expandable}
+      onRenderFailure={onRenderFailure}
       // This workbench has no result toolbar to put it in — the analysis
       // result is a table or a chart, not a bar of controls — so the
       // refresh sits with the other view-level controls in the title bar.

@@ -35,6 +35,7 @@ import { QueryStrip } from './StatusStrip.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
+import { RenderSlot, type RenderFailureHandler } from './RenderBoundary.js';
 
 export interface RecordWorkbenchProps {
   engine: ViewEngine;
@@ -66,6 +67,12 @@ export interface RecordWorkbenchProps {
    */
   expandable?: boolean;
   /**
+   * Told of a render failure one of the workbench's boundaries caught — the
+   * host's action slots, the editor, the result, a panel. The part shows a
+   * recoverable error state in place regardless; this is the host's copy.
+   */
+  onRenderFailure?: RenderFailureHandler;
+  /**
    * The host's own business actions: one over the view, one over a selection,
    * one per row. They are render functions rather than names in a config —
    * what may be *done* to a record belongs to the application that mounted
@@ -93,6 +100,7 @@ export function RecordWorkbench({
   defaultSidebarOpen,
   onSidebarOpenChange,
   expandable,
+  onRenderFailure,
   actions,
 }: RecordWorkbenchProps) {
   // The host's wording, resolved here rather than read off the provider:
@@ -124,6 +132,7 @@ export function RecordWorkbench({
       defaultSidebarOpen={defaultSidebarOpen}
       onSidebarOpenChange={onSidebarOpenChange}
       expandable={expandable}
+      onRenderFailure={onRenderFailure}
       // What the config says, plus what this result says about itself: a
       // summary row that had to fall back to the page is a fact about the
       // numbers below, and it outlives the next keystroke because it rides
@@ -133,7 +142,17 @@ export function RecordWorkbench({
         ...resultIssues(state?.result?.data),
       ]}
       actions={
-        record && actions?.global?.({ runtime: record, refresh: table.refresh })
+        // As an element rather than a call: the slot then renders inside the
+        // shell's boundary for it, and a host action that throws takes the
+        // slot and not the workbench.
+        record &&
+        actions?.global && (
+          <RenderSlot
+            render={() =>
+              actions.global?.({ runtime: record, refresh: table.refresh })
+            }
+          />
+        )
       }
       editorLabel={messages.label('label.filter.panel')}
       editorModeLabel={filterModeLabel(filter, messages)}

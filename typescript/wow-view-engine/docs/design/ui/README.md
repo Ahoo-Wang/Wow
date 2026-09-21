@@ -154,6 +154,12 @@
 
 - 三层业务动作走 render 槽位（`RecordActionSlots`）：`global` 在标题栏，`bulk` 在有选择时的结果工具栏，`row` 在表格最后一列（sticky，滚不走）与卡片页脚，统一裹在 `RowActions` 里。动作是代码——它开表单、发命令、跳页面——所以由宿主交出来，不按字符串键注册，也不进配置：存下来的是"看法"，能对记录做什么属于挂载工作台的那个应用。（见 test/rowActions.test.tsx「RowActions」）
 
+## 渲染边界
+
+- **宿主交进来的 React 各有一道边界**。三层动作槽位（`RecordActionSlots`，D6）与仪表盘面板里的 markdown 都在工作台自己的渲染树里，React 遇到抛错会从最近的边界往上整棵卸掉——没有边界时，一个抛错的行动作会把标题栏、编辑带和还没保存的草稿一起带走。所以 `WorkbenchShell` 给**标题栏的全局动作槽**、**编辑带**与**结果块**各一道 `RenderBoundary`（`ui/RenderBoundary.tsx`，`react-error-boundary`），`DashboardPanel` 给**每个面板的正文**一道，`EmbeddedView` 给自己的正文一道。落到边界上的那一块换成可复原的错误态——一句"这一块没能画出来"（`label.render.failed`）、错误自己的原话、一颗"重试"——`role="alert"` 就地播报；边界之外照常可用。全局动作槽的那道是单行的（`compact`），因为它站在一排控件里。
+- **错误不被吞掉**。每次落到边界都以 `RenderFailure { boundary, panelId?, error, componentStack? }` 交给宿主的 `onRenderFailure`——三个工作台、`DashboardGrid` 与 `EmbeddedView` 都收这个 prop——能修它的只有宿主。重试只是再画一次：原因还在就再落一次、再报一次。
+- **失败属于它发生的那一次打开**。边界以 `runtime.id`（面板以子 runtime 的 id）为 reset key：切到另一个视图时各块重画，错误态不跟着人走。（见 test/renderBoundary.test.tsx「RenderBoundary」「the workbench boundaries」「the dashboard panel boundaries」；故事「Record 工作台/回归」的 `RenderFailure`）
+
 ## FilterPanel 的布局
 
 - `FilterPanel` 的布局：分组是带边框的块，头部是**操作符选择器**与删除，主体是一条条件带：等宽栅格，能放几列放几列，pill 在格子里对齐，字段名、操作符、值上下对齐；操作符读作它对底下条件下的那句话——「满足全部条件」／「满足任一条件」／「全部条件均不满足」——而不是编译成的那个布尔：一次只显示一个，它就得自己把意思说全。三个操作符在任何位置、任何模式下内核都受理，所以没有一个会以禁用的样子出现（`filter/validate.ts` 的 `GROUP_OPERATORS` 是平的一组）；

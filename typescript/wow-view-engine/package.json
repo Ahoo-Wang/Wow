@@ -62,6 +62,7 @@
     "dequal": "catalog:",
     "lucide-react": "catalog:",
     "react-day-picker": "^10.0.1",
+    "react-error-boundary": "catalog:",
     "react-grid-layout": "catalog:",
     "react-markdown": "catalog:",
     "recharts": "catalog:"

@@ -10,6 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { MemoryViewStore } from '@ahoo-wang/fetcher-view-engine';
 import type { RecordActionSlots } from '@ahoo-wang/fetcher-view-engine/react';
@@ -106,6 +107,7 @@ function RecordWorkbenchDemo({
   refreshing = false,
   narrowHost = false,
   theme,
+  breakable = false,
 }: {
   behaviour?: SourceBehaviour;
   instanceId?: string;
@@ -156,6 +158,8 @@ function RecordWorkbenchDemo({
    * the one deciding. Left unset the view follows the toolbar's `.dark`.
    */
   theme?: 'light' | 'dark';
+  /** Fills the row slot with an action that throws once it is pressed. */
+  breakable?: boolean;
 }) {
   const workbench = (
     <StoryEngine
@@ -194,7 +198,13 @@ function RecordWorkbenchDemo({
           engine={engine}
           definitionId="orders"
           instanceId={instanceId ?? savedViews[0].id}
-          actions={withActions ? businessActions : undefined}
+          actions={
+            breakable
+              ? breakableActions
+              : withActions
+                ? businessActions
+                : undefined
+          }
           messages={localized ? zhCN : undefined}
           theme={theme}
           // A narrow column is a column with no room for a 224px sidebar
@@ -287,6 +297,30 @@ function RecordWorkbenchDemo({
  * in a config, so they can do anything the page can do — and nothing about
  * them is saved with the view.
  */
+/**
+ * A row action that can be made to throw: the host's code runs inside the
+ * workbench's tree, and this is what it looks like when it fails there.
+ */
+function BreakableAction({ row }: { row: { key: unknown } }) {
+  const [broken, setBroken] = useState(false);
+  if (broken) throw new Error(`Row action for ${String(row.key)} threw`);
+  return (
+    <Button variant="ghost" size="xs" onClick={() => setBroken(true)}>
+      弄坏
+    </Button>
+  );
+}
+
+/** The business slots, with a row action that breaks on request. */
+const breakableActions: RecordActionSlots = {
+  global: () => (
+    <Button size="sm" onClick={() => alert('新建订单')}>
+      新建订单
+    </Button>
+  ),
+  row: ({ row }) => <BreakableAction row={row} />,
+};
+
 const businessActions: RecordActionSlots = {
   global: () => (
     <Button size="sm" onClick={() => alert('新建订单')}>
@@ -534,6 +568,16 @@ export const FillTheScreenWithPopups: Story = {
  */
 export const PinnedEdges: Story = {
   args: { pinnedColumn: true, withActions: true },
+};
+
+/**
+ * 宿主的行动作在渲染时抛错，只毁掉结果块。
+ *
+ * 按任一行的「弄坏」，那个动作从此在渲染时抛错：结果块换成一句说明加「重试」，
+ * 标题栏、编辑带、保存都还在。按「重试」重新绘制这一块，行回来了。
+ */
+export const RenderFailure: Story = {
+  args: { breakable: true },
 };
 
 /**

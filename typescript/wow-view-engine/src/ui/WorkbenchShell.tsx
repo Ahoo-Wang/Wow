@@ -32,6 +32,7 @@ import { SPACE, SURFACE } from './layout.js';
 import { LeaveDialog } from './LeaveGuard.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
 import type { ViewMessages } from './messages.js';
 import { useViewExpansion, ViewExpandToggle } from './ViewExpansion.js';
 import { ViewHeader } from './ViewHeader.js';
@@ -141,6 +142,13 @@ export interface WorkbenchShellProps {
   hasResult?: boolean;
   /** The warnings to show; every one the view reports when left out. */
   warnings?: readonly Issue[];
+  /**
+   * Where a render failure caught by one of the shell's boundaries goes —
+   * the host's own action slot, the editor or the result. The part shows a
+   * recoverable error state in place either way; this is how the host
+   * learns of it.
+   */
+  onRenderFailure?: RenderFailureHandler;
   /** Extra classes for the main column. */
   className?: string;
 }
@@ -200,6 +208,7 @@ export function WorkbenchShell({
   expandable = true,
   hasResult,
   warnings,
+  onRenderFailure,
   className,
 }: WorkbenchShellProps) {
   const messages = useViewMessages(wording);
@@ -262,6 +271,9 @@ export function WorkbenchShell({
   };
 
   const folded = editorLabel !== undefined && editor != null;
+  // A caught failure belongs to the view it happened in: opening another
+  // view draws its parts afresh rather than carrying the fallback over.
+  const resetKeys = [workbench.runtime?.id ?? null];
   const editorIsOpen = useEditorFold({
     controlled: editorOpen,
     fallback: defaultEditorOpen ?? state?.saved === null,
@@ -399,7 +411,18 @@ export function WorkbenchShell({
                 kind={kind}
                 commands={workbench.commands}
                 titleId={titleId}
-                actions={actions}
+                actions={
+                  actions != null && (
+                    <RenderBoundary
+                      name="actions"
+                      compact
+                      resetKeys={resetKeys}
+                      onFailure={onRenderFailure}
+                    >
+                      {actions}
+                    </RenderBoundary>
+                  )
+                }
                 // Something in `leading` already shows the kind and the name,
                 // so the bar does not show them a second time.
                 namesView={sidebarOpen}
@@ -450,14 +473,26 @@ export function WorkbenchShell({
                   open={editorIsOpen.open}
                   className={cn(SURFACE, SPACE.ROWS)}
                 >
-                  {editor}
+                  <RenderBoundary
+                    name="editor"
+                    resetKeys={resetKeys}
+                    onFailure={onRenderFailure}
+                  >
+                    {editor}
+                  </RenderBoundary>
                 </EditorBand>
               ) : (
                 <section
                   data-slot="condition-block"
                   className={cn('flex flex-col', SURFACE, SPACE.ROWS)}
                 >
-                  {editor}
+                  <RenderBoundary
+                    name="editor"
+                    resetKeys={resetKeys}
+                    onFailure={onRenderFailure}
+                  >
+                    {editor}
+                  </RenderBoundary>
                 </section>
               ))}
 
@@ -488,7 +523,16 @@ export function WorkbenchShell({
               <ResultBlock surface={resultSurface}>
                 <AppliedBar filter={filter} hasResult={describesResult} />
                 {strips}
-                {result}
+                {/* The host's bulk and row slots render in here, so this is
+                    where a throwing one is held: the rows go, the title bar,
+                    the editor and the draft stay. */}
+                <RenderBoundary
+                  name="result"
+                  resetKeys={resetKeys}
+                  onFailure={onRenderFailure}
+                >
+                  {result}
+                </RenderBoundary>
               </ResultBlock>
             )}
           </>

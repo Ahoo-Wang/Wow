@@ -37,6 +37,7 @@ import { RecordCards } from './RecordCards.js';
 import { RecordTable } from './RecordTable.js';
 import { ErrorStrip, QueryStrip, WarningStrip } from './StatusStrip.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
 import type { ViewMessages } from './messages.js';
 import { ViewSurface } from './ViewSurface.js';
 
@@ -78,6 +79,11 @@ export interface EmbeddedViewProps {
    * view to command here.
    */
   rowActions?(row: RecordRow): ReactNode;
+  /**
+   * Told when the embed fails to draw — a row action of the host's that
+   * throws, for one. The embed shows a recoverable error state in place.
+   */
+  onRenderFailure?: RenderFailureHandler;
 }
 
 /**
@@ -102,6 +108,7 @@ export function EmbeddedView({
   className,
   ref,
   rowActions,
+  onRenderFailure,
 }: EmbeddedViewProps) {
   // The condition goes in with the config, not after it: `useOpenView` hands
   // it to `engine.open`, so the opening query is already scoped and an
@@ -139,7 +146,15 @@ export function EmbeddedView({
         </Alert>
       )}
       {opened.loading && <Skeleton className="h-24 w-full" />}
-      {runtime && <EmbeddedBody runtime={runtime} rowActions={rowActions} />}
+      {runtime && (
+        <RenderBoundary
+          name="result"
+          resetKeys={[runtime.id]}
+          onFailure={onRenderFailure}
+        >
+          <EmbeddedBody runtime={runtime} rowActions={rowActions} />
+        </RenderBoundary>
+      )}
     </ViewSurface>
   );
 }

@@ -33,6 +33,7 @@ import displayMeta, {
   NeedsFixing as DisplayNeedsFixing,
   Paged as DisplayPaged,
   PinnedEdges as DisplayPinnedEdges,
+  RenderFailure as DisplayRenderFailure,
   PopupsOverRaisedHostLayer as DisplayPopupsOverRaisedHostLayer,
   QueryFailed as DisplayQueryFailed,
   TableSettings as DisplayTableSettings,
@@ -1334,6 +1335,44 @@ export const FillTheScreenInScaledHost: Story = {
       expect(surface).not.toHaveAttribute('data-view-expanded'),
     );
     await expect(surface.style.getPropertyValue('--fve-expanded-w')).toBe('');
+  },
+};
+
+/**
+ * 宿主的行动作抛错时，结果块换成可复原的错误态，其余部分照常可用。
+ *
+ * 按第一行的「弄坏」让那个动作在渲染时抛错，然后看三件事：结果块里是一条
+ * `role="alert"` 加「重试」而不是白屏；标题栏与保存按钮还在；按「重试」之后行
+ * 回来了——动作组件被重新挂载，它那个「坏了」的状态一起归零。
+ */
+export const RenderFailure: Story = {
+  ...DisplayRenderFailure,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const rows = canvas.getAllByRole('row');
+    await userEvent.click(
+      within(rows[1]).getByRole('button', { name: '弄坏' }),
+    );
+
+    const alert = await canvas.findByRole('alert');
+    await expect(alert).toHaveAttribute('data-boundary', 'result');
+    await expect(alert.closest('[data-slot="result-block"]')).not.toBeNull();
+    await expect(canvas.queryByRole('table')).toBeNull();
+    await expect(
+      canvasElement.querySelector('[data-slot="view-title"]'),
+    ).toBeVisible();
+    await expect(
+      canvas.getByRole('button', { name: defaultMessages['label.save.save'] }),
+    ).toBeVisible();
+
+    await userEvent.click(
+      within(alert).getByRole('button', {
+        name: defaultMessages['label.render.retry'],
+      }),
+    );
+    await canvas.findByRole('table');
+    await expect(canvas.queryByRole('alert')).toBeNull();
   },
 };
 
