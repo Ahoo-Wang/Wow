@@ -13,17 +13,17 @@
 
 import type { RefObject } from 'react';
 import { audienceOf, type ViewInstanceSummary } from '../model/index.js';
-import { Button } from './components/button.js';
 import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from './components/dialog.js';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './components/alert-dialog.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { DialogContent } from './popups.js';
+import { AlertDialogContent } from './popups.js';
 
 /**
  * Deleting says what it costs, and only what it costs: the base sentence
@@ -32,6 +32,10 @@ import { DialogContent } from './popups.js';
  * Asked twice for the one delete that conflicted — the first confirmation was
  * about the view as it stood, and the view the conflict reports has changed
  * since, so the second is put with the server's copy in hand.
+ *
+ * An `AlertDialog`, not a `Dialog`: a delete is not something to click past.
+ * Base UI keeps this one open under an outside click and holds focus on the
+ * two answers, so the only way out is to pick one.
  */
 export function DeleteDialog({
   open,
@@ -65,21 +69,25 @@ export function DeleteDialog({
     consequences.push(messages.label('label.delete.dirty-consequence'));
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent finalFocus={finalFocus}>
-        <DialogHeader>
-          <DialogTitle>{messages.label('label.delete.confirm')}</DialogTitle>
-          <DialogDescription>{consequences.join(' ')}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent finalFocus={finalFocus}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {messages.label('label.delete.confirm')}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {consequences.join(' ')}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>
             {messages.label('label.delete.keep')}
-          </DialogClose>
-          <Button variant="destructive" onClick={onConfirm}>
+          </AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onConfirm}>
             {messages.label('label.manage.delete')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

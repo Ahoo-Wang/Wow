@@ -351,6 +351,7 @@ describe('architecture', () => {
   // file all count. Only a type-only import, which renders nothing, is free.
   it('takes every popup content from ui/popups.tsx, not from the registry', () => {
     const modules = [
+      'alert-dialog',
       'combobox',
       'dialog',
       'dropdown-menu',
@@ -359,6 +360,7 @@ describe('architecture', () => {
       'tooltip',
     ].map(name => join('ui', 'components', name));
     const contents = new Set([
+      'AlertDialogContent',
       'ComboboxContent',
       'DialogContent',
       'DropdownMenuContent',

@@ -491,7 +491,7 @@ describe('WriteOutcome', () => {
 
     await clickWhenEnabled('Take theirs');
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(dialog.textContent).toContain('Take their version?');
     // Neither config is readable, so each is summarised by what differs.
     expect(dialog.textContent).toContain('25 per page');
@@ -502,7 +502,7 @@ describe('WriteOutcome', () => {
     const { runtime } = await conflicted();
 
     await clickWhenEnabled('Take theirs');
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Take theirs' }),
     );
@@ -516,7 +516,7 @@ describe('WriteOutcome', () => {
     const { store } = await conflicted();
 
     await clickWhenEnabled('Keep mine');
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Keep mine' }));
 
     await waitFor(async () =>

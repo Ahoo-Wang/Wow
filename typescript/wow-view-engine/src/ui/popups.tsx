@@ -13,6 +13,7 @@
 
 import type * as React from 'react';
 import { Combobox as ComboboxPrimitive } from '@base-ui/react';
+import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
@@ -20,6 +21,11 @@ import { Select as SelectPrimitive } from '@base-ui/react/select';
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip';
 import { cn } from 'cn';
 import { XIcon } from 'lucide-react';
+import {
+  AlertDialogOverlay,
+  AlertDialogPortal,
+  type AlertDialogContent as VendoredAlertDialogContent,
+} from './components/alert-dialog.js';
 import { Button } from './components/button.js';
 import { type ComboboxContent as VendoredComboboxContent } from './components/combobox.js';
 import {
@@ -121,6 +127,8 @@ const POSITIONER_CLASS = 'isolate z-50';
 const MENU_POSITIONER_CLASS = 'isolate z-50 outline-none';
 
 /** The vendored popups' classes, copied verbatim from `components/`. */
+const ALERT_DIALOG_POPUP_CLASS =
+  'group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
 const COMBOBOX_POPUP_CLASS =
   'group/combobox-content relative max-h-(--available-height) w-(--anchor-width) max-w-(--available-width) min-w-[calc(var(--anchor-width)+--spacing(7))] origin-(--transform-origin) overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[chips=true]:min-w-(--anchor-width) data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 *:data-[slot=input-group]:m-1 *:data-[slot=input-group]:mb-0 *:data-[slot=input-group]:h-8 *:data-[slot=input-group]:border-input/30 *:data-[slot=input-group]:bg-input/30 *:data-[slot=input-group]:shadow-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
 const DIALOG_POPUP_CLASS =
@@ -135,6 +143,41 @@ const TOOLTIP_POPUP_CLASS =
   'z-50 inline-flex w-fit max-w-xs origin-(--transform-origin) items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs text-background has-data-[slot=kbd]:pr-1.5 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-sm data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
 const TOOLTIP_ARROW_CLASS =
   'z-50 size-2.5 translate-y-[calc(-50%-2px)] rotate-45 rounded-[2px] bg-foreground fill-foreground data-[side=bottom]:top-1 data-[side=inline-end]:top-1/2! data-[side=inline-end]:-left-1 data-[side=inline-end]:-translate-y-1/2 data-[side=inline-start]:top-1/2! data-[side=inline-start]:-right-1 data-[side=inline-start]:-translate-y-1/2 data-[side=left]:top-1/2! data-[side=left]:-right-1 data-[side=left]:-translate-y-1/2 data-[side=right]:top-1/2! data-[side=right]:-left-1 data-[side=right]:-translate-y-1/2 data-[side=top]:-bottom-2.5';
+
+/**
+ * The destructive dialog's two portalled elements, themed like the plain one.
+ *
+ * Same shape as `DialogContent` below and for the same reason — backdrop and
+ * popup are siblings inside the portal, so both carry the root class, the
+ * surface's mode and the popup layer. What it deliberately does not carry is
+ * a close button: an alert dialog asks a question with a cost, and the answer
+ * is one of the two in the footer rather than a corner that dismisses it.
+ */
+export function AlertDialogContent({
+  className,
+  size = 'default',
+  style,
+  ...props
+}: React.ComponentProps<typeof VendoredAlertDialogContent>) {
+  const theme = useSurfaceTheme();
+  return (
+    <AlertDialogPortal>
+      <AlertDialogOverlay
+        className="fve-root"
+        style={POPUP_LAYER}
+        data-theme={theme}
+      />
+      <AlertDialogPrimitive.Popup
+        data-slot="alert-dialog-content"
+        data-size={size}
+        {...props}
+        className={withClass(ALERT_DIALOG_POPUP_CLASS, themedClass(className))}
+        style={layered(style)}
+        data-theme={theme}
+      />
+    </AlertDialogPortal>
+  );
+}
 
 export function ComboboxContent({
   className,

@@ -229,7 +229,7 @@ src/
       view.ts, manage.ts, analysis.ts, dashboard.ts, status.ts, definition.ts
     display.ts                    — A value as its field shows it: enum labels, dates, bucket keys
     index.ts
-    components/                   — 29 shadcn/ui primitives — vendored, see below
+    components/                   — 30 shadcn/ui primitives — vendored, see below
     lib/utils.ts                  — shadcn cn() helper — vendored
 ```
 

@@ -13,25 +13,29 @@
 
 import type { ViewConfig } from '../model/index.js';
 import type { ConflictChoice } from '../runtime/index.js';
-import { Button } from './components/button.js';
 import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from './components/dialog.js';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './components/alert-dialog.js';
 import { describeConfig } from './describeConfig.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { DialogContent } from './popups.js';
+import { AlertDialogContent } from './popups.js';
 
 /**
  * The same choice, put once more with both configs on the table.
  *
  * Either answer loses something a user cannot see from the button that
  * offered it, so the two ways of looking are summarised side by side first.
+ *
+ * An `AlertDialog`, not a `Dialog`: whichever config is kept, the other one
+ * goes. Base UI holds it open under an outside click and keeps focus on the
+ * two answers, so neither side is discarded by a stray click.
  */
 export function ConflictConfirm({
   choice,
@@ -50,39 +54,39 @@ export function ConflictConfirm({
   const messages = useViewMessages();
   const taking = choice === 'reload';
   return (
-    <Dialog open={choice !== null} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
+    <AlertDialog open={choice !== null} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
             {messages.label(
               taking
                 ? 'label.conflict.confirm-theirs'
                 : 'label.conflict.confirm-mine',
             )}
-          </DialogTitle>
-          <DialogDescription>
+          </AlertDialogTitle>
+          <AlertDialogDescription>
             {messages.label('label.conflict.choice')}
-          </DialogDescription>
-        </DialogHeader>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <ConfigSide titleKey="label.conflict.local" config={local} />
           <ConfigSide titleKey="label.conflict.remote" config={remote} />
         </div>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
+        <AlertDialogFooter>
+          <AlertDialogCancel>
             {messages.label('label.dialog.cancel')}
-          </DialogClose>
-          <Button
+          </AlertDialogCancel>
+          <AlertDialogAction
             onClick={() => choice !== null && onConfirm(choice)}
             variant={taking ? 'default' : 'destructive'}
           >
             {messages.label(
               taking ? 'label.conflict.theirs' : 'label.conflict.mine',
             )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

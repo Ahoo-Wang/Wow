@@ -29,6 +29,7 @@ import { IconButton, IconTooltip } from './IconButton.js';
 import { ButtonGroup } from './components/button-group.js';
 import {
   DropdownMenu,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './components/dropdown-menu.js';
@@ -198,10 +199,12 @@ export function SaveActions({
               <ChevronDownIcon />
             </IconTooltip>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setCopying(true)}>
-                <CopyIcon />
-                {messages.label('label.save.save-as')}
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => setCopying(true)}>
+                  <CopyIcon />
+                  {messages.label('label.save.save-as')}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         )}

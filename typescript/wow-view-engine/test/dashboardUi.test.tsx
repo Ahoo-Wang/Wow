@@ -961,7 +961,7 @@ describe('DashboardWorkbench', () => {
     ) as HTMLElement;
     fireEvent.click(within(row).getByRole('button', { name: 'Delete' }));
     const confirm = (await screen.findByText('Delete this view?')).closest(
-      '[role="dialog"]',
+      '[role="alertdialog"]',
     ) as HTMLElement;
     fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });

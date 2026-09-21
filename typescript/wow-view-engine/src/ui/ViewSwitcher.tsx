@@ -24,6 +24,7 @@ import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import {
   DropdownMenu,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
@@ -160,10 +161,12 @@ export function ViewSwitcher({
             {/* Managing the list is not choosing from it, so it is set apart
                 rather than added to the end of the views. */}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onManage}>
-              <Settings2Icon />
-              {messages.label('label.manage.open')}
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={onManage}>
+                <Settings2Icon />
+                {messages.label('label.manage.open')}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </>
         )}
       </DropdownMenuContent>

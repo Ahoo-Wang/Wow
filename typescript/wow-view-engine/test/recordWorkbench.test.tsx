@@ -121,7 +121,7 @@ describe('RecordWorkbench', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Yours/ }));
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(dialog.textContent).toContain('离开这个视图？');
   });
 
@@ -149,7 +149,7 @@ describe('RecordWorkbench', () => {
     expect(engine.pendingWrites().size).toBe(1);
 
     fireEvent.click(screen.getByRole('button', { name: /^Yours/ }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Leave' }));
 
     await waitFor(() => expect(engine.pendingWrites().size).toBe(0));
@@ -1332,7 +1332,7 @@ describe('managing views from the workbench', () => {
     await manage();
     fireEvent.click(within(row(title)).getByRole('button', { name: 'Delete' }));
     const confirm = (await screen.findByText('Delete this view?')).closest(
-      '[role="dialog"]',
+      '[role="alertdialog"]',
     ) as HTMLElement;
     fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
   }
@@ -1798,18 +1798,18 @@ describe('the record workbench layout', () => {
     fireEvent.keyDown(document.body, { key: 'Escape' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Other' }));
-    const asked = await screen.findByRole('dialog');
+    const asked = await screen.findByRole('alertdialog');
     expect(asked.textContent).toContain('Unsaved changes will be lost.');
 
     fireEvent.click(within(asked).getByRole('button', { name: 'Stay' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     expect(screen.getByRole('button', { name: 'Mine' }).ariaCurrent).toBe(
       'true',
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Other' }));
     fireEvent.click(
-      within(await screen.findByRole('dialog')).getByRole('button', {
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
         name: 'Leave',
       }),
     );
@@ -1834,6 +1834,6 @@ describe('the record workbench layout', () => {
         'true',
       ),
     );
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 });

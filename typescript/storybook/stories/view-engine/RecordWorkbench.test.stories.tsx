@@ -654,7 +654,7 @@ export const ManageViews: Story = {
     );
     const confirm = (
       await within(document.body).findByText(zhCN['label.delete.consequence'])
-    ).closest('[role="dialog"]') as HTMLElement;
+    ).closest('[role="alertdialog"]') as HTMLElement;
     await userEvent.click(
       within(confirm).getByRole('button', {
         name: zhCN['label.delete.keep'],
@@ -1319,7 +1319,7 @@ export const SaveConflictKeepsMine: Story = {
     // Put once more, because the button that offered it cannot show what it
     // costs: the two configs are summarised beside each other, and here they
     // differ in three of the four things the summary counts.
-    const dialog = await within(document.body).findByRole('dialog');
+    const dialog = await within(document.body).findByRole('alertdialog');
     await expect(dialog).toHaveTextContent(zhCN['label.conflict.confirm-mine']);
     await expect(dialog).toHaveTextContent(MINE);
     await expect(dialog).toHaveTextContent(THEIRS);
@@ -1374,7 +1374,7 @@ export const SaveConflictTakesTheirs: Story = {
         name: zhCN['label.conflict.theirs'],
       }),
     );
-    const dialog = await within(document.body).findByRole('dialog');
+    const dialog = await within(document.body).findByRole('alertdialog');
     await expect(dialog).toHaveTextContent(
       zhCN['label.conflict.confirm-theirs'],
     );
@@ -1746,7 +1746,7 @@ async function deleteDialog(): Promise<HTMLElement> {
   const asked = await within(document.body).findByText(
     zhCN['label.delete.confirm'],
   );
-  return asked.closest<HTMLElement>('[role="dialog"]')!;
+  return asked.closest<HTMLElement>('[role="alertdialog"]')!;
 }
 
 /** The data slots the layout is asserted by, in the order they are drawn. */

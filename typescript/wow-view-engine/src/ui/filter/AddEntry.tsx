@@ -20,6 +20,7 @@ import { IconTooltip } from '../IconButton.js';
 import { ButtonGroup } from '../components/button-group.js';
 import {
   DropdownMenu,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
@@ -83,24 +84,27 @@ export function AddEntry({
           <ChevronDownIcon />
         </IconTooltip>
         <DropdownMenuContent align="start">
-          {(['and', 'or', 'nor'] as const).map(op => (
-            <DropdownMenuItem
-              key={op}
-              onClick={() => filter.addGroup(op, parent)}
-            >
-              {/* The code first, then the sentence: a user who already thinks
-                  in AND/OR finds it at a glance, and one who does not reads
-                  what it will mean for the conditions under it. */}
-              <span className="text-muted-foreground font-mono text-xs">
-                {operatorCode(op)}
-              </span>
-              {/* The space is load-bearing: without it the two run together
-                  in the accessible name and a screen reader reads
-                  "ORAny condition". The flex gap only separates them on
-                  screen. */}{' '}
-              {messages.label(GROUP_OPERATOR_LABEL[op])}
-            </DropdownMenuItem>
-          ))}
+          <DropdownMenuGroup>
+            {(['and', 'or', 'nor'] as const).map(op => (
+              <DropdownMenuItem
+                key={op}
+                onClick={() => filter.addGroup(op, parent)}
+              >
+                {/* The code first, then the sentence: a user who already
+                    thinks in AND/OR finds it at a glance, and one who does
+                    not reads what it will mean for the conditions under
+                    it. */}
+                <span className="text-muted-foreground font-mono text-xs">
+                  {operatorCode(op)}
+                </span>
+                {/* The space is load-bearing: without it the two run together
+                    in the accessible name and a screen reader reads
+                    "ORAny condition". The flex gap only separates them on
+                    screen. */}{' '}
+                {messages.label(GROUP_OPERATOR_LABEL[op])}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
     </ButtonGroup>

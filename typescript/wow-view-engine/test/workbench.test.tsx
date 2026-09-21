@@ -332,7 +332,7 @@ describe('useLeaveGuard', () => {
 
     expect(where()).toBe('gone');
     expect(screen.getByTestId('asking').textContent).toBe('quiet');
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
   it('goes straight there when no view is open at all', () => {
@@ -352,7 +352,7 @@ describe('useLeaveGuard', () => {
 
     leave();
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(dialog.textContent).toContain('Leave this view?');
     expect(where()).toBe('here');
     expect(screen.getByTestId('asking').textContent).toBe('asking');
@@ -365,10 +365,10 @@ describe('useLeaveGuard', () => {
     render(<Guarded state={{ dirty: true, write: null }} />);
 
     leave();
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Stay' }));
 
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     expect(where()).toBe('here');
   });
 
@@ -389,7 +389,7 @@ describe('useLeaveGuard', () => {
 
     leave();
 
-    expect(await screen.findByRole('dialog')).toBeDefined();
+    expect(await screen.findByRole('alertdialog')).toBeDefined();
   });
 
   /**
@@ -408,7 +408,7 @@ describe('useLeaveGuard', () => {
 
     leave();
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(dialog.textContent).toContain('离开这个视图？');
   });
 
@@ -422,7 +422,7 @@ describe('useLeaveGuard', () => {
     );
 
     leave();
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Leave' }));
 
     expect(settled).toHaveBeenCalledTimes(1);
@@ -439,10 +439,10 @@ describe('useLeaveGuard', () => {
     );
 
     leave();
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Stay' }));
 
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     expect(settled).not.toHaveBeenCalled();
   });
 

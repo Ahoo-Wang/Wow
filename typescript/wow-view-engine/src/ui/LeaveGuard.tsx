@@ -13,17 +13,17 @@
 
 import type { LeaveGuard } from '../react/index.js';
 import type { ViewMessages } from './messages.js';
-import { Button } from './components/button.js';
 import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from './components/dialog.js';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './components/alert-dialog.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { DialogContent } from './popups.js';
+import { AlertDialogContent } from './popups.js';
 
 export interface LeaveDialogProps {
   /** The headless guard from `useWorkbench`; this only draws its question. */
@@ -44,27 +44,39 @@ export interface LeaveDialogProps {
  * would be lost, and this renders the two answers when it asks. A view with
  * nothing to lose never reaches this component at all — a guard that
  * interrupts every switch is one people learn to dismiss without reading.
+ *
+ * An `AlertDialog`, not a `Dialog`: the edits this asks about are lost for
+ * good, so Base UI keeps it open under an outside click and holds focus on
+ * the two answers — staying is a decision, not the absence of one.
  */
 export function LeaveDialog({ leave, messages: wording }: LeaveDialogProps) {
   const messages = useViewMessages(wording);
   return (
-    <Dialog open={leave.asking} onOpenChange={open => !open && leave.cancel()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{messages.label('label.leave.heading')}</DialogTitle>
-          <DialogDescription>
+    <AlertDialog
+      open={leave.asking}
+      onOpenChange={open => !open && leave.cancel()}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {messages.label('label.leave.heading')}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
             {messages.label('label.leave.consequence')}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>
             {messages.label('label.leave.stay')}
-          </DialogClose>
-          <Button variant="destructive" onClick={() => leave.confirm()}>
+          </AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={() => leave.confirm()}
+          >
             {messages.label('label.leave.leave')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

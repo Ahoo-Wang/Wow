@@ -23,6 +23,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
 import {
+  AlertDialog,
+  AlertDialogTitle,
+  AlertDialogContent as VendoredAlertDialogContent,
+} from '../src/ui/components/alert-dialog.js';
+import {
   Combobox as VendoredCombobox,
   ComboboxContent as VendoredComboboxContent,
 } from '../src/ui/components/combobox.js';
@@ -51,6 +56,7 @@ import {
 } from '../src/ui/components/tooltip.js';
 import { EditorBandToggle } from '../src/ui/EditorBand.js';
 import {
+  AlertDialogContent,
   ComboboxContent,
   DialogContent,
   DropdownMenuContent,
@@ -287,6 +293,63 @@ describe('a dialog themes its backdrop as well as its surface', () => {
 });
 
 /**
+ * The destructive dialog portals two elements as well, and its backdrop is a
+ * separate one from the plain dialog's — so it needs the root class in its own
+ * right, or the confirmation opens over an undimmed page.
+ */
+describe('an alert dialog themes its backdrop as well as its surface', () => {
+  it('puts the root class, the theme and the layer on both', async () => {
+    render(
+      <ViewSurface theme="dark">
+        <AlertDialog open>
+          <AlertDialogContent>
+            <AlertDialogTitle>Delete</AlertDialogTitle>
+          </AlertDialogContent>
+        </AlertDialog>
+      </ViewSurface>,
+    );
+
+    const surface = await screen.findByRole('alertdialog');
+    const backdrop = document.querySelector<HTMLElement>(
+      '[data-slot="alert-dialog-overlay"]',
+    );
+
+    expect(backdrop?.classList.contains('fve-root')).toBe(true);
+    expect(backdrop?.getAttribute('data-theme')).toBe('dark');
+    expect(backdrop?.style.zIndex).toBe('var(--fve-popup-z-index, 50)');
+    expect(surface.classList.contains('fve-root')).toBe(true);
+    expect(surface.getAttribute('data-theme')).toBe('dark');
+    expect(backdrop?.closest('[data-slot="view-surface"]')).toBeNull();
+  });
+
+  /**
+   * The whole reason these three confirmations moved off `Dialog`: a click on
+   * the page behind a destructive question must not answer it.
+   */
+  it('stays open when the page behind it is clicked', async () => {
+    const user = userEvent.setup();
+    render(
+      <ViewSurface theme="light">
+        <AlertDialog open>
+          <AlertDialogContent>
+            <AlertDialogTitle>Delete</AlertDialogTitle>
+          </AlertDialogContent>
+        </AlertDialog>
+      </ViewSurface>,
+    );
+    const surface = await screen.findByRole('alertdialog');
+
+    await user.click(
+      document.querySelector<HTMLElement>(
+        '[data-slot="alert-dialog-overlay"]',
+      )!,
+    );
+
+    expect(screen.getByRole('alertdialog')).toBe(surface);
+  });
+});
+
+/**
  * Every popup kind, as this file composes it and as the registry ships it.
  *
  * `open` skips the trigger: what is under test is the markup a popup mounts,
@@ -294,6 +357,24 @@ describe('a dialog themes its backdrop as well as its surface', () => {
  * something different.
  */
 const KINDS = [
+  {
+    name: 'alert dialog',
+    slot: 'alert-dialog-content',
+    vendored: (
+      <AlertDialog open>
+        <VendoredAlertDialogContent>
+          <AlertDialogTitle>Delete</AlertDialogTitle>
+        </VendoredAlertDialogContent>
+      </AlertDialog>
+    ),
+    composed: (
+      <AlertDialog open>
+        <AlertDialogContent>
+          <AlertDialogTitle>Delete</AlertDialogTitle>
+        </AlertDialogContent>
+      </AlertDialog>
+    ),
+  },
   {
     name: 'combobox',
     slot: 'combobox-content',
@@ -424,9 +505,11 @@ describe('every popup opens on the popup layer', () => {
 
     const popup = await waitFor(() => popupOf(slot));
     // A dialog has no positioner: it is fixed to the viewport itself, so the
-    // level belongs on the popup, and on the backdrop beside it.
-    const layered =
-      slot === 'dialog-content' ? popup : (popup.parentElement as HTMLElement);
+    // level belongs on the popup, and on the backdrop beside it. The alert
+    // dialog is the same shape.
+    const layered = slot.endsWith('dialog-content')
+      ? popup
+      : (popup.parentElement as HTMLElement);
 
     expect(layered.style.zIndex).toBe(LAYER);
   });

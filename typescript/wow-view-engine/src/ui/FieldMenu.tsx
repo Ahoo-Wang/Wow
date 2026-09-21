@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import type { FieldGroupDefinition } from '../model/index.js';
 import { fieldGroups } from '../filter/index.js';
 import {
@@ -47,13 +47,19 @@ export function GroupedMenu<T>({
   return (
     <>
       {fieldGroups(items, groups, itemKey).map((entry, index) => (
-        <DropdownMenuGroup key={entry.group?.id ?? ''}>
+        <Fragment key={entry.group?.id ?? ''}>
+          {/* The rule between two groups belongs between them, not inside
+              the second one: a separator under a group's own label is read
+              as a divider within that group, and it puts a non-item into
+              the list a menu's arrow keys walk. */}
           {index > 0 && <DropdownMenuSeparator />}
-          {entry.group !== undefined && (
-            <DropdownMenuLabel>{entry.group.label}</DropdownMenuLabel>
-          )}
-          {entry.items.map(render)}
-        </DropdownMenuGroup>
+          <DropdownMenuGroup>
+            {entry.group !== undefined && (
+              <DropdownMenuLabel>{entry.group.label}</DropdownMenuLabel>
+            )}
+            {entry.items.map(render)}
+          </DropdownMenuGroup>
+        </Fragment>
       ))}
     </>
   );
