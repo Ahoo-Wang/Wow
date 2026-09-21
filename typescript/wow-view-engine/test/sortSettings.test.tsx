@@ -18,12 +18,21 @@
  * projected from the config that ran, so an unapplied sort is invisible.
  */
 
+import { useState } from 'react';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FieldDefinition, RecordSort } from '../src/model/index.js';
 import { SortSettings } from '../src/ui/SortSettings.js';
-import { tableController } from './fixtures/columns.js';
+import { defaultMessages } from '../src/ui/messages.js';
+import {
+  reorderSort,
+  sortDragAccessibility,
+  sortDrop,
+  sortEntryId,
+  sortEntryIndex,
+} from '../src/ui/sort/drag.js';
+import { formattersFor, tableController } from './fixtures/columns.js';
 
 afterEach(cleanup);
 
@@ -306,5 +315,208 @@ describe('editing the sort', () => {
     await user.keyboard('{Escape}');
 
     await waitFor(() => expect(document.activeElement).toBe(trigger()));
+  });
+});
+
+/**
+ * Which field comes first is the whole of what this list says, so the order
+ * is something to take hold of. Both inputs commit the same thing — the
+ * whole order through `setSort`, one `edit` and one `apply`, exactly as a
+ * flipped direction or a removed entry does.
+ */
+describe('putting the sort in order', () => {
+  /** The editor over a sort that really changes, so a move reads back. */
+  function Editing({
+    initial,
+    committed,
+  }: {
+    initial: RecordSort[];
+    committed(sort: RecordSort[]): void;
+  }) {
+    const [sort, setSort] = useState(initial);
+    return (
+      <SortSettings
+        table={tableController({
+          sort,
+          setSort: next => {
+            committed(next);
+            setSort(next);
+          },
+        })}
+        fields={FIELDS}
+      />
+    );
+  }
+
+  async function editing(initial: RecordSort[]) {
+    const user = userEvent.setup();
+    const committed = vi.fn();
+    render(<Editing initial={initial} committed={committed} />);
+    await user.click(trigger());
+    return { user, committed };
+  }
+
+  /** The numbers are drawn from the list, so a move renumbers everything. */
+  it('moves an entry a place up and renumbers what it passed', async () => {
+    const { user, committed } = await editing([
+      { field: 'amount', direction: 'DESC' },
+      { field: 'id', direction: 'ASC' },
+    ]);
+
+    (await screen.findByRole('button', { name: 'Reorder Order' })).focus();
+    await user.keyboard('{ArrowUp}');
+
+    expect(committed).toHaveBeenCalledWith([
+      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: 'DESC' },
+    ]);
+    expect(
+      [...document.querySelectorAll('[data-slot="sort-entry"]')].map(
+        entry => entry.textContent,
+      ),
+    ).toEqual(['1OrderAscending', '2AmountDescending']);
+  });
+
+  /**
+   * Where the entry landed is said once, by the editor, for the arrow keys
+   * and for a drop alike — the library says the pick-up and the cancel, and
+   * a second voice for the landing would read the same move out twice.
+   */
+  it('says where the entry landed, counted over the whole sort', async () => {
+    const { user } = await editing([
+      { field: 'amount', direction: 'DESC' },
+      { field: 'id', direction: 'ASC' },
+    ]);
+
+    (await screen.findByRole('button', { name: 'Reorder Amount' })).focus();
+    await user.keyboard('{ArrowDown}');
+
+    expect(
+      document.querySelector('[data-slot="sort-announcement"]')!.textContent,
+    ).toBe('Amount moved to position 2 of 2');
+  });
+
+  /** An end is an end: nothing moves, and nothing is written or said. */
+  it('writes nothing when the key points past the end', async () => {
+    const { user, committed } = await editing([
+      { field: 'amount', direction: 'DESC' },
+      { field: 'id', direction: 'ASC' },
+    ]);
+
+    (await screen.findByRole('button', { name: 'Reorder Amount' })).focus();
+    await user.keyboard('{ArrowUp}');
+
+    expect(committed).not.toHaveBeenCalled();
+    expect(
+      document.querySelector('[data-slot="sort-announcement"]')!.textContent,
+    ).toBe('');
+  });
+
+  /**
+   * One entry is first and last at once. A handle that can only put it back
+   * where it is claims something it cannot do — and costs a tab stop to say
+   * it.
+   */
+  it('refuses the handle while there is only one entry', async () => {
+    await editing([{ field: 'amount', direction: 'DESC' }]);
+
+    expect(
+      (
+        await screen.findByRole('button', { name: 'Reorder Amount' })
+      ).hasAttribute('disabled'),
+    ).toBe(true);
+  });
+});
+
+/**
+ * The drop, read off the two ids it reports: `@dnd-kit/dom` picks its target
+ * by measuring boxes, and in jsdom every box is 0×0 at the origin — so the
+ * gesture itself is a browser story, and what it means is tested here.
+ */
+describe('what a drop on the sort list means', () => {
+  const drop = (from: number, to: number, canceled?: boolean) =>
+    sortDrop(
+      { source: { id: sortEntryId(from) }, target: { id: sortEntryId(to) } },
+      canceled,
+    );
+
+  it('is the move between the two places it names', () => {
+    expect(drop(2, 0)).toEqual({ from: 2, to: 0 });
+  });
+
+  it('is nothing when the drag was given up, or ended where it began', () => {
+    expect(drop(2, 0, true)).toBeNull();
+    expect(drop(1, 1)).toBeNull();
+    expect(sortDrop({ source: { id: sortEntryId(0) } }, false)).toBeNull();
+    expect(sortDrop({ target: { id: sortEntryId(0) } }, false)).toBeNull();
+  });
+
+  /**
+   * This list is not the only draggable thing a page holds, and an id from
+   * somewhere else names no place in this sort.
+   */
+  it('is nothing when an id names no entry of this list', () => {
+    expect(
+      sortDrop(
+        { source: { id: 'amount' }, target: { id: sortEntryId(0) } },
+        false,
+      ),
+    ).toBeNull();
+    expect(sortEntryIndex('sort-entry-x')).toBeNull();
+    expect(sortEntryIndex('sort-entry-0')).toBe(0);
+  });
+
+  it('takes the entry out and puts it back at the place asked for', () => {
+    const sort: RecordSort[] = [
+      { field: 'amount', direction: 'DESC' },
+      { field: 'id', direction: 'ASC' },
+      { field: 'warehouse', direction: 'ASC' },
+    ];
+
+    expect(reorderSort(sort, 2, 0)).toEqual([sort[2], sort[0], sort[1]]);
+    expect(reorderSort(sort, 0, 2)).toEqual([sort[1], sort[2], sort[0]]);
+  });
+
+  /** A place the list does not have is not a move, at either end. */
+  it('is nothing when either place is outside the list', () => {
+    const sort: RecordSort[] = [{ field: 'amount', direction: 'DESC' }];
+
+    expect(reorderSort(sort, 0, 0)).toBeNull();
+    expect(reorderSort(sort, 0, 1)).toBeNull();
+    expect(reorderSort(sort, 1, 0)).toBeNull();
+    expect(reorderSort(sort, 0, -1)).toBeNull();
+  });
+});
+
+/**
+ * The library's own sentences are built from the ids it carries — here the
+ * places in a list — so every one of them is said in the catalogue's words,
+ * with the place turned back into the field a reader is looking at.
+ */
+describe('what a sort drag says out loud', () => {
+  const accessibility = sortDragAccessibility(
+    formattersFor(defaultMessages),
+    id => (id === sortEntryId(1) ? 'Amount' : id),
+  );
+  const carrying = { operation: { source: { id: sortEntryId(1) } } };
+
+  it('names the field in the reader’s own words', () => {
+    expect(accessibility.announcements.dragstart(carrying)).toBe(
+      'Amount picked up',
+    );
+  });
+
+  /** A completed drop is announced by the editor, so it says nothing here. */
+  it('speaks only when a drag is given up', () => {
+    expect(accessibility.announcements.dragend(carrying)).toBeUndefined();
+    expect(
+      accessibility.announcements.dragend({ ...carrying, canceled: true }),
+    ).toBe('Move cancelled; Amount stayed where it was');
+  });
+
+  it('carries the instructions a reader is given on the handle', () => {
+    expect(accessibility.screenReaderInstructions.draggable).toBe(
+      defaultMessages['label.sort.instructions'],
+    );
   });
 });

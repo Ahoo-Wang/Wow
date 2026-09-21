@@ -11,10 +11,16 @@
  * limitations under the License.
  */
 
+import { useState, type KeyboardEvent } from 'react';
+import { DragDropProvider } from '@dnd-kit/react';
+import { useSortable } from '@dnd-kit/react/sortable';
+import { Accessibility } from '@dnd-kit/dom';
+import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import {
   ArrowDownIcon,
   ArrowDownUpIcon,
   ArrowUpIcon,
+  GripVerticalIcon,
   PlusIcon,
   XIcon,
 } from 'lucide-react';
@@ -40,6 +46,13 @@ import {
 } from './components/dropdown-menu.js';
 import { DropdownMenuContent, PopoverContent } from './popups.js';
 import { GroupedMenu } from './FieldMenu.js';
+import {
+  reorderSort,
+  sortDrop,
+  sortDragAccessibility,
+  sortEntryId,
+  sortEntryIndex,
+} from './sort/drag.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 
@@ -84,6 +97,7 @@ export function SortSettings({
   fieldGroups,
 }: SortSettingsProps) {
   const messages = useViewMessages();
+  const [announcement, setAnnouncement] = useState('');
   const sortable = fields.filter(field => field.sortable === true);
   // Nothing to offer *and* nothing to take back: a button that opens an
   // empty editor leads nowhere. A definition that stopped declaring a field
@@ -106,6 +120,37 @@ export function SortSettings({
   const available = sortable.filter(field => !used.has(field.name));
   const labels = new Map(fields.map(field => [field.name, field.label]));
   const labelOf = (field: string) => labels.get(field) ?? field;
+  /**
+   * The field an id names: the one place where what the library is carrying
+   * — a position in this list — becomes a word the reader is looking at.
+   * Both voices go through it, the library's and the editor's own.
+   */
+  const named = (id: string) => {
+    const at = sortEntryIndex(id);
+    const entry = at === null ? undefined : table.sort[at];
+    return entry === undefined ? id : labelOf(entry.field);
+  };
+  /**
+   * Commits one move and says where the entry landed, for both inputs.
+   *
+   * The whole order goes through `setSort` — one `edit` and one `apply`,
+   * the same write a flipped direction or a removed entry makes. Which
+   * field comes first is not a different kind of edit from those, and the
+   * rows on screen were projected from the config that ran: an order that
+   * is not applied is an order nobody can see.
+   */
+  const moveTo = (from: number, to: number) => {
+    const order = reorderSort(table.sort, from, to);
+    if (!order) return;
+    table.setSort(order);
+    setAnnouncement(
+      messages.label('label.sort.moved', {
+        field: named(sortEntryId(from)),
+        index: to + 1,
+        total: order.length,
+      }),
+    );
+  };
 
   return (
     <Popover>
@@ -139,34 +184,65 @@ export function SortSettings({
             {messages.label('label.sort.unsorted')}
           </p>
         ) : (
-          <ul
-            data-slot="sort-entries"
-            aria-label={messages.label('label.sort.title')}
-            className="flex flex-col gap-1"
+          <DragDropProvider
+            plugins={defaults =>
+              defaults.map(plugin =>
+                plugin === Accessibility
+                  ? Accessibility.configure(
+                      sortDragAccessibility(messages, named),
+                    )
+                  : plugin,
+              )
+            }
+            onDragEnd={({ operation, canceled }) => {
+              const drop = sortDrop(operation, canceled);
+              if (drop) moveTo(drop.from, drop.to);
+            }}
           >
-            {table.sort.map((entry, index) => (
-              <SortEntry
-                // Keyed by its place as well as its field: a config that
-                // sorts twice by one field is two entries, and removing one
-                // of them has to leave the other where it is.
-                key={`${entry.field}-${index}`}
-                entry={entry}
-                index={index}
-                label={labelOf(entry.field)}
-                onFlip={() =>
-                  table.setSort(
-                    table.sort.map((other, at) =>
-                      at === index ? flip(other) : other,
-                    ),
-                  )
-                }
-                onRemove={() =>
-                  table.setSort(table.sort.filter((_other, at) => at !== index))
-                }
-              />
-            ))}
-          </ul>
+            <ul
+              data-slot="sort-entries"
+              aria-label={messages.label('label.sort.title')}
+              className="flex flex-col gap-1"
+            >
+              {table.sort.map((entry, index) => (
+                <SortEntry
+                  // Keyed by its place as well as its field: a config that
+                  // sorts twice by one field is two entries, and removing one
+                  // of them has to leave the other where it is.
+                  key={`${entry.field}-${index}`}
+                  entry={entry}
+                  index={index}
+                  total={table.sort.length}
+                  label={labelOf(entry.field)}
+                  onFlip={() =>
+                    table.setSort(
+                      table.sort.map((other, at) =>
+                        at === index ? flip(other) : other,
+                      ),
+                    )
+                  }
+                  onRemove={() =>
+                    table.setSort(
+                      table.sort.filter((_other, at) => at !== index),
+                    )
+                  }
+                  onMove={step => moveTo(index, index + step)}
+                />
+              ))}
+            </ul>
+          </DragDropProvider>
         )}
+
+        {/* One voice for a move the user asked for with the arrow keys; the
+            library announces its own pick-up and cancel. */}
+        <div
+          data-slot="sort-announcement"
+          role="status"
+          aria-live="polite"
+          className="sr-only"
+        >
+          {announcement}
+        </div>
 
         {/* A new field joins at the end, ascending: it breaks the ties of
             the fields already there, and anywhere else would quietly change
@@ -210,28 +286,77 @@ export function SortSettings({
   );
 }
 
-/** One sort entry: its place, its field, its direction and its way out. */
+/**
+ * One sort entry: its handle, its place, its field, its direction and its
+ * way out.
+ *
+ * The number is drawn from the entry's place in the list rather than stored,
+ * so a move renumbers everything below it without anything having to say so.
+ *
+ * The optimistic plugin is left out on purpose, as it is in the column
+ * settings: it reorders the DOM while the pointer moves, which makes the
+ * indexes this list is rendered from stale exactly when the drop is read.
+ * Without it the library still draws the drag preview, and the committed
+ * order is computed from the two ids the drop reports.
+ */
 function SortEntry({
   entry,
   index,
+  total,
   label,
   onFlip,
   onRemove,
+  onMove,
 }: {
   entry: RecordSort;
   index: number;
+  /** How many entries there are; a list of one has no order to change. */
+  total: number;
   label: string;
   onFlip(): void;
   onRemove(): void;
+  /** Moves this entry one place, from the arrow keys on its handle. */
+  onMove(step: -1 | 1): void;
 }) {
   const messages = useViewMessages();
   const direction = directionOf(entry.direction);
+  const { ref, handleRef, isDragging } = useSortable({
+    id: sortEntryId(index),
+    index,
+    plugins: defaults =>
+      defaults.filter(plugin => plugin !== OptimisticSortingPlugin),
+  });
   return (
     <li
+      ref={ref}
       data-slot="sort-entry"
       data-field={entry.field}
-      className="flex items-center gap-1.5"
+      data-dragging={isDragging ? '' : undefined}
+      className="flex items-center gap-1.5 rounded-md data-dragging:bg-muted"
     >
+      <Button
+        ref={handleRef}
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        className="cursor-grab"
+        // A single entry is already first and last at once: a handle that
+        // can only put it back where it is says it can do something it
+        // cannot.
+        disabled={total < 2}
+        aria-label={messages.label('label.sort.drag', { field: label })}
+        onKeyDown={(event: KeyboardEvent) => {
+          // While the library is carrying the entry the arrows are its: two
+          // handlers on one press would move it twice.
+          if (isDragging) return;
+          const step = STEP[event.key];
+          if (!step) return;
+          event.preventDefault();
+          onMove(step);
+        }}
+      >
+        <GripVerticalIcon />
+      </Button>
       <span className="text-muted-foreground w-4 text-center text-xs">
         {index + 1}
       </span>
@@ -258,6 +383,12 @@ function SortEntry({
     </li>
   );
 }
+
+/** Arrow keys that move an entry, and how far. */
+const STEP: Record<string, -1 | 1 | undefined> = {
+  ArrowUp: -1,
+  ArrowDown: 1,
+};
 
 /**
  * The sort on the button: the first field and its direction, plus how many

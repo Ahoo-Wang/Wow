@@ -1131,6 +1131,91 @@ export const TableSettingsPointerDrag: Story = {
 };
 
 /**
+ * The sort popover, put in order the way a mouse puts it in order.
+ *
+ * Which field comes first is the whole of what that list says, and until it
+ * could be dragged the only way to change it was to remove an entry and add
+ * it again at the end. The drop calculation has unit tests of its own; what
+ * only a real browser can run is the gesture — `@dnd-kit/dom` picks its drop
+ * target by measuring boxes, and in jsdom every box is 0×0 at the origin.
+ *
+ * Both ends of the chain are asserted, and neither of them is the popover's
+ * own list: the table's `aria-sort` and the rows underneath it, because
+ * sorting applies at once, and the toolbar button, whose summary follows
+ * whatever is now first.
+ */
+export const SortEntriesPointerDrag: Story = {
+  ...DisplayTableSettings,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
+
+    const button = canvasElement.querySelector<HTMLElement>(
+      '[data-control="sort"]',
+    )!;
+    await userEvent.click(button);
+    const popover = within(document.body);
+
+    // A second field to order by, so there is an order to argue about. It
+    // joins at the end, ascending, and breaks the ties of the first.
+    await userEvent.click(
+      await popover.findByRole('button', { name: zhCN['label.sort.add'] }),
+    );
+    await userEvent.click(
+      await popover.findByRole('menuitem', { name: '订单号' }),
+    );
+    const entries = () => [
+      ...document.querySelectorAll<HTMLElement>('[data-slot="sort-entry"]'),
+    ];
+    await waitFor(() =>
+      expect(entries().map(entry => entry.dataset.field)).toEqual([
+        'amount',
+        'id',
+      ]),
+    );
+
+    // Carry 金额 down onto 订单号: what was breaking the ties becomes what
+    // the rows are ordered by, and the other one closes up above it.
+    const handle = popover.getByRole('button', {
+      name: say('label.sort.drag', { field: '金额' }),
+    });
+    await dragHandleOnto(handle, entries()[1]);
+    await waitFor(() =>
+      expect(entries().map(entry => entry.dataset.field)).toEqual([
+        'id',
+        'amount',
+      ]),
+    );
+
+    // The table is the witness: an order that was not applied is an order
+    // nobody can see. `aria-sort` marks the column the rows are actually in
+    // the order of, and there is one of those.
+    await waitFor(() =>
+      expect(headerOf(canvas.getByRole('table'), '订单号')).toHaveAttribute(
+        'aria-sort',
+        'ascending',
+      ),
+    );
+    const sorted = canvas.getByRole('table');
+    await expect(headerOf(sorted, '金额')).not.toHaveAttribute('aria-sort');
+    await expect(positionOf(sorted, '订单号')).toBe('1');
+    await expect(positionOf(sorted, '金额')).toBe('2');
+    await expect(readColumn(sorted, '订单号')).toEqual(
+      [...PENDING_BY_AMOUNT].sort(),
+    );
+
+    // And the button under the popover reads the new first entry back.
+    await userEvent.keyboard('{Escape}');
+    await expect(button).toHaveTextContent(
+      `订单号${zhCN['label.sort.asc']}${say('label.sort.more', { count: 1 })}`,
+    );
+  },
+};
+
+/**
  * Somebody else saved this view first, and the open view says so.
  *
  * The line under the title bar is `WriteOutcome`, and it is the one place

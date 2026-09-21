@@ -136,6 +136,15 @@ export const recordMessages = {
   'label.sort.direction': 'Direction of {field}',
   'label.sort.add': 'Sort by a field',
   'label.sort.full': 'These rows can be ordered by at most {max} fields.',
+  // Which field comes first is the whole of what this list says, so the
+  // order is something to be taken hold of rather than something rebuilt by
+  // removing an entry and adding it again at the end.
+  'label.sort.instructions':
+    'Press the arrow keys to move a sort field one place. Press space to pick it up, the arrow keys to move it, space again to drop it and escape to cancel.',
+  'label.sort.drag': 'Reorder {field}',
+  'label.sort.moved': '{field} moved to position {index} of {total}',
+  'label.sort.picked': '{field} picked up',
+  'label.sort.cancelled': 'Move cancelled; {field} stayed where it was',
 
   // Record kernel.
   'record.capability.missing':

@@ -169,6 +169,12 @@ export const zhCN: ViewMessages = {
   'label.sort.direction': '{field} 的排序方向',
   'label.sort.add': '添加排序字段',
   'label.sort.full': '这些行最多按 {max} 个字段排序。',
+  'label.sort.instructions':
+    '按方向键可将一个排序字段移动一位；按空格键拾起，方向键移动，再按空格键放下，按 Esc 取消。',
+  'label.sort.drag': '调整 {field} 的排序优先级',
+  'label.sort.moved': '{field} 已移到第 {index} 位，共 {total} 位',
+  'label.sort.picked': '已拾起 {field}',
+  'label.sort.cancelled': '移动已取消，{field} 保持原位',
   'record.capability.missing': '{definition} 不再提供记录视图。',
   'record.card.invalid': '卡片设置无法读取。',
   'record.column.duplicate': '列 {field} 列了两次。',
