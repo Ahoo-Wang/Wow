@@ -15,6 +15,16 @@
 
 顺序：**打磨清单（先看后改）→ 筛选三条（日期时刻／IN 多值／软删除）→ ErrorBoundary → 列宽・隐藏字段排序・指针拖动回归 → 写入结局故事・视图管理拖动排序**。打磨排在新功能之前：先把已经有的做对，再加没有的。
 
+## 布局重构（D12／D13，按这个顺序开 PR）
+
+结构在 [decisions.md#d12](decisions.md#d12-一屏七块每块只回答一个问题) 定了，对比页第 17 版是定稿。每条的判据除下面写的，还有共同的一份：`test/accessibility.test.tsx` 过 axe；jsdom 钉结构（哪些槽位、什么条件下存在）、浏览器故事钉几何与层叠色；中英文案齐全；`docs/design/ui/README.md` 对应节同步；全门绿。
+
+- **L1 侧栏**——为什么：现在的侧栏没有层次（分组是两个灰字、当前项只是一格 3% 灰、`system` 徽章漂在右边、标题行两颗图标没有归属、折起后的切换器是一颗 470px 的居中胶囊；铺满时 375 上侧栏堆在上方占 204px）。判据：侧栏灰底（复用 shadcn `--sidebar` 一组 token，两个主题都有），头部只有定义名 + 新建／管理／折叠三个图标按钮；两组用可见的分区标题（我的视图／共享视图），系统视图在共享组带灰字 `system`；每项种类图标；默认视图在项上实心 ★（与管理器里那颗同一份状态）；当前项白底 + 左侧 2px `primary` 条 + 中等字重，悬停项与当前项可分辨（浏览器故事量）；折起时切换器按内容定宽、左对齐，`view-controls` 右对齐；窄于 `md` 默认折起，铺满屏幕时折起、退出时还原（`test/viewExpansion.test.tsx`）。落点：`src/ui/ViewList.tsx`、`src/ui/ViewSwitcher.tsx`、`src/ui/WorkbenchShell.tsx`（折起规则）、`src/styles.css`、[management.md](management.md)、[ui/README.md](ui/README.md)。
+- **L2 标题栏与状态行**——为什么：标题栏里保存站在行尾、受众是一颗徽章、三种按钮形制混在一行，视图级控件与宿主动作没有分组；写入结局与配置错误／告警条画在块间，查询失败条却画在结果卡里，同色同形两个位置。判据：左组 = 种类图标 · 视图名 · 小受众标签（灰字，不是徽章）· 未保存标记 · 保存拆分按钮紧跟名字（没东西可存时变淡，无权限时菜单只剩另存）；右组两段中间一根竖线：框架（筛选器拆分按钮：主键开合托盘并带 pending 点、菜单选简单／高级；刷新拆分按钮：主键立即刷新、菜单选间隔；铺满）｜业务（宿主 `global` 槽位，文档说明它是唯一 primary）；**Ⅰ′ 状态行**紧贴标题栏下方，只在有写入结局或配置 error／warning 时渲染，查询失败改由结果块自己说（带重试）；窄时右组整组换行右对齐（沿用 #1586 的容器查询）。落点：`src/ui/ViewHeader.tsx`、`src/ui/WorkbenchShell.tsx`、`src/ui/RefreshControl.tsx`、`src/ui/RecordWorkbench.tsx`（QueryStrip 归结果块）、[ui/README.md#工作台骨架](ui/README.md#工作台骨架)。
+- **L3 托盘、结果条件带、工具栏**——为什么：条件卡是框套框（卡 → pill → 输入各一圈边），「Showing」和工具栏各占一行、工具栏左边空一片、控件是裸文字。判据：托盘 `bg-muted/40` 不加边，pill 只留一圈边、操作符与值控件无边（浏览器故事截图对比亮暗）；第一行只放 pill，第二行 Add 靠左、Clear／Apply 靠右；结果条件带独立一行、不带计数、有结果才存在；工具栏左：有选中时「已选 N 条 · 清除」+ 宿主 `bulk` 槽位，没选中时一句提示（`label.toolbar.hint`），右：图标按钮——列设置、排序（图标 + 当前字段）、表／卡分段（图标，带名字）、导出菜单入口（L5 之前先占位为无菜单按钮或不渲染）；`ResultToolbar` 的 `min-h-8` 占位删除。落点：`src/ui/FilterPanel.tsx`、`src/ui/filter/`、`src/ui/AppliedBar.tsx`、`src/ui/ResultToolbar.tsx`、`src/ui/WorkbenchShell.tsx`（去掉两张卡片的 `SURFACE`）、`src/ui/layout.ts`、[ui/README.md](ui/README.md)、[ui/record.md](ui/record.md)。
+- **L4 结果块、汇总、分页与固定列**——为什么：结果卡里再套表格边；汇总两行曾被合并；单页也画翻页箭头；固定列的边只在滚动时出现（D13 改为常在），末列没有行操作时不固定（D13 改为必定固定）；空态与「无法打开」是最"默认 shadcn"的两屏（空态是默认 `Empty`，无法打开整块红字无动作）。判据：表格通到结果块边缘，没有卡片边，行线用 `--border`；汇总两行「本页／所有」永远分开；分页左「共 N 条」、右页码 + 每页条数，单页不画箭头；`projectRecord` 把末列（行操作列或最后一个数据列）标为固定，`columnPins` 给首尾固定列常在的细线 + 阴影（去掉 `data-scrolled-*` 的开关，`usePinnedEdges` 删除），`PinnedEdges` 故事改为断言阴影常在；空态与「无法打开」各给一个动作（新建条件／回到默认视图），骨架按列名给不等宽条；`test/recordTable.test.tsx`、`test/pinnedColumns.test.tsx`、`test/recordPagination.test.tsx` 随之改。落点：`src/record/project.ts`、`src/ui/record/columns.ts`、`src/ui/RecordTable.tsx`、`src/ui/RecordPagination.tsx`、`src/ui/WorkbenchShell.tsx`（`unopenable`）、[ui/record.md](ui/record.md)。
+- **L5 导出**——为什么：导出是记录视图最常用的功能之一，现在没有。判据：工具栏右端一个图标菜单按钮，三个条目各带条数：**选中**（有选中时才出现）、**本页**、**所有（按当前筛选）**；"所有"按当前已应用条件在后台分页拉全量，不受屏幕分页限制，超过阈值（`RuntimeLimits` 新增 `exportMax`，默认 10000）先提示条数再导；导出的列与顺序是列设置里可见的列，值按单元格读法（枚举用标签、日期按 `ViewSurface` 时区、数字按 `numberFormat`）；格式先 CSV（UTF-8 带 BOM），文件名 `<视图名>-<日期>.csv`；导出中有进度与取消，失败在状态行报出；序列化在 headless 层（`src/record/export.ts`，值格式化由调用方注入）、下载在 `/ui`；`test/` 覆盖三种口径、阈值提示、取消；故事一条可手动导出。落点：`src/model/limits.ts`、`src/record/export.ts`、`src/react/useRecordExport.ts`、`src/ui/ExportMenu.tsx`、`src/ui/ResultToolbar.tsx`、[ui/record.md](ui/record.md)、[react.md](react.md)。
+
 ## 重构（小步，每步一个 PR，零行为变化）
 
 ## `max-lines` 存量豁免（拆到阈值以内就删掉 override）
@@ -55,8 +65,6 @@
 ### 打磨
 
 - **选中／悬停行上枚举徽章消失；侧栏悬停项与当前项同色**——为什么：`secondary` 徽章底色 = 行选中 `bg-muted` = `oklch(0.97)`，**1.00:1**（暗色 0.269 同样 1.00）；侧栏当前项 `secondary`(0.97) = 悬停 `accent`(0.97)。四个状态（分段按下 1.09、行悬停 1.04、行选中 1.09、侧栏当前 1.09）共用一档 3% 灰，叠在一起就归零。判据：单元格徽章带 `border-border`（带语气的徽章由 #1580 改成实底，已不受影响）；侧栏当前项 `font-medium` + 左侧 2px `primary` 条；浏览器故事量选中行上的徽章与行底 ≥1.5:1、当前项与悬停项可分辨。落点：`src/ui/record/cells.tsx`、`src/ui/ViewList.tsx`、[ui/README.md](ui/README.md)。
-- **铺满屏幕在 375 上没收起侧栏**——为什么：侧栏堆在上方占 204px，表从 y≈440 才开始——"铺满是为了行"在手机上换来的行最少。与 Q7 无关。判据：铺满时窄于 `md` 的布局把侧栏折起（退出时还原），`test/viewExpansion.test.tsx` 加一条；浏览器故事在 375 断言表头 y < 120。落点：`src/ui/WorkbenchShell.tsx`、[ui/README.md](ui/README.md)。
-- **两种状态条画在两处**——为什么：配置错误／告警条画在块间，查询失败条（`QueryStrip`）画在结果卡内、`AppliedBar` 之下——同色同形的两根条出现在两个位置；而 `NeedsFixing`／`QueryFailed` 没有历史结果时结果卡只剩一根 54px 的工具栏，像坏了。判据：定一个位置（建议都在块间，结果卡只在有结果或加载中时存在），[工作台骨架](ui/README.md#工作台骨架)那句顺序随之改；`test/recordWorkbench.test.tsx` 钉住失败且无结果时不画空卡。落点：`src/ui/WorkbenchShell.tsx`、`src/ui/RecordWorkbench.tsx`、[ui/README.md](ui/README.md)。
 - **高级模式根分组有两套「添加」**——为什么：`Add in this group / Add a group / Add / Add a group` 四个入口挤在一屏。判据：根分组只留一套（分组块自己的那套），`test/filterPanel.test.tsx` 断言高级模式下"添加"入口的数量。落点：`src/ui/FilterPanel.tsx`、`src/ui/filter/GroupBlock.tsx`、[ui/README.md](ui/README.md)。
 - **zh-CN 的几句措辞**——为什么：「状态 是其中之一 待出库」拗口，口径「所有」与「本页」并列时不对仗；`Localized` 故事没传 `locale`，中文页面上是 `CN¥2,450.00`、`Sep 14, 2026`。不涉 Q3。判据：`IN` 改「属于」，`total` 改「全部」，故事传 `locale="zh-CN"`；`test/messages.test.tsx` 与故事随之更新。落点：`src/ui/messages/zh-CN.ts`、`stories/view-engine/RecordWorkbench.stories.tsx`。
 - **列设置的分区眼睛看不见**——为什么：三个分区只有 `aria-label`，屏幕上没有分区标题，钉到右侧的列于是只是"掉到底下"。判据：列设置每个分区有可见标题（与 `aria-label` 同一个词）；`test/columnSettings.test.tsx` 一条。落点：`src/ui/ColumnSettings.tsx`。
@@ -66,8 +74,6 @@
 ### 视觉
 
 - **字号阶梯里 12.8 与 12 挨得太近**——为什么：一屏 12 / 12.8 / 14 / 16 四档，12.8（shadcn 的 `sm` 按钮）与 12 只差 0.8px，侧栏视图名 12.8 压在 12 的分组标签上，中文在 12.8 渲染发虚。判据：`sm` 按钮与侧栏项统一到 13 或 12（在调用处或 `styles.css` 的 token 上，不改 vendored 文件），四档变三档；浏览器故事量侧栏项字号。落点：`src/styles.css`、`src/ui/layout.ts`。
-- **条件 pill 盒中盒**——为什么：pill 有边、操作符选择器无边、值选择器又有边，空值时再叠一圈虚线。判据：值控件与操作符一样走无边（`ghost`）样式，只有 pill 一圈边；截图对比亮暗两态。落点：`src/ui/filter/ConditionPill.tsx`、`src/ui/FilterValueEditor.tsx`、[ui/README.md](ui/README.md)。
-- **空态与「无法打开」是最"默认 shadcn"的两屏**——为什么：空态是默认 `Empty`；「无法打开」整块红字、无动作。加载骨架三条等宽灰条，暗色对卡片 1.19:1。判据：「无法打开」给出一个动作（回到默认视图／打开列表），文案与图标与空态同一形制；骨架按列名给不等宽条；暗色骨架 ≥1.5:1。落点：`src/ui/WorkbenchShell.tsx`、`src/ui/RecordTable.tsx`、[ui/README.md](ui/README.md)。
 
 ## 功能（legacy 形态）
 
