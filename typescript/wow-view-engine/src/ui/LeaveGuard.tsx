@@ -15,7 +15,6 @@ import type { LeaveGuard } from '../react/index.js';
 import type { ViewMessages } from './messages.js';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -24,6 +23,7 @@ import {
 } from './components/alert-dialog.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { AlertDialogContent } from './popups.js';
+import { DestructiveAction } from './variants.js';
 
 export interface LeaveDialogProps {
   /** The headless guard from `useWorkbench`; this only draws its question. */
@@ -69,12 +69,9 @@ export function LeaveDialog({ leave, messages: wording }: LeaveDialogProps) {
           <AlertDialogCancel>
             {messages.label('label.leave.stay')}
           </AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            onClick={() => leave.confirm()}
-          >
+          <DestructiveAction onClick={() => leave.confirm()}>
             {messages.label('label.leave.leave')}
-          </AlertDialogAction>
+          </DestructiveAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

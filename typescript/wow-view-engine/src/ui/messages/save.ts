@@ -31,7 +31,10 @@ export const saveMessages = {
   // so on its own it announces nothing.
   'label.save.saved': 'Saved',
   'label.save.saved-announce': 'View saved',
-  'label.delete.confirm': 'Delete this view?',
+  // Named, because the dialog covers the row it is about: a manager row is
+  // one of a list, the confirmation opens over it, and "this view" then
+  // points at something the reader can no longer see.
+  'label.delete.confirm': 'Delete “{title}”?',
   // The base sentence says the one thing that is true of every delete, and
   // says it without the two below: they are composed after it, and a base
   // that already spoke for everyone would repeat the shared one.

@@ -15,7 +15,6 @@ import type { RefObject } from 'react';
 import { audienceOf, type ViewInstanceSummary } from '../model/index.js';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -24,6 +23,7 @@ import {
 } from './components/alert-dialog.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { AlertDialogContent } from './popups.js';
+import { DestructiveAction } from './variants.js';
 
 /**
  * Deleting says what it costs, and only what it costs: the base sentence
@@ -73,7 +73,12 @@ export function DeleteDialog({
       <AlertDialogContent finalFocus={finalFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {messages.label('label.delete.confirm')}
+            {/* The view is named rather than pointed at: this dialog opens
+                over the manager's list and covers the very row it is about,
+                so "this view" names something the reader cannot see any
+                more — and the second confirmation of a conflicted delete is
+                about a view that may have changed since the first. */}
+            {messages.label('label.delete.confirm', { title: item.title })}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {consequences.join(' ')}
@@ -83,9 +88,9 @@ export function DeleteDialog({
           <AlertDialogCancel>
             {messages.label('label.delete.keep')}
           </AlertDialogCancel>
-          <AlertDialogAction variant="destructive" onClick={onConfirm}>
+          <DestructiveAction onClick={onConfirm}>
             {messages.label('label.manage.delete')}
-          </AlertDialogAction>
+          </DestructiveAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

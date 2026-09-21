@@ -376,8 +376,7 @@ describe('ViewManager rows', () => {
     fireEvent.click(
       within(row('Yours')).getByRole('button', { name: 'Delete' }),
     );
-    const confirm = await screen.findByText('Delete this view?');
-    const dialog = confirm.closest('[role="alertdialog"]') as HTMLElement;
+    const dialog = await screen.findByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
     await waitFor(async () =>
@@ -400,8 +399,7 @@ describe('ViewManager rows', () => {
     fireEvent.click(
       within(row('Yours')).getByRole('button', { name: 'Delete' }),
     );
-    const confirm = await screen.findByText('Delete this view?');
-    const dialog = confirm.closest('[role="alertdialog"]') as HTMLElement;
+    const dialog = await screen.findByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
     await waitFor(async () =>
@@ -421,12 +419,58 @@ describe('ViewManager rows', () => {
     fireEvent.click(
       within(row('Yours')).getByRole('button', { name: 'Delete' }),
     );
-    const confirm = await screen.findByText('Delete this view?');
-    const dialog = confirm.closest('[role="alertdialog"]') as HTMLElement;
+    const dialog = await screen.findByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Keep it' }));
 
     const heading = screen.getByText('Manage views');
     await waitFor(() => expect(document.activeElement).toBe(heading));
+  });
+
+  /**
+   * The question names the view, because the dialog covers the row it is
+   * about: the confirmation opens over the manager's list, and "this view"
+   * then pointed at a row the reader could no longer see — one of several,
+   * all of which the same button opens the same dialog from.
+   */
+  it('names the view it is about in the question', async () => {
+    const { engine } = setup();
+    await manage(engine);
+
+    fireEvent.click(
+      within(row('Yours')).getByRole('button', { name: 'Delete' }),
+    );
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByRole('heading').textContent).toBe(
+      'Delete “Yours”?',
+    );
+  });
+
+  /**
+   * The answer that deletes is a *solid* destructive button, not the
+   * registry's 10% wash: the wash leaves `--destructive` reading against a
+   * surface it has been lightened towards, which measured 3.97:1 at 14px —
+   * under 1.4.3's 4.5. Pinned by the variant's classes rather than by
+   * colour, because jsdom loads no stylesheet; the browser stories
+   * `DeleteActionContrastIn*Theme` are where the ratio itself is measured.
+   */
+  it('confirms with a solid destructive button', async () => {
+    const { engine } = setup();
+    await manage(engine);
+
+    fireEvent.click(
+      within(row('Yours')).getByRole('button', { name: 'Delete' }),
+    );
+
+    const dialog = await screen.findByRole('alertdialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete' });
+    expect(confirm.classList.contains('bg-destructive')).toBe(true);
+    expect(confirm.classList.contains('dark:bg-destructive')).toBe(true);
+    expect(confirm.classList.contains('text-destructive-foreground')).toBe(
+      true,
+    );
+    expect(confirm.classList.contains('bg-destructive/10')).toBe(false);
+    expect(confirm.classList.contains('text-destructive')).toBe(false);
   });
 
   /**
@@ -440,9 +484,7 @@ describe('ViewManager rows', () => {
     fireEvent.click(
       within(row('Mine')).getByRole('button', { name: 'Delete' }),
     );
-    const mine = (await screen.findByText('Delete this view?')).closest(
-      '[role="alertdialog"]',
-    ) as HTMLElement;
+    const mine = await screen.findByRole('alertdialog');
     // The open view, with edits: personal, so no word about other people.
     expect(mine.textContent).toContain('Only the view is removed');
     expect(mine.textContent).toContain('Unsaved changes go with it.');
@@ -456,9 +498,7 @@ describe('ViewManager rows', () => {
     fireEvent.click(
       within(row('Ours')).getByRole('button', { name: 'Delete' }),
     );
-    const shared = (await screen.findByText('Delete this view?')).closest(
-      '[role="alertdialog"]',
-    ) as HTMLElement;
+    const shared = await screen.findByRole('alertdialog');
     expect(shared.textContent).toContain('Everyone who uses it loses it.');
     // Not the open view, so nothing unsaved goes with it.
     expect(shared.textContent).not.toContain('Unsaved changes');
@@ -831,18 +871,14 @@ describe('ViewManager outcomes', () => {
     fireEvent.click(
       within(row('Yours')).getByRole('button', { name: 'Delete' }),
     );
-    const first = (await screen.findByText('Delete this view?')).closest(
-      '[role="alertdialog"]',
-    ) as HTMLElement;
+    const first = await screen.findByRole('alertdialog');
     fireEvent.click(within(first).getByRole('button', { name: 'Delete' }));
 
     await screen.findByText('Someone else saved this view first');
     fireEvent.click(screen.getByRole('button', { name: 'Keep mine' }));
 
     // Not deleted yet: the destructive answer is the dialog's, not the line's.
-    const second = (await screen.findByText('Delete this view?')).closest(
-      '[role="alertdialog"]',
-    ) as HTMLElement;
+    const second = await screen.findByRole('alertdialog');
     expect((await store.list('orders')).map(item => item.id)).toContain(
       'orders-2',
     );
@@ -865,9 +901,7 @@ describe('ViewManager outcomes', () => {
     fireEvent.click(
       within(row('Yours')).getByRole('button', { name: 'Delete' }),
     );
-    const confirm = (await screen.findByText('Delete this view?')).closest(
-      '[role="alertdialog"]',
-    ) as HTMLElement;
+    const confirm = await screen.findByRole('alertdialog');
     fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
 
     await screen.findByText('The result never came back');
@@ -1177,9 +1211,7 @@ describe('managing views from the workbench', () => {
   async function remove(title: string) {
     await manage();
     fireEvent.click(within(row(title)).getByRole('button', { name: 'Delete' }));
-    const confirm = (await screen.findByText('Delete this view?')).closest(
-      '[role="alertdialog"]',
-    ) as HTMLElement;
+    const confirm = await screen.findByRole('alertdialog');
     fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
   }
 

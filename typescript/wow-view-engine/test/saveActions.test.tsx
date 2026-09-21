@@ -478,6 +478,37 @@ describe('WriteOutcome', () => {
     return opened;
   }
 
+  /**
+   * D12 Ⅰ. None of the three is recommended, and they are drawn in the order
+   * of what they cost: adopt the server's copy, keep a copy of your own, put
+   * yours over theirs. The overwrite used to be the solid primary — the most
+   * dangerous of the three, and the only emphasised thing on the screen.
+   *
+   * Pinned by role, name and order, with the variant read off the class
+   * only to say that none of them is the primary: jsdom loads no stylesheet,
+   * so nothing here is painted and the colour itself belongs to the browser
+   * stories.
+   */
+  it('offers the three ways out of a conflict, safest first and none of them emphasised', async () => {
+    await conflicted();
+
+    const strip = document.querySelector<HTMLElement>(
+      '[data-slot="write-outcome"]',
+    )!;
+    const buttons = [...strip.querySelectorAll<HTMLElement>('button')];
+
+    expect(buttons.map(button => button.textContent)).toEqual([
+      'Take theirs',
+      'Save my copy',
+      'Keep mine',
+    ]);
+    expect(
+      buttons.filter(button => button.classList.contains('bg-primary')),
+    ).toEqual([]);
+    for (const button of buttons)
+      expect(button.classList.contains('border-border')).toBe(true);
+  });
+
   it('puts the choice once more, with both ways of looking side by side', async () => {
     await conflicted();
 

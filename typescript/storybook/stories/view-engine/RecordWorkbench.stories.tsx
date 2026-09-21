@@ -434,8 +434,11 @@ const breakableActions: RecordActionSlots = {
 };
 
 const businessActions: RecordActionSlots = {
+  // `outline`, not the default: the one primary on a screen is the Apply that
+  // runs the query (D12 Ⅰ), and a host that put its own button in that weight
+  // would be the second primary the moment the editor band is open.
   global: () => (
-    <Button size="sm" onClick={() => alert('新建订单')}>
+    <Button variant="outline" size="sm" onClick={() => alert('新建订单')}>
       新建订单
     </Button>
   ),
@@ -827,11 +830,15 @@ export const NarrowTitleBar: Story = { args: { narrowHost: true } };
  * 条、不排序——于是乐观版本对不上，引擎把结果记成 `kind: 'conflict'`，标题栏
  * 下面那条带边框的行就是它。
  *
- * 三条出路都画在那一行上：**Take theirs** 丢掉草稿改用服务端那份，**Keep
- * mine** 把自己这份盖上去，**Save my copy** 另存一份、两边都留着。前两条都会
- * 先把同一个选择再问一遍（`ConflictConfirm`），因为两边都有从按钮上看不见的
- * 损失——对话框里用 `describeConfig` 把两份配置各说成一句话摆在一起，这里正好
- * 三处不同：每页多少条、几列、几条排序。
+ * 三条出路都画在那一行上，**按代价从小到大**：**Take theirs** 丢掉草稿改用服
+ * 务端那份，**Save my copy** 另存一份、两边都留着，**Keep mine** 把自己这份盖
+ * 上去。三颗都是 `outline`——哪一条损失最小取决于两份配置里各有什么，屏幕不替
+ * 谁作主；这一屏唯一的 primary 始终是跑查询的那个 Apply（D12 Ⅰ）。从前最危险
+ * 的那一条（盖上去）是实心 primary，也就是整屏唯一被强调的东西。
+ *
+ * 取服务端那份与盖上去都会先把同一个选择再问一遍（`ConflictConfirm`），因为两
+ * 边都有从按钮上看不见的损失——对话框里用 `describeConfig` 把两份配置各说成一
+ * 句话摆在一起，这里正好三处不同：每页多少条、几列、几条排序。
  *
  * 冲突只安排了一次：答完之后的写入照常落库，所以「盖上去」是真的盖上去了。
  */

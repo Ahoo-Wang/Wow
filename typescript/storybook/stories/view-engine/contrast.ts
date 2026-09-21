@@ -80,6 +80,82 @@ export function measureTextContrast(element: Element): TextContrast {
   };
 }
 
+/** What two stacked surfaces came to, and what the lower one was dimmed by. */
+export interface LayerSeparation {
+  /**
+   * The better of the two below — what tells the layers apart at all. A
+   * light theme separates them by the scrim, a dark one by the edge: near
+   * black there is nothing left for a scrim to darken.
+   */
+  ratio: number;
+  /** The upper surface's own fill against the dimmed one behind it. */
+  onFill: number;
+  /** The upper surface's ring against that same dimmed one. */
+  onRing: number;
+  /** The three composited colours as CSS, so a failure says what it saw. */
+  colors: { front: string; ring: string; behind: string };
+}
+
+/**
+ * How far a popup stands off the surface it was opened from.
+ *
+ * A dialog raised from inside another dialog is two cards of the same
+ * `bg-popover`, so on its own the upper one is invisible against the lower —
+ * 1.00:1, a white card dropped into a white card. What separates them is the
+ * backdrop the upper one brings, and a backdrop is a *half-transparent* layer
+ * over a surface it is not an ancestor of: `getComputedStyle` on the covered
+ * card still reports its own colour, so the composition has to be done here.
+ */
+export function measureLayerSeparation(
+  front: Element,
+  backdrop: Element,
+  behind: Element,
+): LayerSeparation {
+  const above = paintedSurface(front);
+  const dimmed = composite(
+    layer(getComputedStyle(backdrop).backgroundColor),
+    paintedSurface(behind),
+  );
+  // The ring is drawn outside the popup's own box, so it lands on the dimmed
+  // surface rather than on the card it belongs to.
+  const ring = composite(ringLayer(getComputedStyle(front).boxShadow), dimmed);
+  const onFill = contrastRatio(above, dimmed);
+  const onRing = contrastRatio(ring, dimmed);
+  return {
+    ratio: Math.max(onFill, onRing),
+    onFill,
+    onRing,
+    colors: { front: css(above), ring: css(ring), behind: css(dimmed) },
+  };
+}
+
+/**
+ * The colour a computed `box-shadow` actually paints, as a layer.
+ *
+ * Tailwind v4 writes `box-shadow` as five slots — inset shadow, inset ring,
+ * ring offset, ring, shadow — and the ones nothing filled are still there as
+ * `rgba(0, 0, 0, 0)`. So this is the first colour with any opacity to it
+ * rather than simply the first, and an element with no shadow at all comes
+ * back fully transparent: composited, that is the surface behind it, which
+ * is exactly what "no ring" should measure as.
+ */
+function ringLayer(boxShadow: string): Layer {
+  const colors = boxShadow.match(/[a-z-]+\([^)]*\)|#[0-9a-f]{3,8}/gi) ?? [];
+  for (const color of colors) {
+    const painted = layer(color);
+    if (painted.alpha > 0) return painted;
+  }
+  return { r: 0, g: 0, b: 0, alpha: 0 };
+}
+
+/** One element's own background over whatever it is painted on. */
+function paintedSurface(element: Element): Opaque {
+  return composite(
+    layer(getComputedStyle(element).backgroundColor),
+    surfaceUnder(element.parentElement),
+  );
+}
+
 /**
  * The border of one control, measured against what is behind it.
  *

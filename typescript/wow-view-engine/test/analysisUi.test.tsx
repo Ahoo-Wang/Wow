@@ -892,9 +892,7 @@ describe('deleting the open analysis', () => {
       candidate.textContent?.includes('By warehouse'),
     ) as HTMLElement;
     fireEvent.click(within(row).getByRole('button', { name: 'Delete' }));
-    const confirm = (await screen.findByText('Delete this view?')).closest(
-      '[role="alertdialog"]',
-    ) as HTMLElement;
+    const confirm = await screen.findByRole('alertdialog');
     fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
 

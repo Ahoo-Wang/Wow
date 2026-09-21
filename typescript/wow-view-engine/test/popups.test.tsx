@@ -322,6 +322,41 @@ describe('an alert dialog themes its backdrop as well as its surface', () => {
   });
 
   /**
+   * And dims harder than the registry's 10% tint. Two of the three alert
+   * dialogs this package opens are raised from *inside* another dialog — a
+   * delete from a row of the view manager — where 10% over 10% comes to 19%
+   * and the confirmation reads as a second white card in the list rather
+   * than as the one question being asked. jsdom paints nothing, so this pins
+   * the class; the browser story measures what it comes to.
+   */
+  it('dims what is behind it harder than a plain dialog', async () => {
+    render(
+      <ViewSurface theme="light">
+        <AlertDialog open>
+          <AlertDialogContent>
+            <AlertDialogTitle>Delete</AlertDialogTitle>
+          </AlertDialogContent>
+        </AlertDialog>
+      </ViewSurface>,
+    );
+
+    await screen.findByRole('alertdialog');
+    const backdrop = document.querySelector<HTMLElement>(
+      '[data-slot="alert-dialog-overlay"]',
+    );
+
+    expect(backdrop?.classList.contains('bg-black/50')).toBe(true);
+    expect(backdrop?.classList.contains('bg-black/10')).toBe(false);
+    // And its own card is ringed heavily enough to stand on another card,
+    // which is the half of this a scrim cannot do: near black there is
+    // nothing left to darken, so the dark theme separates the two layers by
+    // this edge alone.
+    expect(
+      screen.getByRole('alertdialog').classList.contains('ring-foreground/40'),
+    ).toBe(true);
+  });
+
+  /**
    * The whole reason these three confirmations moved off `Dialog`: a click on
    * the page behind a destructive question must not answer it.
    */
@@ -570,12 +605,25 @@ describe('every popup opens on the popup layer', () => {
  * updated with `shadcn add --diff`, so this renders both and compares what
  * the browser is handed — every class, the slot, and the parts inside.
  * Everything this file adds deliberately (the root class, the surface mode,
- * the stacking level) is named below; anything else that differs is drift.
+ * the stacking level, and the alert dialog's heavier ring) is named below;
+ * anything else that differs is drift.
  */
 describe('the composed popups keep step with the registry', () => {
-  /** Classes, without the one this file puts in front of the copy. */
+  /**
+   * Classes, with the two deliberate departures normalised away: the root
+   * class this file puts in front of every copy, and the one weight it
+   * raises — the alert dialog's ring, which has to hold a card standing on
+   * another card (`ALERT_DIALOG_RAISED`). Normalised rather than dropped, so
+   * the registry moving that ring to another token is still drift and still
+   * fails here.
+   */
   const classesOf = (element: Element) =>
-    [...element.classList].filter(name => name !== 'fve-root').sort();
+    [...element.classList]
+      .filter(name => name !== 'fve-root')
+      .map(name =>
+        name === 'ring-foreground/40' ? 'ring-foreground/10' : name,
+      )
+      .sort();
 
   /** The parts inside, with Base UI's per-render ids made comparable. */
   const partsOf = (element: Element) =>

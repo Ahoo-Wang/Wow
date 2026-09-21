@@ -122,6 +122,48 @@ const POPUP_LAYER: React.CSSProperties = {
   zIndex: 'var(--fve-popup-z-index, 50)',
 };
 
+/**
+ * How hard a destructive question dims what is behind it.
+ *
+ * The registry's own backdrop — `bg-black/10` for both the dialog and the
+ * alert dialog — is a tint, and it is the same tint twice: an alert dialog
+ * raised from inside a dialog puts 10% black over 10% black, which comes to
+ * 19% and reads as one flat surface with a second white card on it. The
+ * number below is the dim a modal question is usually given, and it is a
+ * deliberate departure from the vendored class rather than drift, which is
+ * why it is named here and not folded into the copies above. It is not a
+ * theme colour: black at an opacity is what a backdrop is in this registry,
+ * light theme and dark alike, and `--fve-*` moves what is *under* it.
+ *
+ * Only the destructive dialog takes it. A plain `Dialog` — save-as, the
+ * manager, the export window — is a place to do something rather than a
+ * question with a cost, and the registry's tint is right for those: they
+ * are the ones a user reads the page *around*.
+ */
+const ALERT_DIALOG_BACKDROP_DIM = 'bg-black/50';
+
+/**
+ * The edge the destructive dialog's own card is raised by, over the ring the
+ * registry gives it.
+ *
+ * A scrim separates two surfaces by darkening the lower one, and near black
+ * there is nothing left to darken: the dark theme paints both this card and
+ * the manager under it in `--popover` (`oklch(0.205)`), and 50% black takes
+ * the lower one from `rgb(23,23,23)` to `rgb(12,12,12)` — **1.09:1**, which
+ * is below even the 1.5 this package holds a dark hairline to. So the upper
+ * layer carries its own edge: the registry's `ring-foreground/10` is a hint
+ * on a page that has nothing else on it, and this is the same ring at the
+ * weight a card standing on another card needs. It is a semantic token at a
+ * different opacity, so it flips with the theme and moves with the host's
+ * `--fve-foreground` like the ring it replaces.
+ *
+ * It is the one class this copy adds to the vendored popup's, which is why
+ * it is named here rather than edited into `ALERT_DIALOG_POPUP_CLASS` — the
+ * copy stays a copy, and `test/popups.test.tsx` names this addition
+ * alongside the root class when it compares the two renders.
+ */
+const ALERT_DIALOG_RAISED = 'ring-foreground/40';
+
 /** The vendored positioner's classes, copied verbatim from `components/`. */
 const POSITIONER_CLASS = 'isolate z-50';
 const MENU_POSITIONER_CLASS = 'isolate z-50 outline-none';
@@ -152,6 +194,20 @@ const TOOLTIP_ARROW_CLASS =
  * surface's mode and the popup layer. What it deliberately does not carry is
  * a close button: an alert dialog asks a question with a cost, and the answer
  * is one of the two in the footer rather than a corner that dismisses it.
+ *
+ * Three things here are not the registry's as it ships, and all three are
+ * about the same fact: two of the questions this draws open on **top of
+ * another dialog** — a delete and its second confirmation are raised from a
+ * row of the view manager, which is itself a `Dialog` over a dimmed page.
+ *
+ * The backdrop is `forceRender`, because Base UI does not render a nested
+ * backdrop unless asked; without it the confirmation opened with no dimming
+ * of its own and the list behind it never moved. It dims at
+ * `ALERT_DIALOG_BACKDROP_DIM` rather than the registry's 10%, because 10%
+ * over a page that is already dimmed 10% is 19% — the confirmation read as a
+ * second white card dropped into the list rather than as the one thing being
+ * asked. And the card itself carries `ALERT_DIALOG_RAISED`, which is what
+ * separates the two layers where a scrim cannot.
  */
 export function AlertDialogContent({
   className,
@@ -163,7 +219,15 @@ export function AlertDialogContent({
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay
-        className="fve-root"
+        // Base UI drops a backdrop that is nested inside another dialog's
+        // unless it is asked for by name, and two of the three questions
+        // this component draws *are* nested: a delete is raised from a row
+        // of the view manager, which is itself a `Dialog`. Left to the
+        // default, the confirmation opened with no dimming of its own at
+        // all — the manager's own 10% tint stayed exactly as it was, and a
+        // white card appeared in the middle of a list that had not moved.
+        forceRender
+        className={cn('fve-root', ALERT_DIALOG_BACKDROP_DIM)}
         style={POPUP_LAYER}
         data-theme={theme}
       />
@@ -171,7 +235,10 @@ export function AlertDialogContent({
         data-slot="alert-dialog-content"
         data-size={size}
         {...props}
-        className={withClass(ALERT_DIALOG_POPUP_CLASS, themedClass(className))}
+        className={withClass(
+          `${ALERT_DIALOG_POPUP_CLASS} ${ALERT_DIALOG_RAISED}`,
+          themedClass(className),
+        )}
         style={layered(style)}
         data-theme={theme}
       />

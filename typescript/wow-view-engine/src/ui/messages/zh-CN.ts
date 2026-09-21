@@ -33,7 +33,7 @@ export const zhCN: ViewMessages = {
   'label.save.saving': '保存中…',
   'label.save.saved': '已保存',
   'label.save.saved-announce': '视图已保存',
-  'label.delete.confirm': '删除这个视图？',
+  'label.delete.confirm': '删除「{title}」？',
   'label.delete.consequence': '只删除视图，记录仍然保留。',
   'label.delete.shared-consequence': '用到它的人都会失去它。',
   'label.delete.dirty-consequence': '未保存的修改会一并删掉。',

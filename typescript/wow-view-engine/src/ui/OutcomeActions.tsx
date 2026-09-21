@@ -91,6 +91,14 @@ export function OutcomeActions({
   const messages = useViewMessages();
   const size = surface === 'row' ? 'xs' : 'sm';
 
+  // A conflict's three ways out are all `outline`, and they are drawn safest
+  // first: adopt the server's copy, keep a copy of your own, put yours over
+  // theirs. The overwrite used to be the solid primary — the most dangerous
+  // of the three, and the only emphasised thing on the screen. Nothing here
+  // is a recommendation: which of the three costs least depends on what is
+  // in each config, which is why two of them ask again with both configs
+  // side by side. The one primary a screen has is the Apply that runs the
+  // query (D12 Ⅰ).
   if (state.kind === 'conflict')
     return (
       <OutcomeLine surface={surface} tone="error">
@@ -131,6 +139,7 @@ export function OutcomeActions({
               )}
               {actions.overwrite && (
                 <Button
+                  variant="outline"
                   size={size}
                   disabled={pending}
                   onClick={actions.overwrite}

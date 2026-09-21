@@ -26,6 +26,7 @@ import { describeConfig } from './describeConfig.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { AlertDialogContent } from './popups.js';
+import { DestructiveAction } from './variants.js';
 
 /**
  * The same choice, put once more with both configs on the table.
@@ -76,14 +77,22 @@ export function ConflictConfirm({
           <AlertDialogCancel>
             {messages.label('label.dialog.cancel')}
           </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() => choice !== null && onConfirm(choice)}
-            variant={taking ? 'default' : 'destructive'}
-          >
-            {messages.label(
-              taking ? 'label.conflict.theirs' : 'label.conflict.mine',
-            )}
-          </AlertDialogAction>
+          {/* Adopting the server's copy is the ordinary answer; putting the
+              local one over it is the destructive one, and takes the solid
+              fill every destructive answer in this package wears. */}
+          {taking ? (
+            <AlertDialogAction
+              onClick={() => choice !== null && onConfirm(choice)}
+            >
+              {messages.label('label.conflict.theirs')}
+            </AlertDialogAction>
+          ) : (
+            <DestructiveAction
+              onClick={() => choice !== null && onConfirm(choice)}
+            >
+              {messages.label('label.conflict.mine')}
+            </DestructiveAction>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

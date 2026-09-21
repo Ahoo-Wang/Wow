@@ -21,14 +21,15 @@
  * component** holding a cva of its own. The vendored cva stays untouched and
  * is still composed — the wrapper picks the registry variant its case starts
  * from and adds one layer over it — and the call site passes a variant
- * rather than a colour. Three cases live here: a badge that has to read as a
- * status, the controls inside a condition pill, which draw no chrome of
- * their own, and the open view in the sidebar. The fourth is `ui/alerts.tsx`,
- * where `LineAlert` does the same thing to `Alert`; a callout has enough of
- * its own to say (the tone's icon, the role it is announced with) to be a
- * file rather than an export here.
+ * rather than a colour. Four cases live here: a badge that has to read as a
+ * status, the answer that carries out a destructive command, the controls
+ * inside a condition pill, which draw no chrome of their own, and the open
+ * view in the sidebar. The fifth is `ui/alerts.tsx`, where `LineAlert` does
+ * the same thing to `Alert`; a callout has enough of its own to say (the
+ * tone's icon, the role it is announced with) to be a file rather than an
+ * export here.
  *
- * A fourth case does not belong here: a *layout* class at a call site —
+ * One kind of class does not belong here: a *layout* class at a call site —
  * a width, a gap, a `justify-start` — is what `className` is for and stays
  * where it is used.
  */
@@ -37,6 +38,7 @@ import type * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';
 import type { FieldTone } from '../model/index.js';
+import { AlertDialogAction } from './components/alert-dialog.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import { Input } from './components/input.js';
@@ -137,6 +139,55 @@ export function ToneBadge({
       data-tone={tone}
       variant={TONE_BASE[tone]}
       className={cn(toneBadgeVariants({ tone }), className)}
+      {...props}
+    />
+  );
+}
+
+/**
+ * The answer that goes through with a delete, a discard or an overwrite.
+ *
+ * Same correction as the badge above, for the same reason and against the
+ * same token. The registry's `destructive` button variant is a wash —
+ * `bg-destructive/10` with `text-destructive` on it — and a wash leaves the
+ * hue reading against a surface it has been lightened towards: the delete
+ * confirmation's own button measured **3.97:1 at 14px** in the light theme,
+ * short of WCAG 1.4.3's 4.5. That variant is the registry's way of drawing a
+ * *quiet* destructive control in a row of others; the last answer of an
+ * alert dialog is not quiet, and it is body-sized text rather than a 12px
+ * badge, so there is nothing to fall back on.
+ *
+ * So the fill is the token and the ink is the token's own `-foreground`,
+ * which is the pairing `styles.css` picked these steps for and which flips
+ * with the theme by itself. The fill is said twice, unprefixed and `dark:`,
+ * because the variant says its own twice (`bg-destructive/10` *and*
+ * `dark:bg-destructive/20`) and only an unprefixed override replaces the
+ * unprefixed one — without the second line the dark theme keeps the 20%
+ * wash and the correction is true in one theme out of two. The hover step
+ * goes the same way. Everything else is still the registry's: the shape, the
+ * focus ring and its dark counterpart, which is why this composes
+ * `variant="destructive"` rather than replacing it.
+ */
+const destructiveActionVariants = cva([
+  'bg-destructive dark:bg-destructive text-destructive-foreground',
+  'hover:bg-destructive/90 dark:hover:bg-destructive/90',
+]);
+
+/**
+ * The confirming answer of a destructive `AlertDialog`.
+ *
+ * Every one of them is this component — `DeleteDialog`, `LeaveGuard` and the
+ * overwrite side of `ConflictConfirm` — so there is one destructive answer in
+ * the package and no call site spells a colour.
+ */
+export function DestructiveAction({
+  className,
+  ...props
+}: Omit<React.ComponentProps<typeof AlertDialogAction>, 'variant'>) {
+  return (
+    <AlertDialogAction
+      variant="destructive"
+      className={cn(destructiveActionVariants(), className)}
       {...props}
     />
   );
