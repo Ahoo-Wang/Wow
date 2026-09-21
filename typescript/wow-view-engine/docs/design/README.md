@@ -22,6 +22,7 @@
 | [extension.md](extension.md)       | 扩展点（`FieldKind`、数据源、持久化、动作槽位、外观）与 Wow 协议的对应                          |
 | [decisions.md](decisions.md)       | 界面已经体现的产品决定，以及搁置待议的问题                                                      |
 | [todo.md](todo.md)                 | 已决定但尚未做的事；完成即删                                                                    |
+| [progress.md](progress.md)         | 本轮到哪了：已落地的、复验过的、暂停点与下一步；每个暂停点重写                                  |
 
 ## 定位与第一性原理
 
