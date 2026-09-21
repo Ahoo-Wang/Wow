@@ -26,6 +26,7 @@ import {
   ViewEngine,
   type FilterTree,
   type ViewInstance,
+  type RecordViewRuntime,
 } from '../src/index.js';
 import {
   treeController,
@@ -494,7 +495,7 @@ describe('useFilterEditor pending and applied', () => {
     expect(filter().pendingCount).toBe(2);
   });
 
-  it('says nothing is pending for a draft over the tree budget', async () => {
+  it('counts a draft over the tree budget as one edit, without walking it', async () => {
     const result = await openEditor();
     const filter = () => result.current.filter;
 
@@ -506,13 +507,52 @@ describe('useFilterEditor pending and applied', () => {
     expect(filter().issues.map(found => found.code)).toContain(
       'filter.tree.too-deep',
     );
-    // The panel does not draw a tree admission refused, so there is no pill
-    // to mark and nothing to offer to apply — and comparing it is work the
-    // editor would repeat on every render for an answer nobody reads.
-    expect(filter().pending).toBe(false);
-    expect(filter().pendingCount).toBe(0);
+    // Apply refused it, so it stands apart from what ran: that is pending
+    // (D17-6). But the panel draws no tree admission refused, so there is
+    // no pill to mark, and a tree from a store may hold a cycle — it counts
+    // as one edit and is not compared node by node.
+    expect(filter().pending).toBe(true);
+    expect(filter().pendingCount).toBe(1);
+    expect(filter().conditionsPending).toBe(true);
     expect(filter().isPending([0])).toBe(false);
     expect(filter().applied).toEqual([]);
+  });
+
+  /**
+   * D17-6: the credential is the whole config. A sort, a page size or a
+   * filter mode edited and not applied — or applied and refused — used to
+   * leave the dot dark while the rows answered another configuration.
+   */
+  it('counts every member of the config that differs from what was applied', async () => {
+    const result = await openEditor();
+    const filter = () => result.current.filter;
+    const runtime = () => result.current.opened.runtime;
+
+    act(() =>
+      (runtime() as RecordViewRuntime | null)?.edit({
+        sort: [{ field: 'amount', direction: 'DESC' }],
+      }),
+    );
+
+    expect(filter().pending).toBe(true);
+    expect(filter().pendingCount).toBe(1);
+    // The conditions did not move, so there is nothing for discard to put
+    // back: the dot is on, the discard button is not.
+    expect(filter().conditionsPending).toBe(false);
+
+    act(() => filter().setMode('advanced'));
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().updateLeaf([0], { value: 'CN' });
+    });
+    // One per member, and the conditions node by node.
+    expect(filter().pendingCount).toBe(3);
+    expect(filter().conditionsPending).toBe(true);
+
+    act(() => filter().submit());
+    expect(filter().pending).toBe(false);
+    expect(filter().pendingCount).toBe(0);
+    expect(filter().conditionsPending).toBe(false);
   });
 
   it('keeps summarising the result while the draft goes over budget', async () => {
@@ -534,7 +574,7 @@ describe('useFilterEditor pending and applied', () => {
     expect(filter().issues.map(found => found.code)).toContain(
       'filter.tree.too-deep',
     );
-    expect(filter().pending).toBe(false);
+    expect(filter().pending).toBe(true);
     // The rows on screen are still the narrow ones: what produced them was
     // admitted before it ran, so it is within budget whatever the draft has
     // since become. A summary that blanked while the user edited would stop
@@ -595,7 +635,10 @@ describe('useFilterEditor pending and applied', () => {
     expect(filter().applied).toHaveLength(1);
     act(() => filter().updateLeaf([0], { value: 'US' }));
     expect(filter().pending).toBe(true);
-    expect(filter().pendingCount).toBe(1);
+    // The edited condition, and the metric whose edit has not run either
+    // (D17-6 counts every member) — but not the metric's oversized tree as
+    // if it were this editor's.
+    expect(filter().pendingCount).toBe(2);
     expect(filter().isPending([0])).toBe(true);
   });
 

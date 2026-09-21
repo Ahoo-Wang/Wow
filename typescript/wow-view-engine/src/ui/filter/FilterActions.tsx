@@ -56,10 +56,11 @@ export function FilterActions({
           })}
         </span>
       )}
-      {filter.pending && (
-        // Only while the draft says something the rows do not: with nothing
-        // unapplied there is nothing to put back, and a button that would
-        // change nothing is a button that teaches nothing.
+      {filter.conditionsPending && (
+        // Only while the conditions say something the rows do not: discard
+        // puts the conditions back and nothing else, so a sort or a page
+        // size waiting for Apply does not bring it out — a button that
+        // would change nothing is a button that teaches nothing.
         <Button
           variant="ghost"
           size="sm"

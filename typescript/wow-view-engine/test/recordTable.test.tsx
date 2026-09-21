@@ -94,7 +94,6 @@ function tableController(
     layouts: ['table', 'card'],
     setLayout: () => {},
     columnFields: ['amount', 'warehouse'],
-    hiddenOf: () => false,
     setColumns: () => {},
     setColumnOrder: () => {},
     pinnedOf: () => null,

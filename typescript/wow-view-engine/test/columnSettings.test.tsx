@@ -117,7 +117,6 @@ describe('the column settings model', () => {
     actions: false,
     summaryFields: [] as readonly string[],
     pinnedOf: () => null,
-    hiddenOf: () => false,
     summaryOf: () => null,
   };
 
@@ -203,92 +202,6 @@ describe('the column settings model', () => {
     expect(nextPin(null)).toBe('left');
     expect(nextPin('left')).toBe('right');
     expect(nextPin('right')).toBeNull();
-  });
-
-  /**
-   * A column switched off keeps its entry in the config, so it keeps its
-   * place in the list — the point of the whole member (D17-8). It is listed
-   * where it sits rather than at the end with the fields that were never
-   * columns, it may be dragged there, and it is not counted among the
-   * columns the table has to keep one of.
-   */
-  describe('a column switched off', () => {
-    const withHidden = {
-      ...input,
-      fields: [...FIELDS, NOTE],
-      columns: ['id', 'amount', 'warehouse', 'note'],
-      hiddenOf: (field: string) => field === 'amount',
-    };
-
-    it('keeps its place, its handle and its region', () => {
-      const rows = columnSettingRows(withHidden);
-
-      expect(rows.map(row => row.field)).toEqual([
-        'id',
-        'amount',
-        'warehouse',
-        'note',
-      ]);
-      expect(rows.map(row => row.visible)).toEqual([true, false, true, true]);
-      // It is in the config, so it has a place — which is what `placed`
-      // says and `visible` no longer does.
-      expect(rows.map(row => row.placed)).toEqual([true, true, true, true]);
-      expect(rows[1]).toMatchObject({
-        field: 'amount',
-        region: 'middle',
-        movable: true,
-      });
-      expect(movableFields(rows)).toEqual(['amount', 'warehouse']);
-      // Two shown columns and the key: the guard counts what is drawn.
-      expect(visibleCount(rows)).toBe(3);
-    });
-
-    /**
-     * Hiding a column clears nothing, so it is listed in the area it will
-     * come back to. Listed in the middle instead, it would jump sideways
-     * the moment it was switched on again — and the order the panel
-     * commits would have written it into the wrong area first.
-     */
-    it('is listed in the area its pinning asks for', () => {
-      const rows = columnSettingRows({
-        ...withHidden,
-        pinnedOf: (field: string) => (field === 'amount' ? 'left' : null),
-      });
-
-      expect(rows[1]).toMatchObject({ field: 'amount', region: 'left' });
-    });
-
-    /** D13's last column is the last *drawn* one, not the last entry. */
-    it('is never the column the table holds at its end', () => {
-      const rows = columnSettingRows({
-        ...input,
-        columns: ['id', 'warehouse', 'amount'],
-        hiddenOf: (field: string) => field === 'amount',
-      });
-
-      expect(rows.map(row => [row.field, row.fixed, row.region])).toEqual([
-        ['id', true, 'left'],
-        // The last column the table draws, held on the right for being it.
-        ['warehouse', true, 'right'],
-        ['amount', false, 'middle'],
-      ]);
-    });
-
-    /**
-     * The committed order covers the whole config, the switched-off column
-     * among them: it is the order it will be shown in again, so leaving it
-     * out would write a list that has lost the place being kept for it.
-     */
-    it('is part of the order a move commits', () => {
-      const rows = columnSettingRows(withHidden);
-
-      expect(reorderColumns(rows, 'warehouse', 0)).toEqual([
-        'id',
-        'warehouse',
-        'amount',
-        'note',
-      ]);
-    });
   });
 });
 
@@ -661,13 +574,8 @@ describe('the area a column is listed in', () => {
     ]);
   });
 
-  /**
-   * A field the config has never mentioned has no place in the table and no
-   * pinning either — the middle is where it joins when it is switched on.
-   * (A column that *is* in the config keeps the area it was pinned to while
-   * it is switched off; see "a column switched off" above.)
-   */
-  it('lists a field that is not a column in the middle', async () => {
+  /** A hidden column is drawn nowhere, so it is listed in the middle. */
+  it('lists a hidden column in the middle whatever it is pinned to', async () => {
     const user = userEvent.setup();
     const table = tableController({
       columnFields: ['id', 'amount'],
@@ -699,112 +607,6 @@ describe('the area a column is listed in', () => {
     // The row key is fixed and keeps its slot; there is nowhere to go.
     await user.keyboard('{ArrowUp}');
     expect(table.setColumnOrder).not.toHaveBeenCalled();
-  });
-});
-
-/**
- * A column switched off is still a column: it keeps its entry in the
- * config, so the panel lists it where it sits, drags it like any other row
- * and puts it back there when it is switched on again (D17-8). Before this
- * it fell to the end of the middle area with the fields that had never been
- * columns, and coming back meant dragging it into place a second time.
- */
-describe('a column the user switched off', () => {
-  function openHidden(hidden: string) {
-    const table = tableController({
-      columnFields: ['id', 'amount', 'warehouse', 'note'],
-      hiddenOf: (field: string) => field === hidden,
-    });
-    render(
-      <ColumnSettings table={table} fields={[...FIELDS, NOTE]} rowKey="id" />,
-    );
-    return table;
-  }
-
-  it('is listed in its own place, unticked, with a handle that works', async () => {
-    const user = userEvent.setup();
-    const table = openHidden('amount');
-
-    await user.click(screen.getByRole('button', { name: /Columns/ }));
-    // In place — not at the end with `Search`, which is a field the config
-    // has never named.
-    expect(listed()).toEqual(['id', 'amount', 'warehouse', 'note']);
-    expect(
-      screen.getByRole('checkbox', { name: 'Show Amount' }).dataset.checked,
-    ).toBeUndefined();
-
-    const handle = screen.getByRole('button', { name: 'Reorder Amount' });
-    expect(handle.hasAttribute('disabled')).toBe(false);
-    // And it says nothing about being switched off: that sentence is about
-    // the two controls that are refused, and this one is not one of them.
-    // (The library puts its own keyboard instructions on every handle, so
-    // what is checked is which description it is not.)
-    expect(handle.getAttribute('aria-describedby')).not.toBe(
-      document.querySelector('[data-field="amount"] [data-slot="column-note"]')!
-        .id,
-    );
-
-    handle.focus();
-    await user.keyboard('{ArrowDown}');
-    expect(table.setColumnOrder).toHaveBeenCalledWith([
-      'id',
-      'warehouse',
-      'amount',
-      'note',
-    ]);
-  });
-
-  /**
-   * Its pin and its summary still are: a column the table does not draw is
-   * held nowhere and has no cell under it, so both controls would write
-   * something nobody could see.
-   */
-  it('still refuses its pin and its summary, and says why', async () => {
-    const user = userEvent.setup();
-    const table = openHidden('amount');
-
-    await user.click(screen.getByRole('button', { name: /Columns/ }));
-    const pin = screen.getByRole('button', {
-      name: 'Pinning of Amount: Not pinned',
-    });
-    expect(pin.hasAttribute('disabled')).toBe(true);
-    expect(describing(pin).textContent).toContain(
-      defaultMessages['label.columns.hidden'],
-    );
-
-    await user.click(pin);
-    expect(table.setPinned).not.toHaveBeenCalled();
-  });
-
-  /**
-   * Switching it back on is one call naming the columns that are shown, in
-   * the order they are listed — the controller puts each one back where its
-   * entry already was, so nothing has to be dragged twice.
-   */
-  it('goes back on where it is, not at the end', async () => {
-    const user = userEvent.setup();
-    const table = openHidden('amount');
-
-    await user.click(screen.getByRole('button', { name: /Columns/ }));
-    await user.click(screen.getByRole('checkbox', { name: 'Show Amount' }));
-
-    expect(table.setColumns).toHaveBeenCalledWith([
-      'id',
-      'amount',
-      'warehouse',
-      'note',
-    ]);
-  });
-
-  /** And the one that is left off is simply left out of that list. */
-  it('leaves the switched-off column out of what it writes', async () => {
-    const user = userEvent.setup();
-    const table = openHidden('amount');
-
-    await user.click(screen.getByRole('button', { name: /Columns/ }));
-    await user.click(screen.getByRole('checkbox', { name: 'Show Warehouse' }));
-
-    expect(table.setColumns).toHaveBeenCalledWith(['id', 'note']);
   });
 });
 

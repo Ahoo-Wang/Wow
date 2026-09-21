@@ -85,7 +85,6 @@ export function recordTableController(
     layouts: ['table', 'card'],
     setLayout: () => {},
     columnFields: ['amount'],
-    hiddenOf: () => false,
     setColumns: () => {},
     setColumnOrder: () => {},
     pinnedOf: () => null,

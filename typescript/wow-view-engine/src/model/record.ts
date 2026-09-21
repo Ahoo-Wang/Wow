@@ -63,33 +63,10 @@ export function columnPin(value: unknown): RecordColumnPin | null {
     : null;
 }
 
-/**
- * Whether a stored column is switched off. Anything but `true` shows it.
- *
- * `hidden` is the newer member, so most configs do not carry it at all and
- * a config from a store may carry anything under that name. Read through
- * here, a config written before the member existed reads as all visible,
- * which is what it always was.
- */
-export function columnHidden(value: unknown): boolean {
-  return value === true;
-}
-
-/**
- * One column of the table layout.
- *
- * A column the user switched off keeps its entry — `hidden: true` — rather
- * than leaving the list: the entry *is* its place in the order, so a column
- * put back comes back where it was instead of at the end, and it can be
- * dragged while it is off. `projectRecord` skips it, so it is not drawn, not
- * exported, and not the column the table draws last (D13).
- */
 export interface RecordColumn {
   field: string;
   width?: number;
   pinned?: RecordColumnPin;
-  /** Present, and only ever `true`, on a column the table does not draw. */
-  hidden?: true;
 }
 
 export interface RecordSummary {

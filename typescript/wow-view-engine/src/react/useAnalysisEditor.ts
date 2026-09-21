@@ -27,7 +27,7 @@ import type {
   Issue,
 } from '../model/index.js';
 import { analysisScope, type AnalysisScope } from '../analysis/index.js';
-import type { ViewRuntime } from '../runtime/index.js';
+import { comparePending, type ViewRuntime } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
 /** One field and what the definition allows doing with it. */
@@ -61,6 +61,13 @@ export interface AnalysisEditorController {
   /** The picker groups the definition declares. */
   fieldGroups: readonly FieldGroupDefinition[];
   countable: boolean;
+  /**
+   * True while the draft says something the last Run did not (D17-6): the
+   * groups, metrics, sort, limit, chart and totals all wait for Run, and a
+   * Run that was refused leaves them waiting. The same reading as the filter
+   * editor's `pending` — both buttons run the whole draft.
+   */
+  pending: boolean;
 
   addGroup(group: AnalysisGroup): void;
   updateGroup(index: number, patch: Partial<AnalysisGroup>): void;
@@ -169,6 +176,9 @@ export function useAnalysisEditor(
     fields,
     fieldGroups: definition?.fieldGroups ?? EMPTY_GROUPS,
     countable: capability?.count === true,
+    pending: state
+      ? comparePending(state.draft, state.applied, state.issues).pending
+      : false,
 
     addGroup: useCallback(
       (group: AnalysisGroup) =>

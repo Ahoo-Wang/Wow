@@ -43,6 +43,7 @@ import {
   AnalysisTable,
   AnalysisWorkbench,
   ViewSurface,
+  defaultMessages,
   zhCN,
 } from '../src/ui/index.js';
 import type { ViewMessages } from '../src/ui/index.js';
@@ -177,6 +178,23 @@ describe('useAnalysisEditor', () => {
       groups: ['warehouse'],
       metrics: ['orders'],
     });
+  });
+
+  /**
+   * Everything in this editor waits for Run, and until then the table and
+   * the chart answer the previous configuration. D17-6: that is "changed,
+   * not applied", read off the whole draft against what ran.
+   */
+  it('reports the draft as pending until Run', async () => {
+    const result = await editor();
+    const analysis = () => result.current.analysis;
+    expect(analysis().pending).toBe(false);
+
+    act(() => analysis().setLimit(50));
+    expect(analysis().pending).toBe(true);
+
+    act(() => analysis().submit());
+    expect(analysis().pending).toBe(false);
   });
 
   it('pauses auto refresh while an editor holds focus', async () => {
@@ -951,6 +969,27 @@ describe('AnalysisEditor defaults', () => {
     fireEvent.click(screen.getByRole('button', { name: menu }));
     fireEvent.click(await screen.findByRole('menuitem', { name: item }));
   }
+
+  /** The Run button wears the dot the filter panel's Apply wears (D17-6). */
+  it('marks Run while the draft has not run', async () => {
+    await open();
+    const run = () =>
+      screen.getByRole('button', {
+        name: defaultMessages['label.analysis.run'],
+      });
+    expect(run().hasAttribute('data-pending')).toBe(false);
+
+    fireEvent.click(
+      screen.getByRole('checkbox', {
+        name: defaultMessages['label.analysis.totals'],
+      }),
+    );
+    expect(run().hasAttribute('data-pending')).toBe(true);
+    expect(run().querySelector('[data-slot="pending-dot"]')).not.toBeNull();
+
+    fireEvent.click(run());
+    await waitFor(() => expect(run().hasAttribute('data-pending')).toBe(false));
+  });
 
   /**
    * The group and metric rows are rows inside a block, so they take the

@@ -25,6 +25,7 @@ import {
   ViewEngine,
   type RecordViewRuntime,
   type ViewSource,
+  comparePending,
 } from '../src/index.js';
 import { useOpenView, useRecordTable } from '../src/react/index.js';
 import {
@@ -174,6 +175,40 @@ describe('useRecordTable', () => {
     ]);
   });
 
+  /**
+   * A sort edits and applies in one go — unless the draft holds an error,
+   * when `apply` does not land: the header then shows the draft's sort over
+   * rows that were fetched under the old one. D17-6 makes that "changed,
+   * not applied", the same credential the filter editor's Apply wears.
+   */
+  it('leaves a sort whose apply was refused pending', async () => {
+    const result = await openTable();
+    const runtime = () => result.current.opened.runtime as RecordViewRuntime;
+    const snapshot = () => runtime().getSnapshot();
+    const report = () =>
+      comparePending(snapshot().draft, snapshot().applied, snapshot().issues);
+
+    act(() =>
+      runtime().edit({
+        filter: {
+          op: 'and',
+          children: [{ field: 'nowhere', operator: 'EQ', value: 1 }],
+        },
+      }),
+    );
+    expect(snapshot().issues.some(found => found.severity === 'error')).toBe(
+      true,
+    );
+
+    act(() => result.current.table.toggleSort('amount'));
+
+    // The draft moved, the applied config did not, and the report says so:
+    // the refused condition and the sort, one each.
+    expect(result.current.table.sortOf('amount')).toBe('ASC');
+    expect(snapshot().applied.sort).toEqual([]);
+    expect(report()).toEqual({ pending: true, count: 2, conditions: true });
+  });
+
   it('cycles a column through ascending, descending and off', async () => {
     const result = await openTable();
 
@@ -302,14 +337,7 @@ describe('useRecordTable', () => {
         'warehouse',
       ]),
     );
-    // The columns of the draft are all of them, the switched-off one among
-    // them: `amount` keeps its place so it can be switched back on there.
-    expect(result.current.table.columnFields).toEqual([
-      'id',
-      'amount',
-      'warehouse',
-    ]);
-    expect(result.current.table.hiddenOf('amount')).toBe(true);
+    expect(result.current.table.columnFields).toEqual(['id', 'warehouse']);
 
     act(() => result.current.table.setPageSize(5));
     await waitFor(() => expect(result.current.table.pageSize).toBe(5));

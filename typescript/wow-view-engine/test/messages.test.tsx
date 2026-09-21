@@ -628,7 +628,6 @@ function tableController(): RecordTableController {
     layouts: ['table'],
     setLayout: () => {},
     columnFields: [],
-    hiddenOf: () => false,
     setColumns: () => {},
     setColumnOrder: () => {},
     pinnedOf: () => null,

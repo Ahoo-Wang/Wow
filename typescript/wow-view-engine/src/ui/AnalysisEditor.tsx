@@ -47,6 +47,7 @@ import { crossesBoundary, leavesEditor } from './FilterPanel.js';
 import { GroupedMenu } from './FieldMenu.js';
 import { NumberInput } from './FilterValueEditor.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { PendingDot } from './PendingDot.js';
 
 export interface AnalysisEditorProps {
   analysis: AnalysisEditorController;
@@ -180,9 +181,15 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
         <Button
           variant="outline"
           size="sm"
+          data-pending={analysis.pending || undefined}
           disabled={disabled}
           onClick={analysis.submit}
         >
+          {/* The dot the filter panel's Apply wears, for the same reason:
+              everything in this editor waits for Run, and until then the
+              table and the chart answer the previous configuration
+              (D17-6). */}
+          {analysis.pending && <PendingDot />}
           <PlayIcon data-icon="inline-start" />
           {messages.label('label.analysis.run')}
         </Button>

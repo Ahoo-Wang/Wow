@@ -13,7 +13,6 @@
 
 import { MAX_CURSOR_SORT_FIELDS } from '@ahoo-wang/fetcher-wow';
 import {
-  columnHidden,
   columnPin,
   DEFAULT_RUNTIME_LIMITS,
   isFieldlessKind,
@@ -231,9 +230,7 @@ function validateColumns(
   // which column that is.
   const end = pinnedEnd(
     config.table.columns.flatMap(column => {
-      const field = columnHidden(column.hidden)
-        ? undefined
-        : fields.get(column.field);
+      const field = fields.get(column.field);
       return field && !isFieldlessKind(field.kind)
         ? [
             {
@@ -304,21 +301,6 @@ function validateColumns(
           'record.column.width-invalid',
           ['table', 'columns', index, 'width'],
           { field: column.field, width: String(column.width) },
-        ),
-      );
-
-    // `hidden` is written by one checkbox and has one value: the member is
-    // there, and `true`, or it is not there at all. A stored `'yes'` or
-    // `false` reads as shown (`columnHidden`) rather than as a guess, and
-    // is said here so the checkbox that writes the member properly is
-    // known to be the repair — the same treatment `pinned` and `width` get,
-    // for the same reason: the config is untrusted data.
-    if (column.hidden !== undefined && column.hidden !== true)
-      issues.push(
-        issue(
-          'record.column.hidden-invalid',
-          ['table', 'columns', index, 'hidden'],
-          { field: column.field, hidden: String(column.hidden) },
         ),
       );
 

@@ -33,10 +33,8 @@ import {
   operatorsOf,
   removeAt,
   sameFilterNode,
-  sameFilterTree,
   unmarkedErrors,
   updateAt,
-  walkFilter,
   type EditorDescriptor,
   type FieldKindRegistry,
   type FilterPath,
@@ -44,7 +42,12 @@ import {
   isFilterGroup,
   isFilterLeaf,
 } from '../filter/index.js';
-import type { ViewRuntime } from '../runtime/index.js';
+import {
+  comparePending,
+  filterOverBudget,
+  type PendingReport,
+  type ViewRuntime,
+} from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
 /**
@@ -90,18 +93,28 @@ export interface FilterEditorController extends FilterTreeController {
   /** False when the tree needs the advanced editor to be shown faithfully. */
   simple: boolean;
   /**
-   * True when the draft says something other than what was last applied.
-   * False for a draft over the tree budget, which cannot be applied at all.
+   * True when the draft says something other than what was last applied —
+   * anywhere in the config, not only in the conditions (D17-6). Apply runs
+   * the whole draft, so its dot answers for the whole draft: a sort or a
+   * page size whose apply was refused, an analysis editor's groups waiting
+   * for Run, a filter mode switched and not applied. See `comparePending`.
    */
   pending: boolean;
   /**
-   * How many nodes `isPending` holds for; a badge count. It counts both
-   * trees: a path the draft has and the applied tree does not is a new
-   * condition, and a path only the applied tree has is one removed since —
-   * both are edits waiting for Apply, and a cleared filter is only the
-   * second kind.
+   * How many edits wait for Apply; a badge count. The conditions count node
+   * by node, both ways — a path the draft has and the applied tree does not
+   * is a new condition, and a path only the applied tree has is one removed
+   * since, so a cleared filter counts every condition it dropped — and every
+   * other member of the config that differs counts as one.
    */
   pendingCount: number;
+  /**
+   * Whether the conditions themselves differ from the ones applied. This is
+   * what `discard` can put back, so the offer to discard follows it rather
+   * than `pending`: a sort waiting for apply is pending, and discarding the
+   * conditions would not touch it.
+   */
+  conditionsPending: boolean;
   /**
    * Whether the node at `path` has been edited since the last apply. Compares
    * that node alone — a leaf by field, operator and value, a group by its
@@ -165,6 +178,11 @@ const EMPTY_FIELDS: readonly FieldDefinition[] = [];
 const EMPTY_TREE: FilterTree = { op: 'and', children: [] };
 /** Stable identity for "no runtime yet", so `unmarked` stays still. */
 const EMPTY_ISSUES: readonly Issue[] = [];
+const NOTHING_PENDING: PendingReport = {
+  pending: false,
+  count: 0,
+  conditions: false,
+};
 
 /**
  * True for a finding about the tree this editor draws rather than a nested
@@ -199,14 +217,9 @@ export function useFilterEditor(
   // The budget findings of this filter alone. An analysis metric's or a
   // dashboard panel's own filter reports the very same codes, so the code
   // alone would let an oversized tree the editor does not draw switch off
-  // `pending` and `pendingCount` for the root tree — the path is what says
-  // the finding is this filter's, exactly as `issues` below reads it.
-  const overBudget = (state?.issues ?? []).some(
-    found =>
-      (found.code === 'filter.tree.too-deep' ||
-        found.code === 'filter.tree.too-many-nodes') &&
-      isOwnFilterPath(found),
-  );
+  // `isPending` for the root tree — the path is what says the finding is
+  // this filter's, exactly as `issues` below reads it.
+  const overBudget = filterOverBudget(state?.issues ?? EMPTY_ISSUES);
 
   const byName = useMemo(
     () => new Map(fields.map(field => [field.name, field])),
@@ -316,25 +329,14 @@ export function useFilterEditor(
     [overBudget, tree, inForce],
   );
 
-  const pendingCount = useMemo(() => {
-    if (overBudget) return 0;
-    let count = 0;
-    const visited = new Set<string>();
-    for (const { node, path } of walkFilter(tree)) {
-      const at = indexesOf(path);
-      visited.add(at.join(','));
-      if (!sameFilterNode(node, nodeAt(inForce, at))) count += 1;
-    }
-    // A condition taken out of the draft is still an edit not applied: the
-    // rows on screen were fetched under it, and `isPending` at its path says
-    // so. Counting the draft alone would leave a badge of 0 beside an Apply
-    // button that has something to do — a cleared filter most of all.
-    for (const { path } of walkFilter(inForce)) {
-      const at = indexesOf(path);
-      if (!visited.has(at.join(','))) count += 1;
-    }
-    return count;
-  }, [overBudget, tree, inForce]);
+  // The whole config, not the tree alone: Apply runs all of it (D17-6).
+  const pending = useMemo(
+    () =>
+      state
+        ? comparePending(state.draft, state.applied, state.issues)
+        : NOTHING_PENDING,
+    [state],
+  );
 
   return {
     tree,
@@ -374,8 +376,9 @@ export function useFilterEditor(
     ),
     count: countLeaves(tree),
     simple: isSimpleTree(tree),
-    pending: !overBudget && !sameFilterTree(tree, inForce),
-    pendingCount,
+    pending: pending.pending,
+    pendingCount: pending.count,
+    conditionsPending: pending.conditions,
     isPending,
     // Conditions only: an error elsewhere in the config blocks apply too, but
     // it is not this editor's to count. Within the tree every error counts,
@@ -538,14 +541,6 @@ export interface TreeControllerInput {
   /** Issues already rebased onto this tree. */
   issues: Issue[];
   onChange(tree: FilterTree): void;
-}
-
-/**
- * A walk's path as the editor addresses nodes. `walkFilter` interleaves the
- * `'children'` key with each index, and a `FilterPath` is the indexes alone.
- */
-function indexesOf(path: readonly (string | number)[]): FilterPath {
-  return path.filter((step): step is number => typeof step === 'number');
 }
 
 /** The tree with the node at `path` set to say nothing; see `clearValue`. */

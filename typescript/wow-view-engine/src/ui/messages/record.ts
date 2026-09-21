@@ -113,11 +113,8 @@ export const recordMessages = {
   'label.columns.cancelled': 'Move cancelled; {field} stayed where it was',
   'label.columns.show': 'Show {field}',
   'label.columns.last-visible': 'A table needs at least one column.',
-  // Ordering is no longer on the list: a switched-off column keeps its
-  // place in the table's order, so its handle works like any other row's.
-  // What it has no place for is a pin (it is held nowhere) or a summary
-  // (there is no cell under a column the table does not draw).
-  'label.columns.hidden': 'Show this column before pinning or summarising it.',
+  'label.columns.hidden':
+    'Show this column before ordering, pinning or summarising it.',
   // Said on the row itself, next to a marked icon: naming a colour would
   // make the colour the index, which is the very thing a reader who cannot
   // tell these two greys apart has no access to.
@@ -166,8 +163,6 @@ export const recordMessages = {
     '{definition} does not offer a record view any more.',
   'record.card.invalid': 'The card settings could not be read.',
   'record.column.duplicate': 'The column {field} is listed twice.',
-  'record.column.hidden-invalid':
-    'The column {field} is switched off as {hidden}, which is not how a column is switched off.',
   'record.column.pin-invalid':
     'The column {field} is held to {pinned}, which is neither side.',
   'record.column.width-invalid':

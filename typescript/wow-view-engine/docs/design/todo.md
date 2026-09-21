@@ -103,9 +103,11 @@
   或新增的一条套件钉住嵌套时 `useSurfaceTheme` 与 `dark:` 的实际取值。落点：
   `src/ui/ViewSurface.tsx`、[ui/README.md](ui/README.md)、[decisions.md](decisions.md)。
 
-## 小修
+## 功能（legacy 形态）
 
-- **「改过、没应用」只有筛选树说得出来**——为什么：这一态的凭据（D2）是条件 pill 与 Apply 上的那个点，而算出它的 `useFilterEditor.pendingCount` 只比两棵筛选树；配置里**其余任何成员**与 `applied` 分开时，屏幕上没有一处说得出来。两类分开的路子：其一是 `edit` 之后**不** `apply` 的控件——`setMode`（`filterMode`）、记录视图的 `setLayout`（只在什么都没跑过时顺带 apply），以及**整个分析编辑器**（分组、指标、排序、`limit`、图表规格、合计全都等 Run；`AnalysisEditor` 的 Run 按钮上没有任何待运行标记，`AnalysisWorkbench` 也不给 `editorLabel`，连能挂那个点的折叠带都没有）——分析编辑器这一条是常态而不是边角；其二是 `edit` 加 `apply` 的控件在 **apply 被拒**时分开：草稿里有 error 时 `apply` 不落地，于是表头读草稿的 `sort`、分页条读草稿的 `pageSize`、列设置读草稿的列，而行还是上一次执行的口径。标题旁那个「未保存」不顶这个用——它答的是另一个问题（没存过，而不是没跑过），未保存的新视图上它还一直亮着。**自动刷新的那个控件是这件事的一个实例，不是起因**：它的凭据现在读 `applied`（[ui/README.md#刷新是一个拆分按钮](ui/README.md#刷新是一个拆分按钮)），正是因为没有第二处凭据可以说"草稿不是这个数"。判据：**D17-6 已定：管整份配置**——`pending`／`pendingCount` 的基准从筛选树扩到 draft 与 applied 的逐成员比较（`dequal`），筛选托盘的开关、Apply、分析编辑器的 Run 都带那个点，被拒的 apply 同样算「没应用」，且不与三态的另外两处重复；`test/useFilterEditor.test.tsx`／`test/useRecordTable.test.tsx` 与 `test/analysisUi.test.tsx` 各留一条钉住。落点：`src/react/useFilterEditor.ts`、`src/react/useAnalysisEditor.ts`、`src/ui/AnalysisEditor.tsx`、[ui/README.md#三态各有一处凭据](ui/README.md#三态各有一处凭据)。
+- **隐藏字段排不了序**——为什么：配置只记已显示的列，所以列设置里隐藏的那几行没有顺序可拖，勾上之后一律落在中间区末尾；想把一个字段放到第三列，得先勾上再拖一次。判据：想清楚"隐藏字段的位置"要不要进配置（这是一个模型问题，先在 [decisions.md](decisions.md) 里给结论），若要，则 `table.columns` 增加 `hidden?: true` 一类的表达，`projectRecord` 跳过它们，列设置对隐藏行照常开放拖拽。落点：[model.md](model.md)、`src/record/project.ts`、`src/ui/columns/rows.ts`。
+
+## 小修
 
 - **仪表盘的编排只有鼠标能用**——为什么：`EditableLayout` 上量到三个 `.react-resizable-handle` 全是裸 `div`，**没有一个 `tabindex ≥ 0`**，也没有 `role` 与 `aria-label`；可拖的 `.react-grid-item` 同样没有 `role`／`tabindex`／`aria-label`；面板头上也没有"移动／调整大小"之类的菜单。面板的位置和大小只能用指针改，键盘完全没有入口。Dashboard 编排不在本轮范围，所以记在这里而不是[打磨](#打磨先看后改不凭想象改)——它不是难看，是一整块能力对键盘不存在。判据：移动与缩放各有键盘等价物（库的键盘传感器，或面板菜单里的一组命令），手柄有名字；`test/dashboardUi.test.tsx` 覆盖键盘改位置与改大小各一条——它已经在 jsdom 里驱动这张网格并断言 `controller().panels[0].layout`，键盘改的是同一个 layout，所以这一条不必上浏览器。落点：`src/ui/DashboardGrid.tsx`、`test/dashboardUi.test.tsx`、[ui/dashboard.md](ui/dashboard.md)。
 - **列表变化改由引擎通知（D15）**——为什么：`useViewList` 只在自己发起的命令后重载，宿主直接经引擎删除／改名时要记得调 `reload({ without })`，这条合同写在文档里、不在类型里，漏了就是刚删的那一行留在列表上。判据：`ViewEngine.subscribe(listener)`，创建／保存／改名／删除以及账本的重试与覆盖落地时通知 `{ definitionId, kind, id }`；`useViewList` 订阅并按 kind 重载（删除带 `without`）；`useViewManager.delete` 不再自己传 `without`；`test/engine.test.ts` 覆盖四种通知各一条，`test/useViewList.test.tsx` 覆盖「宿主直接删除后列表自动少一行」；[react.md#useviewlist](react.md#useviewlist) 删掉那句合同，[runtime.md#viewengine](runtime.md#viewengine) 写订阅面。落点：`src/runtime/viewEngine.ts`、`src/runtime/writeLedger.ts`、`src/react/useViewList.ts`。
