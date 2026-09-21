@@ -106,6 +106,8 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 **表格与卡片读同一份**：四个读法都落在 `ui/record/cells.tsx` 的 `cellValue` 里，`RecordTable` 的默认单元格与 `RecordCards` 的字段都走它，所以卡片上的状态不会是表格里那一枚徽章底下的一个裸码。（见 test/recordCells.test.tsx，浏览器故事「Record 工作台/单元格读法」与它的回归）
 
+**这份读法是导出的**，`renderCell`／`renderValue`／`selectable` 与两句空态文案也由 `RecordWorkbench` 原样透传下去。改一个单元格是宿主最小的一次定制，最小的一次就得是最便宜的一次：只为了一列画法而放弃整个默认工作台是一笔荒唐的账，而拿到 `renderCell` 却够不到本包自己的读法，等于在"自己那一格"和"其余每一格"之间二选一。所以 `/ui` 入口导出 `cellValue`（节点）、`cellText`（单行文本）与 `displayValue`（只有字段种类那一层，种类无话可说时 `undefined`），两个上下文参数从 `useViewMessages` 与 `useSurfaceDisplay` 上读——宿主盖住在意的那一列，其余的原样落回默认读法。**vendored 的 shadcn 原语不在导出之列**：这里许诺的是一个值怎么读，不是它外面那圈 markup（README 的 `fve-tokens` 一节同此口径——那道边界给的是 token 与 utility）。`selectable` 表格与卡片一同关掉：卡片是行折出来的，换个布局不该把勾选框还回来。（见 test/recordWorkbench.test.tsx「a RecordWorkbench a host draws cells in」）
+
 ### 徽章的颜色由定义说了算，但只能从主题里挑
 
 - 哪一个状态是好消息属于业务，渲染层猜不得——一个把 `CANCELLED` 画成红色的表格，在下一个应用里就把一条正常结局说成了事故。所以语气写在 `FieldOption.tone` 上（`'neutral' | 'success' | 'warning' | 'danger'`，闭合），`badgeEntries` 连同语气一起交出，单元格交给 `ToneBadge`（`ui/variants.tsx`：四档语气就是它的 cva variant，vendored 的 `Badge` 一个字不动，调用处只说语气、不说颜色——D16-8）；缺省是 `neutral`，也就是今天的 `secondary`；准入拒绝未知语气（`definition.field.tone-invalid`）；

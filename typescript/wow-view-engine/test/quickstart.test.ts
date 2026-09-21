@@ -145,6 +145,11 @@ describe('the README only names symbols that exist', () => {
    * An entry and everything it re-exports, transitively: the entries are
    * barrels over barrels, so a type declared in `model/definition.ts` is only
    * reachable by following `index.ts` twice.
+   *
+   * Both forms of re-export are followed. A barrel that names what it lets
+   * through — `export { cellValue } from './record/cells.js'` — is an export
+   * exactly as `export *` is, and reading only the second would call the
+   * entry's most deliberate exports missing.
    */
   function sourcesOf(index: string, seen = new Set<string>()): string[] {
     if (seen.has(index) || !existsSync(new URL(index, import.meta.url)))
@@ -153,7 +158,10 @@ describe('the README only names symbols that exist', () => {
 
     const body = read(index);
     const directory = index.slice(0, index.lastIndexOf('/'));
-    const nested = [...body.matchAll(/^export \* from '\.\/(.+)\.js';$/gm)]
+    const nested = [
+      ...body.matchAll(/^export \* from '\.\/(.+)\.js';$/gm),
+      ...body.matchAll(/^export \{[^}]*\} from '\.\/(.+)\.js';$/gm),
+    ]
       .flatMap(([, name]) =>
         ['.ts', '.tsx'].map(extension => `${directory}/${name}${extension}`),
       )

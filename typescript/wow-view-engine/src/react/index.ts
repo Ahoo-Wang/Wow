@@ -32,5 +32,6 @@ export * from './useViewEngine.js';
 export * from './useViewList.js';
 export * from './useViewManager.js';
 export * from './useWorkbench.js';
+export * from './workbench/instanceSync.js';
 export * from './workbench/leaveGuard.js';
 export * from './workbench/releaseDeleted.js';

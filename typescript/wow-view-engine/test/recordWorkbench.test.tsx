@@ -35,11 +35,16 @@ import type {
   ViewPermissions,
 } from '../src/index.js';
 import {
+  cellText,
+  cellValue,
   defaultMessages,
+  displayValue,
   EmbeddedView,
   RecordWorkbench,
+  useSurfaceDisplay,
+  useViewMessages,
 } from '../src/ui/index.js';
-import type { RecordWorkbenchProps } from '../src/ui/index.js';
+import type { RecordCell, RecordWorkbenchProps } from '../src/ui/index.js';
 import { SPACE } from '../src/ui/layout.js';
 import {
   INSTANT,
@@ -1332,5 +1337,240 @@ describe('the record workbench layout', () => {
       ),
     );
     expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+});
+
+/**
+ * The workbench with a host holding which view is open. «一键重开» in a
+ * browser is a link, so the two directions have to exist on the component and
+ * not only in the controller: a route opens a view, and the view the user
+ * picks goes back into the route.
+ */
+describe('a RecordWorkbench a host routes', () => {
+  const other: ViewInstance = { ...mine, id: 'orders-2', title: 'Other' };
+
+  function routed(props: Partial<RecordWorkbenchProps> = {}) {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [mine, other] }),
+      resolveSource: () => testSource(),
+    });
+    const draw = (overrides: Partial<RecordWorkbenchProps>) => (
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+        {...props}
+        {...overrides}
+      />
+    );
+    const view = render(draw({}));
+    return {
+      engine,
+      route: (id: string | null) => view.rerender(draw({ instanceId: id })),
+    };
+  }
+
+  /** The current view is the one the sidebar marks. */
+  function current(): string | null {
+    return (
+      screen
+        .getAllByRole('button')
+        .find(button => button.ariaCurrent === 'true')?.textContent ?? null
+    );
+  }
+
+  it('opens the view the host routed to', async () => {
+    const { route } = routed();
+    await waitFor(() => expect(current()).toBe('Mine'));
+
+    route('orders-2');
+
+    await waitFor(() => expect(current()).toBe('Other'));
+  });
+
+  it('opens the effective default when the route names none', async () => {
+    const { route } = routed({ instanceId: 'orders-2' });
+    await waitFor(() => expect(current()).toBe('Other'));
+
+    route(null);
+
+    // The definition's own view, which wears its audience beside its name.
+    await waitFor(() => expect(current()).toContain('All orders'));
+  });
+
+  it('reports the view the user picked, so the route can follow', async () => {
+    const told = vi.fn();
+    routed({ onInstanceChange: told });
+    await waitFor(() => expect(current()).toBe('Mine'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Other' }));
+
+    await waitFor(() => expect(told).toHaveBeenCalledWith('orders-2'));
+    await waitFor(() => expect(current()).toBe('Other'));
+  });
+
+  /**
+   * A route change is a switch, so it is asked about — and a "stay" leaves
+   * the host's route naming a view that is not on screen, which is why the
+   * workbench then says which one is.
+   */
+  it('asks before a routed switch loses a draft, and says what stayed', async () => {
+    const told = vi.fn();
+    const { route } = routed({ onInstanceChange: told });
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    fireEvent.click(screen.getByRole('button', { name: /Columns/ }));
+    fireEvent.click(
+      await screen.findByRole('checkbox', { name: 'Show Warehouse' }),
+    );
+    await waitFor(() =>
+      expect(screen.getAllByRole('columnheader')).toHaveLength(4),
+    );
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+
+    route('orders-2');
+    const asked = await screen.findByRole('alertdialog');
+    expect(told).not.toHaveBeenCalled();
+
+    fireEvent.click(within(asked).getByRole('button', { name: 'Stay' }));
+
+    await waitFor(() => expect(told).toHaveBeenCalledWith('orders-1'));
+    expect(current()).toBe('Mine');
+  });
+});
+
+/**
+ * What a host may change about the result without writing the workbench
+ * itself. One cell nobody else could draw is the commonest reason to walk
+ * away from a default component, and the way back is that the package's own
+ * reading of a value is exported: override the column you mean, and fall
+ * back for the rest.
+ */
+describe('a RecordWorkbench a host draws cells in', () => {
+  function workbench(
+    props: Partial<RecordWorkbenchProps> = {},
+    source: ViewSource = testSource(),
+  ) {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [mine] }),
+      resolveSource: () => source,
+    });
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+        {...props}
+      />,
+    );
+  }
+
+  /** A host's renderer: its own amount cell, the package's reading for the rest. */
+  function HostCell({ cell }: { cell: RecordCell }) {
+    const messages = useViewMessages();
+    const display = useSurfaceDisplay();
+    if (cell.column.field !== 'amount')
+      return cellValue(cell.value, cell.column, messages, display);
+    return <span data-testid="lamp">{`${cell.value} ●`}</span>;
+  }
+
+  it('draws the cells the host renders, and reads the rest itself', async () => {
+    workbench({ renderCell: cell => <HostCell cell={cell} /> });
+
+    const lamps = await screen.findAllByTestId('lamp');
+    expect(lamps.map(lamp => lamp.textContent)).toEqual(['10 ●', '20 ●']);
+    // Everything the host said nothing about still reads as it always did:
+    // `cellValue` is the fallback, not a stub.
+    expect(screen.getAllByRole('cell').map(cell => cell.textContent)).toContain(
+      'o-1',
+    );
+  });
+
+  it('draws the cards the host renders', async () => {
+    const cards: ViewInstance = {
+      ...mine,
+      config: recordConfig({ layout: 'card' }),
+    };
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [cards] }),
+      resolveSource: () => testSource(),
+    });
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+        renderValue={value => <span data-testid="plain">{String(value)}</span>}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getAllByTestId('plain').length).toBeGreaterThan(0),
+    );
+  });
+
+  /**
+   * A surface with nothing to do with a selection shows no checkboxes — in
+   * either layout, because a card is a row folded out and switching layout
+   * must not hand the choice back.
+   */
+  it('takes the selection away when the host offers nothing to do with it', async () => {
+    workbench({ selectable: false });
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    expect(screen.queryByRole('checkbox', { name: /select/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cards' }));
+
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="record-cards"]'),
+      ).not.toBeNull(),
+    );
+    expect(screen.queryByRole('checkbox', { name: /select/i })).toBeNull();
+  });
+
+  it("says the host's own words when there is nothing to show", async () => {
+    workbench(
+      {
+        emptyTitle: 'Nothing is waiting to ship',
+        emptyDescription: 'Every order has left the warehouse.',
+      },
+      testSource({
+        paged: vi.fn(() => Promise.resolve({ total: 0, list: [] })),
+      }),
+    );
+
+    expect(await screen.findByText('Nothing is waiting to ship')).toBeDefined();
+    expect(
+      screen.getByText('Every order has left the warehouse.'),
+    ).toBeDefined();
+  });
+
+  /**
+   * All three come off the package entry, not out of a deep path: a host
+   * handed `renderCell` and no way to reach the reading it falls back to has
+   * been handed a choice between its own cell and every other cell.
+   */
+  it('exports the whole reading from the entry, not only the node one', () => {
+    expect(typeof cellValue).toBe('function');
+    expect(typeof cellText).toBe('function');
+    const shown = displayValue(
+      INSTANT,
+      { kind: 'datetime' },
+      { locale: 'en-US', timeZone: ZONE },
+    );
+    // The same Intl call, not a literal: what is asserted is the zone and
+    // the language it reads in, not the ICU data a Node release ships.
+    expect(shown).toBe(
+      new Intl.DateTimeFormat('en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'medium',
+        timeZone: ZONE,
+      }).format(INSTANT),
+    );
   });
 });

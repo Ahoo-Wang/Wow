@@ -194,7 +194,7 @@ useRefreshCountdown(refresh): number | null   // 每秒重画的剩余整秒
 ## useWorkbench
 
 ```ts
-useWorkbench(engine, definitionId, { kind, instanceId? }): WorkbenchController
+useWorkbench(engine, definitionId, { kind, instanceId?, onInstanceChange? }): WorkbenchController
 WorkbenchController {
   list; manager; openId; choose(id); opened; runtime; state; unopenable;
   commands; filter; refresh; leave; onSaved; onRenamed; onDeleted; onRecovered
@@ -205,6 +205,13 @@ WorkbenchController {
 
 - 列表按 `kind` 收窄后再定默认（`useViewList(engine, definitionId, { kind })`）：侧栏不提供这一页画不出的视图，默认视图也只在这些里解析。仪表盘定义本就只有 dashboard 实例，收窄对它是恒等；
 - `openId` 是"此刻在开的那个"：显式选择（`choose` 写下的 pin），没有则是列表的有效默认。`choose` 一律经离开守卫，因为切换会释放当前 runtime，未保存的草稿只活在里面；
+- **`instanceId` 是受控的**，语义照 input 的 `value`：**不传**（`undefined`）是非受控形态，开着哪个视图由工作台自己拿着，从有效默认开始；**传了**——一个 id，或 `null` 表示"那个有效默认"——就是宿主在说开哪个，此后每一次**变化**都打开它所指的视图。`null` 不是"没传"：传 `null` 的宿主是拿着一个值的，只不过那个值叫"我的默认"；
+- 它**收敛**而不是**渲染**（`react/workbench/instanceSync.ts`）。一个视图不是一个字符串：里面有未保存的草稿，换掉它是一次损失，所以宿主推进来的值和侧栏上的一次点击走同一道离开守卫，不能直接当成渲染结果铺上去。规则只有一条——**后动的那一方说话，另一方跟上**：
+  - 宿主点名了一个没开着的视图 → 打开它，经守卫；
+  - 工作台自己动了（用户切换、save-as 打开的副本、改名、随被删视图放掉的 pin）→ 告诉宿主，路由跟上；
+  - 守卫拦下了这次推入、用户选择留下 → 告诉宿主**留下的是哪个**，宿主的 URL 因此不会停在一个没开着的视图上；
+  - 两边一致、或守卫的问题还挂在屏幕上 → 什么都不说；说过一次就不再重复，宿主不跟是宿主的事。
+- `onInstanceChange(id)` 报的正是能原样传回 `instanceId` 的那个值——`null` 在出口与入口同义，都指有效默认——所以「一键重开」在浏览器里就是一条可以发出去的链接。两种形态之间中途切换不受支持，和 input 一样：第一个值决定哪一边拿着这个状态。（见 test/workbench.test.tsx「a workbench a host routes」、test/closedLoop.test.tsx「closed loop two」，参照实现 `examples/PlainRecordWorkbench.tsx` 的 `HashRoutedRecordWorkbench`）；
 - 种类不符由 `kindMismatch` 判为 `unopenable`，与"打不开"同一个出口：一个定义同时容纳 record 与 analysis 实例，宿主仍可点名任一个，画不出的那一页要说明白，而不是在标题栏下留一片空白。`unopenable` 为真时 `runtime`／`state` 皆为 null；
 - pin 指向的视图被删除后由 `react/workbench/releaseDeleted.ts` 放手：引擎随实例释放 runtime，同一 id 再开只会一直答 not_found，页面因此永远走不到还在的那个视图上。只放手**开过**的 id——宿主点名而 store 从来没有的 id 是一个要报出来的错，不是一个要导航离开的状态；
 - `leave` 是无对话框的离开守卫（`react/workbench/leaveGuard.ts`）：`asking` / `request(next)` / `confirm()` / `cancel()`。`dirty` 或写入结局为 `unknown` 时才问，`confirm` 先结清（`commands.abandon()`）再走——`next` 会释放这个 runtime，结局就再没有它可依附，handle 会指向一个谁也够不着的 runtime 而 `engine.pendingWrites()` 把它留到会话结束。怎么问是宿主的事，`/ui` 用 `LeaveDialog`；

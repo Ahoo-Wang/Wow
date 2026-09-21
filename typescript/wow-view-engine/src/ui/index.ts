@@ -33,6 +33,36 @@ export * from './DashboardGrid.js';
 export * from './DashboardPanels.js';
 export * from './DashboardWorkbench.js';
 export * from './describeConfig.js';
+/**
+ * How this package reads one value, so a host that renders a cell itself can
+ * fall back to it instead of reimplementing it.
+ *
+ * `renderCell` is the smallest change a host can make to a record view, and
+ * the smallest one has to be the cheapest: a host that overrides one column
+ * must not lose the reading of the rest. These three are what the table and
+ * the cards themselves call, and they promise exactly what the default cell
+ * shows — enum labels from the definition's own options, times on the
+ * surface's clock and in its language, numbers in the field's
+ * `numberFormat`, booleans in the wording in force.
+ *
+ * `cellValue` is the node a cell draws (badges, a guarded link, a clamped
+ * paragraph); `cellText` is the same reading as one line of text, for a CSV,
+ * a copied selection or a `title`; `displayValue` is the kind's own reading
+ * alone, `undefined` where the kind has nothing to add and the caller's
+ * rendering stands. The two context arguments come from `useViewMessages`
+ * and `useSurfaceDisplay`, so a host reads them off the surface it is inside
+ * rather than passing a language around.
+ *
+ * The vendored shadcn primitives underneath are deliberately *not* public:
+ * what is promised here is the reading of a value, not the markup around it.
+ */
+export { cellValue, type CellField } from './record/cells.js';
+export {
+  cellText,
+  displayValue,
+  type DisplayContext,
+  type DisplayField,
+} from './display.js';
 export * from './download.js';
 export * from './EditorBand.js';
 export * from './EmbeddedView.js';

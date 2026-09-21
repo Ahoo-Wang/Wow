@@ -32,7 +32,7 @@ import { FilterPanel } from './FilterPanel.js';
 import { FilterModes, filterModeLabel } from './filter/FilterModes.js';
 import { RecordCards } from './RecordCards.js';
 import { RecordPagination } from './RecordPagination.js';
-import { RecordTable } from './RecordTable.js';
+import { RecordTable, type RecordCell } from './RecordTable.js';
 import { NO_RELEASE, type ReleasedPins } from './record/pinCap.js';
 import { ResultToolbar } from './ResultToolbar.js';
 import { RowActions } from './RowActions.js';
@@ -46,8 +46,22 @@ import { RenderSlot, type RenderFailureHandler } from './RenderBoundary.js';
 export interface RecordWorkbenchProps {
   engine: ViewEngine;
   definitionId: string;
-  /** Opens this view first; the user's effective default when left out. */
+  /**
+   * Which view is open, as `value` is on an input: leaving it out lets the
+   * workbench own it from the effective default on, and passing it — a
+   * string, or `null` for that default — puts a host's route in charge, every
+   * later change opening what it names. It goes through the leave guard, so a
+   * pushed view never takes an unsaved draft away without asking
+   * (`WorkbenchOptions.instanceId`).
+   */
   instanceId?: string | null;
+  /**
+   * Told which view is open whenever that changes, in the same vocabulary
+   * `instanceId` is written in — `null` is the effective default — so a host
+   * can put it straight into a route and get the same view back from the
+   * link.
+   */
+  onInstanceChange?(id: string | null): void;
   theme?: 'light' | 'dark';
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
@@ -87,6 +101,32 @@ export interface RecordWorkbenchProps {
    */
   actions?: RecordActionSlots;
   /**
+   * Renders one cell of the table; the default reads it as the column says.
+   *
+   * It is the smallest thing a host can change and keep everything else —
+   * a business object with one cell nobody else could draw should not cost
+   * the whole workbench. Fall back to `cellValue` for the cells it has
+   * nothing special to say about, and enum labels, the surface's zone and
+   * the field's number format all keep working.
+   */
+  renderCell?(cell: RecordCell): ReactNode;
+  /** The same, for the card layout, which lays a value out without a column. */
+  renderValue?(value: unknown): ReactNode;
+  /**
+   * Whether rows can be picked. On by default; a workbench whose host offers
+   * nothing to do with a selection turns it off rather than showing a column
+   * of checkboxes that lead nowhere.
+   */
+  selectable?: boolean;
+  /**
+   * The empty result in the host's own words — "no orders are waiting" says
+   * more than "no rows". The way out of it is the workbench's either way:
+   * conditions in force are cleared, and with none the condition editor
+   * opens.
+   */
+  emptyTitle?: string;
+  emptyDescription?: string;
+  /**
    * Told whenever an export has been handed to the browser — the file's name,
    * its contents and how many rows of which scope it holds. A host that
    * audits what leaves the application reads it; nothing here needs it, and
@@ -117,7 +157,8 @@ const CSV_TYPE = 'text/csv;charset=utf-8';
 export function RecordWorkbench({
   engine,
   definitionId,
-  instanceId = null,
+  instanceId,
+  onInstanceChange,
   theme,
   messages: wording,
   locale,
@@ -127,6 +168,11 @@ export function RecordWorkbench({
   expandable,
   onRenderFailure,
   actions,
+  renderCell,
+  renderValue,
+  selectable,
+  emptyTitle,
+  emptyDescription,
   onExported,
 }: RecordWorkbenchProps) {
   // The host's wording, resolved here rather than read off the provider:
@@ -137,6 +183,7 @@ export function RecordWorkbench({
   const workbench = useWorkbench(engine, definitionId, {
     kind: 'record',
     instanceId,
+    onInstanceChange,
   });
   const { filter, runtime, state } = workbench;
   const record = runtime?.kind === 'record' ? runtime : null;
@@ -314,11 +361,17 @@ export function RecordWorkbench({
             {table.layout === 'card' ? (
               <RecordCards
                 table={table}
+                renderValue={renderValue}
+                selectable={selectable}
                 rowActions={bindRow(row, record, table.refresh)}
               />
             ) : (
               <RecordTable
                 table={table}
+                renderCell={renderCell}
+                selectable={selectable}
+                emptyTitle={emptyTitle}
+                emptyDescription={emptyDescription}
                 rowActions={bindRow(row, record, table.refresh)}
                 hasConditions={hasConditions}
                 onEmptyAction={emptyAction}

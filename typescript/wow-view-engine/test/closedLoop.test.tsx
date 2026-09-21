@@ -20,15 +20,19 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PlainRecordWorkbench } from '../examples/PlainRecordWorkbench.js';
+import {
+  HashRoutedRecordWorkbench,
+  PlainRecordWorkbench,
+} from '../examples/PlainRecordWorkbench.js';
 import {
   MemoryViewStore,
   ViewEngine,
   type RecordData,
   type RecordViewConfig,
+  type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
-import { ordersDefinition } from './fixtures.js';
+import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -102,7 +106,7 @@ describe('closed loop one', () => {
       <PlainRecordWorkbench
         engine={engine}
         definitionId="orders"
-        initialInstanceId="system:orders:all"
+        instanceId="system:orders:all"
       />,
     );
     await waitFor(() => expect(cells()).toHaveLength(3));
@@ -171,7 +175,7 @@ describe('closed loop one', () => {
       <PlainRecordWorkbench
         engine={engine}
         definitionId="orders"
-        initialInstanceId={summary.id}
+        instanceId={summary.id}
       />,
     );
     await waitFor(() => expect(value('status value')).toBe('PENDING'));
@@ -186,5 +190,72 @@ describe('closed loop one', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
     await waitFor(() => expect(cells()).toHaveLength(1));
     expect(cells()[0]).toContain('o-9');
+  });
+});
+
+/**
+ * Closed loop two: the address bar.
+ *
+ * A view somebody opened is a link they can send, and a link somebody opens
+ * is a view — so the choice lives in one place, the route, and the workbench
+ * is the two directions in and out of it. This drives
+ * `HashRoutedRecordWorkbench`, which is the reference for a host that routes.
+ */
+describe('closed loop two', () => {
+  const mine: ViewInstance = {
+    id: 'orders-1',
+    definitionId: 'orders',
+    title: 'Mine',
+    scope: 'personal',
+    revision: '1',
+    config: recordConfig(),
+  };
+  const theirs: ViewInstance = { ...mine, id: 'orders-2', title: 'Theirs' };
+
+  afterEach(() => {
+    window.location.hash = '';
+  });
+
+  /** What the nav marks as the view on screen. */
+  function current(): string | null {
+    return (
+      screen
+        .getAllByRole('button')
+        .find(button => button.ariaCurrent === 'true')?.textContent ?? null
+    );
+  }
+
+  /** A route change from outside the page: a pasted link, the back button. */
+  function navigate(hash: string): void {
+    window.location.hash = hash;
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  }
+
+  it('opens what the link named, and puts the next choice back in the link', async () => {
+    window.location.hash = '#/orders/orders-2';
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [mine, theirs] }),
+      resolveSource: () => testSource(),
+    });
+    render(<HashRoutedRecordWorkbench engine={engine} definitionId="orders" />);
+
+    // 1. The link is what opened, not the user's default.
+    await waitFor(() => expect(current()).toBe('Theirs'));
+
+    // 2. The user's own switch is written back out, so the link they copy
+    // now is the view they are looking at.
+    fireEvent.click(screen.getByRole('button', { name: 'Mine' }));
+    await waitFor(() => expect(window.location.hash).toBe('#/orders/orders-1'));
+    expect(current()).toBe('Mine');
+
+    // 3. And the back button is a route change like any other.
+    navigate('#/orders/orders-2');
+    await waitFor(() => expect(current()).toBe('Theirs'));
+
+    // 4. A route that names no view is the effective default — which is what
+    // `null` means on the way in and on the way out alike.
+    navigate('#/orders');
+    await waitFor(() => expect(current()).toBe('All orders'));
   });
 });

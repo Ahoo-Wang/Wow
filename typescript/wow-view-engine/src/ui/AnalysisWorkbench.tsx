@@ -28,7 +28,22 @@ import type { RenderFailureHandler } from './RenderBoundary.js';
 export interface AnalysisWorkbenchProps {
   engine: ViewEngine;
   definitionId: string;
+  /**
+   * Which view is open, as `value` is on an input: leaving it out lets the
+   * workbench own it from the effective default on, and passing it — a
+   * string, or `null` for that default — puts a host's route in charge, every
+   * later change opening what it names. It goes through the leave guard, so a
+   * pushed view never takes an unsaved draft away without asking
+   * (`WorkbenchOptions.instanceId`).
+   */
   instanceId?: string | null;
+  /**
+   * Told which view is open whenever that changes, in the same vocabulary
+   * `instanceId` is written in — `null` is the effective default — so a host
+   * can put it straight into a route and get the same view back from the
+   * link.
+   */
+  onInstanceChange?(id: string | null): void;
   theme?: 'light' | 'dark';
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
@@ -72,7 +87,8 @@ export interface AnalysisWorkbenchProps {
 export function AnalysisWorkbench({
   engine,
   definitionId,
-  instanceId = null,
+  instanceId,
+  onInstanceChange,
   theme,
   messages: wording,
   locale,
@@ -85,6 +101,7 @@ export function AnalysisWorkbench({
   const workbench = useWorkbench(engine, definitionId, {
     kind: 'analysis',
     instanceId,
+    onInstanceChange,
   });
   const { filter, runtime, state } = workbench;
   const analysis = useAnalysisEditor(runtime);

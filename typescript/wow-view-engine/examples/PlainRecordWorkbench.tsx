@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { RecordViewRuntime, ViewEngine } from '../src/index.js';
 import { useRecordTable, useWorkbench } from '../src/react/index.js';
 
@@ -30,17 +30,23 @@ import { useRecordTable, useWorkbench } from '../src/react/index.js';
 export function PlainRecordWorkbench({
   engine,
   definitionId,
-  initialInstanceId = null,
+  instanceId,
+  onInstanceChange,
 }: {
   engine: ViewEngine;
   definitionId: string;
-  /** Which view to open first; the effective default when left out. */
-  initialInstanceId?: string | null;
+  /**
+   * Which view is open. Left out, this component owns it; passed, the caller
+   * does — see `HashRoutedRecordWorkbench` below, which passes a route.
+   */
+  instanceId?: string | null;
+  onInstanceChange?(id: string | null): void;
 }) {
   const [title, setTitle] = useState('Pending shipments');
   const workbench = useWorkbench(engine, definitionId, {
     kind: 'record',
-    instanceId: initialInstanceId,
+    instanceId,
+    onInstanceChange,
   });
   // `state`, `filter` and `commands` are the controller's, already bound to
   // whichever view is open; nothing here re-derives them from the engine.
@@ -236,4 +242,71 @@ export function PlainRecordWorkbench({
       </footer>
     </div>
   );
+}
+
+/**
+ * The same workbench with the browser's address bar holding which view is
+ * open: `#/orders/<id>`, or `#/orders` for the user's effective default.
+ *
+ * This is what a controlled `instanceId` is for. The hash is the single copy
+ * of that choice — the back button, a pasted link and a click in the sidebar
+ * all go through it — and the two props are its two directions:
+ * `instanceId` pushes a route into the workbench, `onInstanceChange` writes
+ * the user's own switch back out. `null` travels unchanged in both, so
+ * "whatever my default is" survives a reload and stays shareable.
+ */
+export function HashRoutedRecordWorkbench({
+  engine,
+  definitionId,
+}: {
+  engine: ViewEngine;
+  definitionId: string;
+}) {
+  const [instanceId, go] = useHashInstance(definitionId);
+  return (
+    <PlainRecordWorkbench
+      engine={engine}
+      definitionId={definitionId}
+      instanceId={instanceId}
+      // The leave guard may refuse a pushed switch, and the workbench then
+      // says so by reporting the view that stayed — which lands right back
+      // here and puts the address bar back where it was.
+      onInstanceChange={go}
+    />
+  );
+}
+
+/** The hash as a value, and the one way to write it. */
+function useHashInstance(
+  definitionId: string,
+): [string | null, (id: string | null) => void] {
+  const read = useCallback(() => {
+    const prefix = `#/${definitionId}/`;
+    return window.location.hash.startsWith(prefix)
+      ? decodeURIComponent(window.location.hash.slice(prefix.length))
+      : null;
+  }, [definitionId]);
+
+  const [instanceId, setInstanceId] = useState(read);
+  useEffect(() => {
+    const onHashChange = () => setInstanceId(read());
+    // The back button is a route change like any other, so it arrives here
+    // and is pushed into the workbench exactly as a pasted link would be.
+    window.addEventListener('hashchange', onHashChange);
+    onHashChange();
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [read]);
+
+  const go = useCallback(
+    (id: string | null) => {
+      const next =
+        id === null
+          ? `#/${definitionId}`
+          : `#/${definitionId}/${encodeURIComponent(id)}`;
+      if (window.location.hash !== next) window.location.hash = next;
+      setInstanceId(id);
+    },
+    [definitionId],
+  );
+  return [instanceId, go];
 }

@@ -41,6 +41,7 @@ import {
   useViewManager,
   type ViewManagerController,
 } from './useViewManager.js';
+import { useInstanceSync } from './workbench/instanceSync.js';
 import { useLeaveGuard, type LeaveGuard } from './workbench/leaveGuard.js';
 import { useReleaseDeleted } from './workbench/releaseDeleted.js';
 
@@ -51,8 +52,27 @@ export interface WorkbenchOptions {
    * measured against.
    */
   kind: ViewKind;
-  /** Opens this view first; the user's effective default when left out. */
+  /**
+   * Which view is open, as `value` is on an input: leaving it out is the
+   * uncontrolled form and the workbench owns the open view from the effective
+   * default on; passing it — a string, or `null` for that effective default —
+   * makes the host the one that says which view is open, and every later
+   * change of it opens that view.
+   *
+   * It converges rather than renders, because a view holds an unsaved draft:
+   * a pushed value goes through the same leave guard a click goes through,
+   * and `onInstanceChange` says what is open now. See
+   * `workbench/instanceSync.ts` for the whole of that contract.
+   */
   instanceId?: string | null;
+  /**
+   * Told which view is open whenever that changes: the user picked another,
+   * a save-as opened its copy, a rename kept it, or a deleted view let the
+   * pin go. `null` means the effective default, exactly as it does in
+   * `instanceId`, so what comes out goes back in unchanged — which is what
+   * makes a workbench addressable by a route.
+   */
+  onInstanceChange?(id: string | null): void;
 }
 
 /**
@@ -132,11 +152,11 @@ export function useWorkbench(
   definitionId: string,
   options: WorkbenchOptions,
 ): WorkbenchController {
-  const { kind, instanceId = null } = options;
+  const { kind, instanceId, onInstanceChange } = options;
   // Only the views this page can open: the sidebar offers no view the body
   // cannot render, and the effective default is resolved among those alone.
   const list = useViewList(engine, definitionId, { kind });
-  const [chosen, setChosen] = useState<string | null>(instanceId);
+  const [chosen, setChosen] = useState<string | null>(instanceId ?? null);
   const openId = chosen ?? list.defaultInstanceId;
 
   const opened = useOpenView(engine, openId);
@@ -164,6 +184,16 @@ export function useWorkbench(
     (id: string | null) => request(() => setChosen(id)),
     [request],
   );
+  // Which view is open is the one piece of workbench state a host may also
+  // hold — a route, a link somebody shares — so the two are kept in
+  // agreement here, once, for every workbench and every hand-built one.
+  useInstanceSync({
+    instanceId,
+    chosen,
+    choose,
+    asking: leave.asking,
+    onInstanceChange,
+  });
   const reload = list.reload;
   const open = useCallback(
     (instance: ViewInstance) => {

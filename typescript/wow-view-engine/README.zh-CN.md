@@ -151,6 +151,33 @@ export function OrdersPage() {
 
 主题跟随宿主：祖先上带 `.dark` class 即为暗色；给 `ViewSurface` 传 `theme="light"` 或 `theme="dark"` 可以把某一处视图钉住。弹层 portal 到 `<body>` 时带着面从级联里解析出的模式，`.dark` 不必放在 `<html>` 上。
 
+#### 开着哪个视图，与宿主的路由
+
+一个人打开的视图，就是他可以发出去的一条链接。三个工作台因此都收 `instanceId` 与 `onInstanceChange`——进出你的路由的两个方向，`RecordWorkbench`、`AnalysisWorkbench`、`DashboardWorkbench` 契约完全一致。
+
+```tsx
+export function OrdersPage() {
+  // 你的路由给什么都行：path 参数、query、hash。
+  const [view, setView] = useSearchParam('view');
+  return (
+    <RecordWorkbench
+      engine={engine}
+      definitionId="orders"
+      instanceId={view}
+      onInstanceChange={setView}
+    />
+  );
+}
+```
+
+`instanceId` 是受控的，语义照 input 的 `value`：
+
+- **不传**——非受控形态：开着哪个由工作台自己拿着，从用户的有效默认开始；
+- **传了**——一个视图 id，或 `null` 表示那个有效默认：由你说开哪个，此后每一次变化都打开它所指的视图。`null` 是一个值，不是"没有值"；
+- `onInstanceChange(id)` 报的是此刻开着的那个，用同一套说法——`null` 在这里同样指有效默认——所以出来的值可以原样传回去。
+
+它**收敛**而不是**渲染**。视图里装着未保存的草稿，所以推进来的值与侧栏上的一次点击走同一道离开守卫：后动的那一方说话，另一方跟上。若守卫问过而用户选择留下，工作台会把**留下的那个**报回来，你的路由不会停在一个没开着的视图上。完整参照见 `examples/PlainRecordWorkbench.tsx`，连浏览器后退一并覆盖。
+
 #### 定制主题
 
 每个 token 都读一个宿主层变量，并以内置值兜底：在自己的 `:root` 上给亮色设 `--fve-<token>`、给暗色设 `--fve-dark-<token>` 即可，视图根与 Portal 到 `<body>` 的弹层都会读到——不必考虑选择器作用域，也不必考虑样式加载顺序。
@@ -217,7 +244,7 @@ export function OrdersPage() {
 
 #### 宿主自己的 chrome：`fve-tokens`
 
-样式表的每一条规则都在构建时被收进样式边界，所以 `Card`、`Button`、`Separator`，连 `grid`、`gap-4` 这样的排版 utility，都只在边界里才画得出来。边界有两个，其中只有一个是 surface：
+样式表的每一条规则都在构建时被收进样式边界，所以主题的 token，连 `grid`、`gap-4`、`bg-background` 这样的 utility，都只在边界里才画得出来。边界有两个，其中只有一个是 surface：
 
 |                           | `.fve-root`                                       | `.fve-tokens`                                                    |
 | ------------------------- | ------------------------------------------------- | ---------------------------------------------------------------- |
@@ -227,18 +254,55 @@ export function OrdersPage() {
 | 明暗                      | 祖先上的 `.dark`，或 `theme` 用 `data-theme` 钉住 | 只认祖先上的 `.dark`                                             |
 | 措辞、语言、时区、tooltip | 有，走 `ViewSurface` 的 props                     | 没有                                                             |
 
-把 `fve-tokens` 戴在包住自己 chrome 的那个元素上，视图照旧是它自己的那块面：
+**`fve-tokens` 许诺的是 token 与 utility，不是组件。** 本包渲染所用的 shadcn 原语是 vendored 的，靠 `shadcn add --diff` 升级，不属于公开 API——所以请用你自己的组件、或你自己那份 shadcn/ui 搭 chrome，由这道边界把本主题的配色与间距交给它们：
 
 ```tsx
 <div className="fve-tokens flex flex-col gap-4">
-  <Card>……用本包原语搭的页头……</Card>
+  <header className="flex items-center gap-2 rounded-lg border bg-card p-4 text-card-foreground">
+    ……你自己的页头，穿着本主题的 token……
+  </header>
   <EmbeddedView engine={engine} instanceId={id} theme="light" />
 </div>
 ```
 
 `fve-tokens` 判断明暗只读一样东西：祖先上的 `.dark` class，和各个面读的是同一个——放在 `<html>` 上、放在应用外壳上都行，你的应用本来放在哪儿就放哪儿。它**不读**自己身上的 `data-theme`：钉模式是 surface 的事。它还会把凡是归某块面管的元素原样交还给那块面，所以上面那个钉成亮色的视图，在暗色页面里 token 与 utility 一路都是亮的。
 
-preflight 同样在边界里生效：这片区域内你自己的标题、列表与按钮，会像在视图里一样被重置。这是换取本包原语的代价，也正是这个类该戴在用到原语的那块 chrome 上、而不是整页上的原因。
+preflight 同样在边界里生效：这片区域内你自己的标题、列表与按钮，会像在视图里一样被重置。这是换取这套 utility 的代价，也正是这个类该戴在用到它们的那块 chrome 上、而不是整页上的原因。
+
+#### 工作台确实交出来的东西：一个值的读法
+
+`/ui` 不把自己的 chrome 组件交出去，但它把**读一个值的那套东西**交出去了——改一个单元格，因此不必赔上整个工作台。`renderCell` 只盖住你在意的那一列，其余的交给 `cellValue`，照默认那样画：枚举取定义里的 option 标签、时间走这块面的时区与语言、数字按字段的 `numberFormat`：
+
+```tsx
+import {
+  RecordWorkbench,
+  cellValue,
+  useSurfaceDisplay,
+  useViewMessages,
+} from '@ahoo-wang/fetcher-view-engine/ui';
+import type { RecordCell } from '@ahoo-wang/fetcher-view-engine/ui';
+
+function OrderCell({ cell }: { cell: RecordCell }) {
+  // 从这个单元格所在的那块面上读：正在生效的措辞，以及值所用的语言与时区。
+  const messages = useViewMessages();
+  const display = useSurfaceDisplay();
+  if (cell.column.field !== 'status') {
+    return cellValue(cell.value, cell.column, messages, display);
+  }
+  return <OrderStatusLamp status={String(cell.value)} />;
+}
+
+<RecordWorkbench
+  engine={engine}
+  definitionId="orders"
+  renderCell={cell => <OrderCell cell={cell} />}
+  renderValue={value => <PlainValue value={value} />}
+  selectable={false}
+  emptyTitle="没有待发货的订单"
+/>;
+```
+
+`cellText` 是同一套读法的单行文本版——写 CSV、复制选区、`title` 属性都用它；`displayValue` 只给字段种类自己的那一层，种类没话可说时返回 `undefined`，剩下的交给你自己的渲染。
 
 **面不嵌套。** 根套根不受支持：CSS 没有「最近祖先」选择器，内层面把 token 重新声明在自己身上，`dark:` 工具类认的却仍是外层那个根——钉成相反模式时就是浅色 token 配深色 utility，屏幕上画不出来。需要第二层的时候，戴 `fve-tokens`，不要再套一块面。
 

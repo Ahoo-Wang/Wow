@@ -288,6 +288,210 @@ describe('useWorkbench', () => {
 });
 
 /**
+ * Which view is open is the one piece of workbench state a host may also
+ * hold — a route, a link somebody shares — so `instanceId` is controlled and
+ * `onInstanceChange` reports. It converges rather than renders: a view holds
+ * an unsaved draft, so a pushed value goes through the same leave guard a
+ * click goes through, and whichever side moved last is the one that speaks.
+ */
+describe('a workbench a host routes', () => {
+  /** The controller with a host holding the value, and able to change it. */
+  function routed(
+    engine: ViewEngine,
+    instanceId: string | null,
+    onInstanceChange?: (id: string | null) => void,
+  ) {
+    return renderHook(
+      ({ id }: { id: string | null }) =>
+        useWorkbench(engine, 'orders', {
+          kind: 'record',
+          instanceId: id,
+          onInstanceChange,
+        }),
+      { initialProps: { id: instanceId } },
+    );
+  }
+
+  it('opens what the host names when the host names another', async () => {
+    const { result, rerender } = routed(engineWith([mine, second]), 'orders-1');
+    await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+
+    rerender({ id: 'orders-2' });
+
+    await waitFor(() => expect(result.current.state?.title).toBe('Theirs'));
+    expect(result.current.openId).toBe('orders-2');
+  });
+
+  /** `null` means the effective default in the prop as in the report. */
+  it('falls back to the effective default when the host names none', async () => {
+    const { result, rerender } = routed(engineWith([mine, second]), 'orders-2');
+    await waitFor(() => expect(result.current.state?.title).toBe('Theirs'));
+
+    rerender({ id: null });
+
+    await waitFor(() =>
+      expect(result.current.openId).toBe(systemInstanceId('orders', 'all')),
+    );
+  });
+
+  it('reports the view the user switched to', async () => {
+    const told = vi.fn();
+    const { result } = routed(engineWith([mine, second]), 'orders-1', told);
+    await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+
+    act(() => {
+      result.current.choose('orders-2');
+    });
+
+    await waitFor(() => expect(told).toHaveBeenCalledWith('orders-2'));
+    // Said once: a host that does not follow is not told again.
+    expect(told).toHaveBeenCalledTimes(1);
+  });
+
+  /** A push the host made is its own news; it does not come back to it. */
+  it('says nothing back about a move the host itself made', async () => {
+    const told = vi.fn();
+    const { result, rerender } = routed(
+      engineWith([mine, second]),
+      'orders-1',
+      told,
+    );
+    await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+
+    rerender({ id: 'orders-2' });
+    await waitFor(() => expect(result.current.state?.title).toBe('Theirs'));
+
+    expect(told).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The pin goes with the deleted view, and `null` is exactly what a host
+   * puts back into `instanceId` to mean "whatever my default is now".
+   */
+  it('reports null once the open view is deleted', async () => {
+    const told = vi.fn();
+    const { result } = routed(engineWith([mine, second]), 'orders-1', told);
+    await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+
+    await act(async () => {
+      await result.current.commands.delete();
+      result.current.onDeleted();
+    });
+
+    await waitFor(() => expect(told).toHaveBeenLastCalledWith(null));
+  });
+
+  /**
+   * A view that vanished from the store after having been open answers
+   * not_found for the rest of the session, so the pin is released — and the
+   * host hears it, rather than being left with a route to nothing.
+   */
+  it('reports null when the open view is gone from the store', async () => {
+    const store = new MemoryViewStore({ instances: [mine, second] });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    const told = vi.fn();
+    const { result } = routed(engine, 'orders-1', told);
+    await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+
+    // Deleted by somebody else: the engine lets the runtime go, and the next
+    // open of the same id is answered "no such view".
+    await act(async () => {
+      await engine.delete('orders-1');
+    });
+
+    await waitFor(() => expect(told).toHaveBeenLastCalledWith(null));
+    expect(result.current.unopenable).toBeNull();
+  });
+
+  /**
+   * A route change is a switch like any other, so it is asked about — and a
+   * "no" leaves the host's route naming a view that is not on screen. The
+   * workbench says what stayed, so the route can go back where it was.
+   */
+  it('asks before a pushed view takes a draft away, and reports the one that stayed', async () => {
+    const told = vi.fn();
+    const { result, rerender } = routed(
+      engineWith([mine, second]),
+      'orders-1',
+      told,
+    );
+    await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+    act(() => {
+      result.current.runtime?.edit({ pageSize: 50 });
+    });
+    await waitFor(() => expect(result.current.state?.dirty).toBe(true));
+
+    rerender({ id: 'orders-2' });
+    expect(result.current.leave.asking).toBe(true);
+    expect(result.current.state?.title).toBe('Mine');
+    // Nothing is reported while the question is still on screen: it has not
+    // been settled either way yet.
+    expect(told).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.leave.cancel();
+    });
+
+    await waitFor(() => expect(told).toHaveBeenCalledWith('orders-1'));
+    expect(result.current.openId).toBe('orders-1');
+  });
+
+  it('switches on a yes, and says nothing the host did not already know', async () => {
+    const told = vi.fn();
+    const { result, rerender } = routed(
+      engineWith([mine, second]),
+      'orders-1',
+      told,
+    );
+    await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+    act(() => {
+      result.current.runtime?.edit({ pageSize: 50 });
+    });
+    await waitFor(() => expect(result.current.state?.dirty).toBe(true));
+
+    rerender({ id: 'orders-2' });
+    act(() => {
+      result.current.leave.confirm();
+    });
+
+    await waitFor(() => expect(result.current.state?.title).toBe('Theirs'));
+    expect(told).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The uncontrolled form is `instanceId` left out entirely, and `null` is
+   * not it: a host that passes `null` is holding a value. Left out, the
+   * workbench owns the open view and still reports every move.
+   */
+  it('owns the open view when the host holds no value, and still reports', async () => {
+    const told = vi.fn();
+    const engine = engineWith([mine, second]);
+    const { result } = renderHook(() =>
+      useWorkbench(engine, 'orders', {
+        kind: 'record',
+        onInstanceChange: told,
+      }),
+    );
+    await waitFor(() =>
+      expect(result.current.openId).toBe(systemInstanceId('orders', 'all')),
+    );
+    expect(told).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.choose('orders-2');
+    });
+
+    await waitFor(() => expect(result.current.state?.title).toBe('Theirs'));
+    expect(told).toHaveBeenCalledTimes(1);
+    expect(told).toHaveBeenCalledWith('orders-2');
+  });
+});
+
+/**
  * The guard on its own, without a view behind it: the two facts it reads and
  * the three answers it gives. `LeaveDialog` is the only thing `/ui` still
  * has of it, and it decides nothing.

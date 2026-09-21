@@ -46,6 +46,12 @@ export interface RecordCardsProps {
   table: RecordTableController;
   renderValue?(value: unknown): React.ReactNode;
   /**
+   * Whether cards can be picked. Same contract as the table's, and the same
+   * default: a card is a row folded out, so a surface that offers nothing to
+   * do with a selection must not grow one back by switching layout.
+   */
+  selectable?: boolean;
+  /**
    * What a host offers on one card, in a footer under its body. Same
    * contract as the table's: the row alone, because the caller holding the
    * runtime is the one that binds the action context.
@@ -75,6 +81,7 @@ const GRID: Record<1 | 2 | 3 | 4, string> = {
 export function RecordCards({
   table,
   renderValue,
+  selectable = true,
   rowActions,
 }: RecordCardsProps) {
   const messages = useViewMessages();
@@ -97,13 +104,15 @@ export function RecordCards({
         <Card key={String(row.key)}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Checkbox
-                aria-label={messages.label('label.record.select', {
-                  key: String(row.key),
-                })}
-                checked={table.isSelected(row.key)}
-                onCheckedChange={() => table.toggle(row.key)}
-              />
+              {selectable && (
+                <Checkbox
+                  aria-label={messages.label('label.record.select', {
+                    key: String(row.key),
+                  })}
+                  checked={table.isSelected(row.key)}
+                  onCheckedChange={() => table.toggle(row.key)}
+                />
+              )}
               {cardTitle(row.data, row.key, card, messages, display)}
             </CardTitle>
           </CardHeader>

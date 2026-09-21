@@ -153,6 +153,33 @@ export function OrdersPage() {
 
 The theme follows the host through a `.dark` class on any ancestor; pass `theme="light"` or `theme="dark"` to `ViewSurface` to pin one view. Popups portalled to `<body>` carry the mode the surface resolved, so the class does not have to sit on `<html>`.
 
+#### Which view is open, and your route
+
+A view somebody opened is a link they can send, so the three workbenches take `instanceId` and `onInstanceChange` — the two directions in and out of your router. `RecordWorkbench`, `AnalysisWorkbench` and `DashboardWorkbench` share the contract exactly.
+
+```tsx
+export function OrdersPage() {
+  // Whatever your router gives you: a param, a search key, a hash.
+  const [view, setView] = useSearchParam('view');
+  return (
+    <RecordWorkbench
+      engine={engine}
+      definitionId="orders"
+      instanceId={view}
+      onInstanceChange={setView}
+    />
+  );
+}
+```
+
+`instanceId` is controlled in the sense `value` is on an input:
+
+- **left out** — the uncontrolled form: the workbench owns which view is open, starting from the user's effective default;
+- **passed** — a view id, or `null` for that effective default: you say which view is open, and every later change of it opens what it names. `null` is a value, not the absence of one;
+- `onInstanceChange(id)` reports what is open now, in the same vocabulary — `null` means the effective default there too — so what comes out goes straight back in.
+
+It converges rather than renders. A view holds an unsaved draft, so a pushed value goes through the same leave guard a click on the sidebar goes through: whichever side moved last is the one that speaks, and the other follows. If the guard asks and the user stays, the workbench reports the view that stayed, so your route is never left naming a view that is not on screen. `examples/PlainRecordWorkbench.tsx` has the whole of it against `window.location.hash`, back button included.
+
 #### Customising the theme
 
 Every token reads a host-level variable with the built-in value as its fallback: set `--fve-<token>` for light and `--fve-dark-<token>` for dark on your own `:root`, and the surface and the popups portalled to `<body>` both pick it up — no selector to scope, no load order to win.
@@ -219,7 +246,7 @@ Popups — menus, lists, popovers, tooltips and dialogs — are portalled to `<b
 
 #### The host's own chrome: `fve-tokens`
 
-Every rule of the stylesheet is scoped at build time, so `Card`, `Button`, `Separator` and even the layout utilities (`grid`, `gap-4`) paint inside a style boundary and nowhere else. There are two boundaries, and only one of them is a surface:
+Every rule of the stylesheet is scoped at build time, so the theme's tokens and even the layout utilities (`grid`, `gap-4`, `bg-background`) paint inside a style boundary and nowhere else. There are two boundaries, and only one of them is a surface:
 
 |                                       | `.fve-root`                                                  | `.fve-tokens`                                                            |
 | ------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
@@ -229,18 +256,56 @@ Every rule of the stylesheet is scoped at build time, so `Card`, `Button`, `Sepa
 | Light or dark                         | a `.dark` ancestor, or `theme` pinning one with `data-theme` | a `.dark` ancestor, and nothing else                                     |
 | Wording, locale, time zone, tooltips  | yes, through `ViewSurface`'s props                           | no                                                                       |
 
-Put `fve-tokens` on the element that wraps your own chrome, and keep the view inside it as its own surface:
+**What `fve-tokens` promises is the tokens and the utilities, not components.** The shadcn primitives this package renders with are vendored, updated with `shadcn add --diff`, and not part of its public surface — so build your chrome from your own components, or from your own copy of shadcn/ui, and let the boundary give them this theme's colours and spacing:
 
 ```tsx
 <div className="fve-tokens flex flex-col gap-4">
-  <Card>…your header, built from this package's primitives…</Card>
+  <header className="flex items-center gap-2 rounded-lg border bg-card p-4 text-card-foreground">
+    …your own header, wearing this theme's tokens…
+  </header>
   <EmbeddedView engine={engine} instanceId={id} theme="light" />
 </div>
 ```
 
 `fve-tokens` reads exactly one thing for the mode: a `.dark` class on an ancestor, the same one the surfaces follow — set it on `<html>`, on your app shell, wherever your application already keeps it. It reads no `data-theme` of its own: pinning a mode is what a surface is for. And it hands every element a surface answers for back to that surface, so the view above stays light inside a dark page, tokens and utilities together.
 
-Preflight applies inside the boundary too: your own headings, lists and buttons in that region are reset the same way they would be inside a view. That is the price of the primitives, and it is why the class goes on the chrome that uses them rather than on the whole page.
+Preflight applies inside the boundary too: your own headings, lists and buttons in that region are reset the same way they would be inside a view. That is the price of the utilities, and it is why the class goes on the chrome that uses them rather than on the whole page.
+
+#### What a workbench does hand over: the reading of a value
+
+`/ui` exports no components of its own to build chrome from, but it does export what it reads a value _with_, so customising one cell never costs the whole workbench. `renderCell` overrides the column you care about and `cellValue` draws the rest exactly as the default does — enum labels from the definition's options, times on the surface's clock, numbers in the field's `numberFormat`:
+
+```tsx
+import {
+  RecordWorkbench,
+  cellValue,
+  useSurfaceDisplay,
+  useViewMessages,
+} from '@ahoo-wang/fetcher-view-engine/ui';
+import type { RecordCell } from '@ahoo-wang/fetcher-view-engine/ui';
+
+function OrderCell({ cell }: { cell: RecordCell }) {
+  // Read off the surface the cell is inside: the wording in force, and the
+  // language and time zone its values show in.
+  const messages = useViewMessages();
+  const display = useSurfaceDisplay();
+  if (cell.column.field !== 'status') {
+    return cellValue(cell.value, cell.column, messages, display);
+  }
+  return <OrderStatusLamp status={String(cell.value)} />;
+}
+
+<RecordWorkbench
+  engine={engine}
+  definitionId="orders"
+  renderCell={cell => <OrderCell cell={cell} />}
+  renderValue={value => <PlainValue value={value} />}
+  selectable={false}
+  emptyTitle="Nothing is waiting to ship"
+/>;
+```
+
+`cellText` is the same reading as one line of text — for a CSV, a copied selection, a `title` — and `displayValue` is the field kind's reading alone, `undefined` where the kind has nothing to add and your own rendering stands.
 
 **Surfaces do not nest.** A root inside a root is unsupported: CSS has no nearest-ancestor selector, so an inner surface pinned to the opposite mode redeclares its own tokens but still takes the outer root's `dark:` utilities — light tokens under dark utilities, which nothing can render. Reach for `fve-tokens` instead of a second surface.
 

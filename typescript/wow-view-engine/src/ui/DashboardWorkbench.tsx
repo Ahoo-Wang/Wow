@@ -26,8 +26,22 @@ import type { RenderFailureHandler } from './RenderBoundary.js';
 export interface DashboardWorkbenchProps {
   engine: ViewEngine;
   definitionId: string;
-  /** Opens this view first; the user's effective default when left out. */
+  /**
+   * Which view is open, as `value` is on an input: leaving it out lets the
+   * workbench own it from the effective default on, and passing it — a
+   * string, or `null` for that default — puts a host's route in charge, every
+   * later change opening what it names. It goes through the leave guard, so a
+   * pushed view never takes an unsaved draft away without asking
+   * (`WorkbenchOptions.instanceId`).
+   */
   instanceId?: string | null;
+  /**
+   * Told which view is open whenever that changes, in the same vocabulary
+   * `instanceId` is written in — `null` is the effective default — so a host
+   * can put it straight into a route and get the same view back from the
+   * link.
+   */
+  onInstanceChange?(id: string | null): void;
   /** Whether panels may be dragged and resized. */
   editable?: boolean;
   theme?: 'light' | 'dark';
@@ -76,7 +90,8 @@ export interface DashboardWorkbenchProps {
 export function DashboardWorkbench({
   engine,
   definitionId,
-  instanceId = null,
+  instanceId,
+  onInstanceChange,
   editable = false,
   theme,
   messages: wording,
@@ -90,6 +105,7 @@ export function DashboardWorkbench({
   const workbench = useWorkbench(engine, definitionId, {
     kind: 'dashboard',
     instanceId,
+    onInstanceChange,
   });
   const { filter, runtime, state } = workbench;
   const board = runtime?.kind === 'dashboard' ? runtime : null;
