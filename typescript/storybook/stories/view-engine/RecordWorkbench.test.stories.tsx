@@ -2664,6 +2664,29 @@ export const PinnedEdges: Story = {
     // before anything moves, which is the whole of D13.
     await waitFor(() => expect(edges()).toEqual(FRAMED));
 
+    // Computed is not painted: in collapsed-border mode Chromium draws no
+    // outer box-shadow on a cell, and the edges above were on the page for
+    // a week without a pixel of shadow. Separate borders is what paints it,
+    // and the hairline between rows then has to be the cells' own.
+    await expect(getComputedStyle(table).borderCollapse).toBe('separate');
+    const firstRow = table.querySelector<HTMLTableRowElement>('tbody tr')!;
+    await expect(getComputedStyle(firstRow.cells[1]).borderBottomWidth).toBe(
+      '1px',
+    );
+
+    // A pinned cell inherits its row's colour, so the hover has to be
+    // opaque: a wash over the column it holds the place of would show that
+    // column's text through it — which is what the user saw.
+    await userEvent.hover(firstRow.cells[1]);
+    const opaque = (colour: string) =>
+      !colour.startsWith('rgba(') && !/\/\s*0?\.\d+\)/.test(colour);
+    await waitFor(() => {
+      const hovered = getComputedStyle(firstRow.cells[1]).backgroundColor;
+      expect(opaque(hovered)).toBe(true);
+      expect(hovered).toBe(getComputedStyle(firstRow).backgroundColor);
+    });
+    await userEvent.unhover(firstRow.cells[1]);
+
     // Narrowed until the middle really does scroll, and then scrolled from
     // one end to the other: the same two edges, unchanged throughout.
     area.style.maxWidth = '420px';

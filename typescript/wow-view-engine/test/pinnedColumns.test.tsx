@@ -101,6 +101,44 @@ describe('the pinned edges', () => {
    * Header, rows and summaries read the same class, so a held column is
    * framed from top to bottom rather than in the rows alone.
    */
+  /**
+   * Preflight collapses table borders, and in collapsed mode Chromium paints
+   * no outer box-shadow on a cell: the edge classes above were computed and
+   * drew nothing. The table therefore separates its borders and puts the
+   * hairline on the cells, where the row's own border no longer renders.
+   */
+  it('separates its borders so the edge can be painted, hairlines on the cells', () => {
+    const { container } = render(
+      <RecordTable table={controller([column('id', 'left')])} />,
+    );
+    const table = container.querySelector('table')!;
+    expect(table.className).toContain('border-separate');
+    expect(table.className).toContain('border-spacing-0');
+    expect(table.className).toContain('[&_td]:border-b');
+    expect(table.className).toContain('[&_th]:border-b');
+    // The frame's pagination draws the line under the last summary row.
+    expect(table.className).toContain('[&_tfoot_tr:last-child_td]:border-b-0');
+  });
+
+  /**
+   * A pinned cell inherits its row's colour, so the row's hover has to be
+   * opaque: the registry's `bg-muted/50` is a wash, and a wash over the
+   * column a pinned cell is holding the place of shows that column's text
+   * through it the moment the pointer arrives.
+   */
+  it('hovers its rows with an opaque shade, not a wash', () => {
+    const { container } = render(
+      <RecordTable table={controller([column('id', 'left')])} />,
+    );
+    const row = container.querySelector('tbody tr')!;
+    expect(row.className).not.toContain('hover:bg-muted/50');
+    expect(row.className).toContain('hover:bg-[color-mix(');
+    expect(row.className).toContain('has-aria-expanded:bg-[color-mix(');
+    // And the pinned cell still follows the row.
+    for (const cell of cellsOf(container, 'id'))
+      expect(cell.className).toContain('bg-inherit');
+  });
+
   it('puts the same edge on the header, the rows and the summaries', () => {
     const { container } = render(
       <RecordTable

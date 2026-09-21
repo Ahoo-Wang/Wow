@@ -32,8 +32,10 @@ import {
   CLIPPED_CELL,
   HEAD_CELL,
   NUMERIC_CELL,
+  ROW_HOVER,
   SELECT_CELL,
   SELECT_COLUMN,
+  TABLE_CELLS,
   columnPins,
   columnWidth,
   isNumeric,
@@ -220,7 +222,7 @@ export function RecordTable({
       data-scrolls={scrolls ? '' : undefined}
       className={scrolls ? SCROLL_AREA : STATIC_AREA}
     >
-      <Table ref={element}>
+      <Table ref={element} className={TABLE_CELLS}>
         {/* A layer rather than a row: it stays while the rows move under it,
             and its edge is heavier than the hairlines between them. */}
         {!firstLoad && (
@@ -278,10 +280,16 @@ export function RecordTable({
               <TableRow
                 key={String(row.key)}
                 // Three states that have to read apart: at rest the surface
-                // itself, hovered a wash of it, picked a tint that the
+                // itself, hovered a shade of it, picked a tint that the
                 // hover does not wash out — a row loses its selection to
-                // the pointer passing over it otherwise.
-                className="bg-background data-[state=selected]:bg-muted data-[state=selected]:hover:bg-muted"
+                // the pointer passing over it otherwise. The hover is the
+                // opaque shade rather than the registry's wash: the pinned
+                // cells inherit it, and a wash over a scrolling column is
+                // a window onto it.
+                className={cn(
+                  'bg-background data-[state=selected]:bg-muted data-[state=selected]:hover:bg-muted',
+                  ROW_HOVER,
+                )}
                 data-state={table.isSelected(row.key) ? 'selected' : undefined}
               >
                 {selectable && (

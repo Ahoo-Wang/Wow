@@ -178,6 +178,35 @@ export function actionCell(columns: readonly RecordColumnView[]): string {
 export const SELECT_CELL = 'sticky left-0 z-10 bg-inherit';
 
 /**
+ * The table's border model, and the hairlines drawn under it.
+ *
+ * Preflight collapses table borders, and in collapsed mode Chromium paints
+ * no outer `box-shadow` on a cell at all: the edges above computed fine and
+ * drew nothing, so a held column sat on the page with the shadow D13 asked
+ * for existing only in `getComputedStyle`. Separate borders paint it. But a
+ * `<tr>` — and a `<thead>`/`<tfoot>` — has no border of its own in that
+ * model, so the hairline between rows moves from the row onto its cells;
+ * the last summary row leaves it off, since the frame's pagination draws
+ * that line as its own top.
+ */
+export const TABLE_CELLS =
+  'border-separate border-spacing-0 [&_th]:border-b [&_td]:border-b [&_tfoot_tr:last-child_td]:border-b-0';
+
+/**
+ * The hovered row's colour, opaque.
+ *
+ * The registry's row hovers with `bg-muted/50` — a wash of the muted layer
+ * over whatever is under it — and a pinned cell takes its colour from the
+ * row (`bg-inherit`). Over a scrolling table what is under a pinned cell is
+ * the column it is holding the place of, so the wash let that column's text
+ * show through the moment the pointer arrived. The same shade, mixed in
+ * rather than laid over, is opaque; `has-aria-expanded` is the row with a
+ * menu open, which the registry washes the same way.
+ */
+const HOVER = 'bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))]';
+export const ROW_HOVER = `hover:${HOVER} has-aria-expanded:${HOVER}`;
+
+/**
  * A column header is metadata about the column rather than content in it, so
  * it is quieter than the values under it; the header row carries the
  * emphasis instead, as a layer with its own edge.
