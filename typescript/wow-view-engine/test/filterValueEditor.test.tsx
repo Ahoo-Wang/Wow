@@ -97,41 +97,61 @@ describe('FilterValueEditor', () => {
     expect(container.textContent).toBe('');
   });
 
-  it('collects a list from comma separated text', () => {
+  /**
+   * A text list used to be one box of comma-separated values, parsed on the
+   * way out. It is chips now, like the number list: one value at a time,
+   * each with a remove button of its own, so a value with a comma in it is
+   * possible and a value already in the list is refused rather than
+   * silently doubled.
+   */
+  it('collects a list of typed text values, one chip at a time', async () => {
+    const user = userEvent.setup();
     const { changes } = editor({ input: 'text', multiple: true }, ['a']);
 
-    fireEvent.change(screen.getByLabelText('amount'), {
-      target: { value: 'a, b' },
-    });
+    await user.type(screen.getByLabelText('New amount'), 'b{Enter}');
+
+    expect(changes).toEqual([['a', 'b']]);
+    expect(screen.getByRole('button', { name: 'Remove b' })).toBeTruthy();
+    // What was committed left the entry field, so the next value starts blank.
+    expect(
+      (screen.getByLabelText('New amount') as HTMLInputElement).value,
+    ).toBe('');
+  });
+
+  it('trims a text value, and refuses a blank or a repeated one', async () => {
+    const user = userEvent.setup();
+    const { changes } = editor({ input: 'text', multiple: true }, ['a']);
+    const entry = screen.getByLabelText('New amount');
+
+    await user.type(entry, '  b  {Enter}');
+    expect(last(changes)).toEqual(['a', 'b']);
+
+    // Blank is not a value: Enter and leaving the field both commit nothing.
+    await user.type(entry, '   ');
+    await user.keyboard('{Enter}');
+    await user.tab();
+    // A value already in the list is refused, and the popup says so instead
+    // of standing empty.
+    await user.clear(entry);
+    await user.type(entry, 'a');
+    expect(await screen.findByText('Already in the list')).toBeTruthy();
+    await user.keyboard('{Enter}');
 
     expect(changes).toEqual([['a', 'b']]);
   });
 
-  it('keeps the trailing comma while a second list value is typed', () => {
-    const { changes } = editor({ input: 'text', multiple: true }, ['a']);
-    const input = screen.getByLabelText('amount') as HTMLInputElement;
-
-    fireEvent.change(input, { target: { value: 'a,' } });
-    // The comma is the separator being typed; eating it re-derives the text
-    // from the parsed list and makes a second value impossible to enter.
-    expect(input.value).toBe('a,');
-    expect(changes).toEqual([['a']]);
-
-    fireEvent.change(input, { target: { value: 'a, b' } });
-    expect(changes).toEqual([['a'], ['a', 'b']]);
-  });
-
-  it('adopts a value the host replaced with an equal list', () => {
+  it('adopts a value the host replaced with an equal list', async () => {
+    const user = userEvent.setup();
     const { replace } = editor({ input: 'text', multiple: true }, ['a']);
-    const input = screen.getByLabelText('amount') as HTMLInputElement;
+    const entry = () => screen.getByLabelText('New amount') as HTMLInputElement;
 
-    fireEvent.change(input, { target: { value: 'a,' } });
-    expect(input.value).toBe('a,');
+    await user.type(entry(), 'b');
+    expect(entry().value).toBe('b');
 
     // A host that rebuilds its config — a conflict reload, a reset — supplies
     // a fresh list with the same items; the half-typed draft must not survive.
     replace(['a']);
-    expect(input.value).toBe('a');
+    expect(entry().value).toBe('');
   });
 
   it('collects one number and a range of two', () => {
@@ -210,27 +230,35 @@ describe('FilterValueEditor', () => {
   });
 
   /** Type a number into the entry field and hand it to the list. */
-  function addValue(
+  async function addValue(
+    user: ReturnType<typeof userEvent.setup>,
     typed: string,
-    by: 'enter' | 'button' | 'blur' = 'enter',
-  ): void {
+    by: 'enter' | 'option' | 'blur' = 'enter',
+  ): Promise<void> {
     const entry = screen.getByLabelText('New amount');
-    fireEvent.change(entry, { target: { value: typed } });
-    if (by === 'enter') fireEvent.keyDown(entry, { key: 'Enter' });
-    else if (by === 'blur') fireEvent.blur(entry);
-    else fireEvent.click(screen.getByLabelText('Add amount'));
+    await user.click(entry);
+    if (typed.length > 0) await user.type(entry, typed);
+    if (by === 'enter') await user.keyboard('{Enter}');
+    else if (by === 'blur') await user.tab();
+    else
+      await user.click(
+        await screen.findByRole('option', { name: `Add ${typed}` }),
+      );
   }
 
   /**
    * `IN` and `NOT_IN` compile an array of any length, and this editor used to
    * borrow the range's pair of boxes — so a third value had nowhere to go.
+   * What is typed is offered back as the one item of a popup, so Enter and a
+   * click on it are the same commit.
    */
-  it('takes as many values into a number list as are entered', () => {
+  it('takes as many values into a number list as are entered', async () => {
+    const user = userEvent.setup();
     const { changes } = editor({ input: 'number', multiple: true }, []);
 
-    addValue('1');
-    addValue('2');
-    addValue('3', 'button');
+    await addValue(user, '1');
+    await addValue(user, '2');
+    await addValue(user, '3', 'option');
 
     expect(last(changes)).toEqual([1, 2, 3]);
     // What was committed left the entry field, so the next value starts blank.
@@ -256,10 +284,11 @@ describe('FilterValueEditor', () => {
    * field first — so a number typed and not yet added was dropped by the very
    * click meant to run the query with it.
    */
-  it('takes a number left in the entry field when it is left', () => {
+  it('takes a number left in the entry field when it is left', async () => {
+    const user = userEvent.setup();
     const { changes } = editor({ input: 'number', multiple: true }, [1]);
 
-    addValue('7', 'blur');
+    await addValue(user, '7', 'blur');
 
     expect(last(changes)).toEqual([1, 7]);
     expect(
@@ -270,19 +299,27 @@ describe('FilterValueEditor', () => {
   /**
    * An empty entry is a normal editing state, not a value: committing it
    * would ask for `Number('')`, which is zero, and half a number is `NaN`.
+   * Neither is offered; the popup says why instead of standing empty.
    */
-  it('commits nothing from an empty or half-typed number entry', () => {
+  it('commits nothing from an empty or half-typed number entry', async () => {
+    const user = userEvent.setup();
     const { changes } = editor({ input: 'number', multiple: true }, [1]);
+    const entry = screen.getByLabelText('New amount');
 
-    addValue('');
-    addValue('', 'button');
-    addValue('', 'blur');
-    addValue('1e');
+    await addValue(user, '');
+    await addValue(user, '', 'blur');
+    await user.type(entry, '1e');
+    expect(await screen.findByText('Not a number')).toBeTruthy();
+    await user.keyboard('{Enter}');
     // Leaving the field is the same rule as Enter, not a laxer one.
-    addValue('1e', 'blur');
+    await user.tab();
     // The same number twice asks nothing more, and would name two remove
     // buttons alike.
-    addValue('1');
+    await user.clear(entry);
+    await user.type(entry, '1');
+    expect(await screen.findByText('Already in the list')).toBeTruthy();
+    await user.keyboard('{Enter}');
+    await user.tab();
 
     expect(changes).toEqual([]);
   });
@@ -293,14 +330,15 @@ describe('FilterValueEditor', () => {
    * used to survive it — the next Add or blur wrote it into the very list the
    * user had just restored, so the discard had not discarded.
    */
-  it('forgets what was being typed once the list is replaced from outside', () => {
+  it('forgets what was being typed once the list is replaced from outside', async () => {
+    const user = userEvent.setup();
     const { changes, replace } = editor(
       { input: 'number', multiple: true },
       [1],
     );
     const entry = () => screen.getByLabelText('New amount') as HTMLInputElement;
 
-    fireEvent.change(entry(), { target: { value: '3' } });
+    await user.type(entry(), '3');
     expect(entry().value).toBe('3');
 
     // A discard, a config reload, another view opened: a fresh list arrives,
@@ -310,7 +348,7 @@ describe('FilterValueEditor', () => {
     expect(entry().value).toBe('');
     // Reaching for Apply blurs the field, and that blur commits what is in
     // it. There is nothing in it.
-    fireEvent.blur(entry());
+    await user.tab();
     expect(changes).toEqual([]);
   });
 
@@ -321,7 +359,8 @@ describe('FilterValueEditor', () => {
    * by for that reason — a field that swallowed it would be the one place in
    * the panel where the host's shortcut stops working.
    */
-  it('leaves a modified Enter to whatever else wants it', () => {
+  it('leaves a modified Enter to whatever else wants it', async () => {
+    const user = userEvent.setup();
     const { changes } = editor({ input: 'number', multiple: true }, [1]);
     const entry = screen.getByLabelText('New amount');
     let reached = 0;
@@ -331,7 +370,8 @@ describe('FilterValueEditor', () => {
     document.addEventListener('keydown', listen);
 
     try {
-      fireEvent.change(entry, { target: { value: '3' } });
+      await user.type(entry, '3');
+      reached = 0;
       fireEvent.keyDown(entry, { key: 'Enter', shiftKey: true });
 
       // Neither added, nor stopped on its way up.

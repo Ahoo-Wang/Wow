@@ -11,13 +11,12 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
-import type { FilterValue } from '../../../model/index.js';
 import { Input } from '../../components/input.js';
 import { useViewMessages } from '../../MessagesProvider.js';
+import { ValueChips } from './chips.js';
 import { scalarText, type ValueProps } from './shared.js';
 
-/** Typed text, as one value or as a comma-separated list of them. */
+/** Typed text, as one value or as a list of them. */
 export function TextValue({
   value,
   onChange,
@@ -27,47 +26,35 @@ export function TextValue({
   multiple,
 }: ValueProps & { multiple: boolean }) {
   const messages = useViewMessages();
-  // A list is parsed on the way out, but the raw text stays on screen while
-  // it is typed: re-deriving it from the parsed list would eat the comma
-  // separating the values, and a second value could never be entered. The
-  // draft lives only while the value in force is the very list it produced —
-  // the reference a host feeds back. A replacement, equal or not, wins.
-  const [draft, setDraft] = useState<{
-    text: string;
-    parsed: FilterValue;
-  } | null>(null);
-  const text =
-    draft !== null && draft.parsed === value
-      ? draft.text
-      : Array.isArray(value)
-        ? value.map(scalarText).join(', ')
-        : scalarText(value);
+  if (multiple)
+    return (
+      <ValueChips
+        value={value}
+        values={Array.isArray(value) ? value.map(scalarText) : []}
+        onChange={onChange}
+        label={label}
+        disabled={disabled}
+        invalid={invalid}
+        // Text is a value as soon as it is not blank; the surrounding
+        // whitespace is what a chip could never show and a query would ask
+        // for literally.
+        parse={text => (text.trim().length === 0 ? null : text.trim())}
+        // Never said: every non-blank entry is a value.
+        unparsable={messages.label('label.filter.not-set')}
+      />
+    );
 
   return (
     <Input
       aria-label={label}
       aria-invalid={invalid}
       disabled={disabled}
-      value={text}
+      value={scalarText(value)}
       // A condition with no value yet is a normal editing state rather than a
       // mistake, so the box says what is missing instead of standing empty
       // and looking finished.
-      placeholder={messages.label(
-        multiple ? 'label.filter.comma-separated' : 'label.filter.not-set',
-      )}
-      onChange={event => {
-        const raw = event.target.value;
-        if (!multiple) {
-          onChange(raw);
-          return;
-        }
-        const parsed = raw
-          .split(',')
-          .map(part => part.trim())
-          .filter(part => part.length > 0);
-        setDraft({ text: raw, parsed });
-        onChange(parsed);
-      }}
+      placeholder={messages.label('label.filter.not-set')}
+      onChange={event => onChange(event.target.value)}
     />
   );
 }

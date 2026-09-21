@@ -401,6 +401,7 @@ describe('FilterPanel tree editing', () => {
    * nowhere on screen to go.
    */
   it('builds a numeric IN of as many values as are entered', async () => {
+    const user = userEvent.setup();
     const { filter } = panel();
     act(() => {
       filter().addLeaf('amount');
@@ -408,19 +409,15 @@ describe('FilterPanel tree editing', () => {
     });
     const leaf = () => filter().tree.children[0] as { value: unknown };
     const entry = () => screen.getByLabelText('New Amount value');
-    const enter = (typed: string) => {
-      fireEvent.change(entry(), { target: { value: typed } });
-      fireEvent.keyDown(entry(), { key: 'Enter' });
-    };
 
-    enter('1');
-    enter('2');
+    await user.type(entry(), '1{Enter}');
+    await user.type(entry(), '2{Enter}');
     // Enter in here adds a value; it is not also the panel's apply, which
     // would run the query on a list still being written.
     const submit = vi.fn();
-    fireEvent.change(entry(), { target: { value: '3' } });
+    await user.type(entry(), '3');
     vi.spyOn(filter(), 'submit').mockImplementation(submit);
-    fireEvent.keyDown(entry(), { key: 'Enter' });
+    await user.keyboard('{Enter}');
 
     await waitFor(() => expect(leaf().value).toEqual([1, 2, 3]));
     expect(submit).not.toHaveBeenCalled();
@@ -428,10 +425,11 @@ describe('FilterPanel tree editing', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove 2' }));
     await waitFor(() => expect(leaf().value).toEqual([1, 3]));
 
-    // An empty entry is not a value, so the button that would take it does
-    // nothing at all.
-    fireEvent.click(screen.getByRole('button', { name: 'Add Amount value' }));
+    // An empty entry is not a value: Enter on it adds nothing, and is still
+    // this field's own keystroke rather than the panel's.
+    await user.keyboard('{Enter}');
     expect(leaf().value).toEqual([1, 3]);
+    expect(submit).not.toHaveBeenCalled();
   });
 
   /**
@@ -448,7 +446,12 @@ describe('FilterPanel tree editing', () => {
     });
 
     await user.type(screen.getByLabelText('New Amount value'), '7');
-    await user.click(screen.getByRole('button', { name: /Apply/ }));
+    // While the entry's popup offers «Add 7», Base UI hides the rest of the
+    // page from readers, as every typeable combobox does; the button is
+    // still there for a pointer.
+    await user.click(
+      screen.getByRole('button', { name: /Apply/, hidden: true }),
+    );
 
     await waitFor(() =>
       expect(filter().applied.map(item => item.text)).toEqual([
@@ -484,7 +487,9 @@ describe('FilterPanel tree editing', () => {
     // Typed and not added, and the discard is pressed without leaving the
     // field — otherwise the blur would commit it before the undo ran.
     await user.type(entry(), '3');
-    fireEvent.click(screen.getByRole('button', { name: 'Discard edits' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Discard edits', hidden: true }),
+    );
 
     await waitFor(() =>
       expect((filter().tree.children[0] as { value: unknown }).value).toEqual([

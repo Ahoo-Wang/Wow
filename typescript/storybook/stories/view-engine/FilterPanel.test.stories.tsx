@@ -241,7 +241,7 @@ export const NumberList: Story = {
     );
     await userEvent.type(entry, '8888{Enter}');
     await waitFor(() => expect(removes()).toContain(removeLabel(8888)));
-    await expect(entry).toHaveValue(null);
+    await expect(entry).toHaveValue('');
 
     // And one taken back out, by the button that names it.
     await userEvent.click(remove(1200));

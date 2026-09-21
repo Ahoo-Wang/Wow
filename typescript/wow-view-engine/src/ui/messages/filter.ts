@@ -63,7 +63,6 @@ export const filterMessages = {
   'label.filter.value-of': '{field} value',
   'label.filter.remove-of': 'Remove {field}',
   'label.filter.unset-of': 'Unset {condition}',
-  'label.filter.comma-separated': 'Comma separated',
   // What separates the values of one condition, and the conditions of one
   // group, in an applied badge. Punctuation is wording too: a Chinese list
   // is not separated by a comma and a space.
@@ -78,15 +77,20 @@ export const filterMessages = {
   'label.filter.any-entry': 'has any entry',
   'label.filter.range-from': '{field} from',
   'label.filter.range-to': '{field} to',
-  // A list of values that grows: what is being typed, the button that moves
-  // it into the list, and one remove button per value. Every pill on the
-  // panel has all three, so the first two are named after their field the way
-  // the range's two ends are. The remove buttons stand side by side and are
-  // told apart by nothing but the value they carry, so the value is in the
-  // name and not only on the chip around it.
+  // A list of values that grows: what is being typed, the popup that offers
+  // it back as the one thing to add, and one remove button per value. Every
+  // pill on the panel has all three, so the first two are named after their
+  // field the way the range's two ends are. The remove buttons stand side by
+  // side and are told apart by nothing but the value they carry, so the value
+  // is in the name and not only on the chip around it.
   'label.filter.new-value-of': 'New {field}',
   'label.filter.add-value-of': 'Add {field}',
+  'label.filter.add-value': 'Add {value}',
   'label.filter.remove-value': 'Remove {value}',
+  // Why what is typed is not offered: the popup says so rather than staying
+  // silently empty.
+  'label.filter.already-listed': 'Already in the list',
+  'label.filter.not-a-number': 'Not a number',
   'label.boolean.true': 'True',
   'label.boolean.false': 'False',
   'label.filter.too-large': 'This filter is too large to edit here.',
